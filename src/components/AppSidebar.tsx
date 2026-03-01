@@ -21,7 +21,7 @@ const menuItems = [
   { title: "Ordem de Corte", url: "/ordens-corte", icon: Scissors },
   { title: "Oficinas", url: "/oficinas", icon: Building2 },
   { title: "Ordem Produção", url: "/ordens-producao", icon: Factory },
-  { title: "Produção", url: "/producao", icon: Kanban },
+  
   { title: "Expedição", url: "/expedicao", icon: Truck },
   { title: "Financeiro", url: "/financeiro", icon: DollarSign },
   { title: "Meta Mensal", url: "/metas", icon: Target },
