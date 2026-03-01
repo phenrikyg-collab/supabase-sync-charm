@@ -1,8 +1,9 @@
 import { useState, useMemo } from "react";
 import { useOrdensProducao, useOficinas, useCores, useUpdateOrdemProducao } from "@/hooks/useSupabase";
 import { supabase } from "@/integrations/supabase/client";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { StatusBadge } from "@/components/StatusBadge";
@@ -20,16 +21,20 @@ export default function PagamentoOficinas() {
 
   const [filtroOficina, setFiltroOficina] = useState("todas");
   const [filtroStatus, setFiltroStatus] = useState("todos");
+  const [valoresEditados, setValoresEditados] = useState<Record<string, number>>({});
 
   const oficinaMap = Object.fromEntries((oficinas ?? []).map((o) => [o.id, o]));
-  const corMap = Object.fromEntries((cores ?? []).map((c) => [c.id, c]));
 
-  // Filter: only external workshops (not "Interna")
+  // Filter: only external workshops (not "Interna" by tipo or nome)
   const oficinasExternas = useMemo(
-    () => (oficinas ?? []).filter((o) => o.tipo_oficina?.toLowerCase() !== "interna"),
+    () => (oficinas ?? []).filter((o) => {
+      const nome = o.nome_oficina?.toLowerCase() ?? "";
+      const tipo = o.tipo_oficina?.toLowerCase() ?? "";
+      return tipo !== "interna" && nome !== "interna";
+    }),
     [oficinas]
   );
-  const oficinasExternasIds = new Set(oficinasExternas.map((o) => o.id));
+  const oficinasExternasIds = useMemo(() => new Set(oficinasExternas.map((o) => o.id)), [oficinasExternas]);
 
   const ordensExternas = useMemo(() => {
     if (!ordens) return [];
@@ -50,14 +55,18 @@ export default function PagamentoOficinas() {
     return differenceInDays(fim, parseISO(dataInicio));
   };
 
-  const calcTotal = (ordem: any) => {
+  const calcTotalBase = (ordem: any) => {
     const oficina = ordem.oficina_id ? oficinaMap[ordem.oficina_id] : null;
     const custoPorPeca = oficina?.custo_por_peca ?? 0;
     const qty = ordem.quantidade ?? ordem.quantidade_pecas_ordem ?? 0;
     return custoPorPeca * qty;
   };
 
-  // Summary stats
+  const getValorFinal = (ordem: any) => {
+    if (valoresEditados[ordem.id] !== undefined) return valoresEditados[ordem.id];
+    return calcTotalBase(ordem);
+  };
+
   const totalPendente = ordensExternas
     .filter((o) => o.pagamento_oficina_status !== "Pago")
     .reduce((sum, o) => sum + getValorFinal(o), 0);
@@ -71,13 +80,11 @@ export default function PagamentoOficinas() {
 
   const handleMarcarPago = async (ordem: any) => {
     try {
-      // Update status
       await updateOP.mutateAsync({ id: ordem.id, pagamento_oficina_status: "Pago" } as any);
 
-      // Generate financial entry
       const total = getValorFinal(ordem);
-
       const oficina = ordem.oficina_id ? oficinaMap[ordem.oficina_id] : null;
+
       await supabase.from("movimentacoes_financeiras").insert({
         tipo: "Saída",
         descricao: `Pagamento oficina ${oficina?.nome_oficina ?? "—"} - ${ordem.nome_produto ?? "OP"}`,
@@ -223,7 +230,7 @@ export default function PagamentoOficinas() {
                   <TableHead>Oficina</TableHead>
                   <TableHead className="text-right">Qtd Peças</TableHead>
                   <TableHead className="text-right">Custo/Peça</TableHead>
-                  <TableHead className="text-right">Total</TableHead>
+                  <TableHead className="text-right">Total (R$)</TableHead>
                   <TableHead>Envio</TableHead>
                   <TableHead>Devolução</TableHead>
                   <TableHead className="text-right">Dias</TableHead>
@@ -238,7 +245,6 @@ export default function PagamentoOficinas() {
                   const custoPorPeca = oficina?.custo_por_peca ?? 0;
                   const qty = o.quantidade ?? o.quantidade_pecas_ordem ?? 0;
                   const totalBase = custoPorPeca * qty;
-                  const totalFinal = getValorFinal(o);
                   const dias = calcDias(o.data_inicio, o.data_fim);
                   const isPago = o.pagamento_oficina_status === "Pago";
 
@@ -254,12 +260,12 @@ export default function PagamentoOficinas() {
                       </TableCell>
                       <TableCell className="text-right">
                         {isPago ? (
-                          <span className="font-semibold">R$ {totalFinal.toFixed(2)}</span>
+                          <span className="font-semibold">R$ {getValorFinal(o).toFixed(2)}</span>
                         ) : (
                           <Input
                             type="number"
                             step="0.01"
-                            className="w-28 h-8 text-right text-sm font-semibold"
+                            className="w-28 h-8 text-right text-sm font-semibold ml-auto"
                             value={valoresEditados[o.id] !== undefined ? valoresEditados[o.id] : totalBase}
                             onChange={(e) =>
                               setValoresEditados((prev) => ({ ...prev, [o.id]: Number(e.target.value) }))
