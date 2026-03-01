@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Plus, FileText, Package } from "lucide-react";
+import { Plus, FileText, Package, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 interface RoloForm {
@@ -18,6 +18,8 @@ interface RoloForm {
   custo_por_metro: number;
 }
 
+const emptyRolo: RoloForm = { codigo_rolo: "", lote: "", tecido_id: "", cor_id: "", metragem_inicial: 0, custo_por_metro: 0 };
+
 export default function EntradaNF() {
   const { data: tecidos } = useTecidos();
   const { data: cores } = useCores();
@@ -26,39 +28,16 @@ export default function EntradaNF() {
 
   const [numeroNf, setNumeroNf] = useState("");
   const [fornecedor, setFornecedor] = useState("");
-  const [tecidoId, setTecidoId] = useState("");
-  const [corId, setCorId] = useState("");
   const [valorTotal, setValorTotal] = useState(0);
   const [dataEntrada, setDataEntrada] = useState(new Date().toISOString().split("T")[0]);
-  const [entradaId, setEntradaId] = useState<string | null>(null);
 
   const [rolos, setRolos] = useState<RoloForm[]>([]);
-  const [rolosSalvos, setRolosSalvos] = useState<any[]>([]);
+  const [novoRolo, setNovoRolo] = useState<RoloForm>({ ...emptyRolo });
+  const [salvando, setSalvando] = useState(false);
+  const [salvo, setSalvo] = useState(false);
 
-  const [novoRolo, setNovoRolo] = useState<RoloForm>({
-    codigo_rolo: "", lote: "", tecido_id: "", cor_id: "", metragem_inicial: 0, custo_por_metro: 0,
-  });
-
-  const handleSalvarEntrada = async () => {
-    if (!numeroNf || !fornecedor) {
-      toast.error("Preencha Nº NF e Fornecedor");
-      return;
-    }
-    try {
-      const result = await createEntrada.mutateAsync({
-        numero_nf: Number(numeroNf),
-        fornecedor,
-        tecido_id: tecidoId || null,
-        cor_id: corId || null,
-        valor_total: valorTotal,
-        data_entrada: dataEntrada,
-      });
-      setEntradaId(result.id);
-      toast.success("Entrada registrada! Agora cadastre os rolos.");
-    } catch (e: any) {
-      toast.error(e.message);
-    }
-  };
+  const tecidoMap = Object.fromEntries((tecidos ?? []).map((t) => [t.id, t]));
+  const corMap = Object.fromEntries((cores ?? []).map((c) => [c.id, c]));
 
   const addRolo = () => {
     if (!novoRolo.codigo_rolo || !novoRolo.tecido_id || novoRolo.metragem_inicial <= 0) {
@@ -66,40 +45,65 @@ export default function EntradaNF() {
       return;
     }
     setRolos([...rolos, { ...novoRolo }]);
-    setNovoRolo({ codigo_rolo: "", lote: "", tecido_id: novoRolo.tecido_id, cor_id: novoRolo.cor_id, metragem_inicial: 0, custo_por_metro: novoRolo.custo_por_metro });
+    setNovoRolo({ ...emptyRolo, tecido_id: novoRolo.tecido_id, cor_id: novoRolo.cor_id, custo_por_metro: novoRolo.custo_por_metro });
   };
 
-  const handleSalvarRolos = async () => {
-    if (rolos.length === 0) {
-      toast.error("Adicione ao menos um rolo");
+  const removeRolo = (i: number) => setRolos(rolos.filter((_, idx) => idx !== i));
+
+  const handleRegistrar = async () => {
+    if (!numeroNf || !fornecedor) {
+      toast.error("Preencha Nº NF e Fornecedor");
       return;
     }
+    if (rolos.length === 0) {
+      toast.error("Adicione ao menos um rolo de tecido");
+      return;
+    }
+    setSalvando(true);
     try {
+      // 1) Criar entrada
+      const entrada = await createEntrada.mutateAsync({
+        numero_nf: Number(numeroNf),
+        fornecedor,
+        data_entrada: dataEntrada,
+      });
+
+      // 2) Criar rolos vinculados à entrada
       for (const r of rolos) {
         const cor = cores?.find((c) => c.id === r.cor_id);
+        const tecido = tecidos?.find((t) => t.id === r.tecido_id);
         await createRolo.mutateAsync({
           codigo_rolo: r.codigo_rolo,
-          lote: r.lote,
+          lote: r.lote || null,
           tecido_id: r.tecido_id,
           cor_id: r.cor_id || null,
           cor_nome: cor?.nome_cor ?? null,
           cor_hex: cor?.cor_hex ?? null,
           metragem_inicial: r.metragem_inicial,
           metragem_disponivel: r.metragem_inicial,
-          entrada_tecido_id: entradaId,
+          entrada_tecido_id: entrada.id,
           fornecedor,
         });
       }
-      setRolosSalvos([...rolosSalvos, ...rolos]);
-      setRolos([]);
-      toast.success(`${rolos.length} rolo(s) cadastrado(s)!`);
+
+      toast.success(`Entrada registrada com ${rolos.length} rolo(s)!`);
+      setSalvo(true);
     } catch (e: any) {
       toast.error(e.message);
+    } finally {
+      setSalvando(false);
     }
   };
 
-  const tecidoMap = Object.fromEntries((tecidos ?? []).map((t) => [t.id, t]));
-  const corMap = Object.fromEntries((cores ?? []).map((c) => [c.id, c]));
+  const handleNovaEntrada = () => {
+    setNumeroNf("");
+    setFornecedor("");
+    setValorTotal(0);
+    setDataEntrada(new Date().toISOString().split("T")[0]);
+    setRolos([]);
+    setNovoRolo({ ...emptyRolo });
+    setSalvo(false);
+  };
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
@@ -110,6 +114,7 @@ export default function EntradaNF() {
         <p className="text-sm text-muted-foreground mt-1">Registre entradas de tecido e gere rolos</p>
       </div>
 
+      {/* Dados da NF */}
       <Card>
         <CardContent className="pt-6 space-y-4">
           <div className="flex items-center gap-2 mb-2">
@@ -119,45 +124,44 @@ export default function EntradaNF() {
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div className="space-y-2">
               <Label>Nº NF *</Label>
-              <Input value={numeroNf} onChange={(e) => setNumeroNf(e.target.value)} placeholder="Ex: 12345" disabled={!!entradaId} />
+              <Input value={numeroNf} onChange={(e) => setNumeroNf(e.target.value)} placeholder="Ex: 12345" disabled={salvo} />
             </div>
             <div className="space-y-2">
               <Label>Fornecedor *</Label>
-              <Input value={fornecedor} onChange={(e) => setFornecedor(e.target.value)} placeholder="Nome do fornecedor" disabled={!!entradaId} />
+              <Input value={fornecedor} onChange={(e) => setFornecedor(e.target.value)} placeholder="Nome do fornecedor" disabled={salvo} />
             </div>
             <div className="space-y-2">
               <Label>Data Entrada</Label>
-              <Input type="date" value={dataEntrada} onChange={(e) => setDataEntrada(e.target.value)} disabled={!!entradaId} />
+              <Input type="date" value={dataEntrada} onChange={(e) => setDataEntrada(e.target.value)} disabled={salvo} />
             </div>
             <div className="space-y-2">
               <Label>Valor Total (R$)</Label>
-              <Input type="number" step="0.01" value={valorTotal} onChange={(e) => setValorTotal(Number(e.target.value))} disabled={!!entradaId} />
+              <Input type="number" step="0.01" value={valorTotal || ""} onChange={(e) => setValorTotal(Number(e.target.value))} disabled={salvo} />
             </div>
           </div>
-          {!entradaId && (
-            <Button onClick={handleSalvarEntrada} disabled={createEntrada.isPending} className="mt-2">
-              Registrar Entrada
-            </Button>
-          )}
         </CardContent>
       </Card>
 
-      {entradaId && (
-        <Card>
-          <CardContent className="pt-6 space-y-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Package className="h-5 w-5 text-primary" />
-                <h2 className="font-serif font-bold text-lg text-foreground">Rolos de Tecido</h2>
-              </div>
+      {/* Rolos de Tecido */}
+      <Card>
+        <CardContent className="pt-6 space-y-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Package className="h-5 w-5 text-primary" />
+              <h2 className="font-serif font-bold text-lg text-foreground">Rolos de Tecido</h2>
+            </div>
+            {!salvo && (
               <Button variant="outline" size="sm" onClick={addRolo} className="gap-1">
                 <Plus className="h-4 w-4" /> Adicionar Rolo
               </Button>
-            </div>
+            )}
+          </div>
 
+          {/* Formulário inline para novo rolo */}
+          {!salvo && (
             <div className="grid grid-cols-2 md:grid-cols-6 gap-3 p-4 bg-muted/50 rounded-lg border border-border">
               <div className="space-y-1">
-                <Label className="text-xs">Código *</Label>
+                <Label className="text-xs">Código do Rolo *</Label>
                 <Input value={novoRolo.codigo_rolo} onChange={(e) => setNovoRolo({ ...novoRolo, codigo_rolo: e.target.value })} placeholder="Ex: 1234" />
               </div>
               <div className="space-y-1">
@@ -178,86 +182,93 @@ export default function EntradaNF() {
                 <Select value={novoRolo.cor_id} onValueChange={(v) => setNovoRolo({ ...novoRolo, cor_id: v })}>
                   <SelectTrigger><SelectValue placeholder="Cor" /></SelectTrigger>
                   <SelectContent>
-                    {cores?.filter((c) => c.ativo).map((c) => <SelectItem key={c.id} value={c.id}>{c.nome_cor}</SelectItem>)}
+                    {cores?.filter((c) => c.ativo).map((c) => (
+                      <SelectItem key={c.id} value={c.id}>
+                        <div className="flex items-center gap-2">
+                          <div className="w-3 h-3 rounded-full" style={{ backgroundColor: c.cor_hex ?? "#ccc" }} />
+                          {c.nome_cor}
+                        </div>
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
               <div className="space-y-1">
-                <Label className="text-xs">Metragem *</Label>
-                <Input type="number" step="0.01" value={novoRolo.metragem_inicial || ""} onChange={(e) => setNovoRolo({ ...novoRolo, metragem_inicial: Number(e.target.value) })} />
+                <Label className="text-xs">Metragem Total *</Label>
+                <Input type="number" step="0.01" value={novoRolo.metragem_inicial || ""} onChange={(e) => setNovoRolo({ ...novoRolo, metragem_inicial: Number(e.target.value) })} placeholder="0.00" />
               </div>
               <div className="space-y-1">
-                <Label className="text-xs">Custo/m</Label>
-                <Input type="number" step="0.01" value={novoRolo.custo_por_metro || ""} onChange={(e) => setNovoRolo({ ...novoRolo, custo_por_metro: Number(e.target.value) })} />
+                <Label className="text-xs">Custo por Metro</Label>
+                <Input type="number" step="0.01" value={novoRolo.custo_por_metro || ""} onChange={(e) => setNovoRolo({ ...novoRolo, custo_por_metro: Number(e.target.value) })} placeholder="0.00" />
               </div>
             </div>
+          )}
 
-            {rolos.length > 0 && (
-              <>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Código</TableHead>
-                      <TableHead>Lote</TableHead>
-                      <TableHead>Tecido</TableHead>
-                      <TableHead>Cor</TableHead>
-                      <TableHead className="text-right">Metragem</TableHead>
-                      <TableHead className="text-right">Custo/m</TableHead>
+          {/* Lista de rolos adicionados */}
+          {rolos.length > 0 ? (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Código</TableHead>
+                  <TableHead>Lote</TableHead>
+                  <TableHead>Tecido</TableHead>
+                  <TableHead>Cor</TableHead>
+                  <TableHead className="text-right">Metragem</TableHead>
+                  <TableHead className="text-right">Custo/m</TableHead>
+                  <TableHead className="text-right">Valor Total</TableHead>
+                  {!salvo && <TableHead></TableHead>}
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {rolos.map((r, i) => {
+                  const valorRolo = r.metragem_inicial * r.custo_por_metro;
+                  return (
+                    <TableRow key={i}>
+                      <TableCell className="text-primary font-medium">{r.codigo_rolo}</TableCell>
+                      <TableCell className="text-muted-foreground">{r.lote || "—"}</TableCell>
+                      <TableCell className="font-medium">{tecidoMap[r.tecido_id]?.nome_tecido ?? "—"}</TableCell>
+                      <TableCell>
+                        {r.cor_id && corMap[r.cor_id] ? (
+                          <div className="flex items-center gap-2">
+                            <div className="w-3 h-3 rounded-full" style={{ backgroundColor: corMap[r.cor_id].cor_hex ?? "#ccc" }} />
+                            {corMap[r.cor_id].nome_cor}
+                          </div>
+                        ) : "—"}
+                      </TableCell>
+                      <TableCell className="text-right">{r.metragem_inicial.toFixed(1)}m</TableCell>
+                      <TableCell className="text-right">R$ {r.custo_por_metro.toFixed(2)}</TableCell>
+                      <TableCell className="text-right font-medium">R$ {valorRolo.toFixed(2)}</TableCell>
+                      {!salvo && (
+                        <TableCell>
+                          <Button variant="ghost" size="icon" onClick={() => removeRolo(i)}>
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </TableCell>
+                      )}
                     </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {rolos.map((r, i) => (
-                      <TableRow key={i}>
-                        <TableCell className="font-medium text-primary">{r.codigo_rolo}</TableCell>
-                        <TableCell>{r.lote || "—"}</TableCell>
-                        <TableCell className="font-medium">{tecidoMap[r.tecido_id]?.nome_tecido ?? "—"}</TableCell>
-                        <TableCell>{corMap[r.cor_id]?.nome_cor ?? "—"}</TableCell>
-                        <TableCell className="text-right">{r.metragem_inicial.toFixed(1)}m</TableCell>
-                        <TableCell className="text-right">R$ {r.custo_por_metro.toFixed(2)}</TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-                <Button onClick={handleSalvarRolos} disabled={createRolo.isPending}>
-                  Salvar Rolos
-                </Button>
-              </>
-            )}
+                  );
+                })}
+              </TableBody>
+            </Table>
+          ) : (
+            <p className="text-center text-muted-foreground py-6">
+              Nenhum rolo adicionado. Preencha os campos acima e clique em "Adicionar Rolo".
+            </p>
+          )}
 
-            {rolos.length === 0 && rolosSalvos.length === 0 && (
-              <p className="text-center text-muted-foreground py-6">Nenhum rolo adicionado. Clique em "Adicionar Rolo".</p>
-            )}
-
-            {rolosSalvos.length > 0 && (
-              <div className="space-y-2">
-                <h3 className="text-sm font-medium text-muted-foreground">Rolos cadastrados nesta NF:</h3>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Código</TableHead>
-                      <TableHead>Lote</TableHead>
-                      <TableHead>Tecido</TableHead>
-                      <TableHead>Cor</TableHead>
-                      <TableHead className="text-right">Metragem</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {rolosSalvos.map((r, i) => (
-                      <TableRow key={i}>
-                        <TableCell className="font-medium text-primary">{r.codigo_rolo}</TableCell>
-                        <TableCell>{r.lote || "—"}</TableCell>
-                        <TableCell>{tecidoMap[r.tecido_id]?.nome_tecido ?? "—"}</TableCell>
-                        <TableCell>{corMap[r.cor_id]?.nome_cor ?? "—"}</TableCell>
-                        <TableCell className="text-right">{r.metragem_inicial.toFixed(1)}m</TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      )}
+          {/* Botão de registrar */}
+          {!salvo ? (
+            <Button onClick={handleRegistrar} disabled={salvando} className="w-full md:w-auto">
+              {salvando ? "Registrando..." : "Registrar Entrada"}
+            </Button>
+          ) : (
+            <div className="flex items-center justify-between p-4 bg-success/10 border border-success/30 rounded-lg">
+              <p className="text-sm text-foreground">✓ Entrada registrada com sucesso! {rolos.length} rolo(s) cadastrado(s) na tabela rolos_tecido.</p>
+              <Button variant="outline" onClick={handleNovaEntrada}>Nova Entrada</Button>
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }
