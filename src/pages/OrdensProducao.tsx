@@ -279,7 +279,6 @@ export default function OrdensProducao() {
                         </motion.div>
                       );
                     })}
-                    ))}
                   </div>
                 </div>
               );
