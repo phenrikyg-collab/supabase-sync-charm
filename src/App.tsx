@@ -2,7 +2,8 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { AppLayout } from "@/components/AppLayout";
 import Dashboard from "./pages/Dashboard";
 import Produtos from "./pages/Produtos";
@@ -19,9 +20,72 @@ import Expedicao from "./pages/Expedicao";
 import Financeiro from "./pages/Financeiro";
 import Metas from "./pages/Metas";
 import PagamentoOficinas from "./pages/PagamentoOficinas";
+import AdminUsuarios from "./pages/AdminUsuarios";
+import Login from "./pages/Login";
 import NotFound from "./pages/NotFound";
+import { Loader2 } from "lucide-react";
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      refetchInterval: 5 * 60 * 1000, // 5 minutes auto-refresh
+      staleTime: 2 * 60 * 1000,
+    },
+  },
+});
+
+function ProtectedRoute({ children }: { children: React.ReactNode }) {
+  const { user, loading } = useAuth();
+  if (loading) return (
+    <div className="min-h-screen flex items-center justify-center bg-background">
+      <Loader2 className="h-8 w-8 animate-spin text-primary" />
+    </div>
+  );
+  if (!user) return <Navigate to="/login" replace />;
+  return <>{children}</>;
+}
+
+const AppRoutes = () => {
+  const { user, loading } = useAuth();
+
+  if (loading) return (
+    <div className="min-h-screen flex items-center justify-center bg-background">
+      <Loader2 className="h-8 w-8 animate-spin text-primary" />
+    </div>
+  );
+
+  return (
+    <Routes>
+      <Route path="/login" element={user ? <Navigate to="/" replace /> : <Login />} />
+      <Route path="*" element={
+        <ProtectedRoute>
+          <AppLayout>
+            <Routes>
+              <Route path="/" element={<Dashboard />} />
+              <Route path="/produtos" element={<Produtos />} />
+              <Route path="/produtos/novo" element={<ProdutoForm />} />
+              <Route path="/produtos/:id" element={<ProdutoForm />} />
+              <Route path="/produtos/:id/editar" element={<ProdutoForm />} />
+              <Route path="/cores" element={<Cores />} />
+              <Route path="/entrada-nf" element={<EntradaNF />} />
+              <Route path="/estoque" element={<EstoqueTecidos />} />
+              <Route path="/ordens-corte" element={<OrdensCorte />} />
+              <Route path="/ordens-corte/nova" element={<NovaOrdemCorte />} />
+              <Route path="/oficinas" element={<Oficinas />} />
+              <Route path="/ordens-producao" element={<OrdensProducao />} />
+              <Route path="/pagamento-oficinas" element={<PagamentoOficinas />} />
+              <Route path="/expedicao" element={<Expedicao />} />
+              <Route path="/financeiro" element={<Financeiro />} />
+              <Route path="/metas" element={<Metas />} />
+              <Route path="/admin/usuarios" element={<AdminUsuarios />} />
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </AppLayout>
+        </ProtectedRoute>
+      } />
+    </Routes>
+  );
+};
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
@@ -29,28 +93,9 @@ const App = () => (
       <Toaster />
       <Sonner />
       <BrowserRouter>
-        <AppLayout>
-          <Routes>
-            <Route path="/" element={<Dashboard />} />
-            <Route path="/produtos" element={<Produtos />} />
-            <Route path="/produtos/novo" element={<ProdutoForm />} />
-            <Route path="/produtos/:id" element={<ProdutoForm />} />
-            <Route path="/produtos/:id/editar" element={<ProdutoForm />} />
-            <Route path="/cores" element={<Cores />} />
-            <Route path="/entrada-nf" element={<EntradaNF />} />
-            <Route path="/estoque" element={<EstoqueTecidos />} />
-            <Route path="/ordens-corte" element={<OrdensCorte />} />
-            <Route path="/ordens-corte/nova" element={<NovaOrdemCorte />} />
-            <Route path="/oficinas" element={<Oficinas />} />
-            <Route path="/ordens-producao" element={<OrdensProducao />} />
-            {/* Kanban merged into /ordens-producao */}
-            <Route path="/pagamento-oficinas" element={<PagamentoOficinas />} />
-            <Route path="/expedicao" element={<Expedicao />} />
-            <Route path="/financeiro" element={<Financeiro />} />
-            <Route path="/metas" element={<Metas />} />
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </AppLayout>
+        <AuthProvider>
+          <AppRoutes />
+        </AuthProvider>
       </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>

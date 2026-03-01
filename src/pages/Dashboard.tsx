@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { StatCard } from "@/components/StatCard";
 import { StatusBadge } from "@/components/StatusBadge";
 import {
@@ -9,17 +9,25 @@ import {
 import {
   DollarSign, Target, TrendingUp, AlertTriangle, Percent, ShoppingCart,
   Layers, Factory, Scissors, CheckCircle, Clock, Truck, Package,
-  AlertCircle, ArrowUpRight, Gauge,
+  AlertCircle, ArrowUpRight, Gauge, CalendarIcon, RefreshCw,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Button } from "@/components/ui/button";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { cn } from "@/lib/utils";
+import { format, startOfMonth, endOfMonth, subMonths } from "date-fns";
+import { ptBR } from "date-fns/locale";
 import { motion } from "framer-motion";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell,
 } from "recharts";
+import { useQueryClient } from "@tanstack/react-query";
 
 function fmt(value: number | null | undefined) {
   if (value == null) return "R$ 0,00";
@@ -65,7 +73,29 @@ function SectionHeader({ title, icon: Icon }: { title: string; icon: any }) {
 
 const delay = (i: number) => ({ initial: { opacity: 0, y: 16 }, animate: { opacity: 1, y: 0 }, transition: { delay: i * 0.04, duration: 0.35 } });
 
+const REFETCH_INTERVAL = 5 * 60 * 1000; // 5 minutes
+
 export default function Dashboard() {
+  const queryClient = useQueryClient();
+  const [periodoPreset, setPeriodoPreset] = useState("mes-atual");
+  const [dateRange, setDateRange] = useState<{ from: Date; to: Date }>({
+    from: startOfMonth(new Date()),
+    to: endOfMonth(new Date()),
+  });
+
+  // Update range when preset changes
+  const handlePresetChange = (preset: string) => {
+    setPeriodoPreset(preset);
+    const now = new Date();
+    if (preset === "mes-atual") {
+      setDateRange({ from: startOfMonth(now), to: endOfMonth(now) });
+    } else if (preset === "ultimo-mes") {
+      const prev = subMonths(now, 1);
+      setDateRange({ from: startOfMonth(prev), to: endOfMonth(prev) });
+    }
+    // "personalizado" keeps current dateRange
+  };
+
   const { data: producao } = useResumoProducao();
   const { data: estoque } = useResumoEstoque();
   const { data: rolos } = useRolosTecido();
@@ -79,15 +109,16 @@ export default function Dashboard() {
   // ── VENDAS & META (calculated from movimentacoes_financeiras) ──
   const vendasKPI = useMemo(() => {
     const now = new Date();
-    const mesAtual = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
     const hoje = now.toISOString().split("T")[0];
+    const fromStr = format(dateRange.from, "yyyy-MM-dd");
+    const toStr = format(dateRange.to, "yyyy-MM-dd");
 
-    // Filter sales from Bling for current month
+    // Filter sales from Bling within date range
     const vendasMes = (movimentacoes ?? []).filter((m) => {
       const isBling = m.origem?.toLowerCase() === "bling";
       const isEntrada = m.tipo?.toLowerCase() === "entrada";
-      const mesMatch = m.data?.startsWith(mesAtual);
-      return (isBling || isEntrada) && mesMatch;
+      const inRange = m.data != null && m.data >= fromStr && m.data <= toStr;
+      return (isBling || isEntrada) && inRange;
     });
 
     const faturamentoMes = vendasMes.reduce((sum, m) => sum + (m.valor_liquido ?? m.valor ?? 0), 0);
@@ -102,7 +133,8 @@ export default function Dashboard() {
     const faturamentoHoje = vendasHoje.reduce((sum, m) => sum + (m.valor_liquido ?? m.valor ?? 0), 0);
 
     // Meta
-    const metaAtual = (metas ?? []).find((mt) => mt.mes?.startsWith(mesAtual));
+    const mesAtualStr = `${dateRange.from.getFullYear()}-${String(dateRange.from.getMonth() + 1).padStart(2, "0")}`;
+    const metaAtual = (metas ?? []).find((mt) => mt.mes?.startsWith(mesAtualStr));
     const metaMensal = metaAtual?.meta_mensal ?? 0;
     const diasUteis = metaAtual?.dias_uteis ?? 22;
     const progresso = metaMensal > 0 ? (faturamentoMes / metaMensal) * 100 : 0;
@@ -135,7 +167,7 @@ export default function Dashboard() {
       metaMensal, progresso, restante, diasUteisRestantes,
       metaDiaria, pedidosNecessarios, mediaRealDiaria, nivelRisco,
     };
-  }, [movimentacoes, metas]);
+  }, [movimentacoes, metas, dateRange]);
 
   // ── PRODUÇÃO ──
   const prodCounts = useMemo(() => {
@@ -241,11 +273,55 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-4 sm:space-y-6">
-      <div>
-        <h1 className="text-xl sm:text-3xl font-serif font-bold text-foreground">
-          Dashboard <span className="text-primary">Executivo</span>
-        </h1>
-        <p className="text-xs sm:text-sm text-muted-foreground mt-1">Visão estratégica em tempo real</p>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div>
+          <h1 className="text-xl sm:text-3xl font-serif font-bold text-foreground">
+            Dashboard <span className="text-primary">Executivo</span>
+          </h1>
+          <p className="text-xs sm:text-sm text-muted-foreground mt-1">Auto-refresh a cada 5 min</p>
+        </div>
+        <div className="flex items-center gap-2 flex-wrap">
+          <Select value={periodoPreset} onValueChange={handlePresetChange}>
+            <SelectTrigger className="w-[160px] h-9 text-xs">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="mes-atual">Mês Atual</SelectItem>
+              <SelectItem value="ultimo-mes">Último Mês</SelectItem>
+              <SelectItem value="personalizado">Personalizado</SelectItem>
+            </SelectContent>
+          </Select>
+          {periodoPreset === "personalizado" && (
+            <div className="flex items-center gap-1">
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" size="sm" className="h-9 text-xs gap-1">
+                    <CalendarIcon className="h-3.5 w-3.5" />
+                    {format(dateRange.from, "dd/MM/yy")}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar mode="single" selected={dateRange.from} onSelect={(d) => d && setDateRange((r) => ({ ...r, from: d }))} className={cn("p-3 pointer-events-auto")} locale={ptBR} />
+                </PopoverContent>
+              </Popover>
+              <span className="text-muted-foreground text-xs">a</span>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" size="sm" className="h-9 text-xs gap-1">
+                    <CalendarIcon className="h-3.5 w-3.5" />
+                    {format(dateRange.to, "dd/MM/yy")}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar mode="single" selected={dateRange.to} onSelect={(d) => d && setDateRange((r) => ({ ...r, to: d }))} className={cn("p-3 pointer-events-auto")} locale={ptBR} />
+                </PopoverContent>
+              </Popover>
+            </div>
+          )}
+          <Button variant="outline" size="sm" className="h-9 text-xs gap-1" onClick={() => queryClient.invalidateQueries()}>
+            <RefreshCw className="h-3.5 w-3.5" /> Atualizar
+          </Button>
+        </div>
       </div>
 
       <Tabs defaultValue="vendas">

@@ -1,14 +1,16 @@
 import {
   LayoutDashboard, Package, Plus, Palette, Layers, Scissors, Factory,
-  Kanban, Truck, DollarSign, Target, FileText, Building2,
+  Truck, DollarSign, Target, FileText, Building2, LogOut, Users,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
-import { useLocation } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
 import {
   Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent,
   SidebarGroupLabel, SidebarMenu, SidebarMenuButton, SidebarMenuItem,
   useSidebar,
 } from "@/components/ui/sidebar";
+import { Button } from "@/components/ui/button";
+import { Separator } from "@/components/ui/separator";
 
 const menuItems = [
   { title: "Dashboard", url: "/", icon: LayoutDashboard },
@@ -30,10 +32,11 @@ const menuItems = [
 export function AppSidebar() {
   const { state } = useSidebar();
   const collapsed = state === "collapsed";
+  const { user, signOut } = useAuth();
 
   return (
     <Sidebar collapsible="icon">
-      <SidebarContent>
+      <SidebarContent className="flex flex-col h-full">
         <div className={`px-4 py-5 ${collapsed ? "text-center" : ""}`}>
           {collapsed ? (
             <span className="text-sidebar-primary font-serif text-lg font-bold">M</span>
@@ -49,7 +52,7 @@ export function AppSidebar() {
           )}
         </div>
 
-        <SidebarGroup>
+        <SidebarGroup className="flex-1">
           <SidebarGroupLabel className="text-sidebar-foreground/40 uppercase tracking-widest text-[10px]">
             Módulos
           </SidebarGroupLabel>
@@ -73,6 +76,32 @@ export function AppSidebar() {
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
+
+        <div className="px-3 pb-4 space-y-1">
+          <Separator className="mb-2 bg-sidebar-border" />
+          <SidebarMenu>
+            <SidebarMenuItem>
+              <SidebarMenuButton asChild>
+                <NavLink to="/admin/usuarios" className="transition-colors hover:bg-sidebar-accent" activeClassName="bg-sidebar-accent text-sidebar-primary font-medium">
+                  <Users className="h-4 w-4 mr-2 shrink-0" />
+                  {!collapsed && <span>Usuários</span>}
+                </NavLink>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          </SidebarMenu>
+          {!collapsed && user && (
+            <p className="text-[10px] text-sidebar-foreground/50 truncate px-2">{user.email}</p>
+          )}
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={signOut}
+            className="w-full justify-start text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent"
+          >
+            <LogOut className="h-4 w-4 mr-2 shrink-0" />
+            {!collapsed && <span>Sair</span>}
+          </Button>
+        </div>
       </SidebarContent>
     </Sidebar>
   );
