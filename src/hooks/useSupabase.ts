@@ -382,3 +382,47 @@ export const useUpdateOrdemCorte = () => {
     onSuccess: () => qc.invalidateQueries({ queryKey: ["ordens-corte"] }),
   });
 };
+
+// Consertos
+export const useConsertos = (ordemProducaoId?: string) =>
+  useQuery({
+    queryKey: ["consertos", ordemProducaoId],
+    queryFn: () => fetchTable<Conserto>("consertos", { filters: ordemProducaoId ? { ordem_producao_id: ordemProducaoId } : undefined }),
+    enabled: ordemProducaoId ? true : true,
+  });
+
+export const useAllConsertos = () =>
+  useQuery({
+    queryKey: ["consertos-all"],
+    queryFn: () => fetchTable<Conserto>("consertos"),
+  });
+
+export const useCreateConserto = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (conserto: Partial<Conserto>) => {
+      const { data, error } = await supabase.from("consertos").insert(conserto).select().single();
+      if (error) throw error;
+      return data as Conserto;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["consertos"] });
+      qc.invalidateQueries({ queryKey: ["consertos-all"] });
+    },
+  });
+};
+
+export const useUpdateConserto = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, ...updates }: Partial<Conserto> & { id: string }) => {
+      const { data, error } = await supabase.from("consertos").update(updates).eq("id", id).select().single();
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["consertos"] });
+      qc.invalidateQueries({ queryKey: ["consertos-all"] });
+    },
+  });
+};
