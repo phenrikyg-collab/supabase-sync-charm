@@ -167,7 +167,7 @@ export default function Dashboard() {
       metaMensal, progresso, restante, diasUteisRestantes,
       metaDiaria, pedidosNecessarios, mediaRealDiaria, nivelRisco,
     };
-  }, [movimentacoes, metas]);
+  }, [movimentacoes, metas, dateRange]);
 
   // ── PRODUÇÃO ──
   const prodCounts = useMemo(() => {
