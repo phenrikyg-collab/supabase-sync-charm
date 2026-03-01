@@ -228,7 +228,7 @@ export default function OrdensProducao() {
         <TabsContent value="kanban" className="mt-4">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             {COLUNAS_KANBAN.map((col) => {
-              const items = producao?.filter((p) => col.match.includes(p.status_ordem?.toLowerCase() ?? "")) ?? [];
+              const items = ordensEnriched.filter((o: any) => col.match.includes(o.status_ordem?.toLowerCase() ?? ""));
               return (
                 <div key={col.key} className="space-y-3">
                   <div className="flex items-center justify-between">
@@ -236,8 +236,21 @@ export default function OrdensProducao() {
                     <span className="text-xs bg-muted text-muted-foreground rounded-full px-2 py-0.5">{items.length}</span>
                   </div>
                   <div className="space-y-3 min-h-[200px]">
-                    {items.map((item, i) => {
+                    {items.map((item: any, i: number) => {
                       const ofColor = item.oficina_id ? oficinaColorMap[item.oficina_id] : null;
+                      const oficinaNome = item.oficina_id ? oficinaMap[item.oficina_id]?.nome_oficina : null;
+                      const gradeItems: any[] = item.gradeInfo ?? [];
+                      
+                      // Group grade by color
+                      const gradeByColor = new Map<string, { cor: any; grades: { tamanho: string; quantidade: number }[] }>();
+                      gradeItems.forEach((g: any) => {
+                        const key = g.cor_id ?? "sem-cor";
+                        if (!gradeByColor.has(key)) {
+                          gradeByColor.set(key, { cor: corMap[g.cor_id] ?? null, grades: [] });
+                        }
+                        gradeByColor.get(key)!.grades.push({ tamanho: g.tamanho, quantidade: g.quantidade });
+                      });
+
                       return (
                         <motion.div
                           key={item.id ?? i}
@@ -246,34 +259,52 @@ export default function OrdensProducao() {
                           transition={{ delay: i * 0.03 }}
                         >
                           <Card
-                            className="cursor-pointer hover:shadow-md transition-shadow"
-                            style={ofColor ? { backgroundColor: ofColor.bg, borderColor: ofColor.border } : undefined}
+                            className="cursor-pointer hover:shadow-md transition-shadow border-l-4"
+                            style={{
+                              backgroundColor: ofColor?.bg ?? undefined,
+                              borderLeftColor: ofColor?.border ?? "hsl(var(--border))",
+                              borderTopColor: ofColor?.border ?? undefined,
+                              borderRightColor: ofColor?.border ?? undefined,
+                              borderBottomColor: ofColor?.border ?? undefined,
+                            }}
                             onClick={() => item.id && moveToNext(item.id, item.status_ordem ?? "")}
                           >
                             <CardContent className="pt-4 pb-3 space-y-2">
+                              <span className="font-medium text-sm text-card-foreground">{item.nome_produto ?? "—"}</span>
+                              
+                              {/* Grade per color */}
+                              {gradeByColor.size > 0 ? (
+                                <div className="space-y-1.5">
+                                  {Array.from(gradeByColor.entries()).map(([key, { cor, grades }]) => (
+                                    <div key={key} className="space-y-0.5">
+                                      <div className="flex items-center gap-1.5">
+                                        <div className="w-3 h-3 rounded-full border border-border" style={{ backgroundColor: cor?.cor_hex ?? "#ccc" }} />
+                                        <span className="text-xs font-medium text-card-foreground">{cor?.nome_cor ?? "—"}</span>
+                                      </div>
+                                      <div className="flex flex-wrap gap-1 pl-4">
+                                        {grades.map((g, j) => (
+                                          <span key={j} className="text-[10px] bg-card/80 border border-border/50 px-1.5 py-0.5 rounded text-muted-foreground">
+                                            {g.tamanho}: {g.quantidade}
+                                          </span>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              ) : item.grade_resumo ? (
+                                <p className="text-xs text-muted-foreground bg-card/60 rounded px-2 py-1">{item.grade_resumo}</p>
+                              ) : null}
+
                               <div className="flex items-center justify-between">
-                                <span className="font-medium text-sm text-card-foreground">{item.nome_produto}</span>
-                                {item.cor_hex && (
-                                  <div className="w-4 h-4 rounded-full border border-border" style={{ backgroundColor: item.cor_hex }} />
+                                <span className="text-xs text-muted-foreground">
+                                  {item.quantidade ?? item.quantidade_pecas_ordem ?? 0} peças
+                                </span>
+                                {oficinaNome && (
+                                  <span className="text-xs font-semibold" style={ofColor ? { color: ofColor.text } : undefined}>
+                                    ● {oficinaNome}
+                                  </span>
                                 )}
                               </div>
-                              {item.nome_cor && (
-                                <div className="flex items-center gap-1.5">
-                                  {item.cor_hex && <div className="w-3 h-3 rounded-full" style={{ backgroundColor: item.cor_hex }} />}
-                                  <span className="text-xs text-muted-foreground">{item.nome_cor}</span>
-                                </div>
-                              )}
-                              {item.grade_resumo && (
-                                <p className="text-xs text-muted-foreground bg-card/60 rounded px-2 py-1">{item.grade_resumo}</p>
-                              )}
-                              {item.quantidade_pecas_ordem != null && (
-                                <p className="text-xs font-medium text-card-foreground">{item.quantidade_pecas_ordem} peças</p>
-                              )}
-                              {item.nome_oficina && (
-                                <p className="text-xs font-semibold" style={ofColor ? { color: ofColor.text } : undefined}>
-                                  ● {item.nome_oficina}
-                                </p>
-                              )}
                             </CardContent>
                           </Card>
                         </motion.div>
