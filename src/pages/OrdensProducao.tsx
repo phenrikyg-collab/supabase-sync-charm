@@ -263,90 +263,149 @@ export default function OrdensProducao() {
         </TabsContent>
 
         <TabsContent value="kanban" className="mt-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
             {COLUNAS_KANBAN.map((col) => {
-              const items = ordensEnriched.filter((o: any) => col.match.includes(o.status_ordem?.toLowerCase() ?? ""));
+              // For "Em Conserto" column, show consertos grouped by ordem
+              const isConsertoCol = col.key === "conserto";
+              const items = isConsertoCol ? [] : ordensEnriched.filter((o: any) => col.match.includes(o.status_ordem?.toLowerCase() ?? ""));
+              
+              // Group consertos by ordem_producao_id for the Em Conserto column
+              const consertosByOrdem = new Map<string, any[]>();
+              if (isConsertoCol && consertos?.length) {
+                consertos.filter((c) => c.status === "Em Conserto").forEach((c) => {
+                  const list = consertosByOrdem.get(c.ordem_producao_id) ?? [];
+                  list.push(c);
+                  consertosByOrdem.set(c.ordem_producao_id, list);
+                });
+              }
+
               return (
                 <div key={col.key} className="space-y-3">
                   <div className={`flex items-center justify-between rounded-lg px-3 py-2 border ${col.headerBg} ${col.headerBorder}`}>
                     <h3 className={`font-serif font-bold ${col.headerText}`}>{col.label}</h3>
-                    <span className={`text-xs font-bold rounded-full px-2 py-0.5 ${col.headerText} ${col.headerBg}`}>{items.length}</span>
+                    <span className={`text-xs font-bold rounded-full px-2 py-0.5 ${col.headerText} ${col.headerBg}`}>
+                      {isConsertoCol ? consertosByOrdem.size : items.length}
+                    </span>
                   </div>
                   <div className="space-y-3 min-h-[200px]">
-                    {items.map((item: any, i: number) => {
-                      const ofColor = item.oficina_id ? oficinaColorMap[item.oficina_id] : null;
-                      const oficinaNome = item.oficina_id ? oficinaMap[item.oficina_id]?.nome_oficina : null;
-                      const gradeItems: any[] = item.gradeInfo ?? [];
-                      
-                      // Group grade by color
-                      const gradeByColor = new Map<string, { cor: any; grades: { tamanho: string; quantidade: number }[] }>();
-                      gradeItems.forEach((g: any) => {
-                        const key = g.cor_id ?? "sem-cor";
-                        if (!gradeByColor.has(key)) {
-                          gradeByColor.set(key, { cor: corMap[g.cor_id] ?? null, grades: [] });
-                        }
-                        gradeByColor.get(key)!.grades.push({ tamanho: g.tamanho, quantidade: g.quantidade });
-                      });
-
-                      return (
-                        <motion.div
-                          key={item.id ?? i}
-                          initial={{ opacity: 0, scale: 0.95 }}
-                          animate={{ opacity: 1, scale: 1 }}
-                          transition={{ delay: i * 0.03 }}
-                        >
-                          <Card
-                            className="cursor-pointer hover:shadow-md transition-shadow border-l-4"
-                            style={{
-                              backgroundColor: ofColor?.bg ?? undefined,
-                              borderLeftColor: ofColor?.border ?? "hsl(var(--border))",
-                              borderTopColor: ofColor?.border ?? undefined,
-                              borderRightColor: ofColor?.border ?? undefined,
-                              borderBottomColor: ofColor?.border ?? undefined,
-                            }}
-                            onClick={() => item.id && moveToNext(item.id, item.status_ordem ?? "")}
-                          >
-                            <CardContent className="pt-4 pb-3 space-y-2">
-                              <span className="font-medium text-sm text-card-foreground">{item.nome_produto ?? "—"}</span>
-                              
-                              {/* Grade per color */}
-                              {gradeByColor.size > 0 ? (
-                                <div className="space-y-1.5">
-                                  {Array.from(gradeByColor.entries()).map(([key, { cor, grades }]) => (
-                                    <div key={key} className="space-y-0.5">
-                                      <div className="flex items-center gap-1.5">
-                                        <div className="w-3 h-3 rounded-full border border-border" style={{ backgroundColor: cor?.cor_hex ?? "#ccc" }} />
-                                        <span className="text-xs font-medium text-card-foreground">{cor?.nome_cor ?? "—"}</span>
+                    {isConsertoCol ? (
+                      // Render conserto cards
+                      Array.from(consertosByOrdem.entries()).map(([ordemId, consertoList], i) => {
+                        const ordem = ordensEnriched.find((o: any) => o.id === ordemId);
+                        return (
+                          <motion.div key={ordemId} initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: i * 0.03 }}>
+                            <Card className="border-l-4" style={{ borderLeftColor: "hsl(var(--danger))", backgroundColor: "hsl(var(--danger) / 0.05)" }}>
+                              <CardContent className="pt-4 pb-3 space-y-2">
+                                <span className="font-medium text-sm text-card-foreground">{ordem?.nome_produto ?? "—"}</span>
+                                <div className="space-y-1">
+                                  {consertoList.map((c: any, j: number) => {
+                                    const cor = c.cor_id ? corMap[c.cor_id] : null;
+                                    const oficina = c.oficina_id ? oficinaMap[c.oficina_id] : null;
+                                    return (
+                                      <div key={c.id ?? j} className="flex items-center gap-1.5 text-xs">
+                                        {cor && <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: cor.cor_hex ?? "#ccc" }} />}
+                                        <span className="text-muted-foreground">{cor?.nome_cor ?? "—"}</span>
+                                        <span className="bg-danger/10 text-danger px-1.5 py-0.5 rounded text-[10px] font-medium">{c.tamanho}: {c.quantidade}</span>
+                                        {oficina && <span className="text-[10px] text-muted-foreground">({oficina.nome_oficina})</span>}
                                       </div>
-                                      <div className="flex flex-wrap gap-1 pl-4">
-                                        {grades.map((g, j) => (
-                                          <span key={j} className="text-[10px] bg-card/80 border border-border/50 px-1.5 py-0.5 rounded text-muted-foreground">
-                                            {g.tamanho}: {g.quantidade}
-                                          </span>
-                                        ))}
-                                      </div>
-                                    </div>
-                                  ))}
+                                    );
+                                  })}
                                 </div>
-                              ) : item.grade_resumo ? (
-                                <p className="text-xs text-muted-foreground bg-card/60 rounded px-2 py-1">{item.grade_resumo}</p>
-                              ) : null}
-
-                              <div className="flex items-center justify-between">
-                                <span className="text-xs text-muted-foreground">
-                                  {item.quantidade ?? item.quantidade_pecas_ordem ?? 0} peças
-                                </span>
-                                {oficinaNome && (
-                                  <span className="text-xs font-semibold" style={ofColor ? { color: ofColor.text } : undefined}>
-                                    ● {oficinaNome}
-                                  </span>
+                                {consertoList[0]?.observacao && (
+                                  <p className="text-[10px] text-muted-foreground italic">{consertoList[0].observacao}</p>
                                 )}
-                              </div>
-                            </CardContent>
-                          </Card>
-                        </motion.div>
-                      );
-                    })}
+                              </CardContent>
+                            </Card>
+                          </motion.div>
+                        );
+                      })
+                    ) : (
+                      // Render normal ordem cards
+                      items.map((item: any, i: number) => {
+                        const ofColor = item.oficina_id ? oficinaColorMap[item.oficina_id] : null;
+                        const oficinaNome = item.oficina_id ? oficinaMap[item.oficina_id]?.nome_oficina : null;
+                        const gradeItems: any[] = item.gradeInfo ?? [];
+                        const isRevisao = col.key === "revisao";
+                        
+                        const gradeByColor = new Map<string, { cor: any; grades: { tamanho: string; quantidade: number }[] }>();
+                        gradeItems.forEach((g: any) => {
+                          const key = g.cor_id ?? "sem-cor";
+                          if (!gradeByColor.has(key)) {
+                            gradeByColor.set(key, { cor: corMap[g.cor_id] ?? null, grades: [] });
+                          }
+                          gradeByColor.get(key)!.grades.push({ tamanho: g.tamanho, quantidade: g.quantidade });
+                        });
+
+                        return (
+                          <motion.div
+                            key={item.id ?? i}
+                            initial={{ opacity: 0, scale: 0.95 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            transition={{ delay: i * 0.03 }}
+                          >
+                            <Card
+                              className="cursor-pointer hover:shadow-md transition-shadow border-l-4"
+                              style={{
+                                backgroundColor: ofColor?.bg ?? undefined,
+                                borderLeftColor: ofColor?.border ?? "hsl(var(--border))",
+                                borderTopColor: ofColor?.border ?? undefined,
+                                borderRightColor: ofColor?.border ?? undefined,
+                                borderBottomColor: ofColor?.border ?? undefined,
+                              }}
+                              onClick={() => item.id && moveToNext(item.id, item.status_ordem ?? "")}
+                            >
+                              <CardContent className="pt-4 pb-3 space-y-2">
+                                <span className="font-medium text-sm text-card-foreground">{item.nome_produto ?? "—"}</span>
+                                
+                                {gradeByColor.size > 0 ? (
+                                  <div className="space-y-1.5">
+                                    {Array.from(gradeByColor.entries()).map(([key, { cor, grades }]) => (
+                                      <div key={key} className="space-y-0.5">
+                                        <div className="flex items-center gap-1.5">
+                                          <div className="w-3 h-3 rounded-full border border-border" style={{ backgroundColor: cor?.cor_hex ?? "#ccc" }} />
+                                          <span className="text-xs font-medium text-card-foreground">{cor?.nome_cor ?? "—"}</span>
+                                        </div>
+                                        <div className="flex flex-wrap gap-1 pl-4">
+                                          {grades.map((g, j) => (
+                                            <span key={j} className="text-[10px] bg-card/80 border border-border/50 px-1.5 py-0.5 rounded text-muted-foreground">
+                                              {g.tamanho}: {g.quantidade}
+                                            </span>
+                                          ))}
+                                        </div>
+                                      </div>
+                                    ))}
+                                  </div>
+                                ) : item.grade_resumo ? (
+                                  <p className="text-xs text-muted-foreground bg-card/60 rounded px-2 py-1">{item.grade_resumo}</p>
+                                ) : null}
+
+                                <div className="flex items-center justify-between">
+                                  <span className="text-xs text-muted-foreground">
+                                    {item.quantidade ?? item.quantidade_pecas_ordem ?? 0} peças
+                                  </span>
+                                  {oficinaNome && (
+                                    <span className="text-xs font-semibold" style={ofColor ? { color: ofColor.text } : undefined}>
+                                      ● {oficinaNome}
+                                    </span>
+                                  )}
+                                </div>
+
+                                {/* Botão de conserto na Revisão */}
+                                {isRevisao && (
+                                  <Button
+                                    variant="outline" size="sm"
+                                    className="w-full gap-1.5 text-danger border-danger/30 hover:bg-danger/10 mt-1"
+                                    onClick={(e) => { e.stopPropagation(); openConsertoDialog(item.id); }}
+                                  >
+                                    <Wrench className="h-3.5 w-3.5" /> Enviar para Conserto
+                                  </Button>
+                                )}
+                              </CardContent>
+                            </Card>
+                          </motion.div>
+                        );
+                      })
+                    )}
                   </div>
                 </div>
               );
