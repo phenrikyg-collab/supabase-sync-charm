@@ -273,11 +273,55 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-4 sm:space-y-6">
-      <div>
-        <h1 className="text-xl sm:text-3xl font-serif font-bold text-foreground">
-          Dashboard <span className="text-primary">Executivo</span>
-        </h1>
-        <p className="text-xs sm:text-sm text-muted-foreground mt-1">Visão estratégica em tempo real</p>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div>
+          <h1 className="text-xl sm:text-3xl font-serif font-bold text-foreground">
+            Dashboard <span className="text-primary">Executivo</span>
+          </h1>
+          <p className="text-xs sm:text-sm text-muted-foreground mt-1">Auto-refresh a cada 5 min</p>
+        </div>
+        <div className="flex items-center gap-2 flex-wrap">
+          <Select value={periodoPreset} onValueChange={handlePresetChange}>
+            <SelectTrigger className="w-[160px] h-9 text-xs">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="mes-atual">Mês Atual</SelectItem>
+              <SelectItem value="ultimo-mes">Último Mês</SelectItem>
+              <SelectItem value="personalizado">Personalizado</SelectItem>
+            </SelectContent>
+          </Select>
+          {periodoPreset === "personalizado" && (
+            <div className="flex items-center gap-1">
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" size="sm" className="h-9 text-xs gap-1">
+                    <CalendarIcon className="h-3.5 w-3.5" />
+                    {format(dateRange.from, "dd/MM/yy")}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar mode="single" selected={dateRange.from} onSelect={(d) => d && setDateRange((r) => ({ ...r, from: d }))} className={cn("p-3 pointer-events-auto")} locale={ptBR} />
+                </PopoverContent>
+              </Popover>
+              <span className="text-muted-foreground text-xs">a</span>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" size="sm" className="h-9 text-xs gap-1">
+                    <CalendarIcon className="h-3.5 w-3.5" />
+                    {format(dateRange.to, "dd/MM/yy")}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar mode="single" selected={dateRange.to} onSelect={(d) => d && setDateRange((r) => ({ ...r, to: d }))} className={cn("p-3 pointer-events-auto")} locale={ptBR} />
+                </PopoverContent>
+              </Popover>
+            </div>
+          )}
+          <Button variant="outline" size="sm" className="h-9 text-xs gap-1" onClick={() => queryClient.invalidateQueries()}>
+            <RefreshCw className="h-3.5 w-3.5" /> Atualizar
+          </Button>
+        </div>
       </div>
 
       <Tabs defaultValue="vendas">
