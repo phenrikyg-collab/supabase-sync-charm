@@ -22,7 +22,11 @@ const OFICINA_COLORS = [
   { bg: "hsl(280 60% 50% / 0.12)", border: "hsl(280 60% 50% / 0.4)", text: "hsl(280 60% 50%)" },
   { bg: "hsl(200 70% 50% / 0.12)", border: "hsl(200 70% 50% / 0.4)", text: "hsl(200 70% 50%)" },
   { bg: "hsl(340 65% 50% / 0.12)", border: "hsl(340 65% 50% / 0.4)", text: "hsl(340 65% 50%)" },
-];
+
+const COLUNAS_KANBAN = [
+  { key: "corte", label: "Corte", match: ["corte"] },
+  { key: "costura", label: "Costura", match: ["costura"] },
+  { key: "revisao", label: "Revisão", match: ["revisao", "revisão"] },
   { key: "finalizado", label: "Finalizado", match: ["finalizado"] },
 ];
 
