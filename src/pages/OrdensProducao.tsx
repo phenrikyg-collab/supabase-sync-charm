@@ -14,10 +14,15 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { motion } from "framer-motion";
 
-const COLUNAS_KANBAN = [
-  { key: "corte", label: "Corte", match: ["corte"] },
-  { key: "costura", label: "Costura", match: ["costura"] },
-  { key: "revisao", label: "Revisão", match: ["revisao", "revisão"] },
+// Color palette for oficinas (deterministic by index)
+const OFICINA_COLORS = [
+  { bg: "hsl(var(--primary) / 0.12)", border: "hsl(var(--primary) / 0.4)", text: "hsl(var(--primary))" },
+  { bg: "hsl(var(--success) / 0.12)", border: "hsl(var(--success) / 0.4)", text: "hsl(var(--success))" },
+  { bg: "hsl(var(--warning) / 0.12)", border: "hsl(var(--warning) / 0.4)", text: "hsl(var(--warning))" },
+  { bg: "hsl(280 60% 50% / 0.12)", border: "hsl(280 60% 50% / 0.4)", text: "hsl(280 60% 50%)" },
+  { bg: "hsl(200 70% 50% / 0.12)", border: "hsl(200 70% 50% / 0.4)", text: "hsl(200 70% 50%)" },
+  { bg: "hsl(340 65% 50% / 0.12)", border: "hsl(340 65% 50% / 0.4)", text: "hsl(340 65% 50%)" },
+];
   { key: "finalizado", label: "Finalizado", match: ["finalizado"] },
 ];
 
