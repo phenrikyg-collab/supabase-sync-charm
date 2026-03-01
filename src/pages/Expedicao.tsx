@@ -12,6 +12,22 @@ export default function Expedicao() {
   const emAlerta = pedidos?.filter((p) => p.nivel_risco?.toLowerCase() === "em alerta").length ?? 0;
   const critico = pedidos?.filter((p) => ["critico", "crítico"].includes(p.nivel_risco?.toLowerCase() ?? "")).length ?? 0;
 
+  const getRowClass = (risco: string | null) => {
+    const r = risco?.toLowerCase() ?? "";
+    if (r === "no prazo") return "bg-success/5";
+    if (r === "em alerta") return "bg-warning/5";
+    if (["critico", "crítico"].includes(r)) return "bg-danger/5";
+    return "";
+  };
+
+  const getDiasClass = (risco: string | null) => {
+    const r = risco?.toLowerCase() ?? "";
+    if (r === "no prazo") return "text-success font-semibold";
+    if (r === "em alerta") return "text-warning font-semibold";
+    if (["critico", "crítico"].includes(r)) return "text-danger font-semibold";
+    return "";
+  };
+
   return (
     <div className="space-y-6">
       <div>
@@ -43,12 +59,12 @@ export default function Expedicao() {
               </TableHeader>
               <TableBody>
                 {pedidos?.map((p) => (
-                  <TableRow key={p.id}>
+                  <TableRow key={p.id} className={getRowClass(p.nivel_risco)}>
                     <TableCell className="font-medium">{p.bling_pedido_id ?? "—"}</TableCell>
                     <TableCell>{p.cliente ?? "—"}</TableCell>
                     <TableCell className="text-muted-foreground">{p.data_pedido ?? "—"}</TableCell>
                     <TableCell className="text-muted-foreground">{p.status_bling ?? "—"}</TableCell>
-                    <TableCell className="text-right">{p.dias_corridos ?? 0}</TableCell>
+                    <TableCell className={`text-right ${getDiasClass(p.nivel_risco)}`}>{p.dias_corridos ?? 0}</TableCell>
                     <TableCell><StatusBadge status={p.nivel_risco ?? ""} /></TableCell>
                   </TableRow>
                 ))}
