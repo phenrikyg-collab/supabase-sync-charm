@@ -241,8 +241,10 @@ export interface ResumoProducaoAndamento {
   nome_cor: string | null;
   cor_hex: string | null;
   nome_oficina: string | null;
+  oficina_id: string | null;
   status_ordem: string | null;
   grade_resumo: string | null;
+  quantidade_pecas_ordem: number | null;
 }
 
 export interface ResumoEstoqueTecidos {
