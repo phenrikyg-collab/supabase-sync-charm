@@ -79,7 +79,7 @@ export default function ProdutoForm() {
     // Auto-fill custo_unitario from aviamento
     if (field === "aviamento_id") {
       const avi = aviamentos?.find((a) => a.id === value);
-      if (avi) items[i].custo_unitario = avi.custo_unitario ?? 0;
+      if (avi) items[i].custo_unitario = avi.custo_aviamento ?? 0;
     }
     setAviItems(items);
   };
