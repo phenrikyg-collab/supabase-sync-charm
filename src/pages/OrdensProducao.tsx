@@ -231,9 +231,9 @@ export default function OrdensProducao() {
               const items = ordensEnriched.filter((o: any) => col.match.includes(o.status_ordem?.toLowerCase() ?? ""));
               return (
                 <div key={col.key} className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <h3 className="font-serif font-bold text-foreground">{col.label}</h3>
-                    <span className="text-xs bg-muted text-muted-foreground rounded-full px-2 py-0.5">{items.length}</span>
+                  <div className={`flex items-center justify-between rounded-lg px-3 py-2 border ${col.headerBg} ${col.headerBorder}`}>
+                    <h3 className={`font-serif font-bold ${col.headerText}`}>{col.label}</h3>
+                    <span className={`text-xs font-bold rounded-full px-2 py-0.5 ${col.headerText} ${col.headerBg}`}>{items.length}</span>
                   </div>
                   <div className="space-y-3 min-h-[200px]">
                     {items.map((item: any, i: number) => {
