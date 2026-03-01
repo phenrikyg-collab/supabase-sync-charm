@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useOrdensProducao, useOficinas, useProdutos, useCores, useOrdensCorte, useCreateOrdemProducao, useResumoProducao, useUpdateOrdemProducao } from "@/hooks/useSupabase";
+import { useOrdensProducao, useOficinas, useProdutos, useCores, useOrdensCorte, useCreateOrdemProducao, useResumoProducao, useUpdateOrdemProducao, useAllConsertos, useCreateConserto, useUpdateConserto } from "@/hooks/useSupabase";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { StatusBadge } from "@/components/StatusBadge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, List, Columns3 } from "lucide-react";
+import { Plus, List, Columns3, Wrench } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { motion } from "framer-motion";
@@ -28,8 +28,11 @@ const COLUNAS_KANBAN = [
   { key: "corte", label: "Corte", match: ["corte"], headerBg: "bg-primary/10", headerText: "text-primary", headerBorder: "border-primary/20" },
   { key: "costura", label: "Costura", match: ["costura"], headerBg: "bg-warning/10", headerText: "text-warning", headerBorder: "border-warning/20" },
   { key: "revisao", label: "Revisão", match: ["revisao", "revisão"], headerBg: "bg-[hsl(200_70%_50%/0.1)]", headerText: "text-[hsl(200,70%,50%)]", headerBorder: "border-[hsl(200_70%_50%/0.2)]" },
+  { key: "conserto", label: "Em Conserto", match: ["em conserto"], headerBg: "bg-danger/10", headerText: "text-danger", headerBorder: "border-danger/20" },
   { key: "finalizado", label: "Finalizado", match: ["finalizado"], headerBg: "bg-success/10", headerText: "text-success", headerBorder: "border-success/20" },
 ];
+
+const TAMANHOS = ["PP", "P", "M", "G", "GG", "EG"];
 
 export default function OrdensProducao() {
   const { data: ordens, isLoading } = useOrdensProducao();
@@ -38,14 +41,25 @@ export default function OrdensProducao() {
   const { data: cores } = useCores();
   const { data: ordensCorte } = useOrdensCorte();
   const { data: producao } = useResumoProducao();
+  const { data: consertos } = useAllConsertos();
   const createMut = useCreateOrdemProducao();
   const updateMut = useUpdateOrdemProducao();
+  const createConsertoMut = useCreateConserto();
 
   const [open, setOpen] = useState(false);
   const [ocId, setOcId] = useState("");
   const [oficinaId, setOficinaId] = useState("");
   const [quantidade, setQuantidade] = useState(0);
   const [ocInfo, setOcInfo] = useState<{ produto: string; cor: string; grade: string } | null>(null);
+
+  // Conserto dialog
+  const [consertoOpen, setConsertoOpen] = useState(false);
+  const [consertoOrdemId, setConsertoOrdemId] = useState("");
+  const [consertoCorId, setConsertoCorId] = useState("");
+  const [consertoTamanho, setConsertoTamanho] = useState("");
+  const [consertoQtd, setConsertoQtd] = useState(1);
+  const [consertoOficinaId, setConsertoOficinaId] = useState("");
+  const [consertoObs, setConsertoObs] = useState("");
 
   // Enriched ordens with grade info
   const [ordensEnriched, setOrdensEnriched] = useState<any[]>([]);
@@ -117,6 +131,29 @@ export default function OrdensProducao() {
       setOpen(false);
       setOcId(""); setOficinaId("");
     } catch (e: any) { toast.error(e.message); }
+  };
+
+  const handleCreateConserto = async () => {
+    if (!consertoOrdemId || !consertoTamanho) { toast.error("Preencha os campos obrigatórios"); return; }
+    try {
+      await createConsertoMut.mutateAsync({
+        ordem_producao_id: consertoOrdemId,
+        cor_id: consertoCorId || null,
+        tamanho: consertoTamanho,
+        quantidade: consertoQtd,
+        oficina_id: consertoOficinaId || null,
+        observacao: consertoObs || null,
+        status: "Em Conserto",
+      });
+      toast.success("Conserto registrado!");
+      setConsertoOpen(false);
+      setConsertoOrdemId(""); setConsertoCorId(""); setConsertoTamanho(""); setConsertoQtd(1); setConsertoOficinaId(""); setConsertoObs("");
+    } catch (e: any) { toast.error(e.message); }
+  };
+
+  const openConsertoDialog = (ordemId: string) => {
+    setConsertoOrdemId(ordemId);
+    setConsertoOpen(true);
   };
 
   const moveToNext = async (id: string, currentStatus: string) => {
@@ -226,90 +263,149 @@ export default function OrdensProducao() {
         </TabsContent>
 
         <TabsContent value="kanban" className="mt-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
             {COLUNAS_KANBAN.map((col) => {
-              const items = ordensEnriched.filter((o: any) => col.match.includes(o.status_ordem?.toLowerCase() ?? ""));
+              // For "Em Conserto" column, show consertos grouped by ordem
+              const isConsertoCol = col.key === "conserto";
+              const items = isConsertoCol ? [] : ordensEnriched.filter((o: any) => col.match.includes(o.status_ordem?.toLowerCase() ?? ""));
+              
+              // Group consertos by ordem_producao_id for the Em Conserto column
+              const consertosByOrdem = new Map<string, any[]>();
+              if (isConsertoCol && consertos?.length) {
+                consertos.filter((c) => c.status === "Em Conserto").forEach((c) => {
+                  const list = consertosByOrdem.get(c.ordem_producao_id) ?? [];
+                  list.push(c);
+                  consertosByOrdem.set(c.ordem_producao_id, list);
+                });
+              }
+
               return (
                 <div key={col.key} className="space-y-3">
                   <div className={`flex items-center justify-between rounded-lg px-3 py-2 border ${col.headerBg} ${col.headerBorder}`}>
                     <h3 className={`font-serif font-bold ${col.headerText}`}>{col.label}</h3>
-                    <span className={`text-xs font-bold rounded-full px-2 py-0.5 ${col.headerText} ${col.headerBg}`}>{items.length}</span>
+                    <span className={`text-xs font-bold rounded-full px-2 py-0.5 ${col.headerText} ${col.headerBg}`}>
+                      {isConsertoCol ? consertosByOrdem.size : items.length}
+                    </span>
                   </div>
                   <div className="space-y-3 min-h-[200px]">
-                    {items.map((item: any, i: number) => {
-                      const ofColor = item.oficina_id ? oficinaColorMap[item.oficina_id] : null;
-                      const oficinaNome = item.oficina_id ? oficinaMap[item.oficina_id]?.nome_oficina : null;
-                      const gradeItems: any[] = item.gradeInfo ?? [];
-                      
-                      // Group grade by color
-                      const gradeByColor = new Map<string, { cor: any; grades: { tamanho: string; quantidade: number }[] }>();
-                      gradeItems.forEach((g: any) => {
-                        const key = g.cor_id ?? "sem-cor";
-                        if (!gradeByColor.has(key)) {
-                          gradeByColor.set(key, { cor: corMap[g.cor_id] ?? null, grades: [] });
-                        }
-                        gradeByColor.get(key)!.grades.push({ tamanho: g.tamanho, quantidade: g.quantidade });
-                      });
-
-                      return (
-                        <motion.div
-                          key={item.id ?? i}
-                          initial={{ opacity: 0, scale: 0.95 }}
-                          animate={{ opacity: 1, scale: 1 }}
-                          transition={{ delay: i * 0.03 }}
-                        >
-                          <Card
-                            className="cursor-pointer hover:shadow-md transition-shadow border-l-4"
-                            style={{
-                              backgroundColor: ofColor?.bg ?? undefined,
-                              borderLeftColor: ofColor?.border ?? "hsl(var(--border))",
-                              borderTopColor: ofColor?.border ?? undefined,
-                              borderRightColor: ofColor?.border ?? undefined,
-                              borderBottomColor: ofColor?.border ?? undefined,
-                            }}
-                            onClick={() => item.id && moveToNext(item.id, item.status_ordem ?? "")}
-                          >
-                            <CardContent className="pt-4 pb-3 space-y-2">
-                              <span className="font-medium text-sm text-card-foreground">{item.nome_produto ?? "—"}</span>
-                              
-                              {/* Grade per color */}
-                              {gradeByColor.size > 0 ? (
-                                <div className="space-y-1.5">
-                                  {Array.from(gradeByColor.entries()).map(([key, { cor, grades }]) => (
-                                    <div key={key} className="space-y-0.5">
-                                      <div className="flex items-center gap-1.5">
-                                        <div className="w-3 h-3 rounded-full border border-border" style={{ backgroundColor: cor?.cor_hex ?? "#ccc" }} />
-                                        <span className="text-xs font-medium text-card-foreground">{cor?.nome_cor ?? "—"}</span>
+                    {isConsertoCol ? (
+                      // Render conserto cards
+                      Array.from(consertosByOrdem.entries()).map(([ordemId, consertoList], i) => {
+                        const ordem = ordensEnriched.find((o: any) => o.id === ordemId);
+                        return (
+                          <motion.div key={ordemId} initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: i * 0.03 }}>
+                            <Card className="border-l-4" style={{ borderLeftColor: "hsl(var(--danger))", backgroundColor: "hsl(var(--danger) / 0.05)" }}>
+                              <CardContent className="pt-4 pb-3 space-y-2">
+                                <span className="font-medium text-sm text-card-foreground">{ordem?.nome_produto ?? "—"}</span>
+                                <div className="space-y-1">
+                                  {consertoList.map((c: any, j: number) => {
+                                    const cor = c.cor_id ? corMap[c.cor_id] : null;
+                                    const oficina = c.oficina_id ? oficinaMap[c.oficina_id] : null;
+                                    return (
+                                      <div key={c.id ?? j} className="flex items-center gap-1.5 text-xs">
+                                        {cor && <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: cor.cor_hex ?? "#ccc" }} />}
+                                        <span className="text-muted-foreground">{cor?.nome_cor ?? "—"}</span>
+                                        <span className="bg-danger/10 text-danger px-1.5 py-0.5 rounded text-[10px] font-medium">{c.tamanho}: {c.quantidade}</span>
+                                        {oficina && <span className="text-[10px] text-muted-foreground">({oficina.nome_oficina})</span>}
                                       </div>
-                                      <div className="flex flex-wrap gap-1 pl-4">
-                                        {grades.map((g, j) => (
-                                          <span key={j} className="text-[10px] bg-card/80 border border-border/50 px-1.5 py-0.5 rounded text-muted-foreground">
-                                            {g.tamanho}: {g.quantidade}
-                                          </span>
-                                        ))}
-                                      </div>
-                                    </div>
-                                  ))}
+                                    );
+                                  })}
                                 </div>
-                              ) : item.grade_resumo ? (
-                                <p className="text-xs text-muted-foreground bg-card/60 rounded px-2 py-1">{item.grade_resumo}</p>
-                              ) : null}
-
-                              <div className="flex items-center justify-between">
-                                <span className="text-xs text-muted-foreground">
-                                  {item.quantidade ?? item.quantidade_pecas_ordem ?? 0} peças
-                                </span>
-                                {oficinaNome && (
-                                  <span className="text-xs font-semibold" style={ofColor ? { color: ofColor.text } : undefined}>
-                                    ● {oficinaNome}
-                                  </span>
+                                {consertoList[0]?.observacao && (
+                                  <p className="text-[10px] text-muted-foreground italic">{consertoList[0].observacao}</p>
                                 )}
-                              </div>
-                            </CardContent>
-                          </Card>
-                        </motion.div>
-                      );
-                    })}
+                              </CardContent>
+                            </Card>
+                          </motion.div>
+                        );
+                      })
+                    ) : (
+                      // Render normal ordem cards
+                      items.map((item: any, i: number) => {
+                        const ofColor = item.oficina_id ? oficinaColorMap[item.oficina_id] : null;
+                        const oficinaNome = item.oficina_id ? oficinaMap[item.oficina_id]?.nome_oficina : null;
+                        const gradeItems: any[] = item.gradeInfo ?? [];
+                        const isRevisao = col.key === "revisao";
+                        
+                        const gradeByColor = new Map<string, { cor: any; grades: { tamanho: string; quantidade: number }[] }>();
+                        gradeItems.forEach((g: any) => {
+                          const key = g.cor_id ?? "sem-cor";
+                          if (!gradeByColor.has(key)) {
+                            gradeByColor.set(key, { cor: corMap[g.cor_id] ?? null, grades: [] });
+                          }
+                          gradeByColor.get(key)!.grades.push({ tamanho: g.tamanho, quantidade: g.quantidade });
+                        });
+
+                        return (
+                          <motion.div
+                            key={item.id ?? i}
+                            initial={{ opacity: 0, scale: 0.95 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            transition={{ delay: i * 0.03 }}
+                          >
+                            <Card
+                              className="cursor-pointer hover:shadow-md transition-shadow border-l-4"
+                              style={{
+                                backgroundColor: ofColor?.bg ?? undefined,
+                                borderLeftColor: ofColor?.border ?? "hsl(var(--border))",
+                                borderTopColor: ofColor?.border ?? undefined,
+                                borderRightColor: ofColor?.border ?? undefined,
+                                borderBottomColor: ofColor?.border ?? undefined,
+                              }}
+                              onClick={() => item.id && moveToNext(item.id, item.status_ordem ?? "")}
+                            >
+                              <CardContent className="pt-4 pb-3 space-y-2">
+                                <span className="font-medium text-sm text-card-foreground">{item.nome_produto ?? "—"}</span>
+                                
+                                {gradeByColor.size > 0 ? (
+                                  <div className="space-y-1.5">
+                                    {Array.from(gradeByColor.entries()).map(([key, { cor, grades }]) => (
+                                      <div key={key} className="space-y-0.5">
+                                        <div className="flex items-center gap-1.5">
+                                          <div className="w-3 h-3 rounded-full border border-border" style={{ backgroundColor: cor?.cor_hex ?? "#ccc" }} />
+                                          <span className="text-xs font-medium text-card-foreground">{cor?.nome_cor ?? "—"}</span>
+                                        </div>
+                                        <div className="flex flex-wrap gap-1 pl-4">
+                                          {grades.map((g, j) => (
+                                            <span key={j} className="text-[10px] bg-card/80 border border-border/50 px-1.5 py-0.5 rounded text-muted-foreground">
+                                              {g.tamanho}: {g.quantidade}
+                                            </span>
+                                          ))}
+                                        </div>
+                                      </div>
+                                    ))}
+                                  </div>
+                                ) : item.grade_resumo ? (
+                                  <p className="text-xs text-muted-foreground bg-card/60 rounded px-2 py-1">{item.grade_resumo}</p>
+                                ) : null}
+
+                                <div className="flex items-center justify-between">
+                                  <span className="text-xs text-muted-foreground">
+                                    {item.quantidade ?? item.quantidade_pecas_ordem ?? 0} peças
+                                  </span>
+                                  {oficinaNome && (
+                                    <span className="text-xs font-semibold" style={ofColor ? { color: ofColor.text } : undefined}>
+                                      ● {oficinaNome}
+                                    </span>
+                                  )}
+                                </div>
+
+                                {/* Botão de conserto na Revisão */}
+                                {isRevisao && (
+                                  <Button
+                                    variant="outline" size="sm"
+                                    className="w-full gap-1.5 text-danger border-danger/30 hover:bg-danger/10 mt-1"
+                                    onClick={(e) => { e.stopPropagation(); openConsertoDialog(item.id); }}
+                                  >
+                                    <Wrench className="h-3.5 w-3.5" /> Enviar para Conserto
+                                  </Button>
+                                )}
+                              </CardContent>
+                            </Card>
+                          </motion.div>
+                        );
+                      })
+                    )}
                   </div>
                 </div>
               );
@@ -360,6 +456,67 @@ export default function OrdensProducao() {
           <DialogFooter>
             <Button variant="outline" onClick={() => setOpen(false)}>Cancelar</Button>
             <Button onClick={handleCreate} disabled={createMut.isPending}>Criar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Conserto Dialog */}
+      <Dialog open={consertoOpen} onOpenChange={setConsertoOpen}>
+        <DialogContent>
+          <DialogHeader><DialogTitle className="flex items-center gap-2"><Wrench className="h-5 w-5 text-danger" /> Registrar Conserto</DialogTitle></DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>Cor</Label>
+              <Select value={consertoCorId} onValueChange={setConsertoCorId}>
+                <SelectTrigger><SelectValue placeholder="Selecione a cor..." /></SelectTrigger>
+                <SelectContent>
+                  {cores?.map((c) => (
+                    <SelectItem key={c.id} value={c.id}>
+                      <div className="flex items-center gap-2">
+                        <div className="w-3 h-3 rounded-full" style={{ backgroundColor: c.cor_hex ?? "#ccc" }} />
+                        {c.nome_cor}
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Tamanho</Label>
+              <Select value={consertoTamanho} onValueChange={setConsertoTamanho}>
+                <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
+                <SelectContent>
+                  {TAMANHOS.map((t) => (
+                    <SelectItem key={t} value={t}>{t}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Quantidade</Label>
+              <Input type="number" min={1} value={consertoQtd} onChange={(e) => setConsertoQtd(Number(e.target.value))} />
+            </div>
+            <div className="space-y-2">
+              <Label>Oficina de Conserto</Label>
+              <Select value={consertoOficinaId} onValueChange={setConsertoOficinaId}>
+                <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
+                <SelectContent>
+                  {oficinas?.map((o) => (
+                    <SelectItem key={o.id} value={o.id}>{o.nome_oficina}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Observação</Label>
+              <Input value={consertoObs} onChange={(e) => setConsertoObs(e.target.value)} placeholder="Defeito encontrado..." />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setConsertoOpen(false)}>Cancelar</Button>
+            <Button className="bg-danger hover:bg-danger/90 text-danger-foreground" onClick={handleCreateConserto} disabled={createConsertoMut.isPending}>
+              <Wrench className="h-4 w-4 mr-1.5" /> Registrar
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
