@@ -25,7 +25,14 @@ import Login from "./pages/Login";
 import NotFound from "./pages/NotFound";
 import { Loader2 } from "lucide-react";
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      refetchInterval: 5 * 60 * 1000, // 5 minutes auto-refresh
+      staleTime: 2 * 60 * 1000,
+    },
+  },
+});
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
