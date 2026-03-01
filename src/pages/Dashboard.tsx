@@ -73,7 +73,29 @@ function SectionHeader({ title, icon: Icon }: { title: string; icon: any }) {
 
 const delay = (i: number) => ({ initial: { opacity: 0, y: 16 }, animate: { opacity: 1, y: 0 }, transition: { delay: i * 0.04, duration: 0.35 } });
 
+const REFETCH_INTERVAL = 5 * 60 * 1000; // 5 minutes
+
 export default function Dashboard() {
+  const queryClient = useQueryClient();
+  const [periodoPreset, setPeriodoPreset] = useState("mes-atual");
+  const [dateRange, setDateRange] = useState<{ from: Date; to: Date }>({
+    from: startOfMonth(new Date()),
+    to: endOfMonth(new Date()),
+  });
+
+  // Update range when preset changes
+  const handlePresetChange = (preset: string) => {
+    setPeriodoPreset(preset);
+    const now = new Date();
+    if (preset === "mes-atual") {
+      setDateRange({ from: startOfMonth(now), to: endOfMonth(now) });
+    } else if (preset === "ultimo-mes") {
+      const prev = subMonths(now, 1);
+      setDateRange({ from: startOfMonth(prev), to: endOfMonth(prev) });
+    }
+    // "personalizado" keeps current dateRange
+  };
+
   const { data: producao } = useResumoProducao();
   const { data: estoque } = useResumoEstoque();
   const { data: rolos } = useRolosTecido();
