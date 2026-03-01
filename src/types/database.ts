@@ -140,9 +140,10 @@ export interface Oficina {
 
 export interface Aviamento {
   id: string;
-  nome_aviamento: string | null;
-  custo_unitario: number | null;
-  unidade: string | null;
+  nome_aviamento: string;
+  unidade_medida: string | null;
+  estoque_atual: number | null;
+  custo_aviamento: number | null;
   created_at: string;
 }
 
