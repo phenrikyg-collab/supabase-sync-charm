@@ -1,13 +1,39 @@
+import { useUserRole } from "@/hooks/useUserRole";
+import { Card, CardContent } from "@/components/ui/card";
+import { ShieldAlert } from "lucide-react";
+
+export default function AdminUsuarios() {
+  const { isAdmin, isLoading } = useUserRole();
+
+  if (isLoading) return null;
+
+  if (!isAdmin) {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <Card className="max-w-sm">
+          <CardContent className="pt-6 text-center space-y-3">
+            <ShieldAlert className="h-10 w-10 text-destructive mx-auto" />
+            <h2 className="font-serif font-bold text-foreground text-lg">Acesso Restrito</h2>
+            <p className="text-sm text-muted-foreground">Apenas administradores podem acessar esta página.</p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  return <AdminUsuariosContent />;
+}
+
+// Separated so it only renders for admins
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { UserPlus, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
-export default function AdminUsuarios() {
+function AdminUsuariosContent() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -18,7 +44,6 @@ export default function AdminUsuarios() {
     if (!email || !password) return;
     setLoading(true);
 
-    // Use admin invite or signUp to create users
     const { error } = await supabase.auth.signUp({
       email,
       password,
