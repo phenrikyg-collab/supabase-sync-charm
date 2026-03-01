@@ -153,6 +153,18 @@ export const useCreateRoloTecido = () => {
 export const useAviamentos = () =>
   useQuery({ queryKey: ["aviamentos"], queryFn: () => fetchTable<Aviamento>("aviamentos", { orderBy: "nome_aviamento", ascending: true }) });
 
+export const useCreateAviamento = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (aviamento: Partial<Aviamento>) => {
+      const { data, error } = await supabase.from("aviamentos").insert(aviamento).select().single();
+      if (error) throw error;
+      return data as Aviamento;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["aviamentos"] }),
+  });
+};
+
 export const useProdutoAviamentos = (produtoId: string) =>
   useQuery({
     queryKey: ["produto-aviamentos", produtoId],

@@ -1,12 +1,13 @@
 import { useNavigate, useParams } from "react-router-dom";
 import { useForm } from "react-hook-form";
-import { useProduto, useCreateProduto, useUpdateProduto, useAviamentos, useProdutoAviamentos, useSaveProdutoAviamentos } from "@/hooks/useSupabase";
+import { useProduto, useCreateProduto, useUpdateProduto, useAviamentos, useProdutoAviamentos, useSaveProdutoAviamentos, useTecidos, useCreateAviamento } from "@/hooks/useSupabase";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { useEffect, useState } from "react";
 import { Plus, Trash2 } from "lucide-react";
@@ -33,6 +34,10 @@ export default function ProdutoForm() {
   const isEdit = !!id && id !== "novo";
   const { data: produto } = useProduto(isEdit ? id : "");
   const { data: aviamentos } = useAviamentos();
+  const { data: tecidos } = useTecidos();
+  const createAviamentoMut = useCreateAviamento();
+  const [novoAviamento, setNovoAviamento] = useState({ nome_aviamento: "", unidade_medida: "", custo_aviamento: 0 });
+  const [dialogOpen, setDialogOpen] = useState(false);
   const { data: produtoAviamentos } = useProdutoAviamentos(isEdit ? id : "");
   const createMut = useCreateProduto();
   const updateMut = useUpdateProduto();
@@ -85,6 +90,17 @@ export default function ProdutoForm() {
   };
 
   const aviMap = Object.fromEntries((aviamentos ?? []).map((a) => [a.id, a]));
+
+  const handleCreateAviamento = async () => {
+    if (!novoAviamento.nome_aviamento) { toast.error("Informe o nome do aviamento"); return; }
+    try {
+      const created = await createAviamentoMut.mutateAsync(novoAviamento);
+      setAviItems([...aviItems, { aviamento_id: created.id, quantidade_por_peca: 1, custo_unitario: created.custo_aviamento ?? 0 }]);
+      setNovoAviamento({ nome_aviamento: "", unidade_medida: "", custo_aviamento: 0 });
+      setDialogOpen(false);
+      toast.success("Aviamento cadastrado!");
+    } catch (e: any) { toast.error(e.message); }
+  };
 
   const onSubmit = async (data: ProdutoFormData) => {
     try {
@@ -146,7 +162,20 @@ export default function ProdutoForm() {
               </div>
               <div className="space-y-2 md:col-span-2">
                 <Label>Tecido do Produto</Label>
-                <Input {...register("tecido_do_produto")} placeholder="Nome do tecido" />
+                <Select
+                  value={watch("tecido_do_produto") ?? ""}
+                  onValueChange={(v) => {
+                    const event = { target: { name: "tecido_do_produto", value: v } };
+                    register("tecido_do_produto").onChange(event as any);
+                  }}
+                >
+                  <SelectTrigger><SelectValue placeholder="Selecione o tecido" /></SelectTrigger>
+                  <SelectContent>
+                    {tecidos?.map((t) => (
+                      <SelectItem key={t.id} value={t.nome_tecido ?? t.id}>{t.nome_tecido}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
 
@@ -154,9 +183,36 @@ export default function ProdutoForm() {
             <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <h3 className="font-serif font-bold text-foreground">Aviamentos do Produto</h3>
-                <Button type="button" variant="outline" size="sm" onClick={addAviamento} className="gap-1">
-                  <Plus className="h-3 w-3" /> Adicionar
-                </Button>
+                <div className="flex gap-2">
+                  <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+                    <DialogTrigger asChild>
+                      <Button type="button" variant="outline" size="sm" className="gap-1">
+                        <Plus className="h-3 w-3" /> Novo Aviamento
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent>
+                      <DialogHeader><DialogTitle>Cadastrar Aviamento</DialogTitle></DialogHeader>
+                      <div className="space-y-4">
+                        <div className="space-y-2">
+                          <Label>Nome</Label>
+                          <Input value={novoAviamento.nome_aviamento} onChange={(e) => setNovoAviamento({...novoAviamento, nome_aviamento: e.target.value})} placeholder="Ex: Botão, Zíper..." />
+                        </div>
+                        <div className="space-y-2">
+                          <Label>Unidade de Medida</Label>
+                          <Input value={novoAviamento.unidade_medida} onChange={(e) => setNovoAviamento({...novoAviamento, unidade_medida: e.target.value})} placeholder="Ex: un, m, kg..." />
+                        </div>
+                        <div className="space-y-2">
+                          <Label>Custo Unitário</Label>
+                          <Input type="number" step="0.01" value={novoAviamento.custo_aviamento} onChange={(e) => setNovoAviamento({...novoAviamento, custo_aviamento: Number(e.target.value)})} />
+                        </div>
+                        <Button type="button" onClick={handleCreateAviamento} disabled={createAviamentoMut.isPending} className="w-full">Cadastrar</Button>
+                      </div>
+                    </DialogContent>
+                  </Dialog>
+                  <Button type="button" variant="outline" size="sm" onClick={addAviamento} className="gap-1">
+                    <Plus className="h-3 w-3" /> Adicionar Existente
+                  </Button>
+                </div>
               </div>
               {aviItems.length > 0 ? (
                 <Table>

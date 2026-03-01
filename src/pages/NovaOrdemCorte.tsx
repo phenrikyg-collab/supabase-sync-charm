@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useProdutos, useCores, useRolosTecido, useTecidos, useCreateOrdemCorte } from "@/hooks/useSupabase";
+import { useProdutos, useCores, useRolosTecido, useTecidos, useCreateOrdemCorte, useOrdensCorte } from "@/hooks/useSupabase";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -25,9 +25,13 @@ export default function NovaOrdemCorte() {
   const [grade, setGrade] = useState<Record<string, number>>({});
   const [selectedRolos, setSelectedRolos] = useState<Set<string>>(new Set());
   const [metrosRolo, setMetrosRolo] = useState<Record<string, number>>({});
-  const [numeroOC, setNumeroOC] = useState("");
   const [metrosRisco, setMetrosRisco] = useState(0);
   const [folhas, setFolhas] = useState(1);
+  const [searchRolo, setSearchRolo] = useState("");
+
+  // Auto-generate OC number
+  const { data: ordensExistentes } = useOrdensCorte();
+  const numeroOC = `OC-${String((ordensExistentes?.length ?? 0) + 1).padStart(4, "0")}`;
 
   const produtoSelecionado = produtos?.find((p) => p.id === produtoId);
   
@@ -56,8 +60,8 @@ export default function NovaOrdemCorte() {
   const tecidoMap = Object.fromEntries((tecidos ?? []).map((t) => [t.id, t]));
 
   const handleSubmit = async () => {
-    if (!numeroOC || !produtoId) {
-      toast.error("Preencha o número da OC e selecione um produto");
+    if (!produtoId) {
+      toast.error("Selecione um produto");
       return;
     }
     if (estoqueInsuficiente) {
@@ -114,7 +118,7 @@ export default function NovaOrdemCorte() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="space-y-2">
               <Label>Número da OC</Label>
-              <Input value={numeroOC} onChange={(e) => setNumeroOC(e.target.value)} placeholder="OC-001" />
+              <Input value={numeroOC} readOnly className="bg-muted" />
             </div>
             <div className="space-y-2">
               <Label>Metros do Risco</Label>

@@ -16,9 +16,9 @@ export default function EstoqueTecidos() {
   const [search, setSearch] = useState("");
 
   const tecidoMap = Object.fromEntries((tecidos ?? []).map((t) => [t.id, t]));
-  const rolosDisponiveis = rolos?.filter((r) => (r.metragem_disponivel ?? 0) > 0) ?? [];
+  const todosRolos = rolos ?? [];
 
-  const filtered = rolosDisponiveis.filter((r) => {
+  const filtered = todosRolos.filter((r) => {
     const tecido = r.tecido_id ? tecidoMap[r.tecido_id] : null;
     const text = `${r.codigo_rolo} ${tecido?.nome_tecido} ${r.cor_nome} ${r.lote}`.toLowerCase();
     return text.includes(search.toLowerCase());
@@ -71,6 +71,7 @@ export default function EstoqueTecidos() {
                   <TableHead>Tecido</TableHead>
                   <TableHead>Cor</TableHead>
                   <TableHead className="text-right">Disponível</TableHead>
+                  <TableHead>Status</TableHead>
                   <TableHead className="text-right">Custo/M</TableHead>
                   <TableHead className="text-right">Valor Total</TableHead>
                 </TableRow>
@@ -87,6 +88,13 @@ export default function EstoqueTecidos() {
                       <TableCell className="font-medium">{tecido?.nome_tecido ?? "—"}</TableCell>
                       <TableCell>{r.cor_nome ?? "—"}</TableCell>
                       <TableCell className="text-right">{(r.metragem_disponivel ?? 0).toFixed(1)}m</TableCell>
+                      <TableCell>
+                        {(r.metragem_disponivel ?? 0) > 0 ? (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">Disponível</span>
+                        ) : (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">Usado</span>
+                        )}
+                      </TableCell>
                       <TableCell className="text-right">{formatCurrency(custoMetro)}</TableCell>
                       <TableCell className="text-right font-medium">{formatCurrency(custoRolo)}</TableCell>
                     </TableRow>
