@@ -24,6 +24,7 @@ const OFICINA_COLORS = [
   { bg: "hsl(340 65% 50% / 0.12)", border: "hsl(340 65% 50% / 0.4)", text: "hsl(340 65% 50%)" },
 ];
 
+const COLUNAS_KANBAN = [
   { key: "corte", label: "Corte", match: ["corte"] },
   { key: "costura", label: "Costura", match: ["costura"] },
   { key: "revisao", label: "Revisão", match: ["revisao", "revisão"] },
