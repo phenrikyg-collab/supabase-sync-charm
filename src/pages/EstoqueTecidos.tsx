@@ -97,7 +97,6 @@ export default function EstoqueTecidos() {
                       </TableCell>
                       <TableCell className="text-right">{formatCurrency(custoMetro)}</TableCell>
                       <TableCell className="text-right font-medium">{formatCurrency(custoRolo)}</TableCell>
-                      <TableCell className="text-right font-medium">{formatCurrency(custoRolo)}</TableCell>
                     </TableRow>
                   );
                 })}
