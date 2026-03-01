@@ -236,36 +236,49 @@ export default function OrdensProducao() {
                     <span className="text-xs bg-muted text-muted-foreground rounded-full px-2 py-0.5">{items.length}</span>
                   </div>
                   <div className="space-y-3 min-h-[200px]">
-                    {items.map((item, i) => (
-                      <motion.div
-                        key={item.id ?? i}
-                        initial={{ opacity: 0, scale: 0.95 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        transition={{ delay: i * 0.03 }}
-                      >
-                        <Card
-                          className="cursor-pointer hover:shadow-md transition-shadow"
-                          onClick={() => item.id && moveToNext(item.id, item.status_ordem ?? "")}
+                    {items.map((item, i) => {
+                      const ofColor = item.oficina_id ? oficinaColorMap[item.oficina_id] : null;
+                      return (
+                        <motion.div
+                          key={item.id ?? i}
+                          initial={{ opacity: 0, scale: 0.95 }}
+                          animate={{ opacity: 1, scale: 1 }}
+                          transition={{ delay: i * 0.03 }}
                         >
-                          <CardContent className="pt-4 pb-3 space-y-2">
-                            <div className="flex items-center justify-between">
-                              <span className="font-medium text-sm text-card-foreground">{item.nome_produto}</span>
-                              {item.cor_hex && (
-                                <div className="w-4 h-4 rounded-full border border-border" style={{ backgroundColor: item.cor_hex }} />
+                          <Card
+                            className="cursor-pointer hover:shadow-md transition-shadow"
+                            style={ofColor ? { backgroundColor: ofColor.bg, borderColor: ofColor.border } : undefined}
+                            onClick={() => item.id && moveToNext(item.id, item.status_ordem ?? "")}
+                          >
+                            <CardContent className="pt-4 pb-3 space-y-2">
+                              <div className="flex items-center justify-between">
+                                <span className="font-medium text-sm text-card-foreground">{item.nome_produto}</span>
+                                {item.cor_hex && (
+                                  <div className="w-4 h-4 rounded-full border border-border" style={{ backgroundColor: item.cor_hex }} />
+                                )}
+                              </div>
+                              {item.nome_cor && (
+                                <div className="flex items-center gap-1.5">
+                                  {item.cor_hex && <div className="w-3 h-3 rounded-full" style={{ backgroundColor: item.cor_hex }} />}
+                                  <span className="text-xs text-muted-foreground">{item.nome_cor}</span>
+                                </div>
                               )}
-                            </div>
-                            {item.nome_cor && (
-                              <p className="text-xs text-muted-foreground">{item.nome_cor}</p>
-                            )}
-                            {item.grade_resumo && (
-                              <p className="text-xs text-muted-foreground bg-muted rounded px-2 py-1">{item.grade_resumo}</p>
-                            )}
-                            {item.nome_oficina && (
-                              <p className="text-xs text-muted-foreground">Oficina: {item.nome_oficina}</p>
-                            )}
-                          </CardContent>
-                        </Card>
-                      </motion.div>
+                              {item.grade_resumo && (
+                                <p className="text-xs text-muted-foreground bg-card/60 rounded px-2 py-1">{item.grade_resumo}</p>
+                              )}
+                              {item.quantidade_pecas_ordem != null && (
+                                <p className="text-xs font-medium text-card-foreground">{item.quantidade_pecas_ordem} peças</p>
+                              )}
+                              {item.nome_oficina && (
+                                <p className="text-xs font-semibold" style={ofColor ? { color: ofColor.text } : undefined}>
+                                  ● {item.nome_oficina}
+                                </p>
+                              )}
+                            </CardContent>
+                          </Card>
+                        </motion.div>
+                      );
+                    })}
                     ))}
                   </div>
                 </div>
