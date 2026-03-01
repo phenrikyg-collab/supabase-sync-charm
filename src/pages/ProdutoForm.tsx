@@ -43,7 +43,7 @@ export default function ProdutoForm() {
   const updateMut = useUpdateProduto();
   const saveAviamentosMut = useSaveProdutoAviamentos();
 
-  const { register, handleSubmit, watch, reset } = useForm<ProdutoFormData>();
+  const { register, handleSubmit, watch, reset, setValue } = useForm<ProdutoFormData>();
   const [aviItems, setAviItems] = useState<AviamentoItem[]>([]);
 
   useEffect(() => {
@@ -164,10 +164,7 @@ export default function ProdutoForm() {
                 <Label>Tecido do Produto</Label>
                 <Select
                   value={watch("tecido_do_produto") ?? ""}
-                  onValueChange={(v) => {
-                    const event = { target: { name: "tecido_do_produto", value: v } };
-                    register("tecido_do_produto").onChange(event as any);
-                  }}
+                  onValueChange={(v) => setValue("tecido_do_produto", v)}
                 >
                   <SelectTrigger><SelectValue placeholder="Selecione o tecido" /></SelectTrigger>
                   <SelectContent>
