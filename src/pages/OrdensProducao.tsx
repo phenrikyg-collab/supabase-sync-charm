@@ -133,6 +133,29 @@ export default function OrdensProducao() {
     } catch (e: any) { toast.error(e.message); }
   };
 
+  const handleCreateConserto = async () => {
+    if (!consertoOrdemId || !consertoTamanho) { toast.error("Preencha os campos obrigatórios"); return; }
+    try {
+      await createConsertoMut.mutateAsync({
+        ordem_producao_id: consertoOrdemId,
+        cor_id: consertoCorId || null,
+        tamanho: consertoTamanho,
+        quantidade: consertoQtd,
+        oficina_id: consertoOficinaId || null,
+        observacao: consertoObs || null,
+        status: "Em Conserto",
+      });
+      toast.success("Conserto registrado!");
+      setConsertoOpen(false);
+      setConsertoOrdemId(""); setConsertoCorId(""); setConsertoTamanho(""); setConsertoQtd(1); setConsertoOficinaId(""); setConsertoObs("");
+    } catch (e: any) { toast.error(e.message); }
+  };
+
+  const openConsertoDialog = (ordemId: string) => {
+    setConsertoOrdemId(ordemId);
+    setConsertoOpen(true);
+  };
+
   const moveToNext = async (id: string, currentStatus: string) => {
     const idx = COLUNAS_KANBAN.findIndex((c) => c.match.includes(currentStatus.toLowerCase()));
     if (idx < 0 || idx >= COLUNAS_KANBAN.length - 1) return;
