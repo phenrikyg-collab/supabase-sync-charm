@@ -486,47 +486,70 @@ export default function OrdensProducao() {
               </div>
               <div>
                 <DialogTitle className="text-lg">Registrar Conserto</DialogTitle>
-                <p className="text-xs text-muted-foreground mt-0.5">Informe os detalhes da peça para reparo</p>
+                <p className="text-xs text-muted-foreground mt-0.5">Adicione as peças que serão enviadas para reparo</p>
               </div>
             </div>
           </DialogHeader>
 
           <div className="space-y-4 pt-2">
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Cor</Label>
-                <Select value={consertoCorId} onValueChange={setConsertoCorId}>
-                  <SelectTrigger className="h-9"><SelectValue placeholder="Selecione..." /></SelectTrigger>
-                  <SelectContent>
-                    {cores?.map((c) => (
-                      <SelectItem key={c.id} value={c.id}>
-                        <div className="flex items-center gap-2">
-                          <div className="w-3 h-3 rounded-full border border-border/50" style={{ backgroundColor: c.cor_hex ?? "#ccc" }} />
-                          {c.nome_cor}
-                        </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+            {/* Itens de conserto */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Peças para conserto</Label>
+                <button
+                  type="button"
+                  onClick={addConsertoItem}
+                  className="flex items-center gap-1 text-xs text-primary hover:text-primary/80 font-medium transition-colors"
+                >
+                  <PlusCircle className="h-3.5 w-3.5" /> Adicionar peça
+                </button>
               </div>
-              <div className="space-y-1.5">
-                <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Tamanho</Label>
-                <Select value={consertoTamanho} onValueChange={setConsertoTamanho}>
-                  <SelectTrigger className="h-9"><SelectValue placeholder="Selecione..." /></SelectTrigger>
-                  <SelectContent>
-                    {TAMANHOS.map((t) => (
-                      <SelectItem key={t} value={t}>{t}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+
+              <div className="space-y-2 max-h-[240px] overflow-y-auto pr-1">
+                {consertoItens.map((item, index) => (
+                  <div key={index} className="flex items-center gap-2 p-2.5 rounded-lg border border-border/60 bg-muted/30">
+                    <div className="flex-1 grid grid-cols-3 gap-2">
+                      <Select value={item.corId} onValueChange={(v) => updateConsertoItem(index, "corId", v)}>
+                        <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Cor" /></SelectTrigger>
+                        <SelectContent>
+                          {cores?.map((c) => (
+                            <SelectItem key={c.id} value={c.id}>
+                              <div className="flex items-center gap-1.5">
+                                <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: c.cor_hex ?? "#ccc" }} />
+                                {c.nome_cor}
+                              </div>
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <Select value={item.tamanho} onValueChange={(v) => updateConsertoItem(index, "tamanho", v)}>
+                        <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Tam." /></SelectTrigger>
+                        <SelectContent>
+                          {TAMANHOS.map((t) => (
+                            <SelectItem key={t} value={t}>{t}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <Input
+                        type="number" min={1} value={item.quantidade}
+                        onChange={(e) => updateConsertoItem(index, "quantidade", Number(e.target.value))}
+                        className="h-8 text-xs" placeholder="Qtd"
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => removeConsertoItem(index)}
+                      disabled={consertoItens.length <= 1}
+                      className="p-1 rounded text-muted-foreground hover:text-danger hover:bg-danger/10 transition-colors disabled:opacity-30 disabled:pointer-events-none"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                ))}
               </div>
             </div>
 
             <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Quantidade</Label>
-                <Input type="number" min={1} value={consertoQtd} onChange={(e) => setConsertoQtd(Number(e.target.value))} className="h-9" />
-              </div>
               <div className="space-y-1.5">
                 <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Oficina</Label>
                 <Select value={consertoOficinaId} onValueChange={setConsertoOficinaId}>
@@ -538,11 +561,10 @@ export default function OrdensProducao() {
                   </SelectContent>
                 </Select>
               </div>
-            </div>
-
-            <div className="space-y-1.5">
-              <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Observação</Label>
-              <Input value={consertoObs} onChange={(e) => setConsertoObs(e.target.value)} placeholder="Descreva o defeito encontrado..." className="h-9" />
+              <div className="space-y-1.5">
+                <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Observação</Label>
+                <Input value={consertoObs} onChange={(e) => setConsertoObs(e.target.value)} placeholder="Defeito encontrado..." className="h-9" />
+              </div>
             </div>
           </div>
 
