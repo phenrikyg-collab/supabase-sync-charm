@@ -21,6 +21,7 @@ const statusMap: Record<string, { label: string; className: string }> = {
   "em alerta": { label: "Em Alerta", className: "bg-warning/10 text-warning border-warning/20" },
   critico: { label: "Crítico", className: "bg-danger/10 text-danger border-danger/20" },
   crítico: { label: "Crítico", className: "bg-danger/10 text-danger border-danger/20" },
+  "em conserto": { label: "Em Conserto", className: "bg-danger/10 text-danger border-danger/20" },
 };
 
 export function StatusBadge({ status, className }: StatusBadgeProps) {
