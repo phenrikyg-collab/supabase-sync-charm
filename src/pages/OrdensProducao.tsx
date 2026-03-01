@@ -41,14 +41,25 @@ export default function OrdensProducao() {
   const { data: cores } = useCores();
   const { data: ordensCorte } = useOrdensCorte();
   const { data: producao } = useResumoProducao();
+  const { data: consertos } = useAllConsertos();
   const createMut = useCreateOrdemProducao();
   const updateMut = useUpdateOrdemProducao();
+  const createConsertoMut = useCreateConserto();
 
   const [open, setOpen] = useState(false);
   const [ocId, setOcId] = useState("");
   const [oficinaId, setOficinaId] = useState("");
   const [quantidade, setQuantidade] = useState(0);
   const [ocInfo, setOcInfo] = useState<{ produto: string; cor: string; grade: string } | null>(null);
+
+  // Conserto dialog
+  const [consertoOpen, setConsertoOpen] = useState(false);
+  const [consertoOrdemId, setConsertoOrdemId] = useState("");
+  const [consertoCorId, setConsertoCorId] = useState("");
+  const [consertoTamanho, setConsertoTamanho] = useState("");
+  const [consertoQtd, setConsertoQtd] = useState(1);
+  const [consertoOficinaId, setConsertoOficinaId] = useState("");
+  const [consertoObs, setConsertoObs] = useState("");
 
   // Enriched ordens with grade info
   const [ordensEnriched, setOrdensEnriched] = useState<any[]>([]);
