@@ -133,7 +133,8 @@ export default function Dashboard() {
     const faturamentoHoje = vendasHoje.reduce((sum, m) => sum + (m.valor_liquido ?? m.valor ?? 0), 0);
 
     // Meta
-    const metaAtual = (metas ?? []).find((mt) => mt.mes?.startsWith(mesAtual));
+    const mesAtualStr = `${dateRange.from.getFullYear()}-${String(dateRange.from.getMonth() + 1).padStart(2, "0")}`;
+    const metaAtual = (metas ?? []).find((mt) => mt.mes?.startsWith(mesAtualStr));
     const metaMensal = metaAtual?.meta_mensal ?? 0;
     const diasUteis = metaAtual?.dias_uteis ?? 22;
     const progresso = metaMensal > 0 ? (faturamentoMes / metaMensal) * 100 : 0;
