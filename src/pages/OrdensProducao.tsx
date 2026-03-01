@@ -459,6 +459,67 @@ export default function OrdensProducao() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Conserto Dialog */}
+      <Dialog open={consertoOpen} onOpenChange={setConsertoOpen}>
+        <DialogContent>
+          <DialogHeader><DialogTitle className="flex items-center gap-2"><Wrench className="h-5 w-5 text-danger" /> Registrar Conserto</DialogTitle></DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>Cor</Label>
+              <Select value={consertoCorId} onValueChange={setConsertoCorId}>
+                <SelectTrigger><SelectValue placeholder="Selecione a cor..." /></SelectTrigger>
+                <SelectContent>
+                  {cores?.map((c) => (
+                    <SelectItem key={c.id} value={c.id}>
+                      <div className="flex items-center gap-2">
+                        <div className="w-3 h-3 rounded-full" style={{ backgroundColor: c.cor_hex ?? "#ccc" }} />
+                        {c.nome_cor}
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Tamanho</Label>
+              <Select value={consertoTamanho} onValueChange={setConsertoTamanho}>
+                <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
+                <SelectContent>
+                  {TAMANHOS.map((t) => (
+                    <SelectItem key={t} value={t}>{t}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Quantidade</Label>
+              <Input type="number" min={1} value={consertoQtd} onChange={(e) => setConsertoQtd(Number(e.target.value))} />
+            </div>
+            <div className="space-y-2">
+              <Label>Oficina de Conserto</Label>
+              <Select value={consertoOficinaId} onValueChange={setConsertoOficinaId}>
+                <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
+                <SelectContent>
+                  {oficinas?.map((o) => (
+                    <SelectItem key={o.id} value={o.id}>{o.nome_oficina}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Observação</Label>
+              <Input value={consertoObs} onChange={(e) => setConsertoObs(e.target.value)} placeholder="Defeito encontrado..." />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setConsertoOpen(false)}>Cancelar</Button>
+            <Button className="bg-danger hover:bg-danger/90 text-danger-foreground" onClick={handleCreateConserto} disabled={createConsertoMut.isPending}>
+              <Wrench className="h-4 w-4 mr-1.5" /> Registrar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
