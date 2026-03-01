@@ -147,7 +147,8 @@ export default function Dashboard() {
     const diasUteisRestantes = Math.max(1, Math.round(diasRestantesMes * (diasUteis / ultimoDia)));
 
     const metaDiaria = diasUteisRestantes > 0 ? restante / diasUteisRestantes : 0;
-    const pedidosNecessarios = ticketMedio > 0 ? Math.ceil(metaDiaria / ticketMedio) : 0;
+    const ticketMedioMeta = metaAtual?.meta_ticket_medio ?? 0;
+    const pedidosNecessarios = ticketMedioMeta > 0 ? Math.ceil(metaDiaria / ticketMedioMeta) : 0;
 
     // Media real diária (based on elapsed business days)
     const diasUteisPassados = Math.max(1, diasUteis - diasUteisRestantes);
