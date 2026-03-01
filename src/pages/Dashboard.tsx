@@ -109,15 +109,16 @@ export default function Dashboard() {
   // ── VENDAS & META (calculated from movimentacoes_financeiras) ──
   const vendasKPI = useMemo(() => {
     const now = new Date();
-    const mesAtual = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
     const hoje = now.toISOString().split("T")[0];
+    const fromStr = format(dateRange.from, "yyyy-MM-dd");
+    const toStr = format(dateRange.to, "yyyy-MM-dd");
 
-    // Filter sales from Bling for current month
+    // Filter sales from Bling within date range
     const vendasMes = (movimentacoes ?? []).filter((m) => {
       const isBling = m.origem?.toLowerCase() === "bling";
       const isEntrada = m.tipo?.toLowerCase() === "entrada";
-      const mesMatch = m.data?.startsWith(mesAtual);
-      return (isBling || isEntrada) && mesMatch;
+      const inRange = m.data != null && m.data >= fromStr && m.data <= toStr;
+      return (isBling || isEntrada) && inRange;
     });
 
     const faturamentoMes = vendasMes.reduce((sum, m) => sum + (m.valor_liquido ?? m.valor ?? 0), 0);
