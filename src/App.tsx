@@ -18,6 +18,7 @@ import Producao from "./pages/Producao";
 import Expedicao from "./pages/Expedicao";
 import Financeiro from "./pages/Financeiro";
 import Metas from "./pages/Metas";
+import PagamentoOficinas from "./pages/PagamentoOficinas";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -43,6 +44,7 @@ const App = () => (
             <Route path="/oficinas" element={<Oficinas />} />
             <Route path="/ordens-producao" element={<OrdensProducao />} />
             {/* Kanban merged into /ordens-producao */}
+            <Route path="/pagamento-oficinas" element={<PagamentoOficinas />} />
             <Route path="/expedicao" element={<Expedicao />} />
             <Route path="/financeiro" element={<Financeiro />} />
             <Route path="/metas" element={<Metas />} />
