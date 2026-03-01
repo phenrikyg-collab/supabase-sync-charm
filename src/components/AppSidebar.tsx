@@ -1,6 +1,6 @@
 import {
-  LayoutDashboard, Package, Palette, Layers, Scissors, Factory,
-  Kanban, Truck, DollarSign, Target, Menu,
+  LayoutDashboard, Package, Plus, Palette, Layers, Scissors, Factory,
+  Kanban, Truck, DollarSign, Target, FileText, Building2,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
@@ -13,10 +13,13 @@ import {
 const menuItems = [
   { title: "Dashboard", url: "/", icon: LayoutDashboard },
   { title: "Produtos", url: "/produtos", icon: Package },
+  { title: "Cadastro Produto", url: "/produtos/novo", icon: Plus },
   { title: "Cores", url: "/cores", icon: Palette },
+  { title: "Entrada NF", url: "/entrada-nf", icon: FileText },
   { title: "Estoque Tecidos", url: "/estoque", icon: Layers },
   { title: "Nova Ordem Corte", url: "/ordens-corte/nova", icon: Scissors },
-  { title: "Ordens de Corte", url: "/ordens-corte", icon: Scissors },
+  { title: "Ordem de Corte", url: "/ordens-corte", icon: Scissors },
+  { title: "Oficinas", url: "/oficinas", icon: Building2 },
   { title: "Ordem Produção", url: "/ordens-producao", icon: Factory },
   { title: "Produção", url: "/producao", icon: Kanban },
   { title: "Expedição", url: "/expedicao", icon: Truck },
@@ -27,7 +30,6 @@ const menuItems = [
 export function AppSidebar() {
   const { state } = useSidebar();
   const collapsed = state === "collapsed";
-  const location = useLocation();
 
   return (
     <Sidebar collapsible="icon">
@@ -49,7 +51,7 @@ export function AppSidebar() {
 
         <SidebarGroup>
           <SidebarGroupLabel className="text-sidebar-foreground/40 uppercase tracking-widest text-[10px]">
-            Menu
+            Módulos
           </SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
