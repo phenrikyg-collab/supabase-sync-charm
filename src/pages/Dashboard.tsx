@@ -240,39 +240,39 @@ export default function Dashboard() {
     [expStats]);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       <div>
-        <h1 className="text-3xl font-serif font-bold text-foreground">
+        <h1 className="text-xl sm:text-3xl font-serif font-bold text-foreground">
           Dashboard <span className="text-primary">Executivo</span>
         </h1>
-        <p className="text-sm text-muted-foreground mt-1">Visão estratégica em tempo real</p>
+        <p className="text-xs sm:text-sm text-muted-foreground mt-1">Visão estratégica em tempo real</p>
       </div>
 
       <Tabs defaultValue="vendas">
-        <TabsList className="flex-wrap h-auto gap-1">
-          <TabsTrigger value="vendas" className="gap-1.5"><Target className="h-3.5 w-3.5" /> Vendas e Meta</TabsTrigger>
-          <TabsTrigger value="producao" className="gap-1.5"><Factory className="h-3.5 w-3.5" /> Produção</TabsTrigger>
-          <TabsTrigger value="estoque" className="gap-1.5"><Layers className="h-3.5 w-3.5" /> Estoque</TabsTrigger>
-          <TabsTrigger value="margem" className="gap-1.5"><Gauge className="h-3.5 w-3.5" /> Margem</TabsTrigger>
-          <TabsTrigger value="expedicao" className="gap-1.5"><Truck className="h-3.5 w-3.5" /> Expedição</TabsTrigger>
+        <TabsList className="flex-wrap h-auto gap-1 w-full justify-start">
+          <TabsTrigger value="vendas" className="gap-1.5 text-xs sm:text-sm"><Target className="h-3.5 w-3.5 hidden sm:block" /> Vendas</TabsTrigger>
+          <TabsTrigger value="producao" className="gap-1.5 text-xs sm:text-sm"><Factory className="h-3.5 w-3.5 hidden sm:block" /> Produção</TabsTrigger>
+          <TabsTrigger value="estoque" className="gap-1.5 text-xs sm:text-sm"><Layers className="h-3.5 w-3.5 hidden sm:block" /> Estoque</TabsTrigger>
+          <TabsTrigger value="margem" className="gap-1.5 text-xs sm:text-sm"><Gauge className="h-3.5 w-3.5 hidden sm:block" /> Margem</TabsTrigger>
+          <TabsTrigger value="expedicao" className="gap-1.5 text-xs sm:text-sm"><Truck className="h-3.5 w-3.5 hidden sm:block" /> Expedição</TabsTrigger>
         </TabsList>
 
         {/* ═══════ VENDAS E META ═══════ */}
-        <TabsContent value="vendas" className="space-y-6 mt-4">
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+        <TabsContent value="vendas" className="space-y-4 sm:space-y-6 mt-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3 sm:gap-4">
             <motion.div {...delay(0)}><StatCard title="Faturamento Mês" value={fmt(vendasKPI.faturamentoMes)} icon={DollarSign} variant="primary" /></motion.div>
             <motion.div {...delay(1)}><StatCard title="Meta Mensal" value={fmt(vendasKPI.metaMensal)} subtitle={`${vendasKPI.progresso.toFixed(1)}% atingido`} icon={Target} /></motion.div>
             <motion.div {...delay(2)}><StatCard title="Ticket Médio" value={fmt(vendasKPI.ticketMedio)} subtitle={`${vendasKPI.totalPedidos} pedidos`} icon={TrendingUp} /></motion.div>
             <motion.div {...delay(3)}><StatCard title="Desconto Médio" value={fmtPct(vendasKPI.descontoMedio)} icon={Percent} /></motion.div>
-            <motion.div {...delay(4)}><StatCard title="Vendas Hoje" value={fmt(vendasKPI.faturamentoHoje)} subtitle={`${vendasKPI.vendasHojeCount} pedidos`} icon={ShoppingCart} /></motion.div>
+            <motion.div {...delay(4)} className="sm:col-span-2 lg:col-span-1"><StatCard title="Vendas Hoje" value={fmt(vendasKPI.faturamentoHoje)} subtitle={`${vendasKPI.vendasHojeCount} pedidos`} icon={ShoppingCart} /></motion.div>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 sm:gap-4">
             <motion.div {...delay(5)} className="lg:col-span-2">
               <Card className="h-full">
-                <CardContent className="pt-5 space-y-4">
-                  <div className="flex items-center justify-between">
-                    <h3 className="font-serif font-bold text-foreground">Meta vs Realizado</h3>
+                <CardContent className="pt-4 sm:pt-5 space-y-3 sm:space-y-4">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                    <h3 className="font-serif font-bold text-foreground text-sm sm:text-base">Meta vs Realizado</h3>
                     <RiskIndicator level={vendasKPI.nivelRisco} />
                   </div>
                   <div className="space-y-2">
@@ -282,7 +282,7 @@ export default function Dashboard() {
                     </div>
                     <Progress value={Math.min(vendasKPI.progresso, 100)} className="h-3" />
                   </div>
-                  <div className="grid grid-cols-3 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-3">
                     <div className="p-3 rounded-lg bg-muted/50 border border-border">
                       <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">Bruto</p>
                       <p className="text-lg font-bold text-foreground">{fmt(vendasKPI.bruto)}</p>
@@ -329,8 +329,8 @@ export default function Dashboard() {
         </TabsContent>
 
         {/* ═══════ PRODUÇÃO ═══════ */}
-        <TabsContent value="producao" className="space-y-6 mt-4">
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+        <TabsContent value="producao" className="space-y-4 sm:space-y-6 mt-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3 sm:gap-4">
             {[
               { label: "Em Corte", count: prodCounts.corte, variant: "warning" as const, icon: Scissors },
               { label: "Em Costura", count: prodCounts.costura, variant: "primary" as const, icon: Factory },
@@ -344,12 +344,12 @@ export default function Dashboard() {
             ))}
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 sm:gap-4">
             <motion.div {...delay(5)} className="lg:col-span-2">
               <Card className="h-full">
-                <CardContent className="pt-5">
-                  <h3 className="font-serif font-bold text-foreground mb-4">Produção por Status</h3>
-                  <ResponsiveContainer width="100%" height={250}>
+                <CardContent className="pt-4 sm:pt-5">
+                  <h3 className="font-serif font-bold text-foreground mb-4 text-sm sm:text-base">Produção por Status</h3>
+                  <ResponsiveContainer width="100%" height={220}>
                     <BarChart data={prodChartData} barSize={36}>
                       <CartesianGrid strokeDasharray="3 3" stroke="hsl(220, 14%, 90%)" />
                       <XAxis dataKey="name" tick={{ fontSize: 11 }} stroke="hsl(220, 10%, 46%)" />
@@ -399,8 +399,8 @@ export default function Dashboard() {
         </TabsContent>
 
         {/* ═══════ ESTOQUE ═══════ */}
-        <TabsContent value="estoque" className="space-y-6 mt-4">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <TabsContent value="estoque" className="space-y-4 sm:space-y-6 mt-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
             <motion.div {...delay(0)}><StatCard title="Metragem Total" value={`${totalMetragem.toFixed(1)}m`} icon={Layers} variant="primary" /></motion.div>
             <motion.div {...delay(1)}><StatCard title="Custo Estoque" value={fmt(custoEstoque)} icon={DollarSign} /></motion.div>
             <motion.div {...delay(2)}><StatCard title="Consumo Médio/Dia" value={`${consumoMedioDiario.toFixed(1)}m`} icon={TrendingUp} variant="warning" /></motion.div>
@@ -414,11 +414,11 @@ export default function Dashboard() {
             </motion.div>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4">
             <motion.div {...delay(4)}>
               <Card>
-                <CardContent className="pt-5 space-y-2">
-                  <h3 className="font-serif font-bold text-foreground mb-3">Tecidos por Cor</h3>
+                <CardContent className="pt-4 sm:pt-5 space-y-2">
+                  <h3 className="font-serif font-bold text-foreground mb-3 text-sm sm:text-base">Tecidos por Cor</h3>
                   {estoque && estoque.length > 0 ? estoque.map((item, i) => (
                     <div key={i} className="flex items-center justify-between text-sm px-3 py-2.5 rounded-lg hover:bg-muted/50 transition-colors">
                       <div className="flex items-center gap-2">
@@ -453,8 +453,8 @@ export default function Dashboard() {
         </TabsContent>
 
         {/* ═══════ MARGEM ═══════ */}
-        <TabsContent value="margem" className="space-y-6 mt-4">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <TabsContent value="margem" className="space-y-4 sm:space-y-6 mt-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 sm:gap-4">
             <motion.div {...delay(0)}>
               <StatCard title="Margem Média Real" value={fmtPct(margemMedia)} icon={TrendingUp}
                 variant={margemMedia > 50 ? "success" : margemMedia > 30 ? "warning" : "danger"} />
@@ -474,10 +474,10 @@ export default function Dashboard() {
                 <CardContent className="pt-5">
                   <h3 className="font-serif font-bold text-foreground mb-4">Faturamento por Origem</h3>
                   <ResponsiveContainer width="100%" height={260}>
-                    <BarChart data={fatPorProduto} barSize={32} layout="vertical">
+                    <BarChart data={fatPorProduto} barSize={32} layout="vertical" margin={{ left: 0, right: 10 }}>
                       <CartesianGrid strokeDasharray="3 3" stroke="hsl(220, 14%, 90%)" />
-                      <XAxis type="number" tick={{ fontSize: 11 }} stroke="hsl(220, 10%, 46%)" tickFormatter={(v) => fmt(v)} />
-                      <YAxis dataKey="name" type="category" width={140} tick={{ fontSize: 11 }} stroke="hsl(220, 10%, 46%)" />
+                      <XAxis type="number" tick={{ fontSize: 10 }} stroke="hsl(220, 10%, 46%)" tickFormatter={(v) => fmt(v)} />
+                      <YAxis dataKey="name" type="category" width={100} tick={{ fontSize: 10 }} stroke="hsl(220, 10%, 46%)" />
                       <Tooltip contentStyle={{ borderRadius: 8, border: "1px solid hsl(220,14%,90%)", fontSize: 12 }} formatter={(value: number) => fmt(value)} />
                       <Bar dataKey="value" name="Faturamento" fill="hsl(38, 60%, 50%)" radius={[0, 4, 4, 0]} />
                     </BarChart>
@@ -489,15 +489,15 @@ export default function Dashboard() {
         </TabsContent>
 
         {/* ═══════ EXPEDIÇÃO ═══════ */}
-        <TabsContent value="expedicao" className="space-y-6 mt-4">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <TabsContent value="expedicao" className="space-y-4 sm:space-y-6 mt-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
             <motion.div {...delay(0)}><StatCard title="No Prazo" value={expStats.noPrazo} icon={CheckCircle} variant="success" /></motion.div>
             <motion.div {...delay(1)}><StatCard title="Em Alerta" value={expStats.emAlerta} icon={AlertTriangle} variant="warning" /></motion.div>
             <motion.div {...delay(2)}><StatCard title="Crítico" value={expStats.critico} icon={AlertCircle} variant="danger" /></motion.div>
             <motion.div {...delay(3)}><StatCard title="Tempo Médio Envio" value={`${expStats.tempoMedioEnvio}d`} icon={Clock} /></motion.div>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4">
             {expChartData.length > 0 && (
               <motion.div {...delay(4)}>
                 <Card>
