@@ -392,13 +392,13 @@ export default function OrdensProducao() {
 
                                 {/* Botão de conserto na Revisão */}
                                 {isRevisao && (
-                                  <Button
-                                    variant="outline" size="sm"
-                                    className="w-full gap-1.5 text-danger border-danger/30 hover:bg-danger/10 mt-1"
+                                  <button
+                                    className="w-full mt-2 flex items-center justify-center gap-2 px-3 py-1.5 rounded-md text-xs font-medium transition-all duration-200 bg-danger/8 text-danger border border-danger/20 hover:bg-danger/15 hover:border-danger/40 hover:shadow-sm active:scale-[0.98]"
                                     onClick={(e) => { e.stopPropagation(); openConsertoDialog(item.id); }}
                                   >
-                                    <Wrench className="h-3.5 w-3.5" /> Enviar para Conserto
-                                  </Button>
+                                    <Wrench className="h-3 w-3" />
+                                    <span>Enviar para Conserto</span>
+                                  </button>
                                 )}
                               </CardContent>
                             </Card>
@@ -462,60 +462,83 @@ export default function OrdensProducao() {
 
       {/* Conserto Dialog */}
       <Dialog open={consertoOpen} onOpenChange={setConsertoOpen}>
-        <DialogContent>
-          <DialogHeader><DialogTitle className="flex items-center gap-2"><Wrench className="h-5 w-5 text-danger" /> Registrar Conserto</DialogTitle></DialogHeader>
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label>Cor</Label>
-              <Select value={consertoCorId} onValueChange={setConsertoCorId}>
-                <SelectTrigger><SelectValue placeholder="Selecione a cor..." /></SelectTrigger>
-                <SelectContent>
-                  {cores?.map((c) => (
-                    <SelectItem key={c.id} value={c.id}>
-                      <div className="flex items-center gap-2">
-                        <div className="w-3 h-3 rounded-full" style={{ backgroundColor: c.cor_hex ?? "#ccc" }} />
-                        {c.nome_cor}
-                      </div>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <div className="flex items-center gap-3">
+              <div className="flex items-center justify-center w-10 h-10 rounded-full bg-danger/10 border border-danger/20">
+                <Wrench className="h-5 w-5 text-danger" />
+              </div>
+              <div>
+                <DialogTitle className="text-lg">Registrar Conserto</DialogTitle>
+                <p className="text-xs text-muted-foreground mt-0.5">Informe os detalhes da peça para reparo</p>
+              </div>
             </div>
-            <div className="space-y-2">
-              <Label>Tamanho</Label>
-              <Select value={consertoTamanho} onValueChange={setConsertoTamanho}>
-                <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
-                <SelectContent>
-                  {TAMANHOS.map((t) => (
-                    <SelectItem key={t} value={t}>{t}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+          </DialogHeader>
+
+          <div className="space-y-4 pt-2">
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Cor</Label>
+                <Select value={consertoCorId} onValueChange={setConsertoCorId}>
+                  <SelectTrigger className="h-9"><SelectValue placeholder="Selecione..." /></SelectTrigger>
+                  <SelectContent>
+                    {cores?.map((c) => (
+                      <SelectItem key={c.id} value={c.id}>
+                        <div className="flex items-center gap-2">
+                          <div className="w-3 h-3 rounded-full border border-border/50" style={{ backgroundColor: c.cor_hex ?? "#ccc" }} />
+                          {c.nome_cor}
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Tamanho</Label>
+                <Select value={consertoTamanho} onValueChange={setConsertoTamanho}>
+                  <SelectTrigger className="h-9"><SelectValue placeholder="Selecione..." /></SelectTrigger>
+                  <SelectContent>
+                    {TAMANHOS.map((t) => (
+                      <SelectItem key={t} value={t}>{t}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
-            <div className="space-y-2">
-              <Label>Quantidade</Label>
-              <Input type="number" min={1} value={consertoQtd} onChange={(e) => setConsertoQtd(Number(e.target.value))} />
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Quantidade</Label>
+                <Input type="number" min={1} value={consertoQtd} onChange={(e) => setConsertoQtd(Number(e.target.value))} className="h-9" />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Oficina</Label>
+                <Select value={consertoOficinaId} onValueChange={setConsertoOficinaId}>
+                  <SelectTrigger className="h-9"><SelectValue placeholder="Selecione..." /></SelectTrigger>
+                  <SelectContent>
+                    {oficinas?.map((o) => (
+                      <SelectItem key={o.id} value={o.id}>{o.nome_oficina}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
-            <div className="space-y-2">
-              <Label>Oficina de Conserto</Label>
-              <Select value={consertoOficinaId} onValueChange={setConsertoOficinaId}>
-                <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
-                <SelectContent>
-                  {oficinas?.map((o) => (
-                    <SelectItem key={o.id} value={o.id}>{o.nome_oficina}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label>Observação</Label>
-              <Input value={consertoObs} onChange={(e) => setConsertoObs(e.target.value)} placeholder="Defeito encontrado..." />
+
+            <div className="space-y-1.5">
+              <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Observação</Label>
+              <Input value={consertoObs} onChange={(e) => setConsertoObs(e.target.value)} placeholder="Descreva o defeito encontrado..." className="h-9" />
             </div>
           </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setConsertoOpen(false)}>Cancelar</Button>
-            <Button className="bg-danger hover:bg-danger/90 text-danger-foreground" onClick={handleCreateConserto} disabled={createConsertoMut.isPending}>
-              <Wrench className="h-4 w-4 mr-1.5" /> Registrar
+
+          <DialogFooter className="pt-2">
+            <Button variant="ghost" size="sm" onClick={() => setConsertoOpen(false)}>Cancelar</Button>
+            <Button
+              size="sm"
+              className="bg-danger hover:bg-danger/90 text-danger-foreground gap-1.5"
+              onClick={handleCreateConserto}
+              disabled={createConsertoMut.isPending}
+            >
+              <Wrench className="h-3.5 w-3.5" /> Registrar Conserto
             </Button>
           </DialogFooter>
         </DialogContent>
