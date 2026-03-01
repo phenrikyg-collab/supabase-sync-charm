@@ -25,10 +25,10 @@ const OFICINA_COLORS = [
 ];
 
 const COLUNAS_KANBAN = [
-  { key: "corte", label: "Corte", match: ["corte"] },
-  { key: "costura", label: "Costura", match: ["costura"] },
-  { key: "revisao", label: "Revisão", match: ["revisao", "revisão"] },
-  { key: "finalizado", label: "Finalizado", match: ["finalizado"] },
+  { key: "corte", label: "Corte", match: ["corte"], headerBg: "bg-primary/10", headerText: "text-primary", headerBorder: "border-primary/20" },
+  { key: "costura", label: "Costura", match: ["costura"], headerBg: "bg-warning/10", headerText: "text-warning", headerBorder: "border-warning/20" },
+  { key: "revisao", label: "Revisão", match: ["revisao", "revisão"], headerBg: "bg-[hsl(200_70%_50%/0.1)]", headerText: "text-[hsl(200,70%,50%)]", headerBorder: "border-[hsl(200_70%_50%/0.2)]" },
+  { key: "finalizado", label: "Finalizado", match: ["finalizado"], headerBg: "bg-success/10", headerText: "text-success", headerBorder: "border-success/20" },
 ];
 
 export default function OrdensProducao() {
