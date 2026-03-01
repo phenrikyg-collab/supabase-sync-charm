@@ -42,7 +42,7 @@ const App = () => (
             <Route path="/ordens-corte/nova" element={<NovaOrdemCorte />} />
             <Route path="/oficinas" element={<Oficinas />} />
             <Route path="/ordens-producao" element={<OrdensProducao />} />
-            <Route path="/producao" element={<Producao />} />
+            {/* Kanban merged into /ordens-producao */}
             <Route path="/expedicao" element={<Expedicao />} />
             <Route path="/financeiro" element={<Financeiro />} />
             <Route path="/metas" element={<Metas />} />

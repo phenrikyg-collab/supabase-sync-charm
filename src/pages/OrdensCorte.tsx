@@ -1,12 +1,17 @@
 import { useOrdensCorte } from "@/hooks/useSupabase";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { StatusBadge } from "@/components/StatusBadge";
 import { Button } from "@/components/ui/button";
-import { Plus } from "lucide-react";
+import { Plus, Pencil, Trash2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { toast } from "sonner";
 
 interface OrdemCorteEnriched {
   id: string;
@@ -21,12 +26,19 @@ interface OrdemCorteEnriched {
 }
 
 export default function OrdensCorte() {
-  const { data: ordens, isLoading } = useOrdensCorte();
+  const { data: ordens, isLoading, refetch } = useOrdensCorte();
   const navigate = useNavigate();
   const [enriched, setEnriched] = useState<OrdemCorteEnriched[]>([]);
+  const [editOpen, setEditOpen] = useState(false);
+  const [editOrdem, setEditOrdem] = useState<OrdemCorteEnriched | null>(null);
+  const [editStatus, setEditStatus] = useState("");
+  const [editMetragem, setEditMetragem] = useState(0);
+  const [editFolhas, setEditFolhas] = useState(0);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!ordens?.length) return;
+    if (!ordens?.length) { setEnriched([]); return; }
     const ids = ordens.map((o) => o.id);
 
     Promise.all([
@@ -58,6 +70,45 @@ export default function OrdensCorte() {
   }, [ordens]);
 
   const totalPecas = (grade: { quantidade: number }[]) => grade.reduce((a, g) => a + g.quantidade, 0);
+
+  const openEdit = (o: OrdemCorteEnriched) => {
+    setEditOrdem(o);
+    setEditStatus(o.status ?? "Planejada");
+    setEditMetragem(o.metragem_risco);
+    setEditFolhas(o.quantidade_folhas ?? 0);
+    setEditOpen(true);
+  };
+
+  const handleEdit = async () => {
+    if (!editOrdem) return;
+    try {
+      const { error } = await supabase.from("ordens_corte").update({
+        status: editStatus,
+        metragem_risco: editMetragem,
+        quantidade_folhas: editFolhas,
+      }).eq("id", editOrdem.id);
+      if (error) throw error;
+      toast.success("Ordem atualizada!");
+      setEditOpen(false);
+      refetch();
+    } catch (e: any) { toast.error(e.message); }
+  };
+
+  const handleDelete = async () => {
+    if (!deleteId) return;
+    try {
+      // Delete related records first
+      await supabase.from("ordens_corte_grade").delete().eq("ordem_corte_id", deleteId);
+      await supabase.from("ordens_corte_produtos").delete().eq("ordem_corte_id", deleteId);
+      await supabase.from("ordens_corte_rolos").delete().eq("ordem_corte_id", deleteId);
+      const { error } = await supabase.from("ordens_corte").delete().eq("id", deleteId);
+      if (error) throw error;
+      toast.success("Ordem excluída!");
+      setDeleteOpen(false);
+      setDeleteId(null);
+      refetch();
+    } catch (e: any) { toast.error(e.message); }
+  };
 
   return (
     <div className="space-y-6">
@@ -97,12 +148,64 @@ export default function OrdensCorte() {
                     <span className="text-muted-foreground">Total de Peças</span>
                     <span className="font-bold text-card-foreground">{totalPecas(o.grade)}</span>
                   </div>
+                  <div className="flex items-center gap-2 pt-2 border-t border-border">
+                    <Button variant="outline" size="sm" className="gap-1.5 flex-1" onClick={() => openEdit(o)}>
+                      <Pencil className="h-3.5 w-3.5" /> Editar
+                    </Button>
+                    <Button variant="outline" size="sm" className="gap-1.5 flex-1 text-destructive hover:text-destructive" onClick={() => { setDeleteId(o.id); setDeleteOpen(true); }}>
+                      <Trash2 className="h-3.5 w-3.5" /> Excluir
+                    </Button>
+                  </div>
                 </CardContent>
               </Card>
             </motion.div>
           ))
         )}
       </div>
+
+      {/* Edit Dialog */}
+      <Dialog open={editOpen} onOpenChange={setEditOpen}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Editar Ordem {editOrdem?.numero_oc}</DialogTitle></DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>Status</Label>
+              <Select value={editStatus} onValueChange={setEditStatus}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {["Planejada", "Em Corte", "Finalizada"].map((s) => (
+                    <SelectItem key={s} value={s}>{s}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Metragem do Risco</Label>
+              <Input type="number" step="0.01" value={editMetragem} onChange={(e) => setEditMetragem(Number(e.target.value))} />
+            </div>
+            <div className="space-y-2">
+              <Label>Quantidade de Folhas</Label>
+              <Input type="number" value={editFolhas} onChange={(e) => setEditFolhas(Number(e.target.value))} />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditOpen(false)}>Cancelar</Button>
+            <Button onClick={handleEdit}>Salvar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation */}
+      <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Confirmar Exclusão</DialogTitle></DialogHeader>
+          <p className="text-sm text-muted-foreground">Tem certeza que deseja excluir esta ordem de corte? Esta ação não pode ser desfeita.</p>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteOpen(false)}>Cancelar</Button>
+            <Button variant="destructive" onClick={handleDelete}>Excluir</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

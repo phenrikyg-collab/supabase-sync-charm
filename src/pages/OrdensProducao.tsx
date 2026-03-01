@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useOrdensProducao, useOficinas, useProdutos, useCores, useOrdensCorte, useCreateOrdemProducao } from "@/hooks/useSupabase";
+import { useOrdensProducao, useOficinas, useProdutos, useCores, useOrdensCorte, useCreateOrdemProducao, useResumoProducao, useUpdateOrdemProducao } from "@/hooks/useSupabase";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,9 +8,18 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { StatusBadge } from "@/components/StatusBadge";
-import { Plus } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Plus, List, Columns3 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { motion } from "framer-motion";
+
+const COLUNAS_KANBAN = [
+  { key: "corte", label: "Corte", match: ["corte"] },
+  { key: "costura", label: "Costura", match: ["costura"] },
+  { key: "revisao", label: "Revisão", match: ["revisao", "revisão"] },
+  { key: "finalizado", label: "Finalizado", match: ["finalizado"] },
+];
 
 export default function OrdensProducao() {
   const { data: ordens, isLoading } = useOrdensProducao();
@@ -18,7 +27,9 @@ export default function OrdensProducao() {
   const { data: produtos } = useProdutos();
   const { data: cores } = useCores();
   const { data: ordensCorte } = useOrdensCorte();
+  const { data: producao } = useResumoProducao();
   const createMut = useCreateOrdemProducao();
+  const updateMut = useUpdateOrdemProducao();
 
   const [open, setOpen] = useState(false);
   const [ocId, setOcId] = useState("");
@@ -26,11 +37,33 @@ export default function OrdensProducao() {
   const [quantidade, setQuantidade] = useState(0);
   const [ocInfo, setOcInfo] = useState<{ produto: string; cor: string; grade: string } | null>(null);
 
+  // Enriched ordens with grade info
+  const [ordensEnriched, setOrdensEnriched] = useState<any[]>([]);
+
   const oficinaMap = Object.fromEntries((oficinas ?? []).map((o) => [o.id, o]));
   const corMap = Object.fromEntries((cores ?? []).map((c) => [c.id, c]));
 
-  // Filter OCs that are in "Planejada" status
   const ocsDisponiveis = ordensCorte?.filter((oc) => oc.status === "Planejada") ?? [];
+
+  // Fetch grade info for each ordem de produção
+  useEffect(() => {
+    if (!ordens?.length) { setOrdensEnriched([]); return; }
+    const ocIds = ordens.map((o) => o.ordem_corte_id).filter(Boolean) as string[];
+    if (ocIds.length === 0) { setOrdensEnriched(ordens.map((o) => ({ ...o, gradeInfo: [] }))); return; }
+
+    supabase.from("ordens_corte_grade").select("*").in("ordem_corte_id", ocIds).then(({ data }) => {
+      const gradeByOc = new Map<string, any[]>();
+      (data ?? []).forEach((g: any) => {
+        const list = gradeByOc.get(g.ordem_corte_id) ?? [];
+        list.push(g);
+        gradeByOc.set(g.ordem_corte_id, list);
+      });
+      setOrdensEnriched(ordens.map((o) => ({
+        ...o,
+        gradeInfo: o.ordem_corte_id ? (gradeByOc.get(o.ordem_corte_id) ?? []) : [],
+      })));
+    });
+  }, [ordens]);
 
   useEffect(() => {
     if (!ocId) { setOcInfo(null); return; }
@@ -54,7 +87,6 @@ export default function OrdensProducao() {
   const handleCreate = async () => {
     if (!ocId || !oficinaId) { toast.error("Selecione OC e Oficina"); return; }
     try {
-      const oc = ordensCorte?.find((o) => o.id === ocId);
       const prodRes = await supabase.from("ordens_corte_produtos").select("*").eq("ordem_corte_id", ocId).limit(1);
       const prod = prodRes.data?.[0];
 
@@ -74,6 +106,16 @@ export default function OrdensProducao() {
     } catch (e: any) { toast.error(e.message); }
   };
 
+  const moveToNext = async (id: string, currentStatus: string) => {
+    const idx = COLUNAS_KANBAN.findIndex((c) => c.match.includes(currentStatus.toLowerCase()));
+    if (idx < 0 || idx >= COLUNAS_KANBAN.length - 1) return;
+    const nextStatus = COLUNAS_KANBAN[idx + 1].label;
+    try {
+      await updateMut.mutateAsync({ id, status_ordem: nextStatus });
+      toast.success(`Movido para ${nextStatus}`);
+    } catch (e: any) { toast.error(e.message); }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -86,45 +128,139 @@ export default function OrdensProducao() {
         <Button onClick={() => setOpen(true)} className="gap-2"><Plus className="h-4 w-4" /> Nova Ordem</Button>
       </div>
 
-      <Card>
-        <CardContent className="pt-6">
-          {isLoading ? (
-            <div className="text-center py-8 text-muted-foreground">Carregando...</div>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Produto</TableHead>
-                  <TableHead>Cor</TableHead>
-                  <TableHead>Oficina</TableHead>
-                  <TableHead className="text-right">Quantidade</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Início</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {ordens?.map((o) => (
-                  <TableRow key={o.id}>
-                    <TableCell className="font-medium">{o.nome_produto ?? "—"}</TableCell>
-                    <TableCell>
-                      {o.cor_id && corMap[o.cor_id] ? (
-                        <div className="flex items-center gap-2">
-                          <div className="w-4 h-4 rounded-full border border-border" style={{ backgroundColor: corMap[o.cor_id].cor_hex ?? "#ccc" }} />
-                          {corMap[o.cor_id].nome_cor}
-                        </div>
-                      ) : "—"}
-                    </TableCell>
-                    <TableCell>{o.oficina_id ? oficinaMap[o.oficina_id]?.nome_oficina ?? "—" : "—"}</TableCell>
-                    <TableCell className="text-right">{o.quantidade ?? o.quantidade_pecas_ordem ?? 0}</TableCell>
-                    <TableCell><StatusBadge status={o.status_ordem ?? ""} /></TableCell>
-                    <TableCell className="text-muted-foreground">{o.data_inicio ?? "—"}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
-        </CardContent>
-      </Card>
+      <Tabs defaultValue="lista">
+        <TabsList>
+          <TabsTrigger value="lista" className="gap-1.5"><List className="h-4 w-4" /> Lista</TabsTrigger>
+          <TabsTrigger value="kanban" className="gap-1.5"><Columns3 className="h-4 w-4" /> Kanban</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="lista" className="mt-4">
+          <Card>
+            <CardContent className="pt-6">
+              {isLoading ? (
+                <div className="text-center py-8 text-muted-foreground">Carregando...</div>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Produto</TableHead>
+                      <TableHead>Cores</TableHead>
+                      <TableHead>Grade</TableHead>
+                      <TableHead>Oficina</TableHead>
+                      <TableHead className="text-right">Quantidade</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Início</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {ordensEnriched.map((o: any) => {
+                      const gradeItems = o.gradeInfo ?? [];
+                      // Group grade by color
+                      const coresByGrade = new Map<string, any[]>();
+                      gradeItems.forEach((g: any) => {
+                        const key = g.cor_id ?? "sem-cor";
+                        const list = coresByGrade.get(key) ?? [];
+                        list.push(g);
+                        coresByGrade.set(key, list);
+                      });
+
+                      return (
+                        <TableRow key={o.id}>
+                          <TableCell className="font-medium">{o.nome_produto ?? "—"}</TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              {Array.from(coresByGrade.keys()).map((corId) => {
+                                const cor = corId !== "sem-cor" && corMap[corId] ? corMap[corId] : null;
+                                return (
+                                  <div key={corId} className="flex items-center gap-1">
+                                    <div className="w-3 h-3 rounded-full border border-border" style={{ backgroundColor: cor?.cor_hex ?? "#ccc" }} />
+                                    <span className="text-xs text-muted-foreground">{cor?.nome_cor ?? "—"}</span>
+                                  </div>
+                                );
+                              })}
+                              {coresByGrade.size === 0 && (
+                                o.cor_id && corMap[o.cor_id] ? (
+                                  <div className="flex items-center gap-1">
+                                    <div className="w-3 h-3 rounded-full border border-border" style={{ backgroundColor: corMap[o.cor_id].cor_hex ?? "#ccc" }} />
+                                    <span className="text-xs">{corMap[o.cor_id].nome_cor}</span>
+                                  </div>
+                                ) : "—"
+                              )}
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex flex-wrap gap-1">
+                              {gradeItems.map((g: any, j: number) => (
+                                <span key={j} className="text-xs bg-muted px-1.5 py-0.5 rounded text-muted-foreground">
+                                  {g.tamanho}: {g.quantidade}
+                                </span>
+                              ))}
+                              {gradeItems.length === 0 && <span className="text-xs text-muted-foreground">—</span>}
+                            </div>
+                          </TableCell>
+                          <TableCell>{o.oficina_id ? oficinaMap[o.oficina_id]?.nome_oficina ?? "—" : "—"}</TableCell>
+                          <TableCell className="text-right">{o.quantidade ?? o.quantidade_pecas_ordem ?? 0}</TableCell>
+                          <TableCell><StatusBadge status={o.status_ordem ?? ""} /></TableCell>
+                          <TableCell className="text-muted-foreground">{o.data_inicio ?? "—"}</TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="kanban" className="mt-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            {COLUNAS_KANBAN.map((col) => {
+              const items = producao?.filter((p) => col.match.includes(p.status_ordem?.toLowerCase() ?? "")) ?? [];
+              return (
+                <div key={col.key} className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <h3 className="font-serif font-bold text-foreground">{col.label}</h3>
+                    <span className="text-xs bg-muted text-muted-foreground rounded-full px-2 py-0.5">{items.length}</span>
+                  </div>
+                  <div className="space-y-3 min-h-[200px]">
+                    {items.map((item, i) => (
+                      <motion.div
+                        key={item.id ?? i}
+                        initial={{ opacity: 0, scale: 0.95 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        transition={{ delay: i * 0.03 }}
+                      >
+                        <Card
+                          className="cursor-pointer hover:shadow-md transition-shadow"
+                          onClick={() => item.id && moveToNext(item.id, item.status_ordem ?? "")}
+                        >
+                          <CardContent className="pt-4 pb-3 space-y-2">
+                            <div className="flex items-center justify-between">
+                              <span className="font-medium text-sm text-card-foreground">{item.nome_produto}</span>
+                              {item.cor_hex && (
+                                <div className="w-4 h-4 rounded-full border border-border" style={{ backgroundColor: item.cor_hex }} />
+                              )}
+                            </div>
+                            {item.nome_cor && (
+                              <p className="text-xs text-muted-foreground">{item.nome_cor}</p>
+                            )}
+                            {item.grade_resumo && (
+                              <p className="text-xs text-muted-foreground bg-muted rounded px-2 py-1">{item.grade_resumo}</p>
+                            )}
+                            {item.nome_oficina && (
+                              <p className="text-xs text-muted-foreground">Oficina: {item.nome_oficina}</p>
+                            )}
+                          </CardContent>
+                        </Card>
+                      </motion.div>
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </TabsContent>
+      </Tabs>
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent>
