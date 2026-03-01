@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
-import { AlertTriangle } from "lucide-react";
+import { AlertTriangle, Search } from "lucide-react";
 
 const TAMANHOS = ["PP", "P", "M", "G", "GG", "EG"];
 
@@ -36,12 +36,16 @@ export default function NovaOrdemCorte() {
   const produtoSelecionado = produtos?.find((p) => p.id === produtoId);
   
   // Filter rolos by tecido and cor of selected product
-  const rolosDisponiveis = rolos?.filter((r) => {
+  const rolosDisponiveis = (rolos?.filter((r) => {
     if ((r.metragem_disponivel ?? 0) <= 0) return false;
-    // If cor is selected, filter by cor
     if (corId && r.cor_id !== corId) return false;
     return true;
-  }) ?? [];
+  }) ?? []).filter((r) => {
+    if (!searchRolo) return true;
+    const tecido = r.tecido_id ? tecidoMap[r.tecido_id] : null;
+    const text = `${r.codigo_rolo} ${tecido?.nome_tecido} ${r.cor_nome} ${r.lote}`.toLowerCase();
+    return text.includes(searchRolo.toLowerCase());
+  });
 
   const totalPecas = Object.values(grade).reduce((a, b) => a + (b || 0), 0);
   const consumoUnitario = produtoSelecionado?.consumo_de_tecido ?? 0;
@@ -200,7 +204,13 @@ export default function NovaOrdemCorte() {
           )}
 
           <div className="space-y-2">
-            <Label>Rolos Disponíveis</Label>
+            <div className="flex items-center justify-between">
+              <Label>Rolos Disponíveis</Label>
+              <div className="flex items-center gap-2">
+                <Search className="h-4 w-4 text-muted-foreground" />
+                <Input placeholder="Buscar rolo..." value={searchRolo} onChange={(e) => setSearchRolo(e.target.value)} className="w-56" />
+              </div>
+            </div>
             <div className="space-y-2 max-h-56 overflow-y-auto">
               {rolosDisponiveis.length === 0 ? (
                 <p className="text-sm text-muted-foreground py-4 text-center">Nenhum rolo disponível para a cor selecionada</p>
