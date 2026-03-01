@@ -5,7 +5,7 @@ import type {
   OrdemCorteProduto, OrdemCorteRolo, OrdemProducao, Oficina, Aviamento, ProdutoAviamento,
   MovimentacaoFinanceira, MetaFinanceira, CategoriaFinanceira,
   CentroCusto, DashboardExecutivo, TicketMedioMes, IndicadorRiscoMeta,
-  ResumoProducaoAndamento, ResumoEstoqueTecidos, ExpedicaoStatus,
+  ResumoProducaoAndamento, ResumoEstoqueTecidos, ExpedicaoStatus, Conserto,
 } from "@/types/database";
 
 async function fetchTable<T>(table: string, options?: { 

@@ -247,6 +247,18 @@ export interface ResumoProducaoAndamento {
   quantidade_pecas_ordem: number | null;
 }
 
+export interface Conserto {
+  id: string;
+  created_at: string | null;
+  ordem_producao_id: string;
+  cor_id: string | null;
+  tamanho: string;
+  quantidade: number;
+  oficina_id: string | null;
+  observacao: string | null;
+  status: string | null;
+}
+
 export interface ResumoEstoqueTecidos {
   nome_tecido: string | null;
   nome_cor: string | null;
