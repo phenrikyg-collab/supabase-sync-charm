@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { StatusBadge } from "@/components/StatusBadge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, List, Columns3, Wrench } from "lucide-react";
+import { Plus, List, Columns3, Wrench, Trash2, PlusCircle } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { motion } from "framer-motion";
@@ -55,9 +55,7 @@ export default function OrdensProducao() {
   // Conserto dialog
   const [consertoOpen, setConsertoOpen] = useState(false);
   const [consertoOrdemId, setConsertoOrdemId] = useState("");
-  const [consertoCorId, setConsertoCorId] = useState("");
-  const [consertoTamanho, setConsertoTamanho] = useState("");
-  const [consertoQtd, setConsertoQtd] = useState(1);
+  const [consertoItens, setConsertoItens] = useState<{ corId: string; tamanho: string; quantidade: number }[]>([{ corId: "", tamanho: "", quantidade: 1 }]);
   const [consertoOficinaId, setConsertoOficinaId] = useState("");
   const [consertoObs, setConsertoObs] = useState("");
 
@@ -134,25 +132,43 @@ export default function OrdensProducao() {
   };
 
   const handleCreateConserto = async () => {
-    if (!consertoOrdemId || !consertoTamanho) { toast.error("Preencha os campos obrigatórios"); return; }
+    const validItens = consertoItens.filter((item) => item.tamanho);
+    if (!consertoOrdemId || validItens.length === 0) { toast.error("Adicione pelo menos um item com tamanho"); return; }
     try {
-      await createConsertoMut.mutateAsync({
-        ordem_producao_id: consertoOrdemId,
-        cor_id: consertoCorId || null,
-        tamanho: consertoTamanho,
-        quantidade: consertoQtd,
-        oficina_id: consertoOficinaId || null,
-        observacao: consertoObs || null,
-        status: "Em Conserto",
-      });
-      toast.success("Conserto registrado!");
+      for (const item of validItens) {
+        await createConsertoMut.mutateAsync({
+          ordem_producao_id: consertoOrdemId,
+          cor_id: item.corId || null,
+          tamanho: item.tamanho,
+          quantidade: item.quantidade,
+          oficina_id: consertoOficinaId || null,
+          observacao: consertoObs || null,
+          status: "Em Conserto",
+        });
+      }
+      toast.success(`${validItens.length} conserto(s) registrado(s)!`);
       setConsertoOpen(false);
-      setConsertoOrdemId(""); setConsertoCorId(""); setConsertoTamanho(""); setConsertoQtd(1); setConsertoOficinaId(""); setConsertoObs("");
+      setConsertoOrdemId(""); setConsertoItens([{ corId: "", tamanho: "", quantidade: 1 }]); setConsertoOficinaId(""); setConsertoObs("");
     } catch (e: any) { toast.error(e.message); }
+  };
+
+  const addConsertoItem = () => {
+    setConsertoItens([...consertoItens, { corId: "", tamanho: "", quantidade: 1 }]);
+  };
+
+  const removeConsertoItem = (index: number) => {
+    if (consertoItens.length <= 1) return;
+    setConsertoItens(consertoItens.filter((_, i) => i !== index));
+  };
+
+  const updateConsertoItem = (index: number, field: string, value: any) => {
+    setConsertoItens(consertoItens.map((item, i) => i === index ? { ...item, [field]: value } : item));
   };
 
   const openConsertoDialog = (ordemId: string) => {
     setConsertoOrdemId(ordemId);
+    setConsertoItens([{ corId: "", tamanho: "", quantidade: 1 }]);
+    setConsertoOficinaId(""); setConsertoObs("");
     setConsertoOpen(true);
   };
 
