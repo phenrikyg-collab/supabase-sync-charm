@@ -60,11 +60,11 @@ export default function PagamentoOficinas() {
   // Summary stats
   const totalPendente = ordensExternas
     .filter((o) => o.pagamento_oficina_status !== "Pago")
-    .reduce((sum, o) => sum + calcTotal(o), 0);
+    .reduce((sum, o) => sum + getValorFinal(o), 0);
 
   const totalPago = ordensExternas
     .filter((o) => o.pagamento_oficina_status === "Pago")
-    .reduce((sum, o) => sum + calcTotal(o), 0);
+    .reduce((sum, o) => sum + getValorFinal(o), 0);
 
   const totalOrdens = ordensExternas.length;
   const ordensPendentes = ordensExternas.filter((o) => o.pagamento_oficina_status !== "Pago").length;
@@ -75,9 +75,9 @@ export default function PagamentoOficinas() {
       await updateOP.mutateAsync({ id: ordem.id, pagamento_oficina_status: "Pago" } as any);
 
       // Generate financial entry
-      const oficina = ordem.oficina_id ? oficinaMap[ordem.oficina_id] : null;
-      const total = calcTotal(ordem);
+      const total = getValorFinal(ordem);
 
+      const oficina = ordem.oficina_id ? oficinaMap[ordem.oficina_id] : null;
       await supabase.from("movimentacoes_financeiras").insert({
         tipo: "Saída",
         descricao: `Pagamento oficina ${oficina?.nome_oficina ?? "—"} - ${ordem.nome_produto ?? "OP"}`,
@@ -237,7 +237,8 @@ export default function PagamentoOficinas() {
                   const oficina = o.oficina_id ? oficinaMap[o.oficina_id] : null;
                   const custoPorPeca = oficina?.custo_por_peca ?? 0;
                   const qty = o.quantidade ?? o.quantidade_pecas_ordem ?? 0;
-                  const total = custoPorPeca * qty;
+                  const totalBase = custoPorPeca * qty;
+                  const totalFinal = getValorFinal(o);
                   const dias = calcDias(o.data_inicio, o.data_fim);
                   const isPago = o.pagamento_oficina_status === "Pago";
 
@@ -251,8 +252,20 @@ export default function PagamentoOficinas() {
                       <TableCell className="text-right text-muted-foreground">
                         R$ {custoPorPeca.toFixed(2)}
                       </TableCell>
-                      <TableCell className="text-right font-semibold">
-                        R$ {total.toFixed(2)}
+                      <TableCell className="text-right">
+                        {isPago ? (
+                          <span className="font-semibold">R$ {totalFinal.toFixed(2)}</span>
+                        ) : (
+                          <Input
+                            type="number"
+                            step="0.01"
+                            className="w-28 h-8 text-right text-sm font-semibold"
+                            value={valoresEditados[o.id] !== undefined ? valoresEditados[o.id] : totalBase}
+                            onChange={(e) =>
+                              setValoresEditados((prev) => ({ ...prev, [o.id]: Number(e.target.value) }))
+                            }
+                          />
+                        )}
                       </TableCell>
                       <TableCell className="text-muted-foreground text-sm">
                         {o.data_inicio ?? "—"}
