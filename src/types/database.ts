@@ -52,6 +52,7 @@ export interface RoloTecido {
   status_rolo: string | null;
   entrada_id: string | null;
   entrada_tecido_id: string | null;
+  lote: string | null;
   created_at: string;
 }
 
@@ -66,6 +67,8 @@ export interface EntradaTecido {
   quantidade_metros: number | null;
   custo_por_kg: number | null;
   estoque_disponivel_metros: number | null;
+  valor_total: number | null;
+  cor_id: string | null;
   created_at: string;
 }
 
@@ -110,6 +113,7 @@ export interface OrdemProducao {
   produto_id: string | null;
   cor_id: string | null;
   oficina_id: string | null;
+  ordem_corte_id: string | null;
   nome_produto: string | null;
   quantidade: number | null;
   quantidade_pecas_ordem: number | null;
@@ -132,6 +136,23 @@ export interface Oficina {
   contato: string | null;
   observacao: string | null;
   created_at: string;
+}
+
+export interface Aviamento {
+  id: string;
+  nome_aviamento: string | null;
+  custo_unitario: number | null;
+  unidade: string | null;
+  created_at: string;
+}
+
+export interface ProdutoAviamento {
+  id: string;
+  produto_id: string | null;
+  aviamento_id: string | null;
+  quantidade_por_peca: number | null;
+  custo_unitario: number | null;
+  created_at: string | null;
 }
 
 export interface MovimentacaoFinanceira {

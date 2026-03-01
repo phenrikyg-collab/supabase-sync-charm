@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useProdutos, useCores, useRolosTecido, useCreateOrdemCorte } from "@/hooks/useSupabase";
+import { useProdutos, useCores, useRolosTecido, useTecidos, useCreateOrdemCorte } from "@/hooks/useSupabase";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,13 +8,15 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
+import { AlertTriangle } from "lucide-react";
 
-const TAMANHOS = ["PP", "P", "M", "G", "GG", "XGG"];
+const TAMANHOS = ["PP", "P", "M", "G", "GG", "EG"];
 
 export default function NovaOrdemCorte() {
   const { data: produtos } = useProdutos();
   const { data: cores } = useCores();
   const { data: rolos } = useRolosTecido();
+  const { data: tecidos } = useTecidos();
   const createMut = useCreateOrdemCorte();
   const navigate = useNavigate();
 
@@ -28,11 +30,21 @@ export default function NovaOrdemCorte() {
   const [folhas, setFolhas] = useState(1);
 
   const produtoSelecionado = produtos?.find((p) => p.id === produtoId);
-  const rolosDisponiveis = rolos?.filter((r) => (r.metragem_disponivel ?? 0) > 0) ?? [];
+  
+  // Filter rolos by tecido and cor of selected product
+  const rolosDisponiveis = rolos?.filter((r) => {
+    if ((r.metragem_disponivel ?? 0) <= 0) return false;
+    // If cor is selected, filter by cor
+    if (corId && r.cor_id !== corId) return false;
+    return true;
+  }) ?? [];
 
   const totalPecas = Object.values(grade).reduce((a, b) => a + (b || 0), 0);
   const consumoUnitario = produtoSelecionado?.consumo_de_tecido ?? 0;
   const consumoTotal = totalPecas * consumoUnitario;
+
+  const metrosAlocados = Array.from(selectedRolos).reduce((a, id) => a + (metrosRolo[id] ?? 0), 0);
+  const estoqueInsuficiente = consumoTotal > 0 && metrosAlocados < consumoTotal;
 
   const toggleRolo = (roloId: string) => {
     const newSet = new Set(selectedRolos);
@@ -41,11 +53,27 @@ export default function NovaOrdemCorte() {
     setSelectedRolos(newSet);
   };
 
+  const tecidoMap = Object.fromEntries((tecidos ?? []).map((t) => [t.id, t]));
+
   const handleSubmit = async () => {
     if (!numeroOC || !produtoId) {
       toast.error("Preencha o número da OC e selecione um produto");
       return;
     }
+    if (estoqueInsuficiente) {
+      toast.error("Metragem alocada insuficiente para o consumo total");
+      return;
+    }
+    // Validate each rolo's metragem
+    for (const roloId of selectedRolos) {
+      const rolo = rolos?.find((r) => r.id === roloId);
+      const alocado = metrosRolo[roloId] ?? 0;
+      if (rolo && alocado > (rolo.metragem_disponivel ?? 0)) {
+        toast.error(`Metragem alocada do rolo ${rolo.codigo_rolo} excede a disponível`);
+        return;
+      }
+    }
+
     try {
       const gradeItems = Object.entries(grade)
         .filter(([, qty]) => qty > 0)
@@ -68,7 +96,7 @@ export default function NovaOrdemCorte() {
         grade: gradeItems,
         rolos: rolosItems,
       });
-      toast.success("Ordem de corte criada!");
+      toast.success("Ordem de corte criada com baixa automática de estoque!");
       navigate("/ordens-corte");
     } catch (e: any) {
       toast.error(e.message);
@@ -77,7 +105,9 @@ export default function NovaOrdemCorte() {
 
   return (
     <div className="max-w-3xl mx-auto space-y-6">
-      <h1 className="text-3xl font-serif font-bold text-foreground">Nova Ordem de Corte</h1>
+      <h1 className="text-3xl font-serif font-bold text-foreground">
+        Nova <span className="text-primary">Ordem de Corte</span>
+      </h1>
 
       <Card>
         <CardContent className="pt-6 space-y-6">
@@ -107,6 +137,9 @@ export default function NovaOrdemCorte() {
                   ))}
                 </SelectContent>
               </Select>
+              {produtoSelecionado && (
+                <p className="text-xs text-muted-foreground">Consumo: {consumoUnitario}m/peça · Tecido: {produtoSelecionado.tecido_do_produto ?? "—"}</p>
+              )}
             </div>
             <div className="space-y-2">
               <Label>Cor</Label>
@@ -132,52 +165,66 @@ export default function NovaOrdemCorte() {
               {TAMANHOS.map((t) => (
                 <div key={t} className="space-y-1">
                   <span className="text-xs font-medium text-muted-foreground">{t}</span>
-                  <Input
-                    type="number"
-                    min={0}
-                    value={grade[t] ?? ""}
-                    onChange={(e) => setGrade({ ...grade, [t]: Number(e.target.value) })}
-                    placeholder="0"
-                  />
+                  <Input type="number" min={0} value={grade[t] ?? ""} onChange={(e) => setGrade({ ...grade, [t]: Number(e.target.value) })} placeholder="0" />
                 </div>
               ))}
             </div>
           </div>
 
-          <div className="p-4 rounded-lg bg-muted/50 border border-border grid grid-cols-2 gap-4">
+          <div className="p-4 rounded-lg bg-muted/50 border border-border grid grid-cols-3 gap-4">
             <div>
               <p className="text-xs text-muted-foreground">Total de Peças</p>
               <p className="text-xl font-serif font-bold text-foreground">{totalPecas}</p>
             </div>
             <div>
-              <p className="text-xs text-muted-foreground">Consumo Total Estimado</p>
+              <p className="text-xs text-muted-foreground">Consumo Total</p>
               <p className="text-xl font-serif font-bold text-foreground">{consumoTotal.toFixed(2)}m</p>
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground">Metros Alocados</p>
+              <p className={`text-xl font-serif font-bold ${estoqueInsuficiente ? "text-destructive" : "text-foreground"}`}>
+                {metrosAlocados.toFixed(2)}m
+              </p>
             </div>
           </div>
 
+          {estoqueInsuficiente && consumoTotal > 0 && (
+            <div className="flex items-center gap-2 p-3 bg-destructive/10 border border-destructive/30 rounded-lg text-sm text-destructive">
+              <AlertTriangle className="h-4 w-4" />
+              Metragem alocada ({metrosAlocados.toFixed(2)}m) é menor que o consumo necessário ({consumoTotal.toFixed(2)}m)
+            </div>
+          )}
+
           <div className="space-y-2">
-            <Label>Rolos Utilizados</Label>
-            <div className="space-y-2 max-h-48 overflow-y-auto">
-              {rolosDisponiveis.map((r) => (
-                <div key={r.id} className="flex items-center gap-3 p-2 rounded-lg border border-border">
-                  <Checkbox checked={selectedRolos.has(r.id)} onCheckedChange={() => toggleRolo(r.id)} />
-                  <div className="flex-1 flex items-center gap-2 text-sm">
-                    {r.cor_hex && <div className="w-3 h-3 rounded-full" style={{ backgroundColor: r.cor_hex }} />}
-                    <span className="text-foreground">{r.codigo_rolo}</span>
-                    <span className="text-muted-foreground">({(r.metragem_disponivel ?? 0).toFixed(2)}m)</span>
-                  </div>
-                  {selectedRolos.has(r.id) && (
-                    <Input
-                      type="number"
-                      step="0.01"
-                      className="w-24"
-                      placeholder="Metros"
-                      value={metrosRolo[r.id] ?? ""}
-                      onChange={(e) => setMetrosRolo({ ...metrosRolo, [r.id]: Number(e.target.value) })}
-                    />
-                  )}
-                </div>
-              ))}
+            <Label>Rolos Disponíveis</Label>
+            <div className="space-y-2 max-h-56 overflow-y-auto">
+              {rolosDisponiveis.length === 0 ? (
+                <p className="text-sm text-muted-foreground py-4 text-center">Nenhum rolo disponível para a cor selecionada</p>
+              ) : (
+                rolosDisponiveis.map((r) => {
+                  const tecido = r.tecido_id ? tecidoMap[r.tecido_id] : null;
+                  return (
+                    <div key={r.id} className="flex items-center gap-3 p-2 rounded-lg border border-border">
+                      <Checkbox checked={selectedRolos.has(r.id)} onCheckedChange={() => toggleRolo(r.id)} />
+                      <div className="flex-1 flex items-center gap-2 text-sm">
+                        {r.cor_hex && <div className="w-3 h-3 rounded-full" style={{ backgroundColor: r.cor_hex }} />}
+                        <span className="text-primary font-medium">{r.codigo_rolo}</span>
+                        <span className="text-muted-foreground">{tecido?.nome_tecido ?? ""}</span>
+                        <span className="text-muted-foreground">({(r.metragem_disponivel ?? 0).toFixed(1)}m)</span>
+                      </div>
+                      {selectedRolos.has(r.id) && (
+                        <Input
+                          type="number" step="0.01" className="w-24"
+                          placeholder="Metros"
+                          max={r.metragem_disponivel ?? 0}
+                          value={metrosRolo[r.id] ?? ""}
+                          onChange={(e) => setMetrosRolo({ ...metrosRolo, [r.id]: Number(e.target.value) })}
+                        />
+                      )}
+                    </div>
+                  );
+                })
+              )}
             </div>
           </div>
 

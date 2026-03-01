@@ -1,8 +1,9 @@
+import { useState } from "react";
 import { useRolosTecido, useTecidos } from "@/hooks/useSupabase";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { StatCard } from "@/components/StatCard";
-import { Layers, DollarSign } from "lucide-react";
+import { DollarSign, Search } from "lucide-react";
 
 function formatCurrency(v: number | null | undefined) {
   if (v == null) return "R$ 0,00";
@@ -12,63 +13,80 @@ function formatCurrency(v: number | null | undefined) {
 export default function EstoqueTecidos() {
   const { data: rolos, isLoading } = useRolosTecido();
   const { data: tecidos } = useTecidos();
+  const [search, setSearch] = useState("");
 
   const tecidoMap = Object.fromEntries((tecidos ?? []).map((t) => [t.id, t]));
   const rolosDisponiveis = rolos?.filter((r) => (r.metragem_disponivel ?? 0) > 0) ?? [];
 
-  const totalMetragem = rolosDisponiveis.reduce((a, r) => a + (r.metragem_disponivel ?? 0), 0);
-  const custoTotal = rolosDisponiveis.reduce((a, r) => {
+  const filtered = rolosDisponiveis.filter((r) => {
     const tecido = r.tecido_id ? tecidoMap[r.tecido_id] : null;
-    const custoPorMetro = tecido?.custo_por_metro ?? 0;
-    return a + (r.metragem_disponivel ?? 0) * custoPorMetro;
+    const text = `${r.codigo_rolo} ${tecido?.nome_tecido} ${r.cor_nome} ${r.lote}`.toLowerCase();
+    return text.includes(search.toLowerCase());
+  });
+
+  const custoTotal = filtered.reduce((a, r) => {
+    const tecido = r.tecido_id ? tecidoMap[r.tecido_id] : null;
+    return a + (r.metragem_disponivel ?? 0) * (tecido?.custo_por_metro ?? 0);
   }, 0);
 
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-serif font-bold text-foreground">Estoque de Tecidos</h1>
-        <p className="text-sm text-muted-foreground mt-1">{rolosDisponiveis.length} rolos com saldo</p>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <StatCard title="Metragem Total" value={`${totalMetragem.toFixed(1)}m`} icon={Layers} variant="primary" />
-        <StatCard title="Custo Total em Estoque" value={formatCurrency(custoTotal)} icon={DollarSign} variant="default" />
+        <h1 className="text-3xl font-serif font-bold text-foreground">
+          Estoque de <span className="text-primary">Tecidos</span>
+        </h1>
+        <p className="text-sm text-muted-foreground mt-1">Controle de rolos e metragem disponível</p>
       </div>
 
       <Card>
+        <CardContent className="py-5">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-xs uppercase tracking-wider text-muted-foreground">Custo Total de Tecido em Estoque</p>
+              <p className="text-2xl font-serif font-bold text-foreground mt-1">{formatCurrency(custoTotal)}</p>
+            </div>
+            <DollarSign className="h-8 w-8 text-muted-foreground/30" />
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
         <CardContent className="pt-6">
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="font-serif font-bold text-lg text-foreground">Rolos Disponíveis</h2>
+            <div className="flex items-center gap-2">
+              <Search className="h-4 w-4 text-muted-foreground" />
+              <Input placeholder="Buscar tecido, cor ou código..." value={search} onChange={(e) => setSearch(e.target.value)} className="w-72" />
+            </div>
+          </div>
+
           {isLoading ? (
             <div className="text-center py-8 text-muted-foreground">Carregando...</div>
           ) : (
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Código Rolo</TableHead>
+                  <TableHead>Código</TableHead>
+                  <TableHead>Lote</TableHead>
                   <TableHead>Tecido</TableHead>
                   <TableHead>Cor</TableHead>
-                  <TableHead>Fornecedor</TableHead>
-                  <TableHead className="text-right">Metragem Disp.</TableHead>
-                  <TableHead className="text-right">Custo/Metro</TableHead>
-                  <TableHead className="text-right">Custo Total</TableHead>
+                  <TableHead className="text-right">Disponível</TableHead>
+                  <TableHead className="text-right">Custo/M</TableHead>
+                  <TableHead className="text-right">Valor Total</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {rolosDisponiveis.map((r) => {
+                {filtered.map((r) => {
                   const tecido = r.tecido_id ? tecidoMap[r.tecido_id] : null;
                   const custoMetro = tecido?.custo_por_metro ?? 0;
                   const custoRolo = (r.metragem_disponivel ?? 0) * custoMetro;
                   return (
                     <TableRow key={r.id}>
-                      <TableCell className="font-medium">{r.codigo_rolo ?? "—"}</TableCell>
-                      <TableCell>{tecido?.nome_tecido ?? "—"}</TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          {r.cor_hex && <div className="w-4 h-4 rounded-full border border-border" style={{ backgroundColor: r.cor_hex }} />}
-                          <span>{r.cor_nome ?? "—"}</span>
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-muted-foreground">{r.fornecedor ?? "—"}</TableCell>
-                      <TableCell className="text-right">{(r.metragem_disponivel ?? 0).toFixed(2)}m</TableCell>
+                      <TableCell className="text-primary font-medium">{r.codigo_rolo ?? "—"}</TableCell>
+                      <TableCell className="text-muted-foreground">{(r as any).lote ?? "—"}</TableCell>
+                      <TableCell className="font-medium">{tecido?.nome_tecido ?? "—"}</TableCell>
+                      <TableCell>{r.cor_nome ?? "—"}</TableCell>
+                      <TableCell className="text-right">{(r.metragem_disponivel ?? 0).toFixed(1)}m</TableCell>
                       <TableCell className="text-right">{formatCurrency(custoMetro)}</TableCell>
                       <TableCell className="text-right font-medium">{formatCurrency(custoRolo)}</TableCell>
                     </TableRow>

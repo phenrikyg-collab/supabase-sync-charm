@@ -1,6 +1,6 @@
-import { useState } from "react";
-import { useOrdensProducao, useOficinas, useProdutos, useCores, useCreateOrdemProducao } from "@/hooks/useSupabase";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useState, useEffect } from "react";
+import { useOrdensProducao, useOficinas, useProdutos, useCores, useOrdensCorte, useCreateOrdemProducao } from "@/hooks/useSupabase";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -10,32 +10,59 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { StatusBadge } from "@/components/StatusBadge";
 import { Plus } from "lucide-react";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 
 export default function OrdensProducao() {
   const { data: ordens, isLoading } = useOrdensProducao();
   const { data: oficinas } = useOficinas();
   const { data: produtos } = useProdutos();
   const { data: cores } = useCores();
+  const { data: ordensCorte } = useOrdensCorte();
   const createMut = useCreateOrdemProducao();
 
   const [open, setOpen] = useState(false);
-  const [produtoId, setProdutoId] = useState("");
-  const [corId, setCorId] = useState("");
+  const [ocId, setOcId] = useState("");
   const [oficinaId, setOficinaId] = useState("");
   const [quantidade, setQuantidade] = useState(0);
+  const [ocInfo, setOcInfo] = useState<{ produto: string; cor: string; grade: string } | null>(null);
 
   const oficinaMap = Object.fromEntries((oficinas ?? []).map((o) => [o.id, o]));
   const corMap = Object.fromEntries((cores ?? []).map((c) => [c.id, c]));
-  const produtoMap = Object.fromEntries((produtos ?? []).map((p) => [p.id, p]));
+
+  // Filter OCs that are in "Planejada" status
+  const ocsDisponiveis = ordensCorte?.filter((oc) => oc.status === "Planejada") ?? [];
+
+  useEffect(() => {
+    if (!ocId) { setOcInfo(null); return; }
+    Promise.all([
+      supabase.from("ordens_corte_produtos").select("*").eq("ordem_corte_id", ocId),
+      supabase.from("ordens_corte_grade").select("*").eq("ordem_corte_id", ocId),
+    ]).then(([prodRes, gradeRes]) => {
+      const prods = prodRes.data ?? [];
+      const grades = gradeRes.data ?? [];
+      const totalPecas = grades.reduce((a: number, g: any) => a + (g.quantidade ?? 0), 0);
+      setQuantidade(totalPecas);
+      const corId = grades[0]?.cor_id;
+      setOcInfo({
+        produto: prods.map((p: any) => p.nome_produto).join(", ") || "—",
+        cor: corId && corMap[corId] ? corMap[corId].nome_cor ?? "—" : "—",
+        grade: grades.map((g: any) => `${g.tamanho}: ${g.quantidade}`).join(", "),
+      });
+    });
+  }, [ocId]);
 
   const handleCreate = async () => {
+    if (!ocId || !oficinaId) { toast.error("Selecione OC e Oficina"); return; }
     try {
-      const prod = produtoMap[produtoId];
+      const oc = ordensCorte?.find((o) => o.id === ocId);
+      const prodRes = await supabase.from("ordens_corte_produtos").select("*").eq("ordem_corte_id", ocId).limit(1);
+      const prod = prodRes.data?.[0];
+
       await createMut.mutateAsync({
-        produto_id: produtoId,
-        cor_id: corId || null,
-        oficina_id: oficinaId || null,
-        nome_produto: prod?.nome_do_produto ?? "",
+        ordem_corte_id: ocId,
+        produto_id: prod?.produto_id ?? null,
+        nome_produto: prod?.nome_produto ?? "",
+        oficina_id: oficinaId,
         quantidade,
         quantidade_pecas_ordem: quantidade,
         status_ordem: "Corte",
@@ -43,16 +70,17 @@ export default function OrdensProducao() {
       });
       toast.success("Ordem de produção criada!");
       setOpen(false);
-    } catch (e: any) {
-      toast.error(e.message);
-    }
+      setOcId(""); setOficinaId("");
+    } catch (e: any) { toast.error(e.message); }
   };
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-serif font-bold text-foreground">Ordens de Produção</h1>
+          <h1 className="text-3xl font-serif font-bold text-foreground">
+            Ordens de <span className="text-primary">Produção</span>
+          </h1>
           <p className="text-sm text-muted-foreground mt-1">{ordens?.length ?? 0} ordens</p>
         </div>
         <Button onClick={() => setOpen(true)} className="gap-2"><Plus className="h-4 w-4" /> Nova Ordem</Button>
@@ -77,7 +105,7 @@ export default function OrdensProducao() {
               <TableBody>
                 {ordens?.map((o) => (
                   <TableRow key={o.id}>
-                    <TableCell className="font-medium">{o.nome_produto ?? produtoMap[o.produto_id ?? ""]?.nome_do_produto ?? "—"}</TableCell>
+                    <TableCell className="font-medium">{o.nome_produto ?? "—"}</TableCell>
                     <TableCell>
                       {o.cor_id && corMap[o.cor_id] ? (
                         <div className="flex items-center gap-2">
@@ -100,32 +128,27 @@ export default function OrdensProducao() {
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Nova Ordem de Produção</DialogTitle>
-          </DialogHeader>
+          <DialogHeader><DialogTitle>Nova Ordem de Produção</DialogTitle></DialogHeader>
           <div className="space-y-4">
             <div className="space-y-2">
-              <Label>Produto</Label>
-              <Select value={produtoId} onValueChange={setProdutoId}>
-                <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
+              <Label>Ordem de Corte</Label>
+              <Select value={ocId} onValueChange={setOcId}>
+                <SelectTrigger><SelectValue placeholder="Selecione uma OC..." /></SelectTrigger>
                 <SelectContent>
-                  {produtos?.filter((p) => p.ativo).map((p) => (
-                    <SelectItem key={p.id} value={p.id}>{p.nome_do_produto}</SelectItem>
+                  {ocsDisponiveis.map((oc) => (
+                    <SelectItem key={oc.id} value={oc.id}>{oc.numero_oc}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
-            <div className="space-y-2">
-              <Label>Cor</Label>
-              <Select value={corId} onValueChange={setCorId}>
-                <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
-                <SelectContent>
-                  {cores?.filter((c) => c.ativo).map((c) => (
-                    <SelectItem key={c.id} value={c.id}>{c.nome_cor}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            {ocInfo && (
+              <div className="p-3 bg-muted/50 rounded-lg border border-border space-y-1 text-sm">
+                <p><span className="text-muted-foreground">Produto:</span> {ocInfo.produto}</p>
+                <p><span className="text-muted-foreground">Cor:</span> {ocInfo.cor}</p>
+                <p><span className="text-muted-foreground">Grade:</span> {ocInfo.grade}</p>
+                <p><span className="text-muted-foreground">Total Peças:</span> {quantidade}</p>
+              </div>
+            )}
             <div className="space-y-2">
               <Label>Oficina de Costura</Label>
               <Select value={oficinaId} onValueChange={setOficinaId}>

@@ -8,9 +8,11 @@ import Dashboard from "./pages/Dashboard";
 import Produtos from "./pages/Produtos";
 import ProdutoForm from "./pages/ProdutoForm";
 import Cores from "./pages/Cores";
+import EntradaNF from "./pages/EntradaNF";
 import EstoqueTecidos from "./pages/EstoqueTecidos";
 import OrdensCorte from "./pages/OrdensCorte";
 import NovaOrdemCorte from "./pages/NovaOrdemCorte";
+import Oficinas from "./pages/Oficinas";
 import OrdensProducao from "./pages/OrdensProducao";
 import Producao from "./pages/Producao";
 import Expedicao from "./pages/Expedicao";
@@ -34,9 +36,11 @@ const App = () => (
             <Route path="/produtos/:id" element={<ProdutoForm />} />
             <Route path="/produtos/:id/editar" element={<ProdutoForm />} />
             <Route path="/cores" element={<Cores />} />
+            <Route path="/entrada-nf" element={<EntradaNF />} />
             <Route path="/estoque" element={<EstoqueTecidos />} />
             <Route path="/ordens-corte" element={<OrdensCorte />} />
             <Route path="/ordens-corte/nova" element={<NovaOrdemCorte />} />
+            <Route path="/oficinas" element={<Oficinas />} />
             <Route path="/ordens-producao" element={<OrdensProducao />} />
             <Route path="/producao" element={<Producao />} />
             <Route path="/expedicao" element={<Expedicao />} />
