@@ -177,7 +177,12 @@ export default function OrdensProducao() {
     if (idx < 0 || idx >= COLUNAS_KANBAN.length - 1) return;
     const nextStatus = COLUNAS_KANBAN[idx + 1].label;
     try {
-      await updateMut.mutateAsync({ id, status_ordem: nextStatus });
+      const updates: any = { id, status_ordem: nextStatus };
+      // Set data_fim when moving to Finalizado
+      if (nextStatus === "Finalizado") {
+        updates.data_fim = new Date().toISOString().split("T")[0];
+      }
+      await updateMut.mutateAsync(updates);
       toast.success(`Movido para ${nextStatus}`);
     } catch (e: any) { toast.error(e.message); }
   };

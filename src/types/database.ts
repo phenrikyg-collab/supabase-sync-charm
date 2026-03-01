@@ -125,6 +125,7 @@ export interface OrdemProducao {
   tecido_id: string | null;
   entrada_tecido_id: string | null;
   risco_id: string | null;
+  pagamento_oficina_status: string | null;
   created_at: string;
 }
 
