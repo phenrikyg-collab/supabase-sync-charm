@@ -90,9 +90,9 @@ export default function EstoqueTecidos() {
                       <TableCell className="text-right">{(r.metragem_disponivel ?? 0).toFixed(1)}m</TableCell>
                       <TableCell>
                         {(r.metragem_disponivel ?? 0) > 0 ? (
-                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-primary/10 text-primary">Disponível</span>
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-success/10 text-success border border-success/20">Disponível</span>
                         ) : (
-                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-destructive/10 text-destructive">Usado</span>
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-danger/10 text-danger border border-danger/20">Usado</span>
                         )}
                       </TableCell>
                       <TableCell className="text-right">{formatCurrency(custoMetro)}</TableCell>

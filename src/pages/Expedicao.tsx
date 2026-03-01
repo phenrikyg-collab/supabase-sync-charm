@@ -20,9 +20,9 @@ export default function Expedicao() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <StatCard title="No Prazo" value={noPrazo} icon={CheckCircle} variant="success" />
-        <StatCard title="Em Alerta" value={emAlerta} icon={AlertTriangle} variant="warning" />
-        <StatCard title="Crítico" value={critico} icon={Truck} variant="danger" />
+        <StatCard title="No Prazo" value={noPrazo} subtitle="1 a 2 dias" icon={CheckCircle} variant="success" />
+        <StatCard title="Em Alerta" value={emAlerta} subtitle="3 dias" icon={AlertTriangle} variant="warning" />
+        <StatCard title="Crítico" value={critico} subtitle="Acima de 4 dias" icon={Truck} variant="danger" />
       </div>
 
       <Card>
