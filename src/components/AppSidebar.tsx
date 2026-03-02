@@ -45,10 +45,10 @@ export function AppSidebar() {
           ) : (
             <div>
               <h1 className="text-sidebar-primary-foreground font-serif text-xl font-bold tracking-tight">
-                Moda Gestão
+                Gestão
               </h1>
               <p className="text-[10px] uppercase tracking-[0.2em] text-sidebar-foreground/60 mt-0.5">
-                Sistema de Confecção
+                Mariana Cardoso
               </p>
             </div>
           )}
