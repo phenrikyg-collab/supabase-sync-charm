@@ -1,6 +1,6 @@
 import {
   LayoutDashboard, Package, Plus, Palette, Layers, Scissors, Factory,
-  Truck, DollarSign, Target, FileText, Building2, LogOut, Users,
+  Truck, DollarSign, Target, FileText, Building2, LogOut, Users, Home,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useAuth } from "@/contexts/AuthContext";
@@ -23,6 +23,7 @@ const menuItems = [
   { title: "Nova Ordem Corte", url: "/ordens-corte/nova", icon: Scissors },
   { title: "Ordem de Corte", url: "/ordens-corte", icon: Scissors },
   { title: "Oficinas", url: "/oficinas", icon: Building2 },
+  { title: "Oficina Interna", url: "/oficina-interna", icon: Home },
   { title: "Ordem Produção", url: "/ordens-producao", icon: Factory },
   { title: "Pgto Oficinas", url: "/pagamento-oficinas", icon: DollarSign },
   { title: "Expedição", url: "/expedicao", icon: Truck },
