@@ -684,6 +684,38 @@ export default function OrdensProducao() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Print Conserto Filter Dialog */}
+      <Dialog open={printConsertoOpen} onOpenChange={setPrintConsertoOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader><DialogTitle>Imprimir Consertos</DialogTitle></DialogHeader>
+          <div className="space-y-3">
+            <div className="space-y-2">
+              <Label>Filtrar por Oficina</Label>
+              <Select value={printConsertoOficinaId} onValueChange={setPrintConsertoOficinaId}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="todas">Todas as oficinas</SelectItem>
+                  {oficinas?.map((o) => (
+                    <SelectItem key={o.id} value={o.id}>{o.nome_oficina}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              {(() => {
+                let count = (consertos ?? []).filter((c) => c.status === "Em Conserto");
+                if (printConsertoOficinaId !== "todas") count = count.filter((c) => c.oficina_id === printConsertoOficinaId);
+                return `${count.length} registro(s) encontrado(s)`;
+              })()}
+            </p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPrintConsertoOpen(false)}>Cancelar</Button>
+            <Button onClick={() => printConsertos(printConsertoOficinaId)} className="gap-2"><Printer className="h-4 w-4" /> Imprimir</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
