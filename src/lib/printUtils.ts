@@ -17,6 +17,7 @@ export function printHTML(title: string, bodyHTML: string) {
     .header h1 { font-size: 20px; font-weight: 700; }
     .header .subtitle { font-size: 11px; color: #666; margin-top: 2px; }
     .header .company { text-align: right; font-size: 11px; color: #666; }
+    .header .logo { width: 48px; height: 48px; border-radius: 4px; }
     .section { margin-bottom: 16px; }
     .section-title { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: #333; margin-bottom: 8px; padding-bottom: 4px; border-bottom: 1px solid #ddd; }
     .info-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px 16px; }

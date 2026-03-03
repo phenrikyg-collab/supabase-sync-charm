@@ -41,15 +41,18 @@ export function AppSidebar() {
       <SidebarContent className="flex flex-col h-full">
         <div className={`px-4 py-5 ${collapsed ? "text-center" : ""}`}>
           {collapsed ? (
-            <span className="text-sidebar-primary font-serif text-lg font-bold">M</span>
+            <img src="/images/logo.png" alt="MC" className="w-8 h-8 mx-auto rounded" />
           ) : (
-            <div>
-              <h1 className="text-sidebar-primary-foreground font-serif text-xl font-bold tracking-tight">
-                Gestão
-              </h1>
-              <p className="text-[10px] uppercase tracking-[0.2em] text-sidebar-foreground/60 mt-0.5">
-                Mariana Cardoso
-              </p>
+            <div className="flex items-center gap-3">
+              <img src="/images/logo.png" alt="Mariana Cardoso" className="w-10 h-10 rounded" />
+              <div>
+                <h1 className="text-sidebar-primary-foreground font-serif text-xl font-bold tracking-tight">
+                  Gestão
+                </h1>
+                <p className="text-[10px] uppercase tracking-[0.2em] text-sidebar-foreground/60 mt-0.5">
+                  Mariana Cardoso
+                </p>
+              </div>
             </div>
           )}
         </div>
