@@ -60,6 +60,10 @@ export default function OrdensProducao() {
   const [consertoOficinaId, setConsertoOficinaId] = useState("");
   const [consertoObs, setConsertoObs] = useState("");
 
+  // Print conserto filter dialog
+  const [printConsertoOpen, setPrintConsertoOpen] = useState(false);
+  const [printConsertoOficinaId, setPrintConsertoOficinaId] = useState("todas");
+
   // Enriched ordens with grade info
   const [ordensEnriched, setOrdensEnriched] = useState<any[]>([]);
 
@@ -275,7 +279,7 @@ export default function OrdensProducao() {
           <p className="text-sm text-muted-foreground mt-1">{ordens?.length ?? 0} ordens</p>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" onClick={printConsertos} className="gap-2"><Printer className="h-4 w-4" /> Consertos</Button>
+          <Button variant="outline" onClick={() => { setPrintConsertoOficinaId("todas"); setPrintConsertoOpen(true); }} className="gap-2"><Printer className="h-4 w-4" /> Consertos</Button>
           <Button variant="outline" onClick={printAprovadas} className="gap-2"><Printer className="h-4 w-4" /> Aprovadas</Button>
           <Button onClick={() => setOpen(true)} className="gap-2"><Plus className="h-4 w-4" /> Nova Ordem</Button>
         </div>
