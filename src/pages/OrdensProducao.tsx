@@ -51,6 +51,7 @@ export default function OrdensProducao() {
   const [ocId, setOcId] = useState("");
   const [oficinaId, setOficinaId] = useState("");
   const [quantidade, setQuantidade] = useState(0);
+  const [previsaoTermino, setPrevisaoTermino] = useState("");
   const [ocInfo, setOcInfo] = useState<{ produto: string; cor: string; grade: string } | null>(null);
 
   // Conserto dialog
@@ -129,10 +130,11 @@ export default function OrdensProducao() {
         quantidade_pecas_ordem: quantidade,
         status_ordem: "Corte",
         data_inicio: new Date().toISOString().split("T")[0],
-      });
+        data_previsao_termino: previsaoTermino || null,
+      } as any);
       toast.success("Ordem de produção criada!");
       setOpen(false);
-      setOcId(""); setOficinaId("");
+      setOcId(""); setOficinaId(""); setPrevisaoTermino("");
     } catch (e: any) { toast.error(e.message); }
   };
 
@@ -214,6 +216,7 @@ export default function OrdensProducao() {
           <div class="info-item"><label>Quantidade</label><span>${o.quantidade ?? o.quantidade_pecas_ordem ?? 0} peças</span></div>
           <div class="info-item"><label>Início</label><span>${formatDateBR(o.data_inicio)}</span></div>
           <div class="info-item"><label>Fim</label><span>${formatDateBR(o.data_fim)}</span></div>
+          <div class="info-item"><label>Previsão Término</label><span>${formatDateBR(o.data_previsao_termino)}</span></div>
         </div>
       </div>
       ${gradeItems.length > 0 ? `<div class="section">
@@ -311,8 +314,9 @@ export default function OrdensProducao() {
                       <TableHead>Grade</TableHead>
                       <TableHead>Oficina</TableHead>
                       <TableHead className="text-right">Quantidade</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Início</TableHead>
+                       <TableHead>Status</TableHead>
+                       <TableHead>Início</TableHead>
+                       <TableHead>Previsão</TableHead>
                       <TableHead className="w-10"></TableHead>
                     </TableRow>
                   </TableHeader>
@@ -366,6 +370,7 @@ export default function OrdensProducao() {
                           <TableCell className="text-right">{o.quantidade ?? o.quantidade_pecas_ordem ?? 0}</TableCell>
                           <TableCell><StatusBadge status={o.status_ordem ?? ""} /></TableCell>
                           <TableCell className="text-muted-foreground">{formatDateBR(o.data_inicio)}</TableCell>
+                          <TableCell className="text-muted-foreground">{formatDateBR(o.data_previsao_termino)}</TableCell>
                           <TableCell>
                             <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => printOrdemProducao(o)}>
                               <Printer className="h-3.5 w-3.5" />
@@ -508,6 +513,11 @@ export default function OrdensProducao() {
                                     </span>
                                   )}
                                 </div>
+                                {item.data_previsao_termino && (
+                                  <div className="text-[10px] text-muted-foreground">
+                                    Prev: {formatDateBR(item.data_previsao_termino)}
+                                  </div>
+                                )}
 
                                 {/* Botão de conserto na Revisão */}
                                 {isRevisao && (
@@ -570,6 +580,10 @@ export default function OrdensProducao() {
             <div className="space-y-2">
               <Label>Quantidade de Peças</Label>
               <Input type="number" value={quantidade} onChange={(e) => setQuantidade(Number(e.target.value))} />
+            </div>
+            <div className="space-y-2">
+              <Label>Previsão de Término</Label>
+              <Input type="date" value={previsaoTermino} onChange={(e) => setPrevisaoTermino(e.target.value)} />
             </div>
           </div>
           <DialogFooter>

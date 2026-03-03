@@ -120,6 +120,7 @@ export interface OrdemProducao {
   status_ordem: string | null;
   data_inicio: string | null;
   data_fim: string | null;
+  data_previsao_termino: string | null;
   metragem_consumida: number | null;
   metragem_tecido_utilizada: number | null;
   tecido_id: string | null;
