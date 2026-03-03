@@ -5,7 +5,7 @@ import type {
   OrdemCorteProduto, OrdemCorteRolo, OrdemProducao, Oficina, Aviamento, ProdutoAviamento,
   MovimentacaoFinanceira, MetaFinanceira, CategoriaFinanceira,
   CentroCusto, DashboardExecutivo, TicketMedioMes, IndicadorRiscoMeta,
-  ResumoProducaoAndamento, ResumoEstoqueTecidos, ExpedicaoStatus, Conserto,
+  ResumoProducaoAndamento, ResumoEstoqueTecidos, ExpedicaoStatus, Conserto, CustoFixoOficina,
 } from "@/types/database";
 
 async function fetchTable<T>(table: string, options?: { 
@@ -424,5 +424,33 @@ export const useUpdateConserto = () => {
       qc.invalidateQueries({ queryKey: ["consertos"] });
       qc.invalidateQueries({ queryKey: ["consertos-all"] });
     },
+  });
+};
+
+// Custo Fixo Oficina Interna
+export const useCustosFixosOficina = () =>
+  useQuery({ queryKey: ["custos-fixos-oficina"], queryFn: () => fetchTable<CustoFixoOficina>("custo_fixo_oficina", { orderBy: "mes" }) });
+
+export const useCreateCustoFixoOficina = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (custo: Partial<CustoFixoOficina>) => {
+      const { data, error } = await supabase.from("custo_fixo_oficina").insert(custo).select().single();
+      if (error) throw error;
+      return data as CustoFixoOficina;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["custos-fixos-oficina"] }),
+  });
+};
+
+export const useUpdateCustoFixoOficina = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, ...updates }: Partial<CustoFixoOficina> & { id: string }) => {
+      const { data, error } = await supabase.from("custo_fixo_oficina").update(updates).eq("id", id).select().single();
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["custos-fixos-oficina"] }),
   });
 };
