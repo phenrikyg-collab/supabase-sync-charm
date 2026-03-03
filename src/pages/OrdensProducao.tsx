@@ -295,7 +295,7 @@ export default function OrdensProducao() {
               ) : (
                 <Table>
                   <TableHeader>
-                    <TableRow>
+                     <TableRow>
                       <TableHead>Produto</TableHead>
                       <TableHead>Cores</TableHead>
                       <TableHead>Grade</TableHead>
@@ -303,6 +303,7 @@ export default function OrdensProducao() {
                       <TableHead className="text-right">Quantidade</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead>Início</TableHead>
+                      <TableHead className="w-10"></TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -355,6 +356,11 @@ export default function OrdensProducao() {
                           <TableCell className="text-right">{o.quantidade ?? o.quantidade_pecas_ordem ?? 0}</TableCell>
                           <TableCell><StatusBadge status={o.status_ordem ?? ""} /></TableCell>
                           <TableCell className="text-muted-foreground">{o.data_inicio ?? "—"}</TableCell>
+                          <TableCell>
+                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => printOrdemProducao(o)}>
+                              <Printer className="h-3.5 w-3.5" />
+                            </Button>
+                          </TableCell>
                         </TableRow>
                       );
                     })}
