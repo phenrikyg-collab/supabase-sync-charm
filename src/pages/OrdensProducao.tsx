@@ -9,10 +9,11 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { StatusBadge } from "@/components/StatusBadge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, List, Columns3, Wrench, Trash2, PlusCircle } from "lucide-react";
+import { Plus, List, Columns3, Wrench, Trash2, PlusCircle, Printer } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { motion } from "framer-motion";
+import { printHTML, statusBadgeHTML } from "@/lib/printUtils";
 
 // Color palette for oficinas (deterministic by index)
 const OFICINA_COLORS = [
@@ -187,6 +188,83 @@ export default function OrdensProducao() {
     } catch (e: any) { toast.error(e.message); }
   };
 
+  const printOrdemProducao = (o: any) => {
+    const gradeItems: any[] = o.gradeInfo ?? [];
+    const gradeRows = gradeItems.map((g: any) => {
+      const cor = g.cor_id ? corMap[g.cor_id] : null;
+      return `<tr><td>${cor ? `<span class="color-dot" style="background:${cor.cor_hex ?? '#ccc'}"></span>${cor.nome_cor}` : "—"}</td><td>${g.tamanho}</td><td>${g.quantidade}</td></tr>`;
+    }).join("");
+    const oficina = o.oficina_id ? oficinaMap[o.oficina_id] : null;
+    const total = gradeItems.reduce((a: number, g: any) => a + (g.quantidade ?? 0), 0);
+    printHTML(`Ordem de Produção - ${o.nome_produto}`, `
+      <div class="header">
+        <div><h1>Ordem de Produção</h1><div class="subtitle">${o.nome_produto ?? "—"}</div></div>
+        <div class="company">Gestão - Mariana Cardoso</div>
+      </div>
+      <div class="section">
+        <div class="section-title">Informações</div>
+        <div class="info-grid">
+          <div class="info-item"><label>Produto</label><span>${o.nome_produto ?? "—"}</span></div>
+          <div class="info-item"><label>Status</label>${statusBadgeHTML(o.status_ordem ?? "")}</div>
+          <div class="info-item"><label>Oficina</label><span>${oficina?.nome_oficina ?? "—"}</span></div>
+          <div class="info-item"><label>Quantidade</label><span>${o.quantidade ?? o.quantidade_pecas_ordem ?? 0} peças</span></div>
+          <div class="info-item"><label>Início</label><span>${o.data_inicio ?? "—"}</span></div>
+          <div class="info-item"><label>Fim</label><span>${o.data_fim ?? "—"}</span></div>
+        </div>
+      </div>
+      ${gradeItems.length > 0 ? `<div class="section">
+        <div class="section-title">Grade</div>
+        <table><thead><tr><th>Cor</th><th>Tamanho</th><th>Quantidade</th></tr></thead>
+        <tbody>${gradeRows}<tr class="total-row"><td colspan="2">Total</td><td>${total}</td></tr></tbody></table>
+      </div>` : ""}
+    `);
+  };
+
+  const printConsertos = () => {
+    const emConserto = (consertos ?? []).filter((c) => c.status === "Em Conserto");
+    const rows = emConserto.map((c: any) => {
+      const ordem = ordensEnriched.find((o: any) => o.id === c.ordem_producao_id);
+      const cor = c.cor_id ? corMap[c.cor_id] : null;
+      const oficina = c.oficina_id ? oficinaMap[c.oficina_id] : null;
+      return `<tr>
+        <td>${ordem?.nome_produto ?? "—"}</td>
+        <td>${cor ? `<span class="color-dot" style="background:${cor.cor_hex ?? '#ccc'}"></span>${cor.nome_cor}` : "—"}</td>
+        <td>${c.tamanho}</td>
+        <td>${c.quantidade}</td>
+        <td>${oficina?.nome_oficina ?? "—"}</td>
+        <td>${c.observacao ?? "—"}</td>
+      </tr>`;
+    }).join("");
+    printHTML("Peças em Conserto", `
+      <div class="header"><div><h1>Peças em Conserto</h1><div class="subtitle">${emConserto.length} registro(s)</div></div><div class="company">Gestão - Mariana Cardoso</div></div>
+      <div class="section">
+        <table><thead><tr><th>Produto</th><th>Cor</th><th>Tamanho</th><th>Qtd</th><th>Oficina</th><th>Observação</th></tr></thead>
+        <tbody>${rows}</tbody></table>
+      </div>
+    `);
+  };
+
+  const printAprovadas = () => {
+    const aprovadas = (consertos ?? []).filter((c) => c.status === "Aprovada");
+    const rows = aprovadas.map((c: any) => {
+      const ordem = ordensEnriched.find((o: any) => o.id === c.ordem_producao_id);
+      const cor = c.cor_id ? corMap[c.cor_id] : null;
+      return `<tr>
+        <td>${ordem?.nome_produto ?? "—"}</td>
+        <td>${cor ? `<span class="color-dot" style="background:${cor.cor_hex ?? '#ccc'}"></span>${cor.nome_cor}` : "—"}</td>
+        <td>${c.tamanho}</td>
+        <td>${c.quantidade}</td>
+      </tr>`;
+    }).join("");
+    printHTML("Peças Aprovadas", `
+      <div class="header"><div><h1>Peças Aprovadas</h1><div class="subtitle">${aprovadas.length} registro(s)</div></div><div class="company">Gestão - Mariana Cardoso</div></div>
+      <div class="section">
+        <table><thead><tr><th>Produto</th><th>Cor</th><th>Tamanho</th><th>Qtd</th></tr></thead>
+        <tbody>${rows}</tbody></table>
+      </div>
+    `);
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -196,7 +274,11 @@ export default function OrdensProducao() {
           </h1>
           <p className="text-sm text-muted-foreground mt-1">{ordens?.length ?? 0} ordens</p>
         </div>
-        <Button onClick={() => setOpen(true)} className="gap-2"><Plus className="h-4 w-4" /> Nova Ordem</Button>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" onClick={printConsertos} className="gap-2"><Printer className="h-4 w-4" /> Consertos</Button>
+          <Button variant="outline" onClick={printAprovadas} className="gap-2"><Printer className="h-4 w-4" /> Aprovadas</Button>
+          <Button onClick={() => setOpen(true)} className="gap-2"><Plus className="h-4 w-4" /> Nova Ordem</Button>
+        </div>
       </div>
 
       <Tabs defaultValue="lista">
