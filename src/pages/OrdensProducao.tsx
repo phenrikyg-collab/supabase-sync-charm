@@ -60,6 +60,10 @@ export default function OrdensProducao() {
   const [consertoOficinaId, setConsertoOficinaId] = useState("");
   const [consertoObs, setConsertoObs] = useState("");
 
+  // Print conserto filter dialog
+  const [printConsertoOpen, setPrintConsertoOpen] = useState(false);
+  const [printConsertoOficinaId, setPrintConsertoOficinaId] = useState("todas");
+
   // Enriched ordens with grade info
   const [ordensEnriched, setOrdensEnriched] = useState<any[]>([]);
 
@@ -220,8 +224,12 @@ export default function OrdensProducao() {
     `);
   };
 
-  const printConsertos = () => {
-    const emConserto = (consertos ?? []).filter((c) => c.status === "Em Conserto");
+  const printConsertos = (filterOficinaId: string) => {
+    let emConserto = (consertos ?? []).filter((c) => c.status === "Em Conserto");
+    if (filterOficinaId !== "todas") {
+      emConserto = emConserto.filter((c) => c.oficina_id === filterOficinaId);
+    }
+    const oficinaLabel = filterOficinaId !== "todas" ? oficinaMap[filterOficinaId]?.nome_oficina ?? "" : "Todas as Oficinas";
     const rows = emConserto.map((c: any) => {
       const ordem = ordensEnriched.find((o: any) => o.id === c.ordem_producao_id);
       const cor = c.cor_id ? corMap[c.cor_id] : null;
@@ -235,13 +243,15 @@ export default function OrdensProducao() {
         <td>${c.observacao ?? "—"}</td>
       </tr>`;
     }).join("");
+    const totalPecas = emConserto.reduce((a, c: any) => a + (c.quantidade ?? 0), 0);
     printHTML("Peças em Conserto", `
-      <div class="header"><div><h1>Peças em Conserto</h1><div class="subtitle">${emConserto.length} registro(s)</div></div><div class="company"><img src="/images/logo.png" class="logo" alt="MC" /><br/>Gestão - Mariana Cardoso</div></div>
+      <div class="header"><div><h1>Peças em Conserto</h1><div class="subtitle">${oficinaLabel} — ${emConserto.length} registro(s), ${totalPecas} peça(s)</div></div><div class="company"><img src="/images/logo.png" class="logo" alt="MC" /><br/>Gestão - Mariana Cardoso</div></div>
       <div class="section">
         <table><thead><tr><th>Produto</th><th>Cor</th><th>Tamanho</th><th>Qtd</th><th>Oficina</th><th>Observação</th></tr></thead>
         <tbody>${rows}</tbody></table>
       </div>
     `);
+    setPrintConsertoOpen(false);
   };
 
   const printAprovadas = () => {
@@ -275,7 +285,7 @@ export default function OrdensProducao() {
           <p className="text-sm text-muted-foreground mt-1">{ordens?.length ?? 0} ordens</p>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" onClick={printConsertos} className="gap-2"><Printer className="h-4 w-4" /> Consertos</Button>
+          <Button variant="outline" onClick={() => { setPrintConsertoOficinaId("todas"); setPrintConsertoOpen(true); }} className="gap-2"><Printer className="h-4 w-4" /> Consertos</Button>
           <Button variant="outline" onClick={printAprovadas} className="gap-2"><Printer className="h-4 w-4" /> Aprovadas</Button>
           <Button onClick={() => setOpen(true)} className="gap-2"><Plus className="h-4 w-4" /> Nova Ordem</Button>
         </div>
@@ -671,6 +681,38 @@ export default function OrdensProducao() {
             >
               <Wrench className="h-3.5 w-3.5" /> Registrar Conserto
             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Print Conserto Filter Dialog */}
+      <Dialog open={printConsertoOpen} onOpenChange={setPrintConsertoOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader><DialogTitle>Imprimir Consertos</DialogTitle></DialogHeader>
+          <div className="space-y-3">
+            <div className="space-y-2">
+              <Label>Filtrar por Oficina</Label>
+              <Select value={printConsertoOficinaId} onValueChange={setPrintConsertoOficinaId}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="todas">Todas as oficinas</SelectItem>
+                  {oficinas?.map((o) => (
+                    <SelectItem key={o.id} value={o.id}>{o.nome_oficina}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              {(() => {
+                let count = (consertos ?? []).filter((c) => c.status === "Em Conserto");
+                if (printConsertoOficinaId !== "todas") count = count.filter((c) => c.oficina_id === printConsertoOficinaId);
+                return `${count.length} registro(s) encontrado(s)`;
+              })()}
+            </p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPrintConsertoOpen(false)}>Cancelar</Button>
+            <Button onClick={() => printConsertos(printConsertoOficinaId)} className="gap-2"><Printer className="h-4 w-4" /> Imprimir</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
