@@ -60,18 +60,18 @@ export default function ImportacaoLancamentos({ onImportar }: Props) {
         reader.readAsDataURL(file);
       });
 
-      const { data, error } = await supabase.functions.invoke("classify-category", {
-        body: { pdfBase64: base64 },
+      const { data, error } = await supabase.functions.invoke("categorizar-despesa", {
+        body: { action: "parse_pdf", pdf_base64: base64 },
       });
 
       if (error) throw new Error(error.message);
-      if (!data?.transacoes?.length) throw new Error("Nenhuma transação encontrada no PDF");
+      if (!data?.rows?.length) throw new Error("Nenhuma transação encontrada no PDF");
 
-      const lancamentos: LancamentoImportado[] = data.transacoes.map((t: any) => ({
+      const lancamentos: LancamentoImportado[] = data.rows.map((t: any) => ({
         descricao: t.descricao,
-        valor: t.valor,
+        valor: Math.abs(t.valor),
         data: t.data,
-        categoria: t.categoria,
+        categoria: t.categoria_sugerida ? { nome: t.categoria_sugerida, id: t.categoria_id } : undefined,
       }));
 
       onImportar(lancamentos);
@@ -83,52 +83,52 @@ export default function ImportacaoLancamentos({ onImportar }: Props) {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center p-6">
-      <div className="bg-white rounded-2xl shadow-lg p-10 max-w-lg w-full text-center space-y-6">
+    <div className="min-h-screen bg-background flex items-center justify-center p-6">
+      <div className="bg-card rounded-2xl shadow-lg p-10 max-w-lg w-full text-center space-y-6 border border-border">
         <div className="text-5xl">📂</div>
-        <h1 className="text-2xl font-bold text-gray-800">Importar Lançamentos</h1>
-        <p className="text-gray-500 text-sm">
+        <h1 className="text-2xl font-bold text-foreground">Importar Lançamentos</h1>
+        <p className="text-muted-foreground text-sm">
           Importe um extrato de cartão em <strong>PDF</strong> ou uma planilha em <strong>CSV</strong>.
         </p>
 
         {processando ? (
           <div className="space-y-3">
             <div className="animate-spin text-4xl">⏳</div>
-            <p className="text-blue-600 font-medium">Lendo o PDF e classificando transações...</p>
-            <p className="text-gray-400 text-sm">Isso pode levar alguns segundos</p>
+            <p className="text-primary font-medium">Lendo o PDF e classificando transações...</p>
+            <p className="text-muted-foreground text-sm">Isso pode levar alguns segundos</p>
           </div>
         ) : (
           <div className="space-y-3">
             <button
               onClick={() => pdfRef.current?.click()}
-              className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-xl transition-colors flex items-center justify-center gap-2"
+              className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-semibold py-3 px-6 rounded-xl transition-colors flex items-center justify-center gap-2"
             >
               📄 Importar extrato PDF
             </button>
-            <p className="text-xs text-gray-400">
-              Extratos de cartão de crédito em PDF — o Claude extrai e classifica automaticamente
+            <p className="text-xs text-muted-foreground">
+              Extratos de cartão de crédito em PDF — a IA extrai e classifica automaticamente
             </p>
 
-            <div className="flex items-center gap-3 text-gray-300">
-              <hr className="flex-1" />
-              <span className="text-sm text-gray-400">ou</span>
-              <hr className="flex-1" />
+            <div className="flex items-center gap-3 text-muted-foreground/50">
+              <hr className="flex-1 border-border" />
+              <span className="text-sm text-muted-foreground">ou</span>
+              <hr className="flex-1 border-border" />
             </div>
 
             <button
               onClick={() => csvRef.current?.click()}
-              className="w-full border border-gray-200 hover:bg-gray-50 text-gray-600 font-semibold py-3 px-6 rounded-xl transition-colors flex items-center justify-center gap-2"
+              className="w-full border border-input hover:bg-accent text-foreground font-semibold py-3 px-6 rounded-xl transition-colors flex items-center justify-center gap-2"
             >
               📊 Importar planilha CSV
             </button>
-            <p className="text-xs text-gray-400">
-              Arquivo com colunas: <code className="bg-gray-100 px-1 rounded">descricao, valor, data</code>
+            <p className="text-xs text-muted-foreground">
+              Arquivo com colunas: <code className="bg-muted px-1 rounded">descricao, valor, data</code>
             </p>
           </div>
         )}
 
         {erro && (
-          <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-sm text-red-700">
+          <div className="bg-destructive/10 border border-destructive/30 rounded-lg p-3 text-sm text-destructive">
             ⚠️ {erro}
           </div>
         )}
