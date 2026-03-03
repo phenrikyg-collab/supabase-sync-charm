@@ -1,0 +1,2 @@
+[functions.categorizar-despesa]
+verify_jwt = false

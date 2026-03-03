@@ -19,6 +19,8 @@ import OrdensProducao from "./pages/OrdensProducao";
 import Producao from "./pages/Producao";
 import Expedicao from "./pages/Expedicao";
 import Financeiro from "./pages/Financeiro";
+import DRE from "./pages/DRE";
+import ImportarExtrato from "./pages/ImportarExtrato";
 import Metas from "./pages/Metas";
 import PagamentoOficinas from "./pages/PagamentoOficinas";
 import AdminUsuarios from "./pages/AdminUsuarios";
@@ -78,6 +80,8 @@ const AppRoutes = () => {
               <Route path="/pagamento-oficinas" element={<PagamentoOficinas />} />
               <Route path="/expedicao" element={<Expedicao />} />
               <Route path="/financeiro" element={<Financeiro />} />
+              <Route path="/dre" element={<DRE />} />
+              <Route path="/importar-extrato" element={<ImportarExtrato />} />
               <Route path="/metas" element={<Metas />} />
               <Route path="/admin/usuarios" element={<AdminUsuarios />} />
               <Route path="*" element={<NotFound />} />
