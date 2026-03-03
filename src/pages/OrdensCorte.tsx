@@ -81,7 +81,7 @@ export default function OrdensCorte() {
           <h1>Ordem de Corte — ${o.numero_oc}</h1>
           <div class="subtitle">Ficha de produção</div>
         </div>
-        <div class="company">Gestão - Mariana Cardoso</div>
+        <div class="company"><img src="/images/logo.png" class="logo" alt="MC" /><br/>Gestão - Mariana Cardoso</div>
       </div>
       <div class="section">
         <div class="section-title">Informações Gerais</div>
