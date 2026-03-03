@@ -1,6 +1,6 @@
 import {
   LayoutDashboard, Package, Plus, Palette, Layers, Scissors, Factory,
-  Truck, DollarSign, Target, FileText, Building2, LogOut, Users, Home,
+  Truck, DollarSign, Target, FileText, Building2, LogOut, Users, Home, BarChart3, Upload,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useAuth } from "@/contexts/AuthContext";
@@ -28,6 +28,8 @@ const menuItems = [
   { title: "Pgto Oficinas", url: "/pagamento-oficinas", icon: DollarSign },
   { title: "Expedição", url: "/expedicao", icon: Truck },
   { title: "Financeiro", url: "/financeiro", icon: DollarSign },
+  { title: "DRE", url: "/dre", icon: BarChart3 },
+  { title: "Importar Extrato", url: "/importar-extrato", icon: Upload },
   { title: "Meta Mensal", url: "/metas", icon: Target },
 ];
 
