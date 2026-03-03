@@ -82,7 +82,10 @@ export default function Oficinas() {
               <TableBody>
                 {oficinas?.map((o) => (
                   <TableRow key={o.id}>
-                    <TableCell className="font-medium">{o.nome_oficina}</TableCell>
+                    <TableCell className="font-medium">
+                      {o.nome_oficina}
+                      {o.is_interna && <span className="ml-2 text-[10px] uppercase tracking-wider bg-primary/10 text-primary px-1.5 py-0.5 rounded-full">Interna</span>}
+                    </TableCell>
                     <TableCell className="text-muted-foreground">{o.tipo_oficina ?? "—"}</TableCell>
                     <TableCell className="text-right">{formatCurrency(o.custo_por_peca)}</TableCell>
                     <TableCell className="text-muted-foreground">{o.contato ?? "—"}</TableCell>
@@ -109,6 +112,10 @@ export default function Oficinas() {
             <div className="space-y-2"><Label>Custo por Peça</Label><Input type="number" step="0.01" value={custo} onChange={(e) => setCusto(Number(e.target.value))} /></div>
             <div className="space-y-2"><Label>Contato</Label><Input value={contato} onChange={(e) => setContato(e.target.value)} /></div>
             <div className="space-y-2"><Label>Observação</Label><Input value={obs} onChange={(e) => setObs(e.target.value)} /></div>
+            <div className="flex items-center gap-3">
+              <Switch checked={isInterna} onCheckedChange={setIsInterna} />
+              <Label>Oficina Interna</Label>
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setOpen(false)}>Cancelar</Button>
