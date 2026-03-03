@@ -199,7 +199,7 @@ export default function OrdensProducao() {
     printHTML(`Ordem de Produção - ${o.nome_produto}`, `
       <div class="header">
         <div><h1>Ordem de Produção</h1><div class="subtitle">${o.nome_produto ?? "—"}</div></div>
-        <div class="company">Gestão - Mariana Cardoso</div>
+        <div class="company"><img src="/images/logo.png" class="logo" alt="MC" /><br/>Gestão - Mariana Cardoso</div>
       </div>
       <div class="section">
         <div class="section-title">Informações</div>
@@ -236,7 +236,7 @@ export default function OrdensProducao() {
       </tr>`;
     }).join("");
     printHTML("Peças em Conserto", `
-      <div class="header"><div><h1>Peças em Conserto</h1><div class="subtitle">${emConserto.length} registro(s)</div></div><div class="company">Gestão - Mariana Cardoso</div></div>
+      <div class="header"><div><h1>Peças em Conserto</h1><div class="subtitle">${emConserto.length} registro(s)</div></div><div class="company"><img src="/images/logo.png" class="logo" alt="MC" /><br/>Gestão - Mariana Cardoso</div></div>
       <div class="section">
         <table><thead><tr><th>Produto</th><th>Cor</th><th>Tamanho</th><th>Qtd</th><th>Oficina</th><th>Observação</th></tr></thead>
         <tbody>${rows}</tbody></table>
@@ -257,7 +257,7 @@ export default function OrdensProducao() {
       </tr>`;
     }).join("");
     printHTML("Peças Aprovadas", `
-      <div class="header"><div><h1>Peças Aprovadas</h1><div class="subtitle">${aprovadas.length} registro(s)</div></div><div class="company">Gestão - Mariana Cardoso</div></div>
+      <div class="header"><div><h1>Peças Aprovadas</h1><div class="subtitle">${aprovadas.length} registro(s)</div></div><div class="company"><img src="/images/logo.png" class="logo" alt="MC" /><br/>Gestão - Mariana Cardoso</div></div>
       <div class="section">
         <table><thead><tr><th>Produto</th><th>Cor</th><th>Tamanho</th><th>Qtd</th></tr></thead>
         <tbody>${rows}</tbody></table>
