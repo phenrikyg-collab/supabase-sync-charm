@@ -10,9 +10,10 @@ interface LancamentoImportado {
   descricao: string;
   valor: number;
   data: string;
-  tipo: "entrada" | "saida";
+  tipo?: "entrada" | "saida";
   categoria_id?: string | null;
   categoria_sugerida?: string | null;
+  categoria?: any;
 }
 
 export default function ImportarPage() {
