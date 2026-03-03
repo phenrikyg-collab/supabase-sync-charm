@@ -2,7 +2,7 @@ import { useOrdensCorte } from "@/hooks/useSupabase";
 import { Card, CardContent } from "@/components/ui/card";
 import { StatusBadge } from "@/components/StatusBadge";
 import { Button } from "@/components/ui/button";
-import { Plus, Pencil, Trash2 } from "lucide-react";
+import { Plus, Pencil, Trash2, Printer } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { useEffect, useState } from "react";
@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
+import { printHTML, statusBadgeHTML } from "@/lib/printUtils";
 
 interface OrdemCorteEnriched {
   id: string;
@@ -70,6 +71,38 @@ export default function OrdensCorte() {
   }, [ordens]);
 
   const totalPecas = (grade: { quantidade: number }[]) => grade.reduce((a, g) => a + g.quantidade, 0);
+
+  const printOrdem = (o: OrdemCorteEnriched) => {
+    const gradeRows = o.grade.map((g) => `<tr><td>${g.tamanho}</td><td>${g.quantidade}</td></tr>`).join("");
+    const total = totalPecas(o.grade);
+    printHTML(`Ordem de Corte - ${o.numero_oc}`, `
+      <div class="header">
+        <div>
+          <h1>Ordem de Corte — ${o.numero_oc}</h1>
+          <div class="subtitle">Ficha de produção</div>
+        </div>
+        <div class="company">Gestão - Mariana Cardoso</div>
+      </div>
+      <div class="section">
+        <div class="section-title">Informações Gerais</div>
+        <div class="info-grid">
+          <div class="info-item"><label>Número</label><span>${o.numero_oc}</span></div>
+          <div class="info-item"><label>Status</label>${statusBadgeHTML(o.status ?? "Planejada")}</div>
+          <div class="info-item"><label>Data</label><span>${o.created_at ? new Date(o.created_at).toLocaleDateString("pt-BR") : "—"}</span></div>
+          <div class="info-item"><label>Produto(s)</label><span>${o.produtos.map((p) => p.nome_produto).join(", ") || "—"}</span></div>
+          <div class="info-item"><label>Metragem Risco</label><span>${o.metragem_risco}m</span></div>
+          <div class="info-item"><label>Folhas</label><span>${o.quantidade_folhas ?? "—"}</span></div>
+        </div>
+      </div>
+      <div class="section">
+        <div class="section-title">Grade de Tamanhos</div>
+        <table>
+          <thead><tr><th>Tamanho</th><th>Quantidade</th></tr></thead>
+          <tbody>${gradeRows}<tr class="total-row"><td>Total</td><td>${total}</td></tr></tbody>
+        </table>
+      </div>
+    `);
+  };
 
   const openEdit = (o: OrdemCorteEnriched) => {
     setEditOrdem(o);
@@ -151,6 +184,9 @@ export default function OrdensCorte() {
                   <div className="flex items-center gap-2 pt-2 border-t border-border">
                     <Button variant="outline" size="sm" className="gap-1.5 flex-1" onClick={() => openEdit(o)}>
                       <Pencil className="h-3.5 w-3.5" /> Editar
+                    </Button>
+                    <Button variant="outline" size="sm" className="gap-1.5" onClick={() => printOrdem(o)}>
+                      <Printer className="h-3.5 w-3.5" />
                     </Button>
                     <Button variant="outline" size="sm" className="gap-1.5 flex-1 text-destructive hover:text-destructive" onClick={() => { setDeleteId(o.id); setDeleteOpen(true); }}>
                       <Trash2 className="h-3.5 w-3.5" /> Excluir
