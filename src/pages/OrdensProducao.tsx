@@ -13,7 +13,7 @@ import { Plus, List, Columns3, Wrench, Trash2, PlusCircle, Printer } from "lucid
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { motion } from "framer-motion";
-import { printHTML, statusBadgeHTML } from "@/lib/printUtils";
+import { printHTML, statusBadgeHTML, formatDateBR } from "@/lib/printUtils";
 
 // Color palette for oficinas (deterministic by index)
 const OFICINA_COLORS = [
@@ -208,8 +208,8 @@ export default function OrdensProducao() {
           <div class="info-item"><label>Status</label>${statusBadgeHTML(o.status_ordem ?? "")}</div>
           <div class="info-item"><label>Oficina</label><span>${oficina?.nome_oficina ?? "—"}</span></div>
           <div class="info-item"><label>Quantidade</label><span>${o.quantidade ?? o.quantidade_pecas_ordem ?? 0} peças</span></div>
-          <div class="info-item"><label>Início</label><span>${o.data_inicio ?? "—"}</span></div>
-          <div class="info-item"><label>Fim</label><span>${o.data_fim ?? "—"}</span></div>
+          <div class="info-item"><label>Início</label><span>${formatDateBR(o.data_inicio)}</span></div>
+          <div class="info-item"><label>Fim</label><span>${formatDateBR(o.data_fim)}</span></div>
         </div>
       </div>
       ${gradeItems.length > 0 ? `<div class="section">
@@ -355,7 +355,7 @@ export default function OrdensProducao() {
                           <TableCell>{o.oficina_id ? oficinaMap[o.oficina_id]?.nome_oficina ?? "—" : "—"}</TableCell>
                           <TableCell className="text-right">{o.quantidade ?? o.quantidade_pecas_ordem ?? 0}</TableCell>
                           <TableCell><StatusBadge status={o.status_ordem ?? ""} /></TableCell>
-                          <TableCell className="text-muted-foreground">{o.data_inicio ?? "—"}</TableCell>
+                          <TableCell className="text-muted-foreground">{formatDateBR(o.data_inicio)}</TableCell>
                           <TableCell>
                             <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => printOrdemProducao(o)}>
                               <Printer className="h-3.5 w-3.5" />

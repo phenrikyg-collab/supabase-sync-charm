@@ -298,7 +298,7 @@ export default function Dashboard() {
                 <PopoverTrigger asChild>
                   <Button variant="outline" size="sm" className="h-9 text-xs gap-1">
                     <CalendarIcon className="h-3.5 w-3.5" />
-                    {format(dateRange.from, "dd/MM/yy")}
+                    {format(dateRange.from, "dd/MM/yyyy")}
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0" align="start">
@@ -310,7 +310,7 @@ export default function Dashboard() {
                 <PopoverTrigger asChild>
                   <Button variant="outline" size="sm" className="h-9 text-xs gap-1">
                     <CalendarIcon className="h-3.5 w-3.5" />
-                    {format(dateRange.to, "dd/MM/yy")}
+                    {format(dateRange.to, "dd/MM/yyyy")}
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0" align="start">
