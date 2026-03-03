@@ -12,7 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { printHTML, statusBadgeHTML } from "@/lib/printUtils";
+import { printHTML, statusBadgeHTML, formatDateBR } from "@/lib/printUtils";
 
 interface OrdemCorteEnriched {
   id: string;
@@ -88,7 +88,7 @@ export default function OrdensCorte() {
         <div class="info-grid">
           <div class="info-item"><label>Número</label><span>${o.numero_oc}</span></div>
           <div class="info-item"><label>Status</label>${statusBadgeHTML(o.status ?? "Planejada")}</div>
-          <div class="info-item"><label>Data</label><span>${o.created_at ? new Date(o.created_at).toLocaleDateString("pt-BR") : "—"}</span></div>
+          <div class="info-item"><label>Data</label><span>${formatDateBR(o.created_at)}</span></div>
           <div class="info-item"><label>Produto(s)</label><span>${o.produtos.map((p) => p.nome_produto).join(", ") || "—"}</span></div>
           <div class="info-item"><label>Metragem Risco</label><span>${o.metragem_risco}m</span></div>
           <div class="info-item"><label>Folhas</label><span>${o.quantidade_folhas ?? "—"}</span></div>

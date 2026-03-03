@@ -1,4 +1,14 @@
 /**
+ * Format a date string (YYYY-MM-DD or ISO) to DD/MM/AAAA.
+ */
+export function formatDateBR(dateStr: string | null | undefined): string {
+  if (!dateStr) return "—";
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return dateStr;
+  return d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" });
+}
+
+/**
  * Utility to open a styled print window with HTML content.
  */
 export function printHTML(title: string, bodyHTML: string) {

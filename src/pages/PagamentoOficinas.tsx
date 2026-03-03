@@ -12,6 +12,7 @@ import { CheckCircle, DollarSign, Clock, Factory, AlertCircle } from "lucide-rea
 import { toast } from "sonner";
 import { differenceInDays, parseISO } from "date-fns";
 import { motion } from "framer-motion";
+import { formatDateBR } from "@/lib/printUtils";
 
 export default function PagamentoOficinas() {
   const { data: ordens, isLoading } = useOrdensProducao();
@@ -274,10 +275,10 @@ export default function PagamentoOficinas() {
                         )}
                       </TableCell>
                       <TableCell className="text-muted-foreground text-sm">
-                        {o.data_inicio ?? "—"}
+                        {formatDateBR(o.data_inicio)}
                       </TableCell>
                       <TableCell className="text-muted-foreground text-sm">
-                        {o.data_fim ?? "—"}
+                        {formatDateBR(o.data_fim)}
                       </TableCell>
                       <TableCell className="text-right">
                         {dias !== null ? (

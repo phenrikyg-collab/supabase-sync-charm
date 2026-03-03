@@ -4,6 +4,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { StatusBadge } from "@/components/StatusBadge";
 import { StatCard } from "@/components/StatCard";
 import { Truck, AlertTriangle, CheckCircle } from "lucide-react";
+import { formatDateBR } from "@/lib/printUtils";
 
 export default function Expedicao() {
   const { data: pedidos, isLoading } = useExpedicao();
@@ -62,7 +63,7 @@ export default function Expedicao() {
                   <TableRow key={p.id} className={getRowClass(p.nivel_risco)}>
                     <TableCell className="font-medium">{p.bling_pedido_id ?? "—"}</TableCell>
                     <TableCell>{p.cliente ?? "—"}</TableCell>
-                    <TableCell className="text-muted-foreground">{p.data_pedido ?? "—"}</TableCell>
+                    <TableCell className="text-muted-foreground">{formatDateBR(p.data_pedido)}</TableCell>
                     <TableCell className="text-muted-foreground">{p.status_bling ?? "—"}</TableCell>
                     <TableCell className={`text-right ${getDiasClass(p.nivel_risco)}`}>{p.dias_corridos ?? 0}</TableCell>
                     <TableCell><StatusBadge status={p.nivel_risco ?? ""} /></TableCell>

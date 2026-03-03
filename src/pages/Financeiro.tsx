@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+import { formatDateBR } from "@/lib/printUtils";
 
 function formatCurrency(v: number | null | undefined) {
   if (v == null) return "R$ 0,00";
@@ -91,7 +92,7 @@ export default function Financeiro() {
               <TableBody>
                 {filtered.map((m) => (
                   <TableRow key={m.id}>
-                    <TableCell className="text-muted-foreground">{m.data}</TableCell>
+                    <TableCell className="text-muted-foreground">{formatDateBR(m.data)}</TableCell>
                     <TableCell className="font-medium max-w-xs truncate">{m.descricao ?? "—"}</TableCell>
                     <TableCell>
                       <Badge variant={m.tipo === "entrada" ? "default" : "secondary"}>
