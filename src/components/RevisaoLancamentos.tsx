@@ -1,207 +1,217 @@
-import { useState } from "react";
-import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { toast } from "sonner";
-import { Sparkles, Check, Loader2, ArrowLeft } from "lucide-react";
+// src/components/RevisaoLancamentos.tsx
+// Passo 2: Tela de revisão com sugestão de categoria + % de confiança
+
+import { useEffect, useState } from "react";
+import { useClassifyCategory, Lancamento, ClassificationResult } from "@/hooks/useClassifyCategory";
 import { supabase } from "@/integrations/supabase/client";
-import { useCategorias } from "@/hooks/useSupabase";
-import { useQueryClient } from "@tanstack/react-query";
-
-interface LancamentoImportado {
-  descricao: string;
-  valor: number;
-  data: string;
-  tipo: "entrada" | "saida";
-  categoria_id?: string | null;
-  categoria_sugerida?: string | null;
-}
-
-interface ReviewRow extends LancamentoImportado {
-  selecionado: boolean;
-}
 
 interface Props {
-  lancamentosImportados: LancamentoImportado[];
+  lancamentosImportados: { descricao: string; valor: number; data: string }[];
   onConcluir: () => void;
   onVoltar: () => void;
 }
 
-function formatCurrency(v: number) {
-  return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v);
+const CATEGORIAS = [
+  { codigo: 1, nome: "Receita com Vendas" },
+  { codigo: 2, nome: "Impostos Sobre Vendas" },
+  { codigo: 4, nome: "Custos Variáveis" },
+  { codigo: 5, nome: "Gastos com Pessoal" },
+  { codigo: 6, nome: "Gastos com Ocupação" },
+  { codigo: 7, nome: "Gastos com Serviços de Terceiros" },
+  { codigo: 8, nome: "Gastos com Marketing" },
+  { codigo: 9, nome: "Receitas não Operacionais" },
+  { codigo: 10, nome: "Gastos não Operacionais" },
+  { codigo: 11, nome: "Imposto de Renda e CSLL" },
+  { codigo: 12, nome: "Investimentos" },
+  { codigo: 13, nome: "Transferências e Ajustes de Saldo (Déb)" },
+  { codigo: 14, nome: "Transferências e Ajustes de Saldo (Cré)" },
+  { codigo: 15, nome: "Logística operacional" },
+  { codigo: 16, nome: "Gastos com sistemas, site e aplicativos" },
+  { codigo: 17, nome: "Gastos com manutenção - produção" },
+  { codigo: 18, nome: "Despesas com brindes e presentes" },
+  { codigo: 19, nome: "Embalagem geral" },
+  { codigo: 99, nome: "Importação" },
+  { codigo: 100, nome: "Compras de equipamentos" },
+  { codigo: 101, nome: "Taxas de Gateway" },
+  { codigo: 102, nome: "Estornos" },
+  { codigo: 103, nome: "Logística de vendas" },
+  { codigo: 104, nome: "Comissão de vendedores" },
+  { codigo: 105, nome: "Parcelamento de saldo do cartão de crédito" },
+  { codigo: 106, nome: "Despesas administrativas" },
+];
+
+function BadgeConfianca({ confianca }: { confianca: number }) {
+  const cor =
+    confianca >= 85 ? "bg-green-100 text-green-700" :
+    confianca >= 60 ? "bg-yellow-100 text-yellow-700" :
+    "bg-red-100 text-red-700";
+  return (
+    <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${cor}`}>
+      {confianca}% confiança
+    </span>
+  );
 }
 
 export default function RevisaoLancamentos({ lancamentosImportados, onConcluir, onVoltar }: Props) {
-  const { data: categorias } = useCategorias();
-  const queryClient = useQueryClient();
-  const [rows, setRows] = useState<ReviewRow[]>(
-    lancamentosImportados.map((l) => ({ ...l, selecionado: true }))
-  );
-  const [isCategorizando, setIsCategorizando] = useState(false);
-  const [isSalvando, setIsSalvando] = useState(false);
+  const [lancamentos, setLancamentos] = useState<Lancamento[]>([]);
+  const [salvando, setSalvando] = useState(false);
+  const [expandido, setExpandido] = useState<string | null>(null);
+  const { classificarLotes, carregando } = useClassifyCategory();
 
-  const categorizarComIA = async () => {
-    if (rows.length === 0) return;
-    setIsCategorizando(true);
-    try {
-      const { data, error } = await supabase.functions.invoke("categorizar-despesa", {
-        body: {
-          action: "categorize",
-          items: rows.map((r) => ({ descricao: r.descricao, valor: r.valor, tipo: r.tipo })),
-          categorias: categorias?.map((c) => ({ id: c.id, nome: c.nome_categoria, grupo_dre: c.grupo_dre })),
-        },
-      });
-      if (error) throw error;
+  useEffect(() => {
+    const iniciais: Lancamento[] = lancamentosImportados.map((l, i) => ({
+      id: `import-${i}`,
+      ...l,
+    }));
+    setLancamentos(iniciais);
+    classificarLotes(iniciais, setLancamentos);
+  }, []);
 
-      if (data?.categorized) {
-        setRows((prev) =>
-          prev.map((r, i) => ({
-            ...r,
-            categoria_id: data.categorized[i]?.categoria_id ?? r.categoria_id,
-            categoria_sugerida: data.categorized[i]?.categoria_nome ?? r.categoria_sugerida,
-          }))
-        );
-        toast.success("Categorização automática concluída!");
-      }
-    } catch (err: any) {
-      toast.error("Erro na categorização: " + (err.message || "erro desconhecido"));
-    } finally {
-      setIsCategorizando(false);
-    }
+  const alterarCategoria = (id: string, codigo: number) => {
+    const cat = CATEGORIAS.find((c) => c.codigo === codigo);
+    if (!cat) return;
+    setLancamentos((prev) =>
+      prev.map((l) =>
+        l.id === id
+          ? { ...l, categoria: { ...l.categoria!, codigo, nome: cat.nome, confianca: 100, motivo: "Alterado manualmente" } }
+          : l
+      )
+    );
   };
 
-  const salvarMovimentacoes = async () => {
-    const selecionados = rows.filter((r) => r.selecionado);
-    if (selecionados.length === 0) {
-      toast.error("Selecione ao menos um lançamento.");
-      return;
-    }
-    setIsSalvando(true);
+  const salvarTodos = async () => {
+    setSalvando(true);
     try {
-      const inserts = selecionados.map((r) => ({
-        data: r.data,
-        descricao: r.descricao,
-        valor: r.valor,
-        tipo: r.tipo,
-        categoria_id: r.categoria_id || null,
-        origem: "extrato_importado",
-      }));
+      const registros = lancamentos
+        .filter((l) => l.categoria)
+        .map((l) => ({
+          descricao: l.descricao,
+          valor: l.valor,
+          data: l.data,
+          categoria_codigo: l.categoria!.codigo,
+          categoria_nome: l.categoria!.nome,
+          tipo: l.categoria!.tipo,
+        }));
 
-      const { error } = await supabase.from("movimentacoes_financeiras").insert(inserts);
+      const { error } = await supabase.from("lancamentos").insert(registros);
       if (error) throw error;
-
-      toast.success(`${selecionados.length} lançamentos salvos!`);
-      queryClient.invalidateQueries({ queryKey: ["movimentacoes"] });
       onConcluir();
     } catch (err: any) {
-      toast.error("Erro ao salvar: " + (err.message || "erro desconhecido"));
+      alert("Erro ao salvar: " + err.message);
     } finally {
-      setIsSalvando(false);
+      setSalvando(false);
     }
   };
 
-  const toggleAll = (v: boolean) => setRows((prev) => prev.map((r) => ({ ...r, selecionado: v })));
-
-  const totalEntradas = rows.filter((r) => r.selecionado && r.tipo === "entrada").reduce((s, r) => s + r.valor, 0);
-  const totalSaidas = rows.filter((r) => r.selecionado && r.tipo === "saida").reduce((s, r) => s + r.valor, 0);
+  const classificados = lancamentos.filter((l) => l.categoria && !l.classificando).length;
+  const total = lancamentos.length;
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center gap-4">
-        <Button variant="ghost" size="icon" onClick={onVoltar}>
-          <ArrowLeft className="h-5 w-5" />
-        </Button>
-        <div>
-          <h1 className="text-3xl font-serif font-bold text-foreground">Revisar Lançamentos</h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            Revise, categorize e selecione os lançamentos antes de salvar
-          </p>
-        </div>
-      </div>
+    <div className="min-h-screen bg-gray-50 p-6">
+      <div className="max-w-4xl mx-auto space-y-6">
 
-      <div className="flex items-center justify-between flex-wrap gap-3">
-        <div className="flex gap-3 flex-wrap">
-          <Badge variant="outline" className="text-success border-success/30">
-            Entradas: {formatCurrency(totalEntradas)}
-          </Badge>
-          <Badge variant="outline" className="text-destructive border-destructive/30">
-            Saídas: {formatCurrency(totalSaidas)}
-          </Badge>
-          <Badge variant="secondary">{rows.filter((r) => r.selecionado).length} selecionados</Badge>
+        {/* Header */}
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-800">Revisão de Lançamentos</h1>
+            <p className="text-sm text-gray-500 mt-1">
+              {carregando
+                ? `Classificando... ${classificados}/${total}`
+                : `${classificados} de ${total} lançamentos classificados`}
+            </p>
+          </div>
+          <button onClick={onVoltar} className="text-sm text-gray-400 hover:text-gray-600">
+            ← Voltar
+          </button>
         </div>
-        <div className="flex gap-2 flex-wrap">
-          <Button variant="outline" size="sm" onClick={() => toggleAll(true)}>Selecionar Todos</Button>
-          <Button variant="outline" size="sm" onClick={() => toggleAll(false)}>Desmarcar Todos</Button>
-          <Button onClick={categorizarComIA} disabled={isCategorizando} className="gap-2">
-            {isCategorizando ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-            Categorizar com IA
-          </Button>
-          <Button onClick={salvarMovimentacoes} disabled={isSalvando} variant="default" className="gap-2">
-            {isSalvando ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
-            Salvar Selecionados
-          </Button>
-        </div>
-      </div>
 
-      <Card>
-        <CardContent className="pt-6">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-10">✓</TableHead>
-                <TableHead>Data</TableHead>
-                <TableHead>Descrição</TableHead>
-                <TableHead>Tipo</TableHead>
-                <TableHead>Categoria</TableHead>
-                <TableHead className="text-right">Valor</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {rows.map((r, i) => (
-                <TableRow key={i} className={r.selecionado ? "" : "opacity-40"}>
-                  <TableCell>
-                    <input
-                      type="checkbox"
-                      checked={r.selecionado}
-                      onChange={(e) =>
-                        setRows((prev) => prev.map((row, j) => j === i ? { ...row, selecionado: e.target.checked } : row))
-                      }
-                    />
-                  </TableCell>
-                  <TableCell className="text-muted-foreground whitespace-nowrap">{r.data}</TableCell>
-                  <TableCell className="max-w-xs truncate">{r.descricao}</TableCell>
-                  <TableCell>
-                    <Badge variant={r.tipo === "entrada" ? "default" : "secondary"}>{r.tipo}</Badge>
-                  </TableCell>
-                  <TableCell>
-                    <Select
-                      value={r.categoria_id || "none"}
-                      onValueChange={(v) =>
-                        setRows((prev) => prev.map((row, j) => j === i ? { ...row, categoria_id: v === "none" ? null : v } : row))
-                      }
+        {/* Barra de progresso */}
+        {carregando && (
+          <div className="w-full bg-gray-200 rounded-full h-2">
+            <div
+              className="bg-blue-500 h-2 rounded-full transition-all duration-500"
+              style={{ width: `${(classificados / total) * 100}%` }}
+            />
+          </div>
+        )}
+
+        {/* Lista de lançamentos */}
+        <div className="space-y-3">
+          {lancamentos.map((l) => (
+            <div key={l.id} className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+              <div className="flex items-start justify-between gap-4">
+
+                {/* Info do lançamento */}
+                <div className="flex-1 min-w-0">
+                  <p className="font-medium text-gray-800 truncate">{l.descricao}</p>
+                  <div className="flex items-center gap-3 mt-1">
+                    <span className="text-sm text-gray-500">{l.data}</span>
+                    <span className="text-sm font-semibold text-gray-700">
+                      R$ {l.valor.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Categoria sugerida */}
+                <div className="flex-shrink-0 text-right space-y-1">
+                  {l.classificando ? (
+                    <div className="flex items-center gap-2 text-blue-500 text-sm">
+                      <span className="animate-spin">⏳</span> Classificando...
+                    </div>
+                  ) : l.categoria ? (
+                    <>
+                      <BadgeConfianca confianca={l.categoria.confianca} />
+                      <p className="text-sm font-semibold text-gray-700">{l.categoria.nome}</p>
+                      <button
+                        onClick={() => setExpandido(expandido === l.id ? null : l.id)}
+                        className="text-xs text-blue-500 hover:underline"
+                      >
+                        {expandido === l.id ? "Ocultar" : "Ver motivo / Alterar"}
+                      </button>
+                    </>
+                  ) : (
+                    <span className="text-xs text-red-500">⚠️ Não classificado</span>
+                  )}
+                </div>
+              </div>
+
+              {/* Expansível: motivo + alterar categoria */}
+              {expandido === l.id && l.categoria && (
+                <div className="mt-3 pt-3 border-t border-gray-100 space-y-3">
+                  <p className="text-xs text-gray-500 italic">💡 {l.categoria.motivo}</p>
+                  <div>
+                    <label className="text-xs font-medium text-gray-600 block mb-1">
+                      Alterar categoria:
+                    </label>
+                    <select
+                      value={l.categoria.codigo}
+                      onChange={(e) => alterarCategoria(l.id, parseInt(e.target.value))}
+                      className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                     >
-                      <SelectTrigger className="h-8 text-xs w-[180px]">
-                        <SelectValue placeholder={r.categoria_sugerida || "Sem categoria"} />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="none">Sem categoria</SelectItem>
-                        {categorias?.map((c) => (
-                          <SelectItem key={c.id} value={c.id}>{c.nome_categoria}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </TableCell>
-                  <TableCell className={`text-right font-mono ${r.tipo === "entrada" ? "text-success" : "text-destructive"}`}>
-                    {r.tipo === "saida" ? "-" : ""}{formatCurrency(r.valor)}
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+                      {CATEGORIAS.map((c) => (
+                        <option key={c.codigo} value={c.codigo}>
+                          [{c.codigo}] {c.nome}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+
+        {/* Botão salvar */}
+        {!carregando && classificados > 0 && (
+          <button
+            onClick={salvarTodos}
+            disabled={salvando}
+            className="w-full bg-green-600 hover:bg-green-700 disabled:bg-gray-300 text-white font-semibold py-3 px-6 rounded-xl transition-colors"
+          >
+            {salvando ? "Salvando..." : `✅ Salvar ${classificados} lançamentos`}
+          </button>
+        )}
+      </div>
     </div>
   );
 }
