@@ -29,7 +29,7 @@ const menuItems = [
   { title: "Expedição", url: "/expedicao", icon: Truck },
   { title: "Financeiro", url: "/financeiro", icon: DollarSign },
   { title: "DRE", url: "/dre", icon: BarChart3 },
-  { title: "Importar Extrato", url: "/importar-extrato", icon: Upload },
+  { title: "Importar Extrato", url: "/importar", icon: Upload },
   { title: "Meta Mensal", url: "/metas", icon: Target },
 ];
 
