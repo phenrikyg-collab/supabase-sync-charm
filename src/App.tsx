@@ -14,6 +14,7 @@ import EstoqueTecidos from "./pages/EstoqueTecidos";
 import OrdensCorte from "./pages/OrdensCorte";
 import NovaOrdemCorte from "./pages/NovaOrdemCorte";
 import Oficinas from "./pages/Oficinas";
+import OficinaInterna from "./pages/OficinaInterna";
 import OrdensProducao from "./pages/OrdensProducao";
 import Producao from "./pages/Producao";
 import Expedicao from "./pages/Expedicao";
@@ -72,6 +73,7 @@ const AppRoutes = () => {
               <Route path="/ordens-corte" element={<OrdensCorte />} />
               <Route path="/ordens-corte/nova" element={<NovaOrdemCorte />} />
               <Route path="/oficinas" element={<Oficinas />} />
+              <Route path="/oficina-interna" element={<OficinaInterna />} />
               <Route path="/ordens-producao" element={<OrdensProducao />} />
               <Route path="/pagamento-oficinas" element={<PagamentoOficinas />} />
               <Route path="/expedicao" element={<Expedicao />} />

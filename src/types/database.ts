@@ -137,6 +137,14 @@ export interface Oficina {
   custo_por_peca: number | null;
   contato: string | null;
   observacao: string | null;
+  is_interna: boolean | null;
+  created_at: string;
+}
+
+export interface CustoFixoOficina {
+  id: string;
+  mes: string;
+  valor: number;
   created_at: string;
 }
 

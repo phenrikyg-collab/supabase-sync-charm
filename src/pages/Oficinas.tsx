@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Switch } from "@/components/ui/switch";
 import { Plus, Edit, Trash2, Building2 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -27,13 +28,14 @@ export default function Oficinas() {
   const [custo, setCusto] = useState(0);
   const [contato, setContato] = useState("");
   const [obs, setObs] = useState("");
+  const [isInterna, setIsInterna] = useState(false);
 
-  const openNew = () => { setEditId(null); setNome(""); setTipo(""); setCusto(0); setContato(""); setObs(""); setOpen(true); };
-  const openEdit = (o: any) => { setEditId(o.id); setNome(o.nome_oficina ?? ""); setTipo(o.tipo_oficina ?? ""); setCusto(o.custo_por_peca ?? 0); setContato(o.contato ?? ""); setObs(o.observacao ?? ""); setOpen(true); };
+  const openNew = () => { setEditId(null); setNome(""); setTipo(""); setCusto(0); setContato(""); setObs(""); setIsInterna(false); setOpen(true); };
+  const openEdit = (o: any) => { setEditId(o.id); setNome(o.nome_oficina ?? ""); setTipo(o.tipo_oficina ?? ""); setCusto(o.custo_por_peca ?? 0); setContato(o.contato ?? ""); setObs(o.observacao ?? ""); setIsInterna(o.is_interna ?? false); setOpen(true); };
 
   const handleSave = async () => {
     try {
-      const payload = { nome_oficina: nome, tipo_oficina: tipo, custo_por_peca: custo, contato, observacao: obs };
+      const payload = { nome_oficina: nome, tipo_oficina: tipo, custo_por_peca: custo, contato, observacao: obs, is_interna: isInterna };
       if (editId) {
         await updateMut.mutateAsync({ id: editId, ...payload });
         toast.success("Oficina atualizada!");
@@ -80,7 +82,10 @@ export default function Oficinas() {
               <TableBody>
                 {oficinas?.map((o) => (
                   <TableRow key={o.id}>
-                    <TableCell className="font-medium">{o.nome_oficina}</TableCell>
+                    <TableCell className="font-medium">
+                      {o.nome_oficina}
+                      {o.is_interna && <span className="ml-2 text-[10px] uppercase tracking-wider bg-primary/10 text-primary px-1.5 py-0.5 rounded-full">Interna</span>}
+                    </TableCell>
                     <TableCell className="text-muted-foreground">{o.tipo_oficina ?? "—"}</TableCell>
                     <TableCell className="text-right">{formatCurrency(o.custo_por_peca)}</TableCell>
                     <TableCell className="text-muted-foreground">{o.contato ?? "—"}</TableCell>
@@ -107,6 +112,10 @@ export default function Oficinas() {
             <div className="space-y-2"><Label>Custo por Peça</Label><Input type="number" step="0.01" value={custo} onChange={(e) => setCusto(Number(e.target.value))} /></div>
             <div className="space-y-2"><Label>Contato</Label><Input value={contato} onChange={(e) => setContato(e.target.value)} /></div>
             <div className="space-y-2"><Label>Observação</Label><Input value={obs} onChange={(e) => setObs(e.target.value)} /></div>
+            <div className="flex items-center gap-3">
+              <Switch checked={isInterna} onCheckedChange={setIsInterna} />
+              <Label>Oficina Interna</Label>
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setOpen(false)}>Cancelar</Button>
