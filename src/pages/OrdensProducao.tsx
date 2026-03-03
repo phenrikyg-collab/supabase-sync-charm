@@ -224,8 +224,12 @@ export default function OrdensProducao() {
     `);
   };
 
-  const printConsertos = () => {
-    const emConserto = (consertos ?? []).filter((c) => c.status === "Em Conserto");
+  const printConsertos = (filterOficinaId: string) => {
+    let emConserto = (consertos ?? []).filter((c) => c.status === "Em Conserto");
+    if (filterOficinaId !== "todas") {
+      emConserto = emConserto.filter((c) => c.oficina_id === filterOficinaId);
+    }
+    const oficinaLabel = filterOficinaId !== "todas" ? oficinaMap[filterOficinaId]?.nome_oficina ?? "" : "Todas as Oficinas";
     const rows = emConserto.map((c: any) => {
       const ordem = ordensEnriched.find((o: any) => o.id === c.ordem_producao_id);
       const cor = c.cor_id ? corMap[c.cor_id] : null;
@@ -239,13 +243,15 @@ export default function OrdensProducao() {
         <td>${c.observacao ?? "—"}</td>
       </tr>`;
     }).join("");
+    const totalPecas = emConserto.reduce((a, c: any) => a + (c.quantidade ?? 0), 0);
     printHTML("Peças em Conserto", `
-      <div class="header"><div><h1>Peças em Conserto</h1><div class="subtitle">${emConserto.length} registro(s)</div></div><div class="company"><img src="/images/logo.png" class="logo" alt="MC" /><br/>Gestão - Mariana Cardoso</div></div>
+      <div class="header"><div><h1>Peças em Conserto</h1><div class="subtitle">${oficinaLabel} — ${emConserto.length} registro(s), ${totalPecas} peça(s)</div></div><div class="company"><img src="/images/logo.png" class="logo" alt="MC" /><br/>Gestão - Mariana Cardoso</div></div>
       <div class="section">
         <table><thead><tr><th>Produto</th><th>Cor</th><th>Tamanho</th><th>Qtd</th><th>Oficina</th><th>Observação</th></tr></thead>
         <tbody>${rows}</tbody></table>
       </div>
     `);
+    setPrintConsertoOpen(false);
   };
 
   const printAprovadas = () => {
