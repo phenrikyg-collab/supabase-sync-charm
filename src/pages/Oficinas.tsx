@@ -28,13 +28,14 @@ export default function Oficinas() {
   const [custo, setCusto] = useState(0);
   const [contato, setContato] = useState("");
   const [obs, setObs] = useState("");
+  const [isInterna, setIsInterna] = useState(false);
 
-  const openNew = () => { setEditId(null); setNome(""); setTipo(""); setCusto(0); setContato(""); setObs(""); setOpen(true); };
-  const openEdit = (o: any) => { setEditId(o.id); setNome(o.nome_oficina ?? ""); setTipo(o.tipo_oficina ?? ""); setCusto(o.custo_por_peca ?? 0); setContato(o.contato ?? ""); setObs(o.observacao ?? ""); setOpen(true); };
+  const openNew = () => { setEditId(null); setNome(""); setTipo(""); setCusto(0); setContato(""); setObs(""); setIsInterna(false); setOpen(true); };
+  const openEdit = (o: any) => { setEditId(o.id); setNome(o.nome_oficina ?? ""); setTipo(o.tipo_oficina ?? ""); setCusto(o.custo_por_peca ?? 0); setContato(o.contato ?? ""); setObs(o.observacao ?? ""); setIsInterna(o.is_interna ?? false); setOpen(true); };
 
   const handleSave = async () => {
     try {
-      const payload = { nome_oficina: nome, tipo_oficina: tipo, custo_por_peca: custo, contato, observacao: obs };
+      const payload = { nome_oficina: nome, tipo_oficina: tipo, custo_por_peca: custo, contato, observacao: obs, is_interna: isInterna };
       if (editId) {
         await updateMut.mutateAsync({ id: editId, ...payload });
         toast.success("Oficina atualizada!");
