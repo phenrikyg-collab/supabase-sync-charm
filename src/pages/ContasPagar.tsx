@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { useMovimentacoesFinanceiras, useCategorias, useCentrosCusto } from "@/hooks/useSupabase";
+import { useMovimentacoesFinanceiras, useCategorias, useCentrosCusto, useCreateMovimentacao } from "@/hooks/useSupabase";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -7,11 +7,17 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Label } from "@/components/ui/label";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from "@/components/ui/dialog";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { formatDateBR } from "@/lib/printUtils";
 import { format, startOfMonth, endOfMonth, eachMonthOfInterval, subMonths, addMonths, parseISO, isAfter, isBefore } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { DollarSign, TrendingDown, TrendingUp, AlertTriangle, Calendar, Search } from "lucide-react";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, Line, ComposedChart, Area } from "recharts";
+import { DollarSign, TrendingDown, AlertTriangle, Calendar as CalendarIcon, Search, Plus } from "lucide-react";
+import { ComposedChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, Line } from "recharts";
+import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 
 function formatCurrency(v: number | null | undefined) {
   if (v == null) return "R$ 0,00";
@@ -23,10 +29,148 @@ function getStatusPagamento(mov: { data: string; tipo: string | null }) {
   const hoje = new Date();
   const dataMov = parseISO(mov.data);
   if (isBefore(dataMov, hoje)) return "vencido";
-  const em7dias = addMonths(hoje, 0);
+  const em7dias = new Date(hoje);
   em7dias.setDate(hoje.getDate() + 7);
   if (isBefore(dataMov, em7dias)) return "proximo";
   return "pendente";
+}
+
+function NovaContaDialog({ categorias }: { categorias: { id: string; nome_categoria: string | null }[] }) {
+  const createMov = useCreateMovimentacao();
+  const [open, setOpen] = useState(false);
+  const [fornecedor, setFornecedor] = useState("");
+  const [notaFiscal, setNotaFiscal] = useState("");
+  const [valor, setValor] = useState("");
+  const [categoriaId, setCategoriaId] = useState("");
+  const [vencimento, setVencimento] = useState<Date>();
+  const [salvando, setSalvando] = useState(false);
+
+  const resetForm = () => {
+    setFornecedor("");
+    setNotaFiscal("");
+    setValor("");
+    setCategoriaId("");
+    setVencimento(undefined);
+  };
+
+  const handleSubmit = async () => {
+    const valorNum = parseFloat(valor.replace(",", "."));
+    if (!fornecedor.trim()) return toast.error("Informe o fornecedor");
+    if (!valorNum || valorNum <= 0) return toast.error("Informe um valor válido");
+    if (!vencimento) return toast.error("Informe a data de vencimento");
+
+    setSalvando(true);
+    try {
+      const descricao = notaFiscal.trim()
+        ? `${fornecedor.trim()} - NF ${notaFiscal.trim()}`
+        : fornecedor.trim();
+
+      await createMov.mutateAsync({
+        tipo: "saida",
+        descricao,
+        valor: valorNum,
+        data: format(vencimento, "yyyy-MM-dd"),
+        categoria_id: categoriaId || null,
+        origem: "manual",
+      });
+      toast.success("Conta a pagar cadastrada com sucesso");
+      resetForm();
+      setOpen(false);
+    } catch {
+      toast.error("Erro ao cadastrar conta");
+    } finally {
+      setSalvando(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button size="sm">
+          <Plus className="h-4 w-4 mr-1" />
+          Nova Conta
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Nova Conta a Pagar</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4 py-2">
+          <div className="space-y-2">
+            <Label>Fornecedor *</Label>
+            <Input
+              placeholder="Nome do fornecedor"
+              value={fornecedor}
+              onChange={(e) => setFornecedor(e.target.value)}
+              maxLength={200}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label>Nota Fiscal</Label>
+            <Input
+              placeholder="Número da NF (opcional)"
+              value={notaFiscal}
+              onChange={(e) => setNotaFiscal(e.target.value)}
+              maxLength={50}
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-2">
+              <Label>Valor (R$) *</Label>
+              <Input
+                placeholder="0,00"
+                value={valor}
+                onChange={(e) => setValor(e.target.value.replace(/[^0-9.,]/g, ""))}
+                inputMode="decimal"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Vencimento *</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={cn("w-full justify-start text-left font-normal", !vencimento && "text-muted-foreground")}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {vencimento ? format(vencimento, "dd/MM/yyyy") : "Selecione"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={vencimento}
+                    onSelect={setVencimento}
+                    initialFocus
+                    className={cn("p-3 pointer-events-auto")}
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+          </div>
+          <div className="space-y-2">
+            <Label>Categoria</Label>
+            <Select value={categoriaId} onValueChange={setCategoriaId}>
+              <SelectTrigger><SelectValue placeholder="Selecione (opcional)" /></SelectTrigger>
+              <SelectContent>
+                {categorias.map((c) => (
+                  <SelectItem key={c.id} value={c.id}>{c.nome_categoria}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+        <DialogFooter>
+          <DialogClose asChild>
+            <Button variant="outline">Cancelar</Button>
+          </DialogClose>
+          <Button onClick={handleSubmit} disabled={salvando}>
+            {salvando ? "Salvando..." : "Cadastrar"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
 }
 
 export default function ContasPagar() {
@@ -40,14 +184,10 @@ export default function ContasPagar() {
 
   const catMap = Object.fromEntries((categorias ?? []).map((c) => [c.id, c.nome_categoria]));
 
-  // Filter only "saida" (expenses/payables)
   const saidas = useMemo(() => {
     return (movs ?? [])
       .filter((m) => m.tipo === "saida")
-      .map((m) => ({
-        ...m,
-        statusPagamento: getStatusPagamento(m),
-      }));
+      .map((m) => ({ ...m, statusPagamento: getStatusPagamento(m) }));
   }, [movs]);
 
   const filtered = useMemo(() => {
@@ -64,7 +204,6 @@ export default function ContasPagar() {
     });
   }, [saidas, filtroCategoria, filtroStatus, busca, catMap]);
 
-  // Summary cards
   const totalPendente = saidas.filter((s) => s.statusPagamento === "pendente").reduce((acc, s) => acc + (s.valor ?? 0), 0);
   const totalVencido = saidas.filter((s) => s.statusPagamento === "vencido").reduce((acc, s) => acc + (s.valor ?? 0), 0);
   const totalProximo = saidas.filter((s) => s.statusPagamento === "proximo").reduce((acc, s) => acc + (s.valor ?? 0), 0);
@@ -76,13 +215,11 @@ export default function ContasPagar() {
     })
     .reduce((acc, s) => acc + (s.valor ?? 0), 0);
 
-  // Cash flow data (last 6 months + next 3 months)
   const fluxoCaixa = useMemo(() => {
     const now = new Date();
     const start = startOfMonth(subMonths(now, 5));
     const end = endOfMonth(addMonths(now, 2));
     const months = eachMonthOfInterval({ start, end });
-
     return months.map((month) => {
       const monthStart = startOfMonth(month);
       const monthEnd = endOfMonth(month);
@@ -91,17 +228,11 @@ export default function ContasPagar() {
         return !isBefore(d, monthStart) && !isAfter(d, monthEnd);
       });
       const entradas = movsDoMes.filter((m) => m.tipo === "entrada").reduce((acc, m) => acc + (m.valor ?? 0), 0);
-      const saidas = movsDoMes.filter((m) => m.tipo === "saida").reduce((acc, m) => acc + (m.valor ?? 0), 0);
-      return {
-        mes: format(month, "MMM/yy", { locale: ptBR }),
-        entradas,
-        saidas,
-        saldo: entradas - saidas,
-      };
+      const saidasMes = movsDoMes.filter((m) => m.tipo === "saida").reduce((acc, m) => acc + (m.valor ?? 0), 0);
+      return { mes: format(month, "MMM/yy", { locale: ptBR }), entradas, saidas: saidasMes, saldo: entradas - saidasMes };
     });
   }, [movs]);
 
-  // Running balance
   const fluxoComSaldo = useMemo(() => {
     let acumulado = 0;
     return fluxoCaixa.map((item) => {
@@ -112,22 +243,21 @@ export default function ContasPagar() {
 
   const statusBadge = (status: string) => {
     switch (status) {
-      case "vencido":
-        return <Badge variant="destructive">Vencido</Badge>;
-      case "proximo":
-        return <Badge className="bg-amber-500/15 text-amber-600 border-amber-500/30">Próximo</Badge>;
-      case "pendente":
-        return <Badge variant="secondary">Pendente</Badge>;
-      default:
-        return <Badge variant="outline">{status}</Badge>;
+      case "vencido": return <Badge variant="destructive">Vencido</Badge>;
+      case "proximo": return <Badge className="bg-amber-500/15 text-amber-600 border-amber-500/30">Próximo</Badge>;
+      case "pendente": return <Badge variant="secondary">Pendente</Badge>;
+      default: return <Badge variant="outline">{status}</Badge>;
     }
   };
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-serif font-bold text-foreground">Contas a Pagar</h1>
-        <p className="text-sm text-muted-foreground mt-1">Controle de pagamentos e fluxo de caixa</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-serif font-bold text-foreground">Contas a Pagar</h1>
+          <p className="text-sm text-muted-foreground mt-1">Controle de pagamentos e fluxo de caixa</p>
+        </div>
+        <NovaContaDialog categorias={categorias ?? []} />
       </div>
 
       {/* Summary Cards */}
@@ -149,7 +279,7 @@ export default function ContasPagar() {
           <CardContent className="pt-4 pb-4">
             <div className="flex items-center gap-3">
               <div className="p-2 rounded-lg bg-amber-500/10">
-                <Calendar className="h-5 w-5 text-amber-600" />
+                <CalendarIcon className="h-5 w-5 text-amber-600" />
               </div>
               <div>
                 <p className="text-xs text-muted-foreground">Próximos 7 dias</p>
@@ -193,24 +323,16 @@ export default function ContasPagar() {
         </TabsList>
 
         <TabsContent value="contas" className="space-y-4">
-          {/* Filters */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Buscar por descrição..."
-                value={busca}
-                onChange={(e) => setBusca(e.target.value)}
-                className="pl-9"
-              />
+              <Input placeholder="Buscar por descrição..." value={busca} onChange={(e) => setBusca(e.target.value)} className="pl-9" />
             </div>
             <Select value={filtroCategoria} onValueChange={setFiltroCategoria}>
               <SelectTrigger><SelectValue placeholder="Categoria" /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="todos">Todas as Categorias</SelectItem>
-                {categorias?.map((c) => (
-                  <SelectItem key={c.id} value={c.id}>{c.nome_categoria}</SelectItem>
-                ))}
+                {categorias?.map((c) => <SelectItem key={c.id} value={c.id}>{c.nome_categoria}</SelectItem>)}
               </SelectContent>
             </Select>
             <Select value={filtroStatus} onValueChange={setFiltroStatus}>
@@ -251,13 +373,9 @@ export default function ContasPagar() {
                       <TableRow key={m.id} className={m.statusPagamento === "vencido" ? "bg-destructive/5" : ""}>
                         <TableCell className="text-muted-foreground">{formatDateBR(m.data)}</TableCell>
                         <TableCell className="font-medium max-w-xs truncate">{m.descricao ?? "—"}</TableCell>
-                        <TableCell className="text-muted-foreground">
-                          {m.categoria_id ? catMap[m.categoria_id] ?? "—" : "—"}
-                        </TableCell>
+                        <TableCell className="text-muted-foreground">{m.categoria_id ? catMap[m.categoria_id] ?? "—" : "—"}</TableCell>
                         <TableCell>{statusBadge(m.statusPagamento)}</TableCell>
-                        <TableCell className="text-right font-semibold text-destructive">
-                          {formatCurrency(m.valor)}
-                        </TableCell>
+                        <TableCell className="text-right font-semibold text-destructive">{formatCurrency(m.valor)}</TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
@@ -278,37 +396,21 @@ export default function ContasPagar() {
                   <ComposedChart data={fluxoComSaldo}>
                     <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
                     <XAxis dataKey="mes" className="text-xs fill-muted-foreground" />
-                    <YAxis
-                      className="text-xs fill-muted-foreground"
-                      tickFormatter={(v) => `R$${(v / 1000).toFixed(0)}k`}
-                    />
+                    <YAxis className="text-xs fill-muted-foreground" tickFormatter={(v) => `R$${(v / 1000).toFixed(0)}k`} />
                     <Tooltip
                       formatter={(value: number) => formatCurrency(value)}
-                      contentStyle={{
-                        background: "hsl(var(--card))",
-                        border: "1px solid hsl(var(--border))",
-                        borderRadius: "8px",
-                        fontSize: "12px",
-                      }}
+                      contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: "8px", fontSize: "12px" }}
                     />
                     <Legend />
                     <Bar dataKey="entradas" name="Entradas" fill="hsl(var(--chart-2))" radius={[4, 4, 0, 0]} />
                     <Bar dataKey="saidas" name="Saídas" fill="hsl(var(--chart-1))" radius={[4, 4, 0, 0]} />
-                    <Line
-                      type="monotone"
-                      dataKey="saldoAcumulado"
-                      name="Saldo Acumulado"
-                      stroke="hsl(var(--primary))"
-                      strokeWidth={2}
-                      dot={{ r: 4 }}
-                    />
+                    <Line type="monotone" dataKey="saldoAcumulado" name="Saldo Acumulado" stroke="hsl(var(--primary))" strokeWidth={2} dot={{ r: 4 }} />
                   </ComposedChart>
                 </ResponsiveContainer>
               </div>
             </CardContent>
           </Card>
 
-          {/* Monthly breakdown table */}
           <Card>
             <CardHeader>
               <CardTitle className="text-base font-medium">Resumo Mensal</CardTitle>
