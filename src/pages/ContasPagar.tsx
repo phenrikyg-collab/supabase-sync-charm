@@ -43,6 +43,8 @@ function NovaContaDialog({ categorias }: { categorias: { id: string; nome_catego
   const [valor, setValor] = useState("");
   const [categoriaId, setCategoriaId] = useState("");
   const [vencimento, setVencimento] = useState<Date>();
+  const [recorrencia, setRecorrencia] = useState("unica");
+  const [qtdMeses, setQtdMeses] = useState("12");
   const [salvando, setSalvando] = useState(false);
 
   const resetForm = () => {
@@ -51,6 +53,8 @@ function NovaContaDialog({ categorias }: { categorias: { id: string; nome_catego
     setValor("");
     setCategoriaId("");
     setVencimento(undefined);
+    setRecorrencia("unica");
+    setQtdMeses("12");
   };
 
   const handleSubmit = async () => {
@@ -65,15 +69,25 @@ function NovaContaDialog({ categorias }: { categorias: { id: string; nome_catego
         ? `${fornecedor.trim()} - NF ${notaFiscal.trim()}`
         : fornecedor.trim();
 
-      await createMov.mutateAsync({
-        tipo: "saida",
-        descricao,
-        valor: valorNum,
-        data: format(vencimento, "yyyy-MM-dd"),
-        categoria_id: categoriaId || null,
-        origem: "manual",
-      });
-      toast.success("Conta a pagar cadastrada com sucesso");
+      const meses = recorrencia === "mensal" ? Math.min(Math.max(parseInt(qtdMeses) || 1, 1), 60) : 1;
+
+      for (let i = 0; i < meses; i++) {
+        const dataVenc = addMonths(vencimento, i);
+        const descFinal = meses > 1 ? `${descricao} (${i + 1}/${meses})` : descricao;
+        await createMov.mutateAsync({
+          tipo: "saida",
+          descricao: descFinal,
+          valor: valorNum,
+          data: format(dataVenc, "yyyy-MM-dd"),
+          categoria_id: categoriaId || null,
+          origem: "manual",
+        });
+      }
+
+      toast.success(meses > 1
+        ? `${meses} parcelas cadastradas com sucesso`
+        : "Conta a pagar cadastrada com sucesso"
+      );
       resetForm();
       setOpen(false);
     } catch {
@@ -159,6 +173,32 @@ function NovaContaDialog({ categorias }: { categorias: { id: string; nome_catego
               </SelectContent>
             </Select>
           </div>
+          <div className="space-y-2">
+            <Label>Recorrência</Label>
+            <Select value={recorrencia} onValueChange={setRecorrencia}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="unica">Pagamento único</SelectItem>
+                <SelectItem value="mensal">Repetir mensalmente</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          {recorrencia === "mensal" && (
+            <div className="space-y-2">
+              <Label>Quantidade de meses</Label>
+              <Input
+                type="number"
+                min={2}
+                max={60}
+                value={qtdMeses}
+                onChange={(e) => setQtdMeses(e.target.value)}
+                placeholder="12"
+              />
+              <p className="text-xs text-muted-foreground">
+                Serão criadas {parseInt(qtdMeses) || 0} parcelas de {valor ? formatCurrency(parseFloat(valor.replace(",", ".")) || 0) : "R$ 0,00"} com vencimento mensal
+              </p>
+            </div>
+          )}
         </div>
         <DialogFooter>
           <DialogClose asChild>
