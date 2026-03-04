@@ -21,6 +21,7 @@ import Expedicao from "./pages/Expedicao";
 import Financeiro from "./pages/Financeiro";
 import ContasPagar from "./pages/ContasPagar";
 import DRE from "./pages/DRE";
+import DashboardFinanceiro from "./pages/DashboardFinanceiro";
 import ImportarExtrato from "./pages/ImportarExtrato";
 import ImportarPage from "./pages/ImportarPage";
 import Metas from "./pages/Metas";
@@ -82,6 +83,7 @@ const AppRoutes = () => {
               <Route path="/pagamento-oficinas" element={<PagamentoOficinas />} />
               <Route path="/expedicao" element={<Expedicao />} />
               <Route path="/financeiro" element={<Financeiro />} />
+              <Route path="/dashboard-financeiro" element={<DashboardFinanceiro />} />
               <Route path="/contas-pagar" element={<ContasPagar />} />
               <Route path="/dre" element={<DRE />} />
               <Route path="/importar-extrato" element={<ImportarExtrato />} />
