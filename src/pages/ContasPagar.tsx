@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { useMovimentacoesFinanceiras, useCategorias, useCentrosCusto, useCreateMovimentacao } from "@/hooks/useSupabase";
+import { useMovimentacoesFinanceiras, useCategorias, useCentrosCusto, useCreateMovimentacao, useUpdateMovimentacao } from "@/hooks/useSupabase";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -8,23 +8,26 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from "@/components/ui/dialog";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { formatDateBR } from "@/lib/printUtils";
 import { format, startOfMonth, endOfMonth, eachMonthOfInterval, subMonths, addMonths, parseISO, isAfter, isBefore } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { DollarSign, TrendingDown, AlertTriangle, Calendar as CalendarIcon, Search, Plus } from "lucide-react";
+import { DollarSign, TrendingDown, AlertTriangle, Calendar as CalendarIcon, Search, Plus, Check, CreditCard } from "lucide-react";
 import { ComposedChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, Line } from "recharts";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import type { MovimentacaoFinanceira } from "@/types/database";
 
 function formatCurrency(v: number | null | undefined) {
   if (v == null) return "R$ 0,00";
   return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v);
 }
 
-function getStatusPagamento(mov: { data: string; tipo: string | null }) {
+function getStatusPagamento(mov: { data: string; tipo: string | null; status_bling: string | null }) {
+  if (mov.status_bling === "pago") return "pago";
   if (mov.tipo === "entrada") return "recebido";
   const hoje = new Date();
   const dataMov = parseISO(mov.data);
@@ -35,6 +38,74 @@ function getStatusPagamento(mov: { data: string; tipo: string | null }) {
   return "pendente";
 }
 
+// ── Dar Baixa Dialog ──
+function DarBaixaDialog({ mov, onClose }: { mov: MovimentacaoFinanceira & { statusPagamento: string }; onClose: () => void }) {
+  const updateMov = useUpdateMovimentacao();
+  const [dataPgto, setDataPgto] = useState<Date>(new Date());
+  const [salvando, setSalvando] = useState(false);
+
+  const handleConfirm = async () => {
+    setSalvando(true);
+    try {
+      await updateMov.mutateAsync({
+        id: mov.id,
+        status_bling: "pago",
+        data_envio: format(dataPgto, "yyyy-MM-dd"),
+      });
+      toast.success("Pagamento registrado com sucesso");
+      onClose();
+    } catch {
+      toast.error("Erro ao registrar pagamento");
+    } finally {
+      setSalvando(false);
+    }
+  };
+
+  return (
+    <DialogContent className="sm:max-w-sm">
+      <DialogHeader>
+        <DialogTitle>Dar Baixa no Pagamento</DialogTitle>
+      </DialogHeader>
+      <div className="space-y-4 py-2">
+        <div className="p-3 rounded-lg bg-muted/50 space-y-1">
+          <p className="text-sm font-medium">{mov.descricao ?? "—"}</p>
+          <p className="text-lg font-bold text-destructive">{formatCurrency(mov.valor)}</p>
+          <p className="text-xs text-muted-foreground">Vencimento: {formatDateBR(mov.data)}</p>
+        </div>
+        <div className="space-y-2">
+          <Label>Data do Pagamento</Label>
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant="outline" className={cn("w-full justify-start text-left font-normal")}>
+                <CalendarIcon className="mr-2 h-4 w-4" />
+                {format(dataPgto, "dd/MM/yyyy")}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="start">
+              <Calendar
+                mode="single"
+                selected={dataPgto}
+                onSelect={(d) => d && setDataPgto(d)}
+                initialFocus
+                className={cn("p-3 pointer-events-auto")}
+              />
+            </PopoverContent>
+          </Popover>
+        </div>
+      </div>
+      <DialogFooter>
+        <DialogClose asChild>
+          <Button variant="outline">Cancelar</Button>
+        </DialogClose>
+        <Button onClick={handleConfirm} disabled={salvando}>
+          {salvando ? "Salvando..." : "Confirmar Baixa"}
+        </Button>
+      </DialogFooter>
+    </DialogContent>
+  );
+}
+
+// ── Nova Conta Dialog ──
 function NovaContaDialog({ categorias }: { categorias: { id: string; nome_categoria: string | null }[] }) {
   const createMov = useCreateMovimentacao();
   const [open, setOpen] = useState(false);
@@ -45,6 +116,7 @@ function NovaContaDialog({ categorias }: { categorias: { id: string; nome_catego
   const [vencimento, setVencimento] = useState<Date>();
   const [recorrencia, setRecorrencia] = useState("unica");
   const [qtdMeses, setQtdMeses] = useState("12");
+  const [cartaoCredito, setCartaoCredito] = useState(false);
   const [salvando, setSalvando] = useState(false);
 
   const resetForm = () => {
@@ -55,6 +127,7 @@ function NovaContaDialog({ categorias }: { categorias: { id: string; nome_catego
     setVencimento(undefined);
     setRecorrencia("unica");
     setQtdMeses("12");
+    setCartaoCredito(false);
   };
 
   const handleSubmit = async () => {
@@ -65,11 +138,14 @@ function NovaContaDialog({ categorias }: { categorias: { id: string; nome_catego
 
     setSalvando(true);
     try {
-      const descricao = notaFiscal.trim()
+      let descricao = notaFiscal.trim()
         ? `${fornecedor.trim()} - NF ${notaFiscal.trim()}`
         : fornecedor.trim();
 
+      if (cartaoCredito) descricao = `💳 ${descricao}`;
+
       const meses = recorrencia === "mensal" ? Math.min(Math.max(parseInt(qtdMeses) || 1, 1), 60) : 1;
+      const origem = cartaoCredito ? "cartao_credito" : "manual";
 
       for (let i = 0; i < meses; i++) {
         const dataVenc = addMonths(vencimento, i);
@@ -80,7 +156,7 @@ function NovaContaDialog({ categorias }: { categorias: { id: string; nome_catego
           valor: valorNum,
           data: format(dataVenc, "yyyy-MM-dd"),
           categoria_id: categoriaId || null,
-          origem: "manual",
+          origem,
         });
       }
 
@@ -112,52 +188,28 @@ function NovaContaDialog({ categorias }: { categorias: { id: string; nome_catego
         <div className="space-y-4 py-2">
           <div className="space-y-2">
             <Label>Fornecedor *</Label>
-            <Input
-              placeholder="Nome do fornecedor"
-              value={fornecedor}
-              onChange={(e) => setFornecedor(e.target.value)}
-              maxLength={200}
-            />
+            <Input placeholder="Nome do fornecedor" value={fornecedor} onChange={(e) => setFornecedor(e.target.value)} maxLength={200} />
           </div>
           <div className="space-y-2">
             <Label>Nota Fiscal</Label>
-            <Input
-              placeholder="Número da NF (opcional)"
-              value={notaFiscal}
-              onChange={(e) => setNotaFiscal(e.target.value)}
-              maxLength={50}
-            />
+            <Input placeholder="Número da NF (opcional)" value={notaFiscal} onChange={(e) => setNotaFiscal(e.target.value)} maxLength={50} />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-2">
               <Label>Valor (R$) *</Label>
-              <Input
-                placeholder="0,00"
-                value={valor}
-                onChange={(e) => setValor(e.target.value.replace(/[^0-9.,]/g, ""))}
-                inputMode="decimal"
-              />
+              <Input placeholder="0,00" value={valor} onChange={(e) => setValor(e.target.value.replace(/[^0-9.,]/g, ""))} inputMode="decimal" />
             </div>
             <div className="space-y-2">
               <Label>Vencimento *</Label>
               <Popover>
                 <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className={cn("w-full justify-start text-left font-normal", !vencimento && "text-muted-foreground")}
-                  >
+                  <Button variant="outline" className={cn("w-full justify-start text-left font-normal", !vencimento && "text-muted-foreground")}>
                     <CalendarIcon className="mr-2 h-4 w-4" />
                     {vencimento ? format(vencimento, "dd/MM/yyyy") : "Selecione"}
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar
-                    mode="single"
-                    selected={vencimento}
-                    onSelect={setVencimento}
-                    initialFocus
-                    className={cn("p-3 pointer-events-auto")}
-                  />
+                  <Calendar mode="single" selected={vencimento} onSelect={setVencimento} initialFocus className={cn("p-3 pointer-events-auto")} />
                 </PopoverContent>
               </Popover>
             </div>
@@ -173,6 +225,13 @@ function NovaContaDialog({ categorias }: { categorias: { id: string; nome_catego
               </SelectContent>
             </Select>
           </div>
+          <div className="flex items-center gap-2">
+            <Checkbox id="cartao" checked={cartaoCredito} onCheckedChange={(v) => setCartaoCredito(v === true)} />
+            <Label htmlFor="cartao" className="flex items-center gap-1.5 cursor-pointer text-sm font-normal">
+              <CreditCard className="h-4 w-4 text-muted-foreground" />
+              Cartão de Crédito
+            </Label>
+          </div>
           <div className="space-y-2">
             <Label>Recorrência</Label>
             <Select value={recorrencia} onValueChange={setRecorrencia}>
@@ -186,14 +245,7 @@ function NovaContaDialog({ categorias }: { categorias: { id: string; nome_catego
           {recorrencia === "mensal" && (
             <div className="space-y-2">
               <Label>Quantidade de meses</Label>
-              <Input
-                type="number"
-                min={2}
-                max={60}
-                value={qtdMeses}
-                onChange={(e) => setQtdMeses(e.target.value)}
-                placeholder="12"
-              />
+              <Input type="number" min={2} max={60} value={qtdMeses} onChange={(e) => setQtdMeses(e.target.value)} placeholder="12" />
               <p className="text-xs text-muted-foreground">
                 Serão criadas {parseInt(qtdMeses) || 0} parcelas de {valor ? formatCurrency(parseFloat(valor.replace(",", ".")) || 0) : "R$ 0,00"} com vencimento mensal
               </p>
@@ -221,6 +273,7 @@ export default function ContasPagar() {
   const [filtroCategoria, setFiltroCategoria] = useState("todos");
   const [filtroStatus, setFiltroStatus] = useState("todos");
   const [busca, setBusca] = useState("");
+  const [baixaMovId, setBaixaMovId] = useState<string | null>(null);
 
   const catMap = Object.fromEntries((categorias ?? []).map((c) => [c.id, c.nome_categoria]));
 
@@ -283,12 +336,15 @@ export default function ContasPagar() {
 
   const statusBadge = (status: string) => {
     switch (status) {
+      case "pago": return <Badge className="bg-emerald-500/15 text-emerald-600 border-emerald-500/30">Pago</Badge>;
       case "vencido": return <Badge variant="destructive">Vencido</Badge>;
       case "proximo": return <Badge className="bg-amber-500/15 text-amber-600 border-amber-500/30">Próximo</Badge>;
       case "pendente": return <Badge variant="secondary">Pendente</Badge>;
       default: return <Badge variant="outline">{status}</Badge>;
     }
   };
+
+  const movBaixa = saidas.find((m) => m.id === baixaMovId);
 
   return (
     <div className="space-y-6">
@@ -382,6 +438,7 @@ export default function ContasPagar() {
                 <SelectItem value="vencido">Vencidos</SelectItem>
                 <SelectItem value="proximo">Próximos 7 dias</SelectItem>
                 <SelectItem value="pendente">Pendentes</SelectItem>
+                <SelectItem value="pago">Pagos</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -404,18 +461,50 @@ export default function ContasPagar() {
                       <TableHead>Vencimento</TableHead>
                       <TableHead>Descrição</TableHead>
                       <TableHead>Categoria</TableHead>
+                      <TableHead>Forma</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead className="text-right">Valor</TableHead>
+                      <TableHead className="w-[80px]"></TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {filtered.map((m) => (
-                      <TableRow key={m.id} className={m.statusPagamento === "vencido" ? "bg-destructive/5" : ""}>
-                        <TableCell className="text-muted-foreground">{formatDateBR(m.data)}</TableCell>
+                      <TableRow key={m.id} className={cn(
+                        m.statusPagamento === "vencido" && "bg-destructive/5",
+                        m.statusPagamento === "pago" && "opacity-60"
+                      )}>
+                        <TableCell className="text-muted-foreground">
+                          <div>{formatDateBR(m.data)}</div>
+                          {m.statusPagamento === "pago" && m.data_envio && (
+                            <div className="text-[10px] text-emerald-600">Pago em {formatDateBR(m.data_envio)}</div>
+                          )}
+                        </TableCell>
                         <TableCell className="font-medium max-w-xs truncate">{m.descricao ?? "—"}</TableCell>
                         <TableCell className="text-muted-foreground">{m.categoria_id ? catMap[m.categoria_id] ?? "—" : "—"}</TableCell>
+                        <TableCell>
+                          {m.origem === "cartao_credito" ? (
+                            <Badge variant="outline" className="gap-1">
+                              <CreditCard className="h-3 w-3" /> Cartão
+                            </Badge>
+                          ) : (
+                            <span className="text-xs text-muted-foreground">—</span>
+                          )}
+                        </TableCell>
                         <TableCell>{statusBadge(m.statusPagamento)}</TableCell>
                         <TableCell className="text-right font-semibold text-destructive">{formatCurrency(m.valor)}</TableCell>
+                        <TableCell>
+                          {m.statusPagamento !== "pago" && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-7 px-2 text-xs text-emerald-600 hover:text-emerald-700 hover:bg-emerald-500/10"
+                              onClick={() => setBaixaMovId(m.id)}
+                            >
+                              <Check className="h-3.5 w-3.5 mr-1" />
+                              Baixa
+                            </Button>
+                          )}
+                        </TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
@@ -486,6 +575,11 @@ export default function ContasPagar() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* Dar Baixa Dialog */}
+      <Dialog open={!!baixaMovId} onOpenChange={(open) => !open && setBaixaMovId(null)}>
+        {movBaixa && <DarBaixaDialog mov={movBaixa} onClose={() => setBaixaMovId(null)} />}
+      </Dialog>
     </div>
   );
 }

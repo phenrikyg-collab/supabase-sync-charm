@@ -269,6 +269,18 @@ export const useCreateMovimentacao = () => {
   });
 };
 
+export const useUpdateMovimentacao = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, ...updates }: Partial<MovimentacaoFinanceira> & { id: string }) => {
+      const { data, error } = await supabase.from("movimentacoes_financeiras").update(updates).eq("id", id).select().single();
+      if (error) throw error;
+      return data as MovimentacaoFinanceira;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["movimentacoes"] }),
+  });
+};
+
 // Metas
 export const useMetasFinanceiras = () =>
   useQuery({ queryKey: ["metas"], queryFn: () => fetchTable<MetaFinanceira>("metas_financeiras", { orderBy: "mes" }) });
