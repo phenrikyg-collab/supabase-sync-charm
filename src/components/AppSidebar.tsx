@@ -1,7 +1,7 @@
 import {
   LayoutDashboard, Package, Plus, Palette, Scissors, Factory,
   Truck, DollarSign, Target, FileText, Building2, LogOut, Users, Home, BarChart3, Upload, Layers,
-  ShoppingBag, Banknote, Wrench,
+  ShoppingBag, Banknote, Wrench, CreditCard,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useAuth } from "@/contexts/AuthContext";
@@ -68,6 +68,7 @@ const moduleGroups: ModuleGroup[] = [
     icon: Banknote,
     items: [
       { title: "Financeiro", url: "/financeiro", icon: DollarSign },
+      { title: "Contas a Pagar", url: "/contas-pagar", icon: CreditCard },
       { title: "DRE", url: "/dre", icon: BarChart3 },
       { title: "Importar Extrato", url: "/importar", icon: Upload },
     ],
