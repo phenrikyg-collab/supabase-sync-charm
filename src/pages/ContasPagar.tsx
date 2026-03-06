@@ -856,6 +856,18 @@ export default function ContasPagar() {
       <Dialog open={!!baixaMovId} onOpenChange={(open) => !open && setBaixaMovId(null)}>
         {movBaixa && <DarBaixaDialog mov={movBaixa} onClose={() => setBaixaMovId(null)} />}
       </Dialog>
+
+      {/* Editar Conta Dialog */}
+      <Dialog open={!!editMovId} onOpenChange={(open) => !open && setEditMovId(null)}>
+        {movEdit && <EditarContaDialog mov={movEdit} categorias={categorias ?? []} onClose={() => setEditMovId(null)} />}
+      </Dialog>
+
+      {/* Editar Parcelas Dialog */}
+      <Dialog open={!!editParcelasBase && parcelasMov.length > 0} onOpenChange={(open) => !open && setEditParcelasBase(null)}>
+        {parcelasMov.length > 0 && (
+          <EditarParcelasDialog parcelas={parcelasMov} categorias={categorias ?? []} onClose={() => setEditParcelasBase(null)} />
+        )}
+      </Dialog>
     </div>
   );
 }
