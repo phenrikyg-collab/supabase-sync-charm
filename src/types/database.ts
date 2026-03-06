@@ -203,6 +203,7 @@ export interface MetaFinanceira {
 export interface CategoriaFinanceira {
   id: string;
   nome_categoria: string | null;
+  descricao_categoria: string | null;
   tipo: string | null;
   codigo: string | null;
   grupo_dre: string | null;
