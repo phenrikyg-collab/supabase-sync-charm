@@ -15,7 +15,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { formatDateBR } from "@/lib/printUtils";
 import { format, startOfMonth, endOfMonth, eachMonthOfInterval, subMonths, addMonths, parseISO, isAfter, isBefore } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { DollarSign, TrendingDown, AlertTriangle, Calendar as CalendarIcon, Search, Plus, Check, CreditCard } from "lucide-react";
+import { DollarSign, TrendingDown, AlertTriangle, Calendar as CalendarIcon, Search, Plus, Check, CreditCard, Pencil } from "lucide-react";
 import { ComposedChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, Line } from "recharts";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -105,7 +105,238 @@ function DarBaixaDialog({ mov, onClose }: { mov: MovimentacaoFinanceira & { stat
   );
 }
 
-// ── Nova Conta Dialog ──
+// ── Editar Conta Dialog ──
+function EditarContaDialog({
+  mov,
+  categorias,
+  onClose,
+}: {
+  mov: MovimentacaoFinanceira & { statusPagamento: string };
+  categorias: { id: string; descricao_categoria: string | null; nome_categoria: string | null }[];
+  onClose: () => void;
+}) {
+  const updateMov = useUpdateMovimentacao();
+  const [descricao, setDescricao] = useState(mov.descricao ?? "");
+  const [valor, setValor] = useState(String(mov.valor ?? 0).replace(".", ","));
+  const [categoriaId, setCategoriaId] = useState(mov.categoria_id ?? "");
+  const [dataVenc, setDataVenc] = useState<Date>(parseISO(mov.data));
+  const [salvando, setSalvando] = useState(false);
+
+  const handleSave = async () => {
+    const valorNum = parseFloat(valor.replace(",", "."));
+    if (!valorNum || valorNum <= 0) return toast.error("Informe um valor válido");
+    setSalvando(true);
+    try {
+      await updateMov.mutateAsync({
+        id: mov.id,
+        descricao,
+        valor: valorNum,
+        categoria_id: categoriaId || null,
+        data: format(dataVenc, "yyyy-MM-dd"),
+      });
+      toast.success("Conta atualizada com sucesso");
+      onClose();
+    } catch {
+      toast.error("Erro ao atualizar conta");
+    } finally {
+      setSalvando(false);
+    }
+  };
+
+  return (
+    <DialogContent className="sm:max-w-md">
+      <DialogHeader>
+        <DialogTitle>Editar Conta a Pagar</DialogTitle>
+      </DialogHeader>
+      <div className="space-y-4 py-2">
+        <div className="space-y-2">
+          <Label>Descrição</Label>
+          <Input value={descricao} onChange={(e) => setDescricao(e.target.value)} maxLength={200} />
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <div className="space-y-2">
+            <Label>Valor (R$)</Label>
+            <Input
+              value={valor}
+              onChange={(e) => setValor(e.target.value.replace(/[^0-9.,]/g, ""))}
+              inputMode="decimal"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label>Vencimento</Label>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" className={cn("w-full justify-start text-left font-normal")}>
+                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  {format(dataVenc, "dd/MM/yyyy")}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar
+                  mode="single"
+                  selected={dataVenc}
+                  onSelect={(d) => d && setDataVenc(d)}
+                  initialFocus
+                  className={cn("p-3 pointer-events-auto")}
+                />
+              </PopoverContent>
+            </Popover>
+          </div>
+        </div>
+        <div className="space-y-2">
+          <Label>Categoria</Label>
+          <Select value={categoriaId} onValueChange={setCategoriaId}>
+            <SelectTrigger><SelectValue placeholder="Selecione (opcional)" /></SelectTrigger>
+            <SelectContent>
+              {categorias.map((c) => (
+                <SelectItem key={c.id} value={c.id}>{c.descricao_categoria ?? c.nome_categoria ?? "Sem descrição"}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+      <DialogFooter>
+        <DialogClose asChild>
+          <Button variant="outline">Cancelar</Button>
+        </DialogClose>
+        <Button onClick={handleSave} disabled={salvando}>
+          {salvando ? "Salvando..." : "Salvar"}
+        </Button>
+      </DialogFooter>
+    </DialogContent>
+  );
+}
+
+// ── Editar Parcelas Dialog ──
+function EditarParcelasDialog({
+  parcelas,
+  categorias,
+  onClose,
+}: {
+  parcelas: (MovimentacaoFinanceira & { statusPagamento: string; parcelaIdx: number; parcelaTotal: number })[];
+  categorias: { id: string; descricao_categoria: string | null; nome_categoria: string | null }[];
+  onClose: () => void;
+}) {
+  const updateMov = useUpdateMovimentacao();
+  const [items, setItems] = useState(
+    parcelas.map((p) => ({
+      id: p.id,
+      descricao: p.descricao ?? "",
+      valor: String(p.valor ?? 0).replace(".", ","),
+      data: parseISO(p.data),
+      categoria_id: p.categoria_id ?? "",
+      parcelaIdx: p.parcelaIdx,
+      parcelaTotal: p.parcelaTotal,
+    }))
+  );
+  const [salvando, setSalvando] = useState(false);
+
+  const updateItem = (idx: number, field: string, value: any) => {
+    setItems((prev) => prev.map((it, i) => (i === idx ? { ...it, [field]: value } : it)));
+  };
+
+  const handleSave = async () => {
+    setSalvando(true);
+    try {
+      for (const item of items) {
+        const valorNum = parseFloat(item.valor.replace(",", "."));
+        await updateMov.mutateAsync({
+          id: item.id,
+          descricao: item.descricao,
+          valor: valorNum > 0 ? valorNum : 0,
+          data: format(item.data, "yyyy-MM-dd"),
+          categoria_id: item.categoria_id || null,
+        });
+      }
+      toast.success("Parcelas atualizadas com sucesso");
+      onClose();
+    } catch {
+      toast.error("Erro ao atualizar parcelas");
+    } finally {
+      setSalvando(false);
+    }
+  };
+
+  return (
+    <DialogContent className="sm:max-w-2xl max-h-[80vh] overflow-y-auto">
+      <DialogHeader>
+        <DialogTitle>Editar Parcelas ({items.length}x)</DialogTitle>
+      </DialogHeader>
+      <div className="space-y-3 py-2">
+        <div className="space-y-2">
+          <Label>Categoria (todas as parcelas)</Label>
+          <Select
+            value={items[0]?.categoria_id ?? ""}
+            onValueChange={(v) => setItems((prev) => prev.map((it) => ({ ...it, categoria_id: v })))}
+          >
+            <SelectTrigger><SelectValue placeholder="Selecione (opcional)" /></SelectTrigger>
+            <SelectContent>
+              {categorias.map((c) => (
+                <SelectItem key={c.id} value={c.id}>{c.descricao_categoria ?? c.nome_categoria ?? "Sem descrição"}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="border rounded-lg divide-y">
+          {items.map((item, idx) => (
+            <div key={item.id} className="p-3 space-y-2">
+              <p className="text-xs font-medium text-muted-foreground">Parcela {item.parcelaIdx}/{item.parcelaTotal}</p>
+              <div className="grid grid-cols-3 gap-2">
+                <div className="space-y-1">
+                  <Label className="text-xs">Vencimento</Label>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" size="sm" className={cn("w-full justify-start text-left font-normal text-xs")}>
+                        <CalendarIcon className="mr-1 h-3 w-3" />
+                        {format(item.data, "dd/MM/yyyy")}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={item.data}
+                        onSelect={(d) => d && updateItem(idx, "data", d)}
+                        initialFocus
+                        className={cn("p-3 pointer-events-auto")}
+                      />
+                    </PopoverContent>
+                  </Popover>
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Valor (R$)</Label>
+                  <Input
+                    className="h-8 text-xs"
+                    value={item.valor}
+                    onChange={(e) => updateItem(idx, "valor", e.target.value.replace(/[^0-9.,]/g, ""))}
+                    inputMode="decimal"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Descrição</Label>
+                  <Input
+                    className="h-8 text-xs"
+                    value={item.descricao}
+                    onChange={(e) => updateItem(idx, "descricao", e.target.value)}
+                  />
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+      <DialogFooter>
+        <DialogClose asChild>
+          <Button variant="outline">Cancelar</Button>
+        </DialogClose>
+        <Button onClick={handleSave} disabled={salvando}>
+          {salvando ? "Salvando..." : "Salvar Todas"}
+        </Button>
+      </DialogFooter>
+    </DialogContent>
+  );
+}
+
+
 function NovaContaDialog({ categorias }: { categorias: { id: string; descricao_categoria: string | null }[] }) {
   const createMov = useCreateMovimentacao();
   const [open, setOpen] = useState(false);
@@ -277,6 +508,8 @@ export default function ContasPagar() {
   const [filtroStatus, setFiltroStatus] = useState("todos");
   const [busca, setBusca] = useState("");
   const [baixaMovId, setBaixaMovId] = useState<string | null>(null);
+  const [editMovId, setEditMovId] = useState<string | null>(null);
+  const [editParcelasBase, setEditParcelasBase] = useState<string | null>(null);
 
   const catMap = Object.fromEntries((categorias ?? []).map((c) => [c.id, c.descricao_categoria ?? c.nome_categoria]));
 
@@ -348,6 +581,27 @@ export default function ContasPagar() {
   };
 
   const movBaixa = saidas.find((m) => m.id === baixaMovId);
+  const movEdit = saidas.find((m) => m.id === editMovId);
+
+  const parcelasMov = useMemo(() => {
+    if (!editParcelasBase) return [];
+    return saidas
+      .filter((m) => {
+        const desc = m.descricao ?? "";
+        const match = desc.match(/^(.+?)\s*\((\d+)\/(\d+)\)$/);
+        if (!match) return false;
+        return match[1] === editParcelasBase;
+      })
+      .map((m) => {
+        const match = (m.descricao ?? "").match(/\((\d+)\/(\d+)\)$/);
+        return {
+          ...m,
+          parcelaIdx: match ? parseInt(match[1]) : 1,
+          parcelaTotal: match ? parseInt(match[2]) : 1,
+        };
+      })
+      .sort((a, b) => a.parcelaIdx - b.parcelaIdx);
+  }, [editParcelasBase, saidas]);
 
   return (
     <div className="space-y-6">
@@ -495,7 +749,26 @@ export default function ContasPagar() {
                         </TableCell>
                         <TableCell>{statusBadge(m.statusPagamento)}</TableCell>
                         <TableCell className="text-right font-semibold text-destructive">{formatCurrency(m.valor)}</TableCell>
-                        <TableCell>
+                        <TableCell className="flex items-center gap-1">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 px-2 text-xs"
+                            onClick={() => {
+                              // Check if it's an installment (X/Y) pattern
+                              const parcelaMatch = (m.descricao ?? "").match(/\((\d+)\/(\d+)\)$/);
+                              if (parcelaMatch) {
+                                // Extract base description to find all related installments
+                                const baseDesc = (m.descricao ?? "").replace(/\s*\(\d+\/\d+\)$/, "");
+                                setEditParcelasBase(baseDesc);
+                              } else {
+                                setEditMovId(m.id);
+                              }
+                            }}
+                          >
+                            <Pencil className="h-3.5 w-3.5 mr-1" />
+                            Editar
+                          </Button>
                           {m.statusPagamento !== "pago" && (
                             <Button
                               variant="ghost"
@@ -582,6 +855,18 @@ export default function ContasPagar() {
       {/* Dar Baixa Dialog */}
       <Dialog open={!!baixaMovId} onOpenChange={(open) => !open && setBaixaMovId(null)}>
         {movBaixa && <DarBaixaDialog mov={movBaixa} onClose={() => setBaixaMovId(null)} />}
+      </Dialog>
+
+      {/* Editar Conta Dialog */}
+      <Dialog open={!!editMovId} onOpenChange={(open) => !open && setEditMovId(null)}>
+        {movEdit && <EditarContaDialog mov={movEdit} categorias={categorias ?? []} onClose={() => setEditMovId(null)} />}
+      </Dialog>
+
+      {/* Editar Parcelas Dialog */}
+      <Dialog open={!!editParcelasBase && parcelasMov.length > 0} onOpenChange={(open) => !open && setEditParcelasBase(null)}>
+        {parcelasMov.length > 0 && (
+          <EditarParcelasDialog parcelas={parcelasMov} categorias={categorias ?? []} onClose={() => setEditParcelasBase(null)} />
+        )}
       </Dialog>
     </div>
   );
