@@ -431,7 +431,7 @@ export default function ContasPagar() {
               <SelectTrigger><SelectValue placeholder="Categoria" /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="todos">Todas as Categorias</SelectItem>
-                {categorias?.map((c) => <SelectItem key={c.id} value={c.id}>{c.nome_categoria}</SelectItem>)}
+                {categorias?.map((c) => <SelectItem key={c.id} value={c.id}>{c.descricao_categoria ?? c.nome_categoria}</SelectItem>)}
               </SelectContent>
             </Select>
             <Select value={filtroStatus} onValueChange={setFiltroStatus}>
