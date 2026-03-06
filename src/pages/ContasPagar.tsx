@@ -581,6 +581,27 @@ export default function ContasPagar() {
   };
 
   const movBaixa = saidas.find((m) => m.id === baixaMovId);
+  const movEdit = saidas.find((m) => m.id === editMovId);
+
+  const parcelasMov = useMemo(() => {
+    if (!editParcelasBase) return [];
+    return saidas
+      .filter((m) => {
+        const desc = m.descricao ?? "";
+        const match = desc.match(/^(.+?)\s*\((\d+)\/(\d+)\)$/);
+        if (!match) return false;
+        return match[1] === editParcelasBase;
+      })
+      .map((m) => {
+        const match = (m.descricao ?? "").match(/\((\d+)\/(\d+)\)$/);
+        return {
+          ...m,
+          parcelaIdx: match ? parseInt(match[1]) : 1,
+          parcelaTotal: match ? parseInt(match[2]) : 1,
+        };
+      })
+      .sort((a, b) => a.parcelaIdx - b.parcelaIdx);
+  }, [editParcelasBase, saidas]);
 
   return (
     <div className="space-y-6">
