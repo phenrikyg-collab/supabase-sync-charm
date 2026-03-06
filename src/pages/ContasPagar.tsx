@@ -278,7 +278,7 @@ export default function ContasPagar() {
   const [busca, setBusca] = useState("");
   const [baixaMovId, setBaixaMovId] = useState<string | null>(null);
 
-  const catMap = Object.fromEntries((categorias ?? []).map((c) => [c.id, c.nome_categoria]));
+  const catMap = Object.fromEntries((categorias ?? []).map((c) => [c.id, c.descricao_categoria ?? c.nome_categoria]));
 
   const saidas = useMemo(() => {
     return (movs ?? [])
