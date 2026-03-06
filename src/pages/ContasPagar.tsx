@@ -15,7 +15,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { formatDateBR } from "@/lib/printUtils";
 import { format, startOfMonth, endOfMonth, eachMonthOfInterval, subMonths, addMonths, parseISO, isAfter, isBefore } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { DollarSign, TrendingDown, AlertTriangle, Calendar as CalendarIcon, Search, Plus, Check, CreditCard } from "lucide-react";
+import { DollarSign, TrendingDown, AlertTriangle, Calendar as CalendarIcon, Search, Plus, Check, CreditCard, Pencil } from "lucide-react";
 import { ComposedChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, Line } from "recharts";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
