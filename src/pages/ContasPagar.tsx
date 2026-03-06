@@ -728,7 +728,26 @@ export default function ContasPagar() {
                         </TableCell>
                         <TableCell>{statusBadge(m.statusPagamento)}</TableCell>
                         <TableCell className="text-right font-semibold text-destructive">{formatCurrency(m.valor)}</TableCell>
-                        <TableCell>
+                        <TableCell className="flex items-center gap-1">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 px-2 text-xs"
+                            onClick={() => {
+                              // Check if it's an installment (X/Y) pattern
+                              const parcelaMatch = (m.descricao ?? "").match(/\((\d+)\/(\d+)\)$/);
+                              if (parcelaMatch) {
+                                // Extract base description to find all related installments
+                                const baseDesc = (m.descricao ?? "").replace(/\s*\(\d+\/\d+\)$/, "");
+                                setEditParcelasBase(baseDesc);
+                              } else {
+                                setEditMovId(m.id);
+                              }
+                            }}
+                          >
+                            <Pencil className="h-3.5 w-3.5 mr-1" />
+                            Editar
+                          </Button>
                           {m.statusPagamento !== "pago" && (
                             <Button
                               variant="ghost"
