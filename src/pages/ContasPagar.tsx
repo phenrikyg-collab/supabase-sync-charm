@@ -106,7 +106,7 @@ function DarBaixaDialog({ mov, onClose }: { mov: MovimentacaoFinanceira & { stat
 }
 
 // ── Nova Conta Dialog ──
-function NovaContaDialog({ categorias }: { categorias: { id: string; nome_categoria: string | null }[] }) {
+function NovaContaDialog({ categorias }: { categorias: { id: string; descricao_categoria: string | null }[] }) {
   const createMov = useCreateMovimentacao();
   const [open, setOpen] = useState(false);
   const [fornecedor, setFornecedor] = useState("");
@@ -114,8 +114,8 @@ function NovaContaDialog({ categorias }: { categorias: { id: string; nome_catego
   const [valor, setValor] = useState("");
   const [categoriaId, setCategoriaId] = useState("");
   const [vencimento, setVencimento] = useState<Date>();
-  const [recorrencia, setRecorrencia] = useState("unica");
-  const [qtdMeses, setQtdMeses] = useState("12");
+  const [temParcelas, setTemParcelas] = useState(false);
+  const [qtdParcelas, setQtdParcelas] = useState("2");
   const [cartaoCredito, setCartaoCredito] = useState(false);
   const [salvando, setSalvando] = useState(false);
 
@@ -125,8 +125,8 @@ function NovaContaDialog({ categorias }: { categorias: { id: string; nome_catego
     setValor("");
     setCategoriaId("");
     setVencimento(undefined);
-    setRecorrencia("unica");
-    setQtdMeses("12");
+    setTemParcelas(false);
+    setQtdParcelas("2");
     setCartaoCredito(false);
   };
 
@@ -144,24 +144,25 @@ function NovaContaDialog({ categorias }: { categorias: { id: string; nome_catego
 
       if (cartaoCredito) descricao = `💳 ${descricao}`;
 
-      const meses = recorrencia === "mensal" ? Math.min(Math.max(parseInt(qtdMeses) || 1, 1), 60) : 1;
+      const parcelas = temParcelas ? Math.min(Math.max(parseInt(qtdParcelas) || 1, 2), 60) : 1;
+      const valorParcela = temParcelas ? Math.round((valorNum / parcelas) * 100) / 100 : valorNum;
       const origem = cartaoCredito ? "cartao_credito" : "manual";
 
-      for (let i = 0; i < meses; i++) {
+      for (let i = 0; i < parcelas; i++) {
         const dataVenc = addMonths(vencimento, i);
-        const descFinal = meses > 1 ? `${descricao} (${i + 1}/${meses})` : descricao;
+        const descFinal = parcelas > 1 ? `${descricao} (${i + 1}/${parcelas})` : descricao;
         await createMov.mutateAsync({
           tipo: "saida",
           descricao: descFinal,
-          valor: valorNum,
+          valor: valorParcela,
           data: format(dataVenc, "yyyy-MM-dd"),
           categoria_id: categoriaId || null,
           origem,
         });
       }
 
-      toast.success(meses > 1
-        ? `${meses} parcelas cadastradas com sucesso`
+      toast.success(parcelas > 1
+        ? `${parcelas} parcelas de ${formatCurrency(valorParcela)} cadastradas com sucesso`
         : "Conta a pagar cadastrada com sucesso"
       );
       resetForm();
@@ -172,6 +173,10 @@ function NovaContaDialog({ categorias }: { categorias: { id: string; nome_catego
       setSalvando(false);
     }
   };
+
+  const parcelasNum = parseInt(qtdParcelas) || 0;
+  const valorNum = parseFloat(valor.replace(",", ".")) || 0;
+  const valorParcela = parcelasNum > 0 ? valorNum / parcelasNum : 0;
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -196,7 +201,7 @@ function NovaContaDialog({ categorias }: { categorias: { id: string; nome_catego
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-2">
-              <Label>Valor (R$) *</Label>
+              <Label>Valor Total (R$) *</Label>
               <Input placeholder="0,00" value={valor} onChange={(e) => setValor(e.target.value.replace(/[^0-9.,]/g, ""))} inputMode="decimal" />
             </div>
             <div className="space-y-2">
@@ -220,7 +225,7 @@ function NovaContaDialog({ categorias }: { categorias: { id: string; nome_catego
               <SelectTrigger><SelectValue placeholder="Selecione (opcional)" /></SelectTrigger>
               <SelectContent>
                 {categorias.map((c) => (
-                  <SelectItem key={c.id} value={c.id}>{c.nome_categoria}</SelectItem>
+                  <SelectItem key={c.id} value={c.id}>{c.descricao_categoria ?? "Sem descrição"}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -232,23 +237,21 @@ function NovaContaDialog({ categorias }: { categorias: { id: string; nome_catego
               Cartão de Crédito
             </Label>
           </div>
-          <div className="space-y-2">
-            <Label>Recorrência</Label>
-            <Select value={recorrencia} onValueChange={setRecorrencia}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="unica">Pagamento único</SelectItem>
-                <SelectItem value="mensal">Repetir mensalmente</SelectItem>
-              </SelectContent>
-            </Select>
+          <div className="flex items-center gap-2">
+            <Checkbox id="parcelas" checked={temParcelas} onCheckedChange={(v) => setTemParcelas(v === true)} />
+            <Label htmlFor="parcelas" className="cursor-pointer text-sm font-normal">
+              Parcelado
+            </Label>
           </div>
-          {recorrencia === "mensal" && (
-            <div className="space-y-2">
-              <Label>Quantidade de meses</Label>
-              <Input type="number" min={2} max={60} value={qtdMeses} onChange={(e) => setQtdMeses(e.target.value)} placeholder="12" />
-              <p className="text-xs text-muted-foreground">
-                Serão criadas {parseInt(qtdMeses) || 0} parcelas de {valor ? formatCurrency(parseFloat(valor.replace(",", ".")) || 0) : "R$ 0,00"} com vencimento mensal
-              </p>
+          {temParcelas && (
+            <div className="space-y-2 pl-6 border-l-2 border-primary/20">
+              <Label>Número de Parcelas</Label>
+              <Input type="number" min={2} max={60} value={qtdParcelas} onChange={(e) => setQtdParcelas(e.target.value)} placeholder="2" />
+              {parcelasNum >= 2 && valorNum > 0 && (
+                <p className="text-xs text-muted-foreground">
+                  {parcelasNum}x de {formatCurrency(valorParcela)} com vencimento mensal a partir de {vencimento ? format(vencimento, "dd/MM/yyyy") : "—"}
+                </p>
+              )}
             </div>
           )}
         </div>
