@@ -508,6 +508,8 @@ export default function ContasPagar() {
   const [filtroStatus, setFiltroStatus] = useState("todos");
   const [busca, setBusca] = useState("");
   const [baixaMovId, setBaixaMovId] = useState<string | null>(null);
+  const [editMovId, setEditMovId] = useState<string | null>(null);
+  const [editParcelasBase, setEditParcelasBase] = useState<string | null>(null);
 
   const catMap = Object.fromEntries((categorias ?? []).map((c) => [c.id, c.descricao_categoria ?? c.nome_categoria]));
 
