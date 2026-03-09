@@ -634,7 +634,7 @@ export default function ContasPagar() {
   const { data: centros } = useCentrosCusto();
 
   const [filtroCategoria, setFiltroCategoria] = useState("todos");
-  const [filtroStatus, setFiltroStatus] = useState("todos");
+  const [filtroStatus, setFiltroStatus] = useState("urgentes");
   const [busca, setBusca] = useState("");
   const [baixaMovId, setBaixaMovId] = useState<string | null>(null);
   const [editMovId, setEditMovId] = useState<string | null>(null);
@@ -651,7 +651,8 @@ export default function ContasPagar() {
   const filtered = useMemo(() => {
     return saidas.filter((m) => {
       if (filtroCategoria !== "todos" && m.categoria_id !== filtroCategoria) return false;
-      if (filtroStatus !== "todos" && m.statusPagamento !== filtroStatus) return false;
+      if (filtroStatus === "urgentes" && m.statusPagamento !== "vencido" && m.statusPagamento !== "proximo") return false;
+      if (filtroStatus !== "todos" && filtroStatus !== "urgentes" && m.statusPagamento !== filtroStatus) return false;
       if (busca) {
         const search = busca.toLowerCase();
         const desc = (m.descricao ?? "").toLowerCase();
@@ -820,6 +821,7 @@ export default function ContasPagar() {
             <Select value={filtroStatus} onValueChange={setFiltroStatus}>
               <SelectTrigger><SelectValue placeholder="Status" /></SelectTrigger>
               <SelectContent>
+                <SelectItem value="urgentes">Vencidos + Próximos 7 dias</SelectItem>
                 <SelectItem value="todos">Todos os Status</SelectItem>
                 <SelectItem value="vencido">Vencidos</SelectItem>
                 <SelectItem value="proximo">Próximos 7 dias</SelectItem>
