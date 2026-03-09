@@ -821,6 +821,7 @@ export default function ContasPagar() {
             <Select value={filtroStatus} onValueChange={setFiltroStatus}>
               <SelectTrigger><SelectValue placeholder="Status" /></SelectTrigger>
               <SelectContent>
+                <SelectItem value="urgentes">Vencidos + Próximos 7 dias</SelectItem>
                 <SelectItem value="todos">Todos os Status</SelectItem>
                 <SelectItem value="vencido">Vencidos</SelectItem>
                 <SelectItem value="proximo">Próximos 7 dias</SelectItem>
