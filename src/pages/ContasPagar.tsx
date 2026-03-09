@@ -15,7 +15,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { formatDateBR } from "@/lib/printUtils";
 import { format, startOfMonth, endOfMonth, eachMonthOfInterval, subMonths, addMonths, parseISO, isAfter, isBefore } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { DollarSign, TrendingDown, AlertTriangle, Calendar as CalendarIcon, Search, Plus, Check, CreditCard, Pencil } from "lucide-react";
+import { DollarSign, TrendingDown, AlertTriangle, Calendar as CalendarIcon, Search, Plus, Check, CreditCard, Pencil, Trash2 } from "lucide-react";
 import { ComposedChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, Line } from "recharts";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -337,7 +337,12 @@ function EditarParcelasDialog({
 }
 
 
-function NovaContaDialog({ categorias }: { categorias: { id: string; descricao_categoria: string | null }[] }) {
+interface ParcelaManual {
+  valor: string;
+  data: Date;
+}
+
+function NovaContaDialog({ categorias }: { categorias: { id: string; descricao_categoria: string | null; nome_categoria: string | null }[] }) {
   const createMov = useCreateMovimentacao();
   const [open, setOpen] = useState(false);
   const [fornecedor, setFornecedor] = useState("");
@@ -348,6 +353,7 @@ function NovaContaDialog({ categorias }: { categorias: { id: string; descricao_c
   const [temParcelas, setTemParcelas] = useState(false);
   const [qtdParcelas, setQtdParcelas] = useState("2");
   const [cartaoCredito, setCartaoCredito] = useState(false);
+  const [parcelasManual, setParcelasManual] = useState<ParcelaManual[]>([]);
   const [salvando, setSalvando] = useState(false);
 
   const resetForm = () => {
@@ -359,13 +365,33 @@ function NovaContaDialog({ categorias }: { categorias: { id: string; descricao_c
     setTemParcelas(false);
     setQtdParcelas("2");
     setCartaoCredito(false);
+    setParcelasManual([]);
+  };
+
+  // Quando ativa parcelas manuais (NF), inicializa lista
+  const addParcelaManual = () => {
+    setParcelasManual((prev) => [
+      ...prev,
+      { valor: "", data: prev.length > 0 ? addMonths(prev[prev.length - 1].data, 1) : (vencimento ?? new Date()) },
+    ]);
+  };
+
+  const updateParcelaManual = (idx: number, field: keyof ParcelaManual, value: any) => {
+    setParcelasManual((prev) => prev.map((p, i) => (i === idx ? { ...p, [field]: value } : p)));
+  };
+
+  const removeParcelaManual = (idx: number) => {
+    setParcelasManual((prev) => prev.filter((_, i) => i !== idx));
   };
 
   const handleSubmit = async () => {
     const valorNum = parseFloat(valor.replace(",", "."));
     if (!fornecedor.trim()) return toast.error("Informe o fornecedor");
-    if (!valorNum || valorNum <= 0) return toast.error("Informe um valor válido");
-    if (!vencimento) return toast.error("Informe a data de vencimento");
+    if (!cartaoCredito && temParcelas && parcelasManual.length === 0) return toast.error("Adicione ao menos uma parcela");
+    if (!cartaoCredito && !temParcelas && (!valorNum || valorNum <= 0)) return toast.error("Informe um valor válido");
+    if (!cartaoCredito && !temParcelas && !vencimento) return toast.error("Informe a data de vencimento");
+    if (cartaoCredito && (!valorNum || valorNum <= 0)) return toast.error("Informe um valor válido");
+    if (cartaoCredito && !vencimento) return toast.error("Informe a data de vencimento");
 
     setSalvando(true);
     try {
@@ -375,27 +401,58 @@ function NovaContaDialog({ categorias }: { categorias: { id: string; descricao_c
 
       if (cartaoCredito) descricao = `💳 ${descricao}`;
 
-      const parcelas = temParcelas ? Math.min(Math.max(parseInt(qtdParcelas) || 1, 2), 60) : 1;
-      const valorParcela = temParcelas ? Math.round((valorNum / parcelas) * 100) / 100 : valorNum;
       const origem = cartaoCredito ? "cartao_credito" : "manual";
 
-      for (let i = 0; i < parcelas; i++) {
-        const dataVenc = addMonths(vencimento, i);
-        const descFinal = parcelas > 1 ? `${descricao} (${i + 1}/${parcelas})` : descricao;
+      if (cartaoCredito && temParcelas) {
+        // Cartão de crédito: parcelas automáticas mensais
+        const parcelas = Math.min(Math.max(parseInt(qtdParcelas) || 1, 2), 60);
+        const valorParcela = Math.round((valorNum / parcelas) * 100) / 100;
+        for (let i = 0; i < parcelas; i++) {
+          const dataVenc = addMonths(vencimento!, i);
+          await createMov.mutateAsync({
+            tipo: "saida",
+            descricao: `${descricao} (${i + 1}/${parcelas})`,
+            valor: valorParcela,
+            data: format(dataVenc, "yyyy-MM-dd"),
+            categoria_id: categoriaId || null,
+            origem,
+          });
+        }
+        toast.success(`${parcelas} parcelas de ${formatCurrency(valorParcela)} cadastradas`);
+      } else if (!cartaoCredito && temParcelas) {
+        // NF faturada: parcelas manuais com valor e data individuais
+        const totalParcelas = parcelasManual.length;
+        for (let i = 0; i < totalParcelas; i++) {
+          const p = parcelasManual[i];
+          const vp = parseFloat(p.valor.replace(",", "."));
+          if (!vp || vp <= 0) {
+            toast.error(`Parcela ${i + 1} com valor inválido`);
+            setSalvando(false);
+            return;
+          }
+          await createMov.mutateAsync({
+            tipo: "saida",
+            descricao: `${descricao} (${i + 1}/${totalParcelas})`,
+            valor: vp,
+            data: format(p.data, "yyyy-MM-dd"),
+            categoria_id: categoriaId || null,
+            origem,
+          });
+        }
+        toast.success(`${totalParcelas} parcelas cadastradas com sucesso`);
+      } else {
+        // Pagamento único
         await createMov.mutateAsync({
           tipo: "saida",
-          descricao: descFinal,
-          valor: valorParcela,
-          data: format(dataVenc, "yyyy-MM-dd"),
+          descricao,
+          valor: valorNum,
+          data: format(vencimento!, "yyyy-MM-dd"),
           categoria_id: categoriaId || null,
           origem,
         });
+        toast.success("Conta a pagar cadastrada com sucesso");
       }
 
-      toast.success(parcelas > 1
-        ? `${parcelas} parcelas de ${formatCurrency(valorParcela)} cadastradas com sucesso`
-        : "Conta a pagar cadastrada com sucesso"
-      );
       resetForm();
       setOpen(false);
     } catch {
@@ -407,7 +464,9 @@ function NovaContaDialog({ categorias }: { categorias: { id: string; descricao_c
 
   const parcelasNum = parseInt(qtdParcelas) || 0;
   const valorNum = parseFloat(valor.replace(",", ".")) || 0;
-  const valorParcela = parcelasNum > 0 ? valorNum / parcelasNum : 0;
+  const valorParcelaCC = parcelasNum > 0 ? valorNum / parcelasNum : 0;
+
+  const totalParcelasManual = parcelasManual.reduce((acc, p) => acc + (parseFloat(p.valor.replace(",", ".")) || 0), 0);
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -417,7 +476,7 @@ function NovaContaDialog({ categorias }: { categorias: { id: string; descricao_c
           Nova Conta
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-lg max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Nova Conta a Pagar</DialogTitle>
         </DialogHeader>
@@ -430,57 +489,127 @@ function NovaContaDialog({ categorias }: { categorias: { id: string; descricao_c
             <Label>Nota Fiscal</Label>
             <Input placeholder="Número da NF (opcional)" value={notaFiscal} onChange={(e) => setNotaFiscal(e.target.value)} maxLength={50} />
           </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-2">
-              <Label>Valor Total (R$) *</Label>
-              <Input placeholder="0,00" value={valor} onChange={(e) => setValor(e.target.value.replace(/[^0-9.,]/g, ""))} inputMode="decimal" />
-            </div>
-            <div className="space-y-2">
-              <Label>Vencimento *</Label>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button variant="outline" className={cn("w-full justify-start text-left font-normal", !vencimento && "text-muted-foreground")}>
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {vencimento ? format(vencimento, "dd/MM/yyyy") : "Selecione"}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar mode="single" selected={vencimento} onSelect={setVencimento} initialFocus className={cn("p-3 pointer-events-auto")} />
-                </PopoverContent>
-              </Popover>
-            </div>
-          </div>
           <div className="space-y-2">
             <Label>Categoria</Label>
             <Select value={categoriaId} onValueChange={setCategoriaId}>
               <SelectTrigger><SelectValue placeholder="Selecione (opcional)" /></SelectTrigger>
               <SelectContent>
                 {categorias.map((c) => (
-                  <SelectItem key={c.id} value={c.id}>{c.descricao_categoria ?? "Sem descrição"}</SelectItem>
+                  <SelectItem key={c.id} value={c.id}>{c.descricao_categoria ?? c.nome_categoria ?? "Sem descrição"}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
           </div>
           <div className="flex items-center gap-2">
-            <Checkbox id="cartao" checked={cartaoCredito} onCheckedChange={(v) => setCartaoCredito(v === true)} />
+            <Checkbox id="cartao" checked={cartaoCredito} onCheckedChange={(v) => {
+              setCartaoCredito(v === true);
+              if (v === true) setParcelasManual([]);
+            }} />
             <Label htmlFor="cartao" className="flex items-center gap-1.5 cursor-pointer text-sm font-normal">
               <CreditCard className="h-4 w-4 text-muted-foreground" />
               Cartão de Crédito
             </Label>
           </div>
+
+          {/* Valor e Vencimento - sempre visíveis se não for parcela manual */}
+          {(!temParcelas || cartaoCredito) && (
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <Label>Valor Total (R$) *</Label>
+                <Input placeholder="0,00" value={valor} onChange={(e) => setValor(e.target.value.replace(/[^0-9.,]/g, ""))} inputMode="decimal" />
+              </div>
+              <div className="space-y-2">
+                <Label>Vencimento *</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" className={cn("w-full justify-start text-left font-normal", !vencimento && "text-muted-foreground")}>
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {vencimento ? format(vencimento, "dd/MM/yyyy") : "Selecione"}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar mode="single" selected={vencimento} onSelect={setVencimento} initialFocus className={cn("p-3 pointer-events-auto")} />
+                  </PopoverContent>
+                </Popover>
+              </div>
+            </div>
+          )}
+
           <div className="flex items-center gap-2">
-            <Checkbox id="parcelas" checked={temParcelas} onCheckedChange={(v) => setTemParcelas(v === true)} />
+            <Checkbox id="parcelas" checked={temParcelas} onCheckedChange={(v) => {
+              setTemParcelas(v === true);
+              if (v === true && !cartaoCredito) setParcelasManual([]);
+            }} />
             <Label htmlFor="parcelas" className="cursor-pointer text-sm font-normal">
-              Parcelado
+              {cartaoCredito ? "Repetir Mensalmente" : "Parcelado (NF Faturada)"}
             </Label>
           </div>
-          {temParcelas && (
+
+          {/* Cartão de crédito: parcelas automáticas mensais */}
+          {temParcelas && cartaoCredito && (
             <div className="space-y-2 pl-6 border-l-2 border-primary/20">
               <Label>Número de Parcelas</Label>
               <Input type="number" min={2} max={60} value={qtdParcelas} onChange={(e) => setQtdParcelas(e.target.value)} placeholder="2" />
               {parcelasNum >= 2 && valorNum > 0 && (
                 <p className="text-xs text-muted-foreground">
-                  {parcelasNum}x de {formatCurrency(valorParcela)} com vencimento mensal a partir de {vencimento ? format(vencimento, "dd/MM/yyyy") : "—"}
+                  {parcelasNum}x de {formatCurrency(valorParcelaCC)} com vencimento mensal a partir de {vencimento ? format(vencimento, "dd/MM/yyyy") : "—"}
+                </p>
+              )}
+            </div>
+          )}
+
+          {/* NF faturada: parcelas manuais */}
+          {temParcelas && !cartaoCredito && (
+            <div className="space-y-3 pl-6 border-l-2 border-primary/20">
+              <div className="flex items-center justify-between">
+                <Label className="text-sm font-medium">Parcelas ({parcelasManual.length})</Label>
+                <Button type="button" variant="outline" size="sm" onClick={addParcelaManual} className="gap-1">
+                  <Plus className="h-3 w-3" /> Adicionar Parcela
+                </Button>
+              </div>
+              {parcelasManual.length === 0 && (
+                <p className="text-xs text-muted-foreground">Clique em "Adicionar Parcela" para inserir valor e data de cada parcela.</p>
+              )}
+              {parcelasManual.map((p, idx) => (
+                <div key={idx} className="flex items-end gap-2 p-2 rounded-lg bg-muted/50 border border-border">
+                  <div className="flex-1 space-y-1">
+                    <Label className="text-xs">Parcela {idx + 1} - Valor (R$)</Label>
+                    <Input
+                      className="h-8 text-sm"
+                      placeholder="0,00"
+                      value={p.valor}
+                      onChange={(e) => updateParcelaManual(idx, "valor", e.target.value.replace(/[^0-9.,]/g, ""))}
+                      inputMode="decimal"
+                    />
+                  </div>
+                  <div className="flex-1 space-y-1">
+                    <Label className="text-xs">Vencimento</Label>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button variant="outline" size="sm" className={cn("w-full justify-start text-left font-normal text-xs")}>
+                          <CalendarIcon className="mr-1 h-3 w-3" />
+                          {format(p.data, "dd/MM/yyyy")}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar
+                          mode="single"
+                          selected={p.data}
+                          onSelect={(d) => d && updateParcelaManual(idx, "data", d)}
+                          initialFocus
+                          className={cn("p-3 pointer-events-auto")}
+                        />
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+                  <Button type="button" variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={() => removeParcelaManual(idx)}>
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
+              ))}
+              {parcelasManual.length > 0 && (
+                <p className="text-xs text-muted-foreground font-medium">
+                  Total das parcelas: {formatCurrency(totalParcelasManual)}
                 </p>
               )}
             </div>
