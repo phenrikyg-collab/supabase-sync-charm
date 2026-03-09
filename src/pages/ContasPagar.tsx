@@ -634,7 +634,7 @@ export default function ContasPagar() {
   const { data: centros } = useCentrosCusto();
 
   const [filtroCategoria, setFiltroCategoria] = useState("todos");
-  const [filtroStatus, setFiltroStatus] = useState("todos");
+  const [filtroStatus, setFiltroStatus] = useState("urgentes");
   const [busca, setBusca] = useState("");
   const [baixaMovId, setBaixaMovId] = useState<string | null>(null);
   const [editMovId, setEditMovId] = useState<string | null>(null);
