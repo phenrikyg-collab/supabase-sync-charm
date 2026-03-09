@@ -651,7 +651,8 @@ export default function ContasPagar() {
   const filtered = useMemo(() => {
     return saidas.filter((m) => {
       if (filtroCategoria !== "todos" && m.categoria_id !== filtroCategoria) return false;
-      if (filtroStatus !== "todos" && m.statusPagamento !== filtroStatus) return false;
+      if (filtroStatus === "urgentes" && m.statusPagamento !== "vencido" && m.statusPagamento !== "proximo") return false;
+      if (filtroStatus !== "todos" && filtroStatus !== "urgentes" && m.statusPagamento !== filtroStatus) return false;
       if (busca) {
         const search = busca.toLowerCase();
         const desc = (m.descricao ?? "").toLowerCase();
