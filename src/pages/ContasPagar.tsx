@@ -494,8 +494,8 @@ function NovaContaDialog({ categorias }: { categorias: { id: string; descricao_c
             <Select value={categoriaId} onValueChange={setCategoriaId}>
               <SelectTrigger><SelectValue placeholder="Selecione (opcional)" /></SelectTrigger>
               <SelectContent>
-                {categorias.map((c) => (
-                  <SelectItem key={c.id} value={c.id}>{c.descricao_categoria ?? c.nome_categoria ?? "Sem descrição"}</SelectItem>
+                {categorias.filter((c) => !!c.descricao_categoria).map((c) => (
+                  <SelectItem key={c.id} value={c.id}>{c.descricao_categoria}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
