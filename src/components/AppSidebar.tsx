@@ -51,6 +51,7 @@ const moduleGroups: ModuleGroup[] = [
     label: "Produção",
     icon: Wrench,
     items: [
+      { title: "Cores", url: "/cores", icon: Palette },
       { title: "Entrada NF", url: "/entrada-nf", icon: FileText },
       { title: "Estoque Tecidos", url: "/estoque", icon: Layers },
       { title: "Nova Ordem Corte", url: "/ordens-corte/nova", icon: Scissors },
