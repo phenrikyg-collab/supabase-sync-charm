@@ -42,7 +42,6 @@ const moduleGroups: ModuleGroup[] = [
       { title: "Dashboard", url: "/", icon: LayoutDashboard },
       { title: "Produtos", url: "/produtos", icon: Package },
       { title: "Cadastro Produto", url: "/produtos/novo", icon: Plus },
-      { title: "Cores", url: "/cores", icon: Palette },
       { title: "Meta Mensal", url: "/metas", icon: Target },
       { title: "Expedição", url: "/expedicao", icon: Truck },
     ],
@@ -52,6 +51,7 @@ const moduleGroups: ModuleGroup[] = [
     label: "Produção",
     icon: Wrench,
     items: [
+      { title: "Cores", url: "/cores", icon: Palette },
       { title: "Entrada NF", url: "/entrada-nf", icon: FileText },
       { title: "Estoque Tecidos", url: "/estoque", icon: Layers },
       { title: "Nova Ordem Corte", url: "/ordens-corte/nova", icon: Scissors },
