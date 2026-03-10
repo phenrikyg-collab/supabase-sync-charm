@@ -41,7 +41,6 @@ const moduleGroups: ModuleGroup[] = [
     items: [
       { title: "Dashboard", url: "/", icon: LayoutDashboard },
       { title: "Meta Mensal", url: "/metas", icon: Target },
-      { title: "Expedição", url: "/expedicao", icon: Truck },
     ],
   },
   {
@@ -60,6 +59,7 @@ const moduleGroups: ModuleGroup[] = [
       { title: "Oficina Interna", url: "/oficina-interna", icon: Home },
       { title: "Ordem Produção", url: "/ordens-producao", icon: Factory },
       { title: "Pgto Oficinas", url: "/pagamento-oficinas", icon: DollarSign },
+      { title: "Expedição", url: "/expedicao", icon: Truck },
     ],
   },
   {
