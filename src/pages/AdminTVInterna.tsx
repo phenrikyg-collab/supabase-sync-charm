@@ -275,6 +275,37 @@ function TabColaboradores() {
               <DialogTitle>{editId ? "Editar" : "Novo"} Colaborador</DialogTitle>
             </DialogHeader>
             <div className="space-y-4 pt-2">
+              {/* Photo Upload */}
+              <div className="space-y-2">
+                <Label>Foto</Label>
+                <div className="flex items-center gap-4">
+                  <Avatar className="h-16 w-16">
+                    {fotoPreview ? (
+                      <AvatarImage src={fotoPreview} alt="Preview" />
+                    ) : null}
+                    <AvatarFallback className="text-lg">{nome ? nome.charAt(0) : "?"}</AvatarFallback>
+                  </Avatar>
+                  <div>
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={handleFileChange}
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="gap-2"
+                      onClick={() => fileInputRef.current?.click()}
+                    >
+                      <ImagePlus className="h-4 w-4" />
+                      {fotoPreview ? "Trocar foto" : "Adicionar foto"}
+                    </Button>
+                  </div>
+                </div>
+              </div>
               <div className="space-y-2">
                 <Label>Nome</Label>
                 <Input value={nome} onChange={(e) => setNome(e.target.value)} placeholder="Nome completo" />
@@ -287,7 +318,9 @@ function TabColaboradores() {
                 <Switch checked={ativo} onCheckedChange={setAtivo} />
                 <Label>Ativo</Label>
               </div>
-              <Button onClick={handleSave} className="w-full">Salvar</Button>
+              <Button onClick={handleSave} className="w-full" disabled={uploading}>
+                {uploading ? "Salvando..." : "Salvar"}
+              </Button>
             </div>
           </DialogContent>
         </Dialog>
