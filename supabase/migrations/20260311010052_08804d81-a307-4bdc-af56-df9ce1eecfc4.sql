@@ -1,0 +1,1 @@
+ALTER TABLE public.colaboradores ADD COLUMN participa_limpeza boolean NOT NULL DEFAULT true;

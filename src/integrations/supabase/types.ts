@@ -49,6 +49,7 @@ export type Database = {
           foto_url: string | null
           id: string
           nome: string
+          participa_limpeza: boolean
         }
         Insert: {
           ativo?: boolean
@@ -57,6 +58,7 @@ export type Database = {
           foto_url?: string | null
           id?: string
           nome: string
+          participa_limpeza?: boolean
         }
         Update: {
           ativo?: boolean
@@ -65,6 +67,7 @@ export type Database = {
           foto_url?: string | null
           id?: string
           nome?: string
+          participa_limpeza?: boolean
         }
         Relationships: []
       }
