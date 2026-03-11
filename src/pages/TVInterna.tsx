@@ -283,50 +283,191 @@ function PainelAniversariantes({ aniversariantes }: { aniversariantes: Colaborad
   );
 }
 
-function PainelLimpeza({ escala }: { escala: EscalaLimpeza[] }) {
+function PainelLimpeza({
+  escala,
+  colaboradores,
+}: {
+  escala: EscalaLimpeza[];
+  colaboradores: Colaborador[];
+}) {
+  const hoje = format(new Date(), "yyyy-MM-dd");
+  const escalaDoDia = escala.find((e) => e.data === hoje);
+
+  const [sorteando, setSorteando] = useState(false);
+  const [sorteado, setSorteado] = useState<string | null>(null);
+  const [nomeVisivel, setNomeVisivel] = useState("");
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const iniciarSorteio = useCallback(() => {
+    if (colaboradores.length === 0) return;
+    setSorteando(true);
+    setSorteado(null);
+
+    let count = 0;
+    const totalCiclos = 20 + Math.floor(Math.random() * 10);
+
+    intervalRef.current = setInterval(() => {
+      const idx = Math.floor(Math.random() * colaboradores.length);
+      setNomeVisivel(colaboradores[idx].nome);
+      count++;
+
+      if (count >= totalCiclos) {
+        if (intervalRef.current) clearInterval(intervalRef.current);
+        const escolhido =
+          colaboradores[Math.floor(Math.random() * colaboradores.length)];
+        setNomeVisivel(escolhido.nome);
+        setSorteado(escolhido.nome);
+        setSorteando(false);
+      }
+    }, 80 + count * 4);
+  }, [colaboradores]);
+
+  // Auto-trigger lottery when panel is shown and no schedule for today
+  useEffect(() => {
+    if (!escalaDoDia && colaboradores.length > 0 && !sorteado && !sorteando) {
+      const timer = setTimeout(iniciarSorteio, 1500);
+      return () => clearTimeout(timer);
+    }
+  }, [escalaDoDia, colaboradores, sorteado, sorteando, iniciarSorteio]);
+
   return (
     <div className="h-full flex flex-col">
       <SectionHeader icon={SprayCan} title="Escala de Limpeza da Cozinha" />
-      <div className="flex-1 flex items-center justify-center">
-        {escala.length === 0 ? (
-          <p className="text-white/40 text-2xl">Nenhuma escala definida</p>
-        ) : (
-          <div className="space-y-4 w-full max-w-2xl">
-            {escala.map((e, i) => (
-              <motion.div
-                key={e.id}
-                initial={{ x: 40, opacity: 0 }}
-                animate={{ x: 0, opacity: 1 }}
-                transition={{ delay: i * 0.1 }}
-                className={`flex items-center gap-4 p-5 rounded-xl border transition-all ${
-                  e.data === format(new Date(), "yyyy-MM-dd")
-                    ? "bg-amber-500/10 border-amber-500/30"
-                    : "bg-white/5 border-white/10"
-                }`}
-              >
-                <div className="w-12 h-12 rounded-full bg-white/10 flex items-center justify-center font-bold text-lg">
-                  {e.colaboradores?.nome?.charAt(0) || "?"}
+      <div className="flex-1 flex gap-8">
+        {/* Left: Schedule list */}
+        <div className="flex-1 flex flex-col justify-center">
+          {escala.length === 0 ? (
+            <p className="text-white/40 text-xl text-center">
+              Nenhuma escala definida
+            </p>
+          ) : (
+            <div className="space-y-3 max-w-xl">
+              {escala.slice(0, 7).map((e, i) => (
+                <motion.div
+                  key={e.id}
+                  initial={{ x: 40, opacity: 0 }}
+                  animate={{ x: 0, opacity: 1 }}
+                  transition={{ delay: i * 0.1 }}
+                  className={`flex items-center gap-4 p-4 rounded-xl border transition-all ${
+                    e.data === hoje
+                      ? "bg-amber-500/10 border-amber-500/30"
+                      : "bg-white/5 border-white/10"
+                  }`}
+                >
+                  <div className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center font-bold">
+                    {e.colaboradores?.nome?.charAt(0) || "?"}
+                  </div>
+                  <div className="flex-1">
+                    <p className="font-semibold">
+                      {e.colaboradores?.nome || "—"}
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-white/60 text-xs capitalize">
+                      {format(parseISO(e.data), "EEEE", { locale: ptBR })}
+                    </p>
+                    <p className="font-mono font-semibold text-sm">
+                      {format(parseISO(e.data), "dd/MM")}
+                    </p>
+                  </div>
+                  {e.data === hoje && (
+                    <span className="px-2.5 py-1 rounded-full bg-amber-500 text-black text-xs font-bold uppercase">
+                      Hoje
+                    </span>
+                  )}
+                </motion.div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Right: Lottery */}
+        <div className="flex-1 flex flex-col items-center justify-center">
+          <div className="bg-white/5 border border-white/10 rounded-2xl p-8 w-full max-w-sm text-center">
+            <Shuffle className="h-8 w-8 text-amber-400 mx-auto mb-4" />
+            <h3 className="text-lg font-bold mb-6">Sorteio do Dia</h3>
+
+            {escalaDoDia ? (
+              <div>
+                <div className="w-20 h-20 rounded-full bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center mx-auto mb-4 text-3xl font-bold text-black">
+                  {escalaDoDia.colaboradores?.nome?.charAt(0) || "?"}
                 </div>
-                <div className="flex-1">
-                  <p className="font-semibold text-lg">{e.colaboradores?.nome || "—"}</p>
-                </div>
-                <div className="text-right">
-                  <p className="text-white/60 text-sm">
-                    {format(parseISO(e.data), "EEEE", { locale: ptBR })}
-                  </p>
-                  <p className="font-mono font-semibold">
-                    {format(parseISO(e.data), "dd/MM")}
-                  </p>
-                </div>
-                {e.data === format(new Date(), "yyyy-MM-dd") && (
-                  <span className="px-3 py-1 rounded-full bg-amber-500 text-black text-xs font-bold uppercase">
-                    Hoje
-                  </span>
+                <p className="text-2xl font-bold">
+                  {escalaDoDia.colaboradores?.nome}
+                </p>
+                <p className="text-amber-400 text-sm mt-2 font-medium">
+                  ✓ Já definido para hoje
+                </p>
+              </div>
+            ) : (
+              <div>
+                <AnimatePresence mode="wait">
+                  <motion.div
+                    key={nomeVisivel || "empty"}
+                    initial={{ y: 10, opacity: 0 }}
+                    animate={{ y: 0, opacity: 1 }}
+                    exit={{ y: -10, opacity: 0 }}
+                    transition={{ duration: 0.06 }}
+                    className="mb-6"
+                  >
+                    {sorteando || sorteado ? (
+                      <>
+                        <div
+                          className={`w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4 text-3xl font-bold ${
+                            sorteado
+                              ? "bg-gradient-to-br from-emerald-500 to-green-500 text-black"
+                              : "bg-white/10"
+                          }`}
+                        >
+                          {nomeVisivel.charAt(0)}
+                        </div>
+                        <p
+                          className={`text-2xl font-bold ${
+                            sorteado ? "text-emerald-400" : ""
+                          }`}
+                        >
+                          {nomeVisivel}
+                        </p>
+                      </>
+                    ) : (
+                      <p className="text-white/40 text-lg">
+                        Aguardando sorteio...
+                      </p>
+                    )}
+                  </motion.div>
+                </AnimatePresence>
+
+                {sorteado && (
+                  <motion.p
+                    initial={{ opacity: 0, scale: 0.8 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    className="text-emerald-400 text-sm font-medium"
+                  >
+                    🎉 Sorteado(a) do dia!
+                  </motion.p>
                 )}
-              </motion.div>
-            ))}
+
+                {!sorteando && !sorteado && (
+                  <button
+                    onClick={iniciarSorteio}
+                    className="mt-4 px-6 py-2.5 rounded-full bg-amber-500 text-black font-bold text-sm hover:bg-amber-400 transition-colors"
+                  >
+                    Sortear Agora
+                  </button>
+                )}
+
+                {!sorteando && sorteado && (
+                  <button
+                    onClick={iniciarSorteio}
+                    className="mt-4 px-5 py-2 rounded-full bg-white/10 text-white/60 text-xs hover:bg-white/20 transition-colors"
+                  >
+                    Sortear Novamente
+                  </button>
+                )}
+              </div>
+            )}
           </div>
-        )}
+        </div>
       </div>
     </div>
   );
