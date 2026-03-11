@@ -48,6 +48,7 @@ export interface RoloTecido {
   metragem_inicial: number | null;
   metragem_disponivel: number | null;
   peso_kg: number | null;
+  custo_por_metro: number | null;
   fornecedor: string | null;
   status_rolo: string | null;
   entrada_id: string | null;
@@ -186,6 +187,8 @@ export interface MovimentacaoFinanceira {
   valor_total_pago: number | null;
   data_envio: string | null;
   codigo_rastreamento: string | null;
+  entrada_tecido_id: string | null;
+  parcela_info: string | null;
   created_at: string | null;
 }
 

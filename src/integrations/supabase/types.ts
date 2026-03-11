@@ -41,6 +41,63 @@ export type Database = {
         }
         Relationships: []
       }
+      categorias_financeiras: {
+        Row: {
+          categoria_pai_id: string | null
+          codigo: string | null
+          created_at: string
+          descricao_categoria: string | null
+          grupo_dre: string | null
+          id: string
+          nome_categoria: string | null
+          ordem_exibicao: number | null
+          tipo: string | null
+        }
+        Insert: {
+          categoria_pai_id?: string | null
+          codigo?: string | null
+          created_at?: string
+          descricao_categoria?: string | null
+          grupo_dre?: string | null
+          id?: string
+          nome_categoria?: string | null
+          ordem_exibicao?: number | null
+          tipo?: string | null
+        }
+        Update: {
+          categoria_pai_id?: string | null
+          codigo?: string | null
+          created_at?: string
+          descricao_categoria?: string | null
+          grupo_dre?: string | null
+          id?: string
+          nome_categoria?: string | null
+          ordem_exibicao?: number | null
+          tipo?: string | null
+        }
+        Relationships: []
+      }
+      centros_custos: {
+        Row: {
+          ativo: boolean | null
+          created_at: string
+          id: string
+          nome_centro: string | null
+        }
+        Insert: {
+          ativo?: boolean | null
+          created_at?: string
+          id?: string
+          nome_centro?: string | null
+        }
+        Update: {
+          ativo?: boolean | null
+          created_at?: string
+          id?: string
+          nome_centro?: string | null
+        }
+        Relationships: []
+      }
       colaboradores: {
         Row: {
           ativo: boolean
@@ -68,6 +125,57 @@ export type Database = {
           id?: string
           nome?: string
           participa_limpeza?: boolean
+        }
+        Relationships: []
+      }
+      cores: {
+        Row: {
+          ativo: boolean | null
+          cor_hex: string | null
+          created_at: string
+          id: string
+          nome_cor: string | null
+        }
+        Insert: {
+          ativo?: boolean | null
+          cor_hex?: string | null
+          created_at?: string
+          id?: string
+          nome_cor?: string | null
+        }
+        Update: {
+          ativo?: boolean | null
+          cor_hex?: string | null
+          created_at?: string
+          id?: string
+          nome_cor?: string | null
+        }
+        Relationships: []
+      }
+      entradas_tecido: {
+        Row: {
+          created_at: string
+          data_entrada: string | null
+          fornecedor: string | null
+          id: string
+          numero_nf: number | null
+          valor_total: number | null
+        }
+        Insert: {
+          created_at?: string
+          data_entrada?: string | null
+          fornecedor?: string | null
+          id?: string
+          numero_nf?: number | null
+          valor_total?: number | null
+        }
+        Update: {
+          created_at?: string
+          data_entrada?: string | null
+          fornecedor?: string | null
+          id?: string
+          numero_nf?: number | null
+          valor_total?: number | null
         }
         Relationships: []
       }
@@ -99,6 +207,212 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      movimentacoes_financeiras: {
+        Row: {
+          bling_pedido_id: string | null
+          categoria_id: string | null
+          centro_custo_id: string | null
+          cliente: string | null
+          codigo_rastreamento: string | null
+          created_at: string
+          data: string
+          data_envio: string | null
+          descricao: string | null
+          entrada_tecido_id: string | null
+          id: string
+          origem: string | null
+          parcela_info: string | null
+          status_bling: string | null
+          tipo: string | null
+          valor: number
+          valor_bruto: number | null
+          valor_desconto: number | null
+          valor_frete: number | null
+          valor_liquido: number | null
+          valor_produtos_bruto: number | null
+          valor_total_pago: number | null
+        }
+        Insert: {
+          bling_pedido_id?: string | null
+          categoria_id?: string | null
+          centro_custo_id?: string | null
+          cliente?: string | null
+          codigo_rastreamento?: string | null
+          created_at?: string
+          data?: string
+          data_envio?: string | null
+          descricao?: string | null
+          entrada_tecido_id?: string | null
+          id?: string
+          origem?: string | null
+          parcela_info?: string | null
+          status_bling?: string | null
+          tipo?: string | null
+          valor?: number
+          valor_bruto?: number | null
+          valor_desconto?: number | null
+          valor_frete?: number | null
+          valor_liquido?: number | null
+          valor_produtos_bruto?: number | null
+          valor_total_pago?: number | null
+        }
+        Update: {
+          bling_pedido_id?: string | null
+          categoria_id?: string | null
+          centro_custo_id?: string | null
+          cliente?: string | null
+          codigo_rastreamento?: string | null
+          created_at?: string
+          data?: string
+          data_envio?: string | null
+          descricao?: string | null
+          entrada_tecido_id?: string | null
+          id?: string
+          origem?: string | null
+          parcela_info?: string | null
+          status_bling?: string | null
+          tipo?: string | null
+          valor?: number
+          valor_bruto?: number | null
+          valor_desconto?: number | null
+          valor_frete?: number | null
+          valor_liquido?: number | null
+          valor_produtos_bruto?: number | null
+          valor_total_pago?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "movimentacoes_financeiras_categoria_id_fkey"
+            columns: ["categoria_id"]
+            isOneToOne: false
+            referencedRelation: "categorias_financeiras"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "movimentacoes_financeiras_centro_custo_id_fkey"
+            columns: ["centro_custo_id"]
+            isOneToOne: false
+            referencedRelation: "centros_custos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "movimentacoes_financeiras_entrada_tecido_id_fkey"
+            columns: ["entrada_tecido_id"]
+            isOneToOne: false
+            referencedRelation: "entradas_tecido"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      rolos_tecido: {
+        Row: {
+          codigo_rolo: string | null
+          cor_hex: string | null
+          cor_id: string | null
+          cor_nome: string | null
+          created_at: string
+          custo_por_metro: number | null
+          entrada_id: string | null
+          entrada_tecido_id: string | null
+          fornecedor: string | null
+          id: string
+          lote: string | null
+          metragem_disponivel: number | null
+          metragem_inicial: number | null
+          peso_kg: number | null
+          status_rolo: string | null
+          tecido_id: string | null
+        }
+        Insert: {
+          codigo_rolo?: string | null
+          cor_hex?: string | null
+          cor_id?: string | null
+          cor_nome?: string | null
+          created_at?: string
+          custo_por_metro?: number | null
+          entrada_id?: string | null
+          entrada_tecido_id?: string | null
+          fornecedor?: string | null
+          id?: string
+          lote?: string | null
+          metragem_disponivel?: number | null
+          metragem_inicial?: number | null
+          peso_kg?: number | null
+          status_rolo?: string | null
+          tecido_id?: string | null
+        }
+        Update: {
+          codigo_rolo?: string | null
+          cor_hex?: string | null
+          cor_id?: string | null
+          cor_nome?: string | null
+          created_at?: string
+          custo_por_metro?: number | null
+          entrada_id?: string | null
+          entrada_tecido_id?: string | null
+          fornecedor?: string | null
+          id?: string
+          lote?: string | null
+          metragem_disponivel?: number | null
+          metragem_inicial?: number | null
+          peso_kg?: number | null
+          status_rolo?: string | null
+          tecido_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "rolos_tecido_cor_id_fkey"
+            columns: ["cor_id"]
+            isOneToOne: false
+            referencedRelation: "cores"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rolos_tecido_entrada_tecido_id_fkey"
+            columns: ["entrada_tecido_id"]
+            isOneToOne: false
+            referencedRelation: "entradas_tecido"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rolos_tecido_tecido_id_fkey"
+            columns: ["tecido_id"]
+            isOneToOne: false
+            referencedRelation: "tecidos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tecidos: {
+        Row: {
+          created_at: string
+          custo_por_metro: number | null
+          fornecedor: string | null
+          id: string
+          metragem_estoque: number | null
+          nome_tecido: string | null
+          rendimento_metro_por_kg: number | null
+        }
+        Insert: {
+          created_at?: string
+          custo_por_metro?: number | null
+          fornecedor?: string | null
+          id?: string
+          metragem_estoque?: number | null
+          nome_tecido?: string | null
+          rendimento_metro_por_kg?: number | null
+        }
+        Update: {
+          created_at?: string
+          custo_por_metro?: number | null
+          fornecedor?: string | null
+          id?: string
+          metragem_estoque?: number | null
+          nome_tecido?: string | null
+          rendimento_metro_por_kg?: number | null
+        }
+        Relationships: []
       }
     }
     Views: {
