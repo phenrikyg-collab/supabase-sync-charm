@@ -117,6 +117,7 @@ function TabColaboradores() {
   const [nome, setNome] = useState("");
   const [dataNascimento, setDataNascimento] = useState("");
   const [ativo, setAtivo] = useState(true);
+  const [participaLimpeza, setParticipaLimpeza] = useState(true);
   const [fotoFile, setFotoFile] = useState<File | null>(null);
   const [fotoPreview, setFotoPreview] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
