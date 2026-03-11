@@ -1,7 +1,7 @@
 import {
   LayoutDashboard, Package, Plus, Palette, Scissors, Factory,
   Truck, DollarSign, Target, FileText, Building2, LogOut, Users, Home, BarChart3, Upload, Layers,
-  ShoppingBag, Banknote, Wrench, CreditCard, PieChart,
+  ShoppingBag, Banknote, Wrench, CreditCard, PieChart, Monitor,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useAuth } from "@/contexts/AuthContext";
@@ -60,6 +60,7 @@ const moduleGroups: ModuleGroup[] = [
       { title: "Ordem Produção", url: "/ordens-producao", icon: Factory },
       { title: "Pgto Oficinas", url: "/pagamento-oficinas", icon: DollarSign },
       { title: "Expedição", url: "/expedicao", icon: Truck },
+      { title: "TV Interna", url: "/tv-interna", icon: Monitor },
     ],
   },
   {
