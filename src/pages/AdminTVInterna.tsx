@@ -142,6 +142,7 @@ function TabColaboradores() {
     setNome("");
     setDataNascimento("");
     setAtivo(true);
+    setParticipaLimpeza(true);
     setFotoFile(null);
     setFotoPreview(null);
   };
