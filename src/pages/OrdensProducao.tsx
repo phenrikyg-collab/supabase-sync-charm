@@ -714,10 +714,74 @@ export default function OrdensProducao() {
               <Label>Previsão de Término</Label>
               <Input type="date" value={previsaoTermino} onChange={(e) => setPrevisaoTermino(e.target.value)} />
             </div>
+            <div className="space-y-2">
+              <Label>Custo Estimado por Peça (R$)</Label>
+              <Input type="number" step="0.01" value={custoEstimadoPeca || ""} onChange={(e) => setCustoEstimadoPeca(Number(e.target.value))} placeholder="0.00" />
+              <p className="text-xs text-muted-foreground">Usado para calcular KPI de custo (No Prazo / Alerta / Crítico)</p>
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setOpen(false)}>Cancelar</Button>
             <Button onClick={handleCreate} disabled={createMut.isPending}>Criar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Dialog */}
+      <Dialog open={editOpen} onOpenChange={setEditOpen}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Editar Ordem de Produção</DialogTitle></DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>Status</Label>
+              <Select value={editStatus} onValueChange={setEditStatus}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {["Corte", "Costura", "Revisão", "Em Conserto", "Finalizado"].map((s) => (
+                    <SelectItem key={s} value={s}>{s}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Oficina</Label>
+              <Select value={editOficinaId} onValueChange={setEditOficinaId}>
+                <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
+                <SelectContent>
+                  {oficinas?.map((o) => (
+                    <SelectItem key={o.id} value={o.id}>{o.nome_oficina}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Quantidade de Peças</Label>
+              <Input type="number" value={editQuantidade} onChange={(e) => setEditQuantidade(Number(e.target.value))} />
+            </div>
+            <div className="space-y-2">
+              <Label>Previsão de Término</Label>
+              <Input type="date" value={editPrevisao} onChange={(e) => setEditPrevisao(e.target.value)} />
+            </div>
+            <div className="space-y-2">
+              <Label>Custo Estimado por Peça (R$)</Label>
+              <Input type="number" step="0.01" value={editCustoEstimado || ""} onChange={(e) => setEditCustoEstimado(Number(e.target.value))} placeholder="0.00" />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditOpen(false)}>Cancelar</Button>
+            <Button onClick={handleEdit}>Salvar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation */}
+      <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Confirmar Exclusão</DialogTitle></DialogHeader>
+          <p className="text-sm text-muted-foreground">Tem certeza que deseja excluir esta ordem de produção? Consertos vinculados também serão removidos.</p>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteOpen(false)}>Cancelar</Button>
+            <Button variant="destructive" onClick={handleDelete} disabled={deleteMut.isPending}>Excluir</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
