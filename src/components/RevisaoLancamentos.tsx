@@ -3,8 +3,7 @@
 
 import { useEffect, useState } from "react";
 import { useClassifyCategory, Lancamento, ClassificationResult } from "@/hooks/useClassifyCategory";
-import { supabase as _supabase } from "@/integrations/supabase/client";
-const supabase = _supabase as any;
+import { supabase } from "@/integrations/supabase/client";
 
 interface Props {
   lancamentosImportados: { descricao: string; valor: number; data: string }[];

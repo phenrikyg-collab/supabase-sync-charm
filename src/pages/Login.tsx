@@ -5,39 +5,26 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { LogIn, Loader2, UserPlus } from "lucide-react";
+import { LogIn, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
-  const [isSignUp, setIsSignUp] = useState(false);
-  const { signIn, signUp } = useAuth();
+  const { signIn } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-
-    if (isSignUp) {
-      const { error } = await signUp(email, password);
-      setLoading(false);
-      if (error) {
-        toast({ title: "Erro ao cadastrar", description: error.message, variant: "destructive" });
-      } else {
-        toast({ title: "Conta criada com sucesso!", description: "Você já pode fazer login." });
-        setIsSignUp(false);
-      }
+    const { error } = await signIn(email, password);
+    setLoading(false);
+    if (error) {
+      toast({ title: "Erro ao entrar", description: error.message, variant: "destructive" });
     } else {
-      const { error } = await signIn(email, password);
-      setLoading(false);
-      if (error) {
-        toast({ title: "Erro ao entrar", description: error.message, variant: "destructive" });
-      } else {
-        navigate("/");
-      }
+      navigate("/");
     }
   };
 
@@ -59,19 +46,10 @@ export default function Login() {
               <Input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" required />
             </div>
             <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : isSignUp ? <UserPlus className="h-4 w-4" /> : <LogIn className="h-4 w-4" />}
-              {isSignUp ? "Cadastrar" : "Entrar"}
+              {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <LogIn className="h-4 w-4" />}
+              Entrar
             </Button>
           </form>
-          <div className="text-center">
-            <button
-              type="button"
-              onClick={() => setIsSignUp(!isSignUp)}
-              className="text-sm text-muted-foreground hover:text-foreground transition-colors underline"
-            >
-              {isSignUp ? "Já tenho conta, fazer login" : "Criar nova conta"}
-            </button>
-          </div>
         </CardContent>
       </Card>
     </div>

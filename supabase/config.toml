@@ -1,1 +1,2 @@
-project_id = "fghqjwedcbsmdeqtqrym"
+[functions.categorizar-despesa]
+verify_jwt = false

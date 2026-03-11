@@ -298,28 +298,3 @@ export interface MovimentacaoProducao {
   observacao: string | null;
   created_at: string;
 }
-
-export interface Colaborador {
-  id: string;
-  nome: string;
-  data_nascimento: string | null;
-  cargo: string | null;
-  ativo: boolean | null;
-  created_at: string;
-}
-
-export interface EscalaLimpeza {
-  id: string;
-  data: string;
-  colaborador_id: string;
-  created_at: string;
-}
-
-export interface AvisoMural {
-  id: string;
-  titulo: string;
-  mensagem: string | null;
-  ativo: boolean | null;
-  prioridade: number | null;
-  created_at: string;
-}

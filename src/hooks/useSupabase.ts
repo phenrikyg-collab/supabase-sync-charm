@@ -1,8 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { supabase as supabaseClient } from "@/integrations/supabase/client";
-
-// Cast to any to bypass auto-generated type restrictions for tables managed externally
-const supabase = supabaseClient as any;
+import { supabase } from "@/integrations/supabase/client";
 import type {
   Produto, Cor, Tecido, RoloTecido, EntradaTecido, OrdemCorte, OrdemCorteGrade,
   OrdemCorteProduto, OrdemCorteRolo, OrdemProducao, Oficina, Aviamento, ProdutoAviamento,

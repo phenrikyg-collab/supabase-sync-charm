@@ -1,7 +1,6 @@
 // src/hooks/useClassifyCategory.ts
 import { useState } from "react";
-import { supabase as _supabase } from "@/integrations/supabase/client";
-const supabase = _supabase as any;
+import { supabase } from "@/integrations/supabase/client";
 
 export interface ClassificationResult {
   codigo: number;

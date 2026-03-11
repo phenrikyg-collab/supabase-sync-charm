@@ -1,7 +1,6 @@
 import { useState, useMemo } from "react";
 import { useOrdensProducao, useOficinas, useCores, useUpdateOrdemProducao } from "@/hooks/useSupabase";
-import { supabase as _supabase } from "@/integrations/supabase/client";
-const supabase = _supabase as any;
+import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
