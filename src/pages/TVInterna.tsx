@@ -506,23 +506,51 @@ function PainelAvisos({ avisos }: { avisos: Aviso[] }) {
       <SectionHeader icon={Megaphone} title="Mural de Avisos" />
       <div className="flex-1 flex items-center justify-center">
         {avisos.length === 0 ? (
-          <p className="text-white/40 text-2xl">Nenhum aviso no momento 📋</p>
+          <motion.p
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="text-white/40 text-2xl"
+          >
+            Nenhum aviso no momento 📋
+          </motion.p>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full max-w-4xl">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 w-full max-w-5xl">
             {avisos.map((a, i) => (
               <motion.div
                 key={a.id}
-                initial={{ y: 30, opacity: 0 }}
-                animate={{ y: 0, opacity: 1 }}
-                transition={{ delay: i * 0.1 }}
-                className="bg-white/5 border border-white/10 rounded-2xl p-6"
+                initial={{ y: 40, opacity: 0, scale: 0.95 }}
+                animate={{ y: 0, opacity: 1, scale: 1 }}
+                transition={{ delay: i * 0.15, type: "spring", stiffness: 120, damping: 14 }}
+                className="relative bg-gradient-to-br from-white/15 to-white/5 border border-white/20 rounded-3xl p-8 backdrop-blur-sm overflow-hidden group"
               >
-                <div className="flex items-start gap-3">
-                  <ChevronRight className="h-5 w-5 text-amber-400 mt-0.5 shrink-0" />
-                  <div>
-                    <h3 className="font-bold text-lg mb-2">{a.titulo}</h3>
+                {/* Decorative glow */}
+                <motion.div
+                  className="absolute -top-10 -right-10 w-32 h-32 bg-amber-400/10 rounded-full blur-2xl"
+                  animate={{ scale: [1, 1.2, 1], opacity: [0.3, 0.6, 0.3] }}
+                  transition={{ duration: 4, repeat: Infinity, delay: i * 0.5 }}
+                />
+                {/* Priority badge */}
+                {a.prioridade >= 2 && (
+                  <motion.div
+                    className="absolute top-4 right-4 bg-red-500/80 text-white text-xs font-bold px-3 py-1 rounded-full"
+                    animate={{ scale: [1, 1.05, 1] }}
+                    transition={{ duration: 2, repeat: Infinity }}
+                  >
+                    URGENTE
+                  </motion.div>
+                )}
+                <div className="flex items-start gap-4 relative z-10">
+                  <motion.div
+                    className="mt-1 shrink-0 bg-amber-400/20 rounded-xl p-2"
+                    animate={{ rotate: [0, 5, -5, 0] }}
+                    transition={{ duration: 3, repeat: Infinity, delay: i * 0.3 }}
+                  >
+                    <Megaphone className="h-6 w-6 text-amber-300" />
+                  </motion.div>
+                  <div className="flex-1">
+                    <h3 className="font-bold text-2xl text-white mb-3 leading-tight">{a.titulo}</h3>
                     {a.mensagem && (
-                      <p className="text-white/60 leading-relaxed">{a.mensagem}</p>
+                      <p className="text-white/80 text-lg leading-relaxed">{a.mensagem}</p>
                     )}
                   </div>
                 </div>
