@@ -305,6 +305,205 @@ export type Database = {
           },
         ]
       }
+      ordens_corte: {
+        Row: {
+          created_at: string | null
+          grade_tamanhos: string[] | null
+          id: string
+          metragem_risco: number | null
+          metragem_total_utilizada: number | null
+          numero_oc: string
+          quantidade_folhas: number | null
+          status: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          grade_tamanhos?: string[] | null
+          id?: string
+          metragem_risco?: number | null
+          metragem_total_utilizada?: number | null
+          numero_oc: string
+          quantidade_folhas?: number | null
+          status?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          grade_tamanhos?: string[] | null
+          id?: string
+          metragem_risco?: number | null
+          metragem_total_utilizada?: number | null
+          numero_oc?: string
+          quantidade_folhas?: number | null
+          status?: string | null
+        }
+        Relationships: []
+      }
+      ordens_corte_grade: {
+        Row: {
+          cor_id: string | null
+          created_at: string | null
+          id: string
+          ordem_corte_id: string | null
+          quantidade: number
+          tamanho: string
+        }
+        Insert: {
+          cor_id?: string | null
+          created_at?: string | null
+          id?: string
+          ordem_corte_id?: string | null
+          quantidade?: number
+          tamanho: string
+        }
+        Update: {
+          cor_id?: string | null
+          created_at?: string | null
+          id?: string
+          ordem_corte_id?: string | null
+          quantidade?: number
+          tamanho?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ordens_corte_grade_ordem_corte_id_fkey"
+            columns: ["ordem_corte_id"]
+            isOneToOne: false
+            referencedRelation: "ordens_corte"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ordens_corte_produtos: {
+        Row: {
+          created_at: string | null
+          id: string
+          nome_produto: string | null
+          ordem_corte_id: string | null
+          produto_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          nome_produto?: string | null
+          ordem_corte_id?: string | null
+          produto_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          nome_produto?: string | null
+          ordem_corte_id?: string | null
+          produto_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ordens_corte_produtos_ordem_corte_id_fkey"
+            columns: ["ordem_corte_id"]
+            isOneToOne: false
+            referencedRelation: "ordens_corte"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ordens_corte_rolos: {
+        Row: {
+          created_at: string | null
+          id: string
+          metragem_utilizada: number
+          ordem_corte_id: string | null
+          rolo_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          metragem_utilizada?: number
+          ordem_corte_id?: string | null
+          rolo_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          metragem_utilizada?: number
+          ordem_corte_id?: string | null
+          rolo_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ordens_corte_rolos_ordem_corte_id_fkey"
+            columns: ["ordem_corte_id"]
+            isOneToOne: false
+            referencedRelation: "ordens_corte"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ordens_corte_rolos_rolo_id_fkey"
+            columns: ["rolo_id"]
+            isOneToOne: false
+            referencedRelation: "rolos_tecido"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      produtos: {
+        Row: {
+          ativo: boolean | null
+          atualizado_em: string | null
+          bling_id: string | null
+          bling_produto_id: number | null
+          codigo_sku: string | null
+          consumo_de_tecido: number | null
+          created_at: string | null
+          custo_bling: number | null
+          id: string
+          margem_real_percentual: number | null
+          nome_do_produto: string
+          origem_custo: string | null
+          preco_custo: number | null
+          preco_venda: number | null
+          tecido_do_produto: string | null
+          tipo_do_produto: string | null
+          updated_from_bling: string | null
+        }
+        Insert: {
+          ativo?: boolean | null
+          atualizado_em?: string | null
+          bling_id?: string | null
+          bling_produto_id?: number | null
+          codigo_sku?: string | null
+          consumo_de_tecido?: number | null
+          created_at?: string | null
+          custo_bling?: number | null
+          id?: string
+          margem_real_percentual?: number | null
+          nome_do_produto: string
+          origem_custo?: string | null
+          preco_custo?: number | null
+          preco_venda?: number | null
+          tecido_do_produto?: string | null
+          tipo_do_produto?: string | null
+          updated_from_bling?: string | null
+        }
+        Update: {
+          ativo?: boolean | null
+          atualizado_em?: string | null
+          bling_id?: string | null
+          bling_produto_id?: number | null
+          codigo_sku?: string | null
+          consumo_de_tecido?: number | null
+          created_at?: string | null
+          custo_bling?: number | null
+          id?: string
+          margem_real_percentual?: number | null
+          nome_do_produto?: string
+          origem_custo?: string | null
+          preco_custo?: number | null
+          preco_venda?: number | null
+          tecido_do_produto?: string | null
+          tipo_do_produto?: string | null
+          updated_from_bling?: string | null
+        }
+        Relationships: []
+      }
       rolos_tecido: {
         Row: {
           codigo_rolo: string | null
