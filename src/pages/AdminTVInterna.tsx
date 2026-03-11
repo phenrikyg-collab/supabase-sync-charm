@@ -278,6 +278,7 @@ function TabEscala() {
   const [lista, setLista] = useState<EscalaLimpeza[]>([]);
   const [colaboradores, setColaboradores] = useState<Colaborador[]>([]);
   const [loading, setLoading] = useState(true);
+  const [generating, setGenerating] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [colabId, setColabId] = useState("");
   const [data, setData] = useState("");
