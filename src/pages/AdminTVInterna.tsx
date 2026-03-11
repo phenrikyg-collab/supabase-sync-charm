@@ -458,8 +458,9 @@ function TabEscala() {
   };
 
   const gerarSemana = async () => {
-    if (colaboradores.length === 0) {
-      toast({ title: "Nenhum colaborador ativo", variant: "destructive" });
+    const aptos = colaboradores.filter((c) => c.participa_limpeza);
+    if (aptos.length === 0) {
+      toast({ title: "Nenhum colaborador apto para limpeza", description: "Marque ao menos um colaborador como participante da limpeza.", variant: "destructive" });
       return;
     }
 
