@@ -203,6 +203,7 @@ function TabColaboradores() {
       nome: nome.trim(),
       data_nascimento: dataNascimento || null,
       ativo,
+      participa_limpeza: participaLimpeza,
     };
 
     if (editId) {
