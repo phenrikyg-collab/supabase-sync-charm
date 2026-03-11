@@ -89,7 +89,7 @@ export default function TVInterna() {
         supabase.from("colaboradores").select("*").eq("ativo", true),
         supabase
           .from("escala_limpeza")
-          .select("*, colaboradores(nome)")
+          .select("*, colaboradores(nome, foto_url)")
           .gte("data", format(new Date(), "yyyy-MM-dd"))
           .order("data", { ascending: true })
           .limit(10),
