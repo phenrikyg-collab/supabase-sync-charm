@@ -363,9 +363,13 @@ function PainelLimpeza({
                       : "bg-white/5 border-white/10"
                   }`}
                 >
-                  <div className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center font-bold">
-                    {e.colaboradores?.nome?.charAt(0) || "?"}
-                  </div>
+                  {e.colaboradores?.foto_url ? (
+                    <img src={e.colaboradores.foto_url} alt={e.colaboradores.nome} className="w-10 h-10 rounded-full object-cover" />
+                  ) : (
+                    <div className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center font-bold">
+                      {e.colaboradores?.nome?.charAt(0) || "?"}
+                    </div>
+                  )}
                   <div className="flex-1">
                     <p className="font-semibold">
                       {e.colaboradores?.nome || "—"}
