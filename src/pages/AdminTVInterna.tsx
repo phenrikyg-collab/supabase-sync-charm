@@ -476,8 +476,8 @@ function TabEscala() {
       weekdays.push(format(addDays(nextMonday, i), "yyyy-MM-dd"));
     }
 
-    // Shuffle collaborators
-    const shuffled = [...colaboradores].sort(() => Math.random() - 0.5);
+    // Shuffle collaborators eligible for cleaning
+    const shuffled = [...aptos].sort(() => Math.random() - 0.5);
 
     // Assign one per day, cycling if fewer than 5
     const entries = weekdays.map((dia, i) => ({
