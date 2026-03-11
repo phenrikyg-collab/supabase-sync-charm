@@ -93,6 +93,7 @@ const AppRoutes = () => {
               <Route path="/importar" element={<ImportarPage />} />
               <Route path="/metas" element={<Metas />} />
               <Route path="/admin/usuarios" element={<AdminUsuarios />} />
+              <Route path="/admin/tv-interna" element={<AdminTVInterna />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </AppLayout>
