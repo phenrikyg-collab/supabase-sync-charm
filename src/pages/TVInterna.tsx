@@ -26,6 +26,7 @@ interface Colaborador {
   id: string;
   nome: string;
   data_nascimento: string | null;
+  foto_url: string | null;
   ativo: boolean;
 }
 
@@ -265,9 +266,17 @@ function PainelAniversariantes({ aniversariantes }: { aniversariantes: Colaborad
                 animate={{ scale: 1, opacity: 1 }}
                 className="bg-white/5 border border-white/10 rounded-2xl p-6 text-center"
               >
-                <div className="w-16 h-16 rounded-full bg-gradient-to-br from-pink-500 to-rose-500 flex items-center justify-center mx-auto mb-4 text-2xl font-bold">
-                  {c.nome.charAt(0)}
-                </div>
+                {c.foto_url ? (
+                  <img
+                    src={c.foto_url}
+                    alt={c.nome}
+                    className="w-20 h-20 rounded-full object-cover mx-auto mb-4 border-2 border-pink-500/50"
+                  />
+                ) : (
+                  <div className="w-20 h-20 rounded-full bg-gradient-to-br from-pink-500 to-rose-500 flex items-center justify-center mx-auto mb-4 text-2xl font-bold">
+                    {c.nome.charAt(0)}
+                  </div>
+                )}
                 <p className="font-semibold text-lg">{c.nome}</p>
                 {c.data_nascimento && (
                   <p className="text-white/50 text-sm mt-1">

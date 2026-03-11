@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { format, addDays, startOfWeek, getDay } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -33,14 +33,16 @@ import {
 } from "@/components/ui/dialog";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
-  Users, CalendarDays, Megaphone, Plus, Trash2, Pencil, Monitor, Shuffle,
+  Users, CalendarDays, Megaphone, Plus, Trash2, Pencil, Monitor, Shuffle, ImagePlus,
 } from "lucide-react";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 /* ─── Types ─── */
 interface Colaborador {
   id: string;
   nome: string;
   data_nascimento: string | null;
+  foto_url: string | null;
   ativo: boolean;
   created_at: string;
 }
@@ -114,6 +116,10 @@ function TabColaboradores() {
   const [nome, setNome] = useState("");
   const [dataNascimento, setDataNascimento] = useState("");
   const [ativo, setAtivo] = useState(true);
+  const [fotoFile, setFotoFile] = useState<File | null>(null);
+  const [fotoPreview, setFotoPreview] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const fetchData = async () => {
     setLoading(true);
@@ -134,6 +140,8 @@ function TabColaboradores() {
     setNome("");
     setDataNascimento("");
     setAtivo(true);
+    setFotoFile(null);
+    setFotoPreview(null);
   };
 
   const openEdit = (c: Colaborador) => {
@@ -141,7 +149,42 @@ function TabColaboradores() {
     setNome(c.nome);
     setDataNascimento(c.data_nascimento || "");
     setAtivo(c.ativo);
+    setFotoPreview(c.foto_url || null);
+    setFotoFile(null);
     setDialogOpen(true);
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 5 * 1024 * 1024) {
+        toast({ title: "Arquivo muito grande", description: "Máximo 5MB", variant: "destructive" });
+        return;
+      }
+      setFotoFile(file);
+      setFotoPreview(URL.createObjectURL(file));
+    }
+  };
+
+  const uploadPhoto = async (colaboradorId: string): Promise<string | null> => {
+    if (!fotoFile) return null;
+    const ext = fotoFile.name.split(".").pop();
+    const path = `${colaboradorId}.${ext}`;
+
+    const { error } = await supabase.storage
+      .from("colaboradores-fotos")
+      .upload(path, fotoFile, { upsert: true });
+
+    if (error) {
+      console.error("Upload error:", error);
+      return null;
+    }
+
+    const { data: urlData } = supabase.storage
+      .from("colaboradores-fotos")
+      .getPublicUrl(path);
+
+    return urlData.publicUrl + "?t=" + Date.now();
   };
 
   const handleSave = async () => {
@@ -150,31 +193,58 @@ function TabColaboradores() {
       return;
     }
 
-    const payload = {
+    setUploading(true);
+
+    const payload: any = {
       nome: nome.trim(),
       data_nascimento: dataNascimento || null,
       ativo,
     };
 
     if (editId) {
+      // Upload photo if new file selected
+      if (fotoFile) {
+        const url = await uploadPhoto(editId);
+        if (url) payload.foto_url = url;
+      }
+
       const { error } = await supabase
         .from("colaboradores")
         .update(payload)
         .eq("id", editId);
       if (error) {
         toast({ title: "Erro ao atualizar", description: error.message, variant: "destructive" });
+        setUploading(false);
         return;
       }
       toast({ title: "Colaborador atualizado" });
     } else {
-      const { error } = await supabase.from("colaboradores").insert(payload);
+      // Insert first to get the ID, then upload photo
+      const { data: inserted, error } = await supabase
+        .from("colaboradores")
+        .insert(payload)
+        .select("id")
+        .single();
       if (error) {
         toast({ title: "Erro ao criar", description: error.message, variant: "destructive" });
+        setUploading(false);
         return;
       }
+
+      if (fotoFile && inserted) {
+        const url = await uploadPhoto(inserted.id);
+        if (url) {
+          await supabase
+            .from("colaboradores")
+            .update({ foto_url: url })
+            .eq("id", inserted.id);
+        }
+      }
+
       toast({ title: "Colaborador criado" });
     }
 
+    setUploading(false);
     setDialogOpen(false);
     resetForm();
     fetchData();
@@ -205,6 +275,37 @@ function TabColaboradores() {
               <DialogTitle>{editId ? "Editar" : "Novo"} Colaborador</DialogTitle>
             </DialogHeader>
             <div className="space-y-4 pt-2">
+              {/* Photo Upload */}
+              <div className="space-y-2">
+                <Label>Foto</Label>
+                <div className="flex items-center gap-4">
+                  <Avatar className="h-16 w-16">
+                    {fotoPreview ? (
+                      <AvatarImage src={fotoPreview} alt="Preview" />
+                    ) : null}
+                    <AvatarFallback className="text-lg">{nome ? nome.charAt(0) : "?"}</AvatarFallback>
+                  </Avatar>
+                  <div>
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={handleFileChange}
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="gap-2"
+                      onClick={() => fileInputRef.current?.click()}
+                    >
+                      <ImagePlus className="h-4 w-4" />
+                      {fotoPreview ? "Trocar foto" : "Adicionar foto"}
+                    </Button>
+                  </div>
+                </div>
+              </div>
               <div className="space-y-2">
                 <Label>Nome</Label>
                 <Input value={nome} onChange={(e) => setNome(e.target.value)} placeholder="Nome completo" />
@@ -217,7 +318,9 @@ function TabColaboradores() {
                 <Switch checked={ativo} onCheckedChange={setAtivo} />
                 <Label>Ativo</Label>
               </div>
-              <Button onClick={handleSave} className="w-full">Salvar</Button>
+              <Button onClick={handleSave} className="w-full" disabled={uploading}>
+                {uploading ? "Salvando..." : "Salvar"}
+              </Button>
             </div>
           </DialogContent>
         </Dialog>
@@ -231,6 +334,7 @@ function TabColaboradores() {
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead className="w-12"></TableHead>
                 <TableHead>Nome</TableHead>
                 <TableHead>Nascimento</TableHead>
                 <TableHead>Status</TableHead>
@@ -240,6 +344,12 @@ function TabColaboradores() {
             <TableBody>
               {lista.map((c) => (
                 <TableRow key={c.id}>
+                  <TableCell>
+                    <Avatar className="h-8 w-8">
+                      {c.foto_url && <AvatarImage src={c.foto_url} alt={c.nome} />}
+                      <AvatarFallback className="text-xs">{c.nome.charAt(0)}</AvatarFallback>
+                    </Avatar>
+                  </TableCell>
                   <TableCell className="font-medium">{c.nome}</TableCell>
                   <TableCell>
                     {c.data_nascimento
