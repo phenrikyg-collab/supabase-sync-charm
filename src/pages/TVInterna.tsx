@@ -402,9 +402,13 @@ function PainelLimpeza({
 
             {escalaDoDia ? (
               <div>
-                <div className="w-20 h-20 rounded-full bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center mx-auto mb-4 text-3xl font-bold text-black">
-                  {escalaDoDia.colaboradores?.nome?.charAt(0) || "?"}
-                </div>
+                {escalaDoDia.colaboradores?.foto_url ? (
+                  <img src={escalaDoDia.colaboradores.foto_url} alt={escalaDoDia.colaboradores.nome || ""} className="w-20 h-20 rounded-full object-cover mx-auto mb-4 border-2 border-amber-500/50" />
+                ) : (
+                  <div className="w-20 h-20 rounded-full bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center mx-auto mb-4 text-3xl font-bold text-black">
+                    {escalaDoDia.colaboradores?.nome?.charAt(0) || "?"}
+                  </div>
+                )}
                 <p className="text-2xl font-bold">
                   {escalaDoDia.colaboradores?.nome}
                 </p>
