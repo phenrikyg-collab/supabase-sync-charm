@@ -42,6 +42,7 @@ interface Colaborador {
   id: string;
   nome: string;
   data_nascimento: string | null;
+  foto_url: string | null;
   ativo: boolean;
   created_at: string;
 }
