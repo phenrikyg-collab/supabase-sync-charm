@@ -94,7 +94,7 @@ export default function RevisaoLancamentos({ lancamentosImportados, onConcluir, 
           tipo: l.categoria!.tipo,
         }));
 
-      const { error } = await (supabase as any).from("lancamentos").insert(registros);
+      const { error } = await supabase.from("lancamentos").insert(registros);
       if (error) throw error;
       onConcluir();
     } catch (err: any) {
