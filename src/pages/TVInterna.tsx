@@ -169,7 +169,9 @@ export default function TVInterna() {
             {activePanel.key === "aniversariantes" && (
               <PainelAniversariantes aniversariantes={aniversariantes} />
             )}
-            {activePanel.key === "limpeza" && <PainelLimpeza escala={escala} />}
+            {activePanel.key === "limpeza" && (
+              <PainelLimpeza escala={escala} colaboradores={colaboradores} />
+            )}
             {activePanel.key === "avisos" && <PainelAvisos avisos={avisos} />}
             {activePanel.key === "frase" && (
               <PainelFrase frase={FRASES_MOTIVACIONAIS[fraseIndex]} />
