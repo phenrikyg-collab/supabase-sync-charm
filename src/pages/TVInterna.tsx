@@ -195,39 +195,51 @@ export default function TVInterna() {
 /* ── Painéis ───────────────────────────────────────────── */
 
 function PainelProducao() {
-  const [resumo, setResumo] = useState<any[]>([]);
+  const [contagens, setContagens] = useState<Record<string, number>>({});
 
   useEffect(() => {
-    // Use the existing view or table for production summary
     supabase
-      .from("colaboradores")
+      .from("resumo_producao_andamento" as any)
       .select("*")
-      .eq("ativo", true)
       .then(({ data }) => {
-        // Placeholder — replace with real production data query when available
-        setResumo(data || []);
+        const counts: Record<string, number> = {};
+        (data || []).forEach((item: any) => {
+          const status = item.status_ordem || "Sem status";
+          const qtd = item.quantidade_pecas_ordem || 0;
+          counts[status] = (counts[status] || 0) + qtd;
+        });
+        setContagens(counts);
       });
   }, []);
+
+  const etapas = [
+    { label: "Corte", status: "Corte", color: "from-blue-500 to-cyan-500" },
+    { label: "Costura", status: "Costura", color: "from-violet-500 to-purple-500" },
+    { label: "Revisão", status: "Revisão", color: "from-amber-500 to-yellow-500" },
+    { label: "Em Conserto", status: "Em Conserto", color: "from-rose-500 to-pink-500" },
+    { label: "Finalizado", status: "Finalizado", color: "from-emerald-500 to-green-500" },
+  ];
 
   return (
     <div className="h-full flex flex-col">
       <SectionHeader icon={Factory} title="Resumo da Produção" />
       <div className="flex-1 flex items-center justify-center">
-        <div className="grid grid-cols-3 gap-6 w-full max-w-4xl">
-          {[
-            { label: "Em Corte", value: "—", color: "from-blue-500 to-cyan-500" },
-            { label: "Em Costura", value: "—", color: "from-amber-500 to-yellow-500" },
-            { label: "Finalizado", value: "—", color: "from-emerald-500 to-green-500" },
-          ].map((card) => (
-            <div
-              key={card.label}
-              className={`rounded-2xl bg-gradient-to-br ${card.color} p-[1px]`}
+        <div className="grid grid-cols-5 gap-4 w-full max-w-5xl">
+          {etapas.map((etapa) => (
+            <motion.div
+              key={etapa.label}
+              initial={{ y: 20, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              className={`rounded-2xl bg-gradient-to-br ${etapa.color} p-[1px]`}
             >
-              <div className="bg-slate-900/90 rounded-2xl p-8 text-center h-full">
-                <p className="text-5xl font-bold mb-2">{card.value}</p>
-                <p className="text-white/60 text-lg">{card.label}</p>
+              <div className="bg-slate-900/90 rounded-2xl p-6 text-center h-full">
+                <p className="text-4xl font-bold mb-2">
+                  {contagens[etapa.status] || 0}
+                </p>
+                <p className="text-white/60 text-sm">{etapa.label}</p>
+                <p className="text-white/30 text-xs mt-1">peças</p>
               </div>
-            </div>
+            </motion.div>
           ))}
         </div>
       </div>
