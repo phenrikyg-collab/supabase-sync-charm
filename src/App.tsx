@@ -29,6 +29,7 @@ import PagamentoOficinas from "./pages/PagamentoOficinas";
 import AdminUsuarios from "./pages/AdminUsuarios";
 import Login from "./pages/Login";
 import NotFound from "./pages/NotFound";
+import TVInterna from "./pages/TVInterna";
 import { Loader2 } from "lucide-react";
 
 const queryClient = new QueryClient({
@@ -63,6 +64,7 @@ const AppRoutes = () => {
   return (
     <Routes>
       <Route path="/login" element={user ? <Navigate to="/" replace /> : <Login />} />
+      <Route path="/tv-interna" element={<TVInterna />} />
       <Route path="*" element={
         <ProtectedRoute>
           <AppLayout>
