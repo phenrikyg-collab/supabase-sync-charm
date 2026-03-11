@@ -303,8 +303,8 @@ function PainelLimpeza({
   const escalaDoDia = escala.find((e) => e.data === hoje);
 
   const [sorteando, setSorteando] = useState(false);
-  const [sorteado, setSorteado] = useState<string | null>(null);
-  const [nomeVisivel, setNomeVisivel] = useState("");
+  const [sorteado, setSorteado] = useState<Colaborador | null>(null);
+  const [colabVisivel, setColabVisivel] = useState<Colaborador | null>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const iniciarSorteio = useCallback(() => {
@@ -317,15 +317,15 @@ function PainelLimpeza({
 
     intervalRef.current = setInterval(() => {
       const idx = Math.floor(Math.random() * colaboradores.length);
-      setNomeVisivel(colaboradores[idx].nome);
+      setColabVisivel(colaboradores[idx]);
       count++;
 
       if (count >= totalCiclos) {
         if (intervalRef.current) clearInterval(intervalRef.current);
         const escolhido =
           colaboradores[Math.floor(Math.random() * colaboradores.length)];
-        setNomeVisivel(escolhido.nome);
-        setSorteado(escolhido.nome);
+        setColabVisivel(escolhido);
+        setSorteado(escolhido);
         setSorteando(false);
       }
     }, 80 + count * 4);
