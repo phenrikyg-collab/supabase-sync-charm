@@ -7,7 +7,7 @@ import {
   Factory, Cake, SprayCan, Megaphone, Sparkles, ChevronRight, Shuffle,
 } from "lucide-react";
 
-const INTERVAL_MS = 15_000;
+const INTERVAL_MS = 10_000;
 
 const FRASES_MOTIVACIONAIS = [
   "O sucesso é a soma de pequenos esforços repetidos dia após dia.",
