@@ -193,31 +193,58 @@ function TabColaboradores() {
       return;
     }
 
-    const payload = {
+    setUploading(true);
+
+    const payload: any = {
       nome: nome.trim(),
       data_nascimento: dataNascimento || null,
       ativo,
     };
 
     if (editId) {
+      // Upload photo if new file selected
+      if (fotoFile) {
+        const url = await uploadPhoto(editId);
+        if (url) payload.foto_url = url;
+      }
+
       const { error } = await supabase
         .from("colaboradores")
         .update(payload)
         .eq("id", editId);
       if (error) {
         toast({ title: "Erro ao atualizar", description: error.message, variant: "destructive" });
+        setUploading(false);
         return;
       }
       toast({ title: "Colaborador atualizado" });
     } else {
-      const { error } = await supabase.from("colaboradores").insert(payload);
+      // Insert first to get the ID, then upload photo
+      const { data: inserted, error } = await supabase
+        .from("colaboradores")
+        .insert(payload)
+        .select("id")
+        .single();
       if (error) {
         toast({ title: "Erro ao criar", description: error.message, variant: "destructive" });
+        setUploading(false);
         return;
       }
+
+      if (fotoFile && inserted) {
+        const url = await uploadPhoto(inserted.id);
+        if (url) {
+          await supabase
+            .from("colaboradores")
+            .update({ foto_url: url })
+            .eq("id", inserted.id);
+        }
+      }
+
       toast({ title: "Colaborador criado" });
     }
 
+    setUploading(false);
     setDialogOpen(false);
     resetForm();
     fetchData();
