@@ -367,6 +367,11 @@ function TabColaboradores() {
                       : "—"}
                   </TableCell>
                   <TableCell>
+                    <span className={`text-xs font-medium px-2 py-1 rounded-full ${c.participa_limpeza ? "bg-blue-500/10 text-blue-500" : "bg-muted text-muted-foreground"}`}>
+                      {c.participa_limpeza ? "Sim" : "Não"}
+                    </span>
+                  </TableCell>
+                  <TableCell>
                     <span className={`text-xs font-medium px-2 py-1 rounded-full ${c.ativo ? "bg-emerald-500/10 text-emerald-500" : "bg-muted text-muted-foreground"}`}>
                       {c.ativo ? "Ativo" : "Inativo"}
                     </span>
