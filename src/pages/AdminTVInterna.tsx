@@ -33,7 +33,7 @@ import {
 } from "@/components/ui/dialog";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
-  Users, CalendarDays, Megaphone, Plus, Trash2, Pencil, Monitor,
+  Users, CalendarDays, Megaphone, Plus, Trash2, Pencil, Monitor, Shuffle,
 } from "lucide-react";
 
 /* ─── Types ─── */
