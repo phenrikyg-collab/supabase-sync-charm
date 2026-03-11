@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { format } from "date-fns";
+import { format, addDays, startOfWeek, getDay } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { toast } from "@/hooks/use-toast";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -33,7 +33,7 @@ import {
 } from "@/components/ui/dialog";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
-  Users, CalendarDays, Megaphone, Plus, Trash2, Pencil, Monitor,
+  Users, CalendarDays, Megaphone, Plus, Trash2, Pencil, Monitor, Shuffle,
 } from "lucide-react";
 
 /* ─── Types ─── */
@@ -278,6 +278,7 @@ function TabEscala() {
   const [lista, setLista] = useState<EscalaLimpeza[]>([]);
   const [colaboradores, setColaboradores] = useState<Colaborador[]>([]);
   const [loading, setLoading] = useState(true);
+  const [generating, setGenerating] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [colabId, setColabId] = useState("");
   const [data, setData] = useState("");
@@ -331,16 +332,77 @@ function TabEscala() {
     fetchData();
   };
 
+  const gerarSemana = async () => {
+    if (colaboradores.length === 0) {
+      toast({ title: "Nenhum colaborador ativo", variant: "destructive" });
+      return;
+    }
+
+    setGenerating(true);
+
+    // Find next Monday (or today if Monday)
+    const today = new Date();
+    const nextMonday = startOfWeek(addDays(today, today.getDay() === 0 ? 1 : today.getDay() === 1 ? 0 : 8 - today.getDay()), { weekStartsOn: 1 });
+
+    // Generate weekdays (Mon-Fri)
+    const weekdays: string[] = [];
+    for (let i = 0; i < 5; i++) {
+      weekdays.push(format(addDays(nextMonday, i), "yyyy-MM-dd"));
+    }
+
+    // Shuffle collaborators
+    const shuffled = [...colaboradores].sort(() => Math.random() - 0.5);
+
+    // Assign one per day, cycling if fewer than 5
+    const entries = weekdays.map((dia, i) => ({
+      colaborador_id: shuffled[i % shuffled.length].id,
+      data: dia,
+    }));
+
+    // Check for existing entries on those dates
+    const { data: existing } = await supabase
+      .from("escala_limpeza")
+      .select("data")
+      .in("data", weekdays);
+
+    const existingDates = new Set((existing || []).map((e: any) => e.data));
+    const newEntries = entries.filter((e) => !existingDates.has(e.data));
+
+    if (newEntries.length === 0) {
+      toast({ title: "Escala já existe para essa semana", description: "Exclua a escala existente antes de gerar uma nova." });
+      setGenerating(false);
+      return;
+    }
+
+    const { error } = await supabase.from("escala_limpeza").insert(newEntries);
+    if (error) {
+      toast({ title: "Erro ao gerar escala", description: error.message, variant: "destructive" });
+    } else {
+      toast({
+        title: "Escala gerada!",
+        description: `${newEntries.length} dias criados (${format(nextMonday, "dd/MM")} a ${format(addDays(nextMonday, 4), "dd/MM")})`,
+      });
+    }
+
+    setGenerating(false);
+    fetchData();
+  };
+
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between">
         <CardTitle>Escala de Limpeza</CardTitle>
-        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-          <DialogTrigger asChild>
-            <Button size="sm" className="gap-2">
-              <Plus className="h-4 w-4" /> Nova Escala
-            </Button>
-          </DialogTrigger>
+        <div className="flex gap-2">
+          <Button size="sm" variant="outline" className="gap-2" onClick={gerarSemana} disabled={generating}>
+            <Shuffle className="h-4 w-4" />
+            {generating ? "Gerando..." : "Gerar Semana"}
+          </Button>
+          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+            <DialogTrigger asChild>
+              <Button size="sm" className="gap-2">
+                <Plus className="h-4 w-4" /> Nova Escala
+              </Button>
+            </DialogTrigger>
           <DialogContent>
             <DialogHeader>
               <DialogTitle>Nova Escala</DialogTitle>
@@ -369,6 +431,7 @@ function TabEscala() {
             </div>
           </DialogContent>
         </Dialog>
+        </div>
       </CardHeader>
       <CardContent>
         {loading ? (
