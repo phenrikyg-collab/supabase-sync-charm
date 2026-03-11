@@ -334,6 +334,7 @@ function TabColaboradores() {
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead className="w-12"></TableHead>
                 <TableHead>Nome</TableHead>
                 <TableHead>Nascimento</TableHead>
                 <TableHead>Status</TableHead>
@@ -343,6 +344,12 @@ function TabColaboradores() {
             <TableBody>
               {lista.map((c) => (
                 <TableRow key={c.id}>
+                  <TableCell>
+                    <Avatar className="h-8 w-8">
+                      {c.foto_url && <AvatarImage src={c.foto_url} alt={c.nome} />}
+                      <AvatarFallback className="text-xs">{c.nome.charAt(0)}</AvatarFallback>
+                    </Avatar>
+                  </TableCell>
                   <TableCell className="font-medium">{c.nome}</TableCell>
                   <TableCell>
                     {c.data_nascimento
