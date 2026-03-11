@@ -152,6 +152,7 @@ function TabColaboradores() {
     setNome(c.nome);
     setDataNascimento(c.data_nascimento || "");
     setAtivo(c.ativo);
+    setParticipaLimpeza(c.participa_limpeza);
     setFotoPreview(c.foto_url || null);
     setFotoFile(null);
     setDialogOpen(true);
