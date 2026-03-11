@@ -34,7 +34,7 @@ interface EscalaLimpeza {
   id: string;
   data: string;
   colaborador_id: string;
-  colaboradores?: { nome: string };
+  colaboradores?: { nome: string; foto_url: string | null };
 }
 
 interface Aviso {
@@ -89,7 +89,7 @@ export default function TVInterna() {
         supabase.from("colaboradores").select("*").eq("ativo", true),
         supabase
           .from("escala_limpeza")
-          .select("*, colaboradores(nome)")
+          .select("*, colaboradores(nome, foto_url)")
           .gte("data", format(new Date(), "yyyy-MM-dd"))
           .order("data", { ascending: true })
           .limit(10),
@@ -303,8 +303,8 @@ function PainelLimpeza({
   const escalaDoDia = escala.find((e) => e.data === hoje);
 
   const [sorteando, setSorteando] = useState(false);
-  const [sorteado, setSorteado] = useState<string | null>(null);
-  const [nomeVisivel, setNomeVisivel] = useState("");
+  const [sorteado, setSorteado] = useState<Colaborador | null>(null);
+  const [colabVisivel, setColabVisivel] = useState<Colaborador | null>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const iniciarSorteio = useCallback(() => {
@@ -317,15 +317,15 @@ function PainelLimpeza({
 
     intervalRef.current = setInterval(() => {
       const idx = Math.floor(Math.random() * colaboradores.length);
-      setNomeVisivel(colaboradores[idx].nome);
+      setColabVisivel(colaboradores[idx]);
       count++;
 
       if (count >= totalCiclos) {
         if (intervalRef.current) clearInterval(intervalRef.current);
         const escolhido =
           colaboradores[Math.floor(Math.random() * colaboradores.length)];
-        setNomeVisivel(escolhido.nome);
-        setSorteado(escolhido.nome);
+        setColabVisivel(escolhido);
+        setSorteado(escolhido);
         setSorteando(false);
       }
     }, 80 + count * 4);
@@ -363,9 +363,13 @@ function PainelLimpeza({
                       : "bg-white/5 border-white/10"
                   }`}
                 >
-                  <div className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center font-bold">
-                    {e.colaboradores?.nome?.charAt(0) || "?"}
-                  </div>
+                  {e.colaboradores?.foto_url ? (
+                    <img src={e.colaboradores.foto_url} alt={e.colaboradores.nome} className="w-10 h-10 rounded-full object-cover" />
+                  ) : (
+                    <div className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center font-bold">
+                      {e.colaboradores?.nome?.charAt(0) || "?"}
+                    </div>
+                  )}
                   <div className="flex-1">
                     <p className="font-semibold">
                       {e.colaboradores?.nome || "—"}
@@ -398,9 +402,13 @@ function PainelLimpeza({
 
             {escalaDoDia ? (
               <div>
-                <div className="w-20 h-20 rounded-full bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center mx-auto mb-4 text-3xl font-bold text-black">
-                  {escalaDoDia.colaboradores?.nome?.charAt(0) || "?"}
-                </div>
+                {escalaDoDia.colaboradores?.foto_url ? (
+                  <img src={escalaDoDia.colaboradores.foto_url} alt={escalaDoDia.colaboradores.nome || ""} className="w-20 h-20 rounded-full object-cover mx-auto mb-4 border-2 border-amber-500/50" />
+                ) : (
+                  <div className="w-20 h-20 rounded-full bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center mx-auto mb-4 text-3xl font-bold text-black">
+                    {escalaDoDia.colaboradores?.nome?.charAt(0) || "?"}
+                  </div>
+                )}
                 <p className="text-2xl font-bold">
                   {escalaDoDia.colaboradores?.nome}
                 </p>
@@ -412,7 +420,7 @@ function PainelLimpeza({
               <div>
                 <AnimatePresence mode="wait">
                   <motion.div
-                    key={nomeVisivel || "empty"}
+                    key={colabVisivel?.id || "empty"}
                     initial={{ y: 10, opacity: 0 }}
                     animate={{ y: 0, opacity: 1 }}
                     exit={{ y: -10, opacity: 0 }}
@@ -421,21 +429,31 @@ function PainelLimpeza({
                   >
                     {sorteando || sorteado ? (
                       <>
-                        <div
-                          className={`w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4 text-3xl font-bold ${
-                            sorteado
-                              ? "bg-gradient-to-br from-emerald-500 to-green-500 text-black"
-                              : "bg-white/10"
-                          }`}
-                        >
-                          {nomeVisivel.charAt(0)}
-                        </div>
+                        {colabVisivel?.foto_url ? (
+                          <img
+                            src={colabVisivel.foto_url}
+                            alt={colabVisivel.nome}
+                            className={`w-20 h-20 rounded-full object-cover mx-auto mb-4 border-2 ${
+                              sorteado ? "border-emerald-500" : "border-white/20"
+                            }`}
+                          />
+                        ) : (
+                          <div
+                            className={`w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4 text-3xl font-bold ${
+                              sorteado
+                                ? "bg-gradient-to-br from-emerald-500 to-green-500 text-black"
+                                : "bg-white/10"
+                            }`}
+                          >
+                            {colabVisivel?.nome.charAt(0)}
+                          </div>
+                        )}
                         <p
                           className={`text-2xl font-bold ${
                             sorteado ? "text-emerald-400" : ""
                           }`}
                         >
-                          {nomeVisivel}
+                          {colabVisivel?.nome}
                         </p>
                       </>
                     ) : (
