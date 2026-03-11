@@ -7,7 +7,7 @@ import {
   Factory, Cake, SprayCan, Megaphone, Sparkles, ChevronRight, Shuffle,
 } from "lucide-react";
 
-const INTERVAL_MS = 15_000;
+const INTERVAL_MS = 10_000;
 
 const FRASES_MOTIVACIONAIS = [
   "O sucesso é a soma de pequenos esforços repetidos dia após dia.",
@@ -111,7 +111,7 @@ export default function TVInterna() {
   const aniversariantes = colaboradores.filter((c) => {
     if (!c.data_nascimento) return false;
     const nascimento = parseISO(c.data_nascimento);
-    return isSameMonth(nascimento, new Date()) && nascimento.getDate() >= new Date().getDate();
+    return isSameMonth(nascimento, new Date());
   });
 
   const activePanel = PAINEIS[activeIndex];
