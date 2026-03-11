@@ -227,20 +227,31 @@ function PainelProducao() {
     <div className="h-full flex flex-col">
       <SectionHeader icon={Factory} title="Resumo da Produção" />
       <div className="flex-1 flex items-center justify-center">
-        <div className="grid grid-cols-5 gap-4 w-full max-w-5xl">
-          {etapas.map((etapa) => (
+        <div className="grid grid-cols-5 gap-6 w-full max-w-5xl">
+          {etapas.map((etapa, i) => (
             <motion.div
               key={etapa.label}
-              initial={{ y: 20, opacity: 0 }}
-              animate={{ y: 0, opacity: 1 }}
-              className={`rounded-2xl bg-gradient-to-br ${etapa.color} p-[1px]`}
+              initial={{ y: 40, opacity: 0, scale: 0.9 }}
+              animate={{ y: 0, opacity: 1, scale: 1 }}
+              transition={{ delay: i * 0.12, type: "spring", stiffness: 120, damping: 14 }}
+              className={`rounded-2xl bg-gradient-to-br ${etapa.color} p-[1px] group`}
             >
-              <div className="bg-slate-900/90 rounded-2xl p-6 text-center h-full">
-                <p className="text-4xl font-bold mb-2">
+              <div className="bg-slate-900/90 rounded-2xl p-6 text-center h-full relative overflow-hidden">
+                <motion.div
+                  className={`absolute -bottom-8 -right-8 w-24 h-24 rounded-full bg-gradient-to-br ${etapa.color} opacity-10 blur-xl`}
+                  animate={{ scale: [1, 1.3, 1], opacity: [0.1, 0.25, 0.1] }}
+                  transition={{ duration: 3, repeat: Infinity, delay: i * 0.4 }}
+                />
+                <motion.p
+                  className="text-5xl font-bold mb-2 relative z-10"
+                  initial={{ scale: 0 }}
+                  animate={{ scale: 1 }}
+                  transition={{ delay: i * 0.12 + 0.3, type: "spring", stiffness: 200 }}
+                >
                   {contagens[etapa.status] || 0}
-                </p>
-                <p className="text-white/60 text-sm">{etapa.label}</p>
-                <p className="text-white/30 text-xs mt-1">peças</p>
+                </motion.p>
+                <p className="text-white/70 text-sm font-medium relative z-10">{etapa.label}</p>
+                <p className="text-white/30 text-xs mt-1 relative z-10">peças</p>
               </div>
             </motion.div>
           ))}
