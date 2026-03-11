@@ -163,6 +163,20 @@ export function AppSidebar() {
         {/* Footer */}
         <div className="px-3 pb-4 space-y-1">
           <Separator className="mb-2 bg-sidebar-border" />
+          <SidebarMenu>
+            <SidebarMenuItem>
+              <SidebarMenuButton asChild>
+                <NavLink
+                  to="/tv-interna"
+                  className="transition-colors hover:bg-sidebar-accent"
+                  activeClassName="bg-sidebar-accent text-sidebar-primary font-medium"
+                >
+                  <Monitor className="h-4 w-4 mr-2 shrink-0" />
+                  {!collapsed && <span>TV Interna</span>}
+                </NavLink>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          </SidebarMenu>
           {isAdmin && (
             <SidebarMenu>
               <SidebarMenuItem>
