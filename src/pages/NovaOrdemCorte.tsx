@@ -1,11 +1,11 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useProdutos, useRolosTecido, useTecidos, useCreateOrdemCorte, useOrdensCorte } from "@/hooks/useSupabase";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 import { AlertTriangle, Search } from "lucide-react";
@@ -20,23 +20,45 @@ export default function NovaOrdemCorte() {
   const navigate = useNavigate();
 
   const [produtoId, setProdutoId] = useState("");
-  // Grade now supports multiple colors: { [corKey]: { tamanho: qty } }
+  const [searchProduto, setSearchProduto] = useState("");
   const [gradeMultiCor, setGradeMultiCor] = useState<Record<string, Record<string, number>>>({});
   const [selectedRolos, setSelectedRolos] = useState<Set<string>>(new Set());
   const [metrosRolo, setMetrosRolo] = useState<Record<string, number>>({});
+  const [roloMode, setRoloMode] = useState<Record<string, "total" | "parcial">>({});
   const [metrosRisco, setMetrosRisco] = useState(0);
   const [folhas, setFolhas] = useState(1);
   const [searchRolo, setSearchRolo] = useState("");
 
-  // Auto-generate OC number
+  // Sequential OC number from MAX in DB
   const { data: ordensExistentes } = useOrdensCorte();
-  const numeroOC = `OC-${String((ordensExistentes?.length ?? 0) + 1).padStart(4, "0")}`;
+  const numeroOC = useMemo(() => {
+    if (!ordensExistentes?.length) return "OC-0001";
+    const nums = ordensExistentes.map((o) => {
+      const match = o.numero_oc?.match(/OC-(\d+)/);
+      return match ? parseInt(match[1], 10) : 0;
+    });
+    const max = Math.max(...nums);
+    return `OC-${String(max + 1).padStart(4, "0")}`;
+  }, [ordensExistentes]);
 
-  const produtoSelecionado = produtos?.find((p) => p.id === produtoId);
   const tecidoMap = Object.fromEntries((tecidos ?? []).map((t) => [t.id, t]));
 
+  // Filter products by search
+  const produtosFiltrados = useMemo(() => {
+    if (!produtos) return [];
+    const ativos = produtos.filter((p) => p.ativo);
+    if (!searchProduto) return ativos;
+    const term = searchProduto.toLowerCase();
+    return ativos.filter((p) =>
+      p.nome_do_produto?.toLowerCase().includes(term) ||
+      p.codigo_sku?.toLowerCase().includes(term)
+    );
+  }, [produtos, searchProduto]);
+
+  const produtoSelecionado = produtos?.find((p) => p.id === produtoId);
+
   // Derive unique colors from selected rolls
-  const coresFromRolos = (() => {
+  const coresFromRolos = useMemo(() => {
     const map = new Map<string, { cor_id: string | null; cor_nome: string; cor_hex: string }>();
     for (const roloId of selectedRolos) {
       const rolo = rolos?.find((r) => r.id === roloId);
@@ -48,9 +70,8 @@ export default function NovaOrdemCorte() {
       }
     }
     return Array.from(map.entries());
-  })();
+  }, [selectedRolos, rolos]);
 
-  // Update grade for a specific color
   const setGradeForCor = (corKey: string, tamanho: string, qty: number) => {
     setGradeMultiCor((prev) => ({
       ...prev,
@@ -67,22 +88,48 @@ export default function NovaOrdemCorte() {
   const estoqueInsuficiente = consumoTotal > 0 && metrosAlocados < consumoTotal;
 
   // Filter available rolos
-  const rolosDisponiveis = (rolos?.filter((r) => (r.metragem_disponivel ?? 0) > 0) ?? []).filter((r) => {
-    if (!searchRolo) return true;
-    const tecido = r.tecido_id ? tecidoMap[r.tecido_id] : null;
-    const text = `${r.codigo_rolo} ${tecido?.nome_tecido} ${r.cor_nome} ${r.lote}`.toLowerCase();
-    return text.includes(searchRolo.toLowerCase());
-  });
+  const rolosDisponiveis = useMemo(() => {
+    return (rolos?.filter((r) => (r.metragem_disponivel ?? 0) > 0) ?? []).filter((r) => {
+      if (!searchRolo) return true;
+      const tecido = r.tecido_id ? tecidoMap[r.tecido_id] : null;
+      const text = `${r.codigo_rolo} ${tecido?.nome_tecido} ${r.cor_nome} ${r.lote}`.toLowerCase();
+      return text.includes(searchRolo.toLowerCase());
+    });
+  }, [rolos, searchRolo, tecidoMap]);
 
   const toggleRolo = (roloId: string) => {
     const newSet = new Set(selectedRolos);
-    if (newSet.has(roloId)) newSet.delete(roloId);
-    else newSet.add(roloId);
+    const rolo = rolos?.find((r) => r.id === roloId);
+    if (newSet.has(roloId)) {
+      newSet.delete(roloId);
+      const newMetros = { ...metrosRolo };
+      delete newMetros[roloId];
+      setMetrosRolo(newMetros);
+      const newMode = { ...roloMode };
+      delete newMode[roloId];
+      setRoloMode(newMode);
+    } else {
+      newSet.add(roloId);
+      // Default to total mode
+      setRoloMode({ ...roloMode, [roloId]: "total" });
+      setMetrosRolo({ ...metrosRolo, [roloId]: rolo?.metragem_disponivel ?? 0 });
+    }
     setSelectedRolos(newSet);
+  };
+
+  const handleRoloModeChange = (roloId: string, mode: "total" | "parcial") => {
+    const rolo = rolos?.find((r) => r.id === roloId);
+    setRoloMode({ ...roloMode, [roloId]: mode });
+    if (mode === "total") {
+      setMetrosRolo({ ...metrosRolo, [roloId]: rolo?.metragem_disponivel ?? 0 });
+    } else {
+      setMetrosRolo({ ...metrosRolo, [roloId]: 0 });
+    }
   };
 
   const handleSubmit = async () => {
     if (!produtoId) { toast.error("Selecione um produto"); return; }
+    if (selectedRolos.size === 0) { toast.error("Selecione ao menos um rolo"); return; }
     if (estoqueInsuficiente) { toast.error("Metragem alocada insuficiente para o consumo total"); return; }
     for (const roloId of selectedRolos) {
       const rolo = rolos?.find((r) => r.id === roloId);
@@ -94,7 +141,6 @@ export default function NovaOrdemCorte() {
     }
 
     try {
-      // Build grade items from all colors
       const gradeItems: { cor_id: string | null; tamanho: string; quantidade: number }[] = [];
       for (const [corKey, grades] of Object.entries(gradeMultiCor)) {
         const corInfo = coresFromRolos.find(([k]) => k === corKey);
@@ -153,22 +199,45 @@ export default function NovaOrdemCorte() {
             </div>
           </div>
 
+          {/* Product search */}
           <div className="space-y-2">
             <Label>Produto</Label>
-            <Select value={produtoId} onValueChange={setProdutoId}>
-              <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
-              <SelectContent>
-                {produtos?.filter((p) => p.ativo).map((p) => (
-                  <SelectItem key={p.id} value={p.id}>{p.nome_do_produto}</SelectItem>
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Buscar produto por nome ou SKU..."
+                value={produtoSelecionado ? produtoSelecionado.nome_do_produto : searchProduto}
+                onChange={(e) => {
+                  setSearchProduto(e.target.value);
+                  if (produtoId) setProdutoId("");
+                }}
+                onFocus={() => { if (produtoId) { setProdutoId(""); setSearchProduto(""); } }}
+                className="pl-9"
+              />
+            </div>
+            {!produtoId && searchProduto && produtosFiltrados.length > 0 && (
+              <div className="border border-border rounded-lg max-h-48 overflow-y-auto bg-popover shadow-md">
+                {produtosFiltrados.map((p) => (
+                  <button
+                    key={p.id}
+                    className="w-full text-left px-4 py-2.5 hover:bg-accent text-sm flex items-center justify-between"
+                    onClick={() => { setProdutoId(p.id); setSearchProduto(""); }}
+                  >
+                    <span className="font-medium text-popover-foreground">{p.nome_do_produto}</span>
+                    {p.codigo_sku && <span className="text-muted-foreground text-xs">{p.codigo_sku}</span>}
+                  </button>
                 ))}
-              </SelectContent>
-            </Select>
+              </div>
+            )}
+            {!produtoId && searchProduto && produtosFiltrados.length === 0 && (
+              <p className="text-sm text-muted-foreground py-2">Nenhum produto encontrado</p>
+            )}
             {produtoSelecionado && (
               <p className="text-xs text-muted-foreground">Consumo: {consumoUnitario}m/peça · Tecido: {produtoSelecionado.tecido_do_produto ?? "—"}</p>
             )}
           </div>
 
-          {/* Rolos selection - colors are determined by selected rolls */}
+          {/* Rolos selection with total/parcial mode */}
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <Label>Rolos Disponíveis</Label>
@@ -177,30 +246,55 @@ export default function NovaOrdemCorte() {
                 <Input placeholder="Buscar rolo..." value={searchRolo} onChange={(e) => setSearchRolo(e.target.value)} className="w-56" />
               </div>
             </div>
-            <div className="space-y-2 max-h-56 overflow-y-auto">
+            <div className="space-y-2 max-h-72 overflow-y-auto">
               {rolosDisponiveis.length === 0 ? (
                 <p className="text-sm text-muted-foreground py-4 text-center">Nenhum rolo disponível</p>
               ) : (
                 rolosDisponiveis.map((r) => {
                   const tecido = r.tecido_id ? tecidoMap[r.tecido_id] : null;
+                  const isSelected = selectedRolos.has(r.id);
+                  const mode = roloMode[r.id] ?? "total";
                   return (
-                    <div key={r.id} className="flex items-center gap-3 p-2 rounded-lg border border-border">
-                      <Checkbox checked={selectedRolos.has(r.id)} onCheckedChange={() => toggleRolo(r.id)} />
-                      <div className="flex-1 flex items-center gap-2 text-sm">
-                        {r.cor_hex && <div className="w-3 h-3 rounded-full" style={{ backgroundColor: r.cor_hex }} />}
-                        <span className="text-primary font-medium">{r.codigo_rolo}</span>
-                        <span className="text-muted-foreground">{tecido?.nome_tecido ?? ""}</span>
-                        <span className="text-muted-foreground">{r.cor_nome ?? ""}</span>
-                        <span className="text-muted-foreground">({(r.metragem_disponivel ?? 0).toFixed(1)}m)</span>
+                    <div key={r.id} className="p-3 rounded-lg border border-border space-y-2">
+                      <div className="flex items-center gap-3">
+                        <Checkbox checked={isSelected} onCheckedChange={() => toggleRolo(r.id)} />
+                        <div className="flex-1 flex items-center gap-2 text-sm">
+                          {r.cor_hex && <div className="w-3 h-3 rounded-full" style={{ backgroundColor: r.cor_hex }} />}
+                          <span className="text-primary font-medium">{r.codigo_rolo}</span>
+                          <span className="text-muted-foreground">{tecido?.nome_tecido ?? ""}</span>
+                          <span className="text-muted-foreground">{r.cor_nome ?? ""}</span>
+                          <span className="text-muted-foreground">({(r.metragem_disponivel ?? 0).toFixed(1)}m disp.)</span>
+                        </div>
                       </div>
-                      {selectedRolos.has(r.id) && (
-                        <Input
-                          type="number" step="0.01" className="w-24"
-                          placeholder="Metros"
-                          max={r.metragem_disponivel ?? 0}
-                          value={metrosRolo[r.id] ?? ""}
-                          onChange={(e) => setMetrosRolo({ ...metrosRolo, [r.id]: Number(e.target.value) })}
-                        />
+                      {isSelected && (
+                        <div className="ml-8 flex items-center gap-4">
+                          <RadioGroup
+                            value={mode}
+                            onValueChange={(v) => handleRoloModeChange(r.id, v as "total" | "parcial")}
+                            className="flex gap-4"
+                          >
+                            <div className="flex items-center gap-1.5">
+                              <RadioGroupItem value="total" id={`total-${r.id}`} />
+                              <Label htmlFor={`total-${r.id}`} className="text-xs cursor-pointer">Toda metragem</Label>
+                            </div>
+                            <div className="flex items-center gap-1.5">
+                              <RadioGroupItem value="parcial" id={`parcial-${r.id}`} />
+                              <Label htmlFor={`parcial-${r.id}`} className="text-xs cursor-pointer">Parcial</Label>
+                            </div>
+                          </RadioGroup>
+                          {mode === "parcial" && (
+                            <Input
+                              type="number" step="0.01" className="w-28"
+                              placeholder="Metros"
+                              max={r.metragem_disponivel ?? 0}
+                              value={metrosRolo[r.id] ?? ""}
+                              onChange={(e) => setMetrosRolo({ ...metrosRolo, [r.id]: Number(e.target.value) })}
+                            />
+                          )}
+                          <span className="text-xs text-muted-foreground">
+                            Usar: {(metrosRolo[r.id] ?? 0).toFixed(1)}m
+                          </span>
+                        </div>
                       )}
                     </div>
                   );
@@ -209,7 +303,7 @@ export default function NovaOrdemCorte() {
             </div>
           </div>
 
-          {/* Grade per color - colors come from selected rolls */}
+          {/* Grade per color */}
           {coresFromRolos.length > 0 && (
             <div className="space-y-4">
               <Label>Grade de Tamanhos por Cor</Label>
