@@ -267,31 +267,55 @@ function PainelAniversariantes({ aniversariantes }: { aniversariantes: Colaborad
       <SectionHeader icon={Cake} title="Aniversariantes do Mês" />
       <div className="flex-1 flex items-center justify-center">
         {aniversariantes.length === 0 ? (
-          <p className="text-white/40 text-2xl">Nenhum aniversariante próximo 🎂</p>
+          <motion.p
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="text-white/40 text-2xl"
+          >
+            Nenhum aniversariante próximo 🎂
+          </motion.p>
         ) : (
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-6 max-w-4xl w-full">
-            {aniversariantes.map((c) => (
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-8 max-w-4xl w-full">
+            {aniversariantes.map((c, i) => (
               <motion.div
                 key={c.id}
-                initial={{ scale: 0.8, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                className="bg-white/5 border border-white/10 rounded-2xl p-6 text-center"
+                initial={{ scale: 0.7, opacity: 0, rotate: -5 }}
+                animate={{ scale: 1, opacity: 1, rotate: 0 }}
+                transition={{ delay: i * 0.15, type: "spring", stiffness: 120, damping: 12 }}
+                className="relative bg-gradient-to-br from-pink-500/15 to-rose-500/5 border border-pink-500/20 rounded-3xl p-8 text-center overflow-hidden group"
               >
+                {/* Confetti glow */}
+                <motion.div
+                  className="absolute -top-6 -left-6 w-24 h-24 bg-pink-400/10 rounded-full blur-2xl"
+                  animate={{ scale: [1, 1.4, 1], opacity: [0.2, 0.5, 0.2] }}
+                  transition={{ duration: 3, repeat: Infinity, delay: i * 0.3 }}
+                />
+                <motion.div
+                  className="absolute -bottom-6 -right-6 w-20 h-20 bg-rose-400/10 rounded-full blur-2xl"
+                  animate={{ scale: [1.2, 1, 1.2], opacity: [0.3, 0.1, 0.3] }}
+                  transition={{ duration: 4, repeat: Infinity, delay: i * 0.5 }}
+                />
                 {c.foto_url ? (
-                  <img
+                  <motion.img
                     src={c.foto_url}
                     alt={c.nome}
-                    className="w-20 h-20 rounded-full object-cover mx-auto mb-4 border-2 border-pink-500/50"
+                    className="w-24 h-24 rounded-full object-cover mx-auto mb-4 border-3 border-pink-500/50 relative z-10"
+                    animate={{ boxShadow: ["0 0 0px rgba(236,72,153,0)", "0 0 20px rgba(236,72,153,0.4)", "0 0 0px rgba(236,72,153,0)"] }}
+                    transition={{ duration: 2.5, repeat: Infinity, delay: i * 0.4 }}
                   />
                 ) : (
-                  <div className="w-20 h-20 rounded-full bg-gradient-to-br from-pink-500 to-rose-500 flex items-center justify-center mx-auto mb-4 text-2xl font-bold">
+                  <motion.div
+                    className="w-24 h-24 rounded-full bg-gradient-to-br from-pink-500 to-rose-500 flex items-center justify-center mx-auto mb-4 text-3xl font-bold relative z-10"
+                    animate={{ boxShadow: ["0 0 0px rgba(236,72,153,0)", "0 0 20px rgba(236,72,153,0.4)", "0 0 0px rgba(236,72,153,0)"] }}
+                    transition={{ duration: 2.5, repeat: Infinity, delay: i * 0.4 }}
+                  >
                     {c.nome.charAt(0)}
-                  </div>
+                  </motion.div>
                 )}
-                <p className="font-semibold text-lg">{c.nome}</p>
+                <p className="font-bold text-xl text-white relative z-10">{c.nome}</p>
                 {c.data_nascimento && (
-                  <p className="text-white/50 text-sm mt-1">
-                    {format(parseISO(c.data_nascimento), "dd 'de' MMMM", { locale: ptBR })}
+                  <p className="text-white/60 text-sm mt-2 relative z-10">
+                    🎂 {format(parseISO(c.data_nascimento), "dd 'de' MMMM", { locale: ptBR })}
                   </p>
                 )}
               </motion.div>
