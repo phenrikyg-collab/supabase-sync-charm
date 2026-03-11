@@ -114,6 +114,41 @@ export const useDeleteCor = () => {
 export const useTecidos = () =>
   useQuery({ queryKey: ["tecidos"], queryFn: () => fetchTable<Tecido>("tecidos", { orderBy: "nome_tecido", ascending: true }) });
 
+export const useCreateTecido = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (tecido: Partial<Tecido>) => {
+      const { data, error } = await supabase.from("tecidos").insert(tecido).select().single();
+      if (error) throw error;
+      return data as Tecido;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["tecidos"] }),
+  });
+};
+
+export const useUpdateTecido = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, ...updates }: Partial<Tecido> & { id: string }) => {
+      const { data, error } = await supabase.from("tecidos").update(updates).eq("id", id).select().single();
+      if (error) throw error;
+      return data as Tecido;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["tecidos"] }),
+  });
+};
+
+export const useDeleteTecido = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("tecidos").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["tecidos"] }),
+  });
+};
+
 // Rolos de tecido
 export const useRolosTecido = () =>
   useQuery({ queryKey: ["rolos-tecido"], queryFn: () => fetchTable<RoloTecido>("rolos_tecido", { orderBy: "created_at" }) });

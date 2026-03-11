@@ -11,6 +11,7 @@ import ProdutoForm from "./pages/ProdutoForm";
 import Cores from "./pages/Cores";
 import EntradaNF from "./pages/EntradaNF";
 import EstoqueTecidos from "./pages/EstoqueTecidos";
+import CadastroTecidos from "./pages/CadastroTecidos";
 import OrdensCorte from "./pages/OrdensCorte";
 import NovaOrdemCorte from "./pages/NovaOrdemCorte";
 import Oficinas from "./pages/Oficinas";
@@ -78,6 +79,7 @@ const AppRoutes = () => {
               <Route path="/cores" element={<Cores />} />
               <Route path="/entrada-nf" element={<EntradaNF />} />
               <Route path="/estoque" element={<EstoqueTecidos />} />
+              <Route path="/cadastro-tecidos" element={<CadastroTecidos />} />
               <Route path="/ordens-corte" element={<OrdensCorte />} />
               <Route path="/ordens-corte/nova" element={<NovaOrdemCorte />} />
               <Route path="/oficinas" element={<Oficinas />} />
