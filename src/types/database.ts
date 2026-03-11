@@ -18,6 +18,14 @@ export interface Produto {
   created_at: string | null;
   atualizado_em: string | null;
   updated_from_bling: string | null;
+  imposto_percentual: number | null;
+  comissao_percentual: number | null;
+  cupom_percentual: number | null;
+  parcelamento_percentual: number | null;
+  custo_corte: number | null;
+  custo_costura: number | null;
+  custo_embalagem: number | null;
+  preco_venda_sugerido: number | null;
 }
 
 export interface Cor {
