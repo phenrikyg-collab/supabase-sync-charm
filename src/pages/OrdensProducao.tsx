@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { useOrdensProducao, useOficinas, useProdutos, useCores, useOrdensCorte, useCreateOrdemProducao, useResumoProducao, useUpdateOrdemProducao, useAllConsertos, useCreateConserto, useUpdateConserto } from "@/hooks/useSupabase";
+import { useState, useEffect, useMemo } from "react";
+import { useOrdensProducao, useOficinas, useProdutos, useCores, useOrdensCorte, useCreateOrdemProducao, useResumoProducao, useUpdateOrdemProducao, useDeleteOrdemProducao, useAllConsertos, useCreateConserto, useUpdateConserto, useCustosFixosOficina } from "@/hooks/useSupabase";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,12 +8,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { StatusBadge } from "@/components/StatusBadge";
+import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, List, Columns3, Wrench, Trash2, PlusCircle, Printer } from "lucide-react";
+import { Plus, List, Columns3, Wrench, Trash2, PlusCircle, Printer, Pencil, AlertTriangle, CheckCircle, XCircle } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { motion } from "framer-motion";
 import { printHTML, statusBadgeHTML, formatDateBR } from "@/lib/printUtils";
+import { parseISO, differenceInCalendarDays, startOfMonth, endOfMonth } from "date-fns";
 
 // Color palette for oficinas (deterministic by index)
 const OFICINA_COLORS = [
