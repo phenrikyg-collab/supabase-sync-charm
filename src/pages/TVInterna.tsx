@@ -34,7 +34,7 @@ interface EscalaLimpeza {
   id: string;
   data: string;
   colaborador_id: string;
-  colaboradores?: { nome: string };
+  colaboradores?: { nome: string; foto_url: string | null };
 }
 
 interface Aviso {
