@@ -4,7 +4,7 @@ import { format, isSameMonth, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  Factory, Cake, SprayCan, Megaphone, Sparkles, ChevronRight,
+  Factory, Cake, SprayCan, Megaphone, Sparkles, ChevronRight, Shuffle,
 } from "lucide-react";
 
 const INTERVAL_MS = 15_000;
