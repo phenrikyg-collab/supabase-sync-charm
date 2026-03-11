@@ -111,7 +111,15 @@ export default function TVInterna() {
   const aniversariantes = colaboradores.filter((c) => {
     if (!c.data_nascimento) return false;
     const nascimento = parseISO(c.data_nascimento);
-    return isSameMonth(nascimento, new Date());
+    const mesNasc = nascimento.getMonth(); // 0-indexed
+    const hoje = new Date();
+    const mesAtual = hoje.getMonth();
+    const proxMes = (mesAtual + 1) % 12;
+    const diasNoMes = getDaysInMonth(hoje);
+    const diasRestantes = diasNoMes - hoje.getDate();
+    const mostrarProxMes = diasRestantes < 5;
+
+    return mesNasc === mesAtual || (mostrarProxMes && mesNasc === proxMes);
   });
 
   const activePanel = PAINEIS[activeIndex];
