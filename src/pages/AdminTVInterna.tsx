@@ -140,6 +140,8 @@ function TabColaboradores() {
     setNome("");
     setDataNascimento("");
     setAtivo(true);
+    setFotoFile(null);
+    setFotoPreview(null);
   };
 
   const openEdit = (c: Colaborador) => {
@@ -147,7 +149,42 @@ function TabColaboradores() {
     setNome(c.nome);
     setDataNascimento(c.data_nascimento || "");
     setAtivo(c.ativo);
+    setFotoPreview(c.foto_url || null);
+    setFotoFile(null);
     setDialogOpen(true);
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 5 * 1024 * 1024) {
+        toast({ title: "Arquivo muito grande", description: "Máximo 5MB", variant: "destructive" });
+        return;
+      }
+      setFotoFile(file);
+      setFotoPreview(URL.createObjectURL(file));
+    }
+  };
+
+  const uploadPhoto = async (colaboradorId: string): Promise<string | null> => {
+    if (!fotoFile) return null;
+    const ext = fotoFile.name.split(".").pop();
+    const path = `${colaboradorId}.${ext}`;
+
+    const { error } = await supabase.storage
+      .from("colaboradores-fotos")
+      .upload(path, fotoFile, { upsert: true });
+
+    if (error) {
+      console.error("Upload error:", error);
+      return null;
+    }
+
+    const { data: urlData } = supabase.storage
+      .from("colaboradores-fotos")
+      .getPublicUrl(path);
+
+    return urlData.publicUrl + "?t=" + Date.now();
   };
 
   const handleSave = async () => {
