@@ -44,6 +44,7 @@ interface Colaborador {
   data_nascimento: string | null;
   foto_url: string | null;
   ativo: boolean;
+  participa_limpeza: boolean;
   created_at: string;
 }
 
@@ -116,6 +117,7 @@ function TabColaboradores() {
   const [nome, setNome] = useState("");
   const [dataNascimento, setDataNascimento] = useState("");
   const [ativo, setAtivo] = useState(true);
+  const [participaLimpeza, setParticipaLimpeza] = useState(true);
   const [fotoFile, setFotoFile] = useState<File | null>(null);
   const [fotoPreview, setFotoPreview] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
@@ -140,6 +142,7 @@ function TabColaboradores() {
     setNome("");
     setDataNascimento("");
     setAtivo(true);
+    setParticipaLimpeza(true);
     setFotoFile(null);
     setFotoPreview(null);
   };
@@ -149,6 +152,7 @@ function TabColaboradores() {
     setNome(c.nome);
     setDataNascimento(c.data_nascimento || "");
     setAtivo(c.ativo);
+    setParticipaLimpeza(c.participa_limpeza);
     setFotoPreview(c.foto_url || null);
     setFotoFile(null);
     setDialogOpen(true);
@@ -199,6 +203,7 @@ function TabColaboradores() {
       nome: nome.trim(),
       data_nascimento: dataNascimento || null,
       ativo,
+      participa_limpeza: participaLimpeza,
     };
 
     if (editId) {
@@ -318,6 +323,10 @@ function TabColaboradores() {
                 <Switch checked={ativo} onCheckedChange={setAtivo} />
                 <Label>Ativo</Label>
               </div>
+              <div className="flex items-center gap-2">
+                <Switch checked={participaLimpeza} onCheckedChange={setParticipaLimpeza} />
+                <Label>Participa da limpeza da cozinha</Label>
+              </div>
               <Button onClick={handleSave} className="w-full" disabled={uploading}>
                 {uploading ? "Salvando..." : "Salvar"}
               </Button>
@@ -337,6 +346,7 @@ function TabColaboradores() {
                 <TableHead className="w-12"></TableHead>
                 <TableHead>Nome</TableHead>
                 <TableHead>Nascimento</TableHead>
+                <TableHead>Limpeza</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead className="w-24">Ações</TableHead>
               </TableRow>
@@ -355,6 +365,11 @@ function TabColaboradores() {
                     {c.data_nascimento
                       ? format(new Date(c.data_nascimento + "T12:00:00"), "dd/MM/yyyy")
                       : "—"}
+                  </TableCell>
+                  <TableCell>
+                    <span className={`text-xs font-medium px-2 py-1 rounded-full ${c.participa_limpeza ? "bg-blue-500/10 text-blue-500" : "bg-muted text-muted-foreground"}`}>
+                      {c.participa_limpeza ? "Sim" : "Não"}
+                    </span>
                   </TableCell>
                   <TableCell>
                     <span className={`text-xs font-medium px-2 py-1 rounded-full ${c.ativo ? "bg-emerald-500/10 text-emerald-500" : "bg-muted text-muted-foreground"}`}>
@@ -443,8 +458,9 @@ function TabEscala() {
   };
 
   const gerarSemana = async () => {
-    if (colaboradores.length === 0) {
-      toast({ title: "Nenhum colaborador ativo", variant: "destructive" });
+    const aptos = colaboradores.filter((c) => c.participa_limpeza);
+    if (aptos.length === 0) {
+      toast({ title: "Nenhum colaborador apto para limpeza", description: "Marque ao menos um colaborador como participante da limpeza.", variant: "destructive" });
       return;
     }
 
@@ -460,8 +476,8 @@ function TabEscala() {
       weekdays.push(format(addDays(nextMonday, i), "yyyy-MM-dd"));
     }
 
-    // Shuffle collaborators
-    const shuffled = [...colaboradores].sort(() => Math.random() - 0.5);
+    // Shuffle collaborators eligible for cleaning
+    const shuffled = [...aptos].sort(() => Math.random() - 0.5);
 
     // Assign one per day, cycling if fewer than 5
     const entries = weekdays.map((dia, i) => ({
