@@ -132,7 +132,7 @@ export default function EntradaNF() {
           </Button>
         </div>
       ) : (
-        <div className="flex items-center justify-between p-4 bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800 rounded-lg">
+        <div className="flex items-center justify-between p-4 bg-accent/10 border border-accent/30 rounded-lg">
           <p className="text-sm text-foreground">✓ Entrada registrada com sucesso! {rolos.length} rolo(s) e {parcelas.length} parcela(s).</p>
           <Button variant="outline" onClick={handleNovaEntrada}>Nova Entrada</Button>
         </div>
