@@ -111,7 +111,7 @@ export default function TVInterna() {
   const aniversariantes = colaboradores.filter((c) => {
     if (!c.data_nascimento) return false;
     const nascimento = parseISO(c.data_nascimento);
-    return isSameMonth(nascimento, new Date()) && nascimento.getDate() >= new Date().getDate();
+    return isSameMonth(nascimento, new Date());
   });
 
   const activePanel = PAINEIS[activeIndex];
