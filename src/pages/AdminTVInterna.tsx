@@ -33,8 +33,9 @@ import {
 } from "@/components/ui/dialog";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
-  Users, CalendarDays, Megaphone, Plus, Trash2, Pencil, Monitor, Shuffle,
+  Users, CalendarDays, Megaphone, Plus, Trash2, Pencil, Monitor, Shuffle, ImagePlus,
 } from "lucide-react";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 /* ─── Types ─── */
 interface Colaborador {
