@@ -48,6 +48,7 @@ export interface RoloTecido {
   metragem_inicial: number | null;
   metragem_disponivel: number | null;
   peso_kg: number | null;
+  custo_por_metro: number | null;
   fornecedor: string | null;
   status_rolo: string | null;
   entrada_id: string | null;
