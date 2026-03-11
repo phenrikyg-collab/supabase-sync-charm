@@ -11,7 +11,8 @@ import { StatusBadge } from "@/components/StatusBadge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Plus, List, Columns3, Wrench, Trash2, PlusCircle, Printer } from "lucide-react";
 import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase as _supabase } from "@/integrations/supabase/client";
+const supabase = _supabase as any;
 import { motion } from "framer-motion";
 import { printHTML, statusBadgeHTML, formatDateBR } from "@/lib/printUtils";
 

@@ -2,7 +2,8 @@
 // Versão 2: aceita CSV e PDF de extrato de cartão
 
 import { useRef, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase as _supabase } from "@/integrations/supabase/client";
+const supabase = _supabase as any;
 
 interface LancamentoImportado {
   descricao: string;

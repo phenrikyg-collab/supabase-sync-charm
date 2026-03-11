@@ -7,7 +7,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { Upload, Sparkles, Check, Loader2, FileText } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase as _supabase } from "@/integrations/supabase/client";
+const supabase = _supabase as any;
 import { useCategorias } from "@/hooks/useSupabase";
 import { useQueryClient } from "@tanstack/react-query";
 
