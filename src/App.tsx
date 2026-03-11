@@ -11,6 +11,7 @@ import ProdutoForm from "./pages/ProdutoForm";
 import Cores from "./pages/Cores";
 import EntradaNF from "./pages/EntradaNF";
 import EstoqueTecidos from "./pages/EstoqueTecidos";
+import CadastroTecidos from "./pages/CadastroTecidos";
 import OrdensCorte from "./pages/OrdensCorte";
 import NovaOrdemCorte from "./pages/NovaOrdemCorte";
 import Oficinas from "./pages/Oficinas";
