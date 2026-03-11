@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { format, isSameMonth, parseISO } from "date-fns";
+import { format, parseISO, getDaysInMonth } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -111,7 +111,15 @@ export default function TVInterna() {
   const aniversariantes = colaboradores.filter((c) => {
     if (!c.data_nascimento) return false;
     const nascimento = parseISO(c.data_nascimento);
-    return isSameMonth(nascimento, new Date());
+    const mesNasc = nascimento.getMonth(); // 0-indexed
+    const hoje = new Date();
+    const mesAtual = hoje.getMonth();
+    const proxMes = (mesAtual + 1) % 12;
+    const diasNoMes = getDaysInMonth(hoje);
+    const diasRestantes = diasNoMes - hoje.getDate();
+    const mostrarProxMes = diasRestantes < 5;
+
+    return mesNasc === mesAtual || (mostrarProxMes && mesNasc === proxMes);
   });
 
   const activePanel = PAINEIS[activeIndex];
