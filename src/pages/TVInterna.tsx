@@ -420,7 +420,7 @@ function PainelLimpeza({
               <div>
                 <AnimatePresence mode="wait">
                   <motion.div
-                    key={nomeVisivel || "empty"}
+                    key={colabVisivel?.id || "empty"}
                     initial={{ y: 10, opacity: 0 }}
                     animate={{ y: 0, opacity: 1 }}
                     exit={{ y: -10, opacity: 0 }}
@@ -429,21 +429,31 @@ function PainelLimpeza({
                   >
                     {sorteando || sorteado ? (
                       <>
-                        <div
-                          className={`w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4 text-3xl font-bold ${
-                            sorteado
-                              ? "bg-gradient-to-br from-emerald-500 to-green-500 text-black"
-                              : "bg-white/10"
-                          }`}
-                        >
-                          {nomeVisivel.charAt(0)}
-                        </div>
+                        {colabVisivel?.foto_url ? (
+                          <img
+                            src={colabVisivel.foto_url}
+                            alt={colabVisivel.nome}
+                            className={`w-20 h-20 rounded-full object-cover mx-auto mb-4 border-2 ${
+                              sorteado ? "border-emerald-500" : "border-white/20"
+                            }`}
+                          />
+                        ) : (
+                          <div
+                            className={`w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4 text-3xl font-bold ${
+                              sorteado
+                                ? "bg-gradient-to-br from-emerald-500 to-green-500 text-black"
+                                : "bg-white/10"
+                            }`}
+                          >
+                            {colabVisivel?.nome.charAt(0)}
+                          </div>
+                        )}
                         <p
                           className={`text-2xl font-bold ${
                             sorteado ? "text-emerald-400" : ""
                           }`}
                         >
-                          {nomeVisivel}
+                          {colabVisivel?.nome}
                         </p>
                       </>
                     ) : (
