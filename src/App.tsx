@@ -64,6 +64,7 @@ const AppRoutes = () => {
   return (
     <Routes>
       <Route path="/login" element={user ? <Navigate to="/" replace /> : <Login />} />
+      <Route path="/tv-interna" element={<TVInterna />} />
       <Route path="*" element={
         <ProtectedRoute>
           <AppLayout>
