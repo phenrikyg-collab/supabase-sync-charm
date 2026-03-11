@@ -431,6 +431,7 @@ function TabEscala() {
             </div>
           </DialogContent>
         </Dialog>
+        </div>
       </CardHeader>
       <CardContent>
         {loading ? (
