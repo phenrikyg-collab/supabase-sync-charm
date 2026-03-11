@@ -18,6 +18,7 @@ import OficinaInterna from "./pages/OficinaInterna";
 import OrdensProducao from "./pages/OrdensProducao";
 import Producao from "./pages/Producao";
 import Expedicao from "./pages/Expedicao";
+import TvInterna from "./pages/TvInterna";
 import Financeiro from "./pages/Financeiro";
 import ContasPagar from "./pages/ContasPagar";
 import DRE from "./pages/DRE";
