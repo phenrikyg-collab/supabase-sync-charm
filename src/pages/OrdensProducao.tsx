@@ -37,6 +37,28 @@ const COLUNAS_KANBAN = [
 
 const TAMANHOS = ["PP", "P", "M", "G", "GG", "EG"];
 
+// KPI per order: days of production × proportional daily cost vs custo_estimado_peca
+function getOrderKPI(ordem: any, custoFixoMensal: number, totalPecasMes: number) {
+  if (!ordem.custo_estimado_peca || ordem.custo_estimado_peca <= 0) return null;
+  if (!ordem.data_inicio) return null;
+  
+  const pecas = ordem.quantidade_pecas_ordem ?? ordem.quantidade ?? 0;
+  if (pecas <= 0 || totalPecasMes <= 0) return null;
+
+  const inicio = parseISO(ordem.data_inicio);
+  const fim = ordem.data_fim ? parseISO(ordem.data_fim) : new Date();
+  const diasProducao = Math.max(1, differenceInCalendarDays(fim, inicio));
+  
+  // Proportional cost: (pecas / totalPecasMes) × custoFixoMensal, then spread over dias
+  const custoProporcional = (pecas / totalPecasMes) * custoFixoMensal;
+  const custoRealPorPeca = custoProporcional / pecas;
+  const ratio = custoRealPorPeca / ordem.custo_estimado_peca;
+
+  if (ratio <= 0.9) return { label: "No Prazo", level: "ok" as const, ratio };
+  if (ratio <= 1.0) return { label: "Alerta", level: "alerta" as const, ratio };
+  return { label: "Crítico", level: "critico" as const, ratio };
+}
+
 export default function OrdensProducao() {
   const { data: ordens, isLoading } = useOrdensProducao();
   const { data: oficinas } = useOficinas();
@@ -45,8 +67,10 @@ export default function OrdensProducao() {
   const { data: ordensCorte } = useOrdensCorte();
   const { data: producao } = useResumoProducao();
   const { data: consertos } = useAllConsertos();
+  const { data: custosFixos } = useCustosFixosOficina();
   const createMut = useCreateOrdemProducao();
   const updateMut = useUpdateOrdemProducao();
+  const deleteMut = useDeleteOrdemProducao();
   const createConsertoMut = useCreateConserto();
 
   const [open, setOpen] = useState(false);
@@ -54,7 +78,21 @@ export default function OrdensProducao() {
   const [oficinaId, setOficinaId] = useState("");
   const [quantidade, setQuantidade] = useState(0);
   const [previsaoTermino, setPrevisaoTermino] = useState("");
+  const [custoEstimadoPeca, setCustoEstimadoPeca] = useState(0);
   const [ocInfo, setOcInfo] = useState<{ produto: string; cor: string; grade: string } | null>(null);
+
+  // Edit dialog
+  const [editOpen, setEditOpen] = useState(false);
+  const [editOrdem, setEditOrdem] = useState<any>(null);
+  const [editStatus, setEditStatus] = useState("");
+  const [editOficinaId, setEditOficinaId] = useState("");
+  const [editQuantidade, setEditQuantidade] = useState(0);
+  const [editPrevisao, setEditPrevisao] = useState("");
+  const [editCustoEstimado, setEditCustoEstimado] = useState(0);
+
+  // Delete dialog
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
 
   // Conserto dialog
   const [consertoOpen, setConsertoOpen] = useState(false);
@@ -75,6 +113,26 @@ export default function OrdensProducao() {
   const oficinaColorMap = Object.fromEntries(
     (oficinas ?? []).map((o, i) => [o.id, OFICINA_COLORS[i % OFICINA_COLORS.length]])
   );
+
+  const oficinasInternas = useMemo(() => oficinas?.filter(o => o.is_interna) ?? [], [oficinas]);
+  const oficinasInternasIds = useMemo(() => new Set(oficinasInternas.map(o => o.id)), [oficinasInternas]);
+
+  // Current month cost and total pieces for KPI calculation
+  const currentMonthKey = useMemo(() => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+  }, []);
+  const custoFixoMensal = useMemo(() => custosFixos?.find(c => c.mes === currentMonthKey)?.valor ?? 0, [custosFixos, currentMonthKey]);
+  const totalPecasMes = useMemo(() => {
+    if (!ordens) return 0;
+    const monthStart = startOfMonth(new Date());
+    const monthEnd = endOfMonth(new Date());
+    return ordens.filter(o => {
+      if (!o.oficina_id || !oficinasInternasIds.has(o.oficina_id)) return false;
+      const d = o.created_at ? parseISO(o.created_at) : null;
+      return d && d >= monthStart && d <= monthEnd;
+    }).reduce((sum, o) => sum + (o.quantidade_pecas_ordem ?? o.quantidade ?? 0), 0);
+  }, [ordens, oficinasInternasIds]);
 
   const ocsDisponiveis = ordensCorte?.filter((oc) => oc.status === "Planejada") ?? [];
 
