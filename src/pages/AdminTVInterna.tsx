@@ -323,6 +323,10 @@ function TabColaboradores() {
                 <Switch checked={ativo} onCheckedChange={setAtivo} />
                 <Label>Ativo</Label>
               </div>
+              <div className="flex items-center gap-2">
+                <Switch checked={participaLimpeza} onCheckedChange={setParticipaLimpeza} />
+                <Label>Participa da limpeza da cozinha</Label>
+              </div>
               <Button onClick={handleSave} className="w-full" disabled={uploading}>
                 {uploading ? "Salvando..." : "Salvar"}
               </Button>
