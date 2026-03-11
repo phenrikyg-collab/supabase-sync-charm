@@ -191,10 +191,51 @@ export default function OrdensProducao() {
         status_ordem: "Corte",
         data_inicio: new Date().toISOString().split("T")[0],
         data_previsao_termino: previsaoTermino || null,
+        custo_estimado_peca: custoEstimadoPeca > 0 ? custoEstimadoPeca : null,
       } as any);
       toast.success("Ordem de produção criada!");
       setOpen(false);
-      setOcId(""); setOficinaId(""); setPrevisaoTermino("");
+      setOcId(""); setOficinaId(""); setPrevisaoTermino(""); setCustoEstimadoPeca(0);
+    } catch (e: any) { toast.error(e.message); }
+  };
+
+  const openEditDialog = (o: any) => {
+    setEditOrdem(o);
+    setEditStatus(o.status_ordem ?? "Corte");
+    setEditOficinaId(o.oficina_id ?? "");
+    setEditQuantidade(o.quantidade ?? o.quantidade_pecas_ordem ?? 0);
+    setEditPrevisao(o.data_previsao_termino ?? "");
+    setEditCustoEstimado(o.custo_estimado_peca ?? 0);
+    setEditOpen(true);
+  };
+
+  const handleEdit = async () => {
+    if (!editOrdem) return;
+    try {
+      const updates: any = {
+        status_ordem: editStatus,
+        oficina_id: editOficinaId || null,
+        quantidade: editQuantidade,
+        quantidade_pecas_ordem: editQuantidade,
+        data_previsao_termino: editPrevisao || null,
+        custo_estimado_peca: editCustoEstimado > 0 ? editCustoEstimado : null,
+      };
+      if (editStatus === "Finalizado" && !editOrdem.data_fim) {
+        updates.data_fim = new Date().toISOString().split("T")[0];
+      }
+      await updateMut.mutateAsync({ id: editOrdem.id, ...updates });
+      toast.success("Ordem atualizada!");
+      setEditOpen(false);
+    } catch (e: any) { toast.error(e.message); }
+  };
+
+  const handleDelete = async () => {
+    if (!deleteId) return;
+    try {
+      await deleteMut.mutateAsync(deleteId);
+      toast.success("Ordem excluída!");
+      setDeleteOpen(false);
+      setDeleteId(null);
     } catch (e: any) { toast.error(e.message); }
   };
 
