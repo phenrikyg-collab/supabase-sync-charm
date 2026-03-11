@@ -30,6 +30,7 @@ import AdminUsuarios from "./pages/AdminUsuarios";
 import Login from "./pages/Login";
 import NotFound from "./pages/NotFound";
 import TVInterna from "./pages/TVInterna";
+import AdminTVInterna from "./pages/AdminTVInterna";
 import { Loader2 } from "lucide-react";
 
 const queryClient = new QueryClient({
@@ -92,6 +93,7 @@ const AppRoutes = () => {
               <Route path="/importar" element={<ImportarPage />} />
               <Route path="/metas" element={<Metas />} />
               <Route path="/admin/usuarios" element={<AdminUsuarios />} />
+              <Route path="/admin/tv-interna" element={<AdminTVInterna />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </AppLayout>

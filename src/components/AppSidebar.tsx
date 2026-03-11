@@ -1,7 +1,7 @@
 import {
   LayoutDashboard, Package, Plus, Palette, Scissors, Factory,
   Truck, DollarSign, Target, FileText, Building2, LogOut, Users, Home, BarChart3, Upload, Layers,
-  ShoppingBag, Banknote, Wrench, CreditCard, PieChart, Monitor,
+  ShoppingBag, Banknote, Wrench, CreditCard, PieChart, Monitor, Settings,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useAuth } from "@/contexts/AuthContext";
@@ -188,6 +188,18 @@ export function AppSidebar() {
                   >
                     <Users className="h-4 w-4 mr-2 shrink-0" />
                     {!collapsed && <span>Usuários</span>}
+                  </NavLink>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton asChild>
+                  <NavLink
+                    to="/admin/tv-interna"
+                    className="transition-colors hover:bg-sidebar-accent"
+                    activeClassName="bg-sidebar-accent text-sidebar-primary font-medium"
+                  >
+                    <Settings className="h-4 w-4 mr-2 shrink-0" />
+                    {!collapsed && <span>Gestão TV</span>}
                   </NavLink>
                 </SidebarMenuButton>
               </SidebarMenuItem>
