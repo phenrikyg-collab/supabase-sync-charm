@@ -414,17 +414,18 @@ export default function OrdensProducao() {
                       <TableHead>Cores</TableHead>
                       <TableHead>Grade</TableHead>
                       <TableHead>Oficina</TableHead>
-                      <TableHead className="text-right">Quantidade</TableHead>
+                      <TableHead className="text-right">Qtd</TableHead>
+                      <TableHead className="text-right">Custo Est./Peça</TableHead>
+                      <TableHead className="text-center">KPI</TableHead>
                        <TableHead>Status</TableHead>
                        <TableHead>Início</TableHead>
                        <TableHead>Previsão</TableHead>
-                      <TableHead className="w-10"></TableHead>
+                      <TableHead className="w-28"></TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {ordensEnriched.map((o: any) => {
                       const gradeItems = o.gradeInfo ?? [];
-                      // Group grade by color
                       const coresByGrade = new Map<string, any[]>();
                       gradeItems.forEach((g: any) => {
                         const key = g.cor_id ?? "sem-cor";
@@ -432,6 +433,8 @@ export default function OrdensProducao() {
                         list.push(g);
                         coresByGrade.set(key, list);
                       });
+                      const isInterna = o.oficina_id && oficinasInternasIds.has(o.oficina_id);
+                      const kpi = isInterna ? getOrderKPI(o, custoFixoMensal, totalPecasMes) : null;
 
                       return (
                         <TableRow key={o.id}>
@@ -469,13 +472,38 @@ export default function OrdensProducao() {
                           </TableCell>
                           <TableCell>{o.oficina_id ? oficinaMap[o.oficina_id]?.nome_oficina ?? "—" : "—"}</TableCell>
                           <TableCell className="text-right">{o.quantidade ?? o.quantidade_pecas_ordem ?? 0}</TableCell>
+                          <TableCell className="text-right text-muted-foreground">
+                            {o.custo_estimado_peca ? `R$ ${Number(o.custo_estimado_peca).toFixed(2)}` : "—"}
+                          </TableCell>
+                          <TableCell className="text-center">
+                            {kpi ? (
+                              <Badge className={`text-xs border ${
+                                kpi.level === "ok" ? "bg-success/15 text-success border-success/30" :
+                                kpi.level === "alerta" ? "bg-warning/15 text-warning border-warning/30" :
+                                "bg-destructive/15 text-destructive border-destructive/30"
+                              }`}>
+                                {kpi.level === "ok" ? <CheckCircle className="h-3 w-3 mr-1" /> :
+                                 kpi.level === "alerta" ? <AlertTriangle className="h-3 w-3 mr-1" /> :
+                                 <XCircle className="h-3 w-3 mr-1" />}
+                                {kpi.label}
+                              </Badge>
+                            ) : <span className="text-xs text-muted-foreground">—</span>}
+                          </TableCell>
                           <TableCell><StatusBadge status={o.status_ordem ?? ""} /></TableCell>
                           <TableCell className="text-muted-foreground">{formatDateBR(o.data_inicio)}</TableCell>
                           <TableCell className="text-muted-foreground">{formatDateBR(o.data_previsao_termino)}</TableCell>
                           <TableCell>
-                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => printOrdemProducao(o)}>
-                              <Printer className="h-3.5 w-3.5" />
-                            </Button>
+                            <div className="flex gap-1">
+                              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEditDialog(o)}>
+                                <Pencil className="h-3.5 w-3.5" />
+                              </Button>
+                              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => printOrdemProducao(o)}>
+                                <Printer className="h-3.5 w-3.5" />
+                              </Button>
+                              <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => { setDeleteId(o.id); setDeleteOpen(true); }}>
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </Button>
+                            </div>
                           </TableCell>
                         </TableRow>
                       );
