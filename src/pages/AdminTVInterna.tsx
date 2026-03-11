@@ -346,6 +346,7 @@ function TabColaboradores() {
                 <TableHead className="w-12"></TableHead>
                 <TableHead>Nome</TableHead>
                 <TableHead>Nascimento</TableHead>
+                <TableHead>Limpeza</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead className="w-24">Ações</TableHead>
               </TableRow>
