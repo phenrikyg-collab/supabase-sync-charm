@@ -633,15 +633,23 @@ export type Database = {
           bling_id: string | null
           bling_produto_id: number | null
           codigo_sku: string | null
+          comissao_percentual: number | null
           consumo_de_tecido: number | null
           created_at: string | null
+          cupom_percentual: number | null
           custo_bling: number | null
+          custo_corte: number | null
+          custo_costura: number | null
+          custo_embalagem: number | null
           id: string
+          imposto_percentual: number | null
           margem_real_percentual: number | null
           nome_do_produto: string
           origem_custo: string | null
+          parcelamento_percentual: number | null
           preco_custo: number | null
           preco_venda: number | null
+          preco_venda_sugerido: number | null
           tecido_do_produto: string | null
           tipo_do_produto: string | null
           updated_from_bling: string | null
@@ -652,15 +660,23 @@ export type Database = {
           bling_id?: string | null
           bling_produto_id?: number | null
           codigo_sku?: string | null
+          comissao_percentual?: number | null
           consumo_de_tecido?: number | null
           created_at?: string | null
+          cupom_percentual?: number | null
           custo_bling?: number | null
+          custo_corte?: number | null
+          custo_costura?: number | null
+          custo_embalagem?: number | null
           id?: string
+          imposto_percentual?: number | null
           margem_real_percentual?: number | null
           nome_do_produto: string
           origem_custo?: string | null
+          parcelamento_percentual?: number | null
           preco_custo?: number | null
           preco_venda?: number | null
+          preco_venda_sugerido?: number | null
           tecido_do_produto?: string | null
           tipo_do_produto?: string | null
           updated_from_bling?: string | null
@@ -671,15 +687,23 @@ export type Database = {
           bling_id?: string | null
           bling_produto_id?: number | null
           codigo_sku?: string | null
+          comissao_percentual?: number | null
           consumo_de_tecido?: number | null
           created_at?: string | null
+          cupom_percentual?: number | null
           custo_bling?: number | null
+          custo_corte?: number | null
+          custo_costura?: number | null
+          custo_embalagem?: number | null
           id?: string
+          imposto_percentual?: number | null
           margem_real_percentual?: number | null
           nome_do_produto?: string
           origem_custo?: string | null
+          parcelamento_percentual?: number | null
           preco_custo?: number | null
           preco_venda?: number | null
+          preco_venda_sugerido?: number | null
           tecido_do_produto?: string | null
           tipo_do_produto?: string | null
           updated_from_bling?: string | null
