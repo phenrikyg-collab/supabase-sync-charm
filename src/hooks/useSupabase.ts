@@ -429,6 +429,24 @@ export const useUpdateOrdemProducao = () => {
   });
 };
 
+export const useDeleteOrdemProducao = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      // Delete related consertos first
+      await supabase.from("consertos").delete().eq("ordem_producao_id", id);
+      const { error } = await supabase.from("ordens_producao").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["ordens-producao"] });
+      qc.invalidateQueries({ queryKey: ["resumo-producao"] });
+      qc.invalidateQueries({ queryKey: ["consertos"] });
+      qc.invalidateQueries({ queryKey: ["consertos-all"] });
+    },
+  });
+};
+
 // Update Ordem Corte status
 export const useUpdateOrdemCorte = () => {
   const qc = useQueryClient();

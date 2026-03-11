@@ -128,6 +128,7 @@ export interface OrdemProducao {
   entrada_tecido_id: string | null;
   risco_id: string | null;
   pagamento_oficina_status: string | null;
+  custo_estimado_peca: number | null;
   created_at: string;
 }
 

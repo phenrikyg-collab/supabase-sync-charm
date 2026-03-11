@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { useOrdensProducao, useOficinas, useProdutos, useCores, useOrdensCorte, useCreateOrdemProducao, useResumoProducao, useUpdateOrdemProducao, useAllConsertos, useCreateConserto, useUpdateConserto } from "@/hooks/useSupabase";
+import { useState, useEffect, useMemo } from "react";
+import { useOrdensProducao, useOficinas, useProdutos, useCores, useOrdensCorte, useCreateOrdemProducao, useResumoProducao, useUpdateOrdemProducao, useDeleteOrdemProducao, useAllConsertos, useCreateConserto, useUpdateConserto, useCustosFixosOficina } from "@/hooks/useSupabase";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,12 +8,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { StatusBadge } from "@/components/StatusBadge";
+import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, List, Columns3, Wrench, Trash2, PlusCircle, Printer } from "lucide-react";
+import { Plus, List, Columns3, Wrench, Trash2, PlusCircle, Printer, Pencil, AlertTriangle, CheckCircle, XCircle } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { motion } from "framer-motion";
 import { printHTML, statusBadgeHTML, formatDateBR } from "@/lib/printUtils";
+import { parseISO, differenceInCalendarDays, startOfMonth, endOfMonth } from "date-fns";
 
 // Color palette for oficinas (deterministic by index)
 const OFICINA_COLORS = [
@@ -35,6 +37,28 @@ const COLUNAS_KANBAN = [
 
 const TAMANHOS = ["PP", "P", "M", "G", "GG", "EG"];
 
+// KPI per order: days of production × proportional daily cost vs custo_estimado_peca
+function getOrderKPI(ordem: any, custoFixoMensal: number, totalPecasMes: number) {
+  if (!ordem.custo_estimado_peca || ordem.custo_estimado_peca <= 0) return null;
+  if (!ordem.data_inicio) return null;
+  
+  const pecas = ordem.quantidade_pecas_ordem ?? ordem.quantidade ?? 0;
+  if (pecas <= 0 || totalPecasMes <= 0) return null;
+
+  const inicio = parseISO(ordem.data_inicio);
+  const fim = ordem.data_fim ? parseISO(ordem.data_fim) : new Date();
+  const diasProducao = Math.max(1, differenceInCalendarDays(fim, inicio));
+  
+  // Proportional cost: (pecas / totalPecasMes) × custoFixoMensal, then spread over dias
+  const custoProporcional = (pecas / totalPecasMes) * custoFixoMensal;
+  const custoRealPorPeca = custoProporcional / pecas;
+  const ratio = custoRealPorPeca / ordem.custo_estimado_peca;
+
+  if (ratio <= 0.9) return { label: "No Prazo", level: "ok" as const, ratio };
+  if (ratio <= 1.0) return { label: "Alerta", level: "alerta" as const, ratio };
+  return { label: "Crítico", level: "critico" as const, ratio };
+}
+
 export default function OrdensProducao() {
   const { data: ordens, isLoading } = useOrdensProducao();
   const { data: oficinas } = useOficinas();
@@ -43,8 +67,10 @@ export default function OrdensProducao() {
   const { data: ordensCorte } = useOrdensCorte();
   const { data: producao } = useResumoProducao();
   const { data: consertos } = useAllConsertos();
+  const { data: custosFixos } = useCustosFixosOficina();
   const createMut = useCreateOrdemProducao();
   const updateMut = useUpdateOrdemProducao();
+  const deleteMut = useDeleteOrdemProducao();
   const createConsertoMut = useCreateConserto();
 
   const [open, setOpen] = useState(false);
@@ -52,7 +78,21 @@ export default function OrdensProducao() {
   const [oficinaId, setOficinaId] = useState("");
   const [quantidade, setQuantidade] = useState(0);
   const [previsaoTermino, setPrevisaoTermino] = useState("");
+  const [custoEstimadoPeca, setCustoEstimadoPeca] = useState(0);
   const [ocInfo, setOcInfo] = useState<{ produto: string; cor: string; grade: string } | null>(null);
+
+  // Edit dialog
+  const [editOpen, setEditOpen] = useState(false);
+  const [editOrdem, setEditOrdem] = useState<any>(null);
+  const [editStatus, setEditStatus] = useState("");
+  const [editOficinaId, setEditOficinaId] = useState("");
+  const [editQuantidade, setEditQuantidade] = useState(0);
+  const [editPrevisao, setEditPrevisao] = useState("");
+  const [editCustoEstimado, setEditCustoEstimado] = useState(0);
+
+  // Delete dialog
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
 
   // Conserto dialog
   const [consertoOpen, setConsertoOpen] = useState(false);
@@ -73,6 +113,26 @@ export default function OrdensProducao() {
   const oficinaColorMap = Object.fromEntries(
     (oficinas ?? []).map((o, i) => [o.id, OFICINA_COLORS[i % OFICINA_COLORS.length]])
   );
+
+  const oficinasInternas = useMemo(() => oficinas?.filter(o => o.is_interna) ?? [], [oficinas]);
+  const oficinasInternasIds = useMemo(() => new Set(oficinasInternas.map(o => o.id)), [oficinasInternas]);
+
+  // Current month cost and total pieces for KPI calculation
+  const currentMonthKey = useMemo(() => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+  }, []);
+  const custoFixoMensal = useMemo(() => custosFixos?.find(c => c.mes === currentMonthKey)?.valor ?? 0, [custosFixos, currentMonthKey]);
+  const totalPecasMes = useMemo(() => {
+    if (!ordens) return 0;
+    const monthStart = startOfMonth(new Date());
+    const monthEnd = endOfMonth(new Date());
+    return ordens.filter(o => {
+      if (!o.oficina_id || !oficinasInternasIds.has(o.oficina_id)) return false;
+      const d = o.created_at ? parseISO(o.created_at) : null;
+      return d && d >= monthStart && d <= monthEnd;
+    }).reduce((sum, o) => sum + (o.quantidade_pecas_ordem ?? o.quantidade ?? 0), 0);
+  }, [ordens, oficinasInternasIds]);
 
   const ocsDisponiveis = ordensCorte?.filter((oc) => oc.status === "Planejada") ?? [];
 
@@ -131,10 +191,51 @@ export default function OrdensProducao() {
         status_ordem: "Corte",
         data_inicio: new Date().toISOString().split("T")[0],
         data_previsao_termino: previsaoTermino || null,
+        custo_estimado_peca: custoEstimadoPeca > 0 ? custoEstimadoPeca : null,
       } as any);
       toast.success("Ordem de produção criada!");
       setOpen(false);
-      setOcId(""); setOficinaId(""); setPrevisaoTermino("");
+      setOcId(""); setOficinaId(""); setPrevisaoTermino(""); setCustoEstimadoPeca(0);
+    } catch (e: any) { toast.error(e.message); }
+  };
+
+  const openEditDialog = (o: any) => {
+    setEditOrdem(o);
+    setEditStatus(o.status_ordem ?? "Corte");
+    setEditOficinaId(o.oficina_id ?? "");
+    setEditQuantidade(o.quantidade ?? o.quantidade_pecas_ordem ?? 0);
+    setEditPrevisao(o.data_previsao_termino ?? "");
+    setEditCustoEstimado(o.custo_estimado_peca ?? 0);
+    setEditOpen(true);
+  };
+
+  const handleEdit = async () => {
+    if (!editOrdem) return;
+    try {
+      const updates: any = {
+        status_ordem: editStatus,
+        oficina_id: editOficinaId || null,
+        quantidade: editQuantidade,
+        quantidade_pecas_ordem: editQuantidade,
+        data_previsao_termino: editPrevisao || null,
+        custo_estimado_peca: editCustoEstimado > 0 ? editCustoEstimado : null,
+      };
+      if (editStatus === "Finalizado" && !editOrdem.data_fim) {
+        updates.data_fim = new Date().toISOString().split("T")[0];
+      }
+      await updateMut.mutateAsync({ id: editOrdem.id, ...updates });
+      toast.success("Ordem atualizada!");
+      setEditOpen(false);
+    } catch (e: any) { toast.error(e.message); }
+  };
+
+  const handleDelete = async () => {
+    if (!deleteId) return;
+    try {
+      await deleteMut.mutateAsync(deleteId);
+      toast.success("Ordem excluída!");
+      setDeleteOpen(false);
+      setDeleteId(null);
     } catch (e: any) { toast.error(e.message); }
   };
 
@@ -313,17 +414,18 @@ export default function OrdensProducao() {
                       <TableHead>Cores</TableHead>
                       <TableHead>Grade</TableHead>
                       <TableHead>Oficina</TableHead>
-                      <TableHead className="text-right">Quantidade</TableHead>
+                      <TableHead className="text-right">Qtd</TableHead>
+                      <TableHead className="text-right">Custo Est./Peça</TableHead>
+                      <TableHead className="text-center">KPI</TableHead>
                        <TableHead>Status</TableHead>
                        <TableHead>Início</TableHead>
                        <TableHead>Previsão</TableHead>
-                      <TableHead className="w-10"></TableHead>
+                      <TableHead className="w-28"></TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {ordensEnriched.map((o: any) => {
                       const gradeItems = o.gradeInfo ?? [];
-                      // Group grade by color
                       const coresByGrade = new Map<string, any[]>();
                       gradeItems.forEach((g: any) => {
                         const key = g.cor_id ?? "sem-cor";
@@ -331,6 +433,8 @@ export default function OrdensProducao() {
                         list.push(g);
                         coresByGrade.set(key, list);
                       });
+                      const isInterna = o.oficina_id && oficinasInternasIds.has(o.oficina_id);
+                      const kpi = isInterna ? getOrderKPI(o, custoFixoMensal, totalPecasMes) : null;
 
                       return (
                         <TableRow key={o.id}>
@@ -368,13 +472,38 @@ export default function OrdensProducao() {
                           </TableCell>
                           <TableCell>{o.oficina_id ? oficinaMap[o.oficina_id]?.nome_oficina ?? "—" : "—"}</TableCell>
                           <TableCell className="text-right">{o.quantidade ?? o.quantidade_pecas_ordem ?? 0}</TableCell>
+                          <TableCell className="text-right text-muted-foreground">
+                            {o.custo_estimado_peca ? `R$ ${Number(o.custo_estimado_peca).toFixed(2)}` : "—"}
+                          </TableCell>
+                          <TableCell className="text-center">
+                            {kpi ? (
+                              <Badge className={`text-xs border ${
+                                kpi.level === "ok" ? "bg-success/15 text-success border-success/30" :
+                                kpi.level === "alerta" ? "bg-warning/15 text-warning border-warning/30" :
+                                "bg-destructive/15 text-destructive border-destructive/30"
+                              }`}>
+                                {kpi.level === "ok" ? <CheckCircle className="h-3 w-3 mr-1" /> :
+                                 kpi.level === "alerta" ? <AlertTriangle className="h-3 w-3 mr-1" /> :
+                                 <XCircle className="h-3 w-3 mr-1" />}
+                                {kpi.label}
+                              </Badge>
+                            ) : <span className="text-xs text-muted-foreground">—</span>}
+                          </TableCell>
                           <TableCell><StatusBadge status={o.status_ordem ?? ""} /></TableCell>
                           <TableCell className="text-muted-foreground">{formatDateBR(o.data_inicio)}</TableCell>
                           <TableCell className="text-muted-foreground">{formatDateBR(o.data_previsao_termino)}</TableCell>
                           <TableCell>
-                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => printOrdemProducao(o)}>
-                              <Printer className="h-3.5 w-3.5" />
-                            </Button>
+                            <div className="flex gap-1">
+                              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEditDialog(o)}>
+                                <Pencil className="h-3.5 w-3.5" />
+                              </Button>
+                              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => printOrdemProducao(o)}>
+                                <Printer className="h-3.5 w-3.5" />
+                              </Button>
+                              <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => { setDeleteId(o.id); setDeleteOpen(true); }}>
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </Button>
+                            </div>
                           </TableCell>
                         </TableRow>
                       );
@@ -585,10 +714,74 @@ export default function OrdensProducao() {
               <Label>Previsão de Término</Label>
               <Input type="date" value={previsaoTermino} onChange={(e) => setPrevisaoTermino(e.target.value)} />
             </div>
+            <div className="space-y-2">
+              <Label>Custo Estimado por Peça (R$)</Label>
+              <Input type="number" step="0.01" value={custoEstimadoPeca || ""} onChange={(e) => setCustoEstimadoPeca(Number(e.target.value))} placeholder="0.00" />
+              <p className="text-xs text-muted-foreground">Usado para calcular KPI de custo (No Prazo / Alerta / Crítico)</p>
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setOpen(false)}>Cancelar</Button>
             <Button onClick={handleCreate} disabled={createMut.isPending}>Criar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Dialog */}
+      <Dialog open={editOpen} onOpenChange={setEditOpen}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Editar Ordem de Produção</DialogTitle></DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>Status</Label>
+              <Select value={editStatus} onValueChange={setEditStatus}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {["Corte", "Costura", "Revisão", "Em Conserto", "Finalizado"].map((s) => (
+                    <SelectItem key={s} value={s}>{s}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Oficina</Label>
+              <Select value={editOficinaId} onValueChange={setEditOficinaId}>
+                <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
+                <SelectContent>
+                  {oficinas?.map((o) => (
+                    <SelectItem key={o.id} value={o.id}>{o.nome_oficina}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Quantidade de Peças</Label>
+              <Input type="number" value={editQuantidade} onChange={(e) => setEditQuantidade(Number(e.target.value))} />
+            </div>
+            <div className="space-y-2">
+              <Label>Previsão de Término</Label>
+              <Input type="date" value={editPrevisao} onChange={(e) => setEditPrevisao(e.target.value)} />
+            </div>
+            <div className="space-y-2">
+              <Label>Custo Estimado por Peça (R$)</Label>
+              <Input type="number" step="0.01" value={editCustoEstimado || ""} onChange={(e) => setEditCustoEstimado(Number(e.target.value))} placeholder="0.00" />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditOpen(false)}>Cancelar</Button>
+            <Button onClick={handleEdit}>Salvar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation */}
+      <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Confirmar Exclusão</DialogTitle></DialogHeader>
+          <p className="text-sm text-muted-foreground">Tem certeza que deseja excluir esta ordem de produção? Consertos vinculados também serão removidos.</p>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteOpen(false)}>Cancelar</Button>
+            <Button variant="destructive" onClick={handleDelete} disabled={deleteMut.isPending}>Excluir</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

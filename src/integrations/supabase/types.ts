@@ -128,6 +128,50 @@ export type Database = {
         }
         Relationships: []
       }
+      consertos: {
+        Row: {
+          cor_id: string | null
+          created_at: string
+          id: string
+          observacao: string | null
+          oficina_id: string | null
+          ordem_producao_id: string
+          quantidade: number
+          status: string | null
+          tamanho: string
+        }
+        Insert: {
+          cor_id?: string | null
+          created_at?: string
+          id?: string
+          observacao?: string | null
+          oficina_id?: string | null
+          ordem_producao_id: string
+          quantidade?: number
+          status?: string | null
+          tamanho: string
+        }
+        Update: {
+          cor_id?: string | null
+          created_at?: string
+          id?: string
+          observacao?: string | null
+          oficina_id?: string | null
+          ordem_producao_id?: string
+          quantidade?: number
+          status?: string | null
+          tamanho?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "consertos_ordem_producao_id_fkey"
+            columns: ["ordem_producao_id"]
+            isOneToOne: false
+            referencedRelation: "ordens_producao"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       cores: {
         Row: {
           ativo: boolean | null
@@ -149,6 +193,27 @@ export type Database = {
           created_at?: string
           id?: string
           nome_cor?: string | null
+        }
+        Relationships: []
+      }
+      custo_fixo_oficina: {
+        Row: {
+          created_at: string
+          id: string
+          mes: string
+          valor: number
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          mes: string
+          valor?: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          mes?: string
+          valor?: number
         }
         Relationships: []
       }
@@ -305,6 +370,39 @@ export type Database = {
           },
         ]
       }
+      oficinas: {
+        Row: {
+          contato: string | null
+          created_at: string
+          custo_por_peca: number | null
+          id: string
+          is_interna: boolean | null
+          nome_oficina: string | null
+          observacao: string | null
+          tipo_oficina: string | null
+        }
+        Insert: {
+          contato?: string | null
+          created_at?: string
+          custo_por_peca?: number | null
+          id?: string
+          is_interna?: boolean | null
+          nome_oficina?: string | null
+          observacao?: string | null
+          tipo_oficina?: string | null
+        }
+        Update: {
+          contato?: string | null
+          created_at?: string
+          custo_por_peca?: number | null
+          id?: string
+          is_interna?: boolean | null
+          nome_oficina?: string | null
+          observacao?: string | null
+          tipo_oficina?: string | null
+        }
+        Relationships: []
+      }
       ordens_corte: {
         Row: {
           created_at: string | null
@@ -440,6 +538,90 @@ export type Database = {
             columns: ["rolo_id"]
             isOneToOne: false
             referencedRelation: "rolos_tecido"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ordens_producao: {
+        Row: {
+          cor_id: string | null
+          created_at: string
+          custo_estimado_peca: number | null
+          data_fim: string | null
+          data_inicio: string | null
+          data_previsao_termino: string | null
+          entrada_tecido_id: string | null
+          id: string
+          metragem_consumida: number | null
+          metragem_tecido_utilizada: number | null
+          nome_produto: string | null
+          oficina_id: string | null
+          ordem_corte_id: string | null
+          pagamento_oficina_status: string | null
+          produto_id: string | null
+          quantidade: number | null
+          quantidade_pecas_ordem: number | null
+          risco_id: string | null
+          status_ordem: string | null
+          tecido_id: string | null
+        }
+        Insert: {
+          cor_id?: string | null
+          created_at?: string
+          custo_estimado_peca?: number | null
+          data_fim?: string | null
+          data_inicio?: string | null
+          data_previsao_termino?: string | null
+          entrada_tecido_id?: string | null
+          id?: string
+          metragem_consumida?: number | null
+          metragem_tecido_utilizada?: number | null
+          nome_produto?: string | null
+          oficina_id?: string | null
+          ordem_corte_id?: string | null
+          pagamento_oficina_status?: string | null
+          produto_id?: string | null
+          quantidade?: number | null
+          quantidade_pecas_ordem?: number | null
+          risco_id?: string | null
+          status_ordem?: string | null
+          tecido_id?: string | null
+        }
+        Update: {
+          cor_id?: string | null
+          created_at?: string
+          custo_estimado_peca?: number | null
+          data_fim?: string | null
+          data_inicio?: string | null
+          data_previsao_termino?: string | null
+          entrada_tecido_id?: string | null
+          id?: string
+          metragem_consumida?: number | null
+          metragem_tecido_utilizada?: number | null
+          nome_produto?: string | null
+          oficina_id?: string | null
+          ordem_corte_id?: string | null
+          pagamento_oficina_status?: string | null
+          produto_id?: string | null
+          quantidade?: number | null
+          quantidade_pecas_ordem?: number | null
+          risco_id?: string | null
+          status_ordem?: string | null
+          tecido_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ordens_producao_oficina_id_fkey"
+            columns: ["oficina_id"]
+            isOneToOne: false
+            referencedRelation: "oficinas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ordens_producao_ordem_corte_id_fkey"
+            columns: ["ordem_corte_id"]
+            isOneToOne: false
+            referencedRelation: "ordens_corte"
             referencedColumns: ["id"]
           },
         ]
