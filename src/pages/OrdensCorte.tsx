@@ -130,13 +130,35 @@ export default function OrdensCorte() {
   const handleDelete = async () => {
     if (!deleteId) return;
     try {
-      // Delete related records first
+      // 1. Fetch rolos used in this OC to restore stock
+      const { data: rolosUsados } = await supabase
+        .from("ordens_corte_rolos")
+        .select("rolo_id, metragem_utilizada")
+        .eq("ordem_corte_id", deleteId);
+
+      // 2. Restore metragem to each rolo
+      if (rolosUsados?.length) {
+        for (const ru of rolosUsados) {
+          if (!ru.rolo_id) continue;
+          const { data: rolo } = await supabase
+            .from("rolos_tecido")
+            .select("metragem_disponivel")
+            .eq("id", ru.rolo_id)
+            .single();
+          if (rolo) {
+            const novaMetragem = (rolo.metragem_disponivel ?? 0) + (ru.metragem_utilizada ?? 0);
+            await supabase.from("rolos_tecido").update({ metragem_disponivel: novaMetragem }).eq("id", ru.rolo_id);
+          }
+        }
+      }
+
+      // 3. Delete related records
       await supabase.from("ordens_corte_grade").delete().eq("ordem_corte_id", deleteId);
       await supabase.from("ordens_corte_produtos").delete().eq("ordem_corte_id", deleteId);
       await supabase.from("ordens_corte_rolos").delete().eq("ordem_corte_id", deleteId);
       const { error } = await supabase.from("ordens_corte").delete().eq("id", deleteId);
       if (error) throw error;
-      toast.success("Ordem excluída!");
+      toast.success("Ordem excluída e estoque restaurado!");
       setDeleteOpen(false);
       setDeleteId(null);
       refetch();
