@@ -280,13 +280,15 @@ export default function OrdensProducao() {
     setConsertoOpen(true);
   };
 
+  // Normal flow: Corte → Costura → Revisão → Finalizado (skip "Em Conserto" which is special)
+  const FLOW_STATUSES = ["Corte", "Costura", "Revisão", "Finalizado"];
+
   const moveToNext = async (id: string, currentStatus: string) => {
-    const idx = COLUNAS_KANBAN.findIndex((c) => c.match.includes(currentStatus.toLowerCase()));
-    if (idx < 0 || idx >= COLUNAS_KANBAN.length - 1) return;
-    const nextStatus = COLUNAS_KANBAN[idx + 1].label;
+    const idx = FLOW_STATUSES.findIndex((s) => s.toLowerCase() === currentStatus.toLowerCase());
+    if (idx < 0 || idx >= FLOW_STATUSES.length - 1) return;
+    const nextStatus = FLOW_STATUSES[idx + 1];
     try {
       const updates: any = { id, status_ordem: nextStatus };
-      // Set data_fim when moving to Finalizado
       if (nextStatus === "Finalizado") {
         updates.data_fim = new Date().toISOString().split("T")[0];
       }
