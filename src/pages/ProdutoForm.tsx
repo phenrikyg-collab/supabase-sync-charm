@@ -39,6 +39,11 @@ function fmt(v: number) {
   return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v);
 }
 
+function toNumber(value: unknown, fallback = 0) {
+  const parsed = typeof value === "number" ? value : Number(value);
+  return Number.isFinite(parsed) ? parsed : fallback;
+}
+
 export default function ProdutoForm() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -56,6 +61,13 @@ export default function ProdutoForm() {
 
   const { register, handleSubmit, watch, reset, setValue } = useForm<ProdutoFormData>({
     defaultValues: {
+      nome_do_produto: "",
+      codigo_sku: "",
+      preco_venda: 0,
+      preco_custo: 0,
+      consumo_de_tecido: 0,
+      tipo_do_produto: "",
+      tecido_do_produto: "",
       imposto_percentual: 10,
       comissao_percentual: 1,
       cupom_percentual: 12,
@@ -63,7 +75,7 @@ export default function ProdutoForm() {
       custo_corte: 0,
       custo_costura: 0,
       custo_embalagem: 0,
-    }
+    },
   });
   const [aviItems, setAviItems] = useState<AviamentoItem[]>([]);
 
@@ -99,16 +111,16 @@ export default function ProdutoForm() {
   }, [produtoAviamentos]);
 
   // Watch all cost fields
-  const precoVenda = watch("preco_venda") ?? 0;
-  const precoCusto = watch("preco_custo") ?? 0;
-  const consumoTecido = watch("consumo_de_tecido") ?? 0;
-  const impostoPerc = watch("imposto_percentual") ?? 0;
-  const comissaoPerc = watch("comissao_percentual") ?? 0;
-  const cupomPerc = watch("cupom_percentual") ?? 0;
-  const parcelamentoPerc = watch("parcelamento_percentual") ?? 0;
-  const custoCorte = watch("custo_corte") ?? 0;
-  const custoCostura = watch("custo_costura") ?? 0;
-  const custoEmbalagem = watch("custo_embalagem") ?? 0;
+  const precoVenda = toNumber(watch("preco_venda"));
+  const precoCusto = toNumber(watch("preco_custo"));
+  const consumoTecido = toNumber(watch("consumo_de_tecido"));
+  const impostoPerc = toNumber(watch("imposto_percentual"));
+  const comissaoPerc = toNumber(watch("comissao_percentual"));
+  const cupomPerc = toNumber(watch("cupom_percentual"));
+  const parcelamentoPerc = toNumber(watch("parcelamento_percentual"));
+  const custoCorte = toNumber(watch("custo_corte"));
+  const custoCostura = toNumber(watch("custo_costura"));
+  const custoEmbalagem = toNumber(watch("custo_embalagem"));
 
   const custoAviamentos = aviItems.reduce((a, item) => a + (item.quantidade_por_peca * item.custo_unitario), 0);
 
@@ -143,8 +155,8 @@ export default function ProdutoForm() {
   const tecidoSelecionado = watch("tecido_do_produto");
   useEffect(() => {
     if (tecidoSelecionado && tecidos) {
-      const tecido = tecidos.find(t => t.nome_tecido === tecidoSelecionado);
-      if (tecido && tecido.custo_por_metro && consumoTecido > 0) {
+      const tecido = tecidos.find((t) => t.nome_tecido === tecidoSelecionado);
+      if (tecido?.custo_por_metro && consumoTecido > 0) {
         const custoTecido = tecido.custo_por_metro * consumoTecido;
         setValue("preco_custo", Number(custoTecido.toFixed(2)));
       }
@@ -164,24 +176,44 @@ export default function ProdutoForm() {
   };
 
   const handleCreateAviamento = async () => {
-    if (!novoAviamento.nome_aviamento) { toast.error("Informe o nome do aviamento"); return; }
+    if (!novoAviamento.nome_aviamento) {
+      toast.error("Informe o nome do aviamento");
+      return;
+    }
     try {
       const created = await createAviamentoMut.mutateAsync(novoAviamento);
       setAviItems([...aviItems, { aviamento_id: created.id, quantidade_por_peca: 1, custo_unitario: created.custo_aviamento ?? 0 }]);
       setNovoAviamento({ nome_aviamento: "", unidade_medida: "", custo_aviamento: 0 });
       setDialogOpen(false);
       toast.success("Aviamento cadastrado!");
-    } catch (e: any) { toast.error(e.message); }
+    } catch (e: any) {
+      toast.error(e.message);
+    }
   };
 
   const onSubmit = async (data: ProdutoFormData) => {
     try {
-      const payload = {
+      const sanitizedData: ProdutoFormData = {
         ...data,
-        margem_real_percentual: margemLiquidaPerc,
-        preco_venda_sugerido: precoSugerido,
+        preco_venda: toNumber(data.preco_venda),
+        preco_custo: toNumber(data.preco_custo),
+        consumo_de_tecido: toNumber(data.consumo_de_tecido),
+        imposto_percentual: toNumber(data.imposto_percentual),
+        comissao_percentual: toNumber(data.comissao_percentual),
+        cupom_percentual: toNumber(data.cupom_percentual),
+        parcelamento_percentual: toNumber(data.parcelamento_percentual),
+        custo_corte: toNumber(data.custo_corte),
+        custo_costura: toNumber(data.custo_costura),
+        custo_embalagem: toNumber(data.custo_embalagem),
+      };
+
+      const payload = {
+        ...sanitizedData,
+        margem_real_percentual: toNumber(margemLiquidaPerc),
+        preco_venda_sugerido: toNumber(precoSugerido),
         ativo: true,
       };
+
       let prodId = id;
       if (isEdit) {
         await updateMut.mutateAsync({ id, ...payload });
@@ -189,12 +221,14 @@ export default function ProdutoForm() {
         const result = await createMut.mutateAsync(payload);
         prodId = result.id;
       }
+
       if (prodId) {
         await saveAviamentosMut.mutateAsync({
           produtoId: prodId,
           aviamentos: aviItems.filter((a) => a.aviamento_id),
         });
       }
+
       toast.success(isEdit ? "Produto atualizado!" : "Produto criado!");
       navigate("/produtos");
     } catch (e: any) {
@@ -227,9 +261,15 @@ export default function ProdutoForm() {
               </div>
               <div className="space-y-2">
                 <Label>Tecido do Produto</Label>
+                <input type="hidden" {...register("tecido_do_produto")} />
                 <Select
                   value={watch("tecido_do_produto") ?? ""}
-                  onValueChange={(v) => setValue("tecido_do_produto", v)}
+                  onValueChange={(v) =>
+                    setValue("tecido_do_produto", v, {
+                      shouldDirty: true,
+                      shouldValidate: true,
+                    })
+                  }
                 >
                   <SelectTrigger><SelectValue placeholder="Selecione o tecido" /></SelectTrigger>
                   <SelectContent>
