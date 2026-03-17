@@ -369,6 +369,26 @@ export default function ProdutoForm() {
                   <Label className="text-xs">Frete (%)</Label>
                   <Input type="number" step="0.01" {...register("custo_frete", { valueAsNumber: true })} />
                 </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Overhead / Fixos (%)</Label>
+                  <Input type="number" step="0.01" {...register("overhead_percentual", { valueAsNumber: true })} />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Devolução / Troca (%)</Label>
+                  <Input type="number" step="0.01" {...register("devolucao_percentual", { valueAsNumber: true })} />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">CAC Real (%)</Label>
+                  <Input type="number" step="0.01" {...register("cac_percentual", { valueAsNumber: true })} />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Chargeback (%)</Label>
+                  <Input type="number" step="0.01" {...register("chargeback_percentual", { valueAsNumber: true })} />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Conteúdo / Foto (%)</Label>
+                  <Input type="number" step="0.01" {...register("conteudo_percentual", { valueAsNumber: true })} />
+                </div>
               </div>
             </div>
 
