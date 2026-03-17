@@ -140,7 +140,7 @@ export default function ProdutoForm() {
   const custosVariaveis = custoCorte + custoCostura;
 
   // Fixed costs
-  const custosFixos = custoEmbalagem;
+  const custosFixos = custoEmbalagem + custoMarketing + custoFrete;
 
   // Total cost = tecido + aviamentos + variable + fixed
   const custoTotalProduto = precoCusto + custoAviamentos + custosVariaveis + custosFixos;
