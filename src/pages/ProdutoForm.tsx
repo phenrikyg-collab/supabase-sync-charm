@@ -27,6 +27,8 @@ interface ProdutoFormData {
   custo_corte: number;
   custo_costura: number;
   custo_embalagem: number;
+  custo_marketing: number;
+  custo_frete: number;
 }
 
 interface AviamentoItem {
