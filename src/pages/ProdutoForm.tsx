@@ -100,6 +100,8 @@ export default function ProdutoForm() {
         custo_corte: produto.custo_corte ?? 0,
         custo_costura: produto.custo_costura ?? 0,
         custo_embalagem: produto.custo_embalagem ?? 0,
+        custo_marketing: (produto as any).custo_marketing ?? 0,
+        custo_frete: (produto as any).custo_frete ?? 0,
       });
     }
   }, [produto, isEdit, reset]);
