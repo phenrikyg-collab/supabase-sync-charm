@@ -181,15 +181,24 @@ export default function ProdutoForm() {
 
   // Auto-update custo de tecido when tecido or consumo changes
   const tecidoSelecionado = watch("tecido_do_produto");
+  const tecidoObj = tecidos?.find((t) => t.nome_tecido === tecidoSelecionado);
+  const custoPorMetro = tecidoObj?.custo_por_metro ?? 0;
+
+  // Track previous values to only auto-calc when user changes tecido/consumo
+  const [prevTecido, setPrevTecido] = useState("");
+  const [prevConsumo, setPrevConsumo] = useState(0);
+
   useEffect(() => {
     if (tecidoSelecionado && tecidos) {
-      const tecido = tecidos.find((t) => t.nome_tecido === tecidoSelecionado);
-      if (tecido?.custo_por_metro && consumoTecido > 0) {
-        const custoTecido = tecido.custo_por_metro * consumoTecido;
+      const changed = tecidoSelecionado !== prevTecido || consumoTecido !== prevConsumo;
+      if (changed && custoPorMetro > 0 && consumoTecido > 0) {
+        const custoTecido = custoPorMetro * consumoTecido;
         setValue("preco_custo", Number(custoTecido.toFixed(2)));
       }
+      setPrevTecido(tecidoSelecionado);
+      setPrevConsumo(consumoTecido);
     }
-  }, [tecidoSelecionado, consumoTecido, tecidos, setValue]);
+  }, [tecidoSelecionado, consumoTecido, tecidos, setValue, custoPorMetro, prevTecido, prevConsumo]);
 
   const addAviamento = () => setAviItems([...aviItems, { aviamento_id: "", quantidade_por_peca: 1, custo_unitario: 0 }]);
   const removeAviamento = (i: number) => setAviItems(aviItems.filter((_, idx) => idx !== i));
