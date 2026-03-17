@@ -305,15 +305,11 @@ export default function ProdutoForm() {
               </div>
               <div className="space-y-2">
                 <Label>Tecido do Produto</Label>
-                <input type="hidden" {...register("tecido_do_produto")} />
                 <Select
-                  value={watch("tecido_do_produto") ?? ""}
-                  onValueChange={(v) =>
-                    setValue("tecido_do_produto", v, {
-                      shouldDirty: true,
-                      shouldValidate: true,
-                    })
-                  }
+                  value={tecidoSelecionado || ""}
+                  onValueChange={(v) => {
+                    setValue("tecido_do_produto", v, { shouldDirty: true });
+                  }}
                 >
                   <SelectTrigger><SelectValue placeholder="Selecione o tecido" /></SelectTrigger>
                   <SelectContent>
@@ -322,15 +318,22 @@ export default function ProdutoForm() {
                     ))}
                   </SelectContent>
                 </Select>
+                {custoPorMetro > 0 && (
+                  <p className="text-xs text-muted-foreground">Custo/metro: {fmt(custoPorMetro)}</p>
+                )}
               </div>
               <div className="space-y-2">
                 <Label>Consumo de Tecido (m)</Label>
                 <Input type="number" step="0.01" {...register("consumo_de_tecido", { valueAsNumber: true })} />
               </div>
               <div className="space-y-2">
-                <Label>Custo do Tecido (calculado)</Label>
+                <Label>Custo do Tecido (R$)</Label>
                 <Input type="number" step="0.01" {...register("preco_custo", { valueAsNumber: true })} />
-                <p className="text-xs text-muted-foreground">Custo/m do tecido × consumo</p>
+                <p className="text-xs text-muted-foreground">
+                  {custoPorMetro > 0 && consumoTecido > 0
+                    ? `Auto: ${fmt(custoPorMetro)} × ${consumoTecido}m = ${fmt(custoPorMetro * consumoTecido)}`
+                    : "Custo/m do tecido × consumo"}
+                </p>
               </div>
               <div className="space-y-2">
                 <Label>Preço de Venda (R$)</Label>
