@@ -118,6 +118,9 @@ export default function ProdutoForm() {
         chargeback_percentual: produto.chargeback_percentual ?? 0,
         conteudo_percentual: produto.conteudo_percentual ?? 0,
       });
+      // Initialize prev values to avoid auto-calc overwriting saved data on load
+      setPrevTecido(produto.tecido_do_produto ?? "");
+      setPrevConsumo(produto.consumo_de_tecido ?? 0);
     }
   }, [produto, isEdit, reset]);
 
