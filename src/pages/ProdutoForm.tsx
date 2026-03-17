@@ -545,6 +545,26 @@ export default function ProdutoForm() {
                   <span className="text-muted-foreground">Frete ({fretePerc}%)</span>
                   <span className="text-destructive">- {fmt(precoVenda * fretePerc / 100)}</span>
                 </div>
+                <div className="flex justify-between text-xs">
+                  <span className="text-muted-foreground">Overhead ({overheadPerc}%)</span>
+                  <span className="text-destructive">- {fmt(precoVenda * overheadPerc / 100)}</span>
+                </div>
+                <div className="flex justify-between text-xs">
+                  <span className="text-muted-foreground">Devolução ({devolucaoPerc}%)</span>
+                  <span className="text-destructive">- {fmt(precoVenda * devolucaoPerc / 100)}</span>
+                </div>
+                <div className="flex justify-between text-xs">
+                  <span className="text-muted-foreground">CAC Real ({cacPerc}%)</span>
+                  <span className="text-destructive">- {fmt(precoVenda * cacPerc / 100)}</span>
+                </div>
+                <div className="flex justify-between text-xs">
+                  <span className="text-muted-foreground">Chargeback ({chargebackPerc}%)</span>
+                  <span className="text-destructive">- {fmt(precoVenda * chargebackPerc / 100)}</span>
+                </div>
+                <div className="flex justify-between text-xs">
+                  <span className="text-muted-foreground">Conteúdo ({conteudoPerc}%)</span>
+                  <span className="text-destructive">- {fmt(precoVenda * conteudoPerc / 100)}</span>
+                </div>
               </div>
 
               <div className="flex justify-between text-sm border-t border-border pt-2">
