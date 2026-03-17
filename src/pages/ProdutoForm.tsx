@@ -153,6 +153,11 @@ export default function ProdutoForm() {
   const chargebackPerc = toNumber(watch("chargeback_percentual"));
   const conteudoPerc = toNumber(watch("conteudo_percentual"));
 
+  // Tecido selecionado e custo por metro
+  const tecidoSelecionado = watch("tecido_do_produto");
+  const tecidoObj = tecidos?.find((t) => t.nome_tecido === tecidoSelecionado);
+  const custoPorMetro = tecidoObj?.custo_por_metro ?? 0;
+
   const custoAviamentos = aviItems.reduce((a, item) => a + (item.quantidade_por_peca * item.custo_unitario), 0);
 
   // Deductions (percentages over sale price)
@@ -165,8 +170,9 @@ export default function ProdutoForm() {
   // Fixed costs
   const custosFixos = custoEmbalagem;
 
-  // Total cost = tecido + aviamentos + variable + fixed
-  const custoTotalProduto = precoCusto + custoAviamentos + custosVariaveis + custosFixos;
+  // Total cost = tecido (custo/metro × consumo) + aviamentos + variable + fixed
+  const custoTecidoCalculado = custoPorMetro * consumoTecido;
+  const custoTotalProduto = custoTecidoCalculado + custoAviamentos + custosVariaveis + custosFixos;
 
   // Receita líquida = preço de venda - deduções
   const receitaLiquida = precoVenda - deducoesValor;
@@ -179,15 +185,11 @@ export default function ProdutoForm() {
   const margemLiquidaValor = precoVenda - deducoesValor - custoTotalProduto;
   const margemLiquidaPerc = precoVenda > 0 ? (margemLiquidaValor / precoVenda) * 100 : 0;
 
-  // Preço sugerido (markup ×5 over custo tecido)
-  const precoSugerido = precoCusto * 5;
+  // Preço sugerido = preço que dá 25% de margem líquida
+  const fatorLiquido = 1 - (deducoesPercentual / 100) - 0.25;
+  const precoSugerido = fatorLiquido > 0 ? custoTotalProduto / fatorLiquido : 0;
 
-  // Auto-update custo de tecido when tecido or consumo changes
-  const tecidoSelecionado = watch("tecido_do_produto");
-  const tecidoObj = tecidos?.find((t) => t.nome_tecido === tecidoSelecionado);
-  const custoPorMetro = tecidoObj?.custo_por_metro ?? 0;
-
-  // Track previous values to only auto-calc when user changes tecido/consumo
+  // Auto-update preco_custo when tecido or consumo changes
   const [prevTecido, setPrevTecido] = useState("");
   const [prevConsumo, setPrevConsumo] = useState(0);
 
@@ -195,8 +197,7 @@ export default function ProdutoForm() {
     if (tecidoSelecionado && tecidos) {
       const changed = tecidoSelecionado !== prevTecido || consumoTecido !== prevConsumo;
       if (changed && custoPorMetro > 0 && consumoTecido > 0) {
-        const custoTecido = custoPorMetro * consumoTecido;
-        setValue("preco_custo", Number(custoTecido.toFixed(2)));
+        setValue("preco_custo", Number((custoPorMetro * consumoTecido).toFixed(2)));
       }
       setPrevTecido(tecidoSelecionado);
       setPrevConsumo(consumoTecido);
@@ -348,7 +349,7 @@ export default function ProdutoForm() {
               <div className="space-y-2">
                 <Label className="flex items-center gap-1.5">
                   <TrendingUp className="h-4 w-4 text-primary" />
-                  Valor Sugerido (Markup ×5)
+                  Valor Sugerido (Margem 25%)
                 </Label>
                 <div className="h-10 flex items-center px-3 rounded-md border border-border bg-muted text-foreground font-medium">
                   {fmt(precoSugerido)}
