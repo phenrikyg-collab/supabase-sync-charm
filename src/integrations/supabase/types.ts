@@ -632,9 +632,12 @@ export type Database = {
           atualizado_em: string | null
           bling_id: string | null
           bling_produto_id: number | null
+          cac_percentual: number | null
+          chargeback_percentual: number | null
           codigo_sku: string | null
           comissao_percentual: number | null
           consumo_de_tecido: number | null
+          conteudo_percentual: number | null
           created_at: string | null
           cupom_percentual: number | null
           custo_bling: number | null
@@ -643,11 +646,13 @@ export type Database = {
           custo_embalagem: number | null
           custo_frete: number | null
           custo_marketing: number | null
+          devolucao_percentual: number | null
           id: string
           imposto_percentual: number | null
           margem_real_percentual: number | null
           nome_do_produto: string
           origem_custo: string | null
+          overhead_percentual: number | null
           parcelamento_percentual: number | null
           preco_custo: number | null
           preco_venda: number | null
@@ -661,9 +666,12 @@ export type Database = {
           atualizado_em?: string | null
           bling_id?: string | null
           bling_produto_id?: number | null
+          cac_percentual?: number | null
+          chargeback_percentual?: number | null
           codigo_sku?: string | null
           comissao_percentual?: number | null
           consumo_de_tecido?: number | null
+          conteudo_percentual?: number | null
           created_at?: string | null
           cupom_percentual?: number | null
           custo_bling?: number | null
@@ -672,11 +680,13 @@ export type Database = {
           custo_embalagem?: number | null
           custo_frete?: number | null
           custo_marketing?: number | null
+          devolucao_percentual?: number | null
           id?: string
           imposto_percentual?: number | null
           margem_real_percentual?: number | null
           nome_do_produto: string
           origem_custo?: string | null
+          overhead_percentual?: number | null
           parcelamento_percentual?: number | null
           preco_custo?: number | null
           preco_venda?: number | null
@@ -690,9 +700,12 @@ export type Database = {
           atualizado_em?: string | null
           bling_id?: string | null
           bling_produto_id?: number | null
+          cac_percentual?: number | null
+          chargeback_percentual?: number | null
           codigo_sku?: string | null
           comissao_percentual?: number | null
           consumo_de_tecido?: number | null
+          conteudo_percentual?: number | null
           created_at?: string | null
           cupom_percentual?: number | null
           custo_bling?: number | null
@@ -701,11 +714,13 @@ export type Database = {
           custo_embalagem?: number | null
           custo_frete?: number | null
           custo_marketing?: number | null
+          devolucao_percentual?: number | null
           id?: string
           imposto_percentual?: number | null
           margem_real_percentual?: number | null
           nome_do_produto?: string
           origem_custo?: string | null
+          overhead_percentual?: number | null
           parcelamento_percentual?: number | null
           preco_custo?: number | null
           preco_venda?: number | null
