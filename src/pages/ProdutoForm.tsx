@@ -319,7 +319,7 @@ export default function ProdutoForm() {
                 <div className="w-3 h-3 rounded-sm bg-destructive/60" />
                 Deduções sobre Venda (%)
               </h3>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 p-4 rounded-lg border border-border bg-destructive/5">
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-4 p-4 rounded-lg border border-border bg-destructive/5">
                 <div className="space-y-1">
                   <Label className="text-xs">Imposto (%)</Label>
                   <Input type="number" step="0.01" {...register("imposto_percentual", { valueAsNumber: true })} />
@@ -335,6 +335,14 @@ export default function ProdutoForm() {
                 <div className="space-y-1">
                   <Label className="text-xs">Parcelamento (%)</Label>
                   <Input type="number" step="0.01" {...register("parcelamento_percentual", { valueAsNumber: true })} />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Marketing (%)</Label>
+                  <Input type="number" step="0.01" {...register("custo_marketing", { valueAsNumber: true })} />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Frete (%)</Label>
+                  <Input type="number" step="0.01" {...register("custo_frete", { valueAsNumber: true })} />
                 </div>
               </div>
             </div>
