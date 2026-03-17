@@ -29,6 +29,11 @@ interface ProdutoFormData {
   custo_embalagem: number;
   custo_marketing: number;
   custo_frete: number;
+  overhead_percentual: number;
+  devolucao_percentual: number;
+  cac_percentual: number;
+  chargeback_percentual: number;
+  conteudo_percentual: number;
 }
 
 interface AviamentoItem {
