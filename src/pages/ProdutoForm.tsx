@@ -602,14 +602,7 @@ export default function ProdutoForm() {
               </div>
 
               {/* Margens */}
-              <div className="grid grid-cols-2 gap-4 pt-3 border-t border-border">
-                <div className="p-3 rounded-lg bg-background border border-border text-center">
-                  <p className="text-xs text-muted-foreground mb-1">Margem Bruta</p>
-                  <p className={`text-2xl font-serif font-bold ${margemBrutaPerc >= 0 ? "text-success" : "text-destructive"}`}>
-                    {margemBrutaPerc.toFixed(1)}%
-                  </p>
-                  <p className="text-xs text-muted-foreground">{fmt(margemBrutaValor)}</p>
-                </div>
+              <div className="pt-3 border-t border-border">
                 <div className="p-3 rounded-lg bg-background border border-border text-center">
                   <p className="text-xs text-muted-foreground mb-1">Margem Líquida</p>
                   <p className={`text-2xl font-serif font-bold ${margemLiquidaPerc >= 0 ? "text-success" : "text-destructive"}`}>
