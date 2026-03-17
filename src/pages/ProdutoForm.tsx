@@ -127,20 +127,20 @@ export default function ProdutoForm() {
   const custoCorte = toNumber(watch("custo_corte"));
   const custoCostura = toNumber(watch("custo_costura"));
   const custoEmbalagem = toNumber(watch("custo_embalagem"));
-  const custoMarketing = toNumber(watch("custo_marketing"));
-  const custoFrete = toNumber(watch("custo_frete"));
+  const marketingPerc = toNumber(watch("custo_marketing"));
+  const fretePerc = toNumber(watch("custo_frete"));
 
   const custoAviamentos = aviItems.reduce((a, item) => a + (item.quantidade_por_peca * item.custo_unitario), 0);
 
   // Deductions (percentages over sale price)
-  const deducoesPercentual = impostoPerc + comissaoPerc + cupomPerc + parcelamentoPerc;
+  const deducoesPercentual = impostoPerc + comissaoPerc + cupomPerc + parcelamentoPerc + marketingPerc + fretePerc;
   const deducoesValor = precoVenda * (deducoesPercentual / 100);
 
   // Variable costs (production)
   const custosVariaveis = custoCorte + custoCostura;
 
   // Fixed costs
-  const custosFixos = custoEmbalagem + custoMarketing + custoFrete;
+  const custosFixos = custoEmbalagem;
 
   // Total cost = tecido + aviamentos + variable + fixed
   const custoTotalProduto = precoCusto + custoAviamentos + custosVariaveis + custosFixos;
@@ -319,7 +319,7 @@ export default function ProdutoForm() {
                 <div className="w-3 h-3 rounded-sm bg-destructive/60" />
                 Deduções sobre Venda (%)
               </h3>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 p-4 rounded-lg border border-border bg-destructive/5">
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-4 p-4 rounded-lg border border-border bg-destructive/5">
                 <div className="space-y-1">
                   <Label className="text-xs">Imposto (%)</Label>
                   <Input type="number" step="0.01" {...register("imposto_percentual", { valueAsNumber: true })} />
@@ -335,6 +335,14 @@ export default function ProdutoForm() {
                 <div className="space-y-1">
                   <Label className="text-xs">Parcelamento (%)</Label>
                   <Input type="number" step="0.01" {...register("parcelamento_percentual", { valueAsNumber: true })} />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Marketing (%)</Label>
+                  <Input type="number" step="0.01" {...register("custo_marketing", { valueAsNumber: true })} />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Frete (%)</Label>
+                  <Input type="number" step="0.01" {...register("custo_frete", { valueAsNumber: true })} />
                 </div>
               </div>
             </div>
@@ -363,18 +371,10 @@ export default function ProdutoForm() {
                 <div className="w-3 h-3 rounded-sm bg-primary/60" />
                 Custos Fixos
               </h3>
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-4 p-4 rounded-lg border border-border bg-primary/5">
+              <div className="grid grid-cols-2 md:grid-cols-2 gap-4 p-4 rounded-lg border border-border bg-primary/5">
                 <div className="space-y-1">
                   <Label className="text-xs">Embalagem (R$)</Label>
                   <Input type="number" step="0.01" {...register("custo_embalagem", { valueAsNumber: true })} />
-                </div>
-                <div className="space-y-1">
-                  <Label className="text-xs">Marketing (R$)</Label>
-                  <Input type="number" step="0.01" {...register("custo_marketing", { valueAsNumber: true })} />
-                </div>
-                <div className="space-y-1">
-                  <Label className="text-xs">Frete (R$)</Label>
-                  <Input type="number" step="0.01" {...register("custo_frete", { valueAsNumber: true })} />
                 </div>
               </div>
             </div>
@@ -492,6 +492,14 @@ export default function ProdutoForm() {
                   <span className="text-muted-foreground">Parcelamento ({parcelamentoPerc}%)</span>
                   <span className="text-destructive">- {fmt(precoVenda * parcelamentoPerc / 100)}</span>
                 </div>
+                <div className="flex justify-between text-xs">
+                  <span className="text-muted-foreground">Marketing ({marketingPerc}%)</span>
+                  <span className="text-destructive">- {fmt(precoVenda * marketingPerc / 100)}</span>
+                </div>
+                <div className="flex justify-between text-xs">
+                  <span className="text-muted-foreground">Frete ({fretePerc}%)</span>
+                  <span className="text-destructive">- {fmt(precoVenda * fretePerc / 100)}</span>
+                </div>
               </div>
 
               <div className="flex justify-between text-sm border-t border-border pt-2">
@@ -520,14 +528,6 @@ export default function ProdutoForm() {
                 <div className="flex justify-between text-xs">
                   <span className="text-muted-foreground">Embalagem</span>
                   <span>- {fmt(custoEmbalagem)}</span>
-                </div>
-                <div className="flex justify-between text-xs">
-                  <span className="text-muted-foreground">Marketing</span>
-                  <span>- {fmt(custoMarketing)}</span>
-                </div>
-                <div className="flex justify-between text-xs">
-                  <span className="text-muted-foreground">Frete</span>
-                  <span>- {fmt(custoFrete)}</span>
                 </div>
               </div>
 
