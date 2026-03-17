@@ -230,8 +230,11 @@ export default function ProdutoForm() {
 
   const onSubmit = async (data: ProdutoFormData) => {
     try {
-      const sanitizedData: ProdutoFormData = {
-        ...data,
+      const sanitizedData = {
+        nome_do_produto: data.nome_do_produto,
+        codigo_sku: data.codigo_sku || null,
+        tipo_do_produto: data.tipo_do_produto || null,
+        tecido_do_produto: data.tecido_do_produto || null,
         preco_venda: toNumber(data.preco_venda),
         preco_custo: toNumber(data.preco_custo),
         consumo_de_tecido: toNumber(data.consumo_de_tecido),
