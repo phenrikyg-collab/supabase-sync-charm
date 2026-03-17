@@ -371,18 +371,10 @@ export default function ProdutoForm() {
                 <div className="w-3 h-3 rounded-sm bg-primary/60" />
                 Custos Fixos
               </h3>
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-4 p-4 rounded-lg border border-border bg-primary/5">
+              <div className="grid grid-cols-2 md:grid-cols-2 gap-4 p-4 rounded-lg border border-border bg-primary/5">
                 <div className="space-y-1">
                   <Label className="text-xs">Embalagem (R$)</Label>
                   <Input type="number" step="0.01" {...register("custo_embalagem", { valueAsNumber: true })} />
-                </div>
-                <div className="space-y-1">
-                  <Label className="text-xs">Marketing (R$)</Label>
-                  <Input type="number" step="0.01" {...register("custo_marketing", { valueAsNumber: true })} />
-                </div>
-                <div className="space-y-1">
-                  <Label className="text-xs">Frete (R$)</Label>
-                  <Input type="number" step="0.01" {...register("custo_frete", { valueAsNumber: true })} />
                 </div>
               </div>
             </div>
