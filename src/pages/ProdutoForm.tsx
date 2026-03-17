@@ -110,13 +110,13 @@ export default function ProdutoForm() {
         custo_corte: produto.custo_corte ?? 0,
         custo_costura: produto.custo_costura ?? 0,
         custo_embalagem: produto.custo_embalagem ?? 0,
-        custo_marketing: (produto as any).custo_marketing ?? 0,
-        custo_frete: (produto as any).custo_frete ?? 0,
-        overhead_percentual: (produto as any).overhead_percentual ?? 0,
-        devolucao_percentual: (produto as any).devolucao_percentual ?? 0,
-        cac_percentual: (produto as any).cac_percentual ?? 0,
-        chargeback_percentual: (produto as any).chargeback_percentual ?? 0,
-        conteudo_percentual: (produto as any).conteudo_percentual ?? 0,
+        custo_marketing: produto.custo_marketing ?? 0,
+        custo_frete: produto.custo_frete ?? 0,
+        overhead_percentual: produto.overhead_percentual ?? 0,
+        devolucao_percentual: produto.devolucao_percentual ?? 0,
+        cac_percentual: produto.cac_percentual ?? 0,
+        chargeback_percentual: produto.chargeback_percentual ?? 0,
+        conteudo_percentual: produto.conteudo_percentual ?? 0,
       });
     }
   }, [produto, isEdit, reset]);
