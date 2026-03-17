@@ -77,6 +77,8 @@ export default function ProdutoForm() {
       custo_corte: 0,
       custo_costura: 0,
       custo_embalagem: 0,
+      custo_marketing: 0,
+      custo_frete: 0,
     },
   });
   const [aviItems, setAviItems] = useState<AviamentoItem[]>([]);
