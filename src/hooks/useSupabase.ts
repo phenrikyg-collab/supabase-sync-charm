@@ -70,7 +70,10 @@ export const useUpdateProduto = () => {
       if (error) throw error;
       return data;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["produtos"] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["produtos"] });
+      qc.invalidateQueries({ queryKey: ["produto"] });
+    },
   });
 };
 
