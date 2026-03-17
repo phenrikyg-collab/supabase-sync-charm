@@ -27,6 +27,8 @@ interface ProdutoFormData {
   custo_corte: number;
   custo_costura: number;
   custo_embalagem: number;
+  custo_marketing: number;
+  custo_frete: number;
 }
 
 interface AviamentoItem {
@@ -75,6 +77,8 @@ export default function ProdutoForm() {
       custo_corte: 0,
       custo_costura: 0,
       custo_embalagem: 0,
+      custo_marketing: 0,
+      custo_frete: 0,
     },
   });
   const [aviItems, setAviItems] = useState<AviamentoItem[]>([]);
@@ -96,6 +100,8 @@ export default function ProdutoForm() {
         custo_corte: produto.custo_corte ?? 0,
         custo_costura: produto.custo_costura ?? 0,
         custo_embalagem: produto.custo_embalagem ?? 0,
+        custo_marketing: (produto as any).custo_marketing ?? 0,
+        custo_frete: (produto as any).custo_frete ?? 0,
       });
     }
   }, [produto, isEdit, reset]);
@@ -121,6 +127,8 @@ export default function ProdutoForm() {
   const custoCorte = toNumber(watch("custo_corte"));
   const custoCostura = toNumber(watch("custo_costura"));
   const custoEmbalagem = toNumber(watch("custo_embalagem"));
+  const custoMarketing = toNumber(watch("custo_marketing"));
+  const custoFrete = toNumber(watch("custo_frete"));
 
   const custoAviamentos = aviItems.reduce((a, item) => a + (item.quantidade_por_peca * item.custo_unitario), 0);
 
@@ -132,7 +140,7 @@ export default function ProdutoForm() {
   const custosVariaveis = custoCorte + custoCostura;
 
   // Fixed costs
-  const custosFixos = custoEmbalagem;
+  const custosFixos = custoEmbalagem + custoMarketing + custoFrete;
 
   // Total cost = tecido + aviamentos + variable + fixed
   const custoTotalProduto = precoCusto + custoAviamentos + custosVariaveis + custosFixos;
@@ -205,6 +213,8 @@ export default function ProdutoForm() {
         custo_corte: toNumber(data.custo_corte),
         custo_costura: toNumber(data.custo_costura),
         custo_embalagem: toNumber(data.custo_embalagem),
+        custo_marketing: toNumber(data.custo_marketing),
+        custo_frete: toNumber(data.custo_frete),
       };
 
       const payload = {
@@ -353,10 +363,18 @@ export default function ProdutoForm() {
                 <div className="w-3 h-3 rounded-sm bg-primary/60" />
                 Custos Fixos
               </h3>
-              <div className="grid grid-cols-2 md:grid-cols-2 gap-4 p-4 rounded-lg border border-border bg-primary/5">
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-4 p-4 rounded-lg border border-border bg-primary/5">
                 <div className="space-y-1">
                   <Label className="text-xs">Embalagem (R$)</Label>
                   <Input type="number" step="0.01" {...register("custo_embalagem", { valueAsNumber: true })} />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Marketing (R$)</Label>
+                  <Input type="number" step="0.01" {...register("custo_marketing", { valueAsNumber: true })} />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Frete (R$)</Label>
+                  <Input type="number" step="0.01" {...register("custo_frete", { valueAsNumber: true })} />
                 </div>
               </div>
             </div>
@@ -502,6 +520,14 @@ export default function ProdutoForm() {
                 <div className="flex justify-between text-xs">
                   <span className="text-muted-foreground">Embalagem</span>
                   <span>- {fmt(custoEmbalagem)}</span>
+                </div>
+                <div className="flex justify-between text-xs">
+                  <span className="text-muted-foreground">Marketing</span>
+                  <span>- {fmt(custoMarketing)}</span>
+                </div>
+                <div className="flex justify-between text-xs">
+                  <span className="text-muted-foreground">Frete</span>
+                  <span>- {fmt(custoFrete)}</span>
                 </div>
               </div>
 
