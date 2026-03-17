@@ -29,6 +29,11 @@ interface ProdutoFormData {
   custo_embalagem: number;
   custo_marketing: number;
   custo_frete: number;
+  overhead_percentual: number;
+  devolucao_percentual: number;
+  cac_percentual: number;
+  chargeback_percentual: number;
+  conteudo_percentual: number;
 }
 
 interface AviamentoItem {
@@ -79,6 +84,11 @@ export default function ProdutoForm() {
       custo_embalagem: 0,
       custo_marketing: 0,
       custo_frete: 0,
+      overhead_percentual: 0,
+      devolucao_percentual: 0,
+      cac_percentual: 0,
+      chargeback_percentual: 0,
+      conteudo_percentual: 0,
     },
   });
   const [aviItems, setAviItems] = useState<AviamentoItem[]>([]);
@@ -102,6 +112,11 @@ export default function ProdutoForm() {
         custo_embalagem: produto.custo_embalagem ?? 0,
         custo_marketing: (produto as any).custo_marketing ?? 0,
         custo_frete: (produto as any).custo_frete ?? 0,
+        overhead_percentual: (produto as any).overhead_percentual ?? 0,
+        devolucao_percentual: (produto as any).devolucao_percentual ?? 0,
+        cac_percentual: (produto as any).cac_percentual ?? 0,
+        chargeback_percentual: (produto as any).chargeback_percentual ?? 0,
+        conteudo_percentual: (produto as any).conteudo_percentual ?? 0,
       });
     }
   }, [produto, isEdit, reset]);
@@ -129,11 +144,16 @@ export default function ProdutoForm() {
   const custoEmbalagem = toNumber(watch("custo_embalagem"));
   const marketingPerc = toNumber(watch("custo_marketing"));
   const fretePerc = toNumber(watch("custo_frete"));
+  const overheadPerc = toNumber(watch("overhead_percentual"));
+  const devolucaoPerc = toNumber(watch("devolucao_percentual"));
+  const cacPerc = toNumber(watch("cac_percentual"));
+  const chargebackPerc = toNumber(watch("chargeback_percentual"));
+  const conteudoPerc = toNumber(watch("conteudo_percentual"));
 
   const custoAviamentos = aviItems.reduce((a, item) => a + (item.quantidade_por_peca * item.custo_unitario), 0);
 
   // Deductions (percentages over sale price)
-  const deducoesPercentual = impostoPerc + comissaoPerc + cupomPerc + parcelamentoPerc + marketingPerc + fretePerc;
+  const deducoesPercentual = impostoPerc + comissaoPerc + cupomPerc + parcelamentoPerc + marketingPerc + fretePerc + overheadPerc + devolucaoPerc + cacPerc + chargebackPerc + conteudoPerc;
   const deducoesValor = precoVenda * (deducoesPercentual / 100);
 
   // Variable costs (production)
@@ -215,6 +235,11 @@ export default function ProdutoForm() {
         custo_embalagem: toNumber(data.custo_embalagem),
         custo_marketing: toNumber(data.custo_marketing),
         custo_frete: toNumber(data.custo_frete),
+        overhead_percentual: toNumber(data.overhead_percentual),
+        devolucao_percentual: toNumber(data.devolucao_percentual),
+        cac_percentual: toNumber(data.cac_percentual),
+        chargeback_percentual: toNumber(data.chargeback_percentual),
+        conteudo_percentual: toNumber(data.conteudo_percentual),
       };
 
       const payload = {
@@ -343,6 +368,26 @@ export default function ProdutoForm() {
                 <div className="space-y-1">
                   <Label className="text-xs">Frete (%)</Label>
                   <Input type="number" step="0.01" {...register("custo_frete", { valueAsNumber: true })} />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Overhead / Fixos (%)</Label>
+                  <Input type="number" step="0.01" {...register("overhead_percentual", { valueAsNumber: true })} />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Devolução / Troca (%)</Label>
+                  <Input type="number" step="0.01" {...register("devolucao_percentual", { valueAsNumber: true })} />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">CAC Real (%)</Label>
+                  <Input type="number" step="0.01" {...register("cac_percentual", { valueAsNumber: true })} />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Chargeback (%)</Label>
+                  <Input type="number" step="0.01" {...register("chargeback_percentual", { valueAsNumber: true })} />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Conteúdo / Foto (%)</Label>
+                  <Input type="number" step="0.01" {...register("conteudo_percentual", { valueAsNumber: true })} />
                 </div>
               </div>
             </div>
@@ -499,6 +544,26 @@ export default function ProdutoForm() {
                 <div className="flex justify-between text-xs">
                   <span className="text-muted-foreground">Frete ({fretePerc}%)</span>
                   <span className="text-destructive">- {fmt(precoVenda * fretePerc / 100)}</span>
+                </div>
+                <div className="flex justify-between text-xs">
+                  <span className="text-muted-foreground">Overhead ({overheadPerc}%)</span>
+                  <span className="text-destructive">- {fmt(precoVenda * overheadPerc / 100)}</span>
+                </div>
+                <div className="flex justify-between text-xs">
+                  <span className="text-muted-foreground">Devolução ({devolucaoPerc}%)</span>
+                  <span className="text-destructive">- {fmt(precoVenda * devolucaoPerc / 100)}</span>
+                </div>
+                <div className="flex justify-between text-xs">
+                  <span className="text-muted-foreground">CAC Real ({cacPerc}%)</span>
+                  <span className="text-destructive">- {fmt(precoVenda * cacPerc / 100)}</span>
+                </div>
+                <div className="flex justify-between text-xs">
+                  <span className="text-muted-foreground">Chargeback ({chargebackPerc}%)</span>
+                  <span className="text-destructive">- {fmt(precoVenda * chargebackPerc / 100)}</span>
+                </div>
+                <div className="flex justify-between text-xs">
+                  <span className="text-muted-foreground">Conteúdo ({conteudoPerc}%)</span>
+                  <span className="text-destructive">- {fmt(precoVenda * conteudoPerc / 100)}</span>
                 </div>
               </div>
 
