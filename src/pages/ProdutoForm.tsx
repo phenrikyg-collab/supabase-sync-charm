@@ -235,6 +235,11 @@ export default function ProdutoForm() {
         custo_embalagem: toNumber(data.custo_embalagem),
         custo_marketing: toNumber(data.custo_marketing),
         custo_frete: toNumber(data.custo_frete),
+        overhead_percentual: toNumber(data.overhead_percentual),
+        devolucao_percentual: toNumber(data.devolucao_percentual),
+        cac_percentual: toNumber(data.cac_percentual),
+        chargeback_percentual: toNumber(data.chargeback_percentual),
+        conteudo_percentual: toNumber(data.conteudo_percentual),
       };
 
       const payload = {
