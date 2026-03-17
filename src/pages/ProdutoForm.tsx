@@ -349,7 +349,7 @@ export default function ProdutoForm() {
               <div className="space-y-2">
                 <Label className="flex items-center gap-1.5">
                   <TrendingUp className="h-4 w-4 text-primary" />
-                  Valor Sugerido (Markup ×5)
+                  Valor Sugerido (Margem 25%)
                 </Label>
                 <div className="h-10 flex items-center px-3 rounded-md border border-border bg-muted text-foreground font-medium">
                   {fmt(precoSugerido)}
