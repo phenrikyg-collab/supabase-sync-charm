@@ -84,6 +84,11 @@ export default function ProdutoForm() {
       custo_embalagem: 0,
       custo_marketing: 0,
       custo_frete: 0,
+      overhead_percentual: 0,
+      devolucao_percentual: 0,
+      cac_percentual: 0,
+      chargeback_percentual: 0,
+      conteudo_percentual: 0,
     },
   });
   const [aviItems, setAviItems] = useState<AviamentoItem[]>([]);
