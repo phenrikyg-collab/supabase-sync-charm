@@ -170,9 +170,9 @@ export default function ProdutoForm() {
   // Fixed costs
   const custosFixos = custoEmbalagem;
 
-  // Total cost = tecido (custo/metro × consumo) + aviamentos + variable + fixed
+  // Total cost = tecido (preco_custo field) + aviamentos + variable + fixed
   const custoTecidoCalculado = custoPorMetro * consumoTecido;
-  const custoTotalProduto = custoTecidoCalculado + custoAviamentos + custosVariaveis + custosFixos;
+  const custoTotalProduto = precoCusto + custoAviamentos + custosVariaveis + custosFixos;
 
   // Receita líquida = preço de venda - deduções
   const receitaLiquida = precoVenda - deducoesValor;
