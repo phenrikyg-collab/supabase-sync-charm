@@ -213,6 +213,8 @@ export default function ProdutoForm() {
         custo_corte: toNumber(data.custo_corte),
         custo_costura: toNumber(data.custo_costura),
         custo_embalagem: toNumber(data.custo_embalagem),
+        custo_marketing: toNumber(data.custo_marketing),
+        custo_frete: toNumber(data.custo_frete),
       };
 
       const payload = {
