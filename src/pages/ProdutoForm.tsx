@@ -127,20 +127,20 @@ export default function ProdutoForm() {
   const custoCorte = toNumber(watch("custo_corte"));
   const custoCostura = toNumber(watch("custo_costura"));
   const custoEmbalagem = toNumber(watch("custo_embalagem"));
-  const custoMarketing = toNumber(watch("custo_marketing"));
-  const custoFrete = toNumber(watch("custo_frete"));
+  const marketingPerc = toNumber(watch("custo_marketing"));
+  const fretePerc = toNumber(watch("custo_frete"));
 
   const custoAviamentos = aviItems.reduce((a, item) => a + (item.quantidade_por_peca * item.custo_unitario), 0);
 
   // Deductions (percentages over sale price)
-  const deducoesPercentual = impostoPerc + comissaoPerc + cupomPerc + parcelamentoPerc;
+  const deducoesPercentual = impostoPerc + comissaoPerc + cupomPerc + parcelamentoPerc + marketingPerc + fretePerc;
   const deducoesValor = precoVenda * (deducoesPercentual / 100);
 
   // Variable costs (production)
   const custosVariaveis = custoCorte + custoCostura;
 
   // Fixed costs
-  const custosFixos = custoEmbalagem + custoMarketing + custoFrete;
+  const custosFixos = custoEmbalagem;
 
   // Total cost = tecido + aviamentos + variable + fixed
   const custoTotalProduto = precoCusto + custoAviamentos + custosVariaveis + custosFixos;
