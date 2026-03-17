@@ -165,8 +165,9 @@ export default function ProdutoForm() {
   // Fixed costs
   const custosFixos = custoEmbalagem;
 
-  // Total cost = tecido + aviamentos + variable + fixed
-  const custoTotalProduto = precoCusto + custoAviamentos + custosVariaveis + custosFixos;
+  // Total cost = tecido (custo/metro × consumo) + aviamentos + variable + fixed
+  const custoTecidoCalculado = custoPorMetro * consumoTecido;
+  const custoTotalProduto = custoTecidoCalculado + custoAviamentos + custosVariaveis + custosFixos;
 
   // Receita líquida = preço de venda - deduções
   const receitaLiquida = precoVenda - deducoesValor;
@@ -179,8 +180,11 @@ export default function ProdutoForm() {
   const margemLiquidaValor = precoVenda - deducoesValor - custoTotalProduto;
   const margemLiquidaPerc = precoVenda > 0 ? (margemLiquidaValor / precoVenda) * 100 : 0;
 
-  // Preço sugerido (markup ×5 over custo tecido)
-  const precoSugerido = precoCusto * 5;
+  // Preço sugerido = preço que dá 25% de margem líquida
+  // margemLiquida = precoSugerido - (precoSugerido * deducoesPercentual/100) - custoTotalProduto = 0.25 * precoSugerido
+  // precoSugerido * (1 - deducoesPercentual/100 - 0.25) = custoTotalProduto
+  const fatorLiquido = 1 - (deducoesPercentual / 100) - 0.25;
+  const precoSugerido = fatorLiquido > 0 ? custoTotalProduto / fatorLiquido : 0;
 
   // Auto-update custo de tecido when tecido or consumo changes
   const tecidoSelecionado = watch("tecido_do_produto");
