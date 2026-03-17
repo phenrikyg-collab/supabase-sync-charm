@@ -118,6 +118,9 @@ export default function ProdutoForm() {
         chargeback_percentual: produto.chargeback_percentual ?? 0,
         conteudo_percentual: produto.conteudo_percentual ?? 0,
       });
+      // Initialize prev values to avoid auto-calc overwriting saved data on load
+      setPrevTecido(produto.tecido_do_produto ?? "");
+      setPrevConsumo(produto.consumo_de_tecido ?? 0);
     }
   }, [produto, isEdit, reset]);
 
@@ -181,15 +184,24 @@ export default function ProdutoForm() {
 
   // Auto-update custo de tecido when tecido or consumo changes
   const tecidoSelecionado = watch("tecido_do_produto");
+  const tecidoObj = tecidos?.find((t) => t.nome_tecido === tecidoSelecionado);
+  const custoPorMetro = tecidoObj?.custo_por_metro ?? 0;
+
+  // Track previous values to only auto-calc when user changes tecido/consumo
+  const [prevTecido, setPrevTecido] = useState("");
+  const [prevConsumo, setPrevConsumo] = useState(0);
+
   useEffect(() => {
     if (tecidoSelecionado && tecidos) {
-      const tecido = tecidos.find((t) => t.nome_tecido === tecidoSelecionado);
-      if (tecido?.custo_por_metro && consumoTecido > 0) {
-        const custoTecido = tecido.custo_por_metro * consumoTecido;
+      const changed = tecidoSelecionado !== prevTecido || consumoTecido !== prevConsumo;
+      if (changed && custoPorMetro > 0 && consumoTecido > 0) {
+        const custoTecido = custoPorMetro * consumoTecido;
         setValue("preco_custo", Number(custoTecido.toFixed(2)));
       }
+      setPrevTecido(tecidoSelecionado);
+      setPrevConsumo(consumoTecido);
     }
-  }, [tecidoSelecionado, consumoTecido, tecidos, setValue]);
+  }, [tecidoSelecionado, consumoTecido, tecidos, setValue, custoPorMetro, prevTecido, prevConsumo]);
 
   const addAviamento = () => setAviItems([...aviItems, { aviamento_id: "", quantidade_por_peca: 1, custo_unitario: 0 }]);
   const removeAviamento = (i: number) => setAviItems(aviItems.filter((_, idx) => idx !== i));
@@ -221,8 +233,11 @@ export default function ProdutoForm() {
 
   const onSubmit = async (data: ProdutoFormData) => {
     try {
-      const sanitizedData: ProdutoFormData = {
-        ...data,
+      const sanitizedData = {
+        nome_do_produto: data.nome_do_produto,
+        codigo_sku: data.codigo_sku || null,
+        tipo_do_produto: data.tipo_do_produto || null,
+        tecido_do_produto: data.tecido_do_produto || null,
         preco_venda: toNumber(data.preco_venda),
         preco_custo: toNumber(data.preco_custo),
         consumo_de_tecido: toNumber(data.consumo_de_tecido),
@@ -296,15 +311,11 @@ export default function ProdutoForm() {
               </div>
               <div className="space-y-2">
                 <Label>Tecido do Produto</Label>
-                <input type="hidden" {...register("tecido_do_produto")} />
                 <Select
-                  value={watch("tecido_do_produto") ?? ""}
-                  onValueChange={(v) =>
-                    setValue("tecido_do_produto", v, {
-                      shouldDirty: true,
-                      shouldValidate: true,
-                    })
-                  }
+                  value={tecidoSelecionado || ""}
+                  onValueChange={(v) => {
+                    setValue("tecido_do_produto", v, { shouldDirty: true });
+                  }}
                 >
                   <SelectTrigger><SelectValue placeholder="Selecione o tecido" /></SelectTrigger>
                   <SelectContent>
@@ -313,15 +324,22 @@ export default function ProdutoForm() {
                     ))}
                   </SelectContent>
                 </Select>
+                {custoPorMetro > 0 && (
+                  <p className="text-xs text-muted-foreground">Custo/metro: {fmt(custoPorMetro)}</p>
+                )}
               </div>
               <div className="space-y-2">
                 <Label>Consumo de Tecido (m)</Label>
                 <Input type="number" step="0.01" {...register("consumo_de_tecido", { valueAsNumber: true })} />
               </div>
               <div className="space-y-2">
-                <Label>Custo do Tecido (calculado)</Label>
+                <Label>Custo do Tecido (R$)</Label>
                 <Input type="number" step="0.01" {...register("preco_custo", { valueAsNumber: true })} />
-                <p className="text-xs text-muted-foreground">Custo/m do tecido × consumo</p>
+                <p className="text-xs text-muted-foreground">
+                  {custoPorMetro > 0 && consumoTecido > 0
+                    ? `Auto: ${fmt(custoPorMetro)} × ${consumoTecido}m = ${fmt(custoPorMetro * consumoTecido)}`
+                    : "Custo/m do tecido × consumo"}
+                </p>
               </div>
               <div className="space-y-2">
                 <Label>Preço de Venda (R$)</Label>
