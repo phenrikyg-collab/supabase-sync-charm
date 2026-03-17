@@ -127,6 +127,8 @@ export default function ProdutoForm() {
   const custoCorte = toNumber(watch("custo_corte"));
   const custoCostura = toNumber(watch("custo_costura"));
   const custoEmbalagem = toNumber(watch("custo_embalagem"));
+  const custoMarketing = toNumber(watch("custo_marketing"));
+  const custoFrete = toNumber(watch("custo_frete"));
 
   const custoAviamentos = aviItems.reduce((a, item) => a + (item.quantidade_por_peca * item.custo_unitario), 0);
 
