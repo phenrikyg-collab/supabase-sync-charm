@@ -153,6 +153,11 @@ export default function ProdutoForm() {
   const chargebackPerc = toNumber(watch("chargeback_percentual"));
   const conteudoPerc = toNumber(watch("conteudo_percentual"));
 
+  // Tecido selecionado e custo por metro
+  const tecidoSelecionado = watch("tecido_do_produto");
+  const tecidoObj = tecidos?.find((t) => t.nome_tecido === tecidoSelecionado);
+  const custoPorMetro = tecidoObj?.custo_por_metro ?? 0;
+
   const custoAviamentos = aviItems.reduce((a, item) => a + (item.quantidade_por_peca * item.custo_unitario), 0);
 
   // Deductions (percentages over sale price)
@@ -181,17 +186,10 @@ export default function ProdutoForm() {
   const margemLiquidaPerc = precoVenda > 0 ? (margemLiquidaValor / precoVenda) * 100 : 0;
 
   // Preço sugerido = preço que dá 25% de margem líquida
-  // margemLiquida = precoSugerido - (precoSugerido * deducoesPercentual/100) - custoTotalProduto = 0.25 * precoSugerido
-  // precoSugerido * (1 - deducoesPercentual/100 - 0.25) = custoTotalProduto
   const fatorLiquido = 1 - (deducoesPercentual / 100) - 0.25;
   const precoSugerido = fatorLiquido > 0 ? custoTotalProduto / fatorLiquido : 0;
 
-  // Auto-update custo de tecido when tecido or consumo changes
-  const tecidoSelecionado = watch("tecido_do_produto");
-  const tecidoObj = tecidos?.find((t) => t.nome_tecido === tecidoSelecionado);
-  const custoPorMetro = tecidoObj?.custo_por_metro ?? 0;
-
-  // Track previous values to only auto-calc when user changes tecido/consumo
+  // Auto-update preco_custo when tecido or consumo changes
   const [prevTecido, setPrevTecido] = useState("");
   const [prevConsumo, setPrevConsumo] = useState(0);
 
@@ -199,8 +197,7 @@ export default function ProdutoForm() {
     if (tecidoSelecionado && tecidos) {
       const changed = tecidoSelecionado !== prevTecido || consumoTecido !== prevConsumo;
       if (changed && custoPorMetro > 0 && consumoTecido > 0) {
-        const custoTecido = custoPorMetro * consumoTecido;
-        setValue("preco_custo", Number(custoTecido.toFixed(2)));
+        setValue("preco_custo", Number((custoPorMetro * consumoTecido).toFixed(2)));
       }
       setPrevTecido(tecidoSelecionado);
       setPrevConsumo(consumoTecido);
