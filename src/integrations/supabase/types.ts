@@ -641,6 +641,8 @@ export type Database = {
           custo_corte: number | null
           custo_costura: number | null
           custo_embalagem: number | null
+          custo_frete: number | null
+          custo_marketing: number | null
           id: string
           imposto_percentual: number | null
           margem_real_percentual: number | null
@@ -668,6 +670,8 @@ export type Database = {
           custo_corte?: number | null
           custo_costura?: number | null
           custo_embalagem?: number | null
+          custo_frete?: number | null
+          custo_marketing?: number | null
           id?: string
           imposto_percentual?: number | null
           margem_real_percentual?: number | null
@@ -695,6 +699,8 @@ export type Database = {
           custo_corte?: number | null
           custo_costura?: number | null
           custo_embalagem?: number | null
+          custo_frete?: number | null
+          custo_marketing?: number | null
           id?: string
           imposto_percentual?: number | null
           margem_real_percentual?: number | null
