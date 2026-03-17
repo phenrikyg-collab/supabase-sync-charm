@@ -492,6 +492,14 @@ export default function ProdutoForm() {
                   <span className="text-muted-foreground">Parcelamento ({parcelamentoPerc}%)</span>
                   <span className="text-destructive">- {fmt(precoVenda * parcelamentoPerc / 100)}</span>
                 </div>
+                <div className="flex justify-between text-xs">
+                  <span className="text-muted-foreground">Marketing ({marketingPerc}%)</span>
+                  <span className="text-destructive">- {fmt(precoVenda * marketingPerc / 100)}</span>
+                </div>
+                <div className="flex justify-between text-xs">
+                  <span className="text-muted-foreground">Frete ({fretePerc}%)</span>
+                  <span className="text-destructive">- {fmt(precoVenda * fretePerc / 100)}</span>
+                </div>
               </div>
 
               <div className="flex justify-between text-sm border-t border-border pt-2">
