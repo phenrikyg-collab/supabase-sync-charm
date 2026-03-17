@@ -529,14 +529,6 @@ export default function ProdutoForm() {
                   <span className="text-muted-foreground">Embalagem</span>
                   <span>- {fmt(custoEmbalagem)}</span>
                 </div>
-                <div className="flex justify-between text-xs">
-                  <span className="text-muted-foreground">Marketing</span>
-                  <span>- {fmt(custoMarketing)}</span>
-                </div>
-                <div className="flex justify-between text-xs">
-                  <span className="text-muted-foreground">Frete</span>
-                  <span>- {fmt(custoFrete)}</span>
-                </div>
               </div>
 
               <div className="flex justify-between text-sm border-t border-border pt-2">
