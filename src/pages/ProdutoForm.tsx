@@ -112,6 +112,11 @@ export default function ProdutoForm() {
         custo_embalagem: produto.custo_embalagem ?? 0,
         custo_marketing: (produto as any).custo_marketing ?? 0,
         custo_frete: (produto as any).custo_frete ?? 0,
+        overhead_percentual: (produto as any).overhead_percentual ?? 0,
+        devolucao_percentual: (produto as any).devolucao_percentual ?? 0,
+        cac_percentual: (produto as any).cac_percentual ?? 0,
+        chargeback_percentual: (produto as any).chargeback_percentual ?? 0,
+        conteudo_percentual: (produto as any).conteudo_percentual ?? 0,
       });
     }
   }, [produto, isEdit, reset]);
