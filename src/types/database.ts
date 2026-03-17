@@ -26,6 +26,13 @@ export interface Produto {
   custo_costura: number | null;
   custo_embalagem: number | null;
   preco_venda_sugerido: number | null;
+  custo_marketing: number | null;
+  custo_frete: number | null;
+  overhead_percentual: number | null;
+  devolucao_percentual: number | null;
+  cac_percentual: number | null;
+  chargeback_percentual: number | null;
+  conteudo_percentual: number | null;
 }
 
 export interface Cor {

@@ -110,13 +110,13 @@ export default function ProdutoForm() {
         custo_corte: produto.custo_corte ?? 0,
         custo_costura: produto.custo_costura ?? 0,
         custo_embalagem: produto.custo_embalagem ?? 0,
-        custo_marketing: (produto as any).custo_marketing ?? 0,
-        custo_frete: (produto as any).custo_frete ?? 0,
-        overhead_percentual: (produto as any).overhead_percentual ?? 0,
-        devolucao_percentual: (produto as any).devolucao_percentual ?? 0,
-        cac_percentual: (produto as any).cac_percentual ?? 0,
-        chargeback_percentual: (produto as any).chargeback_percentual ?? 0,
-        conteudo_percentual: (produto as any).conteudo_percentual ?? 0,
+        custo_marketing: produto.custo_marketing ?? 0,
+        custo_frete: produto.custo_frete ?? 0,
+        overhead_percentual: produto.overhead_percentual ?? 0,
+        devolucao_percentual: produto.devolucao_percentual ?? 0,
+        cac_percentual: produto.cac_percentual ?? 0,
+        chargeback_percentual: produto.chargeback_percentual ?? 0,
+        conteudo_percentual: produto.conteudo_percentual ?? 0,
       });
     }
   }, [produto, isEdit, reset]);
@@ -602,14 +602,7 @@ export default function ProdutoForm() {
               </div>
 
               {/* Margens */}
-              <div className="grid grid-cols-2 gap-4 pt-3 border-t border-border">
-                <div className="p-3 rounded-lg bg-background border border-border text-center">
-                  <p className="text-xs text-muted-foreground mb-1">Margem Bruta</p>
-                  <p className={`text-2xl font-serif font-bold ${margemBrutaPerc >= 0 ? "text-success" : "text-destructive"}`}>
-                    {margemBrutaPerc.toFixed(1)}%
-                  </p>
-                  <p className="text-xs text-muted-foreground">{fmt(margemBrutaValor)}</p>
-                </div>
+              <div className="pt-3 border-t border-border">
                 <div className="p-3 rounded-lg bg-background border border-border text-center">
                   <p className="text-xs text-muted-foreground mb-1">Margem Líquida</p>
                   <p className={`text-2xl font-serif font-bold ${margemLiquidaPerc >= 0 ? "text-success" : "text-destructive"}`}>
