@@ -113,10 +113,11 @@ export default function ImportarExtrato() {
       reader.onload = async () => {
         const base64 = (reader.result as string).split(",")[1];
         try {
-          const { data, error } = await supabase.functions.invoke("categorizar-despesa", {
-            body: { action: "parse_pdf", pdf_base64: base64, categorias: categorias?.map((c) => ({ id: c.id, nome: c.nome_categoria, grupo_dre: c.grupo_dre })) },
+          const data = await invokeEdgeFunction("categorizar-despesa", {
+            action: "parse_pdf",
+            pdf_base64: base64,
+            categorias: categorias?.map((c) => ({ id: c.id, nome: c.nome_categoria, grupo_dre: c.grupo_dre })),
           });
-          if (error) throw error;
           if (data?.rows?.length > 0) {
             setRows(data.rows.map((r: any) => ({
               data: r.data,
