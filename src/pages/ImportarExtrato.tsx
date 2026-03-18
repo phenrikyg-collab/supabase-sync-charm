@@ -9,6 +9,7 @@ import { toast } from "sonner";
 import { Upload, Sparkles, Check, Loader2, FileText } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useCategorias } from "@/hooks/useSupabase";
+import { invokeEdgeFunction } from "@/lib/edgeFunctions";
 import { useQueryClient } from "@tanstack/react-query";
 
 interface ParsedRow {

@@ -60,11 +60,11 @@ export default function ImportacaoLancamentos({ onImportar }: Props) {
         reader.readAsDataURL(file);
       });
 
-      const { data, error } = await supabase.functions.invoke("categorizar-despesa", {
-        body: { action: "parse_pdf", pdf_base64: base64 },
+      const data = await invokeEdgeFunction("categorizar-despesa", {
+        action: "parse_pdf",
+        pdf_base64: base64,
       });
 
-      if (error) throw new Error(error.message);
       if (!data?.rows?.length) throw new Error("Nenhuma transação encontrada no PDF");
 
       const lancamentos: LancamentoImportado[] = data.rows.map((t: any) => ({
