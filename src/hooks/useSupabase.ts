@@ -319,6 +319,17 @@ export const useUpdateMovimentacao = () => {
   });
 };
 
+export const useDeleteMovimentacao = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("movimentacoes_financeiras").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["movimentacoes"] }),
+  });
+};
+
 // Metas
 export const useMetasFinanceiras = () =>
   useQuery({ queryKey: ["metas"], queryFn: () => fetchTable<MetaFinanceira>("metas_financeiras", { orderBy: "mes" }) });
