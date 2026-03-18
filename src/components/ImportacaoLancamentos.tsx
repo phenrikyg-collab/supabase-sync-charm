@@ -2,7 +2,7 @@
 // Versão 2: aceita CSV e PDF de extrato de cartão
 
 import { useRef, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { invokeEdgeFunction } from "@/lib/edgeFunctions";
 
 interface LancamentoImportado {
   descricao: string;
