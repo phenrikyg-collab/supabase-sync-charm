@@ -70,18 +70,45 @@ export default function Financeiro() {
   const origens = [...new Set(movs?.map((m) => m.origem).filter(Boolean) ?? [])];
   const tipos = [...new Set(movs?.map((m) => m.tipo).filter(Boolean) ?? [])];
 
-  const allFilteredSelected = filtered.length > 0 && filtered.every((m) => selectedIds.has(m.id));
+  const sorted = useMemo(() => {
+    const arr = [...filtered];
+    arr.sort((a, b) => {
+      let cmp = 0;
+      switch (sortKey) {
+        case "data": cmp = (a.data ?? "").localeCompare(b.data ?? ""); break;
+        case "data_vencimento": cmp = (a.data_vencimento ?? "").localeCompare(b.data_vencimento ?? ""); break;
+        case "descricao": cmp = (a.descricao ?? "").localeCompare(b.descricao ?? "", "pt-BR"); break;
+        case "tipo": cmp = (a.tipo ?? "").localeCompare(b.tipo ?? ""); break;
+        case "categoria": cmp = (catMap[a.categoria_id ?? ""] ?? "").localeCompare(catMap[b.categoria_id ?? ""] ?? "", "pt-BR"); break;
+        case "origem": cmp = (a.origem ?? "").localeCompare(b.origem ?? ""); break;
+        case "valor": cmp = (a.valor ?? 0) - (b.valor ?? 0); break;
+        case "status_pagamento": cmp = (a.status_pagamento ?? "em_aberto").localeCompare(b.status_pagamento ?? "em_aberto"); break;
+      }
+      return sortDir === "asc" ? cmp : -cmp;
+    });
+    return arr;
+  }, [filtered, sortKey, sortDir, catMap]);
 
-  const toggleSelectAll = () => {
-    if (allFilteredSelected) {
-      setSelectedIds(new Set());
+  const totalPages = Math.max(1, Math.ceil(sorted.length / ITEMS_PER_PAGE));
+  const safePage = Math.min(currentPage, totalPages);
+  const paginatedData = sorted.slice((safePage - 1) * ITEMS_PER_PAGE, safePage * ITEMS_PER_PAGE);
+
+  const handleSort = (key: SortKey) => {
+    if (sortKey === key) {
+      setSortDir((d) => (d === "asc" ? "desc" : "asc"));
     } else {
-      setSelectedIds(new Set(filtered.map((m) => m.id)));
+      setSortKey(key);
+      setSortDir("asc");
     }
+    setCurrentPage(1);
   };
 
-  const toggleSelect = (id: string) => {
-    setSelectedIds((prev) => {
+  const SortIcon = ({ col }: { col: SortKey }) => {
+    if (sortKey !== col) return <ArrowUpDown className="h-3 w-3 ml-1 opacity-40" />;
+    return sortDir === "asc" ? <ArrowUp className="h-3 w-3 ml-1" /> : <ArrowDown className="h-3 w-3 ml-1" />;
+  };
+
+  const allFilteredSelected = paginatedData.length > 0 && paginatedData.every((m) => selectedIds.has(m.id));
       const next = new Set(prev);
       if (next.has(id)) next.delete(id);
       else next.add(id);
