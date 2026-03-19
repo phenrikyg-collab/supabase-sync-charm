@@ -6,6 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -14,6 +15,8 @@ import { formatDateBR } from "@/lib/printUtils";
 import { Pencil, Trash2, Loader2, Check, ChevronsUpDown, CircleCheck, Clock } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { supabase } from "@/integrations/supabase/client";
+import { useQueryClient } from "@tanstack/react-query";
 
 function formatCurrency(v: number | null | undefined) {
   if (v == null) return "R$ 0,00";
@@ -26,6 +29,7 @@ export default function Financeiro() {
   const { data: centros } = useCentrosCusto();
   const updateMov = useUpdateMovimentacao();
   const deleteMov = useDeleteMovimentacao();
+  const queryClient = useQueryClient();
 
   const [filtroTipo, setFiltroTipo] = useState("todos");
   const [filtroCategoria, setFiltroCategoria] = useState("todos");
@@ -35,6 +39,8 @@ export default function Financeiro() {
   const [editingMov, setEditingMov] = useState<any | null>(null);
   const [catComboOpen, setCatComboOpen] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkUpdating, setBulkUpdating] = useState(false);
 
   const sortedCategorias = useMemo(() => 
     [...(categorias ?? [])].sort((a, b) => (a.nome_categoria ?? "").localeCompare(b.nome_categoria ?? "", "pt-BR")),
@@ -43,7 +49,6 @@ export default function Financeiro() {
 
   const catMap = Object.fromEntries((categorias ?? []).map((c) => [c.id, c.nome_categoria]));
   const catDescMap = Object.fromEntries((categorias ?? []).map((c) => [c.id, c.descricao_categoria]));
-  const centroMap = Object.fromEntries((centros ?? []).map((c) => [c.id, c.nome_centro]));
 
   const filtered = movs?.filter((m) => {
     if (filtroTipo !== "todos" && m.tipo !== filtroTipo) return false;
@@ -56,6 +61,54 @@ export default function Financeiro() {
 
   const origens = [...new Set(movs?.map((m) => m.origem).filter(Boolean) ?? [])];
   const tipos = [...new Set(movs?.map((m) => m.tipo).filter(Boolean) ?? [])];
+
+  const allFilteredSelected = filtered.length > 0 && filtered.every((m) => selectedIds.has(m.id));
+
+  const toggleSelectAll = () => {
+    if (allFilteredSelected) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(filtered.map((m) => m.id)));
+    }
+  };
+
+  const toggleSelect = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const handleBulkStatus = async (newStatus: "pago" | "em_aberto") => {
+    if (selectedIds.size === 0) return;
+    setBulkUpdating(true);
+    try {
+      const today = new Date().toISOString().split("T")[0];
+      const updates: Record<string, any> = {
+        status_pagamento: newStatus,
+      };
+      if (newStatus === "pago") {
+        updates.data_envio = today;
+      }
+
+      const { error } = await supabase
+        .from("movimentacoes_financeiras")
+        .update(updates)
+        .in("id", Array.from(selectedIds));
+
+      if (error) throw error;
+
+      await queryClient.invalidateQueries({ queryKey: ["movimentacoes"] });
+      toast.success(`${selectedIds.size} transações marcadas como ${newStatus === "pago" ? "pagas" : "em aberto"}!`);
+      setSelectedIds(new Set());
+    } catch (err: any) {
+      toast.error("Erro na atualização em massa: " + (err.message || "erro"));
+    } finally {
+      setBulkUpdating(false);
+    }
+  };
 
   const handleSaveEdit = async () => {
     if (!editingMov) return;
@@ -105,9 +158,11 @@ export default function Financeiro() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-serif font-bold text-foreground">Financeiro</h1>
-        <p className="text-sm text-muted-foreground mt-1">{filtered.length} movimentações</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-serif font-bold text-foreground">Financeiro</h1>
+          <p className="text-sm text-muted-foreground mt-1">{filtered.length} movimentações</p>
+        </div>
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
@@ -149,6 +204,40 @@ export default function Financeiro() {
         </Select>
       </div>
 
+      {/* Bulk action bar */}
+      {selectedIds.size > 0 && (
+        <div className="flex items-center gap-3 p-3 rounded-lg border bg-muted/50">
+          <span className="text-sm font-medium">{selectedIds.size} selecionada(s)</span>
+          <Button
+            size="sm"
+            variant="default"
+            onClick={() => handleBulkStatus("pago")}
+            disabled={bulkUpdating}
+            className="gap-1"
+          >
+            {bulkUpdating ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CircleCheck className="h-3.5 w-3.5" />}
+            Marcar como Pago
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => handleBulkStatus("em_aberto")}
+            disabled={bulkUpdating}
+            className="gap-1"
+          >
+            {bulkUpdating ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Clock className="h-3.5 w-3.5" />}
+            Marcar como Em Aberto
+          </Button>
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => setSelectedIds(new Set())}
+          >
+            Limpar seleção
+          </Button>
+        </div>
+      )}
+
       <Card>
         <CardContent className="pt-6 overflow-x-auto">
           {isLoading ? (
@@ -157,6 +246,13 @@ export default function Financeiro() {
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead className="w-10">
+                    <Checkbox
+                      checked={allFilteredSelected}
+                      onCheckedChange={toggleSelectAll}
+                      aria-label="Selecionar todos"
+                    />
+                  </TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Competência</TableHead>
                   <TableHead>Vencimento</TableHead>
@@ -173,8 +269,16 @@ export default function Financeiro() {
                 {filtered.map((m) => {
                   const isPago = (m.status_pagamento ?? "em_aberto") === "pago";
                   const isVencido = !isPago && m.data_vencimento && new Date(m.data_vencimento + "T00:00:00") < new Date(new Date().toISOString().split("T")[0] + "T00:00:00");
+                  const isSelected = selectedIds.has(m.id);
                   return (
-                    <TableRow key={m.id} className={isVencido ? "bg-destructive/5" : ""}>
+                    <TableRow key={m.id} className={cn(isVencido && "bg-destructive/5", isSelected && "bg-accent/50")}>
+                      <TableCell>
+                        <Checkbox
+                          checked={isSelected}
+                          onCheckedChange={() => toggleSelect(m.id)}
+                          aria-label={`Selecionar ${m.descricao}`}
+                        />
+                      </TableCell>
                       <TableCell>
                         <button
                           onClick={() => handleTogglePago(m)}
