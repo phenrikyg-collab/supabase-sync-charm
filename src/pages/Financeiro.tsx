@@ -328,7 +328,7 @@ export default function Financeiro() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filtered.map((m) => {
+                {paginatedData.map((m) => {
                   const isPago = (m.status_pagamento ?? "em_aberto") === "pago";
                   const isVencido = !isPago && m.data_vencimento && new Date(m.data_vencimento + "T00:00:00") < new Date(new Date().toISOString().split("T")[0] + "T00:00:00");
                   const isSelected = selectedIds.has(m.id);
