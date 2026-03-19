@@ -31,8 +31,9 @@ export default function Financeiro() {
   const [filtroCategoria, setFiltroCategoria] = useState("todos");
   const [filtroCentro, setFiltroCentro] = useState("todos");
   const [filtroOrigem, setFiltroOrigem] = useState("todos");
+  const [catComboOpen, setCatComboOpen] = useState(false);
 
-  const [editingMov, setEditingMov] = useState<any | null>(null);
+
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const sortedCategorias = useMemo(() => 
