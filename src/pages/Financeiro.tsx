@@ -46,6 +46,9 @@ export default function Financeiro() {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkUpdating, setBulkUpdating] = useState(false);
+  const [sortKey, setSortKey] = useState<SortKey>("data");
+  const [sortDir, setSortDir] = useState<SortDir>("desc");
+  const [currentPage, setCurrentPage] = useState(1);
 
   const sortedCategorias = useMemo(() => 
     [...(categorias ?? [])].sort((a, b) => (a.nome_categoria ?? "").localeCompare(b.nome_categoria ?? "", "pt-BR")),
