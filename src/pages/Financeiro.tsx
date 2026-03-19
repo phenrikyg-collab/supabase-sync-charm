@@ -12,7 +12,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { formatDateBR } from "@/lib/printUtils";
-import { Pencil, Trash2, Loader2, Check, ChevronsUpDown, CircleCheck, Clock } from "lucide-react";
+import { Pencil, Trash2, Loader2, Check, ChevronsUpDown, CircleCheck, Clock, ArrowUp, ArrowDown, ArrowUpDown, ChevronLeft, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
