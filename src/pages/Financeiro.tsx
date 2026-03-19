@@ -109,6 +109,17 @@ export default function Financeiro() {
   };
 
   const allFilteredSelected = paginatedData.length > 0 && paginatedData.every((m) => selectedIds.has(m.id));
+
+  const toggleSelectAll = () => {
+    if (allFilteredSelected) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(paginatedData.map((m) => m.id)));
+    }
+  };
+
+  const toggleSelect = (id: string) => {
+    setSelectedIds((prev) => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id);
       else next.add(id);
