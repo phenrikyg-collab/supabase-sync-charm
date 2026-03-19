@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+import { format } from "date-fns";
 import { useMovimentacoesFinanceiras, useCategorias, useCentrosCusto, useUpdateMovimentacao, useDeleteMovimentacao } from "@/hooks/useSupabase";
 import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
