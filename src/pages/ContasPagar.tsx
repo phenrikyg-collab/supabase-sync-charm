@@ -49,7 +49,7 @@ function DarBaixaDialog({ mov, onClose }: { mov: MovimentacaoFinanceira & { stat
     try {
       await updateMov.mutateAsync({
         id: mov.id,
-        status_bling: "pago",
+        status_pagamento: "pago",
         data_envio: format(dataPgto, "yyyy-MM-dd"),
       });
       toast.success("Pagamento registrado com sucesso");
