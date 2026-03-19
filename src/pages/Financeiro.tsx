@@ -224,7 +224,18 @@ export default function Financeiro() {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
+        <Select value={filtroPeriodo} onValueChange={setFiltroPeriodo}>
+          <SelectTrigger><SelectValue placeholder="Período" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="todos">Todos os Períodos</SelectItem>
+            {mesesDisponiveis.map((m) => {
+              const [y, mo] = m.split("-");
+              const label = `${mo}/${y}`;
+              return <SelectItem key={m} value={m}>{label}</SelectItem>;
+            })}
+          </SelectContent>
+        </Select>
         <Select value={filtroTipo} onValueChange={setFiltroTipo}>
           <SelectTrigger><SelectValue placeholder="Tipo" /></SelectTrigger>
           <SelectContent>
