@@ -208,17 +208,55 @@ export default function Financeiro() {
               </div>
               <div>
                 <label className="text-sm font-medium">Categoria</label>
-                <Select value={editingMov.categoria_id ?? "none"} onValueChange={(v) => setEditingMov({ ...editingMov, categoria_id: v === "none" ? null : v })}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">Sem categoria</SelectItem>
-                    {categorias?.map((c) => (
-                      <SelectItem key={c.id} value={c.id}>
-                        {c.nome_categoria} {c.descricao_categoria ? `— ${c.descricao_categoria}` : ""}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <Popover open={catComboOpen} onOpenChange={setCatComboOpen}>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" role="combobox" aria-expanded={catComboOpen} className="w-full justify-between font-normal">
+                      {editingMov.categoria_id
+                        ? (() => {
+                            const cat = sortedCategorias.find(c => c.id === editingMov.categoria_id);
+                            return cat ? `${cat.nome_categoria}${cat.descricao_categoria ? ` — ${cat.descricao_categoria}` : ""}` : "Sem categoria";
+                          })()
+                        : "Sem categoria"}
+                      <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-[400px] p-0" align="start">
+                    <Command>
+                      <CommandInput placeholder="Buscar categoria..." />
+                      <CommandList>
+                        <CommandEmpty>Nenhuma categoria encontrada.</CommandEmpty>
+                        <CommandGroup>
+                          <CommandItem
+                            value="sem-categoria"
+                            onSelect={() => {
+                              setEditingMov({ ...editingMov, categoria_id: null });
+                              setCatComboOpen(false);
+                            }}
+                          >
+                            <Check className={cn("mr-2 h-4 w-4", !editingMov.categoria_id ? "opacity-100" : "opacity-0")} />
+                            Sem categoria
+                          </CommandItem>
+                          {sortedCategorias.map((c) => (
+                            <CommandItem
+                              key={c.id}
+                              value={`${c.nome_categoria ?? ""} ${c.descricao_categoria ?? ""}`}
+                              onSelect={() => {
+                                setEditingMov({ ...editingMov, categoria_id: c.id });
+                                setCatComboOpen(false);
+                              }}
+                            >
+                              <Check className={cn("mr-2 h-4 w-4", editingMov.categoria_id === c.id ? "opacity-100" : "opacity-0")} />
+                              <div className="flex flex-col">
+                                <span className="font-medium">{c.nome_categoria}</span>
+                                {c.descricao_categoria && <span className="text-xs text-muted-foreground">{c.descricao_categoria}</span>}
+                              </div>
+                            </CommandItem>
+                          ))}
+                        </CommandGroup>
+                      </CommandList>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
               </div>
             </div>
           )}
