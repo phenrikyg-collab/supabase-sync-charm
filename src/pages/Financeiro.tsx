@@ -12,11 +12,16 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { formatDateBR } from "@/lib/printUtils";
-import { Pencil, Trash2, Loader2, Check, ChevronsUpDown, CircleCheck, Clock } from "lucide-react";
+import { Pencil, Trash2, Loader2, Check, ChevronsUpDown, CircleCheck, Clock, ArrowUp, ArrowDown, ArrowUpDown, ChevronLeft, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
+
+const ITEMS_PER_PAGE = 50;
+
+type SortKey = "status_pagamento" | "data" | "data_vencimento" | "descricao" | "tipo" | "categoria" | "origem" | "valor";
+type SortDir = "asc" | "desc";
 
 function formatCurrency(v: number | null | undefined) {
   if (v == null) return "R$ 0,00";
@@ -41,6 +46,9 @@ export default function Financeiro() {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkUpdating, setBulkUpdating] = useState(false);
+  const [sortKey, setSortKey] = useState<SortKey>("data");
+  const [sortDir, setSortDir] = useState<SortDir>("desc");
+  const [currentPage, setCurrentPage] = useState(1);
 
   const sortedCategorias = useMemo(() => 
     [...(categorias ?? [])].sort((a, b) => (a.nome_categoria ?? "").localeCompare(b.nome_categoria ?? "", "pt-BR")),
@@ -50,25 +58,65 @@ export default function Financeiro() {
   const catMap = Object.fromEntries((categorias ?? []).map((c) => [c.id, c.nome_categoria]));
   const catDescMap = Object.fromEntries((categorias ?? []).map((c) => [c.id, c.descricao_categoria]));
 
-  const filtered = movs?.filter((m) => {
-    if (filtroTipo !== "todos" && m.tipo !== filtroTipo) return false;
-    if (filtroCategoria !== "todos" && m.categoria_id !== filtroCategoria) return false;
-    if (filtroCentro !== "todos" && m.centro_custo_id !== filtroCentro) return false;
-    if (filtroOrigem !== "todos" && m.origem !== filtroOrigem) return false;
-    if (filtroStatus !== "todos" && (m.status_pagamento ?? "em_aberto") !== filtroStatus) return false;
-    return true;
-  }) ?? [];
+  const filtered = useMemo(() => {
+    return (movs ?? []).filter((m) => {
+      if (filtroTipo !== "todos" && m.tipo !== filtroTipo) return false;
+      if (filtroCategoria !== "todos" && m.categoria_id !== filtroCategoria) return false;
+      if (filtroCentro !== "todos" && m.centro_custo_id !== filtroCentro) return false;
+      if (filtroOrigem !== "todos" && m.origem !== filtroOrigem) return false;
+      if (filtroStatus !== "todos" && (m.status_pagamento ?? "em_aberto") !== filtroStatus) return false;
+      return true;
+    });
+  }, [movs, filtroTipo, filtroCategoria, filtroCentro, filtroOrigem, filtroStatus]);
 
   const origens = [...new Set(movs?.map((m) => m.origem).filter(Boolean) ?? [])];
   const tipos = [...new Set(movs?.map((m) => m.tipo).filter(Boolean) ?? [])];
 
-  const allFilteredSelected = filtered.length > 0 && filtered.every((m) => selectedIds.has(m.id));
+  const sorted = useMemo(() => {
+    const arr = [...filtered];
+    arr.sort((a, b) => {
+      let cmp = 0;
+      switch (sortKey) {
+        case "data": cmp = (a.data ?? "").localeCompare(b.data ?? ""); break;
+        case "data_vencimento": cmp = (a.data_vencimento ?? "").localeCompare(b.data_vencimento ?? ""); break;
+        case "descricao": cmp = (a.descricao ?? "").localeCompare(b.descricao ?? "", "pt-BR"); break;
+        case "tipo": cmp = (a.tipo ?? "").localeCompare(b.tipo ?? ""); break;
+        case "categoria": cmp = (catMap[a.categoria_id ?? ""] ?? "").localeCompare(catMap[b.categoria_id ?? ""] ?? "", "pt-BR"); break;
+        case "origem": cmp = (a.origem ?? "").localeCompare(b.origem ?? ""); break;
+        case "valor": cmp = (a.valor ?? 0) - (b.valor ?? 0); break;
+        case "status_pagamento": cmp = (a.status_pagamento ?? "em_aberto").localeCompare(b.status_pagamento ?? "em_aberto"); break;
+      }
+      return sortDir === "asc" ? cmp : -cmp;
+    });
+    return arr;
+  }, [filtered, sortKey, sortDir, catMap]);
+
+  const totalPages = Math.max(1, Math.ceil(sorted.length / ITEMS_PER_PAGE));
+  const safePage = Math.min(currentPage, totalPages);
+  const paginatedData = sorted.slice((safePage - 1) * ITEMS_PER_PAGE, safePage * ITEMS_PER_PAGE);
+
+  const handleSort = (key: SortKey) => {
+    if (sortKey === key) {
+      setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    } else {
+      setSortKey(key);
+      setSortDir("asc");
+    }
+    setCurrentPage(1);
+  };
+
+  const SortIcon = ({ col }: { col: SortKey }) => {
+    if (sortKey !== col) return <ArrowUpDown className="h-3 w-3 ml-1 opacity-40" />;
+    return sortDir === "asc" ? <ArrowUp className="h-3 w-3 ml-1" /> : <ArrowDown className="h-3 w-3 ml-1" />;
+  };
+
+  const allFilteredSelected = paginatedData.length > 0 && paginatedData.every((m) => selectedIds.has(m.id));
 
   const toggleSelectAll = () => {
     if (allFilteredSelected) {
       setSelectedIds(new Set());
     } else {
-      setSelectedIds(new Set(filtered.map((m) => m.id)));
+      setSelectedIds(new Set(paginatedData.map((m) => m.id)));
     }
   };
 
@@ -253,20 +301,36 @@ export default function Financeiro() {
                       aria-label="Selecionar todos"
                     />
                   </TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Competência</TableHead>
-                  <TableHead>Vencimento</TableHead>
-                  <TableHead>Descrição</TableHead>
-                  <TableHead>Tipo</TableHead>
-                  <TableHead>Categoria</TableHead>
+                  <TableHead className="cursor-pointer select-none" onClick={() => handleSort("status_pagamento")}>
+                    <span className="flex items-center">Status<SortIcon col="status_pagamento" /></span>
+                  </TableHead>
+                  <TableHead className="cursor-pointer select-none" onClick={() => handleSort("data")}>
+                    <span className="flex items-center">Competência<SortIcon col="data" /></span>
+                  </TableHead>
+                  <TableHead className="cursor-pointer select-none" onClick={() => handleSort("data_vencimento")}>
+                    <span className="flex items-center">Vencimento<SortIcon col="data_vencimento" /></span>
+                  </TableHead>
+                  <TableHead className="cursor-pointer select-none" onClick={() => handleSort("descricao")}>
+                    <span className="flex items-center">Descrição<SortIcon col="descricao" /></span>
+                  </TableHead>
+                  <TableHead className="cursor-pointer select-none" onClick={() => handleSort("tipo")}>
+                    <span className="flex items-center">Tipo<SortIcon col="tipo" /></span>
+                  </TableHead>
+                  <TableHead className="cursor-pointer select-none" onClick={() => handleSort("categoria")}>
+                    <span className="flex items-center">Categoria<SortIcon col="categoria" /></span>
+                  </TableHead>
                   <TableHead>Desc. Categoria</TableHead>
-                  <TableHead>Origem</TableHead>
-                  <TableHead className="text-right">Valor</TableHead>
+                  <TableHead className="cursor-pointer select-none" onClick={() => handleSort("origem")}>
+                    <span className="flex items-center">Origem<SortIcon col="origem" /></span>
+                  </TableHead>
+                  <TableHead className="cursor-pointer select-none text-right" onClick={() => handleSort("valor")}>
+                    <span className="flex items-center justify-end">Valor<SortIcon col="valor" /></span>
+                  </TableHead>
                   <TableHead className="w-20">Ações</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filtered.map((m) => {
+                {paginatedData.map((m) => {
                   const isPago = (m.status_pagamento ?? "em_aberto") === "pago";
                   const isVencido = !isPago && m.data_vencimento && new Date(m.data_vencimento + "T00:00:00") < new Date(new Date().toISOString().split("T")[0] + "T00:00:00");
                   const isSelected = selectedIds.has(m.id);
@@ -327,6 +391,35 @@ export default function Financeiro() {
                 })}
               </TableBody>
             </Table>
+          )}
+          {/* Pagination */}
+          {!isLoading && totalPages > 1 && (
+            <div className="flex items-center justify-between pt-4 border-t mt-4">
+              <p className="text-sm text-muted-foreground">
+                Mostrando {((safePage - 1) * ITEMS_PER_PAGE) + 1}–{Math.min(safePage * ITEMS_PER_PAGE, sorted.length)} de {sorted.length}
+              </p>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                  disabled={safePage <= 1}
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+                <span className="text-sm font-medium">
+                  {safePage} / {totalPages}
+                </span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                  disabled={safePage >= totalPages}
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
           )}
         </CardContent>
       </Card>
