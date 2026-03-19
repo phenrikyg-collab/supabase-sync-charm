@@ -58,14 +58,17 @@ export default function Financeiro() {
   const catMap = Object.fromEntries((categorias ?? []).map((c) => [c.id, c.nome_categoria]));
   const catDescMap = Object.fromEntries((categorias ?? []).map((c) => [c.id, c.descricao_categoria]));
 
-  const filtered = movs?.filter((m) => {
-    if (filtroTipo !== "todos" && m.tipo !== filtroTipo) return false;
-    if (filtroCategoria !== "todos" && m.categoria_id !== filtroCategoria) return false;
-    if (filtroCentro !== "todos" && m.centro_custo_id !== filtroCentro) return false;
-    if (filtroOrigem !== "todos" && m.origem !== filtroOrigem) return false;
-    if (filtroStatus !== "todos" && (m.status_pagamento ?? "em_aberto") !== filtroStatus) return false;
-    return true;
-  }) ?? [];
+  const filtered = useMemo(() => {
+    setCurrentPage(1);
+    return (movs ?? []).filter((m) => {
+      if (filtroTipo !== "todos" && m.tipo !== filtroTipo) return false;
+      if (filtroCategoria !== "todos" && m.categoria_id !== filtroCategoria) return false;
+      if (filtroCentro !== "todos" && m.centro_custo_id !== filtroCentro) return false;
+      if (filtroOrigem !== "todos" && m.origem !== filtroOrigem) return false;
+      if (filtroStatus !== "todos" && (m.status_pagamento ?? "em_aberto") !== filtroStatus) return false;
+      return true;
+    });
+  }, [movs, filtroTipo, filtroCategoria, filtroCentro, filtroOrigem, filtroStatus]);
 
   const origens = [...new Set(movs?.map((m) => m.origem).filter(Boolean) ?? [])];
   const tipos = [...new Set(movs?.map((m) => m.tipo).filter(Boolean) ?? [])];
