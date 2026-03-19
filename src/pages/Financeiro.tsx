@@ -42,6 +42,7 @@ export default function Financeiro() {
   const [filtroCentro, setFiltroCentro] = useState("todos");
   const [filtroOrigem, setFiltroOrigem] = useState("todos");
   const [filtroStatus, setFiltroStatus] = useState("todos");
+  const [filtroPeriodo, setFiltroPeriodo] = useState(() => format(new Date(), "yyyy-MM"));
   const [editingMov, setEditingMov] = useState<any | null>(null);
   const [catComboOpen, setCatComboOpen] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -50,6 +51,14 @@ export default function Financeiro() {
   const [sortKey, setSortKey] = useState<SortKey>("data");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
   const [currentPage, setCurrentPage] = useState(1);
+
+  const mesesDisponiveis = useMemo(() => {
+    const meses = new Set<string>();
+    (movs ?? []).forEach((m) => {
+      if (m.data) meses.add(m.data.substring(0, 7));
+    });
+    return Array.from(meses).sort().reverse();
+  }, [movs]);
 
   const sortedCategorias = useMemo(() => 
     [...(categorias ?? [])].sort((a, b) => (a.nome_categoria ?? "").localeCompare(b.nome_categoria ?? "", "pt-BR")),
