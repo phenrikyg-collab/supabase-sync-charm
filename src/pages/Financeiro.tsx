@@ -70,6 +70,7 @@ export default function Financeiro() {
 
   const filtered = useMemo(() => {
     return (movs ?? []).filter((m) => {
+      if (filtroPeriodo !== "todos" && m.data && !m.data.startsWith(filtroPeriodo)) return false;
       if (filtroTipo !== "todos" && m.tipo !== filtroTipo) return false;
       if (filtroCategoria !== "todos" && m.categoria_id !== filtroCategoria) return false;
       if (filtroCentro !== "todos" && m.centro_custo_id !== filtroCentro) return false;
@@ -77,7 +78,7 @@ export default function Financeiro() {
       if (filtroStatus !== "todos" && (m.status_pagamento ?? "em_aberto") !== filtroStatus) return false;
       return true;
     });
-  }, [movs, filtroTipo, filtroCategoria, filtroCentro, filtroOrigem, filtroStatus]);
+  }, [movs, filtroPeriodo, filtroTipo, filtroCategoria, filtroCentro, filtroOrigem, filtroStatus]);
 
   const origens = [...new Set(movs?.map((m) => m.origem).filter(Boolean) ?? [])];
   const tipos = [...new Set(movs?.map((m) => m.tipo).filter(Boolean) ?? [])];
