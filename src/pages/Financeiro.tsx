@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+import { format } from "date-fns";
 import { useMovimentacoesFinanceiras, useCategorias, useCentrosCusto, useUpdateMovimentacao, useDeleteMovimentacao } from "@/hooks/useSupabase";
 import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -41,6 +42,7 @@ export default function Financeiro() {
   const [filtroCentro, setFiltroCentro] = useState("todos");
   const [filtroOrigem, setFiltroOrigem] = useState("todos");
   const [filtroStatus, setFiltroStatus] = useState("todos");
+  const [filtroPeriodo, setFiltroPeriodo] = useState(() => format(new Date(), "yyyy-MM"));
   const [editingMov, setEditingMov] = useState<any | null>(null);
   const [catComboOpen, setCatComboOpen] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -49,6 +51,14 @@ export default function Financeiro() {
   const [sortKey, setSortKey] = useState<SortKey>("data");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
   const [currentPage, setCurrentPage] = useState(1);
+
+  const mesesDisponiveis = useMemo(() => {
+    const meses = new Set<string>();
+    (movs ?? []).forEach((m) => {
+      if (m.data) meses.add(m.data.substring(0, 7));
+    });
+    return Array.from(meses).sort().reverse();
+  }, [movs]);
 
   const sortedCategorias = useMemo(() => 
     [...(categorias ?? [])].sort((a, b) => (a.nome_categoria ?? "").localeCompare(b.nome_categoria ?? "", "pt-BR")),
@@ -60,6 +70,7 @@ export default function Financeiro() {
 
   const filtered = useMemo(() => {
     return (movs ?? []).filter((m) => {
+      if (filtroPeriodo !== "todos" && m.data && !m.data.startsWith(filtroPeriodo)) return false;
       if (filtroTipo !== "todos" && m.tipo !== filtroTipo) return false;
       if (filtroCategoria !== "todos" && m.categoria_id !== filtroCategoria) return false;
       if (filtroCentro !== "todos" && m.centro_custo_id !== filtroCentro) return false;
@@ -67,7 +78,7 @@ export default function Financeiro() {
       if (filtroStatus !== "todos" && (m.status_pagamento ?? "em_aberto") !== filtroStatus) return false;
       return true;
     });
-  }, [movs, filtroTipo, filtroCategoria, filtroCentro, filtroOrigem, filtroStatus]);
+  }, [movs, filtroPeriodo, filtroTipo, filtroCategoria, filtroCentro, filtroOrigem, filtroStatus]);
 
   const origens = [...new Set(movs?.map((m) => m.origem).filter(Boolean) ?? [])];
   const tipos = [...new Set(movs?.map((m) => m.tipo).filter(Boolean) ?? [])];
@@ -213,7 +224,18 @@ export default function Financeiro() {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
+        <Select value={filtroPeriodo} onValueChange={setFiltroPeriodo}>
+          <SelectTrigger><SelectValue placeholder="Período" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="todos">Todos os Períodos</SelectItem>
+            {mesesDisponiveis.map((m) => {
+              const [y, mo] = m.split("-");
+              const label = `${mo}/${y}`;
+              return <SelectItem key={m} value={m}>{label}</SelectItem>;
+            })}
+          </SelectContent>
+        </Select>
         <Select value={filtroTipo} onValueChange={setFiltroTipo}>
           <SelectTrigger><SelectValue placeholder="Tipo" /></SelectTrigger>
           <SelectContent>

@@ -21,6 +21,7 @@ import Producao from "./pages/Producao";
 import Expedicao from "./pages/Expedicao";
 import Financeiro from "./pages/Financeiro";
 import ContasPagar from "./pages/ContasPagar";
+import ContasReceber from "./pages/ContasReceber";
 import DRE from "./pages/DRE";
 import DashboardFinanceiro from "./pages/DashboardFinanceiro";
 import ImportarExtrato from "./pages/ImportarExtrato";
@@ -90,6 +91,7 @@ const AppRoutes = () => {
               <Route path="/financeiro" element={<Financeiro />} />
               <Route path="/dashboard-financeiro" element={<DashboardFinanceiro />} />
               <Route path="/contas-pagar" element={<ContasPagar />} />
+              <Route path="/contas-receber" element={<ContasReceber />} />
               <Route path="/dre" element={<DRE />} />
               <Route path="/importar-extrato" element={<ImportarExtrato />} />
               <Route path="/importar" element={<ImportarPage />} />
