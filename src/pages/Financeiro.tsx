@@ -11,7 +11,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { formatDateBR } from "@/lib/printUtils";
-import { Pencil, Trash2, Loader2, Check, ChevronsUpDown } from "lucide-react";
+import { Pencil, Trash2, Loader2, Check, ChevronsUpDown, CircleCheck, Clock } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
@@ -31,10 +31,9 @@ export default function Financeiro() {
   const [filtroCategoria, setFiltroCategoria] = useState("todos");
   const [filtroCentro, setFiltroCentro] = useState("todos");
   const [filtroOrigem, setFiltroOrigem] = useState("todos");
+  const [filtroStatus, setFiltroStatus] = useState("todos");
   const [editingMov, setEditingMov] = useState<any | null>(null);
   const [catComboOpen, setCatComboOpen] = useState(false);
-
-
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const sortedCategorias = useMemo(() => 
@@ -51,6 +50,7 @@ export default function Financeiro() {
     if (filtroCategoria !== "todos" && m.categoria_id !== filtroCategoria) return false;
     if (filtroCentro !== "todos" && m.centro_custo_id !== filtroCentro) return false;
     if (filtroOrigem !== "todos" && m.origem !== filtroOrigem) return false;
+    if (filtroStatus !== "todos" && (m.status_pagamento ?? "em_aberto") !== filtroStatus) return false;
     return true;
   }) ?? [];
 
@@ -67,6 +67,9 @@ export default function Financeiro() {
         tipo: editingMov.tipo,
         categoria_id: editingMov.categoria_id,
         data: editingMov.data,
+        data_vencimento: editingMov.data_vencimento || null,
+        status_pagamento: editingMov.status_pagamento,
+        data_envio: editingMov.status_pagamento === "pago" ? (editingMov.data_envio || new Date().toISOString().split("T")[0]) : null,
       });
       toast.success("Transação atualizada!");
       setEditingMov(null);
@@ -86,6 +89,20 @@ export default function Financeiro() {
     }
   };
 
+  const handleTogglePago = async (m: any) => {
+    const newStatus = (m.status_pagamento ?? "em_aberto") === "pago" ? "em_aberto" : "pago";
+    try {
+      await updateMov.mutateAsync({
+        id: m.id,
+        status_pagamento: newStatus,
+        data_envio: newStatus === "pago" ? (m.data_envio || new Date().toISOString().split("T")[0]) : null,
+      });
+      toast.success(newStatus === "pago" ? "Marcada como paga!" : "Marcada como em aberto!");
+    } catch (err: any) {
+      toast.error("Erro: " + (err.message || "erro"));
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div>
@@ -93,7 +110,7 @@ export default function Financeiro() {
         <p className="text-sm text-muted-foreground mt-1">{filtered.length} movimentações</p>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
         <Select value={filtroTipo} onValueChange={setFiltroTipo}>
           <SelectTrigger><SelectValue placeholder="Tipo" /></SelectTrigger>
           <SelectContent>
@@ -122,17 +139,27 @@ export default function Financeiro() {
             {origens.map((o) => <SelectItem key={o} value={o!}>{o}</SelectItem>)}
           </SelectContent>
         </Select>
+        <Select value={filtroStatus} onValueChange={setFiltroStatus}>
+          <SelectTrigger><SelectValue placeholder="Status Pgto" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="todos">Todos</SelectItem>
+            <SelectItem value="pago">Pago</SelectItem>
+            <SelectItem value="em_aberto">Em Aberto</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
 
       <Card>
-        <CardContent className="pt-6">
+        <CardContent className="pt-6 overflow-x-auto">
           {isLoading ? (
             <div className="text-center py-8 text-muted-foreground">Carregando...</div>
           ) : (
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Data</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Competência</TableHead>
+                  <TableHead>Vencimento</TableHead>
                   <TableHead>Descrição</TableHead>
                   <TableHead>Tipo</TableHead>
                   <TableHead>Categoria</TableHead>
@@ -143,33 +170,57 @@ export default function Financeiro() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filtered.map((m) => (
-                  <TableRow key={m.id}>
-                    <TableCell className="text-muted-foreground whitespace-nowrap">{formatDateBR(m.data)}</TableCell>
-                    <TableCell className="font-medium max-w-xs truncate">{m.descricao ?? "—"}</TableCell>
-                    <TableCell>
-                      <Badge variant={m.tipo === "entrada" ? "default" : "secondary"}>
-                        {m.tipo ?? "—"}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-muted-foreground">{m.categoria_id ? catMap[m.categoria_id] ?? "—" : "—"}</TableCell>
-                    <TableCell className="text-muted-foreground text-xs">{m.categoria_id ? catDescMap[m.categoria_id] ?? "—" : "—"}</TableCell>
-                    <TableCell className="text-muted-foreground">{m.origem ?? "—"}</TableCell>
-                    <TableCell className={`text-right font-medium ${m.tipo === "entrada" ? "text-success" : "text-danger"}`}>
-                      {formatCurrency(m.valor)}
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex gap-1">
-                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setEditingMov({ ...m })}>
-                          <Pencil className="h-3.5 w-3.5" />
-                        </Button>
-                        <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => setDeletingId(m.id)}>
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
+                {filtered.map((m) => {
+                  const isPago = (m.status_pagamento ?? "em_aberto") === "pago";
+                  const isVencido = !isPago && m.data_vencimento && new Date(m.data_vencimento + "T00:00:00") < new Date(new Date().toISOString().split("T")[0] + "T00:00:00");
+                  return (
+                    <TableRow key={m.id} className={isVencido ? "bg-destructive/5" : ""}>
+                      <TableCell>
+                        <button
+                          onClick={() => handleTogglePago(m)}
+                          className="flex items-center gap-1.5"
+                          title={isPago ? "Marcar como em aberto" : "Marcar como pago"}
+                        >
+                          {isPago ? (
+                            <Badge variant="default" className="gap-1 bg-green-600 hover:bg-green-700 text-white cursor-pointer">
+                              <CircleCheck className="h-3 w-3" /> Pago
+                            </Badge>
+                          ) : (
+                            <Badge variant={isVencido ? "destructive" : "outline"} className="gap-1 cursor-pointer">
+                              <Clock className="h-3 w-3" /> {isVencido ? "Vencido" : "Em Aberto"}
+                            </Badge>
+                          )}
+                        </button>
+                      </TableCell>
+                      <TableCell className="text-muted-foreground whitespace-nowrap">{formatDateBR(m.data)}</TableCell>
+                      <TableCell className="text-muted-foreground whitespace-nowrap">
+                        {m.data_vencimento ? formatDateBR(m.data_vencimento) : "—"}
+                      </TableCell>
+                      <TableCell className="font-medium max-w-xs truncate">{m.descricao ?? "—"}</TableCell>
+                      <TableCell>
+                        <Badge variant={m.tipo === "entrada" ? "default" : "secondary"}>
+                          {m.tipo ?? "—"}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-muted-foreground">{m.categoria_id ? catMap[m.categoria_id] ?? "—" : "—"}</TableCell>
+                      <TableCell className="text-muted-foreground text-xs">{m.categoria_id ? catDescMap[m.categoria_id] ?? "—" : "—"}</TableCell>
+                      <TableCell className="text-muted-foreground">{m.origem ?? "—"}</TableCell>
+                      <TableCell className={`text-right font-medium ${m.tipo === "entrada" ? "text-success" : "text-danger"}`}>
+                        {formatCurrency(m.valor)}
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex gap-1">
+                          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setEditingMov({ ...m })}>
+                            <Pencil className="h-3.5 w-3.5" />
+                          </Button>
+                          <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={() => setDeletingId(m.id)}>
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
               </TableBody>
             </Table>
           )}
@@ -184,17 +235,35 @@ export default function Financeiro() {
           </DialogHeader>
           {editingMov && (
             <div className="space-y-4">
-              <div>
-                <label className="text-sm font-medium">Data</label>
-                <Input type="date" value={editingMov.data} onChange={(e) => setEditingMov({ ...editingMov, data: e.target.value })} />
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-sm font-medium">Data Competência</label>
+                  <Input type="date" value={editingMov.data} onChange={(e) => setEditingMov({ ...editingMov, data: e.target.value })} />
+                </div>
+                <div>
+                  <label className="text-sm font-medium">Data Vencimento</label>
+                  <Input type="date" value={editingMov.data_vencimento ?? ""} onChange={(e) => setEditingMov({ ...editingMov, data_vencimento: e.target.value || null })} />
+                </div>
               </div>
               <div>
                 <label className="text-sm font-medium">Descrição</label>
                 <Input value={editingMov.descricao ?? ""} onChange={(e) => setEditingMov({ ...editingMov, descricao: e.target.value })} />
               </div>
-              <div>
-                <label className="text-sm font-medium">Valor</label>
-                <Input type="number" step="0.01" value={editingMov.valor} onChange={(e) => setEditingMov({ ...editingMov, valor: parseFloat(e.target.value) || 0 })} />
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-sm font-medium">Valor</label>
+                  <Input type="number" step="0.01" value={editingMov.valor} onChange={(e) => setEditingMov({ ...editingMov, valor: parseFloat(e.target.value) || 0 })} />
+                </div>
+                <div>
+                  <label className="text-sm font-medium">Status Pagamento</label>
+                  <Select value={editingMov.status_pagamento ?? "em_aberto"} onValueChange={(v) => setEditingMov({ ...editingMov, status_pagamento: v })}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="em_aberto">Em Aberto</SelectItem>
+                      <SelectItem value="pago">Pago</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
               <div>
                 <label className="text-sm font-medium">Tipo</label>

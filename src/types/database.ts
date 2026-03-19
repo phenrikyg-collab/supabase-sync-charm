@@ -205,6 +205,8 @@ export interface MovimentacaoFinanceira {
   codigo_rastreamento: string | null;
   entrada_tecido_id: string | null;
   parcela_info: string | null;
+  status_pagamento: string | null;
+  data_vencimento: string | null;
   created_at: string | null;
 }
 
