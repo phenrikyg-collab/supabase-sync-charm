@@ -35,6 +35,11 @@ export default function Financeiro() {
   const [editingMov, setEditingMov] = useState<any | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
+  const sortedCategorias = useMemo(() => 
+    [...(categorias ?? [])].sort((a, b) => (a.nome_categoria ?? "").localeCompare(b.nome_categoria ?? "", "pt-BR")),
+    [categorias]
+  );
+
   const catMap = Object.fromEntries((categorias ?? []).map((c) => [c.id, c.nome_categoria]));
   const catDescMap = Object.fromEntries((categorias ?? []).map((c) => [c.id, c.descricao_categoria]));
   const centroMap = Object.fromEntries((centros ?? []).map((c) => [c.id, c.nome_centro]));
