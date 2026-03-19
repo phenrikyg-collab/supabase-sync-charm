@@ -26,8 +26,8 @@ function formatCurrency(v: number | null | undefined) {
   return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v);
 }
 
-function getStatusPagamento(mov: { data: string; tipo: string | null; status_bling: string | null }) {
-  if (mov.status_bling === "pago") return "pago";
+function getStatusPagamento(mov: { data: string; tipo: string | null; status_pagamento: string | null; status_bling: string | null }) {
+  if (mov.status_pagamento === "pago" || mov.status_bling === "pago") return "pago";
   if (mov.tipo === "entrada") return "recebido";
   const hoje = new Date();
   const dataMov = parseISO(mov.data);
