@@ -283,12 +283,14 @@ export type Database = {
           created_at: string
           data: string
           data_envio: string | null
+          data_vencimento: string | null
           descricao: string | null
           entrada_tecido_id: string | null
           id: string
           origem: string | null
           parcela_info: string | null
           status_bling: string | null
+          status_pagamento: string | null
           tipo: string | null
           valor: number
           valor_bruto: number | null
@@ -307,12 +309,14 @@ export type Database = {
           created_at?: string
           data?: string
           data_envio?: string | null
+          data_vencimento?: string | null
           descricao?: string | null
           entrada_tecido_id?: string | null
           id?: string
           origem?: string | null
           parcela_info?: string | null
           status_bling?: string | null
+          status_pagamento?: string | null
           tipo?: string | null
           valor?: number
           valor_bruto?: number | null
@@ -331,12 +335,14 @@ export type Database = {
           created_at?: string
           data?: string
           data_envio?: string | null
+          data_vencimento?: string | null
           descricao?: string | null
           entrada_tecido_id?: string | null
           id?: string
           origem?: string | null
           parcela_info?: string | null
           status_bling?: string | null
+          status_pagamento?: string | null
           tipo?: string | null
           valor?: number
           valor_bruto?: number | null
