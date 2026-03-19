@@ -18,6 +18,11 @@ import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
 
+const ITEMS_PER_PAGE = 50;
+
+type SortKey = "status_pagamento" | "data" | "data_vencimento" | "descricao" | "tipo" | "categoria" | "origem" | "valor";
+type SortDir = "asc" | "desc";
+
 function formatCurrency(v: number | null | undefined) {
   if (v == null) return "R$ 0,00";
   return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v);
