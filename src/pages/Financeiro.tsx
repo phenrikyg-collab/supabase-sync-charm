@@ -59,7 +59,6 @@ export default function Financeiro() {
   const catDescMap = Object.fromEntries((categorias ?? []).map((c) => [c.id, c.descricao_categoria]));
 
   const filtered = useMemo(() => {
-    setCurrentPage(1);
     return (movs ?? []).filter((m) => {
       if (filtroTipo !== "todos" && m.tipo !== filtroTipo) return false;
       if (filtroCategoria !== "todos" && m.categoria_id !== filtroCategoria) return false;
