@@ -299,15 +299,31 @@ export default function Financeiro() {
                       aria-label="Selecionar todos"
                     />
                   </TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Competência</TableHead>
-                  <TableHead>Vencimento</TableHead>
-                  <TableHead>Descrição</TableHead>
-                  <TableHead>Tipo</TableHead>
-                  <TableHead>Categoria</TableHead>
+                  <TableHead className="cursor-pointer select-none" onClick={() => handleSort("status_pagamento")}>
+                    <span className="flex items-center">Status<SortIcon col="status_pagamento" /></span>
+                  </TableHead>
+                  <TableHead className="cursor-pointer select-none" onClick={() => handleSort("data")}>
+                    <span className="flex items-center">Competência<SortIcon col="data" /></span>
+                  </TableHead>
+                  <TableHead className="cursor-pointer select-none" onClick={() => handleSort("data_vencimento")}>
+                    <span className="flex items-center">Vencimento<SortIcon col="data_vencimento" /></span>
+                  </TableHead>
+                  <TableHead className="cursor-pointer select-none" onClick={() => handleSort("descricao")}>
+                    <span className="flex items-center">Descrição<SortIcon col="descricao" /></span>
+                  </TableHead>
+                  <TableHead className="cursor-pointer select-none" onClick={() => handleSort("tipo")}>
+                    <span className="flex items-center">Tipo<SortIcon col="tipo" /></span>
+                  </TableHead>
+                  <TableHead className="cursor-pointer select-none" onClick={() => handleSort("categoria")}>
+                    <span className="flex items-center">Categoria<SortIcon col="categoria" /></span>
+                  </TableHead>
                   <TableHead>Desc. Categoria</TableHead>
-                  <TableHead>Origem</TableHead>
-                  <TableHead className="text-right">Valor</TableHead>
+                  <TableHead className="cursor-pointer select-none" onClick={() => handleSort("origem")}>
+                    <span className="flex items-center">Origem<SortIcon col="origem" /></span>
+                  </TableHead>
+                  <TableHead className="cursor-pointer select-none text-right" onClick={() => handleSort("valor")}>
+                    <span className="flex items-center justify-end">Valor<SortIcon col="valor" /></span>
+                  </TableHead>
                   <TableHead className="w-20">Ações</TableHead>
                 </TableRow>
               </TableHeader>
