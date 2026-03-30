@@ -176,8 +176,9 @@ ${catList}`,
                   type: "array",
                   items: {
                     type: "object",
-                    properties: {
-                      data: { type: "string", description: "Date in YYYY-MM-DD format" },
+                     properties: {
+                      data: { type: "string", description: "Transaction date in YYYY-MM-DD format (competência)" },
+                      data_vencimento: { type: "string", nullable: true, description: "Invoice due date in YYYY-MM-DD format (vencimento da fatura)" },
                       descricao: { type: "string" },
                       valor: { type: "number", description: "Positive for credits, negative for debits" },
                       tipo: { type: "string", enum: ["entrada", "saida"] },
