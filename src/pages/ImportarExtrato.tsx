@@ -94,6 +94,7 @@ export default function ImportarExtrato() {
   const [isCategorizando, setIsCategorizando] = useState(false);
   const [isSalvando, setIsSalvando] = useState(false);
   const [banco, setBanco] = useState("generico");
+  const [vencimentoFatura, setVencimentoFatura] = useState("");
 
   const handleFile = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
