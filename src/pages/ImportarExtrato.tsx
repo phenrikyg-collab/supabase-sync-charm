@@ -70,6 +70,7 @@ function parseCSVSafra(text: string): ParsedRow[] {
 
     rows.push({
       data,
+      data_vencimento: null,
       descricao: descricao || "Sem descrição",
       valor: Math.abs(valor),
       tipo: valor < 0 ? "saida" : "entrada",
