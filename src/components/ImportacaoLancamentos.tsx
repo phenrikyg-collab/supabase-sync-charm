@@ -39,7 +39,7 @@ export default function ImportacaoLancamentos({ onImportar }: Props) {
           descricao: colunas[0] || `Lançamento ${i + 1}`,
           valor: parseFloat(colunas[1]) || 0,
           data: colunas[2] || new Date().toISOString().split("T")[0],
-          data_vencimento: vencimentoFatura || null,
+          data_vencimento: null,
         };
       }).filter((l) => l.descricao);
 
