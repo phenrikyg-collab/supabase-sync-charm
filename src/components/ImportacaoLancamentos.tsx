@@ -22,28 +22,50 @@ export default function ImportacaoLancamentos({ onImportar }: Props) {
   const [erro, setErro] = useState<string | null>(null);
   const { data: categorias } = useCategorias();
 
-  // ── Importação CSV ──────────────────────────────────────────────────────────
-  const handleCSV = (e: React.ChangeEvent<HTMLInputElement>) => {
+  // ── Importação CSV / XLSX ─────────────────────────────────────────────────
+  const parseSpreadsheetRows = (rows: any[][]): LancamentoImportado[] => {
+    return rows.slice(1).map((cols, i) => ({
+      descricao: String(cols[0] || "") || `Lançamento ${i + 1}`,
+      valor: parseFloat(String(cols[1])) || 0,
+      data: cols[2] ? formatExcelDate(cols[2]) : new Date().toISOString().split("T")[0],
+      data_vencimento: null,
+    })).filter((l) => l.descricao);
+  };
+
+  const formatExcelDate = (val: any): string => {
+    if (typeof val === "number") {
+      const d = XLSX.SSF.parse_date_code(val);
+      return `${d.y}-${String(d.m).padStart(2, "0")}-${String(d.d).padStart(2, "0")}`;
+    }
+    return String(val);
+  };
+
+  const handleSpreadsheet = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-      const texto = ev.target?.result as string;
-      const linhas = texto.trim().split("\n");
-      const lancamentos = linhas.slice(1).map((linha, i) => {
-        const colunas = linha.split(",").map((c) => c.trim().replace(/^"|"$/g, ""));
-        return {
-          descricao: colunas[0] || `Lançamento ${i + 1}`,
-          valor: parseFloat(colunas[1]) || 0,
-          data: colunas[2] || new Date().toISOString().split("T")[0],
-          data_vencimento: null,
-        };
-      }).filter((l) => l.descricao);
+    const isXlsx = file.name.endsWith(".xlsx") || file.name.endsWith(".xls");
 
-      onImportar(lancamentos);
-    };
-    reader.readAsText(file);
+    if (isXlsx) {
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        const data = new Uint8Array(ev.target?.result as ArrayBuffer);
+        const wb = XLSX.read(data, { type: "array" });
+        const ws = wb.Sheets[wb.SheetNames[0]];
+        const rows: any[][] = XLSX.utils.sheet_to_json(ws, { header: 1 });
+        onImportar(parseSpreadsheetRows(rows));
+      };
+      reader.readAsArrayBuffer(file);
+    } else {
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        const texto = ev.target?.result as string;
+        const linhas = texto.trim().split("\n");
+        const rows = linhas.map((l) => l.split(",").map((c) => c.trim().replace(/^"|"$/g, "")));
+        onImportar(parseSpreadsheetRows(rows));
+      };
+      reader.readAsText(file);
+    }
   };
 
   // ── Importação PDF ──────────────────────────────────────────────────────────
