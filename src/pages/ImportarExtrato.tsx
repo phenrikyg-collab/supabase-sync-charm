@@ -14,6 +14,7 @@ import { useQueryClient } from "@tanstack/react-query";
 
 interface ParsedRow {
   data: string;
+  data_vencimento: string | null;
   descricao: string;
   valor: number;
   categoria_id: string | null;
@@ -69,6 +70,7 @@ function parseCSVSafra(text: string): ParsedRow[] {
 
     rows.push({
       data,
+      data_vencimento: null,
       descricao: descricao || "Sem descrição",
       valor: Math.abs(valor),
       tipo: valor < 0 ? "saida" : "entrada",
@@ -92,6 +94,7 @@ export default function ImportarExtrato() {
   const [isCategorizando, setIsCategorizando] = useState(false);
   const [isSalvando, setIsSalvando] = useState(false);
   const [banco, setBanco] = useState("generico");
+  const [vencimentoFatura, setVencimentoFatura] = useState("");
 
   const handleFile = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -103,6 +106,10 @@ export default function ImportarExtrato() {
       if (parsed.length === 0) {
         toast.error("Nenhum lançamento encontrado no arquivo. Verifique o formato.");
         return;
+      }
+      // Apply vencimento to all CSV rows
+      if (vencimentoFatura) {
+        parsed.forEach((r) => (r.data_vencimento = vencimentoFatura));
       }
       setRows(parsed);
       toast.success(`${parsed.length} lançamentos importados`);
@@ -121,6 +128,7 @@ export default function ImportarExtrato() {
           if (data?.rows?.length > 0) {
             setRows(data.rows.map((r: any) => ({
               data: r.data,
+              data_vencimento: vencimentoFatura || null,
               descricao: r.descricao,
               valor: Math.abs(r.valor),
               tipo: r.valor < 0 ? "saida" as const : (r.tipo || "saida") as any,
@@ -140,7 +148,7 @@ export default function ImportarExtrato() {
     } else {
       toast.error("Formato não suportado. Use CSV ou PDF.");
     }
-  }, [categorias]);
+  }, [categorias, vencimentoFatura]);
 
   const categorizarComIA = async () => {
     if (rows.length === 0) return;
@@ -179,6 +187,7 @@ export default function ImportarExtrato() {
     try {
       const inserts = selecionados.map((r) => ({
         data: r.data,
+        data_vencimento: r.data_vencimento || null,
         descricao: r.descricao,
         valor: r.valor,
         tipo: r.tipo,
@@ -205,6 +214,7 @@ export default function ImportarExtrato() {
 
   const totalEntradas = rows.filter((r) => r.selecionado && r.tipo === "entrada").reduce((s, r) => s + r.valor, 0);
   const totalSaidas = rows.filter((r) => r.selecionado && r.tipo === "saida").reduce((s, r) => s + r.valor, 0);
+  const totalGeral = rows.filter((r) => r.selecionado).reduce((s, r) => s + r.valor, 0);
 
   return (
     <div className="space-y-6">
@@ -221,8 +231,8 @@ export default function ImportarExtrato() {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="flex gap-4 items-end">
-            <div className="flex-1">
+          <div className="flex gap-4 items-end flex-wrap">
+            <div className="flex-1 min-w-[150px]">
               <label className="text-sm font-medium text-foreground mb-1 block">Banco</label>
               <Select value={banco} onValueChange={setBanco}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
@@ -234,23 +244,35 @@ export default function ImportarExtrato() {
                 </SelectContent>
               </Select>
             </div>
-            <div className="flex-1">
+            <div className="flex-1 min-w-[150px]">
+              <label className="text-sm font-medium text-foreground mb-1 block">Vencimento da Fatura</label>
+              <Input type="date" value={vencimentoFatura} onChange={(e) => setVencimentoFatura(e.target.value)} placeholder="Data de vencimento" />
+            </div>
+            <div className="flex-1 min-w-[200px]">
               <label className="text-sm font-medium text-foreground mb-1 block">Arquivo CSV ou PDF</label>
               <Input type="file" accept=".csv,.txt,.pdf" onChange={handleFile} />
             </div>
           </div>
+          {vencimentoFatura && (
+            <p className="text-xs text-muted-foreground">
+              📅 Competência = data da transação · Vencimento (fluxo de caixa) = {vencimentoFatura.split("-").reverse().join("/")}
+            </p>
+          )}
         </CardContent>
       </Card>
 
       {rows.length > 0 && (
         <>
           <div className="flex items-center justify-between">
-            <div className="flex gap-4">
+            <div className="flex gap-4 flex-wrap">
               <Badge variant="outline" className="text-success border-success/30">
                 Entradas: {formatCurrency(totalEntradas)}
               </Badge>
               <Badge variant="outline" className="text-destructive border-destructive/30">
                 Saídas: {formatCurrency(totalSaidas)}
+              </Badge>
+              <Badge variant="default">
+                Total: {formatCurrency(totalGeral)}
               </Badge>
               <Badge variant="secondary">{rows.filter((r) => r.selecionado).length} selecionados</Badge>
             </div>
@@ -274,7 +296,8 @@ export default function ImportarExtrato() {
                 <TableHeader>
                   <TableRow>
                     <TableHead className="w-10">✓</TableHead>
-                    <TableHead>Data</TableHead>
+                    <TableHead>Competência</TableHead>
+                    <TableHead>Vencimento</TableHead>
                     <TableHead>Descrição</TableHead>
                     <TableHead>Tipo</TableHead>
                     <TableHead>Categoria</TableHead>
@@ -292,6 +315,7 @@ export default function ImportarExtrato() {
                         />
                       </TableCell>
                       <TableCell className="text-muted-foreground whitespace-nowrap">{r.data}</TableCell>
+                      <TableCell className="text-muted-foreground whitespace-nowrap">{r.data_vencimento || "—"}</TableCell>
                       <TableCell className="max-w-xs truncate">{r.descricao}</TableCell>
                       <TableCell>
                         <Badge variant={r.tipo === "entrada" ? "default" : "secondary"}>

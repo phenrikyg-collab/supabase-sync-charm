@@ -48,6 +48,8 @@ export default function Financeiro() {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkUpdating, setBulkUpdating] = useState(false);
+  const [bulkDeleting, setBulkDeleting] = useState(false);
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
   const [sortKey, setSortKey] = useState<SortKey>("data");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
   const [currentPage, setCurrentPage] = useState(1);
@@ -201,6 +203,26 @@ export default function Financeiro() {
     }
   };
 
+  const handleBulkDelete = async () => {
+    if (selectedIds.size === 0) return;
+    setBulkDeleting(true);
+    try {
+      const { error } = await supabase
+        .from("movimentacoes_financeiras")
+        .delete()
+        .in("id", Array.from(selectedIds));
+      if (error) throw error;
+      await queryClient.invalidateQueries({ queryKey: ["movimentacoes"] });
+      toast.success(`${selectedIds.size} transações excluídas!`);
+      setSelectedIds(new Set());
+      setBulkDeleteOpen(false);
+    } catch (err: any) {
+      toast.error("Erro na exclusão em massa: " + (err.message || "erro"));
+    } finally {
+      setBulkDeleting(false);
+    }
+  };
+
   const handleTogglePago = async (m: any) => {
     const newStatus = (m.status_pagamento ?? "em_aberto") === "pago" ? "em_aberto" : "pago";
     try {
@@ -219,8 +241,8 @@ export default function Financeiro() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-serif font-bold text-foreground">Financeiro</h1>
-          <p className="text-sm text-muted-foreground mt-1">{filtered.length} movimentações</p>
+          <h1 className="text-3xl font-serif font-bold text-foreground">Transações</h1>
+          <p className="text-sm text-muted-foreground mt-1">{filtered.length} transações</p>
         </div>
       </div>
 
@@ -282,7 +304,7 @@ export default function Financeiro() {
             size="sm"
             variant="default"
             onClick={() => handleBulkStatus("pago")}
-            disabled={bulkUpdating}
+            disabled={bulkUpdating || bulkDeleting}
             className="gap-1"
           >
             {bulkUpdating ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CircleCheck className="h-3.5 w-3.5" />}
@@ -292,11 +314,21 @@ export default function Financeiro() {
             size="sm"
             variant="outline"
             onClick={() => handleBulkStatus("em_aberto")}
-            disabled={bulkUpdating}
+            disabled={bulkUpdating || bulkDeleting}
             className="gap-1"
           >
             {bulkUpdating ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Clock className="h-3.5 w-3.5" />}
             Marcar como Em Aberto
+          </Button>
+          <Button
+            size="sm"
+            variant="destructive"
+            onClick={() => setBulkDeleteOpen(true)}
+            disabled={bulkUpdating || bulkDeleting}
+            className="gap-1"
+          >
+            {bulkDeleting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
+            Excluir Selecionadas
           </Button>
           <Button
             size="sm"
@@ -570,6 +602,23 @@ export default function Financeiro() {
             <AlertDialogAction onClick={handleDelete} disabled={deleteMov.isPending}>
               {deleteMov.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
               Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Bulk Delete Confirmation */}
+      <AlertDialog open={bulkDeleteOpen} onOpenChange={setBulkDeleteOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir {selectedIds.size} transações?</AlertDialogTitle>
+            <AlertDialogDescription>Esta ação não pode ser desfeita. Todas as transações selecionadas serão removidas permanentemente.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleBulkDelete} disabled={bulkDeleting}>
+              {bulkDeleting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+              Excluir {selectedIds.size} transações
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
