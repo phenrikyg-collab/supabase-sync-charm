@@ -40,6 +40,13 @@ const CATEGORIAS = [
   { codigo: 106, nome: "Despesas administrativas" },
 ];
 
+function formatDateBR(dateStr: string): string {
+  if (!dateStr) return "";
+  const parts = dateStr.split("-");
+  if (parts.length === 3) return `${parts[2]}/${parts[1]}/${parts[0]}`;
+  return dateStr;
+}
+
 function BadgeConfianca({ confianca }: { confianca: number }) {
   const cor =
     confianca >= 85
