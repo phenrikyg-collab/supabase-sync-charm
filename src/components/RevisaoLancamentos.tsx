@@ -40,6 +40,13 @@ const CATEGORIAS = [
   { codigo: 106, nome: "Despesas administrativas" },
 ];
 
+function formatDateBR(dateStr: string): string {
+  if (!dateStr) return "";
+  const parts = dateStr.split("-");
+  if (parts.length === 3) return `${parts[2]}/${parts[1]}/${parts[0]}`;
+  return dateStr;
+}
+
 function BadgeConfianca({ confianca }: { confianca: number }) {
   const cor =
     confianca >= 85
@@ -140,7 +147,7 @@ export default function RevisaoLancamentos({ lancamentosImportados, onConcluir, 
           {vencimento && (
             <div className="flex items-center gap-2">
               <span className="text-sm text-gray-500">Vencimento:</span>
-              <span className="text-sm font-semibold text-gray-700">{vencimento}</span>
+              <span className="text-sm font-semibold text-gray-700">{formatDateBR(vencimento)}</span>
             </div>
           )}
           <div className="flex items-center gap-2">
@@ -168,13 +175,10 @@ export default function RevisaoLancamentos({ lancamentosImportados, onConcluir, 
                 <div className="flex-1 min-w-0">
                   <p className="font-medium text-gray-800 truncate">{l.descricao}</p>
                   <div className="flex items-center gap-3 mt-1 flex-wrap">
-                    <span className="text-sm text-gray-500">Comp: {l.data}</span>
-                    {(() => {
-                      const imported = lancamentosImportados.find((_, i) => `import-${i}` === l.id);
-                      return imported?.data_vencimento ? (
-                        <span className="text-sm text-gray-500">Venc: {imported.data_vencimento}</span>
-                      ) : null;
-                    })()}
+                    <span className="text-sm text-gray-500">Comp: {formatDateBR(l.data)}</span>
+                    {l.data_vencimento ? (
+                      <span className="text-sm text-gray-500">Venc: {formatDateBR(l.data_vencimento)}</span>
+                    ) : null}
                     <span className="text-sm font-semibold text-gray-700">
                       R$ {l.valor.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
                     </span>
