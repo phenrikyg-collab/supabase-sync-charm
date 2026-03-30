@@ -187,6 +187,17 @@ export default function ImportacaoLancamentos({ onImportar }: Props) {
       return;
     }
 
+    // Pré-atribuir categorias com base no mapeamento descrição→categoria
+    if (categorias?.length) {
+      lancamentos = lancamentos.map((l) => {
+        const match = findCategoriaByDescricao(l.descricao, categorias);
+        if (match) {
+          return { ...l, categoria_id: match.id, categoria_nome: match.nome };
+        }
+        return l;
+      });
+    }
+
     onImportar(lancamentos);
   };
 
