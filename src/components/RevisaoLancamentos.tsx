@@ -147,7 +147,7 @@ export default function RevisaoLancamentos({ lancamentosImportados, onConcluir, 
           {vencimento && (
             <div className="flex items-center gap-2">
               <span className="text-sm text-gray-500">Vencimento:</span>
-              <span className="text-sm font-semibold text-gray-700">{vencimento}</span>
+              <span className="text-sm font-semibold text-gray-700">{formatDateBR(vencimento)}</span>
             </div>
           )}
           <div className="flex items-center gap-2">
