@@ -119,6 +119,17 @@ export default function RevisaoLancamentos({ lancamentosImportados, onConcluir, 
           origem: "importacao",
         }));
 
+      const registros = lancamentos
+        .filter((l) => l.categoria)
+        .map((l) => ({
+          descricao: l.descricao,
+          valor: Number(l.valor),
+          data: formatarDataParaBanco(l.data),
+          data_vencimento: l.data_vencimento ? formatarDataParaBanco(l.data_vencimento) : null,
+          tipo: l.categoria!.tipo === "Crédito" ? "entrada" : "saida",
+          origem: "importacao",
+        }));
+
       const { error } = await supabase.from("movimentacoes_financeiras").insert(registros);
       if (error) throw error;
       onConcluir();
