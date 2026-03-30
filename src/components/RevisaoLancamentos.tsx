@@ -89,12 +89,11 @@ export default function RevisaoLancamentos({ lancamentosImportados, onConcluir, 
           descricao: l.descricao,
           valor: l.valor,
           data: l.data,
-          categoria_codigo: l.categoria!.codigo,
-          categoria_nome: l.categoria!.nome,
-          tipo: l.categoria!.tipo,
+          tipo: l.categoria!.tipo === "Crédito" ? "entrada" : "saida",
+          origem: "importacao",
         }));
 
-      const { error } = await supabase.from("lancamentos").insert(registros);
+      const { error } = await supabase.from("movimentacoes_financeiras").insert(registros);
       if (error) throw error;
       onConcluir();
     } catch (err: any) {
