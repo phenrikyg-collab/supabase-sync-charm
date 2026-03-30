@@ -1,6 +1,7 @@
 import { useRef, useState } from "react";
 import { invokeEdgeFunction } from "@/lib/edgeFunctions";
 import { useCategorias } from "@/hooks/useSupabase";
+import { findCategoriaByDescricao } from "@/lib/categoriaMappings";
 import * as XLSX from "xlsx";
 
 interface LancamentoImportado {
@@ -9,6 +10,8 @@ interface LancamentoImportado {
   data: string;
   data_vencimento?: string | null;
   tipo?: "entrada" | "saida";
+  categoria_id?: string | null;
+  categoria_nome?: string | null;
   categoria?: any;
 }
 
