@@ -183,6 +183,7 @@ export default function ImportarExtrato() {
     try {
       const inserts = selecionados.map((r) => ({
         data: r.data,
+        data_vencimento: r.data_vencimento || null,
         descricao: r.descricao,
         valor: r.valor,
         tipo: r.tipo,
