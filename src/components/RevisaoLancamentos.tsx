@@ -113,16 +113,6 @@ export default function RevisaoLancamentos({ lancamentosImportados, onConcluir, 
         .filter((l) => l.categoria)
         .map((l) => ({
           descricao: l.descricao,
-          valor: l.valor,
-          data: l.data,
-          tipo: l.categoria!.tipo === "Crédito" ? "entrada" : "saida",
-          origem: "importacao",
-        }));
-
-      const registros = lancamentos
-        .filter((l) => l.categoria)
-        .map((l) => ({
-          descricao: l.descricao,
           valor: Number(l.valor),
           data: formatarDataParaBanco(l.data),
           data_vencimento: l.data_vencimento ? formatarDataParaBanco(l.data_vencimento) : null,
