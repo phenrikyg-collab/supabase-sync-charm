@@ -22,7 +22,6 @@ export default function ImportacaoLancamentos({ onImportar }: Props) {
   const pdfRef = useRef<HTMLInputElement>(null);
   const [processando, setProcessando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
-  const [vencimentoFatura, setVencimentoFatura] = useState("");
   const { data: categorias } = useCategorias();
 
   // ── Importação CSV ──────────────────────────────────────────────────────────
