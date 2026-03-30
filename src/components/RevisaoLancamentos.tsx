@@ -6,7 +6,7 @@ import { useClassifyCategory, Lancamento, ClassificationResult } from "@/hooks/u
 import { supabase } from "@/integrations/supabase/client";
 
 interface Props {
-  lancamentosImportados: { descricao: string; valor: number; data: string; data_vencimento?: string | null; categoria_id?: string | null; categoria_nome?: string | null }[];
+  lancamentosImportados: { descricao: string; valor: number; data: string; data_vencimento?: string | null }[];
   onConcluir: () => void;
   onVoltar: () => void;
 }
@@ -67,31 +67,9 @@ export default function RevisaoLancamentos({ lancamentosImportados, onConcluir, 
     const iniciais: Lancamento[] = lancamentosImportados.map((l, i) => ({
       id: `import-${i}`,
       ...l,
-      // Se já veio com categoria pré-atribuída pelo mapeamento, usar diretamente
-      ...(l.categoria_id && l.categoria_nome ? {
-        categoria: {
-          codigo: 0,
-          nome: l.categoria_nome,
-          tipo: "Débito" as const,
-          confianca: 95,
-          motivo: "Categoria atribuída automaticamente pelo mapeamento de descrições",
-        },
-        _categoria_id: l.categoria_id,
-      } : {}),
     }));
     setLancamentos(iniciais);
-    // Classificar apenas os que NÃO têm categoria pré-atribuída
-    const semCategoria = iniciais.filter((l) => !l.categoria);
-    if (semCategoria.length > 0) {
-      classificarLotes(semCategoria, (atualizados) => {
-        setLancamentos((prev) =>
-          prev.map((l) => {
-            const atualizado = atualizados.find((a) => a.id === l.id);
-            return atualizado || l;
-          })
-        );
-      });
-    }
+    classificarLotes(iniciais, setLancamentos);
   }, []);
 
   const alterarCategoria = (id: string, codigo: number) => {
@@ -112,41 +90,18 @@ export default function RevisaoLancamentos({ lancamentosImportados, onConcluir, 
   const salvarTodos = async () => {
     setSalvando(true);
     try {
-      const parseValorSeguro = (v: any): number => {
-        if (typeof v === 'number' && !isNaN(v)) return v;
-        const s = String(v ?? '0').replace(/[^\d.,-]/g, '').replace(',', '.');
-        const n = parseFloat(s);
-        return isNaN(n) ? 0 : n;
-      };
-
-      const parseDateSeguro = (d: any): string | null => {
-        if (!d) return null;
-        const s = String(d).trim();
-        // Already YYYY-MM-DD
-        const iso = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
-        if (iso) return `${iso[1]}-${iso[2]}-${iso[3]}`;
-        // DD/MM/YYYY
-        const br = s.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
-        if (br) return `${br[3]}-${br[2]}-${br[1]}`;
-        return null;
-      };
-
       const registros = lancamentos
         .filter((l) => l.categoria)
-        .map((l) => {
-          const categoriaId = (l as any)._categoria_id || null;
-          return {
-            descricao: l.descricao,
-            valor: parseValorSeguro(l.valor),
-            data: parseDateSeguro(l.data) || new Date().toISOString().split('T')[0],
-            data_vencimento: parseDateSeguro(l.data_vencimento) || null,
-            tipo: l.categoria!.tipo === "Crédito" ? "entrada" : "saida",
-            origem: "importacao",
-            categoria_id: categoriaId,
-          };
-        });
+        .map((l) => ({
+          descricao: l.descricao,
+          valor: l.valor,
+          data: l.data,
+          categoria_codigo: l.categoria!.codigo,
+          categoria_nome: l.categoria!.nome,
+          tipo: l.categoria!.tipo,
+        }));
 
-      const { error } = await supabase.from("movimentacoes_financeiras").insert(registros);
+      const { error } = await supabase.from("lancamentos").insert(registros);
       if (error) throw error;
       onConcluir();
     } catch (err: any) {
