@@ -76,7 +76,7 @@ export default function ImportacaoLancamentos({ onImportar }: Props) {
         descricao: t.descricao,
         valor: Math.abs(t.valor),
         data: t.data,
-        data_vencimento: vencimentoFatura || null,
+        data_vencimento: t.data_vencimento || null,
         categoria: t.categoria_sugerida ? { nome: t.categoria_sugerida, id: t.categoria_id } : undefined,
       }));
 
