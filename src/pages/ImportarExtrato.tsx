@@ -148,7 +148,7 @@ export default function ImportarExtrato() {
     } else {
       toast.error("Formato não suportado. Use CSV ou PDF.");
     }
-  }, [categorias]);
+  }, [categorias, vencimentoFatura]);
 
   const categorizarComIA = async () => {
     if (rows.length === 0) return;
