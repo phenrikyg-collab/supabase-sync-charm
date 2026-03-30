@@ -146,8 +146,14 @@ export default function RevisaoLancamentos({ lancamentosImportados, onConcluir, 
                 {/* Info do lançamento */}
                 <div className="flex-1 min-w-0">
                   <p className="font-medium text-gray-800 truncate">{l.descricao}</p>
-                  <div className="flex items-center gap-3 mt-1">
-                    <span className="text-sm text-gray-500">{l.data}</span>
+                  <div className="flex items-center gap-3 mt-1 flex-wrap">
+                    <span className="text-sm text-gray-500">Comp: {l.data}</span>
+                    {(() => {
+                      const imported = lancamentosImportados.find((_, i) => `import-${i}` === l.id);
+                      return imported?.data_vencimento ? (
+                        <span className="text-sm text-gray-500">Venc: {imported.data_vencimento}</span>
+                      ) : null;
+                    })()}
                     <span className="text-sm font-semibold text-gray-700">
                       R$ {l.valor.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
                     </span>
