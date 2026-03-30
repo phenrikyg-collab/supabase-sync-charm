@@ -240,20 +240,11 @@ export default function ImportarExtrato() {
                 </SelectContent>
               </Select>
             </div>
-            <div className="flex-1 min-w-[150px]">
-              <label className="text-sm font-medium text-foreground mb-1 block">Vencimento da Fatura</label>
-              <Input type="date" value={vencimentoFatura} onChange={(e) => setVencimentoFatura(e.target.value)} placeholder="Data de vencimento" />
-            </div>
             <div className="flex-1 min-w-[200px]">
               <label className="text-sm font-medium text-foreground mb-1 block">Arquivo CSV ou PDF</label>
               <Input type="file" accept=".csv,.txt,.pdf" onChange={handleFile} />
             </div>
           </div>
-          {vencimentoFatura && (
-            <p className="text-xs text-muted-foreground">
-              📅 Competência = data da transação · Vencimento (fluxo de caixa) = {vencimentoFatura.split("-").reverse().join("/")}
-            </p>
-          )}
         </CardContent>
       </Card>
 
