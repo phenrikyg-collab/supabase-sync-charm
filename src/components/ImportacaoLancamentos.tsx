@@ -21,6 +21,15 @@ interface Props {
 
 type FormatoDetectado = "extrato_pagamentos_safra" | "extrato_safra" | "vindi" | "generico";
 
+const DATE_BR_REGEX = /^\d{2}\/\d{2}(?:\/\d{2,4})?$/;
+const DATE_ISO_REGEX = /^\d{4}-\d{2}-\d{2}(?:[T\s].*)?$/;
+
+const isDateLikeValue = (val: any) => {
+  if (val instanceof Date) return true;
+  const s = String(val ?? "").trim();
+  return DATE_BR_REGEX.test(s) || DATE_ISO_REGEX.test(s);
+};
+
 const detectarFormato = (headers: string[]): FormatoDetectado => {
   const h = headers.map((c) => String(c ?? "").toLowerCase().trim());
 
@@ -43,28 +52,64 @@ const detectarFormato = (headers: string[]): FormatoDetectado => {
 };
 
 const formatExcelDate = (val: any): string => {
-  if (!val) return new Date().toISOString().split("T")[0];
+  const hoje = new Date();
+  const formatar = (dia: number, mes: number, ano: number) => `${String(dia).padStart(2, "0")}/${String(mes).padStart(2, "0")}/${ano}`;
+
+  if (!val) return formatar(hoje.getDate(), hoje.getMonth() + 1, hoje.getFullYear());
+
+  if (val instanceof Date && !Number.isNaN(val.getTime())) {
+    return formatar(val.getDate(), val.getMonth() + 1, val.getFullYear());
+  }
+
   if (typeof val === "number") {
     const d = XLSX.SSF.parse_date_code(val);
-    return `${d.y}-${String(d.m).padStart(2, "0")}-${String(d.d).padStart(2, "0")}`;
+    return formatar(d.d, d.m, d.y);
   }
+
   const s = String(val).trim();
   // DD/MM/AAAA
   const matchFull = s.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
-  if (matchFull) return `${matchFull[3]}-${matchFull[2]}-${matchFull[1]}`;
+  if (matchFull) return `${matchFull[1]}/${matchFull[2]}/${matchFull[3]}`;
   // DD/MM (sem ano) — assume ano corrente
   const matchShort = s.match(/^(\d{2})\/(\d{2})$/);
-  if (matchShort) return `${new Date().getFullYear()}-${matchShort[2]}-${matchShort[1]}`;
+  if (matchShort) return `${matchShort[1]}/${matchShort[2]}/${hoje.getFullYear()}`;
   // AAAA-MM-DD (já está ok) ou datetime
   const matchIso = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
-  if (matchIso) return `${matchIso[1]}-${matchIso[2]}-${matchIso[3]}`;
+  if (matchIso) return `${matchIso[3]}/${matchIso[2]}/${matchIso[1]}`;
   return s;
 };
 
 const parseSafeNumber = (val: any): number => {
-  if (typeof val === "number") return val;
-  const n = parseFloat(String(val).replace(/[^\d.,-]/g, "").replace(",", "."));
-  return isNaN(n) ? 0 : n;
+  if (typeof val === "number") return Number.isFinite(val) ? val : NaN;
+  if (isDateLikeValue(val)) return NaN;
+
+  const raw = String(val ?? "").trim();
+  if (!raw) return NaN;
+
+  const sanitized = raw.replace(/[^\d.,-]/g, "");
+  if (!sanitized) return NaN;
+
+  const normalized = sanitized.includes(",") && sanitized.includes(".")
+    ? sanitized.replace(/\./g, "").replace(",", ".")
+    : sanitized.replace(",", ".");
+
+  const n = Number(normalized);
+  return Number.isFinite(n) ? n : NaN;
+};
+
+const getRowNumberValue = (row: any[], preferredIndexes: number[]) => {
+  for (const index of preferredIndexes) {
+    if (index < 0) continue;
+    const value = parseSafeNumber(row[index]);
+    if (Number.isFinite(value)) return value;
+  }
+
+  for (let i = 0; i < row.length; i++) {
+    const value = parseSafeNumber(row[i]);
+    if (Number.isFinite(value)) return value;
+  }
+
+  return NaN;
 };
 
 const mapExtratoPagamentosSafra = (rows: any[][]): LancamentoImportado[] => {
@@ -74,13 +119,21 @@ const mapExtratoPagamentosSafra = (rows: any[][]): LancamentoImportado[] => {
   const iDesc = headers.findIndex((h: string) => h.includes("favorecido"));
   const iValor = headers.findIndex((h: string) => h.includes("valor"));
 
-  return rows.slice(1).filter((r) => r[iDesc]).map((r) => ({
-    descricao: String(r[iDesc] || ""),
-    valor: Math.abs(parseSafeNumber(r[iValor])),
-    data: formatExcelDate(r[iData]),
-    data_vencimento: iVenc >= 0 ? formatExcelDate(r[iVenc]) : null,
-    tipo: "saida" as const,
-  }));
+  return rows.slice(1)
+    .filter((r) => r[iDesc])
+    .map((r) => {
+      const valor = getRowNumberValue(r, [iValor]);
+      if (!Number.isFinite(valor)) return null;
+
+      return {
+        descricao: String(r[iDesc] || ""),
+        valor: Math.abs(valor),
+        data: formatExcelDate(r[iData]),
+        data_vencimento: iVenc >= 0 ? formatExcelDate(r[iVenc]) : null,
+        tipo: "saida" as const,
+      };
+    })
+    .filter(Boolean) as LancamentoImportado[];
 };
 
 const mapExtratoSafra = (rows: any[][]): LancamentoImportado[] => {
@@ -93,11 +146,13 @@ const mapExtratoSafra = (rows: any[][]): LancamentoImportado[] => {
 
   return rows.slice(1).filter((r) => r[iLanc]).map((r) => {
     const tipoLanc = String(r[iTipo] || "").toLowerCase();
-    const valor = parseSafeNumber(r[iValor]);
+    const valor = getRowNumberValue(r, [iValor]);
     const descParts = [String(r[iLanc] || "")];
     if (r[iCompl] && String(r[iCompl]).trim() !== "" && String(r[iCompl]).toLowerCase() !== "nan") {
       descParts.push(String(r[iCompl]));
     }
+
+    if (!Number.isFinite(valor)) return null;
 
     return {
       descricao: descParts.join(" - "),
@@ -106,7 +161,7 @@ const mapExtratoSafra = (rows: any[][]): LancamentoImportado[] => {
       data_vencimento: null,
       tipo: (tipoLanc.includes("créd") || tipoLanc.includes("cred") || valor > 0 ? "entrada" : "saida") as "entrada" | "saida",
     };
-  });
+  }).filter(Boolean) as LancamentoImportado[];
 };
 
 const mapVindi = (rows: any[][]): LancamentoImportado[] => {
@@ -128,27 +183,41 @@ const mapVindi = (rows: any[][]): LancamentoImportado[] => {
       return r[iCliente];
     })
     .map((r) => {
-      const valorLoja = iValorLoja >= 0 ? parseSafeNumber(r[iValorLoja]) : 0;
-      const valorPago = iValorPago >= 0 ? parseSafeNumber(r[iValorPago]) : 0;
+      const valorLoja = getRowNumberValue(r, [iValorLoja]);
+      const valorPago = getRowNumberValue(r, [iValorPago]);
       const pedido = iPedido >= 0 && r[iPedido] ? ` #${r[iPedido]}` : "";
+
+      const valor = Number.isFinite(valorLoja) ? valorLoja : valorPago;
+      if (!Number.isFinite(valor)) return null;
 
       return {
         descricao: `${String(r[iCliente] || "")}${pedido}`,
-        valor: valorLoja || valorPago,
+        valor,
         data: formatExcelDate(r[iData]),
         data_vencimento: iCredito >= 0 ? formatExcelDate(r[iCredito]) : null,
         tipo: "entrada" as const,
       };
-    });
+    })
+    .filter(Boolean) as LancamentoImportado[];
 };
 
 const mapGenerico = (rows: any[][]): LancamentoImportado[] => {
-  return rows.slice(1).map((cols, i) => ({
-    descricao: String(cols[0] || "") || `Lançamento ${i + 1}`,
-    valor: Math.abs(parseSafeNumber(cols[1])),
-    data: formatExcelDate(cols[2]),
-    data_vencimento: null,
-  })).filter((l) => l.descricao);
+  return rows.slice(1)
+    .map((cols, i) => {
+      const valorIndex = cols.findIndex((cell, index) => index > 0 && Number.isFinite(parseSafeNumber(cell)));
+      const dataIndex = cols.findIndex((cell, index) => index !== valorIndex && (isDateLikeValue(cell) || typeof cell === "number"));
+      const valor = valorIndex >= 0 ? parseSafeNumber(cols[valorIndex]) : NaN;
+
+      if (!String(cols[0] || "").trim() || !Number.isFinite(valor)) return null;
+
+      return {
+        descricao: String(cols[0] || "") || `Lançamento ${i + 1}`,
+        valor: Math.abs(valor),
+        data: formatExcelDate(dataIndex >= 0 ? cols[dataIndex] : cols[2]),
+        data_vencimento: null,
+      };
+    })
+    .filter(Boolean) as LancamentoImportado[];
 };
 
 export default function ImportacaoLancamentos({ onImportar }: Props) {
