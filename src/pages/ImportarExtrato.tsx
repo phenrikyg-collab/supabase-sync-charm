@@ -94,7 +94,7 @@ export default function ImportarExtrato() {
   const [isCategorizando, setIsCategorizando] = useState(false);
   const [isSalvando, setIsSalvando] = useState(false);
   const [banco, setBanco] = useState("generico");
-  const [vencimentoFatura, setVencimentoFatura] = useState("");
+  
 
   const handleFile = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -106,10 +106,6 @@ export default function ImportarExtrato() {
       if (parsed.length === 0) {
         toast.error("Nenhum lançamento encontrado no arquivo. Verifique o formato.");
         return;
-      }
-      // Apply vencimento to all CSV rows
-      if (vencimentoFatura) {
-        parsed.forEach((r) => (r.data_vencimento = vencimentoFatura));
       }
       setRows(parsed);
       toast.success(`${parsed.length} lançamentos importados`);
@@ -128,7 +124,7 @@ export default function ImportarExtrato() {
           if (data?.rows?.length > 0) {
             setRows(data.rows.map((r: any) => ({
               data: r.data,
-              data_vencimento: vencimentoFatura || null,
+              data_vencimento: r.data_vencimento || null,
               descricao: r.descricao,
               valor: Math.abs(r.valor),
               tipo: r.valor < 0 ? "saida" as const : (r.tipo || "saida") as any,
@@ -148,7 +144,7 @@ export default function ImportarExtrato() {
     } else {
       toast.error("Formato não suportado. Use CSV ou PDF.");
     }
-  }, [categorias, vencimentoFatura]);
+  }, [categorias]);
 
   const categorizarComIA = async () => {
     if (rows.length === 0) return;
@@ -244,20 +240,11 @@ export default function ImportarExtrato() {
                 </SelectContent>
               </Select>
             </div>
-            <div className="flex-1 min-w-[150px]">
-              <label className="text-sm font-medium text-foreground mb-1 block">Vencimento da Fatura</label>
-              <Input type="date" value={vencimentoFatura} onChange={(e) => setVencimentoFatura(e.target.value)} placeholder="Data de vencimento" />
-            </div>
             <div className="flex-1 min-w-[200px]">
               <label className="text-sm font-medium text-foreground mb-1 block">Arquivo CSV ou PDF</label>
               <Input type="file" accept=".csv,.txt,.pdf" onChange={handleFile} />
             </div>
           </div>
-          {vencimentoFatura && (
-            <p className="text-xs text-muted-foreground">
-              📅 Competência = data da transação · Vencimento (fluxo de caixa) = {vencimentoFatura.split("-").reverse().join("/")}
-            </p>
-          )}
         </CardContent>
       </Card>
 

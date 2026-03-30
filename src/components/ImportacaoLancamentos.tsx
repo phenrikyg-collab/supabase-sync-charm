@@ -22,7 +22,6 @@ export default function ImportacaoLancamentos({ onImportar }: Props) {
   const pdfRef = useRef<HTMLInputElement>(null);
   const [processando, setProcessando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
-  const [vencimentoFatura, setVencimentoFatura] = useState("");
   const { data: categorias } = useCategorias();
 
   // ── Importação CSV ──────────────────────────────────────────────────────────
@@ -40,7 +39,7 @@ export default function ImportacaoLancamentos({ onImportar }: Props) {
           descricao: colunas[0] || `Lançamento ${i + 1}`,
           valor: parseFloat(colunas[1]) || 0,
           data: colunas[2] || new Date().toISOString().split("T")[0],
-          data_vencimento: vencimentoFatura || null,
+          data_vencimento: null,
         };
       }).filter((l) => l.descricao);
 
@@ -77,7 +76,7 @@ export default function ImportacaoLancamentos({ onImportar }: Props) {
         descricao: t.descricao,
         valor: Math.abs(t.valor),
         data: t.data,
-        data_vencimento: vencimentoFatura || null,
+        data_vencimento: t.data_vencimento || null,
         categoria: t.categoria_sugerida ? { nome: t.categoria_sugerida, id: t.categoria_id } : undefined,
       }));
 
@@ -97,22 +96,6 @@ export default function ImportacaoLancamentos({ onImportar }: Props) {
         <p className="text-muted-foreground text-sm">
           Importe um extrato de cartão em <strong>PDF</strong> ou uma planilha em <strong>CSV</strong>.
         </p>
-
-        {/* Campo de vencimento da fatura */}
-        <div className="text-left">
-          <label className="text-sm font-medium text-foreground mb-1 block">Vencimento da Fatura (fluxo de caixa)</label>
-          <input
-            type="date"
-            value={vencimentoFatura}
-            onChange={(e) => setVencimentoFatura(e.target.value)}
-            className="w-full border border-input rounded-xl px-4 py-2.5 text-sm bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-          />
-          {vencimentoFatura && (
-            <p className="text-xs text-muted-foreground mt-1">
-              📅 Competência = data da transação · Vencimento = {vencimentoFatura.split("-").reverse().join("/")}
-            </p>
-          )}
-        </div>
 
         {processando ? (
           <div className="space-y-3">
