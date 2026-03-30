@@ -97,22 +97,6 @@ export default function ImportacaoLancamentos({ onImportar }: Props) {
           Importe um extrato de cartão em <strong>PDF</strong> ou uma planilha em <strong>CSV</strong>.
         </p>
 
-        {/* Campo de vencimento da fatura */}
-        <div className="text-left">
-          <label className="text-sm font-medium text-foreground mb-1 block">Vencimento da Fatura (fluxo de caixa)</label>
-          <input
-            type="date"
-            value={vencimentoFatura}
-            onChange={(e) => setVencimentoFatura(e.target.value)}
-            className="w-full border border-input rounded-xl px-4 py-2.5 text-sm bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-          />
-          {vencimentoFatura && (
-            <p className="text-xs text-muted-foreground mt-1">
-              📅 Competência = data da transação · Vencimento = {vencimentoFatura.split("-").reverse().join("/")}
-            </p>
-          )}
-        </div>
-
         {processando ? (
           <div className="space-y-3">
             <div className="animate-spin text-4xl">⏳</div>
