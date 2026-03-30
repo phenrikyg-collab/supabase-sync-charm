@@ -1,9 +1,7 @@
-// src/components/ImportacaoLancamentos.tsx
-// Versão 3: aceita CSV e PDF de extrato de cartão, com datas de competência e vencimento
-
 import { useRef, useState } from "react";
 import { invokeEdgeFunction } from "@/lib/edgeFunctions";
 import { useCategorias } from "@/hooks/useSupabase";
+import * as XLSX from "xlsx";
 
 interface LancamentoImportado {
   descricao: string;
