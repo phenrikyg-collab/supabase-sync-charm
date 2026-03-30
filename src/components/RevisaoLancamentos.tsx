@@ -86,12 +86,11 @@ export default function RevisaoLancamentos({ lancamentosImportados, onConcluir, 
       const registros = lancamentos
         .filter((l) => l.categoria)
         .map((l) => {
-          const imported = lancamentosImportados.find((_, i) => `import-${i}` === l.id);
           return {
             descricao: l.descricao,
-            valor: l.valor,
+            valor: typeof l.valor === 'number' ? l.valor : parseFloat(String(l.valor)) || 0,
             data: l.data,
-            data_vencimento: imported?.data_vencimento || null,
+            data_vencimento: l.data_vencimento || null,
             tipo: l.categoria!.tipo === "Crédito" ? "entrada" : "saida",
             origem: "importacao",
           };
