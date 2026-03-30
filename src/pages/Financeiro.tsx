@@ -219,8 +219,8 @@ export default function Financeiro() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-serif font-bold text-foreground">Financeiro</h1>
-          <p className="text-sm text-muted-foreground mt-1">{filtered.length} movimentações</p>
+          <h1 className="text-3xl font-serif font-bold text-foreground">Transações</h1>
+          <p className="text-sm text-muted-foreground mt-1">{filtered.length} transações</p>
         </div>
       </div>
 
