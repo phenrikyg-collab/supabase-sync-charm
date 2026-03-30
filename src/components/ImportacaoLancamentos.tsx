@@ -133,7 +133,7 @@ const mapExtratoPagamentosSafra = (rows: any[][]): LancamentoImportado[] => {
         tipo: "saida" as const,
       };
     })
-    .filter((row): row is LancamentoImportado => row !== null);
+    .filter(Boolean) as LancamentoImportado[];
 };
 
 const mapExtratoSafra = (rows: any[][]): LancamentoImportado[] => {
@@ -161,7 +161,7 @@ const mapExtratoSafra = (rows: any[][]): LancamentoImportado[] => {
       data_vencimento: null,
       tipo: (tipoLanc.includes("créd") || tipoLanc.includes("cred") || valor > 0 ? "entrada" : "saida") as "entrada" | "saida",
     };
-  }).filter((row): row is LancamentoImportado => row !== null);
+  }).filter(Boolean) as LancamentoImportado[];
 };
 
 const mapVindi = (rows: any[][]): LancamentoImportado[] => {
@@ -198,7 +198,7 @@ const mapVindi = (rows: any[][]): LancamentoImportado[] => {
         tipo: "entrada" as const,
       };
     })
-    .filter((row): row is LancamentoImportado => row !== null);
+    .filter(Boolean) as LancamentoImportado[];
 };
 
 const mapGenerico = (rows: any[][]): LancamentoImportado[] => {
@@ -217,7 +217,7 @@ const mapGenerico = (rows: any[][]): LancamentoImportado[] => {
         data_vencimento: null,
       };
     })
-    .filter((l): l is LancamentoImportado => Boolean(l?.descricao));
+    .filter(Boolean) as LancamentoImportado[];
 };
 
 export default function ImportacaoLancamentos({ onImportar }: Props) {

@@ -35,6 +35,29 @@ function parseDate(raw: string): string {
   return raw.trim();
 }
 
+function normalizeDateForDb(raw: string | null | undefined): string | null {
+  if (!raw) return null;
+  const value = raw.trim();
+  const br = value.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  if (br) return `${br[3]}-${br[2]}-${br[1]}`;
+  const iso = value.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (iso) return `${iso[1]}-${iso[2]}-${iso[3]}`;
+  return null;
+}
+
+function normalizeNumberForDb(raw: number | string): number {
+  if (typeof raw === "number") return Number.isFinite(raw) ? raw : NaN;
+  const value = raw.trim();
+  if (/^\d{4}-\d{2}-\d{2}/.test(value) || /^\d{2}\/\d{2}\/\d{4}$/.test(value)) return NaN;
+  const sanitized = value.replace(/[^\d.,-]/g, "");
+  if (!sanitized) return NaN;
+  const normalized = sanitized.includes(",") && sanitized.includes(".")
+    ? sanitized.replace(/\./g, "").replace(",", ".")
+    : sanitized.replace(",", ".");
+  const parsed = Number(normalized);
+  return Number.isFinite(parsed) ? parsed : NaN;
+}
+
 function parseCSVSafra(text: string): ParsedRow[] {
   const lines = text.split("\n").filter((l) => l.trim());
   const rows: ParsedRow[] = [];
@@ -181,15 +204,29 @@ export default function ImportarExtrato() {
     }
     setIsSalvando(true);
     try {
-      const inserts = selecionados.map((r) => ({
-        data: r.data,
-        data_vencimento: r.data_vencimento || null,
-        descricao: r.descricao,
-        valor: r.valor,
-        tipo: r.tipo,
-        categoria_id: r.categoria_id,
-        origem: `extrato_${banco}`,
-      }));
+      const inserts = selecionados
+        .map((r) => {
+          const valor = normalizeNumberForDb(r.valor);
+          const data = normalizeDateForDb(r.data);
+          const dataVencimento = normalizeDateForDb(r.data_vencimento);
+
+          if (!Number.isFinite(valor) || !data) return null;
+
+          return {
+            data,
+            data_vencimento: dataVencimento,
+            descricao: r.descricao,
+            valor,
+            tipo: r.tipo,
+            categoria_id: r.categoria_id,
+            origem: `extrato_${banco}`,
+          };
+        })
+        .filter(Boolean);
+
+      if (inserts.length === 0) {
+        throw new Error("Nenhum lançamento válido para salvar. Revise as datas e valores importados.");
+      }
 
       const { error } = await supabase.from("movimentacoes_financeiras").insert(inserts);
       if (error) throw error;
