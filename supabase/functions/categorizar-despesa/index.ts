@@ -151,6 +151,8 @@ async function handleParsePdf(apiKey: string, pdf_base64: string, categorias: an
               type: "text",
               text: `Extraia todos os lançamentos deste extrato/fatura PDF. Para cada lançamento identifique data, descrição, valor e sugira a categoria mais adequada.
 
+IMPORTANTE: Extraia também a data de vencimento da fatura (geralmente indicada como "Vencimento", "Data de Vencimento" ou "Due Date"). Essa data deve ser retornada no campo "data_vencimento" de cada transação (todas as transações de uma mesma fatura compartilham o mesmo vencimento).
+
 CATEGORIAS DISPONÍVEIS:
 ${catList}`,
             },
