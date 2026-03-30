@@ -260,12 +260,15 @@ export default function ImportarExtrato() {
       {rows.length > 0 && (
         <>
           <div className="flex items-center justify-between">
-            <div className="flex gap-4">
+            <div className="flex gap-4 flex-wrap">
               <Badge variant="outline" className="text-success border-success/30">
                 Entradas: {formatCurrency(totalEntradas)}
               </Badge>
               <Badge variant="outline" className="text-destructive border-destructive/30">
                 Saídas: {formatCurrency(totalSaidas)}
+              </Badge>
+              <Badge variant="default">
+                Total: {formatCurrency(totalGeral)}
               </Badge>
               <Badge variant="secondary">{rows.filter((r) => r.selecionado).length} selecionados</Badge>
             </div>
