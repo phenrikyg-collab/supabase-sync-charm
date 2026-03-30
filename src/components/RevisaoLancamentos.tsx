@@ -47,6 +47,25 @@ function formatDateBR(dateStr: string): string {
   return dateStr;
 }
 
+function formatarDataParaBanco(data: any): string {
+  if (!data) return "";
+
+  // já está no formato correto
+  if (typeof data === "string" && data.includes("-") && data.length === 10) {
+    return data;
+  }
+
+  // formato BR (15/01/2026)
+  if (typeof data === "string" && data.includes("/")) {
+    const [dia, mes, ano] = data.split("/");
+    return `${ano}-${mes}-${dia}`;
+  }
+
+  // fallback (caso venha como Date ou número)
+  const d = new Date(data);
+  return d.toISOString().split("T")[0];
+}
+
 function BadgeConfianca({ confianca }: { confianca: number }) {
   const cor =
     confianca >= 85
