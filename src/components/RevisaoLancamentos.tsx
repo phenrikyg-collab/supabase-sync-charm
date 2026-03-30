@@ -115,6 +115,8 @@ export default function RevisaoLancamentos({ lancamentosImportados, onConcluir, 
       const registros = lancamentos
         .filter((l) => l.categoria)
         .map((l) => {
+          // Buscar categoria_id: primeiro do _categoria_id (pré-atribuído), depois pelo nome na lista CATEGORIAS
+          const categoriaId = (l as any)._categoria_id || null;
           return {
             descricao: l.descricao,
             valor: typeof l.valor === 'number' ? l.valor : parseFloat(String(l.valor)) || 0,
@@ -122,6 +124,7 @@ export default function RevisaoLancamentos({ lancamentosImportados, onConcluir, 
             data_vencimento: l.data_vencimento || null,
             tipo: l.categoria!.tipo === "Crédito" ? "entrada" : "saida",
             origem: "importacao",
+            categoria_id: categoriaId,
           };
         });
 
