@@ -114,7 +114,7 @@ export default function ImportacaoLancamentos({ onImportar }: Props) {
         <div className="text-5xl">📂</div>
         <h1 className="text-2xl font-bold text-foreground">Importar Lançamentos</h1>
         <p className="text-muted-foreground text-sm">
-          Importe um extrato de cartão em <strong>PDF</strong> ou uma planilha em <strong>CSV</strong>.
+          Importe um extrato de cartão em <strong>PDF</strong> ou uma planilha em <strong>CSV / XLSX</strong>.
         </p>
 
         {processando ? (
