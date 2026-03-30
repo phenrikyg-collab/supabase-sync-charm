@@ -69,7 +69,7 @@ const moduleGroups: ModuleGroup[] = [
     icon: Banknote,
     items: [
       { title: "Dashboard", url: "/dashboard-financeiro", icon: PieChart },
-      { title: "Financeiro", url: "/financeiro", icon: DollarSign },
+      { title: "Transações", url: "/financeiro", icon: DollarSign },
       { title: "Contas a Pagar", url: "/contas-pagar", icon: CreditCard },
       { title: "Contas a Receber", url: "/contas-receber", icon: DollarSign },
       { title: "DRE", url: "/dre", icon: BarChart3 },
