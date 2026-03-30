@@ -109,6 +109,8 @@ export default function RevisaoLancamentos({ lancamentosImportados, onConcluir, 
 
   const classificados = lancamentos.filter((l) => l.categoria && !l.classificando).length;
   const total = lancamentos.length;
+  const totalValor = lancamentosImportados.reduce((s, l) => s + l.valor, 0);
+  const vencimento = lancamentosImportados.find((l) => l.data_vencimento)?.data_vencimento;
 
   return (
     <div className="min-h-screen bg-gray-50 p-6">
@@ -126,6 +128,26 @@ export default function RevisaoLancamentos({ lancamentosImportados, onConcluir, 
           <button onClick={onVoltar} className="text-sm text-gray-400 hover:text-gray-600">
             ← Voltar
           </button>
+        </div>
+
+        {/* Resumo da fatura */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 flex items-center gap-6 flex-wrap">
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-gray-500">Total da Fatura:</span>
+            <span className="text-lg font-bold text-gray-800">
+              R$ {totalValor.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+            </span>
+          </div>
+          {vencimento && (
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-gray-500">Vencimento:</span>
+              <span className="text-sm font-semibold text-gray-700">{vencimento}</span>
+            </div>
+          )}
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-gray-500">Lançamentos:</span>
+            <span className="text-sm font-semibold text-gray-700">{total}</span>
+          </div>
         </div>
 
         {/* Barra de progresso */}
