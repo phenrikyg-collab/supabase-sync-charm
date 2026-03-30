@@ -6,7 +6,7 @@ import { useClassifyCategory, Lancamento, ClassificationResult } from "@/hooks/u
 import { supabase } from "@/integrations/supabase/client";
 
 interface Props {
-  lancamentosImportados: { descricao: string; valor: number; data: string }[];
+  lancamentosImportados: { descricao: string; valor: number; data: string; data_vencimento?: string | null }[];
   onConcluir: () => void;
   onVoltar: () => void;
 }
