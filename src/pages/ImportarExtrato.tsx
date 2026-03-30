@@ -128,7 +128,7 @@ export default function ImportarExtrato() {
           if (data?.rows?.length > 0) {
             setRows(data.rows.map((r: any) => ({
               data: r.data,
-              data_vencimento: vencimentoFatura || null,
+              data_vencimento: r.data_vencimento || null,
               descricao: r.descricao,
               valor: Math.abs(r.valor),
               tipo: r.valor < 0 ? "saida" as const : (r.tipo || "saida") as any,
