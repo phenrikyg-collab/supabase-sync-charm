@@ -210,6 +210,7 @@ export default function ImportarExtrato() {
 
   const totalEntradas = rows.filter((r) => r.selecionado && r.tipo === "entrada").reduce((s, r) => s + r.valor, 0);
   const totalSaidas = rows.filter((r) => r.selecionado && r.tipo === "saida").reduce((s, r) => s + r.valor, 0);
+  const totalGeral = rows.filter((r) => r.selecionado).reduce((s, r) => s + r.valor, 0);
 
   return (
     <div className="space-y-6">
