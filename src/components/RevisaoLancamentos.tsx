@@ -85,13 +85,17 @@ export default function RevisaoLancamentos({ lancamentosImportados, onConcluir, 
     try {
       const registros = lancamentos
         .filter((l) => l.categoria)
-        .map((l) => ({
-          descricao: l.descricao,
-          valor: l.valor,
-          data: l.data,
-          tipo: l.categoria!.tipo === "Crédito" ? "entrada" : "saida",
-          origem: "importacao",
-        }));
+        .map((l) => {
+          const imported = lancamentosImportados.find((_, i) => `import-${i}` === l.id);
+          return {
+            descricao: l.descricao,
+            valor: l.valor,
+            data: l.data,
+            data_vencimento: imported?.data_vencimento || null,
+            tipo: l.categoria!.tipo === "Crédito" ? "entrada" : "saida",
+            origem: "importacao",
+          };
+        });
 
       const { error } = await supabase.from("movimentacoes_financeiras").insert(registros);
       if (error) throw error;
