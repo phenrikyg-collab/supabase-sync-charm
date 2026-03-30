@@ -145,7 +145,7 @@ export default function ImportacaoLancamentos({ onImportar }: Props) {
               onClick={() => csvRef.current?.click()}
               className="w-full border border-input hover:bg-accent text-foreground font-semibold py-3 px-6 rounded-xl transition-colors flex items-center justify-center gap-2"
             >
-              📊 Importar planilha CSV
+              📊 Importar planilha CSV / XLSX
             </button>
             <p className="text-xs text-muted-foreground">
               Arquivo com colunas: <code className="bg-muted px-1 rounded">descricao, valor, data</code>
