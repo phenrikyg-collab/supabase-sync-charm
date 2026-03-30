@@ -292,7 +292,8 @@ export default function ImportarExtrato() {
                 <TableHeader>
                   <TableRow>
                     <TableHead className="w-10">✓</TableHead>
-                    <TableHead>Data</TableHead>
+                    <TableHead>Competência</TableHead>
+                    <TableHead>Vencimento</TableHead>
                     <TableHead>Descrição</TableHead>
                     <TableHead>Tipo</TableHead>
                     <TableHead>Categoria</TableHead>
