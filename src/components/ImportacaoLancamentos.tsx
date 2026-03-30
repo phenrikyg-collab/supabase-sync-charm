@@ -160,7 +160,7 @@ export default function ImportacaoLancamentos({ onImportar }: Props) {
         )}
 
         <input ref={pdfRef} type="file" accept=".pdf" onChange={handlePDF} className="hidden" />
-        <input ref={csvRef} type="file" accept=".csv" onChange={handleCSV} className="hidden" />
+        <input ref={csvRef} type="file" accept=".csv,.xlsx,.xls" onChange={handleSpreadsheet} className="hidden" />
       </div>
     </div>
   );
