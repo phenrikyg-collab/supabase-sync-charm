@@ -10,6 +10,7 @@ interface LancamentoImportado {
   descricao: string;
   valor: number;
   data: string;
+  data_vencimento?: string | null;
   tipo?: "entrada" | "saida";
   categoria_id?: string | null;
   categoria_sugerida?: string | null;
