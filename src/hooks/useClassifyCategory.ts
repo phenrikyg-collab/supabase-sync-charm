@@ -17,6 +17,9 @@ export interface Lancamento {
   data: string;
   data_vencimento?: string | null;
   categoria?: ClassificationResult;
+  categoria_id?: string | null;
+  categoria_nome?: string | null;
+  _categoria_id?: string | null;
   classificando?: boolean;
   erro?: string;
 }

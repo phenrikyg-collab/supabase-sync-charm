@@ -6,7 +6,7 @@ import { useClassifyCategory, Lancamento, ClassificationResult } from "@/hooks/u
 import { supabase } from "@/integrations/supabase/client";
 
 interface Props {
-  lancamentosImportados: { descricao: string; valor: number; data: string; data_vencimento?: string | null }[];
+  lancamentosImportados: { descricao: string; valor: number; data: string; data_vencimento?: string | null; categoria_id?: string | null; categoria_nome?: string | null }[];
   onConcluir: () => void;
   onVoltar: () => void;
 }
@@ -67,9 +67,31 @@ export default function RevisaoLancamentos({ lancamentosImportados, onConcluir, 
     const iniciais: Lancamento[] = lancamentosImportados.map((l, i) => ({
       id: `import-${i}`,
       ...l,
+      // Se já veio com categoria pré-atribuída pelo mapeamento, usar diretamente
+      ...(l.categoria_id && l.categoria_nome ? {
+        categoria: {
+          codigo: 0,
+          nome: l.categoria_nome,
+          tipo: "Débito" as const,
+          confianca: 95,
+          motivo: "Categoria atribuída automaticamente pelo mapeamento de descrições",
+        },
+        _categoria_id: l.categoria_id,
+      } : {}),
     }));
     setLancamentos(iniciais);
-    classificarLotes(iniciais, setLancamentos);
+    // Classificar apenas os que NÃO têm categoria pré-atribuída
+    const semCategoria = iniciais.filter((l) => !l.categoria);
+    if (semCategoria.length > 0) {
+      classificarLotes(semCategoria, (atualizados) => {
+        setLancamentos((prev) =>
+          prev.map((l) => {
+            const atualizado = atualizados.find((a) => a.id === l.id);
+            return atualizado || l;
+          })
+        );
+      });
+    }
   }, []);
 
   const alterarCategoria = (id: string, codigo: number) => {
@@ -93,6 +115,8 @@ export default function RevisaoLancamentos({ lancamentosImportados, onConcluir, 
       const registros = lancamentos
         .filter((l) => l.categoria)
         .map((l) => {
+          // Buscar categoria_id: primeiro do _categoria_id (pré-atribuído), depois pelo nome na lista CATEGORIAS
+          const categoriaId = (l as any)._categoria_id || null;
           return {
             descricao: l.descricao,
             valor: typeof l.valor === 'number' ? l.valor : parseFloat(String(l.valor)) || 0,
@@ -100,6 +124,7 @@ export default function RevisaoLancamentos({ lancamentosImportados, onConcluir, 
             data_vencimento: l.data_vencimento || null,
             tipo: l.categoria!.tipo === "Crédito" ? "entrada" : "saida",
             origem: "importacao",
+            categoria_id: categoriaId,
           };
         });
 

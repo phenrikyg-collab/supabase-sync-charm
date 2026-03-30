@@ -1,6 +1,7 @@
 import { useRef, useState } from "react";
 import { invokeEdgeFunction } from "@/lib/edgeFunctions";
 import { useCategorias } from "@/hooks/useSupabase";
+import { findCategoriaByDescricao } from "@/lib/categoriaMappings";
 import * as XLSX from "xlsx";
 
 interface LancamentoImportado {
@@ -9,6 +10,8 @@ interface LancamentoImportado {
   data: string;
   data_vencimento?: string | null;
   tipo?: "entrada" | "saida";
+  categoria_id?: string | null;
+  categoria_nome?: string | null;
   categoria?: any;
 }
 
@@ -182,6 +185,17 @@ export default function ImportacaoLancamentos({ onImportar }: Props) {
     if (!lancamentos.length) {
       setErro("Nenhum lançamento encontrado na planilha.");
       return;
+    }
+
+    // Pré-atribuir categorias com base no mapeamento descrição→categoria
+    if (categorias?.length) {
+      lancamentos = lancamentos.map((l) => {
+        const match = findCategoriaByDescricao(l.descricao, categorias);
+        if (match) {
+          return { ...l, categoria_id: match.id, categoria_nome: match.nome };
+        }
+        return l;
+      });
     }
 
     onImportar(lancamentos);
