@@ -112,16 +112,34 @@ export default function RevisaoLancamentos({ lancamentosImportados, onConcluir, 
   const salvarTodos = async () => {
     setSalvando(true);
     try {
+      const parseValorSeguro = (v: any): number => {
+        if (typeof v === 'number' && !isNaN(v)) return v;
+        const s = String(v ?? '0').replace(/[^\d.,-]/g, '').replace(',', '.');
+        const n = parseFloat(s);
+        return isNaN(n) ? 0 : n;
+      };
+
+      const parseDateSeguro = (d: any): string | null => {
+        if (!d) return null;
+        const s = String(d).trim();
+        // Already YYYY-MM-DD
+        const iso = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+        if (iso) return `${iso[1]}-${iso[2]}-${iso[3]}`;
+        // DD/MM/YYYY
+        const br = s.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+        if (br) return `${br[3]}-${br[2]}-${br[1]}`;
+        return null;
+      };
+
       const registros = lancamentos
         .filter((l) => l.categoria)
         .map((l) => {
-          // Buscar categoria_id: primeiro do _categoria_id (pré-atribuído), depois pelo nome na lista CATEGORIAS
           const categoriaId = (l as any)._categoria_id || null;
           return {
             descricao: l.descricao,
-            valor: typeof l.valor === 'number' ? l.valor : parseFloat(String(l.valor)) || 0,
-            data: l.data,
-            data_vencimento: l.data_vencimento || null,
+            valor: parseValorSeguro(l.valor),
+            data: parseDateSeguro(l.data) || new Date().toISOString().split('T')[0],
+            data_vencimento: parseDateSeguro(l.data_vencimento) || null,
             tipo: l.categoria!.tipo === "Crédito" ? "entrada" : "saida",
             origem: "importacao",
             categoria_id: categoriaId,
