@@ -311,6 +311,7 @@ export default function ImportarExtrato() {
                         />
                       </TableCell>
                       <TableCell className="text-muted-foreground whitespace-nowrap">{r.data}</TableCell>
+                      <TableCell className="text-muted-foreground whitespace-nowrap">{r.data_vencimento || "—"}</TableCell>
                       <TableCell className="max-w-xs truncate">{r.descricao}</TableCell>
                       <TableCell>
                         <Badge variant={r.tipo === "entrada" ? "default" : "secondary"}>
