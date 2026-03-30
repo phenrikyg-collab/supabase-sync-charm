@@ -14,6 +14,7 @@ import { useQueryClient } from "@tanstack/react-query";
 
 interface ParsedRow {
   data: string;
+  data_vencimento: string | null;
   descricao: string;
   valor: number;
   categoria_id: string | null;
