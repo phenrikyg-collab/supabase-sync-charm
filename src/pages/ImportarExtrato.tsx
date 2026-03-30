@@ -107,6 +107,10 @@ export default function ImportarExtrato() {
         toast.error("Nenhum lançamento encontrado no arquivo. Verifique o formato.");
         return;
       }
+      // Apply vencimento to all CSV rows
+      if (vencimentoFatura) {
+        parsed.forEach((r) => (r.data_vencimento = vencimentoFatura));
+      }
       setRows(parsed);
       toast.success(`${parsed.length} lançamentos importados`);
     } else if (file.name.endsWith(".pdf")) {
