@@ -42,14 +42,12 @@ const CATEGORIAS = [
 
 function BadgeConfianca({ confianca }: { confianca: number }) {
   const cor =
-    confianca >= 85 ? "bg-green-100 text-green-700" :
-    confianca >= 60 ? "bg-yellow-100 text-yellow-700" :
-    "bg-red-100 text-red-700";
-  return (
-    <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${cor}`}>
-      {confianca}% confiança
-    </span>
-  );
+    confianca >= 85
+      ? "bg-green-100 text-green-700"
+      : confianca >= 60
+        ? "bg-yellow-100 text-yellow-700"
+        : "bg-red-100 text-red-700";
+  return <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${cor}`}>{confianca}% confiança</span>;
 }
 
 export default function RevisaoLancamentos({ lancamentosImportados, onConcluir, onVoltar }: Props) {
@@ -73,9 +71,12 @@ export default function RevisaoLancamentos({ lancamentosImportados, onConcluir, 
     setLancamentos((prev) =>
       prev.map((l) =>
         l.id === id
-          ? { ...l, categoria: { ...l.categoria!, codigo, nome: cat.nome, confianca: 100, motivo: "Alterado manualmente" } }
-          : l
-      )
+          ? {
+              ...l,
+              categoria: { ...l.categoria!, codigo, nome: cat.nome, confianca: 100, motivo: "Alterado manualmente" },
+            }
+          : l,
+      ),
     );
   };
 
@@ -109,7 +110,6 @@ export default function RevisaoLancamentos({ lancamentosImportados, onConcluir, 
   return (
     <div className="min-h-screen bg-gray-50 p-6">
       <div className="max-w-4xl mx-auto space-y-6">
-
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
@@ -140,7 +140,6 @@ export default function RevisaoLancamentos({ lancamentosImportados, onConcluir, 
           {lancamentos.map((l) => (
             <div key={l.id} className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
               <div className="flex items-start justify-between gap-4">
-
                 {/* Info do lançamento */}
                 <div className="flex-1 min-w-0">
                   <p className="font-medium text-gray-800 truncate">{l.descricao}</p>
@@ -180,9 +179,7 @@ export default function RevisaoLancamentos({ lancamentosImportados, onConcluir, 
                 <div className="mt-3 pt-3 border-t border-gray-100 space-y-3">
                   <p className="text-xs text-gray-500 italic">💡 {l.categoria.motivo}</p>
                   <div>
-                    <label className="text-xs font-medium text-gray-600 block mb-1">
-                      Alterar categoria:
-                    </label>
+                    <label className="text-xs font-medium text-gray-600 block mb-1">Alterar categoria:</label>
                     <select
                       value={l.categoria.codigo}
                       onChange={(e) => alterarCategoria(l.id, parseInt(e.target.value))}
