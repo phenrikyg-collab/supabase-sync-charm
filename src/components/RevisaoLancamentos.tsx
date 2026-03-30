@@ -67,9 +67,31 @@ export default function RevisaoLancamentos({ lancamentosImportados, onConcluir, 
     const iniciais: Lancamento[] = lancamentosImportados.map((l, i) => ({
       id: `import-${i}`,
       ...l,
+      // Se já veio com categoria pré-atribuída pelo mapeamento, usar diretamente
+      ...(l.categoria_id && l.categoria_nome ? {
+        categoria: {
+          codigo: 0,
+          nome: l.categoria_nome,
+          tipo: "Débito" as const,
+          confianca: 95,
+          motivo: "Categoria atribuída automaticamente pelo mapeamento de descrições",
+        },
+        _categoria_id: l.categoria_id,
+      } : {}),
     }));
     setLancamentos(iniciais);
-    classificarLotes(iniciais, setLancamentos);
+    // Classificar apenas os que NÃO têm categoria pré-atribuída
+    const semCategoria = iniciais.filter((l) => !l.categoria);
+    if (semCategoria.length > 0) {
+      classificarLotes(semCategoria, (atualizados) => {
+        setLancamentos((prev) =>
+          prev.map((l) => {
+            const atualizado = atualizados.find((a) => a.id === l.id);
+            return atualizado || l;
+          })
+        );
+      });
+    }
   }, []);
 
   const alterarCategoria = (id: string, codigo: number) => {
