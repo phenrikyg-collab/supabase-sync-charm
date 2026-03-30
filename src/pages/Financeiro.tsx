@@ -282,7 +282,7 @@ export default function Financeiro() {
             size="sm"
             variant="default"
             onClick={() => handleBulkStatus("pago")}
-            disabled={bulkUpdating}
+            disabled={bulkUpdating || bulkDeleting}
             className="gap-1"
           >
             {bulkUpdating ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CircleCheck className="h-3.5 w-3.5" />}
@@ -292,11 +292,21 @@ export default function Financeiro() {
             size="sm"
             variant="outline"
             onClick={() => handleBulkStatus("em_aberto")}
-            disabled={bulkUpdating}
+            disabled={bulkUpdating || bulkDeleting}
             className="gap-1"
           >
             {bulkUpdating ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Clock className="h-3.5 w-3.5" />}
             Marcar como Em Aberto
+          </Button>
+          <Button
+            size="sm"
+            variant="destructive"
+            onClick={() => setBulkDeleteOpen(true)}
+            disabled={bulkUpdating || bulkDeleting}
+            className="gap-1"
+          >
+            {bulkDeleting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
+            Excluir Selecionadas
           </Button>
           <Button
             size="sm"
