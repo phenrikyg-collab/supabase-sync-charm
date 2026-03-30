@@ -203,6 +203,26 @@ export default function Financeiro() {
     }
   };
 
+  const handleBulkDelete = async () => {
+    if (selectedIds.size === 0) return;
+    setBulkDeleting(true);
+    try {
+      const { error } = await supabase
+        .from("movimentacoes_financeiras")
+        .delete()
+        .in("id", Array.from(selectedIds));
+      if (error) throw error;
+      await queryClient.invalidateQueries({ queryKey: ["movimentacoes"] });
+      toast.success(`${selectedIds.size} transações excluídas!`);
+      setSelectedIds(new Set());
+      setBulkDeleteOpen(false);
+    } catch (err: any) {
+      toast.error("Erro na exclusão em massa: " + (err.message || "erro"));
+    } finally {
+      setBulkDeleting(false);
+    }
+  };
+
   const handleTogglePago = async (m: any) => {
     const newStatus = (m.status_pagamento ?? "em_aberto") === "pago" ? "em_aberto" : "pago";
     try {
