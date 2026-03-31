@@ -47,6 +47,23 @@ export function useClassifyCategory() {
     const resultado = [...lancamentos];
 
     for (let i = 0; i < resultado.length; i++) {
+      // Skip items that already have a pre-matched categoria_id
+      if (resultado[i].categoria_id) {
+        resultado[i] = {
+          ...resultado[i],
+          classificando: false,
+          categoria: resultado[i].categoria ?? {
+            codigo: 0,
+            nome: resultado[i].categoria_nome || "Pré-categorizado",
+            tipo: "Débito" as const,
+            confianca: 95,
+            motivo: "Categorizado automaticamente pelo mapeamento de descrições",
+          },
+        };
+        onAtualizar([...resultado]);
+        continue;
+      }
+
       // Marca como "classificando"
       resultado[i] = { ...resultado[i], classificando: true };
       onAtualizar([...resultado]);

@@ -118,6 +118,8 @@ export default function RevisaoLancamentos({ lancamentosImportados, onConcluir, 
           data_vencimento: l.data_vencimento ? formatarDataParaBanco(l.data_vencimento) : null,
           tipo: l.categoria!.tipo === "Crédito" ? "entrada" : "saida",
           origem: "importacao",
+          status_pagamento: "pago",
+          categoria_id: l._categoria_id || l.categoria_id || null,
         }));
 
       const { error } = await supabase.from("movimentacoes_financeiras").insert(registros);
