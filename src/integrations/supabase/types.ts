@@ -41,6 +41,42 @@ export type Database = {
         }
         Relationships: []
       }
+      cartoes_faturas: {
+        Row: {
+          cartao_nome: string
+          created_at: string
+          data_vencimento: string | null
+          id: string
+          mes_referencia: string
+          saldo_em_aberto: number | null
+          status: string
+          valor_pago: number
+          valor_total: number
+        }
+        Insert: {
+          cartao_nome: string
+          created_at?: string
+          data_vencimento?: string | null
+          id?: string
+          mes_referencia: string
+          saldo_em_aberto?: number | null
+          status?: string
+          valor_pago?: number
+          valor_total?: number
+        }
+        Update: {
+          cartao_nome?: string
+          created_at?: string
+          data_vencimento?: string | null
+          id?: string
+          mes_referencia?: string
+          saldo_em_aberto?: number | null
+          status?: string
+          valor_pago?: number
+          valor_total?: number
+        }
+        Relationships: []
+      }
       categorias_financeiras: {
         Row: {
           categoria_pai_id: string | null
@@ -280,12 +316,14 @@ export type Database = {
           centro_custo_id: string | null
           cliente: string | null
           codigo_rastreamento: string | null
+          conta_tipo: string | null
           created_at: string
           data: string
           data_envio: string | null
           data_vencimento: string | null
           descricao: string | null
           entrada_tecido_id: string | null
+          fatura_id: string | null
           id: string
           origem: string | null
           parcela_info: string | null
@@ -306,12 +344,14 @@ export type Database = {
           centro_custo_id?: string | null
           cliente?: string | null
           codigo_rastreamento?: string | null
+          conta_tipo?: string | null
           created_at?: string
           data?: string
           data_envio?: string | null
           data_vencimento?: string | null
           descricao?: string | null
           entrada_tecido_id?: string | null
+          fatura_id?: string | null
           id?: string
           origem?: string | null
           parcela_info?: string | null
@@ -332,12 +372,14 @@ export type Database = {
           centro_custo_id?: string | null
           cliente?: string | null
           codigo_rastreamento?: string | null
+          conta_tipo?: string | null
           created_at?: string
           data?: string
           data_envio?: string | null
           data_vencimento?: string | null
           descricao?: string | null
           entrada_tecido_id?: string | null
+          fatura_id?: string | null
           id?: string
           origem?: string | null
           parcela_info?: string | null
@@ -372,6 +414,13 @@ export type Database = {
             columns: ["entrada_tecido_id"]
             isOneToOne: false
             referencedRelation: "entradas_tecido"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "movimentacoes_financeiras_fatura_id_fkey"
+            columns: ["fatura_id"]
+            isOneToOne: false
+            referencedRelation: "cartoes_faturas"
             referencedColumns: ["id"]
           },
         ]
