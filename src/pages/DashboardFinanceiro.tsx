@@ -120,7 +120,7 @@ export default function DashboardFinanceiro() {
   const evolucaoMensal = useMemo(() => {
     const months = mesesDisponiveis.slice(0, 6).reverse();
     return months.map((mes) => {
-      const mMovs = (movs ?? []).filter((m) => m.data?.startsWith(mes));
+      const mMovs = (movs ?? []).filter((m) => m.data?.startsWith(mes) && (m as any).impacta_fluxo !== false);
       const receitas = mMovs.filter((m) => m.tipo === "entrada").reduce((s, m) => s + (m.valor ?? 0), 0);
       const despesas = mMovs.filter((m) => m.tipo === "saida").reduce((s, m) => s + Math.abs(m.valor ?? 0), 0);
       const label = mes.substring(5) + "/" + mes.substring(2, 4);
