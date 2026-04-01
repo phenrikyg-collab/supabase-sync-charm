@@ -207,6 +207,10 @@ export interface MovimentacaoFinanceira {
   parcela_info: string | null;
   status_pagamento: string | null;
   data_vencimento: string | null;
+  conta_tipo: string | null;
+  fatura_id: string | null;
+  impacta_dre: boolean;
+  impacta_fluxo: boolean;
   created_at: string | null;
 }
 
