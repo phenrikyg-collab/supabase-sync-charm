@@ -33,6 +33,7 @@ import Login from "./pages/Login";
 import NotFound from "./pages/NotFound";
 import TVInterna from "./pages/TVInterna";
 import AdminTVInterna from "./pages/AdminTVInterna";
+import Bonificacao from "./pages/Bonificacao";
 import { Loader2 } from "lucide-react";
 
 const queryClient = new QueryClient({
@@ -85,6 +86,7 @@ const AppRoutes = () => {
               <Route path="/ordens-corte/nova" element={<NovaOrdemCorte />} />
               <Route path="/oficinas" element={<Oficinas />} />
               <Route path="/oficina-interna" element={<OficinaInterna />} />
+              <Route path="/bonificacao" element={<Bonificacao />} />
               <Route path="/ordens-producao" element={<OrdensProducao />} />
               <Route path="/pagamento-oficinas" element={<PagamentoOficinas />} />
               <Route path="/expedicao" element={<Expedicao />} />
