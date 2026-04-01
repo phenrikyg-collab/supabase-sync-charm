@@ -108,14 +108,13 @@ export default function RevisaoLancamentos({ lancamentosImportados, dadosCartao,
 
   // Group categories by grupo_dre for the dropdown
   const categoriasAgrupadas = useMemo(() => {
-    if (!categorias) return {};
-    const groups: Record<string, typeof categorias> = {};
+    if (!categorias) return {} as Record<string, typeof categorias>;
+    const groups: Record<string, NonNullable<typeof categorias>> = {};
     for (const cat of categorias) {
       const grupo = cat.grupo_dre || "Outros";
       if (!groups[grupo]) groups[grupo] = [];
       groups[grupo].push(cat);
     }
-    // Sort categories within each group
     for (const grupo of Object.keys(groups)) {
       groups[grupo].sort((a, b) => (a.nome_categoria || "").localeCompare(b.nome_categoria || ""));
     }
