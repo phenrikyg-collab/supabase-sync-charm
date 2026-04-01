@@ -33,6 +33,7 @@ import Login from "./pages/Login";
 import NotFound from "./pages/NotFound";
 import TVInterna from "./pages/TVInterna";
 import AdminTVInterna from "./pages/AdminTVInterna";
+import Bonificacao from "./pages/Bonificacao";
 import { Loader2 } from "lucide-react";
 
 const queryClient = new QueryClient({
