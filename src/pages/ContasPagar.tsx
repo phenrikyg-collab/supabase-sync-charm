@@ -870,7 +870,7 @@ export default function ContasPagar() {
                         <TableCell className="font-medium max-w-xs truncate">{m.descricao ?? "—"}</TableCell>
                         <TableCell className="text-muted-foreground">{m.categoria_id ? catMap[m.categoria_id] ?? "—" : "—"}</TableCell>
                         <TableCell>
-                          {m.origem === "cartao_credito" ? (
+                          {m.conta_tipo === "cartao_fatura" ? (
                             <Badge variant="outline" className="gap-1">
                               <CreditCard className="h-3 w-3" /> Cartão
                             </Badge>

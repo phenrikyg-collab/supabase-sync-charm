@@ -99,7 +99,7 @@ export default function DashboardFinanceiro() {
     const totalProximo = contasProximas.reduce((s, m) => s + Math.abs(m.valor ?? 0), 0);
 
     // Cartão de crédito no mês
-    const cartao = mesMovs.filter((m) => m.origem === "cartao_credito").reduce((s, m) => s + Math.abs(m.valor ?? 0), 0);
+    const cartao = mesMovs.filter((m) => m.conta_tipo === "cartao_fatura").reduce((s, m) => s + Math.abs(m.valor ?? 0), 0);
 
     return { receitas, despesas, saldo, margemLiquida, metaValor, atingimentoMeta, totalVencido, contasVencidas: contasVencidas.length, totalProximo, contasProximas: contasProximas.length, cartao };
   }, [mesMovs, metas, movs, now]);

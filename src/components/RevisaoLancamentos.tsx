@@ -1,12 +1,15 @@
 // src/components/RevisaoLancamentos.tsx
 // Passo 2: Tela de revisão com sugestão de categoria + % de confiança
+// Agora com suporte a modo cartão de crédito (fatura_id, impacta_dre, impacta_fluxo)
 
 import { useEffect, useState } from "react";
 import { useClassifyCategory, Lancamento, ClassificationResult } from "@/hooks/useClassifyCategory";
 import { supabase } from "@/integrations/supabase/client";
+import type { DadosCartao } from "@/components/ImportacaoLancamentos";
 
 interface Props {
   lancamentosImportados: { descricao: string; valor: number; data: string; data_vencimento?: string | null; categoria_id?: string | null; categoria_nome?: string | null }[];
+  dadosCartao?: DadosCartao;
   onConcluir: () => void;
   onVoltar: () => void;
 }
@@ -49,19 +52,11 @@ function formatDateBR(dateStr: string): string {
 
 function formatarDataParaBanco(data: any): string {
   if (!data) return "";
-
-  // já está no formato correto
-  if (typeof data === "string" && data.includes("-") && data.length === 10) {
-    return data;
-  }
-
-  // formato BR (15/01/2026)
+  if (typeof data === "string" && data.includes("-") && data.length === 10) return data;
   if (typeof data === "string" && data.includes("/")) {
     const [dia, mes, ano] = data.split("/");
     return `${ano}-${mes}-${dia}`;
   }
-
-  // fallback (caso venha como Date ou número)
   const d = new Date(data);
   return d.toISOString().split("T")[0];
 }
@@ -76,11 +71,66 @@ function BadgeConfianca({ confianca }: { confianca: number }) {
   return <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${cor}`}>{confianca}% confiança</span>;
 }
 
-export default function RevisaoLancamentos({ lancamentosImportados, onConcluir, onVoltar }: Props) {
+async function buscarOuCriarFatura(cartaoNome: string, faturaVencimento: string, valorTotal: number): Promise<string> {
+  // Derive mes_referencia from vencimento (YYYY-MM)
+  const mesRef = faturaVencimento.substring(0, 7);
+
+  // Try to find existing
+  const { data: existing } = await supabase
+    .from("cartoes_faturas")
+    .select("id, valor_total")
+    .eq("cartao_nome", cartaoNome)
+    .eq("data_vencimento", faturaVencimento)
+    .maybeSingle();
+
+  if (existing) {
+    // Update valor_total summing the new import
+    await supabase
+      .from("cartoes_faturas")
+      .update({
+        valor_total: (existing.valor_total || 0) + valorTotal,
+        saldo_em_aberto: (existing.valor_total || 0) + valorTotal,
+      })
+      .eq("id", existing.id);
+    return existing.id;
+  }
+
+  // Create new
+  const { data: nova, error } = await supabase
+    .from("cartoes_faturas")
+    .insert({
+      cartao_nome: cartaoNome,
+      data_vencimento: faturaVencimento,
+      mes_referencia: mesRef,
+      valor_total: valorTotal,
+      saldo_em_aberto: valorTotal,
+      valor_pago: 0,
+      status: "aberta",
+    })
+    .select("id")
+    .single();
+
+  if (error) throw new Error("Erro ao criar fatura: " + error.message);
+  return nova.id;
+}
+
+async function buscarCategoriaPadrao(): Promise<string | null> {
+  const { data } = await supabase
+    .from("categorias_financeiras")
+    .select("id")
+    .or("nome_categoria.ilike.%não classificad%,nome_categoria.ilike.%nao classificad%,nome_categoria.ilike.%sem categoria%")
+    .limit(1)
+    .maybeSingle();
+  return data?.id || null;
+}
+
+export default function RevisaoLancamentos({ lancamentosImportados, dadosCartao, onConcluir, onVoltar }: Props) {
   const [lancamentos, setLancamentos] = useState<Lancamento[]>([]);
   const [salvando, setSalvando] = useState(false);
   const [expandido, setExpandido] = useState<string | null>(null);
   const { classificarLotes, carregando } = useClassifyCategory();
+
+  const isCartao = !!dadosCartao;
 
   useEffect(() => {
     const iniciais: Lancamento[] = lancamentosImportados.map((l, i) => ({
@@ -97,10 +147,7 @@ export default function RevisaoLancamentos({ lancamentosImportados, onConcluir, 
     setLancamentos((prev) =>
       prev.map((l) =>
         l.id === id
-          ? {
-              ...l,
-              categoria: { ...l.categoria!, codigo, nome: cat.nome, confianca: 100, motivo: "Alterado manualmente" },
-            }
+          ? { ...l, categoria: { ...l.categoria!, codigo, nome: cat.nome, confianca: 100, motivo: "Alterado manualmente" } }
           : l,
       ),
     );
@@ -109,18 +156,49 @@ export default function RevisaoLancamentos({ lancamentosImportados, onConcluir, 
   const salvarTodos = async () => {
     setSalvando(true);
     try {
+      let faturaId: string | null = null;
+      const categoriaPadrao = await buscarCategoriaPadrao();
+
+      // If card mode, create/find the invoice first
+      if (isCartao && dadosCartao) {
+        const totalValor = lancamentos.filter((l) => l.categoria).reduce((s, l) => s + Math.abs(l.valor), 0);
+        faturaId = await buscarOuCriarFatura(dadosCartao.cartaoNome, dadosCartao.faturaVencimento, totalValor);
+      }
+
       const registros = lancamentos
         .filter((l) => l.categoria)
-        .map((l) => ({
-          descricao: l.descricao,
-          valor: Number(l.valor),
-          data: formatarDataParaBanco(l.data),
-          data_vencimento: l.data_vencimento ? formatarDataParaBanco(l.data_vencimento) : null,
-          tipo: l.categoria!.tipo === "Crédito" ? "entrada" : "saida",
-          origem: "importacao",
-          status_pagamento: "pago",
-          categoria_id: l._categoria_id || l.categoria_id || null,
-        }));
+        .map((l) => {
+          const categoriaId = l._categoria_id || l.categoria_id || categoriaPadrao;
+
+          if (isCartao) {
+            return {
+              descricao: l.descricao,
+              valor: Number(l.valor),
+              data: formatarDataParaBanco(l.data),
+              data_vencimento: dadosCartao!.faturaVencimento,
+              tipo: "saida",
+              origem: "importacao",
+              status_pagamento: "em_aberto",
+              categoria_id: categoriaId,
+              conta_tipo: "cartao_fatura",
+              fatura_id: faturaId,
+              impacta_dre: true,
+              impacta_fluxo: false,
+            };
+          }
+
+          // Normal (non-card) import
+          return {
+            descricao: l.descricao,
+            valor: Number(l.valor),
+            data: formatarDataParaBanco(l.data),
+            data_vencimento: l.data_vencimento ? formatarDataParaBanco(l.data_vencimento) : null,
+            tipo: l.categoria!.tipo === "Crédito" ? "entrada" : "saida",
+            origem: "importacao",
+            status_pagamento: "pago",
+            categoria_id: categoriaId,
+          };
+        });
 
       const { error } = await supabase.from("movimentacoes_financeiras").insert(registros);
       if (error) throw error;
@@ -135,7 +213,7 @@ export default function RevisaoLancamentos({ lancamentosImportados, onConcluir, 
   const classificados = lancamentos.filter((l) => l.categoria && !l.classificando).length;
   const total = lancamentos.length;
   const totalValor = lancamentosImportados.reduce((s, l) => s + l.valor, 0);
-  const vencimento = lancamentosImportados.find((l) => l.data_vencimento)?.data_vencimento;
+  const vencimento = isCartao ? dadosCartao!.faturaVencimento : lancamentosImportados.find((l) => l.data_vencimento)?.data_vencimento;
 
   return (
     <div className="min-h-screen bg-gray-50 p-6">
@@ -154,6 +232,19 @@ export default function RevisaoLancamentos({ lancamentosImportados, onConcluir, 
             ← Voltar
           </button>
         </div>
+
+        {/* Card mode banner */}
+        {isCartao && (
+          <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 flex items-center gap-3 flex-wrap">
+            <span className="text-lg">💳</span>
+            <div>
+              <p className="text-sm font-semibold text-blue-800">Importação de Cartão: {dadosCartao!.cartaoNome}</p>
+              <p className="text-xs text-blue-600">
+                Transações serão vinculadas à fatura com vencimento em {formatDateBR(dadosCartao!.faturaVencimento)} • Não impactam fluxo de caixa
+              </p>
+            </div>
+          </div>
+        )}
 
         {/* Resumo da fatura */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 flex items-center gap-6 flex-wrap">
@@ -190,7 +281,6 @@ export default function RevisaoLancamentos({ lancamentosImportados, onConcluir, 
           {lancamentos.map((l) => (
             <div key={l.id} className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
               <div className="flex items-start justify-between gap-4">
-                {/* Info do lançamento */}
                 <div className="flex-1 min-w-0">
                   <p className="font-medium text-gray-800 truncate">{l.descricao}</p>
                   <div className="flex items-center gap-3 mt-1 flex-wrap">
@@ -204,7 +294,6 @@ export default function RevisaoLancamentos({ lancamentosImportados, onConcluir, 
                   </div>
                 </div>
 
-                {/* Categoria sugerida */}
                 <div className="flex-shrink-0 text-right space-y-1">
                   {l.classificando ? (
                     <div className="flex items-center gap-2 text-blue-500 text-sm">
@@ -227,7 +316,6 @@ export default function RevisaoLancamentos({ lancamentosImportados, onConcluir, 
                 </div>
               </div>
 
-              {/* Expansível: motivo + alterar categoria */}
               {expandido === l.id && l.categoria && (
                 <div className="mt-3 pt-3 border-t border-gray-100 space-y-3">
                   <p className="text-xs text-gray-500 italic">💡 {l.categoria.motivo}</p>
