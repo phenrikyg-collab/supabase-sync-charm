@@ -325,7 +325,33 @@ export default function ImportarExtrato() {
 
   const toggleAll = (v: boolean) => setRows((prev) => prev.map((r) => ({ ...r, selecionado: v })));
 
-  const catMap = Object.fromEntries((categorias ?? []).map((c) => [c.id, c.nome_categoria ?? ""]));
+  const categoriasDropdown = useMemo(() => {
+    const agrupadas = new Map<string, { id: string; label: string }[]>();
+    const vistos = new Set<string>();
+
+    for (const categoria of categorias ?? []) {
+      const label = (categoria.descricao_categoria || categoria.nome_categoria || "").trim();
+      const grupo = (categoria.grupo_dre || "Outros").trim();
+
+      if (!label || vistos.has(label.toLowerCase())) continue;
+      vistos.add(label.toLowerCase());
+
+      const itens = agrupadas.get(grupo) ?? [];
+      itens.push({ id: categoria.id, label });
+      agrupadas.set(grupo, itens);
+    }
+
+    return Array.from(agrupadas.entries())
+      .map(([grupo, itens]) => ({
+        grupo,
+        itens: itens.sort((a, b) => a.label.localeCompare(b.label)),
+      }))
+      .sort((a, b) => a.grupo.localeCompare(b.grupo));
+  }, [categorias]);
+
+  const catMap = Object.fromEntries(
+    (categorias ?? []).map((c) => [c.id, (c.descricao_categoria || c.nome_categoria || "")])
+  );
 
   const totalEntradas = rows.filter((r) => r.selecionado && r.tipo === "entrada").reduce((s, r) => s + r.valor, 0);
   const totalSaidas = rows.filter((r) => r.selecionado && r.tipo === "saida").reduce((s, r) => s + r.valor, 0);
