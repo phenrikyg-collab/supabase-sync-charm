@@ -164,6 +164,24 @@ export type Database = {
         }
         Relationships: []
       }
+      config_bonificacao_revisoras: {
+        Row: {
+          created_at: string
+          id: string
+          prazo_revisao_dias_uteis: number
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          prazo_revisao_dias_uteis?: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          prazo_revisao_dias_uteis?: number
+        }
+        Relationships: []
+      }
       config_maquinas: {
         Row: {
           created_at: string
@@ -304,6 +322,30 @@ export type Database = {
           id?: string
           mes?: string
           valor?: number
+        }
+        Relationships: []
+      }
+      defeitos_mensais: {
+        Row: {
+          created_at: string
+          id: string
+          mes_referencia: string
+          total_defeitos_reportados: number
+          total_pecas_expedidas: number
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          mes_referencia: string
+          total_defeitos_reportados?: number
+          total_pecas_expedidas?: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          mes_referencia?: string
+          total_defeitos_reportados?: number
+          total_pecas_expedidas?: number
         }
         Relationships: []
       }
@@ -937,6 +979,66 @@ export type Database = {
             columns: ["ordem_producao_id"]
             isOneToOne: false
             referencedRelation: "ordens_producao"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      registros_revisao: {
+        Row: {
+          created_at: string
+          data_conclusao: string | null
+          data_recebimento: string
+          dentro_prazo: boolean | null
+          dias_uteis_gastos: number | null
+          id: string
+          observacao: string | null
+          ordem_producao_id: string
+          pecas_aprovadas: number
+          pecas_reprovadas: number
+          quantidade_pecas: number
+          revisora_id: string
+        }
+        Insert: {
+          created_at?: string
+          data_conclusao?: string | null
+          data_recebimento: string
+          dentro_prazo?: boolean | null
+          dias_uteis_gastos?: number | null
+          id?: string
+          observacao?: string | null
+          ordem_producao_id: string
+          pecas_aprovadas?: number
+          pecas_reprovadas?: number
+          quantidade_pecas?: number
+          revisora_id: string
+        }
+        Update: {
+          created_at?: string
+          data_conclusao?: string | null
+          data_recebimento?: string
+          dentro_prazo?: boolean | null
+          dias_uteis_gastos?: number | null
+          id?: string
+          observacao?: string | null
+          ordem_producao_id?: string
+          pecas_aprovadas?: number
+          pecas_reprovadas?: number
+          quantidade_pecas?: number
+          revisora_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "registros_revisao_ordem_producao_id_fkey"
+            columns: ["ordem_producao_id"]
+            isOneToOne: false
+            referencedRelation: "ordens_producao"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "registros_revisao_revisora_id_fkey"
+            columns: ["revisora_id"]
+            isOneToOne: false
+            referencedRelation: "revisoras"
             referencedColumns: ["id"]
           },
         ]
