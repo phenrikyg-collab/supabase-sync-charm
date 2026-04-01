@@ -16,6 +16,7 @@ import CalculadoraBonusRevisoras from "./CalculadoraBonusRevisoras";
 export default function TabRevisao() {
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
+  const [editId, setEditId] = useState<string | null>(null);
   const [nome, setNome] = useState("");
 
   const { data: revisoras = [], isLoading } = useQuery({
@@ -27,16 +28,22 @@ export default function TabRevisao() {
     },
   });
 
-  const insert = useMutation({
+  const save = useMutation({
     mutationFn: async () => {
-      const { error } = await supabase.from("revisoras").insert({ nome });
-      if (error) throw error;
+      if (editId) {
+        const { error } = await supabase.from("revisoras").update({ nome }).eq("id", editId);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase.from("revisoras").insert({ nome });
+        if (error) throw error;
+      }
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["revisoras"] });
-      toast.success("Revisora adicionada");
+      toast.success(editId ? "Revisora atualizada" : "Revisora adicionada");
       setOpen(false);
       setNome("");
+      setEditId(null);
     },
     onError: () => toast.error("Erro ao salvar revisora"),
   });
@@ -49,13 +56,28 @@ export default function TabRevisao() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ["revisoras"] }),
   });
 
+  const deletar = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("revisoras").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["revisoras"] });
+      toast.success("Revisora excluída");
+    },
+    onError: () => toast.error("Erro ao excluir — pode haver registros vinculados"),
+  });
+
+  function openNew() { setEditId(null); setNome(""); setOpen(true); }
+  function openEdit(r: any) { setEditId(r.id); setNome(r.nome); setOpen(true); }
+
   return (
     <div className="space-y-6">
       {/* Revisoras */}
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle className="text-lg text-primary">Revisoras</CardTitle>
-          <Button size="sm" onClick={() => { setNome(""); setOpen(true); }}>
+          <Button size="sm" onClick={openNew}>
             <Plus className="h-4 w-4 mr-1" /> Nova Revisora
           </Button>
         </CardHeader>
@@ -65,19 +87,30 @@ export default function TabRevisao() {
               <TableRow>
                 <TableHead>Nome</TableHead>
                 <TableHead>Ativa</TableHead>
+                <TableHead className="w-24">Ações</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {isLoading ? (
-                <TableRow><TableCell colSpan={2} className="text-center text-muted-foreground">Carregando...</TableCell></TableRow>
+                <TableRow><TableCell colSpan={3} className="text-center text-muted-foreground">Carregando...</TableCell></TableRow>
               ) : revisoras.length === 0 ? (
-                <TableRow><TableCell colSpan={2} className="text-center text-muted-foreground">Nenhuma revisora cadastrada</TableCell></TableRow>
+                <TableRow><TableCell colSpan={3} className="text-center text-muted-foreground">Nenhuma revisora cadastrada</TableCell></TableRow>
               ) : (
                 revisoras.map((r: any, i: number) => (
                   <TableRow key={r.id} className={i % 2 === 0 ? "bg-muted/30" : ""}>
                     <TableCell className="font-medium">{r.nome}</TableCell>
                     <TableCell>
                       <Switch checked={r.ativa} onCheckedChange={(v) => toggleAtiva.mutate({ id: r.id, ativa: v })} />
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex gap-1">
+                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(r)}>
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                        <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => deletar.mutate(r.id)}>
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))
@@ -88,14 +121,14 @@ export default function TabRevisao() {
 
         <Dialog open={open} onOpenChange={setOpen}>
           <DialogContent>
-            <DialogHeader><DialogTitle>Nova Revisora</DialogTitle></DialogHeader>
+            <DialogHeader><DialogTitle>{editId ? "Editar Revisora" : "Nova Revisora"}</DialogTitle></DialogHeader>
             <div>
               <Label>Nome</Label>
               <Input value={nome} onChange={(e) => setNome(e.target.value)} />
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={() => setOpen(false)}>Cancelar</Button>
-              <Button onClick={() => insert.mutate()} disabled={!nome.trim()}>Salvar</Button>
+              <Button onClick={() => save.mutate()} disabled={!nome.trim()}>Salvar</Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
