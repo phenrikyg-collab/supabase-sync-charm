@@ -1,5 +1,5 @@
 import { useState } from "react";
-import ImportacaoLancamentos from "@/components/ImportacaoLancamentos";
+import ImportacaoLancamentos, { DadosCartao } from "@/components/ImportacaoLancamentos";
 import RevisaoLancamentos from "@/components/RevisaoLancamentos";
 import { Button } from "@/components/ui/button";
 import { CheckCircle2 } from "lucide-react";
@@ -20,9 +20,11 @@ interface LancamentoImportado {
 export default function ImportarPage() {
   const [etapa, setEtapa] = useState<Etapa>("importar");
   const [lancamentos, setLancamentos] = useState<LancamentoImportado[]>([]);
+  const [dadosCartao, setDadosCartao] = useState<DadosCartao | undefined>();
 
-  const handleImportar = (dados: LancamentoImportado[]) => {
+  const handleImportar = (dados: LancamentoImportado[], cartao?: DadosCartao) => {
     setLancamentos(dados);
+    setDadosCartao(cartao);
     setEtapa("revisar");
   };
 
@@ -34,6 +36,7 @@ export default function ImportarPage() {
     return (
       <RevisaoLancamentos
         lancamentosImportados={lancamentos}
+        dadosCartao={dadosCartao}
         onConcluir={() => setEtapa("concluido")}
         onVoltar={() => setEtapa("importar")}
       />
@@ -48,7 +51,7 @@ export default function ImportarPage() {
         <p className="text-muted-foreground">
           Todos os lançamentos foram classificados e salvos com sucesso.
         </p>
-        <Button onClick={() => setEtapa("importar")} className="w-full">
+        <Button onClick={() => { setEtapa("importar"); setDadosCartao(undefined); }} className="w-full">
           Importar novo arquivo
         </Button>
       </div>

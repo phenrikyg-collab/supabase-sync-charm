@@ -2,6 +2,9 @@ import { useRef, useState } from "react";
 import { invokeEdgeFunction } from "@/lib/edgeFunctions";
 import { useCategorias } from "@/hooks/useSupabase";
 import { findCategoriaByDescricao } from "@/lib/categoriaMappings";
+import { Switch } from "@/components/ui/switch";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import * as XLSX from "xlsx";
 
 interface LancamentoImportado {
@@ -15,8 +18,13 @@ interface LancamentoImportado {
   categoria?: any;
 }
 
+export interface DadosCartao {
+  cartaoNome: string;
+  faturaVencimento: string;
+}
+
 interface Props {
-  onImportar: (lancamentos: LancamentoImportado[]) => void;
+  onImportar: (lancamentos: LancamentoImportado[], dadosCartao?: DadosCartao) => void;
 }
 
 type FormatoDetectado = "extrato_pagamentos_safra" | "extrato_safra" | "vindi" | "generico";
@@ -32,48 +40,23 @@ const isDateLikeValue = (val: any) => {
 
 const detectarFormato = (headers: string[]): FormatoDetectado => {
   const h = headers.map((c) => String(c ?? "").toLowerCase().trim());
-
-  // Extrato Pagamentos Safra: "data", "data vencimento", "favorecido / beneficiário", "valor (r$)"
-  if (h.some((c) => c.includes("favorecido")) && h.some((c) => c.includes("valor (r$)"))) {
-    return "extrato_pagamentos_safra";
-  }
-
-  // Vindi: "data da transação", "cliente", "valor pago", "valor loja"
-  if (h.some((c) => c.includes("data da transação") || c.includes("data da transacao")) && h.some((c) => c.includes("valor loja") || c.includes("valor pago"))) {
-    return "vindi";
-  }
-
-  // Extrato Safra: "tipo do lançamento", "lançamento", "complemento"
-  if (h.some((c) => c.includes("tipo do lançamento") || c.includes("tipo do lancamento")) && h.some((c) => c.includes("lançamento") || c.includes("lancamento"))) {
-    return "extrato_safra";
-  }
-
+  if (h.some((c) => c.includes("favorecido")) && h.some((c) => c.includes("valor (r$)"))) return "extrato_pagamentos_safra";
+  if (h.some((c) => c.includes("data da transação") || c.includes("data da transacao")) && h.some((c) => c.includes("valor loja") || c.includes("valor pago"))) return "vindi";
+  if (h.some((c) => c.includes("tipo do lançamento") || c.includes("tipo do lancamento")) && h.some((c) => c.includes("lançamento") || c.includes("lancamento"))) return "extrato_safra";
   return "generico";
 };
 
 const formatExcelDate = (val: any): string => {
   const hoje = new Date();
   const formatar = (dia: number, mes: number, ano: number) => `${String(dia).padStart(2, "0")}/${String(mes).padStart(2, "0")}/${ano}`;
-
   if (!val) return formatar(hoje.getDate(), hoje.getMonth() + 1, hoje.getFullYear());
-
-  if (val instanceof Date && !Number.isNaN(val.getTime())) {
-    return formatar(val.getDate(), val.getMonth() + 1, val.getFullYear());
-  }
-
-  if (typeof val === "number") {
-    const d = XLSX.SSF.parse_date_code(val);
-    return formatar(d.d, d.m, d.y);
-  }
-
+  if (val instanceof Date && !Number.isNaN(val.getTime())) return formatar(val.getDate(), val.getMonth() + 1, val.getFullYear());
+  if (typeof val === "number") { const d = XLSX.SSF.parse_date_code(val); return formatar(d.d, d.m, d.y); }
   const s = String(val).trim();
-  // DD/MM/AAAA
   const matchFull = s.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
   if (matchFull) return `${matchFull[1]}/${matchFull[2]}/${matchFull[3]}`;
-  // DD/MM (sem ano) — assume ano corrente
   const matchShort = s.match(/^(\d{2})\/(\d{2})$/);
   if (matchShort) return `${matchShort[1]}/${matchShort[2]}/${hoje.getFullYear()}`;
-  // AAAA-MM-DD (já está ok) ou datetime
   const matchIso = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
   if (matchIso) return `${matchIso[3]}/${matchIso[2]}/${matchIso[1]}`;
   return s;
@@ -82,17 +65,13 @@ const formatExcelDate = (val: any): string => {
 const parseSafeNumber = (val: any): number => {
   if (typeof val === "number") return Number.isFinite(val) ? val : NaN;
   if (isDateLikeValue(val)) return NaN;
-
   const raw = String(val ?? "").trim();
   if (!raw) return NaN;
-
   const sanitized = raw.replace(/[^\d.,-]/g, "");
   if (!sanitized) return NaN;
-
   const normalized = sanitized.includes(",") && sanitized.includes(".")
     ? sanitized.replace(/\./g, "").replace(",", ".")
     : sanitized.replace(",", ".");
-
   const n = Number(normalized);
   return Number.isFinite(n) ? n : NaN;
 };
@@ -103,12 +82,10 @@ const getRowNumberValue = (row: any[], preferredIndexes: number[]) => {
     const value = parseSafeNumber(row[index]);
     if (Number.isFinite(value)) return value;
   }
-
   for (let i = 0; i < row.length; i++) {
     const value = parseSafeNumber(row[i]);
     if (Number.isFinite(value)) return value;
   }
-
   return NaN;
 };
 
@@ -118,22 +95,11 @@ const mapExtratoPagamentosSafra = (rows: any[][]): LancamentoImportado[] => {
   const iVenc = headers.findIndex((h: string) => h.includes("data vencimento"));
   const iDesc = headers.findIndex((h: string) => h.includes("favorecido"));
   const iValor = headers.findIndex((h: string) => h.includes("valor"));
-
-  return rows.slice(1)
-    .filter((r) => r[iDesc])
-    .map((r) => {
-      const valor = getRowNumberValue(r, [iValor]);
-      if (!Number.isFinite(valor)) return null;
-
-      return {
-        descricao: String(r[iDesc] || ""),
-        valor: Math.abs(valor),
-        data: formatExcelDate(r[iData]),
-        data_vencimento: iVenc >= 0 ? formatExcelDate(r[iVenc]) : null,
-        tipo: "saida" as const,
-      };
-    })
-    .filter(Boolean) as LancamentoImportado[];
+  return rows.slice(1).filter((r) => r[iDesc]).map((r) => {
+    const valor = getRowNumberValue(r, [iValor]);
+    if (!Number.isFinite(valor)) return null;
+    return { descricao: String(r[iDesc] || ""), valor: Math.abs(valor), data: formatExcelDate(r[iData]), data_vencimento: iVenc >= 0 ? formatExcelDate(r[iVenc]) : null, tipo: "saida" as const };
+  }).filter(Boolean) as LancamentoImportado[];
 };
 
 const mapExtratoSafra = (rows: any[][]): LancamentoImportado[] => {
@@ -143,24 +109,13 @@ const mapExtratoSafra = (rows: any[][]): LancamentoImportado[] => {
   const iLanc = headers.findIndex((h: string) => h === "lançamento" || h === "lancamento");
   const iCompl = headers.findIndex((h: string) => h.includes("complemento"));
   const iValor = headers.findIndex((h: string) => h === "valor");
-
   return rows.slice(1).filter((r) => r[iLanc]).map((r) => {
     const tipoLanc = String(r[iTipo] || "").toLowerCase();
     const valor = getRowNumberValue(r, [iValor]);
     const descParts = [String(r[iLanc] || "")];
-    if (r[iCompl] && String(r[iCompl]).trim() !== "" && String(r[iCompl]).toLowerCase() !== "nan") {
-      descParts.push(String(r[iCompl]));
-    }
-
+    if (r[iCompl] && String(r[iCompl]).trim() !== "" && String(r[iCompl]).toLowerCase() !== "nan") descParts.push(String(r[iCompl]));
     if (!Number.isFinite(valor)) return null;
-
-    return {
-      descricao: descParts.join(" - "),
-      valor: Math.abs(valor),
-      data: formatExcelDate(r[iData]),
-      data_vencimento: null,
-      tipo: (tipoLanc.includes("créd") || tipoLanc.includes("cred") || valor > 0 ? "entrada" : "saida") as "entrada" | "saida",
-    };
+    return { descricao: descParts.join(" - "), valor: Math.abs(valor), data: formatExcelDate(r[iData]), data_vencimento: null, tipo: (tipoLanc.includes("créd") || tipoLanc.includes("cred") || valor > 0 ? "entrada" : "saida") as "entrada" | "saida" };
   }).filter(Boolean) as LancamentoImportado[];
 };
 
@@ -173,51 +128,27 @@ const mapVindi = (rows: any[][]): LancamentoImportado[] => {
   const iCredito = headers.findIndex((h: string) => h.includes("data credito") || h.includes("data crédito"));
   const iPedido = headers.findIndex((h: string) => h.includes("número pedido") || h.includes("numero pedido"));
   const iStatus = headers.findIndex((h: string) => h === "status");
-
-  return rows.slice(1)
-    .filter((r) => {
-      if (iStatus >= 0) {
-        const status = String(r[iStatus] || "").toLowerCase();
-        if (status && !status.includes("aprovada") && status !== "nan") return false;
-      }
-      return r[iCliente];
-    })
-    .map((r) => {
-      const valorLoja = getRowNumberValue(r, [iValorLoja]);
-      const valorPago = getRowNumberValue(r, [iValorPago]);
-      const pedido = iPedido >= 0 && r[iPedido] ? ` #${r[iPedido]}` : "";
-
-      const valor = Number.isFinite(valorLoja) ? valorLoja : valorPago;
-      if (!Number.isFinite(valor)) return null;
-
-      return {
-        descricao: `${String(r[iCliente] || "")}${pedido}`,
-        valor,
-        data: formatExcelDate(r[iData]),
-        data_vencimento: iCredito >= 0 ? formatExcelDate(r[iCredito]) : null,
-        tipo: "entrada" as const,
-      };
-    })
-    .filter(Boolean) as LancamentoImportado[];
+  return rows.slice(1).filter((r) => {
+    if (iStatus >= 0) { const status = String(r[iStatus] || "").toLowerCase(); if (status && !status.includes("aprovada") && status !== "nan") return false; }
+    return r[iCliente];
+  }).map((r) => {
+    const valorLoja = getRowNumberValue(r, [iValorLoja]);
+    const valorPago = getRowNumberValue(r, [iValorPago]);
+    const pedido = iPedido >= 0 && r[iPedido] ? ` #${r[iPedido]}` : "";
+    const valor = Number.isFinite(valorLoja) ? valorLoja : valorPago;
+    if (!Number.isFinite(valor)) return null;
+    return { descricao: `${String(r[iCliente] || "")}${pedido}`, valor, data: formatExcelDate(r[iData]), data_vencimento: iCredito >= 0 ? formatExcelDate(r[iCredito]) : null, tipo: "entrada" as const };
+  }).filter(Boolean) as LancamentoImportado[];
 };
 
 const mapGenerico = (rows: any[][]): LancamentoImportado[] => {
-  return rows.slice(1)
-    .map((cols, i) => {
-      const valorIndex = cols.findIndex((cell, index) => index > 0 && Number.isFinite(parseSafeNumber(cell)));
-      const dataIndex = cols.findIndex((cell, index) => index !== valorIndex && (isDateLikeValue(cell) || typeof cell === "number"));
-      const valor = valorIndex >= 0 ? parseSafeNumber(cols[valorIndex]) : NaN;
-
-      if (!String(cols[0] || "").trim() || !Number.isFinite(valor)) return null;
-
-      return {
-        descricao: String(cols[0] || "") || `Lançamento ${i + 1}`,
-        valor: Math.abs(valor),
-        data: formatExcelDate(dataIndex >= 0 ? cols[dataIndex] : cols[2]),
-        data_vencimento: null,
-      };
-    })
-    .filter(Boolean) as LancamentoImportado[];
+  return rows.slice(1).map((cols, i) => {
+    const valorIndex = cols.findIndex((cell, index) => index > 0 && Number.isFinite(parseSafeNumber(cell)));
+    const dataIndex = cols.findIndex((cell, index) => index !== valorIndex && (isDateLikeValue(cell) || typeof cell === "number"));
+    const valor = valorIndex >= 0 ? parseSafeNumber(cols[valorIndex]) : NaN;
+    if (!String(cols[0] || "").trim() || !Number.isFinite(valor)) return null;
+    return { descricao: String(cols[0] || "") || `Lançamento ${i + 1}`, valor: Math.abs(valor), data: formatExcelDate(dataIndex >= 0 ? cols[dataIndex] : cols[2]), data_vencimento: null };
+  }).filter(Boolean) as LancamentoImportado[];
 };
 
 export default function ImportacaoLancamentos({ onImportar }: Props) {
@@ -227,56 +158,56 @@ export default function ImportacaoLancamentos({ onImportar }: Props) {
   const [erro, setErro] = useState<string | null>(null);
   const { data: categorias } = useCategorias();
 
+  // Card mode state
+  const [isCartao, setIsCartao] = useState(false);
+  const [cartaoNome, setCartaoNome] = useState("");
+  const [faturaVencimento, setFaturaVencimento] = useState("");
+
+  const getDadosCartao = (): DadosCartao | undefined => {
+    if (!isCartao) return undefined;
+    return { cartaoNome, faturaVencimento };
+  };
+
+  const validarCartao = (): boolean => {
+    if (!isCartao) return true;
+    if (!cartaoNome.trim()) { setErro("Informe o nome do cartão."); return false; }
+    if (!faturaVencimento) { setErro("Informe a data de vencimento da fatura."); return false; }
+    return true;
+  };
+
   const processSpreadsheetRows = (rows: any[][]) => {
-    if (!rows.length || rows.length < 2) {
-      setErro("Planilha vazia ou sem dados.");
-      return;
-    }
+    if (!validarCartao()) return;
+    if (!rows.length || rows.length < 2) { setErro("Planilha vazia ou sem dados."); return; }
 
     const headers = rows[0];
     const formato = detectarFormato(headers.map((c: any) => String(c ?? "")));
-
     let lancamentos: LancamentoImportado[];
     switch (formato) {
-      case "extrato_pagamentos_safra":
-        lancamentos = mapExtratoPagamentosSafra(rows);
-        break;
-      case "extrato_safra":
-        lancamentos = mapExtratoSafra(rows);
-        break;
-      case "vindi":
-        lancamentos = mapVindi(rows);
-        break;
-      default:
-        lancamentos = mapGenerico(rows);
+      case "extrato_pagamentos_safra": lancamentos = mapExtratoPagamentosSafra(rows); break;
+      case "extrato_safra": lancamentos = mapExtratoSafra(rows); break;
+      case "vindi": lancamentos = mapVindi(rows); break;
+      default: lancamentos = mapGenerico(rows);
     }
+    if (!lancamentos.length) { setErro("Nenhum lançamento encontrado na planilha."); return; }
 
-    if (!lancamentos.length) {
-      setErro("Nenhum lançamento encontrado na planilha.");
-      return;
-    }
-
-    // Pré-atribuir categorias com base no mapeamento descrição→categoria
     if (categorias?.length) {
       lancamentos = lancamentos.map((l) => {
         const match = findCategoriaByDescricao(l.descricao, categorias);
-        if (match) {
-          return { ...l, categoria_id: match.id, categoria_nome: match.nome };
-        }
+        if (match) return { ...l, categoria_id: match.id, categoria_nome: match.nome };
         return l;
       });
     }
 
-    onImportar(lancamentos);
+    onImportar(lancamentos, getDadosCartao());
   };
 
   const handleSpreadsheet = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     setErro(null);
+    if (!validarCartao()) return;
 
     const isXlsx = file.name.endsWith(".xlsx") || file.name.endsWith(".xls");
-
     if (isXlsx) {
       const reader = new FileReader();
       reader.onload = (ev) => {
@@ -298,14 +229,14 @@ export default function ImportacaoLancamentos({ onImportar }: Props) {
       reader.readAsText(file);
     }
   };
-  // ── Importação PDF ──────────────────────────────────────────────────────────
+
   const handlePDF = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    setErro(null);
+    if (!validarCartao()) return;
 
     setProcessando(true);
-    setErro(null);
-
     try {
       const base64 = await new Promise<string>((resolve, reject) => {
         const reader = new FileReader();
@@ -330,7 +261,7 @@ export default function ImportacaoLancamentos({ onImportar }: Props) {
         categoria: t.categoria_sugerida ? { nome: t.categoria_sugerida, id: t.categoria_id } : undefined,
       }));
 
-      onImportar(lancamentos);
+      onImportar(lancamentos, getDadosCartao());
     } catch (err: any) {
       setErro(err.message || "Erro ao processar o PDF");
     } finally {
@@ -346,6 +277,41 @@ export default function ImportacaoLancamentos({ onImportar }: Props) {
         <p className="text-muted-foreground text-sm">
           Importe um extrato de cartão em <strong>PDF</strong> ou uma planilha em <strong>CSV / XLSX</strong>.
         </p>
+
+        {/* Toggle Cartão de Crédito */}
+        <div className="bg-muted/50 rounded-xl p-4 space-y-4 text-left border border-border">
+          <div className="flex items-center justify-between">
+            <Label htmlFor="cartao-toggle" className="text-sm font-medium text-foreground cursor-pointer">
+              💳 Importação de Cartão de Crédito
+            </Label>
+            <Switch id="cartao-toggle" checked={isCartao} onCheckedChange={setIsCartao} />
+          </div>
+
+          {isCartao && (
+            <div className="space-y-3 pt-2 border-t border-border">
+              <div>
+                <Label htmlFor="cartao-nome" className="text-xs text-muted-foreground">Nome do Cartão *</Label>
+                <Input
+                  id="cartao-nome"
+                  placeholder="Ex: Nubank, Itaú, Inter..."
+                  value={cartaoNome}
+                  onChange={(e) => setCartaoNome(e.target.value)}
+                  className="mt-1"
+                />
+              </div>
+              <div>
+                <Label htmlFor="fatura-venc" className="text-xs text-muted-foreground">Vencimento da Fatura *</Label>
+                <Input
+                  id="fatura-venc"
+                  type="date"
+                  value={faturaVencimento}
+                  onChange={(e) => setFaturaVencimento(e.target.value)}
+                  className="mt-1"
+                />
+              </div>
+            </div>
+          )}
+        </div>
 
         {processando ? (
           <div className="space-y-3">

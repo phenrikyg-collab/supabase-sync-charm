@@ -74,7 +74,7 @@ const moduleGroups: ModuleGroup[] = [
       { title: "Contas a Pagar", url: "/contas-pagar", icon: CreditCard },
       { title: "Contas a Receber", url: "/contas-receber", icon: DollarSign },
       { title: "DRE", url: "/dre", icon: BarChart3 },
-      { title: "Importar Extrato", url: "/importar", icon: Upload },
+      { title: "Importar Extrato", url: "/importar-extrato", icon: Upload },
       { title: "Faturas Cartão", url: "/faturas", icon: CreditCard },
     ],
   },
