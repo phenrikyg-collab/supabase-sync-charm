@@ -558,6 +558,7 @@ export type Database = {
           data_medicao: string | null
           id: string
           num_amostras: number | null
+          numero_etapa: number
           observacao: string | null
           operacao: string
           produto_id: string
@@ -570,6 +571,7 @@ export type Database = {
           data_medicao?: string | null
           id?: string
           num_amostras?: number | null
+          numero_etapa?: number
           observacao?: string | null
           operacao: string
           produto_id: string
@@ -582,6 +584,7 @@ export type Database = {
           data_medicao?: string | null
           id?: string
           num_amostras?: number | null
+          numero_etapa?: number
           observacao?: string | null
           operacao?: string
           produto_id?: string
