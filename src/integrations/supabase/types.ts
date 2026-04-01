@@ -164,6 +164,33 @@ export type Database = {
         }
         Relationships: []
       }
+      config_maquinas: {
+        Row: {
+          created_at: string
+          dias_uteis_mes: number
+          horas_por_dia: number
+          id: string
+          quantidade_maquinas: number
+          tipo_maquina: string
+        }
+        Insert: {
+          created_at?: string
+          dias_uteis_mes?: number
+          horas_por_dia?: number
+          id?: string
+          quantidade_maquinas?: number
+          tipo_maquina: string
+        }
+        Update: {
+          created_at?: string
+          dias_uteis_mes?: number
+          horas_por_dia?: number
+          id?: string
+          quantidade_maquinas?: number
+          tipo_maquina?: string
+        }
+        Relationships: []
+      }
       consertos: {
         Row: {
           cor_id: string | null
@@ -332,6 +359,53 @@ export type Database = {
             columns: ["colaborador_id"]
             isOneToOne: false
             referencedRelation: "colaboradores"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      fichas_tecnicas_tempo: {
+        Row: {
+          created_at: string
+          cronometrado_por: string | null
+          data_medicao: string | null
+          id: string
+          num_amostras: number | null
+          observacao: string | null
+          operacao: string
+          produto_id: string
+          tempo_minutos: number
+          tipo_peca: string
+        }
+        Insert: {
+          created_at?: string
+          cronometrado_por?: string | null
+          data_medicao?: string | null
+          id?: string
+          num_amostras?: number | null
+          observacao?: string | null
+          operacao: string
+          produto_id: string
+          tempo_minutos?: number
+          tipo_peca?: string
+        }
+        Update: {
+          created_at?: string
+          cronometrado_por?: string | null
+          data_medicao?: string | null
+          id?: string
+          num_amostras?: number | null
+          observacao?: string | null
+          operacao?: string
+          produto_id?: string
+          tempo_minutos?: number
+          tipo_peca?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fichas_tecnicas_tempo_produto_id_fkey"
+            columns: ["produto_id"]
+            isOneToOne: false
+            referencedRelation: "produtos"
             referencedColumns: ["id"]
           },
         ]

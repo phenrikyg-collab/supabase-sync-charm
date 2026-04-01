@@ -12,6 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Plus, Pencil, Trophy } from "lucide-react";
 import { toast } from "sonner";
+import TabFichasTecnicas from "@/components/bonificacao/TabFichasTecnicas";
 
 /* ───── Costureiras ───── */
 
@@ -266,10 +267,7 @@ export default function Bonificacao() {
         </TabsList>
 
         <TabsContent value="fichas">
-          <Card>
-            <CardHeader><CardTitle className="text-lg text-primary">Fichas Técnicas</CardTitle></CardHeader>
-            <CardContent><p className="text-muted-foreground">Em breve.</p></CardContent>
-          </Card>
+          <TabFichasTecnicas />
         </TabsContent>
 
         <TabsContent value="producao">
