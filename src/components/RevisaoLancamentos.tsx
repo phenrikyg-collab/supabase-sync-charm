@@ -102,8 +102,25 @@ export default function RevisaoLancamentos({ lancamentosImportados, dadosCartao,
   const [salvando, setSalvando] = useState(false);
   const [expandido, setExpandido] = useState<string | null>(null);
   const { classificarLotes, carregando } = useClassifyCategory();
+  const { data: categorias } = useCategorias();
 
   const isCartao = !!dadosCartao;
+
+  // Group categories by grupo_dre for the dropdown
+  const categoriasAgrupadas = useMemo(() => {
+    if (!categorias) return {};
+    const groups: Record<string, typeof categorias> = {};
+    for (const cat of categorias) {
+      const grupo = cat.grupo_dre || "Outros";
+      if (!groups[grupo]) groups[grupo] = [];
+      groups[grupo].push(cat);
+    }
+    // Sort categories within each group
+    for (const grupo of Object.keys(groups)) {
+      groups[grupo].sort((a, b) => (a.nome_categoria || "").localeCompare(b.nome_categoria || ""));
+    }
+    return groups;
+  }, [categorias]);
 
   useEffect(() => {
     const iniciais: Lancamento[] = lancamentosImportados.map((l, i) => ({
@@ -114,13 +131,23 @@ export default function RevisaoLancamentos({ lancamentosImportados, dadosCartao,
     classificarLotes(iniciais, setLancamentos);
   }, []);
 
-  const alterarCategoria = (id: string, codigo: number) => {
-    const cat = CATEGORIAS.find((c) => c.codigo === codigo);
+  const alterarCategoria = (id: string, categoriaId: string) => {
+    const cat = categorias?.find((c) => c.id === categoriaId);
     if (!cat) return;
     setLancamentos((prev) =>
       prev.map((l) =>
         l.id === id
-          ? { ...l, categoria: { ...l.categoria!, codigo, nome: cat.nome, confianca: 100, motivo: "Alterado manualmente" } }
+          ? {
+              ...l,
+              _categoria_id: categoriaId,
+              categoria: {
+                ...l.categoria!,
+                codigo: parseInt(cat.codigo || "0") || 0,
+                nome: cat.nome_categoria || "Sem nome",
+                confianca: 100,
+                motivo: "Alterado manualmente",
+              },
+            }
           : l,
       ),
     );
