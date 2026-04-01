@@ -232,6 +232,33 @@ export type Database = {
         }
         Relationships: []
       }
+      costureiras: {
+        Row: {
+          ativa: boolean
+          created_at: string
+          funcao: string
+          id: string
+          nome: string
+          participacao_pct: number
+        }
+        Insert: {
+          ativa?: boolean
+          created_at?: string
+          funcao?: string
+          id?: string
+          nome: string
+          participacao_pct?: number
+        }
+        Update: {
+          ativa?: boolean
+          created_at?: string
+          funcao?: string
+          id?: string
+          nome?: string
+          participacao_pct?: number
+        }
+        Relationships: []
+      }
       custo_fixo_oficina: {
         Row: {
           created_at: string
@@ -783,6 +810,27 @@ export type Database = {
           tecido_do_produto?: string | null
           tipo_do_produto?: string | null
           updated_from_bling?: string | null
+        }
+        Relationships: []
+      }
+      revisoras: {
+        Row: {
+          ativa: boolean
+          created_at: string
+          id: string
+          nome: string
+        }
+        Insert: {
+          ativa?: boolean
+          created_at?: string
+          id?: string
+          nome: string
+        }
+        Update: {
+          ativa?: boolean
+          created_at?: string
+          id?: string
+          nome?: string
         }
         Relationships: []
       }
