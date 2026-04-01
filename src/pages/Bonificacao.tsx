@@ -267,10 +267,7 @@ export default function Bonificacao() {
         </TabsList>
 
         <TabsContent value="fichas">
-          <Card>
-            <CardHeader><CardTitle className="text-lg text-primary">Fichas Técnicas</CardTitle></CardHeader>
-            <CardContent><p className="text-muted-foreground">Em breve.</p></CardContent>
-          </Card>
+          <TabFichasTecnicas />
         </TabsContent>
 
         <TabsContent value="producao">
