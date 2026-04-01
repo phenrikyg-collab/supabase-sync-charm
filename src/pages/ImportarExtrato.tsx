@@ -204,8 +204,60 @@ export default function ImportarExtrato() {
       toast.error("Selecione ao menos um lançamento.");
       return;
     }
+
+    const isCartao = banco === "cartao";
+
+    if (isCartao && !cartaoNome.trim()) {
+      toast.error("Informe o nome do cartão.");
+      return;
+    }
+
     setIsSalvando(true);
     try {
+      let faturaId: string | null = null;
+
+      // Se for cartão, criar ou localizar fatura
+      if (isCartao) {
+        const totalFatura = selecionados.reduce((s, r) => s + r.valor, 0);
+        const mesRef = selecionados[0]?.data?.substring(0, 7) || new Date().toISOString().substring(0, 7);
+
+        // Verificar se já existe fatura para este cartão/mês
+        const { data: faturaExistente } = await supabase
+          .from("cartoes_faturas")
+          .select("id")
+          .eq("cartao_nome", cartaoNome.trim())
+          .eq("mes_referencia", mesRef)
+          .maybeSingle();
+
+        if (faturaExistente) {
+          faturaId = faturaExistente.id;
+          // Atualizar valor total da fatura
+          const { data: faturaAtual } = await supabase
+            .from("cartoes_faturas")
+            .select("valor_total")
+            .eq("id", faturaId)
+            .single();
+          await supabase
+            .from("cartoes_faturas")
+            .update({ valor_total: (faturaAtual?.valor_total ?? 0) + totalFatura })
+            .eq("id", faturaId);
+        } else {
+          const { data: novaFatura, error: errFatura } = await supabase
+            .from("cartoes_faturas")
+            .insert({
+              cartao_nome: cartaoNome.trim(),
+              mes_referencia: mesRef,
+              valor_total: totalFatura,
+              data_vencimento: faturaVencimento || null,
+              status: "aberta",
+            })
+            .select("id")
+            .single();
+          if (errFatura) throw errFatura;
+          faturaId = novaFatura.id;
+        }
+      }
+
       const inserts = selecionados
         .map((r) => {
           const valor = normalizeNumberForDb(r.valor);
@@ -214,7 +266,7 @@ export default function ImportarExtrato() {
 
           if (!Number.isFinite(valor) || !data) return null;
 
-          return {
+          const base: any = {
             data,
             data_vencimento: dataVencimento,
             descricao: r.descricao,
@@ -223,6 +275,15 @@ export default function ImportarExtrato() {
             categoria_id: r.categoria_id,
             origem: `extrato_${banco}`,
           };
+
+          if (isCartao) {
+            base.conta_tipo = "cartao_fatura";
+            base.fatura_id = faturaId;
+            base.impacta_dre = true;
+            base.impacta_fluxo = false;
+          }
+
+          return base;
         })
         .filter(Boolean);
 
@@ -233,8 +294,9 @@ export default function ImportarExtrato() {
       const { error } = await supabase.from("movimentacoes_financeiras").insert(inserts);
       if (error) throw error;
 
-      toast.success(`${selecionados.length} lançamentos salvos!`);
+      toast.success(`${selecionados.length} lançamentos salvos!${isCartao ? ` Fatura vinculada: ${cartaoNome}` : ""}`);
       queryClient.invalidateQueries({ queryKey: ["movimentacoes"] });
+      queryClient.invalidateQueries({ queryKey: ["cartoes_faturas"] });
       setRows([]);
     } catch (err: any) {
       toast.error("Erro ao salvar: " + (err.message || "erro desconhecido"));
