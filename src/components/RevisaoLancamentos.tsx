@@ -322,14 +322,19 @@ export default function RevisaoLancamentos({ lancamentosImportados, dadosCartao,
                   <div>
                     <label className="text-xs font-medium text-gray-600 block mb-1">Alterar categoria:</label>
                     <select
-                      value={l.categoria.codigo}
-                      onChange={(e) => alterarCategoria(l.id, parseInt(e.target.value))}
+                      value={l._categoria_id || l.categoria_id || ""}
+                      onChange={(e) => alterarCategoria(l.id, e.target.value)}
                       className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                     >
-                      {CATEGORIAS.map((c) => (
-                        <option key={c.codigo} value={c.codigo}>
-                          [{c.codigo}] {c.nome}
-                        </option>
+                      <option value="" disabled>Selecione uma categoria</option>
+                      {Object.entries(categoriasAgrupadas).map(([grupo, cats]) => (
+                        <optgroup key={grupo} label={grupo}>
+                          {cats.map((c) => (
+                            <option key={c.id} value={c.id}>
+                              {c.nome_categoria}
+                            </option>
+                          ))}
+                        </optgroup>
                       ))}
                     </select>
                   </div>
