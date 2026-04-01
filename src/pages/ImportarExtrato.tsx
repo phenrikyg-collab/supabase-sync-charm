@@ -212,34 +212,37 @@ export default function ImportarExtrato() {
       return;
     }
 
+    if (isCartao && !faturaVencimento) {
+      toast.error("Informe a data de vencimento da fatura.");
+      return;
+    }
+
     setIsSalvando(true);
     try {
       let faturaId: string | null = null;
 
-      // Se for cartão, criar ou localizar fatura
+      // Se for cartão, criar ou localizar fatura por (cartao_nome + data_vencimento)
       if (isCartao) {
         const totalFatura = selecionados.reduce((s, r) => s + r.valor, 0);
         const mesRef = selecionados[0]?.data?.substring(0, 7) || new Date().toISOString().substring(0, 7);
 
-        // Verificar se já existe fatura para este cartão/mês
+        // Buscar fatura existente por cartão + vencimento
         const { data: faturaExistente } = await supabase
           .from("cartoes_faturas")
-          .select("id")
+          .select("id, valor_total")
           .eq("cartao_nome", cartaoNome.trim())
-          .eq("mes_referencia", mesRef)
+          .eq("data_vencimento", faturaVencimento)
           .maybeSingle();
 
         if (faturaExistente) {
           faturaId = faturaExistente.id;
-          // Atualizar valor total da fatura
-          const { data: faturaAtual } = await supabase
-            .from("cartoes_faturas")
-            .select("valor_total")
-            .eq("id", faturaId)
-            .single();
+          // Somar ao valor total existente
           await supabase
             .from("cartoes_faturas")
-            .update({ valor_total: (faturaAtual?.valor_total ?? 0) + totalFatura })
+            .update({
+              valor_total: (faturaExistente.valor_total ?? 0) + totalFatura,
+              saldo_em_aberto: (faturaExistente.valor_total ?? 0) + totalFatura - 0,
+            })
             .eq("id", faturaId);
         } else {
           const { data: novaFatura, error: errFatura } = await supabase
@@ -248,14 +251,28 @@ export default function ImportarExtrato() {
               cartao_nome: cartaoNome.trim(),
               mes_referencia: mesRef,
               valor_total: totalFatura,
-              data_vencimento: faturaVencimento || null,
+              saldo_em_aberto: totalFatura,
+              data_vencimento: faturaVencimento,
               status: "aberta",
+              valor_pago: 0,
             })
             .select("id")
             .single();
           if (errFatura) throw errFatura;
           faturaId = novaFatura.id;
         }
+      }
+
+      // Buscar categoria padrão para fallback
+      let categoriaPadrao: string | null = null;
+      if (isCartao && categorias?.length) {
+        const found = categorias.find(
+          (c) =>
+            c.nome_categoria?.toLowerCase().includes("não classificad") ||
+            c.nome_categoria?.toLowerCase().includes("nao classificad") ||
+            c.nome_categoria?.toLowerCase().includes("outros")
+        );
+        if (found) categoriaPadrao = found.id;
       }
 
       const inserts = selecionados
@@ -268,12 +285,13 @@ export default function ImportarExtrato() {
 
           const base: any = {
             data,
-            data_vencimento: dataVencimento,
+            data_vencimento: isCartao ? faturaVencimento : dataVencimento,
             descricao: r.descricao,
             valor,
-            tipo: r.tipo,
-            categoria_id: r.categoria_id,
+            tipo: isCartao ? "saida" : r.tipo,
+            categoria_id: r.categoria_id || (isCartao ? categoriaPadrao : null),
             origem: `extrato_${banco}`,
+            status_pagamento: isCartao ? "em_aberto" : "pago",
           };
 
           if (isCartao) {
