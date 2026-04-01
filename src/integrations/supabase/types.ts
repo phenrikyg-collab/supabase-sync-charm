@@ -41,6 +41,95 @@ export type Database = {
         }
         Relationships: []
       }
+      bonus_costureiras: {
+        Row: {
+          bonus_prazo: number
+          bonus_qualidade: number
+          costureira_id: string
+          created_at: string
+          id: string
+          ordem_producao_id: string
+          status: string
+          total: number
+        }
+        Insert: {
+          bonus_prazo?: number
+          bonus_qualidade?: number
+          costureira_id: string
+          created_at?: string
+          id?: string
+          ordem_producao_id: string
+          status?: string
+          total?: number
+        }
+        Update: {
+          bonus_prazo?: number
+          bonus_qualidade?: number
+          costureira_id?: string
+          created_at?: string
+          id?: string
+          ordem_producao_id?: string
+          status?: string
+          total?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bonus_costureiras_costureira_id_fkey"
+            columns: ["costureira_id"]
+            isOneToOne: false
+            referencedRelation: "costureiras"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bonus_costureiras_ordem_producao_id_fkey"
+            columns: ["ordem_producao_id"]
+            isOneToOne: false
+            referencedRelation: "ordens_producao"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      bonus_revisoras: {
+        Row: {
+          bonus_prazo: number
+          bonus_qualidade: number
+          created_at: string
+          id: string
+          mes_referencia: string
+          revisora_id: string
+          status: string
+          total: number
+        }
+        Insert: {
+          bonus_prazo?: number
+          bonus_qualidade?: number
+          created_at?: string
+          id?: string
+          mes_referencia: string
+          revisora_id: string
+          status?: string
+          total?: number
+        }
+        Update: {
+          bonus_prazo?: number
+          bonus_qualidade?: number
+          created_at?: string
+          id?: string
+          mes_referencia?: string
+          revisora_id?: string
+          status?: string
+          total?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bonus_revisoras_revisora_id_fkey"
+            columns: ["revisora_id"]
+            isOneToOne: false
+            referencedRelation: "revisoras"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       cartoes_faturas: {
         Row: {
           cartao_nome: string
@@ -164,18 +253,75 @@ export type Database = {
         }
         Relationships: []
       }
+      config_bonificacao_costureiras: {
+        Row: {
+          bonus_prazo_1_dia_atraso: number
+          bonus_prazo_2_dias_atraso: number
+          bonus_prazo_acima_2_dias: number
+          bonus_prazo_no_prazo: number
+          bonus_qualidade_0_pct: number
+          bonus_qualidade_acima_3_pct: number
+          bonus_qualidade_ate_1_pct: number
+          bonus_qualidade_ate_3_pct: number
+          created_at: string
+          id: string
+        }
+        Insert: {
+          bonus_prazo_1_dia_atraso?: number
+          bonus_prazo_2_dias_atraso?: number
+          bonus_prazo_acima_2_dias?: number
+          bonus_prazo_no_prazo?: number
+          bonus_qualidade_0_pct?: number
+          bonus_qualidade_acima_3_pct?: number
+          bonus_qualidade_ate_1_pct?: number
+          bonus_qualidade_ate_3_pct?: number
+          created_at?: string
+          id?: string
+        }
+        Update: {
+          bonus_prazo_1_dia_atraso?: number
+          bonus_prazo_2_dias_atraso?: number
+          bonus_prazo_acima_2_dias?: number
+          bonus_prazo_no_prazo?: number
+          bonus_qualidade_0_pct?: number
+          bonus_qualidade_acima_3_pct?: number
+          bonus_qualidade_ate_1_pct?: number
+          bonus_qualidade_ate_3_pct?: number
+          created_at?: string
+          id?: string
+        }
+        Relationships: []
+      }
       config_bonificacao_revisoras: {
         Row: {
+          bonus_defeito_0_pct: number
+          bonus_defeito_acima_3_pct: number
+          bonus_defeito_ate_1_pct: number
+          bonus_defeito_ate_3_pct: number
+          bonus_prazo_dentro: number
+          bonus_prazo_fora: number
           created_at: string
           id: string
           prazo_revisao_dias_uteis: number
         }
         Insert: {
+          bonus_defeito_0_pct?: number
+          bonus_defeito_acima_3_pct?: number
+          bonus_defeito_ate_1_pct?: number
+          bonus_defeito_ate_3_pct?: number
+          bonus_prazo_dentro?: number
+          bonus_prazo_fora?: number
           created_at?: string
           id?: string
           prazo_revisao_dias_uteis?: number
         }
         Update: {
+          bonus_defeito_0_pct?: number
+          bonus_defeito_acima_3_pct?: number
+          bonus_defeito_ate_1_pct?: number
+          bonus_defeito_ate_3_pct?: number
+          bonus_prazo_dentro?: number
+          bonus_prazo_fora?: number
           created_at?: string
           id?: string
           prazo_revisao_dias_uteis?: number
@@ -1175,7 +1321,29 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      vw_revisao_mensal: {
+        Row: {
+          mes: string | null
+          pct_prazo: number | null
+          revisoes_fora_prazo: number | null
+          revisoes_no_prazo: number | null
+          revisora_id: string | null
+          revisora_nome: string | null
+          total_aprovadas: number | null
+          total_pecas: number | null
+          total_reprovadas: number | null
+          total_revisoes: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "registros_revisao_revisora_id_fkey"
+            columns: ["revisora_id"]
+            isOneToOne: false
+            referencedRelation: "revisoras"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
       [_ in never]: never
