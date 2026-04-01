@@ -110,7 +110,7 @@ export function LancamentoDiario() {
   const [linhas, setLinhas] = useState<LinhaLanc[]>([]);
 
   // Inicializar linhas quando costureiras ou existingRecords mudam
-  useMemo(() => {
+  useEffect(() => {
     if (costureiras.length === 0) return;
     setLinhas(
       costureiras.map((c: any) => {
