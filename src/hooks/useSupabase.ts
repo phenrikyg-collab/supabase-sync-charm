@@ -545,3 +545,20 @@ export const useUpdateCustoFixoOficina = () => {
     onSuccess: () => qc.invalidateQueries({ queryKey: ["custos-fixos-oficina"] }),
   });
 };
+
+// Cartões / Faturas
+export interface CartaoFatura {
+  id: string;
+  cartao_nome: string;
+  mes_referencia: string;
+  valor_total: number;
+  valor_pago: number;
+  saldo_em_aberto: number | null;
+  data_vencimento: string | null;
+  status: string;
+  created_at: string;
+}
+
+export const useCartoesFaturas = () =>
+  useQuery({ queryKey: ["cartoes_faturas"], queryFn: () => fetchTable<CartaoFatura>("cartoes_faturas", { orderBy: "created_at" }) });
+
