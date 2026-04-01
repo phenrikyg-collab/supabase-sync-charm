@@ -887,6 +887,60 @@ export type Database = {
         }
         Relationships: []
       }
+      registros_producao_diaria: {
+        Row: {
+          costureira_id: string
+          created_at: string
+          data: string
+          id: string
+          ordem_producao_id: string
+          pecas_defeituosas: number
+          pecas_produzidas: number
+          tempo_galoneira: number
+          tempo_overloque: number
+          tempo_reta: number
+        }
+        Insert: {
+          costureira_id: string
+          created_at?: string
+          data?: string
+          id?: string
+          ordem_producao_id: string
+          pecas_defeituosas?: number
+          pecas_produzidas?: number
+          tempo_galoneira?: number
+          tempo_overloque?: number
+          tempo_reta?: number
+        }
+        Update: {
+          costureira_id?: string
+          created_at?: string
+          data?: string
+          id?: string
+          ordem_producao_id?: string
+          pecas_defeituosas?: number
+          pecas_produzidas?: number
+          tempo_galoneira?: number
+          tempo_overloque?: number
+          tempo_reta?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "registros_producao_diaria_costureira_id_fkey"
+            columns: ["costureira_id"]
+            isOneToOne: false
+            referencedRelation: "costureiras"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "registros_producao_diaria_ordem_producao_id_fkey"
+            columns: ["ordem_producao_id"]
+            isOneToOne: false
+            referencedRelation: "ordens_producao"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       revisoras: {
         Row: {
           ativa: boolean
