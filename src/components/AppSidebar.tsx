@@ -59,6 +59,7 @@ const moduleGroups: ModuleGroup[] = [
       { title: "Ordem de Corte", url: "/ordens-corte", icon: Scissors },
       { title: "Oficinas", url: "/oficinas", icon: Building2 },
       { title: "Oficina Interna", url: "/oficina-interna", icon: Home },
+      { title: "Bonificação", url: "/bonificacao", icon: Trophy },
       { title: "Ordem Produção", url: "/ordens-producao", icon: Factory },
       { title: "Pgto Oficinas", url: "/pagamento-oficinas", icon: DollarSign },
     ],
