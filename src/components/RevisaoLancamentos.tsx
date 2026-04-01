@@ -2,7 +2,7 @@
 // Passo 2: Tela de revisão com sugestão de categoria + % de confiança
 // Agora com suporte a modo cartão de crédito (fatura_id, impacta_dre, impacta_fluxo)
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useClassifyCategory, Lancamento, ClassificationResult } from "@/hooks/useClassifyCategory";
 import { supabase } from "@/integrations/supabase/client";
 import { useCategorias } from "@/hooks/useSupabase";
