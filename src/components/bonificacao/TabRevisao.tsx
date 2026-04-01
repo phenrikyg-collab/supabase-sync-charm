@@ -10,6 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Plus } from "lucide-react";
 import { toast } from "sonner";
+import { LancamentoRevisao, DefeitosMensais, HistoricoRevisoes } from "./RevisaoSections";
 
 export default function TabRevisao() {
   const qc = useQueryClient();
@@ -48,53 +49,65 @@ export default function TabRevisao() {
   });
 
   return (
-    <Card>
-      <CardHeader className="flex flex-row items-center justify-between">
-        <CardTitle className="text-lg text-primary">Revisoras</CardTitle>
-        <Button size="sm" onClick={() => { setNome(""); setOpen(true); }}>
-          <Plus className="h-4 w-4 mr-1" /> Nova Revisora
-        </Button>
-      </CardHeader>
-      <CardContent>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Nome</TableHead>
-              <TableHead>Ativa</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {isLoading ? (
-              <TableRow><TableCell colSpan={2} className="text-center text-muted-foreground">Carregando...</TableCell></TableRow>
-            ) : revisoras.length === 0 ? (
-              <TableRow><TableCell colSpan={2} className="text-center text-muted-foreground">Nenhuma revisora cadastrada</TableCell></TableRow>
-            ) : (
-              revisoras.map((r: any, i: number) => (
-                <TableRow key={r.id} className={i % 2 === 0 ? "bg-muted/30" : ""}>
-                  <TableCell className="font-medium">{r.nome}</TableCell>
-                  <TableCell>
-                    <Switch checked={r.ativa} onCheckedChange={(v) => toggleAtiva.mutate({ id: r.id, ativa: v })} />
-                  </TableCell>
-                </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
-      </CardContent>
+    <div className="space-y-6">
+      {/* Revisoras */}
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <CardTitle className="text-lg text-primary">Revisoras</CardTitle>
+          <Button size="sm" onClick={() => { setNome(""); setOpen(true); }}>
+            <Plus className="h-4 w-4 mr-1" /> Nova Revisora
+          </Button>
+        </CardHeader>
+        <CardContent>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Nome</TableHead>
+                <TableHead>Ativa</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {isLoading ? (
+                <TableRow><TableCell colSpan={2} className="text-center text-muted-foreground">Carregando...</TableCell></TableRow>
+              ) : revisoras.length === 0 ? (
+                <TableRow><TableCell colSpan={2} className="text-center text-muted-foreground">Nenhuma revisora cadastrada</TableCell></TableRow>
+              ) : (
+                revisoras.map((r: any, i: number) => (
+                  <TableRow key={r.id} className={i % 2 === 0 ? "bg-muted/30" : ""}>
+                    <TableCell className="font-medium">{r.nome}</TableCell>
+                    <TableCell>
+                      <Switch checked={r.ativa} onCheckedChange={(v) => toggleAtiva.mutate({ id: r.id, ativa: v })} />
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </CardContent>
 
-      <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent>
-          <DialogHeader><DialogTitle>Nova Revisora</DialogTitle></DialogHeader>
-          <div>
-            <Label>Nome</Label>
-            <Input value={nome} onChange={(e) => setNome(e.target.value)} />
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setOpen(false)}>Cancelar</Button>
-            <Button onClick={() => insert.mutate()} disabled={!nome.trim()}>Salvar</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </Card>
+        <Dialog open={open} onOpenChange={setOpen}>
+          <DialogContent>
+            <DialogHeader><DialogTitle>Nova Revisora</DialogTitle></DialogHeader>
+            <div>
+              <Label>Nome</Label>
+              <Input value={nome} onChange={(e) => setNome(e.target.value)} />
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setOpen(false)}>Cancelar</Button>
+              <Button onClick={() => insert.mutate()} disabled={!nome.trim()}>Salvar</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      </Card>
+
+      {/* Lançamento de Revisão */}
+      <LancamentoRevisao />
+
+      {/* Defeitos Mensais */}
+      <DefeitosMensais />
+
+      {/* Histórico */}
+      <HistoricoRevisoes />
+    </div>
   );
 }
