@@ -5,6 +5,7 @@
 import { useEffect, useState } from "react";
 import { useClassifyCategory, Lancamento, ClassificationResult } from "@/hooks/useClassifyCategory";
 import { supabase } from "@/integrations/supabase/client";
+import { useCategorias } from "@/hooks/useSupabase";
 import type { DadosCartao } from "@/components/ImportacaoLancamentos";
 
 interface Props {
