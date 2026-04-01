@@ -1,10 +1,11 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Trophy } from "lucide-react";
 import TabFichasTecnicas from "@/components/bonificacao/TabFichasTecnicas";
 import CostureirasSection from "@/components/bonificacao/CostureirasSection";
 import { LancamentoDiario, AcompanhamentoOrdem } from "@/components/bonificacao/ProducaoSections";
+import CalculadoraBonusCostureiras from "@/components/bonificacao/CalculadoraBonusCostureiras";
 import TabRevisao from "@/components/bonificacao/TabRevisao";
+import TabConfiguracoes from "@/components/bonificacao/TabConfiguracoes";
 
 export default function Bonificacao() {
   return (
@@ -31,6 +32,7 @@ export default function Bonificacao() {
             <CostureirasSection />
             <LancamentoDiario />
             <AcompanhamentoOrdem />
+            <CalculadoraBonusCostureiras />
           </div>
         </TabsContent>
 
@@ -39,10 +41,7 @@ export default function Bonificacao() {
         </TabsContent>
 
         <TabsContent value="config">
-          <Card>
-            <CardHeader><CardTitle className="text-lg text-primary">Configurações</CardTitle></CardHeader>
-            <CardContent><p className="text-muted-foreground">Em breve.</p></CardContent>
-          </Card>
+          <TabConfiguracoes />
         </TabsContent>
       </Tabs>
     </div>

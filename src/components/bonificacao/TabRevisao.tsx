@@ -11,6 +11,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Plus } from "lucide-react";
 import { toast } from "sonner";
 import { LancamentoRevisao, DefeitosMensais, HistoricoRevisoes } from "./RevisaoSections";
+import CalculadoraBonusRevisoras from "./CalculadoraBonusRevisoras";
 
 export default function TabRevisao() {
   const qc = useQueryClient();
@@ -105,6 +106,9 @@ export default function TabRevisao() {
 
       {/* Defeitos Mensais */}
       <DefeitosMensais />
+
+      {/* Calculadora de Bônus */}
+      <CalculadoraBonusRevisoras />
 
       {/* Histórico */}
       <HistoricoRevisoes />
