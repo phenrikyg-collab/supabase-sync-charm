@@ -2,9 +2,10 @@
 // Passo 2: Tela de revisão com sugestão de categoria + % de confiança
 // Agora com suporte a modo cartão de crédito (fatura_id, impacta_dre, impacta_fluxo)
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useClassifyCategory, Lancamento, ClassificationResult } from "@/hooks/useClassifyCategory";
 import { supabase } from "@/integrations/supabase/client";
+import { useCategorias } from "@/hooks/useSupabase";
 import type { DadosCartao } from "@/components/ImportacaoLancamentos";
 
 interface Props {
@@ -14,34 +15,6 @@ interface Props {
   onVoltar: () => void;
 }
 
-const CATEGORIAS = [
-  { codigo: 1, nome: "Receita com Vendas" },
-  { codigo: 2, nome: "Impostos Sobre Vendas" },
-  { codigo: 4, nome: "Custos Variáveis" },
-  { codigo: 5, nome: "Gastos com Pessoal" },
-  { codigo: 6, nome: "Gastos com Ocupação" },
-  { codigo: 7, nome: "Gastos com Serviços de Terceiros" },
-  { codigo: 8, nome: "Gastos com Marketing" },
-  { codigo: 9, nome: "Receitas não Operacionais" },
-  { codigo: 10, nome: "Gastos não Operacionais" },
-  { codigo: 11, nome: "Imposto de Renda e CSLL" },
-  { codigo: 12, nome: "Investimentos" },
-  { codigo: 13, nome: "Transferências e Ajustes de Saldo (Déb)" },
-  { codigo: 14, nome: "Transferências e Ajustes de Saldo (Cré)" },
-  { codigo: 15, nome: "Logística operacional" },
-  { codigo: 16, nome: "Gastos com sistemas, site e aplicativos" },
-  { codigo: 17, nome: "Gastos com manutenção - produção" },
-  { codigo: 18, nome: "Despesas com brindes e presentes" },
-  { codigo: 19, nome: "Embalagem geral" },
-  { codigo: 99, nome: "Importação" },
-  { codigo: 100, nome: "Compras de equipamentos" },
-  { codigo: 101, nome: "Taxas de Gateway" },
-  { codigo: 102, nome: "Estornos" },
-  { codigo: 103, nome: "Logística de vendas" },
-  { codigo: 104, nome: "Comissão de vendedores" },
-  { codigo: 105, nome: "Parcelamento de saldo do cartão de crédito" },
-  { codigo: 106, nome: "Despesas administrativas" },
-];
 
 function formatDateBR(dateStr: string): string {
   if (!dateStr) return "";
@@ -129,8 +102,24 @@ export default function RevisaoLancamentos({ lancamentosImportados, dadosCartao,
   const [salvando, setSalvando] = useState(false);
   const [expandido, setExpandido] = useState<string | null>(null);
   const { classificarLotes, carregando } = useClassifyCategory();
+  const { data: categorias } = useCategorias();
 
   const isCartao = !!dadosCartao;
+
+  // Group categories by grupo_dre for the dropdown
+  const categoriasAgrupadas = useMemo(() => {
+    if (!categorias) return {} as Record<string, typeof categorias>;
+    const groups: Record<string, NonNullable<typeof categorias>> = {};
+    for (const cat of categorias) {
+      const grupo = cat.grupo_dre || "Outros";
+      if (!groups[grupo]) groups[grupo] = [];
+      groups[grupo].push(cat);
+    }
+    for (const grupo of Object.keys(groups)) {
+      groups[grupo].sort((a, b) => (a.nome_categoria || "").localeCompare(b.nome_categoria || ""));
+    }
+    return groups;
+  }, [categorias]);
 
   useEffect(() => {
     const iniciais: Lancamento[] = lancamentosImportados.map((l, i) => ({
@@ -141,13 +130,23 @@ export default function RevisaoLancamentos({ lancamentosImportados, dadosCartao,
     classificarLotes(iniciais, setLancamentos);
   }, []);
 
-  const alterarCategoria = (id: string, codigo: number) => {
-    const cat = CATEGORIAS.find((c) => c.codigo === codigo);
+  const alterarCategoria = (id: string, categoriaId: string) => {
+    const cat = categorias?.find((c) => c.id === categoriaId);
     if (!cat) return;
     setLancamentos((prev) =>
       prev.map((l) =>
         l.id === id
-          ? { ...l, categoria: { ...l.categoria!, codigo, nome: cat.nome, confianca: 100, motivo: "Alterado manualmente" } }
+          ? {
+              ...l,
+              _categoria_id: categoriaId,
+              categoria: {
+                ...l.categoria!,
+                codigo: parseInt(cat.codigo || "0") || 0,
+                nome: cat.nome_categoria || "Sem nome",
+                confianca: 100,
+                motivo: "Alterado manualmente",
+              },
+            }
           : l,
       ),
     );
@@ -322,14 +321,19 @@ export default function RevisaoLancamentos({ lancamentosImportados, dadosCartao,
                   <div>
                     <label className="text-xs font-medium text-gray-600 block mb-1">Alterar categoria:</label>
                     <select
-                      value={l.categoria.codigo}
-                      onChange={(e) => alterarCategoria(l.id, parseInt(e.target.value))}
+                      value={l._categoria_id || l.categoria_id || ""}
+                      onChange={(e) => alterarCategoria(l.id, e.target.value)}
                       className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                     >
-                      {CATEGORIAS.map((c) => (
-                        <option key={c.codigo} value={c.codigo}>
-                          [{c.codigo}] {c.nome}
-                        </option>
+                      <option value="" disabled>Selecione uma categoria</option>
+                      {Object.entries(categoriasAgrupadas).map(([grupo, cats]) => (
+                        <optgroup key={grupo} label={grupo}>
+                          {cats.map((c) => (
+                            <option key={c.id} value={c.id}>
+                              {c.nome_categoria}
+                            </option>
+                          ))}
+                        </optgroup>
                       ))}
                     </select>
                   </div>
