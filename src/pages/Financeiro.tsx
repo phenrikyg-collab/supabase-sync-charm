@@ -418,7 +418,21 @@ export default function Financeiro() {
                       <TableCell className="text-muted-foreground whitespace-nowrap">
                         {m.data_vencimento ? formatDateBR(m.data_vencimento) : "—"}
                       </TableCell>
-                      <TableCell className="font-medium max-w-xs truncate">{m.descricao ?? "—"}</TableCell>
+                      <TableCell className="font-medium max-w-xs">
+                        <div className="flex items-center gap-1.5">
+                          <span className="truncate">{m.descricao ?? "—"}</span>
+                          {(m as any).conta_tipo === "cartao_fatura" && (
+                            <Badge variant="outline" className="shrink-0 text-[10px] py-0 px-1.5 gap-0.5 border-primary/30 text-primary">
+                              <CreditCard className="h-2.5 w-2.5" /> Cartão
+                            </Badge>
+                          )}
+                          {(m as any).conta_tipo === "pagamento_cartao" && (
+                            <Badge variant="outline" className="shrink-0 text-[10px] py-0 px-1.5 gap-0.5 border-success/30 text-success">
+                              <CreditCard className="h-2.5 w-2.5" /> Pgto Fatura
+                            </Badge>
+                          )}
+                        </div>
+                      </TableCell>
                       <TableCell>
                         <Badge variant={m.tipo === "entrada" ? "default" : "secondary"}>
                           {m.tipo ?? "—"}
