@@ -15,34 +15,6 @@ interface Props {
   onVoltar: () => void;
 }
 
-const CATEGORIAS = [
-  { codigo: 1, nome: "Receita com Vendas" },
-  { codigo: 2, nome: "Impostos Sobre Vendas" },
-  { codigo: 4, nome: "Custos Variáveis" },
-  { codigo: 5, nome: "Gastos com Pessoal" },
-  { codigo: 6, nome: "Gastos com Ocupação" },
-  { codigo: 7, nome: "Gastos com Serviços de Terceiros" },
-  { codigo: 8, nome: "Gastos com Marketing" },
-  { codigo: 9, nome: "Receitas não Operacionais" },
-  { codigo: 10, nome: "Gastos não Operacionais" },
-  { codigo: 11, nome: "Imposto de Renda e CSLL" },
-  { codigo: 12, nome: "Investimentos" },
-  { codigo: 13, nome: "Transferências e Ajustes de Saldo (Déb)" },
-  { codigo: 14, nome: "Transferências e Ajustes de Saldo (Cré)" },
-  { codigo: 15, nome: "Logística operacional" },
-  { codigo: 16, nome: "Gastos com sistemas, site e aplicativos" },
-  { codigo: 17, nome: "Gastos com manutenção - produção" },
-  { codigo: 18, nome: "Despesas com brindes e presentes" },
-  { codigo: 19, nome: "Embalagem geral" },
-  { codigo: 99, nome: "Importação" },
-  { codigo: 100, nome: "Compras de equipamentos" },
-  { codigo: 101, nome: "Taxas de Gateway" },
-  { codigo: 102, nome: "Estornos" },
-  { codigo: 103, nome: "Logística de vendas" },
-  { codigo: 104, nome: "Comissão de vendedores" },
-  { codigo: 105, nome: "Parcelamento de saldo do cartão de crédito" },
-  { codigo: 106, nome: "Despesas administrativas" },
-];
 
 function formatDateBR(dateStr: string): string {
   if (!dateStr) return "";
