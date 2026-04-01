@@ -472,12 +472,17 @@ export default function ImportarExtrato() {
                           onValueChange={(v) => setRows((prev) => prev.map((row, j) => j === i ? { ...row, categoria_id: v === "none" ? null : v } : row))}
                         >
                           <SelectTrigger className="h-8 text-xs w-[180px]">
-                            <SelectValue placeholder={r.categoria_sugerida || "Sem categoria"} />
+                            <SelectValue placeholder={r.categoria_id ? catMap[r.categoria_id] : (r.categoria_sugerida || "Sem categoria")} />
                           </SelectTrigger>
                           <SelectContent>
                             <SelectItem value="none">Sem categoria</SelectItem>
-                            {categorias?.map((c) => (
-                              <SelectItem key={c.id} value={c.id}>{c.nome_categoria}</SelectItem>
+                            {categoriasDropdown.map(({ grupo, itens }) => (
+                              <SelectGroup key={grupo}>
+                                <SelectLabel>{grupo}</SelectLabel>
+                                {itens.map((item) => (
+                                  <SelectItem key={item.id} value={item.id}>{item.label}</SelectItem>
+                                ))}
+                              </SelectGroup>
                             ))}
                           </SelectContent>
                         </Select>
