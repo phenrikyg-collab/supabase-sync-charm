@@ -139,6 +139,9 @@ function calculateDre(
   const detailAcc: Record<string, Record<string, DetailEntry>> = {};
 
   movs.forEach((m) => {
+    // Só considerar transações que impactam DRE
+    if (m.impacta_dre === false) return;
+
     if (m.tipo === "entrada" && m.origem === "bling") {
       values["receita_vendas"] += m.valor ?? 0;
       accDetail(detailAcc, "receita_vendas", "Vendas", "Venda de produtos", m.valor ?? 0);

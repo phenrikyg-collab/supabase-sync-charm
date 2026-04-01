@@ -341,6 +341,18 @@ export default function ImportarExtrato() {
                 </SelectContent>
               </Select>
             </div>
+            {banco === "cartao" && (
+              <>
+                <div className="flex-1 min-w-[150px]">
+                  <label className="text-sm font-medium text-foreground mb-1 block">Nome do Cartão</label>
+                  <Input placeholder="Ex: Nubank, Itaú..." value={cartaoNome} onChange={(e) => setCartaoNome(e.target.value)} />
+                </div>
+                <div className="flex-1 min-w-[150px]">
+                  <label className="text-sm font-medium text-foreground mb-1 block">Vencimento da Fatura</label>
+                  <Input type="date" value={faturaVencimento} onChange={(e) => setFaturaVencimento(e.target.value)} />
+                </div>
+              </>
+            )}
             <div className="flex-1 min-w-[200px]">
               <label className="text-sm font-medium text-foreground mb-1 block">Arquivo CSV ou PDF</label>
               <Input type="file" accept=".csv,.txt,.pdf" onChange={handleFile} />
