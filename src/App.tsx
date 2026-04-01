@@ -97,6 +97,7 @@ const AppRoutes = () => {
               <Route path="/contas-receber" element={<ContasReceber />} />
               <Route path="/dre" element={<DRE />} />
               <Route path="/importar-extrato" element={<ImportarExtrato />} />
+              <Route path="/faturas" element={<Faturas />} />
               <Route path="/importar" element={<ImportarPage />} />
               <Route path="/metas" element={<Metas />} />
               <Route path="/admin/usuarios" element={<AdminUsuarios />} />
