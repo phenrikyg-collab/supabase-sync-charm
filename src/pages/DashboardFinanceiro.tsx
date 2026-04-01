@@ -65,8 +65,10 @@ export default function DashboardFinanceiro() {
 
   // ===== KPIs =====
   const kpis = useMemo(() => {
-    const receitas = mesMovs.filter((m) => m.tipo === "entrada").reduce((s, m) => s + (m.valor ?? 0), 0);
-    const despesas = mesMovs.filter((m) => m.tipo === "saida").reduce((s, m) => s + Math.abs(m.valor ?? 0), 0);
+    // Fluxo de caixa: apenas transações que impactam fluxo
+    const fluxoMovs = mesMovs.filter((m) => (m as any).impacta_fluxo !== false);
+    const receitas = fluxoMovs.filter((m) => m.tipo === "entrada").reduce((s, m) => s + (m.valor ?? 0), 0);
+    const despesas = fluxoMovs.filter((m) => m.tipo === "saida").reduce((s, m) => s + Math.abs(m.valor ?? 0), 0);
     const saldo = receitas - despesas;
     const margemLiquida = receitas > 0 ? ((saldo / receitas) * 100) : 0;
 
