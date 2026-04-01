@@ -12,6 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Plus, Pencil, Trophy } from "lucide-react";
 import { toast } from "sonner";
+import TabFichasTecnicas from "@/components/bonificacao/TabFichasTecnicas";
 
 /* ───── Costureiras ───── */
 
