@@ -106,12 +106,18 @@ export default function RevisaoLancamentos({ lancamentosImportados, dadosCartao,
 
   const isCartao = !!dadosCartao;
 
-  // Group categories by grupo_dre for the dropdown
+  // Group categories by grupo_dre for the dropdown, filtering out duplicates
+  // and entries where nome_categoria equals grupo_dre (group headers, not real categories)
   const categoriasAgrupadas = useMemo(() => {
-    if (!categorias) return {} as Record<string, typeof categorias>;
+    if (!categorias) return {} as Record<string, NonNullable<typeof categorias>>;
+    const seen = new Set<string>();
     const groups: Record<string, NonNullable<typeof categorias>> = {};
     for (const cat of categorias) {
-      const grupo = cat.grupo_dre || "Outros";
+      const nome = (cat.nome_categoria || "").trim();
+      const grupo = (cat.grupo_dre || "Outros").trim();
+      // Skip categories that are just the group name repeated, or already seen
+      if (!nome || nome === grupo || seen.has(cat.id)) continue;
+      seen.add(cat.id);
       if (!groups[grupo]) groups[grupo] = [];
       groups[grupo].push(cat);
     }
