@@ -112,7 +112,9 @@ export default function OrdensProducao() {
   const [quantidade, setQuantidade] = useState(0);
   const [previsaoTermino, setPrevisaoTermino] = useState("");
   const [custoEstimadoPeca, setCustoEstimadoPeca] = useState(0);
-  const [ocInfo, setOcInfo] = useState<{ produto: string; cor: string; grade: string } | null>(null);
+  const [ocInfo, setOcInfo] = useState<{ produto: string; cor: string; grade: string; produtoId?: string } | null>(null);
+  const [fichaMinutos, setFichaMinutos] = useState<number>(0);
+  const [fichaMinutosManual, setFichaMinutosManual] = useState(false);
 
   // Edit dialog
   const [editOpen, setEditOpen] = useState(false);
