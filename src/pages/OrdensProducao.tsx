@@ -10,12 +10,15 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { StatusBadge } from "@/components/StatusBadge";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, List, Columns3, Wrench, Trash2, PlusCircle, Printer, Pencil, AlertTriangle, CheckCircle, XCircle } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Plus, List, Columns3, Wrench, Trash2, PlusCircle, Printer, Pencil, AlertTriangle, CheckCircle, XCircle, Info } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import { printHTML, statusBadgeHTML, formatDateBR } from "@/lib/printUtils";
 import { parseISO, differenceInCalendarDays, startOfMonth, endOfMonth } from "date-fns";
+import FichaTecnicaReadOnly from "@/components/bonificacao/FichaTecnicaReadOnly";
 
 // Color palette for oficinas (deterministic by index)
 const OFICINA_COLORS = [
@@ -68,6 +71,36 @@ export default function OrdensProducao() {
   const { data: producao } = useResumoProducao();
   const { data: consertos } = useAllConsertos();
   const { data: custosFixos } = useCustosFixosOficina();
+
+  // Fichas técnicas for integration
+  const { data: fichasTecnicas = [] } = useQuery({
+    queryKey: ["fichas_tecnicas_tempo"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("fichas_tecnicas_tempo")
+        .select("*, produtos(nome_do_produto)")
+        .order("numero_etapa", { ascending: true });
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  // Group fichas by produto_id
+  const fichasPorProduto = useMemo(() => {
+    const map = new Map<string, any[]>();
+    fichasTecnicas.forEach((f: any) => {
+      const list = map.get(f.produto_id) ?? [];
+      list.push(f);
+      map.set(f.produto_id, list);
+    });
+    return map;
+  }, [fichasTecnicas]);
+
+  const getTotalMinutosFicha = (produtoId: string) => {
+    const etapas = fichasPorProduto.get(produtoId);
+    if (!etapas) return 0;
+    return etapas.reduce((s: number, e: any) => s + (e.tempo_minutos || 0), 0);
+  };
   const createMut = useCreateOrdemProducao();
   const updateMut = useUpdateOrdemProducao();
   const deleteMut = useDeleteOrdemProducao();
@@ -79,7 +112,9 @@ export default function OrdensProducao() {
   const [quantidade, setQuantidade] = useState(0);
   const [previsaoTermino, setPrevisaoTermino] = useState("");
   const [custoEstimadoPeca, setCustoEstimadoPeca] = useState(0);
-  const [ocInfo, setOcInfo] = useState<{ produto: string; cor: string; grade: string } | null>(null);
+  const [ocInfo, setOcInfo] = useState<{ produto: string; cor: string; grade: string; produtoId?: string } | null>(null);
+  const [fichaMinutos, setFichaMinutos] = useState<number>(0);
+  const [fichaMinutosManual, setFichaMinutosManual] = useState(false);
 
   // Edit dialog
   const [editOpen, setEditOpen] = useState(false);
@@ -157,7 +192,7 @@ export default function OrdensProducao() {
   }, [ordens]);
 
   useEffect(() => {
-    if (!ocId) { setOcInfo(null); return; }
+    if (!ocId) { setOcInfo(null); setFichaMinutos(0); setFichaMinutosManual(false); return; }
     Promise.all([
       supabase.from("ordens_corte_produtos").select("*").eq("ordem_corte_id", ocId),
       supabase.from("ordens_corte_grade").select("*").eq("ordem_corte_id", ocId),
@@ -167,11 +202,21 @@ export default function OrdensProducao() {
       const totalPecas = grades.reduce((a: number, g: any) => a + (g.quantidade ?? 0), 0);
       setQuantidade(totalPecas);
       const corId = grades[0]?.cor_id;
+      const produtoId = prods[0]?.produto_id;
       setOcInfo({
         produto: prods.map((p: any) => p.nome_produto).join(", ") || "—",
         cor: corId && corMap[corId] ? corMap[corId].nome_cor ?? "—" : "—",
         grade: grades.map((g: any) => `${g.tamanho}: ${g.quantidade}`).join(", "),
+        produtoId,
       });
+      // Auto-fill minutos from ficha técnica
+      if (produtoId) {
+        const total = getTotalMinutosFicha(produtoId);
+        if (total > 0) {
+          setFichaMinutos(total);
+          setFichaMinutosManual(false);
+        }
+      }
     });
   }, [ocId]);
 
@@ -721,6 +766,34 @@ export default function OrdensProducao() {
               <Input type="number" step="0.01" value={custoEstimadoPeca || ""} onChange={(e) => setCustoEstimadoPeca(Number(e.target.value))} placeholder="0.00" />
               <p className="text-xs text-muted-foreground">Usado para calcular KPI de custo (No Prazo / Alerta / Crítico)</p>
             </div>
+            {/* Minutos por peça auto-filled from ficha técnica */}
+            {ocInfo?.produtoId && fichasPorProduto.has(ocInfo.produtoId) && (
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <Label>Minutos/Peça (Ficha Técnica)</Label>
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Info className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p className="text-xs">Calculado a partir de {fichasPorProduto.get(ocInfo.produtoId)!.length} etapas da ficha técnica. Clique para editar manualmente.</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                </div>
+                <Input
+                  type="number"
+                  step="0.1"
+                  value={fichaMinutos}
+                  onChange={(e) => { setFichaMinutos(Number(e.target.value)); setFichaMinutosManual(true); }}
+                  className={!fichaMinutosManual ? "bg-muted/50" : ""}
+                />
+                {!fichaMinutosManual && (
+                  <p className="text-xs text-muted-foreground">⏱ Auto-preenchido da ficha técnica ({fichasPorProduto.get(ocInfo.produtoId)!.length} etapas)</p>
+                )}
+              </div>
+            )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setOpen(false)}>Cancelar</Button>
@@ -731,44 +804,62 @@ export default function OrdensProducao() {
 
       {/* Edit Dialog */}
       <Dialog open={editOpen} onOpenChange={setEditOpen}>
-        <DialogContent>
+        <DialogContent className="max-w-2xl max-h-[85vh] flex flex-col">
           <DialogHeader><DialogTitle>Editar Ordem de Produção</DialogTitle></DialogHeader>
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label>Status</Label>
-              <Select value={editStatus} onValueChange={setEditStatus}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {["Corte", "Costura", "Revisão", "Em Conserto", "Finalizado"].map((s) => (
-                    <SelectItem key={s} value={s}>{s}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label>Oficina</Label>
-              <Select value={editOficinaId} onValueChange={setEditOficinaId}>
-                <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
-                <SelectContent>
-                  {oficinas?.map((o) => (
-                    <SelectItem key={o.id} value={o.id}>{o.nome_oficina}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label>Quantidade de Peças</Label>
-              <Input type="number" value={editQuantidade} onChange={(e) => setEditQuantidade(Number(e.target.value))} />
-            </div>
-            <div className="space-y-2">
-              <Label>Previsão de Término</Label>
-              <Input type="date" value={editPrevisao} onChange={(e) => setEditPrevisao(e.target.value)} />
-            </div>
-            <div className="space-y-2">
-              <Label>Custo Estimado por Peça (R$)</Label>
-              <Input type="number" step="0.01" value={editCustoEstimado || ""} onChange={(e) => setEditCustoEstimado(Number(e.target.value))} placeholder="0.00" />
-            </div>
-          </div>
+          <Tabs defaultValue="dados" className="flex-1 overflow-hidden flex flex-col">
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="dados">Dados</TabsTrigger>
+              <TabsTrigger value="etapas">Etapas da Ficha Técnica</TabsTrigger>
+            </TabsList>
+            <TabsContent value="dados" className="flex-1 overflow-y-auto space-y-4 mt-4">
+              <div className="space-y-2">
+                <Label>Status</Label>
+                <Select value={editStatus} onValueChange={setEditStatus}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {["Corte", "Costura", "Revisão", "Em Conserto", "Finalizado"].map((s) => (
+                      <SelectItem key={s} value={s}>{s}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Oficina</Label>
+                <Select value={editOficinaId} onValueChange={setEditOficinaId}>
+                  <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
+                  <SelectContent>
+                    {oficinas?.map((o) => (
+                      <SelectItem key={o.id} value={o.id}>{o.nome_oficina}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Quantidade de Peças</Label>
+                <Input type="number" value={editQuantidade} onChange={(e) => setEditQuantidade(Number(e.target.value))} />
+              </div>
+              <div className="space-y-2">
+                <Label>Previsão de Término</Label>
+                <Input type="date" value={editPrevisao} onChange={(e) => setEditPrevisao(e.target.value)} />
+              </div>
+              <div className="space-y-2">
+                <Label>Custo Estimado por Peça (R$)</Label>
+                <Input type="number" step="0.01" value={editCustoEstimado || ""} onChange={(e) => setEditCustoEstimado(Number(e.target.value))} placeholder="0.00" />
+              </div>
+            </TabsContent>
+            <TabsContent value="etapas" className="flex-1 overflow-y-auto mt-4">
+              {editOrdem?.produto_id && fichasPorProduto.has(editOrdem.produto_id) ? (
+                <FichaTecnicaReadOnly
+                  produtoNome={editOrdem?.nome_produto || "—"}
+                  etapas={fichasPorProduto.get(editOrdem.produto_id)!}
+                />
+              ) : (
+                <div className="text-center py-8 text-muted-foreground text-sm">
+                  Nenhuma ficha técnica cadastrada para este produto.
+                </div>
+              )}
+            </TabsContent>
+          </Tabs>
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditOpen(false)}>Cancelar</Button>
             <Button onClick={handleEdit}>Salvar</Button>

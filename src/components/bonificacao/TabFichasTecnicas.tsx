@@ -24,6 +24,7 @@ import { cn } from "@/lib/utils";
 import {
   Plus, Pencil, CalendarIcon, Clock, DollarSign, ChevronDown, ChevronRight, Trash2, ArrowUp, ArrowDown,
 } from "lucide-react";
+import FichaTecnicaReadOnly from "./FichaTecnicaReadOnly";
 import { toast } from "sonner";
 
 /* ── Types ── */
@@ -369,44 +370,15 @@ export default function TabFichasTecnicas() {
                         </TableCell>
                       </TableRow>
 
-                      {/* Sub-table: etapas */}
+                      {/* Sub-table: etapas - timeline view */}
                       {isExpanded && (
                         <TableRow key={`${row.produto_id}-detail`}>
                           <TableCell colSpan={8} className="p-0">
-                            <div className="bg-muted/20 px-8 py-3">
-                              <Table>
-                                <TableHeader>
-                                  <TableRow>
-                                    <TableHead className="w-12">Nº</TableHead>
-                                    <TableHead>Etapa</TableHead>
-                                    <TableHead>Máquina</TableHead>
-                                    <TableHead className="text-right">Tempo (min)</TableHead>
-                                    <TableHead>Cronometrado por</TableHead>
-                                    <TableHead className="text-right">Amostras</TableHead>
-                                  </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                  {row.etapas
-                                    .sort((a: any, b: any) => (a.numero_etapa || 1) - (b.numero_etapa || 1))
-                                    .map((etapa: any) => {
-                                      const parsed = parseOperacao(etapa.operacao);
-                                      return (
-                                        <TableRow key={etapa.id}>
-                                          <TableCell className="font-mono text-muted-foreground">{etapa.numero_etapa}</TableCell>
-                                          <TableCell className="font-medium">{parsed.nome}</TableCell>
-                                          <TableCell>
-                                            <Badge variant="outline" className={MAQUINA_COLORS[parsed.maquina] || ""}>
-                                              {parsed.maquina}
-                                            </Badge>
-                                          </TableCell>
-                                          <TableCell className="text-right">{fmtNum(etapa.tempo_minutos)}</TableCell>
-                                          <TableCell>{etapa.cronometrado_por || "—"}</TableCell>
-                                          <TableCell className="text-right">{etapa.num_amostras || "—"}</TableCell>
-                                        </TableRow>
-                                      );
-                                    })}
-                                </TableBody>
-                              </Table>
+                            <div className="bg-muted/20 px-8 py-4">
+                              <FichaTecnicaReadOnly
+                                produtoNome={row.produto_nome}
+                                etapas={row.etapas}
+                              />
                             </div>
                           </TableCell>
                         </TableRow>
@@ -508,6 +480,36 @@ export default function TabFichasTecnicas() {
                 <Button variant="outline" size="sm" onClick={addEtapa}>
                   <Plus className="h-4 w-4 mr-1" /> Adicionar Etapa
                 </Button>
+
+                {/* Resumo de Tempos */}
+                {form.etapas.length > 0 && (() => {
+                  const temposPorMaq: Record<string, { min: number; count: number }> = {};
+                  form.etapas.forEach((e) => {
+                    if (!temposPorMaq[e.maquina]) temposPorMaq[e.maquina] = { min: 0, count: 0 };
+                    temposPorMaq[e.maquina].min += e.tempo_minutos;
+                    temposPorMaq[e.maquina].count += 1;
+                  });
+                  const totalPeca = form.etapas.reduce((s, e) => s + e.tempo_minutos, 0);
+                  const icons: Record<string, string> = { Reta: "🧵", Overloque: "🔵", Galoneira: "🟡" };
+                  return (
+                    <div className="rounded-lg border border-border bg-muted/30 p-3 space-y-1">
+                      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Resumo de Tempos</p>
+                      {["Reta", "Overloque", "Galoneira"].filter(m => temposPorMaq[m]).map((m) => (
+                        <div key={m} className="flex items-center gap-2 text-sm">
+                          <span>{icons[m]}</span>
+                          <span className="font-medium w-24">{m}</span>
+                          <span className="tabular-nums">{temposPorMaq[m].min} min</span>
+                          <span className="text-muted-foreground text-xs">({temposPorMaq[m].count} {temposPorMaq[m].count === 1 ? "etapa" : "etapas"})</span>
+                        </div>
+                      ))}
+                      <div className="border-t border-border pt-1 flex items-center gap-2 text-sm font-semibold">
+                        <span>⏱</span>
+                        <span>Total Peça</span>
+                        <span className="tabular-nums">{totalPeca} min</span>
+                      </div>
+                    </div>
+                  );
+                })()}
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-2 border-t">
                   <div>
