@@ -369,44 +369,15 @@ export default function TabFichasTecnicas() {
                         </TableCell>
                       </TableRow>
 
-                      {/* Sub-table: etapas */}
+                      {/* Sub-table: etapas - timeline view */}
                       {isExpanded && (
                         <TableRow key={`${row.produto_id}-detail`}>
                           <TableCell colSpan={8} className="p-0">
-                            <div className="bg-muted/20 px-8 py-3">
-                              <Table>
-                                <TableHeader>
-                                  <TableRow>
-                                    <TableHead className="w-12">Nº</TableHead>
-                                    <TableHead>Etapa</TableHead>
-                                    <TableHead>Máquina</TableHead>
-                                    <TableHead className="text-right">Tempo (min)</TableHead>
-                                    <TableHead>Cronometrado por</TableHead>
-                                    <TableHead className="text-right">Amostras</TableHead>
-                                  </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                  {row.etapas
-                                    .sort((a: any, b: any) => (a.numero_etapa || 1) - (b.numero_etapa || 1))
-                                    .map((etapa: any) => {
-                                      const parsed = parseOperacao(etapa.operacao);
-                                      return (
-                                        <TableRow key={etapa.id}>
-                                          <TableCell className="font-mono text-muted-foreground">{etapa.numero_etapa}</TableCell>
-                                          <TableCell className="font-medium">{parsed.nome}</TableCell>
-                                          <TableCell>
-                                            <Badge variant="outline" className={MAQUINA_COLORS[parsed.maquina] || ""}>
-                                              {parsed.maquina}
-                                            </Badge>
-                                          </TableCell>
-                                          <TableCell className="text-right">{fmtNum(etapa.tempo_minutos)}</TableCell>
-                                          <TableCell>{etapa.cronometrado_por || "—"}</TableCell>
-                                          <TableCell className="text-right">{etapa.num_amostras || "—"}</TableCell>
-                                        </TableRow>
-                                      );
-                                    })}
-                                </TableBody>
-                              </Table>
+                            <div className="bg-muted/20 px-8 py-4">
+                              <FichaTecnicaReadOnly
+                                produtoNome={row.produto_nome}
+                                etapas={row.etapas}
+                              />
                             </div>
                           </TableCell>
                         </TableRow>
