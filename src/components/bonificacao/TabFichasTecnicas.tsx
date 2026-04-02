@@ -24,6 +24,7 @@ import { cn } from "@/lib/utils";
 import {
   Plus, Pencil, CalendarIcon, Clock, DollarSign, ChevronDown, ChevronRight, Trash2, ArrowUp, ArrowDown,
 } from "lucide-react";
+import FichaTecnicaReadOnly from "./FichaTecnicaReadOnly";
 import { toast } from "sonner";
 
 /* ── Types ── */
