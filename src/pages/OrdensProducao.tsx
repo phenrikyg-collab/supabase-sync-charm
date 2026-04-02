@@ -71,6 +71,36 @@ export default function OrdensProducao() {
   const { data: producao } = useResumoProducao();
   const { data: consertos } = useAllConsertos();
   const { data: custosFixos } = useCustosFixosOficina();
+
+  // Fichas técnicas for integration
+  const { data: fichasTecnicas = [] } = useQuery({
+    queryKey: ["fichas_tecnicas_tempo"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("fichas_tecnicas_tempo")
+        .select("*, produtos(nome_do_produto)")
+        .order("numero_etapa", { ascending: true });
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  // Group fichas by produto_id
+  const fichasPorProduto = useMemo(() => {
+    const map = new Map<string, any[]>();
+    fichasTecnicas.forEach((f: any) => {
+      const list = map.get(f.produto_id) ?? [];
+      list.push(f);
+      map.set(f.produto_id, list);
+    });
+    return map;
+  }, [fichasTecnicas]);
+
+  const getTotalMinutosFicha = (produtoId: string) => {
+    const etapas = fichasPorProduto.get(produtoId);
+    if (!etapas) return 0;
+    return etapas.reduce((s: number, e: any) => s + (e.tempo_minutos || 0), 0);
+  };
   const createMut = useCreateOrdemProducao();
   const updateMut = useUpdateOrdemProducao();
   const deleteMut = useDeleteOrdemProducao();
