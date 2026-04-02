@@ -192,7 +192,7 @@ export default function OrdensProducao() {
   }, [ordens]);
 
   useEffect(() => {
-    if (!ocId) { setOcInfo(null); return; }
+    if (!ocId) { setOcInfo(null); setFichaMinutos(0); setFichaMinutosManual(false); return; }
     Promise.all([
       supabase.from("ordens_corte_produtos").select("*").eq("ordem_corte_id", ocId),
       supabase.from("ordens_corte_grade").select("*").eq("ordem_corte_id", ocId),
@@ -202,11 +202,21 @@ export default function OrdensProducao() {
       const totalPecas = grades.reduce((a: number, g: any) => a + (g.quantidade ?? 0), 0);
       setQuantidade(totalPecas);
       const corId = grades[0]?.cor_id;
+      const produtoId = prods[0]?.produto_id;
       setOcInfo({
         produto: prods.map((p: any) => p.nome_produto).join(", ") || "—",
         cor: corId && corMap[corId] ? corMap[corId].nome_cor ?? "—" : "—",
         grade: grades.map((g: any) => `${g.tamanho}: ${g.quantidade}`).join(", "),
+        produtoId,
       });
+      // Auto-fill minutos from ficha técnica
+      if (produtoId) {
+        const total = getTotalMinutosFicha(produtoId);
+        if (total > 0) {
+          setFichaMinutos(total);
+          setFichaMinutosManual(false);
+        }
+      }
     });
   }, [ocId]);
 
