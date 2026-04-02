@@ -804,44 +804,62 @@ export default function OrdensProducao() {
 
       {/* Edit Dialog */}
       <Dialog open={editOpen} onOpenChange={setEditOpen}>
-        <DialogContent>
+        <DialogContent className="max-w-2xl max-h-[85vh] flex flex-col">
           <DialogHeader><DialogTitle>Editar Ordem de Produção</DialogTitle></DialogHeader>
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label>Status</Label>
-              <Select value={editStatus} onValueChange={setEditStatus}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {["Corte", "Costura", "Revisão", "Em Conserto", "Finalizado"].map((s) => (
-                    <SelectItem key={s} value={s}>{s}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label>Oficina</Label>
-              <Select value={editOficinaId} onValueChange={setEditOficinaId}>
-                <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
-                <SelectContent>
-                  {oficinas?.map((o) => (
-                    <SelectItem key={o.id} value={o.id}>{o.nome_oficina}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label>Quantidade de Peças</Label>
-              <Input type="number" value={editQuantidade} onChange={(e) => setEditQuantidade(Number(e.target.value))} />
-            </div>
-            <div className="space-y-2">
-              <Label>Previsão de Término</Label>
-              <Input type="date" value={editPrevisao} onChange={(e) => setEditPrevisao(e.target.value)} />
-            </div>
-            <div className="space-y-2">
-              <Label>Custo Estimado por Peça (R$)</Label>
-              <Input type="number" step="0.01" value={editCustoEstimado || ""} onChange={(e) => setEditCustoEstimado(Number(e.target.value))} placeholder="0.00" />
-            </div>
-          </div>
+          <Tabs defaultValue="dados" className="flex-1 overflow-hidden flex flex-col">
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="dados">Dados</TabsTrigger>
+              <TabsTrigger value="etapas">Etapas da Ficha Técnica</TabsTrigger>
+            </TabsList>
+            <TabsContent value="dados" className="flex-1 overflow-y-auto space-y-4 mt-4">
+              <div className="space-y-2">
+                <Label>Status</Label>
+                <Select value={editStatus} onValueChange={setEditStatus}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {["Corte", "Costura", "Revisão", "Em Conserto", "Finalizado"].map((s) => (
+                      <SelectItem key={s} value={s}>{s}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Oficina</Label>
+                <Select value={editOficinaId} onValueChange={setEditOficinaId}>
+                  <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
+                  <SelectContent>
+                    {oficinas?.map((o) => (
+                      <SelectItem key={o.id} value={o.id}>{o.nome_oficina}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Quantidade de Peças</Label>
+                <Input type="number" value={editQuantidade} onChange={(e) => setEditQuantidade(Number(e.target.value))} />
+              </div>
+              <div className="space-y-2">
+                <Label>Previsão de Término</Label>
+                <Input type="date" value={editPrevisao} onChange={(e) => setEditPrevisao(e.target.value)} />
+              </div>
+              <div className="space-y-2">
+                <Label>Custo Estimado por Peça (R$)</Label>
+                <Input type="number" step="0.01" value={editCustoEstimado || ""} onChange={(e) => setEditCustoEstimado(Number(e.target.value))} placeholder="0.00" />
+              </div>
+            </TabsContent>
+            <TabsContent value="etapas" className="flex-1 overflow-y-auto mt-4">
+              {editOrdem?.produto_id && fichasPorProduto.has(editOrdem.produto_id) ? (
+                <FichaTecnicaReadOnly
+                  produtoNome={editOrdem?.nome_produto || "—"}
+                  etapas={fichasPorProduto.get(editOrdem.produto_id)!}
+                />
+              ) : (
+                <div className="text-center py-8 text-muted-foreground text-sm">
+                  Nenhuma ficha técnica cadastrada para este produto.
+                </div>
+              )}
+            </TabsContent>
+          </Tabs>
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditOpen(false)}>Cancelar</Button>
             <Button onClick={handleEdit}>Salvar</Button>
