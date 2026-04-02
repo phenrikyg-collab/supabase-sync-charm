@@ -766,6 +766,34 @@ export default function OrdensProducao() {
               <Input type="number" step="0.01" value={custoEstimadoPeca || ""} onChange={(e) => setCustoEstimadoPeca(Number(e.target.value))} placeholder="0.00" />
               <p className="text-xs text-muted-foreground">Usado para calcular KPI de custo (No Prazo / Alerta / Crítico)</p>
             </div>
+            {/* Minutos por peça auto-filled from ficha técnica */}
+            {ocInfo?.produtoId && fichasPorProduto.has(ocInfo.produtoId) && (
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <Label>Minutos/Peça (Ficha Técnica)</Label>
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Info className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p className="text-xs">Calculado a partir de {fichasPorProduto.get(ocInfo.produtoId)!.length} etapas da ficha técnica. Clique para editar manualmente.</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                </div>
+                <Input
+                  type="number"
+                  step="0.1"
+                  value={fichaMinutos}
+                  onChange={(e) => { setFichaMinutos(Number(e.target.value)); setFichaMinutosManual(true); }}
+                  className={!fichaMinutosManual ? "bg-muted/50" : ""}
+                />
+                {!fichaMinutosManual && (
+                  <p className="text-xs text-muted-foreground">⏱ Auto-preenchido da ficha técnica ({fichasPorProduto.get(ocInfo.produtoId)!.length} etapas)</p>
+                )}
+              </div>
+            )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setOpen(false)}>Cancelar</Button>
