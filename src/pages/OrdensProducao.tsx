@@ -10,12 +10,15 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { StatusBadge } from "@/components/StatusBadge";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, List, Columns3, Wrench, Trash2, PlusCircle, Printer, Pencil, AlertTriangle, CheckCircle, XCircle } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Plus, List, Columns3, Wrench, Trash2, PlusCircle, Printer, Pencil, AlertTriangle, CheckCircle, XCircle, Info } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import { printHTML, statusBadgeHTML, formatDateBR } from "@/lib/printUtils";
 import { parseISO, differenceInCalendarDays, startOfMonth, endOfMonth } from "date-fns";
+import FichaTecnicaReadOnly from "@/components/bonificacao/FichaTecnicaReadOnly";
 
 // Color palette for oficinas (deterministic by index)
 const OFICINA_COLORS = [
