@@ -17,6 +17,7 @@ interface CalendarViewProps {
   onCreateForDate: (date: string) => void;
   onUpdateContent: (id: string, updates: Partial<ContentItem>) => void;
   onDeleteContent: (id: string) => void;
+  onOpenReview?: () => void;
 }
 
 const channelFilterOptions: { value: ContentChannel | 'all'; label: string }[] = [
@@ -28,7 +29,7 @@ const channelFilterOptions: { value: ContentChannel | 'all'; label: string }[] =
   { value: 'whatsapp', label: '💬 WhatsApp' },
 ];
 
-export function CalendarView({ contentItems, onCreateForDate, onUpdateContent, onDeleteContent }: CalendarViewProps) {
+export function CalendarView({ contentItems, onCreateForDate, onUpdateContent, onDeleteContent, onOpenReview }: CalendarViewProps) {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedItem, setSelectedItem] = useState<ContentItem | null>(null);
   const [channelFilter, setChannelFilter] = useState<ContentChannel | 'all'>('all');
@@ -62,6 +63,38 @@ export function CalendarView({ contentItems, onCreateForDate, onUpdateContent, o
 
   return (
     <div className="flex-1 flex flex-col h-full">
+      {/* Stats bar */}
+      {contentItems.length > 0 && (
+        <div className="flex items-center gap-4 px-6 py-2 border-b bg-white" style={{ borderColor: 'rgba(232,205,126,0.1)' }}>
+          <span className="text-xs text-muted-foreground">{contentItems.length} posts</span>
+          <span className="text-xs">📷 {contentItems.filter(i => i.channel.startsWith('instagram')).length}</span>
+          <span className="text-xs">📧 {contentItems.filter(i => i.channel === 'email').length}</span>
+          <span className="text-xs">💬 {contentItems.filter(i => i.channel === 'whatsapp').length}</span>
+          <div className="flex h-2 flex-1 max-w-[120px] rounded-full overflow-hidden bg-muted">
+            {(() => {
+              const total = contentItems.length || 1;
+              const topo = contentItems.filter(i => (i as any).funnelStage === 'topo').length;
+              const meio = contentItems.filter(i => (i as any).funnelStage === 'meio').length;
+              const fundo = contentItems.filter(i => (i as any).funnelStage === 'fundo').length;
+              return (
+                <>
+                  <div style={{ width: `${(topo/total)*100}%`, backgroundColor: '#E8CD7E' }} />
+                  <div style={{ width: `${(meio/total)*100}%`, backgroundColor: '#8B6914' }} />
+                  <div style={{ width: `${(fundo/total)*100}%`, backgroundColor: '#1D1D1B' }} />
+                </>
+              );
+            })()}
+          </div>
+          <span className="text-xs text-green-600">{contentItems.filter(i => i.status === 'agendado').length} aprovados</span>
+          <span className="text-xs text-muted-foreground">{contentItems.filter(i => i.status === 'rascunho').length} pendentes</span>
+          {onOpenReview && contentItems.length > 0 && (
+            <Button variant="outline" size="sm" onClick={onOpenReview} className="ml-auto text-xs border-[#E8CD7E]/50 text-[#8B6914]">
+              📋 Revisar Mês
+            </Button>
+          )}
+        </div>
+      )}
+
       {/* Top bar */}
       <div className="flex items-center justify-between px-6 py-4 border-b" style={{ borderColor: 'rgba(232,205,126,0.15)' }}>
         <div className="flex items-center gap-3">
@@ -162,7 +195,12 @@ export function CalendarView({ contentItems, onCreateForDate, onUpdateContent, o
                         key={item.id}
                         onClick={e => { e.stopPropagation(); setSelectedItem(item); }}
                         className="w-full text-left px-1.5 py-1 rounded text-[10px] leading-tight truncate flex items-center gap-1 hover:-translate-y-0.5 transition-transform border"
-                        style={{ borderColor: 'rgba(232,205,126,0.3)', backgroundColor: 'white' }}
+                        style={{
+                          borderColor: 'rgba(232,205,126,0.3)',
+                          backgroundColor: 'white',
+                          borderLeftWidth: '3px',
+                          borderLeftColor: (item as any).funnelStage === 'topo' ? '#E8CD7E' : (item as any).funnelStage === 'fundo' ? '#1D1D1B' : '#8B6914',
+                        }}
                       >
                         <span className={cn('w-1.5 h-1.5 rounded-full shrink-0', sc.dot)} />
                         <span className="shrink-0">{CHANNEL_ICONS[item.channel]}</span>
