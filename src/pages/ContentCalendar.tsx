@@ -171,7 +171,7 @@ export default function ContentCalendar() {
         const weeks = Math.ceil(dim / 7);
         const expectedEmails = weeks * 2;
         const prompt = `Crie EXATAMENTE ${expectedEmails} e-mails para ${monthLabel} (2x/semana). Distribua uniformemente. Retorne JSON array: [{"date":"YYYY-MM-DD","channel":"email","subject":"string","preview_text":"string","body":"string","cta":"string","audience":"string","funnel_stage":"topo"|"meio"|"fundo","time":"09:00"|"14:00"}]`;
-        const raw = await callClaude(ANNA_SYSTEM_PROMPT, prompt);
+        const raw = await callClaude(prompt);
         const parsed = safeParseJSON(raw);
         addParsedItems(parsed, 'email');
         totalGenerated = parsed.length;
