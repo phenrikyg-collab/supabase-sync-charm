@@ -64,15 +64,21 @@ export function CriarConteudo({ initialDate, onSaveToLibrary, onSchedule }: Cria
     setLoading(true);
 
     try {
-      const userPrompt = `Canal: ${CHANNEL_LABELS[channel]}. Tipo: ${tipo || 'Geral'}. Tema: ${tema}. Produto: ${produto || 'nenhum específico'}. Objetivo: ${objetivo}. Tom: ${tom}. Público: ${publico}. Gere: caption completa, hashtags (15-20 para Instagram ou nenhuma para Email/WPP), CTA, horário sugerido. Para e-mail, gere também: assunto (máx 50 chars) e preview text (máx 90 chars).${regenerate ? ' Gere uma variação diferente da anterior.' : ''}`;
+      const userPrompt = `Canal: ${CHANNEL_LABELS[channel]}. Tipo: ${tipo || 'Geral'}. Tema: ${tema}. Produto: ${produto || 'nenhum específico'}. Objetivo: ${objetivo}. Tom: ${tom}. Público: ${publico}. Gere: caption completa, hashtags (15-20 para Instagram ou nenhuma para Email/WPP), CTA, horário sugerido. Para e-mail, gere também: assunto (máx 50 chars) e preview text (máx 90 chars).${regenerate ? ' Gere uma variação diferente da anterior.' : ''}
 
-      const { data, error } = await supabase.functions.invoke('gerar-conteudo', {
-        body: { prompt: userPrompt, channel },
-      });
+Retorne SOMENTE JSON válido:
+{
+  "caption": "...",
+  "hashtags": ["..."],
+  "cta": "...",
+  "suggestedTime": "HH:MM",
+  "subjectLine": "...",
+  "previewText": "..."
+}`;
 
-      if (error) throw error;
-
-      const result = data;
+      const raw = await callClaude(ANNA_SYSTEM_PROMPT, userPrompt);
+      const clean = raw.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+      const result = JSON.parse(clean);
       setCaption(result.caption || '');
       setHashtags(result.hashtags || []);
       setCta(result.cta || '');
