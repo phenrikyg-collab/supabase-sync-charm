@@ -69,39 +69,15 @@ export default function ContentCalendar() {
     toast.info(`Regenerando conteúdo de ${channel === 'instagram' ? 'Instagram' : channel === 'email' ? 'E-mail' : 'WhatsApp'}...`);
     try {
       const now = new Date();
-      const monthLabel = format(reviewMonth || now, 'MMMM yyyy', { locale: ptBR });
-      let prompt = '';
+      const selectedMonth = reviewMonth || now;
+      const monthLabel = format(selectedMonth, 'MMMM yyyy', { locale: ptBR });
+      const yr = format(selectedMonth, 'yyyy');
+      const mo = format(selectedMonth, 'MM');
+      const dim = getDaysInMonth(selectedMonth);
 
-      if (channel === 'instagram') {
-        const selectedMonth = reviewMonth || now;
-        const yr = format(selectedMonth, 'yyyy');
-        const mo = format(selectedMonth, 'MM');
-        const dim = getDaysInMonth(selectedMonth);
-        const schedule: string[] = [];
-        for (let day = 1; day <= dim; day++) {
-          const d = new Date(parseInt(yr), parseInt(mo) - 1, day);
-          const dow = getDay(d);
-          const ds = `${yr}-${mo}-${String(day).padStart(2, '0')}`;
-          const dn = ['Domingo','Segunda','Terça','Quarta','Quinta','Sexta','Sábado'][dow];
-          const entries: string[] = [`${ds} (${dn}): Stories`];
-          if ([0,1,3,5].includes(dow)) entries.push(`${ds} (${dn}): Feed`);
-          if ([2,4,6].includes(dow)) entries.push(`${ds} (${dn}): Reels`);
-          if (dow === 2) entries.push(`${ds} (${dn}): LIVE`);
-          schedule.push(entries.join(' | '));
-        }
-        prompt = `Regenere todo o conteúdo Instagram para ${monthLabel}. CRONOGRAMA:\n${schedule.join('\n')}\nRetorne JSON array: [{"date":"YYYY-MM-DD","channel":"Instagram Feed"|"Instagram Reels"|"Instagram Stories","funnel_stage":"topo"|"meio"|"fundo","product":"string ou null","theme":"string","caption":"string","hashtags":[],"cta":"string","time":"09:00"|"11:00"|"20:00","type":"Stories"|"Feed"|"Reels"|"Live","isLive":true|false,"status":"rascunho"}]`;
-      } else if (channel === 'email') {
-        prompt = `Regenere os e-mails para ${monthLabel}. Gere 4-8 e-mails distribuídos no mês. Retorne JSON array: [{"date":"YYYY-MM-DD","channel":"email","subject":"string","preview_text":"string","body":"string","cta":"string","audience":"string","funnel_stage":"topo"|"meio"|"fundo","time":"09:00"|"14:00"}]`;
-      } else {
-        prompt = `Regenere as campanhas WhatsApp para ${monthLabel}. Gere 4-8 campanhas. Retorne JSON array: [{"date":"YYYY-MM-DD","channel":"whatsapp","audience":"string","message":"string","coupon":"string ou null","time":"14:00"|"15:00"|"21:00","funnel_stage":"topo"|"meio"|"fundo"}]`;
-      }
-
-      const raw = await callClaude(ANNA_SYSTEM_PROMPT, prompt);
-      const parsed = safeParseJSON(raw);
-
-      // Remove existing items for this channel in the month
-      const monthStart2 = startOfMonth(reviewMonth || now);
-      const monthEnd2 = endOfMonth(reviewMonth || now);
+      // Remove existing items for this channel in the month first
+      const monthStart2 = startOfMonth(selectedMonth);
+      const monthEnd2 = endOfMonth(selectedMonth);
       const existingIds = store.contentItems
         .filter(i => {
           const matchChannel = channel === 'instagram' ? i.channel.startsWith('instagram') : i.channel === channel;
@@ -114,37 +90,102 @@ export default function ContentCalendar() {
         .map(i => i.id);
       existingIds.forEach(id => store.deleteContent(id));
 
-      // Add new items
-      const channelMap: Record<string, ContentItem['channel']> = {
+      const chMap: Record<string, ContentItem['channel']> = {
         'Instagram Feed': 'instagram-feed', 'Instagram Reels': 'instagram-reels', 'Instagram Stories': 'instagram-stories',
         'instagram-feed': 'instagram-feed', 'instagram-reels': 'instagram-reels', 'instagram-stories': 'instagram-stories',
         'email': 'email', 'whatsapp': 'whatsapp',
       };
-      parsed.forEach((p: any) => {
-        store.addContent({
-          id: crypto.randomUUID(),
-          date: p.date,
-          channel: channelMap[p.channel] || (channel === 'email' ? 'email' : channel === 'whatsapp' ? 'whatsapp' : 'instagram-feed'),
-          type: p.type || channel,
-          title: (p.theme || p.subject || p.audience || p.caption || '').substring(0, 60),
-          caption: p.caption || p.body || p.message || '',
-          hashtags: p.hashtags || [],
-          cta: p.cta || '',
-          suggestedTime: p.time || '11:00',
-          status: 'rascunho',
-          objective: 'engajamento',
-          tone: 'inspiracional',
-          audience: 'fas-marca',
-          product: p.product || undefined,
-          subjectLine: p.subject,
-          previewText: p.preview_text,
-          createdAt: new Date().toISOString(),
-          funnelStage: p.funnel_stage,
-          isLive: p.isLive || false,
-        } as any);
-      });
 
-      toast.success(`${parsed.length} itens regenerados para ${channel === 'instagram' ? 'Instagram' : channel === 'email' ? 'E-mail' : 'WhatsApp'}`);
+      const addParsedItems = (parsed: any[], ch: string) => {
+        parsed.forEach((p: any) => {
+          store.addContent({
+            id: crypto.randomUUID(),
+            date: p.date,
+            channel: chMap[p.channel] || (ch === 'email' ? 'email' : ch === 'whatsapp' ? 'whatsapp' : 'instagram-feed'),
+            type: p.type || ch,
+            title: (p.theme || p.subject || p.audience || p.caption || '').substring(0, 60),
+            caption: p.caption || p.body || p.message || '',
+            hashtags: p.hashtags || [],
+            cta: p.cta || '',
+            suggestedTime: p.time || '11:00',
+            status: 'rascunho',
+            objective: 'engajamento',
+            tone: 'inspiracional',
+            audience: 'fas-marca',
+            product: p.product || undefined,
+            subjectLine: p.subject,
+            previewText: p.preview_text,
+            createdAt: new Date().toISOString(),
+            funnelStage: p.funnel_stage,
+            isLive: p.isLive || false,
+          } as any);
+        });
+      };
+
+      let totalGenerated = 0;
+
+      if (channel === 'instagram') {
+        // Split into 3 calls like main generation
+        const buildDates = () => {
+          const dates: { ds: string; dn: string; dow: number }[] = [];
+          for (let day = 1; day <= dim; day++) {
+            const d = new Date(parseInt(yr), parseInt(mo) - 1, day);
+            const dow = getDay(d);
+            dates.push({
+              ds: `${yr}-${mo}-${String(day).padStart(2, '0')}`,
+              dn: ['Domingo','Segunda','Terça','Quarta','Quinta','Sexta','Sábado'][dow],
+              dow,
+            });
+          }
+          return dates;
+        };
+        const dates = buildDates();
+
+        // Stories
+        const storiesSchedule = dates.map(d => `${d.ds} (${d.dn})${d.dow === 2 ? ' ⚡ LIVE' : ''}`).join('\n');
+        const storiesPrompt = `Crie EXATAMENTE ${dim} Stories para Instagram para ${monthLabel}. 1 por dia, 09:00. Terças: "Hoje tem live!". CRONOGRAMA:\n${storiesSchedule}\nRetorne JSON array: [{"date":"YYYY-MM-DD","channel":"Instagram Stories","funnel_stage":"topo"|"meio"|"fundo","product":"nome ou null","theme":"string","caption":"caption curta","hashtags":[],"cta":"string","time":"09:00","type":"Stories","isLive":false,"status":"rascunho"}]`;
+        const storiesRaw = await callClaude(ANNA_SYSTEM_PROMPT, storiesPrompt);
+        const storiesParsed = safeParseJSON(storiesRaw);
+        addParsedItems(storiesParsed, 'instagram');
+        totalGenerated += storiesParsed.length;
+
+        // Reels (2x/day)
+        const reelsSchedule = dates.map(d => `${d.ds} (${d.dn}): 11:00 + 20:00${d.dow === 2 ? ' ⚡ 20:00=Live teaser' : ''}`).join('\n');
+        const reelsPrompt = `Crie EXATAMENTE ${dim * 2} Reels para ${monthLabel}. 2 por dia (11:00 + 20:00). Terças 20:00: teaser live (isLive:true). CRONOGRAMA:\n${reelsSchedule}\nRetorne JSON array: [{"date":"YYYY-MM-DD","channel":"Instagram Reels","funnel_stage":"topo"|"meio"|"fundo","product":"nome ou null","theme":"string","caption":"string","hashtags":[],"cta":"string","time":"11:00"|"20:00","type":"Reels","isLive":false,"status":"rascunho"}]`;
+        const reelsRaw = await callClaude(ANNA_SYSTEM_PROMPT, reelsPrompt);
+        const reelsParsed = safeParseJSON(reelsRaw);
+        addParsedItems(reelsParsed, 'instagram');
+        totalGenerated += reelsParsed.length;
+
+        // Feed (Mon,Wed,Fri) + Live Tue
+        const feedDays = dates.filter(d => [1, 3, 5].includes(d.dow));
+        const liveDays = dates.filter(d => d.dow === 2);
+        const feedTotal = feedDays.length + liveDays.length;
+        const feedSchedule = [...feedDays.map(d => `${d.ds} (${d.dn}): Feed 11:00`), ...liveDays.map(d => `${d.ds} (${d.dn}): Feed Live 11:00`)].sort().join('\n');
+        const feedPrompt = `Crie EXATAMENTE ${feedTotal} posts Feed para ${monthLabel}. Seg/Qua/Sex + terça (live). CRONOGRAMA:\n${feedSchedule}\nRetorne JSON array: [{"date":"YYYY-MM-DD","channel":"Instagram Feed","funnel_stage":"topo"|"meio"|"fundo","product":"nome ou null","theme":"string","caption":"string","hashtags":[],"cta":"string","time":"11:00","type":"Feed","isLive":false,"status":"rascunho"}]`;
+        const feedRaw = await callClaude(ANNA_SYSTEM_PROMPT, feedPrompt);
+        const feedParsed = safeParseJSON(feedRaw);
+        addParsedItems(feedParsed, 'instagram');
+        totalGenerated += feedParsed.length;
+      } else if (channel === 'email') {
+        const weeks = Math.ceil(dim / 7);
+        const expectedEmails = weeks * 2;
+        const prompt = `Crie EXATAMENTE ${expectedEmails} e-mails para ${monthLabel} (2x/semana). Distribua uniformemente. Retorne JSON array: [{"date":"YYYY-MM-DD","channel":"email","subject":"string","preview_text":"string","body":"string","cta":"string","audience":"string","funnel_stage":"topo"|"meio"|"fundo","time":"09:00"|"14:00"}]`;
+        const raw = await callClaude(ANNA_SYSTEM_PROMPT, prompt);
+        const parsed = safeParseJSON(raw);
+        addParsedItems(parsed, 'email');
+        totalGenerated = parsed.length;
+      } else {
+        const weeks = Math.ceil(dim / 7);
+        const expectedWpp = weeks * 2;
+        const prompt = `Crie EXATAMENTE ${expectedWpp} campanhas WhatsApp para ${monthLabel} (2x/semana). Retorne JSON array: [{"date":"YYYY-MM-DD","channel":"whatsapp","audience":"string","message":"string","coupon":"string ou null","time":"14:00"|"15:00"|"21:00","funnel_stage":"topo"|"meio"|"fundo"}]`;
+        const raw = await callClaude(ANNA_SYSTEM_PROMPT, prompt);
+        const parsed = safeParseJSON(raw);
+        addParsedItems(parsed, 'whatsapp');
+        totalGenerated = parsed.length;
+      }
+
+      toast.success(`${totalGenerated} itens regenerados para ${channel === 'instagram' ? 'Instagram' : channel === 'email' ? 'E-mail' : 'WhatsApp'}`);
     } catch (e) {
       console.error('Regenerate channel error:', e);
       toast.error('Falha ao regenerar. Tente novamente.');
