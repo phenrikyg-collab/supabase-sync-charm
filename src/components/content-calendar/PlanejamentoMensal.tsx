@@ -285,6 +285,7 @@ export function PlanejamentoMensal({ onContentGenerated, onNavigateToCalendar }:
       funnelBottom: funnel.fundo,
       emailGoal,
       wppGoal: whatsappGoal,
+      customNotes: customNotes || undefined,
     };
 
     const callAI = async (prompt: string): Promise<string> => {
