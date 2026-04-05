@@ -557,6 +557,7 @@ Retorne SOMENTE um JSON array com EXATAMENTE ${expectedWpp} objetos:
               emailGoal={emailGoal} onEmailGoalChange={setEmailGoal}
               whatsappGoal={whatsappGoal} onWhatsappGoalChange={setWhatsappGoal}
               coupon={coupon} onCouponChange={setCoupon}
+              customNotes={customNotes} onCustomNotesChange={setCustomNotes}
             />
           )}
           {step === 3 && (
