@@ -163,7 +163,7 @@ export default function ContentCalendar() {
         const feedTotal = feedDays.length + liveDays.length;
         const feedSchedule = [...feedDays.map(d => `${d.ds} (${d.dn}): Feed 11:00`), ...liveDays.map(d => `${d.ds} (${d.dn}): Feed Live 11:00`)].sort().join('\n');
         const feedPrompt = `Crie EXATAMENTE ${feedTotal} posts Feed para ${monthLabel}. Seg/Qua/Sex + terça (live). CRONOGRAMA:\n${feedSchedule}\nRetorne JSON array: [{"date":"YYYY-MM-DD","channel":"Instagram Feed","funnel_stage":"topo"|"meio"|"fundo","product":"nome ou null","theme":"string","caption":"string","hashtags":[],"cta":"string","time":"11:00","type":"Feed","isLive":false,"status":"rascunho"}]`;
-        const feedRaw = await callClaude(ANNA_SYSTEM_PROMPT, feedPrompt);
+        const feedRaw = await callClaude(feedPrompt);
         const feedParsed = safeParseJSON(feedRaw);
         addParsedItems(feedParsed, 'instagram');
         totalGenerated += feedParsed.length;
