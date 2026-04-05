@@ -4,7 +4,7 @@ import { ptBR } from 'date-fns/locale';
 import { Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
-import { supabase } from '@/integrations/supabase/client';
+
 import { callClaude, safeParseJSON, ANNA_SYSTEM_PROMPT } from '@/lib/claudeApi';
 import { ContentItem } from './types';
 import { Step1MesDatas } from './planner/Step1MesDatas';
