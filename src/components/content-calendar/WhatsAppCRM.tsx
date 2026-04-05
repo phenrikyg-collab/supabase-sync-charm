@@ -5,7 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
 import { WhatsAppCampaign } from './types';
 import { cn } from '@/lib/utils';
-import { callClaude, ANNA_SYSTEM_PROMPT } from '@/lib/claudeApi';
+import { callClaude } from '@/lib/claudeApi';
 import { toast } from 'sonner';
 
 interface WhatsAppCRMProps {
