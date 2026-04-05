@@ -171,6 +171,18 @@ export function AppSidebar() {
             <SidebarMenuItem>
               <SidebarMenuButton asChild>
                 <NavLink
+                  to="/conteudo"
+                  className="transition-colors hover:bg-sidebar-accent"
+                  activeClassName="bg-sidebar-accent text-sidebar-primary font-medium"
+                >
+                  <CalendarDays className="h-4 w-4 mr-2 shrink-0" />
+                  {!collapsed && <span>Conteúdo & CRM</span>}
+                </NavLink>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+            <SidebarMenuItem>
+              <SidebarMenuButton asChild>
+                <NavLink
                   to="/tv-interna"
                   className="transition-colors hover:bg-sidebar-accent"
                   activeClassName="bg-sidebar-accent text-sidebar-primary font-medium"
