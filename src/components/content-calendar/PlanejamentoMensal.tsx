@@ -5,7 +5,8 @@ import { Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 
-import { callClaude, safeParseJSON, ANNA_SYSTEM_PROMPT } from '@/lib/claudeApi';
+import { callClaude, safeParseJSON } from '@/lib/claudeApi';
+import { BrandConfig } from '@/lib/brandContext';
 import { ContentItem } from './types';
 import { Step1MesDatas } from './planner/Step1MesDatas';
 import { Step2Produtos } from './planner/Step2Produtos';
@@ -247,6 +248,7 @@ export function PlanejamentoMensal({ onContentGenerated, onNavigateToCalendar }:
   const [emailGoal, setEmailGoal] = useState('relacionamento');
   const [whatsappGoal, setWhatsappGoal] = useState('lancamento');
   const [coupon, setCoupon] = useState('');
+  const [customNotes, setCustomNotes] = useState('');
 
   useEffect(() => {
     setHolidays(getHolidaysForMonth(month, year));
@@ -254,7 +256,7 @@ export function PlanejamentoMensal({ onContentGenerated, onNavigateToCalendar }:
 
   const config: PlanConfig = {
     month, year, channels, holidays, brandDates, avoidDays,
-    products, productEvents, funnel, audiences, emailGoal, whatsappGoal, coupon,
+    products, productEvents, funnel, audiences, emailGoal, whatsappGoal, coupon, customNotes,
   };
 
   const handleGenerate = useCallback(async () => {
@@ -274,8 +276,20 @@ export function PlanejamentoMensal({ onContentGenerated, onNavigateToCalendar }:
     const allItems: ContentItem[] = [];
     const igConfig = { holidays, products, productEvents, funnel, coupon };
 
+    const brandConfig: BrandConfig = {
+      activeProducts: products.filter(p => p.included).map(p => p.name),
+      coupon: coupon || undefined,
+      monthName: monthLabel,
+      funnelTop: funnel.topo,
+      funnelMid: funnel.meio,
+      funnelBottom: funnel.fundo,
+      emailGoal,
+      wppGoal: whatsappGoal,
+      customNotes: customNotes || undefined,
+    };
+
     const callAI = async (prompt: string): Promise<string> => {
-      return await callClaude(ANNA_SYSTEM_PROMPT, prompt);
+      return await callClaude(prompt, brandConfig);
     };
 
     // ========== INSTAGRAM: 3 SEPARATE CALLS ==========
@@ -543,6 +557,7 @@ Retorne SOMENTE um JSON array com EXATAMENTE ${expectedWpp} objetos:
               emailGoal={emailGoal} onEmailGoalChange={setEmailGoal}
               whatsappGoal={whatsappGoal} onWhatsappGoalChange={setWhatsappGoal}
               coupon={coupon} onCouponChange={setCoupon}
+              customNotes={customNotes} onCustomNotesChange={setCustomNotes}
             />
           )}
           {step === 3 && (

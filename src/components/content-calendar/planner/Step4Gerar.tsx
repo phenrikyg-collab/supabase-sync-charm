@@ -4,6 +4,7 @@ import { ptBR } from 'date-fns/locale';
 import { Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { PlanConfig } from './plannerTypes';
+import { buildSystemPrompt, BrandConfig } from '@/lib/brandContext';
 
 interface Step4Props {
   config: PlanConfig;
@@ -34,6 +35,20 @@ export function Step4Gerar({ config, onGenerate, isGenerating }: Step4Props) {
   const activeProducts = config.products.filter(p => p.included);
   const includedHolidays = config.holidays.filter(h => h.included);
 
+  const brandConfig: BrandConfig = {
+    activeProducts: activeProducts.map(p => p.name),
+    coupon: config.coupon || undefined,
+    monthName: format(monthDate, 'MMMM yyyy', { locale: ptBR }),
+    funnelTop: config.funnel.topo,
+    funnelMid: config.funnel.meio,
+    funnelBottom: config.funnel.fundo,
+    emailGoal: config.emailGoal,
+    wppGoal: config.whatsappGoal,
+    customNotes: config.customNotes || undefined,
+  };
+
+  const systemPromptPreview = useMemo(() => buildSystemPrompt(brandConfig), [brandConfig]);
+
   return (
     <div className="max-w-2xl mx-auto space-y-6">
       <h3 className="text-2xl font-bold text-center" style={{ fontFamily: "'Cormorant Garamond', serif", color: '#1D1D1B' }}>
@@ -60,6 +75,16 @@ export function Step4Gerar({ config, onGenerate, isGenerating }: Step4Props) {
           <span className="text-sm text-muted-foreground">posts estimados</span>
         </div>
       </div>
+
+      {/* Brand context preview */}
+      <details className="border rounded-lg overflow-hidden" style={{ borderColor: 'rgba(232,205,126,0.3)' }}>
+        <summary className="px-4 py-3 text-sm cursor-pointer select-none" style={{ backgroundColor: 'rgba(232,205,126,0.1)', color: '#8B6914' }}>
+          🔍 Ver contexto da marca enviado para a IA
+        </summary>
+        <pre className="p-4 text-xs font-mono bg-white overflow-auto max-h-64 whitespace-pre-wrap" style={{ color: 'rgba(29,29,27,0.7)' }}>
+          {systemPromptPreview}
+        </pre>
+      </details>
 
       <Button
         onClick={onGenerate}

@@ -54,6 +54,7 @@ export interface PlanConfig {
   emailGoal: string;
   whatsappGoal: string;
   coupon: string;
+  customNotes: string;
 }
 
 export const DEFAULT_CHANNELS: PlannerChannel[] = [

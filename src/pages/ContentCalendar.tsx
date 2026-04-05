@@ -13,7 +13,7 @@ import { ReviewMode } from '@/components/content-calendar/planner/ReviewMode';
 import { useContentStore } from '@/hooks/useContentStore';
 import { ContentItem } from '@/components/content-calendar/types';
 import { ConfiguracoesView } from '@/components/content-calendar/ConfiguracoesView';
-import { callClaude, safeParseJSON, ANNA_SYSTEM_PROMPT } from '@/lib/claudeApi';
+import { callClaude, safeParseJSON } from '@/lib/claudeApi';
 
 export default function ContentCalendar() {
   const [activeView, setActiveView] = useState('calendario');
@@ -144,7 +144,7 @@ export default function ContentCalendar() {
         // Stories
         const storiesSchedule = dates.map(d => `${d.ds} (${d.dn})${d.dow === 2 ? ' ⚡ LIVE' : ''}`).join('\n');
         const storiesPrompt = `Crie EXATAMENTE ${dim} Stories para Instagram para ${monthLabel}. 1 por dia, 09:00. Terças: "Hoje tem live!". CRONOGRAMA:\n${storiesSchedule}\nRetorne JSON array: [{"date":"YYYY-MM-DD","channel":"Instagram Stories","funnel_stage":"topo"|"meio"|"fundo","product":"nome ou null","theme":"string","caption":"caption curta","hashtags":[],"cta":"string","time":"09:00","type":"Stories","isLive":false,"status":"rascunho"}]`;
-        const storiesRaw = await callClaude(ANNA_SYSTEM_PROMPT, storiesPrompt);
+        const storiesRaw = await callClaude(storiesPrompt);
         const storiesParsed = safeParseJSON(storiesRaw);
         addParsedItems(storiesParsed, 'instagram');
         totalGenerated += storiesParsed.length;
@@ -152,7 +152,7 @@ export default function ContentCalendar() {
         // Reels (2x/day)
         const reelsSchedule = dates.map(d => `${d.ds} (${d.dn}): 11:00 + 20:00${d.dow === 2 ? ' ⚡ 20:00=Live teaser' : ''}`).join('\n');
         const reelsPrompt = `Crie EXATAMENTE ${dim * 2} Reels para ${monthLabel}. 2 por dia (11:00 + 20:00). Terças 20:00: teaser live (isLive:true). CRONOGRAMA:\n${reelsSchedule}\nRetorne JSON array: [{"date":"YYYY-MM-DD","channel":"Instagram Reels","funnel_stage":"topo"|"meio"|"fundo","product":"nome ou null","theme":"string","caption":"string","hashtags":[],"cta":"string","time":"11:00"|"20:00","type":"Reels","isLive":false,"status":"rascunho"}]`;
-        const reelsRaw = await callClaude(ANNA_SYSTEM_PROMPT, reelsPrompt);
+        const reelsRaw = await callClaude(reelsPrompt);
         const reelsParsed = safeParseJSON(reelsRaw);
         addParsedItems(reelsParsed, 'instagram');
         totalGenerated += reelsParsed.length;
@@ -163,7 +163,7 @@ export default function ContentCalendar() {
         const feedTotal = feedDays.length + liveDays.length;
         const feedSchedule = [...feedDays.map(d => `${d.ds} (${d.dn}): Feed 11:00`), ...liveDays.map(d => `${d.ds} (${d.dn}): Feed Live 11:00`)].sort().join('\n');
         const feedPrompt = `Crie EXATAMENTE ${feedTotal} posts Feed para ${monthLabel}. Seg/Qua/Sex + terça (live). CRONOGRAMA:\n${feedSchedule}\nRetorne JSON array: [{"date":"YYYY-MM-DD","channel":"Instagram Feed","funnel_stage":"topo"|"meio"|"fundo","product":"nome ou null","theme":"string","caption":"string","hashtags":[],"cta":"string","time":"11:00","type":"Feed","isLive":false,"status":"rascunho"}]`;
-        const feedRaw = await callClaude(ANNA_SYSTEM_PROMPT, feedPrompt);
+        const feedRaw = await callClaude(feedPrompt);
         const feedParsed = safeParseJSON(feedRaw);
         addParsedItems(feedParsed, 'instagram');
         totalGenerated += feedParsed.length;
@@ -171,7 +171,7 @@ export default function ContentCalendar() {
         const weeks = Math.ceil(dim / 7);
         const expectedEmails = weeks * 2;
         const prompt = `Crie EXATAMENTE ${expectedEmails} e-mails para ${monthLabel} (2x/semana). Distribua uniformemente. Retorne JSON array: [{"date":"YYYY-MM-DD","channel":"email","subject":"string","preview_text":"string","body":"string","cta":"string","audience":"string","funnel_stage":"topo"|"meio"|"fundo","time":"09:00"|"14:00"}]`;
-        const raw = await callClaude(ANNA_SYSTEM_PROMPT, prompt);
+        const raw = await callClaude(prompt);
         const parsed = safeParseJSON(raw);
         addParsedItems(parsed, 'email');
         totalGenerated = parsed.length;
@@ -179,7 +179,7 @@ export default function ContentCalendar() {
         const weeks = Math.ceil(dim / 7);
         const expectedWpp = weeks * 2;
         const prompt = `Crie EXATAMENTE ${expectedWpp} campanhas WhatsApp para ${monthLabel} (2x/semana). Retorne JSON array: [{"date":"YYYY-MM-DD","channel":"whatsapp","audience":"string","message":"string","coupon":"string ou null","time":"14:00"|"15:00"|"21:00","funnel_stage":"topo"|"meio"|"fundo"}]`;
-        const raw = await callClaude(ANNA_SYSTEM_PROMPT, prompt);
+        const raw = await callClaude(prompt);
         const parsed = safeParseJSON(raw);
         addParsedItems(parsed, 'whatsapp');
         totalGenerated = parsed.length;

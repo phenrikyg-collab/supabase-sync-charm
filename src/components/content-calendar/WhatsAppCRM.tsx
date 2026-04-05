@@ -5,7 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
 import { WhatsAppCampaign } from './types';
 import { cn } from '@/lib/utils';
-import { callClaude, ANNA_SYSTEM_PROMPT } from '@/lib/claudeApi';
+import { callClaude } from '@/lib/claudeApi';
 import { toast } from 'sonner';
 
 interface WhatsAppCRMProps {
@@ -36,7 +36,7 @@ Retorne SOMENTE JSON válido:
 {
   "caption": "mensagem completa do WhatsApp"
 }`;
-      const raw = await callClaude(ANNA_SYSTEM_PROMPT, userPrompt);
+      const raw = await callClaude(userPrompt);
       const clean = raw.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
       const data = JSON.parse(clean);
       onUpdate(campaign.id, { messageTemplate: data.caption || campaign.messageTemplate });

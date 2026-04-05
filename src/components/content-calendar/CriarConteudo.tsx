@@ -11,7 +11,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Calendar } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
 import { ContentItem, ContentChannel, ContentObjective, ContentTone, ContentAudience, CHANNEL_LABELS } from './types';
-import { callClaude, ANNA_SYSTEM_PROMPT } from '@/lib/claudeApi';
+import { callClaude } from '@/lib/claudeApi';
 import { toast } from 'sonner';
 
 interface CriarConteudoProps {
@@ -76,7 +76,7 @@ Retorne SOMENTE JSON válido:
   "previewText": "..."
 }`;
 
-      const raw = await callClaude(ANNA_SYSTEM_PROMPT, userPrompt);
+      const raw = await callClaude(userPrompt);
       const clean = raw.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
       const result = JSON.parse(clean);
       setCaption(result.caption || '');

@@ -2,6 +2,7 @@ import { Slider } from '@/components/ui/slider';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { FunnelConfig } from './plannerTypes';
 
 interface Step3Props {
@@ -15,6 +16,8 @@ interface Step3Props {
   onWhatsappGoalChange: (g: string) => void;
   coupon: string;
   onCouponChange: (c: string) => void;
+  customNotes?: string;
+  onCustomNotesChange?: (n: string) => void;
 }
 
 const audienceOptions = [
@@ -34,7 +37,7 @@ const funnelExamples = {
 export function Step3Funil({
   funnel, onFunnelChange, audiences, onAudiencesChange,
   emailGoal, onEmailGoalChange, whatsappGoal, onWhatsappGoalChange,
-  coupon, onCouponChange,
+  coupon, onCouponChange, customNotes, onCustomNotesChange,
 }: Step3Props) {
 
   const adjustFunnel = (key: keyof FunnelConfig, value: number) => {
@@ -195,6 +198,24 @@ export function Step3Funil({
               <Input value={coupon} onChange={e => onCouponChange(e.target.value)} placeholder="Ex: ANNA, LOOK15, MALUCO40" />
             </div>
           </div>
+
+          {/* Custom notes for AI */}
+          {onCustomNotesChange && (
+            <div className="mt-6">
+              <h3 className="text-lg font-semibold mb-3" style={{ fontFamily: "'Cormorant Garamond', serif", color: '#1D1D1B' }}>
+                📝 Notas para a IA
+              </h3>
+              <Textarea
+                value={customNotes || ''}
+                onChange={e => onCustomNotesChange(e.target.value)}
+                placeholder="Ex: Este mês focar em jeans, preparar terreno para Black Friday, mencionar nova coleção de inverno..."
+                className="min-h-[100px]"
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                Esse contexto será enviado para a IA em todas as gerações deste mês.
+              </p>
+            </div>
+          )}
         </div>
       </div>
     </div>
