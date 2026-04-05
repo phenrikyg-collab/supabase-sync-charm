@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { format, parseISO, startOfWeek, getWeek } from 'date-fns';
+import { format, parseISO, getWeek } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Check, RefreshCw, Download } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -12,6 +12,7 @@ interface ReviewModeProps {
   onApproveAll: () => void;
   onRegenerate: (item: ContentItem) => void;
   onExportCsv: () => void;
+  onRegenerateChannel?: (channel: 'instagram' | 'email' | 'whatsapp') => void;
 }
 
 const funnelColors: Record<string, { bg: string; text: string }> = {
@@ -20,7 +21,7 @@ const funnelColors: Record<string, { bg: string; text: string }> = {
   fundo: { bg: 'rgba(29,29,27,0.1)', text: '#1D1D1B' },
 };
 
-export function ReviewMode({ items, onApprove, onApproveAll, onRegenerate, onExportCsv }: ReviewModeProps) {
+export function ReviewMode({ items, onApprove, onApproveAll, onRegenerate, onExportCsv, onRegenerateChannel }: ReviewModeProps) {
   const grouped = useMemo(() => {
     const weeks: Record<number, ContentItem[]> = {};
     items.forEach(item => {
@@ -58,6 +59,36 @@ export function ReviewMode({ items, onApprove, onApproveAll, onRegenerate, onExp
         </div>
       </div>
 
+      {/* Per-channel regenerate buttons */}
+      {onRegenerateChannel && (
+        <div className="flex gap-3 px-6 py-3 border-b" style={{ borderColor: 'rgba(232,205,126,0.1)' }}>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => onRegenerateChannel('instagram')}
+            className="text-xs border-[#E8CD7E]/50 text-[#8B6914] hover:bg-[#E8CD7E]/10"
+          >
+            <RefreshCw className="h-3 w-3 mr-1" /> 📷 Regenerar Instagram
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => onRegenerateChannel('email')}
+            className="text-xs border-[#E8CD7E]/50 text-[#8B6914] hover:bg-[#E8CD7E]/10"
+          >
+            <RefreshCw className="h-3 w-3 mr-1" /> 📧 Regenerar E-mails
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => onRegenerateChannel('whatsapp')}
+            className="text-xs border-[#E8CD7E]/50 text-[#8B6914] hover:bg-[#E8CD7E]/10"
+          >
+            <RefreshCw className="h-3 w-3 mr-1" /> 💬 Regenerar WhatsApp
+          </Button>
+        </div>
+      )}
+
       {/* Content */}
       <div className="flex-1 overflow-y-auto p-6 space-y-6">
         {Object.entries(grouped).sort(([a], [b]) => Number(a) - Number(b)).map(([week, weekItems]) => (
@@ -68,14 +99,21 @@ export function ReviewMode({ items, onApprove, onApproveAll, onRegenerate, onExp
                 const funnelStage = (item as any).funnelStage || 'meio';
                 const fc = funnelColors[funnelStage] || funnelColors.meio;
                 const isApproved = item.status === 'agendado';
+                const isLive = (item as any).isLive || (item as any).type === 'Live';
 
                 return (
-                  <div key={item.id} className="flex items-center gap-3 p-3 rounded-lg bg-white border transition-all" style={{ borderColor: isApproved ? 'rgba(34,197,94,0.3)' : 'rgba(232,205,126,0.2)', borderLeftWidth: '3px', borderLeftColor: funnelStage === 'topo' ? '#E8CD7E' : funnelStage === 'meio' ? '#8B6914' : '#1D1D1B' }}>
+                  <div key={item.id} className="flex items-center gap-3 p-3 rounded-lg bg-white border transition-all" style={{ borderColor: isApproved ? 'rgba(34,197,94,0.3)' : isLive ? 'rgba(147,51,234,0.3)' : 'rgba(232,205,126,0.2)', borderLeftWidth: '3px', borderLeftColor: isLive ? '#9333ea' : funnelStage === 'topo' ? '#E8CD7E' : funnelStage === 'meio' ? '#8B6914' : '#1D1D1B' }}>
                     <div className="text-xs text-muted-foreground w-16 shrink-0">
                       <div className="font-medium">{format(parseISO(item.date), 'dd/MM')}</div>
                       <div className="capitalize">{format(parseISO(item.date), 'EEE', { locale: ptBR })}</div>
                     </div>
-                    <span className="text-base shrink-0">{CHANNEL_ICONS[item.channel]}</span>
+                    {isLive ? (
+                      <span className="inline-flex items-center gap-1 text-[10px] font-bold bg-purple-600 text-white px-1.5 py-0.5 rounded-full shrink-0">
+                        🎥 LIVE
+                      </span>
+                    ) : (
+                      <span className="text-base shrink-0">{CHANNEL_ICONS[item.channel]}</span>
+                    )}
                     <Badge className="text-[10px] shrink-0" style={{ backgroundColor: fc.bg, color: fc.text }}>
                       {funnelStage}
                     </Badge>

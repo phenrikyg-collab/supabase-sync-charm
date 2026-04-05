@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect } from 'react';
-import { addMonths, format } from 'date-fns';
+import { addMonths, format, getDaysInMonth, getDay, startOfMonth } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -24,6 +24,113 @@ interface PlanejamentoMensalProps {
 }
 
 const STEPS = ['Mês & Datas', 'Produtos', 'Estratégia de Funil', 'Gerar Calendário'];
+
+const buildInstagramPrompt = (config: {
+  month: number;
+  year: number;
+  holidays: { date: string; label: string; included: boolean }[];
+  products: ProductItem[];
+  productEvents: ProductEvent[];
+  funnel: FunnelConfig;
+  coupon: string;
+}): string => {
+  const selectedMonth = new Date(config.year, config.month - 1, 1);
+  const monthName = format(selectedMonth, 'MMMM yyyy', { locale: ptBR });
+  const yearStr = format(selectedMonth, 'yyyy');
+  const monthNum = format(selectedMonth, 'MM');
+  const daysInMonth = getDaysInMonth(selectedMonth);
+
+  const schedule: string[] = [];
+
+  for (let day = 1; day <= daysInMonth; day++) {
+    const date = new Date(config.year, config.month - 1, day);
+    const dayOfWeek = getDay(date);
+    const dateStr = `${yearStr}-${monthNum}-${String(day).padStart(2, '0')}`;
+    const dayName = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'][dayOfWeek];
+
+    const dayEntries: string[] = [];
+    // Stories: EVERY day
+    dayEntries.push(`${dateStr} (${dayName}): Stories`);
+    // Feed: Mon, Wed, Fri, Sun (4x/week)
+    if ([0, 1, 3, 5].includes(dayOfWeek)) {
+      dayEntries.push(`${dateStr} (${dayName}): Feed`);
+    }
+    // Reels: Tue, Thu, Sat (3x/week)
+    if ([2, 4, 6].includes(dayOfWeek)) {
+      dayEntries.push(`${dateStr} (${dayName}): Reels`);
+    }
+    // Live: EVERY Tuesday (mandatory)
+    if (dayOfWeek === 2) {
+      dayEntries.push(`${dateStr} (${dayName}): LIVE OBRIGATÓRIA - divulgação prévia`);
+    }
+    schedule.push(dayEntries.join(' | '));
+  }
+
+  const importantDatesStr = config.holidays
+    .filter(d => d.included)
+    .map(d => `${d.date}: ${d.label}`)
+    .join('\n');
+
+  const productsStr = config.products
+    .filter(p => p.included)
+    .map(p => `${p.name} (prioridade: ${p.priority})`)
+    .join(', ');
+
+  const productEventsStr = config.productEvents
+    .map(e => `${e.date}: ${e.productName} - ${e.type}`)
+    .join('\n');
+
+  return `Crie conteúdo para Instagram para ${monthName} seguindo RIGOROSAMENTE o cronograma abaixo.
+
+REGRAS ABSOLUTAS:
+1. Gere UM item para CADA entrada do cronograma abaixo — NÃO pule nenhum dia
+2. Stories: todos os dias sem exceção, horário 09:00
+3. Feed: segunda, quarta, sexta e domingo, horário 11:00
+4. Reels: terça, quinta e sábado, horário 20:00
+5. LIVE toda terça-feira: gere post de divulgação da live (Stories às 09:00 + Feed às 11:00 + Reels de teaser às 20:00)
+6. Mix de funil: ${config.funnel.topo}% topo / ${config.funnel.meio}% meio / ${config.funnel.fundo}% fundo
+7. Distribua os produtos de forma equilibrada ao longo do mês
+8. Primeira semana: foque em topo (alcance, descoberta)
+9. Última semana: foque em fundo (conversão, urgência, "últimas peças")
+10. Datas de lançamento/reposição: gere teaser D-7, antecipação D-3, lançamento D0, prova social D+2
+
+CRONOGRAMA OBRIGATÓRIO (gere exatamente estes itens):
+${schedule.join('\n')}
+
+DATAS IMPORTANTES:
+${importantDatesStr || 'Nenhuma específica'}
+
+EVENTOS DE PRODUTO:
+${productEventsStr || 'Nenhum'}
+
+PRODUTOS DISPONÍVEIS: ${productsStr}
+
+CUPOM DO MÊS: ${config.coupon || 'nenhum'}
+
+IMPORTANTE PARA LIVES (toda terça-feira):
+- Stories 09:00: "Hoje tem live! [tema da live relacionado ao produto da semana] ✨"
+- Feed 11:00: post de aquecimento com tema e horário da live
+- Reels 20:00: teaser/bastidor pré-live OU review pós-live
+- O tema da live deve girar em torno dos produtos ativos do mês
+
+Retorne SOMENTE um JSON array válido com TODOS os itens do cronograma acima (sem pular nenhum):
+[
+  {
+    "date": "YYYY-MM-DD",
+    "channel": "Instagram Feed" | "Instagram Reels" | "Instagram Stories",
+    "funnel_stage": "topo" | "meio" | "fundo",
+    "product": "nome do produto ou null",
+    "theme": "tema em até 60 caracteres",
+    "caption": "legenda completa",
+    "hashtags": ["hashtag1", "hashtag2"],
+    "cta": "chamada para ação",
+    "time": "09:00" | "11:00" | "20:00",
+    "type": "Stories" | "Feed" | "Reels" | "Live",
+    "isLive": true | false,
+    "status": "rascunho"
+  }
+]`;
+};
 
 export function PlanejamentoMensal({ onContentGenerated, onNavigateToCalendar }: PlanejamentoMensalProps) {
   const nextMonth = addMonths(new Date(), 1);
@@ -72,8 +179,8 @@ export function PlanejamentoMensal({ onContentGenerated, onNavigateToCalendar }:
       ...brandDates.map(bd => `${bd.date}: ${bd.label} (${bd.type})`),
     ].join('; ');
     const events = productEvents.map(e => `${e.date}: ${e.productName} (${e.type})`).join('; ');
-    const avoidLabels = avoidDays.map(d => ['Domingo','Segunda','Terça','Quarta','Quinta','Sexta','Sábado'][d]).join(', ');
     const monthLabel = format(new Date(year, month - 1, 1), 'MMMM yyyy', { locale: ptBR });
+    const daysInMonth = getDaysInMonth(new Date(year, month - 1, 1));
 
     const allItems: ContentItem[] = [];
 
@@ -85,16 +192,24 @@ export function PlanejamentoMensal({ onContentGenerated, onNavigateToCalendar }:
       return await callClaude(ANNA_SYSTEM_PROMPT, prompt);
     };
 
-    // Instagram
+    // Instagram - using strict prompt
     const hasIG = enabledChannels.some(c => c.channel.startsWith('Instagram'));
     if (hasIG) {
       setProgress(15);
       try {
-        const igChannels = enabledChannels.filter(c => c.channel.startsWith('Instagram'));
-        const freqStr = igChannels.map(c => `${c.channel}: ${c.frequency}`).join(', ');
-        const prompt = `Crie um plano de conteúdo para Instagram para ${monthLabel} com frequência: ${freqStr}. Datas importantes: ${importantDates || 'nenhuma'}. Produtos em destaque: ${activeProducts}. Eventos: ${events || 'nenhum'}. Mix de funil: ${funnel.topo}% topo, ${funnel.meio}% meio, ${funnel.fundo}% fundo. Retorne SOMENTE um JSON array com objetos: { "date": "YYYY-MM-DD", "channel": "instagram-feed"|"instagram-reels"|"instagram-stories", "funnel_stage": "topo"|"meio"|"fundo", "product": "string ou null", "theme": "string", "caption": "string com caption completa", "hashtags": ["array","de","hashtags"], "cta": "string", "time": "HH:MM", "type": "string" }. Evite postar em: ${avoidLabels || 'nenhum dia'}. Distribua respeitando as datas da marca como âncoras. Gere TODOS os posts do mês.`;
+        const prompt = buildInstagramPrompt({
+          month, year, holidays, products, productEvents, funnel, coupon,
+        });
         const raw = await callAI(prompt);
         const parsed = parseJsonResponse(raw);
+
+        // Validate generation count
+        const expectedMinimum = daysInMonth * 1; // at least 1 per day (Stories)
+        if (parsed.length < expectedMinimum) {
+          console.warn(`Instagram: esperado mínimo ${expectedMinimum} itens, recebido ${parsed.length}`);
+          toast.warning(`Atenção: foram gerados ${parsed.length} posts. Você pode regenerar conteúdos individuais na revisão.`);
+        }
+
         parsed.forEach((p: any) => {
           const channelMap: Record<string, ContentItem['channel']> = {
             'instagram-feed': 'instagram-feed',
@@ -121,7 +236,8 @@ export function PlanejamentoMensal({ onContentGenerated, onNavigateToCalendar }:
             product: p.product || undefined,
             createdAt: new Date().toISOString(),
             funnelStage: p.funnel_stage,
-          } as ContentItem & { funnelStage?: string });
+            isLive: p.isLive || false,
+          } as ContentItem & { funnelStage?: string; isLive?: boolean });
         });
       } catch (e) {
         console.error('IG generation failed:', e);

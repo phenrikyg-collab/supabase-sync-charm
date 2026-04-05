@@ -1,16 +1,18 @@
 import { useState, useMemo } from 'react';
 import {
   addMonths, subMonths, startOfMonth, endOfMonth, startOfWeek, endOfWeek,
-  eachDayOfInterval, format, isSameMonth, isToday, isSameDay, parseISO,
+  eachDayOfInterval, format, isSameMonth, isToday, parseISO, getDay,
+  getWeek,
 } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ChevronDown, ChevronUp } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ContentItem, CHANNEL_ICONS, STATUS_COLORS, ContentChannel } from './types';
 import { cn } from '@/lib/utils';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 
 interface CalendarViewProps {
   contentItems: ContentItem[];
@@ -29,11 +31,58 @@ const channelFilterOptions: { value: ContentChannel | 'all'; label: string }[] =
   { value: 'whatsapp', label: '💬 WhatsApp' },
 ];
 
+interface WeekSummary {
+  number: number;
+  instagramCount: number;
+  livesCount: number;
+  emailCount: number;
+  wppCount: number;
+  hasTuesdayLive: boolean;
+}
+
+function computeWeeklySummary(items: ContentItem[], currentDate: Date): WeekSummary[] {
+  const monthStart = startOfMonth(currentDate);
+  const monthEnd = endOfMonth(currentDate);
+  const monthItems = items.filter(item => {
+    try {
+      const d = parseISO(item.date);
+      return d >= monthStart && d <= monthEnd;
+    } catch { return false; }
+  });
+
+  const weekMap: Record<number, ContentItem[]> = {};
+  monthItems.forEach(item => {
+    const d = parseISO(item.date);
+    const w = getWeek(d, { weekStartsOn: 0 });
+    if (!weekMap[w]) weekMap[w] = [];
+    weekMap[w].push(item);
+  });
+
+  return Object.entries(weekMap)
+    .sort(([a], [b]) => Number(a) - Number(b))
+    .map(([weekNum, weekItems]) => {
+      const tuesdayItems = weekItems.filter(i => {
+        try { return getDay(parseISO(i.date)) === 2; } catch { return false; }
+      });
+      const hasLive = tuesdayItems.some(i => (i as any).isLive || (i as any).type === 'Live');
+
+      return {
+        number: Number(weekNum),
+        instagramCount: weekItems.filter(i => i.channel.startsWith('instagram')).length,
+        livesCount: weekItems.filter(i => (i as any).isLive || (i as any).type === 'Live').length,
+        emailCount: weekItems.filter(i => i.channel === 'email').length,
+        wppCount: weekItems.filter(i => i.channel === 'whatsapp').length,
+        hasTuesdayLive: hasLive,
+      };
+    });
+}
+
 export function CalendarView({ contentItems, onCreateForDate, onUpdateContent, onDeleteContent, onOpenReview }: CalendarViewProps) {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedItem, setSelectedItem] = useState<ContentItem | null>(null);
   const [channelFilter, setChannelFilter] = useState<ContentChannel | 'all'>('all');
   const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [weekSummaryOpen, setWeekSummaryOpen] = useState(true);
 
   const monthStart = startOfMonth(currentDate);
   const monthEnd = endOfMonth(currentDate);
@@ -58,6 +107,8 @@ export function CalendarView({ contentItems, onCreateForDate, onUpdateContent, o
     });
     return map;
   }, [filtered]);
+
+  const weeklySummary = useMemo(() => computeWeeklySummary(contentItems, currentDate), [contentItems, currentDate]);
 
   const weekDays = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
 
@@ -148,13 +199,42 @@ export function CalendarView({ contentItems, onCreateForDate, onUpdateContent, o
         ))}
       </div>
 
+      {/* Weekly Summary Widget */}
+      {contentItems.length > 0 && weeklySummary.length > 0 && (
+        <Collapsible open={weekSummaryOpen} onOpenChange={setWeekSummaryOpen}>
+          <div className="px-6 py-2 border-b bg-white" style={{ borderColor: 'rgba(232,205,126,0.1)' }}>
+            <CollapsibleTrigger className="flex items-center gap-2 text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors w-full">
+              {weekSummaryOpen ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+              Resumo Semanal
+            </CollapsibleTrigger>
+            <CollapsibleContent className="mt-2 space-y-1 pb-1">
+              {weeklySummary.map(week => (
+                <div key={week.number} className="flex items-center gap-4 text-xs" style={{ color: '#8B6914' }}>
+                  <span className="font-semibold w-16">Sem {week.number}</span>
+                  <span>📷 {week.instagramCount} posts</span>
+                  <span>🎥 {week.livesCount} lives</span>
+                  <span>📧 {week.emailCount} e-mails</span>
+                  <span>💬 {week.wppCount} WPP</span>
+                  <span className={week.hasTuesdayLive ? 'text-purple-600' : 'text-red-400'}>
+                    {week.hasTuesdayLive ? '✅ Live terça' : '⚠️ Sem live terça'}
+                  </span>
+                </div>
+              ))}
+            </CollapsibleContent>
+          </div>
+        </Collapsible>
+      )}
+
       {/* Calendar Grid */}
       <div className="flex-1 overflow-auto p-4">
         <div className="grid grid-cols-7 gap-px rounded-lg overflow-hidden" style={{ backgroundColor: 'rgba(232,205,126,0.1)' }}>
           {/* Week day headers */}
-          {weekDays.map(d => (
-            <div key={d} className="bg-card px-2 py-2 text-center text-xs font-medium text-muted-foreground">
+          {weekDays.map((d, idx) => (
+            <div key={d} className="bg-card px-2 py-2 text-center text-xs font-medium text-muted-foreground relative">
               {d}
+              {idx === 2 && (
+                <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-purple-500" title="Live toda terça" />
+              )}
             </div>
           ))}
 
@@ -164,6 +244,7 @@ export function CalendarView({ contentItems, onCreateForDate, onUpdateContent, o
             const dayItems = itemsByDate[dateKey] || [];
             const inMonth = isSameMonth(day, currentDate);
             const today = isToday(day);
+            const isTuesday = getDay(day) === 2;
 
             return (
               <div
@@ -172,7 +253,7 @@ export function CalendarView({ contentItems, onCreateForDate, onUpdateContent, o
                   if (dayItems.length === 0) onCreateForDate(dateKey);
                 }}
                 className={cn(
-                  'bg-card min-h-[110px] p-1.5 cursor-pointer transition-all hover:ring-1 hover:ring-inset',
+                  'bg-card min-h-[110px] p-1.5 cursor-pointer transition-all hover:ring-1 hover:ring-inset relative',
                   !inMonth && 'opacity-40',
                   today && 'ring-2 ring-inset'
                 )}
@@ -181,29 +262,41 @@ export function CalendarView({ contentItems, onCreateForDate, onUpdateContent, o
                   ...((!today) ? { '--tw-ring-color': 'rgba(232,205,126,0.5)' } as any : {}),
                 }}
               >
-                <div className={cn(
-                  'text-xs font-medium mb-1 w-6 h-6 flex items-center justify-center rounded-full',
-                  today && 'text-white'
-                )} style={today ? { backgroundColor: '#E8CD7E' } : undefined}>
-                  {format(day, 'd')}
+                <div className="flex items-center gap-1">
+                  <div className={cn(
+                    'text-xs font-medium mb-1 w-6 h-6 flex items-center justify-center rounded-full',
+                    today && 'text-white'
+                  )} style={today ? { backgroundColor: '#E8CD7E' } : undefined}>
+                    {format(day, 'd')}
+                  </div>
+                  {isTuesday && inMonth && (
+                    <span className="w-2 h-2 rounded-full bg-purple-500 mb-1" title="Live toda terça" />
+                  )}
                 </div>
                 <div className="space-y-1">
                   {dayItems.slice(0, 3).map(item => {
                     const sc = STATUS_COLORS[item.status];
+                    const isLive = (item as any).isLive || (item as any).type === 'Live';
                     return (
                       <button
                         key={item.id}
                         onClick={e => { e.stopPropagation(); setSelectedItem(item); }}
                         className="w-full text-left px-1.5 py-1 rounded text-[10px] leading-tight truncate flex items-center gap-1 hover:-translate-y-0.5 transition-transform border"
                         style={{
-                          borderColor: 'rgba(232,205,126,0.3)',
-                          backgroundColor: 'white',
+                          borderColor: isLive ? 'rgba(147,51,234,0.4)' : 'rgba(232,205,126,0.3)',
+                          backgroundColor: isLive ? 'rgba(147,51,234,0.05)' : 'white',
                           borderLeftWidth: '3px',
-                          borderLeftColor: (item as any).funnelStage === 'topo' ? '#E8CD7E' : (item as any).funnelStage === 'fundo' ? '#1D1D1B' : '#8B6914',
+                          borderLeftColor: isLive ? '#9333ea' : (item as any).funnelStage === 'topo' ? '#E8CD7E' : (item as any).funnelStage === 'fundo' ? '#1D1D1B' : '#8B6914',
                         }}
                       >
                         <span className={cn('w-1.5 h-1.5 rounded-full shrink-0', sc.dot)} />
-                        <span className="shrink-0">{CHANNEL_ICONS[item.channel]}</span>
+                        {isLive ? (
+                          <span className="inline-flex items-center gap-0.5 text-[9px] font-bold bg-purple-600 text-white px-1 py-0 rounded-full shrink-0">
+                            🎥 LIVE
+                          </span>
+                        ) : (
+                          <span className="shrink-0">{CHANNEL_ICONS[item.channel]}</span>
+                        )}
                         <span className="truncate">{item.title.substring(0, 40)}</span>
                       </button>
                     );
@@ -225,15 +318,18 @@ export function CalendarView({ contentItems, onCreateForDate, onUpdateContent, o
             <>
               <SheetHeader>
                 <SheetTitle style={{ fontFamily: "'Cormorant Garamond', serif" }}>
-                  {CHANNEL_ICONS[selectedItem.channel]} {selectedItem.title}
+                  {(selectedItem as any).isLive ? '🎥' : CHANNEL_ICONS[selectedItem.channel]} {selectedItem.title}
                 </SheetTitle>
               </SheetHeader>
               <div className="mt-4 space-y-4">
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
                   <Badge variant="outline" className="text-xs">{selectedItem.channel.replace('-', ' ')}</Badge>
                   <Badge className={cn('text-xs', STATUS_COLORS[selectedItem.status].bg, STATUS_COLORS[selectedItem.status].text)}>
                     {selectedItem.status}
                   </Badge>
+                  {(selectedItem as any).isLive && (
+                    <Badge className="text-xs bg-purple-600 text-white">🎥 LIVE</Badge>
+                  )}
                   <span className="text-xs text-muted-foreground ml-auto">
                     {format(parseISO(selectedItem.date), 'dd/MM/yyyy')} · {selectedItem.suggestedTime}
                   </span>
