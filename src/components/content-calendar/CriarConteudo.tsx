@@ -76,7 +76,7 @@ Retorne SOMENTE JSON válido:
   "previewText": "..."
 }`;
 
-      const raw = await callClaude(ANNA_SYSTEM_PROMPT, userPrompt);
+      const raw = await callClaude(userPrompt);
       const clean = raw.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
       const result = JSON.parse(clean);
       setCaption(result.caption || '');

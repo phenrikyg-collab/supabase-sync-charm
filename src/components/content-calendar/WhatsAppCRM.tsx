@@ -36,7 +36,7 @@ Retorne SOMENTE JSON válido:
 {
   "caption": "mensagem completa do WhatsApp"
 }`;
-      const raw = await callClaude(ANNA_SYSTEM_PROMPT, userPrompt);
+      const raw = await callClaude(userPrompt);
       const clean = raw.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
       const data = JSON.parse(clean);
       onUpdate(campaign.id, { messageTemplate: data.caption || campaign.messageTemplate });

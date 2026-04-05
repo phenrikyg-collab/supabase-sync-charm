@@ -34,7 +34,7 @@ Retorne SOMENTE JSON válido:
   "subjectLine": "assunto do email",
   "previewText": "preview text"
 }`;
-      const raw = await callClaude(ANNA_SYSTEM_PROMPT, userPrompt);
+      const raw = await callClaude(userPrompt);
       const clean = raw.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
       const data = JSON.parse(clean);
       onUpdateStep(step.sequenceId, step.id, {
