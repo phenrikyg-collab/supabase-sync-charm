@@ -71,6 +71,7 @@ const AppRoutes = () => {
     <Routes>
       <Route path="/login" element={user ? <Navigate to="/" replace /> : <Login />} />
       <Route path="/tv-interna" element={<TVInterna />} />
+      <Route path="/conteudo" element={<ProtectedRoute><ContentCalendar /></ProtectedRoute>} />
       <Route path="*" element={
         <ProtectedRoute>
           <AppLayout>
