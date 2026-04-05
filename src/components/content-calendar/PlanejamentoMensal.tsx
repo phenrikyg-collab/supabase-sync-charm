@@ -248,6 +248,7 @@ export function PlanejamentoMensal({ onContentGenerated, onNavigateToCalendar }:
   const [emailGoal, setEmailGoal] = useState('relacionamento');
   const [whatsappGoal, setWhatsappGoal] = useState('lancamento');
   const [coupon, setCoupon] = useState('');
+  const [customNotes, setCustomNotes] = useState('');
 
   useEffect(() => {
     setHolidays(getHolidaysForMonth(month, year));
@@ -255,7 +256,7 @@ export function PlanejamentoMensal({ onContentGenerated, onNavigateToCalendar }:
 
   const config: PlanConfig = {
     month, year, channels, holidays, brandDates, avoidDays,
-    products, productEvents, funnel, audiences, emailGoal, whatsappGoal, coupon,
+    products, productEvents, funnel, audiences, emailGoal, whatsappGoal, coupon, customNotes,
   };
 
   const handleGenerate = useCallback(async () => {
