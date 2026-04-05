@@ -35,6 +35,7 @@ import NotFound from "./pages/NotFound";
 import TVInterna from "./pages/TVInterna";
 import AdminTVInterna from "./pages/AdminTVInterna";
 import Bonificacao from "./pages/Bonificacao";
+import ContentCalendar from "./pages/ContentCalendar";
 import { Loader2 } from "lucide-react";
 
 const queryClient = new QueryClient({
@@ -70,6 +71,7 @@ const AppRoutes = () => {
     <Routes>
       <Route path="/login" element={user ? <Navigate to="/" replace /> : <Login />} />
       <Route path="/tv-interna" element={<TVInterna />} />
+      <Route path="/conteudo" element={<ProtectedRoute><ContentCalendar /></ProtectedRoute>} />
       <Route path="*" element={
         <ProtectedRoute>
           <AppLayout>
