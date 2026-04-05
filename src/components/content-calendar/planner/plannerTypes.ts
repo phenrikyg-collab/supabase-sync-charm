@@ -58,10 +58,10 @@ export interface PlanConfig {
 
 export const DEFAULT_CHANNELS: PlannerChannel[] = [
   { channel: 'Instagram Feed', enabled: true, frequency: '3x/week' },
-  { channel: 'Instagram Reels', enabled: true, frequency: '2x/week' },
+  { channel: 'Instagram Reels', enabled: true, frequency: '2x/day' },
   { channel: 'Instagram Stories', enabled: true, frequency: '1x/day' },
-  { channel: 'E-mail', enabled: true, frequency: '1x/week' },
-  { channel: 'WhatsApp', enabled: true, frequency: '1x/week' },
+  { channel: 'E-mail', enabled: true, frequency: '2x/week' },
+  { channel: 'WhatsApp', enabled: true, frequency: '2x/week' },
 ];
 
 export const CHANNEL_FREQUENCY_OPTIONS: Record<string, string[]> = {
