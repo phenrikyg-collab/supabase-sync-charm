@@ -1,5 +1,7 @@
 import { useState, useCallback, useMemo } from 'react';
-import { format, parseISO, startOfMonth, endOfMonth, isWithinInterval } from 'date-fns';
+import { format, parseISO, startOfMonth, endOfMonth, isWithinInterval, getDaysInMonth, getDay } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
+import { toast } from 'sonner';
 import { ContentSidebar } from '@/components/content-calendar/ContentSidebar';
 import { CalendarView } from '@/components/content-calendar/CalendarView';
 import { CriarConteudo } from '@/components/content-calendar/CriarConteudo';
@@ -11,6 +13,7 @@ import { ReviewMode } from '@/components/content-calendar/planner/ReviewMode';
 import { useContentStore } from '@/hooks/useContentStore';
 import { ContentItem } from '@/components/content-calendar/types';
 import { ConfiguracoesView } from '@/components/content-calendar/ConfiguracoesView';
+import { callClaude, safeParseJSON, ANNA_SYSTEM_PROMPT } from '@/lib/claudeApi';
 
 export default function ContentCalendar() {
   const [activeView, setActiveView] = useState('calendario');
