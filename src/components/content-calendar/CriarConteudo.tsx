@@ -11,7 +11,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Calendar } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
 import { ContentItem, ContentChannel, ContentObjective, ContentTone, ContentAudience, CHANNEL_LABELS } from './types';
-import { supabase } from '@/integrations/supabase/client';
+import { callClaude, ANNA_SYSTEM_PROMPT } from '@/lib/claudeApi';
 import { toast } from 'sonner';
 
 interface CriarConteudoProps {
