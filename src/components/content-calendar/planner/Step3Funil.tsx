@@ -37,7 +37,7 @@ const funnelExamples = {
 export function Step3Funil({
   funnel, onFunnelChange, audiences, onAudiencesChange,
   emailGoal, onEmailGoalChange, whatsappGoal, onWhatsappGoalChange,
-  coupon, onCouponChange,
+  coupon, onCouponChange, customNotes, onCustomNotesChange,
 }: Step3Props) {
 
   const adjustFunnel = (key: keyof FunnelConfig, value: number) => {
