@@ -12,6 +12,11 @@ const navItems = [
   { id: 'config', label: 'Configurações', icon: Settings },
 ];
 
+interface ContentSidebarProps {
+  activeView: string;
+  onViewChange: (view: string) => void;
+}
+
 export function ContentSidebar({ activeView, onViewChange }: ContentSidebarProps) {
   const [collapsed, setCollapsed] = useState(false);
 
