@@ -10,6 +10,7 @@ import { PlanejamentoMensal } from '@/components/content-calendar/PlanejamentoMe
 import { ReviewMode } from '@/components/content-calendar/planner/ReviewMode';
 import { useContentStore } from '@/hooks/useContentStore';
 import { ContentItem } from '@/components/content-calendar/types';
+import { ConfiguracoesView } from '@/components/content-calendar/ConfiguracoesView';
 
 export default function ContentCalendar() {
   const [activeView, setActiveView] = useState('calendario');
