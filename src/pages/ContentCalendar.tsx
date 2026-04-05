@@ -128,16 +128,7 @@ export default function ContentCalendar() {
           />
         );
       case 'config':
-        return (
-          <div className="flex-1 flex items-center justify-center">
-            <div className="text-center">
-              <h2 className="text-2xl font-bold mb-2" style={{ fontFamily: "'Cormorant Garamond', serif", color: '#1D1D1B' }}>
-                ⚙️ Configurações
-              </h2>
-              <p className="text-muted-foreground">Em breve: configurações de integração, templates e automações.</p>
-            </div>
-          </div>
-        );
+        return <ConfiguracoesView />;
       default:
         return null;
     }
