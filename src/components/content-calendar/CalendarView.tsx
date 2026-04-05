@@ -17,6 +17,7 @@ interface CalendarViewProps {
   onCreateForDate: (date: string) => void;
   onUpdateContent: (id: string, updates: Partial<ContentItem>) => void;
   onDeleteContent: (id: string) => void;
+  onOpenReview?: () => void;
 }
 
 const channelFilterOptions: { value: ContentChannel | 'all'; label: string }[] = [
