@@ -5,7 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
 import { WhatsAppCampaign } from './types';
 import { cn } from '@/lib/utils';
-import { supabase } from '@/integrations/supabase/client';
+import { callClaude, ANNA_SYSTEM_PROMPT } from '@/lib/claudeApi';
 import { toast } from 'sonner';
 
 interface WhatsAppCRMProps {
@@ -30,13 +30,15 @@ export function WhatsAppCRM({ campaigns, onUpdate }: WhatsAppCRMProps) {
   const handleRegenerate = async (campaign: WhatsAppCampaign) => {
     setRegenerating(true);
     try {
-      const { data, error } = await supabase.functions.invoke('gerar-conteudo', {
-        body: {
-          prompt: `Regenere a mensagem de WhatsApp a seguir para a marca Use Mariana Cardoso. Campanha: "${campaign.name}". Público: ${campaign.audienceSegment}. Cupom: ${campaign.coupon}. Gere uma variação diferente mantendo o tom feminino, próximo e exclusivo. Retorne apenas o campo caption com a mensagem.`,
-          channel: 'whatsapp',
-        },
-      });
-      if (error) throw error;
+      const userPrompt = `Regenere a mensagem de WhatsApp a seguir para a marca Use Mariana Cardoso. Campanha: "${campaign.name}". Público: ${campaign.audienceSegment}. Cupom: ${campaign.coupon}. Gere uma variação diferente mantendo o tom feminino, próximo e exclusivo.
+
+Retorne SOMENTE JSON válido:
+{
+  "caption": "mensagem completa do WhatsApp"
+}`;
+      const raw = await callClaude(ANNA_SYSTEM_PROMPT, userPrompt);
+      const clean = raw.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+      const data = JSON.parse(clean);
       onUpdate(campaign.id, { messageTemplate: data.caption || campaign.messageTemplate });
       toast.success('Mensagem regenerada!');
     } catch {

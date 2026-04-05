@@ -5,7 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
 import { EmailSequence, EmailStep } from './types';
 import { cn } from '@/lib/utils';
-import { supabase } from '@/integrations/supabase/client';
+import { callClaude, ANNA_SYSTEM_PROMPT } from '@/lib/claudeApi';
 import { toast } from 'sonner';
 
 interface EmailsCRMProps {
@@ -26,13 +26,17 @@ export function EmailsCRM({ sequences, onUpdateStep }: EmailsCRMProps) {
   const handleRegenerate = async (step: EmailStep) => {
     setRegenerating(true);
     try {
-      const { data, error } = await supabase.functions.invoke('gerar-conteudo', {
-        body: {
-          prompt: `Regenere o e-mail a seguir para a marca Use Mariana Cardoso. Assunto atual: "${step.subject}". Etapa: ${step.stepNumber}. Gere uma variação diferente mantendo o mesmo tom feminino e sofisticado. Retorne caption (corpo do email em HTML simples), subjectLine e previewText.`,
-          channel: 'email',
-        },
-      });
-      if (error) throw error;
+      const userPrompt = `Regenere o e-mail a seguir para a marca Use Mariana Cardoso. Assunto atual: "${step.subject}". Etapa: ${step.stepNumber}. Gere uma variação diferente mantendo o mesmo tom feminino e sofisticado.
+
+Retorne SOMENTE JSON válido:
+{
+  "caption": "corpo do email em HTML simples",
+  "subjectLine": "assunto do email",
+  "previewText": "preview text"
+}`;
+      const raw = await callClaude(ANNA_SYSTEM_PROMPT, userPrompt);
+      const clean = raw.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+      const data = JSON.parse(clean);
       onUpdateStep(step.sequenceId, step.id, {
         subject: data.subjectLine || step.subject,
         previewText: data.previewText || step.previewText,

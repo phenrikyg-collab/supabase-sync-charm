@@ -5,6 +5,7 @@ import { Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
+import { callClaude, safeParseJSON, ANNA_SYSTEM_PROMPT } from '@/lib/claudeApi';
 import { ContentItem } from './types';
 import { Step1MesDatas } from './planner/Step1MesDatas';
 import { Step2Produtos } from './planner/Step2Produtos';
@@ -77,26 +78,11 @@ export function PlanejamentoMensal({ onContentGenerated, onNavigateToCalendar }:
     const allItems: ContentItem[] = [];
 
     const parseJsonResponse = (text: string): any[] => {
-      try {
-        const cleaned = text.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim();
-        return JSON.parse(cleaned);
-      } catch {
-        const match = text.match(/\[[\s\S]*\]/);
-        if (match) {
-          try { return JSON.parse(match[0]); } catch { /* */ }
-        }
-        return [];
-      }
+      return safeParseJSON(text);
     };
 
     const callAI = async (prompt: string): Promise<string> => {
-      const { data, error } = await supabase.functions.invoke('gerar-conteudo', {
-        body: { prompt, channel: 'bulk' },
-      });
-      if (error) throw error;
-      if (data?.caption) return data.caption;
-      if (typeof data === 'string') return data;
-      return JSON.stringify(data);
+      return await callClaude(ANNA_SYSTEM_PROMPT, prompt);
     };
 
     // Instagram
