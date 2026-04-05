@@ -13,7 +13,7 @@ import { ReviewMode } from '@/components/content-calendar/planner/ReviewMode';
 import { useContentStore } from '@/hooks/useContentStore';
 import { ContentItem } from '@/components/content-calendar/types';
 import { ConfiguracoesView } from '@/components/content-calendar/ConfiguracoesView';
-import { callClaude, safeParseJSON, ANNA_SYSTEM_PROMPT } from '@/lib/claudeApi';
+import { callClaude, safeParseJSON } from '@/lib/claudeApi';
 
 export default function ContentCalendar() {
   const [activeView, setActiveView] = useState('calendario');
