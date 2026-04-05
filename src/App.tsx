@@ -35,6 +35,7 @@ import NotFound from "./pages/NotFound";
 import TVInterna from "./pages/TVInterna";
 import AdminTVInterna from "./pages/AdminTVInterna";
 import Bonificacao from "./pages/Bonificacao";
+import ContentCalendar from "./pages/ContentCalendar";
 import { Loader2 } from "lucide-react";
 
 const queryClient = new QueryClient({
