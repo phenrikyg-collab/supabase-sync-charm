@@ -144,7 +144,7 @@ export default function ContentCalendar() {
         // Stories
         const storiesSchedule = dates.map(d => `${d.ds} (${d.dn})${d.dow === 2 ? ' ⚡ LIVE' : ''}`).join('\n');
         const storiesPrompt = `Crie EXATAMENTE ${dim} Stories para Instagram para ${monthLabel}. 1 por dia, 09:00. Terças: "Hoje tem live!". CRONOGRAMA:\n${storiesSchedule}\nRetorne JSON array: [{"date":"YYYY-MM-DD","channel":"Instagram Stories","funnel_stage":"topo"|"meio"|"fundo","product":"nome ou null","theme":"string","caption":"caption curta","hashtags":[],"cta":"string","time":"09:00","type":"Stories","isLive":false,"status":"rascunho"}]`;
-        const storiesRaw = await callClaude(ANNA_SYSTEM_PROMPT, storiesPrompt);
+        const storiesRaw = await callClaude(storiesPrompt);
         const storiesParsed = safeParseJSON(storiesRaw);
         addParsedItems(storiesParsed, 'instagram');
         totalGenerated += storiesParsed.length;
