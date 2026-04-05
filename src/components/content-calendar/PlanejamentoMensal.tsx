@@ -5,7 +5,8 @@ import { Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 
-import { callClaude, safeParseJSON, ANNA_SYSTEM_PROMPT } from '@/lib/claudeApi';
+import { callClaude, safeParseJSON } from '@/lib/claudeApi';
+import { BrandConfig } from '@/lib/brandContext';
 import { ContentItem } from './types';
 import { Step1MesDatas } from './planner/Step1MesDatas';
 import { Step2Produtos } from './planner/Step2Produtos';
