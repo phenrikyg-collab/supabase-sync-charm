@@ -275,8 +275,19 @@ export function PlanejamentoMensal({ onContentGenerated, onNavigateToCalendar }:
     const allItems: ContentItem[] = [];
     const igConfig = { holidays, products, productEvents, funnel, coupon };
 
+    const brandConfig: BrandConfig = {
+      activeProducts: products.filter(p => p.included).map(p => p.name),
+      coupon: coupon || undefined,
+      monthName: monthLabel,
+      funnelTop: funnel.topo,
+      funnelMid: funnel.meio,
+      funnelBottom: funnel.fundo,
+      emailGoal,
+      wppGoal: whatsappGoal,
+    };
+
     const callAI = async (prompt: string): Promise<string> => {
-      return await callClaude(ANNA_SYSTEM_PROMPT, prompt);
+      return await callClaude(prompt, brandConfig);
     };
 
     // ========== INSTAGRAM: 3 SEPARATE CALLS ==========
