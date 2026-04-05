@@ -29,7 +29,7 @@ const channelFilterOptions: { value: ContentChannel | 'all'; label: string }[] =
   { value: 'whatsapp', label: '💬 WhatsApp' },
 ];
 
-export function CalendarView({ contentItems, onCreateForDate, onUpdateContent, onDeleteContent }: CalendarViewProps) {
+export function CalendarView({ contentItems, onCreateForDate, onUpdateContent, onDeleteContent, onOpenReview }: CalendarViewProps) {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedItem, setSelectedItem] = useState<ContentItem | null>(null);
   const [channelFilter, setChannelFilter] = useState<ContentChannel | 'all'>('all');
