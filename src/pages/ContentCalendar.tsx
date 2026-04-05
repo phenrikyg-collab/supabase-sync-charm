@@ -215,6 +215,7 @@ export default function ContentCalendar() {
               setActiveView('criar');
             }}
             onExportCsv={handleExportCsv}
+            onRegenerateChannel={handleRegenerateChannel}
           />
         );
       case 'config':
