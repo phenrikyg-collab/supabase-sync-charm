@@ -152,7 +152,7 @@ export default function ContentCalendar() {
         // Reels (2x/day)
         const reelsSchedule = dates.map(d => `${d.ds} (${d.dn}): 11:00 + 20:00${d.dow === 2 ? ' ⚡ 20:00=Live teaser' : ''}`).join('\n');
         const reelsPrompt = `Crie EXATAMENTE ${dim * 2} Reels para ${monthLabel}. 2 por dia (11:00 + 20:00). Terças 20:00: teaser live (isLive:true). CRONOGRAMA:\n${reelsSchedule}\nRetorne JSON array: [{"date":"YYYY-MM-DD","channel":"Instagram Reels","funnel_stage":"topo"|"meio"|"fundo","product":"nome ou null","theme":"string","caption":"string","hashtags":[],"cta":"string","time":"11:00"|"20:00","type":"Reels","isLive":false,"status":"rascunho"}]`;
-        const reelsRaw = await callClaude(ANNA_SYSTEM_PROMPT, reelsPrompt);
+        const reelsRaw = await callClaude(reelsPrompt);
         const reelsParsed = safeParseJSON(reelsRaw);
         addParsedItems(reelsParsed, 'instagram');
         totalGenerated += reelsParsed.length;
