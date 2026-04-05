@@ -179,7 +179,7 @@ export default function ContentCalendar() {
         const weeks = Math.ceil(dim / 7);
         const expectedWpp = weeks * 2;
         const prompt = `Crie EXATAMENTE ${expectedWpp} campanhas WhatsApp para ${monthLabel} (2x/semana). Retorne JSON array: [{"date":"YYYY-MM-DD","channel":"whatsapp","audience":"string","message":"string","coupon":"string ou null","time":"14:00"|"15:00"|"21:00","funnel_stage":"topo"|"meio"|"fundo"}]`;
-        const raw = await callClaude(ANNA_SYSTEM_PROMPT, prompt);
+        const raw = await callClaude(prompt);
         const parsed = safeParseJSON(raw);
         addParsedItems(parsed, 'whatsapp');
         totalGenerated = parsed.length;
