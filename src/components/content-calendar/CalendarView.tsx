@@ -195,7 +195,12 @@ export function CalendarView({ contentItems, onCreateForDate, onUpdateContent, o
                         key={item.id}
                         onClick={e => { e.stopPropagation(); setSelectedItem(item); }}
                         className="w-full text-left px-1.5 py-1 rounded text-[10px] leading-tight truncate flex items-center gap-1 hover:-translate-y-0.5 transition-transform border"
-                        style={{ borderColor: 'rgba(232,205,126,0.3)', backgroundColor: 'white' }}
+                        style={{
+                          borderColor: 'rgba(232,205,126,0.3)',
+                          backgroundColor: 'white',
+                          borderLeftWidth: '3px',
+                          borderLeftColor: (item as any).funnelStage === 'topo' ? '#E8CD7E' : (item as any).funnelStage === 'fundo' ? '#1D1D1B' : '#8B6914',
+                        }}
                       >
                         <span className={cn('w-1.5 h-1.5 rounded-full shrink-0', sc.dot)} />
                         <span className="shrink-0">{CHANNEL_ICONS[item.channel]}</span>
