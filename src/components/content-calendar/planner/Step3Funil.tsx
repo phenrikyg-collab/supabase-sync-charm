@@ -2,6 +2,7 @@ import { Slider } from '@/components/ui/slider';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { FunnelConfig } from './plannerTypes';
 
 interface Step3Props {
@@ -15,6 +16,8 @@ interface Step3Props {
   onWhatsappGoalChange: (g: string) => void;
   coupon: string;
   onCouponChange: (c: string) => void;
+  customNotes?: string;
+  onCustomNotesChange?: (n: string) => void;
 }
 
 const audienceOptions = [
