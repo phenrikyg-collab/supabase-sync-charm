@@ -1,14 +1,10 @@
 import { useState } from 'react';
-import { Calendar, PenTool, Library, Mail, MessageCircle, Settings, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Calendar, CalendarRange, PenTool, Library, Mail, MessageCircle, Settings, ChevronLeft, ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
-
-interface ContentSidebarProps {
-  activeView: string;
-  onViewChange: (view: string) => void;
-}
 
 const navItems = [
   { id: 'calendario', label: 'Calendário', icon: Calendar },
+  { id: 'planejamento', label: 'Planejamento Mensal', icon: CalendarRange },
   { id: 'criar', label: 'Criar Conteúdo', icon: PenTool },
   { id: 'biblioteca', label: 'Biblioteca', icon: Library },
   { id: 'emails', label: 'E-mails CRM', icon: Mail },
