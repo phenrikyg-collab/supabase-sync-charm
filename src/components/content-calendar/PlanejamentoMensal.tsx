@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect } from 'react';
-import { addMonths, format, getDaysInMonth, getDay, startOfMonth } from 'date-fns';
+import { addMonths, format, getDaysInMonth, getDay } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -25,112 +25,204 @@ interface PlanejamentoMensalProps {
 
 const STEPS = ['Mês & Datas', 'Produtos', 'Estratégia de Funil', 'Gerar Calendário'];
 
-const buildInstagramPrompt = (config: {
-  month: number;
-  year: number;
+// Helper: build date list for the month
+function buildDateList(year: number, month: number) {
+  const daysInMonth = getDaysInMonth(new Date(year, month - 1, 1));
+  const yearStr = String(year);
+  const monthStr = String(month).padStart(2, '0');
+  const dates: { dateStr: string; dayOfWeek: number; dayName: string; day: number }[] = [];
+  for (let day = 1; day <= daysInMonth; day++) {
+    const d = new Date(year, month - 1, day);
+    dates.push({
+      dateStr: `${yearStr}-${monthStr}-${String(day).padStart(2, '0')}`,
+      dayOfWeek: getDay(d),
+      dayName: ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'][getDay(d)],
+      day,
+    });
+  }
+  return dates;
+}
+
+function sharedContext(config: {
   holidays: { date: string; label: string; included: boolean }[];
   products: ProductItem[];
   productEvents: ProductEvent[];
   funnel: FunnelConfig;
   coupon: string;
-}): string => {
-  const selectedMonth = new Date(config.year, config.month - 1, 1);
-  const monthName = format(selectedMonth, 'MMMM yyyy', { locale: ptBR });
-  const yearStr = format(selectedMonth, 'yyyy');
-  const monthNum = format(selectedMonth, 'MM');
-  const daysInMonth = getDaysInMonth(selectedMonth);
-
-  const schedule: string[] = [];
-
-  for (let day = 1; day <= daysInMonth; day++) {
-    const date = new Date(config.year, config.month - 1, day);
-    const dayOfWeek = getDay(date);
-    const dateStr = `${yearStr}-${monthNum}-${String(day).padStart(2, '0')}`;
-    const dayName = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'][dayOfWeek];
-
-    const dayEntries: string[] = [];
-    // Stories: EVERY day
-    dayEntries.push(`${dateStr} (${dayName}): Stories`);
-    // Feed: Mon, Wed, Fri, Sun (4x/week)
-    if ([0, 1, 3, 5].includes(dayOfWeek)) {
-      dayEntries.push(`${dateStr} (${dayName}): Feed`);
-    }
-    // Reels: Tue, Thu, Sat (3x/week)
-    if ([2, 4, 6].includes(dayOfWeek)) {
-      dayEntries.push(`${dateStr} (${dayName}): Reels`);
-    }
-    // Live: EVERY Tuesday (mandatory)
-    if (dayOfWeek === 2) {
-      dayEntries.push(`${dateStr} (${dayName}): LIVE OBRIGATÓRIA - divulgação prévia`);
-    }
-    schedule.push(dayEntries.join(' | '));
-  }
-
+}) {
   const importantDatesStr = config.holidays
     .filter(d => d.included)
     .map(d => `${d.date}: ${d.label}`)
     .join('\n');
-
   const productsStr = config.products
     .filter(p => p.included)
     .map(p => `${p.name} (prioridade: ${p.priority})`)
     .join(', ');
-
   const productEventsStr = config.productEvents
     .map(e => `${e.date}: ${e.productName} - ${e.type}`)
     .join('\n');
+  return { importantDatesStr, productsStr, productEventsStr };
+}
 
-  return `Crie conteúdo para Instagram para ${monthName} seguindo RIGOROSAMENTE o cronograma abaixo.
+// --- Call 1: Stories (1x/day, every day) ---
+function buildStoriesPrompt(year: number, month: number, config: {
+  holidays: { date: string; label: string; included: boolean }[];
+  products: ProductItem[];
+  productEvents: ProductEvent[];
+  funnel: FunnelConfig;
+  coupon: string;
+}): string {
+  const dates = buildDateList(year, month);
+  const monthName = format(new Date(year, month - 1, 1), 'MMMM yyyy', { locale: ptBR });
+  const { importantDatesStr, productsStr, productEventsStr } = sharedContext(config);
+  const daysInMonth = dates.length;
 
-REGRAS ABSOLUTAS:
-1. Gere UM item para CADA entrada do cronograma abaixo — NÃO pule nenhum dia
-2. Stories: todos os dias sem exceção, horário 09:00
-3. Feed: segunda, quarta, sexta e domingo, horário 11:00
-4. Reels: terça, quinta e sábado, horário 20:00
-5. LIVE toda terça-feira: gere post de divulgação da live (Stories às 09:00 + Feed às 11:00 + Reels de teaser às 20:00)
-6. Mix de funil: ${config.funnel.topo}% topo / ${config.funnel.meio}% meio / ${config.funnel.fundo}% fundo
-7. Distribua os produtos de forma equilibrada ao longo do mês
-8. Primeira semana: foque em topo (alcance, descoberta)
-9. Última semana: foque em fundo (conversão, urgência, "últimas peças")
-10. Datas de lançamento/reposição: gere teaser D-7, antecipação D-3, lançamento D0, prova social D+2
+  const schedule = dates.map(d => {
+    const extra = d.dayOfWeek === 2 ? ' ⚡ DIA DE LIVE — Stories deve ser "Hoje tem live!"' : '';
+    return `${d.dateStr} (${d.dayName})${extra}`;
+  }).join('\n');
 
-CRONOGRAMA OBRIGATÓRIO (gere exatamente estes itens):
+  return `Crie EXATAMENTE ${daysInMonth} Stories para Instagram para ${monthName}.
+
+REGRAS:
+1. UM Story por dia, sem pular nenhum dia — total: ${daysInMonth} itens
+2. Horário: sempre 09:00
+3. Toda terça-feira: o Story DEVE ser "Hoje tem live!" com tema da live
+4. Caption curta (formato Stories: punchy, máx 3 linhas)
+5. Mix de funil: ${config.funnel.topo}% topo / ${config.funnel.meio}% meio / ${config.funnel.fundo}% fundo
+6. Distribua produtos equilibradamente
+
+CRONOGRAMA (gere 1 item para cada linha):
+${schedule}
+
+DATAS IMPORTANTES: ${importantDatesStr || 'Nenhuma'}
+EVENTOS: ${productEventsStr || 'Nenhum'}
+PRODUTOS: ${productsStr}
+CUPOM: ${config.coupon || 'nenhum'}
+
+Retorne SOMENTE um JSON array com EXATAMENTE ${daysInMonth} objetos:
+[{"date":"YYYY-MM-DD","channel":"Instagram Stories","funnel_stage":"topo"|"meio"|"fundo","product":"nome ou null","theme":"tema curto","caption":"caption curta Stories","hashtags":[],"cta":"string","time":"09:00","type":"Stories","isLive":false,"status":"rascunho"}]
+
+Para terças-feiras de live, use isLive: true.`;
+}
+
+// --- Call 2: Reels (2x/day, every day) ---
+function buildReelsPrompt(year: number, month: number, config: {
+  holidays: { date: string; label: string; included: boolean }[];
+  products: ProductItem[];
+  productEvents: ProductEvent[];
+  funnel: FunnelConfig;
+  coupon: string;
+}): string {
+  const dates = buildDateList(year, month);
+  const monthName = format(new Date(year, month - 1, 1), 'MMMM yyyy', { locale: ptBR });
+  const { importantDatesStr, productsStr, productEventsStr } = sharedContext(config);
+  const totalItems = dates.length * 2;
+
+  const schedule = dates.map(d => {
+    const extra = d.dayOfWeek === 2 ? ' ⚡ TERÇA DE LIVE — Reels 20:00 deve ser teaser/review da live' : '';
+    return `${d.dateStr} (${d.dayName}): Reels 11:00 + Reels 20:00${extra}`;
+  }).join('\n');
+
+  return `Crie EXATAMENTE ${totalItems} Reels para Instagram para ${monthName}.
+
+REGRAS:
+1. DOIS Reels por dia (manhã 11:00 + noite 20:00) — total: ${totalItems} itens
+2. Toda terça: o Reels das 20:00 deve ser teaser/bastidor da live ou review pós-live (isLive: true)
+3. Mix de funil: ${config.funnel.topo}% topo / ${config.funnel.meio}% meio / ${config.funnel.fundo}% fundo
+4. Primeira semana: foque em topo (alcance, descoberta)
+5. Última semana: foque em fundo (conversão, urgência)
+6. Distribua produtos equilibradamente
+
+CRONOGRAMA (gere 2 itens para cada dia):
+${schedule}
+
+DATAS IMPORTANTES: ${importantDatesStr || 'Nenhuma'}
+EVENTOS: ${productEventsStr || 'Nenhum'}
+PRODUTOS: ${productsStr}
+CUPOM: ${config.coupon || 'nenhum'}
+
+Retorne SOMENTE um JSON array com EXATAMENTE ${totalItems} objetos:
+[{"date":"YYYY-MM-DD","channel":"Instagram Reels","funnel_stage":"topo"|"meio"|"fundo","product":"nome ou null","theme":"tema até 60 chars","caption":"legenda completa","hashtags":["h1","h2"],"cta":"string","time":"11:00"|"20:00","type":"Reels","isLive":false,"status":"rascunho"}]
+
+Para Reels de terça 20:00 (live), use isLive: true e type: "Live".`;
+}
+
+// --- Call 3: Feed (3x/week: Mon, Wed, Fri) + Live support (Tue) ---
+function buildFeedLivePrompt(year: number, month: number, config: {
+  holidays: { date: string; label: string; included: boolean }[];
+  products: ProductItem[];
+  productEvents: ProductEvent[];
+  funnel: FunnelConfig;
+  coupon: string;
+}): string {
+  const dates = buildDateList(year, month);
+  const monthName = format(new Date(year, month - 1, 1), 'MMMM yyyy', { locale: ptBR });
+  const { importantDatesStr, productsStr, productEventsStr } = sharedContext(config);
+
+  const feedDays = dates.filter(d => [1, 3, 5].includes(d.dayOfWeek)); // Mon, Wed, Fri
+  const liveTuesdays = dates.filter(d => d.dayOfWeek === 2);
+  const totalItems = feedDays.length + liveTuesdays.length;
+
+  const schedule = [
+    ...feedDays.map(d => `${d.dateStr} (${d.dayName}): Feed 11:00`),
+    ...liveTuesdays.map(d => `${d.dateStr} (${d.dayName}): Feed 11:00 — POST DE AQUECIMENTO DA LIVE`),
+  ].sort();
+
+  return `Crie EXATAMENTE ${totalItems} posts de Feed para Instagram para ${monthName}.
+
+REGRAS:
+1. Feed normal: segunda, quarta e sexta às 11:00
+2. Feed de live: toda terça às 11:00 — post de aquecimento com tema e horário da live (isLive: true)
+3. Total: ${feedDays.length} feeds normais + ${liveTuesdays.length} feeds de live = ${totalItems}
+4. Mix de funil: ${config.funnel.topo}% topo / ${config.funnel.meio}% meio / ${config.funnel.fundo}% fundo
+5. Primeira semana: foque em topo. Última semana: foque em fundo
+6. Datas de lançamento: teaser D-7, antecipação D-3, lançamento D0, prova social D+2
+
+CRONOGRAMA (gere 1 item para cada linha):
 ${schedule.join('\n')}
 
-DATAS IMPORTANTES:
-${importantDatesStr || 'Nenhuma específica'}
+DATAS IMPORTANTES: ${importantDatesStr || 'Nenhuma'}
+EVENTOS: ${productEventsStr || 'Nenhum'}
+PRODUTOS: ${productsStr}
+CUPOM: ${config.coupon || 'nenhum'}
 
-EVENTOS DE PRODUTO:
-${productEventsStr || 'Nenhum'}
+Retorne SOMENTE um JSON array com EXATAMENTE ${totalItems} objetos:
+[{"date":"YYYY-MM-DD","channel":"Instagram Feed","funnel_stage":"topo"|"meio"|"fundo","product":"nome ou null","theme":"tema até 60 chars","caption":"legenda completa com emojis e storytelling","hashtags":["h1","h2","h3"],"cta":"chamada para ação","time":"11:00","type":"Feed","isLive":false,"status":"rascunho"}]
 
-PRODUTOS DISPONÍVEIS: ${productsStr}
+Para posts de terça (live), use isLive: true e type: "Live".`;
+}
 
-CUPOM DO MÊS: ${config.coupon || 'nenhum'}
-
-IMPORTANTE PARA LIVES (toda terça-feira):
-- Stories 09:00: "Hoje tem live! [tema da live relacionado ao produto da semana] ✨"
-- Feed 11:00: post de aquecimento com tema e horário da live
-- Reels 20:00: teaser/bastidor pré-live OU review pós-live
-- O tema da live deve girar em torno dos produtos ativos do mês
-
-Retorne SOMENTE um JSON array válido com TODOS os itens do cronograma acima (sem pular nenhum):
-[
-  {
-    "date": "YYYY-MM-DD",
-    "channel": "Instagram Feed" | "Instagram Reels" | "Instagram Stories",
-    "funnel_stage": "topo" | "meio" | "fundo",
-    "product": "nome do produto ou null",
-    "theme": "tema em até 60 caracteres",
-    "caption": "legenda completa",
-    "hashtags": ["hashtag1", "hashtag2"],
-    "cta": "chamada para ação",
-    "time": "09:00" | "11:00" | "20:00",
-    "type": "Stories" | "Feed" | "Reels" | "Live",
-    "isLive": true | false,
-    "status": "rascunho"
-  }
-]`;
+const channelMap: Record<string, ContentItem['channel']> = {
+  'instagram-feed': 'instagram-feed',
+  'instagram-reels': 'instagram-reels',
+  'instagram-stories': 'instagram-stories',
+  'Instagram Feed': 'instagram-feed',
+  'Instagram Reels': 'instagram-reels',
+  'Instagram Stories': 'instagram-stories',
 };
+
+function parseIGItems(parsed: any[], year: number, month: number): (ContentItem & { funnelStage?: string; isLive?: boolean })[] {
+  return parsed.map((p: any) => ({
+    id: crypto.randomUUID(),
+    date: p.date || `${year}-${String(month).padStart(2, '0')}-01`,
+    channel: channelMap[p.channel] || 'instagram-feed',
+    type: p.type || 'post',
+    title: (p.theme || p.caption || '').substring(0, 60),
+    caption: p.caption || '',
+    hashtags: p.hashtags || [],
+    cta: p.cta || '',
+    suggestedTime: p.time || '11:00',
+    status: 'rascunho' as const,
+    objective: 'engajamento' as const,
+    tone: 'inspiracional' as const,
+    audience: 'fas-marca' as const,
+    product: p.product || undefined,
+    createdAt: new Date().toISOString(),
+    funnelStage: p.funnel_stage,
+    isLive: p.isLive || false,
+  }));
+}
 
 export function PlanejamentoMensal({ onContentGenerated, onNavigateToCalendar }: PlanejamentoMensalProps) {
   const nextMonth = addMonths(new Date(), 1);
@@ -140,19 +232,16 @@ export function PlanejamentoMensal({ onContentGenerated, onNavigateToCalendar }:
   const [showSuccess, setShowSuccess] = useState(false);
   const [generatedCount, setGeneratedCount] = useState({ instagram: 0, email: 0, whatsapp: 0 });
 
-  // Step 1
   const [month, setMonth] = useState(nextMonth.getMonth() + 1);
   const [year, setYear] = useState(nextMonth.getFullYear());
   const [channels, setChannels] = useState<PlannerChannel[]>(DEFAULT_CHANNELS);
   const [holidays, setHolidays] = useState(getHolidaysForMonth(nextMonth.getMonth() + 1, nextMonth.getFullYear()));
   const [brandDates, setBrandDates] = useState<BrandDate[]>([]);
-  const [avoidDays, setAvoidDays] = useState<number[]>([4]); // Thursday
+  const [avoidDays, setAvoidDays] = useState<number[]>([]);
 
-  // Step 2
   const [products, setProducts] = useState<ProductItem[]>(DEFAULT_PRODUCTS);
   const [productEvents, setProductEvents] = useState<ProductEvent[]>([]);
 
-  // Step 3
   const [funnel, setFunnel] = useState<FunnelConfig>({ topo: 30, meio: 40, fundo: 30 });
   const [audiences, setAudiences] = useState<string[]>(['fas-marca', 'clientes-recentes']);
   const [emailGoal, setEmailGoal] = useState('relacionamento');
@@ -183,81 +272,95 @@ export function PlanejamentoMensal({ onContentGenerated, onNavigateToCalendar }:
     const daysInMonth = getDaysInMonth(new Date(year, month - 1, 1));
 
     const allItems: ContentItem[] = [];
-
-    const parseJsonResponse = (text: string): any[] => {
-      return safeParseJSON(text);
-    };
+    const igConfig = { holidays, products, productEvents, funnel, coupon };
 
     const callAI = async (prompt: string): Promise<string> => {
       return await callClaude(ANNA_SYSTEM_PROMPT, prompt);
     };
 
-    // Instagram - using strict prompt
+    // ========== INSTAGRAM: 3 SEPARATE CALLS ==========
     const hasIG = enabledChannels.some(c => c.channel.startsWith('Instagram'));
     if (hasIG) {
-      setProgress(15);
+      // Call 1: Stories (1x/day)
+      setProgress(10);
       try {
-        const prompt = buildInstagramPrompt({
-          month, year, holidays, products, productEvents, funnel, coupon,
-        });
+        const prompt = buildStoriesPrompt(year, month, igConfig);
         const raw = await callAI(prompt);
-        const parsed = parseJsonResponse(raw);
-
-        // Validate generation count
-        const expectedMinimum = daysInMonth * 1; // at least 1 per day (Stories)
-        if (parsed.length < expectedMinimum) {
-          console.warn(`Instagram: esperado mínimo ${expectedMinimum} itens, recebido ${parsed.length}`);
-          toast.warning(`Atenção: foram gerados ${parsed.length} posts. Você pode regenerar conteúdos individuais na revisão.`);
+        const parsed = safeParseJSON(raw);
+        const items = parseIGItems(parsed, year, month);
+        if (parsed.length < daysInMonth) {
+          toast.warning(`Stories: esperado ${daysInMonth}, recebido ${parsed.length}. Revise na tela de revisão.`);
         }
-
-        parsed.forEach((p: any) => {
-          const channelMap: Record<string, ContentItem['channel']> = {
-            'instagram-feed': 'instagram-feed',
-            'instagram-reels': 'instagram-reels',
-            'instagram-stories': 'instagram-stories',
-            'Instagram Feed': 'instagram-feed',
-            'Instagram Reels': 'instagram-reels',
-            'Instagram Stories': 'instagram-stories',
-          };
-          allItems.push({
-            id: crypto.randomUUID(),
-            date: p.date || `${year}-${String(month).padStart(2,'0')}-01`,
-            channel: channelMap[p.channel] || 'instagram-feed',
-            type: p.type || 'post',
-            title: (p.theme || p.caption || '').substring(0, 60),
-            caption: p.caption || '',
-            hashtags: p.hashtags || [],
-            cta: p.cta || '',
-            suggestedTime: p.time || '11:00',
-            status: 'rascunho',
-            objective: 'engajamento',
-            tone: 'inspiracional',
-            audience: 'fas-marca',
-            product: p.product || undefined,
-            createdAt: new Date().toISOString(),
-            funnelStage: p.funnel_stage,
-            isLive: p.isLive || false,
-          } as ContentItem & { funnelStage?: string; isLive?: boolean });
-        });
+        allItems.push(...items);
+        console.log(`✅ Stories: ${parsed.length} itens gerados`);
       } catch (e) {
-        console.error('IG generation failed:', e);
-        toast.error('Falha ao gerar conteúdo para Instagram. Tente novamente.');
+        console.error('Stories generation failed:', e);
+        toast.error('Falha ao gerar Stories. Tente novamente.');
+      }
+
+      // Call 2: Reels (2x/day)
+      setProgress(30);
+      try {
+        const prompt = buildReelsPrompt(year, month, igConfig);
+        const raw = await callAI(prompt);
+        const parsed = safeParseJSON(raw);
+        const items = parseIGItems(parsed, year, month);
+        const expectedReels = daysInMonth * 2;
+        if (parsed.length < expectedReels * 0.8) {
+          toast.warning(`Reels: esperado ~${expectedReels}, recebido ${parsed.length}.`);
+        }
+        allItems.push(...items);
+        console.log(`✅ Reels: ${parsed.length} itens gerados`);
+      } catch (e) {
+        console.error('Reels generation failed:', e);
+        toast.error('Falha ao gerar Reels. Tente novamente.');
+      }
+
+      // Call 3: Feed + Live support
+      setProgress(50);
+      try {
+        const prompt = buildFeedLivePrompt(year, month, igConfig);
+        const raw = await callAI(prompt);
+        const parsed = safeParseJSON(raw);
+        const items = parseIGItems(parsed, year, month);
+        allItems.push(...items);
+        console.log(`✅ Feed+Live: ${parsed.length} itens gerados`);
+      } catch (e) {
+        console.error('Feed generation failed:', e);
+        toast.error('Falha ao gerar Feed. Tente novamente.');
       }
     }
 
-    // Email
+    // ========== EMAIL (2x/week) ==========
     const hasEmail = enabledChannels.some(c => c.channel === 'E-mail');
     if (hasEmail) {
-      setProgress(50);
+      setProgress(65);
       try {
-        const emailFreq = enabledChannels.find(c => c.channel === 'E-mail')?.frequency || '1x/week';
-        const prompt = `Crie ${emailFreq} e-mails para ${monthLabel}. Foco: ${emailGoal}. Produtos: ${activeProducts}. Datas âncora: ${importantDates || 'nenhuma'}. Cupom do mês: ${coupon || 'nenhum'}. Retorne SOMENTE JSON array: { "date": "YYYY-MM-DD", "channel": "email", "subject": "string", "preview_text": "string", "body": "string com corpo do email", "cta": "string", "audience": "string", "funnel_stage": "topo|meio|fundo", "time": "09:00"|"14:00" }. Gere TODOS os emails do mês.`;
+        const emailFreq = enabledChannels.find(c => c.channel === 'E-mail')?.frequency || '2x/week';
+        const weeks = Math.ceil(daysInMonth / 7);
+        const expectedEmails = emailFreq === '2x/week' ? weeks * 2 : emailFreq === '1x/week' ? weeks : weeks * 2;
+        const prompt = `Crie EXATAMENTE ${expectedEmails} e-mails para ${monthLabel} (frequência: ${emailFreq}).
+
+REGRAS:
+1. Distribua os e-mails uniformemente ao longo do mês (${emailFreq})
+2. Foco: ${emailGoal}
+3. Alterne entre terças e quintas para envio
+4. Mix: nutrição, promoção, relacionamento
+5. Cada e-mail deve ter assunto atrativo e corpo completo
+
+Produtos: ${activeProducts}
+Datas âncora: ${importantDates || 'nenhuma'}
+Cupom do mês: ${coupon || 'nenhum'}
+Eventos: ${events || 'nenhum'}
+
+Retorne SOMENTE um JSON array com EXATAMENTE ${expectedEmails} objetos:
+[{"date":"YYYY-MM-DD","channel":"email","subject":"assunto do email","preview_text":"texto de preview","body":"corpo completo do email com formatação","cta":"chamada para ação","audience":"segmento","funnel_stage":"topo"|"meio"|"fundo","time":"09:00"|"14:00"}]`;
         const raw = await callAI(prompt);
-        const parsed = parseJsonResponse(raw);
+        const parsed = safeParseJSON(raw);
         parsed.forEach((p: any) => {
           allItems.push({
             id: crypto.randomUUID(),
-            date: p.date || `${year}-${String(month).padStart(2,'0')}-01`,
+            date: p.date || `${year}-${String(month).padStart(2, '0')}-01`,
             channel: 'email',
             type: 'email',
             title: p.subject || 'E-mail',
@@ -276,25 +379,42 @@ export function PlanejamentoMensal({ onContentGenerated, onNavigateToCalendar }:
             funnelStage: p.funnel_stage,
           } as ContentItem & { funnelStage?: string });
         });
+        console.log(`✅ E-mails: ${parsed.length} itens gerados`);
       } catch (e) {
         console.error('Email generation failed:', e);
         toast.error('Falha ao gerar e-mails. Tente novamente.');
       }
     }
 
-    // WhatsApp
+    // ========== WHATSAPP (2x/week) ==========
     const hasWpp = enabledChannels.some(c => c.channel === 'WhatsApp');
     if (hasWpp) {
-      setProgress(75);
+      setProgress(80);
       try {
-        const wppFreq = enabledChannels.find(c => c.channel === 'WhatsApp')?.frequency || '1x/week';
-        const prompt = `Crie ${wppFreq} campanhas WhatsApp para ${monthLabel}. Foco: ${whatsappGoal}. Produtos: ${activeProducts}. Eventos: ${events || 'nenhum'}. Cupom: ${coupon || 'nenhum'}. Retorne SOMENTE JSON array: { "date": "YYYY-MM-DD", "channel": "whatsapp", "audience": "string", "message": "string com mensagem completa", "coupon": "string ou null", "time": "14:00"|"15:00"|"21:00", "funnel_stage": "topo|meio|fundo" }. Gere TODAS as campanhas do mês.`;
+        const wppFreq = enabledChannels.find(c => c.channel === 'WhatsApp')?.frequency || '2x/week';
+        const weeks = Math.ceil(daysInMonth / 7);
+        const expectedWpp = wppFreq === '2x/week' ? weeks * 2 : wppFreq === '3x/week' ? weeks * 3 : weeks;
+        const prompt = `Crie EXATAMENTE ${expectedWpp} campanhas WhatsApp para ${monthLabel} (frequência: ${wppFreq}).
+
+REGRAS:
+1. Distribua uniformemente ao longo do mês
+2. Foco: ${whatsappGoal}
+3. Alterne entre segundas e quintas para envio
+4. Tom: direto, pessoal, com urgência quando necessário
+5. Inclua emoji e linguagem informal mas sofisticada
+
+Produtos: ${activeProducts}
+Eventos: ${events || 'nenhum'}
+Cupom: ${coupon || 'nenhum'}
+
+Retorne SOMENTE um JSON array com EXATAMENTE ${expectedWpp} objetos:
+[{"date":"YYYY-MM-DD","channel":"whatsapp","audience":"segmento","message":"mensagem completa com emojis","coupon":"código ou null","time":"14:00"|"15:00"|"21:00","funnel_stage":"topo"|"meio"|"fundo"}]`;
         const raw = await callAI(prompt);
-        const parsed = parseJsonResponse(raw);
+        const parsed = safeParseJSON(raw);
         parsed.forEach((p: any) => {
           allItems.push({
             id: crypto.randomUUID(),
-            date: p.date || `${year}-${String(month).padStart(2,'0')}-01`,
+            date: p.date || `${year}-${String(month).padStart(2, '0')}-01`,
             channel: 'whatsapp',
             type: 'whatsapp',
             title: `WPP — ${p.audience || 'Campanha'}`,
@@ -311,6 +431,7 @@ export function PlanejamentoMensal({ onContentGenerated, onNavigateToCalendar }:
             funnelStage: p.funnel_stage,
           } as ContentItem & { funnelStage?: string });
         });
+        console.log(`✅ WhatsApp: ${parsed.length} itens gerados`);
       } catch (e) {
         console.error('WhatsApp generation failed:', e);
         toast.error('Falha ao gerar campanhas WhatsApp. Tente novamente.');
@@ -328,6 +449,7 @@ export function PlanejamentoMensal({ onContentGenerated, onNavigateToCalendar }:
         whatsapp: allItems.filter(i => i.channel === 'whatsapp').length,
       });
       setShowSuccess(true);
+      toast.success(`${allItems.length} conteúdos gerados com sucesso!`);
     } else {
       toast.error('Nenhum conteúdo foi gerado. Verifique as configurações e tente novamente.');
     }
@@ -346,7 +468,7 @@ export function PlanejamentoMensal({ onContentGenerated, onNavigateToCalendar }:
           </h2>
           <div className="space-y-2 text-sm text-muted-foreground">
             <p><strong>{total}</strong> conteúdos gerados</p>
-            {generatedCount.instagram > 0 && <p>📷 {generatedCount.instagram} posts Instagram</p>}
+            {generatedCount.instagram > 0 && <p>📷 {generatedCount.instagram} posts Instagram (Stories + Reels + Feed)</p>}
             {generatedCount.email > 0 && <p>📧 {generatedCount.email} e-mails</p>}
             {generatedCount.whatsapp > 0 && <p>💬 {generatedCount.whatsapp} campanhas WhatsApp</p>}
           </div>
