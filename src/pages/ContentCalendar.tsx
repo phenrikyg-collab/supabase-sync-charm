@@ -65,6 +65,92 @@ export default function ContentCalendar() {
     URL.revokeObjectURL(url);
   }, [reviewItems]);
 
+  const handleRegenerateChannel = useCallback(async (channel: 'instagram' | 'email' | 'whatsapp') => {
+    toast.info(`Regenerando conteúdo de ${channel === 'instagram' ? 'Instagram' : channel === 'email' ? 'E-mail' : 'WhatsApp'}...`);
+    try {
+      const now = new Date();
+      const monthLabel = format(reviewMonth || now, 'MMMM yyyy', { locale: ptBR });
+      let prompt = '';
+
+      if (channel === 'instagram') {
+        const selectedMonth = reviewMonth || now;
+        const yr = format(selectedMonth, 'yyyy');
+        const mo = format(selectedMonth, 'MM');
+        const dim = getDaysInMonth(selectedMonth);
+        const schedule: string[] = [];
+        for (let day = 1; day <= dim; day++) {
+          const d = new Date(parseInt(yr), parseInt(mo) - 1, day);
+          const dow = getDay(d);
+          const ds = `${yr}-${mo}-${String(day).padStart(2, '0')}`;
+          const dn = ['Domingo','Segunda','Terça','Quarta','Quinta','Sexta','Sábado'][dow];
+          const entries: string[] = [`${ds} (${dn}): Stories`];
+          if ([0,1,3,5].includes(dow)) entries.push(`${ds} (${dn}): Feed`);
+          if ([2,4,6].includes(dow)) entries.push(`${ds} (${dn}): Reels`);
+          if (dow === 2) entries.push(`${ds} (${dn}): LIVE`);
+          schedule.push(entries.join(' | '));
+        }
+        prompt = `Regenere todo o conteúdo Instagram para ${monthLabel}. CRONOGRAMA:\n${schedule.join('\n')}\nRetorne JSON array: [{"date":"YYYY-MM-DD","channel":"Instagram Feed"|"Instagram Reels"|"Instagram Stories","funnel_stage":"topo"|"meio"|"fundo","product":"string ou null","theme":"string","caption":"string","hashtags":[],"cta":"string","time":"09:00"|"11:00"|"20:00","type":"Stories"|"Feed"|"Reels"|"Live","isLive":true|false,"status":"rascunho"}]`;
+      } else if (channel === 'email') {
+        prompt = `Regenere os e-mails para ${monthLabel}. Gere 4-8 e-mails distribuídos no mês. Retorne JSON array: [{"date":"YYYY-MM-DD","channel":"email","subject":"string","preview_text":"string","body":"string","cta":"string","audience":"string","funnel_stage":"topo"|"meio"|"fundo","time":"09:00"|"14:00"}]`;
+      } else {
+        prompt = `Regenere as campanhas WhatsApp para ${monthLabel}. Gere 4-8 campanhas. Retorne JSON array: [{"date":"YYYY-MM-DD","channel":"whatsapp","audience":"string","message":"string","coupon":"string ou null","time":"14:00"|"15:00"|"21:00","funnel_stage":"topo"|"meio"|"fundo"}]`;
+      }
+
+      const raw = await callClaude(ANNA_SYSTEM_PROMPT, prompt);
+      const parsed = safeParseJSON(raw);
+
+      // Remove existing items for this channel in the month
+      const monthStart2 = startOfMonth(reviewMonth || now);
+      const monthEnd2 = endOfMonth(reviewMonth || now);
+      const existingIds = store.contentItems
+        .filter(i => {
+          const matchChannel = channel === 'instagram' ? i.channel.startsWith('instagram') : i.channel === channel;
+          if (!matchChannel) return false;
+          try {
+            const d = parseISO(i.date);
+            return isWithinInterval(d, { start: monthStart2, end: monthEnd2 });
+          } catch { return false; }
+        })
+        .map(i => i.id);
+      existingIds.forEach(id => store.deleteContent(id));
+
+      // Add new items
+      const channelMap: Record<string, ContentItem['channel']> = {
+        'Instagram Feed': 'instagram-feed', 'Instagram Reels': 'instagram-reels', 'Instagram Stories': 'instagram-stories',
+        'instagram-feed': 'instagram-feed', 'instagram-reels': 'instagram-reels', 'instagram-stories': 'instagram-stories',
+        'email': 'email', 'whatsapp': 'whatsapp',
+      };
+      parsed.forEach((p: any) => {
+        store.addContent({
+          id: crypto.randomUUID(),
+          date: p.date,
+          channel: channelMap[p.channel] || (channel === 'email' ? 'email' : channel === 'whatsapp' ? 'whatsapp' : 'instagram-feed'),
+          type: p.type || channel,
+          title: (p.theme || p.subject || p.audience || p.caption || '').substring(0, 60),
+          caption: p.caption || p.body || p.message || '',
+          hashtags: p.hashtags || [],
+          cta: p.cta || '',
+          suggestedTime: p.time || '11:00',
+          status: 'rascunho',
+          objective: 'engajamento',
+          tone: 'inspiracional',
+          audience: 'fas-marca',
+          product: p.product || undefined,
+          subjectLine: p.subject,
+          previewText: p.preview_text,
+          createdAt: new Date().toISOString(),
+          funnelStage: p.funnel_stage,
+          isLive: p.isLive || false,
+        } as any);
+      });
+
+      toast.success(`${parsed.length} itens regenerados para ${channel === 'instagram' ? 'Instagram' : channel === 'email' ? 'E-mail' : 'WhatsApp'}`);
+    } catch (e) {
+      console.error('Regenerate channel error:', e);
+      toast.error('Falha ao regenerar. Tente novamente.');
+    }
+  }, [reviewMonth, store]);
+
   const renderView = () => {
     switch (activeView) {
       case 'calendario':
