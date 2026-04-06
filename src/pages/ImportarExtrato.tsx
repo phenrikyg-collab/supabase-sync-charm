@@ -10,7 +10,7 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { toast } from "sonner";
 import { Upload, Sparkles, Check, Loader2, FileText, ChevronsUpDown } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { useCategorias } from "@/hooks/useSupabase";
+import { useCategorias, useCartoesCredito } from "@/hooks/useSupabase";
 import { invokeEdgeFunction } from "@/lib/edgeFunctions";
 import { useQueryClient } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
@@ -24,17 +24,34 @@ interface ParsedRow {
   categoria_sugerida: string | null;
   tipo: "entrada" | "saida";
   frequencia: string | null;
+  parcela_atual: number | null;
+  parcela_total: number | null;
   selecionado: boolean;
 }
 
+// Detect installment info from description: "2/12", "PARCELA 2 DE 12", "2 DE 12", etc.
+function detectParcela(desc: string): { atual: number; total: number } | null {
+  // Pattern: "1/12", "02/12"
+  const m1 = desc.match(/(\d{1,2})\/(\d{1,2})(?!\d)/);
+  if (m1) {
+    const a = parseInt(m1[1]), t = parseInt(m1[2]);
+    if (a >= 1 && t >= 2 && a <= t && t <= 48) return { atual: a, total: t };
+  }
+  // Pattern: "PARCELA 1 DE 12", "parc 1 de 12"
+  const m2 = desc.match(/parc(?:ela)?\s*(\d{1,2})\s*(?:de|\/)\s*(\d{1,2})/i);
+  if (m2) {
+    const a = parseInt(m2[1]), t = parseInt(m2[2]);
+    if (a >= 1 && t >= 2 && a <= t && t <= 48) return { atual: a, total: t };
+  }
+  return null;
+}
+
 function parseDate(raw: string): string {
-  // Handle dd/mm/yyyy
   const parts = raw.trim().split("/");
   if (parts.length === 3) {
     const [d, m, y] = parts;
     return `${y.length === 2 ? "20" + y : y}-${m.padStart(2, "0")}-${d.padStart(2, "0")}`;
   }
-  // Handle yyyy-mm-dd
   if (/^\d{4}-\d{2}-\d{2}/.test(raw.trim())) return raw.trim().substring(0, 10);
   return raw.trim();
 }
@@ -62,68 +79,56 @@ function normalizeNumberForDb(raw: number | string): number {
   return Number.isFinite(parsed) ? parsed : NaN;
 }
 
+function addMonths(dateStr: string, months: number): string {
+  const d = new Date(dateStr + "T00:00:00");
+  d.setMonth(d.getMonth() + months);
+  return d.toISOString().substring(0, 10);
+}
+
 function parseCSVSafra(text: string): ParsedRow[] {
   const lines = text.split("\n").filter((l) => l.trim());
   const rows: ParsedRow[] = [];
 
   for (const line of lines) {
-    // Try semicolon first then comma
     const sep = line.includes(";") ? ";" : ",";
     const cols = line.split(sep).map((c) => c.trim().replace(/^"|"$/g, ""));
-
-    // Skip header lines
     if (cols[0]?.toLowerCase().includes("data") || cols[0]?.toLowerCase().includes("date")) continue;
     if (cols.length < 2) continue;
-
-    // Try to detect date in first column
     const dateCandidate = cols[0];
     if (!/\d/.test(dateCandidate)) continue;
 
     const data = parseDate(dateCandidate);
-    // Description is usually col 1 or 2
-    const descricao = cols.length >= 3 ? cols[1] : cols[1];
-    // Value - find numeric column
+    const descricao = cols[1] || "Sem descrição";
     let valor = 0;
     for (let i = cols.length - 1; i >= 1; i--) {
       const cleaned = cols[i].replace(/[R$\s.]/g, "").replace(",", ".");
       const num = parseFloat(cleaned);
-      if (!isNaN(num) && num !== 0) {
-        valor = num;
-        break;
-      }
+      if (!isNaN(num) && num !== 0) { valor = num; break; }
     }
-
     if (!data || valor === 0) continue;
+
+    const parcela = detectParcela(descricao);
 
     rows.push({
       data,
       data_vencimento: null,
-      descricao: descricao || "Sem descrição",
+      descricao,
       valor: Math.abs(valor),
       tipo: valor < 0 ? "saida" : "entrada",
       categoria_id: null,
       categoria_sugerida: null,
       frequencia: null,
+      parcela_atual: parcela?.atual ?? null,
+      parcela_total: parcela?.total ?? null,
       selecionado: true,
     });
   }
-
   return rows;
 }
 
 function formatCurrency(v: number) {
   return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v);
 }
-
-export default function ImportarExtrato() {
-  const { data: categorias } = useCategorias();
-  const queryClient = useQueryClient();
-  const [rows, setRows] = useState<ParsedRow[]>([]);
-  const [isCategorizando, setIsCategorizando] = useState(false);
-  const [isSalvando, setIsSalvando] = useState(false);
-  const [banco, setBanco] = useState("generico");
-  const [cartaoNome, setCartaoNome] = useState("");
-  const [faturaVencimento, setFaturaVencimento] = useState("");
 
 function SearchableCategory({
   categorias,
@@ -178,6 +183,39 @@ function SearchableCategory({
   );
 }
 
+export default function ImportarExtrato() {
+  const { data: categorias } = useCategorias();
+  const { data: cartoes = [] } = useCartoesCredito();
+  const queryClient = useQueryClient();
+  const [rows, setRows] = useState<ParsedRow[]>([]);
+  const [isCategorizando, setIsCategorizando] = useState(false);
+  const [isSalvando, setIsSalvando] = useState(false);
+  const [banco, setBanco] = useState("generico");
+  const [cartaoSelecionado, setCartaoSelecionado] = useState("");
+  const [cartaoNomeManual, setCartaoNomeManual] = useState("");
+  const [faturaVencimento, setFaturaVencimento] = useState("");
+
+  const isCartao = banco === "cartao";
+  const cartaoNomeFinal = useMemo(() => {
+    if (!isCartao) return "";
+    if (cartaoSelecionado === "__manual") return cartaoNomeManual.trim();
+    const found = cartoes.find((c: any) => c.id === cartaoSelecionado);
+    return found?.nome || "";
+  }, [isCartao, cartaoSelecionado, cartaoNomeManual, cartoes]);
+
+  // Auto-fill vencimento from selected card
+  const handleCartaoChange = (val: string) => {
+    setCartaoSelecionado(val);
+    if (val !== "__manual") {
+      const card = cartoes.find((c: any) => c.id === val);
+      if (card && !faturaVencimento) {
+        // Auto-suggest next month's vencimento based on dia_vencimento
+        const now = new Date();
+        const nextMonth = new Date(now.getFullYear(), now.getMonth() + 1, card.dia_vencimento);
+        setFaturaVencimento(nextMonth.toISOString().substring(0, 10));
+      }
+    }
+  };
 
   const handleFile = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -191,10 +229,10 @@ function SearchableCategory({
         return;
       }
       setRows(parsed);
-      toast.success(`${parsed.length} lançamentos importados`);
+      const parcelados = parsed.filter((r) => r.parcela_total);
+      toast.success(`${parsed.length} lançamentos importados${parcelados.length > 0 ? ` (${parcelados.length} parcelados detectados)` : ""}`);
     } else if (file.name.endsWith(".pdf")) {
       toast.info("Processando PDF... A IA irá extrair os lançamentos.");
-      // For PDF, we'll read as base64 and send to edge function
       const reader = new FileReader();
       reader.onload = async () => {
         const base64 = (reader.result as string).split(",")[1];
@@ -205,17 +243,22 @@ function SearchableCategory({
             categorias: categorias?.map((c) => ({ id: c.id, nome: c.nome_categoria, grupo_dre: c.grupo_dre })),
           });
           if (data?.rows?.length > 0) {
-            setRows(data.rows.map((r: any) => ({
-              data: r.data,
-              data_vencimento: r.data_vencimento || null,
-              descricao: r.descricao,
-              valor: Math.abs(r.valor),
-              tipo: r.valor < 0 ? "saida" as const : (r.tipo || "saida") as any,
-              categoria_id: r.categoria_id || null,
-              categoria_sugerida: r.categoria_sugerida || null,
-              frequencia: null,
-              selecionado: true,
-            })));
+            setRows(data.rows.map((r: any) => {
+              const parcela = detectParcela(r.descricao || "");
+              return {
+                data: r.data,
+                data_vencimento: r.data_vencimento || null,
+                descricao: r.descricao,
+                valor: Math.abs(r.valor),
+                tipo: r.valor < 0 ? "saida" as const : (r.tipo || "saida") as any,
+                categoria_id: r.categoria_id || null,
+                categoria_sugerida: r.categoria_sugerida || null,
+                frequencia: null,
+                parcela_atual: parcela?.atual ?? null,
+                parcela_total: parcela?.total ?? null,
+                selecionado: true,
+              };
+            }));
             toast.success(`${data.rows.length} lançamentos extraídos do PDF`);
           } else {
             toast.error("Não foi possível extrair lançamentos do PDF.");
@@ -264,10 +307,8 @@ function SearchableCategory({
       return;
     }
 
-    const isCartao = banco === "cartao";
-
-    if (isCartao && !cartaoNome.trim()) {
-      toast.error("Informe o nome do cartão.");
+    if (isCartao && !cartaoNomeFinal) {
+      toast.error("Selecione ou informe o nome do cartão.");
       return;
     }
 
@@ -278,51 +319,7 @@ function SearchableCategory({
 
     setIsSalvando(true);
     try {
-      let faturaId: string | null = null;
-
-      // Se for cartão, criar ou localizar fatura por (cartao_nome + data_vencimento)
-      if (isCartao) {
-        const totalFatura = selecionados.reduce((s, r) => s + r.valor, 0);
-        const mesRef = selecionados[0]?.data?.substring(0, 7) || new Date().toISOString().substring(0, 7);
-
-        // Buscar fatura existente por cartão + vencimento
-        const { data: faturaExistente } = await supabase
-          .from("cartoes_faturas")
-          .select("id, valor_total")
-          .eq("cartao_nome", cartaoNome.trim())
-          .eq("data_vencimento", faturaVencimento)
-          .maybeSingle();
-
-        if (faturaExistente) {
-          faturaId = faturaExistente.id;
-          // Somar ao valor total existente
-          await supabase
-            .from("cartoes_faturas")
-            .update({
-              valor_total: (faturaExistente.valor_total ?? 0) + totalFatura,
-              saldo_em_aberto: (faturaExistente.valor_total ?? 0) + totalFatura - 0,
-            })
-            .eq("id", faturaId);
-        } else {
-          const { data: novaFatura, error: errFatura } = await supabase
-            .from("cartoes_faturas")
-            .insert({
-              cartao_nome: cartaoNome.trim(),
-              mes_referencia: mesRef,
-              valor_total: totalFatura,
-              saldo_em_aberto: totalFatura,
-              data_vencimento: faturaVencimento,
-              status: "aberta",
-              valor_pago: 0,
-            })
-            .select("id")
-            .single();
-          if (errFatura) throw errFatura;
-          faturaId = novaFatura.id;
-        }
-      }
-
-      // Buscar categoria padrão para fallback
+      // Category fallback
       let categoriaPadrao: string | null = null;
       if (isCartao && categorias?.length) {
         const found = categorias.find(
@@ -334,45 +331,168 @@ function SearchableCategory({
         if (found) categoriaPadrao = found.id;
       }
 
-      const inserts = selecionados
-        .map((r) => {
+      if (isCartao) {
+        // Group rows: parcelados need future faturas, non-parcelados go to current fatura
+        const parcelados = selecionados.filter((r) => r.parcela_total && r.parcela_total >= 2);
+        const naoParcelados = selecionados.filter((r) => !r.parcela_total || r.parcela_total < 2);
+
+        // Helper: get or create fatura for a given vencimento
+        const getOrCreateFatura = async (vencimento: string, mesRef: string): Promise<string> => {
+          const { data: existing } = await supabase
+            .from("cartoes_faturas")
+            .select("id, valor_total")
+            .eq("cartao_nome", cartaoNomeFinal)
+            .eq("data_vencimento", vencimento)
+            .maybeSingle();
+
+          if (existing) return existing.id;
+
+          const { data: nova, error } = await supabase
+            .from("cartoes_faturas")
+            .insert({
+              cartao_nome: cartaoNomeFinal,
+              mes_referencia: mesRef,
+              valor_total: 0,
+              saldo_em_aberto: 0,
+              data_vencimento: vencimento,
+              status: "aberta",
+              valor_pago: 0,
+            })
+            .select("id")
+            .single();
+          if (error) throw error;
+          return nova.id;
+        };
+
+        // Helper: update fatura total
+        const updateFaturaTotal = async (faturaId: string, addValor: number) => {
+          const { data: f } = await supabase.from("cartoes_faturas").select("valor_total, valor_pago").eq("id", faturaId).single();
+          if (f) {
+            const newTotal = (f.valor_total ?? 0) + addValor;
+            const newSaldo = newTotal - (f.valor_pago ?? 0);
+            const newStatus = (f.valor_pago ?? 0) >= newTotal && newTotal > 0 ? "paga" : (f.valor_pago ?? 0) > 0 ? "parcial" : "aberta";
+            await supabase.from("cartoes_faturas").update({ valor_total: newTotal, saldo_em_aberto: newSaldo, status: newStatus }).eq("id", faturaId);
+          }
+        };
+
+        // Process non-installment items → current fatura
+        if (naoParcelados.length > 0) {
+          const mesRef = faturaVencimento.substring(0, 7);
+          const faturaId = await getOrCreateFatura(faturaVencimento, mesRef);
+          const totalNaoParcelados = naoParcelados.reduce((s, r) => s + r.valor, 0);
+
+          const inserts = naoParcelados.map((r) => {
+            const valor = normalizeNumberForDb(r.valor);
+            const data = normalizeDateForDb(r.data);
+            if (!Number.isFinite(valor) || !data) return null;
+            return {
+              data,
+              data_vencimento: faturaVencimento,
+              descricao: r.descricao,
+              valor,
+              tipo: "saida",
+              categoria_id: r.categoria_id || categoriaPadrao,
+              origem: "extrato_cartao",
+              status_pagamento: "em_aberto",
+              frequencia: r.frequencia || null,
+              conta_tipo: "cartao_fatura",
+              fatura_id: faturaId,
+              impacta_dre: true,
+              impacta_fluxo: false,
+            };
+          }).filter(Boolean);
+
+          if (inserts.length > 0) {
+            const { error } = await supabase.from("movimentacoes_financeiras").insert(inserts);
+            if (error) throw error;
+            await updateFaturaTotal(faturaId, totalNaoParcelados);
+          }
+        }
+
+        // Process installment items → distribute across future faturas
+        for (const row of parcelados) {
+          const parcelaAtual = row.parcela_atual ?? 1;
+          const parcelaTotal = row.parcela_total!;
+          const valorParcela = row.valor;
+          const data = normalizeDateForDb(row.data);
+          if (!data) continue;
+
+          // Get card dia_vencimento for calculating future dates
+          const card = cartoes.find((c: any) => c.nome === cartaoNomeFinal);
+          const diaVenc = card?.dia_vencimento ?? (parseInt(faturaVencimento.substring(8, 10)) || 10);
+
+          // Create entries for remaining installments (current + future)
+          for (let p = parcelaAtual; p <= parcelaTotal; p++) {
+            const monthsOffset = p - parcelaAtual;
+            const baseDate = new Date(faturaVencimento + "T00:00:00");
+            baseDate.setMonth(baseDate.getMonth() + monthsOffset);
+            // Adjust day to card's vencimento
+            const maxDay = new Date(baseDate.getFullYear(), baseDate.getMonth() + 1, 0).getDate();
+            baseDate.setDate(Math.min(diaVenc, maxDay));
+            const vencParcela = baseDate.toISOString().substring(0, 10);
+            const mesRef = vencParcela.substring(0, 7);
+
+            const faturaId = await getOrCreateFatura(vencParcela, mesRef);
+
+            // Clean description (remove existing parcela pattern) and add correct one
+            let descClean = row.descricao
+              .replace(/\s*\d{1,2}\/\d{1,2}\s*/g, " ")
+              .replace(/\s*parc(?:ela)?\s*\d{1,2}\s*(?:de|\/)\s*\d{1,2}/i, "")
+              .trim();
+
+            const { error } = await supabase.from("movimentacoes_financeiras").insert({
+              data,
+              data_vencimento: vencParcela,
+              descricao: `${descClean} ${p}/${parcelaTotal}`,
+              valor: valorParcela,
+              tipo: "saida",
+              categoria_id: row.categoria_id || categoriaPadrao,
+              origem: "extrato_cartao",
+              status_pagamento: "em_aberto",
+              parcela_info: `${p}/${parcelaTotal}`,
+              conta_tipo: "cartao_fatura",
+              fatura_id: faturaId,
+              impacta_dre: true,
+              impacta_fluxo: false,
+            });
+            if (error) throw error;
+            await updateFaturaTotal(faturaId, valorParcela);
+          }
+        }
+
+        const totalParcelamentos = parcelados.length;
+        toast.success(
+          `${selecionados.length} lançamentos salvos! Fatura: ${cartaoNomeFinal}` +
+          (totalParcelamentos > 0 ? ` · ${totalParcelamentos} parcelamentos distribuídos nas próximas faturas` : "")
+        );
+      } else {
+        // Non-card: normal flow
+        const inserts = selecionados.map((r) => {
           const valor = normalizeNumberForDb(r.valor);
           const data = normalizeDateForDb(r.data);
           const dataVencimento = normalizeDateForDb(r.data_vencimento);
-
           if (!Number.isFinite(valor) || !data) return null;
-
-          const base: any = {
+          return {
             data,
-            data_vencimento: isCartao ? faturaVencimento : dataVencimento,
+            data_vencimento: dataVencimento,
             descricao: r.descricao,
             valor,
-            tipo: isCartao ? "saida" : r.tipo,
-            categoria_id: r.categoria_id || (isCartao ? categoriaPadrao : null),
+            tipo: r.tipo,
+            categoria_id: r.categoria_id || null,
             origem: `extrato_${banco}`,
-            status_pagamento: isCartao ? "em_aberto" : "pago",
+            status_pagamento: "pago",
             frequencia: r.frequencia || null,
           };
+        }).filter(Boolean);
 
-          if (isCartao) {
-            base.conta_tipo = "cartao_fatura";
-            base.fatura_id = faturaId;
-            base.impacta_dre = true;
-            base.impacta_fluxo = false;
-          }
-
-          return base;
-        })
-        .filter(Boolean);
-
-      if (inserts.length === 0) {
-        throw new Error("Nenhum lançamento válido para salvar. Revise as datas e valores importados.");
+        if (inserts.length === 0) {
+          throw new Error("Nenhum lançamento válido para salvar.");
+        }
+        const { error } = await supabase.from("movimentacoes_financeiras").insert(inserts);
+        if (error) throw error;
+        toast.success(`${selecionados.length} lançamentos salvos!`);
       }
 
-      const { error } = await supabase.from("movimentacoes_financeiras").insert(inserts);
-      if (error) throw error;
-
-      toast.success(`${selecionados.length} lançamentos salvos!${isCartao ? ` Fatura vinculada: ${cartaoNome}` : ""}`);
       queryClient.invalidateQueries({ queryKey: ["movimentacoes"] });
       queryClient.invalidateQueries({ queryKey: ["cartoes_faturas"] });
       setRows([]);
@@ -392,20 +512,15 @@ function SearchableCategory({
     for (const categoria of categorias ?? []) {
       const label = (categoria.descricao_categoria || categoria.nome_categoria || "").trim();
       const grupo = (categoria.grupo_dre || "Outros").trim();
-
       if (!label || vistos.has(label.toLowerCase())) continue;
       vistos.add(label.toLowerCase());
-
       const itens = agrupadas.get(grupo) ?? [];
       itens.push({ id: categoria.id, label });
       agrupadas.set(grupo, itens);
     }
 
     return Array.from(agrupadas.entries())
-      .map(([grupo, itens]) => ({
-        grupo,
-        itens: itens.sort((a, b) => a.label.localeCompare(b.label)),
-      }))
+      .map(([grupo, itens]) => ({ grupo, itens: itens.sort((a, b) => a.label.localeCompare(b.label)) }))
       .sort((a, b) => a.grupo.localeCompare(b.grupo));
   }, [categorias]);
 
@@ -416,6 +531,7 @@ function SearchableCategory({
   const totalEntradas = rows.filter((r) => r.selecionado && r.tipo === "entrada").reduce((s, r) => s + r.valor, 0);
   const totalSaidas = rows.filter((r) => r.selecionado && r.tipo === "saida").reduce((s, r) => s + r.valor, 0);
   const totalGeral = rows.filter((r) => r.selecionado).reduce((s, r) => s + r.valor, 0);
+  const totalParcelados = rows.filter((r) => r.selecionado && r.parcela_total).length;
 
   return (
     <div className="space-y-6">
@@ -441,16 +557,30 @@ function SearchableCategory({
                   <SelectItem value="generico">Genérico</SelectItem>
                   <SelectItem value="safra">Safra</SelectItem>
                   <SelectItem value="bradesco">Bradesco</SelectItem>
-                  <SelectItem value="cartao">Cartão de Crédito (PDF)</SelectItem>
+                  <SelectItem value="cartao">Cartão de Crédito</SelectItem>
                 </SelectContent>
               </Select>
             </div>
-            {banco === "cartao" && (
+            {isCartao && (
               <>
-                <div className="flex-1 min-w-[150px]">
-                  <label className="text-sm font-medium text-foreground mb-1 block">Nome do Cartão</label>
-                  <Input placeholder="Ex: Nubank, Itaú..." value={cartaoNome} onChange={(e) => setCartaoNome(e.target.value)} />
+                <div className="flex-1 min-w-[180px]">
+                  <label className="text-sm font-medium text-foreground mb-1 block">Cartão</label>
+                  <Select value={cartaoSelecionado} onValueChange={handleCartaoChange}>
+                    <SelectTrigger><SelectValue placeholder="Selecione o cartão" /></SelectTrigger>
+                    <SelectContent>
+                      {cartoes.filter((c: any) => c.ativo).map((c: any) => (
+                        <SelectItem key={c.id} value={c.id}>{c.nome} (dia {c.dia_vencimento})</SelectItem>
+                      ))}
+                      <SelectItem value="__manual">Outro (digitar)</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
+                {cartaoSelecionado === "__manual" && (
+                  <div className="flex-1 min-w-[150px]">
+                    <label className="text-sm font-medium text-foreground mb-1 block">Nome do Cartão</label>
+                    <Input placeholder="Ex: Nubank, Itaú..." value={cartaoNomeManual} onChange={(e) => setCartaoNomeManual(e.target.value)} />
+                  </div>
+                )}
                 <div className="flex-1 min-w-[150px]">
                   <label className="text-sm font-medium text-foreground mb-1 block">Vencimento da Fatura</label>
                   <Input type="date" value={faturaVencimento} onChange={(e) => setFaturaVencimento(e.target.value)} />
@@ -467,7 +597,7 @@ function SearchableCategory({
 
       {rows.length > 0 && (
         <>
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between flex-wrap gap-2">
             <div className="flex gap-4 flex-wrap">
               <Badge variant="outline" className="text-success border-success/30">
                 Entradas: {formatCurrency(totalEntradas)}
@@ -479,6 +609,11 @@ function SearchableCategory({
                 Total: {formatCurrency(totalGeral)}
               </Badge>
               <Badge variant="secondary">{rows.filter((r) => r.selecionado).length} selecionados</Badge>
+              {isCartao && totalParcelados > 0 && (
+                <Badge variant="outline" className="border-primary/30 text-primary">
+                  🔄 {totalParcelados} parcelados
+                </Badge>
+              )}
             </div>
             <div className="flex gap-2">
               <Button variant="outline" size="sm" onClick={() => toggleAll(true)}>Selecionar Todos</Button>
@@ -504,6 +639,7 @@ function SearchableCategory({
                     <TableHead>Vencimento</TableHead>
                     <TableHead>Descrição</TableHead>
                     <TableHead>Tipo</TableHead>
+                    {isCartao && <TableHead>Parcela</TableHead>}
                     <TableHead>Categoria</TableHead>
                     <TableHead>Frequência</TableHead>
                     <TableHead className="text-right">Valor</TableHead>
@@ -527,6 +663,15 @@ function SearchableCategory({
                           {r.tipo}
                         </Badge>
                       </TableCell>
+                      {isCartao && (
+                        <TableCell>
+                          {r.parcela_total ? (
+                            <Badge variant="outline" className="border-primary/30 text-primary text-xs">
+                              {r.parcela_atual}/{r.parcela_total}
+                            </Badge>
+                          ) : "—"}
+                        </TableCell>
+                      )}
                       <TableCell>
                         <SearchableCategory
                           categorias={categoriasDropdown}
