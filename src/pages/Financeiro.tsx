@@ -218,6 +218,25 @@ export default function Financeiro() {
     }
   };
 
+  const handleBulkCategory = async (categoriaId: string) => {
+    if (selectedIds.size === 0) return;
+    setBulkCatUpdating(true);
+    try {
+      const { error } = await supabase
+        .from("movimentacoes_financeiras")
+        .update({ categoria_id: categoriaId })
+        .in("id", Array.from(selectedIds));
+      if (error) throw error;
+      await queryClient.invalidateQueries({ queryKey: ["movimentacoes"] });
+      toast.success(`Categoria atualizada em ${selectedIds.size} transações!`);
+      setSelectedIds(new Set());
+      setBulkCatOpen(false);
+    } catch (err: any) {
+      toast.error("Erro ao atualizar categorias: " + (err.message || "erro"));
+    } finally {
+      setBulkCatUpdating(false);
+    }
+
   const handleBulkDelete = async () => {
     if (selectedIds.size === 0) return;
     setBulkDeleting(true);
