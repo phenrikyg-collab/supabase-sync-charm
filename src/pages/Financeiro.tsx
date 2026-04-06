@@ -13,7 +13,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { formatDateBR } from "@/lib/printUtils";
-import { Pencil, Trash2, Loader2, Check, ChevronsUpDown, CircleCheck, Clock, ArrowUp, ArrowDown, ArrowUpDown, ChevronLeft, ChevronRight, CreditCard } from "lucide-react";
+import { Pencil, Trash2, Loader2, Check, ChevronsUpDown, CircleCheck, Clock, ArrowUp, ArrowDown, ArrowUpDown, ChevronLeft, ChevronRight, CreditCard, Tags } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
@@ -50,6 +50,8 @@ export default function Financeiro() {
   const [bulkUpdating, setBulkUpdating] = useState(false);
   const [bulkDeleting, setBulkDeleting] = useState(false);
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
+  const [bulkCatOpen, setBulkCatOpen] = useState(false);
+  const [bulkCatUpdating, setBulkCatUpdating] = useState(false);
   const [sortKey, setSortKey] = useState<SortKey>("data");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
   const [currentPage, setCurrentPage] = useState(1);
@@ -66,6 +68,19 @@ export default function Financeiro() {
     [...(categorias ?? [])].sort((a, b) => (a.nome_categoria ?? "").localeCompare(b.nome_categoria ?? "", "pt-BR")),
     [categorias]
   );
+
+  const catGrouped = useMemo(() => {
+    const groups: Record<string, { id: string; label: string }[]> = {};
+    (categorias ?? []).forEach((c: any) => {
+      const grupo = c.grupo_dre || "Outros";
+      if (!groups[grupo]) groups[grupo] = [];
+      const label = c.descricao_categoria || c.nome_categoria || "";
+      if (label && label !== grupo) {
+        groups[grupo].push({ id: c.id, label });
+      }
+    });
+    return groups;
+  }, [categorias]);
 
   const catMap = Object.fromEntries((categorias ?? []).map((c) => [c.id, c.nome_categoria]));
   const catDescMap = Object.fromEntries((categorias ?? []).map((c) => [c.id, c.descricao_categoria]));
@@ -203,6 +218,26 @@ export default function Financeiro() {
     }
   };
 
+  const handleBulkCategory = async (categoriaId: string) => {
+    if (selectedIds.size === 0) return;
+    setBulkCatUpdating(true);
+    try {
+      const { error } = await supabase
+        .from("movimentacoes_financeiras")
+        .update({ categoria_id: categoriaId })
+        .in("id", Array.from(selectedIds));
+      if (error) throw error;
+      await queryClient.invalidateQueries({ queryKey: ["movimentacoes"] });
+      toast.success(`Categoria atualizada em ${selectedIds.size} transações!`);
+      setSelectedIds(new Set());
+      setBulkCatOpen(false);
+    } catch (err: any) {
+      toast.error("Erro ao atualizar categorias: " + (err.message || "erro"));
+    } finally {
+      setBulkCatUpdating(false);
+    }
+  };
+
   const handleBulkDelete = async () => {
     if (selectedIds.size === 0) return;
     setBulkDeleting(true);
@@ -330,6 +365,36 @@ export default function Financeiro() {
             {bulkDeleting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
             Excluir Selecionadas
           </Button>
+          <Popover open={bulkCatOpen} onOpenChange={setBulkCatOpen}>
+            <PopoverTrigger asChild>
+              <Button
+                size="sm"
+                variant="secondary"
+                disabled={bulkCatUpdating || bulkUpdating || bulkDeleting}
+                className="gap-1"
+              >
+                {bulkCatUpdating ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Tags className="h-3.5 w-3.5" />}
+                Alterar Categoria
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-72 p-0" align="start">
+              <Command>
+                <CommandInput placeholder="Buscar categoria..." />
+                <CommandList>
+                  <CommandEmpty>Nenhuma categoria encontrada.</CommandEmpty>
+                  {Object.entries(catGrouped).map(([grupo, items]) => (
+                    <CommandGroup key={grupo} heading={grupo}>
+                      {items.map((item) => (
+                        <CommandItem key={item.id} value={item.label} onSelect={() => handleBulkCategory(item.id)}>
+                          {item.label}
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  ))}
+                </CommandList>
+              </Command>
+            </PopoverContent>
+          </Popover>
           <Button
             size="sm"
             variant="ghost"
