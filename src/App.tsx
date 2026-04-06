@@ -26,6 +26,7 @@ import DRE from "./pages/DRE";
 import DashboardFinanceiro from "./pages/DashboardFinanceiro";
 import ImportarExtrato from "./pages/ImportarExtrato";
 import Faturas from "./pages/Faturas";
+import FluxoCaixa from "./pages/FluxoCaixa";
 import ImportarPage from "./pages/ImportarPage";
 import Metas from "./pages/Metas";
 import PagamentoOficinas from "./pages/PagamentoOficinas";
