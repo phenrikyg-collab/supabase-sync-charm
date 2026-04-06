@@ -656,7 +656,7 @@ export default function OrdensProducao() {
                             transition={{ delay: i * 0.03 }}
                           >
                             <Card
-                              className="cursor-pointer hover:shadow-md transition-shadow border-l-4"
+                              className="hover:shadow-md transition-shadow border-l-4"
                               style={{
                                 backgroundColor: ofColor?.bg ?? undefined,
                                 borderLeftColor: ofColor?.border ?? "hsl(var(--border))",
@@ -664,7 +664,6 @@ export default function OrdensProducao() {
                                 borderRightColor: ofColor?.border ?? undefined,
                                 borderBottomColor: ofColor?.border ?? undefined,
                               }}
-                              onClick={() => item.id && moveToNext(item.id, item.status_ordem ?? "")}
                             >
                               <CardContent className="pt-4 pb-3 space-y-2">
                                 <span className="font-medium text-sm text-card-foreground">{item.nome_produto ?? "—"}</span>
@@ -707,10 +706,37 @@ export default function OrdensProducao() {
                                   </div>
                                 )}
 
+                                {/* Navigation buttons: Retornar / Avançar */}
+                                {(() => {
+                                  const currentStatus = item.status_ordem ?? "";
+                                  const prev = getPrevStatus(currentStatus);
+                                  const next = getNextStatus(currentStatus);
+                                  return (
+                                    <div className="flex items-center gap-1.5 pt-1">
+                                      {prev && (
+                                        <button
+                                          className="flex-1 flex items-center justify-center gap-1 px-2 py-1.5 rounded-md text-[10px] font-medium transition-all bg-muted/80 text-muted-foreground border border-border/50 hover:bg-muted hover:border-border active:scale-[0.97]"
+                                          onClick={(e) => { e.stopPropagation(); moveOrder(item.id, prev); }}
+                                        >
+                                          ← {prev}
+                                        </button>
+                                      )}
+                                      {next && (
+                                        <button
+                                          className="flex-1 flex items-center justify-center gap-1 px-2 py-1.5 rounded-md text-[10px] font-medium transition-all bg-primary/10 text-primary border border-primary/20 hover:bg-primary/20 hover:border-primary/40 active:scale-[0.97]"
+                                          onClick={(e) => { e.stopPropagation(); moveOrder(item.id, next); }}
+                                        >
+                                          {next} →
+                                        </button>
+                                      )}
+                                    </div>
+                                  );
+                                })()}
+
                                 {/* Botão de conserto na Revisão */}
                                 {isRevisao && (
                                   <button
-                                    className="w-full mt-2 flex items-center justify-center gap-2 px-3 py-1.5 rounded-md text-xs font-medium transition-all duration-200 bg-danger/8 text-danger border border-danger/20 hover:bg-danger/15 hover:border-danger/40 hover:shadow-sm active:scale-[0.98]"
+                                    className="w-full mt-1 flex items-center justify-center gap-2 px-3 py-1.5 rounded-md text-xs font-medium transition-all duration-200 bg-danger/8 text-danger border border-danger/20 hover:bg-danger/15 hover:border-danger/40 hover:shadow-sm active:scale-[0.98]"
                                     onClick={(e) => { e.stopPropagation(); openConsertoDialog(item.id); }}
                                   >
                                     <Wrench className="h-3 w-3" />
