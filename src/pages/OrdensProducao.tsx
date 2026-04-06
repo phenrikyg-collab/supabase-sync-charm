@@ -328,17 +328,29 @@ export default function OrdensProducao() {
   // Normal flow: Corte → Costura → Revisão → Finalizado (skip "Em Conserto" which is special)
   const FLOW_STATUSES = ["Corte", "Costura", "Revisão", "Finalizado"];
 
-  const moveToNext = async (id: string, currentStatus: string) => {
+  const getNextStatus = (currentStatus: string) => {
     const idx = FLOW_STATUSES.findIndex((s) => s.toLowerCase() === currentStatus.toLowerCase());
-    if (idx < 0 || idx >= FLOW_STATUSES.length - 1) return;
-    const nextStatus = FLOW_STATUSES[idx + 1];
+    if (idx < 0 || idx >= FLOW_STATUSES.length - 1) return null;
+    return FLOW_STATUSES[idx + 1];
+  };
+
+  const getPrevStatus = (currentStatus: string) => {
+    const idx = FLOW_STATUSES.findIndex((s) => s.toLowerCase() === currentStatus.toLowerCase());
+    if (idx <= 0) return null;
+    return FLOW_STATUSES[idx - 1];
+  };
+
+  const moveOrder = async (id: string, targetStatus: string) => {
     try {
-      const updates: any = { id, status_ordem: nextStatus };
-      if (nextStatus === "Finalizado") {
+      const updates: any = { id, status_ordem: targetStatus };
+      if (targetStatus === "Finalizado") {
         updates.data_fim = new Date().toISOString().split("T")[0];
       }
+      if (targetStatus !== "Finalizado") {
+        updates.data_fim = null;
+      }
       await updateMut.mutateAsync(updates);
-      toast.success(`Movido para ${nextStatus}`);
+      toast.success(`Movido para ${targetStatus}`);
     } catch (e: any) { toast.error(e.message); }
   };
 
