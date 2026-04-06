@@ -295,6 +295,7 @@ export default function ImportarExtrato() {
             categoria_id: r.categoria_id || (isCartao ? categoriaPadrao : null),
             origem: `extrato_${banco}`,
             status_pagamento: isCartao ? "em_aberto" : "pago",
+            frequencia: r.frequencia || null,
           };
 
           if (isCartao) {
