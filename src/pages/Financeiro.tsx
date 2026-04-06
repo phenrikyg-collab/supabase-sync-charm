@@ -236,6 +236,7 @@ export default function Financeiro() {
     } finally {
       setBulkCatUpdating(false);
     }
+  };
 
   const handleBulkDelete = async () => {
     if (selectedIds.size === 0) return;
