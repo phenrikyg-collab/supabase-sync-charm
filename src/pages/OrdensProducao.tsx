@@ -694,7 +694,12 @@ export default function OrdensProducao() {
                               }}
                             >
                               <CardContent className="pt-4 pb-3 space-y-2">
-                                <span className="font-medium text-sm text-card-foreground">{item.nome_produto ?? "—"}</span>
+                                <div className="flex items-center justify-between">
+                                  <span className="font-medium text-sm text-card-foreground">{item.nome_produto ?? "—"}</span>
+                                  {item.ordem_corte_id && ocMap[item.ordem_corte_id] && (
+                                    <span className="text-[10px] font-mono font-semibold bg-muted px-1.5 py-0.5 rounded text-muted-foreground">{ocMap[item.ordem_corte_id].numero_oc}</span>
+                                  )}
+                                </div>
                                 
                                 {gradeByColor.size > 0 ? (
                                   <div className="space-y-1.5">
