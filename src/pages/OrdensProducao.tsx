@@ -145,6 +145,7 @@ export default function OrdensProducao() {
 
   const oficinaMap = Object.fromEntries((oficinas ?? []).map((o) => [o.id, o]));
   const corMap = Object.fromEntries((cores ?? []).map((c) => [c.id, c]));
+  const ocMap = Object.fromEntries((ordensCorte ?? []).map((oc) => [oc.id, oc]));
   const oficinaColorMap = Object.fromEntries(
     (oficinas ?? []).map((o, i) => [o.id, OFICINA_COLORS[i % OFICINA_COLORS.length]])
   );
