@@ -100,6 +100,7 @@ function parseCSVSafra(text: string): ParsedRow[] {
       tipo: valor < 0 ? "saida" : "entrada",
       categoria_id: null,
       categoria_sugerida: null,
+      frequencia: null,
       selecionado: true,
     });
   }
