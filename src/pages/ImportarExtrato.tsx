@@ -124,7 +124,60 @@ export default function ImportarExtrato() {
   const [banco, setBanco] = useState("generico");
   const [cartaoNome, setCartaoNome] = useState("");
   const [faturaVencimento, setFaturaVencimento] = useState("");
-  
+
+function SearchableCategory({
+  categorias,
+  catMap,
+  value,
+  sugerida,
+  onChange,
+}: {
+  categorias: { grupo: string; itens: { id: string; label: string }[] }[];
+  catMap: Record<string, string>;
+  value: string | null;
+  sugerida: string | null;
+  onChange: (v: string | null) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const displayLabel = value ? (catMap[value] || "Selecionar") : (sugerida || "Sem categoria");
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button variant="outline" size="sm" className="h-8 w-[200px] justify-between text-xs font-normal truncate">
+          <span className="truncate">{displayLabel}</span>
+          <ChevronsUpDown className="ml-1 h-3 w-3 shrink-0 opacity-50" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-[260px] p-0" align="start">
+        <Command>
+          <CommandInput placeholder="Buscar categoria..." className="h-9" />
+          <CommandList>
+            <CommandEmpty>Nenhuma categoria encontrada.</CommandEmpty>
+            <CommandItem onSelect={() => { onChange(null); setOpen(false); }}>
+              Sem categoria
+            </CommandItem>
+            {categorias.map(({ grupo, itens }) => (
+              <CommandGroup key={grupo} heading={grupo}>
+                {itens.map((item) => (
+                  <CommandItem
+                    key={item.id}
+                    value={`${grupo} ${item.label}`}
+                    onSelect={() => { onChange(item.id); setOpen(false); }}
+                    className={cn("text-xs", value === item.id && "font-semibold")}
+                  >
+                    {item.label}
+                  </CommandItem>
+                ))}
+              </CommandGroup>
+            ))}
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
 
   const handleFile = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
