@@ -546,6 +546,18 @@ export const useUpdateCustoFixoOficina = () => {
   });
 };
 
+// Cartões de Crédito (cadastro)
+export interface CartaoCredito {
+  id: string;
+  nome: string;
+  dia_vencimento: number;
+  ativo: boolean;
+  created_at: string;
+}
+
+export const useCartoesCredito = () =>
+  useQuery({ queryKey: ["cartoes_credito"], queryFn: () => fetchTable<CartaoCredito>("cartoes_credito", { orderBy: "nome", ascending: true }) });
+
 // Cartões / Faturas
 export interface CartaoFatura {
   id: string;
