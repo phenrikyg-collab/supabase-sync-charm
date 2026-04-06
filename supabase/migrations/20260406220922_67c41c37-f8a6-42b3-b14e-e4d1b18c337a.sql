@@ -1,0 +1,1 @@
+ALTER TABLE public.movimentacoes_financeiras ADD COLUMN frequencia text DEFAULT null;
