@@ -260,6 +260,146 @@ export default function Faturas() {
     return Array.from(names).sort();
   }, [faturas]);
 
+  // Helper: get or create fatura for a card + month
+  const getOrCreateFatura = async (cartaoNome: string, diaVencimento: number, mesRef: string) => {
+    // Check if fatura exists
+    const { data: existing } = await supabase
+      .from("cartoes_faturas")
+      .select("id")
+      .eq("cartao_nome", cartaoNome)
+      .eq("mes_referencia", mesRef)
+      .maybeSingle();
+
+    if (existing) return existing.id;
+
+    // Calculate vencimento date
+    const [ano, mes] = mesRef.split("-").map(Number);
+    const lastDay = new Date(ano, mes, 0).getDate();
+    const dia = Math.min(diaVencimento, lastDay);
+    const dataVenc = `${mesRef}-${String(dia).padStart(2, "0")}`;
+
+    const { data: newFatura, error } = await supabase
+      .from("cartoes_faturas")
+      .insert({
+        cartao_nome: cartaoNome,
+        mes_referencia: mesRef,
+        data_vencimento: dataVenc,
+        valor_total: 0,
+        valor_pago: 0,
+        status: "aberta",
+      })
+      .select("id")
+      .single();
+
+    if (error) throw error;
+    return newFatura.id;
+  };
+
+  // Determine which fatura month a purchase date belongs to based on card's dia_vencimento
+  const getMesReferenciaForCompra = (dataCompra: string, diaVencimento: number): string => {
+    const dt = new Date(dataCompra + "T00:00:00");
+    const dia = dt.getDate();
+    let ano = dt.getFullYear();
+    let mes = dt.getMonth() + 1; // 1-based
+
+    // If purchase day is after the vencimento day, it goes to the next month's fatura
+    if (dia > diaVencimento) {
+      mes += 1;
+      if (mes > 12) { mes = 1; ano += 1; }
+    }
+
+    return `${ano}-${String(mes).padStart(2, "0")}`;
+  };
+
+  const openNovaCompra = () => {
+    setCompraCartaoId("");
+    setCompraDescricao("");
+    setCompraValor("");
+    setCompraData(new Date().toISOString().split("T")[0]);
+    setCompraCategoriaId("");
+    setCompraParcelas("1");
+    setCompraOpen(true);
+  };
+
+  const handleNovaCompra = async () => {
+    if (!compraCartaoId) return toast.error("Selecione um cartão");
+    if (!compraDescricao.trim()) return toast.error("Informe a descrição");
+    const valorTotal = parseFloat(compraValor.replace(",", "."));
+    if (!valorTotal || valorTotal <= 0) return toast.error("Informe um valor válido");
+    const numParcelas = parseInt(compraParcelas) || 1;
+
+    const cartao = cartoes.find((c: any) => c.id === compraCartaoId);
+    if (!cartao) return toast.error("Cartão não encontrado");
+
+    setSalvandoCompra(true);
+    try {
+      const valorParcela = Math.round((valorTotal / numParcelas) * 100) / 100;
+      const mesBase = getMesReferenciaForCompra(compraData, cartao.dia_vencimento);
+
+      for (let p = 1; p <= numParcelas; p++) {
+        // Calculate target month for this installment
+        const [anoBase, mesBaseNum] = mesBase.split("-").map(Number);
+        let targetMes = mesBaseNum + (p - 1);
+        let targetAno = anoBase;
+        while (targetMes > 12) { targetMes -= 12; targetAno += 1; }
+        const mesRef = `${targetAno}-${String(targetMes).padStart(2, "0")}`;
+
+        const faturaId = await getOrCreateFatura(cartao.nome, cartao.dia_vencimento, mesRef);
+
+        const descComParcela = numParcelas > 1
+          ? `${compraDescricao.trim()} ${p}/${numParcelas}`
+          : compraDescricao.trim();
+
+        // Insert movimentacao - data da compra é a competência (DRE)
+        await createMov.mutateAsync({
+          descricao: descComParcela,
+          tipo: "saida",
+          valor: valorParcela,
+          data: compraData, // competência = data da compra
+          data_vencimento: null,
+          conta_tipo: "cartao_fatura",
+          fatura_id: faturaId,
+          categoria_id: compraCategoriaId || null,
+          impacta_dre: true,
+          impacta_fluxo: false,
+          origem: "manual",
+          status_pagamento: "em_aberto",
+          parcela_info: numParcelas > 1 ? `${p}/${numParcelas}` : null,
+        } as any);
+
+        // Update fatura total
+        const { data: currentFatura } = await supabase
+          .from("cartoes_faturas")
+          .select("valor_total, valor_pago")
+          .eq("id", faturaId)
+          .single();
+
+        if (currentFatura) {
+          const newTotal = (currentFatura.valor_total ?? 0) + valorParcela;
+          const newStatus = (currentFatura.valor_pago ?? 0) >= newTotal && newTotal > 0
+            ? "paga"
+            : (currentFatura.valor_pago ?? 0) > 0 ? "parcial" : "aberta";
+          await supabase.from("cartoes_faturas").update({
+            valor_total: newTotal,
+            saldo_em_aberto: newTotal - (currentFatura.valor_pago ?? 0),
+            status: newStatus,
+          }).eq("id", faturaId);
+        }
+      }
+
+      await queryClient.invalidateQueries({ queryKey: ["cartoes_faturas"] });
+      await queryClient.invalidateQueries({ queryKey: ["movimentacoes"] });
+      toast.success(numParcelas > 1
+        ? `Compra em ${numParcelas}x registrada com sucesso!`
+        : "Compra registrada com sucesso!");
+      setCompraOpen(false);
+    } catch (err: any) {
+      toast.error("Erro: " + (err.message || "erro"));
+    } finally {
+      setSalvandoCompra(false);
+    }
+  };
+
   // Previsão por cartão: soma das faturas futuras (em_aberto) agrupado por mês
   const previsaoCartao = useMemo(() => {
     const mesAtual = new Date().toISOString().substring(0, 7);
