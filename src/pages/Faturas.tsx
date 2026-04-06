@@ -27,6 +27,20 @@ function StatusBadgeFatura({ status }: { status: string }) {
   return <Badge variant="outline" className="border-destructive/30 text-destructive">Aberta</Badge>;
 }
 
+// Generate month options (current month - 2 to current month + 12)
+function generateMonthOptions(): { value: string; label: string }[] {
+  const options: { value: string; label: string }[] = [];
+  const now = new Date();
+  const meses = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
+  for (let offset = -2; offset <= 12; offset++) {
+    const d = new Date(now.getFullYear(), now.getMonth() + offset, 1);
+    const value = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+    const label = `${meses[d.getMonth()]}/${d.getFullYear()}`;
+    options.push({ value, label });
+  }
+  return options;
+}
+
 export default function Faturas() {
   const { data: faturas = [], isLoading } = useCartoesFaturas();
   const { data: movs = [] } = useMovimentacoesFinanceiras();
@@ -64,7 +78,21 @@ export default function Faturas() {
   const [compraData, setCompraData] = useState(() => new Date().toISOString().split("T")[0]);
   const [compraCategoriaId, setCompraCategoriaId] = useState("");
   const [compraParcelas, setCompraParcelas] = useState("1");
+  const [compraMesVencimento, setCompraMesVencimento] = useState(() => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+  });
   const [salvandoCompra, setSalvandoCompra] = useState(false);
+
+  // State for editing a transaction
+  const [editTxId, setEditTxId] = useState<string | null>(null);
+  const [editTxFaturaId, setEditTxFaturaId] = useState<string | null>(null);
+  const [editTxDescricao, setEditTxDescricao] = useState("");
+  const [editTxValor, setEditTxValor] = useState("");
+  const [editTxData, setEditTxData] = useState("");
+  const [editTxCategoriaId, setEditTxCategoriaId] = useState("");
+  const [editTxOriginalValor, setEditTxOriginalValor] = useState(0);
+  const [salvandoEditTx, setSalvandoEditTx] = useState(false);
 
   // Filter by card
   const [filtroCartao, setFiltroCartao] = useState<string>("todos");
@@ -108,6 +136,8 @@ export default function Faturas() {
   }, [faturas, filtroCartao]);
 
   const totalAberto = faturas.filter((f) => f.status !== "paga").reduce((s, f) => s + (f.valor_total - f.valor_pago), 0);
+
+  const monthOptions = useMemo(() => generateMonthOptions(), []);
 
   // Card CRUD
   const openNewCard = () => {
@@ -262,7 +292,6 @@ export default function Faturas() {
 
   // Helper: get or create fatura for a card + month
   const getOrCreateFatura = async (cartaoNome: string, diaVencimento: number, mesRef: string) => {
-    // Check if fatura exists
     const { data: existing } = await supabase
       .from("cartoes_faturas")
       .select("id")
@@ -272,7 +301,6 @@ export default function Faturas() {
 
     if (existing) return existing.id;
 
-    // Calculate vencimento date
     const [ano, mes] = mesRef.split("-").map(Number);
     const lastDay = new Date(ano, mes, 0).getDate();
     const dia = Math.min(diaVencimento, lastDay);
@@ -295,22 +323,6 @@ export default function Faturas() {
     return newFatura.id;
   };
 
-  // Determine which fatura month a purchase date belongs to based on card's dia_vencimento
-  const getMesReferenciaForCompra = (dataCompra: string, diaVencimento: number): string => {
-    const dt = new Date(dataCompra + "T00:00:00");
-    const dia = dt.getDate();
-    let ano = dt.getFullYear();
-    let mes = dt.getMonth() + 1; // 1-based
-
-    // If purchase day is after the vencimento day, it goes to the next month's fatura
-    if (dia > diaVencimento) {
-      mes += 1;
-      if (mes > 12) { mes = 1; ano += 1; }
-    }
-
-    return `${ano}-${String(mes).padStart(2, "0")}`;
-  };
-
   const openNovaCompra = () => {
     setCompraCartaoId("");
     setCompraDescricao("");
@@ -318,6 +330,10 @@ export default function Faturas() {
     setCompraData(new Date().toISOString().split("T")[0]);
     setCompraCategoriaId("");
     setCompraParcelas("1");
+    // Default to next month
+    const now = new Date();
+    const nextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+    setCompraMesVencimento(`${nextMonth.getFullYear()}-${String(nextMonth.getMonth() + 1).padStart(2, "0")}`);
     setCompraOpen(true);
   };
 
@@ -326,6 +342,7 @@ export default function Faturas() {
     if (!compraDescricao.trim()) return toast.error("Informe a descrição");
     const valorTotal = parseFloat(compraValor.replace(",", "."));
     if (!valorTotal || valorTotal <= 0) return toast.error("Informe um valor válido");
+    if (!compraMesVencimento) return toast.error("Selecione o mês de vencimento");
     const numParcelas = parseInt(compraParcelas) || 1;
 
     const cartao = cartoes.find((c: any) => c.id === compraCartaoId);
@@ -334,11 +351,10 @@ export default function Faturas() {
     setSalvandoCompra(true);
     try {
       const valorParcela = Math.round((valorTotal / numParcelas) * 100) / 100;
-      const mesBase = getMesReferenciaForCompra(compraData, cartao.dia_vencimento);
 
       for (let p = 1; p <= numParcelas; p++) {
-        // Calculate target month for this installment
-        const [anoBase, mesBaseNum] = mesBase.split("-").map(Number);
+        // Use selected month as base, offset by installment number
+        const [anoBase, mesBaseNum] = compraMesVencimento.split("-").map(Number);
         let targetMes = mesBaseNum + (p - 1);
         let targetAno = anoBase;
         while (targetMes > 12) { targetMes -= 12; targetAno += 1; }
@@ -350,12 +366,11 @@ export default function Faturas() {
           ? `${compraDescricao.trim()} ${p}/${numParcelas}`
           : compraDescricao.trim();
 
-        // Insert movimentacao - data da compra é a competência (DRE)
         await createMov.mutateAsync({
           descricao: descComParcela,
           tipo: "saida",
           valor: valorParcela,
-          data: compraData, // competência = data da compra
+          data: compraData,
           data_vencimento: null,
           conta_tipo: "cartao_fatura",
           fatura_id: faturaId,
@@ -400,7 +415,89 @@ export default function Faturas() {
     }
   };
 
-  // Previsão por cartão: soma das faturas futuras (em_aberto) agrupado por mês
+  // Edit transaction
+  const openEditTx = (mov: any) => {
+    setEditTxId(mov.id);
+    setEditTxFaturaId(mov.fatura_id);
+    setEditTxDescricao(mov.descricao || "");
+    setEditTxValor(String(mov.valor ?? 0).replace(".", ","));
+    setEditTxData(mov.data || new Date().toISOString().split("T")[0]);
+    setEditTxCategoriaId(mov.categoria_id || "");
+    setEditTxOriginalValor(mov.valor ?? 0);
+  };
+
+  const handleEditTx = async () => {
+    if (!editTxId || !editTxFaturaId) return;
+    const valor = parseFloat(editTxValor.replace(",", "."));
+    if (!editTxDescricao.trim()) return toast.error("Informe a descrição");
+    if (!valor || valor <= 0) return toast.error("Informe um valor válido");
+
+    setSalvandoEditTx(true);
+    try {
+      const { error } = await supabase.from("movimentacoes_financeiras").update({
+        descricao: editTxDescricao.trim(),
+        valor,
+        data: editTxData,
+        categoria_id: editTxCategoriaId || null,
+      }).eq("id", editTxId);
+      if (error) throw error;
+
+      // Update fatura total with the difference
+      const diff = valor - editTxOriginalValor;
+      if (diff !== 0) {
+        const { data: currentFatura } = await supabase.from("cartoes_faturas").select("valor_total, valor_pago").eq("id", editTxFaturaId).single();
+        if (currentFatura) {
+          const newTotal = (currentFatura.valor_total ?? 0) + diff;
+          const newStatus = (currentFatura.valor_pago ?? 0) >= newTotal && newTotal > 0 ? "paga" : (currentFatura.valor_pago ?? 0) > 0 ? "parcial" : "aberta";
+          await supabase.from("cartoes_faturas").update({
+            valor_total: newTotal,
+            saldo_em_aberto: newTotal - (currentFatura.valor_pago ?? 0),
+            status: newStatus,
+          }).eq("id", editTxFaturaId);
+        }
+      }
+
+      await queryClient.invalidateQueries({ queryKey: ["cartoes_faturas"] });
+      await queryClient.invalidateQueries({ queryKey: ["movimentacoes"] });
+      toast.success("Transação atualizada!");
+      setEditTxId(null);
+    } catch (err: any) {
+      toast.error("Erro: " + (err.message || "erro"));
+    } finally {
+      setSalvandoEditTx(false);
+    }
+  };
+
+  // Delete transaction
+  const handleDeleteTx = async (mov: any) => {
+    if (!confirm("Deseja excluir esta transação?")) return;
+    try {
+      const { error } = await supabase.from("movimentacoes_financeiras").delete().eq("id", mov.id);
+      if (error) throw error;
+
+      // Update fatura total
+      if (mov.fatura_id) {
+        const { data: currentFatura } = await supabase.from("cartoes_faturas").select("valor_total, valor_pago").eq("id", mov.fatura_id).single();
+        if (currentFatura) {
+          const newTotal = Math.max((currentFatura.valor_total ?? 0) - (mov.valor ?? 0), 0);
+          const newStatus = (currentFatura.valor_pago ?? 0) >= newTotal && newTotal > 0 ? "paga" : (currentFatura.valor_pago ?? 0) > 0 ? "parcial" : "aberta";
+          await supabase.from("cartoes_faturas").update({
+            valor_total: newTotal,
+            saldo_em_aberto: newTotal - (currentFatura.valor_pago ?? 0),
+            status: newStatus,
+          }).eq("id", mov.fatura_id);
+        }
+      }
+
+      await queryClient.invalidateQueries({ queryKey: ["cartoes_faturas"] });
+      await queryClient.invalidateQueries({ queryKey: ["movimentacoes"] });
+      toast.success("Transação excluída!");
+    } catch (err: any) {
+      toast.error("Erro: " + (err.message || "erro"));
+    }
+  };
+
+  // Previsão por cartão
   const previsaoCartao = useMemo(() => {
     const mesAtual = new Date().toISOString().substring(0, 7);
     const futuras = faturas.filter((f) => f.mes_referencia >= mesAtual && f.status !== "paga");
@@ -434,7 +531,6 @@ export default function Faturas() {
 
         {/* TAB: FATURAS */}
         <TabsContent value="faturas" className="space-y-4 mt-4">
-          {/* Nova Compra button */}
           <div className="flex justify-end">
             <Button onClick={openNovaCompra} disabled={cartoes.length === 0}>
               <ShoppingCart className="h-4 w-4 mr-1" /> Nova Compra
@@ -559,11 +655,12 @@ export default function Faturas() {
                                     <TableHead>Categoria</TableHead>
                                     <TableHead>Grupo DRE</TableHead>
                                     <TableHead className="text-right">Valor</TableHead>
+                                    <TableHead className="text-right w-[80px]">Ações</TableHead>
                                   </TableRow>
                                 </TableHeader>
                                 <TableBody>
                                   {faturaMovs.length === 0 ? (
-                                    <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground">Nenhum item vinculado</TableCell></TableRow>
+                                    <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground">Nenhum item vinculado</TableCell></TableRow>
                                   ) : (
                                     faturaMovs.map((m: any) => (
                                       <TableRow key={m.id}>
@@ -572,6 +669,16 @@ export default function Faturas() {
                                         <TableCell className="text-muted-foreground">{m.categoria_id ? catMap[m.categoria_id]?.nome ?? "—" : "—"}</TableCell>
                                         <TableCell className="text-muted-foreground text-xs">{m.categoria_id ? catMap[m.categoria_id]?.grupoDre ?? "—" : "—"}</TableCell>
                                         <TableCell className="text-right font-mono">{formatCurrency(m.valor)}</TableCell>
+                                        <TableCell className="text-right">
+                                          <div className="flex justify-end gap-0.5">
+                                            <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => openEditTx(m)}>
+                                              <Pencil className="h-3.5 w-3.5" />
+                                            </Button>
+                                            <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive" onClick={() => handleDeleteTx(m)}>
+                                              <Trash2 className="h-3.5 w-3.5" />
+                                            </Button>
+                                          </div>
+                                        </TableCell>
                                       </TableRow>
                                     ))
                                   )}
@@ -869,7 +976,7 @@ export default function Faturas() {
                 maxLength={200}
               />
             </div>
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-2 gap-3">
               <div className="space-y-2">
                 <Label>Valor Total (R$)</Label>
                 <Input
@@ -882,6 +989,21 @@ export default function Faturas() {
               <div className="space-y-2">
                 <Label>Data da Compra</Label>
                 <Input type="date" value={compraData} onChange={(e) => setCompraData(e.target.value)} />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <Label>Mês de Vencimento</Label>
+                <Select value={compraMesVencimento} onValueChange={setCompraMesVencimento}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione o mês" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {monthOptions.map((opt) => (
+                      <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
               <div className="space-y-2">
                 <Label>Parcelas</Label>
@@ -919,6 +1041,7 @@ export default function Faturas() {
                   <span className="font-semibold text-foreground">
                     {formatCurrency(Math.round((parseFloat(compraValor.replace(",", ".")) / parseInt(compraParcelas)) * 100) / 100)}
                   </span>
+                  {" "}· 1ª parcela em {monthOptions.find(o => o.value === compraMesVencimento)?.label || compraMesVencimento}
                 </p>
               </div>
             )}
@@ -928,6 +1051,65 @@ export default function Faturas() {
             <Button onClick={handleNovaCompra} disabled={salvandoCompra}>
               {salvandoCompra ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
               Registrar Compra
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog Editar Transação */}
+      <Dialog open={!!editTxId} onOpenChange={(open) => !open && setEditTxId(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Editar Transação</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>Descrição</Label>
+              <Input
+                value={editTxDescricao}
+                onChange={(e) => setEditTxDescricao(e.target.value)}
+                maxLength={200}
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <Label>Valor (R$)</Label>
+                <Input
+                  value={editTxValor}
+                  onChange={(e) => setEditTxValor(e.target.value.replace(/[^0-9.,]/g, ""))}
+                  inputMode="decimal"
+                  placeholder="0,00"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Data</Label>
+                <Input type="date" value={editTxData} onChange={(e) => setEditTxData(e.target.value)} />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label>Categoria</Label>
+              <Select value={editTxCategoriaId} onValueChange={setEditTxCategoriaId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione a categoria" />
+                </SelectTrigger>
+                <SelectContent>
+                  {Object.entries(catGrouped).map(([grupo, items]) => (
+                    <div key={grupo}>
+                      <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">{grupo}</div>
+                      {items.map((item) => (
+                        <SelectItem key={item.id} value={item.id}>{item.label}</SelectItem>
+                      ))}
+                    </div>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditTxId(null)}>Cancelar</Button>
+            <Button onClick={handleEditTx} disabled={salvandoEditTx}>
+              {salvandoEditTx ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+              Salvar
             </Button>
           </DialogFooter>
         </DialogContent>
