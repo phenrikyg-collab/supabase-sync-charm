@@ -434,6 +434,12 @@ export default function Faturas() {
 
         {/* TAB: FATURAS */}
         <TabsContent value="faturas" className="space-y-4 mt-4">
+          {/* Nova Compra button */}
+          <div className="flex justify-end">
+            <Button onClick={openNovaCompra} disabled={cartoes.length === 0}>
+              <ShoppingCart className="h-4 w-4 mr-1" /> Nova Compra
+            </Button>
+          </div>
           {/* KPIs */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <Card>
