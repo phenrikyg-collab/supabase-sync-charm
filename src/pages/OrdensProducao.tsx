@@ -609,7 +609,12 @@ export default function OrdensProducao() {
                           <motion.div key={ordemId} initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: i * 0.03 }}>
                             <Card className="border-l-4" style={{ borderLeftColor: "hsl(var(--danger))", backgroundColor: "hsl(var(--danger) / 0.05)" }}>
                               <CardContent className="pt-4 pb-3 space-y-2">
-                                <span className="font-medium text-sm text-card-foreground">{ordem?.nome_produto ?? "—"}</span>
+                                <div className="flex items-center justify-between">
+                                  <span className="font-medium text-sm text-card-foreground">{ordem?.nome_produto ?? "—"}</span>
+                                  {ordem?.ordem_corte_id && ocMap[ordem.ordem_corte_id] && (
+                                    <span className="text-[10px] font-mono font-semibold bg-muted px-1.5 py-0.5 rounded text-muted-foreground">{ocMap[ordem.ordem_corte_id].numero_oc}</span>
+                                  )}
+                                </div>
                                 <div className="space-y-1">
                                   {consertoList.map((c: any, j: number) => {
                                     const cor = c.cor_id ? corMap[c.cor_id] : null;
@@ -627,6 +632,27 @@ export default function OrdensProducao() {
                                 {consertoList[0]?.observacao && (
                                   <p className="text-[10px] text-muted-foreground italic">{consertoList[0].observacao}</p>
                                 )}
+                                {/* Navigation buttons for Em Conserto */}
+                                <div className="flex items-center gap-1.5 pt-1">
+                                  <button
+                                    className="flex-1 flex items-center justify-center gap-1 px-2 py-1.5 rounded-md text-[10px] font-medium transition-all bg-muted/80 text-muted-foreground border border-border/50 hover:bg-muted hover:border-border active:scale-[0.97]"
+                                    onClick={() => {
+                                      consertoList.forEach((c: any) => updateConsertoMut.mutate({ id: c.id, status: "Aprovada" }));
+                                      if (ordem) moveOrder(ordem.id, "Revisão");
+                                    }}
+                                  >
+                                    ← Revisão
+                                  </button>
+                                  <button
+                                    className="flex-1 flex items-center justify-center gap-1 px-2 py-1.5 rounded-md text-[10px] font-medium transition-all bg-success/10 text-success border border-success/20 hover:bg-success/20 hover:border-success/40 active:scale-[0.97]"
+                                    onClick={() => {
+                                      consertoList.forEach((c: any) => updateConsertoMut.mutate({ id: c.id, status: "Aprovada" }));
+                                      if (ordem) moveOrder(ordem.id, "Finalizado");
+                                    }}
+                                  >
+                                    Finalizar →
+                                  </button>
+                                </div>
                               </CardContent>
                             </Card>
                           </motion.div>
