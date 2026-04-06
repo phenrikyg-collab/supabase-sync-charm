@@ -616,6 +616,7 @@ export type Database = {
           descricao: string | null
           entrada_tecido_id: string | null
           fatura_id: string | null
+          frequencia: string | null
           id: string
           impacta_dre: boolean
           impacta_fluxo: boolean
@@ -646,6 +647,7 @@ export type Database = {
           descricao?: string | null
           entrada_tecido_id?: string | null
           fatura_id?: string | null
+          frequencia?: string | null
           id?: string
           impacta_dre?: boolean
           impacta_fluxo?: boolean
@@ -676,6 +678,7 @@ export type Database = {
           descricao?: string | null
           entrada_tecido_id?: string | null
           fatura_id?: string | null
+          frequencia?: string | null
           id?: string
           impacta_dre?: boolean
           impacta_fluxo?: boolean

@@ -5,12 +5,15 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { toast } from "sonner";
-import { Upload, Sparkles, Check, Loader2, FileText } from "lucide-react";
+import { Upload, Sparkles, Check, Loader2, FileText, ChevronsUpDown } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useCategorias } from "@/hooks/useSupabase";
 import { invokeEdgeFunction } from "@/lib/edgeFunctions";
 import { useQueryClient } from "@tanstack/react-query";
+import { cn } from "@/lib/utils";
 
 interface ParsedRow {
   data: string;
@@ -20,6 +23,7 @@ interface ParsedRow {
   categoria_id: string | null;
   categoria_sugerida: string | null;
   tipo: "entrada" | "saida";
+  frequencia: string | null;
   selecionado: boolean;
 }
 
@@ -99,6 +103,7 @@ function parseCSVSafra(text: string): ParsedRow[] {
       tipo: valor < 0 ? "saida" : "entrada",
       categoria_id: null,
       categoria_sugerida: null,
+      frequencia: null,
       selecionado: true,
     });
   }
@@ -119,7 +124,60 @@ export default function ImportarExtrato() {
   const [banco, setBanco] = useState("generico");
   const [cartaoNome, setCartaoNome] = useState("");
   const [faturaVencimento, setFaturaVencimento] = useState("");
-  
+
+function SearchableCategory({
+  categorias,
+  catMap,
+  value,
+  sugerida,
+  onChange,
+}: {
+  categorias: { grupo: string; itens: { id: string; label: string }[] }[];
+  catMap: Record<string, string>;
+  value: string | null;
+  sugerida: string | null;
+  onChange: (v: string | null) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const displayLabel = value ? (catMap[value] || "Selecionar") : (sugerida || "Sem categoria");
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button variant="outline" size="sm" className="h-8 w-[200px] justify-between text-xs font-normal truncate">
+          <span className="truncate">{displayLabel}</span>
+          <ChevronsUpDown className="ml-1 h-3 w-3 shrink-0 opacity-50" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-[260px] p-0" align="start">
+        <Command>
+          <CommandInput placeholder="Buscar categoria..." className="h-9" />
+          <CommandList>
+            <CommandEmpty>Nenhuma categoria encontrada.</CommandEmpty>
+            <CommandItem onSelect={() => { onChange(null); setOpen(false); }}>
+              Sem categoria
+            </CommandItem>
+            {categorias.map(({ grupo, itens }) => (
+              <CommandGroup key={grupo} heading={grupo}>
+                {itens.map((item) => (
+                  <CommandItem
+                    key={item.id}
+                    value={`${grupo} ${item.label}`}
+                    onSelect={() => { onChange(item.id); setOpen(false); }}
+                    className={cn("text-xs", value === item.id && "font-semibold")}
+                  >
+                    {item.label}
+                  </CommandItem>
+                ))}
+              </CommandGroup>
+            ))}
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
 
   const handleFile = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -155,6 +213,7 @@ export default function ImportarExtrato() {
               tipo: r.valor < 0 ? "saida" as const : (r.tipo || "saida") as any,
               categoria_id: r.categoria_id || null,
               categoria_sugerida: r.categoria_sugerida || null,
+              frequencia: null,
               selecionado: true,
             })));
             toast.success(`${data.rows.length} lançamentos extraídos do PDF`);
@@ -292,6 +351,7 @@ export default function ImportarExtrato() {
             categoria_id: r.categoria_id || (isCartao ? categoriaPadrao : null),
             origem: `extrato_${banco}`,
             status_pagamento: isCartao ? "em_aberto" : "pago",
+            frequencia: r.frequencia || null,
           };
 
           if (isCartao) {
@@ -445,6 +505,7 @@ export default function ImportarExtrato() {
                     <TableHead>Descrição</TableHead>
                     <TableHead>Tipo</TableHead>
                     <TableHead>Categoria</TableHead>
+                    <TableHead>Frequência</TableHead>
                     <TableHead className="text-right">Valor</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -467,23 +528,26 @@ export default function ImportarExtrato() {
                         </Badge>
                       </TableCell>
                       <TableCell>
+                        <SearchableCategory
+                          categorias={categoriasDropdown}
+                          catMap={catMap}
+                          value={r.categoria_id}
+                          sugerida={r.categoria_sugerida}
+                          onChange={(v) => setRows((prev) => prev.map((row, j) => j === i ? { ...row, categoria_id: v } : row))}
+                        />
+                      </TableCell>
+                      <TableCell>
                         <Select
-                          value={r.categoria_id || "none"}
-                          onValueChange={(v) => setRows((prev) => prev.map((row, j) => j === i ? { ...row, categoria_id: v === "none" ? null : v } : row))}
+                          value={r.frequencia || "unica"}
+                          onValueChange={(v) => setRows((prev) => prev.map((row, j) => j === i ? { ...row, frequencia: v === "unica" ? null : v } : row))}
                         >
-                          <SelectTrigger className="h-8 text-xs w-[180px]">
-                            <SelectValue placeholder={r.categoria_id ? catMap[r.categoria_id] : (r.categoria_sugerida || "Sem categoria")} />
+                          <SelectTrigger className="h-8 text-xs w-[110px]">
+                            <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="none">Sem categoria</SelectItem>
-                            {categoriasDropdown.map(({ grupo, itens }) => (
-                              <SelectGroup key={grupo}>
-                                <SelectLabel>{grupo}</SelectLabel>
-                                {itens.map((item) => (
-                                  <SelectItem key={item.id} value={item.id}>{item.label}</SelectItem>
-                                ))}
-                              </SelectGroup>
-                            ))}
+                            <SelectItem value="unica">Única</SelectItem>
+                            <SelectItem value="mensal">Mensal</SelectItem>
+                            <SelectItem value="anual">Anual</SelectItem>
                           </SelectContent>
                         </Select>
                       </TableCell>
