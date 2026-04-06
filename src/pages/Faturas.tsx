@@ -48,13 +48,23 @@ export default function Faturas() {
   const [cardDiaVencimento, setCardDiaVencimento] = useState("10");
   const [savingCard, setSavingCard] = useState(false);
 
-  // State for manual transaction dialog
+  // State for manual transaction dialog (within existing fatura)
   const [addTxFaturaId, setAddTxFaturaId] = useState<string | null>(null);
   const [txDescricao, setTxDescricao] = useState("");
   const [txValor, setTxValor] = useState("");
   const [txData, setTxData] = useState(() => new Date().toISOString().split("T")[0]);
   const [txCategoriaId, setTxCategoriaId] = useState("");
   const [salvandoTx, setSalvandoTx] = useState(false);
+
+  // State for "Nova Compra" dialog
+  const [compraOpen, setCompraOpen] = useState(false);
+  const [compraCartaoId, setCompraCartaoId] = useState("");
+  const [compraDescricao, setCompraDescricao] = useState("");
+  const [compraValor, setCompraValor] = useState("");
+  const [compraData, setCompraData] = useState(() => new Date().toISOString().split("T")[0]);
+  const [compraCategoriaId, setCompraCategoriaId] = useState("");
+  const [compraParcelas, setCompraParcelas] = useState("1");
+  const [salvandoCompra, setSalvandoCompra] = useState(false);
 
   // Filter by card
   const [filtroCartao, setFiltroCartao] = useState<string>("todos");
