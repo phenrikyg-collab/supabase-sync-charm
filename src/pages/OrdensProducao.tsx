@@ -105,6 +105,7 @@ export default function OrdensProducao() {
   const updateMut = useUpdateOrdemProducao();
   const deleteMut = useDeleteOrdemProducao();
   const createConsertoMut = useCreateConserto();
+  const updateConsertoMut = useUpdateConserto();
 
   const [open, setOpen] = useState(false);
   const [ocId, setOcId] = useState("");
