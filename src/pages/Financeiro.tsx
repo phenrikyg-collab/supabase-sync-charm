@@ -50,6 +50,8 @@ export default function Financeiro() {
   const [bulkUpdating, setBulkUpdating] = useState(false);
   const [bulkDeleting, setBulkDeleting] = useState(false);
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
+  const [bulkCatOpen, setBulkCatOpen] = useState(false);
+  const [bulkCatUpdating, setBulkCatUpdating] = useState(false);
   const [sortKey, setSortKey] = useState<SortKey>("data");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
   const [currentPage, setCurrentPage] = useState(1);
