@@ -69,6 +69,19 @@ export default function Financeiro() {
     [categorias]
   );
 
+  const catGrouped = useMemo(() => {
+    const groups: Record<string, { id: string; label: string }[]> = {};
+    (categorias ?? []).forEach((c: any) => {
+      const grupo = c.grupo_dre || "Outros";
+      if (!groups[grupo]) groups[grupo] = [];
+      const label = c.descricao_categoria || c.nome_categoria || "";
+      if (label && label !== grupo) {
+        groups[grupo].push({ id: c.id, label });
+      }
+    });
+    return groups;
+  }, [categorias]);
+
   const catMap = Object.fromEntries((categorias ?? []).map((c) => [c.id, c.nome_categoria]));
   const catDescMap = Object.fromEntries((categorias ?? []).map((c) => [c.id, c.descricao_categoria]));
 
