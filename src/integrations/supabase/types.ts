@@ -130,6 +130,30 @@ export type Database = {
           },
         ]
       }
+      cartoes_credito: {
+        Row: {
+          ativo: boolean
+          created_at: string
+          dia_vencimento: number
+          id: string
+          nome: string
+        }
+        Insert: {
+          ativo?: boolean
+          created_at?: string
+          dia_vencimento?: number
+          id?: string
+          nome: string
+        }
+        Update: {
+          ativo?: boolean
+          created_at?: string
+          dia_vencimento?: number
+          id?: string
+          nome?: string
+        }
+        Relationships: []
+      }
       cartoes_faturas: {
         Row: {
           cartao_nome: string
