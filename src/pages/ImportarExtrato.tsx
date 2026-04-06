@@ -419,7 +419,7 @@ export default function ImportarExtrato() {
 
           // Get card dia_vencimento for calculating future dates
           const card = cartoes.find((c: any) => c.nome === cartaoNomeFinal);
-          const diaVenc = card?.dia_vencimento ?? parseInt(faturaVencimento.substring(8, 10)) || 10;
+          const diaVenc = card?.dia_vencimento ?? (parseInt(faturaVencimento.substring(8, 10)) || 10);
 
           // Create entries for remaining installments (current + future)
           for (let p = parcelaAtual; p <= parcelaTotal; p++) {
