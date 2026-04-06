@@ -20,6 +20,7 @@ interface ParsedRow {
   categoria_id: string | null;
   categoria_sugerida: string | null;
   tipo: "entrada" | "saida";
+  frequencia: string | null;
   selecionado: boolean;
 }
 
