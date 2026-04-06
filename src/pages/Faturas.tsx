@@ -835,6 +835,103 @@ export default function Faturas() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Dialog Nova Compra */}
+      <Dialog open={compraOpen} onOpenChange={setCompraOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Nova Compra no Cartão</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>Cartão</Label>
+              <Select value={compraCartaoId} onValueChange={setCompraCartaoId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione o cartão" />
+                </SelectTrigger>
+                <SelectContent>
+                  {cartoes.filter((c: any) => c.ativo).map((c: any) => (
+                    <SelectItem key={c.id} value={c.id}>
+                      <span className="flex items-center gap-2">
+                        <CreditCard className="h-3.5 w-3.5" /> {c.nome} (venc. dia {c.dia_vencimento})
+                      </span>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Descrição</Label>
+              <Input
+                value={compraDescricao}
+                onChange={(e) => setCompraDescricao(e.target.value)}
+                placeholder="Ex: Compra Shopee, Assinatura Netflix..."
+                maxLength={200}
+              />
+            </div>
+            <div className="grid grid-cols-3 gap-3">
+              <div className="space-y-2">
+                <Label>Valor Total (R$)</Label>
+                <Input
+                  value={compraValor}
+                  onChange={(e) => setCompraValor(e.target.value.replace(/[^0-9.,]/g, ""))}
+                  inputMode="decimal"
+                  placeholder="0,00"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Data da Compra</Label>
+                <Input type="date" value={compraData} onChange={(e) => setCompraData(e.target.value)} />
+              </div>
+              <div className="space-y-2">
+                <Label>Parcelas</Label>
+                <Input
+                  type="number"
+                  min={1}
+                  max={48}
+                  value={compraParcelas}
+                  onChange={(e) => setCompraParcelas(e.target.value)}
+                />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label>Categoria</Label>
+              <Select value={compraCategoriaId} onValueChange={setCompraCategoriaId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione a categoria" />
+                </SelectTrigger>
+                <SelectContent>
+                  {Object.entries(catGrouped).map(([grupo, items]) => (
+                    <div key={grupo}>
+                      <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">{grupo}</div>
+                      {items.map((item) => (
+                        <SelectItem key={item.id} value={item.id}>{item.label}</SelectItem>
+                      ))}
+                    </div>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            {parseInt(compraParcelas) > 1 && compraValor && (
+              <div className="p-3 rounded-lg bg-muted/50 text-sm">
+                <p className="text-muted-foreground">
+                  {compraParcelas}x de{" "}
+                  <span className="font-semibold text-foreground">
+                    {formatCurrency(Math.round((parseFloat(compraValor.replace(",", ".")) / parseInt(compraParcelas)) * 100) / 100)}
+                  </span>
+                </p>
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCompraOpen(false)}>Cancelar</Button>
+            <Button onClick={handleNovaCompra} disabled={salvandoCompra}>
+              {salvandoCompra ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+              Registrar Compra
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
