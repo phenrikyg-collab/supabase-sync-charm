@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { formatDateBR } from "@/lib/printUtils";
-import { CreditCard, ChevronDown, ChevronRight, DollarSign, Loader2, Plus, Pencil, Trash2 } from "lucide-react";
+import { CreditCard, ChevronDown, ChevronRight, DollarSign, Loader2, Plus, Pencil, Trash2, ShoppingCart } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
