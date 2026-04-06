@@ -395,7 +395,6 @@ export default function Financeiro() {
               </Command>
             </PopoverContent>
           </Popover>
-          </Button>
           <Button
             size="sm"
             variant="ghost"
