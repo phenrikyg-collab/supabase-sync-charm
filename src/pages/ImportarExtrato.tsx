@@ -452,6 +452,7 @@ export default function ImportarExtrato() {
                     <TableHead>Descrição</TableHead>
                     <TableHead>Tipo</TableHead>
                     <TableHead>Categoria</TableHead>
+                    <TableHead>Frequência</TableHead>
                     <TableHead className="text-right">Valor</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -474,23 +475,26 @@ export default function ImportarExtrato() {
                         </Badge>
                       </TableCell>
                       <TableCell>
+                        <SearchableCategory
+                          categorias={categoriasDropdown}
+                          catMap={catMap}
+                          value={r.categoria_id}
+                          sugerida={r.categoria_sugerida}
+                          onChange={(v) => setRows((prev) => prev.map((row, j) => j === i ? { ...row, categoria_id: v } : row))}
+                        />
+                      </TableCell>
+                      <TableCell>
                         <Select
-                          value={r.categoria_id || "none"}
-                          onValueChange={(v) => setRows((prev) => prev.map((row, j) => j === i ? { ...row, categoria_id: v === "none" ? null : v } : row))}
+                          value={r.frequencia || "unica"}
+                          onValueChange={(v) => setRows((prev) => prev.map((row, j) => j === i ? { ...row, frequencia: v === "unica" ? null : v } : row))}
                         >
-                          <SelectTrigger className="h-8 text-xs w-[180px]">
-                            <SelectValue placeholder={r.categoria_id ? catMap[r.categoria_id] : (r.categoria_sugerida || "Sem categoria")} />
+                          <SelectTrigger className="h-8 text-xs w-[110px]">
+                            <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="none">Sem categoria</SelectItem>
-                            {categoriasDropdown.map(({ grupo, itens }) => (
-                              <SelectGroup key={grupo}>
-                                <SelectLabel>{grupo}</SelectLabel>
-                                {itens.map((item) => (
-                                  <SelectItem key={item.id} value={item.id}>{item.label}</SelectItem>
-                                ))}
-                              </SelectGroup>
-                            ))}
+                            <SelectItem value="unica">Única</SelectItem>
+                            <SelectItem value="mensal">Mensal</SelectItem>
+                            <SelectItem value="anual">Anual</SelectItem>
                           </SelectContent>
                         </Select>
                       </TableCell>
