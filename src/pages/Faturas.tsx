@@ -7,9 +7,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { formatDateBR } from "@/lib/printUtils";
-import { CreditCard, ChevronDown, ChevronRight, DollarSign, Loader2 } from "lucide-react";
+import { CreditCard, ChevronDown, ChevronRight, DollarSign, Loader2, Plus } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
@@ -38,13 +39,33 @@ export default function Faturas() {
   const [dataPagamento, setDataPagamento] = useState(() => new Date().toISOString().split("T")[0]);
   const [salvandoPagamento, setSalvandoPagamento] = useState(false);
 
+  // State for manual transaction dialog
+  const [addTxFaturaId, setAddTxFaturaId] = useState<string | null>(null);
+  const [txDescricao, setTxDescricao] = useState("");
+  const [txValor, setTxValor] = useState("");
+  const [txData, setTxData] = useState(() => new Date().toISOString().split("T")[0]);
+  const [txCategoriaId, setTxCategoriaId] = useState("");
+  const [salvandoTx, setSalvandoTx] = useState(false);
+
   const catMap = useMemo(() => {
     const m: Record<string, { nome: string; grupoDre: string }> = {};
     categorias.forEach((c: any) => { m[c.id] = { nome: c.nome_categoria ?? "", grupoDre: c.grupo_dre ?? "" }; });
     return m;
   }, [categorias]);
 
-  // Movimentações vinculadas por fatura
+  const catGrouped = useMemo(() => {
+    const groups: Record<string, { id: string; label: string }[]> = {};
+    categorias.forEach((c: any) => {
+      const grupo = c.grupo_dre || "Outros";
+      if (!groups[grupo]) groups[grupo] = [];
+      const label = c.descricao_categoria || c.nome_categoria || "";
+      if (label && label !== grupo) {
+        groups[grupo].push({ id: c.id, label });
+      }
+    });
+    return groups;
+  }, [categorias]);
+
   const movsPorFatura = useMemo(() => {
     const map: Record<string, any[]> = {};
     movs.forEach((m: any) => {
@@ -97,6 +118,56 @@ export default function Faturas() {
       toast.error("Erro ao registrar pagamento: " + (err.message || "erro"));
     } finally {
       setSalvandoPagamento(false);
+    }
+  };
+
+  const openAddTx = (faturaId: string) => {
+    setAddTxFaturaId(faturaId);
+    setTxDescricao("");
+    setTxValor("");
+    setTxData(new Date().toISOString().split("T")[0]);
+    setTxCategoriaId("");
+  };
+
+  const handleAddTx = async () => {
+    if (!addTxFaturaId) return;
+    const valor = parseFloat(txValor.replace(",", "."));
+    if (!txDescricao.trim()) return toast.error("Informe a descrição");
+    if (!valor || valor <= 0) return toast.error("Informe um valor válido");
+
+    const fatura = faturas.find((f) => f.id === addTxFaturaId);
+    if (!fatura) return;
+
+    setSalvandoTx(true);
+    try {
+      // Create the transaction linked to this invoice
+      await createMov.mutateAsync({
+        descricao: txDescricao.trim(),
+        tipo: "saida",
+        valor,
+        data: txData,
+        data_vencimento: fatura.data_vencimento,
+        conta_tipo: "cartao_fatura",
+        fatura_id: addTxFaturaId,
+        categoria_id: txCategoriaId || null,
+        impacta_dre: true,
+        impacta_fluxo: false,
+        origem: "manual",
+        status_pagamento: "em_aberto",
+      } as any);
+
+      // Update the invoice total
+      const newTotal = fatura.valor_total + valor;
+      await supabase.from("cartoes_faturas").update({ valor_total: newTotal }).eq("id", addTxFaturaId);
+
+      await queryClient.invalidateQueries({ queryKey: ["cartoes_faturas"] });
+      await queryClient.invalidateQueries({ queryKey: ["movimentacoes"] });
+      toast.success("Lançamento adicionado à fatura!");
+      setAddTxFaturaId(null);
+    } catch (err: any) {
+      toast.error("Erro ao adicionar lançamento: " + (err.message || "erro"));
+    } finally {
+      setSalvandoTx(false);
     }
   };
 
@@ -199,6 +270,11 @@ export default function Faturas() {
 
                       <CollapsibleContent>
                         <div className="border-t px-4 pb-4">
+                          <div className="flex justify-end pt-3 pb-2">
+                            <Button size="sm" variant="outline" onClick={() => openAddTx(f.id)}>
+                              <Plus className="h-3.5 w-3.5 mr-1" /> Adicionar Lançamento
+                            </Button>
+                          </div>
                           <Table>
                             <TableHeader>
                               <TableRow>
@@ -272,6 +348,76 @@ export default function Faturas() {
             <Button onClick={handlePagamento} disabled={salvandoPagamento}>
               {salvandoPagamento ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
               Confirmar Pagamento
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog de Adicionar Lançamento Manual */}
+      <Dialog open={!!addTxFaturaId} onOpenChange={(open) => !open && setAddTxFaturaId(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Adicionar Lançamento à Fatura</DialogTitle>
+          </DialogHeader>
+          {addTxFaturaId && (() => {
+            const f = faturas.find((x) => x.id === addTxFaturaId);
+            if (!f) return null;
+            return (
+              <div className="space-y-4">
+                <div className="p-3 rounded-lg bg-muted/50 space-y-1">
+                  <p className="text-sm font-medium">{f.cartao_nome} — {f.mes_referencia}</p>
+                  <p className="text-xs text-muted-foreground">Total atual: {formatCurrency(f.valor_total)}</p>
+                </div>
+                <div className="space-y-2">
+                  <Label>Descrição</Label>
+                  <Input
+                    value={txDescricao}
+                    onChange={(e) => setTxDescricao(e.target.value)}
+                    placeholder="Ex: Assinatura Adobe"
+                    maxLength={200}
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-2">
+                    <Label>Valor (R$)</Label>
+                    <Input
+                      value={txValor}
+                      onChange={(e) => setTxValor(e.target.value.replace(/[^0-9.,]/g, ""))}
+                      inputMode="decimal"
+                      placeholder="0,00"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Data</Label>
+                    <Input type="date" value={txData} onChange={(e) => setTxData(e.target.value)} />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label>Categoria</Label>
+                  <Select value={txCategoriaId} onValueChange={setTxCategoriaId}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione a categoria" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {Object.entries(catGrouped).map(([grupo, items]) => (
+                        <div key={grupo}>
+                          <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">{grupo}</div>
+                          {items.map((item) => (
+                            <SelectItem key={item.id} value={item.id}>{item.label}</SelectItem>
+                          ))}
+                        </div>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            );
+          })()}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setAddTxFaturaId(null)}>Cancelar</Button>
+            <Button onClick={handleAddTx} disabled={salvandoTx}>
+              {salvandoTx ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+              Adicionar
             </Button>
           </DialogFooter>
         </DialogContent>
