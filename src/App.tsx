@@ -26,6 +26,7 @@ import DRE from "./pages/DRE";
 import DashboardFinanceiro from "./pages/DashboardFinanceiro";
 import ImportarExtrato from "./pages/ImportarExtrato";
 import Faturas from "./pages/Faturas";
+import FluxoCaixa from "./pages/FluxoCaixa";
 import ImportarPage from "./pages/ImportarPage";
 import Metas from "./pages/Metas";
 import PagamentoOficinas from "./pages/PagamentoOficinas";
@@ -100,6 +101,7 @@ const AppRoutes = () => {
               <Route path="/dre" element={<DRE />} />
               <Route path="/importar-extrato" element={<ImportarExtrato />} />
               <Route path="/faturas" element={<Faturas />} />
+              <Route path="/fluxo-caixa" element={<FluxoCaixa />} />
               <Route path="/importar" element={<ImportarPage />} />
               <Route path="/metas" element={<Metas />} />
               <Route path="/admin/usuarios" element={<AdminUsuarios />} />
