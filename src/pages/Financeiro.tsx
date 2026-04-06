@@ -365,6 +365,37 @@ export default function Financeiro() {
             {bulkDeleting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
             Excluir Selecionadas
           </Button>
+          <Popover open={bulkCatOpen} onOpenChange={setBulkCatOpen}>
+            <PopoverTrigger asChild>
+              <Button
+                size="sm"
+                variant="secondary"
+                disabled={bulkCatUpdating || bulkUpdating || bulkDeleting}
+                className="gap-1"
+              >
+                {bulkCatUpdating ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Tags className="h-3.5 w-3.5" />}
+                Alterar Categoria
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-72 p-0" align="start">
+              <Command>
+                <CommandInput placeholder="Buscar categoria..." />
+                <CommandList>
+                  <CommandEmpty>Nenhuma categoria encontrada.</CommandEmpty>
+                  {Object.entries(catGrouped).map(([grupo, items]) => (
+                    <CommandGroup key={grupo} heading={grupo}>
+                      {items.map((item) => (
+                        <CommandItem key={item.id} value={item.label} onSelect={() => handleBulkCategory(item.id)}>
+                          {item.label}
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  ))}
+                </CommandList>
+              </Command>
+            </PopoverContent>
+          </Popover>
+          </Button>
           <Button
             size="sm"
             variant="ghost"

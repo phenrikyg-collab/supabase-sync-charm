@@ -156,9 +156,18 @@ export default function Faturas() {
         status_pagamento: "em_aberto",
       } as any);
 
-      // Update the invoice total
-      const newTotal = fatura.valor_total + valor;
-      await supabase.from("cartoes_faturas").update({ valor_total: newTotal }).eq("id", addTxFaturaId);
+      // Update the invoice total — recalculate from current DB value
+      const { data: currentFatura } = await supabase.from("cartoes_faturas").select("valor_total, valor_pago").eq("id", addTxFaturaId).single();
+      if (currentFatura) {
+        const newTotal = (currentFatura.valor_total ?? 0) + valor;
+        const newSaldo = newTotal - (currentFatura.valor_pago ?? 0);
+        const newStatus = (currentFatura.valor_pago ?? 0) >= newTotal && newTotal > 0 ? "paga" : (currentFatura.valor_pago ?? 0) > 0 ? "parcial" : "aberta";
+        await supabase.from("cartoes_faturas").update({ 
+          valor_total: newTotal, 
+          saldo_em_aberto: newSaldo,
+          status: newStatus 
+        }).eq("id", addTxFaturaId);
+      }
 
       await queryClient.invalidateQueries({ queryKey: ["cartoes_faturas"] });
       await queryClient.invalidateQueries({ queryKey: ["movimentacoes"] });
