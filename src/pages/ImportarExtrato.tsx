@@ -157,6 +157,7 @@ export default function ImportarExtrato() {
               tipo: r.valor < 0 ? "saida" as const : (r.tipo || "saida") as any,
               categoria_id: r.categoria_id || null,
               categoria_sugerida: r.categoria_sugerida || null,
+              frequencia: null,
               selecionado: true,
             })));
             toast.success(`${data.rows.length} lançamentos extraídos do PDF`);
