@@ -743,6 +743,12 @@ export default function OrdensProducao() {
                                     Prev: {formatDateBR(item.data_previsao_termino)}
                                   </div>
                                 )}
+                                {item.data_fim && (
+                                  <div className="text-[10px] text-muted-foreground">
+                                    Fim: {formatDateBR(item.data_fim)}
+                                    {item.data_inicio && ` (${differenceInCalendarDays(parseISO(item.data_fim), parseISO(item.data_inicio))} dias)`}
+                                  </div>
+                                )}
 
                                 {/* Navigation buttons: Retornar / Avançar */}
                                 {(() => {
