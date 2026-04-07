@@ -172,14 +172,25 @@ function ConfigMaquinas() {
   const { data: maquinas = [], isLoading } = useQuery({
     queryKey: ["config_maquinas"],
     queryFn: async () => {
-      const { data, error } = await supabase.from("config_maquinas").select("*").order("tipo_maquina");
+      const { data, error } = await supabase.from("config_maquinas").select("*");
       if (error) throw error;
-      return data;
+      return (data ?? []).sort((a: any, b: any) => {
+        const nomeA = (a.tipo_maquina ?? a.maquina ?? "").toString();
+        const nomeB = (b.tipo_maquina ?? b.maquina ?? "").toString();
+        return nomeA.localeCompare(nomeB, "pt-BR");
+      });
     },
   });
 
   const [rows, setRows] = useState<any[]>([]);
-  useEffect(() => { if (maquinas.length > 0) setRows(maquinas.map((m) => ({ ...m }))); }, [maquinas]);
+  useEffect(() => {
+    setRows(
+      (maquinas ?? []).map((m: any) => ({
+        ...m,
+        tipo_maquina: m.tipo_maquina ?? m.maquina ?? "",
+      })),
+    );
+  }, [maquinas]);
 
   const [novo, setNovo] = useState({ tipo_maquina: "", horas_por_dia: 8, dias_uteis_mes: 22, quantidade_maquinas: 1 });
 
@@ -193,8 +204,18 @@ function ConfigMaquinas() {
 
   const salvarLinha = useMutation({
     mutationFn: async (row: any) => {
-      const { id, created_at, ...rest } = row;
-      const { error } = await supabase.from("config_maquinas").update(rest).eq("id", id);
+      const nomeMaquina = (row.tipo_maquina ?? row.maquina ?? "").toString().trim();
+      if (!nomeMaquina) throw new Error("Informe o tipo da máquina");
+
+      const payload: any = {
+        tipo_maquina: nomeMaquina,
+        maquina: nomeMaquina,
+        quantidade_maquinas: Number(row.quantidade_maquinas ?? 0),
+        horas_por_dia: Number(row.horas_por_dia ?? 0),
+        dias_uteis_mes: Number(row.dias_uteis_mes ?? 0),
+      };
+
+      const { error } = await supabase.from("config_maquinas").update(payload).eq("id", row.id);
       if (error) throw error;
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["config_maquinas"] }); toast.success("Salvo"); },
@@ -203,13 +224,18 @@ function ConfigMaquinas() {
 
   const adicionar = useMutation({
     mutationFn: async () => {
-      if (!novo.tipo_maquina.trim()) throw new Error("Informe o tipo");
-      const { error } = await supabase.from("config_maquinas").insert({
-        tipo_maquina: novo.tipo_maquina.trim(),
-        horas_por_dia: novo.horas_por_dia,
-        dias_uteis_mes: novo.dias_uteis_mes,
-        quantidade_maquinas: novo.quantidade_maquinas,
-      }).select();
+      const nomeMaquina = novo.tipo_maquina.trim();
+      if (!nomeMaquina) throw new Error("Informe o tipo");
+
+      const payload: any = {
+        tipo_maquina: nomeMaquina,
+        maquina: nomeMaquina,
+        horas_por_dia: Number(novo.horas_por_dia),
+        dias_uteis_mes: Number(novo.dias_uteis_mes),
+        quantidade_maquinas: Number(novo.quantidade_maquinas),
+      };
+
+      const { error } = await supabase.from("config_maquinas").insert(payload).select();
       if (error) throw error;
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["config_maquinas"] }); setNovo({ tipo_maquina: "", horas_por_dia: 8, dias_uteis_mes: 22, quantidade_maquinas: 1 }); toast.success("Máquina adicionada"); },
