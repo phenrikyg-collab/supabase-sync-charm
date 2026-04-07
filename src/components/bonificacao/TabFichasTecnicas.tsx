@@ -289,19 +289,19 @@ export default function TabFichasTecnicas() {
         <Card>
           <CardHeader className="flex flex-row items-center gap-2 pb-2">
             <Clock className="h-5 w-5 text-primary" />
-            <CardTitle className="text-sm font-medium text-muted-foreground">Capacidade Total (min/mês)</CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground">Capacidade Total (seg/mês)</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold text-primary">{capacidadeTotal.toLocaleString("pt-BR")}</p>
+            <p className="text-2xl font-bold text-primary">{(capacidadeTotal * 60).toLocaleString("pt-BR")}</p>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center gap-2 pb-2">
             <DollarSign className="h-5 w-5 text-primary" />
-            <CardTitle className="text-sm font-medium text-muted-foreground">Custo por Minuto (R$)</CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground">Custo por Segundo (R$)</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold text-primary">R$ {fmtNum(custoMinuto)}</p>
+            <p className="text-2xl font-bold text-primary">R$ {fmtNum(custoMinuto / 60)}</p>
           </CardContent>
         </Card>
       </div>
@@ -322,7 +322,7 @@ export default function TabFichasTecnicas() {
                 <TableHead>Produto</TableHead>
                 <TableHead>Tipo</TableHead>
                 <TableHead className="text-right">Nº Etapas</TableHead>
-                <TableHead className="text-right">Tempo Total (min)</TableHead>
+                <TableHead className="text-right">Tempo Total (seg)</TableHead>
                 <TableHead className="text-right">Custo MO (R$)</TableHead>
                 <TableHead>Última Medição</TableHead>
                 <TableHead className="w-12" />
@@ -340,7 +340,7 @@ export default function TabFichasTecnicas() {
               ) : (
                 fichasAgrupadas.map((row, i) => {
                   const totalTempo = row.etapas.reduce((s: number, e: any) => s + (e.tempo_minutos || 0), 0);
-                  const custoMO = totalTempo * custoMinuto;
+                  const custoMO = totalTempo * (custoMinuto / 60);
                   const isExpanded = expandedProduct === row.produto_id;
 
                   return (
