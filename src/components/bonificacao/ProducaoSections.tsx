@@ -173,7 +173,7 @@ export function LancamentoDiario() {
       qc.invalidateQueries({ queryKey: ["registros_ordem"] });
       toast.success("Lançamento salvo com sucesso");
     },
-    onError: () => toast.error("Erro ao salvar lançamento"),
+    onError: (e: any) => toast.error("Erro ao salvar lançamento: " + (e?.message || "desconhecido")),
   });
 
   return (
