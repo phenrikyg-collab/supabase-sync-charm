@@ -188,6 +188,10 @@ export default function TabFichasTecnicas() {
       if (!form.produto_id) throw new Error("Selecione um produto");
       if (form.etapas.length === 0) throw new Error("Adicione ao menos uma etapa");
 
+      // Resolve product name for legacy column
+      const produtoSel = produtos.find((p: any) => p.id === form.produto_id);
+      const produtoNome = produtoSel?.nome_do_produto || "";
+
       const common = {
         produto_id: form.produto_id,
         tipo_peca: form.tipo_peca,
@@ -203,13 +207,14 @@ export default function TabFichasTecnicas() {
       // Encode: "Maquina|NomeEtapa|Grupo"
       const rowsWithMachine = form.etapas.map((e, i) => ({
         ...common,
+        produto_nome: produtoNome,
         operacao: `${e.maquina}|${e.nome}|${e.grupo}`,
         tempo_minutos: e.tempo_segundos,
         observacao: e.observacao || null,
         numero_etapa: i + 1,
       }));
 
-      const { error } = await supabase.from("fichas_tecnicas_tempo").insert(rowsWithMachine);
+      const { error } = await supabase.from("fichas_tecnicas_tempo").insert(rowsWithMachine as any);
       if (error) throw error;
     },
     onSuccess: () => {
