@@ -843,7 +843,7 @@ export default function OrdensProducao() {
             {ocInfo?.produtoId && fichasPorProduto.has(ocInfo.produtoId) && (
               <div className="space-y-2">
                 <div className="flex items-center gap-2">
-                  <Label>Minutos/Peça (Ficha Técnica)</Label>
+                  <Label>Segundos/Peça (Ficha Técnica)</Label>
                   <TooltipProvider>
                     <Tooltip>
                       <TooltipTrigger asChild>
