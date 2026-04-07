@@ -481,6 +481,7 @@ export default function OrdensProducao() {
                        <TableHead>Status</TableHead>
                        <TableHead>Início</TableHead>
                        <TableHead>Previsão</TableHead>
+                       <TableHead>Término Real</TableHead>
                       <TableHead className="w-28"></TableHead>
                     </TableRow>
                   </TableHeader>
@@ -553,6 +554,7 @@ export default function OrdensProducao() {
                           <TableCell><StatusBadge status={o.status_ordem ?? ""} /></TableCell>
                           <TableCell className="text-muted-foreground">{formatDateBR(o.data_inicio)}</TableCell>
                           <TableCell className="text-muted-foreground">{formatDateBR(o.data_previsao_termino)}</TableCell>
+                          <TableCell className="text-muted-foreground">{formatDateBR(o.data_fim)}</TableCell>
                           <TableCell>
                             <div className="flex gap-1">
                               <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEditDialog(o)}>
