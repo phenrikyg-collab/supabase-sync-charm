@@ -32,7 +32,7 @@ import { toast } from "sonner";
 interface Etapa {
   nome: string;
   maquina: "Reta" | "Overloque" | "Galoneira";
-  tempo_minutos: number;
+  tempo_segundos: number;
   observacao: string;
 }
 
@@ -45,7 +45,7 @@ interface ModalForm {
   num_amostras: number;
 }
 
-const emptyEtapa: Etapa = { nome: "", maquina: "Reta", tempo_minutos: 0, observacao: "" };
+const emptyEtapa: Etapa = { nome: "", maquina: "Reta", tempo_segundos: 0, observacao: "" };
 
 const emptyForm: ModalForm = {
   produto_id: "",
@@ -175,7 +175,7 @@ export default function TabFichasTecnicas() {
       const rows = form.etapas.map((e, i) => ({
         ...common,
         operacao: e.nome,
-        tempo_minutos: e.tempo_minutos,
+        tempo_minutos: e.tempo_segundos,
         observacao: e.observacao || null,
         numero_etapa: i + 1,
       }));
@@ -189,7 +189,7 @@ export default function TabFichasTecnicas() {
       const rowsWithMachine = form.etapas.map((e, i) => ({
         ...common,
         operacao: `${e.maquina}|${e.nome}`,
-        tempo_minutos: e.tempo_minutos,
+        tempo_minutos: e.tempo_segundos,
         observacao: e.observacao || null,
         numero_etapa: i + 1,
       }));
@@ -233,7 +233,7 @@ export default function TabFichasTecnicas() {
         return {
           nome: parsed.nome,
           maquina: parsed.maquina as Etapa["maquina"],
-          tempo_minutos: e.tempo_minutos || 0,
+          tempo_segundos: e.tempo_minutos || 0,
           observacao: e.observacao || "",
         };
       });
@@ -289,19 +289,19 @@ export default function TabFichasTecnicas() {
         <Card>
           <CardHeader className="flex flex-row items-center gap-2 pb-2">
             <Clock className="h-5 w-5 text-primary" />
-            <CardTitle className="text-sm font-medium text-muted-foreground">Capacidade Total (min/mês)</CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground">Capacidade Total (seg/mês)</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold text-primary">{capacidadeTotal.toLocaleString("pt-BR")}</p>
+            <p className="text-2xl font-bold text-primary">{(capacidadeTotal * 60).toLocaleString("pt-BR")}</p>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center gap-2 pb-2">
             <DollarSign className="h-5 w-5 text-primary" />
-            <CardTitle className="text-sm font-medium text-muted-foreground">Custo por Minuto (R$)</CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground">Custo por Segundo (R$)</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold text-primary">R$ {fmtNum(custoMinuto)}</p>
+            <p className="text-2xl font-bold text-primary">R$ {fmtNum(custoMinuto / 60)}</p>
           </CardContent>
         </Card>
       </div>
@@ -322,7 +322,7 @@ export default function TabFichasTecnicas() {
                 <TableHead>Produto</TableHead>
                 <TableHead>Tipo</TableHead>
                 <TableHead className="text-right">Nº Etapas</TableHead>
-                <TableHead className="text-right">Tempo Total (min)</TableHead>
+                <TableHead className="text-right">Tempo Total (seg)</TableHead>
                 <TableHead className="text-right">Custo MO (R$)</TableHead>
                 <TableHead>Última Medição</TableHead>
                 <TableHead className="w-12" />
@@ -340,7 +340,7 @@ export default function TabFichasTecnicas() {
               ) : (
                 fichasAgrupadas.map((row, i) => {
                   const totalTempo = row.etapas.reduce((s: number, e: any) => s + (e.tempo_minutos || 0), 0);
-                  const custoMO = totalTempo * custoMinuto;
+                  const custoMO = totalTempo * (custoMinuto / 60);
                   const isExpanded = expandedProduct === row.produto_id;
 
                   return (
@@ -461,8 +461,8 @@ export default function TabFichasTecnicas() {
                         </Select>
                       </div>
                       <div>
-                        <Label className="text-xs">Tempo (min)</Label>
-                        <Input type="number" step="0.1" min={0} value={etapa.tempo_minutos} onChange={(e) => updateEtapa(idx, "tempo_minutos", Number(e.target.value))} className="h-8" />
+                        <Label className="text-xs">Tempo (seg)</Label>
+                        <Input type="number" step="1" min={0} value={etapa.tempo_segundos} onChange={(e) => updateEtapa(idx, "tempo_segundos", Number(e.target.value))} className="h-8" />
                       </div>
                       <div className="md:col-span-3">
                         <Label className="text-xs">Observação (opcional)</Label>
@@ -483,13 +483,13 @@ export default function TabFichasTecnicas() {
 
                 {/* Resumo de Tempos */}
                 {form.etapas.length > 0 && (() => {
-                  const temposPorMaq: Record<string, { min: number; count: number }> = {};
+                  const temposPorMaq: Record<string, { seg: number; count: number }> = {};
                   form.etapas.forEach((e) => {
-                    if (!temposPorMaq[e.maquina]) temposPorMaq[e.maquina] = { min: 0, count: 0 };
-                    temposPorMaq[e.maquina].min += e.tempo_minutos;
+                    if (!temposPorMaq[e.maquina]) temposPorMaq[e.maquina] = { seg: 0, count: 0 };
+                    temposPorMaq[e.maquina].seg += e.tempo_segundos;
                     temposPorMaq[e.maquina].count += 1;
                   });
-                  const totalPeca = form.etapas.reduce((s, e) => s + e.tempo_minutos, 0);
+                  const totalPeca = form.etapas.reduce((s, e) => s + e.tempo_segundos, 0);
                   const icons: Record<string, string> = { Reta: "🧵", Overloque: "🔵", Galoneira: "🟡" };
                   return (
                     <div className="rounded-lg border border-border bg-muted/30 p-3 space-y-1">
@@ -498,14 +498,14 @@ export default function TabFichasTecnicas() {
                         <div key={m} className="flex items-center gap-2 text-sm">
                           <span>{icons[m]}</span>
                           <span className="font-medium w-24">{m}</span>
-                          <span className="tabular-nums">{temposPorMaq[m].min} min</span>
+                          <span className="tabular-nums">{temposPorMaq[m].seg} seg</span>
                           <span className="text-muted-foreground text-xs">({temposPorMaq[m].count} {temposPorMaq[m].count === 1 ? "etapa" : "etapas"})</span>
                         </div>
                       ))}
                       <div className="border-t border-border pt-1 flex items-center gap-2 text-sm font-semibold">
                         <span>⏱</span>
                         <span>Total Peça</span>
-                        <span className="tabular-nums">{totalPeca} min</span>
+                        <span className="tabular-nums">{totalPeca} seg</span>
                       </div>
                     </div>
                   );

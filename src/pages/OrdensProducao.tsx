@@ -124,6 +124,7 @@ export default function OrdensProducao() {
   const [editOficinaId, setEditOficinaId] = useState("");
   const [editQuantidade, setEditQuantidade] = useState(0);
   const [editPrevisao, setEditPrevisao] = useState("");
+  const [editDataFim, setEditDataFim] = useState("");
   const [editCustoEstimado, setEditCustoEstimado] = useState(0);
 
   // Delete dialog
@@ -252,6 +253,7 @@ export default function OrdensProducao() {
     setEditOficinaId(o.oficina_id ?? "");
     setEditQuantidade(o.quantidade ?? o.quantidade_pecas_ordem ?? 0);
     setEditPrevisao(o.data_previsao_termino ?? "");
+    setEditDataFim(o.data_fim ?? "");
     setEditCustoEstimado(o.custo_estimado_peca ?? 0);
     setEditOpen(true);
   };
@@ -265,9 +267,10 @@ export default function OrdensProducao() {
         quantidade: editQuantidade,
         quantidade_pecas_ordem: editQuantidade,
         data_previsao_termino: editPrevisao || null,
+        data_fim: editDataFim || null,
         custo_estimado_peca: editCustoEstimado > 0 ? editCustoEstimado : null,
       };
-      if (editStatus === "Finalizado" && !editOrdem.data_fim) {
+      if (editStatus === "Finalizado" && !editDataFim) {
         updates.data_fim = new Date().toISOString().split("T")[0];
       }
       await updateMut.mutateAsync({ id: editOrdem.id, ...updates });
@@ -481,6 +484,7 @@ export default function OrdensProducao() {
                        <TableHead>Status</TableHead>
                        <TableHead>Início</TableHead>
                        <TableHead>Previsão</TableHead>
+                       <TableHead>Término Real</TableHead>
                       <TableHead className="w-28"></TableHead>
                     </TableRow>
                   </TableHeader>
@@ -553,6 +557,7 @@ export default function OrdensProducao() {
                           <TableCell><StatusBadge status={o.status_ordem ?? ""} /></TableCell>
                           <TableCell className="text-muted-foreground">{formatDateBR(o.data_inicio)}</TableCell>
                           <TableCell className="text-muted-foreground">{formatDateBR(o.data_previsao_termino)}</TableCell>
+                          <TableCell className="text-muted-foreground">{formatDateBR(o.data_fim)}</TableCell>
                           <TableCell>
                             <div className="flex gap-1">
                               <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEditDialog(o)}>
@@ -738,6 +743,12 @@ export default function OrdensProducao() {
                                     Prev: {formatDateBR(item.data_previsao_termino)}
                                   </div>
                                 )}
+                                {item.data_fim && (
+                                  <div className="text-[10px] text-muted-foreground">
+                                    Fim: {formatDateBR(item.data_fim)}
+                                    {item.data_inicio && ` (${differenceInCalendarDays(parseISO(item.data_fim), parseISO(item.data_inicio))} dias)`}
+                                  </div>
+                                )}
 
                                 {/* Navigation buttons: Retornar / Avançar */}
                                 {(() => {
@@ -841,7 +852,7 @@ export default function OrdensProducao() {
             {ocInfo?.produtoId && fichasPorProduto.has(ocInfo.produtoId) && (
               <div className="space-y-2">
                 <div className="flex items-center gap-2">
-                  <Label>Minutos/Peça (Ficha Técnica)</Label>
+                  <Label>Segundos/Peça (Ficha Técnica)</Label>
                   <TooltipProvider>
                     <Tooltip>
                       <TooltipTrigger asChild>
@@ -912,6 +923,15 @@ export default function OrdensProducao() {
               <div className="space-y-2">
                 <Label>Previsão de Término</Label>
                 <Input type="date" value={editPrevisao} onChange={(e) => setEditPrevisao(e.target.value)} />
+              </div>
+              <div className="space-y-2">
+                <Label>Término Real (Data Fim)</Label>
+                <Input type="date" value={editDataFim} onChange={(e) => setEditDataFim(e.target.value)} />
+                {editOrdem?.data_inicio && editDataFim && (
+                  <p className="text-xs text-muted-foreground">
+                    ⏱ {differenceInCalendarDays(parseISO(editDataFim), parseISO(editOrdem.data_inicio))} dias de produção
+                  </p>
+                )}
               </div>
               <div className="space-y-2">
                 <Label>Custo Estimado por Peça (R$)</Label>

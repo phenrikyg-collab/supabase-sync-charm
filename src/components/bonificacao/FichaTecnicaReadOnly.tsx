@@ -75,7 +75,7 @@ export default function FichaTecnicaReadOnly({ produtoNome, etapas }: Props) {
                 {maquina}
               </Badge>
               <span className="text-xs text-muted-foreground">
-                ({g.etapas.length} {g.etapas.length === 1 ? "etapa" : "etapas"} · {g.total} min)
+                ({g.etapas.length} {g.etapas.length === 1 ? "etapa" : "etapas"} · {g.total} seg)
               </span>
             </div>
             <div className="pl-6 space-y-0.5">
@@ -83,7 +83,7 @@ export default function FichaTecnicaReadOnly({ produtoNome, etapas }: Props) {
                 <div key={e.idx} className="flex items-center gap-2 text-sm">
                   <span className="text-muted-foreground font-mono w-5 text-right">{e.idx}.</span>
                   <span className="flex-1 text-foreground">{e.nome}</span>
-                  <span className="text-muted-foreground tabular-nums">{e.tempo} min</span>
+                  <span className="text-muted-foreground tabular-nums">{e.tempo} seg</span>
                 </div>
               ))}
             </div>
@@ -100,7 +100,7 @@ export default function FichaTecnicaReadOnly({ produtoNome, etapas }: Props) {
               <span>⚙️</span>
               <Badge variant="outline">{maquina}</Badge>
               <span className="text-xs text-muted-foreground">
-                ({g.etapas.length} {g.etapas.length === 1 ? "etapa" : "etapas"} · {g.total} min)
+                ({g.etapas.length} {g.etapas.length === 1 ? "etapa" : "etapas"} · {g.total} seg)
               </span>
             </div>
             <div className="pl-6 space-y-0.5">
@@ -108,7 +108,7 @@ export default function FichaTecnicaReadOnly({ produtoNome, etapas }: Props) {
                 <div key={e.idx} className="flex items-center gap-2 text-sm">
                   <span className="text-muted-foreground font-mono w-5 text-right">{e.idx}.</span>
                   <span className="flex-1 text-foreground">{e.nome}</span>
-                  <span className="text-muted-foreground tabular-nums">{e.tempo} min</span>
+                  <span className="text-muted-foreground tabular-nums">{e.tempo} seg</span>
                 </div>
               ))}
             </div>
@@ -118,7 +118,7 @@ export default function FichaTecnicaReadOnly({ produtoNome, etapas }: Props) {
 
       <div className="border-t border-border pt-2 flex items-center gap-2 text-sm font-semibold">
         <span>⏱</span>
-        <span>Total por peça: {totalGeral} min</span>
+        <span>Total por peça: {totalGeral} seg</span>
       </div>
     </div>
   );
