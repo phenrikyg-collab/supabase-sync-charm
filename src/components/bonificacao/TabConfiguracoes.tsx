@@ -198,7 +198,7 @@ function ConfigMaquinas() {
       if (error) throw error;
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["config_maquinas"] }); toast.success("Salvo"); },
-    onError: () => toast.error("Erro ao salvar"),
+    onError: (e: any) => toast.error("Erro ao salvar: " + (e?.message || "desconhecido")),
   });
 
   const adicionar = useMutation({

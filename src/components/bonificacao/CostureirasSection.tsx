@@ -42,7 +42,7 @@ export default function CostureirasSection() {
       toast.success(editId ? "Costureira atualizada" : "Costureira adicionada");
       closeModal();
     },
-    onError: () => toast.error("Erro ao salvar costureira"),
+    onError: (e: any) => toast.error("Erro ao salvar costureira: " + (e?.message || "desconhecido")),
   });
 
   const toggleAtiva = useMutation({
