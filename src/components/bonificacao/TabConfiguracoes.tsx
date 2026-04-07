@@ -204,11 +204,14 @@ function ConfigMaquinas() {
   const adicionar = useMutation({
     mutationFn: async () => {
       if (!novoTipo.trim()) throw new Error("Informe o tipo");
-      const { error } = await supabase.from("config_maquinas").insert({ tipo_maquina: novoTipo.trim() });
+      const { data: session } = await supabase.auth.getSession();
+      console.log("[ConfigMaquinas] Session:", session?.session ? "authenticated" : "NOT authenticated");
+      const { error, data: insertedData } = await supabase.from("config_maquinas").insert({ tipo_maquina: novoTipo.trim() }).select();
+      console.log("[ConfigMaquinas] Insert result:", { error, insertedData });
       if (error) throw error;
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["config_maquinas"] }); setNovoTipo(""); toast.success("Máquina adicionada"); },
-    onError: (e: any) => toast.error("Erro ao adicionar: " + (e?.message || "desconhecido")),
+    onError: (e: any) => { console.error("[ConfigMaquinas] Insert error:", e); toast.error("Erro ao adicionar: " + (e?.message || "desconhecido")); },
   });
 
   const deletar = useMutation({
