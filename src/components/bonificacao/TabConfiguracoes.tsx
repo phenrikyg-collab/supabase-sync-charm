@@ -181,7 +181,7 @@ function ConfigMaquinas() {
   const [rows, setRows] = useState<any[]>([]);
   useEffect(() => { if (maquinas.length > 0) setRows(maquinas.map((m) => ({ ...m }))); }, [maquinas]);
 
-  const [novoTipo, setNovoTipo] = useState("");
+  const [novo, setNovo] = useState({ tipo_maquina: "", horas_por_dia: 8, dias_uteis_mes: 22, quantidade_maquinas: 1 });
 
   const updateRow = (idx: number, field: string, value: any) => {
     setRows((prev) => {
@@ -203,15 +203,17 @@ function ConfigMaquinas() {
 
   const adicionar = useMutation({
     mutationFn: async () => {
-      if (!novoTipo.trim()) throw new Error("Informe o tipo");
-      const { data: session } = await supabase.auth.getSession();
-      console.log("[ConfigMaquinas] Session:", session?.session ? "authenticated" : "NOT authenticated");
-      const { error, data: insertedData } = await supabase.from("config_maquinas").insert({ tipo_maquina: novoTipo.trim() }).select();
-      console.log("[ConfigMaquinas] Insert result:", { error, insertedData });
+      if (!novo.tipo_maquina.trim()) throw new Error("Informe o tipo");
+      const { error } = await supabase.from("config_maquinas").insert({
+        tipo_maquina: novo.tipo_maquina.trim(),
+        horas_por_dia: novo.horas_por_dia,
+        dias_uteis_mes: novo.dias_uteis_mes,
+        quantidade_maquinas: novo.quantidade_maquinas,
+      }).select();
       if (error) throw error;
     },
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["config_maquinas"] }); setNovoTipo(""); toast.success("Máquina adicionada"); },
-    onError: (e: any) => { console.error("[ConfigMaquinas] Insert error:", e); toast.error("Erro ao adicionar: " + (e?.message || "desconhecido")); },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["config_maquinas"] }); setNovo({ tipo_maquina: "", horas_por_dia: 8, dias_uteis_mes: 22, quantidade_maquinas: 1 }); toast.success("Máquina adicionada"); },
+    onError: (e: any) => toast.error("Erro ao adicionar: " + (e?.message || "desconhecido")),
   });
 
   const deletar = useMutation({
@@ -270,14 +272,28 @@ function ConfigMaquinas() {
                 </TableRow>
               ))
             )}
+            {/* New machine row */}
+            <TableRow className="bg-primary/5">
+              <TableCell>
+                <Input placeholder="Tipo de máquina" value={novo.tipo_maquina} onChange={(e) => setNovo({ ...novo, tipo_maquina: e.target.value })} className="h-8" />
+              </TableCell>
+              <TableCell>
+                <Input type="number" min={0} value={novo.quantidade_maquinas} onChange={(e) => setNovo({ ...novo, quantidade_maquinas: Number(e.target.value) })} className="h-8" />
+              </TableCell>
+              <TableCell>
+                <Input type="number" min={0} step="0.5" value={novo.horas_por_dia} onChange={(e) => setNovo({ ...novo, horas_por_dia: Number(e.target.value) })} className="h-8" />
+              </TableCell>
+              <TableCell>
+                <Input type="number" min={0} value={novo.dias_uteis_mes} onChange={(e) => setNovo({ ...novo, dias_uteis_mes: Number(e.target.value) })} className="h-8" />
+              </TableCell>
+              <TableCell>
+                <Button size="icon" variant="ghost" className="h-8 w-8 text-primary" onClick={() => adicionar.mutate()} disabled={adicionar.isPending || !novo.tipo_maquina.trim()}>
+                  <Plus className="h-4 w-4" />
+                </Button>
+              </TableCell>
+            </TableRow>
           </TableBody>
         </Table>
-        <div className="flex gap-2">
-          <Input placeholder="Tipo de máquina" value={novoTipo} onChange={(e) => setNovoTipo(e.target.value)} className="h-8" />
-          <Button size="sm" onClick={() => adicionar.mutate()} disabled={adicionar.isPending || !novoTipo.trim()}>
-            <Plus className="h-4 w-4 mr-1" /> Adicionar
-          </Button>
-        </div>
       </CardContent>
     </Card>
   );
