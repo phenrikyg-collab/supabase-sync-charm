@@ -124,6 +124,7 @@ export default function OrdensProducao() {
   const [editOficinaId, setEditOficinaId] = useState("");
   const [editQuantidade, setEditQuantidade] = useState(0);
   const [editPrevisao, setEditPrevisao] = useState("");
+  const [editDataFim, setEditDataFim] = useState("");
   const [editCustoEstimado, setEditCustoEstimado] = useState(0);
 
   // Delete dialog
@@ -252,6 +253,7 @@ export default function OrdensProducao() {
     setEditOficinaId(o.oficina_id ?? "");
     setEditQuantidade(o.quantidade ?? o.quantidade_pecas_ordem ?? 0);
     setEditPrevisao(o.data_previsao_termino ?? "");
+    setEditDataFim(o.data_fim ?? "");
     setEditCustoEstimado(o.custo_estimado_peca ?? 0);
     setEditOpen(true);
   };
