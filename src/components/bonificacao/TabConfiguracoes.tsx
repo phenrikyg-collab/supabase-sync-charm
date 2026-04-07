@@ -21,6 +21,12 @@ function ConfigCostureiras() {
       const { data, error } = await supabase
         .from("config_bonificacao_costureiras").select("*").limit(1).maybeSingle();
       if (error) throw error;
+      if (!data) {
+        const { data: created, error: insertErr } = await supabase
+          .from("config_bonificacao_costureiras").insert({}).select().single();
+        if (insertErr) throw insertErr;
+        return created;
+      }
       return data;
     },
   });
@@ -36,7 +42,7 @@ function ConfigCostureiras() {
       if (error) throw error;
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["config_bonificacao_costureiras"] }); toast.success("Configuração salva"); },
-    onError: () => toast.error("Erro ao salvar"),
+    onError: (e: any) => toast.error("Erro ao salvar: " + (e?.message || "desconhecido")),
   });
 
   if (isLoading || !form) return null;
@@ -91,6 +97,12 @@ function ConfigRevisoras() {
       const { data, error } = await supabase
         .from("config_bonificacao_revisoras").select("*").limit(1).maybeSingle();
       if (error) throw error;
+      if (!data) {
+        const { data: created, error: insertErr } = await supabase
+          .from("config_bonificacao_revisoras").insert({}).select().single();
+        if (insertErr) throw insertErr;
+        return created;
+      }
       return data;
     },
   });
@@ -106,7 +118,7 @@ function ConfigRevisoras() {
       if (error) throw error;
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["config_bonificacao_revisoras_full"] }); toast.success("Configuração salva"); },
-    onError: () => toast.error("Erro ao salvar"),
+    onError: (e: any) => toast.error("Erro ao salvar: " + (e?.message || "desconhecido")),
   });
 
   if (isLoading || !form) return null;
