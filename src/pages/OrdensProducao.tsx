@@ -919,6 +919,15 @@ export default function OrdensProducao() {
                 <Input type="date" value={editPrevisao} onChange={(e) => setEditPrevisao(e.target.value)} />
               </div>
               <div className="space-y-2">
+                <Label>Término Real (Data Fim)</Label>
+                <Input type="date" value={editDataFim} onChange={(e) => setEditDataFim(e.target.value)} />
+                {editOrdem?.data_inicio && editDataFim && (
+                  <p className="text-xs text-muted-foreground">
+                    ⏱ {differenceInCalendarDays(parseISO(editDataFim), parseISO(editOrdem.data_inicio))} dias de produção
+                  </p>
+                )}
+              </div>
+              <div className="space-y-2">
                 <Label>Custo Estimado por Peça (R$)</Label>
                 <Input type="number" step="0.01" value={editCustoEstimado || ""} onChange={(e) => setEditCustoEstimado(Number(e.target.value))} placeholder="0.00" />
               </div>
