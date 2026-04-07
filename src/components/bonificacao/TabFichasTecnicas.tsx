@@ -32,7 +32,7 @@ import { toast } from "sonner";
 interface Etapa {
   nome: string;
   maquina: "Reta" | "Overloque" | "Galoneira";
-  tempo_minutos: number;
+  tempo_segundos: number;
   observacao: string;
 }
 
