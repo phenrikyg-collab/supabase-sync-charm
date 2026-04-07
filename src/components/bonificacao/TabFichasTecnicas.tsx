@@ -20,9 +20,10 @@ import {
   Popover, PopoverContent, PopoverTrigger,
 } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
+import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
 import {
-  Plus, Pencil, CalendarIcon, Clock, DollarSign, ChevronDown, ChevronRight, Trash2, ArrowUp, ArrowDown,
+  Plus, Pencil, CalendarIcon, Clock, DollarSign, ChevronDown, ChevronRight, Trash2, ArrowUp, ArrowDown, Link2,
 } from "lucide-react";
 import FichaTecnicaReadOnly from "./FichaTecnicaReadOnly";
 import { toast } from "sonner";
@@ -31,9 +32,10 @@ import { toast } from "sonner";
 
 interface Etapa {
   nome: string;
-  maquina: "Reta" | "Overloque" | "Galoneira";
+  maquina: string;
   tempo_segundos: number;
   observacao: string;
+  grupo: number; // 0 = sequencial, >0 = etapas no mesmo grupo são em conjunto
 }
 
 interface ModalForm {
@@ -45,7 +47,7 @@ interface ModalForm {
   num_amostras: number;
 }
 
-const emptyEtapa: Etapa = { nome: "", maquina: "Reta", tempo_segundos: 0, observacao: "" };
+const emptyEtapa: Etapa = { nome: "", maquina: "", tempo_segundos: 0, observacao: "", grupo: 0 };
 
 const emptyForm: ModalForm = {
   produto_id: "",
@@ -62,6 +64,30 @@ const MAQUINA_COLORS: Record<string, string> = {
   Galoneira: "bg-green-100 text-green-800 border-green-300",
 };
 
+/* ── Helpers ── */
+
+function calcTempoEfetivo(etapas: Etapa[]): number {
+  // Group sequential and parallel steps
+  // grupo=0 are sequential (sum their times)
+  // grupo>0: within the same grupo, take the max time
+  const grupos = new Map<number, number>();
+  let totalSeq = 0;
+
+  for (const e of etapas) {
+    if (e.grupo === 0) {
+      totalSeq += e.tempo_segundos;
+    } else {
+      const current = grupos.get(e.grupo) || 0;
+      grupos.set(e.grupo, Math.max(current, e.tempo_segundos));
+    }
+  }
+
+  let totalGrupos = 0;
+  grupos.forEach((v) => { totalGrupos += v; });
+
+  return totalSeq + totalGrupos;
+}
+
 /* ── Component ── */
 
 export default function TabFichasTecnicas() {
@@ -77,11 +103,13 @@ export default function TabFichasTecnicas() {
   const { data: maquinas = [] } = useQuery({
     queryKey: ["config_maquinas"],
     queryFn: async () => {
-      const { data, error } = await supabase.from("config_maquinas").select("*");
+      const { data, error } = await supabase.from("config_maquinas").select("*").order("tipo_maquina");
       if (error) throw error;
       return data;
     },
   });
+
+  const tiposMaquina = useMemo(() => maquinas.map((m: any) => m.tipo_maquina), [maquinas]);
 
   const mesAtual = format(new Date(), "yyyy-MM");
 
@@ -122,12 +150,12 @@ export default function TabFichasTecnicas() {
   const capacidadeTotal = useMemo(() => {
     return maquinas.reduce(
       (sum: number, m: any) =>
-        sum + (m.quantidade_maquinas || 0) * (m.horas_por_dia || 0) * 60 * (m.dias_uteis_mes || 0),
+        sum + (m.quantidade_maquinas || 0) * (m.horas_por_dia || 0) * 3600 * (m.dias_uteis_mes || 0),
       0
     );
   }, [maquinas]);
 
-  const custoMinuto = useMemo(() => {
+  const custoSegundo = useMemo(() => {
     if (!custoFixo?.valor || capacidadeTotal === 0) return 0;
     return custoFixo.valor / capacidadeTotal;
   }, [custoFixo, capacidadeTotal]);
@@ -172,23 +200,10 @@ export default function TabFichasTecnicas() {
       const targetId = editProdutoId || form.produto_id;
       await supabase.from("fichas_tecnicas_tempo").delete().eq("produto_id", targetId);
 
-      const rows = form.etapas.map((e, i) => ({
-        ...common,
-        operacao: e.nome,
-        tempo_minutos: e.tempo_segundos,
-        observacao: e.observacao || null,
-        numero_etapa: i + 1,
-      }));
-
-      // We need a way to store the machine type. The current schema uses "operacao" as text.
-      // Let's store as "maquina:nome" pattern, or better use observacao for machine.
-      // Actually, the schema has "operacao" as text — let's use it to store the step name
-      // and we'll encode machine in a structured way.
-      // Better approach: store machine in a separate way. Looking at schema, we only have operacao + observacao.
-      // Let's put machine type as prefix in operacao: "Reta|Fechar lateral"
+      // Encode: "Maquina|NomeEtapa|Grupo"
       const rowsWithMachine = form.etapas.map((e, i) => ({
         ...common,
-        operacao: `${e.maquina}|${e.nome}`,
+        operacao: `${e.maquina}|${e.nome}|${e.grupo}`,
         tempo_minutos: e.tempo_segundos,
         observacao: e.observacao || null,
         numero_etapa: i + 1,
@@ -207,19 +222,23 @@ export default function TabFichasTecnicas() {
 
   /* ── Helpers ── */
 
-  function parseOperacao(op: string): { maquina: string; nome: string } {
-    if (op.includes("|")) {
-      const [maquina, ...rest] = op.split("|");
-      return { maquina, nome: rest.join("|") };
+  function parseOperacao(op: string): { maquina: string; nome: string; grupo: number } {
+    const parts = op.split("|");
+    if (parts.length >= 3) {
+      return { maquina: parts[0], nome: parts.slice(1, -1).join("|"), grupo: parseInt(parts[parts.length - 1]) || 0 };
     }
-    // Legacy: operacao was "reta"/"overloque"/"galoneira"
+    if (parts.length === 2) {
+      return { maquina: parts[0], nome: parts[1], grupo: 0 };
+    }
+    // Legacy
     const maqMap: Record<string, string> = { reta: "Reta", overloque: "Overloque", galoneira: "Galoneira" };
-    return { maquina: maqMap[op.toLowerCase()] || "Reta", nome: op };
+    return { maquina: maqMap[op.toLowerCase()] || "Reta", nome: op, grupo: 0 };
   }
 
   function openNew() {
     setEditProdutoId(null);
-    setForm({ ...emptyForm, etapas: [{ ...emptyEtapa }] });
+    const defaultMaq = tiposMaquina.length > 0 ? tiposMaquina[0] : "";
+    setForm({ ...emptyForm, etapas: [{ ...emptyEtapa, maquina: defaultMaq }] });
     setStep(1);
     setOpen(true);
   }
@@ -232,9 +251,10 @@ export default function TabFichasTecnicas() {
         const parsed = parseOperacao(e.operacao);
         return {
           nome: parsed.nome,
-          maquina: parsed.maquina as Etapa["maquina"],
+          maquina: parsed.maquina,
           tempo_segundos: e.tempo_minutos || 0,
           observacao: e.observacao || "",
+          grupo: parsed.grupo,
         };
       });
     setForm({
@@ -255,7 +275,8 @@ export default function TabFichasTecnicas() {
   }
 
   function addEtapa() {
-    setForm((f) => ({ ...f, etapas: [...f.etapas, { ...emptyEtapa }] }));
+    const defaultMaq = tiposMaquina.length > 0 ? tiposMaquina[0] : "";
+    setForm((f) => ({ ...f, etapas: [...f.etapas, { ...emptyEtapa, maquina: defaultMaq }] }));
   }
 
   function removeEtapa(idx: number) {
@@ -280,7 +301,54 @@ export default function TabFichasTecnicas() {
     });
   }
 
+  // Get next available grupo number
+  function nextGrupo(): number {
+    const maxG = form.etapas.reduce((m, e) => Math.max(m, e.grupo), 0);
+    return maxG + 1;
+  }
+
+  // Toggle conjunto: if two adjacent steps, link them to same grupo
+  function toggleConjunto(idx: number) {
+    setForm((f) => {
+      const etapas = [...f.etapas];
+      const current = etapas[idx];
+
+      if (current.grupo > 0) {
+        // Remove from grupo
+        const oldGrupo = current.grupo;
+        etapas[idx] = { ...current, grupo: 0 };
+        // If only one left in that grupo, remove it too
+        const remaining = etapas.filter((e, i) => i !== idx && e.grupo === oldGrupo);
+        if (remaining.length === 1) {
+          const singleIdx = etapas.findIndex((e, i) => i !== idx && e.grupo === oldGrupo);
+          if (singleIdx >= 0) etapas[singleIdx] = { ...etapas[singleIdx], grupo: 0 };
+        }
+      } else {
+        // Link with next step if available, or previous
+        const nextIdx = idx + 1 < etapas.length ? idx + 1 : idx - 1;
+        if (nextIdx < 0 || nextIdx >= etapas.length) return { ...f, etapas };
+
+        const partner = etapas[nextIdx];
+        if (partner.grupo > 0) {
+          // Join existing grupo
+          etapas[idx] = { ...current, grupo: partner.grupo };
+        } else {
+          // Create new grupo
+          const maxG = etapas.reduce((m, e) => Math.max(m, e.grupo), 0);
+          const newG = maxG + 1;
+          etapas[idx] = { ...current, grupo: newG };
+          etapas[nextIdx] = { ...partner, grupo: newG };
+        }
+      }
+
+      return { ...f, etapas };
+    });
+  }
+
   const fmtNum = (n: number) => n.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+  // Color map for grupo badges
+  const grupoColors = ["bg-orange-100 text-orange-800", "bg-cyan-100 text-cyan-800", "bg-pink-100 text-pink-800", "bg-lime-100 text-lime-800", "bg-indigo-100 text-indigo-800"];
 
   return (
     <div className="space-y-4">
@@ -292,7 +360,7 @@ export default function TabFichasTecnicas() {
             <CardTitle className="text-sm font-medium text-muted-foreground">Capacidade Total (seg/mês)</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold text-primary">{(capacidadeTotal * 60).toLocaleString("pt-BR")}</p>
+            <p className="text-2xl font-bold text-primary">{capacidadeTotal.toLocaleString("pt-BR")}</p>
           </CardContent>
         </Card>
         <Card>
@@ -301,7 +369,7 @@ export default function TabFichasTecnicas() {
             <CardTitle className="text-sm font-medium text-muted-foreground">Custo por Segundo (R$)</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold text-primary">R$ {fmtNum(custoMinuto / 60)}</p>
+            <p className="text-2xl font-bold text-primary">R$ {fmtNum(custoSegundo)}</p>
           </CardContent>
         </Card>
       </div>
@@ -315,6 +383,11 @@ export default function TabFichasTecnicas() {
           </Button>
         </CardHeader>
         <CardContent>
+          {tiposMaquina.length === 0 && (
+            <div className="mb-4 p-3 rounded-md border border-amber-300 bg-amber-50 text-amber-800 text-sm">
+              ⚠️ Nenhuma máquina cadastrada. Cadastre máquinas na aba <strong>Configurações</strong> para criar fichas técnicas.
+            </div>
+          )}
           <Table>
             <TableHeader>
               <TableRow>
@@ -322,7 +395,7 @@ export default function TabFichasTecnicas() {
                 <TableHead>Produto</TableHead>
                 <TableHead>Tipo</TableHead>
                 <TableHead className="text-right">Nº Etapas</TableHead>
-                <TableHead className="text-right">Tempo Total (seg)</TableHead>
+                <TableHead className="text-right">Tempo Efetivo (seg)</TableHead>
                 <TableHead className="text-right">Custo MO (R$)</TableHead>
                 <TableHead>Última Medição</TableHead>
                 <TableHead className="w-12" />
@@ -339,8 +412,13 @@ export default function TabFichasTecnicas() {
                 </TableRow>
               ) : (
                 fichasAgrupadas.map((row, i) => {
-                  const totalTempo = row.etapas.reduce((s: number, e: any) => s + (e.tempo_minutos || 0), 0);
-                  const custoMO = totalTempo * (custoMinuto / 60);
+                  // Parse etapas to get grupo info for effective time calc
+                  const parsedEtapas: Etapa[] = row.etapas.map((e: any) => {
+                    const parsed = parseOperacao(e.operacao);
+                    return { nome: parsed.nome, maquina: parsed.maquina, tempo_segundos: e.tempo_minutos || 0, observacao: "", grupo: parsed.grupo };
+                  });
+                  const tempoEfetivo = calcTempoEfetivo(parsedEtapas);
+                  const custoMO = tempoEfetivo * custoSegundo;
                   const isExpanded = expandedProduct === row.produto_id;
 
                   return (
@@ -356,7 +434,7 @@ export default function TabFichasTecnicas() {
                         <TableCell className="font-medium">{row.produto_nome}</TableCell>
                         <TableCell>{row.tipo_peca}</TableCell>
                         <TableCell className="text-right">{row.etapas.length}</TableCell>
-                        <TableCell className="text-right font-semibold">{fmtNum(totalTempo)}</TableCell>
+                        <TableCell className="text-right font-semibold">{fmtNum(tempoEfetivo)}</TableCell>
                         <TableCell className="text-right font-semibold">R$ {fmtNum(custoMO)}</TableCell>
                         <TableCell>
                           {row.data_medicao
@@ -370,7 +448,6 @@ export default function TabFichasTecnicas() {
                         </TableCell>
                       </TableRow>
 
-                      {/* Sub-table: etapas - timeline view */}
                       {isExpanded && (
                         <TableRow key={`${row.produto_id}-detail`}>
                           <TableCell colSpan={8} className="p-0">
@@ -430,10 +507,17 @@ export default function TabFichasTecnicas() {
 
             {step === 2 && (
               <>
-                <p className="text-sm text-muted-foreground">Adicione as etapas na ordem real de produção.</p>
+                <p className="text-sm text-muted-foreground">
+                  Adicione as etapas na ordem real de produção. Use o ícone <Link2 className="inline h-3 w-3" /> para agrupar etapas em conjunto (executadas simultaneamente).
+                </p>
 
                 {form.etapas.map((etapa, idx) => (
-                  <div key={idx} className="flex items-start gap-2 p-3 rounded-md border bg-muted/20">
+                  <div key={idx} className={cn(
+                    "flex items-start gap-2 p-3 rounded-md border",
+                    etapa.grupo > 0
+                      ? "border-l-4 border-l-orange-400 bg-orange-50/50"
+                      : "bg-muted/20"
+                  )}>
                     <div className="flex flex-col items-center gap-1 pt-6">
                       <span className="text-xs font-mono text-muted-foreground font-bold">{idx + 1}</span>
                       <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => moveEtapa(idx, -1)} disabled={idx === 0}>
@@ -452,11 +536,11 @@ export default function TabFichasTecnicas() {
                       <div>
                         <Label className="text-xs">Máquina</Label>
                         <Select value={etapa.maquina} onValueChange={(v) => updateEtapa(idx, "maquina", v)}>
-                          <SelectTrigger className="h-8"><SelectValue /></SelectTrigger>
+                          <SelectTrigger className="h-8"><SelectValue placeholder="Selecione" /></SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="Reta">Reta</SelectItem>
-                            <SelectItem value="Overloque">Overloque</SelectItem>
-                            <SelectItem value="Galoneira">Galoneira</SelectItem>
+                            {tiposMaquina.map((t: string) => (
+                              <SelectItem key={t} value={t}>{t}</SelectItem>
+                            ))}
                           </SelectContent>
                         </Select>
                       </div>
@@ -464,9 +548,26 @@ export default function TabFichasTecnicas() {
                         <Label className="text-xs">Tempo (seg)</Label>
                         <Input type="number" step="1" min={0} value={etapa.tempo_segundos} onChange={(e) => updateEtapa(idx, "tempo_segundos", Number(e.target.value))} className="h-8" />
                       </div>
-                      <div className="md:col-span-3">
+                      <div className="md:col-span-2">
                         <Label className="text-xs">Observação (opcional)</Label>
                         <Input value={etapa.observacao} onChange={(e) => updateEtapa(idx, "observacao", e.target.value)} className="h-8" placeholder="Opcional" />
+                      </div>
+                      <div className="flex items-end gap-1">
+                        <Button
+                          variant={etapa.grupo > 0 ? "default" : "outline"}
+                          size="icon"
+                          className="h-8 w-8"
+                          onClick={() => toggleConjunto(idx)}
+                          title={etapa.grupo > 0 ? "Remover do conjunto" : "Produzir em conjunto com etapa adjacente"}
+                          disabled={form.etapas.length <= 1}
+                        >
+                          <Link2 className="h-4 w-4" />
+                        </Button>
+                        {etapa.grupo > 0 && (
+                          <Badge variant="outline" className={grupoColors[(etapa.grupo - 1) % grupoColors.length] + " text-[10px]"}>
+                            Conjunto {etapa.grupo}
+                          </Badge>
+                        )}
                       </div>
                       <div className="flex items-end">
                         <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => removeEtapa(idx)} disabled={form.etapas.length <= 1}>
@@ -485,27 +586,42 @@ export default function TabFichasTecnicas() {
                 {form.etapas.length > 0 && (() => {
                   const temposPorMaq: Record<string, { seg: number; count: number }> = {};
                   form.etapas.forEach((e) => {
+                    if (!e.maquina) return;
                     if (!temposPorMaq[e.maquina]) temposPorMaq[e.maquina] = { seg: 0, count: 0 };
                     temposPorMaq[e.maquina].seg += e.tempo_segundos;
                     temposPorMaq[e.maquina].count += 1;
                   });
-                  const totalPeca = form.etapas.reduce((s, e) => s + e.tempo_segundos, 0);
+                  const totalBruto = form.etapas.reduce((s, e) => s + e.tempo_segundos, 0);
+                  const tempoEfetivo = calcTempoEfetivo(form.etapas);
+                  const hasConjuntos = form.etapas.some(e => e.grupo > 0);
                   const icons: Record<string, string> = { Reta: "🧵", Overloque: "🔵", Galoneira: "🟡" };
                   return (
                     <div className="rounded-lg border border-border bg-muted/30 p-3 space-y-1">
                       <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Resumo de Tempos</p>
-                      {["Reta", "Overloque", "Galoneira"].filter(m => temposPorMaq[m]).map((m) => (
+                      {Object.keys(temposPorMaq).map((m) => (
                         <div key={m} className="flex items-center gap-2 text-sm">
-                          <span>{icons[m]}</span>
+                          <span>{icons[m] || "⚙️"}</span>
                           <span className="font-medium w-24">{m}</span>
                           <span className="tabular-nums">{temposPorMaq[m].seg} seg</span>
                           <span className="text-muted-foreground text-xs">({temposPorMaq[m].count} {temposPorMaq[m].count === 1 ? "etapa" : "etapas"})</span>
                         </div>
                       ))}
-                      <div className="border-t border-border pt-1 flex items-center gap-2 text-sm font-semibold">
-                        <span>⏱</span>
-                        <span>Total Peça</span>
-                        <span className="tabular-nums">{totalPeca} seg</span>
+                      <div className="border-t border-border pt-1 space-y-1">
+                        {hasConjuntos && (
+                          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                            <span>📊</span>
+                            <span>Tempo Bruto (soma)</span>
+                            <span className="tabular-nums">{totalBruto} seg</span>
+                          </div>
+                        )}
+                        <div className="flex items-center gap-2 text-sm font-semibold">
+                          <span>⏱</span>
+                          <span>Tempo Efetivo</span>
+                          <span className="tabular-nums">{tempoEfetivo} seg</span>
+                          {hasConjuntos && (
+                            <span className="text-xs text-green-600 font-normal">(etapas em conjunto contam pelo maior tempo)</span>
+                          )}
+                        </div>
                       </div>
                     </div>
                   );
@@ -549,7 +665,7 @@ export default function TabFichasTecnicas() {
             ) : (
               <Button
                 onClick={() => saveFicha.mutate()}
-                disabled={saveFicha.isPending || form.etapas.some((e) => !e.nome.trim())}
+                disabled={saveFicha.isPending || form.etapas.some((e) => !e.nome.trim() || !e.maquina)}
               >
                 {saveFicha.isPending ? "Salvando..." : "Salvar"}
               </Button>
