@@ -461,8 +461,8 @@ export default function TabFichasTecnicas() {
                         </Select>
                       </div>
                       <div>
-                        <Label className="text-xs">Tempo (min)</Label>
-                        <Input type="number" step="0.1" min={0} value={etapa.tempo_minutos} onChange={(e) => updateEtapa(idx, "tempo_minutos", Number(e.target.value))} className="h-8" />
+                        <Label className="text-xs">Tempo (seg)</Label>
+                        <Input type="number" step="1" min={0} value={etapa.tempo_segundos} onChange={(e) => updateEtapa(idx, "tempo_segundos", Number(e.target.value))} className="h-8" />
                       </div>
                       <div className="md:col-span-3">
                         <Label className="text-xs">Observação (opcional)</Label>
@@ -483,13 +483,13 @@ export default function TabFichasTecnicas() {
 
                 {/* Resumo de Tempos */}
                 {form.etapas.length > 0 && (() => {
-                  const temposPorMaq: Record<string, { min: number; count: number }> = {};
+                  const temposPorMaq: Record<string, { seg: number; count: number }> = {};
                   form.etapas.forEach((e) => {
-                    if (!temposPorMaq[e.maquina]) temposPorMaq[e.maquina] = { min: 0, count: 0 };
-                    temposPorMaq[e.maquina].min += e.tempo_minutos;
+                    if (!temposPorMaq[e.maquina]) temposPorMaq[e.maquina] = { seg: 0, count: 0 };
+                    temposPorMaq[e.maquina].seg += e.tempo_segundos;
                     temposPorMaq[e.maquina].count += 1;
                   });
-                  const totalPeca = form.etapas.reduce((s, e) => s + e.tempo_minutos, 0);
+                  const totalPeca = form.etapas.reduce((s, e) => s + e.tempo_segundos, 0);
                   const icons: Record<string, string> = { Reta: "🧵", Overloque: "🔵", Galoneira: "🟡" };
                   return (
                     <div className="rounded-lg border border-border bg-muted/30 p-3 space-y-1">
@@ -498,14 +498,14 @@ export default function TabFichasTecnicas() {
                         <div key={m} className="flex items-center gap-2 text-sm">
                           <span>{icons[m]}</span>
                           <span className="font-medium w-24">{m}</span>
-                          <span className="tabular-nums">{temposPorMaq[m].min} min</span>
+                          <span className="tabular-nums">{temposPorMaq[m].seg} seg</span>
                           <span className="text-muted-foreground text-xs">({temposPorMaq[m].count} {temposPorMaq[m].count === 1 ? "etapa" : "etapas"})</span>
                         </div>
                       ))}
                       <div className="border-t border-border pt-1 flex items-center gap-2 text-sm font-semibold">
                         <span>⏱</span>
                         <span>Total Peça</span>
-                        <span className="tabular-nums">{totalPeca} min</span>
+                        <span className="tabular-nums">{totalPeca} seg</span>
                       </div>
                     </div>
                   );
