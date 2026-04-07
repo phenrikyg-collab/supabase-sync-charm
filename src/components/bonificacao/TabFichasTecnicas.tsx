@@ -45,7 +45,7 @@ interface ModalForm {
   num_amostras: number;
 }
 
-const emptyEtapa: Etapa = { nome: "", maquina: "Reta", tempo_minutos: 0, observacao: "" };
+const emptyEtapa: Etapa = { nome: "", maquina: "Reta", tempo_segundos: 0, observacao: "" };
 
 const emptyForm: ModalForm = {
   produto_id: "",
@@ -175,7 +175,7 @@ export default function TabFichasTecnicas() {
       const rows = form.etapas.map((e, i) => ({
         ...common,
         operacao: e.nome,
-        tempo_minutos: e.tempo_minutos,
+        tempo_minutos: e.tempo_segundos,
         observacao: e.observacao || null,
         numero_etapa: i + 1,
       }));
@@ -189,7 +189,7 @@ export default function TabFichasTecnicas() {
       const rowsWithMachine = form.etapas.map((e, i) => ({
         ...common,
         operacao: `${e.maquina}|${e.nome}`,
-        tempo_minutos: e.tempo_minutos,
+        tempo_minutos: e.tempo_segundos,
         observacao: e.observacao || null,
         numero_etapa: i + 1,
       }));
@@ -233,7 +233,7 @@ export default function TabFichasTecnicas() {
         return {
           nome: parsed.nome,
           maquina: parsed.maquina as Etapa["maquina"],
-          tempo_minutos: e.tempo_minutos || 0,
+          tempo_segundos: e.tempo_minutos || 0,
           observacao: e.observacao || "",
         };
       });
