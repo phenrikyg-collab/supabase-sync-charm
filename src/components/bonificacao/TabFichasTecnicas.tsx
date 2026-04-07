@@ -40,6 +40,7 @@ interface Etapa {
 
 interface ModalForm {
   produto_id: string;
+  produto_nome: string;
   tipo_peca: string;
   etapas: Etapa[];
   cronometrado_por: string;
@@ -51,6 +52,7 @@ const emptyEtapa: Etapa = { nome: "", maquina: "", tempo_segundos: 0, observacao
 
 const emptyForm: ModalForm = {
   produto_id: "",
+  produto_nome: "",
   tipo_peca: "Recorrente",
   etapas: [{ ...emptyEtapa }],
   cronometrado_por: "",
@@ -168,7 +170,7 @@ export default function TabFichasTecnicas() {
       if (!map.has(f.produto_id)) {
         map.set(f.produto_id, {
           produto_id: f.produto_id,
-          produto_nome: f.produtos?.nome_do_produto || "—",
+          produto_nome: f.produtos?.nome_do_produto || f.produto_nome || "—",
           tipo_peca: f.tipo_peca,
           etapas: [],
           cronometrado_por: f.cronometrado_por,
@@ -186,28 +188,23 @@ export default function TabFichasTecnicas() {
   const saveFicha = useMutation({
     mutationFn: async () => {
       if (!form.produto_id) throw new Error("Selecione um produto");
+      if (!form.produto_nome.trim()) throw new Error("Produto inválido");
       if (form.etapas.length === 0) throw new Error("Adicione ao menos uma etapa");
-
-      // Resolve product name for legacy column
-      const produtoSel = produtos.find((p: any) => p.id === form.produto_id);
-      const produtoNome = produtoSel?.nome_do_produto || "";
 
       const common = {
         produto_id: form.produto_id,
+        produto_nome: form.produto_nome.trim(),
         tipo_peca: form.tipo_peca,
         cronometrado_por: form.cronometrado_por || null,
         data_medicao: form.data_medicao ? format(form.data_medicao, "yyyy-MM-dd") : null,
         num_amostras: form.num_amostras || null,
       };
 
-      // Delete old records
       const targetId = editProdutoId || form.produto_id;
       await supabase.from("fichas_tecnicas_tempo").delete().eq("produto_id", targetId);
 
-      // Encode: "Maquina|NomeEtapa|Grupo"
       const rowsWithMachine = form.etapas.map((e, i) => ({
         ...common,
-        produto_nome: produtoNome,
         operacao: `${e.maquina}|${e.nome}|${e.grupo}`,
         tempo_minutos: e.tempo_segundos,
         observacao: e.observacao || null,
@@ -264,6 +261,7 @@ export default function TabFichasTecnicas() {
       });
     setForm({
       produto_id: row.produto_id,
+      produto_nome: row.produto_nome || "",
       tipo_peca: row.tipo_peca || "Recorrente",
       etapas: etapas.length > 0 ? etapas : [{ ...emptyEtapa }],
       cronometrado_por: row.cronometrado_por || "",
@@ -488,7 +486,18 @@ export default function TabFichasTecnicas() {
               <>
                 <div>
                   <Label>Produto</Label>
-                  <Select value={form.produto_id} onValueChange={(v) => setForm({ ...form, produto_id: v })} disabled={!!editProdutoId}>
+                  <Select
+                    value={form.produto_id}
+                    onValueChange={(v) => {
+                      const produtoSelecionado = produtos.find((p: any) => p.id === v);
+                      setForm({
+                        ...form,
+                        produto_id: v,
+                        produto_nome: produtoSelecionado?.nome_do_produto || "",
+                      });
+                    }}
+                    disabled={!!editProdutoId}
+                  >
                     <SelectTrigger><SelectValue placeholder="Selecione um produto" /></SelectTrigger>
                     <SelectContent>
                       {produtos.map((p: any) => (
