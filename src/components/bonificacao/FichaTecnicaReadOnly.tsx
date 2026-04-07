@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 import { Badge } from "@/components/ui/badge";
+import { Link2 } from "lucide-react";
 
 interface Etapa {
   numero_etapa: number;
@@ -25,13 +26,32 @@ const MAQUINA_COLORS: Record<string, string> = {
   Galoneira: "bg-green-100 text-green-800 border-green-300",
 };
 
-function parseOperacao(op: string): { maquina: string; nome: string } {
-  if (op.includes("|")) {
-    const [maquina, ...rest] = op.split("|");
-    return { maquina, nome: rest.join("|") };
+function parseOperacao(op: string): { maquina: string; nome: string; grupo: number } {
+  const parts = op.split("|");
+  if (parts.length >= 3) {
+    return { maquina: parts[0], nome: parts.slice(1, -1).join("|"), grupo: parseInt(parts[parts.length - 1]) || 0 };
+  }
+  if (parts.length === 2) {
+    return { maquina: parts[0], nome: parts[1], grupo: 0 };
   }
   const maqMap: Record<string, string> = { reta: "Reta", overloque: "Overloque", galoneira: "Galoneira" };
-  return { maquina: maqMap[op.toLowerCase()] || "Reta", nome: op };
+  return { maquina: maqMap[op.toLowerCase()] || "Reta", nome: op, grupo: 0 };
+}
+
+function calcTempoEfetivo(etapas: { tempo: number; grupo: number }[]): number {
+  const grupos = new Map<number, number>();
+  let totalSeq = 0;
+  for (const e of etapas) {
+    if (e.grupo === 0) {
+      totalSeq += e.tempo;
+    } else {
+      const current = grupos.get(e.grupo) || 0;
+      grupos.set(e.grupo, Math.max(current, e.tempo));
+    }
+  }
+  let totalGrupos = 0;
+  grupos.forEach((v) => { totalGrupos += v; });
+  return totalSeq + totalGrupos;
 }
 
 export default function FichaTecnicaReadOnly({ produtoNome, etapas }: Props) {
@@ -40,24 +60,29 @@ export default function FichaTecnicaReadOnly({ produtoNome, etapas }: Props) {
     [etapas]
   );
 
+  const parsedAll = useMemo(() =>
+    sorted.map((e) => {
+      const p = parseOperacao(e.operacao);
+      return { ...p, tempo: e.tempo_minutos, obs: e.observacao, idx: e.numero_etapa };
+    }),
+    [sorted]
+  );
+
   const grouped = useMemo(() => {
-    const groups: Record<string, { etapas: { idx: number; nome: string; tempo: number; obs?: string | null }[]; total: number }> = {};
-    sorted.forEach((e) => {
-      const parsed = parseOperacao(e.operacao);
-      if (!groups[parsed.maquina]) groups[parsed.maquina] = { etapas: [], total: 0 };
-      groups[parsed.maquina].etapas.push({
-        idx: e.numero_etapa,
-        nome: parsed.nome,
-        tempo: e.tempo_minutos,
-        obs: e.observacao,
-      });
-      groups[parsed.maquina].total += e.tempo_minutos;
+    const groups: Record<string, { etapas: typeof parsedAll; total: number }> = {};
+    parsedAll.forEach((e) => {
+      if (!groups[e.maquina]) groups[e.maquina] = { etapas: [], total: 0 };
+      groups[e.maquina].etapas.push(e);
+      groups[e.maquina].total += e.tempo;
     });
     return groups;
-  }, [sorted]);
+  }, [parsedAll]);
 
-  const totalGeral = sorted.reduce((s, e) => s + (e.tempo_minutos || 0), 0);
+  const tempoEfetivo = useMemo(() => calcTempoEfetivo(parsedAll), [parsedAll]);
+  const totalBruto = sorted.reduce((s, e) => s + (e.tempo_minutos || 0), 0);
+  const hasConjuntos = parsedAll.some(e => e.grupo > 0);
   const maquinaOrder = ["Overloque", "Reta", "Galoneira"];
+  const allMaquinas = [...maquinaOrder.filter(m => grouped[m]), ...Object.keys(grouped).filter(m => !maquinaOrder.includes(m))];
 
   return (
     <div className="space-y-4">
@@ -65,7 +90,7 @@ export default function FichaTecnicaReadOnly({ produtoNome, etapas }: Props) {
         FICHA TÉCNICA — {produtoNome}
       </div>
 
-      {maquinaOrder.filter(m => grouped[m]).map((maquina) => {
+      {allMaquinas.map((maquina) => {
         const g = grouped[maquina];
         return (
           <div key={maquina} className="space-y-1">
@@ -84,6 +109,11 @@ export default function FichaTecnicaReadOnly({ produtoNome, etapas }: Props) {
                   <span className="text-muted-foreground font-mono w-5 text-right">{e.idx}.</span>
                   <span className="flex-1 text-foreground">{e.nome}</span>
                   <span className="text-muted-foreground tabular-nums">{e.tempo} seg</span>
+                  {e.grupo > 0 && (
+                    <Badge variant="outline" className="text-[10px] bg-orange-50 text-orange-700 border-orange-300">
+                      <Link2 className="h-3 w-3 mr-0.5" /> Conjunto {e.grupo}
+                    </Badge>
+                  )}
                 </div>
               ))}
             </div>
@@ -91,34 +121,20 @@ export default function FichaTecnicaReadOnly({ produtoNome, etapas }: Props) {
         );
       })}
 
-      {/* Máquinas não na ordem padrão */}
-      {Object.keys(grouped).filter(m => !maquinaOrder.includes(m)).map((maquina) => {
-        const g = grouped[maquina];
-        return (
-          <div key={maquina} className="space-y-1">
-            <div className="flex items-center gap-2">
-              <span>⚙️</span>
-              <Badge variant="outline">{maquina}</Badge>
-              <span className="text-xs text-muted-foreground">
-                ({g.etapas.length} {g.etapas.length === 1 ? "etapa" : "etapas"} · {g.total} seg)
-              </span>
-            </div>
-            <div className="pl-6 space-y-0.5">
-              {g.etapas.map((e) => (
-                <div key={e.idx} className="flex items-center gap-2 text-sm">
-                  <span className="text-muted-foreground font-mono w-5 text-right">{e.idx}.</span>
-                  <span className="flex-1 text-foreground">{e.nome}</span>
-                  <span className="text-muted-foreground tabular-nums">{e.tempo} seg</span>
-                </div>
-              ))}
-            </div>
+      <div className="border-t border-border pt-2 space-y-1">
+        {hasConjuntos && (
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <span>📊</span>
+            <span>Tempo bruto (soma): {totalBruto} seg</span>
           </div>
-        );
-      })}
-
-      <div className="border-t border-border pt-2 flex items-center gap-2 text-sm font-semibold">
-        <span>⏱</span>
-        <span>Total por peça: {totalGeral} seg</span>
+        )}
+        <div className="flex items-center gap-2 text-sm font-semibold">
+          <span>⏱</span>
+          <span>Tempo efetivo por peça: {tempoEfetivo} seg</span>
+          {hasConjuntos && (
+            <span className="text-xs text-muted-foreground font-normal">(conjuntos = maior tempo)</span>
+          )}
+        </div>
       </div>
     </div>
   );
