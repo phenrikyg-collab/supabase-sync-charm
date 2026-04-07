@@ -208,7 +208,7 @@ function ConfigMaquinas() {
       if (error) throw error;
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["config_maquinas"] }); setNovoTipo(""); toast.success("Máquina adicionada"); },
-    onError: () => toast.error("Erro ao adicionar"),
+    onError: (e: any) => toast.error("Erro ao adicionar: " + (e?.message || "desconhecido")),
   });
 
   const deletar = useMutation({
