@@ -267,9 +267,10 @@ export default function OrdensProducao() {
         quantidade: editQuantidade,
         quantidade_pecas_ordem: editQuantidade,
         data_previsao_termino: editPrevisao || null,
+        data_fim: editDataFim || null,
         custo_estimado_peca: editCustoEstimado > 0 ? editCustoEstimado : null,
       };
-      if (editStatus === "Finalizado" && !editOrdem.data_fim) {
+      if (editStatus === "Finalizado" && !editDataFim) {
         updates.data_fim = new Date().toISOString().split("T")[0];
       }
       await updateMut.mutateAsync({ id: editOrdem.id, ...updates });
