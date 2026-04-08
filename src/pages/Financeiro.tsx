@@ -13,7 +13,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { formatDateBR } from "@/lib/printUtils";
-import { Pencil, Trash2, Loader2, Check, ChevronsUpDown, CircleCheck, Clock, ArrowUp, ArrowDown, ArrowUpDown, ChevronLeft, ChevronRight, CreditCard, Tags } from "lucide-react";
+import { Pencil, Trash2, Loader2, Check, ChevronsUpDown, CircleCheck, Clock, ArrowUp, ArrowDown, ArrowUpDown, ChevronLeft, ChevronRight, CreditCard, Tags, Search, X } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
@@ -39,6 +39,7 @@ export default function Financeiro() {
   const queryClient = useQueryClient();
 
   const [filtroTipo, setFiltroTipo] = useState("todos");
+  const [filtroBusca, setFiltroBusca] = useState("");
   const [filtroCategoria, setFiltroCategoria] = useState("todos");
   const [filtroCentro, setFiltroCentro] = useState("todos");
   const [filtroOrigem, setFiltroOrigem] = useState("todos");
@@ -89,6 +90,7 @@ export default function Financeiro() {
   const paidFaturaIds = useMemo(() => buildPaidFaturaSet(movs ?? []), [movs]);
 
   const filtered = useMemo(() => {
+    const busca = filtroBusca.toLowerCase().trim();
     return (movs ?? []).filter((m) => {
       if (filtroPeriodo !== "todos" && m.data && !m.data.startsWith(filtroPeriodo)) return false;
       if (filtroTipo !== "todos" && m.tipo !== filtroTipo) return false;
@@ -96,9 +98,16 @@ export default function Financeiro() {
       if (filtroCentro !== "todos" && m.centro_custo_id !== filtroCentro) return false;
       if (filtroOrigem !== "todos" && m.origem !== filtroOrigem) return false;
       if (filtroStatus !== "todos" && (m.status_pagamento ?? "em_aberto") !== filtroStatus) return false;
+      if (busca) {
+        const desc = (m.descricao ?? "").toLowerCase();
+        const cat = (catMap[m.categoria_id ?? ""] ?? "").toLowerCase();
+        const cliente = (m.cliente ?? "").toLowerCase();
+        const valor = String(m.valor ?? "");
+        if (!desc.includes(busca) && !cat.includes(busca) && !cliente.includes(busca) && !valor.includes(busca)) return false;
+      }
       return true;
     });
-  }, [movs, filtroPeriodo, filtroTipo, filtroCategoria, filtroCentro, filtroOrigem, filtroStatus]);
+  }, [movs, filtroPeriodo, filtroTipo, filtroCategoria, filtroCentro, filtroOrigem, filtroStatus, filtroBusca, catMap]);
 
   const origens = [...new Set(movs?.map((m) => m.origem).filter(Boolean) ?? [])];
   const tipos = [...new Set(movs?.map((m) => m.tipo).filter(Boolean) ?? [])];
@@ -282,6 +291,22 @@ export default function Financeiro() {
           <h1 className="text-3xl font-serif font-bold text-foreground">Transações</h1>
           <p className="text-sm text-muted-foreground mt-1">{filtered.length} transações</p>
         </div>
+      </div>
+
+      {/* Search bar */}
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        <Input
+          placeholder="Buscar por descrição, categoria, cliente ou valor..."
+          value={filtroBusca}
+          onChange={(e) => { setFiltroBusca(e.target.value); setCurrentPage(1); }}
+          className="pl-9 pr-9"
+        />
+        {filtroBusca && (
+          <button onClick={() => setFiltroBusca("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
+            <X className="h-4 w-4" />
+          </button>
+        )}
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
