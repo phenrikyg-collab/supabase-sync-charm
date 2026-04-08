@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -6,7 +6,8 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
-import { Save, Eraser, Copy, TrendingUp, Loader2 } from "lucide-react";
+import { Save, Eraser, Copy, TrendingUp, Loader2, Download, Upload } from "lucide-react";
+import * as XLSX from "xlsx";
 
 interface Categoria {
   id: string;
@@ -30,8 +31,8 @@ export default function OrcamentoTabela() {
   const [valores, setValores] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Fetch categories
   useEffect(() => {
     supabase
       .from("categorias_financeiras")
@@ -41,7 +42,6 @@ export default function OrcamentoTabela() {
       });
   }, []);
 
-  // Fetch budget for selected month/year
   useEffect(() => {
     setLoading(true);
     supabase
@@ -59,7 +59,6 @@ export default function OrcamentoTabela() {
       });
   }, [mes, ano]);
 
-  // Group categories by faixa → categoria
   const grouped = useMemo(() => {
     const result: Record<string, Record<string, Categoria[]>> = {};
     categorias
@@ -72,6 +71,13 @@ export default function OrcamentoTabela() {
         result[faixa][cat].push(c);
       });
     return result;
+  }, [categorias]);
+
+  // Flat list for template/import matching
+  const flatCategorias = useMemo(() => {
+    return categorias
+      .filter((c) => c.grupo_dre && c.descricao_categoria)
+      .sort((a, b) => (a.grupo_dre || "").localeCompare(b.grupo_dre || "") || (a.nome_categoria || "").localeCompare(b.nome_categoria || ""));
   }, [categorias]);
 
   const handleSave = async () => {
@@ -126,7 +132,6 @@ export default function OrcamentoTabela() {
 
   const handleSugerirMedia = async () => {
     setLoading(true);
-    // Last 3 months
     const dates: { m: number; y: number }[] = [];
     let m = mes, y = ano;
     for (let i = 0; i < 3; i++) {
@@ -149,11 +154,9 @@ export default function OrcamentoTabela() {
       .not("categoria_id", "is", null);
 
     const sums: Record<string, number> = {};
-    const counts: Record<string, number> = {};
     data?.forEach((r: any) => {
       if (!r.categoria_id) return;
       sums[r.categoria_id] = (sums[r.categoria_id] || 0) + Math.abs(Number(r.valor));
-      counts[r.categoria_id] = (counts[r.categoria_id] || 0) + 1;
     });
 
     const map: Record<string, number> = {};
@@ -163,6 +166,101 @@ export default function OrcamentoTabela() {
     setValores(map);
     setLoading(false);
     toast({ title: "Valores sugeridos pela média dos últimos 3 meses" });
+  };
+
+  // ── Download Excel template ──
+  const handleDownloadTemplate = () => {
+    const rows = flatCategorias.map((c) => ({
+      "Faixa (grupo_dre)": c.grupo_dre || "",
+      "Categoria (nome_categoria)": c.nome_categoria || "",
+      "Plano de conta (descricao_categoria)": c.descricao_categoria || "",
+      "Valor Orçado": valores[c.id] ?? "",
+      "categoria_id (NÃO ALTERAR)": c.id,
+    }));
+
+    const ws = XLSX.utils.json_to_sheet(rows);
+
+    // Column widths
+    ws["!cols"] = [
+      { wch: 25 }, { wch: 30 }, { wch: 40 }, { wch: 18 }, { wch: 40 },
+    ];
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Orçamento");
+
+    // Instructions sheet
+    const instrRows = [
+      { Instrução: "1. Preencha APENAS a coluna 'Valor Orçado' com os valores desejados." },
+      { Instrução: "2. NÃO altere a coluna 'categoria_id (NÃO ALTERAR)' — ela é usada para vincular ao sistema." },
+      { Instrução: "3. Deixe em branco ou com 0 as linhas que não deseja orçar." },
+      { Instrução: "4. Salve o arquivo e importe de volta no sistema usando o botão 'Importar planilha'." },
+      { Instrução: `5. Este modelo foi gerado para ${MESES[mes - 1]}/${ano}.` },
+    ];
+    const wsInstr = XLSX.utils.json_to_sheet(instrRows);
+    wsInstr["!cols"] = [{ wch: 80 }];
+    XLSX.utils.book_append_sheet(wb, wsInstr, "Instruções");
+
+    XLSX.writeFile(wb, `orcamento_modelo_${MESES[mes - 1]}_${ano}.xlsx`);
+    toast({ title: "Modelo baixado com sucesso!" });
+  };
+
+  // ── Import Excel ──
+  const handleImportExcel = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      try {
+        const data = new Uint8Array(evt.target?.result as ArrayBuffer);
+        const wb = XLSX.read(data, { type: "array" });
+        const ws = wb.Sheets[wb.SheetNames[0]];
+        const rows = XLSX.utils.sheet_to_json<Record<string, any>>(ws);
+
+        const map: Record<string, number> = {};
+        let imported = 0;
+
+        for (const row of rows) {
+          const catId =
+            row["categoria_id (NÃO ALTERAR)"] ||
+            row["categoria_id"] ||
+            row["ID"];
+          const valor =
+            row["Valor Orçado"] ??
+            row["valor_orcado"] ??
+            row["Valor"] ??
+            row["valor"];
+
+          if (!catId) continue;
+
+          const numVal = Number(String(valor).replace(/[^\d.,-]/g, "").replace(",", "."));
+          if (!isNaN(numVal) && numVal > 0) {
+            // Validate that catId exists in our categories
+            if (categorias.some((c) => c.id === catId)) {
+              map[catId] = numVal;
+              imported++;
+            }
+          }
+        }
+
+        if (imported === 0) {
+          toast({
+            title: "Nenhum valor importado",
+            description: "Verifique se o arquivo segue o modelo com a coluna 'categoria_id'.",
+            variant: "destructive",
+          });
+        } else {
+          setValores(map);
+          toast({ title: `${imported} valores importados com sucesso!`, description: "Clique em 'Salvar orçamento' para gravar." });
+        }
+      } catch {
+        toast({ title: "Erro ao ler arquivo", variant: "destructive" });
+      }
+
+      // Reset file input
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    };
+    reader.readAsArrayBuffer(file);
   };
 
   return (
@@ -197,6 +295,19 @@ export default function OrcamentoTabela() {
             <Button variant="outline" size="sm" onClick={handleSugerirMedia}>
               <TrendingUp className="h-4 w-4 mr-1" /> Sugerir pela média
             </Button>
+            <Button variant="outline" size="sm" onClick={handleDownloadTemplate}>
+              <Download className="h-4 w-4 mr-1" /> Baixar modelo
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => fileInputRef.current?.click()}>
+              <Upload className="h-4 w-4 mr-1" /> Importar planilha
+            </Button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".xlsx,.xls"
+              className="hidden"
+              onChange={handleImportExcel}
+            />
             <Button size="sm" onClick={handleSave} disabled={saving}>
               {saving ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Save className="h-4 w-4 mr-1" />}
               Salvar orçamento
