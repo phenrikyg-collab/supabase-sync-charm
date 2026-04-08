@@ -153,13 +153,14 @@ function parseCSVSafra(text: string): ParsedRow[] {
 }
 
 function parseExcelFile(buffer: ArrayBuffer): ParsedRow[] {
-  const wb = XLSX.read(buffer, { type: "array" });
+  const wb = XLSX.read(buffer, { type: "array", cellDates: true });
   const ws = wb.Sheets[wb.SheetNames[0]];
   const jsonRows = XLSX.utils.sheet_to_json<Record<string, any>>(ws, { defval: "" });
   const rows: ParsedRow[] = [];
 
   for (const row of jsonRows) {
-    const vals = Object.values(row).map((v) => String(v ?? "").trim());
+    const rawVals = Object.values(row);
+    const vals = rawVals.map((v) => String(v ?? "").trim());
     if (vals.length < 2) continue;
     const dateCandidate = vals[0];
     if (!/\d/.test(dateCandidate)) continue;
@@ -168,10 +169,16 @@ function parseExcelFile(buffer: ArrayBuffer): ParsedRow[] {
     const data = parseDate(dateCandidate);
     const descricao = vals[1] || "Sem descrição";
     let valor = 0;
-    for (let i = vals.length - 1; i >= 1; i--) {
-      const cleaned = vals[i].replace(/[R$\s.]/g, "").replace(",", ".");
-      const num = parseFloat(cleaned);
-      if (!isNaN(num) && num !== 0) { valor = num; break; }
+    for (let i = rawVals.length - 1; i >= 1; i--) {
+      const raw = rawVals[i];
+      // If it's already a number from Excel, use it directly
+      if (typeof raw === "number" && raw !== 0 && Number.isFinite(raw)) {
+        valor = raw;
+        break;
+      }
+      // Otherwise try to parse as Brazilian formatted string
+      const num = converterValorBR(String(raw));
+      if (num !== 0) { valor = num; break; }
     }
     if (!data || valor === 0) continue;
 
@@ -193,28 +200,53 @@ function parseExcelFile(buffer: ArrayBuffer): ParsedRow[] {
   return rows;
 }
 
+function excelDateToString(val: any): string {
+  if (val instanceof Date) {
+    const d = val;
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  }
+  if (typeof val === "number" && val > 30000 && val < 60000) {
+    // Excel serial date number
+    const d = new Date((val - 25569) * 86400000);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  }
+  return converterDataCSV(String(val ?? "").trim());
+}
+
 function parseExcelSafra(buffer: ArrayBuffer): ParsedRow[] {
-  const wb = XLSX.read(buffer, { type: "array" });
+  const wb = XLSX.read(buffer, { type: "array", cellDates: true });
   const ws = wb.Sheets[wb.SheetNames[0]];
   const jsonRows = XLSX.utils.sheet_to_json<Record<string, any>>(ws, { defval: "", header: 1 }) as any[][];
   const rows: ParsedRow[] = [];
 
-  for (let i = 0; i < jsonRows.length; i++) {
+  // Find header row to skip it
+  let startIdx = 0;
+  for (let i = 0; i < Math.min(jsonRows.length, 10); i++) {
+    const cols = jsonRows[i];
+    if (!cols) continue;
+    const firstCol = String(cols[0] ?? "").toLowerCase();
+    if (firstCol.includes("data") || firstCol.includes("pagamento") || firstCol.includes("date")) {
+      startIdx = i + 1;
+      break;
+    }
+  }
+
+  for (let i = startIdx; i < jsonRows.length; i++) {
     const cols = jsonRows[i];
     if (!cols || cols.length < 4) continue;
-    const colA = String(cols[0] ?? "").trim();
-    if (colA.toLowerCase().includes("data") || colA.toLowerCase().includes("pagamento")) continue;
-    if (!/\d/.test(colA)) continue;
+    
+    // Skip empty rows
+    if (!cols[0] && !cols[1] && !cols[2] && !cols[3]) continue;
 
-    const dataPagamento = converterDataCSV(colA); // Col A - Data Pagamento
-    const dataCompetencia = converterDataCSV(String(cols[1] ?? "").trim()); // Col B - Data competência
+    const dataPagamento = excelDateToString(cols[0]); // Col A - Data Pagamento
+    const dataCompetencia = excelDateToString(cols[1]); // Col B - Data competência
     const descricao = String(cols[2] ?? "").trim() || "Sem descrição"; // Col C - Favorecido/Beneficiário
     
-    // Col D - Valor (use converterValorExcel - NOT divided by 100)
+    // Col D - Valor (use converterValorExcel directly — values come as real numbers from Excel)
     const valor = converterValorExcel(cols[3]);
     if (valor === 0) continue;
 
-    if (!dataCompetencia) continue;
+    if (!dataCompetencia || !dataCompetencia.match(/^\d{4}-\d{2}-\d{2}$/)) continue;
 
     rows.push({
       data: dataCompetencia,
@@ -232,12 +264,31 @@ function parseExcelSafra(buffer: ArrayBuffer): ParsedRow[] {
   }
   return rows;
 }
+function parseCSVLine(line: string): string[] {
+  const result: string[] = [];
+  let current = "";
+  let inQuotes = false;
+  for (let j = 0; j < line.length; j++) {
+    const ch = line[j];
+    if (ch === '"') {
+      inQuotes = !inQuotes;
+    } else if (ch === ',' && !inQuotes) {
+      result.push(current.trim());
+      current = "";
+    } else {
+      current += ch;
+    }
+  }
+  result.push(current.trim());
+  return result;
+}
+
 function parseVindiTransacoes(text: string): ParsedRow[] {
   const lines = text.split("\n").filter((l) => l.trim());
   const rows: ParsedRow[] = [];
 
   for (let i = 0; i < lines.length; i++) {
-    const cols = lines[i].split(",").map((c) => c.trim().replace(/^"|"$/g, ""));
+    const cols = parseCSVLine(lines[i]);
     if (i === 0 && cols[0]?.toLowerCase().includes("data")) continue;
     if (cols.length < 5) continue;
     if (!/\d/.test(cols[0])) continue;
@@ -271,7 +322,7 @@ function parseVindiTaxas(text: string): ParsedRow[] {
   const rows: ParsedRow[] = [];
 
   for (let i = 0; i < lines.length; i++) {
-    const cols = lines[i].split(",").map((c) => c.trim().replace(/^"|"$/g, ""));
+    const cols = parseCSVLine(lines[i]);
     if (i === 0 && cols[0]?.toLowerCase().includes("data")) continue;
     if (cols.length < 6) continue;
     if (!/\d/.test(cols[0])) continue;
@@ -867,6 +918,42 @@ export default function ImportarExtrato() {
               <Input type="file" accept=".csv,.txt,.xlsx,.xls,.pdf" onChange={handleFile} />
             </div>
           </div>
+
+          {(banco === "vindi_transacoes" || banco === "vindi_taxas") && (
+            <div className="text-sm text-muted-foreground flex items-center gap-2">
+              <FileText className="h-4 w-4" />
+              <button
+                type="button"
+                className="underline text-primary hover:text-primary/80"
+                onClick={() => {
+                  let csv = "";
+                  let filename = "";
+                  if (banco === "vindi_transacoes") {
+                    csv = "Data da Transação,Horário,Cliente,Valor Pago,Data Credito\n" +
+                      "01/04/2026,10:30,Maria Silva,\"R$ 426,00\",05/04/2026\n" +
+                      "01/04/2026,14:15,João Santos,\"R$ 1.250,50\",05/04/2026\n" +
+                      "02/04/2026,09:00,Ana Costa,\"R$ 89,90\",06/04/2026\n";
+                    filename = "vindi_transacoes_exemplo.csv";
+                  } else {
+                    csv = "Data da Transação,Horário,Número pedido,Cliente,Taxa,Data Débito\n" +
+                      "01/04/2026,10:30,12345,Maria Silva,\"-R$ 53,20\",05/04/2026\n" +
+                      "01/04/2026,14:15,12346,João Santos,\"-R$ 156,31\",05/04/2026\n" +
+                      "02/04/2026,09:00,12347,Ana Costa,\"-R$ 11,24\",06/04/2026\n";
+                    filename = "vindi_taxas_exemplo.csv";
+                  }
+                  const blob = new Blob([csv], { type: "text/csv;charset=latin1" });
+                  const url = URL.createObjectURL(blob);
+                  const a = document.createElement("a");
+                  a.href = url;
+                  a.download = filename;
+                  a.click();
+                  URL.revokeObjectURL(url);
+                }}
+              >
+                Baixar planilha de exemplo ({banco === "vindi_transacoes" ? "Transações" : "Taxas"})
+              </button>
+            </div>
+          )}
 
           {validacao?.tipo === "ok" && (
             <div className="bg-green-50 border border-green-300 rounded-lg p-3 text-sm text-green-800 dark:bg-green-950/30 dark:border-green-700 dark:text-green-300">
