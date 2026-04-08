@@ -90,6 +90,7 @@ export default function Financeiro() {
   const paidFaturaIds = useMemo(() => buildPaidFaturaSet(movs ?? []), [movs]);
 
   const filtered = useMemo(() => {
+    const busca = filtroBusca.toLowerCase().trim();
     return (movs ?? []).filter((m) => {
       if (filtroPeriodo !== "todos" && m.data && !m.data.startsWith(filtroPeriodo)) return false;
       if (filtroTipo !== "todos" && m.tipo !== filtroTipo) return false;
@@ -97,9 +98,16 @@ export default function Financeiro() {
       if (filtroCentro !== "todos" && m.centro_custo_id !== filtroCentro) return false;
       if (filtroOrigem !== "todos" && m.origem !== filtroOrigem) return false;
       if (filtroStatus !== "todos" && (m.status_pagamento ?? "em_aberto") !== filtroStatus) return false;
+      if (busca) {
+        const desc = (m.descricao ?? "").toLowerCase();
+        const cat = (catMap[m.categoria_id ?? ""] ?? "").toLowerCase();
+        const cliente = (m.cliente ?? "").toLowerCase();
+        const valor = String(m.valor ?? "");
+        if (!desc.includes(busca) && !cat.includes(busca) && !cliente.includes(busca) && !valor.includes(busca)) return false;
+      }
       return true;
     });
-  }, [movs, filtroPeriodo, filtroTipo, filtroCategoria, filtroCentro, filtroOrigem, filtroStatus]);
+  }, [movs, filtroPeriodo, filtroTipo, filtroCategoria, filtroCentro, filtroOrigem, filtroStatus, filtroBusca, catMap]);
 
   const origens = [...new Set(movs?.map((m) => m.origem).filter(Boolean) ?? [])];
   const tipos = [...new Set(movs?.map((m) => m.tipo).filter(Boolean) ?? [])];
