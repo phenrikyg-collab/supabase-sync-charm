@@ -194,6 +194,9 @@ export default function ImportarExtrato() {
   const [cartaoSelecionado, setCartaoSelecionado] = useState("");
   const [cartaoNomeManual, setCartaoNomeManual] = useState("");
   const [faturaVencimento, setFaturaVencimento] = useState("");
+  const [bancoCartao, setBancoCartao] = useState("");
+  const [valorTotalFatura, setValorTotalFatura] = useState("");
+  const [validacao, setValidacao] = useState<{ tipo: "ok" | "divergente"; qtd: number; total: number; divergencia?: number; valorInformado?: number } | null>(null);
 
   const isCartao = banco === "cartao";
   const cartaoNomeFinal = useMemo(() => {
