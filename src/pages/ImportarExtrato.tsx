@@ -9,6 +9,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { toast } from "sonner";
 import { Upload, Sparkles, Check, Loader2, FileText, ChevronsUpDown } from "lucide-react";
+import * as XLSX from "xlsx";
 import { supabase } from "@/integrations/supabase/client";
 import { useCategorias, useCartoesCredito } from "@/hooks/useSupabase";
 import { invokeEdgeFunction } from "@/lib/edgeFunctions";
