@@ -87,6 +87,8 @@ export default function Financeiro() {
   const catDescMap = Object.fromEntries((categorias ?? []).map((c) => [c.id, c.descricao_categoria]));
 
   const paidFaturaIds = useMemo(() => buildPaidFaturaSet(movs ?? []), [movs]);
+
+  const filtered = useMemo(() => {
     return (movs ?? []).filter((m) => {
       if (filtroPeriodo !== "todos" && m.data && !m.data.startsWith(filtroPeriodo)) return false;
       if (filtroTipo !== "todos" && m.tipo !== filtroTipo) return false;
