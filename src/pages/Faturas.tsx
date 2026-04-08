@@ -131,15 +131,47 @@ export default function Faturas() {
     return map;
   }, [movs]);
 
+  // Available months from faturas
+  const mesesDisponiveis = useMemo(() => {
+    const meses = new Set(faturas.map((f) => f.mes_referencia));
+    return Array.from(meses).sort().reverse();
+  }, [faturas]);
+
   const sortedFaturas = useMemo(() => {
     let list = [...faturas];
     if (filtroCartao !== "todos") {
       list = list.filter((f) => f.cartao_nome === filtroCartao);
     }
+    if (filtroMes !== "todos") {
+      list = list.filter((f) => f.mes_referencia === filtroMes);
+    }
     return list.sort((a, b) => b.mes_referencia.localeCompare(a.mes_referencia));
-  }, [faturas, filtroCartao]);
+  }, [faturas, filtroCartao, filtroMes]);
 
-  const totalAberto = faturas.filter((f) => f.status !== "paga").reduce((s, f) => s + (f.valor_total - f.valor_pago), 0);
+  // Group faturas by month for display
+  const faturasPorMes = useMemo(() => {
+    const groups: Record<string, typeof sortedFaturas> = {};
+    sortedFaturas.forEach((f) => {
+      if (!groups[f.mes_referencia]) groups[f.mes_referencia] = [];
+      groups[f.mes_referencia].push(f);
+    });
+    return groups;
+  }, [sortedFaturas]);
+
+  const mesesOrdenados = useMemo(() => Object.keys(faturasPorMes).sort().reverse(), [faturasPorMes]);
+
+  // KPIs filtered
+  const kpiFaturas = useMemo(() => {
+    let list = [...faturas];
+    if (filtroMes !== "todos") list = list.filter((f) => f.mes_referencia === filtroMes);
+    if (filtroCartao !== "todos") list = list.filter((f) => f.cartao_nome === filtroCartao);
+    const total = list.length;
+    const abertas = list.filter((f) => f.status !== "paga");
+    const pagas = list.filter((f) => f.status === "paga");
+    const totalAberto = abertas.reduce((s, f) => s + (f.valor_total - f.valor_pago), 0);
+    const totalFaturado = list.reduce((s, f) => s + f.valor_total, 0);
+    return { total, abertas: abertas.length, pagas: pagas.length, totalAberto, totalFaturado };
+  }, [faturas, filtroMes, filtroCartao]);
 
   const monthOptions = useMemo(() => generateMonthOptions(), []);
 
