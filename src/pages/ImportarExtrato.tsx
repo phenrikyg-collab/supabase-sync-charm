@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { toast } from "sonner";
-import { Upload, Sparkles, Check, Loader2, FileText, ChevronsUpDown } from "lucide-react";
+import { Upload, Sparkles, Check, Loader2, FileText, ChevronsUpDown, ArrowUpDown } from "lucide-react";
 import * as XLSX from "xlsx";
 import { supabase } from "@/integrations/supabase/client";
 import { useCategorias, useCartoesCredito } from "@/hooks/useSupabase";
@@ -474,6 +474,9 @@ export default function ImportarExtrato() {
   const [faturaVencimento, setFaturaVencimento] = useState("");
   const [bancoCartao, setBancoCartao] = useState("");
   const [valorTotalFatura, setValorTotalFatura] = useState("");
+  const [sortField, setSortField] = useState<"data" | "descricao" | null>(null);
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
+  const [bulkCategoryOpen, setBulkCategoryOpen] = useState(false);
   const [validacao, setValidacao] = useState<{ tipo: "ok" | "divergente"; qtd: number; total: number; divergencia?: number; valorInformado?: number } | null>(null);
 
   const isCartao = banco === "cartao";
@@ -502,6 +505,25 @@ export default function ImportarExtrato() {
     const file = e.target.files?.[0];
     if (!file) return;
 
+    // Pre-lookup Vindi categories
+    let vindiPreCategoriaId: string | null = null;
+    if (banco === "vindi_transacoes") {
+      const { data: cat } = await supabase
+        .from("categorias_financeiras")
+        .select("id")
+        .eq("descricao_categoria", "Venda de produtos")
+        .maybeSingle();
+      vindiPreCategoriaId = cat?.id ?? null;
+    } else if (banco === "vindi_taxas") {
+      const { data: cat } = await supabase
+        .from("categorias_financeiras")
+        .select("id")
+        .eq("descricao_categoria", "Taxa TrayPagamentos (Vindi)")
+        .maybeSingle();
+      vindiPreCategoriaId = cat?.id ?? null;
+    }
+
+
     if (file.name.endsWith(".csv") || file.name.endsWith(".txt")) {
       let text: string;
       if (banco === "vindi_transacoes" || banco === "vindi_taxas") {
@@ -525,6 +547,9 @@ export default function ImportarExtrato() {
       if (parsed.length === 0) {
         toast.error("Nenhum lançamento encontrado no arquivo. Verifique o formato.");
         return;
+      }
+      if (vindiPreCategoriaId) {
+        parsed = parsed.map((r) => ({ ...r, categoria_id: vindiPreCategoriaId }));
       }
       setRows(parsed);
       const parcelados = parsed.filter((r) => r.parcela_total);
@@ -858,6 +883,35 @@ export default function ImportarExtrato() {
 
   const toggleAll = (v: boolean) => setRows((prev) => prev.map((r) => ({ ...r, selecionado: v })));
 
+  const handleSort = (field: "data" | "descricao") => {
+    if (sortField === field) {
+      setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    } else {
+      setSortField(field);
+      setSortDir("asc");
+    }
+  };
+
+  const sortedRows = useMemo(() => {
+    if (!sortField) return rows.map((r, i) => ({ ...r, _idx: i }));
+    const sorted = rows.map((r, i) => ({ ...r, _idx: i })).sort((a, b) => {
+      const va = sortField === "data" ? a.data : a.descricao.toLowerCase();
+      const vb = sortField === "data" ? b.data : b.descricao.toLowerCase();
+      if (va < vb) return sortDir === "asc" ? -1 : 1;
+      if (va > vb) return sortDir === "asc" ? 1 : -1;
+      return 0;
+    });
+    return sorted;
+  }, [rows, sortField, sortDir]);
+
+  const aplicarCategoriaEmMassa = (catId: string | null) => {
+    setRows((prev) =>
+      prev.map((r) => r.selecionado ? { ...r, categoria_id: catId } : r)
+    );
+    setBulkCategoryOpen(false);
+    toast.success("Categoria aplicada aos selecionados!");
+  };
+
   const categoriasDropdown = useMemo(() => {
     const agrupadas = new Map<string, { id: string; label: string }[]>();
     const vistos = new Set<string>();
@@ -1044,9 +1098,42 @@ export default function ImportarExtrato() {
                 </Badge>
               )}
             </div>
-            <div className="flex gap-2">
+            <div className="flex gap-2 flex-wrap">
               <Button variant="outline" size="sm" onClick={() => toggleAll(true)}>Selecionar Todos</Button>
               <Button variant="outline" size="sm" onClick={() => toggleAll(false)}>Desmarcar Todos</Button>
+              <Popover open={bulkCategoryOpen} onOpenChange={setBulkCategoryOpen}>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" size="sm" className="gap-1" disabled={!rows.some((r) => r.selecionado)}>
+                    <ChevronsUpDown className="h-3 w-3" />
+                    Categoria em massa
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-[260px] p-0" align="end">
+                  <Command>
+                    <CommandInput placeholder="Buscar categoria..." className="h-9" />
+                    <CommandList>
+                      <CommandEmpty>Nenhuma categoria encontrada.</CommandEmpty>
+                      <CommandItem onSelect={() => aplicarCategoriaEmMassa(null)}>
+                        Sem categoria
+                      </CommandItem>
+                      {categoriasDropdown.map(({ grupo, itens }) => (
+                        <CommandGroup key={grupo} heading={grupo}>
+                          {itens.map((item) => (
+                            <CommandItem
+                              key={item.id}
+                              value={`${grupo} ${item.label}`}
+                              onSelect={() => aplicarCategoriaEmMassa(item.id)}
+                              className="text-xs"
+                            >
+                              {item.label}
+                            </CommandItem>
+                          ))}
+                        </CommandGroup>
+                      ))}
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
               <Button onClick={categorizarComIA} disabled={isCategorizando} className="gap-2">
                 {isCategorizando ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
                 Categorizar com IA
@@ -1064,9 +1151,17 @@ export default function ImportarExtrato() {
                 <TableHeader>
                   <TableRow>
                     <TableHead className="w-10">✓</TableHead>
-                    <TableHead>Competência</TableHead>
+                    <TableHead>
+                      <Button variant="ghost" size="sm" className="h-auto p-0 font-medium gap-1" onClick={() => handleSort("data")}>
+                        Competência <ArrowUpDown className="h-3 w-3" />
+                      </Button>
+                    </TableHead>
                     <TableHead>Vencimento</TableHead>
-                    <TableHead>Descrição</TableHead>
+                    <TableHead>
+                      <Button variant="ghost" size="sm" className="h-auto p-0 font-medium gap-1" onClick={() => handleSort("descricao")}>
+                        Descrição <ArrowUpDown className="h-3 w-3" />
+                      </Button>
+                    </TableHead>
                     <TableHead>Tipo</TableHead>
                     {isCartao && <TableHead>Parcela</TableHead>}
                     <TableHead>Categoria</TableHead>
@@ -1075,13 +1170,15 @@ export default function ImportarExtrato() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {rows.map((r, i) => (
-                    <TableRow key={i} className={r.selecionado ? "" : "opacity-40"}>
+                  {sortedRows.map((r) => {
+                    const idx = r._idx;
+                    return (
+                    <TableRow key={idx} className={r.selecionado ? "" : "opacity-40"}>
                       <TableCell>
                         <input
                           type="checkbox"
                           checked={r.selecionado}
-                          onChange={(e) => setRows((prev) => prev.map((row, j) => j === i ? { ...row, selecionado: e.target.checked } : row))}
+                          onChange={(e) => setRows((prev) => prev.map((row, j) => j === idx ? { ...row, selecionado: e.target.checked } : row))}
                         />
                       </TableCell>
                       <TableCell className="text-muted-foreground whitespace-nowrap">{formatarData(r.data)}</TableCell>
@@ -1107,13 +1204,13 @@ export default function ImportarExtrato() {
                           catMap={catMap}
                           value={r.categoria_id}
                           sugerida={r.categoria_sugerida}
-                          onChange={(v) => setRows((prev) => prev.map((row, j) => j === i ? { ...row, categoria_id: v } : row))}
+                          onChange={(v) => setRows((prev) => prev.map((row, j) => j === idx ? { ...row, categoria_id: v } : row))}
                         />
                       </TableCell>
                       <TableCell>
                         <Select
                           value={r.frequencia || "unica"}
-                          onValueChange={(v) => setRows((prev) => prev.map((row, j) => j === i ? { ...row, frequencia: v === "unica" ? null : v } : row))}
+                          onValueChange={(v) => setRows((prev) => prev.map((row, j) => j === idx ? { ...row, frequencia: v === "unica" ? null : v } : row))}
                         >
                           <SelectTrigger className="h-8 text-xs w-[110px]">
                             <SelectValue />
@@ -1129,7 +1226,8 @@ export default function ImportarExtrato() {
                         {r.tipo === "saida" ? "-" : ""}{formatCurrency(r.valor)}
                       </TableCell>
                     </TableRow>
-                  ))}
+                    );
+                  })}
                 </TableBody>
               </Table>
             </CardContent>
