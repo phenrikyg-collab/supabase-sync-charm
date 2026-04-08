@@ -241,9 +241,13 @@ export default function DRE() {
   const catMap = useMemo(() => {
     const map: Record<string, CatInfo> = {};
     (categorias ?? []).forEach((c) => {
+      const rawGrupo = c.grupo_dre ?? "";
+      const normalized = normalizeFaixa(rawGrupo);
+      // Skip categories marked as "Não listar no DRE"
+      if (rawGrupo.toUpperCase().includes("NÃO LISTAR")) return;
       map[c.id] = {
         id: c.id,
-        grupoDre: c.grupo_dre ?? "",
+        grupoDre: normalized,
         nomeCategoria: c.nome_categoria ?? "Sem categoria",
         descricaoCategoria: c.descricao_categoria ?? c.nome_categoria ?? "",
         tipo: c.tipo ?? "despesa",
