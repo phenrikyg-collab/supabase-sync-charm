@@ -58,6 +58,30 @@ function parseDate(raw: string): string {
   return raw.trim();
 }
 
+function converterDataCSV(data: string): string {
+  if (!data) return "";
+  const trim = data.trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(trim)) return trim;
+  const [dia, mes, ano] = trim.split("/");
+  if (!dia || !mes || !ano) return trim;
+  return `${ano}-${mes.padStart(2, "0")}-${dia.padStart(2, "0")}`;
+}
+
+function converterValorBR(valor: string): number {
+  const limpo = valor
+    .replace(/R\$\s*/g, "")
+    .replace(/-/g, "")
+    .trim()
+    .replace(/\./g, "")
+    .replace(",", ".");
+  return parseFloat(limpo) || 0;
+}
+
+function converterValorExcel(valor: any): number {
+  if (typeof valor === "number") return valor;
+  return converterValorBR(String(valor));
+}
+
 function normalizeDateForDb(raw: string | null | undefined): string | null {
   if (!raw) return null;
   const value = raw.trim();
