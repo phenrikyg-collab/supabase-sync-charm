@@ -900,6 +900,42 @@ export default function ImportarExtrato() {
             </div>
           </div>
 
+          {(banco === "vindi_transacoes" || banco === "vindi_taxas") && (
+            <div className="text-sm text-muted-foreground flex items-center gap-2">
+              <FileText className="h-4 w-4" />
+              <button
+                type="button"
+                className="underline text-primary hover:text-primary/80"
+                onClick={() => {
+                  let csv = "";
+                  let filename = "";
+                  if (banco === "vindi_transacoes") {
+                    csv = "Data da Transação,Horário,Cliente,Valor Pago,Data Credito\n" +
+                      "01/04/2026,10:30,Maria Silva,R$ 426.00,05/04/2026\n" +
+                      "01/04/2026,14:15,João Santos,R$ 1.250.50,05/04/2026\n" +
+                      "02/04/2026,09:00,Ana Costa,R$ 89.90,06/04/2026\n";
+                    filename = "vindi_transacoes_exemplo.csv";
+                  } else {
+                    csv = "Data da Transação,Horário,Número pedido,Cliente,Taxa,Data Débito\n" +
+                      "01/04/2026,10:30,12345,Maria Silva,-R$ 53.20,05/04/2026\n" +
+                      "01/04/2026,14:15,12346,João Santos,-R$ 156.31,05/04/2026\n" +
+                      "02/04/2026,09:00,12347,Ana Costa,-R$ 11.24,06/04/2026\n";
+                    filename = "vindi_taxas_exemplo.csv";
+                  }
+                  const blob = new Blob([csv], { type: "text/csv;charset=latin1" });
+                  const url = URL.createObjectURL(blob);
+                  const a = document.createElement("a");
+                  a.href = url;
+                  a.download = filename;
+                  a.click();
+                  URL.revokeObjectURL(url);
+                }}
+              >
+                Baixar planilha de exemplo ({banco === "vindi_transacoes" ? "Transações" : "Taxas"})
+              </button>
+            </div>
+          )}
+
           {validacao?.tipo === "ok" && (
             <div className="bg-green-50 border border-green-300 rounded-lg p-3 text-sm text-green-800 dark:bg-green-950/30 dark:border-green-700 dark:text-green-300">
               ✅ Fatura validada! {validacao.qtd} transações encontradas, total R$ {validacao.total.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}.
