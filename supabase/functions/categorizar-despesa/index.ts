@@ -16,12 +16,12 @@ serve(async (req) => {
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
 
     const body = await req.json();
-    const { action, items, categorias, pdf_base64 } = body;
+    const { action, items, categorias, pdf_base64, banco, valorTotalFatura } = body;
 
     if (action === "categorize") {
       return await handleCategorize(LOVABLE_API_KEY, items, categorias);
     } else if (action === "parse_pdf") {
-      return await handleParsePdf(LOVABLE_API_KEY, pdf_base64, categorias);
+      return await handleParsePdf(LOVABLE_API_KEY, pdf_base64, categorias, banco, valorTotalFatura);
     }
 
     return new Response(JSON.stringify({ error: "Unknown action" }), {
