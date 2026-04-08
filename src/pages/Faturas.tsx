@@ -11,10 +11,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { formatDateBR } from "@/lib/printUtils";
-import { CreditCard, ChevronDown, ChevronRight, DollarSign, Loader2, Plus, Pencil, Trash2, ShoppingCart } from "lucide-react";
+import { CreditCard, ChevronDown, ChevronRight, DollarSign, Loader2, Plus, Pencil, Trash2, ShoppingCart, CircleCheck, Clock } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
+import { buildPaidFaturaSet, getCardTransactionStatus, getCardStatusLabels } from "@/lib/cardStatusUtils";
 
 function formatCurrency(v: number | null | undefined) {
   if (v == null) return "R$ 0,00";
