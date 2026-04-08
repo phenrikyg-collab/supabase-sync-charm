@@ -944,8 +944,8 @@ export default function ImportarExtrato() {
                           onChange={(e) => setRows((prev) => prev.map((row, j) => j === i ? { ...row, selecionado: e.target.checked } : row))}
                         />
                       </TableCell>
-                      <TableCell className="text-muted-foreground whitespace-nowrap">{r.data}</TableCell>
-                      <TableCell className="text-muted-foreground whitespace-nowrap">{r.data_vencimento || "—"}</TableCell>
+                      <TableCell className="text-muted-foreground whitespace-nowrap">{formatarData(r.data)}</TableCell>
+                      <TableCell className="text-muted-foreground whitespace-nowrap">{formatarData(r.data_vencimento)}</TableCell>
                       <TableCell className="max-w-xs truncate">{r.descricao}</TableCell>
                       <TableCell>
                         <Badge variant={r.tipo === "entrada" ? "default" : "secondary"}>
