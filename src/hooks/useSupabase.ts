@@ -8,22 +8,48 @@ import type {
   ResumoProducaoAndamento, ResumoEstoqueTecidos, ExpedicaoStatus, Conserto, CustoFixoOficina,
 } from "@/types/database";
 
-async function fetchTable<T>(table: string, options?: { 
+const DEFAULT_PAGE_SIZE = 1000;
+
+async function fetchTable<T>(table: string, options?: {
   orderBy?: string; ascending?: boolean; filters?: Record<string, any>; limit?: number;
 }): Promise<T[]> {
-  let query = supabase.from(table).select("*");
-  if (options?.filters) {
-    Object.entries(options.filters).forEach(([key, value]) => {
-      query = query.eq(key, value);
-    });
+  const buildQuery = () => {
+    let query = supabase.from(table).select("*");
+
+    if (options?.filters) {
+      Object.entries(options.filters).forEach(([key, value]) => {
+        query = query.eq(key, value);
+      });
+    }
+
+    if (options?.orderBy) {
+      query = query.order(options.orderBy, { ascending: options.ascending ?? false });
+    }
+
+    return query;
+  };
+
+  if (options?.limit) {
+    const { data, error } = await buildQuery().limit(options.limit);
+    if (error) throw error;
+    return data as T[];
   }
-  if (options?.orderBy) {
-    query = query.order(options.orderBy, { ascending: options.ascending ?? false });
+
+  const allRows: T[] = [];
+  let from = 0;
+
+  while (true) {
+    const { data, error } = await buildQuery().range(from, from + DEFAULT_PAGE_SIZE - 1);
+    if (error) throw error;
+
+    const batch = (data ?? []) as T[];
+    allRows.push(...batch);
+
+    if (batch.length < DEFAULT_PAGE_SIZE) break;
+    from += DEFAULT_PAGE_SIZE;
   }
-  if (options?.limit) query = query.limit(options.limit);
-  const { data, error } = await query;
-  if (error) throw error;
-  return data as T[];
+
+  return allRows;
 }
 
 // Dashboard
