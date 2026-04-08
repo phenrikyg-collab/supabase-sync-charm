@@ -44,6 +44,7 @@ export default function Financeiro() {
   const [filtroCentro, setFiltroCentro] = useState("todos");
   const [filtroOrigem, setFiltroOrigem] = useState("todos");
   const [filtroStatus, setFiltroStatus] = useState("todos");
+  const [filtroDescCategoria, setFiltroDescCategoria] = useState("todos");
   const [filtroPeriodo, setFiltroPeriodo] = useState(() => format(new Date(), "yyyy-MM"));
   const [editingMov, setEditingMov] = useState<any | null>(null);
   const [catComboOpen, setCatComboOpen] = useState(false);
