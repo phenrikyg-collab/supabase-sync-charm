@@ -9,6 +9,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { toast } from "sonner";
 import { Upload, Sparkles, Check, Loader2, FileText, ChevronsUpDown } from "lucide-react";
+import * as XLSX from "xlsx";
 import { supabase } from "@/integrations/supabase/client";
 import { useCategorias, useCartoesCredito } from "@/hooks/useSupabase";
 import { invokeEdgeFunction } from "@/lib/edgeFunctions";
@@ -126,6 +127,48 @@ function parseCSVSafra(text: string): ParsedRow[] {
   return rows;
 }
 
+function parseExcelFile(buffer: ArrayBuffer): ParsedRow[] {
+  const wb = XLSX.read(buffer, { type: "array" });
+  const ws = wb.Sheets[wb.SheetNames[0]];
+  const jsonRows = XLSX.utils.sheet_to_json<Record<string, any>>(ws, { defval: "" });
+  const rows: ParsedRow[] = [];
+
+  for (const row of jsonRows) {
+    const vals = Object.values(row).map((v) => String(v ?? "").trim());
+    if (vals.length < 2) continue;
+    const dateCandidate = vals[0];
+    if (!/\d/.test(dateCandidate)) continue;
+    if (dateCandidate.toLowerCase().includes("data")) continue;
+
+    const data = parseDate(dateCandidate);
+    const descricao = vals[1] || "Sem descrição";
+    let valor = 0;
+    for (let i = vals.length - 1; i >= 1; i--) {
+      const cleaned = vals[i].replace(/[R$\s.]/g, "").replace(",", ".");
+      const num = parseFloat(cleaned);
+      if (!isNaN(num) && num !== 0) { valor = num; break; }
+    }
+    if (!data || valor === 0) continue;
+
+    const parcela = detectParcela(descricao);
+    rows.push({
+      data,
+      data_vencimento: null,
+      descricao,
+      valor: Math.abs(valor),
+      tipo: valor < 0 ? "saida" : "entrada",
+      categoria_id: null,
+      categoria_sugerida: null,
+      frequencia: null,
+      parcela_atual: parcela?.atual ?? null,
+      parcela_total: parcela?.total ?? null,
+      selecionado: true,
+    });
+  }
+  return rows;
+}
+
+
 function formatCurrency(v: number) {
   return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v);
 }
@@ -234,6 +277,16 @@ export default function ImportarExtrato() {
       setRows(parsed);
       const parcelados = parsed.filter((r) => r.parcela_total);
       toast.success(`${parsed.length} lançamentos importados${parcelados.length > 0 ? ` (${parcelados.length} parcelados detectados)` : ""}`);
+    } else if (file.name.endsWith(".xlsx") || file.name.endsWith(".xls")) {
+      const buffer = await file.arrayBuffer();
+      const parsed = parseExcelFile(buffer);
+      if (parsed.length === 0) {
+        toast.error("Nenhum lançamento encontrado na planilha. Verifique o formato.");
+        return;
+      }
+      setRows(parsed);
+      const parcelados = parsed.filter((r) => r.parcela_total);
+      toast.success(`${parsed.length} lançamentos importados${parcelados.length > 0 ? ` (${parcelados.length} parcelados detectados)` : ""}`);
     } else if (file.name.endsWith(".pdf")) {
       toast.info("Processando PDF... A IA irá extrair os lançamentos.");
       const reader = new FileReader();
@@ -295,7 +348,7 @@ export default function ImportarExtrato() {
       };
       reader.readAsDataURL(file);
     } else {
-      toast.error("Formato não suportado. Use CSV ou PDF.");
+      toast.error("Formato não suportado. Use CSV, Excel (.xlsx) ou PDF.");
     }
   }, [categorias]);
 
@@ -638,8 +691,8 @@ export default function ImportarExtrato() {
               </>
             )}
             <div className="flex-1 min-w-[200px]">
-              <label className="text-sm font-medium text-foreground mb-1 block">Arquivo CSV ou PDF</label>
-              <Input type="file" accept=".csv,.txt,.pdf" onChange={handleFile} />
+              <label className="text-sm font-medium text-foreground mb-1 block">Arquivo CSV, Excel ou PDF</label>
+              <Input type="file" accept=".csv,.txt,.xlsx,.xls,.pdf" onChange={handleFile} />
             </div>
           </div>
 
