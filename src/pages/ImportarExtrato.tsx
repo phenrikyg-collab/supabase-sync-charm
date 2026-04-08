@@ -153,13 +153,14 @@ function parseCSVSafra(text: string): ParsedRow[] {
 }
 
 function parseExcelFile(buffer: ArrayBuffer): ParsedRow[] {
-  const wb = XLSX.read(buffer, { type: "array" });
+  const wb = XLSX.read(buffer, { type: "array", cellDates: true });
   const ws = wb.Sheets[wb.SheetNames[0]];
   const jsonRows = XLSX.utils.sheet_to_json<Record<string, any>>(ws, { defval: "" });
   const rows: ParsedRow[] = [];
 
   for (const row of jsonRows) {
-    const vals = Object.values(row).map((v) => String(v ?? "").trim());
+    const rawVals = Object.values(row);
+    const vals = rawVals.map((v) => String(v ?? "").trim());
     if (vals.length < 2) continue;
     const dateCandidate = vals[0];
     if (!/\d/.test(dateCandidate)) continue;
@@ -168,10 +169,16 @@ function parseExcelFile(buffer: ArrayBuffer): ParsedRow[] {
     const data = parseDate(dateCandidate);
     const descricao = vals[1] || "Sem descrição";
     let valor = 0;
-    for (let i = vals.length - 1; i >= 1; i--) {
-      const cleaned = vals[i].replace(/[R$\s.]/g, "").replace(",", ".");
-      const num = parseFloat(cleaned);
-      if (!isNaN(num) && num !== 0) { valor = num; break; }
+    for (let i = rawVals.length - 1; i >= 1; i--) {
+      const raw = rawVals[i];
+      // If it's already a number from Excel, use it directly
+      if (typeof raw === "number" && raw !== 0 && Number.isFinite(raw)) {
+        valor = raw;
+        break;
+      }
+      // Otherwise try to parse as Brazilian formatted string
+      const num = converterValorBR(String(raw));
+      if (num !== 0) { valor = num; break; }
     }
     if (!data || valor === 0) continue;
 
@@ -193,28 +200,53 @@ function parseExcelFile(buffer: ArrayBuffer): ParsedRow[] {
   return rows;
 }
 
+function excelDateToString(val: any): string {
+  if (val instanceof Date) {
+    const d = val;
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  }
+  if (typeof val === "number" && val > 30000 && val < 60000) {
+    // Excel serial date number
+    const d = new Date((val - 25569) * 86400000);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  }
+  return converterDataCSV(String(val ?? "").trim());
+}
+
 function parseExcelSafra(buffer: ArrayBuffer): ParsedRow[] {
-  const wb = XLSX.read(buffer, { type: "array" });
+  const wb = XLSX.read(buffer, { type: "array", cellDates: true });
   const ws = wb.Sheets[wb.SheetNames[0]];
   const jsonRows = XLSX.utils.sheet_to_json<Record<string, any>>(ws, { defval: "", header: 1 }) as any[][];
   const rows: ParsedRow[] = [];
 
-  for (let i = 0; i < jsonRows.length; i++) {
+  // Find header row to skip it
+  let startIdx = 0;
+  for (let i = 0; i < Math.min(jsonRows.length, 10); i++) {
+    const cols = jsonRows[i];
+    if (!cols) continue;
+    const firstCol = String(cols[0] ?? "").toLowerCase();
+    if (firstCol.includes("data") || firstCol.includes("pagamento") || firstCol.includes("date")) {
+      startIdx = i + 1;
+      break;
+    }
+  }
+
+  for (let i = startIdx; i < jsonRows.length; i++) {
     const cols = jsonRows[i];
     if (!cols || cols.length < 4) continue;
-    const colA = String(cols[0] ?? "").trim();
-    if (colA.toLowerCase().includes("data") || colA.toLowerCase().includes("pagamento")) continue;
-    if (!/\d/.test(colA)) continue;
+    
+    // Skip empty rows
+    if (!cols[0] && !cols[1] && !cols[2] && !cols[3]) continue;
 
-    const dataPagamento = converterDataCSV(colA); // Col A - Data Pagamento
-    const dataCompetencia = converterDataCSV(String(cols[1] ?? "").trim()); // Col B - Data competência
+    const dataPagamento = excelDateToString(cols[0]); // Col A - Data Pagamento
+    const dataCompetencia = excelDateToString(cols[1]); // Col B - Data competência
     const descricao = String(cols[2] ?? "").trim() || "Sem descrição"; // Col C - Favorecido/Beneficiário
     
-    // Col D - Valor (use converterValorExcel - NOT divided by 100)
+    // Col D - Valor (use converterValorExcel directly — values come as real numbers from Excel)
     const valor = converterValorExcel(cols[3]);
     if (valor === 0) continue;
 
-    if (!dataCompetencia) continue;
+    if (!dataCompetencia || !dataCompetencia.match(/^\d{4}-\d{2}-\d{2}$/)) continue;
 
     rows.push({
       data: dataCompetencia,
