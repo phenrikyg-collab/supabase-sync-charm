@@ -691,8 +691,8 @@ export default function ImportarExtrato() {
               </>
             )}
             <div className="flex-1 min-w-[200px]">
-              <label className="text-sm font-medium text-foreground mb-1 block">Arquivo CSV ou PDF</label>
-              <Input type="file" accept=".csv,.txt,.pdf" onChange={handleFile} />
+              <label className="text-sm font-medium text-foreground mb-1 block">Arquivo CSV, Excel ou PDF</label>
+              <Input type="file" accept=".csv,.txt,.xlsx,.xls,.pdf" onChange={handleFile} />
             </div>
           </div>
 
