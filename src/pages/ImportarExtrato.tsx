@@ -505,21 +505,44 @@ export default function ImportarExtrato() {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // Pre-lookup Vindi categories
+    // Pre-lookup Vindi categories with fallback
     let vindiPreCategoriaId: string | null = null;
     if (banco === "vindi_transacoes") {
-      const { data: cat } = await supabase
+      // Try descricao_categoria first, then nome_categoria as fallback
+      let { data: cat } = await supabase
         .from("categorias_financeiras")
         .select("id")
         .eq("descricao_categoria", "Venda de produtos")
+        .eq("grupo_dre", "RECEITAS")
         .maybeSingle();
+      if (!cat) {
+        const { data: fallback } = await supabase
+          .from("categorias_financeiras")
+          .select("id")
+          .eq("nome_categoria", "Receita com Vendas")
+          .eq("grupo_dre", "RECEITAS")
+          .limit(1)
+          .maybeSingle();
+        cat = fallback;
+      }
       vindiPreCategoriaId = cat?.id ?? null;
     } else if (banco === "vindi_taxas") {
-      const { data: cat } = await supabase
+      let { data: cat } = await supabase
         .from("categorias_financeiras")
         .select("id")
         .eq("descricao_categoria", "Taxa TrayPagamentos (Vindi)")
+        .eq("grupo_dre", "DEDUÇÕES SOBRE VENDAS")
         .maybeSingle();
+      if (!cat) {
+        const { data: fallback } = await supabase
+          .from("categorias_financeiras")
+          .select("id")
+          .eq("nome_categoria", "Taxas de Gateway")
+          .eq("grupo_dre", "DEDUÇÕES SOBRE VENDAS")
+          .limit(1)
+          .maybeSingle();
+        cat = fallback;
+      }
       vindiPreCategoriaId = cat?.id ?? null;
     }
 
