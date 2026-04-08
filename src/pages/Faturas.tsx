@@ -117,6 +117,8 @@ export default function Faturas() {
     return groups;
   }, [categorias]);
 
+  const paidFaturaIds = useMemo(() => buildPaidFaturaSet(movs), [movs]);
+
   const movsPorFatura = useMemo(() => {
     const map: Record<string, any[]> = {};
     movs.forEach((m: any) => {
