@@ -652,11 +652,13 @@ export default function ContasPagar() {
 
   const catMap = Object.fromEntries((categorias ?? []).map((c) => [c.id, c.descricao_categoria ?? c.nome_categoria]));
 
+  const paidFaturaIds = useMemo(() => buildPaidFaturaSet(movs ?? []), [movs]);
+
   const saidas = useMemo(() => {
     return (movs ?? [])
       .filter((m) => m.tipo === "saida")
-      .map((m) => ({ ...m, statusPagamento: getStatusPagamento(m) }));
-  }, [movs]);
+      .map((m) => ({ ...m, statusPagamento: getStatusPagamento(m, paidFaturaIds) }));
+  }, [movs, paidFaturaIds]);
 
   const filtered = useMemo(() => {
     return saidas.filter((m) => {
