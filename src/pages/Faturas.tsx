@@ -572,49 +572,75 @@ export default function Faturas() {
               <ShoppingCart className="h-4 w-4 mr-1" /> Nova Compra
             </Button>
           </div>
-          {/* KPIs */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <Card>
-              <CardContent className="pt-5 pb-4">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-xs font-medium text-muted-foreground uppercase">Total Faturas</span>
-                  <CreditCard className="h-4 w-4 text-primary" />
-                </div>
-                <p className="text-2xl font-bold">{faturas.length}</p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardContent className="pt-5 pb-4">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-xs font-medium text-muted-foreground uppercase">Saldo em Aberto</span>
-                  <DollarSign className="h-4 w-4 text-destructive" />
-                </div>
-                <p className="text-2xl font-bold text-destructive">{formatCurrency(totalAberto)}</p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardContent className="pt-5 pb-4">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-xs font-medium text-muted-foreground uppercase">Faturas Pagas</span>
-                  <CreditCard className="h-4 w-4 text-success" />
-                </div>
-                <p className="text-2xl font-bold text-success">{faturas.filter((f) => f.status === "paga").length}</p>
-              </CardContent>
-            </Card>
+
+          {/* Filtros */}
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="flex items-center gap-2">
+              <Label className="text-sm whitespace-nowrap">Mês:</Label>
+              <Select value={filtroMes} onValueChange={setFiltroMes}>
+                <SelectTrigger className="w-[160px]"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="todos">Todos os meses</SelectItem>
+                  {mesesDisponiveis.map((m) => (
+                    <SelectItem key={m} value={m}>{m}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex items-center gap-2">
+              <Label className="text-sm whitespace-nowrap">Cartão:</Label>
+              <Select value={filtroCartao} onValueChange={setFiltroCartao}>
+                <SelectTrigger className="w-[180px]"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="todos">Todos os cartões</SelectItem>
+                  {uniqueCardNames.map((n) => (
+                    <SelectItem key={n} value={n}>{n}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
 
-          {/* Filter */}
-          <div className="flex items-center gap-3">
-            <Label className="text-sm">Filtrar por cartão:</Label>
-            <Select value={filtroCartao} onValueChange={setFiltroCartao}>
-              <SelectTrigger className="w-[200px]"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="todos">Todos os cartões</SelectItem>
-                {uniqueCardNames.map((n) => (
-                  <SelectItem key={n} value={n}>{n}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+          {/* KPIs */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <Card>
+              <CardContent className="pt-5 pb-4">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs font-medium text-muted-foreground uppercase">Total Faturado</span>
+                  <CreditCard className="h-4 w-4 text-primary" />
+                </div>
+                <p className="text-2xl font-bold">{formatCurrency(kpiFaturas.totalFaturado)}</p>
+                <p className="text-xs text-muted-foreground mt-1">{kpiFaturas.total} fatura(s)</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="pt-5 pb-4">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs font-medium text-muted-foreground uppercase">Em Aberto</span>
+                  <DollarSign className="h-4 w-4 text-destructive" />
+                </div>
+                <p className="text-2xl font-bold text-destructive">{formatCurrency(kpiFaturas.totalAberto)}</p>
+                <p className="text-xs text-muted-foreground mt-1">{kpiFaturas.abertas} fatura(s)</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="pt-5 pb-4">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs font-medium text-muted-foreground uppercase">Pagas</span>
+                  <CircleCheck className="h-4 w-4 text-primary" />
+                </div>
+                <p className="text-2xl font-bold text-primary">{kpiFaturas.pagas}</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="pt-5 pb-4">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs font-medium text-muted-foreground uppercase">Abertas</span>
+                  <Clock className="h-4 w-4 text-muted-foreground" />
+                </div>
+                <p className="text-2xl font-bold">{kpiFaturas.abertas}</p>
+              </CardContent>
+            </Card>
           </div>
 
           {/* Faturas list */}
