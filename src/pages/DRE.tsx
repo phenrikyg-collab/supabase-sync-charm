@@ -40,6 +40,23 @@ const FAIXA_SIGN: Record<string, "+" | "-" | "±"> = {
   "IMPOSTOS DIRETOS": "-",
 };
 
+// Normalize DB grupo_dre values to standard FAIXA_ORDER names
+function normalizeFaixa(grupoDre: string): string {
+  const upper = grupoDre.toUpperCase().trim();
+  // Direct match
+  if (FAIXA_ORDER.includes(upper)) return upper;
+  // Map known DB variants
+  const FAIXA_MAP: Record<string, string> = {
+    "CUSTOS FIXOS": "DESPESAS",
+    "CUSTOS VARIÁVEIS": "CUSTOS VARIÁVEIS",
+    "DEDUÇÕES SOBRE VENDAS": "DEDUÇÕES SOBRE VENDAS",
+    "RECEITAS": "RECEITAS",
+    "RESULTADO NÃO OPERACIONAL": "RESULTADO NÃO OPERACIONAL",
+    "IMPOSTOS DIRETOS": "IMPOSTOS DIRETOS",
+  };
+  return FAIXA_MAP[upper] || "";
+}
+
 interface CatInfo {
   id: string;
   grupoDre: string;
