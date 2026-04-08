@@ -164,6 +164,11 @@ export default function ImportacaoLancamentos({ onImportar }: Props) {
   const [cartaoNome, setCartaoNome] = useState("");
   const [faturaVencimento, setFaturaVencimento] = useState("");
 
+  // New fields
+  const [bancoCartao, setBancoCartao] = useState("");
+  const [valorTotalFatura, setValorTotalFatura] = useState("");
+  const [validacao, setValidacao] = useState<{ tipo: "ok" | "divergente"; qtd: number; total: number; divergencia?: number; valorInformado?: number } | null>(null);
+
   const getDadosCartao = (): DadosCartao | undefined => {
     if (!isCartao) return undefined;
     return { cartaoNome, faturaVencimento };
