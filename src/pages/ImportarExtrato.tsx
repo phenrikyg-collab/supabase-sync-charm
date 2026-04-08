@@ -694,6 +694,26 @@ export default function ImportarExtrato() {
         );
       } else {
         // Non-card: normal flow
+        // For Vindi, lookup fixed categories
+        let vindiCategoriaId: string | null = null;
+        if (banco === "vindi_transacoes") {
+          const { data: cat } = await supabase
+            .from("categorias_financeiras")
+            .select("id")
+            .eq("descricao_categoria", "Venda de produtos")
+            .maybeSingle();
+          vindiCategoriaId = cat?.id ?? null;
+        } else if (banco === "vindi_taxas") {
+          const { data: cat } = await supabase
+            .from("categorias_financeiras")
+            .select("id")
+            .eq("descricao_categoria", "Taxa TrayPagamentos (Vindi)")
+            .maybeSingle();
+          vindiCategoriaId = cat?.id ?? null;
+        }
+
+        const isVindi = banco === "vindi_transacoes" || banco === "vindi_taxas";
+
         const inserts = selecionados.map((r) => {
           const valor = normalizeNumberForDb(r.valor);
           const data = normalizeDateForDb(r.data);
@@ -705,10 +725,12 @@ export default function ImportarExtrato() {
             descricao: r.descricao,
             valor,
             tipo: r.tipo,
-            categoria_id: r.categoria_id || null,
-            origem: `extrato_${banco}`,
+            categoria_id: r.categoria_id || vindiCategoriaId || null,
+            origem: isVindi ? (banco === "vindi_transacoes" ? "vindi_transacoes" : "vindi_taxas") : `extrato_${banco}`,
             status_pagamento: "pago",
             frequencia: r.frequencia || null,
+            impacta_dre: true,
+            impacta_fluxo: true,
           };
         }).filter(Boolean);
 
