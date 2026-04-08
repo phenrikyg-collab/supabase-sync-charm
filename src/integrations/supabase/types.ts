@@ -783,6 +783,44 @@ export type Database = {
         }
         Relationships: []
       }
+      orcamentos: {
+        Row: {
+          ano: number
+          categoria_id: string
+          created_at: string
+          id: string
+          mes: number
+          updated_at: string
+          valor_orcado: number
+        }
+        Insert: {
+          ano: number
+          categoria_id: string
+          created_at?: string
+          id?: string
+          mes: number
+          updated_at?: string
+          valor_orcado?: number
+        }
+        Update: {
+          ano?: number
+          categoria_id?: string
+          created_at?: string
+          id?: string
+          mes?: number
+          updated_at?: string
+          valor_orcado?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "orcamentos_categoria_id_fkey"
+            columns: ["categoria_id"]
+            isOneToOne: false
+            referencedRelation: "categorias_financeiras"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ordens_corte: {
         Row: {
           created_at: string | null
