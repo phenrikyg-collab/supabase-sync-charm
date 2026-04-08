@@ -264,12 +264,31 @@ function parseExcelSafra(buffer: ArrayBuffer): ParsedRow[] {
   }
   return rows;
 }
+function parseCSVLine(line: string): string[] {
+  const result: string[] = [];
+  let current = "";
+  let inQuotes = false;
+  for (let j = 0; j < line.length; j++) {
+    const ch = line[j];
+    if (ch === '"') {
+      inQuotes = !inQuotes;
+    } else if (ch === ',' && !inQuotes) {
+      result.push(current.trim());
+      current = "";
+    } else {
+      current += ch;
+    }
+  }
+  result.push(current.trim());
+  return result;
+}
+
 function parseVindiTransacoes(text: string): ParsedRow[] {
   const lines = text.split("\n").filter((l) => l.trim());
   const rows: ParsedRow[] = [];
 
   for (let i = 0; i < lines.length; i++) {
-    const cols = lines[i].split(",").map((c) => c.trim().replace(/^"|"$/g, ""));
+    const cols = parseCSVLine(lines[i]);
     if (i === 0 && cols[0]?.toLowerCase().includes("data")) continue;
     if (cols.length < 5) continue;
     if (!/\d/.test(cols[0])) continue;
@@ -303,7 +322,7 @@ function parseVindiTaxas(text: string): ParsedRow[] {
   const rows: ParsedRow[] = [];
 
   for (let i = 0; i < lines.length; i++) {
-    const cols = lines[i].split(",").map((c) => c.trim().replace(/^"|"$/g, ""));
+    const cols = parseCSVLine(lines[i]);
     if (i === 0 && cols[0]?.toLowerCase().includes("data")) continue;
     if (cols.length < 6) continue;
     if (!/\d/.test(cols[0])) continue;
