@@ -330,6 +330,8 @@ export default function Financeiro() {
             <SelectItem value="todos">Todos</SelectItem>
             <SelectItem value="pago">Pago</SelectItem>
             <SelectItem value="em_aberto">Em Aberto</SelectItem>
+            <SelectItem value="aguardando_fatura">Aguardando fatura</SelectItem>
+            <SelectItem value="fatura_vencida">Fatura vencida</SelectItem>
           </SelectContent>
         </Select>
       </div>
