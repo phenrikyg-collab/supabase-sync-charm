@@ -333,7 +333,7 @@ export default function Financeiro() {
         )}
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3">
         <Select value={filtroPeriodo} onValueChange={setFiltroPeriodo}>
           <SelectTrigger><SelectValue placeholder="Período" /></SelectTrigger>
           <SelectContent>
@@ -357,6 +357,13 @@ export default function Financeiro() {
           <SelectContent>
             <SelectItem value="todos">Todas</SelectItem>
             {categorias?.map((c) => <SelectItem key={c.id} value={c.id}>{c.nome_categoria}</SelectItem>)}
+          </SelectContent>
+        </Select>
+        <Select value={filtroDescCategoria} onValueChange={setFiltroDescCategoria}>
+          <SelectTrigger><SelectValue placeholder="Desc. Categoria" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="todos">Todas Desc. Categorias</SelectItem>
+            {descCategoriasUnicas.map((d) => <SelectItem key={d} value={d}>{d}</SelectItem>)}
           </SelectContent>
         </Select>
         <Select value={filtroCentro} onValueChange={setFiltroCentro}>
