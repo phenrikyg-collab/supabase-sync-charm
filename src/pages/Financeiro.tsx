@@ -39,6 +39,7 @@ export default function Financeiro() {
   const queryClient = useQueryClient();
 
   const [filtroTipo, setFiltroTipo] = useState("todos");
+  const [filtroBusca, setFiltroBusca] = useState("");
   const [filtroCategoria, setFiltroCategoria] = useState("todos");
   const [filtroCentro, setFiltroCentro] = useState("todos");
   const [filtroOrigem, setFiltroOrigem] = useState("todos");
