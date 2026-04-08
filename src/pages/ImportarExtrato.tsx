@@ -883,6 +883,35 @@ export default function ImportarExtrato() {
 
   const toggleAll = (v: boolean) => setRows((prev) => prev.map((r) => ({ ...r, selecionado: v })));
 
+  const handleSort = (field: "data" | "descricao") => {
+    if (sortField === field) {
+      setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    } else {
+      setSortField(field);
+      setSortDir("asc");
+    }
+  };
+
+  const sortedRows = useMemo(() => {
+    if (!sortField) return rows.map((r, i) => ({ ...r, _idx: i }));
+    const sorted = rows.map((r, i) => ({ ...r, _idx: i })).sort((a, b) => {
+      const va = sortField === "data" ? a.data : a.descricao.toLowerCase();
+      const vb = sortField === "data" ? b.data : b.descricao.toLowerCase();
+      if (va < vb) return sortDir === "asc" ? -1 : 1;
+      if (va > vb) return sortDir === "asc" ? 1 : -1;
+      return 0;
+    });
+    return sorted;
+  }, [rows, sortField, sortDir]);
+
+  const aplicarCategoriaEmMassa = (catId: string | null) => {
+    setRows((prev) =>
+      prev.map((r) => r.selecionado ? { ...r, categoria_id: catId } : r)
+    );
+    setBulkCategoryOpen(false);
+    toast.success("Categoria aplicada aos selecionados!");
+  };
+
   const categoriasDropdown = useMemo(() => {
     const agrupadas = new Map<string, { id: string; label: string }[]>();
     const vistos = new Set<string>();
