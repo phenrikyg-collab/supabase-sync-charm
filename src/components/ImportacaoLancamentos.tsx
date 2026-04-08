@@ -398,6 +398,20 @@ export default function ImportacaoLancamentos({ onImportar }: Props) {
           </div>
         )}
 
+        {validacao?.tipo === "ok" && (
+          <div className="bg-green-50 border border-green-300 rounded-lg p-3 text-sm text-green-800 dark:bg-green-950/30 dark:border-green-700 dark:text-green-300">
+            ✅ Fatura validada! {validacao.qtd} transações encontradas, total R$ {validacao.total.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}.
+          </div>
+        )}
+
+        {validacao?.tipo === "divergente" && (
+          <div className="bg-yellow-50 border border-yellow-300 rounded-lg p-3 text-sm text-yellow-800 dark:bg-yellow-950/30 dark:border-yellow-700 dark:text-yellow-300">
+            ⚠️ Atenção: foram encontradas {validacao.qtd} transações somando R$ {validacao.total.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}.
+            Divergência de R$ {validacao.divergencia!.toLocaleString("pt-BR", { minimumFractionDigits: 2 })} em relação ao valor informado (R$ {validacao.valorInformado!.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}).
+            Revise os lançamentos antes de salvar.
+          </div>
+        )}
+
         {erro && (
           <div className="bg-destructive/10 border border-destructive/30 rounded-lg p-3 text-sm text-destructive">
             ⚠️ {erro}
