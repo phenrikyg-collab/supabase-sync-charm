@@ -128,8 +128,39 @@ Retorne EXATAMENTE um array JSON com objetos {categoria_id, categoria_nome} para
   });
 }
 
-async function handleParsePdf(apiKey: string, pdf_base64: string, categorias: any[]) {
+async function handleParsePdf(apiKey: string, pdf_base64: string, categorias: any[], banco?: string, valorTotalFatura?: number) {
   const catList = categorias?.map((c: any) => `- ID: ${c.id} | Nome: ${c.nome} | Grupo: ${c.grupo_dre || "N/A"}`).join("\n") || "Nenhuma categoria cadastrada";
+
+  // Bank-specific instructions for better accuracy
+  const bancoInstructions: Record<string, string> = {
+    nubank: `Este é um extrato do Nubank. O layout típico apresenta:
+- Transações listadas com data, descrição e valor
+- Valores negativos são despesas, positivos são estornos/cashback
+- Parcelamentos aparecem como "DESCRIÇÃO - Parcela X/Y"
+- Pagamentos de fatura e juros aparecem separadamente
+- A data de vencimento geralmente aparece no topo como "Vencimento"`,
+    itau: `Este é um extrato do Itaú. O layout típico apresenta:
+- Transações com data, descrição e valor em colunas separadas
+- Compras parceladas aparecem como "DESCRIÇÃO PARC X/Y"
+- Pode conter seções separadas para compras nacionais e internacionais
+- A data de vencimento aparece no cabeçalho da fatura`,
+    cora: `Este é um extrato da Cora. O layout típico apresenta:
+- Transações com data, descrição e valor
+- É um banco digital voltado para PJ
+- Despesas e receitas separadas por seção`,
+    sicredi: `Este é um extrato do Sicredi. O layout típico apresenta:
+- Transações com data, descrição e valor
+- Compras parceladas no formato "DESCRIÇÃO PARCELA X DE Y"
+- Pode conter encargos financeiros e IOF em seção separada`,
+  };
+
+  const bancoContext = banco && bancoInstructions[banco]
+    ? `\n\nINFORMAÇÕES DO BANCO:\n${bancoInstructions[banco]}`
+    : "";
+
+  const valorContext = valorTotalFatura
+    ? `\n\nVALOR TOTAL INFORMADO PELO USUÁRIO: R$ ${valorTotalFatura.toFixed(2)}. Certifique-se de extrair TODAS as transações para que o total bata com este valor.`
+    : "";
 
   const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
     method: "POST",
@@ -150,6 +181,7 @@ async function handleParsePdf(apiKey: string, pdf_base64: string, categorias: an
             {
               type: "text",
               text: `Extraia todos os lançamentos deste extrato/fatura PDF. Para cada lançamento identifique data, descrição, valor e sugira a categoria mais adequada.
+${bancoContext}${valorContext}
 
 IMPORTANTE: Extraia também a data de vencimento da fatura (geralmente indicada como "Vencimento", "Data de Vencimento" ou "Due Date"). Essa data deve ser retornada no campo "data_vencimento" de cada transação (todas as transações de uma mesma fatura compartilham o mesmo vencimento).
 
