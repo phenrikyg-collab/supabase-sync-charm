@@ -1,5 +1,6 @@
 import { useState, useMemo } from "react";
 import { useMovimentacoesFinanceiras, useCategorias, useCentrosCusto, useCreateMovimentacao, useUpdateMovimentacao } from "@/hooks/useSupabase";
+import { buildPaidFaturaSet, getCardTransactionStatus } from "@/lib/cardStatusUtils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -26,15 +27,24 @@ function formatCurrency(v: number | null | undefined) {
   return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v);
 }
 
-function getStatusPagamento(mov: { data: string; tipo: string | null; status_pagamento: string | null; status_bling: string | null }) {
+function getStatusPagamento(mov: { data: string; data_vencimento?: string | null; tipo: string | null; status_pagamento: string | null; status_bling: string | null; origem?: string | null; conta_tipo?: string | null; fatura_id?: string | null }, paidFaturaIds: Set<string>) {
+  // 1. Check card transaction status first
+  const cardStatus = getCardTransactionStatus(mov, paidFaturaIds);
+  if (cardStatus === "pago") return "pago";
+  if (cardStatus === "aguardando_fatura") return "pendente";
+  if (cardStatus === "fatura_vencida") return "vencido";
+
+  // 2. Respect the database status_pagamento field (same as Transações)
   if (mov.status_pagamento === "pago" || mov.status_bling === "pago") return "pago";
   if (mov.tipo === "entrada") return "recebido";
+
+  // 3. Use data_vencimento if available, fallback to data
   const hoje = new Date();
-  const dataMov = parseISO(mov.data);
-  if (isBefore(dataMov, hoje)) return "vencido";
+  const dataRef = mov.data_vencimento ? parseISO(mov.data_vencimento) : parseISO(mov.data);
+  if (isBefore(dataRef, hoje)) return "vencido";
   const em7dias = new Date(hoje);
   em7dias.setDate(hoje.getDate() + 7);
-  if (isBefore(dataMov, em7dias)) return "proximo";
+  if (isBefore(dataRef, em7dias)) return "proximo";
   return "pendente";
 }
 
@@ -642,11 +652,13 @@ export default function ContasPagar() {
 
   const catMap = Object.fromEntries((categorias ?? []).map((c) => [c.id, c.descricao_categoria ?? c.nome_categoria]));
 
+  const paidFaturaIds = useMemo(() => buildPaidFaturaSet(movs ?? []), [movs]);
+
   const saidas = useMemo(() => {
     return (movs ?? [])
       .filter((m) => m.tipo === "saida")
-      .map((m) => ({ ...m, statusPagamento: getStatusPagamento(m) }));
-  }, [movs]);
+      .map((m) => ({ ...m, statusPagamento: getStatusPagamento(m, paidFaturaIds) }));
+  }, [movs, paidFaturaIds]);
 
   const filtered = useMemo(() => {
     return saidas.filter((m) => {
