@@ -1210,7 +1210,7 @@ export default function ImportarExtrato() {
                       <TableCell>
                         <Select
                           value={r.frequencia || "unica"}
-                          onValueChange={(v) => setRows((prev) => prev.map((row, j) => j === i ? { ...row, frequencia: v === "unica" ? null : v } : row))}
+                          onValueChange={(v) => setRows((prev) => prev.map((row, j) => j === idx ? { ...row, frequencia: v === "unica" ? null : v } : row))}
                         >
                           <SelectTrigger className="h-8 text-xs w-[110px]">
                             <SelectValue />
@@ -1226,7 +1226,8 @@ export default function ImportarExtrato() {
                         {r.tipo === "saida" ? "-" : ""}{formatCurrency(r.valor)}
                       </TableCell>
                     </TableRow>
-                  ))}
+                    );
+                  })}
                 </TableBody>
               </Table>
             </CardContent>
