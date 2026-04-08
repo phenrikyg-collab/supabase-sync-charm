@@ -5,6 +5,7 @@ import { findCategoriaByDescricao } from "@/lib/categoriaMappings";
 import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import * as XLSX from "xlsx";
 
 interface LancamentoImportado {
@@ -163,6 +164,11 @@ export default function ImportacaoLancamentos({ onImportar }: Props) {
   const [cartaoNome, setCartaoNome] = useState("");
   const [faturaVencimento, setFaturaVencimento] = useState("");
 
+  // New fields
+  const [bancoCartao, setBancoCartao] = useState("");
+  const [valorTotalFatura, setValorTotalFatura] = useState("");
+  const [validacao, setValidacao] = useState<{ tipo: "ok" | "divergente"; qtd: number; total: number; divergencia?: number; valorInformado?: number } | null>(null);
+
   const getDadosCartao = (): DadosCartao | undefined => {
     if (!isCartao) return undefined;
     return { cartaoNome, faturaVencimento };
@@ -234,6 +240,7 @@ export default function ImportacaoLancamentos({ onImportar }: Props) {
     const file = e.target.files?.[0];
     if (!file) return;
     setErro(null);
+    setValidacao(null);
     if (!validarCartao()) return;
 
     setProcessando(true);
@@ -245,10 +252,14 @@ export default function ImportacaoLancamentos({ onImportar }: Props) {
         reader.readAsDataURL(file);
       });
 
+      const valorFaturaNum = valorTotalFatura ? parseSafeNumber(valorTotalFatura) : null;
+
       const data = await invokeEdgeFunction("categorizar-despesa", {
         action: "parse_pdf",
         pdf_base64: base64,
         categorias: categorias?.map((c) => ({ id: c.id, nome: c.nome_categoria, grupo_dre: c.grupo_dre })),
+        banco: bancoCartao || undefined,
+        valorTotalFatura: Number.isFinite(valorFaturaNum) ? valorFaturaNum : undefined,
       });
 
       if (!data?.rows?.length) throw new Error("Nenhuma transação encontrada no PDF");
@@ -260,6 +271,17 @@ export default function ImportacaoLancamentos({ onImportar }: Props) {
         data_vencimento: t.data_vencimento || null,
         categoria: t.categoria_sugerida ? { nome: t.categoria_sugerida, id: t.categoria_id } : undefined,
       }));
+
+      // Validação do valor total
+      if (Number.isFinite(valorFaturaNum) && valorFaturaNum! > 0) {
+        const totalExtraido = lancamentos.reduce((s, l) => s + l.valor, 0);
+        const divergencia = Math.abs(totalExtraido - valorFaturaNum!);
+        if (divergencia < 0.01) {
+          setValidacao({ tipo: "ok", qtd: lancamentos.length, total: totalExtraido });
+        } else {
+          setValidacao({ tipo: "divergente", qtd: lancamentos.length, total: totalExtraido, divergencia, valorInformado: valorFaturaNum! });
+        }
+      }
 
       onImportar(lancamentos, getDadosCartao());
     } catch (err: any) {
@@ -300,6 +322,20 @@ export default function ImportacaoLancamentos({ onImportar }: Props) {
                 />
               </div>
               <div>
+                <Label htmlFor="banco-cartao" className="text-xs text-muted-foreground">Banco do cartão</Label>
+                <Select value={bancoCartao} onValueChange={setBancoCartao}>
+                  <SelectTrigger className="mt-1">
+                    <SelectValue placeholder="Selecione o banco" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="nubank">Nubank</SelectItem>
+                    <SelectItem value="itau">Itaú</SelectItem>
+                    <SelectItem value="cora">Cora</SelectItem>
+                    <SelectItem value="outro">Outro</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
                 <Label htmlFor="fatura-venc" className="text-xs text-muted-foreground">Vencimento da Fatura *</Label>
                 <Input
                   id="fatura-venc"
@@ -308,6 +344,19 @@ export default function ImportacaoLancamentos({ onImportar }: Props) {
                   onChange={(e) => setFaturaVencimento(e.target.value)}
                   className="mt-1"
                 />
+              </div>
+              <div>
+                <Label htmlFor="valor-total-fatura" className="text-xs text-muted-foreground">Valor total da fatura (R$)</Label>
+                <Input
+                  id="valor-total-fatura"
+                  type="text"
+                  inputMode="decimal"
+                  placeholder="Ex: 1.250,00"
+                  value={valorTotalFatura}
+                  onChange={(e) => setValorTotalFatura(e.target.value)}
+                  className="mt-1"
+                />
+                <p className="text-xs text-muted-foreground mt-1">Informe o valor total para validação automática das transações</p>
               </div>
             </div>
           )}
@@ -346,6 +395,20 @@ export default function ImportacaoLancamentos({ onImportar }: Props) {
             <p className="text-xs text-muted-foreground">
               Arquivo com colunas: <code className="bg-muted px-1 rounded">descricao, valor, data</code>
             </p>
+          </div>
+        )}
+
+        {validacao?.tipo === "ok" && (
+          <div className="bg-green-50 border border-green-300 rounded-lg p-3 text-sm text-green-800 dark:bg-green-950/30 dark:border-green-700 dark:text-green-300">
+            ✅ Fatura validada! {validacao.qtd} transações encontradas, total R$ {validacao.total.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}.
+          </div>
+        )}
+
+        {validacao?.tipo === "divergente" && (
+          <div className="bg-yellow-50 border border-yellow-300 rounded-lg p-3 text-sm text-yellow-800 dark:bg-yellow-950/30 dark:border-yellow-700 dark:text-yellow-300">
+            ⚠️ Atenção: foram encontradas {validacao.qtd} transações somando R$ {validacao.total.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}.
+            Divergência de R$ {validacao.divergencia!.toLocaleString("pt-BR", { minimumFractionDigits: 2 })} em relação ao valor informado (R$ {validacao.valorInformado!.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}).
+            Revise os lançamentos antes de salvar.
           </div>
         )}
 
