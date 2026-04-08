@@ -90,12 +90,35 @@ export default function Financeiro() {
 
   const paidFaturaIds = useMemo(() => buildPaidFaturaSet(movs ?? []), [movs]);
 
+  const descCategoriasUnicas = useMemo(() => {
+    const descs = new Set<string>();
+    (categorias ?? []).forEach((c: any) => {
+      if (c.descricao_categoria) descs.add(c.descricao_categoria);
+    });
+    return Array.from(descs).sort((a, b) => a.localeCompare(b, "pt-BR"));
+  }, [categorias]);
+
+  const descCatToIds = useMemo(() => {
+    const map: Record<string, Set<string>> = {};
+    (categorias ?? []).forEach((c: any) => {
+      if (c.descricao_categoria) {
+        if (!map[c.descricao_categoria]) map[c.descricao_categoria] = new Set();
+        map[c.descricao_categoria].add(c.id);
+      }
+    });
+    return map;
+  }, [categorias]);
+
   const filtered = useMemo(() => {
     const busca = filtroBusca.toLowerCase().trim();
     return (movs ?? []).filter((m) => {
       if (filtroPeriodo !== "todos" && m.data && !m.data.startsWith(filtroPeriodo)) return false;
       if (filtroTipo !== "todos" && m.tipo !== filtroTipo) return false;
       if (filtroCategoria !== "todos" && m.categoria_id !== filtroCategoria) return false;
+      if (filtroDescCategoria !== "todos") {
+        const ids = descCatToIds[filtroDescCategoria];
+        if (!ids || !m.categoria_id || !ids.has(m.categoria_id)) return false;
+      }
       if (filtroCentro !== "todos" && m.centro_custo_id !== filtroCentro) return false;
       if (filtroOrigem !== "todos" && m.origem !== filtroOrigem) return false;
       if (filtroStatus !== "todos" && (m.status_pagamento ?? "em_aberto") !== filtroStatus) return false;
@@ -108,7 +131,7 @@ export default function Financeiro() {
       }
       return true;
     });
-  }, [movs, filtroPeriodo, filtroTipo, filtroCategoria, filtroCentro, filtroOrigem, filtroStatus, filtroBusca, catMap]);
+  }, [movs, filtroPeriodo, filtroTipo, filtroCategoria, filtroDescCategoria, filtroCentro, filtroOrigem, filtroStatus, filtroBusca, catMap, descCatToIds]);
 
   const origens = [...new Set(movs?.map((m) => m.origem).filter(Boolean) ?? [])];
   const tipos = [...new Set(movs?.map((m) => m.tipo).filter(Boolean) ?? [])];
