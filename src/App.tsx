@@ -37,6 +37,7 @@ import TVInterna from "./pages/TVInterna";
 import AdminTVInterna from "./pages/AdminTVInterna";
 import Bonificacao from "./pages/Bonificacao";
 import ContentCalendar from "./pages/ContentCalendar";
+import OrcamentoPage from "./pages/OrcamentoPage";
 import { Loader2 } from "lucide-react";
 
 const queryClient = new QueryClient({
@@ -105,6 +106,7 @@ const AppRoutes = () => {
               <Route path="/importar" element={<ImportarPage />} />
               <Route path="/metas" element={<Metas />} />
               <Route path="/admin/usuarios" element={<AdminUsuarios />} />
+              <Route path="/orcamento" element={<OrcamentoPage />} />
               <Route path="/admin/tv-interna" element={<AdminTVInterna />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
