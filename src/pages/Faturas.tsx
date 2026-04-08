@@ -95,8 +95,9 @@ export default function Faturas() {
   const [editTxOriginalValor, setEditTxOriginalValor] = useState(0);
   const [salvandoEditTx, setSalvandoEditTx] = useState(false);
 
-  // Filter by card
+  // Filter by card and month
   const [filtroCartao, setFiltroCartao] = useState<string>("todos");
+  const [filtroMes, setFiltroMes] = useState<string>("todos");
 
   const catMap = useMemo(() => {
     const m: Record<string, { nome: string; grupoDre: string }> = {};
