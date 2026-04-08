@@ -238,24 +238,21 @@ function parseVindiTransacoes(text: string): ParsedRow[] {
 
   for (let i = 0; i < lines.length; i++) {
     const cols = lines[i].split(",").map((c) => c.trim().replace(/^"|"$/g, ""));
-    // Skip header
     if (i === 0 && cols[0]?.toLowerCase().includes("data")) continue;
     if (cols.length < 5) continue;
     if (!/\d/.test(cols[0])) continue;
 
-    const dataTransacao = parseDate(cols[0]); // Data da Transação
-    const cliente = cols[2] || "Sem descrição"; // Cliente
-    // Valor Pago: remove "R$ " and convert comma to dot
-    const valorStr = cols[3].replace(/R\$\s*/g, "").replace(/\./g, "").replace(",", ".");
-    const valor = parseFloat(valorStr);
-    const dataCredito = parseDate(cols[4]); // Data Credito
+    const dataTransacao = converterDataCSV(cols[0]);
+    const cliente = cols[2] || "Sem descrição";
+    const valor = converterValorBR(cols[3]);
+    const dataCredito = converterDataCSV(cols[4]);
 
-    if (!dataTransacao || isNaN(valor) || valor === 0) continue;
+    if (!dataTransacao || valor === 0) continue;
 
     rows.push({
       data: dataTransacao,
       data_vencimento: dataCredito || null,
-      descricao: cliente,
+      descricao: `Venda de Produtos - ${cliente}`,
       valor: Math.abs(valor),
       tipo: "entrada",
       categoria_id: null,
@@ -275,24 +272,21 @@ function parseVindiTaxas(text: string): ParsedRow[] {
 
   for (let i = 0; i < lines.length; i++) {
     const cols = lines[i].split(",").map((c) => c.trim().replace(/^"|"$/g, ""));
-    // Skip header
     if (i === 0 && cols[0]?.toLowerCase().includes("data")) continue;
     if (cols.length < 6) continue;
     if (!/\d/.test(cols[0])) continue;
 
-    const dataTransacao = parseDate(cols[0]); // Data da Transação
-    const cliente = cols[3] || ""; // Cliente
-    // Taxa: remove "-R$ " and convert comma to dot
-    const taxaStr = cols[4].replace(/-?R\$\s*/g, "").replace(/\./g, "").replace(",", ".");
-    const valor = parseFloat(taxaStr);
-    const dataDebito = parseDate(cols[5]); // Data Débito
+    const dataTransacao = converterDataCSV(cols[0]);
+    const cliente = cols[3] || "";
+    const valor = converterValorBR(cols[4]);
+    const dataDebito = converterDataCSV(cols[5]);
 
-    if (!dataTransacao || isNaN(valor) || valor === 0) continue;
+    if (!dataTransacao || valor === 0) continue;
 
     rows.push({
       data: dataTransacao,
       data_vencimento: dataDebito || null,
-      descricao: `Taxa Vindi - ${cliente}`.trim(),
+      descricao: `Taxa TrayPagamentos (Vindi) - ${cliente}`.trim(),
       valor: Math.abs(valor),
       tipo: "saida",
       categoria_id: null,
@@ -305,7 +299,6 @@ function parseVindiTaxas(text: string): ParsedRow[] {
   }
   return rows;
 }
-
 
 function formatCurrency(v: number) {
   return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v);
