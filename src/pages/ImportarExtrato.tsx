@@ -271,6 +271,20 @@ export default function ImportarExtrato() {
                 selecionado: true,
               };
             }));
+
+            // Validation
+            if (Number.isFinite(valorFaturaNum) && valorFaturaNum! > 0) {
+              const totalExtraido = data.rows.reduce((s: number, r: any) => s + Math.abs(r.valor), 0);
+              const divergencia = Math.abs(totalExtraido - valorFaturaNum!);
+              if (divergencia < 0.01) {
+                setValidacao({ tipo: "ok", qtd: data.rows.length, total: totalExtraido });
+              } else {
+                setValidacao({ tipo: "divergente", qtd: data.rows.length, total: totalExtraido, divergencia, valorInformado: valorFaturaNum! });
+              }
+            } else {
+              setValidacao(null);
+            }
+
             toast.success(`${data.rows.length} lançamentos extraídos do PDF`);
           } else {
             toast.error("Não foi possível extrair lançamentos do PDF.");
