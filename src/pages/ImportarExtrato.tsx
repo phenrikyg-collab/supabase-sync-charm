@@ -1151,9 +1151,17 @@ export default function ImportarExtrato() {
                 <TableHeader>
                   <TableRow>
                     <TableHead className="w-10">✓</TableHead>
-                    <TableHead>Competência</TableHead>
+                    <TableHead>
+                      <Button variant="ghost" size="sm" className="h-auto p-0 font-medium gap-1" onClick={() => handleSort("data")}>
+                        Competência <ArrowUpDown className="h-3 w-3" />
+                      </Button>
+                    </TableHead>
                     <TableHead>Vencimento</TableHead>
-                    <TableHead>Descrição</TableHead>
+                    <TableHead>
+                      <Button variant="ghost" size="sm" className="h-auto p-0 font-medium gap-1" onClick={() => handleSort("descricao")}>
+                        Descrição <ArrowUpDown className="h-3 w-3" />
+                      </Button>
+                    </TableHead>
                     <TableHead>Tipo</TableHead>
                     {isCartao && <TableHead>Parcela</TableHead>}
                     <TableHead>Categoria</TableHead>
@@ -1162,13 +1170,15 @@ export default function ImportarExtrato() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {rows.map((r, i) => (
-                    <TableRow key={i} className={r.selecionado ? "" : "opacity-40"}>
+                  {sortedRows.map((r) => {
+                    const idx = r._idx;
+                    return (
+                    <TableRow key={idx} className={r.selecionado ? "" : "opacity-40"}>
                       <TableCell>
                         <input
                           type="checkbox"
                           checked={r.selecionado}
-                          onChange={(e) => setRows((prev) => prev.map((row, j) => j === i ? { ...row, selecionado: e.target.checked } : row))}
+                          onChange={(e) => setRows((prev) => prev.map((row, j) => j === idx ? { ...row, selecionado: e.target.checked } : row))}
                         />
                       </TableCell>
                       <TableCell className="text-muted-foreground whitespace-nowrap">{formatarData(r.data)}</TableCell>
@@ -1194,7 +1204,7 @@ export default function ImportarExtrato() {
                           catMap={catMap}
                           value={r.categoria_id}
                           sugerida={r.categoria_sugerida}
-                          onChange={(v) => setRows((prev) => prev.map((row, j) => j === i ? { ...row, categoria_id: v } : row))}
+                          onChange={(v) => setRows((prev) => prev.map((row, j) => j === idx ? { ...row, categoria_id: v } : row))}
                         />
                       </TableCell>
                       <TableCell>
