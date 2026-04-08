@@ -240,10 +240,19 @@ export default function ImportarExtrato() {
       reader.onload = async () => {
         const base64 = (reader.result as string).split(",")[1];
         try {
+          const parseSafeNum = (v: string) => {
+            const s = v.trim().replace(/[^\d.,-]/g, "");
+            const n = s.includes(",") && s.includes(".") ? s.replace(/\./g, "").replace(",", ".") : s.replace(",", ".");
+            return Number(n);
+          };
+          const valorFaturaNum = valorTotalFatura ? parseSafeNum(valorTotalFatura) : null;
+
           const data = await invokeEdgeFunction("categorizar-despesa", {
             action: "parse_pdf",
             pdf_base64: base64,
             categorias: categorias?.map((c) => ({ id: c.id, nome: c.nome_categoria, grupo_dre: c.grupo_dre })),
+            banco: bancoCartao || undefined,
+            valorTotalFatura: Number.isFinite(valorFaturaNum) ? valorFaturaNum : undefined,
           });
           if (data?.rows?.length > 0) {
             setRows(data.rows.map((r: any) => {
