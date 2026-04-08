@@ -322,6 +322,20 @@ export default function ImportacaoLancamentos({ onImportar }: Props) {
                 />
               </div>
               <div>
+                <Label htmlFor="banco-cartao" className="text-xs text-muted-foreground">Banco do cartão</Label>
+                <Select value={bancoCartao} onValueChange={setBancoCartao}>
+                  <SelectTrigger className="mt-1">
+                    <SelectValue placeholder="Selecione o banco" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="nubank">Nubank</SelectItem>
+                    <SelectItem value="itau">Itaú</SelectItem>
+                    <SelectItem value="cora">Cora</SelectItem>
+                    <SelectItem value="outro">Outro</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
                 <Label htmlFor="fatura-venc" className="text-xs text-muted-foreground">Vencimento da Fatura *</Label>
                 <Input
                   id="fatura-venc"
@@ -330,6 +344,19 @@ export default function ImportacaoLancamentos({ onImportar }: Props) {
                   onChange={(e) => setFaturaVencimento(e.target.value)}
                   className="mt-1"
                 />
+              </div>
+              <div>
+                <Label htmlFor="valor-total-fatura" className="text-xs text-muted-foreground">Valor total da fatura (R$)</Label>
+                <Input
+                  id="valor-total-fatura"
+                  type="text"
+                  inputMode="decimal"
+                  placeholder="Ex: 1.250,00"
+                  value={valorTotalFatura}
+                  onChange={(e) => setValorTotalFatura(e.target.value)}
+                  className="mt-1"
+                />
+                <p className="text-xs text-muted-foreground mt-1">Informe o valor total para validação automática das transações</p>
               </div>
             </div>
           )}
