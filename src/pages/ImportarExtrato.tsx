@@ -127,7 +127,48 @@ function parseCSVSafra(text: string): ParsedRow[] {
   return rows;
 }
 
-function formatCurrency(v: number) {
+function parseExcelFile(buffer: ArrayBuffer): ParsedRow[] {
+  const wb = XLSX.read(buffer, { type: "array" });
+  const ws = wb.Sheets[wb.SheetNames[0]];
+  const jsonRows = XLSX.utils.sheet_to_json<Record<string, any>>(ws, { defval: "" });
+  const rows: ParsedRow[] = [];
+
+  for (const row of jsonRows) {
+    const vals = Object.values(row).map((v) => String(v ?? "").trim());
+    if (vals.length < 2) continue;
+    const dateCandidate = vals[0];
+    if (!/\d/.test(dateCandidate)) continue;
+    if (dateCandidate.toLowerCase().includes("data")) continue;
+
+    const data = parseDate(dateCandidate);
+    const descricao = vals[1] || "Sem descrição";
+    let valor = 0;
+    for (let i = vals.length - 1; i >= 1; i--) {
+      const cleaned = vals[i].replace(/[R$\s.]/g, "").replace(",", ".");
+      const num = parseFloat(cleaned);
+      if (!isNaN(num) && num !== 0) { valor = num; break; }
+    }
+    if (!data || valor === 0) continue;
+
+    const parcela = detectParcela(descricao);
+    rows.push({
+      data,
+      data_vencimento: null,
+      descricao,
+      valor: Math.abs(valor),
+      tipo: valor < 0 ? "saida" : "entrada",
+      categoria_id: null,
+      categoria_sugerida: null,
+      frequencia: null,
+      parcela_atual: parcela?.atual ?? null,
+      parcela_total: parcela?.total ?? null,
+      selecionado: true,
+    });
+  }
+  return rows;
+}
+
+
   return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v);
 }
 
