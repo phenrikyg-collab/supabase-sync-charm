@@ -293,6 +293,22 @@ export default function Financeiro() {
         </div>
       </div>
 
+      {/* Search bar */}
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        <Input
+          placeholder="Buscar por descrição, categoria, cliente ou valor..."
+          value={filtroBusca}
+          onChange={(e) => { setFiltroBusca(e.target.value); setCurrentPage(1); }}
+          className="pl-9 pr-9"
+        />
+        {filtroBusca && (
+          <button onClick={() => setFiltroBusca("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
+            <X className="h-4 w-4" />
+          </button>
+        )}
+      </div>
+
       <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
         <Select value={filtroPeriodo} onValueChange={setFiltroPeriodo}>
           <SelectTrigger><SelectValue placeholder="Período" /></SelectTrigger>
