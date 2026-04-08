@@ -611,6 +611,30 @@ export default function ImportarExtrato() {
                   <label className="text-sm font-medium text-foreground mb-1 block">Vencimento da Fatura</label>
                   <Input type="date" value={faturaVencimento} onChange={(e) => setFaturaVencimento(e.target.value)} />
                 </div>
+                <div className="flex-1 min-w-[150px]">
+                  <label className="text-sm font-medium text-foreground mb-1 block">Banco do cartão</label>
+                  <Select value={bancoCartao} onValueChange={setBancoCartao}>
+                    <SelectTrigger><SelectValue placeholder="Selecione o banco" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="nubank">Nubank</SelectItem>
+                      <SelectItem value="itau">Itaú</SelectItem>
+                      <SelectItem value="cora">Cora</SelectItem>
+                      <SelectItem value="sicredi">Sicredi</SelectItem>
+                      <SelectItem value="outro">Outro</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex-1 min-w-[150px]">
+                  <label className="text-sm font-medium text-foreground mb-1 block">Valor total da fatura (R$)</label>
+                  <Input
+                    type="text"
+                    inputMode="decimal"
+                    placeholder="Ex: 1.250,00"
+                    value={valorTotalFatura}
+                    onChange={(e) => setValorTotalFatura(e.target.value)}
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">Para validação automática</p>
+                </div>
               </>
             )}
             <div className="flex-1 min-w-[200px]">
@@ -618,6 +642,20 @@ export default function ImportarExtrato() {
               <Input type="file" accept=".csv,.txt,.pdf" onChange={handleFile} />
             </div>
           </div>
+
+          {validacao?.tipo === "ok" && (
+            <div className="bg-green-50 border border-green-300 rounded-lg p-3 text-sm text-green-800 dark:bg-green-950/30 dark:border-green-700 dark:text-green-300">
+              ✅ Fatura validada! {validacao.qtd} transações encontradas, total R$ {validacao.total.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}.
+            </div>
+          )}
+
+          {validacao?.tipo === "divergente" && (
+            <div className="bg-yellow-50 border border-yellow-300 rounded-lg p-3 text-sm text-yellow-800 dark:bg-yellow-950/30 dark:border-yellow-700 dark:text-yellow-300">
+              ⚠️ Atenção: foram encontradas {validacao.qtd} transações somando R$ {validacao.total.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}.
+              Divergência de R$ {validacao.divergencia!.toLocaleString("pt-BR", { minimumFractionDigits: 2 })} em relação ao valor informado (R$ {validacao.valorInformado!.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}).
+              Revise os lançamentos antes de salvar.
+            </div>
+          )}
         </CardContent>
       </Card>
 
