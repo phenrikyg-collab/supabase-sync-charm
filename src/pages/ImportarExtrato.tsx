@@ -199,22 +199,20 @@ function parseExcelSafra(buffer: ArrayBuffer): ParsedRow[] {
   const jsonRows = XLSX.utils.sheet_to_json<Record<string, any>>(ws, { defval: "", header: 1 }) as any[][];
   const rows: ParsedRow[] = [];
 
-  // Skip header row(s)
   for (let i = 0; i < jsonRows.length; i++) {
-    const cols = jsonRows[i].map((v: any) => String(v ?? "").trim());
-    if (cols.length < 4) continue;
-    // Skip header
-    if (cols[0]?.toLowerCase().includes("data") || cols[0]?.toLowerCase().includes("pagamento")) continue;
-    if (!/\d/.test(cols[0])) continue;
+    const cols = jsonRows[i];
+    if (!cols || cols.length < 4) continue;
+    const colA = String(cols[0] ?? "").trim();
+    if (colA.toLowerCase().includes("data") || colA.toLowerCase().includes("pagamento")) continue;
+    if (!/\d/.test(colA)) continue;
 
-    const dataPagamento = parseDate(cols[0]); // Col A - Data Pagamento
-    const dataCompetencia = parseDate(cols[1]); // Col B - Data competência
-    const descricao = cols[2] || "Sem descrição"; // Col C - Favorecido/Beneficiário
+    const dataPagamento = converterDataCSV(colA); // Col A - Data Pagamento
+    const dataCompetencia = converterDataCSV(String(cols[1] ?? "").trim()); // Col B - Data competência
+    const descricao = String(cols[2] ?? "").trim() || "Sem descrição"; // Col C - Favorecido/Beneficiário
     
-    // Col D - Valor in centavos
-    const valorRaw = parseFloat(String(cols[3]).replace(/[^\d.-]/g, ""));
-    if (isNaN(valorRaw) || valorRaw === 0) continue;
-    const valor = Math.abs(valorRaw / 100);
+    // Col D - Valor (use converterValorExcel - NOT divided by 100)
+    const valor = converterValorExcel(cols[3]);
+    if (valor === 0) continue;
 
     if (!dataCompetencia) continue;
 
@@ -222,7 +220,7 @@ function parseExcelSafra(buffer: ArrayBuffer): ParsedRow[] {
       data: dataCompetencia,
       data_vencimento: dataPagamento || null,
       descricao,
-      valor,
+      valor: Math.abs(valor),
       tipo: "entrada",
       categoria_id: null,
       categoria_sugerida: null,
@@ -234,7 +232,6 @@ function parseExcelSafra(buffer: ArrayBuffer): ParsedRow[] {
   }
   return rows;
 }
-
 function parseVindiTransacoes(text: string): ParsedRow[] {
   const lines = text.split("\n").filter((l) => l.trim());
   const rows: ParsedRow[] = [];
