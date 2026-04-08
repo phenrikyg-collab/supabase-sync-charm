@@ -653,6 +653,7 @@ export default function Faturas() {
                               <Table>
                                 <TableHeader>
                                   <TableRow>
+                                    <TableHead>Status</TableHead>
                                     <TableHead>Descrição</TableHead>
                                     <TableHead>Parcela</TableHead>
                                     <TableHead>Categoria</TableHead>
@@ -663,27 +664,44 @@ export default function Faturas() {
                                 </TableHeader>
                                 <TableBody>
                                   {faturaMovs.length === 0 ? (
-                                    <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground">Nenhum item vinculado</TableCell></TableRow>
+                                    <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground">Nenhum item vinculado</TableCell></TableRow>
                                   ) : (
-                                    faturaMovs.map((m: any) => (
-                                      <TableRow key={m.id}>
-                                        <TableCell>{m.descricao ?? "—"}</TableCell>
-                                        <TableCell className="text-muted-foreground text-xs">{m.parcela_info || "—"}</TableCell>
-                                        <TableCell className="text-muted-foreground">{m.categoria_id ? catMap[m.categoria_id]?.nome ?? "—" : "—"}</TableCell>
-                                        <TableCell className="text-muted-foreground text-xs">{m.categoria_id ? catMap[m.categoria_id]?.grupoDre ?? "—" : "—"}</TableCell>
-                                        <TableCell className="text-right font-mono">{formatCurrency(m.valor)}</TableCell>
-                                        <TableCell className="text-right">
-                                          <div className="flex justify-end gap-0.5">
-                                            <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => openEditTx(m)}>
-                                              <Pencil className="h-3.5 w-3.5" />
-                                            </Button>
-                                            <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive" onClick={() => handleDeleteTx(m)}>
-                                              <Trash2 className="h-3.5 w-3.5" />
-                                            </Button>
-                                          </div>
-                                        </TableCell>
-                                      </TableRow>
-                                    ))
+                                    faturaMovs.map((m: any) => {
+                                      const cardStatus = getCardTransactionStatus(m, paidFaturaIds);
+                                      const labels = cardStatus ? getCardStatusLabels(cardStatus) : null;
+                                      return (
+                                        <TableRow key={m.id}>
+                                          <TableCell>
+                                            {labels ? (
+                                              labels.variant === "success" ? (
+                                                <Badge variant="default" className="gap-1 bg-green-600 text-white text-[10px]"><CircleCheck className="h-3 w-3" /> {labels.label}</Badge>
+                                              ) : labels.variant === "destructive" ? (
+                                                <Badge variant="destructive" className="gap-1 text-[10px]"><Clock className="h-3 w-3" /> {labels.label}</Badge>
+                                              ) : (
+                                                <Badge variant="outline" className="gap-1 border-warning/50 text-warning text-[10px]"><Clock className="h-3 w-3" /> {labels.label}</Badge>
+                                              )
+                                            ) : (
+                                              <Badge variant="outline" className="text-[10px]">—</Badge>
+                                            )}
+                                          </TableCell>
+                                          <TableCell>{m.descricao ?? "—"}</TableCell>
+                                          <TableCell className="text-muted-foreground text-xs">{m.parcela_info || "—"}</TableCell>
+                                          <TableCell className="text-muted-foreground">{m.categoria_id ? catMap[m.categoria_id]?.nome ?? "—" : "—"}</TableCell>
+                                          <TableCell className="text-muted-foreground text-xs">{m.categoria_id ? catMap[m.categoria_id]?.grupoDre ?? "—" : "—"}</TableCell>
+                                          <TableCell className="text-right font-mono">{formatCurrency(m.valor)}</TableCell>
+                                          <TableCell className="text-right">
+                                            <div className="flex justify-end gap-0.5">
+                                              <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => openEditTx(m)}>
+                                                <Pencil className="h-3.5 w-3.5" />
+                                              </Button>
+                                              <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive" onClick={() => handleDeleteTx(m)}>
+                                                <Trash2 className="h-3.5 w-3.5" />
+                                              </Button>
+                                            </div>
+                                          </TableCell>
+                                        </TableRow>
+                                      );
+                                    })
                                   )}
                                 </TableBody>
                               </Table>
