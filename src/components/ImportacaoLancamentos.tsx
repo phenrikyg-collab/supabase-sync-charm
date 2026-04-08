@@ -240,6 +240,7 @@ export default function ImportacaoLancamentos({ onImportar }: Props) {
     const file = e.target.files?.[0];
     if (!file) return;
     setErro(null);
+    setValidacao(null);
     if (!validarCartao()) return;
 
     setProcessando(true);
@@ -251,10 +252,14 @@ export default function ImportacaoLancamentos({ onImportar }: Props) {
         reader.readAsDataURL(file);
       });
 
+      const valorFaturaNum = valorTotalFatura ? parseSafeNumber(valorTotalFatura) : null;
+
       const data = await invokeEdgeFunction("categorizar-despesa", {
         action: "parse_pdf",
         pdf_base64: base64,
         categorias: categorias?.map((c) => ({ id: c.id, nome: c.nome_categoria, grupo_dre: c.grupo_dre })),
+        banco: bancoCartao || undefined,
+        valorTotalFatura: Number.isFinite(valorFaturaNum) ? valorFaturaNum : undefined,
       });
 
       if (!data?.rows?.length) throw new Error("Nenhuma transação encontrada no PDF");
@@ -266,6 +271,17 @@ export default function ImportacaoLancamentos({ onImportar }: Props) {
         data_vencimento: t.data_vencimento || null,
         categoria: t.categoria_sugerida ? { nome: t.categoria_sugerida, id: t.categoria_id } : undefined,
       }));
+
+      // Validação do valor total
+      if (Number.isFinite(valorFaturaNum) && valorFaturaNum! > 0) {
+        const totalExtraido = lancamentos.reduce((s, l) => s + l.valor, 0);
+        const divergencia = Math.abs(totalExtraido - valorFaturaNum!);
+        if (divergencia < 0.01) {
+          setValidacao({ tipo: "ok", qtd: lancamentos.length, total: totalExtraido });
+        } else {
+          setValidacao({ tipo: "divergente", qtd: lancamentos.length, total: totalExtraido, divergencia, valorInformado: valorFaturaNum! });
+        }
+      }
 
       onImportar(lancamentos, getDadosCartao());
     } catch (err: any) {
