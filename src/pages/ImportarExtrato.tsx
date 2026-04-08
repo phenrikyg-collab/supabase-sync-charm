@@ -1098,9 +1098,42 @@ export default function ImportarExtrato() {
                 </Badge>
               )}
             </div>
-            <div className="flex gap-2">
+            <div className="flex gap-2 flex-wrap">
               <Button variant="outline" size="sm" onClick={() => toggleAll(true)}>Selecionar Todos</Button>
               <Button variant="outline" size="sm" onClick={() => toggleAll(false)}>Desmarcar Todos</Button>
+              <Popover open={bulkCategoryOpen} onOpenChange={setBulkCategoryOpen}>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" size="sm" className="gap-1" disabled={!rows.some((r) => r.selecionado)}>
+                    <ChevronsUpDown className="h-3 w-3" />
+                    Categoria em massa
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-[260px] p-0" align="end">
+                  <Command>
+                    <CommandInput placeholder="Buscar categoria..." className="h-9" />
+                    <CommandList>
+                      <CommandEmpty>Nenhuma categoria encontrada.</CommandEmpty>
+                      <CommandItem onSelect={() => aplicarCategoriaEmMassa(null)}>
+                        Sem categoria
+                      </CommandItem>
+                      {categoriasDropdown.map(({ grupo, itens }) => (
+                        <CommandGroup key={grupo} heading={grupo}>
+                          {itens.map((item) => (
+                            <CommandItem
+                              key={item.id}
+                              value={`${grupo} ${item.label}`}
+                              onSelect={() => aplicarCategoriaEmMassa(item.id)}
+                              className="text-xs"
+                            >
+                              {item.label}
+                            </CommandItem>
+                          ))}
+                        </CommandGroup>
+                      ))}
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
               <Button onClick={categorizarComIA} disabled={isCategorizando} className="gap-2">
                 {isCategorizando ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
                 Categorizar com IA
