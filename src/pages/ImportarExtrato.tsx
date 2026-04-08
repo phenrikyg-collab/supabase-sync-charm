@@ -82,6 +82,31 @@ function converterValorExcel(valor: any): number {
   return converterValorBR(String(valor));
 }
 
+function normalizeHeader(value: string): string {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function detectDelimiter(line: string): ";" | "," {
+  const semicolons = (line.match(/;/g) || []).length;
+  const commas = (line.match(/,/g) || []).length;
+  return semicolons > commas ? ";" : ",";
+}
+
+function getValueFromHeader(row: string[], headerMap: Record<string, number>, aliases: string[]): string {
+  for (const alias of aliases) {
+    const idx = headerMap[normalizeHeader(alias)];
+    if (idx !== undefined) {
+      return String(row[idx] ?? "").trim();
+    }
+  }
+  return "";
+}
+
 function normalizeDateForDb(raw: string | null | undefined): string | null {
   if (!raw) return null;
   const value = raw.trim();
@@ -219,41 +244,52 @@ function parseExcelSafra(buffer: ArrayBuffer): ParsedRow[] {
   const jsonRows = XLSX.utils.sheet_to_json<Record<string, any>>(ws, { defval: "", header: 1 }) as any[][];
   const rows: ParsedRow[] = [];
 
-  // Find header row to skip it
-  let startIdx = 0;
+  let headerIndex = -1;
+  let headerMap: Record<string, number> = {};
+
   for (let i = 0; i < Math.min(jsonRows.length, 10); i++) {
-    const cols = jsonRows[i];
-    if (!cols) continue;
-    const firstCol = String(cols[0] ?? "").toLowerCase();
-    if (firstCol.includes("data") || firstCol.includes("pagamento") || firstCol.includes("date")) {
-      startIdx = i + 1;
+    const cols = jsonRows[i] ?? [];
+    const normalized = cols.map((col) => normalizeHeader(String(col ?? "")));
+    if (normalized.some((col) => col.includes("valor")) && normalized.some((col) => col.includes("data"))) {
+      headerIndex = i;
+      headerMap = Object.fromEntries(normalized.map((col, idx) => [col, idx]));
       break;
     }
   }
 
-  for (let i = startIdx; i < jsonRows.length; i++) {
-    const cols = jsonRows[i];
-    if (!cols || cols.length < 4) continue;
-    
-    // Skip empty rows
-    if (!cols[0] && !cols[1] && !cols[2] && !cols[3]) continue;
+  const isPagamentoLayout = Object.keys(headerMap).some((key) =>
+    key.includes("favorecido") || key.includes("beneficiario") || key.includes("data pagamento")
+  );
 
-    const dataPagamento = excelDateToString(cols[0]); // Col A - Data Pagamento
-    const dataCompetencia = excelDateToString(cols[1]); // Col B - Data competência
-    const descricao = String(cols[2] ?? "").trim() || "Sem descrição"; // Col C - Favorecido/Beneficiário
-    
-    // Col D - Valor (use converterValorExcel directly — values come as real numbers from Excel)
-    const valor = converterValorExcel(cols[3]);
-    if (valor === 0) continue;
+  for (let i = headerIndex >= 0 ? headerIndex + 1 : 0; i < jsonRows.length; i++) {
+    const cols = jsonRows[i] ?? [];
+    if (!cols.some((col) => String(col ?? "").trim() !== "")) continue;
 
-    if (!dataCompetencia || !dataCompetencia.match(/^\d{4}-\d{2}-\d{2}$/)) continue;
+    const rawDataPagamento = headerIndex >= 0
+      ? getValueFromHeader(cols.map((col) => String(col ?? "")), headerMap, ["Data pagamento", "Data Pagamento", "Data"])
+      : String(cols[0] ?? "");
+    const rawDataCompetencia = headerIndex >= 0
+      ? getValueFromHeader(cols.map((col) => String(col ?? "")), headerMap, ["Data competência", "Data Competencia", "Data pagamento", "Data Pagamento", "Data"])
+      : String(cols[1] ?? cols[0] ?? "");
+    const descricao = headerIndex >= 0
+      ? getValueFromHeader(cols.map((col) => String(col ?? "")), headerMap, ["Favorecido / Beneficiário", "Favorecido / Beneficiario", "Descrição", "Descricao"])
+      : String(cols[2] ?? cols[1] ?? "");
+    const valorBruto = headerIndex >= 0
+      ? cols[headerMap[normalizeHeader("Valor")]]
+      : cols[3] ?? cols[2];
+
+    const dataPagamento = excelDateToString(rawDataPagamento);
+    const dataCompetencia = excelDateToString(rawDataCompetencia || rawDataPagamento);
+    const valor = converterValorExcel(valorBruto);
+
+    if (!dataCompetencia.match(/^\d{4}-\d{2}-\d{2}$/) || valor === 0) continue;
 
     rows.push({
       data: dataCompetencia,
-      data_vencimento: dataPagamento || null,
-      descricao,
+      data_vencimento: (dataPagamento || dataCompetencia) || null,
+      descricao: String(descricao ?? "").trim() || "Sem descrição",
       valor: Math.abs(valor),
-      tipo: "entrada",
+      tipo: isPagamentoLayout ? "saida" : valor < 0 ? "saida" : "entrada",
       categoria_id: null,
       categoria_sugerida: null,
       frequencia: null,
@@ -262,17 +298,24 @@ function parseExcelSafra(buffer: ArrayBuffer): ParsedRow[] {
       selecionado: true,
     });
   }
+
   return rows;
 }
-function parseCSVLine(line: string): string[] {
+
+function parseCSVLine(line: string, delimiter: string): string[] {
   const result: string[] = [];
   let current = "";
   let inQuotes = false;
   for (let j = 0; j < line.length; j++) {
     const ch = line[j];
     if (ch === '"') {
-      inQuotes = !inQuotes;
-    } else if (ch === ',' && !inQuotes) {
+      if (inQuotes && line[j + 1] === '"') {
+        current += '"';
+        j++;
+      } else {
+        inQuotes = !inQuotes;
+      }
+    } else if (ch === delimiter && !inQuotes) {
       result.push(current.trim());
       current = "";
     } else {
@@ -284,26 +327,31 @@ function parseCSVLine(line: string): string[] {
 }
 
 function parseVindiTransacoes(text: string): ParsedRow[] {
-  const lines = text.split("\n").filter((l) => l.trim());
+  const lines = text.split(/\r?\n/).filter((l) => l.trim());
   const rows: ParsedRow[] = [];
+  if (lines.length === 0) return rows;
 
-  for (let i = 0; i < lines.length; i++) {
-    const cols = parseCSVLine(lines[i]);
-    if (i === 0 && cols[0]?.toLowerCase().includes("data")) continue;
-    if (cols.length < 5) continue;
-    if (!/\d/.test(cols[0])) continue;
+  const delimiter = detectDelimiter(lines[0]);
+  const header = parseCSVLine(lines[0], delimiter).map((col) => col.replace(/^"|"$/g, "").trim());
+  const headerMap = Object.fromEntries(header.map((col, idx) => [normalizeHeader(col), idx]));
 
-    const dataTransacao = converterDataCSV(cols[0]);
-    const cliente = cols[2] || "Sem descrição";
-    const valor = converterValorBR(cols[3]);
-    const dataCredito = converterDataCSV(cols[4]);
+  for (let i = 1; i < lines.length; i++) {
+    const cols = parseCSVLine(lines[i], delimiter).map((col) => col.replace(/^"|"$/g, "").trim());
+    if (!cols.some((col) => col)) continue;
+
+    const dataTransacao = converterDataCSV(
+      getValueFromHeader(cols, headerMap, ["Data da Transação", "Data Competência", "Data Competencia"])
+    );
+    const cliente = getValueFromHeader(cols, headerMap, ["Cliente"]);
+    const valor = converterValorBR(getValueFromHeader(cols, headerMap, ["Valor Pago"]));
+    const dataCredito = converterDataCSV(getValueFromHeader(cols, headerMap, ["Data Credito", "Data Crédito"]));
 
     if (!dataTransacao || valor === 0) continue;
 
     rows.push({
       data: dataTransacao,
       data_vencimento: dataCredito || null,
-      descricao: `Venda de Produtos - ${cliente}`,
+      descricao: cliente ? `Venda de Produtos - ${cliente}` : "Venda de Produtos - Vindi",
       valor: Math.abs(valor),
       tipo: "entrada",
       categoria_id: null,
@@ -318,26 +366,31 @@ function parseVindiTransacoes(text: string): ParsedRow[] {
 }
 
 function parseVindiTaxas(text: string): ParsedRow[] {
-  const lines = text.split("\n").filter((l) => l.trim());
+  const lines = text.split(/\r?\n/).filter((l) => l.trim());
   const rows: ParsedRow[] = [];
+  if (lines.length === 0) return rows;
 
-  for (let i = 0; i < lines.length; i++) {
-    const cols = parseCSVLine(lines[i]);
-    if (i === 0 && cols[0]?.toLowerCase().includes("data")) continue;
-    if (cols.length < 6) continue;
-    if (!/\d/.test(cols[0])) continue;
+  const delimiter = detectDelimiter(lines[0]);
+  const header = parseCSVLine(lines[0], delimiter).map((col) => col.replace(/^"|"$/g, "").trim());
+  const headerMap = Object.fromEntries(header.map((col, idx) => [normalizeHeader(col), idx]));
 
-    const dataTransacao = converterDataCSV(cols[0]);
-    const cliente = cols[3] || "";
-    const valor = converterValorBR(cols[4]);
-    const dataDebito = converterDataCSV(cols[5]);
+  for (let i = 1; i < lines.length; i++) {
+    const cols = parseCSVLine(lines[i], delimiter).map((col) => col.replace(/^"|"$/g, "").trim());
+    if (!cols.some((col) => col)) continue;
+
+    const dataTransacao = converterDataCSV(
+      getValueFromHeader(cols, headerMap, ["Data da Transação", "Data Competência", "Data Competencia"])
+    );
+    const cliente = getValueFromHeader(cols, headerMap, ["Cliente"]);
+    const valor = converterValorBR(getValueFromHeader(cols, headerMap, ["Taxa"]));
+    const dataDebito = converterDataCSV(getValueFromHeader(cols, headerMap, ["Data Débito", "Data Debito"]));
 
     if (!dataTransacao || valor === 0) continue;
 
     rows.push({
       data: dataTransacao,
       data_vencimento: dataDebito || null,
-      descricao: `Taxa TrayPagamentos (Vindi) - ${cliente}`.trim(),
+      descricao: cliente ? `Taxa TrayPagamentos (Vindi) - ${cliente}` : "Taxa TrayPagamentos (Vindi)",
       valor: Math.abs(valor),
       tipo: "saida",
       categoria_id: null,
@@ -929,16 +982,16 @@ export default function ImportarExtrato() {
                   let csv = "";
                   let filename = "";
                   if (banco === "vindi_transacoes") {
-                    csv = "Data da Transação,Horário,Cliente,Valor Pago,Data Credito\n" +
-                      "01/04/2026,10:30,Maria Silva,\"R$ 426,00\",05/04/2026\n" +
-                      "01/04/2026,14:15,João Santos,\"R$ 1.250,50\",05/04/2026\n" +
-                      "02/04/2026,09:00,Ana Costa,\"R$ 89,90\",06/04/2026\n";
+                    csv = "Data Competencia;Data Credito;Valor Pago\n" +
+                      "01/04/2026;05/04/2026;426,00\n" +
+                      "01/04/2026;05/04/2026;1250,50\n" +
+                      "02/04/2026;06/04/2026;89,90\n";
                     filename = "vindi_transacoes_exemplo.csv";
                   } else {
-                    csv = "Data da Transação,Horário,Número pedido,Cliente,Taxa,Data Débito\n" +
-                      "01/04/2026,10:30,12345,Maria Silva,\"-R$ 53,20\",05/04/2026\n" +
-                      "01/04/2026,14:15,12346,João Santos,\"-R$ 156,31\",05/04/2026\n" +
-                      "02/04/2026,09:00,12347,Ana Costa,\"-R$ 11,24\",06/04/2026\n";
+                    csv = "Data Competência;Data Débito;Taxa\n" +
+                      "01/04/2026;05/04/2026;-53,20\n" +
+                      "01/04/2026;05/04/2026;-156,31\n" +
+                      "02/04/2026;06/04/2026;-11,24\n";
                     filename = "vindi_taxas_exemplo.csv";
                   }
                   const blob = new Blob([csv], { type: "text/csv;charset=latin1" });
