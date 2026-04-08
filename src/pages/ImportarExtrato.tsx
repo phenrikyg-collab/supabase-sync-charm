@@ -911,15 +911,15 @@ export default function ImportarExtrato() {
                   let filename = "";
                   if (banco === "vindi_transacoes") {
                     csv = "Data da Transação,Horário,Cliente,Valor Pago,Data Credito\n" +
-                      "01/04/2026,10:30,Maria Silva,R$ 426.00,05/04/2026\n" +
-                      "01/04/2026,14:15,João Santos,R$ 1.250.50,05/04/2026\n" +
-                      "02/04/2026,09:00,Ana Costa,R$ 89.90,06/04/2026\n";
+                      "01/04/2026,10:30,Maria Silva,\"R$ 426,00\",05/04/2026\n" +
+                      "01/04/2026,14:15,João Santos,\"R$ 1.250,50\",05/04/2026\n" +
+                      "02/04/2026,09:00,Ana Costa,\"R$ 89,90\",06/04/2026\n";
                     filename = "vindi_transacoes_exemplo.csv";
                   } else {
                     csv = "Data da Transação,Horário,Número pedido,Cliente,Taxa,Data Débito\n" +
-                      "01/04/2026,10:30,12345,Maria Silva,-R$ 53.20,05/04/2026\n" +
-                      "01/04/2026,14:15,12346,João Santos,-R$ 156.31,05/04/2026\n" +
-                      "02/04/2026,09:00,12347,Ana Costa,-R$ 11.24,06/04/2026\n";
+                      "01/04/2026,10:30,12345,Maria Silva,\"-R$ 53,20\",05/04/2026\n" +
+                      "01/04/2026,14:15,12346,João Santos,\"-R$ 156,31\",05/04/2026\n" +
+                      "02/04/2026,09:00,12347,Ana Costa,\"-R$ 11,24\",06/04/2026\n";
                     filename = "vindi_taxas_exemplo.csv";
                   }
                   const blob = new Blob([csv], { type: "text/csv;charset=latin1" });
