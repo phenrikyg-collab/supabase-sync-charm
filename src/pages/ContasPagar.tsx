@@ -1,5 +1,6 @@
 import { useState, useMemo } from "react";
 import { useMovimentacoesFinanceiras, useCategorias, useCentrosCusto, useCreateMovimentacao, useUpdateMovimentacao } from "@/hooks/useSupabase";
+import { buildPaidFaturaSet, getCardTransactionStatus } from "@/lib/cardStatusUtils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
