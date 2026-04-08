@@ -15,6 +15,7 @@ import { useCategorias, useCartoesCredito } from "@/hooks/useSupabase";
 import { invokeEdgeFunction } from "@/lib/edgeFunctions";
 import { useQueryClient } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
+import { formatarData } from "@/utils/formatters";
 
 interface ParsedRow {
   data: string;
@@ -55,6 +56,30 @@ function parseDate(raw: string): string {
   }
   if (/^\d{4}-\d{2}-\d{2}/.test(raw.trim())) return raw.trim().substring(0, 10);
   return raw.trim();
+}
+
+function converterDataCSV(data: string): string {
+  if (!data) return "";
+  const trim = data.trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(trim)) return trim;
+  const [dia, mes, ano] = trim.split("/");
+  if (!dia || !mes || !ano) return trim;
+  return `${ano}-${mes.padStart(2, "0")}-${dia.padStart(2, "0")}`;
+}
+
+function converterValorBR(valor: string): number {
+  const limpo = valor
+    .replace(/R\$\s*/g, "")
+    .replace(/-/g, "")
+    .trim()
+    .replace(/\./g, "")
+    .replace(",", ".");
+  return parseFloat(limpo) || 0;
+}
+
+function converterValorExcel(valor: any): number {
+  if (typeof valor === "number") return valor;
+  return converterValorBR(String(valor));
 }
 
 function normalizeDateForDb(raw: string | null | undefined): string | null {
@@ -174,22 +199,20 @@ function parseExcelSafra(buffer: ArrayBuffer): ParsedRow[] {
   const jsonRows = XLSX.utils.sheet_to_json<Record<string, any>>(ws, { defval: "", header: 1 }) as any[][];
   const rows: ParsedRow[] = [];
 
-  // Skip header row(s)
   for (let i = 0; i < jsonRows.length; i++) {
-    const cols = jsonRows[i].map((v: any) => String(v ?? "").trim());
-    if (cols.length < 4) continue;
-    // Skip header
-    if (cols[0]?.toLowerCase().includes("data") || cols[0]?.toLowerCase().includes("pagamento")) continue;
-    if (!/\d/.test(cols[0])) continue;
+    const cols = jsonRows[i];
+    if (!cols || cols.length < 4) continue;
+    const colA = String(cols[0] ?? "").trim();
+    if (colA.toLowerCase().includes("data") || colA.toLowerCase().includes("pagamento")) continue;
+    if (!/\d/.test(colA)) continue;
 
-    const dataPagamento = parseDate(cols[0]); // Col A - Data Pagamento
-    const dataCompetencia = parseDate(cols[1]); // Col B - Data competência
-    const descricao = cols[2] || "Sem descrição"; // Col C - Favorecido/Beneficiário
+    const dataPagamento = converterDataCSV(colA); // Col A - Data Pagamento
+    const dataCompetencia = converterDataCSV(String(cols[1] ?? "").trim()); // Col B - Data competência
+    const descricao = String(cols[2] ?? "").trim() || "Sem descrição"; // Col C - Favorecido/Beneficiário
     
-    // Col D - Valor in centavos
-    const valorRaw = parseFloat(String(cols[3]).replace(/[^\d.-]/g, ""));
-    if (isNaN(valorRaw) || valorRaw === 0) continue;
-    const valor = Math.abs(valorRaw / 100);
+    // Col D - Valor (use converterValorExcel - NOT divided by 100)
+    const valor = converterValorExcel(cols[3]);
+    if (valor === 0) continue;
 
     if (!dataCompetencia) continue;
 
@@ -197,7 +220,7 @@ function parseExcelSafra(buffer: ArrayBuffer): ParsedRow[] {
       data: dataCompetencia,
       data_vencimento: dataPagamento || null,
       descricao,
-      valor,
+      valor: Math.abs(valor),
       tipo: "entrada",
       categoria_id: null,
       categoria_sugerida: null,
@@ -209,31 +232,27 @@ function parseExcelSafra(buffer: ArrayBuffer): ParsedRow[] {
   }
   return rows;
 }
-
 function parseVindiTransacoes(text: string): ParsedRow[] {
   const lines = text.split("\n").filter((l) => l.trim());
   const rows: ParsedRow[] = [];
 
   for (let i = 0; i < lines.length; i++) {
     const cols = lines[i].split(",").map((c) => c.trim().replace(/^"|"$/g, ""));
-    // Skip header
     if (i === 0 && cols[0]?.toLowerCase().includes("data")) continue;
     if (cols.length < 5) continue;
     if (!/\d/.test(cols[0])) continue;
 
-    const dataTransacao = parseDate(cols[0]); // Data da Transação
-    const cliente = cols[2] || "Sem descrição"; // Cliente
-    // Valor Pago: remove "R$ " and convert comma to dot
-    const valorStr = cols[3].replace(/R\$\s*/g, "").replace(/\./g, "").replace(",", ".");
-    const valor = parseFloat(valorStr);
-    const dataCredito = parseDate(cols[4]); // Data Credito
+    const dataTransacao = converterDataCSV(cols[0]);
+    const cliente = cols[2] || "Sem descrição";
+    const valor = converterValorBR(cols[3]);
+    const dataCredito = converterDataCSV(cols[4]);
 
-    if (!dataTransacao || isNaN(valor) || valor === 0) continue;
+    if (!dataTransacao || valor === 0) continue;
 
     rows.push({
       data: dataTransacao,
       data_vencimento: dataCredito || null,
-      descricao: cliente,
+      descricao: `Venda de Produtos - ${cliente}`,
       valor: Math.abs(valor),
       tipo: "entrada",
       categoria_id: null,
@@ -253,24 +272,21 @@ function parseVindiTaxas(text: string): ParsedRow[] {
 
   for (let i = 0; i < lines.length; i++) {
     const cols = lines[i].split(",").map((c) => c.trim().replace(/^"|"$/g, ""));
-    // Skip header
     if (i === 0 && cols[0]?.toLowerCase().includes("data")) continue;
     if (cols.length < 6) continue;
     if (!/\d/.test(cols[0])) continue;
 
-    const dataTransacao = parseDate(cols[0]); // Data da Transação
-    const cliente = cols[3] || ""; // Cliente
-    // Taxa: remove "-R$ " and convert comma to dot
-    const taxaStr = cols[4].replace(/-?R\$\s*/g, "").replace(/\./g, "").replace(",", ".");
-    const valor = parseFloat(taxaStr);
-    const dataDebito = parseDate(cols[5]); // Data Débito
+    const dataTransacao = converterDataCSV(cols[0]);
+    const cliente = cols[3] || "";
+    const valor = converterValorBR(cols[4]);
+    const dataDebito = converterDataCSV(cols[5]);
 
-    if (!dataTransacao || isNaN(valor) || valor === 0) continue;
+    if (!dataTransacao || valor === 0) continue;
 
     rows.push({
       data: dataTransacao,
       data_vencimento: dataDebito || null,
-      descricao: `Taxa Vindi - ${cliente}`.trim(),
+      descricao: `Taxa TrayPagamentos (Vindi) - ${cliente}`.trim(),
       valor: Math.abs(valor),
       tipo: "saida",
       categoria_id: null,
@@ -283,7 +299,6 @@ function parseVindiTaxas(text: string): ParsedRow[] {
   }
   return rows;
 }
-
 
 function formatCurrency(v: number) {
   return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v);
@@ -483,7 +498,7 @@ export default function ImportarExtrato() {
     } else {
       toast.error("Formato não suportado. Use CSV, Excel (.xlsx) ou PDF.");
     }
-  }, [categorias]);
+  }, [categorias, banco, bancoCartao, valorTotalFatura]);
 
   const categorizarComIA = async () => {
     if (rows.length === 0) return;
@@ -679,6 +694,26 @@ export default function ImportarExtrato() {
         );
       } else {
         // Non-card: normal flow
+        // For Vindi, lookup fixed categories
+        let vindiCategoriaId: string | null = null;
+        if (banco === "vindi_transacoes") {
+          const { data: cat } = await supabase
+            .from("categorias_financeiras")
+            .select("id")
+            .eq("descricao_categoria", "Venda de produtos")
+            .maybeSingle();
+          vindiCategoriaId = cat?.id ?? null;
+        } else if (banco === "vindi_taxas") {
+          const { data: cat } = await supabase
+            .from("categorias_financeiras")
+            .select("id")
+            .eq("descricao_categoria", "Taxa TrayPagamentos (Vindi)")
+            .maybeSingle();
+          vindiCategoriaId = cat?.id ?? null;
+        }
+
+        const isVindi = banco === "vindi_transacoes" || banco === "vindi_taxas";
+
         const inserts = selecionados.map((r) => {
           const valor = normalizeNumberForDb(r.valor);
           const data = normalizeDateForDb(r.data);
@@ -690,10 +725,12 @@ export default function ImportarExtrato() {
             descricao: r.descricao,
             valor,
             tipo: r.tipo,
-            categoria_id: r.categoria_id || null,
-            origem: `extrato_${banco}`,
+            categoria_id: r.categoria_id || vindiCategoriaId || null,
+            origem: isVindi ? (banco === "vindi_transacoes" ? "vindi_transacoes" : "vindi_taxas") : `extrato_${banco}`,
             status_pagamento: "pago",
             frequencia: r.frequencia || null,
+            impacta_dre: true,
+            impacta_fluxo: true,
           };
         }).filter(Boolean);
 
@@ -907,8 +944,8 @@ export default function ImportarExtrato() {
                           onChange={(e) => setRows((prev) => prev.map((row, j) => j === i ? { ...row, selecionado: e.target.checked } : row))}
                         />
                       </TableCell>
-                      <TableCell className="text-muted-foreground whitespace-nowrap">{r.data}</TableCell>
-                      <TableCell className="text-muted-foreground whitespace-nowrap">{r.data_vencimento || "—"}</TableCell>
+                      <TableCell className="text-muted-foreground whitespace-nowrap">{formatarData(r.data)}</TableCell>
+                      <TableCell className="text-muted-foreground whitespace-nowrap">{formatarData(r.data_vencimento)}</TableCell>
                       <TableCell className="max-w-xs truncate">{r.descricao}</TableCell>
                       <TableCell>
                         <Badge variant={r.tipo === "entrada" ? "default" : "secondary"}>
