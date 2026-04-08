@@ -548,6 +548,9 @@ export default function ImportarExtrato() {
         toast.error("Nenhum lançamento encontrado no arquivo. Verifique o formato.");
         return;
       }
+      if (vindiPreCategoriaId) {
+        parsed = parsed.map((r) => ({ ...r, categoria_id: vindiPreCategoriaId }));
+      }
       setRows(parsed);
       const parcelados = parsed.filter((r) => r.parcela_total);
       toast.success(`${parsed.length} lançamentos importados${parcelados.length > 0 ? ` (${parcelados.length} parcelados detectados)` : ""}`);
