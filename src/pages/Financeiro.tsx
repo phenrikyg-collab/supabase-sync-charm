@@ -18,6 +18,7 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
+import { buildPaidFaturaSet, getCardTransactionStatus, getCardStatusLabels } from "@/lib/cardStatusUtils";
 
 const ITEMS_PER_PAGE = 50;
 
@@ -450,9 +451,22 @@ export default function Financeiro() {
               </TableHeader>
               <TableBody>
                 {paginatedData.map((m) => {
-                  const isPago = (m.status_pagamento ?? "em_aberto") === "pago";
-                  const isVencido = !isPago && m.data_vencimento && new Date(m.data_vencimento + "T00:00:00") < new Date(new Date().toISOString().split("T")[0] + "T00:00:00");
+                  const cardStatus = getCardTransactionStatus(m as any, paidFaturaIds);
+                  const isPago = cardStatus ? cardStatus === "pago" : (m.status_pagamento ?? "em_aberto") === "pago";
+                  const isVencido = cardStatus ? cardStatus === "fatura_vencida" : (!isPago && m.data_vencimento && new Date(m.data_vencimento + "T00:00:00") < new Date(new Date().toISOString().split("T")[0] + "T00:00:00"));
                   const isSelected = selectedIds.has(m.id);
+
+                  const renderStatusBadge = () => {
+                    if (cardStatus) {
+                      const labels = getCardStatusLabels(cardStatus);
+                      if (labels.variant === "success") return <Badge variant="default" className="gap-1 bg-green-600 text-white"><CircleCheck className="h-3 w-3" /> {labels.label}</Badge>;
+                      if (labels.variant === "destructive") return <Badge variant="destructive" className="gap-1"><Clock className="h-3 w-3" /> {labels.label}</Badge>;
+                      return <Badge variant="outline" className="gap-1 border-warning/50 text-warning"><Clock className="h-3 w-3" /> {labels.label}</Badge>;
+                    }
+                    if (isPago) return <Badge variant="default" className="gap-1 bg-green-600 hover:bg-green-700 text-white cursor-pointer"><CircleCheck className="h-3 w-3" /> Pago</Badge>;
+                    return <Badge variant={isVencido ? "destructive" : "outline"} className="gap-1 cursor-pointer"><Clock className="h-3 w-3" /> {isVencido ? "Vencido" : "Em Aberto"}</Badge>;
+                  };
+
                   return (
                     <TableRow key={m.id} className={cn(isVencido && "bg-destructive/5", isSelected && "bg-accent/50")}>
                       <TableCell>
@@ -463,21 +477,17 @@ export default function Financeiro() {
                         />
                       </TableCell>
                       <TableCell>
-                        <button
-                          onClick={() => handleTogglePago(m)}
-                          className="flex items-center gap-1.5"
-                          title={isPago ? "Marcar como em aberto" : "Marcar como pago"}
-                        >
-                          {isPago ? (
-                            <Badge variant="default" className="gap-1 bg-green-600 hover:bg-green-700 text-white cursor-pointer">
-                              <CircleCheck className="h-3 w-3" /> Pago
-                            </Badge>
-                          ) : (
-                            <Badge variant={isVencido ? "destructive" : "outline"} className="gap-1 cursor-pointer">
-                              <Clock className="h-3 w-3" /> {isVencido ? "Vencido" : "Em Aberto"}
-                            </Badge>
-                          )}
-                        </button>
+                        {cardStatus ? (
+                          <span className="flex items-center gap-1.5">{renderStatusBadge()}</span>
+                        ) : (
+                          <button
+                            onClick={() => handleTogglePago(m)}
+                            className="flex items-center gap-1.5"
+                            title={isPago ? "Marcar como em aberto" : "Marcar como pago"}
+                          >
+                            {renderStatusBadge()}
+                          </button>
+                        )}
                       </TableCell>
                       <TableCell className="text-muted-foreground whitespace-nowrap">{formatDateBR(m.data)}</TableCell>
                       <TableCell className="text-muted-foreground whitespace-nowrap">
