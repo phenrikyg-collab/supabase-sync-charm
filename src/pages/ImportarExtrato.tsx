@@ -168,6 +168,122 @@ function parseExcelFile(buffer: ArrayBuffer): ParsedRow[] {
   return rows;
 }
 
+function parseExcelSafra(buffer: ArrayBuffer): ParsedRow[] {
+  const wb = XLSX.read(buffer, { type: "array" });
+  const ws = wb.Sheets[wb.SheetNames[0]];
+  const jsonRows = XLSX.utils.sheet_to_json<Record<string, any>>(ws, { defval: "", header: 1 }) as any[][];
+  const rows: ParsedRow[] = [];
+
+  // Skip header row(s)
+  for (let i = 0; i < jsonRows.length; i++) {
+    const cols = jsonRows[i].map((v: any) => String(v ?? "").trim());
+    if (cols.length < 4) continue;
+    // Skip header
+    if (cols[0]?.toLowerCase().includes("data") || cols[0]?.toLowerCase().includes("pagamento")) continue;
+    if (!/\d/.test(cols[0])) continue;
+
+    const dataPagamento = parseDate(cols[0]); // Col A - Data Pagamento
+    const dataCompetencia = parseDate(cols[1]); // Col B - Data competência
+    const descricao = cols[2] || "Sem descrição"; // Col C - Favorecido/Beneficiário
+    
+    // Col D - Valor in centavos
+    const valorRaw = parseFloat(String(cols[3]).replace(/[^\d.-]/g, ""));
+    if (isNaN(valorRaw) || valorRaw === 0) continue;
+    const valor = Math.abs(valorRaw / 100);
+
+    if (!dataCompetencia) continue;
+
+    rows.push({
+      data: dataCompetencia,
+      data_vencimento: dataPagamento || null,
+      descricao,
+      valor,
+      tipo: "entrada",
+      categoria_id: null,
+      categoria_sugerida: null,
+      frequencia: null,
+      parcela_atual: null,
+      parcela_total: null,
+      selecionado: true,
+    });
+  }
+  return rows;
+}
+
+function parseVindiTransacoes(text: string): ParsedRow[] {
+  const lines = text.split("\n").filter((l) => l.trim());
+  const rows: ParsedRow[] = [];
+
+  for (let i = 0; i < lines.length; i++) {
+    const cols = lines[i].split(",").map((c) => c.trim().replace(/^"|"$/g, ""));
+    // Skip header
+    if (i === 0 && cols[0]?.toLowerCase().includes("data")) continue;
+    if (cols.length < 5) continue;
+    if (!/\d/.test(cols[0])) continue;
+
+    const dataTransacao = parseDate(cols[0]); // Data da Transação
+    const cliente = cols[2] || "Sem descrição"; // Cliente
+    // Valor Pago: remove "R$ " and convert comma to dot
+    const valorStr = cols[3].replace(/R\$\s*/g, "").replace(/\./g, "").replace(",", ".");
+    const valor = parseFloat(valorStr);
+    const dataCredito = parseDate(cols[4]); // Data Credito
+
+    if (!dataTransacao || isNaN(valor) || valor === 0) continue;
+
+    rows.push({
+      data: dataTransacao,
+      data_vencimento: dataCredito || null,
+      descricao: cliente,
+      valor: Math.abs(valor),
+      tipo: "entrada",
+      categoria_id: null,
+      categoria_sugerida: null,
+      frequencia: null,
+      parcela_atual: null,
+      parcela_total: null,
+      selecionado: true,
+    });
+  }
+  return rows;
+}
+
+function parseVindiTaxas(text: string): ParsedRow[] {
+  const lines = text.split("\n").filter((l) => l.trim());
+  const rows: ParsedRow[] = [];
+
+  for (let i = 0; i < lines.length; i++) {
+    const cols = lines[i].split(",").map((c) => c.trim().replace(/^"|"$/g, ""));
+    // Skip header
+    if (i === 0 && cols[0]?.toLowerCase().includes("data")) continue;
+    if (cols.length < 6) continue;
+    if (!/\d/.test(cols[0])) continue;
+
+    const dataTransacao = parseDate(cols[0]); // Data da Transação
+    const cliente = cols[3] || ""; // Cliente
+    // Taxa: remove "-R$ " and convert comma to dot
+    const taxaStr = cols[4].replace(/-?R\$\s*/g, "").replace(/\./g, "").replace(",", ".");
+    const valor = parseFloat(taxaStr);
+    const dataDebito = parseDate(cols[5]); // Data Débito
+
+    if (!dataTransacao || isNaN(valor) || valor === 0) continue;
+
+    rows.push({
+      data: dataTransacao,
+      data_vencimento: dataDebito || null,
+      descricao: `Taxa Vindi - ${cliente}`.trim(),
+      valor: Math.abs(valor),
+      tipo: "saida",
+      categoria_id: null,
+      categoria_sugerida: null,
+      frequencia: null,
+      parcela_atual: null,
+      parcela_total: null,
+      selecionado: true,
+    });
+  }
+  return rows;
+}
+
 
 function formatCurrency(v: number) {
   return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v);
@@ -268,8 +384,25 @@ export default function ImportarExtrato() {
     if (!file) return;
 
     if (file.name.endsWith(".csv") || file.name.endsWith(".txt")) {
-      const text = await file.text();
-      const parsed = parseCSVSafra(text);
+      let text: string;
+      if (banco === "vindi_transacoes" || banco === "vindi_taxas") {
+        // Vindi uses latin1 encoding
+        const buffer = await file.arrayBuffer();
+        const decoder = new TextDecoder("latin1");
+        text = decoder.decode(buffer);
+      } else {
+        text = await file.text();
+      }
+
+      let parsed: ParsedRow[];
+      if (banco === "vindi_transacoes") {
+        parsed = parseVindiTransacoes(text);
+      } else if (banco === "vindi_taxas") {
+        parsed = parseVindiTaxas(text);
+      } else {
+        parsed = parseCSVSafra(text);
+      }
+
       if (parsed.length === 0) {
         toast.error("Nenhum lançamento encontrado no arquivo. Verifique o formato.");
         return;
@@ -279,7 +412,7 @@ export default function ImportarExtrato() {
       toast.success(`${parsed.length} lançamentos importados${parcelados.length > 0 ? ` (${parcelados.length} parcelados detectados)` : ""}`);
     } else if (file.name.endsWith(".xlsx") || file.name.endsWith(".xls")) {
       const buffer = await file.arrayBuffer();
-      const parsed = parseExcelFile(buffer);
+      const parsed = banco === "safra" ? parseExcelSafra(buffer) : parseExcelFile(buffer);
       if (parsed.length === 0) {
         toast.error("Nenhum lançamento encontrado na planilha. Verifique o formato.");
         return;
@@ -636,6 +769,8 @@ export default function ImportarExtrato() {
                   <SelectItem value="generico">Genérico</SelectItem>
                   <SelectItem value="safra">Safra</SelectItem>
                   <SelectItem value="bradesco">Bradesco</SelectItem>
+                  <SelectItem value="vindi_transacoes">Vindi - Transações</SelectItem>
+                  <SelectItem value="vindi_taxas">Vindi - Taxas</SelectItem>
                   <SelectItem value="cartao">Cartão de Crédito</SelectItem>
                 </SelectContent>
               </Select>
