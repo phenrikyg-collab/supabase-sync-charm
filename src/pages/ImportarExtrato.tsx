@@ -277,6 +277,16 @@ export default function ImportarExtrato() {
       setRows(parsed);
       const parcelados = parsed.filter((r) => r.parcela_total);
       toast.success(`${parsed.length} lançamentos importados${parcelados.length > 0 ? ` (${parcelados.length} parcelados detectados)` : ""}`);
+    } else if (file.name.endsWith(".xlsx") || file.name.endsWith(".xls")) {
+      const buffer = await file.arrayBuffer();
+      const parsed = parseExcelFile(buffer);
+      if (parsed.length === 0) {
+        toast.error("Nenhum lançamento encontrado na planilha. Verifique o formato.");
+        return;
+      }
+      setRows(parsed);
+      const parcelados = parsed.filter((r) => r.parcela_total);
+      toast.success(`${parsed.length} lançamentos importados${parcelados.length > 0 ? ` (${parcelados.length} parcelados detectados)` : ""}`);
     } else if (file.name.endsWith(".pdf")) {
       toast.info("Processando PDF... A IA irá extrair os lançamentos.");
       const reader = new FileReader();
