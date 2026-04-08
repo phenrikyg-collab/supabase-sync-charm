@@ -348,7 +348,7 @@ export default function ImportarExtrato() {
       };
       reader.readAsDataURL(file);
     } else {
-      toast.error("Formato não suportado. Use CSV ou PDF.");
+      toast.error("Formato não suportado. Use CSV, Excel (.xlsx) ou PDF.");
     }
   }, [categorias]);
 
