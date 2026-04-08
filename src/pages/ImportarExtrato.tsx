@@ -15,6 +15,7 @@ import { useCategorias, useCartoesCredito } from "@/hooks/useSupabase";
 import { invokeEdgeFunction } from "@/lib/edgeFunctions";
 import { useQueryClient } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
+import { formatarData } from "@/utils/formatters";
 
 interface ParsedRow {
   data: string;
