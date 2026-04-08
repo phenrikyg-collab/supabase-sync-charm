@@ -474,6 +474,9 @@ export default function ImportarExtrato() {
   const [faturaVencimento, setFaturaVencimento] = useState("");
   const [bancoCartao, setBancoCartao] = useState("");
   const [valorTotalFatura, setValorTotalFatura] = useState("");
+  const [sortField, setSortField] = useState<"data" | "descricao" | null>(null);
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
+  const [bulkCategoryOpen, setBulkCategoryOpen] = useState(false);
   const [validacao, setValidacao] = useState<{ tipo: "ok" | "divergente"; qtd: number; total: number; divergencia?: number; valorInformado?: number } | null>(null);
 
   const isCartao = banco === "cartao";
@@ -501,6 +504,25 @@ export default function ImportarExtrato() {
   const handleFile = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+
+    // Pre-lookup Vindi categories
+    let vindiPreCategoriaId: string | null = null;
+    if (banco === "vindi_transacoes") {
+      const { data: cat } = await supabase
+        .from("categorias_financeiras")
+        .select("id")
+        .eq("descricao_categoria", "Venda de produtos")
+        .maybeSingle();
+      vindiPreCategoriaId = cat?.id ?? null;
+    } else if (banco === "vindi_taxas") {
+      const { data: cat } = await supabase
+        .from("categorias_financeiras")
+        .select("id")
+        .eq("descricao_categoria", "Taxa TrayPagamentos (Vindi)")
+        .maybeSingle();
+      vindiPreCategoriaId = cat?.id ?? null;
+    }
+
 
     if (file.name.endsWith(".csv") || file.name.endsWith(".txt")) {
       let text: string;
