@@ -384,8 +384,25 @@ export default function ImportarExtrato() {
     if (!file) return;
 
     if (file.name.endsWith(".csv") || file.name.endsWith(".txt")) {
-      const text = await file.text();
-      const parsed = parseCSVSafra(text);
+      let text: string;
+      if (banco === "vindi_transacoes" || banco === "vindi_taxas") {
+        // Vindi uses latin1 encoding
+        const buffer = await file.arrayBuffer();
+        const decoder = new TextDecoder("latin1");
+        text = decoder.decode(buffer);
+      } else {
+        text = await file.text();
+      }
+
+      let parsed: ParsedRow[];
+      if (banco === "vindi_transacoes") {
+        parsed = parseVindiTransacoes(text);
+      } else if (banco === "vindi_taxas") {
+        parsed = parseVindiTaxas(text);
+      } else {
+        parsed = parseCSVSafra(text);
+      }
+
       if (parsed.length === 0) {
         toast.error("Nenhum lançamento encontrado no arquivo. Verifique o formato.");
         return;
@@ -395,7 +412,7 @@ export default function ImportarExtrato() {
       toast.success(`${parsed.length} lançamentos importados${parcelados.length > 0 ? ` (${parcelados.length} parcelados detectados)` : ""}`);
     } else if (file.name.endsWith(".xlsx") || file.name.endsWith(".xls")) {
       const buffer = await file.arrayBuffer();
-      const parsed = parseExcelFile(buffer);
+      const parsed = banco === "safra" ? parseExcelSafra(buffer) : parseExcelFile(buffer);
       if (parsed.length === 0) {
         toast.error("Nenhum lançamento encontrado na planilha. Verifique o formato.");
         return;
@@ -752,6 +769,8 @@ export default function ImportarExtrato() {
                   <SelectItem value="generico">Genérico</SelectItem>
                   <SelectItem value="safra">Safra</SelectItem>
                   <SelectItem value="bradesco">Bradesco</SelectItem>
+                  <SelectItem value="vindi_transacoes">Vindi - Transações</SelectItem>
+                  <SelectItem value="vindi_taxas">Vindi - Taxas</SelectItem>
                   <SelectItem value="cartao">Cartão de Crédito</SelectItem>
                 </SelectContent>
               </Select>
