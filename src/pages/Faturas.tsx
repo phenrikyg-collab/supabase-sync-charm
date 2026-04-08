@@ -95,8 +95,9 @@ export default function Faturas() {
   const [editTxOriginalValor, setEditTxOriginalValor] = useState(0);
   const [salvandoEditTx, setSalvandoEditTx] = useState(false);
 
-  // Filter by card
+  // Filter by card and month
   const [filtroCartao, setFiltroCartao] = useState<string>("todos");
+  const [filtroMes, setFiltroMes] = useState<string>("todos");
 
   const catMap = useMemo(() => {
     const m: Record<string, { nome: string; grupoDre: string }> = {};
@@ -130,15 +131,47 @@ export default function Faturas() {
     return map;
   }, [movs]);
 
+  // Available months from faturas
+  const mesesDisponiveis = useMemo(() => {
+    const meses = new Set(faturas.map((f) => f.mes_referencia));
+    return Array.from(meses).sort().reverse();
+  }, [faturas]);
+
   const sortedFaturas = useMemo(() => {
     let list = [...faturas];
     if (filtroCartao !== "todos") {
       list = list.filter((f) => f.cartao_nome === filtroCartao);
     }
+    if (filtroMes !== "todos") {
+      list = list.filter((f) => f.mes_referencia === filtroMes);
+    }
     return list.sort((a, b) => b.mes_referencia.localeCompare(a.mes_referencia));
-  }, [faturas, filtroCartao]);
+  }, [faturas, filtroCartao, filtroMes]);
 
-  const totalAberto = faturas.filter((f) => f.status !== "paga").reduce((s, f) => s + (f.valor_total - f.valor_pago), 0);
+  // Group faturas by month for display
+  const faturasPorMes = useMemo(() => {
+    const groups: Record<string, typeof sortedFaturas> = {};
+    sortedFaturas.forEach((f) => {
+      if (!groups[f.mes_referencia]) groups[f.mes_referencia] = [];
+      groups[f.mes_referencia].push(f);
+    });
+    return groups;
+  }, [sortedFaturas]);
+
+  const mesesOrdenados = useMemo(() => Object.keys(faturasPorMes).sort().reverse(), [faturasPorMes]);
+
+  // KPIs filtered
+  const kpiFaturas = useMemo(() => {
+    let list = [...faturas];
+    if (filtroMes !== "todos") list = list.filter((f) => f.mes_referencia === filtroMes);
+    if (filtroCartao !== "todos") list = list.filter((f) => f.cartao_nome === filtroCartao);
+    const total = list.length;
+    const abertas = list.filter((f) => f.status !== "paga");
+    const pagas = list.filter((f) => f.status === "paga");
+    const totalAberto = abertas.reduce((s, f) => s + (f.valor_total - f.valor_pago), 0);
+    const totalFaturado = list.reduce((s, f) => s + f.valor_total, 0);
+    return { total, abertas: abertas.length, pagas: pagas.length, totalAberto, totalFaturado };
+  }, [faturas, filtroMes, filtroCartao]);
 
   const monthOptions = useMemo(() => generateMonthOptions(), []);
 
@@ -539,182 +572,226 @@ export default function Faturas() {
               <ShoppingCart className="h-4 w-4 mr-1" /> Nova Compra
             </Button>
           </div>
+
+          {/* Filtros */}
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="flex items-center gap-2">
+              <Label className="text-sm whitespace-nowrap">Mês:</Label>
+              <Select value={filtroMes} onValueChange={setFiltroMes}>
+                <SelectTrigger className="w-[160px]"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="todos">Todos os meses</SelectItem>
+                  {mesesDisponiveis.map((m) => (
+                    <SelectItem key={m} value={m}>{m}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex items-center gap-2">
+              <Label className="text-sm whitespace-nowrap">Cartão:</Label>
+              <Select value={filtroCartao} onValueChange={setFiltroCartao}>
+                <SelectTrigger className="w-[180px]"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="todos">Todos os cartões</SelectItem>
+                  {uniqueCardNames.map((n) => (
+                    <SelectItem key={n} value={n}>{n}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
           {/* KPIs */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <Card>
               <CardContent className="pt-5 pb-4">
                 <div className="flex items-center justify-between mb-2">
-                  <span className="text-xs font-medium text-muted-foreground uppercase">Total Faturas</span>
+                  <span className="text-xs font-medium text-muted-foreground uppercase">Total Faturado</span>
                   <CreditCard className="h-4 w-4 text-primary" />
                 </div>
-                <p className="text-2xl font-bold">{faturas.length}</p>
+                <p className="text-2xl font-bold">{formatCurrency(kpiFaturas.totalFaturado)}</p>
+                <p className="text-xs text-muted-foreground mt-1">{kpiFaturas.total} fatura(s)</p>
               </CardContent>
             </Card>
             <Card>
               <CardContent className="pt-5 pb-4">
                 <div className="flex items-center justify-between mb-2">
-                  <span className="text-xs font-medium text-muted-foreground uppercase">Saldo em Aberto</span>
+                  <span className="text-xs font-medium text-muted-foreground uppercase">Em Aberto</span>
                   <DollarSign className="h-4 w-4 text-destructive" />
                 </div>
-                <p className="text-2xl font-bold text-destructive">{formatCurrency(totalAberto)}</p>
+                <p className="text-2xl font-bold text-destructive">{formatCurrency(kpiFaturas.totalAberto)}</p>
+                <p className="text-xs text-muted-foreground mt-1">{kpiFaturas.abertas} fatura(s)</p>
               </CardContent>
             </Card>
             <Card>
               <CardContent className="pt-5 pb-4">
                 <div className="flex items-center justify-between mb-2">
-                  <span className="text-xs font-medium text-muted-foreground uppercase">Faturas Pagas</span>
-                  <CreditCard className="h-4 w-4 text-success" />
+                  <span className="text-xs font-medium text-muted-foreground uppercase">Pagas</span>
+                  <CircleCheck className="h-4 w-4 text-primary" />
                 </div>
-                <p className="text-2xl font-bold text-success">{faturas.filter((f) => f.status === "paga").length}</p>
+                <p className="text-2xl font-bold text-primary">{kpiFaturas.pagas}</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="pt-5 pb-4">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs font-medium text-muted-foreground uppercase">Abertas</span>
+                  <Clock className="h-4 w-4 text-muted-foreground" />
+                </div>
+                <p className="text-2xl font-bold">{kpiFaturas.abertas}</p>
               </CardContent>
             </Card>
           </div>
 
-          {/* Filter */}
-          <div className="flex items-center gap-3">
-            <Label className="text-sm">Filtrar por cartão:</Label>
-            <Select value={filtroCartao} onValueChange={setFiltroCartao}>
-              <SelectTrigger className="w-[200px]"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="todos">Todos os cartões</SelectItem>
-                {uniqueCardNames.map((n) => (
-                  <SelectItem key={n} value={n}>{n}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+          {/* Faturas grouped by month */}
+          {isLoading ? (
+            <div className="text-center py-8 text-muted-foreground">Carregando...</div>
+          ) : mesesOrdenados.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground">Nenhuma fatura encontrada.</div>
+          ) : (
+            <div className="space-y-6">
+              {mesesOrdenados.map((mes) => {
+                const faturasDoMes = faturasPorMes[mes];
+                const totalMes = faturasDoMes.reduce((s, f) => s + f.valor_total, 0);
+                const abertoMes = faturasDoMes.filter((f) => f.status !== "paga").reduce((s, f) => s + (f.valor_total - f.valor_pago), 0);
 
-          {/* Faturas list */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">Faturas</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {isLoading ? (
-                <div className="text-center py-8 text-muted-foreground">Carregando...</div>
-              ) : sortedFaturas.length === 0 ? (
-                <div className="text-center py-8 text-muted-foreground">Nenhuma fatura encontrada. Importe um extrato de cartão para criar.</div>
-              ) : (
-                <div className="space-y-2">
-                  {sortedFaturas.map((f) => {
-                    const isExpanded = expandedId === f.id;
-                    const faturaMovs = movsPorFatura[f.id] ?? [];
-                    const saldo = f.valor_total - f.valor_pago;
-
-                    return (
-                      <Collapsible key={f.id} open={isExpanded} onOpenChange={() => setExpandedId(isExpanded ? null : f.id)}>
-                        <div className="border rounded-lg">
-                          <CollapsibleTrigger asChild>
-                            <div className="flex items-center justify-between p-4 cursor-pointer hover:bg-accent/50 transition-colors">
-                              <div className="flex items-center gap-4">
-                                {isExpanded ? <ChevronDown className="h-4 w-4 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 text-muted-foreground" />}
-                                <div>
-                                  <p className="font-medium">{f.cartao_nome}</p>
-                                  <p className="text-xs text-muted-foreground">
-                                    Ref: {f.mes_referencia} · Venc: {f.data_vencimento ? formatDateBR(f.data_vencimento) : "—"} · {faturaMovs.length} itens
-                                  </p>
-                                </div>
-                              </div>
-                              <div className="flex items-center gap-4">
-                                <div className="text-right">
-                                  <p className="font-semibold">{formatCurrency(f.valor_total)}</p>
-                                  {f.valor_pago > 0 && (
-                                    <p className="text-xs text-muted-foreground">Pago: {formatCurrency(f.valor_pago)}</p>
-                                  )}
-                                  {saldo > 0 && (
-                                    <p className="text-xs text-destructive">Saldo: {formatCurrency(saldo)}</p>
-                                  )}
-                                </div>
-                                <StatusBadgeFatura status={f.status} />
-                                {f.status !== "paga" && (
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      setPagamentoFaturaId(f.id);
-                                      setValorPagamento(saldo.toFixed(2).replace(".", ","));
-                                    }}
-                                  >
-                                    <DollarSign className="h-3.5 w-3.5 mr-1" /> Pagar
-                                  </Button>
-                                )}
-                              </div>
-                            </div>
-                          </CollapsibleTrigger>
-
-                          <CollapsibleContent>
-                            <div className="border-t px-4 pb-4">
-                              <div className="flex justify-end pt-3 pb-2">
-                                <Button size="sm" variant="outline" onClick={() => openAddTx(f.id)}>
-                                  <Plus className="h-3.5 w-3.5 mr-1" /> Adicionar Lançamento
-                                </Button>
-                              </div>
-                              <Table>
-                                <TableHeader>
-                                  <TableRow>
-                                    <TableHead>Status</TableHead>
-                                    <TableHead>Descrição</TableHead>
-                                    <TableHead>Parcela</TableHead>
-                                    <TableHead>Categoria</TableHead>
-                                    <TableHead>Grupo DRE</TableHead>
-                                    <TableHead className="text-right">Valor</TableHead>
-                                    <TableHead className="text-right w-[80px]">Ações</TableHead>
-                                  </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                  {faturaMovs.length === 0 ? (
-                                    <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground">Nenhum item vinculado</TableCell></TableRow>
-                                  ) : (
-                                    faturaMovs.map((m: any) => {
-                                      const cardStatus = getCardTransactionStatus(m, paidFaturaIds);
-                                      const labels = cardStatus ? getCardStatusLabels(cardStatus) : null;
-                                      return (
-                                        <TableRow key={m.id}>
-                                          <TableCell>
-                                            {labels ? (
-                                              labels.variant === "success" ? (
-                                                <Badge variant="default" className="gap-1 bg-green-600 text-white text-[10px]"><CircleCheck className="h-3 w-3" /> {labels.label}</Badge>
-                                              ) : labels.variant === "destructive" ? (
-                                                <Badge variant="destructive" className="gap-1 text-[10px]"><Clock className="h-3 w-3" /> {labels.label}</Badge>
-                                              ) : (
-                                                <Badge variant="outline" className="gap-1 border-warning/50 text-warning text-[10px]"><Clock className="h-3 w-3" /> {labels.label}</Badge>
-                                              )
-                                            ) : (
-                                              <Badge variant="outline" className="text-[10px]">—</Badge>
-                                            )}
-                                          </TableCell>
-                                          <TableCell>{m.descricao ?? "—"}</TableCell>
-                                          <TableCell className="text-muted-foreground text-xs">{m.parcela_info || "—"}</TableCell>
-                                          <TableCell className="text-muted-foreground">{m.categoria_id ? catMap[m.categoria_id]?.nome ?? "—" : "—"}</TableCell>
-                                          <TableCell className="text-muted-foreground text-xs">{m.categoria_id ? catMap[m.categoria_id]?.grupoDre ?? "—" : "—"}</TableCell>
-                                          <TableCell className="text-right font-mono">{formatCurrency(m.valor)}</TableCell>
-                                          <TableCell className="text-right">
-                                            <div className="flex justify-end gap-0.5">
-                                              <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => openEditTx(m)}>
-                                                <Pencil className="h-3.5 w-3.5" />
-                                              </Button>
-                                              <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive" onClick={() => handleDeleteTx(m)}>
-                                                <Trash2 className="h-3.5 w-3.5" />
-                                              </Button>
-                                            </div>
-                                          </TableCell>
-                                        </TableRow>
-                                      );
-                                    })
-                                  )}
-                                </TableBody>
-                              </Table>
-                            </div>
-                          </CollapsibleContent>
+                return (
+                  <Card key={mes}>
+                    <CardHeader className="pb-3">
+                      <div className="flex items-center justify-between">
+                        <CardTitle className="text-base font-semibold">{mes}</CardTitle>
+                        <div className="flex items-center gap-4 text-sm">
+                          <span className="text-muted-foreground">Total: <span className="font-semibold text-foreground">{formatCurrency(totalMes)}</span></span>
+                          {abertoMes > 0 && (
+                            <span className="text-destructive font-semibold">Aberto: {formatCurrency(abertoMes)}</span>
+                          )}
                         </div>
-                      </Collapsible>
-                    );
-                  })}
-                </div>
-              )}
-            </CardContent>
-          </Card>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="pt-0">
+                      <div className="space-y-2">
+                        {faturasDoMes.map((f) => {
+                          const isExpanded = expandedId === f.id;
+                          const faturaMovs = movsPorFatura[f.id] ?? [];
+                          const saldo = f.valor_total - f.valor_pago;
+
+                          return (
+                            <Collapsible key={f.id} open={isExpanded} onOpenChange={() => setExpandedId(isExpanded ? null : f.id)}>
+                              <div className="border rounded-lg">
+                                <CollapsibleTrigger asChild>
+                                  <div className="flex items-center justify-between p-4 cursor-pointer hover:bg-accent/50 transition-colors">
+                                    <div className="flex items-center gap-4">
+                                      {isExpanded ? <ChevronDown className="h-4 w-4 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 text-muted-foreground" />}
+                                      <div>
+                                        <p className="font-medium">{f.cartao_nome}</p>
+                                        <p className="text-xs text-muted-foreground">
+                                          Venc: {f.data_vencimento ? formatDateBR(f.data_vencimento) : "—"} · {faturaMovs.length} itens
+                                        </p>
+                                      </div>
+                                    </div>
+                                    <div className="flex items-center gap-4">
+                                      <div className="text-right">
+                                        <p className="font-semibold">{formatCurrency(f.valor_total)}</p>
+                                        {f.valor_pago > 0 && (
+                                          <p className="text-xs text-muted-foreground">Pago: {formatCurrency(f.valor_pago)}</p>
+                                        )}
+                                        {saldo > 0 && (
+                                          <p className="text-xs text-destructive">Saldo: {formatCurrency(saldo)}</p>
+                                        )}
+                                      </div>
+                                      <StatusBadgeFatura status={f.status} />
+                                      {f.status !== "paga" && (
+                                        <Button
+                                          size="sm"
+                                          variant="outline"
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            setPagamentoFaturaId(f.id);
+                                            setValorPagamento(saldo.toFixed(2).replace(".", ","));
+                                          }}
+                                        >
+                                          <DollarSign className="h-3.5 w-3.5 mr-1" /> Pagar
+                                        </Button>
+                                      )}
+                                    </div>
+                                  </div>
+                                </CollapsibleTrigger>
+
+                                <CollapsibleContent>
+                                  <div className="border-t px-4 pb-4">
+                                    <div className="flex justify-end pt-3 pb-2">
+                                      <Button size="sm" variant="outline" onClick={() => openAddTx(f.id)}>
+                                        <Plus className="h-3.5 w-3.5 mr-1" /> Adicionar Lançamento
+                                      </Button>
+                                    </div>
+                                    <Table>
+                                      <TableHeader>
+                                        <TableRow>
+                                          <TableHead>Status</TableHead>
+                                          <TableHead>Descrição</TableHead>
+                                          <TableHead>Parcela</TableHead>
+                                          <TableHead>Categoria</TableHead>
+                                          <TableHead>Grupo DRE</TableHead>
+                                          <TableHead className="text-right">Valor</TableHead>
+                                          <TableHead className="text-right w-[80px]">Ações</TableHead>
+                                        </TableRow>
+                                      </TableHeader>
+                                      <TableBody>
+                                        {faturaMovs.length === 0 ? (
+                                          <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground">Nenhum item vinculado</TableCell></TableRow>
+                                        ) : (
+                                          faturaMovs.map((m: any) => {
+                                            const cardStatus = getCardTransactionStatus(m, paidFaturaIds);
+                                            const labels = cardStatus ? getCardStatusLabels(cardStatus) : null;
+                                            return (
+                                              <TableRow key={m.id}>
+                                                <TableCell>
+                                                  {labels ? (
+                                                    labels.variant === "success" ? (
+                                                      <Badge variant="default" className="gap-1 bg-primary text-primary-foreground text-[10px]"><CircleCheck className="h-3 w-3" /> {labels.label}</Badge>
+                                                    ) : labels.variant === "destructive" ? (
+                                                      <Badge variant="destructive" className="gap-1 text-[10px]"><Clock className="h-3 w-3" /> {labels.label}</Badge>
+                                                    ) : (
+                                                      <Badge variant="outline" className="gap-1 border-warning/50 text-warning text-[10px]"><Clock className="h-3 w-3" /> {labels.label}</Badge>
+                                                    )
+                                                  ) : (
+                                                    <Badge variant="outline" className="text-[10px]">—</Badge>
+                                                  )}
+                                                </TableCell>
+                                                <TableCell>{m.descricao ?? "—"}</TableCell>
+                                                <TableCell className="text-muted-foreground text-xs">{m.parcela_info || "—"}</TableCell>
+                                                <TableCell className="text-muted-foreground">{m.categoria_id ? catMap[m.categoria_id]?.nome ?? "—" : "—"}</TableCell>
+                                                <TableCell className="text-muted-foreground text-xs">{m.categoria_id ? catMap[m.categoria_id]?.grupoDre ?? "—" : "—"}</TableCell>
+                                                <TableCell className="text-right font-mono">{formatCurrency(m.valor)}</TableCell>
+                                                <TableCell className="text-right">
+                                                  <div className="flex justify-end gap-0.5">
+                                                    <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => openEditTx(m)}>
+                                                      <Pencil className="h-3.5 w-3.5" />
+                                                    </Button>
+                                                    <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive" onClick={() => handleDeleteTx(m)}>
+                                                      <Trash2 className="h-3.5 w-3.5" />
+                                                    </Button>
+                                                  </div>
+                                                </TableCell>
+                                              </TableRow>
+                                            );
+                                          })
+                                        )}
+                                      </TableBody>
+                                    </Table>
+                                  </div>
+                                </CollapsibleContent>
+                              </div>
+                            </Collapsible>
+                          );
+                        })}
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
+          )}
         </TabsContent>
 
         {/* TAB: MEUS CARTÕES */}
