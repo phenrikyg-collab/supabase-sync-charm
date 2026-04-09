@@ -41,8 +41,8 @@ export default function CustosFixos() {
     return movs.filter(m =>
       m.tipo === "saida" &&
       (m.frequencia === "Mensal" || m.frequencia === "mensal" ||
-       (m as any).frequencia_tipo === "indeterminada" ||
-       (m as any).frequencia_tipo === "por_periodo")
+       m.frequencia_tipo === "indeterminada" ||
+       m.frequencia_tipo === "por_periodo")
     );
   }, [movs]);
 
@@ -50,14 +50,14 @@ export default function CustosFixos() {
   const gruposRecorrentes = useMemo(() => {
     const map: Record<string, { descricao: string; valor: number; categoria_id: string | null; frequencia_tipo: string | null; frequencia_meses: number | null; meses: Set<string> }> = {};
     custosFixos.forEach(m => {
-      const key = (m as any).recorrencia_grupo_id || m.descricao || m.id;
+      const key = m.recorrencia_grupo_id || m.descricao || m.id;
       if (!map[key]) {
         map[key] = {
           descricao: (m.descricao || "").replace(/\s*\(\d+\/[∞\d]+\)\s*$/, ""),
           valor: Math.abs(m.valor),
           categoria_id: m.categoria_id,
-          frequencia_tipo: (m as any).frequencia_tipo || null,
-          frequencia_meses: (m as any).frequencia_meses || null,
+          frequencia_tipo: m.frequencia_tipo || null,
+          frequencia_meses: m.frequencia_meses || null,
           meses: new Set(),
         };
       }
