@@ -14,6 +14,10 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
 import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import {
@@ -99,6 +103,7 @@ export default function TabFichasTecnicas() {
   const [editProdutoId, setEditProdutoId] = useState<string | null>(null);
   const [form, setForm] = useState<ModalForm>({ ...emptyForm, etapas: [{ ...emptyEtapa }] });
   const [expandedProduct, setExpandedProduct] = useState<string | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<{ produto_id: string; produto_nome: string } | null>(null);
 
   /* ── Queries ── */
 
@@ -252,6 +257,22 @@ export default function TabFichasTecnicas() {
       closeModal();
     },
     onError: (e: any) => toast.error(e.message || "Erro ao salvar ficha"),
+  });
+
+  const deleteFicha = useMutation({
+    mutationFn: async (produtoId: string) => {
+      const { error } = await supabase
+        .from("fichas_tecnicas_tempo")
+        .delete()
+        .eq("produto_id", produtoId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["fichas_tecnicas_tempo"] });
+      toast.success("Ficha técnica excluída");
+      setDeleteTarget(null);
+    },
+    onError: (e: any) => toast.error(e.message || "Erro ao excluir ficha"),
   });
 
   /* ── Helpers ── */
@@ -479,9 +500,12 @@ export default function TabFichasTecnicas() {
                             ? format(new Date(row.data_medicao + "T12:00:00"), "dd/MM/yyyy")
                             : "—"}
                         </TableCell>
-                        <TableCell>
+                        <TableCell className="flex gap-1">
                           <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); openEdit(row); }}>
                             <Pencil className="h-4 w-4" />
+                          </Button>
+                          <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); setDeleteTarget({ produto_id: row.produto_id, produto_nome: row.produto_nome }); }}>
+                            <Trash2 className="h-4 w-4 text-destructive" />
                           </Button>
                         </TableCell>
                       </TableRow>
@@ -722,6 +746,26 @@ export default function TabFichasTecnicas() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={!!deleteTarget} onOpenChange={(o) => !o && setDeleteTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir Ficha Técnica</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja excluir a ficha técnica de <strong>{deleteTarget?.produto_nome}</strong>? Esta ação não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => deleteTarget && deleteFicha.mutate(deleteTarget.produto_id)}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleteFicha.isPending ? "Excluindo..." : "Excluir"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
