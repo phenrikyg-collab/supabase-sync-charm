@@ -273,13 +273,15 @@ export default function TabFichasTecnicas() {
     const etapas: Etapa[] = row.etapas
       .sort((a: any, b: any) => (a.numero_etapa || 1) - (b.numero_etapa || 1))
       .map((e: any) => {
+        // Support both new format (nome_etapa field) and legacy (operacao encoded)
+        const hasNomeEtapa = e.nome_etapa && e.nome_etapa.trim();
         const parsed = parseOperacao(e.operacao);
         return {
-          nome: parsed.nome,
-          maquina: parsed.maquina,
-          tempo_segundos: e.tempo_minutos || 0,
+          nome: hasNomeEtapa ? e.nome_etapa : parsed.nome,
+          maquina: hasNomeEtapa ? (parsed.maquina === e.operacao ? "Reta" : parsed.maquina) : parsed.maquina,
+          tempo_segundos: (e.tempo_minutos || 0) * 60,
           observacao: e.observacao || "",
-          grupo: parsed.grupo,
+          grupo: hasNomeEtapa ? 0 : parsed.grupo,
         };
       });
     setForm({
@@ -438,10 +440,11 @@ export default function TabFichasTecnicas() {
                 </TableRow>
               ) : (
                 fichasAgrupadas.map((row, i) => {
-                  // Parse etapas to get grupo info for effective time calc
+                  // Parse etapas for effective time calc (tempo_minutos stored in minutes, convert to seconds)
                   const parsedEtapas: Etapa[] = row.etapas.map((e: any) => {
                     const parsed = parseOperacao(e.operacao);
-                    return { nome: parsed.nome, maquina: parsed.maquina, tempo_segundos: e.tempo_minutos || 0, observacao: "", grupo: parsed.grupo };
+                    const hasNomeEtapa = e.nome_etapa && e.nome_etapa.trim();
+                    return { nome: hasNomeEtapa ? e.nome_etapa : parsed.nome, maquina: parsed.maquina, tempo_segundos: (e.tempo_minutos || 0) * 60, observacao: "", grupo: hasNomeEtapa ? 0 : parsed.grupo };
                   });
                   const tempoEfetivo = calcTempoEfetivo(parsedEtapas);
                   const custoMO = tempoEfetivo * custoSegundo;
