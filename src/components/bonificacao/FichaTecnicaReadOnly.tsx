@@ -27,16 +27,30 @@ const MAQUINA_COLORS: Record<string, string> = {
   Galoneira: "bg-green-100 text-green-800 border-green-300",
 };
 
+function formatMachineLabel(maquina: string): string {
+  const maqMap: Record<string, string> = { reta: "Reta", overloque: "Overloque", galoneira: "Galoneira" };
+  return maqMap[(maquina || "").toLowerCase()] || maquina || "Reta";
+}
+
+function parseObservacaoMeta(observacao?: string | null): { grupo: number; observacao: string } {
+  const raw = observacao || "";
+  const match = raw.match(/^\[\[grupo:(\d+)\]\]\s*(.*)$/s);
+  if (!match) return { grupo: 0, observacao: raw };
+  return {
+    grupo: parseInt(match[1], 10) || 0,
+    observacao: match[2] || "",
+  };
+}
+
 function parseOperacao(op: string): { maquina: string; nome: string; grupo: number } {
   const parts = op.split("|");
   if (parts.length >= 3) {
-    return { maquina: parts[0], nome: parts.slice(1, -1).join("|"), grupo: parseInt(parts[parts.length - 1]) || 0 };
+    return { maquina: formatMachineLabel(parts[0]), nome: parts.slice(1, -1).join("|"), grupo: parseInt(parts[parts.length - 1]) || 0 };
   }
   if (parts.length === 2) {
-    return { maquina: parts[0], nome: parts[1], grupo: 0 };
+    return { maquina: formatMachineLabel(parts[0]), nome: parts[1], grupo: 0 };
   }
-  const maqMap: Record<string, string> = { reta: "Reta", overloque: "Overloque", galoneira: "Galoneira" };
-  return { maquina: maqMap[op.toLowerCase()] || "Reta", nome: op, grupo: 0 };
+  return { maquina: formatMachineLabel(op), nome: op, grupo: 0 };
 }
 
 function calcTempoEfetivo(etapas: { tempo: number; grupo: number }[]): number {
@@ -65,13 +79,14 @@ export default function FichaTecnicaReadOnly({ produtoNome, etapas }: Props) {
     sorted.map((e) => {
       const hasNomeEtapa = e.nome_etapa && e.nome_etapa.trim();
       const p = parseOperacao(e.operacao);
+      const observacaoMeta = parseObservacaoMeta(e.observacao);
       const tempoSeg = (e.tempo_minutos || 0) * 60;
       return {
         maquina: p.maquina,
         nome: hasNomeEtapa ? e.nome_etapa! : p.nome,
-        grupo: p.grupo,
+        grupo: p.grupo || observacaoMeta.grupo,
         tempo: Math.round(tempoSeg),
-        obs: e.observacao,
+        obs: observacaoMeta.observacao,
         idx: e.numero_etapa,
       };
     }),
