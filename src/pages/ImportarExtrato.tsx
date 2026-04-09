@@ -26,6 +26,8 @@ interface ParsedRow {
   categoria_sugerida: string | null;
   tipo: "entrada" | "saida";
   frequencia: string | null;
+  frequencia_tipo: string | null;
+  frequencia_meses: number | null;
   parcela_atual: number | null;
   parcela_total: number | null;
   selecionado: boolean;
@@ -1233,17 +1235,34 @@ export default function ImportarExtrato() {
                       <TableCell>
                         <Select
                           value={r.frequencia || "unica"}
-                          onValueChange={(v) => setRows((prev) => prev.map((row, j) => j === idx ? { ...row, frequencia: v === "unica" ? null : v } : row))}
+                          onValueChange={(v) => setRows((prev) => prev.map((row, j) => j === idx ? {
+                            ...row,
+                            frequencia: v === "unica" ? null : v,
+                            frequencia_tipo: v === "mensal_indeterminada" ? "indeterminada" : v === "mensal_por_periodo" ? "por_periodo" : null,
+                            frequencia_meses: v === "mensal_por_periodo" ? 3 : null,
+                          } : row))}
                         >
-                          <SelectTrigger className="h-8 text-xs w-[110px]">
+                          <SelectTrigger className="h-8 text-xs w-[140px]">
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
                             <SelectItem value="unica">Única</SelectItem>
-                            <SelectItem value="mensal">Mensal</SelectItem>
+                            <SelectItem value="mensal_indeterminada">Mensal (até cancelar)</SelectItem>
+                            <SelectItem value="mensal_por_periodo">Mensal (X meses)</SelectItem>
                             <SelectItem value="anual">Anual</SelectItem>
                           </SelectContent>
                         </Select>
+                        {r.frequencia === "mensal_por_periodo" && (
+                          <Input
+                            type="number"
+                            min={2}
+                            max={60}
+                            className="h-7 text-xs w-16 mt-1"
+                            value={r.frequencia_meses || 3}
+                            onChange={(e) => setRows((prev) => prev.map((row, j) => j === idx ? { ...row, frequencia_meses: parseInt(e.target.value) || 3 } : row))}
+                            placeholder="Meses"
+                          />
+                        )}
                       </TableCell>
                       <TableCell className={`text-right font-mono ${r.tipo === "entrada" ? "text-success" : "text-destructive"}`}>
                         {r.tipo === "saida" ? "-" : ""}{formatCurrency(r.valor)}
