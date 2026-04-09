@@ -7,6 +7,7 @@ interface Etapa {
   operacao: string;
   tempo_minutos: number;
   observacao?: string | null;
+  nome_etapa?: string | null;
 }
 
 interface Props {
