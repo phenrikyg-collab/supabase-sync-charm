@@ -239,7 +239,7 @@ export default function TabFichasTecnicas() {
         operacao: toOperacaoValue(e.maquina),
         nome_etapa: e.nome.trim(),
         tempo_minutos: e.tempo_segundos / 60,
-        observacao: buildObservacaoValue(e.observacao, e.grupo),
+        observacao: buildObservacaoValue(e.observacao, e.maquina, e.grupo),
         numero_etapa: baseEtapa + i + 1,
       }));
 
