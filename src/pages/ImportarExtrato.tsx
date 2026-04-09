@@ -7,11 +7,12 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
-import { Upload, Sparkles, Check, Loader2, FileText, ChevronsUpDown, ArrowUpDown } from "lucide-react";
+import { Upload, Sparkles, Check, Loader2, FileText, ChevronsUpDown, ArrowUpDown, AlertTriangle } from "lucide-react";
 import * as XLSX from "xlsx";
 import { supabase } from "@/integrations/supabase/client";
-import { useCategorias, useCartoesCredito } from "@/hooks/useSupabase";
+import { useCategorias, useCartoesCredito, useMovimentacoesFinanceiras } from "@/hooks/useSupabase";
 import { invokeEdgeFunction } from "@/lib/edgeFunctions";
 import { useQueryClient } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
