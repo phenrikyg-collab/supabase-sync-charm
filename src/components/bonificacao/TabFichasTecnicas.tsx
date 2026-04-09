@@ -130,7 +130,7 @@ export default function TabFichasTecnicas() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("fichas_tecnicas_tempo")
-        .select("*, produtos(nome_do_produto)")
+        .select("*")
         .order("numero_etapa", { ascending: true });
       if (error) throw error;
       return data;
@@ -165,12 +165,16 @@ export default function TabFichasTecnicas() {
   /* ── Group fichas by product ── */
 
   const fichasAgrupadas = useMemo(() => {
-    const map = new Map<string, { produto_id: string; produto_nome: string; tipo_peca: string; etapas: any[]; cronometrado_por: string | null; data_medicao: string | null; num_amostras: number | null }>();
+      // Build a lookup for product names
+      const produtoMap = new Map<string, string>();
+      produtos.forEach((p: any) => { produtoMap.set(p.id, p.nome_do_produto); });
+
+      const map = new Map<string, { produto_id: string; produto_nome: string; tipo_peca: string; etapas: any[]; cronometrado_por: string | null; data_medicao: string | null; num_amostras: number | null }>();
     fichas.forEach((f: any) => {
       if (!map.has(f.produto_id)) {
         map.set(f.produto_id, {
           produto_id: f.produto_id,
-          produto_nome: f.produtos?.nome_do_produto || f.produto_nome || "—",
+            produto_nome: produtoMap.get(f.produto_id) || "—",
           tipo_peca: f.tipo_peca,
           etapas: [],
           cronometrado_por: f.cronometrado_por,
@@ -181,7 +185,7 @@ export default function TabFichasTecnicas() {
       map.get(f.produto_id)!.etapas.push(f);
     });
     return Array.from(map.values());
-  }, [fichas]);
+    }, [fichas, produtos]);
 
   /* ── Mutations ── */
 
