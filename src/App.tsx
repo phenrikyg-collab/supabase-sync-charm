@@ -38,6 +38,7 @@ import AdminTVInterna from "./pages/AdminTVInterna";
 import Bonificacao from "./pages/Bonificacao";
 import ContentCalendar from "./pages/ContentCalendar";
 import OrcamentoPage from "./pages/OrcamentoPage";
+import CustosFixos from "./pages/CustosFixos";
 import { Loader2 } from "lucide-react";
 
 const queryClient = new QueryClient({
@@ -107,6 +108,7 @@ const AppRoutes = () => {
               <Route path="/metas" element={<Metas />} />
               <Route path="/admin/usuarios" element={<AdminUsuarios />} />
               <Route path="/orcamento" element={<OrcamentoPage />} />
+              <Route path="/custos-fixos" element={<CustosFixos />} />
               <Route path="/admin/tv-interna" element={<AdminTVInterna />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
