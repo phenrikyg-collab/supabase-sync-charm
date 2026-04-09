@@ -212,6 +212,15 @@ export default function DRE() {
   const [mesSelecionado, setMesSelecionado] = useState("todos");
   const [expandedFaixas, setExpandedFaixas] = useState<Set<string>>(new Set());
   const [expandedCategorias, setExpandedCategorias] = useState<Set<string>>(new Set());
+  const [expandedPlanos, setExpandedPlanos] = useState<Set<string>>(new Set());
+
+  const togglePlano = (key: string) => {
+    setExpandedPlanos((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key); else next.add(key);
+      return next;
+    });
+  };
 
   const toggleFaixa = (key: string) => {
     setExpandedFaixas((prev) => {
