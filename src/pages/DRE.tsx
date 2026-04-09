@@ -395,31 +395,62 @@ export default function DRE() {
               </div>
 
               {/* Planos de conta */}
-              {isCatExpanded && cg.planos.map((p, idx) => (
-                <TooltipProvider key={idx}>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <div className="flex justify-between items-center px-4 py-1.5 pl-14 text-xs hover:bg-accent/10 rounded transition-colors">
-                        <div className="flex flex-col">
-                          <span className="text-foreground/80 font-medium">{p.descricao}</span>
-                          <span className="text-muted-foreground text-[10px]">
-                            {p.count} lançamento{p.count > 1 ? "s" : ""}
-                          </span>
-                        </div>
-                        <div className="flex gap-8 items-center">
-                          <span className="font-mono w-32 text-right">{formatCurrency(p.valor)}</span>
-                          <span className="font-mono w-16 text-right text-muted-foreground">{calcAV(p.valor)}</span>
-                        </div>
+              {isCatExpanded && cg.planos.map((p, idx) => {
+                const planoKey = `${fg.faixa}||${cg.nomeCategoria}||${p.descricao}`;
+                const isPlanoExpanded = expandedPlanos.has(planoKey);
+                return (
+                  <div key={idx}>
+                    <div
+                      className="flex justify-between items-center px-4 py-1.5 pl-14 text-xs hover:bg-accent/10 rounded transition-colors cursor-pointer"
+                      onClick={() => togglePlano(planoKey)}
+                    >
+                      <div className="flex flex-col">
+                        <span className="text-foreground/80 font-medium flex items-center gap-1">
+                          {p.count > 1 ? (
+                            isPlanoExpanded ? <ChevronDown className="h-2.5 w-2.5 text-muted-foreground" /> : <ChevronRight className="h-2.5 w-2.5 text-muted-foreground" />
+                          ) : <Eye className="h-2.5 w-2.5 text-muted-foreground" />}
+                          {p.descricao}
+                        </span>
+                        <span className="text-muted-foreground text-[10px] pl-3.5">
+                          {p.count} lançamento{p.count > 1 ? "s" : ""}
+                        </span>
                       </div>
-                    </TooltipTrigger>
-                    <TooltipContent side="left">
-                      <p className="font-semibold">{cg.nomeCategoria}</p>
-                      <p className="text-xs">{p.descricao}</p>
-                      <p className="text-xs mt-1">{p.count} lançamento(s) totalizando {formatCurrency(p.valor)}</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-              ))}
+                      <div className="flex gap-8 items-center">
+                        <span className="font-mono w-32 text-right">{formatCurrency(p.valor)}</span>
+                        <span className="font-mono w-16 text-right text-muted-foreground">{calcAV(p.valor)}</span>
+                      </div>
+                    </div>
+
+                    {/* Drill-down: individual transactions */}
+                    {isPlanoExpanded && (
+                      <div className="ml-[60px] mr-4 mb-2 border border-border/50 rounded-md overflow-hidden">
+                        <div className="bg-muted/30 px-3 py-1.5 text-[10px] font-semibold text-muted-foreground flex gap-2">
+                          <span className="flex-1">Descrição</span>
+                          <span className="w-20 text-center">Competência</span>
+                          <span className="w-20 text-center">Vencimento</span>
+                          <span className="w-16 text-center">Parcela</span>
+                          <span className="w-24 text-right">Valor</span>
+                        </div>
+                        {p.transactions
+                          .sort((a, b) => (a.data ?? "").localeCompare(b.data ?? ""))
+                          .map((t) => (
+                          <div key={t.id} className="flex gap-2 px-3 py-1 text-[10px] border-t border-border/30 hover:bg-accent/10">
+                            <span className="flex-1 truncate text-foreground/80">{t.descricao}</span>
+                            <span className="w-20 text-center text-muted-foreground font-mono">
+                              {t.data ? format(parseISO(t.data), "dd/MM/yy") : "—"}
+                            </span>
+                            <span className="w-20 text-center text-muted-foreground font-mono">
+                              {t.dataVencimento ? format(parseISO(t.dataVencimento), "dd/MM/yy") : "—"}
+                            </span>
+                            <span className="w-16 text-center text-muted-foreground">{t.parcela || "—"}</span>
+                            <span className="w-24 text-right font-mono">{formatCurrency(t.valor)}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           );
         })}
