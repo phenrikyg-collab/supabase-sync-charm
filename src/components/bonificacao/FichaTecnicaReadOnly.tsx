@@ -91,10 +91,11 @@ export default function FichaTecnicaReadOnly({ produtoNome, etapas }: Props) {
       const p = parseOperacao(e.operacao);
       const observacaoMeta = parseObservacaoMeta(e.observacao);
       const tempoSeg = (e.tempo_minutos || 0) * 60;
+      const rawMaq = observacaoMeta.maquina || p.maquina || "Reta";
       return {
-        maquina: p.maquina,
+        maquina: rawMaq,
         nome: hasNomeEtapa ? e.nome_etapa! : p.nome,
-        grupo: p.grupo || observacaoMeta.grupo,
+        grupo: observacaoMeta.grupo || p.grupo,
         tempo: Math.round(tempoSeg),
         obs: observacaoMeta.observacao,
         idx: e.numero_etapa,
