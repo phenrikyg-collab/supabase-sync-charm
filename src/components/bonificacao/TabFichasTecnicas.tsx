@@ -154,13 +154,13 @@ export default function TabFichasTecnicas() {
   });
 
   /* ── Calculations ── */
-
+  // Capacidade = horas/dia × 3600s × dias úteis/mês (linha de produção sequencial, não soma máquinas)
   const capacidadeTotal = useMemo(() => {
-    return maquinas.reduce(
-      (sum: number, m: any) =>
-        sum + (m.quantidade_maquinas || 0) * (m.horas_por_dia || 0) * 3600 * (m.dias_uteis_mes || 0),
-      0
-    );
+    if (maquinas.length === 0) return 0;
+    const first = maquinas[0] as any;
+    const horasDia = first.horas_por_dia || 8;
+    const diasUteis = first.dias_uteis_mes || 22;
+    return horasDia * 3600 * diasUteis;
   }, [maquinas]);
 
   const custoSegundo = useMemo(() => {
