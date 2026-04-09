@@ -522,7 +522,8 @@ export default function TabFichasTecnicas() {
                     const parsed = parseOperacao(e.operacao);
                     const hasNomeEtapa = e.nome_etapa && e.nome_etapa.trim();
                     const observacaoMeta = parseObservacaoMeta(e.observacao);
-                    return { nome: hasNomeEtapa ? e.nome_etapa : parsed.nome, maquina: parsed.maquina, tempo_segundos: (e.tempo_minutos || 0) * 60, observacao: observacaoMeta.observacao, grupo: parsed.grupo || observacaoMeta.grupo };
+                    const rawMaq = observacaoMeta.maquina || parsed.maquina || "Reta";
+                    return { nome: hasNomeEtapa ? e.nome_etapa : parsed.nome, maquina: rawMaq, tempo_segundos: (e.tempo_minutos || 0) * 60, observacao: observacaoMeta.observacao, grupo: observacaoMeta.grupo || parsed.grupo };
                   });
                   const tempoEfetivo = calcTempoEfetivo(parsedEtapas);
                   const custoMO = tempoEfetivo * custoSegundo;
