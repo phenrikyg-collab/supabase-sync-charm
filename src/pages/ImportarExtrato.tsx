@@ -894,7 +894,9 @@ export default function ImportarExtrato() {
             categoria_id: r.categoria_id || vindiCategoriaId || null,
             origem: isVindi ? (banco === "vindi_transacoes" ? "vindi_transacoes" : "vindi_taxas") : `extrato_${banco}`,
             status_pagamento: "pago",
-            frequencia: r.frequencia || null,
+            frequencia: r.frequencia === "mensal_indeterminada" || r.frequencia === "mensal_por_periodo" ? "Mensal" : r.frequencia || null,
+            frequencia_tipo: r.frequencia_tipo || null,
+            frequencia_meses: r.frequencia_meses || null,
             impacta_dre: true,
             impacta_fluxo: true,
           };
