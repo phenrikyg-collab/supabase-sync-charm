@@ -66,10 +66,20 @@ interface CatInfo {
   categoriaPaiId: string | null;
 }
 
+interface PlanoTransaction {
+  id: string;
+  descricao: string;
+  valor: number;
+  data: string;
+  dataVencimento: string | null;
+  parcela: string | null;
+}
+
 interface PlanoEntry {
   descricao: string;
   valor: number;
   count: number;
+  transactions: PlanoTransaction[];
 }
 
 interface CategoriaGroup {
