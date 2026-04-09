@@ -99,7 +99,7 @@ export default function CustosFixos() {
     let fixo = 0, variavel = 0;
     mesMovs.forEach(m => {
       const isFixo = m.frequencia === "Mensal" || m.frequencia === "mensal" ||
-        (m as any).frequencia_tipo === "indeterminada" || (m as any).frequencia_tipo === "por_periodo";
+        m.frequencia_tipo === "indeterminada" || m.frequencia_tipo === "por_periodo";
       if (isFixo) fixo += Math.abs(m.valor);
       else variavel += Math.abs(m.valor);
     });
