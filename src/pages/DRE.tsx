@@ -3,7 +3,8 @@ import { useMovimentacoesFinanceiras, useCategorias } from "@/hooks/useSupabase"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { TrendingUp, TrendingDown, AlertTriangle, ChevronDown, ChevronRight, Info } from "lucide-react";
+import { TrendingUp, TrendingDown, AlertTriangle, ChevronDown, ChevronRight, Info, Eye } from "lucide-react";
+import { format, parseISO } from "date-fns";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 function formatCurrency(v: number | null | undefined) {
@@ -66,10 +67,20 @@ interface CatInfo {
   categoriaPaiId: string | null;
 }
 
+interface PlanoTransaction {
+  id: string;
+  descricao: string;
+  valor: number;
+  data: string;
+  dataVencimento: string | null;
+  parcela: string | null;
+}
+
 interface PlanoEntry {
   descricao: string;
   valor: number;
   count: number;
+  transactions: PlanoTransaction[];
 }
 
 interface CategoriaGroup {
@@ -88,8 +99,24 @@ function buildDreData(
   movs: any[],
   catMap: Record<string, CatInfo>,
 ) {
-  // Accumulate: faixa → categoria → plano → { valor, count }
-  const acc: Record<string, Record<string, Record<string, { valor: number; count: number }>>> = {};
+  // Accumulate: faixa → categoria → plano → { valor, count, transactions }
+  const acc: Record<string, Record<string, Record<string, { valor: number; count: number; transactions: PlanoTransaction[] }>>> = {};
+
+  const addEntry = (f: string, c: string, p: string, val: number, m: any) => {
+    if (!acc[f]) acc[f] = {};
+    if (!acc[f][c]) acc[f][c] = {};
+    if (!acc[f][c][p]) acc[f][c][p] = { valor: 0, count: 0, transactions: [] };
+    acc[f][c][p].valor += val;
+    acc[f][c][p].count += 1;
+    acc[f][c][p].transactions.push({
+      id: m.id,
+      descricao: m.descricao || "—",
+      valor: val,
+      data: m.data,
+      dataVencimento: m.data_vencimento || null,
+      parcela: m.parcela_info || null,
+    });
+  };
 
   movs.forEach((m) => {
     if (m.impacta_dre === false) return;
@@ -102,48 +129,25 @@ function buildDreData(
 
     // Handle Bling sales specially
     if (isReceita && m.origem === "bling") {
-      const f = "RECEITAS";
-      const c = "Receita com Vendas";
-      const p = "Venda de produtos";
-      if (!acc[f]) acc[f] = {};
-      if (!acc[f][c]) acc[f][c] = {};
-      if (!acc[f][c][p]) acc[f][c][p] = { valor: 0, count: 0 };
-      acc[f][c][p].valor += m.valor ?? 0;
-      acc[f][c][p].count += 1;
+      addEntry("RECEITAS", "Receita com Vendas", "Venda de produtos", m.valor ?? 0, m);
 
       // Descontos go to deduções
       const desconto = m.valor_desconto ?? 0;
       if (desconto > 0) {
-        const fd = "DEDUÇÕES SOBRE VENDAS";
-        const cd = "Estornos";
-        const pd = "Descontos em vendas";
-        if (!acc[fd]) acc[fd] = {};
-        if (!acc[fd][cd]) acc[fd][cd] = {};
-        if (!acc[fd][cd][pd]) acc[fd][cd][pd] = { valor: 0, count: 0 };
-        acc[fd][cd][pd].valor += desconto;
-        acc[fd][cd][pd].count += 1;
+        addEntry("DEDUÇÕES SOBRE VENDAS", "Estornos", "Descontos em vendas", desconto, m);
       }
       return;
     }
 
     // For receita entries not from bling
     if (isReceita && faixa) {
-      if (!acc[faixa]) acc[faixa] = {};
-      if (!acc[faixa][categoria]) acc[faixa][categoria] = {};
-      if (!acc[faixa][categoria][plano]) acc[faixa][categoria][plano] = { valor: 0, count: 0 };
-      acc[faixa][categoria][plano].valor += Math.abs(m.valor ?? 0);
-      acc[faixa][categoria][plano].count += 1;
+      addEntry(faixa, categoria, plano, Math.abs(m.valor ?? 0), m);
       return;
     }
 
     // Despesas / saídas
     if (!faixa) return; // skip uncategorized for DRE
-    const valor = Math.abs(m.valor ?? 0);
-    if (!acc[faixa]) acc[faixa] = {};
-    if (!acc[faixa][categoria]) acc[faixa][categoria] = {};
-    if (!acc[faixa][categoria][plano]) acc[faixa][categoria][plano] = { valor: 0, count: 0 };
-    acc[faixa][categoria][plano].valor += valor;
-    acc[faixa][categoria][plano].count += 1;
+    addEntry(faixa, categoria, plano, Math.abs(m.valor ?? 0), m);
   });
 
   // Build structured groups
@@ -152,7 +156,7 @@ function buildDreData(
     const categorias: CategoriaGroup[] = Object.entries(catAcc)
       .map(([nomeCategoria, planoAcc]) => {
         const planos: PlanoEntry[] = Object.entries(planoAcc)
-          .map(([descricao, { valor, count }]) => ({ descricao, valor, count }))
+          .map(([descricao, { valor, count, transactions }]) => ({ descricao, valor, count, transactions }))
           .sort((a, b) => b.valor - a.valor);
         const valor = planos.reduce((s, p) => s + p.valor, 0);
         return { nomeCategoria, valor, planos };
@@ -209,6 +213,15 @@ export default function DRE() {
   const [mesSelecionado, setMesSelecionado] = useState("todos");
   const [expandedFaixas, setExpandedFaixas] = useState<Set<string>>(new Set());
   const [expandedCategorias, setExpandedCategorias] = useState<Set<string>>(new Set());
+  const [expandedPlanos, setExpandedPlanos] = useState<Set<string>>(new Set());
+
+  const togglePlano = (key: string) => {
+    setExpandedPlanos((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key); else next.add(key);
+      return next;
+    });
+  };
 
   const toggleFaixa = (key: string) => {
     setExpandedFaixas((prev) => {
@@ -382,31 +395,62 @@ export default function DRE() {
               </div>
 
               {/* Planos de conta */}
-              {isCatExpanded && cg.planos.map((p, idx) => (
-                <TooltipProvider key={idx}>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <div className="flex justify-between items-center px-4 py-1.5 pl-14 text-xs hover:bg-accent/10 rounded transition-colors">
-                        <div className="flex flex-col">
-                          <span className="text-foreground/80 font-medium">{p.descricao}</span>
-                          <span className="text-muted-foreground text-[10px]">
-                            {p.count} lançamento{p.count > 1 ? "s" : ""}
-                          </span>
-                        </div>
-                        <div className="flex gap-8 items-center">
-                          <span className="font-mono w-32 text-right">{formatCurrency(p.valor)}</span>
-                          <span className="font-mono w-16 text-right text-muted-foreground">{calcAV(p.valor)}</span>
-                        </div>
+              {isCatExpanded && cg.planos.map((p, idx) => {
+                const planoKey = `${fg.faixa}||${cg.nomeCategoria}||${p.descricao}`;
+                const isPlanoExpanded = expandedPlanos.has(planoKey);
+                return (
+                  <div key={idx}>
+                    <div
+                      className="flex justify-between items-center px-4 py-1.5 pl-14 text-xs hover:bg-accent/10 rounded transition-colors cursor-pointer"
+                      onClick={() => togglePlano(planoKey)}
+                    >
+                      <div className="flex flex-col">
+                        <span className="text-foreground/80 font-medium flex items-center gap-1">
+                          {p.count > 1 ? (
+                            isPlanoExpanded ? <ChevronDown className="h-2.5 w-2.5 text-muted-foreground" /> : <ChevronRight className="h-2.5 w-2.5 text-muted-foreground" />
+                          ) : <Eye className="h-2.5 w-2.5 text-muted-foreground" />}
+                          {p.descricao}
+                        </span>
+                        <span className="text-muted-foreground text-[10px] pl-3.5">
+                          {p.count} lançamento{p.count > 1 ? "s" : ""}
+                        </span>
                       </div>
-                    </TooltipTrigger>
-                    <TooltipContent side="left">
-                      <p className="font-semibold">{cg.nomeCategoria}</p>
-                      <p className="text-xs">{p.descricao}</p>
-                      <p className="text-xs mt-1">{p.count} lançamento(s) totalizando {formatCurrency(p.valor)}</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-              ))}
+                      <div className="flex gap-8 items-center">
+                        <span className="font-mono w-32 text-right">{formatCurrency(p.valor)}</span>
+                        <span className="font-mono w-16 text-right text-muted-foreground">{calcAV(p.valor)}</span>
+                      </div>
+                    </div>
+
+                    {/* Drill-down: individual transactions */}
+                    {isPlanoExpanded && (
+                      <div className="ml-[60px] mr-4 mb-2 border border-border/50 rounded-md overflow-hidden">
+                        <div className="bg-muted/30 px-3 py-1.5 text-[10px] font-semibold text-muted-foreground flex gap-2">
+                          <span className="flex-1">Descrição</span>
+                          <span className="w-20 text-center">Competência</span>
+                          <span className="w-20 text-center">Vencimento</span>
+                          <span className="w-16 text-center">Parcela</span>
+                          <span className="w-24 text-right">Valor</span>
+                        </div>
+                        {p.transactions
+                          .sort((a, b) => (a.data ?? "").localeCompare(b.data ?? ""))
+                          .map((t) => (
+                          <div key={t.id} className="flex gap-2 px-3 py-1 text-[10px] border-t border-border/30 hover:bg-accent/10">
+                            <span className="flex-1 truncate text-foreground/80">{t.descricao}</span>
+                            <span className="w-20 text-center text-muted-foreground font-mono">
+                              {t.data ? format(parseISO(t.data), "dd/MM/yy") : "—"}
+                            </span>
+                            <span className="w-20 text-center text-muted-foreground font-mono">
+                              {t.dataVencimento ? format(parseISO(t.dataVencimento), "dd/MM/yy") : "—"}
+                            </span>
+                            <span className="w-16 text-center text-muted-foreground">{t.parcela || "—"}</span>
+                            <span className="w-24 text-right font-mono">{formatCurrency(t.valor)}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           );
         })}
