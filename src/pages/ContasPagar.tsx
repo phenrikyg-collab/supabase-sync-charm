@@ -553,11 +553,48 @@ function NovaContaDialog({ categorias }: { categorias: { id: string; descricao_c
             <Checkbox id="parcelas" checked={temParcelas} onCheckedChange={(v) => {
               setTemParcelas(v === true);
               if (v === true && !cartaoCredito) setParcelasManual([]);
+              if (v === true) setFrequenciaTipo("");
             }} />
             <Label htmlFor="parcelas" className="cursor-pointer text-sm font-normal">
               {cartaoCredito ? "Repetir Mensalmente" : "Parcelado (NF Faturada)"}
             </Label>
           </div>
+
+          {/* Despesa Mensal (Recorrente) - só aparece sem parcelas */}
+          {!temParcelas && !cartaoCredito && (
+            <div className="space-y-3">
+              <div className="flex items-center gap-2">
+                <Checkbox id="mensal" checked={frequenciaTipo !== ""} onCheckedChange={(v) => {
+                  setFrequenciaTipo(v === true ? "mensal_indeterminada" : "");
+                }} />
+                <Label htmlFor="mensal" className="cursor-pointer text-sm font-normal">
+                  Despesa Mensal (Recorrente)
+                </Label>
+              </div>
+              {frequenciaTipo !== "" && (
+                <div className="space-y-3 pl-6 border-l-2 border-primary/20">
+                  <Select value={frequenciaTipo} onValueChange={(v) => setFrequenciaTipo(v as any)}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="mensal_indeterminada">Mensal até cancelar</SelectItem>
+                      <SelectItem value="mensal_por_periodo">Mensal por X meses</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  {frequenciaTipo === "mensal_por_periodo" && (
+                    <div className="space-y-1">
+                      <Label className="text-xs">Quantidade de meses</Label>
+                      <Input type="number" min={2} max={60} value={frequenciaMeses} onChange={(e) => setFrequenciaMeses(e.target.value)} placeholder="3" />
+                    </div>
+                  )}
+                  <p className="text-xs text-muted-foreground">
+                    {frequenciaTipo === "mensal_indeterminada"
+                      ? "Será gerado lançamento mensal automaticamente (3 meses de projeção futura)"
+                      : `Serão gerados ${frequenciaMeses || 0} lançamentos mensais a partir do vencimento`}
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Cartão de crédito: parcelas automáticas mensais */}
           {temParcelas && cartaoCredito && (
