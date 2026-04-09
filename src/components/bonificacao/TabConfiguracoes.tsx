@@ -326,6 +326,93 @@ function ConfigMaquinas() {
 }
 
 /* ═══════════════════════════════════════════
+   Config Custo Fixo Oficina
+   ═══════════════════════════════════════════ */
+function ConfigCustoFixo() {
+  const qc = useQueryClient();
+  const mesAtual = new Date().toISOString().slice(0, 7); // "YYYY-MM"
+
+  const { data: registro, isLoading } = useQuery({
+    queryKey: ["custo_fixo_oficina_config"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("custo_fixo_oficina")
+        .select("*")
+        .order("mes", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const [mes, setMes] = useState(mesAtual);
+  const [valor, setValor] = useState(0);
+
+  useEffect(() => {
+    if (registro) {
+      setMes(registro.mes || mesAtual);
+      setValor(registro.valor || 0);
+    }
+  }, [registro]);
+
+  const salvar = useMutation({
+    mutationFn: async () => {
+      if (registro?.id) {
+        const { error } = await supabase
+          .from("custo_fixo_oficina")
+          .update({ mes, valor })
+          .eq("id", registro.id);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase
+          .from("custo_fixo_oficina")
+          .insert({ mes, valor });
+        if (error) throw error;
+      }
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["custo_fixo_oficina_config"] });
+      qc.invalidateQueries({ queryKey: ["custo_fixo_oficina"] });
+      toast.success("Custo fixo salvo");
+    },
+    onError: (e: any) => toast.error("Erro: " + (e?.message || "desconhecido")),
+  });
+
+  if (isLoading) return null;
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-base text-primary flex items-center gap-2">
+          <Settings className="h-4 w-4" /> Custo Fixo Mensal da Oficina
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <p className="text-xs text-muted-foreground">
+          Esse valor é usado para calcular o custo por segundo nas Fichas Técnicas.
+        </p>
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <Label className="text-xs">Mês de referência</Label>
+            <Input type="month" value={mes} onChange={(e) => setMes(e.target.value)} className="h-8" />
+          </div>
+          <div>
+            <Label className="text-xs">Valor (R$)</Label>
+            <Input type="number" step="0.01" min={0} value={valor} onChange={(e) => setValor(Number(e.target.value))} className="h-8" />
+          </div>
+        </div>
+        <div className="flex justify-end">
+          <Button size="sm" onClick={() => salvar.mutate()} disabled={salvar.isPending}>
+            {salvar.isPending ? "Salvando..." : "Salvar"}
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+/* ═══════════════════════════════════════════
    Tab Configurações (main export)
    ═══════════════════════════════════════════ */
 export default function TabConfiguracoes() {
@@ -337,6 +424,8 @@ export default function TabConfiguracoes() {
           Alterações afetam o cálculo dos próximos fechamentos.
         </AlertDescription>
       </Alert>
+
+      <ConfigCustoFixo />
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <ConfigCostureiras />
