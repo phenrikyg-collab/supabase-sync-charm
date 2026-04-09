@@ -89,7 +89,7 @@ export default function FichaTecnicaReadOnly({ produtoNome, etapas }: Props) {
   }, [parsedAll]);
 
   const tempoEfetivo = useMemo(() => calcTempoEfetivo(parsedAll), [parsedAll]);
-  const totalBruto = sorted.reduce((s, e) => s + (e.tempo_minutos || 0), 0);
+  const totalBruto = sorted.reduce((s, e) => s + Math.round((e.tempo_minutos || 0) * 60), 0);
   const hasConjuntos = parsedAll.some(e => e.grupo > 0);
   const maquinaOrder = ["Overloque", "Reta", "Galoneira"];
   const allMaquinas = [...maquinaOrder.filter(m => grouped[m]), ...Object.keys(grouped).filter(m => !maquinaOrder.includes(m))];
