@@ -500,9 +500,12 @@ export default function TabFichasTecnicas() {
                             ? format(new Date(row.data_medicao + "T12:00:00"), "dd/MM/yyyy")
                             : "—"}
                         </TableCell>
-                        <TableCell>
+                        <TableCell className="flex gap-1">
                           <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); openEdit(row); }}>
                             <Pencil className="h-4 w-4" />
+                          </Button>
+                          <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); setDeleteTarget({ produto_id: row.produto_id, produto_nome: row.produto_nome }); }}>
+                            <Trash2 className="h-4 w-4 text-destructive" />
                           </Button>
                         </TableCell>
                       </TableRow>
