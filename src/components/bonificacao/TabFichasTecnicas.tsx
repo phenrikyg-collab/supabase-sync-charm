@@ -103,6 +103,7 @@ export default function TabFichasTecnicas() {
   const [editProdutoId, setEditProdutoId] = useState<string | null>(null);
   const [form, setForm] = useState<ModalForm>({ ...emptyForm, etapas: [{ ...emptyEtapa }] });
   const [expandedProduct, setExpandedProduct] = useState<string | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<{ produto_id: string; produto_nome: string } | null>(null);
 
   /* ── Queries ── */
 
