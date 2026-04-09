@@ -365,6 +365,8 @@ function NovaContaDialog({ categorias }: { categorias: { id: string; descricao_c
   const [cartaoCredito, setCartaoCredito] = useState(false);
   const [parcelasManual, setParcelasManual] = useState<ParcelaManual[]>([]);
   const [salvando, setSalvando] = useState(false);
+  const [frequenciaTipo, setFrequenciaTipo] = useState<"mensal_indeterminada" | "mensal_por_periodo" | "">("");
+  const [frequenciaMeses, setFrequenciaMeses] = useState("3");
 
   const resetForm = () => {
     setFornecedor("");
@@ -376,6 +378,8 @@ function NovaContaDialog({ categorias }: { categorias: { id: string; descricao_c
     setQtdParcelas("2");
     setCartaoCredito(false);
     setParcelasManual([]);
+    setFrequenciaTipo("");
+    setFrequenciaMeses("3");
   };
 
   // Quando ativa parcelas manuais (NF), inicializa lista
