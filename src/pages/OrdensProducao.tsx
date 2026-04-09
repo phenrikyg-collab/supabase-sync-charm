@@ -78,7 +78,7 @@ export default function OrdensProducao() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("fichas_tecnicas_tempo")
-        .select("*, produtos(nome_do_produto)")
+        .select("*")
         .order("numero_etapa", { ascending: true });
       if (error) throw error;
       return data;
