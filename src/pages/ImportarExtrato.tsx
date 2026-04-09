@@ -1258,7 +1258,7 @@ export default function ImportarExtrato() {
                 {isCategorizando ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
                 Categorizar com IA
               </Button>
-              <Button onClick={salvarMovimentacoes} disabled={isSalvando} variant="default" className="gap-2">
+              <Button onClick={() => salvarMovimentacoes()} disabled={isSalvando} variant="default" className="gap-2">
                 {isSalvando ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
                 Salvar Selecionados
               </Button>
