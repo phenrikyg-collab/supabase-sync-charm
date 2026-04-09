@@ -63,8 +63,17 @@ export default function FichaTecnicaReadOnly({ produtoNome, etapas }: Props) {
 
   const parsedAll = useMemo(() =>
     sorted.map((e) => {
+      const hasNomeEtapa = e.nome_etapa && e.nome_etapa.trim();
       const p = parseOperacao(e.operacao);
-      return { ...p, tempo: e.tempo_minutos, obs: e.observacao, idx: e.numero_etapa };
+      const tempoSeg = (e.tempo_minutos || 0) * 60;
+      return {
+        maquina: hasNomeEtapa ? "Reta" : p.maquina,
+        nome: hasNomeEtapa ? e.nome_etapa! : p.nome,
+        grupo: hasNomeEtapa ? 0 : p.grupo,
+        tempo: Math.round(tempoSeg),
+        obs: e.observacao,
+        idx: e.numero_etapa,
+      };
     }),
     [sorted]
   );
