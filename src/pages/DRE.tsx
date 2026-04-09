@@ -3,7 +3,8 @@ import { useMovimentacoesFinanceiras, useCategorias } from "@/hooks/useSupabase"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { TrendingUp, TrendingDown, AlertTriangle, ChevronDown, ChevronRight, Info } from "lucide-react";
+import { TrendingUp, TrendingDown, AlertTriangle, ChevronDown, ChevronRight, Info, Eye } from "lucide-react";
+import { format, parseISO } from "date-fns";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 function formatCurrency(v: number | null | undefined) {
