@@ -211,6 +211,10 @@ export interface MovimentacaoFinanceira {
   fatura_id: string | null;
   impacta_dre: boolean;
   impacta_fluxo: boolean;
+  frequencia: string | null;
+  frequencia_tipo: string | null;
+  frequencia_meses: number | null;
+  recorrencia_grupo_id: string | null;
   created_at: string | null;
 }
 

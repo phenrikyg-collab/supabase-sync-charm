@@ -641,11 +641,14 @@ export type Database = {
           entrada_tecido_id: string | null
           fatura_id: string | null
           frequencia: string | null
+          frequencia_meses: number | null
+          frequencia_tipo: string | null
           id: string
           impacta_dre: boolean
           impacta_fluxo: boolean
           origem: string | null
           parcela_info: string | null
+          recorrencia_grupo_id: string | null
           status_bling: string | null
           status_pagamento: string | null
           tipo: string | null
@@ -672,11 +675,14 @@ export type Database = {
           entrada_tecido_id?: string | null
           fatura_id?: string | null
           frequencia?: string | null
+          frequencia_meses?: number | null
+          frequencia_tipo?: string | null
           id?: string
           impacta_dre?: boolean
           impacta_fluxo?: boolean
           origem?: string | null
           parcela_info?: string | null
+          recorrencia_grupo_id?: string | null
           status_bling?: string | null
           status_pagamento?: string | null
           tipo?: string | null
@@ -703,11 +709,14 @@ export type Database = {
           entrada_tecido_id?: string | null
           fatura_id?: string | null
           frequencia?: string | null
+          frequencia_meses?: number | null
+          frequencia_tipo?: string | null
           id?: string
           impacta_dre?: boolean
           impacta_fluxo?: boolean
           origem?: string | null
           parcela_info?: string | null
+          recorrencia_grupo_id?: string | null
           status_bling?: string | null
           status_pagamento?: string | null
           tipo?: string | null

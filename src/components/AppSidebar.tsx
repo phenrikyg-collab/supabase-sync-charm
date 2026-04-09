@@ -78,6 +78,7 @@ const moduleGroups: ModuleGroup[] = [
       { title: "Importar Extrato", url: "/importar-extrato", icon: Upload },
       { title: "Faturas Cartão", url: "/faturas", icon: CreditCard },
       { title: "Orçamento", url: "/orcamento", icon: Target },
+      { title: "Custos Fixos", url: "/custos-fixos", icon: TrendingUp },
     ],
   },
 ];
