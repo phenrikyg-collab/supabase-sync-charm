@@ -658,7 +658,7 @@ export default function ImportarExtrato() {
       if (vindiPreCategoriaId) {
         parsed = parsed.map((r) => ({ ...r, categoria_id: vindiPreCategoriaId }));
       }
-      setRows(parsed);
+      setRows(autoCategorizeFromHistory(parsed));
       const parcelados = parsed.filter((r) => r.parcela_total);
       toast.success(`${parsed.length} lançamentos importados${parcelados.length > 0 ? ` (${parcelados.length} parcelados detectados)` : ""}`);
     } else if (file.name.endsWith(".xlsx") || file.name.endsWith(".xls")) {
@@ -668,7 +668,7 @@ export default function ImportarExtrato() {
         toast.error("Nenhum lançamento encontrado na planilha. Verifique o formato.");
         return;
       }
-      setRows(parsed);
+      setRows(autoCategorizeFromHistory(parsed));
       const parcelados = parsed.filter((r) => r.parcela_total);
       toast.success(`${parsed.length} lançamentos importados${parcelados.length > 0 ? ` (${parcelados.length} parcelados detectados)` : ""}`);
     } else if (file.name.endsWith(".pdf")) {
