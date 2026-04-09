@@ -188,12 +188,21 @@ export default function TabFichasTecnicas() {
   const saveFicha = useMutation({
     mutationFn: async () => {
       if (!form.produto_id) throw new Error("Selecione um produto");
-      if (!form.produto_nome.trim()) throw new Error("Produto inválido");
       if (form.etapas.length === 0) throw new Error("Adicione ao menos uma etapa");
+      if (form.etapas.some((e) => !e.nome.trim() || !e.maquina)) {
+        throw new Error("Preencha nome e máquina de todas as etapas");
+      }
 
       const targetId = editProdutoId || form.produto_id;
-      await supabase.from("fichas_tecnicas_tempo").delete().eq("produto_id", targetId);
 
+      // Delete existing entries for this product
+      const { error: delError } = await supabase
+        .from("fichas_tecnicas_tempo")
+        .delete()
+        .eq("produto_id", targetId);
+      if (delError) throw delError;
+
+      // Build rows with ONLY columns that exist in the DB schema
       const rows = form.etapas.map((e, i) => ({
         produto_id: form.produto_id,
         tipo_peca: form.tipo_peca,
@@ -206,8 +215,13 @@ export default function TabFichasTecnicas() {
         numero_etapa: i + 1,
       }));
 
+      console.log("[FichaTecnica] Inserting rows:", JSON.stringify(rows, null, 2));
+
       const { error } = await supabase.from("fichas_tecnicas_tempo").insert(rows);
-      if (error) throw error;
+      if (error) {
+        console.error("[FichaTecnica] Insert error:", error);
+        throw error;
+      }
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["fichas_tecnicas_tempo"] });
