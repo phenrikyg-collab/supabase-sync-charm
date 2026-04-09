@@ -1371,6 +1371,43 @@ export default function ImportarExtrato() {
           </Card>
         </>
       )}
+      {/* Duplicate detection alert */}
+      <AlertDialog open={!!duplicatasAlert} onOpenChange={(open) => !open && setDuplicatasAlert(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-warning" />
+              Possíveis Duplicidades Detectadas
+            </AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-2">
+                <p>
+                  Foram encontrados <strong>{duplicatasAlert?.count}</strong> lançamento(s) que já existem na base
+                  com a mesma data, valor e descrição:
+                </p>
+                <ul className="list-disc pl-4 space-y-1 text-xs max-h-40 overflow-y-auto">
+                  {duplicatasAlert?.items.map((item, i) => (
+                    <li key={i}>{item}</li>
+                  ))}
+                  {(duplicatasAlert?.count || 0) > 10 && (
+                    <li className="text-muted-foreground">...e mais {(duplicatasAlert?.count || 0) - 10} duplicatas</li>
+                  )}
+                </ul>
+                <p className="font-medium">Deseja salvar mesmo assim?</p>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={() => {
+              setDuplicatasAlert(null);
+              salvarMovimentacoes(true);
+            }}>
+              Salvar Mesmo Assim
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
