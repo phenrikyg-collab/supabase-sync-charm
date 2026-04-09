@@ -477,6 +477,7 @@ function SearchableCategory({
 export default function ImportarExtrato() {
   const { data: categorias } = useCategorias();
   const { data: cartoes = [] } = useCartoesCredito();
+  const { data: movsExistentes } = useMovimentacoesFinanceiras();
   const queryClient = useQueryClient();
   const [rows, setRows] = useState<ParsedRow[]>([]);
   const [isCategorizando, setIsCategorizando] = useState(false);
@@ -491,6 +492,76 @@ export default function ImportarExtrato() {
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
   const [bulkCategoryOpen, setBulkCategoryOpen] = useState(false);
   const [validacao, setValidacao] = useState<{ tipo: "ok" | "divergente"; qtd: number; total: number; divergencia?: number; valorInformado?: number } | null>(null);
+  const [duplicatasAlert, setDuplicatasAlert] = useState<{ count: number; items: string[] } | null>(null);
+  const [salvarAposDuplicata, setSalvarAposDuplicata] = useState(false);
+
+  // Build a map of description -> categoria_id from historical transactions
+  const historicoCategoria = useMemo(() => {
+    const map: Record<string, string> = {};
+    if (!movsExistentes) return map;
+    // Process most recent first so latest categorization wins
+    const sorted = [...movsExistentes].sort((a, b) => (b.created_at || "").localeCompare(a.created_at || ""));
+    sorted.forEach(m => {
+      if (m.categoria_id && m.descricao) {
+        // Normalize description: remove parcela info, trim, lowercase
+        const descNorm = m.descricao
+          .replace(/\s*\(\d+\/[∞\d]+\)\s*$/, "")
+          .replace(/\s*\d+\/\d+\s*$/, "")
+          .replace(/💳\s*/, "")
+          .trim().toLowerCase();
+        if (descNorm && !map[descNorm]) {
+          map[descNorm] = m.categoria_id;
+        }
+      }
+    });
+    return map;
+  }, [movsExistentes]);
+
+  // Build a set of existing transaction keys for duplicate detection
+  const existingKeys = useMemo(() => {
+    const keys = new Set<string>();
+    (movsExistentes ?? []).forEach(m => {
+      if (m.data && m.descricao) {
+        keys.add(`${m.data}|${Math.abs(m.valor).toFixed(2)}|${m.descricao.trim().toLowerCase()}`);
+      }
+    });
+    return keys;
+  }, [movsExistentes]);
+
+  // Auto-categorize parsed rows from history
+  const autoCategorizeFromHistory = useCallback((parsedRows: ParsedRow[]): ParsedRow[] => {
+    let autoCount = 0;
+    const result = parsedRows.map(r => {
+      if (r.categoria_id) return r; // Already has category
+      const descNorm = r.descricao
+        .replace(/\s*\(\d+\/[∞\d]+\)\s*$/, "")
+        .replace(/\s*\d+\/\d+\s*$/, "")
+        .replace(/💳\s*/, "")
+        .trim().toLowerCase();
+      const catId = historicoCategoria[descNorm];
+      if (catId) {
+        autoCount++;
+        return { ...r, categoria_id: catId, categoria_sugerida: "Auto (histórico)" };
+      }
+      return r;
+    });
+    if (autoCount > 0) {
+      toast.info(`${autoCount} lançamento(s) categorizado(s) automaticamente pelo histórico`);
+    }
+    return result;
+  }, [historicoCategoria]);
+
+  // Check for duplicates
+  const checkDuplicates = useCallback((parsedRows: ParsedRow[]): { count: number; items: string[] } => {
+    const dupes: string[] = [];
+    parsedRows.filter(r => r.selecionado).forEach(r => {
+      const key = `${r.data}|${Math.abs(r.valor).toFixed(2)}|${r.descricao.trim().toLowerCase()}`;
+      if (existingKeys.has(key)) {
+        dupes.push(`${r.descricao} (${r.data} - R$ ${r.valor.toFixed(2)})`);
+      }
+    });
+    return { count: dupes.length, items: dupes.slice(0, 10) };
+  }, [existingKeys]);
 
   const isCartao = banco === "cartao";
   const cartaoNomeFinal = useMemo(() => {
