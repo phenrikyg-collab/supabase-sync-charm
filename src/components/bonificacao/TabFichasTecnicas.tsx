@@ -118,10 +118,16 @@ export default function TabFichasTecnicas() {
   const { data: custoFixo } = useQuery({
     queryKey: ["custo_fixo_oficina", mesAtual],
     queryFn: async () => {
+      // Try current month first
       const { data, error } = await supabase
         .from("custo_fixo_oficina").select("valor").eq("mes", mesAtual).maybeSingle();
       if (error) throw error;
-      return data;
+      if (data) return data;
+      // Fallback: most recent month
+      const { data: latest, error: err2 } = await supabase
+        .from("custo_fixo_oficina").select("valor").order("mes", { ascending: false }).limit(1).maybeSingle();
+      if (err2) throw err2;
+      return latest;
     },
   });
 
