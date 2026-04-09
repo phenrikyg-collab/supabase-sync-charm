@@ -98,8 +98,24 @@ function buildDreData(
   movs: any[],
   catMap: Record<string, CatInfo>,
 ) {
-  // Accumulate: faixa → categoria → plano → { valor, count }
-  const acc: Record<string, Record<string, Record<string, { valor: number; count: number }>>> = {};
+  // Accumulate: faixa → categoria → plano → { valor, count, transactions }
+  const acc: Record<string, Record<string, Record<string, { valor: number; count: number; transactions: PlanoTransaction[] }>>> = {};
+
+  const addEntry = (f: string, c: string, p: string, val: number, m: any) => {
+    if (!acc[f]) acc[f] = {};
+    if (!acc[f][c]) acc[f][c] = {};
+    if (!acc[f][c][p]) acc[f][c][p] = { valor: 0, count: 0, transactions: [] };
+    acc[f][c][p].valor += val;
+    acc[f][c][p].count += 1;
+    acc[f][c][p].transactions.push({
+      id: m.id,
+      descricao: m.descricao || "—",
+      valor: val,
+      data: m.data,
+      dataVencimento: m.data_vencimento || null,
+      parcela: m.parcela_info || null,
+    });
+  };
 
   movs.forEach((m) => {
     if (m.impacta_dre === false) return;
@@ -112,48 +128,25 @@ function buildDreData(
 
     // Handle Bling sales specially
     if (isReceita && m.origem === "bling") {
-      const f = "RECEITAS";
-      const c = "Receita com Vendas";
-      const p = "Venda de produtos";
-      if (!acc[f]) acc[f] = {};
-      if (!acc[f][c]) acc[f][c] = {};
-      if (!acc[f][c][p]) acc[f][c][p] = { valor: 0, count: 0 };
-      acc[f][c][p].valor += m.valor ?? 0;
-      acc[f][c][p].count += 1;
+      addEntry("RECEITAS", "Receita com Vendas", "Venda de produtos", m.valor ?? 0, m);
 
       // Descontos go to deduções
       const desconto = m.valor_desconto ?? 0;
       if (desconto > 0) {
-        const fd = "DEDUÇÕES SOBRE VENDAS";
-        const cd = "Estornos";
-        const pd = "Descontos em vendas";
-        if (!acc[fd]) acc[fd] = {};
-        if (!acc[fd][cd]) acc[fd][cd] = {};
-        if (!acc[fd][cd][pd]) acc[fd][cd][pd] = { valor: 0, count: 0 };
-        acc[fd][cd][pd].valor += desconto;
-        acc[fd][cd][pd].count += 1;
+        addEntry("DEDUÇÕES SOBRE VENDAS", "Estornos", "Descontos em vendas", desconto, m);
       }
       return;
     }
 
     // For receita entries not from bling
     if (isReceita && faixa) {
-      if (!acc[faixa]) acc[faixa] = {};
-      if (!acc[faixa][categoria]) acc[faixa][categoria] = {};
-      if (!acc[faixa][categoria][plano]) acc[faixa][categoria][plano] = { valor: 0, count: 0 };
-      acc[faixa][categoria][plano].valor += Math.abs(m.valor ?? 0);
-      acc[faixa][categoria][plano].count += 1;
+      addEntry(faixa, categoria, plano, Math.abs(m.valor ?? 0), m);
       return;
     }
 
     // Despesas / saídas
     if (!faixa) return; // skip uncategorized for DRE
-    const valor = Math.abs(m.valor ?? 0);
-    if (!acc[faixa]) acc[faixa] = {};
-    if (!acc[faixa][categoria]) acc[faixa][categoria] = {};
-    if (!acc[faixa][categoria][plano]) acc[faixa][categoria][plano] = { valor: 0, count: 0 };
-    acc[faixa][categoria][plano].valor += valor;
-    acc[faixa][categoria][plano].count += 1;
+    addEntry(faixa, categoria, plano, Math.abs(m.valor ?? 0), m);
   });
 
   // Build structured groups
@@ -162,7 +155,7 @@ function buildDreData(
     const categorias: CategoriaGroup[] = Object.entries(catAcc)
       .map(([nomeCategoria, planoAcc]) => {
         const planos: PlanoEntry[] = Object.entries(planoAcc)
-          .map(([descricao, { valor, count }]) => ({ descricao, valor, count }))
+          .map(([descricao, { valor, count, transactions }]) => ({ descricao, valor, count, transactions }))
           .sort((a, b) => b.valor - a.valor);
         const valor = planos.reduce((s, p) => s + p.valor, 0);
         return { nomeCategoria, valor, planos };
