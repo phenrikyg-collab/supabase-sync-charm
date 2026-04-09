@@ -692,7 +692,7 @@ export default function ImportarExtrato() {
             valorTotalFatura: Number.isFinite(valorFaturaNum) ? valorFaturaNum : undefined,
           });
           if (data?.rows?.length > 0) {
-            setRows(data.rows.map((r: any) => {
+            setRows(autoCategorizeFromHistory(data.rows.map((r: any) => {
               const parcela = detectParcela(r.descricao || "");
               return {
                 data: r.data,
@@ -703,13 +703,13 @@ export default function ImportarExtrato() {
                 categoria_id: r.categoria_id || null,
                 categoria_sugerida: r.categoria_sugerida || null,
                 frequencia: null,
-      frequencia_tipo: null,
-      frequencia_meses: null,
+                frequencia_tipo: null,
+                frequencia_meses: null,
                 parcela_atual: parcela?.atual ?? null,
                 parcela_total: parcela?.total ?? null,
                 selecionado: true,
               };
-            }));
+            })));
 
             // Validation
             if (Number.isFinite(valorFaturaNum) && valorFaturaNum! > 0) {
