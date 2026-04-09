@@ -282,23 +282,44 @@ export default function TabFichasTecnicas() {
     return maqMap[(maquina || "").toLowerCase()] || maquina || "Reta";
   }
 
-  function toOperacaoValue(maquina: string): string {
-    return (maquina || "reta").trim().toLowerCase();
+  function toOperacaoValue(_maquina: string): string {
+    return "costura";
   }
 
-  function parseObservacaoMeta(observacao?: string | null): { grupo: number; observacao: string } {
+  function parseObservacaoMeta(observacao?: string | null): { grupo: number; maquina: string; observacao: string } {
     const raw = observacao || "";
-    const match = raw.match(/^\[\[grupo:(\d+)\]\]\s*(.*)$/s);
-    if (!match) return { grupo: 0, observacao: raw };
-    return {
-      grupo: parseInt(match[1], 10) || 0,
-      observacao: match[2] || "",
-    };
+    const metaMatch = raw.match(/^\[\[meta:([^\]]*)\]\]\s*(.*)$/s);
+    if (metaMatch) {
+      const metaStr = metaMatch[1];
+      const maqMatch = metaStr.match(/maq=(\w+)/);
+      const grupoMatch = metaStr.match(/grupo=(\d+)/);
+      return {
+        maquina: maqMatch ? formatMachineLabel(maqMatch[1]) : "",
+        grupo: grupoMatch ? parseInt(grupoMatch[1], 10) : 0,
+        observacao: metaMatch[2] || "",
+      };
+    }
+    // Legacy format
+    const legacyMatch = raw.match(/^\[\[grupo:(\d+)\]\]\s*(.*)$/s);
+    if (legacyMatch) {
+      return {
+        maquina: "",
+        grupo: parseInt(legacyMatch[1], 10) || 0,
+        observacao: legacyMatch[2] || "",
+      };
+    }
+    return { grupo: 0, maquina: "", observacao: raw };
   }
 
-  function buildObservacaoValue(observacao: string, grupo: number): string | null {
+  function buildObservacaoValue(observacao: string, maquina: string, grupo: number): string | null {
     const clean = observacao.trim();
-    if (grupo > 0) return `[[grupo:${grupo}]]${clean ? ` ${clean}` : ""}`;
+    const hasMeta = maquina || grupo > 0;
+    if (hasMeta) {
+      const parts: string[] = [];
+      if (maquina) parts.push(`maq=${maquina.toLowerCase()}`);
+      if (grupo > 0) parts.push(`grupo=${grupo}`);
+      return `[[meta:${parts.join(",")}]]${clean ? ` ${clean}` : ""}`;
+    }
     return clean || null;
   }
 
