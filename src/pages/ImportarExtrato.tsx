@@ -7,11 +7,12 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
-import { Upload, Sparkles, Check, Loader2, FileText, ChevronsUpDown, ArrowUpDown } from "lucide-react";
+import { Upload, Sparkles, Check, Loader2, FileText, ChevronsUpDown, ArrowUpDown, AlertTriangle } from "lucide-react";
 import * as XLSX from "xlsx";
 import { supabase } from "@/integrations/supabase/client";
-import { useCategorias, useCartoesCredito } from "@/hooks/useSupabase";
+import { useCategorias, useCartoesCredito, useMovimentacoesFinanceiras } from "@/hooks/useSupabase";
 import { invokeEdgeFunction } from "@/lib/edgeFunctions";
 import { useQueryClient } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
@@ -476,6 +477,7 @@ function SearchableCategory({
 export default function ImportarExtrato() {
   const { data: categorias } = useCategorias();
   const { data: cartoes = [] } = useCartoesCredito();
+  const { data: movsExistentes } = useMovimentacoesFinanceiras();
   const queryClient = useQueryClient();
   const [rows, setRows] = useState<ParsedRow[]>([]);
   const [isCategorizando, setIsCategorizando] = useState(false);
@@ -490,6 +492,76 @@ export default function ImportarExtrato() {
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
   const [bulkCategoryOpen, setBulkCategoryOpen] = useState(false);
   const [validacao, setValidacao] = useState<{ tipo: "ok" | "divergente"; qtd: number; total: number; divergencia?: number; valorInformado?: number } | null>(null);
+  const [duplicatasAlert, setDuplicatasAlert] = useState<{ count: number; items: string[] } | null>(null);
+  const [salvarAposDuplicata, setSalvarAposDuplicata] = useState(false);
+
+  // Build a map of description -> categoria_id from historical transactions
+  const historicoCategoria = useMemo(() => {
+    const map: Record<string, string> = {};
+    if (!movsExistentes) return map;
+    // Process most recent first so latest categorization wins
+    const sorted = [...movsExistentes].sort((a, b) => (b.created_at || "").localeCompare(a.created_at || ""));
+    sorted.forEach(m => {
+      if (m.categoria_id && m.descricao) {
+        // Normalize description: remove parcela info, trim, lowercase
+        const descNorm = m.descricao
+          .replace(/\s*\(\d+\/[∞\d]+\)\s*$/, "")
+          .replace(/\s*\d+\/\d+\s*$/, "")
+          .replace(/💳\s*/, "")
+          .trim().toLowerCase();
+        if (descNorm && !map[descNorm]) {
+          map[descNorm] = m.categoria_id;
+        }
+      }
+    });
+    return map;
+  }, [movsExistentes]);
+
+  // Build a set of existing transaction keys for duplicate detection
+  const existingKeys = useMemo(() => {
+    const keys = new Set<string>();
+    (movsExistentes ?? []).forEach(m => {
+      if (m.data && m.descricao) {
+        keys.add(`${m.data}|${Math.abs(m.valor).toFixed(2)}|${m.descricao.trim().toLowerCase()}`);
+      }
+    });
+    return keys;
+  }, [movsExistentes]);
+
+  // Auto-categorize parsed rows from history
+  const autoCategorizeFromHistory = useCallback((parsedRows: ParsedRow[]): ParsedRow[] => {
+    let autoCount = 0;
+    const result = parsedRows.map(r => {
+      if (r.categoria_id) return r; // Already has category
+      const descNorm = r.descricao
+        .replace(/\s*\(\d+\/[∞\d]+\)\s*$/, "")
+        .replace(/\s*\d+\/\d+\s*$/, "")
+        .replace(/💳\s*/, "")
+        .trim().toLowerCase();
+      const catId = historicoCategoria[descNorm];
+      if (catId) {
+        autoCount++;
+        return { ...r, categoria_id: catId, categoria_sugerida: "Auto (histórico)" };
+      }
+      return r;
+    });
+    if (autoCount > 0) {
+      toast.info(`${autoCount} lançamento(s) categorizado(s) automaticamente pelo histórico`);
+    }
+    return result;
+  }, [historicoCategoria]);
+
+  // Check for duplicates
+  const checkDuplicates = useCallback((parsedRows: ParsedRow[]): { count: number; items: string[] } => {
+    const dupes: string[] = [];
+    parsedRows.filter(r => r.selecionado).forEach(r => {
+      const key = `${r.data}|${Math.abs(r.valor).toFixed(2)}|${r.descricao.trim().toLowerCase()}`;
+      if (existingKeys.has(key)) {
+        dupes.push(`${r.descricao} (${r.data} - R$ ${r.valor.toFixed(2)})`);
+      }
+    });
+    return { count: dupes.length, items: dupes.slice(0, 10) };
+  }, [existingKeys]);
 
   const isCartao = banco === "cartao";
   const cartaoNomeFinal = useMemo(() => {
@@ -586,7 +658,7 @@ export default function ImportarExtrato() {
       if (vindiPreCategoriaId) {
         parsed = parsed.map((r) => ({ ...r, categoria_id: vindiPreCategoriaId }));
       }
-      setRows(parsed);
+      setRows(autoCategorizeFromHistory(parsed));
       const parcelados = parsed.filter((r) => r.parcela_total);
       toast.success(`${parsed.length} lançamentos importados${parcelados.length > 0 ? ` (${parcelados.length} parcelados detectados)` : ""}`);
     } else if (file.name.endsWith(".xlsx") || file.name.endsWith(".xls")) {
@@ -596,7 +668,7 @@ export default function ImportarExtrato() {
         toast.error("Nenhum lançamento encontrado na planilha. Verifique o formato.");
         return;
       }
-      setRows(parsed);
+      setRows(autoCategorizeFromHistory(parsed));
       const parcelados = parsed.filter((r) => r.parcela_total);
       toast.success(`${parsed.length} lançamentos importados${parcelados.length > 0 ? ` (${parcelados.length} parcelados detectados)` : ""}`);
     } else if (file.name.endsWith(".pdf")) {
@@ -620,7 +692,7 @@ export default function ImportarExtrato() {
             valorTotalFatura: Number.isFinite(valorFaturaNum) ? valorFaturaNum : undefined,
           });
           if (data?.rows?.length > 0) {
-            setRows(data.rows.map((r: any) => {
+            setRows(autoCategorizeFromHistory(data.rows.map((r: any) => {
               const parcela = detectParcela(r.descricao || "");
               return {
                 data: r.data,
@@ -631,13 +703,13 @@ export default function ImportarExtrato() {
                 categoria_id: r.categoria_id || null,
                 categoria_sugerida: r.categoria_sugerida || null,
                 frequencia: null,
-      frequencia_tipo: null,
-      frequencia_meses: null,
+                frequencia_tipo: null,
+                frequencia_meses: null,
                 parcela_atual: parcela?.atual ?? null,
                 parcela_total: parcela?.total ?? null,
                 selecionado: true,
               };
-            }));
+            })));
 
             // Validation
             if (Number.isFinite(valorFaturaNum) && valorFaturaNum! > 0) {
@@ -693,7 +765,7 @@ export default function ImportarExtrato() {
     }
   };
 
-  const salvarMovimentacoes = async () => {
+  const salvarMovimentacoes = async (skipDuplicateCheck = false) => {
     const selecionados = rows.filter((r) => r.selecionado);
     if (selecionados.length === 0) {
       toast.error("Selecione ao menos um lançamento.");
@@ -708,6 +780,15 @@ export default function ImportarExtrato() {
     if (isCartao && !faturaVencimento) {
       toast.error("Informe a data de vencimento da fatura.");
       return;
+    }
+
+    // Duplicate check
+    if (!skipDuplicateCheck) {
+      const dupes = checkDuplicates(selecionados);
+      if (dupes.count > 0) {
+        setDuplicatasAlert(dupes);
+        return;
+      }
     }
 
     setIsSalvando(true);
@@ -1177,7 +1258,7 @@ export default function ImportarExtrato() {
                 {isCategorizando ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
                 Categorizar com IA
               </Button>
-              <Button onClick={salvarMovimentacoes} disabled={isSalvando} variant="default" className="gap-2">
+              <Button onClick={() => salvarMovimentacoes()} disabled={isSalvando} variant="default" className="gap-2">
                 {isSalvando ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
                 Salvar Selecionados
               </Button>
@@ -1290,6 +1371,43 @@ export default function ImportarExtrato() {
           </Card>
         </>
       )}
+      {/* Duplicate detection alert */}
+      <AlertDialog open={!!duplicatasAlert} onOpenChange={(open) => !open && setDuplicatasAlert(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-warning" />
+              Possíveis Duplicidades Detectadas
+            </AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-2">
+                <p>
+                  Foram encontrados <strong>{duplicatasAlert?.count}</strong> lançamento(s) que já existem na base
+                  com a mesma data, valor e descrição:
+                </p>
+                <ul className="list-disc pl-4 space-y-1 text-xs max-h-40 overflow-y-auto">
+                  {duplicatasAlert?.items.map((item, i) => (
+                    <li key={i}>{item}</li>
+                  ))}
+                  {(duplicatasAlert?.count || 0) > 10 && (
+                    <li className="text-muted-foreground">...e mais {(duplicatasAlert?.count || 0) - 10} duplicatas</li>
+                  )}
+                </ul>
+                <p className="font-medium">Deseja salvar mesmo assim?</p>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={() => {
+              setDuplicatasAlert(null);
+              salvarMovimentacoes(true);
+            }}>
+              Salvar Mesmo Assim
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
