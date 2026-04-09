@@ -350,12 +350,15 @@ export default function TabFichasTecnicas() {
         const hasNomeEtapa = e.nome_etapa && e.nome_etapa.trim();
         const parsed = parseOperacao(e.operacao);
         const observacaoMeta = parseObservacaoMeta(e.observacao);
+        // Machine priority: observacao meta > operacao parsed > default
+        const rawMaq = observacaoMeta.maquina || parsed.maquina || "Reta";
+        const matchedMaq = tiposMaquina.find((t: string) => t.toLowerCase() === rawMaq.toLowerCase()) || rawMaq.toLowerCase();
         return {
           nome: hasNomeEtapa ? e.nome_etapa : parsed.nome,
-          maquina: tiposMaquina.find((t: string) => t.toLowerCase() === parsed.maquina.toLowerCase()) || parsed.maquina.toLowerCase(),
+          maquina: matchedMaq,
           tempo_segundos: (e.tempo_minutos || 0) * 60,
           observacao: observacaoMeta.observacao,
-          grupo: parsed.grupo || observacaoMeta.grupo,
+          grupo: observacaoMeta.grupo || parsed.grupo,
         };
       });
     setForm({
