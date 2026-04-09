@@ -7,6 +7,7 @@ interface Etapa {
   operacao: string;
   tempo_minutos: number;
   observacao?: string | null;
+  nome_etapa?: string | null;
 }
 
 interface Props {
@@ -62,8 +63,17 @@ export default function FichaTecnicaReadOnly({ produtoNome, etapas }: Props) {
 
   const parsedAll = useMemo(() =>
     sorted.map((e) => {
+      const hasNomeEtapa = e.nome_etapa && e.nome_etapa.trim();
       const p = parseOperacao(e.operacao);
-      return { ...p, tempo: e.tempo_minutos, obs: e.observacao, idx: e.numero_etapa };
+      const tempoSeg = (e.tempo_minutos || 0) * 60;
+      return {
+        maquina: hasNomeEtapa ? "Reta" : p.maquina,
+        nome: hasNomeEtapa ? e.nome_etapa! : p.nome,
+        grupo: hasNomeEtapa ? 0 : p.grupo,
+        tempo: Math.round(tempoSeg),
+        obs: e.observacao,
+        idx: e.numero_etapa,
+      };
     }),
     [sorted]
   );
@@ -79,7 +89,7 @@ export default function FichaTecnicaReadOnly({ produtoNome, etapas }: Props) {
   }, [parsedAll]);
 
   const tempoEfetivo = useMemo(() => calcTempoEfetivo(parsedAll), [parsedAll]);
-  const totalBruto = sorted.reduce((s, e) => s + (e.tempo_minutos || 0), 0);
+  const totalBruto = sorted.reduce((s, e) => s + Math.round((e.tempo_minutos || 0) * 60), 0);
   const hasConjuntos = parsedAll.some(e => e.grupo > 0);
   const maquinaOrder = ["Overloque", "Reta", "Galoneira"];
   const allMaquinas = [...maquinaOrder.filter(m => grouped[m]), ...Object.keys(grouped).filter(m => !maquinaOrder.includes(m))];

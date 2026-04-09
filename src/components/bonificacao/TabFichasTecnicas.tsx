@@ -189,8 +189,8 @@ export default function TabFichasTecnicas() {
     mutationFn: async () => {
       if (!form.produto_id) throw new Error("Selecione um produto");
       if (form.etapas.length === 0) throw new Error("Adicione ao menos uma etapa");
-      if (form.etapas.some((e) => !e.nome.trim() || !e.maquina)) {
-        throw new Error("Preencha nome e máquina de todas as etapas");
+      if (form.etapas.some((e) => !e.nome.trim())) {
+        throw new Error("Preencha o nome de todas as etapas");
       }
 
       const targetId = editProdutoId || form.produto_id;
@@ -202,22 +202,36 @@ export default function TabFichasTecnicas() {
         .eq("produto_id", targetId);
       if (delError) throw delError;
 
-      // Build rows with ONLY columns that exist in the DB schema
+      // Get max numero_etapa for this produto_id (after delete, should be 0)
+      const { data: maxData } = await supabase
+        .from("fichas_tecnicas_tempo")
+        .select("numero_etapa")
+        .eq("produto_id", form.produto_id)
+        .order("numero_etapa", { ascending: false })
+        .limit(1);
+      const baseEtapa = (maxData && maxData.length > 0) ? (maxData[0] as any).numero_etapa : 0;
+
+      // Validate tipo_peca
+      const tipoPeca = ["Nova", "nova", "Recorrente", "recorrente"].includes(form.tipo_peca)
+        ? form.tipo_peca
+        : "Recorrente";
+
       const rows = form.etapas.map((e, i) => ({
         produto_id: form.produto_id,
-        tipo_peca: form.tipo_peca,
+        tipo_peca: tipoPeca,
         cronometrado_por: form.cronometrado_por || null,
         data_medicao: form.data_medicao ? format(form.data_medicao, "yyyy-MM-dd") : null,
         num_amostras: form.num_amostras || null,
-        operacao: `${e.maquina}|${e.nome}|${e.grupo}`,
-        tempo_minutos: e.tempo_segundos,
+        operacao: "costura",
+        nome_etapa: e.nome.trim(),
+        tempo_minutos: e.tempo_segundos / 60,
         observacao: e.observacao || null,
-        numero_etapa: i + 1,
+        numero_etapa: baseEtapa + i + 1,
       }));
 
       console.log("[FichaTecnica] Inserting rows:", JSON.stringify(rows, null, 2));
 
-      const { error } = await supabase.from("fichas_tecnicas_tempo").insert(rows);
+      const { error } = await supabase.from("fichas_tecnicas_tempo").insert(rows as any);
       if (error) {
         console.error("[FichaTecnica] Insert error:", error);
         throw error;
@@ -259,13 +273,15 @@ export default function TabFichasTecnicas() {
     const etapas: Etapa[] = row.etapas
       .sort((a: any, b: any) => (a.numero_etapa || 1) - (b.numero_etapa || 1))
       .map((e: any) => {
+        // Support both new format (nome_etapa field) and legacy (operacao encoded)
+        const hasNomeEtapa = e.nome_etapa && e.nome_etapa.trim();
         const parsed = parseOperacao(e.operacao);
         return {
-          nome: parsed.nome,
-          maquina: parsed.maquina,
-          tempo_segundos: e.tempo_minutos || 0,
+          nome: hasNomeEtapa ? e.nome_etapa : parsed.nome,
+          maquina: hasNomeEtapa ? (parsed.maquina === e.operacao ? "Reta" : parsed.maquina) : parsed.maquina,
+          tempo_segundos: (e.tempo_minutos || 0) * 60,
           observacao: e.observacao || "",
-          grupo: parsed.grupo,
+          grupo: hasNomeEtapa ? 0 : parsed.grupo,
         };
       });
     setForm({
@@ -424,10 +440,11 @@ export default function TabFichasTecnicas() {
                 </TableRow>
               ) : (
                 fichasAgrupadas.map((row, i) => {
-                  // Parse etapas to get grupo info for effective time calc
+                  // Parse etapas for effective time calc (tempo_minutos stored in minutes, convert to seconds)
                   const parsedEtapas: Etapa[] = row.etapas.map((e: any) => {
                     const parsed = parseOperacao(e.operacao);
-                    return { nome: parsed.nome, maquina: parsed.maquina, tempo_segundos: e.tempo_minutos || 0, observacao: "", grupo: parsed.grupo };
+                    const hasNomeEtapa = e.nome_etapa && e.nome_etapa.trim();
+                    return { nome: hasNomeEtapa ? e.nome_etapa : parsed.nome, maquina: parsed.maquina, tempo_segundos: (e.tempo_minutos || 0) * 60, observacao: "", grupo: hasNomeEtapa ? 0 : parsed.grupo };
                   });
                   const tempoEfetivo = calcTempoEfetivo(parsedEtapas);
                   const custoMO = tempoEfetivo * custoSegundo;

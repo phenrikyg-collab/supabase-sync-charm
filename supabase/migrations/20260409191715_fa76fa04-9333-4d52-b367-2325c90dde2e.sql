@@ -1,0 +1,1 @@
+ALTER TABLE public.fichas_tecnicas_tempo ADD COLUMN IF NOT EXISTS nome_etapa text NOT NULL DEFAULT '';
