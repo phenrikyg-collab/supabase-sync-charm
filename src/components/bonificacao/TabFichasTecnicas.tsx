@@ -259,6 +259,22 @@ export default function TabFichasTecnicas() {
     onError: (e: any) => toast.error(e.message || "Erro ao salvar ficha"),
   });
 
+  const deleteFicha = useMutation({
+    mutationFn: async (produtoId: string) => {
+      const { error } = await supabase
+        .from("fichas_tecnicas_tempo")
+        .delete()
+        .eq("produto_id", produtoId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["fichas_tecnicas_tempo"] });
+      toast.success("Ficha técnica excluída");
+      setDeleteTarget(null);
+    },
+    onError: (e: any) => toast.error(e.message || "Erro ao excluir ficha"),
+  });
+
   /* ── Helpers ── */
 
   function parseOperacao(op: string): { maquina: string; nome: string; grupo: number } {
