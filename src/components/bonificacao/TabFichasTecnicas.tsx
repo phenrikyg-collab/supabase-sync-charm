@@ -236,10 +236,10 @@ export default function TabFichasTecnicas() {
         cronometrado_por: form.cronometrado_por || null,
         data_medicao: form.data_medicao ? format(form.data_medicao, "yyyy-MM-dd") : null,
         num_amostras: form.num_amostras || null,
-        operacao: `${e.maquina || "Reta"}|costura|${e.grupo || 0}`,
+        operacao: toOperacaoValue(e.maquina),
         nome_etapa: e.nome.trim(),
         tempo_minutos: e.tempo_segundos / 60,
-        observacao: e.observacao || null,
+        observacao: buildObservacaoValue(e.observacao, e.grupo),
         numero_etapa: baseEtapa + i + 1,
       }));
 
@@ -277,17 +277,40 @@ export default function TabFichasTecnicas() {
 
   /* ── Helpers ── */
 
+  function formatMachineLabel(maquina: string): string {
+    const maqMap: Record<string, string> = { reta: "Reta", overloque: "Overloque", galoneira: "Galoneira" };
+    return maqMap[(maquina || "").toLowerCase()] || maquina || "Reta";
+  }
+
+  function toOperacaoValue(maquina: string): string {
+    return (maquina || "reta").trim().toLowerCase();
+  }
+
+  function parseObservacaoMeta(observacao?: string | null): { grupo: number; observacao: string } {
+    const raw = observacao || "";
+    const match = raw.match(/^\[\[grupo:(\d+)\]\]\s*(.*)$/s);
+    if (!match) return { grupo: 0, observacao: raw };
+    return {
+      grupo: parseInt(match[1], 10) || 0,
+      observacao: match[2] || "",
+    };
+  }
+
+  function buildObservacaoValue(observacao: string, grupo: number): string | null {
+    const clean = observacao.trim();
+    if (grupo > 0) return `[[grupo:${grupo}]]${clean ? ` ${clean}` : ""}`;
+    return clean || null;
+  }
+
   function parseOperacao(op: string): { maquina: string; nome: string; grupo: number } {
     const parts = op.split("|");
     if (parts.length >= 3) {
-      return { maquina: parts[0], nome: parts.slice(1, -1).join("|"), grupo: parseInt(parts[parts.length - 1]) || 0 };
+      return { maquina: formatMachineLabel(parts[0]), nome: parts.slice(1, -1).join("|"), grupo: parseInt(parts[parts.length - 1]) || 0 };
     }
     if (parts.length === 2) {
-      return { maquina: parts[0], nome: parts[1], grupo: 0 };
+      return { maquina: formatMachineLabel(parts[0]), nome: parts[1], grupo: 0 };
     }
-    // Legacy
-    const maqMap: Record<string, string> = { reta: "Reta", overloque: "Overloque", galoneira: "Galoneira" };
-    return { maquina: maqMap[op.toLowerCase()] || "Reta", nome: op, grupo: 0 };
+    return { maquina: formatMachineLabel(op), nome: op, grupo: 0 };
   }
 
   function openNew() {
@@ -305,12 +328,13 @@ export default function TabFichasTecnicas() {
       .map((e: any) => {
         const hasNomeEtapa = e.nome_etapa && e.nome_etapa.trim();
         const parsed = parseOperacao(e.operacao);
+        const observacaoMeta = parseObservacaoMeta(e.observacao);
         return {
           nome: hasNomeEtapa ? e.nome_etapa : parsed.nome,
-          maquina: parsed.maquina,
+          maquina: tiposMaquina.find((t: string) => t.toLowerCase() === parsed.maquina.toLowerCase()) || parsed.maquina.toLowerCase(),
           tempo_segundos: (e.tempo_minutos || 0) * 60,
-          observacao: e.observacao || "",
-          grupo: parsed.grupo,
+          observacao: observacaoMeta.observacao,
+          grupo: parsed.grupo || observacaoMeta.grupo,
         };
       });
     setForm({
@@ -473,7 +497,8 @@ export default function TabFichasTecnicas() {
                   const parsedEtapas: Etapa[] = row.etapas.map((e: any) => {
                     const parsed = parseOperacao(e.operacao);
                     const hasNomeEtapa = e.nome_etapa && e.nome_etapa.trim();
-                    return { nome: hasNomeEtapa ? e.nome_etapa : parsed.nome, maquina: parsed.maquina, tempo_segundos: (e.tempo_minutos || 0) * 60, observacao: "", grupo: hasNomeEtapa ? 0 : parsed.grupo };
+                    const observacaoMeta = parseObservacaoMeta(e.observacao);
+                    return { nome: hasNomeEtapa ? e.nome_etapa : parsed.nome, maquina: parsed.maquina, tempo_segundos: (e.tempo_minutos || 0) * 60, observacao: observacaoMeta.observacao, grupo: parsed.grupo || observacaoMeta.grupo };
                   });
                   const tempoEfetivo = calcTempoEfetivo(parsedEtapas);
                   const custoMO = tempoEfetivo * custoSegundo;
