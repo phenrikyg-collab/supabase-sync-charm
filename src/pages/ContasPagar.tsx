@@ -454,6 +454,29 @@ function NovaContaDialog({ categorias }: { categorias: { id: string; descricao_c
           });
         }
         toast.success(`${totalParcelas} parcelas cadastradas com sucesso`);
+      } else if (frequenciaTipo !== "") {
+        // Despesa recorrente mensal
+        const grupoId = crypto.randomUUID();
+        const meses = frequenciaTipo === "mensal_por_periodo"
+          ? Math.min(Math.max(parseInt(frequenciaMeses) || 3, 2), 60)
+          : 3; // Para indeterminada, gera 3 meses de projeção
+        for (let i = 0; i < meses; i++) {
+          const dataVenc = addMonths(vencimento!, i);
+          await createMov.mutateAsync({
+            tipo: "saida",
+            descricao: `${descricao}${meses > 1 ? ` (${i + 1}/${frequenciaTipo === "mensal_por_periodo" ? meses : "∞"})` : ""}`,
+            valor: valorNum,
+            data: format(dataVenc, "yyyy-MM-dd"),
+            data_vencimento: format(dataVenc, "yyyy-MM-dd"),
+            categoria_id: categoriaId || null,
+            origem,
+            frequencia: "Mensal",
+            frequencia_tipo: frequenciaTipo === "mensal_indeterminada" ? "indeterminada" : "por_periodo",
+            frequencia_meses: frequenciaTipo === "mensal_por_periodo" ? meses : null,
+            recorrencia_grupo_id: grupoId,
+          } as any);
+        }
+        toast.success(`${meses} lançamentos mensais gerados com sucesso`);
       } else {
         // Pagamento único
         await createMov.mutateAsync({
