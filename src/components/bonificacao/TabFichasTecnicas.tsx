@@ -191,27 +191,22 @@ export default function TabFichasTecnicas() {
       if (!form.produto_nome.trim()) throw new Error("Produto inválido");
       if (form.etapas.length === 0) throw new Error("Adicione ao menos uma etapa");
 
-      const common = {
+      const targetId = editProdutoId || form.produto_id;
+      await supabase.from("fichas_tecnicas_tempo").delete().eq("produto_id", targetId);
+
+      const rows = form.etapas.map((e, i) => ({
         produto_id: form.produto_id,
-        produto_nome: form.produto_nome.trim(),
         tipo_peca: form.tipo_peca,
         cronometrado_por: form.cronometrado_por || null,
         data_medicao: form.data_medicao ? format(form.data_medicao, "yyyy-MM-dd") : null,
         num_amostras: form.num_amostras || null,
-      };
-
-      const targetId = editProdutoId || form.produto_id;
-      await supabase.from("fichas_tecnicas_tempo").delete().eq("produto_id", targetId);
-
-      const rowsWithMachine = form.etapas.map((e, i) => ({
-        ...common,
         operacao: `${e.maquina}|${e.nome}|${e.grupo}`,
         tempo_minutos: e.tempo_segundos,
         observacao: e.observacao || null,
         numero_etapa: i + 1,
       }));
 
-      const { error } = await supabase.from("fichas_tecnicas_tempo").insert(rowsWithMachine as any);
+      const { error } = await supabase.from("fichas_tecnicas_tempo").insert(rows);
       if (error) throw error;
     },
     onSuccess: () => {
