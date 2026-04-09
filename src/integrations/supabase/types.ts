@@ -581,6 +581,7 @@ export type Database = {
           cronometrado_por: string | null
           data_medicao: string | null
           id: string
+          nome_etapa: string
           num_amostras: number | null
           numero_etapa: number
           observacao: string | null
@@ -594,6 +595,7 @@ export type Database = {
           cronometrado_por?: string | null
           data_medicao?: string | null
           id?: string
+          nome_etapa?: string
           num_amostras?: number | null
           numero_etapa?: number
           observacao?: string | null
@@ -607,6 +609,7 @@ export type Database = {
           cronometrado_por?: string | null
           data_medicao?: string | null
           id?: string
+          nome_etapa?: string
           num_amostras?: number | null
           numero_etapa?: number
           observacao?: string | null
