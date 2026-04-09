@@ -236,7 +236,7 @@ export default function TabFichasTecnicas() {
         cronometrado_por: form.cronometrado_por || null,
         data_medicao: form.data_medicao ? format(form.data_medicao, "yyyy-MM-dd") : null,
         num_amostras: form.num_amostras || null,
-        operacao: "costura",
+        operacao: `${e.maquina || "Reta"}|costura|${e.grupo || 0}`,
         nome_etapa: e.nome.trim(),
         tempo_minutos: e.tempo_segundos / 60,
         observacao: e.observacao || null,
@@ -303,15 +303,14 @@ export default function TabFichasTecnicas() {
     const etapas: Etapa[] = row.etapas
       .sort((a: any, b: any) => (a.numero_etapa || 1) - (b.numero_etapa || 1))
       .map((e: any) => {
-        // Support both new format (nome_etapa field) and legacy (operacao encoded)
         const hasNomeEtapa = e.nome_etapa && e.nome_etapa.trim();
         const parsed = parseOperacao(e.operacao);
         return {
           nome: hasNomeEtapa ? e.nome_etapa : parsed.nome,
-          maquina: hasNomeEtapa ? (parsed.maquina === e.operacao ? "Reta" : parsed.maquina) : parsed.maquina,
+          maquina: parsed.maquina,
           tempo_segundos: (e.tempo_minutos || 0) * 60,
           observacao: e.observacao || "",
-          grupo: hasNomeEtapa ? 0 : parsed.grupo,
+          grupo: parsed.grupo,
         };
       });
     setForm({
