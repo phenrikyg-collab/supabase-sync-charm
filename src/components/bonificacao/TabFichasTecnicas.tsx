@@ -195,29 +195,28 @@ export default function TabFichasTecnicas() {
 
       const targetId = editProdutoId || form.produto_id;
 
-      // Delete existing entries for this product
-      const { error: delError } = await supabase
-        .from("fichas_tecnicas_tempo")
-        .delete()
-        .eq("produto_id", targetId);
-      if (delError) throw delError;
+      const tipoPeca = form.tipo_peca?.toLowerCase() === "nova" ? "nova" : "recorrente";
 
-      // Get max numero_etapa for this produto_id (after delete, should be 0)
+      // Get max numero_etapa for this produto_id
       const { data: maxData } = await supabase
         .from("fichas_tecnicas_tempo")
         .select("numero_etapa")
-        .eq("produto_id", form.produto_id)
+        .eq("produto_id", targetId)
         .order("numero_etapa", { ascending: false })
         .limit(1);
       const baseEtapa = (maxData && maxData.length > 0) ? (maxData[0] as any).numero_etapa : 0;
 
-      // Validate tipo_peca
-      const tipoPeca = ["Nova", "nova", "Recorrente", "recorrente"].includes(form.tipo_peca)
-        ? form.tipo_peca
-        : "Recorrente";
+      // Delete existing entries for this product when editing
+      if (editProdutoId) {
+        const { error: delError } = await supabase
+          .from("fichas_tecnicas_tempo")
+          .delete()
+          .eq("produto_id", targetId);
+        if (delError) throw delError;
+      }
 
       const rows = form.etapas.map((e, i) => ({
-        produto_id: form.produto_id,
+        produto_id: targetId,
         tipo_peca: tipoPeca,
         cronometrado_por: form.cronometrado_por || null,
         data_medicao: form.data_medicao ? format(form.data_medicao, "yyyy-MM-dd") : null,
@@ -287,7 +286,7 @@ export default function TabFichasTecnicas() {
     setForm({
       produto_id: row.produto_id,
       produto_nome: row.produto_nome || "",
-      tipo_peca: row.tipo_peca || "Recorrente",
+      tipo_peca: row.tipo_peca === "nova" ? "Nova" : "Recorrente",
       etapas: etapas.length > 0 ? etapas : [{ ...emptyEtapa }],
       cronometrado_por: row.cronometrado_por || "",
       data_medicao: row.data_medicao ? new Date(row.data_medicao + "T12:00:00") : undefined,
