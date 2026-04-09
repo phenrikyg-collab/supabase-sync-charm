@@ -765,7 +765,7 @@ export default function ImportarExtrato() {
     }
   };
 
-  const salvarMovimentacoes = async () => {
+  const salvarMovimentacoes = async (skipDuplicateCheck = false) => {
     const selecionados = rows.filter((r) => r.selecionado);
     if (selecionados.length === 0) {
       toast.error("Selecione ao menos um lançamento.");
@@ -780,6 +780,15 @@ export default function ImportarExtrato() {
     if (isCartao && !faturaVencimento) {
       toast.error("Informe a data de vencimento da fatura.");
       return;
+    }
+
+    // Duplicate check
+    if (!skipDuplicateCheck) {
+      const dupes = checkDuplicates(selecionados);
+      if (dupes.count > 0) {
+        setDuplicatasAlert(dupes);
+        return;
+      }
     }
 
     setIsSalvando(true);
