@@ -19,6 +19,7 @@ import { motion } from "framer-motion";
 import { printHTML, statusBadgeHTML, formatDateBR } from "@/lib/printUtils";
 import { parseISO, differenceInCalendarDays, startOfMonth, endOfMonth } from "date-fns";
 import FichaTecnicaReadOnly from "@/components/bonificacao/FichaTecnicaReadOnly";
+import { calcularCapacidadesMaquinas, calcularDataConclusaoPlanejada, calcularPecasPorDia, calcularTempoEfetivoFicha, obterMaquinaGargalo } from "@/utils/producao";
 
 // Color palette for oficinas (deterministic by index)
 const OFICINA_COLORS = [
@@ -96,10 +97,26 @@ export default function OrdensProducao() {
     return map;
   }, [fichasTecnicas]);
 
-  const getTotalMinutosFicha = (produtoId: string) => {
+  const getTempoEfetivoFicha = (produtoId: string) => {
     const etapas = fichasPorProduto.get(produtoId);
-    if (!etapas) return 0;
-    return etapas.reduce((s: number, e: any) => s + (e.tempo_minutos || 0), 0);
+    if (!etapas?.length) return 0;
+    return calcularTempoEfetivoFicha(etapas);
+  };
+
+  const getPrevisaoTerminoPorFicha = (produtoId: string, quantidadePecas: number) => {
+    const etapas = fichasPorProduto.get(produtoId);
+    if (!etapas?.length || quantidadePecas <= 0) return "";
+
+    const tempoEfetivo = calcularTempoEfetivoFicha(etapas);
+    if (tempoEfetivo <= 0) return "";
+
+    const capacidades = calcularCapacidadesMaquinas(maquinas || []);
+    const gargalo = obterMaquinaGargalo(capacidades);
+    const pecasPorDia = calcularPecasPorDia(tempoEfetivo, gargalo?.capacidadeSegundos || 0);
+    if (pecasPorDia <= 0) return "";
+
+    const totalDias = Math.ceil(quantidadePecas / pecasPorDia);
+    return calcularDataConclusaoPlanejada(new Date().toISOString().split("T")[0], totalDias);
   };
   const createMut = useCreateOrdemProducao();
   const updateMut = useUpdateOrdemProducao();
@@ -195,7 +212,14 @@ export default function OrdensProducao() {
   }, [ordens]);
 
   useEffect(() => {
-    if (!ocId) { setOcInfo(null); setFichaMinutos(0); setFichaMinutosManual(false); return; }
+    if (!ocId) {
+      setOcInfo(null);
+      setFichaMinutos(0);
+      setFichaMinutosManual(false);
+      setPrevisaoTermino("");
+      return;
+    }
+
     Promise.all([
       supabase.from("ordens_corte_produtos").select("*").eq("ordem_corte_id", ocId),
       supabase.from("ordens_corte_grade").select("*").eq("ordem_corte_id", ocId),
@@ -212,16 +236,21 @@ export default function OrdensProducao() {
         grade: grades.map((g: any) => `${g.tamanho}: ${g.quantidade}`).join(", "),
         produtoId,
       });
-      // Auto-fill minutos from ficha técnica
+
       if (produtoId) {
-        const total = getTotalMinutosFicha(produtoId);
-        if (total > 0) {
-          setFichaMinutos(total);
+        const tempoEfetivo = getTempoEfetivoFicha(produtoId);
+        if (tempoEfetivo > 0) {
+          setFichaMinutos(tempoEfetivo);
           setFichaMinutosManual(false);
+        }
+
+        const previsaoAuto = getPrevisaoTerminoPorFicha(produtoId, totalPecas);
+        if (previsaoAuto) {
+          setPrevisaoTermino(previsaoAuto);
         }
       }
     });
-  }, [ocId]);
+  }, [ocId, fichasTecnicas, maquinas]);
 
   const handleCreate = async () => {
     if (!ocId || !oficinaId) { toast.error("Selecione OC e Oficina"); return; }
@@ -842,24 +871,26 @@ export default function OrdensProducao() {
             <div className="space-y-2">
               <Label>Previsão de Término</Label>
               <Input type="date" value={previsaoTermino} onChange={(e) => setPrevisaoTermino(e.target.value)} />
+              {ocInfo?.produtoId && !fichaMinutosManual && (
+                <p className="text-xs text-muted-foreground">📅 Auto-preenchida com base na ficha técnica e capacidade das máquinas</p>
+              )}
             </div>
             <div className="space-y-2">
               <Label>Custo Estimado por Peça (R$)</Label>
               <Input type="number" step="0.01" value={custoEstimadoPeca || ""} onChange={(e) => setCustoEstimadoPeca(Number(e.target.value))} placeholder="0.00" />
               <p className="text-xs text-muted-foreground">Usado para calcular KPI de custo (No Prazo / Alerta / Crítico)</p>
             </div>
-            {/* Minutos por peça auto-filled from ficha técnica */}
             {ocInfo?.produtoId && fichasPorProduto.has(ocInfo.produtoId) && (
               <div className="space-y-2">
                 <div className="flex items-center gap-2">
-                  <Label>Segundos/Peça (Ficha Técnica)</Label>
+                  <Label>Tempo Efetivo/Peça (seg)</Label>
                   <TooltipProvider>
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <Info className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
                       </TooltipTrigger>
                       <TooltipContent>
-                        <p className="text-xs">Calculado a partir de {fichasPorProduto.get(ocInfo.produtoId)!.length} etapas da ficha técnica. Clique para editar manualmente.</p>
+                        <p className="text-xs">Usa a mesma lógica da aba Bonificações: etapas em conjunto contam pelo maior tempo do grupo.</p>
                       </TooltipContent>
                     </Tooltip>
                   </TooltipProvider>

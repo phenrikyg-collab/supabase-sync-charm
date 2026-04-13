@@ -196,7 +196,7 @@ export default function GerarPlanoProducao({ onSaved }: { onSaved?: () => void }
                         <TableCell>{m.pecasDia} peças</TableCell>
                         <TableCell>
                           <span className={cn(
-                            m.ocupacao <= 80 ? "text-green-600" : m.ocupacao <= 95 ? "text-yellow-600" : "text-red-600"
+                            m.ocupacao <= 80 ? "text-success" : m.ocupacao <= 95 ? "text-warning" : "text-destructive"
                           )}>
                             {m.ocupacao.toFixed(1)}%
                           </span>
