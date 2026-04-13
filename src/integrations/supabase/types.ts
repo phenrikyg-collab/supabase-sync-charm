@@ -1056,6 +1056,104 @@ export type Database = {
           },
         ]
       }
+      planos_producao: {
+        Row: {
+          created_at: string
+          data_planejada: string
+          horas_disponiveis: number
+          id: string
+          oficina_id: string | null
+          ordem_producao_id: string
+          pecas_planejadas: number
+          segundos_utilizados: number
+          status: string
+        }
+        Insert: {
+          created_at?: string
+          data_planejada: string
+          horas_disponiveis?: number
+          id?: string
+          oficina_id?: string | null
+          ordem_producao_id: string
+          pecas_planejadas?: number
+          segundos_utilizados?: number
+          status?: string
+        }
+        Update: {
+          created_at?: string
+          data_planejada?: string
+          horas_disponiveis?: number
+          id?: string
+          oficina_id?: string | null
+          ordem_producao_id?: string
+          pecas_planejadas?: number
+          segundos_utilizados?: number
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "planos_producao_oficina_id_fkey"
+            columns: ["oficina_id"]
+            isOneToOne: false
+            referencedRelation: "oficinas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "planos_producao_ordem_producao_id_fkey"
+            columns: ["ordem_producao_id"]
+            isOneToOne: false
+            referencedRelation: "ordens_producao"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      planos_producao_etapas: {
+        Row: {
+          capacidade_segundos_dia: number
+          created_at: string
+          id: string
+          nome_etapa: string
+          numero_etapa: number
+          pecas_planejadas: number
+          plano_producao_id: string
+          segundos_utilizados: number
+          tempo_segundos_por_peca: number
+          tipo_maquina: string
+        }
+        Insert: {
+          capacidade_segundos_dia?: number
+          created_at?: string
+          id?: string
+          nome_etapa?: string
+          numero_etapa?: number
+          pecas_planejadas?: number
+          plano_producao_id: string
+          segundos_utilizados?: number
+          tempo_segundos_por_peca?: number
+          tipo_maquina?: string
+        }
+        Update: {
+          capacidade_segundos_dia?: number
+          created_at?: string
+          id?: string
+          nome_etapa?: string
+          numero_etapa?: number
+          pecas_planejadas?: number
+          plano_producao_id?: string
+          segundos_utilizados?: number
+          tempo_segundos_por_peca?: number
+          tipo_maquina?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "planos_producao_etapas_plano_producao_id_fkey"
+            columns: ["plano_producao_id"]
+            isOneToOne: false
+            referencedRelation: "planos_producao"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       produtos: {
         Row: {
           ativo: boolean | null
