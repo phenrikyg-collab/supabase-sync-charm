@@ -1,5 +1,13 @@
 import { supabase } from "@/integrations/supabase/client";
-import { extrairTipoMaquina } from "@/utils/producao";
+import {
+  calcularCapacidadesMaquinas,
+  calcularDataConclusaoPlanejada,
+  calcularPecasPorDia,
+  calcularTempoEfetivoFicha,
+  extrairTipoMaquina,
+  obterMaquinaGargalo,
+  tempoFichaParaSegundos,
+} from "@/utils/producao";
 
 export interface PlanoPreview {
   diasPlano: DiaPlan[];
@@ -35,35 +43,12 @@ interface DiaPlan {
   }[];
 }
 
-/** Calcula tempo efetivo considerando etapas em conjunto (grupo) */
-function calcTempoEfetivo(etapas: { tempo: number; grupo: number }[]): number {
-  const grupos = new Map<number, number>();
-  let totalSeq = 0;
-  for (const e of etapas) {
-    if (e.grupo === 0) {
-      totalSeq += e.tempo;
-    } else {
-      const current = grupos.get(e.grupo) || 0;
-      grupos.set(e.grupo, Math.max(current, e.tempo));
-    }
-  }
-  let totalGrupos = 0;
-  grupos.forEach((v) => { totalGrupos += v; });
-  return totalSeq + totalGrupos;
-}
-
-function parseGrupo(observacao: string | null): number {
-  const match = observacao?.match(/grupo=(\d+)/);
-  return match ? parseInt(match[1], 10) : 0;
-}
-
 export async function gerarPlano(
   ordemId: string,
   oficinaId: string,
   dataInicio: string,
   horasDisponiveis: number
 ): Promise<PlanoPreview> {
-  // 1. Busca a ordem de produção
   const { data: ordem, error: errOrdem } = await supabase
     .from("ordens_producao")
     .select("*")
@@ -72,7 +57,6 @@ export async function gerarPlano(
 
   if (errOrdem || !ordem) throw new Error("Ordem de produção não encontrada.");
 
-  // Busca nome do produto
   let nomeProduto = ordem.nome_produto || "";
   if (ordem.produto_id) {
     const { data: prod } = await supabase
@@ -83,7 +67,6 @@ export async function gerarPlano(
     if (prod) nomeProduto = prod.nome_do_produto;
   }
 
-  // 2. Busca etapas da ficha técnica (tempo_minutos está em SEGUNDOS!)
   if (!ordem.produto_id) {
     throw new Error("Ordem de produção sem produto vinculado.");
   }
@@ -98,52 +81,31 @@ export async function gerarPlano(
     throw new Error("Ficha técnica não encontrada para este produto. Cadastre etapas na aba Fichas Técnicas.");
   }
 
-  // 3. Calcula tempo efetivo por peça considerando conjuntos
-  const etapasParaCalculo = etapas.map((e) => ({
-    tempo: e.tempo_minutos, // em segundos
-    grupo: parseGrupo(e.observacao),
-  }));
-  const tempoEfetivoPorPeca = calcTempoEfetivo(etapasParaCalculo);
-
+  const tempoEfetivoPorPeca = calcularTempoEfetivoFicha(etapas);
   if (tempoEfetivoPorPeca <= 0) {
     throw new Error("Tempo efetivo por peça é zero. Verifique a ficha técnica.");
   }
 
-  // 4. Busca configuração das máquinas e calcula capacidade
   const { data: maquinas } = await supabase.from("config_maquinas").select("*");
-
-  const capacidades = (maquinas || []).map((m) => ({
-    maquina: m.tipo_maquina,
-    quantidade: m.quantidade_maquinas,
-    capacidadeSegundos: m.quantidade_maquinas * horasDisponiveis * 3600,
-  }));
-
-  // 5. Gargalo = menor capacidade total por dia
-  const gargalo = capacidades.length > 0
-    ? capacidades.reduce((min, m) => m.capacidadeSegundos < min.capacidadeSegundos ? m : min)
-    : undefined;
-
+  const capacidades = calcularCapacidadesMaquinas(maquinas || [], horasDisponiveis);
+  const gargalo = obterMaquinaGargalo(capacidades);
   const capGargaloSegundos = gargalo?.capacidadeSegundos || (horasDisponiveis * 3600);
-
-  // 6. Peças por dia = capacidade do gargalo / tempo efetivo por peça
-  const pecasPorDia = Math.floor(capGargaloSegundos / tempoEfetivoPorPeca);
+  const pecasPorDia = calcularPecasPorDia(tempoEfetivoPorPeca, capGargaloSegundos);
 
   if (pecasPorDia === 0) {
     throw new Error("Horas disponíveis insuficientes para produzir ao menos 1 peça por dia.");
   }
 
-  // 7. Distribui peças pelos dias
   const totalPecas = ordem.quantidade_pecas_ordem || ordem.quantidade || 0;
   let pecasRestantes = totalPecas;
-  const dataAtual = new Date(dataInicio + "T12:00:00");
+  const dataAtual = new Date(`${dataInicio}T12:00:00`);
   const diasPlano: DiaPlan[] = [];
 
-  // Mapa de etapas para detalhamento
-  const etapasInfo = etapas.map((e) => ({
-    tipoMaquina: extrairTipoMaquina(e.observacao),
-    numero_etapa: e.numero_etapa,
-    nome_etapa: e.nome_etapa || "",
-    tempo_segundos: e.tempo_minutos, // em segundos
+  const etapasInfo = etapas.map((etapa) => ({
+    tipoMaquina: extrairTipoMaquina(etapa.observacao),
+    numero_etapa: etapa.numero_etapa,
+    nome_etapa: etapa.nome_etapa || "",
+    tempo_segundos: tempoFichaParaSegundos(etapa.tempo_minutos),
   }));
 
   while (pecasRestantes > 0) {
@@ -159,15 +121,15 @@ export async function gerarPlano(
       status: "planejado",
     };
 
-    const etapasDia = etapasInfo.map((e) => {
-      const capMaq = capacidades.find((c) => c.maquina.toLowerCase() === e.tipoMaquina.toLowerCase());
+    const etapasDia = etapasInfo.map((etapa) => {
+      const capMaq = capacidades.find((capacidade) => capacidade.maquina.toLowerCase() === etapa.tipoMaquina.toLowerCase());
       return {
-        tipo_maquina: e.tipoMaquina,
-        numero_etapa: e.numero_etapa,
-        nome_etapa: e.nome_etapa,
-        tempo_segundos_por_peca: e.tempo_segundos,
+        tipo_maquina: etapa.tipoMaquina,
+        numero_etapa: etapa.numero_etapa,
+        nome_etapa: etapa.nome_etapa,
+        tempo_segundos_por_peca: etapa.tempo_segundos,
         pecas_planejadas: pecasHoje,
-        segundos_utilizados: pecasHoje * e.tempo_segundos,
+        segundos_utilizados: pecasHoje * etapa.tempo_segundos,
         capacidade_segundos_dia: capMaq?.capacidadeSegundos || (horasDisponiveis * 3600),
       };
     });
@@ -177,26 +139,23 @@ export async function gerarPlano(
     dataAtual.setDate(dataAtual.getDate() + 1);
   }
 
-  // 8. Capacidade por máquina para o preview
-  // % ocupação = (pecasPorDia × tempoEfetivoPorPeca / capacidadeSegundos) × 100
-  const capacidadeMaquinas = capacidades.map((m) => ({
-    tipo: m.maquina,
-    quantidade: m.quantidade,
-    capSegundos: m.capacidadeSegundos,
+  const capacidadeMaquinas = capacidades.map((maquina) => ({
+    tipo: maquina.maquina,
+    quantidade: maquina.quantidade,
+    capSegundos: maquina.capacidadeSegundos,
     pecasDia: pecasPorDia,
-    ocupacao: (pecasPorDia * tempoEfetivoPorPeca / m.capacidadeSegundos) * 100,
+    ocupacao: (pecasPorDia * tempoEfetivoPorPeca / maquina.capacidadeSegundos) * 100,
   }));
 
-  const dataConclusao = diasPlano.length > 0
-    ? diasPlano[diasPlano.length - 1].planoDia.data_planejada
-    : dataInicio;
+  const totalDias = diasPlano.length;
+  const dataConclusao = calcularDataConclusaoPlanejada(dataInicio, totalDias);
 
   return {
     diasPlano,
     pecasPorDia,
     tempoEfetivoPorPeca,
     gargalo,
-    totalDias: diasPlano.length,
+    totalDias,
     totalPecas,
     nomeProduto,
     dataInicio,
@@ -215,8 +174,8 @@ export async function salvarPlano(diasPlano: DiaPlan[]) {
 
     if (error || !plano) throw new Error("Erro ao salvar plano: " + error?.message);
 
-    const etapasComId = dia.etapasDia.map((e) => ({
-      ...e,
+    const etapasComId = dia.etapasDia.map((etapa) => ({
+      ...etapa,
       plano_producao_id: (plano as any).id,
     }));
 
