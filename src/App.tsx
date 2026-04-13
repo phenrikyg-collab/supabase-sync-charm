@@ -39,6 +39,7 @@ import Bonificacao from "./pages/Bonificacao";
 import ContentCalendar from "./pages/ContentCalendar";
 import OrcamentoPage from "./pages/OrcamentoPage";
 import CustosFixos from "./pages/CustosFixos";
+import PlanoProducao from "./pages/PlanoProducao";
 import { Loader2 } from "lucide-react";
 
 const queryClient = new QueryClient({
@@ -94,6 +95,7 @@ const AppRoutes = () => {
               <Route path="/oficina-interna" element={<OficinaInterna />} />
               <Route path="/bonificacao" element={<Bonificacao />} />
               <Route path="/ordens-producao" element={<OrdensProducao />} />
+              <Route path="/plano-producao" element={<PlanoProducao />} />
               <Route path="/pagamento-oficinas" element={<PagamentoOficinas />} />
               <Route path="/expedicao" element={<Expedicao />} />
               <Route path="/financeiro" element={<Financeiro />} />
