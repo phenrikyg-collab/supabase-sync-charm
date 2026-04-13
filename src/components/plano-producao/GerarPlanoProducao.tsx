@@ -191,12 +191,12 @@ export default function GerarPlanoProducao({ onSaved }: { onSaved?: () => void }
                         <TableCell>{m.quantidade} máq</TableCell>
                         <TableCell>
                           {formatarSegundos(m.capSegundos)}
-                          {isGargalo && <AlertTriangle className="inline ml-1 h-4 w-4 text-yellow-500" />}
+                          {isGargalo && <AlertTriangle className="inline ml-1 h-4 w-4 text-warning" />}
                         </TableCell>
                         <TableCell>{m.pecasDia} peças</TableCell>
                         <TableCell>
                           <span className={cn(
-                            m.ocupacao <= 80 ? "text-green-600" : m.ocupacao <= 95 ? "text-yellow-600" : "text-red-600"
+                            m.ocupacao <= 80 ? "text-success" : m.ocupacao <= 95 ? "text-warning" : "text-destructive"
                           )}>
                             {m.ocupacao.toFixed(1)}%
                           </span>
