@@ -86,6 +86,15 @@ export default function OrdensProducao() {
     },
   });
 
+  const { data: maquinas = [] } = useQuery({
+    queryKey: ["config_maquinas"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("config_maquinas").select("*").order("tipo_maquina");
+      if (error) throw error;
+      return data;
+    },
+  });
+
   // Group fichas by produto_id
   const fichasPorProduto = useMemo(() => {
     const map = new Map<string, any[]>();

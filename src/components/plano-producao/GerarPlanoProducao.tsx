@@ -191,7 +191,7 @@ export default function GerarPlanoProducao({ onSaved }: { onSaved?: () => void }
                         <TableCell>{m.quantidade} máq</TableCell>
                         <TableCell>
                           {formatarSegundos(m.capSegundos)}
-                          {isGargalo && <AlertTriangle className="inline ml-1 h-4 w-4 text-yellow-500" />}
+                          {isGargalo && <AlertTriangle className="inline ml-1 h-4 w-4 text-warning" />}
                         </TableCell>
                         <TableCell>{m.pecasDia} peças</TableCell>
                         <TableCell>
