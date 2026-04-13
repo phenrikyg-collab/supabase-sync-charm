@@ -11,7 +11,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
-import { CalendarIcon, Eye, Save, Loader2 } from "lucide-react";
+import { CalendarIcon, Eye, Save, Loader2, AlertTriangle } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -155,12 +155,13 @@ export default function GerarPlanoProducao({ onSaved }: { onSaved?: () => void }
             <div className="grid grid-cols-2 md:grid-cols-3 gap-3 text-sm">
               <div><span className="text-muted-foreground">Produto:</span> <strong>{preview.nomeProduto}</strong></div>
               <div><span className="text-muted-foreground">Total de peças:</span> <strong>{preview.totalPecas}</strong></div>
+              <div><span className="text-muted-foreground">Tempo efetivo/peça:</span> <strong>{formatarSegundos(preview.tempoEfetivoPorPeca)}</strong></div>
               <div><span className="text-muted-foreground">Peças por dia:</span> <strong>{preview.pecasPorDia}</strong></div>
-              {preview.etapaGargalo && (
+              {preview.gargalo && (
                 <div className="col-span-2 md:col-span-3">
-                  <span className="text-muted-foreground">Gargalo:</span>{" "}
+                  <span className="text-muted-foreground">Máquina gargalo:</span>{" "}
                   <Badge variant="destructive">
-                    {preview.etapaGargalo.etapa.nome_etapa} — {preview.etapaGargalo.tipoMaquina} ({formatarSegundos(preview.etapaGargalo.etapa.tempo_minutos)} por peça)
+                    {preview.gargalo.maquina} ({preview.gargalo.quantidade} máq × {horas}h = {formatarSegundos(preview.gargalo.capacidadeSegundos)}/dia)
                   </Badge>
                 </div>
               )}
@@ -175,26 +176,34 @@ export default function GerarPlanoProducao({ onSaved }: { onSaved?: () => void }
                 <TableHeader>
                   <TableRow>
                     <TableHead>Máquina</TableHead>
+                    <TableHead>Qtd</TableHead>
                     <TableHead>Cap. dia</TableHead>
                     <TableHead>Peças/dia</TableHead>
                     <TableHead>% Ocup.</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {preview.capacidadeMaquinas.map((m) => (
-                    <TableRow key={m.tipo}>
-                      <TableCell className="font-medium">{m.tipo}</TableCell>
-                      <TableCell>{formatarSegundos(m.capSegundos)}</TableCell>
-                      <TableCell>{m.pecasDia} peças</TableCell>
-                      <TableCell>
-                        <span className={cn(
-                          m.ocupacao <= 80 ? "text-green-600" : m.ocupacao <= 95 ? "text-yellow-600" : "text-red-600"
-                        )}>
-                          {m.ocupacao.toFixed(1)}%
-                        </span>
-                      </TableCell>
-                    </TableRow>
-                  ))}
+                  {preview.capacidadeMaquinas.map((m) => {
+                    const isGargalo = preview.gargalo && m.tipo === preview.gargalo.maquina;
+                    return (
+                      <TableRow key={m.tipo}>
+                        <TableCell className="font-medium">{m.tipo}</TableCell>
+                        <TableCell>{m.quantidade} máq</TableCell>
+                        <TableCell>
+                          {formatarSegundos(m.capSegundos)}
+                          {isGargalo && <AlertTriangle className="inline ml-1 h-4 w-4 text-yellow-500" />}
+                        </TableCell>
+                        <TableCell>{m.pecasDia} peças</TableCell>
+                        <TableCell>
+                          <span className={cn(
+                            m.ocupacao <= 80 ? "text-green-600" : m.ocupacao <= 95 ? "text-yellow-600" : "text-red-600"
+                          )}>
+                            {m.ocupacao.toFixed(1)}%
+                          </span>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
                 </TableBody>
               </Table>
             </div>
