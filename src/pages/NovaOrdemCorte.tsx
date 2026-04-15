@@ -94,14 +94,24 @@ export default function NovaOrdemCorte() {
     return Array.from(map.entries());
   }, [selectedRolos, rolos, metrosRolo]);
 
-  // Calculate folhas per color = metros da cor / metragem do risco
-  const folhasPorCor = useMemo(() => {
+  // Calculate folhas per color = metros da cor / metragem do risco (auto-calculated, manually overridable)
+  const [folhasOverride, setFolhasOverride] = useState<Record<string, number | null>>({});
+  
+  const folhasPorCorCalc = useMemo(() => {
     const result: Record<string, number> = {};
     for (const [corKey, corInfo] of coresFromRolos) {
       result[corKey] = metrosRisco > 0 ? Math.floor(corInfo.metrosCor / metrosRisco) : 0;
     }
     return result;
   }, [coresFromRolos, metrosRisco]);
+
+  const folhasPorCor = useMemo(() => {
+    const result: Record<string, number> = {};
+    for (const [corKey] of coresFromRolos) {
+      result[corKey] = folhasOverride[corKey] ?? folhasPorCorCalc[corKey] ?? 0;
+    }
+    return result;
+  }, [coresFromRolos, folhasPorCorCalc, folhasOverride]);
 
   const setGradeForCor = (corKey: string, tamanho: string, qty: number) => {
     setGradeMultiCor((prev) => ({
@@ -368,7 +378,16 @@ export default function NovaOrdemCorte() {
                     </div>
                     <div className="flex items-center gap-3 text-sm">
                       <span className="text-muted-foreground">{corInfo.metrosCor.toFixed(1)}m alocados</span>
-                      <span className="font-medium text-primary">{folhasPorCor[corKey] ?? 0} folha(s)</span>
+                      <span className="text-muted-foreground">Calc: {folhasPorCorCalc[corKey] ?? 0}</span>
+                      <div className="flex items-center gap-1">
+                        <span className="text-xs text-muted-foreground">Folhas:</span>
+                        <Input
+                          type="number" min={0}
+                          className="w-20 h-7 text-sm"
+                          value={folhasPorCor[corKey] ?? 0}
+                          onChange={(e) => setFolhasOverride((prev) => ({ ...prev, [corKey]: Number(e.target.value) }))}
+                        />
+                      </div>
                     </div>
                   </div>
                   <div className="grid grid-cols-3 md:grid-cols-6 gap-3">

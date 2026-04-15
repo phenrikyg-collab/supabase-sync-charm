@@ -1,4 +1,4 @@
-import { useOrdensCorte, useProdutos } from "@/hooks/useSupabase";
+import { useOrdensCorte, useProdutos, useCores } from "@/hooks/useSupabase";
 import { Card, CardContent } from "@/components/ui/card";
 import { StatusBadge } from "@/components/StatusBadge";
 import { Button } from "@/components/ui/button";
@@ -29,6 +29,12 @@ interface OrdemCorteEnriched {
 export default function OrdensCorte() {
   const { data: ordens, isLoading, refetch } = useOrdensCorte();
   const { data: allProdutos } = useProdutos();
+  const { data: allCores } = useCores();
+  const coresMap = useMemo(() => {
+    const map = new Map<string, { nome_cor: string; cor_hex: string }>();
+    (allCores ?? []).forEach((c) => map.set(c.id, { nome_cor: c.nome_cor ?? "Sem cor", cor_hex: c.cor_hex ?? "#ccc" }));
+    return map;
+  }, [allCores]);
   const navigate = useNavigate();
   const [enriched, setEnriched] = useState<OrdemCorteEnriched[]>([]);
   const [editOpen, setEditOpen] = useState(false);
@@ -236,13 +242,34 @@ export default function OrdensCorte() {
                   <div className="text-sm text-muted-foreground">
                     {o.produtos.map((p) => p.nome_produto).join(", ") || "—"}
                   </div>
-                  <div className="flex flex-wrap gap-1.5">
-                    {o.grade.map((g, j) => (
-                      <span key={j} className="text-xs bg-muted px-2 py-1 rounded-md text-muted-foreground">
-                        {g.tamanho}: {g.quantidade}
-                      </span>
-                    ))}
-                  </div>
+                  {(() => {
+                    // Group grade by cor_id
+                    const byColor = new Map<string, { cor_id: string | null; items: { tamanho: string; quantidade: number }[] }>();
+                    o.grade.forEach((g) => {
+                      const key = g.cor_id ?? "sem-cor";
+                      const entry = byColor.get(key) ?? { cor_id: g.cor_id, items: [] };
+                      entry.items.push({ tamanho: g.tamanho, quantidade: g.quantidade });
+                      byColor.set(key, entry);
+                    });
+                    return Array.from(byColor.entries()).map(([key, { cor_id, items }]) => {
+                      const cor = cor_id ? coresMap.get(cor_id) : null;
+                      return (
+                        <div key={key} className="space-y-1">
+                          <div className="flex items-center gap-1.5">
+                            <div className="w-3 h-3 rounded-full border border-border" style={{ backgroundColor: cor?.cor_hex ?? "#ccc" }} />
+                            <span className="text-xs font-medium text-muted-foreground">{cor?.nome_cor ?? "Sem cor"}</span>
+                          </div>
+                          <div className="flex flex-wrap gap-1.5">
+                            {items.map((g, j) => (
+                              <span key={j} className="text-xs bg-muted px-2 py-1 rounded-md text-muted-foreground">
+                                {g.tamanho}: {g.quantidade}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    });
+                  })()}
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-muted-foreground">Total de Peças</span>
                     <span className="font-bold text-card-foreground">{totalPecas(o.grade)}</span>
