@@ -33,7 +33,6 @@ export default function NovaOrdemCorte() {
   const [roloMode, setRoloMode] = useState<Record<string, "total" | "parcial">>({});
   const [metrosRisco, setMetrosRisco] = useState(0);
   const [searchRolo, setSearchRolo] = useState("");
-  const [searchRolo, setSearchRolo] = useState("");
 
   // Sequential OC number from MAX in DB
   const { data: ordensExistentes } = useOrdensCorte();
