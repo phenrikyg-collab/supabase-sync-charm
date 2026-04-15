@@ -378,7 +378,16 @@ export default function NovaOrdemCorte() {
                     </div>
                     <div className="flex items-center gap-3 text-sm">
                       <span className="text-muted-foreground">{corInfo.metrosCor.toFixed(1)}m alocados</span>
-                      <span className="font-medium text-primary">{folhasPorCor[corKey] ?? 0} folha(s)</span>
+                      <span className="text-muted-foreground">Calc: {folhasPorCorCalc[corKey] ?? 0}</span>
+                      <div className="flex items-center gap-1">
+                        <span className="text-xs text-muted-foreground">Folhas:</span>
+                        <Input
+                          type="number" min={0}
+                          className="w-20 h-7 text-sm"
+                          value={folhasPorCor[corKey] ?? 0}
+                          onChange={(e) => setFolhasOverride((prev) => ({ ...prev, [corKey]: Number(e.target.value) }))}
+                        />
+                      </div>
                     </div>
                   </div>
                   <div className="grid grid-cols-3 md:grid-cols-6 gap-3">
