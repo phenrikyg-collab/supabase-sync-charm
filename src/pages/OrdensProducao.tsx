@@ -135,13 +135,21 @@ export default function OrdensProducao() {
 
   const [open, setOpen] = useState(false);
   const [ocId, setOcId] = useState("");
-  const [oficinaId, setOficinaId] = useState("");
   const [quantidade, setQuantidade] = useState(0);
-  const [previsaoTermino, setPrevisaoTermino] = useState("");
-  const [custoEstimadoPeca, setCustoEstimadoPeca] = useState(0);
-  const [ocInfo, setOcInfo] = useState<{ produto: string; cor: string; grade: string; produtoId?: string } | null>(null);
-  const [fichaMinutos, setFichaMinutos] = useState<number>(0);
-  const [fichaMinutosManual, setFichaMinutosManual] = useState(false);
+  const [ocGradeInfo, setOcGradeInfo] = useState("");
+  const [ocCorInfo, setOcCorInfo] = useState("");
+
+  // Multi-product state: one entry per product in the selected OC
+  interface ProdutoOP {
+    produtoId: string;
+    nomeProduto: string;
+    oficinaId: string;
+    previsaoTermino: string;
+    custoEstimadoPeca: number;
+    fichaMinutos: number;
+    fichaMinutosManual: boolean;
+  }
+  const [produtosOP, setProdutosOP] = useState<ProdutoOP[]>([]);
 
   // Edit dialog
   const [editOpen, setEditOpen] = useState(false);
@@ -222,10 +230,10 @@ export default function OrdensProducao() {
 
   useEffect(() => {
     if (!ocId) {
-      setOcInfo(null);
-      setFichaMinutos(0);
-      setFichaMinutosManual(false);
-      setPrevisaoTermino("");
+      setProdutosOP([]);
+      setQuantidade(0);
+      setOcGradeInfo("");
+      setOcCorInfo("");
       return;
     }
 
@@ -238,50 +246,50 @@ export default function OrdensProducao() {
       const totalPecas = grades.reduce((a: number, g: any) => a + (g.quantidade ?? 0), 0);
       setQuantidade(totalPecas);
       const corId = grades[0]?.cor_id;
-      const produtoId = prods[0]?.produto_id;
-      setOcInfo({
-        produto: prods.map((p: any) => p.nome_produto).join(", ") || "—",
-        cor: corId && corMap[corId] ? corMap[corId].nome_cor ?? "—" : "—",
-        grade: grades.map((g: any) => `${g.tamanho}: ${g.quantidade}`).join(", "),
-        produtoId,
+      setOcCorInfo(corId && corMap[corId] ? corMap[corId].nome_cor ?? "—" : "—");
+      setOcGradeInfo(grades.map((g: any) => `${g.tamanho}: ${g.quantidade}`).join(", "));
+
+      const newProdutosOP: ProdutoOP[] = prods.map((p: any) => {
+        const produtoId = p.produto_id ?? "";
+        const tempoEfetivo = produtoId ? getTempoEfetivoFicha(produtoId) : 0;
+        const previsaoAuto = produtoId ? getPrevisaoTerminoPorFicha(produtoId, totalPecas) : "";
+        return {
+          produtoId,
+          nomeProduto: p.nome_produto ?? "—",
+          oficinaId: "",
+          previsaoTermino: previsaoAuto || "",
+          custoEstimadoPeca: 0,
+          fichaMinutos: tempoEfetivo,
+          fichaMinutosManual: false,
+        };
       });
-
-      if (produtoId) {
-        const tempoEfetivo = getTempoEfetivoFicha(produtoId);
-        if (tempoEfetivo > 0) {
-          setFichaMinutos(tempoEfetivo);
-          setFichaMinutosManual(false);
-        }
-
-        const previsaoAuto = getPrevisaoTerminoPorFicha(produtoId, totalPecas);
-        if (previsaoAuto) {
-          setPrevisaoTermino(previsaoAuto);
-        }
-      }
+      setProdutosOP(newProdutosOP.length > 0 ? newProdutosOP : [{ produtoId: "", nomeProduto: "—", oficinaId: "", previsaoTermino: "", custoEstimadoPeca: 0, fichaMinutos: 0, fichaMinutosManual: false }]);
     });
   }, [ocId, fichasTecnicas, maquinas]);
 
   const handleCreate = async () => {
-    if (!ocId || !oficinaId) { toast.error("Selecione OC e Oficina"); return; }
+    if (!ocId) { toast.error("Selecione uma OC"); return; }
+    const missing = produtosOP.some(p => !p.oficinaId);
+    if (missing) { toast.error("Selecione a oficina para cada produto"); return; }
     try {
-      const prodRes = await supabase.from("ordens_corte_produtos").select("*").eq("ordem_corte_id", ocId).limit(1);
-      const prod = prodRes.data?.[0];
-
-      await createMut.mutateAsync({
-        ordem_corte_id: ocId,
-        produto_id: prod?.produto_id ?? null,
-        nome_produto: prod?.nome_produto ?? "",
-        oficina_id: oficinaId,
-        quantidade,
-        quantidade_pecas_ordem: quantidade,
-        status_ordem: "Corte",
-        data_inicio: new Date().toISOString().split("T")[0],
-        data_previsao_termino: previsaoTermino || null,
-        custo_estimado_peca: custoEstimadoPeca > 0 ? custoEstimadoPeca : null,
-      } as any);
-      toast.success("Ordem de produção criada!");
+      for (const p of produtosOP) {
+        await createMut.mutateAsync({
+          ordem_corte_id: ocId,
+          produto_id: p.produtoId || null,
+          nome_produto: p.nomeProduto,
+          oficina_id: p.oficinaId,
+          quantidade,
+          quantidade_pecas_ordem: quantidade,
+          status_ordem: "Corte",
+          data_inicio: new Date().toISOString().split("T")[0],
+          data_previsao_termino: p.previsaoTermino || null,
+          custo_estimado_peca: p.custoEstimadoPeca > 0 ? p.custoEstimadoPeca : null,
+        } as any);
+      }
+      toast.success(`${produtosOP.length} ordem(ns) de produção criada(s)!`);
       setOpen(false);
-      setOcId(""); setOficinaId(""); setPrevisaoTermino(""); setCustoEstimadoPeca(0);
+      setOcId("");
+      setProdutosOP([]);
     } catch (e: any) { toast.error(e.message); }
   };
 
@@ -840,7 +848,7 @@ export default function OrdensProducao() {
       </Tabs>
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent>
+        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
           <DialogHeader><DialogTitle>Nova Ordem de Produção</DialogTitle></DialogHeader>
           <div className="space-y-4">
             <div className="space-y-2">
@@ -854,72 +862,78 @@ export default function OrdensProducao() {
                 </SelectContent>
               </Select>
             </div>
-            {ocInfo && (
+            {produtosOP.length > 0 && (
               <div className="p-3 bg-muted/50 rounded-lg border border-border space-y-1 text-sm">
-                <p><span className="text-muted-foreground">Produto:</span> {ocInfo.produto}</p>
-                <p><span className="text-muted-foreground">Cor:</span> {ocInfo.cor}</p>
-                <p><span className="text-muted-foreground">Grade:</span> {ocInfo.grade}</p>
+                <p><span className="text-muted-foreground">Cor:</span> {ocCorInfo}</p>
+                <p><span className="text-muted-foreground">Grade:</span> {ocGradeInfo}</p>
                 <p><span className="text-muted-foreground">Total Peças:</span> {quantidade}</p>
               </div>
             )}
             <div className="space-y-2">
-              <Label>Oficina de Costura</Label>
-              <Select value={oficinaId} onValueChange={setOficinaId}>
-                <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
-                <SelectContent>
-                  {oficinas?.map((o) => (
-                    <SelectItem key={o.id} value={o.id}>{o.nome_oficina}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
               <Label>Quantidade de Peças</Label>
               <Input type="number" value={quantidade} onChange={(e) => setQuantidade(Number(e.target.value))} />
             </div>
-            <div className="space-y-2">
-              <Label>Previsão de Término</Label>
-              <Input type="date" value={previsaoTermino} onChange={(e) => setPrevisaoTermino(e.target.value)} />
-              {ocInfo?.produtoId && !fichaMinutosManual && (
-                <p className="text-xs text-muted-foreground">📅 Auto-preenchida com base na ficha técnica e capacidade das máquinas</p>
-              )}
-            </div>
-            <div className="space-y-2">
-              <Label>Custo Estimado por Peça (R$)</Label>
-              <Input type="number" step="0.01" value={custoEstimadoPeca || ""} onChange={(e) => setCustoEstimadoPeca(Number(e.target.value))} placeholder="0.00" />
-              <p className="text-xs text-muted-foreground">Usado para calcular KPI de custo (No Prazo / Alerta / Crítico)</p>
-            </div>
-            {ocInfo?.produtoId && fichasPorProduto.has(ocInfo.produtoId) && (
-              <div className="space-y-2">
-                <div className="flex items-center gap-2">
-                  <Label>Tempo Efetivo/Peça (seg)</Label>
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Info className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        <p className="text-xs">Usa a mesma lógica da aba Bonificações: etapas em conjunto contam pelo maior tempo do grupo.</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
-                </div>
-                <Input
-                  type="number"
-                  step="0.1"
-                  value={fichaMinutos}
-                  onChange={(e) => { setFichaMinutos(Number(e.target.value)); setFichaMinutosManual(true); }}
-                  className={!fichaMinutosManual ? "bg-muted/50" : ""}
-                />
-                {!fichaMinutosManual && (
-                  <p className="text-xs text-muted-foreground">⏱ Auto-preenchido da ficha técnica ({fichasPorProduto.get(ocInfo.produtoId)!.length} etapas)</p>
-                )}
+
+            {produtosOP.length > 0 && (
+              <div className="space-y-3">
+                <Label className="text-base font-semibold">
+                  {produtosOP.length > 1 ? `Produtos (${produtosOP.length} OPs serão criadas)` : "Produto"}
+                </Label>
+                {produtosOP.map((p, idx) => {
+                  const updateProdutoOP = (field: keyof ProdutoOP, value: any) => {
+                    setProdutosOP(prev => prev.map((item, i) => i === idx ? { ...item, [field]: value } : item));
+                  };
+                  return (
+                    <div key={idx} className="p-3 bg-card border border-border rounded-lg space-y-3">
+                      <p className="font-medium text-sm text-card-foreground">{p.nomeProduto}</p>
+                      <div className="space-y-2">
+                        <Label className="text-xs">Oficina de Costura</Label>
+                        <Select value={p.oficinaId} onValueChange={(v) => updateProdutoOP("oficinaId", v)}>
+                          <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
+                          <SelectContent>
+                            {oficinas?.map((o) => (
+                              <SelectItem key={o.id} value={o.id}>{o.nome_oficina}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-2">
+                        <Label className="text-xs">Previsão de Término</Label>
+                        <Input type="date" value={p.previsaoTermino} onChange={(e) => updateProdutoOP("previsaoTermino", e.target.value)} />
+                        {p.produtoId && !p.fichaMinutosManual && p.previsaoTermino && (
+                          <p className="text-xs text-muted-foreground">📅 Auto-preenchida via ficha técnica</p>
+                        )}
+                      </div>
+                      <div className="space-y-2">
+                        <Label className="text-xs">Custo Estimado por Peça (R$)</Label>
+                        <Input type="number" step="0.01" value={p.custoEstimadoPeca || ""} onChange={(e) => updateProdutoOP("custoEstimadoPeca", Number(e.target.value))} placeholder="0.00" />
+                      </div>
+                      {p.produtoId && fichasPorProduto.has(p.produtoId) && (
+                        <div className="space-y-2">
+                          <Label className="text-xs">Tempo Efetivo/Peça (seg)</Label>
+                          <Input
+                            type="number"
+                            step="0.1"
+                            value={p.fichaMinutos}
+                            onChange={(e) => { updateProdutoOP("fichaMinutos", Number(e.target.value)); updateProdutoOP("fichaMinutosManual", true); }}
+                            className={!p.fichaMinutosManual ? "bg-muted/50" : ""}
+                          />
+                          {!p.fichaMinutosManual && (
+                            <p className="text-xs text-muted-foreground">⏱ Auto da ficha técnica ({fichasPorProduto.get(p.produtoId)!.length} etapas)</p>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setOpen(false)}>Cancelar</Button>
-            <Button onClick={handleCreate} disabled={createMut.isPending}>Criar</Button>
+            <Button onClick={handleCreate} disabled={createMut.isPending}>
+              {produtosOP.length > 1 ? `Criar ${produtosOP.length} OPs` : "Criar"}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
