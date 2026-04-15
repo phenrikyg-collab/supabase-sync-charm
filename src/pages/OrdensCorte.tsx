@@ -1,11 +1,11 @@
-import { useOrdensCorte } from "@/hooks/useSupabase";
+import { useOrdensCorte, useProdutos } from "@/hooks/useSupabase";
 import { Card, CardContent } from "@/components/ui/card";
 import { StatusBadge } from "@/components/StatusBadge";
 import { Button } from "@/components/ui/button";
-import { Plus, Pencil, Trash2, Printer } from "lucide-react";
+import { Plus, Pencil, Trash2, Printer, X, Search } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -22,12 +22,13 @@ interface OrdemCorteEnriched {
   metragem_risco: number;
   quantidade_folhas: number | null;
   created_at: string | null;
-  produtos: { nome_produto: string | null }[];
+  produtos: { id: string; produto_id: string | null; nome_produto: string | null }[];
   grade: { tamanho: string; quantidade: number; cor_id: string | null }[];
 }
 
 export default function OrdensCorte() {
   const { data: ordens, isLoading, refetch } = useOrdensCorte();
+  const { data: allProdutos } = useProdutos();
   const navigate = useNavigate();
   const [enriched, setEnriched] = useState<OrdemCorteEnriched[]>([]);
   const [editOpen, setEditOpen] = useState(false);
@@ -35,8 +36,11 @@ export default function OrdensCorte() {
   const [editStatus, setEditStatus] = useState("");
   const [editMetragem, setEditMetragem] = useState(0);
   const [editFolhas, setEditFolhas] = useState(0);
+  const [editProdutos, setEditProdutos] = useState<{ produto_id: string; nome_produto: string }[]>([]);
+  const [searchProduto, setSearchProduto] = useState("");
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     if (!ordens?.length) { setEnriched([]); return; }
@@ -109,34 +113,75 @@ export default function OrdensCorte() {
     setEditStatus(o.status ?? "Planejada");
     setEditMetragem(o.metragem_risco);
     setEditFolhas(o.quantidade_folhas ?? 0);
+    setEditProdutos(o.produtos.map((p) => ({ produto_id: p.produto_id ?? "", nome_produto: p.nome_produto ?? "" })));
+    setSearchProduto("");
     setEditOpen(true);
+  };
+
+  const produtosFiltrados = useMemo(() => {
+    if (!allProdutos || !searchProduto) return [];
+    const selectedIds = new Set(editProdutos.map((p) => p.produto_id));
+    const term = searchProduto.toLowerCase();
+    return allProdutos.filter((p) => p.ativo && !selectedIds.has(p.id) && (
+      p.nome_do_produto?.toLowerCase().includes(term) || p.codigo_sku?.toLowerCase().includes(term)
+    ));
+  }, [allProdutos, searchProduto, editProdutos]);
+
+  const addEditProduto = (id: string) => {
+    const p = allProdutos?.find((pr) => pr.id === id);
+    if (!p) return;
+    setEditProdutos((prev) => [...prev, { produto_id: p.id, nome_produto: p.nome_do_produto }]);
+    setSearchProduto("");
+  };
+
+  const removeEditProduto = (produtoId: string) => {
+    setEditProdutos((prev) => prev.filter((p) => p.produto_id !== produtoId));
   };
 
   const handleEdit = async () => {
     if (!editOrdem) return;
+    if (editProdutos.length === 0) { toast.error("Selecione ao menos um produto"); return; }
+    setSaving(true);
     try {
+      // Update ordem fields
       const { error } = await supabase.from("ordens_corte").update({
         status: editStatus,
         metragem_risco: editMetragem,
         quantidade_folhas: editFolhas,
       }).eq("id", editOrdem.id);
       if (error) throw error;
+
+      // Replace produtos: delete old, insert new
+      await supabase.from("ordens_corte_produtos").delete().eq("ordem_corte_id", editOrdem.id);
+      if (editProdutos.length > 0) {
+        const { error: prodErr } = await supabase.from("ordens_corte_produtos").insert(
+          editProdutos.map((p) => ({
+            ordem_corte_id: editOrdem.id,
+            produto_id: p.produto_id,
+            nome_produto: p.nome_produto,
+          }))
+        );
+        if (prodErr) throw prodErr;
+      }
+
       toast.success("Ordem atualizada!");
       setEditOpen(false);
       refetch();
-    } catch (e: any) { toast.error(e.message); }
+    } catch (e: any) {
+      toast.error(e.message);
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleDelete = async () => {
     if (!deleteId) return;
     try {
-      // 1. Fetch rolos used in this OC to restore stock
       const { data: rolosUsados } = await supabase
         .from("ordens_corte_rolos")
         .select("rolo_id, metragem_utilizada")
         .eq("ordem_corte_id", deleteId);
 
-      // 2. Restore metragem to each rolo
       if (rolosUsados?.length) {
         for (const ru of rolosUsados) {
           if (!ru.rolo_id) continue;
@@ -152,7 +197,6 @@ export default function OrdensCorte() {
         }
       }
 
-      // 3. Delete related records
       await supabase.from("ordens_corte_grade").delete().eq("ordem_corte_id", deleteId);
       await supabase.from("ordens_corte_produtos").delete().eq("ordem_corte_id", deleteId);
       await supabase.from("ordens_corte_rolos").delete().eq("ordem_corte_id", deleteId);
@@ -223,7 +267,7 @@ export default function OrdensCorte() {
 
       {/* Edit Dialog */}
       <Dialog open={editOpen} onOpenChange={setEditOpen}>
-        <DialogContent>
+        <DialogContent className="max-w-lg">
           <DialogHeader><DialogTitle>Editar Ordem {editOrdem?.numero_oc}</DialogTitle></DialogHeader>
           <div className="space-y-4">
             <div className="space-y-2">
@@ -237,18 +281,63 @@ export default function OrdensCorte() {
                 </SelectContent>
               </Select>
             </div>
-            <div className="space-y-2">
-              <Label>Metragem do Risco</Label>
-              <Input type="number" step="0.01" value={editMetragem} onChange={(e) => setEditMetragem(Number(e.target.value))} />
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Metragem do Risco</Label>
+                <Input type="number" step="0.01" value={editMetragem} onChange={(e) => setEditMetragem(Number(e.target.value))} />
+              </div>
+              <div className="space-y-2">
+                <Label>Quantidade de Folhas</Label>
+                <Input type="number" value={editFolhas} onChange={(e) => setEditFolhas(Number(e.target.value))} />
+              </div>
             </div>
-            <div className="space-y-2">
-              <Label>Quantidade de Folhas</Label>
-              <Input type="number" value={editFolhas} onChange={(e) => setEditFolhas(Number(e.target.value))} />
+
+            {/* Products section */}
+            <div className="space-y-3">
+              <Label>Produtos ({editProdutos.length})</Label>
+              {editProdutos.length > 0 && (
+                <div className="flex flex-wrap gap-2">
+                  {editProdutos.map((p) => (
+                    <div key={p.produto_id} className="flex items-center gap-1.5 bg-primary/10 border border-primary/20 rounded-lg px-3 py-1.5 text-sm">
+                      <span className="font-medium text-foreground">{p.nome_produto}</span>
+                      <button onClick={() => removeEditProduto(p.produto_id)} className="ml-1 text-muted-foreground hover:text-destructive">
+                        <X className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Buscar produto para adicionar..."
+                  value={searchProduto}
+                  onChange={(e) => setSearchProduto(e.target.value)}
+                  className="pl-9"
+                />
+              </div>
+              {searchProduto && produtosFiltrados.length > 0 && (
+                <div className="border border-border rounded-lg max-h-36 overflow-y-auto bg-popover shadow-md">
+                  {produtosFiltrados.slice(0, 10).map((p) => (
+                    <button
+                      key={p.id}
+                      className="w-full text-left px-4 py-2 hover:bg-accent text-sm flex items-center justify-between"
+                      onClick={() => addEditProduto(p.id)}
+                    >
+                      <span className="flex items-center gap-2">
+                        <Plus className="h-3.5 w-3.5 text-primary" />
+                        <span className="font-medium text-popover-foreground">{p.nome_do_produto}</span>
+                      </span>
+                      {p.codigo_sku && <span className="text-muted-foreground text-xs">{p.codigo_sku}</span>}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditOpen(false)}>Cancelar</Button>
-            <Button onClick={handleEdit}>Salvar</Button>
+            <Button onClick={handleEdit} disabled={saving}>Salvar</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
