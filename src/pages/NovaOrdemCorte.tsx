@@ -94,14 +94,24 @@ export default function NovaOrdemCorte() {
     return Array.from(map.entries());
   }, [selectedRolos, rolos, metrosRolo]);
 
-  // Calculate folhas per color = metros da cor / metragem do risco
-  const folhasPorCor = useMemo(() => {
+  // Calculate folhas per color = metros da cor / metragem do risco (auto-calculated, manually overridable)
+  const [folhasOverride, setFolhasOverride] = useState<Record<string, number | null>>({});
+  
+  const folhasPorCorCalc = useMemo(() => {
     const result: Record<string, number> = {};
     for (const [corKey, corInfo] of coresFromRolos) {
       result[corKey] = metrosRisco > 0 ? Math.floor(corInfo.metrosCor / metrosRisco) : 0;
     }
     return result;
   }, [coresFromRolos, metrosRisco]);
+
+  const folhasPorCor = useMemo(() => {
+    const result: Record<string, number> = {};
+    for (const [corKey] of coresFromRolos) {
+      result[corKey] = folhasOverride[corKey] ?? folhasPorCorCalc[corKey] ?? 0;
+    }
+    return result;
+  }, [coresFromRolos, folhasPorCorCalc, folhasOverride]);
 
   const setGradeForCor = (corKey: string, tamanho: string, qty: number) => {
     setGradeMultiCor((prev) => ({
