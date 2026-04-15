@@ -76,20 +76,33 @@ export default function NovaOrdemCorte() {
     setProdutosSelecionados((prev) => prev.filter((p) => p.id !== produtoId));
   };
 
-  // Derive unique colors from selected rolls
+  // Derive unique colors from selected rolls with per-color meters
   const coresFromRolos = useMemo(() => {
-    const map = new Map<string, { cor_id: string | null; cor_nome: string; cor_hex: string }>();
+    const map = new Map<string, { cor_id: string | null; cor_nome: string; cor_hex: string; metrosCor: number }>();
     for (const roloId of selectedRolos) {
       const rolo = rolos?.find((r) => r.id === roloId);
       if (rolo) {
         const key = rolo.cor_id ?? rolo.cor_nome ?? "sem-cor";
-        if (!map.has(key)) {
-          map.set(key, { cor_id: rolo.cor_id ?? null, cor_nome: rolo.cor_nome ?? "Sem cor", cor_hex: rolo.cor_hex ?? "#ccc" });
+        const existing = map.get(key);
+        const metrosRoloVal = metrosRolo[roloId] ?? 0;
+        if (existing) {
+          existing.metrosCor += metrosRoloVal;
+        } else {
+          map.set(key, { cor_id: rolo.cor_id ?? null, cor_nome: rolo.cor_nome ?? "Sem cor", cor_hex: rolo.cor_hex ?? "#ccc", metrosCor: metrosRoloVal });
         }
       }
     }
     return Array.from(map.entries());
-  }, [selectedRolos, rolos]);
+  }, [selectedRolos, rolos, metrosRolo]);
+
+  // Calculate folhas per color = metros da cor / metragem do risco
+  const folhasPorCor = useMemo(() => {
+    const result: Record<string, number> = {};
+    for (const [corKey, corInfo] of coresFromRolos) {
+      result[corKey] = metrosRisco > 0 ? Math.floor(corInfo.metrosCor / metrosRisco) : 0;
+    }
+    return result;
+  }, [coresFromRolos, metrosRisco]);
 
   const setGradeForCor = (corKey: string, tamanho: string, qty: number) => {
     setGradeMultiCor((prev) => ({
