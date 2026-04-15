@@ -848,7 +848,7 @@ export default function OrdensProducao() {
       </Tabs>
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent>
+        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
           <DialogHeader><DialogTitle>Nova Ordem de Produção</DialogTitle></DialogHeader>
           <div className="space-y-4">
             <div className="space-y-2">
@@ -862,72 +862,81 @@ export default function OrdensProducao() {
                 </SelectContent>
               </Select>
             </div>
-            {ocInfo && (
+            {produtosOP.length > 0 && (
               <div className="p-3 bg-muted/50 rounded-lg border border-border space-y-1 text-sm">
-                <p><span className="text-muted-foreground">Produto:</span> {ocInfo.produto}</p>
-                <p><span className="text-muted-foreground">Cor:</span> {ocInfo.cor}</p>
-                <p><span className="text-muted-foreground">Grade:</span> {ocInfo.grade}</p>
+                <p><span className="text-muted-foreground">Cor:</span> {ocCorInfo}</p>
+                <p><span className="text-muted-foreground">Grade:</span> {ocGradeInfo}</p>
                 <p><span className="text-muted-foreground">Total Peças:</span> {quantidade}</p>
               </div>
             )}
             <div className="space-y-2">
-              <Label>Oficina de Costura</Label>
-              <Select value={oficinaId} onValueChange={setOficinaId}>
-                <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
-                <SelectContent>
-                  {oficinas?.map((o) => (
-                    <SelectItem key={o.id} value={o.id}>{o.nome_oficina}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
               <Label>Quantidade de Peças</Label>
               <Input type="number" value={quantidade} onChange={(e) => setQuantidade(Number(e.target.value))} />
             </div>
-            <div className="space-y-2">
-              <Label>Previsão de Término</Label>
-              <Input type="date" value={previsaoTermino} onChange={(e) => setPrevisaoTermino(e.target.value)} />
-              {ocInfo?.produtoId && !fichaMinutosManual && (
-                <p className="text-xs text-muted-foreground">📅 Auto-preenchida com base na ficha técnica e capacidade das máquinas</p>
-              )}
-            </div>
-            <div className="space-y-2">
-              <Label>Custo Estimado por Peça (R$)</Label>
-              <Input type="number" step="0.01" value={custoEstimadoPeca || ""} onChange={(e) => setCustoEstimadoPeca(Number(e.target.value))} placeholder="0.00" />
-              <p className="text-xs text-muted-foreground">Usado para calcular KPI de custo (No Prazo / Alerta / Crítico)</p>
-            </div>
-            {ocInfo?.produtoId && fichasPorProduto.has(ocInfo.produtoId) && (
-              <div className="space-y-2">
-                <div className="flex items-center gap-2">
-                  <Label>Tempo Efetivo/Peça (seg)</Label>
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Info className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        <p className="text-xs">Usa a mesma lógica da aba Bonificações: etapas em conjunto contam pelo maior tempo do grupo.</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
-                </div>
-                <Input
-                  type="number"
-                  step="0.1"
-                  value={fichaMinutos}
-                  onChange={(e) => { setFichaMinutos(Number(e.target.value)); setFichaMinutosManual(true); }}
-                  className={!fichaMinutosManual ? "bg-muted/50" : ""}
-                />
-                {!fichaMinutosManual && (
-                  <p className="text-xs text-muted-foreground">⏱ Auto-preenchido da ficha técnica ({fichasPorProduto.get(ocInfo.produtoId)!.length} etapas)</p>
-                )}
+
+            {produtosOP.length > 0 && (
+              <div className="space-y-3">
+                <Label className="text-base font-semibold">
+                  {produtosOP.length > 1 ? `Produtos (${produtosOP.length} OPs serão criadas)` : "Produto"}
+                </Label>
+                {produtosOP.map((p, idx) => {
+                  const updateProdutoOP = (field: keyof ProdutoOP, value: any) => {
+                    setProdutosOP(prev => prev.map((item, i) => i === idx ? { ...item, [field]: value } : item));
+                  };
+                  return (
+                    <div key={idx} className="p-3 bg-card border border-border rounded-lg space-y-3">
+                      <p className="font-medium text-sm text-card-foreground">{p.nomeProduto}</p>
+                      <div className="space-y-2">
+                        <Label className="text-xs">Oficina de Costura</Label>
+                        <Select value={p.oficinaId} onValueChange={(v) => updateProdutoOP("oficinaId", v)}>
+                          <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
+                          <SelectContent>
+                            {oficinas?.map((o) => (
+                              <SelectItem key={o.id} value={o.id}>{o.nome_oficina}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-2">
+                        <Label className="text-xs">Previsão de Término</Label>
+                        <Input type="date" value={p.previsaoTermino} onChange={(e) => updateProdutoOP("previsaoTermino", e.target.value)} />
+                        {p.produtoId && !p.fichaMinutosManual && p.previsaoTermino && (
+                          <p className="text-xs text-muted-foreground">📅 Auto-preenchida via ficha técnica</p>
+                        )}
+                      </div>
+                      <div className="space-y-2">
+                        <Label className="text-xs">Custo Estimado por Peça (R$)</Label>
+                        <Input type="number" step="0.01" value={p.custoEstimadoPeca || ""} onChange={(e) => updateProdutoOP("custoEstimadoPeca", Number(e.target.value))} placeholder="0.00" />
+                      </div>
+                      {p.produtoId && fichasPorProduto.has(p.produtoId) && (
+                        <div className="space-y-2">
+                          <Label className="text-xs">Tempo Efetivo/Peça (seg)</Label>
+                          <Input
+                            type="number"
+                            step="0.1"
+                            value={p.fichaMinutos}
+                            onChange={(e) => { updateProdutoOP("fichaMinutos", Number(e.target.value)); updateProdutoOP("fichaMinutosManual", true); }}
+                            className={!p.fichaMinutosManual ? "bg-muted/50" : ""}
+                          />
+                          {!p.fichaMinutosManual && (
+                            <p className="text-xs text-muted-foreground">⏱ Auto da ficha técnica ({fichasPorProduto.get(p.produtoId)!.length} etapas)</p>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setOpen(false)}>Cancelar</Button>
-            <Button onClick={handleCreate} disabled={createMut.isPending}>Criar</Button>
+            <Button onClick={handleCreate} disabled={createMut.isPending}>
+              {produtosOP.length > 1 ? `Criar ${produtosOP.length} OPs` : "Criar"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
           </DialogFooter>
         </DialogContent>
       </Dialog>
