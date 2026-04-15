@@ -1,4 +1,4 @@
-import { useOrdensCorte, useProdutos } from "@/hooks/useSupabase";
+import { useOrdensCorte, useProdutos, useCores } from "@/hooks/useSupabase";
 import { Card, CardContent } from "@/components/ui/card";
 import { StatusBadge } from "@/components/StatusBadge";
 import { Button } from "@/components/ui/button";
@@ -29,6 +29,12 @@ interface OrdemCorteEnriched {
 export default function OrdensCorte() {
   const { data: ordens, isLoading, refetch } = useOrdensCorte();
   const { data: allProdutos } = useProdutos();
+  const { data: allCores } = useCores();
+  const coresMap = useMemo(() => {
+    const map = new Map<string, { nome_cor: string; cor_hex: string }>();
+    (allCores ?? []).forEach((c) => map.set(c.id, { nome_cor: c.nome_cor ?? "Sem cor", cor_hex: c.cor_hex ?? "#ccc" }));
+    return map;
+  }, [allCores]);
   const navigate = useNavigate();
   const [enriched, setEnriched] = useState<OrdemCorteEnriched[]>([]);
   const [editOpen, setEditOpen] = useState(false);
