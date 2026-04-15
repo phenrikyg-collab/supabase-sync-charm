@@ -937,9 +937,6 @@ export default function OrdensProducao() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
 
       {/* Edit Dialog */}
       <Dialog open={editOpen} onOpenChange={setEditOpen}>
