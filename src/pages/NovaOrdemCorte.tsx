@@ -32,7 +32,7 @@ export default function NovaOrdemCorte() {
   const [metrosRolo, setMetrosRolo] = useState<Record<string, number>>({});
   const [roloMode, setRoloMode] = useState<Record<string, "total" | "parcial">>({});
   const [metrosRisco, setMetrosRisco] = useState(0);
-  const [folhas, setFolhas] = useState(1);
+  const [searchRolo, setSearchRolo] = useState("");
   const [searchRolo, setSearchRolo] = useState("");
 
   // Sequential OC number from MAX in DB
@@ -197,7 +197,7 @@ export default function NovaOrdemCorte() {
           numero_oc: numeroOC,
           grade_tamanhos: allTamanhos,
           metragem_risco: metrosRisco,
-          quantidade_folhas: folhas,
+          quantidade_folhas: Object.values(folhasPorCor).reduce((a, b) => a + b, 0),
           status: "Planejada",
         },
         produtos: produtosSelecionados.map((p) => ({ produto_id: p.id, nome_produto: p.nome })),
