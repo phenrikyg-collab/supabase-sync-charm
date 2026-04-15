@@ -229,8 +229,8 @@ export default function NovaOrdemCorte() {
               <Input type="number" step="0.01" value={metrosRisco} onChange={(e) => setMetrosRisco(Number(e.target.value))} />
             </div>
             <div className="space-y-2">
-              <Label>Quantidade de Folhas</Label>
-              <Input type="number" value={folhas} onChange={(e) => setFolhas(Number(e.target.value))} />
+              <Label>Total de Folhas (calculado)</Label>
+              <Input value={Object.values(folhasPorCor).reduce((a, b) => a + b, 0)} readOnly className="bg-muted" />
             </div>
           </div>
 
@@ -362,9 +362,15 @@ export default function NovaOrdemCorte() {
               <Label>Grade de Tamanhos por Cor</Label>
               {coresFromRolos.map(([corKey, corInfo]) => (
                 <div key={corKey} className="p-4 rounded-lg border border-border space-y-3">
-                  <div className="flex items-center gap-2">
-                    <div className="w-4 h-4 rounded-full border border-border" style={{ backgroundColor: corInfo.cor_hex }} />
-                    <span className="font-medium text-sm text-foreground">{corInfo.cor_nome}</span>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className="w-4 h-4 rounded-full border border-border" style={{ backgroundColor: corInfo.cor_hex }} />
+                      <span className="font-medium text-sm text-foreground">{corInfo.cor_nome}</span>
+                    </div>
+                    <div className="flex items-center gap-3 text-sm">
+                      <span className="text-muted-foreground">{corInfo.metrosCor.toFixed(1)}m alocados</span>
+                      <span className="font-medium text-primary">{folhasPorCor[corKey] ?? 0} folha(s)</span>
+                    </div>
                   </div>
                   <div className="grid grid-cols-3 md:grid-cols-6 gap-3">
                     {TAMANHOS.map((t) => (
