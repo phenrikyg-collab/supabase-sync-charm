@@ -32,7 +32,6 @@ export default function NovaOrdemCorte() {
   const [metrosRolo, setMetrosRolo] = useState<Record<string, number>>({});
   const [roloMode, setRoloMode] = useState<Record<string, "total" | "parcial">>({});
   const [metrosRisco, setMetrosRisco] = useState(0);
-  const [folhas, setFolhas] = useState(1);
   const [searchRolo, setSearchRolo] = useState("");
 
   // Sequential OC number from MAX in DB
@@ -76,20 +75,33 @@ export default function NovaOrdemCorte() {
     setProdutosSelecionados((prev) => prev.filter((p) => p.id !== produtoId));
   };
 
-  // Derive unique colors from selected rolls
+  // Derive unique colors from selected rolls with per-color meters
   const coresFromRolos = useMemo(() => {
-    const map = new Map<string, { cor_id: string | null; cor_nome: string; cor_hex: string }>();
+    const map = new Map<string, { cor_id: string | null; cor_nome: string; cor_hex: string; metrosCor: number }>();
     for (const roloId of selectedRolos) {
       const rolo = rolos?.find((r) => r.id === roloId);
       if (rolo) {
         const key = rolo.cor_id ?? rolo.cor_nome ?? "sem-cor";
-        if (!map.has(key)) {
-          map.set(key, { cor_id: rolo.cor_id ?? null, cor_nome: rolo.cor_nome ?? "Sem cor", cor_hex: rolo.cor_hex ?? "#ccc" });
+        const existing = map.get(key);
+        const metrosRoloVal = metrosRolo[roloId] ?? 0;
+        if (existing) {
+          existing.metrosCor += metrosRoloVal;
+        } else {
+          map.set(key, { cor_id: rolo.cor_id ?? null, cor_nome: rolo.cor_nome ?? "Sem cor", cor_hex: rolo.cor_hex ?? "#ccc", metrosCor: metrosRoloVal });
         }
       }
     }
     return Array.from(map.entries());
-  }, [selectedRolos, rolos]);
+  }, [selectedRolos, rolos, metrosRolo]);
+
+  // Calculate folhas per color = metros da cor / metragem do risco
+  const folhasPorCor = useMemo(() => {
+    const result: Record<string, number> = {};
+    for (const [corKey, corInfo] of coresFromRolos) {
+      result[corKey] = metrosRisco > 0 ? Math.floor(corInfo.metrosCor / metrosRisco) : 0;
+    }
+    return result;
+  }, [coresFromRolos, metrosRisco]);
 
   const setGradeForCor = (corKey: string, tamanho: string, qty: number) => {
     setGradeMultiCor((prev) => ({
@@ -184,7 +196,7 @@ export default function NovaOrdemCorte() {
           numero_oc: numeroOC,
           grade_tamanhos: allTamanhos,
           metragem_risco: metrosRisco,
-          quantidade_folhas: folhas,
+          quantidade_folhas: Object.values(folhasPorCor).reduce((a, b) => a + b, 0),
           status: "Planejada",
         },
         produtos: produtosSelecionados.map((p) => ({ produto_id: p.id, nome_produto: p.nome })),
@@ -216,8 +228,8 @@ export default function NovaOrdemCorte() {
               <Input type="number" step="0.01" value={metrosRisco} onChange={(e) => setMetrosRisco(Number(e.target.value))} />
             </div>
             <div className="space-y-2">
-              <Label>Quantidade de Folhas</Label>
-              <Input type="number" value={folhas} onChange={(e) => setFolhas(Number(e.target.value))} />
+              <Label>Total de Folhas (calculado)</Label>
+              <Input value={Object.values(folhasPorCor).reduce((a, b) => a + b, 0)} readOnly className="bg-muted" />
             </div>
           </div>
 
@@ -349,9 +361,15 @@ export default function NovaOrdemCorte() {
               <Label>Grade de Tamanhos por Cor</Label>
               {coresFromRolos.map(([corKey, corInfo]) => (
                 <div key={corKey} className="p-4 rounded-lg border border-border space-y-3">
-                  <div className="flex items-center gap-2">
-                    <div className="w-4 h-4 rounded-full border border-border" style={{ backgroundColor: corInfo.cor_hex }} />
-                    <span className="font-medium text-sm text-foreground">{corInfo.cor_nome}</span>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className="w-4 h-4 rounded-full border border-border" style={{ backgroundColor: corInfo.cor_hex }} />
+                      <span className="font-medium text-sm text-foreground">{corInfo.cor_nome}</span>
+                    </div>
+                    <div className="flex items-center gap-3 text-sm">
+                      <span className="text-muted-foreground">{corInfo.metrosCor.toFixed(1)}m alocados</span>
+                      <span className="font-medium text-primary">{folhasPorCor[corKey] ?? 0} folha(s)</span>
+                    </div>
                   </div>
                   <div className="grid grid-cols-3 md:grid-cols-6 gap-3">
                     {TAMANHOS.map((t) => (
