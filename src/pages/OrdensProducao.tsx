@@ -135,13 +135,21 @@ export default function OrdensProducao() {
 
   const [open, setOpen] = useState(false);
   const [ocId, setOcId] = useState("");
-  const [oficinaId, setOficinaId] = useState("");
   const [quantidade, setQuantidade] = useState(0);
-  const [previsaoTermino, setPrevisaoTermino] = useState("");
-  const [custoEstimadoPeca, setCustoEstimadoPeca] = useState(0);
-  const [ocInfo, setOcInfo] = useState<{ produto: string; cor: string; grade: string; produtoId?: string } | null>(null);
-  const [fichaMinutos, setFichaMinutos] = useState<number>(0);
-  const [fichaMinutosManual, setFichaMinutosManual] = useState(false);
+  const [ocGradeInfo, setOcGradeInfo] = useState("");
+  const [ocCorInfo, setOcCorInfo] = useState("");
+
+  // Multi-product state: one entry per product in the selected OC
+  interface ProdutoOP {
+    produtoId: string;
+    nomeProduto: string;
+    oficinaId: string;
+    previsaoTermino: string;
+    custoEstimadoPeca: number;
+    fichaMinutos: number;
+    fichaMinutosManual: boolean;
+  }
+  const [produtosOP, setProdutosOP] = useState<ProdutoOP[]>([]);
 
   // Edit dialog
   const [editOpen, setEditOpen] = useState(false);
@@ -222,10 +230,10 @@ export default function OrdensProducao() {
 
   useEffect(() => {
     if (!ocId) {
-      setOcInfo(null);
-      setFichaMinutos(0);
-      setFichaMinutosManual(false);
-      setPrevisaoTermino("");
+      setProdutosOP([]);
+      setQuantidade(0);
+      setOcGradeInfo("");
+      setOcCorInfo("");
       return;
     }
 
@@ -238,50 +246,50 @@ export default function OrdensProducao() {
       const totalPecas = grades.reduce((a: number, g: any) => a + (g.quantidade ?? 0), 0);
       setQuantidade(totalPecas);
       const corId = grades[0]?.cor_id;
-      const produtoId = prods[0]?.produto_id;
-      setOcInfo({
-        produto: prods.map((p: any) => p.nome_produto).join(", ") || "—",
-        cor: corId && corMap[corId] ? corMap[corId].nome_cor ?? "—" : "—",
-        grade: grades.map((g: any) => `${g.tamanho}: ${g.quantidade}`).join(", "),
-        produtoId,
+      setOcCorInfo(corId && corMap[corId] ? corMap[corId].nome_cor ?? "—" : "—");
+      setOcGradeInfo(grades.map((g: any) => `${g.tamanho}: ${g.quantidade}`).join(", "));
+
+      const newProdutosOP: ProdutoOP[] = prods.map((p: any) => {
+        const produtoId = p.produto_id ?? "";
+        const tempoEfetivo = produtoId ? getTempoEfetivoFicha(produtoId) : 0;
+        const previsaoAuto = produtoId ? getPrevisaoTerminoPorFicha(produtoId, totalPecas) : "";
+        return {
+          produtoId,
+          nomeProduto: p.nome_produto ?? "—",
+          oficinaId: "",
+          previsaoTermino: previsaoAuto || "",
+          custoEstimadoPeca: 0,
+          fichaMinutos: tempoEfetivo,
+          fichaMinutosManual: false,
+        };
       });
-
-      if (produtoId) {
-        const tempoEfetivo = getTempoEfetivoFicha(produtoId);
-        if (tempoEfetivo > 0) {
-          setFichaMinutos(tempoEfetivo);
-          setFichaMinutosManual(false);
-        }
-
-        const previsaoAuto = getPrevisaoTerminoPorFicha(produtoId, totalPecas);
-        if (previsaoAuto) {
-          setPrevisaoTermino(previsaoAuto);
-        }
-      }
+      setProdutosOP(newProdutosOP.length > 0 ? newProdutosOP : [{ produtoId: "", nomeProduto: "—", oficinaId: "", previsaoTermino: "", custoEstimadoPeca: 0, fichaMinutos: 0, fichaMinutosManual: false }]);
     });
   }, [ocId, fichasTecnicas, maquinas]);
 
   const handleCreate = async () => {
-    if (!ocId || !oficinaId) { toast.error("Selecione OC e Oficina"); return; }
+    if (!ocId) { toast.error("Selecione uma OC"); return; }
+    const missing = produtosOP.some(p => !p.oficinaId);
+    if (missing) { toast.error("Selecione a oficina para cada produto"); return; }
     try {
-      const prodRes = await supabase.from("ordens_corte_produtos").select("*").eq("ordem_corte_id", ocId).limit(1);
-      const prod = prodRes.data?.[0];
-
-      await createMut.mutateAsync({
-        ordem_corte_id: ocId,
-        produto_id: prod?.produto_id ?? null,
-        nome_produto: prod?.nome_produto ?? "",
-        oficina_id: oficinaId,
-        quantidade,
-        quantidade_pecas_ordem: quantidade,
-        status_ordem: "Corte",
-        data_inicio: new Date().toISOString().split("T")[0],
-        data_previsao_termino: previsaoTermino || null,
-        custo_estimado_peca: custoEstimadoPeca > 0 ? custoEstimadoPeca : null,
-      } as any);
-      toast.success("Ordem de produção criada!");
+      for (const p of produtosOP) {
+        await createMut.mutateAsync({
+          ordem_corte_id: ocId,
+          produto_id: p.produtoId || null,
+          nome_produto: p.nomeProduto,
+          oficina_id: p.oficinaId,
+          quantidade,
+          quantidade_pecas_ordem: quantidade,
+          status_ordem: "Corte",
+          data_inicio: new Date().toISOString().split("T")[0],
+          data_previsao_termino: p.previsaoTermino || null,
+          custo_estimado_peca: p.custoEstimadoPeca > 0 ? p.custoEstimadoPeca : null,
+        } as any);
+      }
+      toast.success(`${produtosOP.length} ordem(ns) de produção criada(s)!`);
       setOpen(false);
-      setOcId(""); setOficinaId(""); setPrevisaoTermino(""); setCustoEstimadoPeca(0);
+      setOcId("");
+      setProdutosOP([]);
     } catch (e: any) { toast.error(e.message); }
   };
 
