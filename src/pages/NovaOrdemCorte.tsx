@@ -8,9 +8,15 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
-import { AlertTriangle, Search } from "lucide-react";
+import { AlertTriangle, Search, X, Plus } from "lucide-react";
 
 const TAMANHOS = ["PP", "P", "M", "G", "GG", "EG"];
+
+interface ProdutoSelecionado {
+  id: string;
+  nome: string;
+  consumo: number;
+}
 
 export default function NovaOrdemCorte() {
   const { data: produtos } = useProdutos();
@@ -19,7 +25,7 @@ export default function NovaOrdemCorte() {
   const createMut = useCreateOrdemCorte();
   const navigate = useNavigate();
 
-  const [produtoId, setProdutoId] = useState("");
+  const [produtosSelecionados, setProdutosSelecionados] = useState<ProdutoSelecionado[]>([]);
   const [searchProduto, setSearchProduto] = useState("");
   const [gradeMultiCor, setGradeMultiCor] = useState<Record<string, Record<string, number>>>({});
   const [selectedRolos, setSelectedRolos] = useState<Set<string>>(new Set());
@@ -43,19 +49,32 @@ export default function NovaOrdemCorte() {
 
   const tecidoMap = Object.fromEntries((tecidos ?? []).map((t) => [t.id, t]));
 
-  // Filter products by search
+  // Filter products by search (exclude already selected)
   const produtosFiltrados = useMemo(() => {
     if (!produtos) return [];
-    const ativos = produtos.filter((p) => p.ativo);
+    const selectedIds = new Set(produtosSelecionados.map((p) => p.id));
+    const ativos = produtos.filter((p) => p.ativo && !selectedIds.has(p.id));
     if (!searchProduto) return ativos;
     const term = searchProduto.toLowerCase();
     return ativos.filter((p) =>
       p.nome_do_produto?.toLowerCase().includes(term) ||
       p.codigo_sku?.toLowerCase().includes(term)
     );
-  }, [produtos, searchProduto]);
+  }, [produtos, searchProduto, produtosSelecionados]);
 
-  const produtoSelecionado = produtos?.find((p) => p.id === produtoId);
+  const addProduto = (produtoId: string) => {
+    const p = produtos?.find((pr) => pr.id === produtoId);
+    if (!p) return;
+    setProdutosSelecionados((prev) => [
+      ...prev,
+      { id: p.id, nome: p.nome_do_produto, consumo: p.consumo_de_tecido ?? 0 },
+    ]);
+    setSearchProduto("");
+  };
+
+  const removeProduto = (produtoId: string) => {
+    setProdutosSelecionados((prev) => prev.filter((p) => p.id !== produtoId));
+  };
 
   // Derive unique colors from selected rolls
   const coresFromRolos = useMemo(() => {
@@ -82,8 +101,12 @@ export default function NovaOrdemCorte() {
   const totalPecas = Object.values(gradeMultiCor).reduce(
     (sum, grades) => sum + Object.values(grades).reduce((a, b) => a + (b || 0), 0), 0
   );
-  const consumoUnitario = produtoSelecionado?.consumo_de_tecido ?? 0;
-  const consumoTotal = totalPecas * consumoUnitario;
+
+  // Average consumption across selected products (same fabric/risco shared)
+  const consumoMedio = produtosSelecionados.length > 0
+    ? produtosSelecionados.reduce((sum, p) => sum + p.consumo, 0) / produtosSelecionados.length
+    : 0;
+  const consumoTotal = totalPecas * consumoMedio;
   const metrosAlocados = Array.from(selectedRolos).reduce((a, id) => a + (metrosRolo[id] ?? 0), 0);
   const estoqueInsuficiente = consumoTotal > 0 && metrosAlocados < consumoTotal;
 
@@ -110,7 +133,6 @@ export default function NovaOrdemCorte() {
       setRoloMode(newMode);
     } else {
       newSet.add(roloId);
-      // Default to total mode
       setRoloMode({ ...roloMode, [roloId]: "total" });
       setMetrosRolo({ ...metrosRolo, [roloId]: rolo?.metragem_disponivel ?? 0 });
     }
@@ -128,7 +150,7 @@ export default function NovaOrdemCorte() {
   };
 
   const handleSubmit = async () => {
-    if (!produtoId) { toast.error("Selecione um produto"); return; }
+    if (produtosSelecionados.length === 0) { toast.error("Selecione ao menos um produto"); return; }
     if (selectedRolos.size === 0) { toast.error("Selecione ao menos um rolo"); return; }
     if (estoqueInsuficiente) { toast.error("Metragem alocada insuficiente para o consumo total"); return; }
     for (const roloId of selectedRolos) {
@@ -165,11 +187,11 @@ export default function NovaOrdemCorte() {
           quantidade_folhas: folhas,
           status: "Planejada",
         },
-        produtos: [{ produto_id: produtoId, nome_produto: produtoSelecionado?.nome_do_produto ?? "" }],
+        produtos: produtosSelecionados.map((p) => ({ produto_id: p.id, nome_produto: p.nome })),
         grade: gradeItems,
         rolos: rolosItems,
       });
-      toast.success("Ordem de corte criada com baixa automática de estoque!");
+      toast.success(`Ordem de corte criada com ${produtosSelecionados.length} produto(s)!`);
       navigate("/ordens-corte");
     } catch (e: any) {
       toast.error(e.message);
@@ -199,41 +221,59 @@ export default function NovaOrdemCorte() {
             </div>
           </div>
 
-          {/* Product search */}
-          <div className="space-y-2">
-            <Label>Produto</Label>
+          {/* Multiple product selection */}
+          <div className="space-y-3">
+            <Label>Produtos ({produtosSelecionados.length} selecionado{produtosSelecionados.length !== 1 ? "s" : ""})</Label>
+            
+            {/* Selected products chips */}
+            {produtosSelecionados.length > 0 && (
+              <div className="flex flex-wrap gap-2">
+                {produtosSelecionados.map((p) => (
+                  <div key={p.id} className="flex items-center gap-1.5 bg-primary/10 border border-primary/20 rounded-lg px-3 py-1.5 text-sm">
+                    <span className="font-medium text-foreground">{p.nome}</span>
+                    <span className="text-xs text-muted-foreground">({p.consumo}m/pç)</span>
+                    <button onClick={() => removeProduto(p.id)} className="ml-1 text-muted-foreground hover:text-destructive">
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Product search */}
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Buscar produto por nome ou SKU..."
-                value={produtoSelecionado ? produtoSelecionado.nome_do_produto : searchProduto}
-                onChange={(e) => {
-                  setSearchProduto(e.target.value);
-                  if (produtoId) setProdutoId("");
-                }}
-                onFocus={() => { if (produtoId) { setProdutoId(""); setSearchProduto(""); } }}
+                placeholder="Buscar produto por nome ou SKU para adicionar..."
+                value={searchProduto}
+                onChange={(e) => setSearchProduto(e.target.value)}
                 className="pl-9"
               />
             </div>
-            {!produtoId && searchProduto && produtosFiltrados.length > 0 && (
+            {searchProduto && produtosFiltrados.length > 0 && (
               <div className="border border-border rounded-lg max-h-48 overflow-y-auto bg-popover shadow-md">
                 {produtosFiltrados.map((p) => (
                   <button
                     key={p.id}
                     className="w-full text-left px-4 py-2.5 hover:bg-accent text-sm flex items-center justify-between"
-                    onClick={() => { setProdutoId(p.id); setSearchProduto(""); }}
+                    onClick={() => addProduto(p.id)}
                   >
-                    <span className="font-medium text-popover-foreground">{p.nome_do_produto}</span>
-                    {p.codigo_sku && <span className="text-muted-foreground text-xs">{p.codigo_sku}</span>}
+                    <span className="flex items-center gap-2">
+                      <Plus className="h-3.5 w-3.5 text-primary" />
+                      <span className="font-medium text-popover-foreground">{p.nome_do_produto}</span>
+                    </span>
+                    <span className="flex items-center gap-3">
+                      {p.consumo_de_tecido != null && (
+                        <span className="text-muted-foreground text-xs">{p.consumo_de_tecido}m/pç</span>
+                      )}
+                      {p.codigo_sku && <span className="text-muted-foreground text-xs">{p.codigo_sku}</span>}
+                    </span>
                   </button>
                 ))}
               </div>
             )}
-            {!produtoId && searchProduto && produtosFiltrados.length === 0 && (
+            {searchProduto && produtosFiltrados.length === 0 && (
               <p className="text-sm text-muted-foreground py-2">Nenhum produto encontrado</p>
-            )}
-            {produtoSelecionado && (
-              <p className="text-xs text-muted-foreground">Consumo: {consumoUnitario}m/peça · Tecido: {produtoSelecionado.tecido_do_produto ?? "—"}</p>
             )}
           </div>
 
@@ -337,7 +377,7 @@ export default function NovaOrdemCorte() {
               <p className="text-xl font-serif font-bold text-foreground">{totalPecas}</p>
             </div>
             <div>
-              <p className="text-xs text-muted-foreground">Consumo Total</p>
+              <p className="text-xs text-muted-foreground">Consumo Total (estimado)</p>
               <p className="text-xl font-serif font-bold text-foreground">{consumoTotal.toFixed(2)}m</p>
             </div>
             <div>
@@ -347,6 +387,12 @@ export default function NovaOrdemCorte() {
               </p>
             </div>
           </div>
+
+          {produtosSelecionados.length > 1 && (
+            <div className="p-3 bg-accent/50 border border-accent rounded-lg text-sm text-muted-foreground">
+              <strong className="text-foreground">Múltiplos produtos:</strong> Esta OC gerará {produtosSelecionados.length} ordens de produção separadas ao avançar para produção.
+            </div>
+          )}
 
           {estoqueInsuficiente && consumoTotal > 0 && (
             <div className="flex items-center gap-2 p-3 bg-destructive/10 border border-destructive/30 rounded-lg text-sm text-destructive">
