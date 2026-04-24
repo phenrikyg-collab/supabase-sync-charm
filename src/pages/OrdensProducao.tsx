@@ -140,6 +140,13 @@ export default function OrdensProducao() {
   const [ocCorInfo, setOcCorInfo] = useState("");
 
   // Multi-product state: one entry per product in the selected OC
+  interface GradeAlloc {
+    corId: string | null;
+    corNome: string;
+    tamanho: string;
+    disponivel: number;
+    quantidade: number;
+  }
   interface ProdutoOP {
     produtoId: string;
     nomeProduto: string;
@@ -148,8 +155,10 @@ export default function OrdensProducao() {
     custoEstimadoPeca: number;
     fichaMinutos: number;
     fichaMinutosManual: boolean;
+    alocacoes: GradeAlloc[];
   }
   const [produtosOP, setProdutosOP] = useState<ProdutoOP[]>([]);
+  const [ocGradeRaw, setOcGradeRaw] = useState<any[]>([]);
 
   // Edit dialog
   const [editOpen, setEditOpen] = useState(false);
