@@ -926,10 +926,11 @@ export default function OrdensProducao() {
                 <p><span className="text-muted-foreground">Total Peças:</span> {quantidade}</p>
               </div>
             )}
-            <div className="space-y-2">
-              <Label>Quantidade de Peças</Label>
-              <Input type="number" value={quantidade} onChange={(e) => setQuantidade(Number(e.target.value))} />
-            </div>
+            {allocOverflow.length > 0 && (
+              <div className="p-3 bg-danger/10 border border-danger/30 rounded-lg text-xs text-danger">
+                ⚠ Há combinações cor/tamanho com quantidade alocada acima do disponível na OC.
+              </div>
+            )}
 
             {produtosOP.length > 0 && (
               <div className="space-y-3">
@@ -940,9 +941,58 @@ export default function OrdensProducao() {
                   const updateProdutoOP = (field: keyof ProdutoOP, value: any) => {
                     setProdutosOP(prev => prev.map((item, i) => i === idx ? { ...item, [field]: value } : item));
                   };
+                  const updateAlloc = (allocIdx: number, value: number) => {
+                    setProdutosOP(prev => prev.map((item, i) => {
+                      if (i !== idx) return item;
+                      const novas = item.alocacoes.map((a, ai) => ai === allocIdx ? { ...a, quantidade: value } : a);
+                      return { ...item, alocacoes: novas };
+                    }));
+                  };
+                  // Group alocacoes by cor for display
+                  const porCor = new Map<string, { corNome: string; itens: { alloc: GradeAlloc; idx: number }[] }>();
+                  p.alocacoes.forEach((a, ai) => {
+                    const key = a.corId ?? "null";
+                    if (!porCor.has(key)) porCor.set(key, { corNome: a.corNome, itens: [] });
+                    porCor.get(key)!.itens.push({ alloc: a, idx: ai });
+                  });
+                  const totalProduto = sumAlloc(p);
                   return (
                     <div key={idx} className="p-3 bg-card border border-border rounded-lg space-y-3">
-                      <p className="font-medium text-sm text-card-foreground">{p.nomeProduto}</p>
+                      <div className="flex items-center justify-between">
+                        <p className="font-medium text-sm text-card-foreground">{p.nomeProduto}</p>
+                        <span className="text-xs text-muted-foreground">Total: <strong className="text-foreground">{totalProduto}</strong> peças</span>
+                      </div>
+
+                      {p.alocacoes.length > 0 && (
+                        <div className="space-y-2">
+                          <Label className="text-xs">Quantidade por Cor / Tamanho</Label>
+                          <div className="space-y-2">
+                            {Array.from(porCor.entries()).map(([corKey, group]) => (
+                              <div key={corKey} className="border border-border rounded-md p-2 bg-muted/30">
+                                <p className="text-xs font-medium mb-1">{group.corNome}</p>
+                                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                                  {group.itens.map(({ alloc, idx: ai }) => (
+                                    <div key={ai} className="space-y-1">
+                                      <Label className="text-[10px] text-muted-foreground">
+                                        {alloc.tamanho} <span className="opacity-70">(disp: {alloc.disponivel})</span>
+                                      </Label>
+                                      <Input
+                                        type="number"
+                                        min={0}
+                                        max={alloc.disponivel}
+                                        value={alloc.quantidade}
+                                        onChange={(e) => updateAlloc(ai, Math.max(0, Number(e.target.value) || 0))}
+                                        className="h-8 text-sm"
+                                      />
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
                       <div className="space-y-2">
                         <Label className="text-xs">Oficina de Costura</Label>
                         <Select value={p.oficinaId} onValueChange={(v) => updateProdutoOP("oficinaId", v)}>
