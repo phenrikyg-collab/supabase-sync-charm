@@ -243,6 +243,7 @@ export default function OrdensProducao() {
       setQuantidade(0);
       setOcGradeInfo("");
       setOcCorInfo("");
+      setOcGradeRaw([]);
       return;
     }
 
@@ -254,11 +255,26 @@ export default function OrdensProducao() {
       const grades = gradeRes.data ?? [];
       const totalPecas = grades.reduce((a: number, g: any) => a + (g.quantidade ?? 0), 0);
       setQuantidade(totalPecas);
-      const corId = grades[0]?.cor_id;
-      setOcCorInfo(corId && corMap[corId] ? corMap[corId].nome_cor ?? "—" : "—");
-      setOcGradeInfo(grades.map((g: any) => `${g.tamanho}: ${g.quantidade}`).join(", "));
+      setOcGradeRaw(grades);
+      const coresUnicas = Array.from(new Set(grades.map((g: any) => g.cor_id).filter(Boolean)));
+      setOcCorInfo(coresUnicas.length > 0
+        ? coresUnicas.map((cid: any) => corMap[cid]?.nome_cor ?? "—").join(", ")
+        : "—");
+      setOcGradeInfo(grades.map((g: any) => `${corMap[g.cor_id]?.nome_cor ?? "?"} ${g.tamanho}: ${g.quantidade}`).join(" | "));
 
-      const newProdutosOP: ProdutoOP[] = prods.map((p: any) => {
+      const isMulti = prods.length > 1;
+
+      const buildAlocacoes = (idx: number, total: number): GradeAlloc[] =>
+        grades.map((g: any) => ({
+          corId: g.cor_id ?? null,
+          corNome: corMap[g.cor_id]?.nome_cor ?? "—",
+          tamanho: g.tamanho,
+          disponivel: g.quantidade ?? 0,
+          // For single product: take full quantity. For multiple: leave 0 to require manual split.
+          quantidade: total === 1 ? (g.quantidade ?? 0) : 0,
+        }));
+
+      const newProdutosOP: ProdutoOP[] = prods.map((p: any, idx: number) => {
         const produtoId = p.produto_id ?? "";
         const tempoEfetivo = produtoId ? getTempoEfetivoFicha(produtoId) : 0;
         const previsaoAuto = produtoId ? getPrevisaoTerminoPorFicha(produtoId, totalPecas) : "";
@@ -270,25 +286,57 @@ export default function OrdensProducao() {
           custoEstimadoPeca: 0,
           fichaMinutos: tempoEfetivo,
           fichaMinutosManual: false,
+          alocacoes: buildAlocacoes(idx, prods.length || 1),
         };
       });
-      setProdutosOP(newProdutosOP.length > 0 ? newProdutosOP : [{ produtoId: "", nomeProduto: "—", oficinaId: "", previsaoTermino: "", custoEstimadoPeca: 0, fichaMinutos: 0, fichaMinutosManual: false }]);
+      const fallback: ProdutoOP[] = [{
+        produtoId: "", nomeProduto: "—", oficinaId: "", previsaoTermino: "",
+        custoEstimadoPeca: 0, fichaMinutos: 0, fichaMinutosManual: false,
+        alocacoes: buildAlocacoes(0, 1),
+      }];
+      setProdutosOP(newProdutosOP.length > 0 ? newProdutosOP : fallback);
     });
   }, [ocId, fichasTecnicas, maquinas]);
+
+  // Sum alloc per product (used both for display and creation)
+  const sumAlloc = (p: ProdutoOP) => p.alocacoes.reduce((a, x) => a + (Number(x.quantidade) || 0), 0);
+
+  // Validation: total allocated per (cor,tamanho) across all products must not exceed disponivel
+  const allocOverflow = useMemo(() => {
+    const overflow: { key: string; alocado: number; disponivel: number }[] = [];
+    if (produtosOP.length === 0) return overflow;
+    const keys = new Set<string>();
+    produtosOP.forEach(p => p.alocacoes.forEach(a => keys.add(`${a.corId ?? "null"}__${a.tamanho}`)));
+    keys.forEach(k => {
+      let alocado = 0; let disponivel = 0;
+      produtosOP.forEach(p => p.alocacoes.forEach(a => {
+        if (`${a.corId ?? "null"}__${a.tamanho}` === k) {
+          alocado += Number(a.quantidade) || 0;
+          disponivel = a.disponivel;
+        }
+      }));
+      if (alocado > disponivel) overflow.push({ key: k, alocado, disponivel });
+    });
+    return overflow;
+  }, [produtosOP]);
 
   const handleCreate = async () => {
     if (!ocId) { toast.error("Selecione uma OC"); return; }
     const missing = produtosOP.some(p => !p.oficinaId);
     if (missing) { toast.error("Selecione a oficina para cada produto"); return; }
+    if (allocOverflow.length > 0) { toast.error("Quantidade alocada excede o disponível na OC"); return; }
+    const semQtd = produtosOP.some(p => sumAlloc(p) <= 0);
+    if (semQtd) { toast.error("Cada produto precisa ter ao menos 1 peça alocada"); return; }
     try {
       for (const p of produtosOP) {
+        const totalProduto = sumAlloc(p);
         await createMut.mutateAsync({
           ordem_corte_id: ocId,
           produto_id: p.produtoId || null,
           nome_produto: p.nomeProduto,
           oficina_id: p.oficinaId,
-          quantidade,
-          quantidade_pecas_ordem: quantidade,
+          quantidade: totalProduto,
+          quantidade_pecas_ordem: totalProduto,
           status_ordem: "Corte",
           data_inicio: new Date().toISOString().split("T")[0],
           data_previsao_termino: p.previsaoTermino || null,
