@@ -79,6 +79,9 @@ export default function NovaOrdemCorte() {
   // Group by normalized cor_nome (case/space-insensitive) so rolls with the
   // same color name but different cor_id (or null cor_id) are merged together
   // and ALL distinct colors of selected rolls always appear in the size grid.
+  // Agrupamento prioriza cor_id (identificador único da cor cadastrada).
+  // Quando dois rolos têm cor_id distintos, são SEMPRE cores separadas, mesmo
+  // que tenham nome parecido. Apenas rolos sem cor_id são agrupados pelo nome.
   const coresFromRolos = useMemo(() => {
     const map = new Map<string, { cor_id: string | null; cor_nome: string; cor_hex: string; metrosCor: number }>();
     for (const roloId of selectedRolos) {
@@ -86,14 +89,16 @@ export default function NovaOrdemCorte() {
       if (!rolo) continue;
       const nomeRaw = (rolo.cor_nome ?? "").trim();
       const nomeNorm = nomeRaw.toLowerCase();
-      const key = nomeNorm || (rolo.cor_id ? `id:${rolo.cor_id}` : "sem-cor");
+      // Chave: cor_id quando existir, senão nome normalizado, senão "sem-cor"
+      const key = rolo.cor_id
+        ? `id:${rolo.cor_id}`
+        : (nomeNorm ? `nome:${nomeNorm}` : "sem-cor");
       const metrosRoloVal = metrosRolo[roloId] ?? 0;
       const existing = map.get(key);
       if (existing) {
         existing.metrosCor += metrosRoloVal;
-        // Keep first non-null cor_id / hex if previous lacked them
-        if (!existing.cor_id && rolo.cor_id) existing.cor_id = rolo.cor_id;
         if ((!existing.cor_hex || existing.cor_hex === "#ccc") && rolo.cor_hex) existing.cor_hex = rolo.cor_hex;
+        if (existing.cor_nome === "Sem cor" && nomeRaw) existing.cor_nome = nomeRaw;
       } else {
         map.set(key, {
           cor_id: rolo.cor_id ?? null,
