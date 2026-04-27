@@ -374,7 +374,6 @@ function EditarParcelasDialog({
 interface ParcelaManual {
   valor: string;
   data: Date;
-  competencia?: Date;
 }
 
 function NovaContaDialog({ categorias }: { categorias: { id: string; descricao_categoria: string | null; nome_categoria: string | null }[] }) {
@@ -416,9 +415,6 @@ function NovaContaDialog({ categorias }: { categorias: { id: string; descricao_c
       {
         valor: "",
         data: prev.length > 0 ? addMonths(prev[prev.length - 1].data, 1) : (vencimento ?? new Date()),
-        competencia: prev.length > 0
-          ? addMonths(prev[prev.length - 1].competencia ?? prev[prev.length - 1].data, 1)
-          : (competencia ?? vencimento ?? new Date()),
       },
     ]);
   };
@@ -454,10 +450,9 @@ function NovaContaDialog({ categorias }: { categorias: { id: string; descricao_c
         // Cartão de crédito: parcelas automáticas mensais
         const parcelas = Math.min(Math.max(parseInt(qtdParcelas) || 1, 2), 60);
         const valorParcela = Math.round((valorNum / parcelas) * 100) / 100;
-        const compBase = competencia ?? vencimento!;
+        const dataComp = competencia ?? vencimento!;
         for (let i = 0; i < parcelas; i++) {
           const dataVenc = addMonths(vencimento!, i);
-          const dataComp = addMonths(compBase, i);
           await createMov.mutateAsync({
             tipo: "saida",
             descricao: `${descricao} (${i + 1}/${parcelas})`,
@@ -470,8 +465,9 @@ function NovaContaDialog({ categorias }: { categorias: { id: string; descricao_c
         }
         toast.success(`${parcelas} parcelas de ${formatCurrency(valorParcela)} cadastradas`);
       } else if (!cartaoCredito && temParcelas) {
-        // NF faturada: parcelas manuais com valor e data individuais
+        // NF faturada: parcelas manuais com valor e data individuais (competência única)
         const totalParcelas = parcelasManual.length;
+        const dataComp = competencia ?? vencimento ?? parcelasManual[0]?.data;
         for (let i = 0; i < totalParcelas; i++) {
           const p = parcelasManual[i];
           const vp = parseFloat(p.valor.replace(",", "."));
@@ -480,12 +476,11 @@ function NovaContaDialog({ categorias }: { categorias: { id: string; descricao_c
             setSalvando(false);
             return;
           }
-          const dataComp = p.competencia ?? competencia ?? p.data;
           await createMov.mutateAsync({
             tipo: "saida",
             descricao: `${descricao} (${i + 1}/${totalParcelas})`,
             valor: vp,
-            data: format(dataComp, "yyyy-MM-dd"),
+            data: format(dataComp!, "yyyy-MM-dd"),
             data_vencimento: format(p.data, "yyyy-MM-dd"),
             categoria_id: categoriaId || null,
             origem,
@@ -493,15 +488,14 @@ function NovaContaDialog({ categorias }: { categorias: { id: string; descricao_c
         }
         toast.success(`${totalParcelas} parcelas cadastradas com sucesso`);
       } else if (frequenciaTipo !== "") {
-        // Despesa recorrente mensal
+        // Despesa recorrente mensal (competência única para todos os lançamentos)
         const grupoId = crypto.randomUUID();
         const meses = frequenciaTipo === "mensal_por_periodo"
           ? Math.min(Math.max(parseInt(frequenciaMeses) || 3, 2), 60)
-          : 3; // Para indeterminada, gera 3 meses de projeção
-        const compBase = competencia ?? vencimento!;
+          : 3;
+        const dataComp = competencia ?? vencimento!;
         for (let i = 0; i < meses; i++) {
           const dataVenc = addMonths(vencimento!, i);
-          const dataComp = addMonths(compBase, i);
           await createMov.mutateAsync({
             tipo: "saida",
             descricao: `${descricao}${meses > 1 ? ` (${i + 1}/${frequenciaTipo === "mensal_por_periodo" ? meses : "∞"})` : ""}`,
@@ -705,7 +699,7 @@ function NovaContaDialog({ categorias }: { categorias: { id: string; descricao_c
                 <p className="text-xs text-muted-foreground">Clique em "Adicionar Parcela" para inserir valor e data de cada parcela.</p>
               )}
               {parcelasManual.map((p, idx) => (
-                <div key={idx} className="grid grid-cols-1 sm:grid-cols-[1fr_1fr_1fr_auto] items-end gap-2 p-2 rounded-lg bg-muted/50 border border-border">
+                <div key={idx} className="grid grid-cols-1 sm:grid-cols-[1fr_1fr_auto] items-end gap-2 p-2 rounded-lg bg-muted/50 border border-border">
                   <div className="flex-1 space-y-1">
                     <Label className="text-xs">Parcela {idx + 1} - Valor (R$)</Label>
                     <Input
@@ -715,26 +709,6 @@ function NovaContaDialog({ categorias }: { categorias: { id: string; descricao_c
                       onChange={(e) => updateParcelaManual(idx, "valor", e.target.value.replace(/[^0-9.,]/g, ""))}
                       inputMode="decimal"
                     />
-                  </div>
-                  <div className="flex-1 space-y-1">
-                    <Label className="text-xs">Competência (DRE)</Label>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <Button variant="outline" size="sm" className={cn("w-full justify-start text-left font-normal text-xs", !p.competencia && "text-muted-foreground")}>
-                          <CalendarIcon className="mr-1 h-3 w-3" />
-                          {p.competencia ? format(p.competencia, "dd/MM/yyyy") : "Selecione"}
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="start">
-                        <Calendar
-                          mode="single"
-                          selected={p.competencia}
-                          onSelect={(d) => d && updateParcelaManual(idx, "competencia", d)}
-                          initialFocus
-                          className={cn("p-3 pointer-events-auto")}
-                        />
-                      </PopoverContent>
-                    </Popover>
                   </div>
                   <div className="flex-1 space-y-1">
                     <Label className="text-xs">Vencimento</Label>
