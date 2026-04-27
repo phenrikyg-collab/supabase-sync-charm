@@ -360,6 +360,7 @@ function NovaContaDialog({ categorias }: { categorias: { id: string; descricao_c
   const [valor, setValor] = useState("");
   const [categoriaId, setCategoriaId] = useState("");
   const [vencimento, setVencimento] = useState<Date>();
+  const [competencia, setCompetencia] = useState<Date>();
   const [temParcelas, setTemParcelas] = useState(false);
   const [qtdParcelas, setQtdParcelas] = useState("2");
   const [cartaoCredito, setCartaoCredito] = useState(false);
@@ -374,6 +375,7 @@ function NovaContaDialog({ categorias }: { categorias: { id: string; descricao_c
     setValor("");
     setCategoriaId("");
     setVencimento(undefined);
+    setCompetencia(undefined);
     setTemParcelas(false);
     setQtdParcelas("2");
     setCartaoCredito(false);
@@ -421,13 +423,16 @@ function NovaContaDialog({ categorias }: { categorias: { id: string; descricao_c
         // Cartão de crédito: parcelas automáticas mensais
         const parcelas = Math.min(Math.max(parseInt(qtdParcelas) || 1, 2), 60);
         const valorParcela = Math.round((valorNum / parcelas) * 100) / 100;
+        const compBase = competencia ?? vencimento!;
         for (let i = 0; i < parcelas; i++) {
           const dataVenc = addMonths(vencimento!, i);
+          const dataComp = addMonths(compBase, i);
           await createMov.mutateAsync({
             tipo: "saida",
             descricao: `${descricao} (${i + 1}/${parcelas})`,
             valor: valorParcela,
-            data: format(dataVenc, "yyyy-MM-dd"),
+            data: format(dataComp, "yyyy-MM-dd"),
+            data_vencimento: format(dataVenc, "yyyy-MM-dd"),
             categoria_id: categoriaId || null,
             origem,
           });
@@ -444,11 +449,13 @@ function NovaContaDialog({ categorias }: { categorias: { id: string; descricao_c
             setSalvando(false);
             return;
           }
+          const dataComp = competencia ?? p.data;
           await createMov.mutateAsync({
             tipo: "saida",
             descricao: `${descricao} (${i + 1}/${totalParcelas})`,
             valor: vp,
-            data: format(p.data, "yyyy-MM-dd"),
+            data: format(dataComp, "yyyy-MM-dd"),
+            data_vencimento: format(p.data, "yyyy-MM-dd"),
             categoria_id: categoriaId || null,
             origem,
           });
@@ -460,13 +467,15 @@ function NovaContaDialog({ categorias }: { categorias: { id: string; descricao_c
         const meses = frequenciaTipo === "mensal_por_periodo"
           ? Math.min(Math.max(parseInt(frequenciaMeses) || 3, 2), 60)
           : 3; // Para indeterminada, gera 3 meses de projeção
+        const compBase = competencia ?? vencimento!;
         for (let i = 0; i < meses; i++) {
           const dataVenc = addMonths(vencimento!, i);
+          const dataComp = addMonths(compBase, i);
           await createMov.mutateAsync({
             tipo: "saida",
             descricao: `${descricao}${meses > 1 ? ` (${i + 1}/${frequenciaTipo === "mensal_por_periodo" ? meses : "∞"})` : ""}`,
             valor: valorNum,
-            data: format(dataVenc, "yyyy-MM-dd"),
+            data: format(dataComp, "yyyy-MM-dd"),
             data_vencimento: format(dataVenc, "yyyy-MM-dd"),
             categoria_id: categoriaId || null,
             origem,
@@ -483,7 +492,8 @@ function NovaContaDialog({ categorias }: { categorias: { id: string; descricao_c
           tipo: "saida",
           descricao,
           valor: valorNum,
-          data: format(vencimento!, "yyyy-MM-dd"),
+          data: format(competencia ?? vencimento!, "yyyy-MM-dd"),
+          data_vencimento: format(vencimento!, "yyyy-MM-dd"),
           categoria_id: categoriaId || null,
           origem,
         });
@@ -571,6 +581,25 @@ function NovaContaDialog({ categorias }: { categorias: { id: string; descricao_c
               </div>
             </div>
           )}
+
+          {/* Data de Competência (DRE) - regime de competência */}
+          <div className="space-y-2">
+            <Label>Data de Competência (DRE)</Label>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" className={cn("w-full justify-start text-left font-normal", !competencia && "text-muted-foreground")}>
+                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  {competencia ? format(competencia, "dd/MM/yyyy") : "Opcional — usa o vencimento se vazio"}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar mode="single" selected={competencia} onSelect={setCompetencia} initialFocus className={cn("p-3 pointer-events-auto")} />
+              </PopoverContent>
+            </Popover>
+            <p className="text-xs text-muted-foreground">
+              Define o mês em que a despesa aparece no DRE (regime de competência). Se não informado, usa a data de vencimento.
+            </p>
+          </div>
 
           <div className="flex items-center gap-2">
             <Checkbox id="parcelas" checked={temParcelas} onCheckedChange={(v) => {
