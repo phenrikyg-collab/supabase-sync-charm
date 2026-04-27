@@ -699,7 +699,7 @@ function NovaContaDialog({ categorias }: { categorias: { id: string; descricao_c
                 <p className="text-xs text-muted-foreground">Clique em "Adicionar Parcela" para inserir valor e data de cada parcela.</p>
               )}
               {parcelasManual.map((p, idx) => (
-                <div key={idx} className="grid grid-cols-1 sm:grid-cols-[1fr_1fr_1fr_auto] items-end gap-2 p-2 rounded-lg bg-muted/50 border border-border">
+                <div key={idx} className="grid grid-cols-1 sm:grid-cols-[1fr_1fr_auto] items-end gap-2 p-2 rounded-lg bg-muted/50 border border-border">
                   <div className="flex-1 space-y-1">
                     <Label className="text-xs">Parcela {idx + 1} - Valor (R$)</Label>
                     <Input
@@ -709,26 +709,6 @@ function NovaContaDialog({ categorias }: { categorias: { id: string; descricao_c
                       onChange={(e) => updateParcelaManual(idx, "valor", e.target.value.replace(/[^0-9.,]/g, ""))}
                       inputMode="decimal"
                     />
-                  </div>
-                  <div className="flex-1 space-y-1">
-                    <Label className="text-xs">Competência (DRE)</Label>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <Button variant="outline" size="sm" className={cn("w-full justify-start text-left font-normal text-xs", !p.competencia && "text-muted-foreground")}>
-                          <CalendarIcon className="mr-1 h-3 w-3" />
-                          {p.competencia ? format(p.competencia, "dd/MM/yyyy") : "Selecione"}
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="start">
-                        <Calendar
-                          mode="single"
-                          selected={p.competencia}
-                          onSelect={(d) => d && updateParcelaManual(idx, "competencia", d)}
-                          initialFocus
-                          className={cn("p-3 pointer-events-auto")}
-                        />
-                      </PopoverContent>
-                    </Popover>
                   </div>
                   <div className="flex-1 space-y-1">
                     <Label className="text-xs">Vencimento</Label>
