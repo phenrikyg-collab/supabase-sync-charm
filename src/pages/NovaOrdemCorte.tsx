@@ -75,20 +75,32 @@ export default function NovaOrdemCorte() {
     setProdutosSelecionados((prev) => prev.filter((p) => p.id !== produtoId));
   };
 
-  // Derive unique colors from selected rolls with per-color meters
+  // Derive unique colors from selected rolls with per-color meters.
+  // Group by normalized cor_nome (case/space-insensitive) so rolls with the
+  // same color name but different cor_id (or null cor_id) are merged together
+  // and ALL distinct colors of selected rolls always appear in the size grid.
   const coresFromRolos = useMemo(() => {
     const map = new Map<string, { cor_id: string | null; cor_nome: string; cor_hex: string; metrosCor: number }>();
     for (const roloId of selectedRolos) {
       const rolo = rolos?.find((r) => r.id === roloId);
-      if (rolo) {
-        const key = rolo.cor_id ?? rolo.cor_nome ?? "sem-cor";
-        const existing = map.get(key);
-        const metrosRoloVal = metrosRolo[roloId] ?? 0;
-        if (existing) {
-          existing.metrosCor += metrosRoloVal;
-        } else {
-          map.set(key, { cor_id: rolo.cor_id ?? null, cor_nome: rolo.cor_nome ?? "Sem cor", cor_hex: rolo.cor_hex ?? "#ccc", metrosCor: metrosRoloVal });
-        }
+      if (!rolo) continue;
+      const nomeRaw = (rolo.cor_nome ?? "").trim();
+      const nomeNorm = nomeRaw.toLowerCase();
+      const key = nomeNorm || (rolo.cor_id ? `id:${rolo.cor_id}` : "sem-cor");
+      const metrosRoloVal = metrosRolo[roloId] ?? 0;
+      const existing = map.get(key);
+      if (existing) {
+        existing.metrosCor += metrosRoloVal;
+        // Keep first non-null cor_id / hex if previous lacked them
+        if (!existing.cor_id && rolo.cor_id) existing.cor_id = rolo.cor_id;
+        if ((!existing.cor_hex || existing.cor_hex === "#ccc") && rolo.cor_hex) existing.cor_hex = rolo.cor_hex;
+      } else {
+        map.set(key, {
+          cor_id: rolo.cor_id ?? null,
+          cor_nome: nomeRaw || "Sem cor",
+          cor_hex: rolo.cor_hex ?? "#ccc",
+          metrosCor: metrosRoloVal,
+        });
       }
     }
     return Array.from(map.entries());
