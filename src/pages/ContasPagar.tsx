@@ -423,13 +423,16 @@ function NovaContaDialog({ categorias }: { categorias: { id: string; descricao_c
         // Cartão de crédito: parcelas automáticas mensais
         const parcelas = Math.min(Math.max(parseInt(qtdParcelas) || 1, 2), 60);
         const valorParcela = Math.round((valorNum / parcelas) * 100) / 100;
+        const compBase = competencia ?? vencimento!;
         for (let i = 0; i < parcelas; i++) {
           const dataVenc = addMonths(vencimento!, i);
+          const dataComp = addMonths(compBase, i);
           await createMov.mutateAsync({
             tipo: "saida",
             descricao: `${descricao} (${i + 1}/${parcelas})`,
             valor: valorParcela,
-            data: format(dataVenc, "yyyy-MM-dd"),
+            data: format(dataComp, "yyyy-MM-dd"),
+            data_vencimento: format(dataVenc, "yyyy-MM-dd"),
             categoria_id: categoriaId || null,
             origem,
           });
@@ -446,11 +449,13 @@ function NovaContaDialog({ categorias }: { categorias: { id: string; descricao_c
             setSalvando(false);
             return;
           }
+          const dataComp = competencia ?? p.data;
           await createMov.mutateAsync({
             tipo: "saida",
             descricao: `${descricao} (${i + 1}/${totalParcelas})`,
             valor: vp,
-            data: format(p.data, "yyyy-MM-dd"),
+            data: format(dataComp, "yyyy-MM-dd"),
+            data_vencimento: format(p.data, "yyyy-MM-dd"),
             categoria_id: categoriaId || null,
             origem,
           });
@@ -462,13 +467,15 @@ function NovaContaDialog({ categorias }: { categorias: { id: string; descricao_c
         const meses = frequenciaTipo === "mensal_por_periodo"
           ? Math.min(Math.max(parseInt(frequenciaMeses) || 3, 2), 60)
           : 3; // Para indeterminada, gera 3 meses de projeção
+        const compBase = competencia ?? vencimento!;
         for (let i = 0; i < meses; i++) {
           const dataVenc = addMonths(vencimento!, i);
+          const dataComp = addMonths(compBase, i);
           await createMov.mutateAsync({
             tipo: "saida",
             descricao: `${descricao}${meses > 1 ? ` (${i + 1}/${frequenciaTipo === "mensal_por_periodo" ? meses : "∞"})` : ""}`,
             valor: valorNum,
-            data: format(dataVenc, "yyyy-MM-dd"),
+            data: format(dataComp, "yyyy-MM-dd"),
             data_vencimento: format(dataVenc, "yyyy-MM-dd"),
             categoria_id: categoriaId || null,
             origem,
@@ -485,7 +492,8 @@ function NovaContaDialog({ categorias }: { categorias: { id: string; descricao_c
           tipo: "saida",
           descricao,
           valor: valorNum,
-          data: format(vencimento!, "yyyy-MM-dd"),
+          data: format(competencia ?? vencimento!, "yyyy-MM-dd"),
+          data_vencimento: format(vencimento!, "yyyy-MM-dd"),
           categoria_id: categoriaId || null,
           origem,
         });
