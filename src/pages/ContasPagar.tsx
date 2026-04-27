@@ -374,6 +374,7 @@ function EditarParcelasDialog({
 interface ParcelaManual {
   valor: string;
   data: Date;
+  competencia?: Date;
 }
 
 function NovaContaDialog({ categorias }: { categorias: { id: string; descricao_categoria: string | null; nome_categoria: string | null }[] }) {
@@ -412,7 +413,13 @@ function NovaContaDialog({ categorias }: { categorias: { id: string; descricao_c
   const addParcelaManual = () => {
     setParcelasManual((prev) => [
       ...prev,
-      { valor: "", data: prev.length > 0 ? addMonths(prev[prev.length - 1].data, 1) : (vencimento ?? new Date()) },
+      {
+        valor: "",
+        data: prev.length > 0 ? addMonths(prev[prev.length - 1].data, 1) : (vencimento ?? new Date()),
+        competencia: prev.length > 0
+          ? addMonths(prev[prev.length - 1].competencia ?? prev[prev.length - 1].data, 1)
+          : (competencia ?? vencimento ?? new Date()),
+      },
     ]);
   };
 
@@ -473,7 +480,7 @@ function NovaContaDialog({ categorias }: { categorias: { id: string; descricao_c
             setSalvando(false);
             return;
           }
-          const dataComp = competencia ?? p.data;
+          const dataComp = p.competencia ?? competencia ?? p.data;
           await createMov.mutateAsync({
             tipo: "saida",
             descricao: `${descricao} (${i + 1}/${totalParcelas})`,
