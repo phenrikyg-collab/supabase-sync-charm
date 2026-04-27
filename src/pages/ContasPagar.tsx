@@ -80,7 +80,7 @@ function DarBaixaDialog({ mov, onClose }: { mov: MovimentacaoFinanceira & { stat
         <div className="p-3 rounded-lg bg-muted/50 space-y-1">
           <p className="text-sm font-medium">{mov.descricao ?? "—"}</p>
           <p className="text-lg font-bold text-destructive">{formatCurrency(mov.valor)}</p>
-          <p className="text-xs text-muted-foreground">Vencimento: {formatDateBR(mov.data)}</p>
+          <p className="text-xs text-muted-foreground">Vencimento: {formatDateBR(mov.data_vencimento ?? mov.data)}</p>
         </div>
         <div className="space-y-2">
           <Label>Data do Pagamento</Label>
@@ -129,7 +129,8 @@ function EditarContaDialog({
   const [descricao, setDescricao] = useState(mov.descricao ?? "");
   const [valor, setValor] = useState(String(mov.valor ?? 0).replace(".", ","));
   const [categoriaId, setCategoriaId] = useState(mov.categoria_id ?? "");
-  const [dataVenc, setDataVenc] = useState<Date>(parseISO(mov.data));
+  const [dataCompetencia, setDataCompetencia] = useState<Date>(parseISO(mov.data));
+  const [dataVenc, setDataVenc] = useState<Date>(parseISO(mov.data_vencimento ?? mov.data));
   const [salvando, setSalvando] = useState(false);
 
   const handleSave = async () => {
@@ -142,7 +143,8 @@ function EditarContaDialog({
         descricao,
         valor: valorNum,
         categoria_id: categoriaId || null,
-        data: format(dataVenc, "yyyy-MM-dd"),
+        data: format(dataCompetencia, "yyyy-MM-dd"),
+        data_vencimento: format(dataVenc, "yyyy-MM-dd"),
       });
       toast.success("Conta atualizada com sucesso");
       onClose();
@@ -172,6 +174,28 @@ function EditarContaDialog({
               inputMode="decimal"
             />
           </div>
+          <div className="space-y-2">
+            <Label>Competência (DRE)</Label>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" className={cn("w-full justify-start text-left font-normal")}>
+                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  {format(dataCompetencia, "dd/MM/yyyy")}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar
+                  mode="single"
+                  selected={dataCompetencia}
+                  onSelect={(d) => d && setDataCompetencia(d)}
+                  initialFocus
+                  className={cn("p-3 pointer-events-auto")}
+                />
+              </PopoverContent>
+            </Popover>
+          </div>
+        </div>
+        <div className="grid grid-cols-2 gap-3">
           <div className="space-y-2">
             <Label>Vencimento</Label>
             <Popover>
