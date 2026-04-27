@@ -375,6 +375,7 @@ function NovaContaDialog({ categorias }: { categorias: { id: string; descricao_c
     setValor("");
     setCategoriaId("");
     setVencimento(undefined);
+    setCompetencia(undefined);
     setTemParcelas(false);
     setQtdParcelas("2");
     setCartaoCredito(false);
