@@ -80,7 +80,7 @@ function DarBaixaDialog({ mov, onClose }: { mov: MovimentacaoFinanceira & { stat
         <div className="p-3 rounded-lg bg-muted/50 space-y-1">
           <p className="text-sm font-medium">{mov.descricao ?? "—"}</p>
           <p className="text-lg font-bold text-destructive">{formatCurrency(mov.valor)}</p>
-          <p className="text-xs text-muted-foreground">Vencimento: {formatDateBR(mov.data)}</p>
+          <p className="text-xs text-muted-foreground">Vencimento: {formatDateBR(mov.data_vencimento ?? mov.data)}</p>
         </div>
         <div className="space-y-2">
           <Label>Data do Pagamento</Label>
@@ -129,7 +129,8 @@ function EditarContaDialog({
   const [descricao, setDescricao] = useState(mov.descricao ?? "");
   const [valor, setValor] = useState(String(mov.valor ?? 0).replace(".", ","));
   const [categoriaId, setCategoriaId] = useState(mov.categoria_id ?? "");
-  const [dataVenc, setDataVenc] = useState<Date>(parseISO(mov.data));
+  const [dataCompetencia, setDataCompetencia] = useState<Date>(parseISO(mov.data));
+  const [dataVenc, setDataVenc] = useState<Date>(parseISO(mov.data_vencimento ?? mov.data));
   const [salvando, setSalvando] = useState(false);
 
   const handleSave = async () => {
@@ -142,7 +143,8 @@ function EditarContaDialog({
         descricao,
         valor: valorNum,
         categoria_id: categoriaId || null,
-        data: format(dataVenc, "yyyy-MM-dd"),
+        data: format(dataCompetencia, "yyyy-MM-dd"),
+        data_vencimento: format(dataVenc, "yyyy-MM-dd"),
       });
       toast.success("Conta atualizada com sucesso");
       onClose();
@@ -172,6 +174,28 @@ function EditarContaDialog({
               inputMode="decimal"
             />
           </div>
+          <div className="space-y-2">
+            <Label>Competência (DRE)</Label>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" className={cn("w-full justify-start text-left font-normal")}>
+                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  {format(dataCompetencia, "dd/MM/yyyy")}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar
+                  mode="single"
+                  selected={dataCompetencia}
+                  onSelect={(d) => d && setDataCompetencia(d)}
+                  initialFocus
+                  className={cn("p-3 pointer-events-auto")}
+                />
+              </PopoverContent>
+            </Popover>
+          </div>
+        </div>
+        <div className="grid grid-cols-2 gap-3">
           <div className="space-y-2">
             <Label>Vencimento</Label>
             <Popover>
@@ -350,6 +374,7 @@ function EditarParcelasDialog({
 interface ParcelaManual {
   valor: string;
   data: Date;
+  competencia?: Date;
 }
 
 function NovaContaDialog({ categorias }: { categorias: { id: string; descricao_categoria: string | null; nome_categoria: string | null }[] }) {
@@ -388,7 +413,13 @@ function NovaContaDialog({ categorias }: { categorias: { id: string; descricao_c
   const addParcelaManual = () => {
     setParcelasManual((prev) => [
       ...prev,
-      { valor: "", data: prev.length > 0 ? addMonths(prev[prev.length - 1].data, 1) : (vencimento ?? new Date()) },
+      {
+        valor: "",
+        data: prev.length > 0 ? addMonths(prev[prev.length - 1].data, 1) : (vencimento ?? new Date()),
+        competencia: prev.length > 0
+          ? addMonths(prev[prev.length - 1].competencia ?? prev[prev.length - 1].data, 1)
+          : (competencia ?? vencimento ?? new Date()),
+      },
     ]);
   };
 
@@ -449,7 +480,7 @@ function NovaContaDialog({ categorias }: { categorias: { id: string; descricao_c
             setSalvando(false);
             return;
           }
-          const dataComp = competencia ?? p.data;
+          const dataComp = p.competencia ?? competencia ?? p.data;
           await createMov.mutateAsync({
             tipo: "saida",
             descricao: `${descricao} (${i + 1}/${totalParcelas})`,
@@ -584,12 +615,12 @@ function NovaContaDialog({ categorias }: { categorias: { id: string; descricao_c
 
           {/* Data de Competência (DRE) - regime de competência */}
           <div className="space-y-2">
-            <Label>Data de Competência (DRE)</Label>
+            <Label>Data de Competência da Despesa (DRE) *</Label>
             <Popover>
               <PopoverTrigger asChild>
                 <Button variant="outline" className={cn("w-full justify-start text-left font-normal", !competencia && "text-muted-foreground")}>
                   <CalendarIcon className="mr-2 h-4 w-4" />
-                  {competencia ? format(competencia, "dd/MM/yyyy") : "Opcional — usa o vencimento se vazio"}
+                  {competencia ? format(competencia, "dd/MM/yyyy") : "Selecione a competência"}
                 </Button>
               </PopoverTrigger>
               <PopoverContent className="w-auto p-0" align="start">
@@ -597,7 +628,7 @@ function NovaContaDialog({ categorias }: { categorias: { id: string; descricao_c
               </PopoverContent>
             </Popover>
             <p className="text-xs text-muted-foreground">
-              Define o mês em que a despesa aparece no DRE (regime de competência). Se não informado, usa a data de vencimento.
+              Define o mês em que a despesa aparece no DRE. Para parcelas manuais, pode ser ajustada por parcela abaixo.
             </p>
           </div>
 
@@ -674,7 +705,7 @@ function NovaContaDialog({ categorias }: { categorias: { id: string; descricao_c
                 <p className="text-xs text-muted-foreground">Clique em "Adicionar Parcela" para inserir valor e data de cada parcela.</p>
               )}
               {parcelasManual.map((p, idx) => (
-                <div key={idx} className="flex items-end gap-2 p-2 rounded-lg bg-muted/50 border border-border">
+                <div key={idx} className="grid grid-cols-1 sm:grid-cols-[1fr_1fr_1fr_auto] items-end gap-2 p-2 rounded-lg bg-muted/50 border border-border">
                   <div className="flex-1 space-y-1">
                     <Label className="text-xs">Parcela {idx + 1} - Valor (R$)</Label>
                     <Input
@@ -684,6 +715,26 @@ function NovaContaDialog({ categorias }: { categorias: { id: string; descricao_c
                       onChange={(e) => updateParcelaManual(idx, "valor", e.target.value.replace(/[^0-9.,]/g, ""))}
                       inputMode="decimal"
                     />
+                  </div>
+                  <div className="flex-1 space-y-1">
+                    <Label className="text-xs">Competência (DRE)</Label>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button variant="outline" size="sm" className={cn("w-full justify-start text-left font-normal text-xs", !p.competencia && "text-muted-foreground")}>
+                          <CalendarIcon className="mr-1 h-3 w-3" />
+                          {p.competencia ? format(p.competencia, "dd/MM/yyyy") : "Selecione"}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar
+                          mode="single"
+                          selected={p.competencia}
+                          onSelect={(d) => d && updateParcelaManual(idx, "competencia", d)}
+                          initialFocus
+                          className={cn("p-3 pointer-events-auto")}
+                        />
+                      </PopoverContent>
+                    </Popover>
                   </div>
                   <div className="flex-1 space-y-1">
                     <Label className="text-xs">Vencimento</Label>
