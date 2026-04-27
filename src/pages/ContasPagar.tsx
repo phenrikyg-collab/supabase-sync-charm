@@ -360,6 +360,7 @@ function NovaContaDialog({ categorias }: { categorias: { id: string; descricao_c
   const [valor, setValor] = useState("");
   const [categoriaId, setCategoriaId] = useState("");
   const [vencimento, setVencimento] = useState<Date>();
+  const [competencia, setCompetencia] = useState<Date>();
   const [temParcelas, setTemParcelas] = useState(false);
   const [qtdParcelas, setQtdParcelas] = useState("2");
   const [cartaoCredito, setCartaoCredito] = useState(false);
