@@ -582,6 +582,25 @@ function NovaContaDialog({ categorias }: { categorias: { id: string; descricao_c
             </div>
           )}
 
+          {/* Data de Competência (DRE) - regime de competência */}
+          <div className="space-y-2">
+            <Label>Data de Competência (DRE)</Label>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" className={cn("w-full justify-start text-left font-normal", !competencia && "text-muted-foreground")}>
+                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  {competencia ? format(competencia, "dd/MM/yyyy") : "Opcional — usa o vencimento se vazio"}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar mode="single" selected={competencia} onSelect={setCompetencia} initialFocus className={cn("p-3 pointer-events-auto")} />
+              </PopoverContent>
+            </Popover>
+            <p className="text-xs text-muted-foreground">
+              Define o mês em que a despesa aparece no DRE (regime de competência). Se não informado, usa a data de vencimento.
+            </p>
+          </div>
+
           <div className="flex items-center gap-2">
             <Checkbox id="parcelas" checked={temParcelas} onCheckedChange={(v) => {
               setTemParcelas(v === true);
