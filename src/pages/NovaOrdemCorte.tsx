@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { useProdutos, useRolosTecido, useTecidos, useCreateOrdemCorte, useOrdensCorte } from "@/hooks/useSupabase";
+import { useProdutos, useRolosTecido, useTecidos, useCores, useCreateOrdemCorte, useOrdensCorte } from "@/hooks/useSupabase";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,6 +12,9 @@ import { AlertTriangle, Search, X, Plus } from "lucide-react";
 
 const TAMANHOS = ["PP", "P", "M", "G", "GG", "EG"];
 
+const normalizarCor = (cor?: string | null) =>
+  (cor ?? "").trim().replace(/\s+/g, " ").toLocaleLowerCase("pt-BR");
+
 interface ProdutoSelecionado {
   id: string;
   nome: string;
@@ -22,6 +25,7 @@ export default function NovaOrdemCorte() {
   const { data: produtos } = useProdutos();
   const { data: rolos } = useRolosTecido();
   const { data: tecidos } = useTecidos();
+  const { data: cores } = useCores();
   const createMut = useCreateOrdemCorte();
   const navigate = useNavigate();
 
@@ -47,6 +51,15 @@ export default function NovaOrdemCorte() {
   }, [ordensExistentes]);
 
   const tecidoMap = Object.fromEntries((tecidos ?? []).map((t) => [t.id, t]));
+  const coresPorNome = useMemo(() => {
+    const map = new Map<string, { id: string; nome_cor: string | null; cor_hex: string | null }>();
+    (cores ?? []).forEach((cor) => {
+      const key = normalizarCor(cor.nome_cor);
+      if (key && !map.has(key)) map.set(key, cor);
+    });
+    return map;
+  }, [cores]);
+  const coresPorId = useMemo(() => new Map((cores ?? []).map((cor) => [cor.id, cor])), [cores]);
 
   // Filter products by search (exclude already selected)
   const produtosFiltrados = useMemo(() => {
@@ -75,41 +88,40 @@ export default function NovaOrdemCorte() {
     setProdutosSelecionados((prev) => prev.filter((p) => p.id !== produtoId));
   };
 
-  // Derive unique colors from selected rolls with per-color meters.
-  // Group by normalized cor_nome (case/space-insensitive) so rolls with the
-  // same color name but different cor_id (or null cor_id) are merged together
-  // and ALL distinct colors of selected rolls always appear in the size grid.
-  // Agrupamento prioriza cor_id (identificador único da cor cadastrada).
-  // Quando dois rolos têm cor_id distintos, são SEMPRE cores separadas, mesmo
-  // que tenham nome parecido. Apenas rolos sem cor_id são agrupados pelo nome.
+  // A grade deve refletir as cores informadas nos rolos selecionados.
+  // O nome do rolo é a fonte principal para evitar agrupar cores distintas
+  // quando algum rolo ficou com cor_id antigo/incorreto no estoque.
   const coresFromRolos = useMemo(() => {
     const map = new Map<string, { cor_id: string | null; cor_nome: string; cor_hex: string; metrosCor: number }>();
     for (const roloId of selectedRolos) {
       const rolo = rolos?.find((r) => r.id === roloId);
       if (!rolo) continue;
-      const nomeRaw = (rolo.cor_nome ?? "").trim();
-      const nomeNorm = nomeRaw.toLowerCase();
-      // Chave: cor_id quando existir, senão nome normalizado, senão "sem-cor"
-      const key = rolo.cor_id
-        ? `id:${rolo.cor_id}`
-        : (nomeNorm ? `nome:${nomeNorm}` : "sem-cor");
+      const corCadastro = rolo.cor_id ? coresPorId.get(rolo.cor_id) : undefined;
+      const nomeRaw = (rolo.cor_nome ?? "").trim() || corCadastro?.nome_cor?.trim() || "";
+      const corPorNome = coresPorNome.get(normalizarCor(nomeRaw));
+      const corIdResolvido = corPorNome?.id ?? rolo.cor_id ?? null;
+      const corHexResolvido = corPorNome?.cor_hex ?? corCadastro?.cor_hex ?? rolo.cor_hex ?? "#ccc";
+      const nomeResolvido = nomeRaw || corPorNome?.nome_cor || corCadastro?.nome_cor || "Sem cor";
+      const nomeNorm = normalizarCor(nomeResolvido);
+      const key = nomeNorm ? `nome:${nomeNorm}` : (corIdResolvido ? `id:${corIdResolvido}` : "sem-cor");
       const metrosRoloVal = metrosRolo[roloId] ?? 0;
       const existing = map.get(key);
       if (existing) {
         existing.metrosCor += metrosRoloVal;
-        if ((!existing.cor_hex || existing.cor_hex === "#ccc") && rolo.cor_hex) existing.cor_hex = rolo.cor_hex;
-        if (existing.cor_nome === "Sem cor" && nomeRaw) existing.cor_nome = nomeRaw;
+        if ((!existing.cor_hex || existing.cor_hex === "#ccc") && corHexResolvido) existing.cor_hex = corHexResolvido;
+        if (existing.cor_nome === "Sem cor" && nomeResolvido) existing.cor_nome = nomeResolvido;
+        if (!existing.cor_id && corIdResolvido) existing.cor_id = corIdResolvido;
       } else {
         map.set(key, {
-          cor_id: rolo.cor_id ?? null,
-          cor_nome: nomeRaw || "Sem cor",
-          cor_hex: rolo.cor_hex ?? "#ccc",
+          cor_id: corIdResolvido,
+          cor_nome: nomeResolvido,
+          cor_hex: corHexResolvido,
           metrosCor: metrosRoloVal,
         });
       }
     }
     return Array.from(map.entries());
-  }, [selectedRolos, rolos, metrosRolo]);
+  }, [selectedRolos, rolos, metrosRolo, coresPorId, coresPorNome]);
 
   // Calculate folhas per color = metros da cor / metragem do risco (auto-calculated, manually overridable)
   const [folhasOverride, setFolhasOverride] = useState<Record<string, number | null>>({});
@@ -232,8 +244,8 @@ export default function NovaOrdemCorte() {
       });
       toast.success(`Ordem de corte criada com ${produtosSelecionados.length} produto(s)!`);
       navigate("/ordens-corte");
-    } catch (e: any) {
-      toast.error(e.message);
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : "Erro ao criar ordem de corte");
     }
   };
 

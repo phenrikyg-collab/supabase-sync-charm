@@ -11,7 +11,7 @@ import type {
 const DEFAULT_PAGE_SIZE = 1000;
 
 async function fetchTable<T>(table: string, options?: {
-  orderBy?: string; ascending?: boolean; filters?: Record<string, any>; limit?: number;
+  orderBy?: string; ascending?: boolean; filters?: Record<string, unknown>; limit?: number;
 }): Promise<T[]> {
   const buildQuery = () => {
     let query = supabase.from(table).select("*");
@@ -388,7 +388,7 @@ export const useCreateOrdemCorte = () => {
     mutationFn: async (payload: {
       ordem: Partial<OrdemCorte>;
       produtos: { produto_id: string; nome_produto: string }[];
-      grade: { cor_id: string; tamanho: string; quantidade: number }[];
+      grade: { cor_id: string | null; tamanho: string; quantidade: number }[];
       rolos: { rolo_id: string; metragem_utilizada: number }[];
     }) => {
       // Create ordem
