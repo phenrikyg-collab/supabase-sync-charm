@@ -11,7 +11,7 @@ import type {
 const DEFAULT_PAGE_SIZE = 1000;
 
 async function fetchTable<T>(table: string, options?: {
-  orderBy?: string; ascending?: boolean; filters?: Record<string, any>; limit?: number;
+  orderBy?: string; ascending?: boolean; filters?: Record<string, unknown>; limit?: number;
 }): Promise<T[]> {
   const buildQuery = () => {
     let query = supabase.from(table).select("*");
