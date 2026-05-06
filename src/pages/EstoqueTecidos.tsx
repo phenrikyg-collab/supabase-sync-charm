@@ -45,7 +45,11 @@ export default function EstoqueTecidos() {
   const filtered = todosRolos.filter((r) => {
     const tecido = r.tecido_id ? tecidoMap[r.tecido_id] : null;
     const text = `${r.codigo_rolo} ${tecido?.nome_tecido} ${r.cor_nome} ${r.lote}`.toLowerCase();
-    return text.includes(search.toLowerCase());
+    if (!text.includes(search.toLowerCase())) return false;
+    const disp = r.metragem_disponivel ?? 0;
+    if (filtroDisponibilidade === "disponivel" && disp <= 0) return false;
+    if (filtroDisponibilidade === "usado" && disp > 0) return false;
+    return true;
   });
 
   const custoTotal = filtered.reduce((a, r) => {
