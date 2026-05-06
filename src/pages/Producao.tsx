@@ -1,4 +1,4 @@
-import { useResumoProducao, useUpdateOrdemProducao } from "@/hooks/useSupabase";
+import { useResumoProducao, useUpdateOrdemProducao, useOrdensProducao } from "@/hooks/useSupabase";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { StatusBadge } from "@/components/StatusBadge";
 import { motion } from "framer-motion";
@@ -13,7 +13,12 @@ const COLUNAS = [
 
 export default function Producao() {
   const { data: producao, isLoading } = useResumoProducao();
+  const { data: ordens } = useOrdensProducao();
   const updateMut = useUpdateOrdemProducao();
+
+  const TRINTA_DIAS_MS = 30 * 24 * 60 * 60 * 1000;
+  const agora = Date.now();
+  const ordemMap = new Map((ordens ?? []).map((o) => [o.id, o]));
 
   const moveToNext = async (id: string, currentStatus: string) => {
     const idx = COLUNAS.findIndex((c) => c.match.includes(currentStatus.toLowerCase()));
