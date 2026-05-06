@@ -124,6 +124,16 @@ export default function EstoqueTecidos() {
           <div className="flex items-center justify-between mb-6">
             <h2 className="font-serif font-bold text-lg text-foreground">Rolos Disponíveis</h2>
             <div className="flex items-center gap-2">
+              <Select value={filtroDisponibilidade} onValueChange={(v) => setFiltroDisponibilidade(v as "todos" | "disponivel" | "usado")}>
+                <SelectTrigger className="w-44">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="todos">Todos</SelectItem>
+                  <SelectItem value="disponivel">Disponíveis</SelectItem>
+                  <SelectItem value="usado">Usados</SelectItem>
+                </SelectContent>
+              </Select>
               <Search className="h-4 w-4 text-muted-foreground" />
               <Input placeholder="Buscar tecido, cor ou código..." value={search} onChange={(e) => setSearch(e.target.value)} className="w-72" />
             </div>
