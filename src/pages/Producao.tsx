@@ -1,4 +1,4 @@
-import { useResumoProducao, useUpdateOrdemProducao } from "@/hooks/useSupabase";
+import { useResumoProducao, useUpdateOrdemProducao, useOrdensProducao } from "@/hooks/useSupabase";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { StatusBadge } from "@/components/StatusBadge";
 import { motion } from "framer-motion";
@@ -13,7 +13,12 @@ const COLUNAS = [
 
 export default function Producao() {
   const { data: producao, isLoading } = useResumoProducao();
+  const { data: ordens } = useOrdensProducao();
   const updateMut = useUpdateOrdemProducao();
+
+  const TRINTA_DIAS_MS = 30 * 24 * 60 * 60 * 1000;
+  const agora = Date.now();
+  const ordemMap = new Map((ordens ?? []).map((o) => [o.id, o]));
 
   const moveToNext = async (id: string, currentStatus: string) => {
     const idx = COLUNAS.findIndex((c) => c.match.includes(currentStatus.toLowerCase()));
@@ -39,7 +44,13 @@ export default function Producao() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           {COLUNAS.map((col) => {
-            const items = producao?.filter((p) => col.match.includes(p.status_ordem?.toLowerCase() ?? "")) ?? [];
+            const items = (producao?.filter((p) => col.match.includes(p.status_ordem?.toLowerCase() ?? "")) ?? []).filter((p) => {
+              if (col.key !== "finalizado") return true;
+              const ord = p.id ? ordemMap.get(p.id) : null;
+              const dataRef = ord?.data_fim ?? ord?.created_at;
+              if (!dataRef) return true;
+              return agora - new Date(dataRef).getTime() <= TRINTA_DIAS_MS;
+            });
             return (
               <div key={col.key} className="space-y-3">
                 <div className="flex items-center justify-between">

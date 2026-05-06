@@ -3,6 +3,7 @@ import { useRolosTecido, useTecidos } from "@/hooks/useSupabase";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -20,6 +21,7 @@ export default function EstoqueTecidos() {
   const { data: rolos, isLoading } = useRolosTecido();
   const { data: tecidos } = useTecidos();
   const [search, setSearch] = useState("");
+  const [filtroDisponibilidade, setFiltroDisponibilidade] = useState<"todos" | "disponivel" | "usado">("disponivel");
   const qc = useQueryClient();
 
   // Edit state
@@ -43,7 +45,11 @@ export default function EstoqueTecidos() {
   const filtered = todosRolos.filter((r) => {
     const tecido = r.tecido_id ? tecidoMap[r.tecido_id] : null;
     const text = `${r.codigo_rolo} ${tecido?.nome_tecido} ${r.cor_nome} ${r.lote}`.toLowerCase();
-    return text.includes(search.toLowerCase());
+    if (!text.includes(search.toLowerCase())) return false;
+    const disp = r.metragem_disponivel ?? 0;
+    if (filtroDisponibilidade === "disponivel" && disp <= 0) return false;
+    if (filtroDisponibilidade === "usado" && disp > 0) return false;
+    return true;
   });
 
   const custoTotal = filtered.reduce((a, r) => {
@@ -118,6 +124,16 @@ export default function EstoqueTecidos() {
           <div className="flex items-center justify-between mb-6">
             <h2 className="font-serif font-bold text-lg text-foreground">Rolos Disponíveis</h2>
             <div className="flex items-center gap-2">
+              <Select value={filtroDisponibilidade} onValueChange={(v) => setFiltroDisponibilidade(v as "todos" | "disponivel" | "usado")}>
+                <SelectTrigger className="w-44">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="todos">Todos</SelectItem>
+                  <SelectItem value="disponivel">Disponíveis</SelectItem>
+                  <SelectItem value="usado">Usados</SelectItem>
+                </SelectContent>
+              </Select>
               <Search className="h-4 w-4 text-muted-foreground" />
               <Input placeholder="Buscar tecido, cor ou código..." value={search} onChange={(e) => setSearch(e.target.value)} className="w-72" />
             </div>
