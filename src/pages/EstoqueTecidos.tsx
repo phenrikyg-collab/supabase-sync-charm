@@ -21,6 +21,7 @@ export default function EstoqueTecidos() {
   const { data: rolos, isLoading } = useRolosTecido();
   const { data: tecidos } = useTecidos();
   const [search, setSearch] = useState("");
+  const [filtroDisponibilidade, setFiltroDisponibilidade] = useState<"todos" | "disponivel" | "usado">("disponivel");
   const qc = useQueryClient();
 
   // Edit state
