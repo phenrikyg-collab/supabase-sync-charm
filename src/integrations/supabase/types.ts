@@ -1631,6 +1631,18 @@ export type Database = {
         }
         Relationships: []
       }
+      vw_dashboard_vendas: {
+        Row: {
+          desconto_medio: number | null
+          desconto_percentual: number | null
+          mes: string | null
+          receita_bruta: number | null
+          ticket_medio: number | null
+          total_desconto: number | null
+          total_pedidos: number | null
+        }
+        Relationships: []
+      }
       vw_revisao_mensal: {
         Row: {
           mes: string | null
@@ -1653,6 +1665,45 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      vw_vendas_mes_atual: {
+        Row: {
+          customer_email: string | null
+          customer_name: string | null
+          date: string | null
+          discount: number | null
+          id: number | null
+          orderstatus_status: string | null
+          orderstatus_type: string | null
+          payment_form: string | null
+          shipment_value: number | null
+          total: number | null
+        }
+        Insert: {
+          customer_email?: string | null
+          customer_name?: string | null
+          date?: string | null
+          discount?: number | null
+          id?: number | null
+          orderstatus_status?: string | null
+          orderstatus_type?: string | null
+          payment_form?: string | null
+          shipment_value?: number | null
+          total?: number | null
+        }
+        Update: {
+          customer_email?: string | null
+          customer_name?: string | null
+          date?: string | null
+          discount?: number | null
+          id?: number | null
+          orderstatus_status?: string | null
+          orderstatus_type?: string | null
+          payment_form?: string | null
+          shipment_value?: number | null
+          total?: number | null
+        }
+        Relationships: []
       }
     }
     Functions: {
