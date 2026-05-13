@@ -68,9 +68,25 @@ interface TrayOrder {
   date: string | null;
   total: number | null;
   discount: number | null;
+  discount_coupon: string | null;
   payment_form: string | null;
+  point_sale: string | null;
   orderstatus_status: string | null;
   orderstatus_type: string | null;
+}
+
+// extrai o valor de desconto do cupom no formato "NOME/24.90"
+function parseCupomValor(s: string | null | undefined): number {
+  if (!s) return 0;
+  const parts = String(s).split("/");
+  if (parts.length < 2) return 0;
+  const n = parseFloat(parts[parts.length - 1].replace(",", "."));
+  return isNaN(n) ? 0 : n;
+}
+
+// soma desconto bruto + cupom
+function descontoTotal(p: { discount: number | null; discount_coupon: string | null }): number {
+  return Number(p.discount ?? 0) + parseCupomValor(p.discount_coupon);
 }
 interface TrayVariant {
   variant_id: number;
