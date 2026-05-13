@@ -127,7 +127,7 @@ export default function DashboardComercialPage() {
   // ===== fetch variants =====
   const { data: variants = [], isLoading: loadVar } = useQuery({
     queryKey: ["dash-comercial-variants"],
-    queryFn: async () => fetchAll<TrayVariant>("v_tray_products_variants", (q) => q),
+    queryFn: async () => fetchAll<TrayVariant>("tray_products_variants", (q) => q),
   });
 
   // ===== fetch detalhes de pedidos (para preço médio de venda por produto) =====
