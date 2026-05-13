@@ -470,26 +470,32 @@ Seja direto e específico. Use valores reais dos dados. Responda em português.`
       </div>
 
       {/* SEÇÃO 3 — gráficos */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <Card>
-          <CardHeader><CardTitle className="text-lg font-serif">Evolução de vendas</CardTitle></CardHeader>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <Card className="lg:col-span-2">
+          <CardHeader>
+            <CardTitle className="text-lg font-serif">Evolução de vendas</CardTitle>
+            <p className="text-xs text-muted-foreground">Receita diária vs meta diária necessária</p>
+          </CardHeader>
           <CardContent>
             <div className="h-72">
               <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={serieDiaria}>
+                <AreaChart data={serieDiaria} margin={{ top: 8, right: 16, left: 0, bottom: 0 }}>
                   <defs>
                     <linearGradient id="grad" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="hsl(152, 60%, 40%)" stopOpacity={0.45} />
-                      <stop offset="100%" stopColor="hsl(152, 60%, 40%)" stopOpacity={0.05} />
+                      <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity={0.5} />
+                      <stop offset="100%" stopColor="hsl(var(--primary))" stopOpacity={0.02} />
                     </linearGradient>
                   </defs>
-                  <CartesianGrid strokeDasharray="3 3" opacity={0.2} />
-                  <XAxis dataKey="data" tick={{ fontSize: 11 }} />
-                  <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => `R$ ${(v / 1000).toFixed(0)}k`} />
-                  <Tooltip formatter={(v: any) => fmtBRL(Number(v))} />
-                  <Area type="monotone" dataKey="receita" stroke="hsl(220, 60%, 50%)" strokeWidth={2} fill="url(#grad)" />
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.4} vertical={false} />
+                  <XAxis dataKey="data" tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} />
+                  <YAxis tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} tickFormatter={(v) => `R$ ${(v / 1000).toFixed(0)}k`} />
+                  <Tooltip
+                    contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 8, fontSize: 12 }}
+                    formatter={(v: any) => fmtBRL(Number(v))}
+                  />
+                  <Area type="monotone" dataKey="receita" stroke="hsl(var(--primary))" strokeWidth={2.5} fill="url(#grad)" />
                   {metaDiariaHoje > 0 && (
-                    <ReferenceLine y={metaDiariaHoje} stroke="hsl(38, 92%, 50%)" strokeDasharray="5 5" label={{ value: "Meta diária", position: "right", fill: "hsl(38, 92%, 50%)", fontSize: 11 }} />
+                    <ReferenceLine y={metaDiariaHoje} stroke="hsl(var(--destructive))" strokeDasharray="4 4" strokeWidth={1.5} label={{ value: "Meta diária", position: "right", fill: "hsl(var(--destructive))", fontSize: 10, fontWeight: 600 }} />
                   )}
                 </AreaChart>
               </ResponsiveContainer>
@@ -497,7 +503,10 @@ Seja direto e específico. Use valores reais dos dados. Responda em português.`
           </CardContent>
         </Card>
         <Card>
-          <CardHeader><CardTitle className="text-lg font-serif">Vendas por canal</CardTitle></CardHeader>
+          <CardHeader>
+            <CardTitle className="text-lg font-serif">Vendas por canal</CardTitle>
+            <p className="text-xs text-muted-foreground">Distribuição da receita por origem</p>
+          </CardHeader>
           <CardContent>
             <div className="h-72">
               {canais.length === 0 ? (
@@ -505,11 +514,14 @@ Seja direto e específico. Use valores reais dos dados. Responda em português.`
               ) : (
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
-                    <Pie data={canais} dataKey="valor" nameKey="nome" outerRadius={90} label={(e: any) => `${fmtPct(e.pct)}`}>
+                    <Pie data={canais} dataKey="valor" nameKey="nome" innerRadius={50} outerRadius={90} paddingAngle={2} stroke="hsl(var(--card))" strokeWidth={2}>
                       {canais.map((_, i) => <Cell key={i} fill={CHANNEL_COLORS[i % CHANNEL_COLORS.length]} />)}
                     </Pie>
-                    <Tooltip formatter={(v: any, _n: any, p: any) => [`${fmtBRL(Number(v))} • ${fmtPct(p?.payload?.pct ?? 0)}`, p?.payload?.nome]} />
-                    <Legend />
+                    <Tooltip
+                      contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 8, fontSize: 12 }}
+                      formatter={(v: any, _n: any, p: any) => [`${fmtBRL(Number(v))} • ${fmtPct(p?.payload?.pct ?? 0)}`, p?.payload?.nome]}
+                    />
+                    <Legend iconType="circle" wrapperStyle={{ fontSize: 11 }} />
                   </PieChart>
                 </ResponsiveContainer>
               )}
