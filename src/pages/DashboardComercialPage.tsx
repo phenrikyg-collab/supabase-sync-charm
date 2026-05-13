@@ -130,6 +130,16 @@ export default function DashboardComercialPage() {
     queryFn: async () => fetchAll<TrayVariant>("v_tray_products_variants", (q) => q),
   });
 
+  // ===== fetch detalhes de pedidos (para preço médio de venda por produto) =====
+  const { data: detalhes = [] } = useQuery({
+    queryKey: ["dash-comercial-detalhes"],
+    queryFn: async () =>
+      fetchAll<{ product_id: number | null; quantity: number | null; price: number | null; discount: number | null }>(
+        "v_tray_orders_detalhes",
+        (q) => q
+      ),
+  });
+
   const { data: metas = [] } = useMetasFinanceiras();
   const { data: produtos = [] } = useProdutos();
 
