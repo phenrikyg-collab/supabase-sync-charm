@@ -242,13 +242,35 @@ export default function DashboardComercialPage() {
     return list.sort((a, b) => b.vendido - a.vendido).slice(0, 10);
   }, [variants, produtos]);
 
+  // preço médio de venda por bling_produto_id (líquido de desconto, ponderado por quantidade)
+  const precoMedioPorProduto = useMemo(() => {
+    const map = new Map<string, { receita: number; qtd: number }>();
+    for (const d of detalhes) {
+      const k = String(d.product_id ?? "");
+      if (!k) continue;
+      const qtd = Number(d.quantity ?? 0);
+      const receita = (Number(d.price ?? 0) - Number(d.discount ?? 0)) * qtd;
+      const cur = map.get(k) ?? { receita: 0, qtd: 0 };
+      cur.receita += receita;
+      cur.qtd += qtd;
+      map.set(k, cur);
+    }
+    const out = new Map<string, number>();
+    for (const [k, v] of map.entries()) out.set(k, v.qtd > 0 ? v.receita / v.qtd : 0);
+    return out;
+  }, [detalhes]);
+
   const lucrativos = useMemo(
     () =>
       [...produtos]
         .filter((p: any) => p.ativo)
+        .map((p: any) => ({
+          ...p,
+          preco_venda_medio: precoMedioPorProduto.get(String(p.bling_produto_id ?? "")) ?? 0,
+        }))
         .sort((a: any, b: any) => Number(b.margem_real_percentual ?? 0) - Number(a.margem_real_percentual ?? 0))
         .slice(0, 10),
-    [produtos]
+    [produtos, precoMedioPorProduto]
   );
 
   // ===== sugestões de produção =====
