@@ -489,21 +489,19 @@ Seja direto e específico. Use valores reais dos dados. Responda em português.`
               <TableHeader>
                 <TableRow>
                   <TableHead>Produto</TableHead>
-                  <TableHead className="text-right">Venda</TableHead>
-                  <TableHead className="text-right">Custo</TableHead>
-                  <TableHead className="text-right">Lucro</TableHead>
+                  <TableHead className="text-right">Venda média</TableHead>
                   <TableHead className="text-right">Margem</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {lucrativos.length === 0 ? (
-                  <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-6">Sem dados</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={3} className="text-center text-muted-foreground py-6">Sem dados</TableCell></TableRow>
                 ) : lucrativos.map((p: any) => (
                   <TableRow key={p.id}>
                     <TableCell className="font-medium">{p.nome_do_produto}</TableCell>
-                    <TableCell className="text-right">{fmtBRL(p.preco_venda)}</TableCell>
-                    <TableCell className="text-right">{fmtBRL(p.preco_custo)}</TableCell>
-                    <TableCell className="text-right">{fmtBRL(Number(p.preco_venda ?? 0) - Number(p.preco_custo ?? 0))}</TableCell>
+                    <TableCell className="text-right">
+                      {p.preco_venda_medio > 0 ? fmtBRL(p.preco_venda_medio) : <span className="text-muted-foreground">—</span>}
+                    </TableCell>
                     <TableCell className="text-right font-semibold text-success">{fmtPct(p.margem_real_percentual)}</TableCell>
                   </TableRow>
                 ))}
