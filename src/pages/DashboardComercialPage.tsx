@@ -340,20 +340,20 @@ export default function DashboardComercialPage() {
     }
 
     const itens = topProdutos.map((tp) => {
-      // tenta achar o cadastro do produto
+      // tenta achar o cadastro do produto apenas para custos adicionais/percentuais.
+      // A MC base sempre usa o custo médio real do item vendido (tp.custoMedio = cost_price ponderado por quantidade).
       let prod: any = porBlingId.get(tp.product_id);
       if (!prod && tp.reference) prod = porSku.get(tp.reference.toUpperCase());
       if (!prod && tp.nome) prod = porNome.get(tp.nome.toUpperCase());
 
       const precoMedio = tp.preco;
-      const custosDir = Number(tp.custoMedio ?? 0) +
-        (prod
-          ? Number(prod.custo_costura ?? 0) +
-            Number(prod.custo_corte ?? 0) +
-            Number(prod.custo_embalagem ?? 0) +
-            Number(prod.custo_frete ?? 0) +
-            Number(prod.custo_marketing ?? 0)
-          : 0);
+      const custoMedio = Number(tp.custoMedio ?? 0);
+      const custosDir = custoMedio +
+        Number(prod?.custo_costura ?? 0) +
+        Number(prod?.custo_corte ?? 0) +
+        Number(prod?.custo_embalagem ?? 0) +
+        Number(prod?.custo_frete ?? 0) +
+        Number(prod?.custo_marketing ?? 0);
       const pctSobreVenda = prod
         ? (Number(prod.imposto_percentual ?? 0) +
             Number(prod.comissao_percentual ?? 0) +
@@ -377,7 +377,9 @@ export default function DashboardComercialPage() {
 
       // insight de campanha
       let insight: { label: string; tone: "success" | "warning" | "danger" | "muted" } = { label: "Manter", tone: "muted" };
-      if (!prod) insight = { label: "Cadastro incompleto", tone: "muted" };
+      if (custoMedio <= 0) insight = { label: "Sem custo médio", tone: "muted" };
+      else if (!prod && mcPct >= 25 && tp.estoque >= 30) insight = { label: "Potencial campanha", tone: "success" };
+      else if (!prod) insight = { label: "MC por custo médio", tone: "muted" };
       else if (mcPct >= 35 && tp.estoque >= 30) insight = { label: "Impulsionar (alto MC + estoque)", tone: "success" };
       else if (mcPct >= 35 && diasCobertura < 15) insight = { label: "Repor produção (MC alta)", tone: "warning" };
       else if (mcPct < 15 && tp.estoque >= 30) insight = { label: "Liquidar / promover giro", tone: "danger" };
