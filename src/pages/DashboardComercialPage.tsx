@@ -192,8 +192,8 @@ export default function DashboardComercialPage() {
   const receitaComp = sum(noComp, "total");
   const totalPedidos = noPeriodo.length;
   const pedidosComp = noComp.length;
-  const totalDesconto = sum(noPeriodo, "discount");
-  const descontoComp = sum(noComp, "discount");
+  const totalDesconto = noPeriodo.reduce((a, b) => a + descontoTotal(b), 0);
+  const descontoComp = noComp.reduce((a, b) => a + descontoTotal(b), 0);
   const ticketMedio = totalPedidos > 0 ? receitaBruta / totalPedidos : 0;
   const ticketMedioComp = pedidosComp > 0 ? receitaComp / pedidosComp : 0;
   const descontoMedio = totalPedidos > 0 ? totalDesconto / totalPedidos : 0;
