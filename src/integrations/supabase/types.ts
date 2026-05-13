@@ -1505,6 +1505,132 @@ export type Database = {
       }
     }
     Views: {
+      v_tray_orders: {
+        Row: {
+          created_at: string | null
+          customer_email: string | null
+          customer_name: string | null
+          date: string | null
+          discount: number | null
+          id: number | null
+          orderstatus_status: string | null
+          orderstatus_type: string | null
+          payment_form: string | null
+          payment_method: string | null
+          shipping: number | null
+          store_id: number | null
+          total: number | null
+        }
+        Insert: {
+          created_at?: string | null
+          customer_email?: string | null
+          customer_name?: string | null
+          date?: string | null
+          discount?: number | null
+          id?: number | null
+          orderstatus_status?: string | null
+          orderstatus_type?: string | null
+          payment_form?: string | null
+          payment_method?: string | null
+          shipping?: number | null
+          store_id?: number | null
+          total?: number | null
+        }
+        Update: {
+          created_at?: string | null
+          customer_email?: string | null
+          customer_name?: string | null
+          date?: string | null
+          discount?: number | null
+          id?: number | null
+          orderstatus_status?: string | null
+          orderstatus_type?: string | null
+          payment_form?: string | null
+          payment_method?: string | null
+          shipping?: number | null
+          store_id?: number | null
+          total?: number | null
+        }
+        Relationships: []
+      }
+      v_tray_orders_detalhes: {
+        Row: {
+          cost_price: number | null
+          created_at: string | null
+          discount: number | null
+          id: number | null
+          order_id: number | null
+          price: number | null
+          product_id: number | null
+          product_name: string | null
+          quantity: number | null
+          variant_id: number | null
+        }
+        Insert: {
+          cost_price?: number | null
+          created_at?: string | null
+          discount?: number | null
+          id?: number | null
+          order_id?: number | null
+          price?: number | null
+          product_id?: number | null
+          product_name?: string | null
+          quantity?: number | null
+          variant_id?: number | null
+        }
+        Update: {
+          cost_price?: number | null
+          created_at?: string | null
+          discount?: number | null
+          id?: number | null
+          order_id?: number | null
+          price?: number | null
+          product_id?: number | null
+          product_name?: string | null
+          quantity?: number | null
+          variant_id?: number | null
+        }
+        Relationships: []
+      }
+      v_tray_products_variants: {
+        Row: {
+          created_at: string | null
+          variant_cost: number | null
+          variant_id: number | null
+          variant_price: number | null
+          variant_product_id: number | null
+          variant_promotional_price: number | null
+          variant_quantity_sold: number | null
+          variant_reference: string | null
+          variant_sku: string | null
+          variant_stock: number | null
+        }
+        Insert: {
+          created_at?: string | null
+          variant_cost?: number | null
+          variant_id?: number | null
+          variant_price?: number | null
+          variant_product_id?: number | null
+          variant_promotional_price?: number | null
+          variant_quantity_sold?: number | null
+          variant_reference?: string | null
+          variant_sku?: string | null
+          variant_stock?: number | null
+        }
+        Update: {
+          created_at?: string | null
+          variant_cost?: number | null
+          variant_id?: number | null
+          variant_price?: number | null
+          variant_product_id?: number | null
+          variant_promotional_price?: number | null
+          variant_quantity_sold?: number | null
+          variant_reference?: string | null
+          variant_sku?: string | null
+          variant_stock?: number | null
+        }
+        Relationships: []
+      }
       vw_revisao_mensal: {
         Row: {
           mes: string | null
