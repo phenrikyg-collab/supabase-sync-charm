@@ -140,7 +140,7 @@ export default function DashboardComercialPage() {
     },
   });
 
-  // ===== fetch variants =====
+  // ===== fetch variants (apenas para estoque) =====
   const { data: variants = [], isLoading: loadVar } = useQuery({
     queryKey: ["dash-comercial-variants"],
     queryFn: async () => fetchAll<TrayVariant>("tray_products_variants", (q) => q),
@@ -156,26 +156,25 @@ export default function DashboardComercialPage() {
       ),
   });
 
-  const { data: metas = [] } = useMetasFinanceiras();
-  const { data: produtos = [] } = useProdutos();
-
-  // ===== fetch vendas do mês atual (view dedicada) =====
-  const { data: vendasMesAtual = [] } = useQuery({
-    queryKey: ["dash-comercial-vendas-mes-atual"],
+  // ===== fetch produtos vendidos (tray_productssold) — para top produtos =====
+  const { data: productssold = [] } = useQuery({
+    queryKey: ["dash-comercial-productssold"],
     queryFn: async () =>
       fetchAll<{
-        date: string | null;
-        id: number;
-        total: number | null;
-        discount: number | null;
-        payment_form: string | null;
-        orderstatus_status: string | null;
-        orderstatus_type: string | null;
-        customer_name: string | null;
-        customer_email: string | null;
-        shipment_value: number | null;
-      }>("vw_vendas_mes_atual", (q) => q.order("date", { ascending: false })),
+        order_id: string | null;
+        product_id: string | null;
+        variant_id: string | null;
+        name: string | null;
+        model: string | null;
+        reference: string | null;
+        price: number | null;
+        cost_price: number | null;
+        quantity: number | null;
+      }>("tray_productssold", (q) => q),
   });
+
+  const { data: metas = [] } = useMetasFinanceiras();
+  const { data: produtos = [] } = useProdutos();
 
   // ===== métricas =====
   const noPeriodo = useMemo(
@@ -257,25 +256,58 @@ export default function DashboardComercialPage() {
     return arr.map((c) => ({ ...c, pct: total > 0 ? (c.valor / total) * 100 : 0 }));
   }, [noPeriodo]);
 
-  // ===== top produtos (cruza variants com produtos via bling_produto_id) =====
+  // ===== detalhe por canal (faturamento, ticket médio, desconto) =====
+  const canaisDetalhe = useMemo(() => {
+    const map = new Map<string, { nome: string; faturamento: number; pedidos: number; desconto: number }>();
+    for (const p of noPeriodo) {
+      const raw = (p.point_sale ?? "").trim();
+      const nome = raw ? raw : "Não informado";
+      const cur = map.get(nome) ?? { nome, faturamento: 0, pedidos: 0, desconto: 0 };
+      cur.faturamento += Number(p.total ?? 0);
+      cur.pedidos += 1;
+      cur.desconto += descontoTotal(p);
+      map.set(nome, cur);
+    }
+    return Array.from(map.values())
+      .map((c) => ({
+        ...c,
+        ticketMedio: c.pedidos > 0 ? c.faturamento / c.pedidos : 0,
+        descontoPct: c.faturamento > 0 ? (c.desconto / c.faturamento) * 100 : 0,
+      }))
+      .sort((a, b) => b.faturamento - a.faturamento);
+  }, [noPeriodo]);
+
+  // ===== top produtos (tray_productssold filtrado pelo período) =====
   const topProdutos = useMemo(() => {
-    const byProduct = new Map<string, { vendido: number; estoque: number; preco: number }>();
-    for (const v of variants) {
-      const k = String(v.variant_product_id ?? "");
-      const cur = byProduct.get(k) ?? { vendido: 0, estoque: 0, preco: 0 };
-      cur.vendido += Number(v.variant_quantity_sold ?? 0);
-      cur.estoque += Number(v.variant_stock ?? 0);
-      cur.preco = Math.max(cur.preco, Number(v.variant_price ?? 0));
+    const orderIds = new Set(noPeriodo.map((p) => String(p.id)));
+    const byProduct = new Map<string, { nome: string; vendido: number; receita: number; product_id: string }>();
+    for (const s of productssold) {
+      if (!s.order_id || !orderIds.has(String(s.order_id))) continue;
+      const k = String(s.product_id ?? "");
+      if (!k) continue;
+      const qtd = Number(s.quantity ?? 0);
+      const receita = Number(s.price ?? 0) * qtd;
+      const nome = (s.model || s.name?.split("<br>")[0] || s.reference || `#${k}`).trim();
+      const cur = byProduct.get(k) ?? { nome, vendido: 0, receita: 0, product_id: k };
+      cur.vendido += qtd;
+      cur.receita += receita;
       byProduct.set(k, cur);
     }
-    const list: { nome: string; vendido: number; estoque: number; preco: number }[] = [];
-    for (const [pid, agg] of byProduct.entries()) {
-      const prod = produtos.find((p: any) => String(p.bling_produto_id ?? "") === pid);
-      if (!prod) continue;
-      list.push({ nome: prod.nome_do_produto, vendido: agg.vendido, estoque: agg.estoque, preco: agg.preco });
+    // estoque a partir das variants
+    const estoquePor = new Map<string, number>();
+    for (const v of variants) {
+      const k = String(v.variant_product_id ?? "");
+      estoquePor.set(k, (estoquePor.get(k) ?? 0) + Number(v.variant_stock ?? 0));
     }
-    return list.sort((a, b) => b.vendido - a.vendido).slice(0, 10);
-  }, [variants, produtos]);
+    return Array.from(byProduct.values())
+      .map((p) => ({
+        ...p,
+        estoque: estoquePor.get(p.product_id) ?? 0,
+        preco: p.vendido > 0 ? p.receita / p.vendido : 0,
+      }))
+      .sort((a, b) => b.vendido - a.vendido)
+      .slice(0, 10);
+  }, [productssold, noPeriodo, variants]);
 
   // preço médio de venda por bling_produto_id (líquido de desconto, ponderado por quantidade)
   const precoMedioPorProduto = useMemo(() => {
@@ -438,26 +470,32 @@ Seja direto e específico. Use valores reais dos dados. Responda em português.`
       </div>
 
       {/* SEÇÃO 3 — gráficos */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <Card>
-          <CardHeader><CardTitle className="text-lg font-serif">Evolução de vendas</CardTitle></CardHeader>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <Card className="lg:col-span-2">
+          <CardHeader>
+            <CardTitle className="text-lg font-serif">Evolução de vendas</CardTitle>
+            <p className="text-xs text-muted-foreground">Receita diária vs meta diária necessária</p>
+          </CardHeader>
           <CardContent>
             <div className="h-72">
               <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={serieDiaria}>
+                <AreaChart data={serieDiaria} margin={{ top: 8, right: 16, left: 0, bottom: 0 }}>
                   <defs>
                     <linearGradient id="grad" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="hsl(152, 60%, 40%)" stopOpacity={0.45} />
-                      <stop offset="100%" stopColor="hsl(152, 60%, 40%)" stopOpacity={0.05} />
+                      <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity={0.5} />
+                      <stop offset="100%" stopColor="hsl(var(--primary))" stopOpacity={0.02} />
                     </linearGradient>
                   </defs>
-                  <CartesianGrid strokeDasharray="3 3" opacity={0.2} />
-                  <XAxis dataKey="data" tick={{ fontSize: 11 }} />
-                  <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => `R$ ${(v / 1000).toFixed(0)}k`} />
-                  <Tooltip formatter={(v: any) => fmtBRL(Number(v))} />
-                  <Area type="monotone" dataKey="receita" stroke="hsl(220, 60%, 50%)" strokeWidth={2} fill="url(#grad)" />
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.4} vertical={false} />
+                  <XAxis dataKey="data" tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} />
+                  <YAxis tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} tickFormatter={(v) => `R$ ${(v / 1000).toFixed(0)}k`} />
+                  <Tooltip
+                    contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 8, fontSize: 12 }}
+                    formatter={(v: any) => fmtBRL(Number(v))}
+                  />
+                  <Area type="monotone" dataKey="receita" stroke="hsl(var(--primary))" strokeWidth={2.5} fill="url(#grad)" />
                   {metaDiariaHoje > 0 && (
-                    <ReferenceLine y={metaDiariaHoje} stroke="hsl(38, 92%, 50%)" strokeDasharray="5 5" label={{ value: "Meta diária", position: "right", fill: "hsl(38, 92%, 50%)", fontSize: 11 }} />
+                    <ReferenceLine y={metaDiariaHoje} stroke="hsl(var(--destructive))" strokeDasharray="4 4" strokeWidth={1.5} label={{ value: "Meta diária", position: "right", fill: "hsl(var(--destructive))", fontSize: 10, fontWeight: 600 }} />
                   )}
                 </AreaChart>
               </ResponsiveContainer>
@@ -465,7 +503,10 @@ Seja direto e específico. Use valores reais dos dados. Responda em português.`
           </CardContent>
         </Card>
         <Card>
-          <CardHeader><CardTitle className="text-lg font-serif">Vendas por canal</CardTitle></CardHeader>
+          <CardHeader>
+            <CardTitle className="text-lg font-serif">Vendas por canal</CardTitle>
+            <p className="text-xs text-muted-foreground">Distribuição da receita por origem</p>
+          </CardHeader>
           <CardContent>
             <div className="h-72">
               {canais.length === 0 ? (
@@ -473,11 +514,14 @@ Seja direto e específico. Use valores reais dos dados. Responda em português.`
               ) : (
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
-                    <Pie data={canais} dataKey="valor" nameKey="nome" outerRadius={90} label={(e: any) => `${fmtPct(e.pct)}`}>
+                    <Pie data={canais} dataKey="valor" nameKey="nome" innerRadius={50} outerRadius={90} paddingAngle={2} stroke="hsl(var(--card))" strokeWidth={2}>
                       {canais.map((_, i) => <Cell key={i} fill={CHANNEL_COLORS[i % CHANNEL_COLORS.length]} />)}
                     </Pie>
-                    <Tooltip formatter={(v: any, _n: any, p: any) => [`${fmtBRL(Number(v))} • ${fmtPct(p?.payload?.pct ?? 0)}`, p?.payload?.nome]} />
-                    <Legend />
+                    <Tooltip
+                      contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 8, fontSize: 12 }}
+                      formatter={(v: any, _n: any, p: any) => [`${fmtBRL(Number(v))} • ${fmtPct(p?.payload?.pct ?? 0)}`, p?.payload?.nome]}
+                    />
+                    <Legend iconType="circle" wrapperStyle={{ fontSize: 11 }} />
                   </PieChart>
                 </ResponsiveContainer>
               )}
@@ -486,50 +530,58 @@ Seja direto e específico. Use valores reais dos dados. Responda em português.`
         </Card>
       </div>
 
-      {/* SEÇÃO 3.5 — Vendas do mês atual (vw_vendas_mes_atual) */}
+      {/* SEÇÃO 3.5 — Detalhamento por canal */}
       <Card>
         <CardHeader>
           <CardTitle className="text-lg font-serif flex items-center gap-2">
-            <ShoppingCart className="h-5 w-5" />
-            Vendas do mês atual
-            <Badge variant="secondary" className="ml-2 font-normal">
-              {fmtNum(vendasMesAtual.length)} pedidos · {fmtBRL(vendasMesAtual.reduce((a, b) => a + Number(b.total ?? 0), 0))}
-            </Badge>
+            <Package className="h-5 w-5" />
+            Detalhamento por canal
+            <Badge variant="secondary" className="ml-2 font-normal">{canaisDetalhe.length} canais</Badge>
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="max-h-[420px] overflow-y-auto">
-            <Table>
-              <TableHeader className="sticky top-0 bg-background">
-                <TableRow>
-                  <TableHead>Data</TableHead>
-                  <TableHead>Pedido</TableHead>
-                  <TableHead>Cliente</TableHead>
-                  <TableHead>Pagamento</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="text-right">Frete</TableHead>
-                  <TableHead className="text-right">Desconto</TableHead>
-                  <TableHead className="text-right">Total</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {vendasMesAtual.length === 0 ? (
-                  <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground py-6">Sem vendas no mês</TableCell></TableRow>
-                ) : vendasMesAtual.map((v) => (
-                  <TableRow key={v.id}>
-                    <TableCell className="whitespace-nowrap">{v.date ? format(parseISO(v.date), "dd/MM/yyyy") : "—"}</TableCell>
-                    <TableCell className="font-mono text-xs">#{v.id}</TableCell>
-                    <TableCell className="max-w-[200px] truncate">{v.customer_name ?? "—"}</TableCell>
-                    <TableCell>{v.payment_form ?? "—"}</TableCell>
-                    <TableCell><Badge variant="outline" className="font-normal">{v.orderstatus_status ?? v.orderstatus_type ?? "—"}</Badge></TableCell>
-                    <TableCell className="text-right">{fmtBRL(v.shipment_value)}</TableCell>
-                    <TableCell className="text-right text-danger">{Number(v.discount ?? 0) > 0 ? `−${fmtBRL(v.discount)}` : "—"}</TableCell>
-                    <TableCell className="text-right font-semibold">{fmtBRL(v.total)}</TableCell>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Canal</TableHead>
+                <TableHead className="text-right">Pedidos</TableHead>
+                <TableHead className="text-right">Faturamento</TableHead>
+                <TableHead className="text-right">Ticket Médio</TableHead>
+                <TableHead className="text-right">Desconto</TableHead>
+                <TableHead className="text-right">% Desc.</TableHead>
+                <TableHead className="text-right">Participação</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {canaisDetalhe.length === 0 ? (
+                <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-6">Sem vendas no período</TableCell></TableRow>
+              ) : canaisDetalhe.map((c, i) => {
+                const totFat = canaisDetalhe.reduce((a, b) => a + b.faturamento, 0);
+                const part = totFat > 0 ? (c.faturamento / totFat) * 100 : 0;
+                return (
+                  <TableRow key={c.nome}>
+                    <TableCell className="font-medium flex items-center gap-2">
+                      <span className="inline-block h-2.5 w-2.5 rounded-full" style={{ background: CHANNEL_COLORS[i % CHANNEL_COLORS.length] }} />
+                      {c.nome}
+                    </TableCell>
+                    <TableCell className="text-right">{fmtNum(c.pedidos)}</TableCell>
+                    <TableCell className="text-right font-semibold">{fmtBRL(c.faturamento)}</TableCell>
+                    <TableCell className="text-right">{fmtBRL(c.ticketMedio)}</TableCell>
+                    <TableCell className="text-right text-danger">{c.desconto > 0 ? `−${fmtBRL(c.desconto)}` : "—"}</TableCell>
+                    <TableCell className="text-right text-muted-foreground">{fmtPct(c.descontoPct)}</TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex items-center justify-end gap-2">
+                        <span className="text-xs text-muted-foreground w-12 text-right">{fmtPct(part)}</span>
+                        <div className="w-20 h-1.5 rounded-full bg-muted overflow-hidden">
+                          <div className="h-full rounded-full" style={{ width: `${Math.min(part, 100)}%`, background: CHANNEL_COLORS[i % CHANNEL_COLORS.length] }} />
+                        </div>
+                      </div>
+                    </TableCell>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
+                );
+              })}
+            </TableBody>
+          </Table>
         </CardContent>
       </Card>
 
