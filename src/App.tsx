@@ -81,7 +81,9 @@ const AppRoutes = () => {
         <ProtectedRoute>
           <AppLayout>
             <Routes>
-              <Route path="/" element={<Dashboard />} />
+              <Route path="/" element={<DashboardComercialPage />} />
+              <Route path="/dashboard-comercial" element={<DashboardComercialPage />} />
+              <Route path="/dashboard-antigo" element={<Dashboard />} />
               <Route path="/produtos" element={<Produtos />} />
               <Route path="/produtos/novo" element={<ProdutoForm />} />
               <Route path="/produtos/:id" element={<ProdutoForm />} />
