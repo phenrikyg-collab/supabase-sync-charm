@@ -647,26 +647,35 @@ Seja direto e específico. Use valores reais dos dados. Responda em português.`
           </CardContent>
         </Card>
         <Card>
-          <CardHeader><CardTitle className="text-lg font-serif flex items-center gap-2"><TrendingUp className="h-5 w-5" /> Produtos mais lucrativos</CardTitle></CardHeader>
+          <CardHeader>
+            <CardTitle className="text-lg font-serif flex items-center gap-2"><TrendingUp className="h-5 w-5" /> Produtos mais lucrativos</CardTitle>
+            <p className="text-xs text-muted-foreground">Maior margem de contribuição entre os produtos vendidos no período</p>
+          </CardHeader>
           <CardContent>
             <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead>Produto</TableHead>
+                  <TableHead className="text-right">Vendidos</TableHead>
                   <TableHead className="text-right">Venda média</TableHead>
-                  <TableHead className="text-right">Margem</TableHead>
+                  <TableHead className="text-right">MC unit.</TableHead>
+                  <TableHead className="text-right">MC %</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {lucrativos.length === 0 ? (
-                  <TableRow><TableCell colSpan={3} className="text-center text-muted-foreground py-6">Sem dados</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-6">Sem vendas no período</TableCell></TableRow>
                 ) : lucrativos.map((p: any) => (
                   <TableRow key={p.id}>
                     <TableCell className="font-medium">{p.nome_do_produto}</TableCell>
-                    <TableCell className="text-right">
-                      {p.preco_venda_medio > 0 ? fmtBRL(p.preco_venda_medio) : <span className="text-muted-foreground">—</span>}
+                    <TableCell className="text-right">{fmtNum(p.qtd_vendida)}</TableCell>
+                    <TableCell className="text-right">{fmtBRL(p.preco_venda_medio)}</TableCell>
+                    <TableCell className={cn("text-right font-medium", p.mc_unit >= 0 ? "text-success" : "text-danger")}>
+                      {fmtBRL(p.mc_unit)}
                     </TableCell>
-                    <TableCell className="text-right font-semibold text-success">{fmtPct(p.margem_real_percentual)}</TableCell>
+                    <TableCell className={cn("text-right font-semibold", p.mc_pct >= 0 ? "text-success" : "text-danger")}>
+                      {fmtPct(p.mc_pct)}
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
