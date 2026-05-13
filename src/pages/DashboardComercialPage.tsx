@@ -280,18 +280,20 @@ export default function DashboardComercialPage() {
   // ===== top produtos (tray_productssold filtrado pelo período) =====
   const topProdutos = useMemo(() => {
     const orderIds = new Set(noPeriodo.map((p) => String(p.id)));
-    const byProduct = new Map<string, { nome: string; vendido: number; receita: number; product_id: string; reference: string }>();
+    const byProduct = new Map<string, { nome: string; vendido: number; receita: number; custoTotal: number; product_id: string; reference: string }>();
     for (const s of productssold) {
       if (!s.order_id || !orderIds.has(String(s.order_id))) continue;
       const k = String(s.product_id ?? "");
       if (!k) continue;
       const qtd = Number(s.quantity ?? 0);
       const receita = Number(s.price ?? 0) * qtd;
+      const custo = Number(s.cost_price ?? 0) * qtd;
       const nome = (s.model || s.name?.split("<br>")[0] || s.reference || `#${k}`).trim();
       const ref = (s.reference ?? "").trim();
-      const cur = byProduct.get(k) ?? { nome, vendido: 0, receita: 0, product_id: k, reference: ref };
+      const cur = byProduct.get(k) ?? { nome, vendido: 0, receita: 0, custoTotal: 0, product_id: k, reference: ref };
       cur.vendido += qtd;
       cur.receita += receita;
+      cur.custoTotal += custo;
       if (!cur.reference && ref) cur.reference = ref;
       byProduct.set(k, cur);
     }
@@ -306,6 +308,7 @@ export default function DashboardComercialPage() {
         ...p,
         estoque: estoquePor.get(p.product_id) ?? 0,
         preco: p.vendido > 0 ? p.receita / p.vendido : 0,
+        custoMedio: p.vendido > 0 ? p.custoTotal / p.vendido : 0,
       }))
       .sort((a, b) => b.vendido - a.vendido);
   }, [productssold, noPeriodo, variants]);
@@ -330,14 +333,14 @@ export default function DashboardComercialPage() {
       if (!prod && tp.nome) prod = porNome.get(tp.nome.toUpperCase());
 
       const precoMedio = tp.preco;
-      const custosDir = prod
-        ? Number(prod.preco_custo ?? 0) +
-          Number(prod.custo_costura ?? 0) +
-          Number(prod.custo_corte ?? 0) +
-          Number(prod.custo_embalagem ?? 0) +
-          Number(prod.custo_frete ?? 0) +
-          Number(prod.custo_marketing ?? 0)
-        : 0;
+      const custosDir = Number(tp.custoMedio ?? 0) +
+        (prod
+          ? Number(prod.custo_costura ?? 0) +
+            Number(prod.custo_corte ?? 0) +
+            Number(prod.custo_embalagem ?? 0) +
+            Number(prod.custo_frete ?? 0) +
+            Number(prod.custo_marketing ?? 0)
+          : 0);
       const pctSobreVenda = prod
         ? (Number(prod.imposto_percentual ?? 0) +
             Number(prod.comissao_percentual ?? 0) +
