@@ -309,11 +309,12 @@ export default function DashboardComercialPage() {
       .slice(0, 10);
   }, [productssold, noPeriodo, variants]);
 
-  // preço médio de venda por product_id — baseado em cada pedido vendido (tray_productssold),
-  // já refletindo o desconto aplicado por item (price = preço efetivamente vendido)
+  // preço médio de venda por product_id NO PERÍODO — refletindo o desconto aplicado por item
   const precoMedioPorProduto = useMemo(() => {
+    const orderIds = new Set(noPeriodo.map((p) => String(p.id)));
     const map = new Map<string, { receita: number; qtd: number }>();
     for (const s of productssold) {
+      if (!s.order_id || !orderIds.has(String(s.order_id))) continue;
       const k = String(s.product_id ?? "");
       if (!k) continue;
       const qtd = Number(s.quantity ?? 0);
@@ -324,23 +325,46 @@ export default function DashboardComercialPage() {
       cur.qtd += qtd;
       map.set(k, cur);
     }
-    const out = new Map<string, number>();
-    for (const [k, v] of map.entries()) out.set(k, v.qtd > 0 ? v.receita / v.qtd : 0);
+    const out = new Map<string, { preco: number; qtd: number }>();
+    for (const [k, v] of map.entries()) out.set(k, { preco: v.qtd > 0 ? v.receita / v.qtd : 0, qtd: v.qtd });
     return out;
-  }, [productssold]);
+  }, [productssold, noPeriodo]);
 
-  const lucrativos = useMemo(
-    () =>
-      [...produtos]
-        .filter((p: any) => p.ativo)
-        .map((p: any) => ({
-          ...p,
-          preco_venda_medio: precoMedioPorProduto.get(String(p.bling_produto_id ?? "")) ?? 0,
-        }))
-        .sort((a: any, b: any) => Number(b.margem_real_percentual ?? 0) - Number(a.margem_real_percentual ?? 0))
-        .slice(0, 10),
-    [produtos, precoMedioPorProduto]
-  );
+  // Margem de contribuição = preço médio vendido − custos diretos − (% sobre venda)
+  // Considera apenas produtos efetivamente vendidos no período.
+  const lucrativos = useMemo(() => {
+    return [...produtos]
+      .filter((p: any) => p.ativo)
+      .map((p: any) => {
+        const info = precoMedioPorProduto.get(String(p.bling_produto_id ?? ""));
+        const precoMedio = info?.preco ?? 0;
+        const qtdVendida = info?.qtd ?? 0;
+        const custosDir =
+          Number(p.preco_custo ?? 0) +
+          Number(p.custo_costura ?? 0) +
+          Number(p.custo_corte ?? 0) +
+          Number(p.custo_embalagem ?? 0) +
+          Number(p.custo_frete ?? 0) +
+          Number(p.custo_marketing ?? 0);
+        const pctSobreVenda =
+          (Number(p.imposto_percentual ?? 0) +
+            Number(p.comissao_percentual ?? 0) +
+            Number(p.cupom_percentual ?? 0) +
+            Number(p.parcelamento_percentual ?? 0) +
+            Number(p.chargeback_percentual ?? 0) +
+            Number(p.cac_percentual ?? 0) +
+            Number(p.conteudo_percentual ?? 0) +
+            Number(p.overhead_percentual ?? 0) +
+            Number(p.devolucao_percentual ?? 0)) / 100;
+        const custosVar = precoMedio * pctSobreVenda;
+        const mcUnit = precoMedio - custosDir - custosVar;
+        const mcPct = precoMedio > 0 ? (mcUnit / precoMedio) * 100 : 0;
+        return { ...p, preco_venda_medio: precoMedio, qtd_vendida: qtdVendida, mc_unit: mcUnit, mc_pct: mcPct };
+      })
+      .filter((p: any) => p.qtd_vendida > 0)
+      .sort((a: any, b: any) => b.mc_pct - a.mc_pct)
+      .slice(0, 10);
+  }, [produtos, precoMedioPorProduto]);
 
   // ===== sugestões de produção =====
   const sugestoes = useMemo(() => {
@@ -623,26 +647,35 @@ Seja direto e específico. Use valores reais dos dados. Responda em português.`
           </CardContent>
         </Card>
         <Card>
-          <CardHeader><CardTitle className="text-lg font-serif flex items-center gap-2"><TrendingUp className="h-5 w-5" /> Produtos mais lucrativos</CardTitle></CardHeader>
+          <CardHeader>
+            <CardTitle className="text-lg font-serif flex items-center gap-2"><TrendingUp className="h-5 w-5" /> Produtos mais lucrativos</CardTitle>
+            <p className="text-xs text-muted-foreground">Maior margem de contribuição entre os produtos vendidos no período</p>
+          </CardHeader>
           <CardContent>
             <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead>Produto</TableHead>
+                  <TableHead className="text-right">Vendidos</TableHead>
                   <TableHead className="text-right">Venda média</TableHead>
-                  <TableHead className="text-right">Margem</TableHead>
+                  <TableHead className="text-right">MC unit.</TableHead>
+                  <TableHead className="text-right">MC %</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {lucrativos.length === 0 ? (
-                  <TableRow><TableCell colSpan={3} className="text-center text-muted-foreground py-6">Sem dados</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-6">Sem vendas no período</TableCell></TableRow>
                 ) : lucrativos.map((p: any) => (
                   <TableRow key={p.id}>
                     <TableCell className="font-medium">{p.nome_do_produto}</TableCell>
-                    <TableCell className="text-right">
-                      {p.preco_venda_medio > 0 ? fmtBRL(p.preco_venda_medio) : <span className="text-muted-foreground">—</span>}
+                    <TableCell className="text-right">{fmtNum(p.qtd_vendida)}</TableCell>
+                    <TableCell className="text-right">{fmtBRL(p.preco_venda_medio)}</TableCell>
+                    <TableCell className={cn("text-right font-medium", p.mc_unit >= 0 ? "text-success" : "text-danger")}>
+                      {fmtBRL(p.mc_unit)}
                     </TableCell>
-                    <TableCell className="text-right font-semibold text-success">{fmtPct(p.margem_real_percentual)}</TableCell>
+                    <TableCell className={cn("text-right font-semibold", p.mc_pct >= 0 ? "text-success" : "text-danger")}>
+                      {fmtPct(p.mc_pct)}
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
