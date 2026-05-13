@@ -395,7 +395,8 @@ Seja direto e específico. Use valores reais dos dados. Responda em português.`
     const diff = atual - anterior;
     const pct = anterior !== 0 ? (diff / Math.abs(anterior)) * 100 : 100;
     const positivo = invert ? diff < 0 : diff > 0;
-    const Icon = positivo ? ArrowUpRight : ArrowDownRight;
+    // seta segue a direção real do número (subiu ou caiu); cor segue o "bom/ruim"
+    const Icon = diff > 0 ? ArrowUpRight : ArrowDownRight;
     return (
       <span className="inline-flex items-center gap-1 text-xs">
         <span className={cn("inline-flex items-center gap-0.5 font-medium", positivo ? "text-success" : "text-danger")}>
