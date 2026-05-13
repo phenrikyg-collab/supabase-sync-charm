@@ -55,8 +55,6 @@ const moduleGroups: ModuleGroup[] = [
       { title: "Cadastro Tecidos", url: "/cadastro-tecidos", icon: Layers },
       { title: "Entrada NF", url: "/entrada-nf", icon: FileText },
       { title: "Estoque Tecidos", url: "/estoque", icon: Layers },
-      { title: "Expedição", url: "/expedicao", icon: Truck },
-      { title: "Bonificação Expedição", url: "/bonificacao-expedicao", icon: Trophy },
       { title: "Nova Ordem Corte", url: "/ordens-corte/nova", icon: Scissors },
       { title: "Ordem de Corte", url: "/ordens-corte", icon: Scissors },
       { title: "Oficinas", url: "/oficinas", icon: Building2 },
@@ -65,6 +63,14 @@ const moduleGroups: ModuleGroup[] = [
       { title: "Ordem Produção", url: "/ordens-producao", icon: Factory },
       { title: "Plano de Produção", url: "/plano-producao", icon: ClipboardList },
       { title: "Pgto Oficinas", url: "/pagamento-oficinas", icon: DollarSign },
+    ],
+  },
+  {
+    key: "logistica",
+    label: "Logística",
+    icon: Truck,
+    items: [
+      { title: "Bonificação Expedição", url: "/bonificacao-expedicao", icon: Trophy },
     ],
   },
   {
