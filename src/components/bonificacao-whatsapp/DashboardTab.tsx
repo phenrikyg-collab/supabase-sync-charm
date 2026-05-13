@@ -5,6 +5,7 @@ import { corPorAtingimento } from "@/lib/bonificacaoWhatsApp";
 import { Trophy, DollarSign, Target, Receipt, Percent, ShoppingCart, Loader2 } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import RoteiroDiarioCard from "./RoteiroDiarioCard";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell,
 } from "recharts";

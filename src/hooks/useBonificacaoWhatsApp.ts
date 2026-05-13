@@ -251,10 +251,12 @@ export function useApurarMes(mesRef: string) {
       meta,
       modo,
       semConsultora,
+      pedidos: validos,
       totais: {
         faturamento_liquido: totalFatLiquido,
         faturamento_bruto: totalBruto,
         meta: metaTotal,
+        ticket_medio_meta: Number(meta?.ticket_medio_meta ?? 0),
         pct: metaTotal > 0 ? (totalFatLiquido / metaTotal) * 100 : 0,
         ticket_medio: totalPedidos > 0 ? totalFatLiquido / totalPedidos : 0,
         desconto_medio_pct: totalBruto > 0 ? (totalDesc / totalBruto) * 100 : 0,
