@@ -115,7 +115,7 @@ export default function DashboardComercialPage() {
   const { data: pedidos = [], isLoading: loadPedidos } = useQuery({
     queryKey: ["dash-comercial-pedidos", dataInicio.toISOString(), dataFim.toISOString(), compInicio.toISOString()],
     queryFn: async () => {
-      return await fetchAll<TrayOrder>("v_tray_orders", (q) =>
+      return await fetchAll<TrayOrder>("tray_orders", (q) =>
         q.gte("date", format(compInicio, "yyyy-MM-dd"))
          .lte("date", format(dataFim, "yyyy-MM-dd"))
          .neq("orderstatus_type", "canceled")
@@ -127,7 +127,7 @@ export default function DashboardComercialPage() {
   // ===== fetch variants =====
   const { data: variants = [], isLoading: loadVar } = useQuery({
     queryKey: ["dash-comercial-variants"],
-    queryFn: async () => fetchAll<TrayVariant>("v_tray_products_variants", (q) => q),
+    queryFn: async () => fetchAll<TrayVariant>("tray_products_variants", (q) => q),
   });
 
   // ===== fetch detalhes de pedidos (para preço médio de venda por produto) =====
@@ -135,7 +135,7 @@ export default function DashboardComercialPage() {
     queryKey: ["dash-comercial-detalhes"],
     queryFn: async () =>
       fetchAll<{ product_id: number | null; quantity: number | null; price: number | null; discount: number | null }>(
-        "v_tray_orders_detalhes",
+        "tray_orders_detalhes",
         (q) => q
       ),
   });
