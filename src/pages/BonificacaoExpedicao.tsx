@@ -227,7 +227,7 @@ function DashboardTab({ mes }: { mes: string }) {
                   <TableRow>
                     <TableHead>Pedido</TableHead>
                     <TableHead>Data</TableHead>
-                    <TableHead>Prazo Bling</TableHead>
+                    <TableHead>Prazo de envio</TableHead>
                     <TableHead>Status interno</TableHead>
                     <TableHead>Situação</TableHead>
                   </TableRow>
