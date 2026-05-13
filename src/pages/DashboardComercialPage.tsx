@@ -135,7 +135,7 @@ export default function DashboardComercialPage() {
     queryKey: ["dash-comercial-detalhes"],
     queryFn: async () =>
       fetchAll<{ product_id: number | null; quantity: number | null; price: number | null; discount: number | null }>(
-        "v_tray_orders_detalhes",
+        "tray_orders_detalhes",
         (q) => q
       ),
   });
