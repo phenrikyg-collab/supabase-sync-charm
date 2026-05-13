@@ -692,7 +692,85 @@ Seja direto e específico. Use valores reais dos dados. Responda em português.`
         </CardContent>
       </Card>
 
-      {/* SEÇÃO 4 — tabelas */}
+      {/* SEÇÃO 3.6 — Clientes Novos vs Recorrentes */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg font-serif flex items-center gap-2">
+            <Sparkles className="h-5 w-5" />
+            Clientes Novos vs Recorrentes
+            <Badge variant="secondary" className="ml-2 font-normal">{fmtNum(novoRecorrente.totalPedidosNR)} pedidos</Badge>
+          </CardTitle>
+          <p className="text-xs text-muted-foreground">Comparativo de receita, pedidos e ticket médio no período</p>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+            {/* Cards lado a lado */}
+            <div className="lg:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="rounded-lg border border-primary/30 bg-primary/5 p-4">
+                <div className="flex items-center gap-2 mb-3">
+                  <span className="text-xl">🆕</span>
+                  <h3 className="font-semibold text-foreground uppercase text-xs tracking-wide">Clientes Novos</h3>
+                </div>
+                <div className="space-y-1.5">
+                  <div className="flex justify-between text-sm"><span className="text-muted-foreground">Receita</span><span className="font-serif font-bold text-lg text-foreground">{fmtBRL(novoRecorrente.novo.receita)}</span></div>
+                  <div className="flex justify-between text-sm"><span className="text-muted-foreground">% da receita total</span><span className="font-semibold text-primary">{fmtPct(novoRecorrente.novo.pct)}</span></div>
+                  <div className="flex justify-between text-sm"><span className="text-muted-foreground">Pedidos</span><span className="font-medium text-foreground">{fmtNum(novoRecorrente.novo.pedidos)}</span></div>
+                  <div className="flex justify-between text-sm"><span className="text-muted-foreground">Ticket médio</span><span className="font-medium text-foreground">{fmtBRL(novoRecorrente.novo.ticket)}</span></div>
+                </div>
+              </div>
+              <div className="rounded-lg border border-success/30 bg-success/5 p-4">
+                <div className="flex items-center gap-2 mb-3">
+                  <span className="text-xl">🔄</span>
+                  <h3 className="font-semibold text-foreground uppercase text-xs tracking-wide">Clientes Recorrentes</h3>
+                </div>
+                <div className="space-y-1.5">
+                  <div className="flex justify-between text-sm"><span className="text-muted-foreground">Receita</span><span className="font-serif font-bold text-lg text-foreground">{fmtBRL(novoRecorrente.recorrente.receita)}</span></div>
+                  <div className="flex justify-between text-sm"><span className="text-muted-foreground">% da receita total</span><span className="font-semibold text-success">{fmtPct(novoRecorrente.recorrente.pct)}</span></div>
+                  <div className="flex justify-between text-sm"><span className="text-muted-foreground">Pedidos</span><span className="font-medium text-foreground">{fmtNum(novoRecorrente.recorrente.pedidos)}</span></div>
+                  <div className="flex justify-between text-sm"><span className="text-muted-foreground">Ticket médio</span><span className="font-medium text-foreground">{fmtBRL(novoRecorrente.recorrente.ticket)}</span></div>
+                </div>
+              </div>
+            </div>
+            {/* Donut */}
+            <div className="h-56">
+              {novoRecorrente.totalReceita === 0 ? (
+                <div className="h-full flex items-center justify-center text-sm text-muted-foreground">Sem vendas no período</div>
+              ) : (
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={[
+                        { nome: "Novos", valor: novoRecorrente.novo.receita, pct: novoRecorrente.novo.pct },
+                        { nome: "Recorrentes", valor: novoRecorrente.recorrente.receita, pct: novoRecorrente.recorrente.pct },
+                      ]}
+                      dataKey="valor"
+                      nameKey="nome"
+                      innerRadius={45}
+                      outerRadius={80}
+                      paddingAngle={2}
+                      stroke="hsl(var(--card))"
+                      strokeWidth={2}
+                    >
+                      <Cell fill="hsl(220, 60%, 50%)" />
+                      <Cell fill="hsl(152, 60%, 40%)" />
+                    </Pie>
+                    <Tooltip
+                      contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 8, fontSize: 12 }}
+                      formatter={(v: any, _n: any, p: any) => [`${fmtBRL(Number(v))} • ${fmtPct(p?.payload?.pct ?? 0)}`, p?.payload?.nome]}
+                    />
+                    <Legend iconType="circle" wrapperStyle={{ fontSize: 11 }} />
+                  </PieChart>
+                </ResponsiveContainer>
+              )}
+            </div>
+          </div>
+          {novoRecorrente.insight && (
+            <div className="mt-4 p-3 rounded-lg bg-muted/40 border border-border text-sm text-foreground">
+              {novoRecorrente.insight}
+            </div>
+          )}
+        </CardContent>
+      </Card>
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <Card>
           <CardHeader><CardTitle className="text-lg font-serif flex items-center gap-2"><Package className="h-5 w-5" /> Produtos mais vendidos</CardTitle></CardHeader>
