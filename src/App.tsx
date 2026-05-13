@@ -37,6 +37,7 @@ import NotFound from "./pages/NotFound";
 import TVInterna from "./pages/TVInterna";
 import AdminTVInterna from "./pages/AdminTVInterna";
 import Bonificacao from "./pages/Bonificacao";
+import BonificacaoWhatsAppPage from "./pages/BonificacaoWhatsAppPage";
 import ContentCalendar from "./pages/ContentCalendar";
 import OrcamentoPage from "./pages/OrcamentoPage";
 import CustosFixos from "./pages/CustosFixos";
@@ -97,6 +98,7 @@ const AppRoutes = () => {
               <Route path="/oficinas" element={<Oficinas />} />
               <Route path="/oficina-interna" element={<OficinaInterna />} />
               <Route path="/bonificacao" element={<Bonificacao />} />
+              <Route path="/bonificacao-whatsapp" element={<BonificacaoWhatsAppPage />} />
               <Route path="/ordens-producao" element={<OrdensProducao />} />
               <Route path="/plano-producao" element={<PlanoProducao />} />
               <Route path="/pagamento-oficinas" element={<PagamentoOficinas />} />
