@@ -466,6 +466,53 @@ Seja direto e específico. Use valores reais dos dados. Responda em português.`
         </Card>
       </div>
 
+      {/* SEÇÃO 3.5 — Vendas do mês atual (vw_vendas_mes_atual) */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg font-serif flex items-center gap-2">
+            <ShoppingCart className="h-5 w-5" />
+            Vendas do mês atual
+            <Badge variant="secondary" className="ml-2 font-normal">
+              {fmtNum(vendasMesAtual.length)} pedidos · {fmtBRL(vendasMesAtual.reduce((a, b) => a + Number(b.total ?? 0), 0))}
+            </Badge>
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="max-h-[420px] overflow-y-auto">
+            <Table>
+              <TableHeader className="sticky top-0 bg-background">
+                <TableRow>
+                  <TableHead>Data</TableHead>
+                  <TableHead>Pedido</TableHead>
+                  <TableHead>Cliente</TableHead>
+                  <TableHead>Pagamento</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead className="text-right">Frete</TableHead>
+                  <TableHead className="text-right">Desconto</TableHead>
+                  <TableHead className="text-right">Total</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {vendasMesAtual.length === 0 ? (
+                  <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground py-6">Sem vendas no mês</TableCell></TableRow>
+                ) : vendasMesAtual.map((v) => (
+                  <TableRow key={v.id}>
+                    <TableCell className="whitespace-nowrap">{v.date ? format(parseISO(v.date), "dd/MM/yyyy") : "—"}</TableCell>
+                    <TableCell className="font-mono text-xs">#{v.id}</TableCell>
+                    <TableCell className="max-w-[200px] truncate">{v.customer_name ?? "—"}</TableCell>
+                    <TableCell>{v.payment_form ?? "—"}</TableCell>
+                    <TableCell><Badge variant="outline" className="font-normal">{v.orderstatus_status ?? v.orderstatus_type ?? "—"}</Badge></TableCell>
+                    <TableCell className="text-right">{fmtBRL(v.shipment_value)}</TableCell>
+                    <TableCell className="text-right text-danger">{Number(v.discount ?? 0) > 0 ? `−${fmtBRL(v.discount)}` : "—"}</TableCell>
+                    <TableCell className="text-right font-semibold">{fmtBRL(v.total)}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        </CardContent>
+      </Card>
+
       {/* SEÇÃO 4 — tabelas */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <Card>
