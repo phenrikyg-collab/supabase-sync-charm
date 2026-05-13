@@ -280,7 +280,7 @@ export default function DashboardComercialPage() {
   // ===== top produtos (tray_productssold filtrado pelo período) =====
   const topProdutos = useMemo(() => {
     const orderIds = new Set(noPeriodo.map((p) => String(p.id)));
-    const byProduct = new Map<string, { nome: string; vendido: number; receita: number; product_id: string }>();
+    const byProduct = new Map<string, { nome: string; vendido: number; receita: number; product_id: string; reference: string }>();
     for (const s of productssold) {
       if (!s.order_id || !orderIds.has(String(s.order_id))) continue;
       const k = String(s.product_id ?? "");
@@ -288,9 +288,11 @@ export default function DashboardComercialPage() {
       const qtd = Number(s.quantity ?? 0);
       const receita = Number(s.price ?? 0) * qtd;
       const nome = (s.model || s.name?.split("<br>")[0] || s.reference || `#${k}`).trim();
-      const cur = byProduct.get(k) ?? { nome, vendido: 0, receita: 0, product_id: k };
+      const ref = (s.reference ?? "").trim();
+      const cur = byProduct.get(k) ?? { nome, vendido: 0, receita: 0, product_id: k, reference: ref };
       cur.vendido += qtd;
       cur.receita += receita;
+      if (!cur.reference && ref) cur.reference = ref;
       byProduct.set(k, cur);
     }
     // estoque a partir das variants
@@ -305,66 +307,81 @@ export default function DashboardComercialPage() {
         estoque: estoquePor.get(p.product_id) ?? 0,
         preco: p.vendido > 0 ? p.receita / p.vendido : 0,
       }))
-      .sort((a, b) => b.vendido - a.vendido)
-      .slice(0, 10);
+      .sort((a, b) => b.vendido - a.vendido);
   }, [productssold, noPeriodo, variants]);
 
-  // preço médio de venda por product_id NO PERÍODO — refletindo o desconto aplicado por item
-  const precoMedioPorProduto = useMemo(() => {
-    const orderIds = new Set(noPeriodo.map((p) => String(p.id)));
-    const map = new Map<string, { receita: number; qtd: number }>();
-    for (const s of productssold) {
-      if (!s.order_id || !orderIds.has(String(s.order_id))) continue;
-      const k = String(s.product_id ?? "");
-      if (!k) continue;
-      const qtd = Number(s.quantity ?? 0);
-      if (qtd <= 0) continue;
-      const receita = Number(s.price ?? 0) * qtd;
-      const cur = map.get(k) ?? { receita: 0, qtd: 0 };
-      cur.receita += receita;
-      cur.qtd += qtd;
-      map.set(k, cur);
-    }
-    const out = new Map<string, { preco: number; qtd: number }>();
-    for (const [k, v] of map.entries()) out.set(k, { preco: v.qtd > 0 ? v.receita / v.qtd : 0, qtd: v.qtd });
-    return out;
-  }, [productssold, noPeriodo]);
-
-  // Margem de contribuição = preço médio vendido − custos diretos − (% sobre venda)
-  // Considera apenas produtos efetivamente vendidos no período.
+  // ===== produtos mais lucrativos (MC sobre vendas do período) + insight de campanha =====
   const lucrativos = useMemo(() => {
-    return [...produtos]
-      .filter((p: any) => p.ativo)
-      .map((p: any) => {
-        const info = precoMedioPorProduto.get(String(p.bling_produto_id ?? ""));
-        const precoMedio = info?.preco ?? 0;
-        const qtdVendida = info?.qtd ?? 0;
-        const custosDir =
-          Number(p.preco_custo ?? 0) +
-          Number(p.custo_costura ?? 0) +
-          Number(p.custo_corte ?? 0) +
-          Number(p.custo_embalagem ?? 0) +
-          Number(p.custo_frete ?? 0) +
-          Number(p.custo_marketing ?? 0);
-        const pctSobreVenda =
-          (Number(p.imposto_percentual ?? 0) +
-            Number(p.comissao_percentual ?? 0) +
-            Number(p.cupom_percentual ?? 0) +
-            Number(p.parcelamento_percentual ?? 0) +
-            Number(p.chargeback_percentual ?? 0) +
-            Number(p.cac_percentual ?? 0) +
-            Number(p.conteudo_percentual ?? 0) +
-            Number(p.overhead_percentual ?? 0) +
-            Number(p.devolucao_percentual ?? 0)) / 100;
-        const custosVar = precoMedio * pctSobreVenda;
-        const mcUnit = precoMedio - custosDir - custosVar;
-        const mcPct = precoMedio > 0 ? (mcUnit / precoMedio) * 100 : 0;
-        return { ...p, preco_venda_medio: precoMedio, qtd_vendida: qtdVendida, mc_unit: mcUnit, mc_pct: mcPct };
-      })
-      .filter((p: any) => p.qtd_vendida > 0)
-      .sort((a: any, b: any) => b.mc_pct - a.mc_pct)
-      .slice(0, 10);
-  }, [produtos, precoMedioPorProduto]);
+    // índices para casar tray_productssold ↔ produtos cadastrados
+    const porBlingId = new Map<string, any>();
+    const porSku = new Map<string, any>();
+    const porNome = new Map<string, any>();
+    for (const p of produtos as any[]) {
+      if (!p.ativo) continue;
+      if (p.bling_produto_id != null) porBlingId.set(String(p.bling_produto_id), p);
+      if (p.codigo_sku) porSku.set(String(p.codigo_sku).trim().toUpperCase(), p);
+      if (p.nome_do_produto) porNome.set(String(p.nome_do_produto).trim().toUpperCase(), p);
+    }
+
+    const itens = topProdutos.map((tp) => {
+      // tenta achar o cadastro do produto
+      let prod: any = porBlingId.get(tp.product_id);
+      if (!prod && tp.reference) prod = porSku.get(tp.reference.toUpperCase());
+      if (!prod && tp.nome) prod = porNome.get(tp.nome.toUpperCase());
+
+      const precoMedio = tp.preco;
+      const custosDir = prod
+        ? Number(prod.preco_custo ?? 0) +
+          Number(prod.custo_costura ?? 0) +
+          Number(prod.custo_corte ?? 0) +
+          Number(prod.custo_embalagem ?? 0) +
+          Number(prod.custo_frete ?? 0) +
+          Number(prod.custo_marketing ?? 0)
+        : 0;
+      const pctSobreVenda = prod
+        ? (Number(prod.imposto_percentual ?? 0) +
+            Number(prod.comissao_percentual ?? 0) +
+            Number(prod.cupom_percentual ?? 0) +
+            Number(prod.parcelamento_percentual ?? 0) +
+            Number(prod.chargeback_percentual ?? 0) +
+            Number(prod.cac_percentual ?? 0) +
+            Number(prod.conteudo_percentual ?? 0) +
+            Number(prod.overhead_percentual ?? 0) +
+            Number(prod.devolucao_percentual ?? 0)) / 100
+        : 0;
+      const custosVar = precoMedio * pctSobreVenda;
+      const mcUnit = precoMedio - custosDir - custosVar;
+      const mcPct = precoMedio > 0 ? (mcUnit / precoMedio) * 100 : 0;
+      const mcTotal = mcUnit * tp.vendido;
+
+      // dias de cobertura de estoque baseado no ritmo do período
+      const dias = Math.max(differenceInCalendarDays(dataFim, dataInicio) + 1, 1);
+      const mediaDia = tp.vendido / dias;
+      const diasCobertura = mediaDia > 0 ? tp.estoque / mediaDia : Infinity;
+
+      // insight de campanha
+      let insight: { label: string; tone: "success" | "warning" | "danger" | "muted" } = { label: "Manter", tone: "muted" };
+      if (!prod) insight = { label: "Cadastro incompleto", tone: "muted" };
+      else if (mcPct >= 35 && tp.estoque >= 30) insight = { label: "Impulsionar (alto MC + estoque)", tone: "success" };
+      else if (mcPct >= 35 && diasCobertura < 15) insight = { label: "Repor produção (MC alta)", tone: "warning" };
+      else if (mcPct < 15 && tp.estoque >= 30) insight = { label: "Liquidar / promover giro", tone: "danger" };
+      else if (mcPct < 0) insight = { label: "Revisar precificação", tone: "danger" };
+      else if (mcPct >= 25) insight = { label: "Destacar em campanha", tone: "success" };
+
+      return {
+        ...tp,
+        produto: prod,
+        preco_venda_medio: precoMedio,
+        mc_unit: mcUnit,
+        mc_pct: mcPct,
+        mc_total: mcTotal,
+        dias_cobertura: diasCobertura,
+        insight,
+      };
+    });
+
+    return itens.sort((a, b) => b.mc_total - a.mc_total).slice(0, 10);
+  }, [topProdutos, produtos, dataInicio, dataFim]);
 
   // ===== sugestões de produção =====
   const sugestoes = useMemo(() => {
