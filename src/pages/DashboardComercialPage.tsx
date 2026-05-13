@@ -715,10 +715,10 @@ Seja direto e específico. Use valores reais dos dados. Responda em português.`
                       <TableCell className="text-right">{fmtNum(p.estoque)}</TableCell>
                       <TableCell className="text-right">{fmtBRL(p.preco_venda_medio)}</TableCell>
                       <TableCell className={cn("text-right font-semibold", p.mc_pct >= 0 ? "text-success" : "text-danger")}>
-                        {p.produto ? fmtPct(p.mc_pct) : <span className="text-muted-foreground">—</span>}
+                        {fmtPct(p.mc_pct)}
                       </TableCell>
                       <TableCell className={cn("text-right", p.mc_total >= 0 ? "text-foreground" : "text-danger")}>
-                        {p.produto ? fmtBRL(p.mc_total) : <span className="text-muted-foreground">—</span>}
+                        {fmtBRL(p.mc_total)}
                       </TableCell>
                       <TableCell>
                         <Badge className={cn("border-0 whitespace-nowrap", toneCls)}>{p.insight.label}</Badge>
