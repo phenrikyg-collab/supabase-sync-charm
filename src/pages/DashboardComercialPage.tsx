@@ -673,28 +673,41 @@ Seja direto e específico. Use valores reais dos dados. Responda em português.`
               <TableHeader>
                 <TableRow>
                   <TableHead>Produto</TableHead>
-                  <TableHead className="text-right">Vendidos</TableHead>
+                  <TableHead className="text-right">Vend.</TableHead>
+                  <TableHead className="text-right">Estoque</TableHead>
                   <TableHead className="text-right">Venda média</TableHead>
-                  <TableHead className="text-right">MC unit.</TableHead>
                   <TableHead className="text-right">MC %</TableHead>
+                  <TableHead className="text-right">MC total</TableHead>
+                  <TableHead>Insight</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {lucrativos.length === 0 ? (
-                  <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-6">Sem vendas no período</TableCell></TableRow>
-                ) : lucrativos.map((p: any) => (
-                  <TableRow key={p.id}>
-                    <TableCell className="font-medium">{p.nome_do_produto}</TableCell>
-                    <TableCell className="text-right">{fmtNum(p.qtd_vendida)}</TableCell>
-                    <TableCell className="text-right">{fmtBRL(p.preco_venda_medio)}</TableCell>
-                    <TableCell className={cn("text-right font-medium", p.mc_unit >= 0 ? "text-success" : "text-danger")}>
-                      {fmtBRL(p.mc_unit)}
-                    </TableCell>
-                    <TableCell className={cn("text-right font-semibold", p.mc_pct >= 0 ? "text-success" : "text-danger")}>
-                      {fmtPct(p.mc_pct)}
-                    </TableCell>
-                  </TableRow>
-                ))}
+                  <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-6">Sem vendas no período</TableCell></TableRow>
+                ) : lucrativos.map((p: any) => {
+                  const toneCls =
+                    p.insight.tone === "success" ? "bg-success/15 text-success" :
+                    p.insight.tone === "warning" ? "bg-warning/15 text-warning" :
+                    p.insight.tone === "danger"  ? "bg-danger/15 text-danger"   :
+                                                   "bg-muted text-muted-foreground";
+                  return (
+                    <TableRow key={p.product_id}>
+                      <TableCell className="font-medium max-w-[180px] truncate" title={p.nome}>{p.nome}</TableCell>
+                      <TableCell className="text-right">{fmtNum(p.vendido)}</TableCell>
+                      <TableCell className="text-right">{fmtNum(p.estoque)}</TableCell>
+                      <TableCell className="text-right">{fmtBRL(p.preco_venda_medio)}</TableCell>
+                      <TableCell className={cn("text-right font-semibold", p.mc_pct >= 0 ? "text-success" : "text-danger")}>
+                        {p.produto ? fmtPct(p.mc_pct) : <span className="text-muted-foreground">—</span>}
+                      </TableCell>
+                      <TableCell className={cn("text-right", p.mc_total >= 0 ? "text-foreground" : "text-danger")}>
+                        {p.produto ? fmtBRL(p.mc_total) : <span className="text-muted-foreground">—</span>}
+                      </TableCell>
+                      <TableCell>
+                        <Badge className={cn("border-0 whitespace-nowrap", toneCls)}>{p.insight.label}</Badge>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
               </TableBody>
             </Table>
           </CardContent>
