@@ -309,14 +309,16 @@ export default function DashboardComercialPage() {
       .slice(0, 10);
   }, [productssold, noPeriodo, variants]);
 
-  // preço médio de venda por bling_produto_id (líquido de desconto, ponderado por quantidade)
+  // preço médio de venda por product_id — baseado em cada pedido vendido (tray_productssold),
+  // já refletindo o desconto aplicado por item (price = preço efetivamente vendido)
   const precoMedioPorProduto = useMemo(() => {
     const map = new Map<string, { receita: number; qtd: number }>();
-    for (const d of detalhes) {
-      const k = String(d.product_id ?? "");
+    for (const s of productssold) {
+      const k = String(s.product_id ?? "");
       if (!k) continue;
-      const qtd = Number(d.quantity ?? 0);
-      const receita = (Number(d.price ?? 0) - Number(d.discount ?? 0)) * qtd;
+      const qtd = Number(s.quantity ?? 0);
+      if (qtd <= 0) continue;
+      const receita = Number(s.price ?? 0) * qtd;
       const cur = map.get(k) ?? { receita: 0, qtd: 0 };
       cur.receita += receita;
       cur.qtd += qtd;
@@ -325,7 +327,7 @@ export default function DashboardComercialPage() {
     const out = new Map<string, number>();
     for (const [k, v] of map.entries()) out.set(k, v.qtd > 0 ? v.receita / v.qtd : 0);
     return out;
-  }, [detalhes]);
+  }, [productssold]);
 
   const lucrativos = useMemo(
     () =>
@@ -395,7 +397,8 @@ Seja direto e específico. Use valores reais dos dados. Responda em português.`
     const diff = atual - anterior;
     const pct = anterior !== 0 ? (diff / Math.abs(anterior)) * 100 : 100;
     const positivo = invert ? diff < 0 : diff > 0;
-    const Icon = positivo ? ArrowUpRight : ArrowDownRight;
+    // seta segue a direção real do número (subiu ou caiu); cor segue o "bom/ruim"
+    const Icon = diff > 0 ? ArrowUpRight : ArrowDownRight;
     return (
       <span className="inline-flex items-center gap-1 text-xs">
         <span className={cn("inline-flex items-center gap-0.5 font-medium", positivo ? "text-success" : "text-danger")}>
