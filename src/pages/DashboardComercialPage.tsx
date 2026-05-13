@@ -130,6 +130,16 @@ export default function DashboardComercialPage() {
     queryFn: async () => fetchAll<TrayVariant>("v_tray_products_variants", (q) => q),
   });
 
+  // ===== fetch detalhes de pedidos (para preço médio de venda por produto) =====
+  const { data: detalhes = [] } = useQuery({
+    queryKey: ["dash-comercial-detalhes"],
+    queryFn: async () =>
+      fetchAll<{ product_id: number | null; quantity: number | null; price: number | null; discount: number | null }>(
+        "v_tray_orders_detalhes",
+        (q) => q
+      ),
+  });
+
   const { data: metas = [] } = useMetasFinanceiras();
   const { data: produtos = [] } = useProdutos();
 
@@ -232,13 +242,35 @@ export default function DashboardComercialPage() {
     return list.sort((a, b) => b.vendido - a.vendido).slice(0, 10);
   }, [variants, produtos]);
 
+  // preço médio de venda por bling_produto_id (líquido de desconto, ponderado por quantidade)
+  const precoMedioPorProduto = useMemo(() => {
+    const map = new Map<string, { receita: number; qtd: number }>();
+    for (const d of detalhes) {
+      const k = String(d.product_id ?? "");
+      if (!k) continue;
+      const qtd = Number(d.quantity ?? 0);
+      const receita = (Number(d.price ?? 0) - Number(d.discount ?? 0)) * qtd;
+      const cur = map.get(k) ?? { receita: 0, qtd: 0 };
+      cur.receita += receita;
+      cur.qtd += qtd;
+      map.set(k, cur);
+    }
+    const out = new Map<string, number>();
+    for (const [k, v] of map.entries()) out.set(k, v.qtd > 0 ? v.receita / v.qtd : 0);
+    return out;
+  }, [detalhes]);
+
   const lucrativos = useMemo(
     () =>
       [...produtos]
         .filter((p: any) => p.ativo)
+        .map((p: any) => ({
+          ...p,
+          preco_venda_medio: precoMedioPorProduto.get(String(p.bling_produto_id ?? "")) ?? 0,
+        }))
         .sort((a: any, b: any) => Number(b.margem_real_percentual ?? 0) - Number(a.margem_real_percentual ?? 0))
         .slice(0, 10),
-    [produtos]
+    [produtos, precoMedioPorProduto]
   );
 
   // ===== sugestões de produção =====
@@ -457,21 +489,19 @@ Seja direto e específico. Use valores reais dos dados. Responda em português.`
               <TableHeader>
                 <TableRow>
                   <TableHead>Produto</TableHead>
-                  <TableHead className="text-right">Venda</TableHead>
-                  <TableHead className="text-right">Custo</TableHead>
-                  <TableHead className="text-right">Lucro</TableHead>
+                  <TableHead className="text-right">Venda média</TableHead>
                   <TableHead className="text-right">Margem</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {lucrativos.length === 0 ? (
-                  <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-6">Sem dados</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={3} className="text-center text-muted-foreground py-6">Sem dados</TableCell></TableRow>
                 ) : lucrativos.map((p: any) => (
                   <TableRow key={p.id}>
                     <TableCell className="font-medium">{p.nome_do_produto}</TableCell>
-                    <TableCell className="text-right">{fmtBRL(p.preco_venda)}</TableCell>
-                    <TableCell className="text-right">{fmtBRL(p.preco_custo)}</TableCell>
-                    <TableCell className="text-right">{fmtBRL(Number(p.preco_venda ?? 0) - Number(p.preco_custo ?? 0))}</TableCell>
+                    <TableCell className="text-right">
+                      {p.preco_venda_medio > 0 ? fmtBRL(p.preco_venda_medio) : <span className="text-muted-foreground">—</span>}
+                    </TableCell>
                     <TableCell className="text-right font-semibold text-success">{fmtPct(p.margem_real_percentual)}</TableCell>
                   </TableRow>
                 ))}
