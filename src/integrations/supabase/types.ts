@@ -130,6 +130,63 @@ export type Database = {
           },
         ]
       }
+      bonus_whatsapp_apurados: {
+        Row: {
+          acelerador_ticket: number
+          bonus_base: number
+          bonus_final: number
+          consultora_id: string
+          created_at: string
+          data_pagamento: string | null
+          desconto_medio_pct: number
+          faturamento_liquido: number
+          id: string
+          mes_referencia: string
+          meta: number
+          multiplicador_desconto: number
+          pct_atingimento: number
+          qtd_pedidos: number
+          status: string
+          ticket_medio: number
+        }
+        Insert: {
+          acelerador_ticket?: number
+          bonus_base?: number
+          bonus_final?: number
+          consultora_id: string
+          created_at?: string
+          data_pagamento?: string | null
+          desconto_medio_pct?: number
+          faturamento_liquido?: number
+          id?: string
+          mes_referencia: string
+          meta?: number
+          multiplicador_desconto?: number
+          pct_atingimento?: number
+          qtd_pedidos?: number
+          status?: string
+          ticket_medio?: number
+        }
+        Update: {
+          acelerador_ticket?: number
+          bonus_base?: number
+          bonus_final?: number
+          consultora_id?: string
+          created_at?: string
+          data_pagamento?: string | null
+          desconto_medio_pct?: number
+          faturamento_liquido?: number
+          id?: string
+          mes_referencia?: string
+          meta?: number
+          multiplicador_desconto?: number
+          pct_atingimento?: number
+          qtd_pedidos?: number
+          status?: string
+          ticket_medio?: number
+        }
+        Relationships: []
+      }
       cartoes_credito: {
         Row: {
           ativo: boolean
@@ -352,6 +409,36 @@ export type Database = {
         }
         Relationships: []
       }
+      config_bonificacao_whatsapp: {
+        Row: {
+          ativo: boolean
+          created_at: string
+          faixas_meta: Json
+          faixas_ticket: Json
+          id: string
+          regras_desconto: Json
+          vigencia_inicio: string | null
+        }
+        Insert: {
+          ativo?: boolean
+          created_at?: string
+          faixas_meta: Json
+          faixas_ticket: Json
+          id?: string
+          regras_desconto: Json
+          vigencia_inicio?: string | null
+        }
+        Update: {
+          ativo?: boolean
+          created_at?: string
+          faixas_meta?: Json
+          faixas_ticket?: Json
+          id?: string
+          regras_desconto?: Json
+          vigencia_inicio?: string | null
+        }
+        Relationships: []
+      }
       config_maquinas: {
         Row: {
           created_at: string
@@ -422,6 +509,39 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      consultoras_whatsapp: {
+        Row: {
+          apelido_canal: string | null
+          ativa: boolean
+          created_at: string
+          id: string
+          meta_individual: number | null
+          nome: string
+          point_sale_patterns: string[] | null
+          telefone: string | null
+        }
+        Insert: {
+          apelido_canal?: string | null
+          ativa?: boolean
+          created_at?: string
+          id?: string
+          meta_individual?: number | null
+          nome: string
+          point_sale_patterns?: string[] | null
+          telefone?: string | null
+        }
+        Update: {
+          apelido_canal?: string | null
+          ativa?: boolean
+          created_at?: string
+          id?: string
+          meta_individual?: number | null
+          nome?: string
+          point_sale_patterns?: string[] | null
+          telefone?: string | null
+        }
+        Relationships: []
       }
       cores: {
         Row: {
@@ -627,6 +747,54 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      metas_whatsapp: {
+        Row: {
+          created_at: string
+          id: string
+          mes_referencia: string
+          meta_total: number
+          modo_distribuicao: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          mes_referencia: string
+          meta_total?: number
+          modo_distribuicao?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          mes_referencia?: string
+          meta_total?: number
+          modo_distribuicao?: string
+        }
+        Relationships: []
+      }
+      metas_whatsapp_consultoras: {
+        Row: {
+          consultora_id: string
+          created_at: string
+          id: string
+          mes_referencia: string
+          meta_valor: number
+        }
+        Insert: {
+          consultora_id: string
+          created_at?: string
+          id?: string
+          mes_referencia: string
+          meta_valor?: number
+        }
+        Update: {
+          consultora_id?: string
+          created_at?: string
+          id?: string
+          mes_referencia?: string
+          meta_valor?: number
+        }
+        Relationships: []
       }
       movimentacoes_financeiras: {
         Row: {
