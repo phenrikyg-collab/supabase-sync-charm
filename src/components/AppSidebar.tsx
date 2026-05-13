@@ -39,7 +39,7 @@ const moduleGroups: ModuleGroup[] = [
     label: "Comercial",
     icon: ShoppingBag,
     items: [
-      { title: "Dashboard", url: "/", icon: LayoutDashboard },
+      { title: "Dashboard Comercial", url: "/dashboard-comercial", icon: LayoutDashboard },
       { title: "Meta Mensal", url: "/metas", icon: Target },
     ],
   },
