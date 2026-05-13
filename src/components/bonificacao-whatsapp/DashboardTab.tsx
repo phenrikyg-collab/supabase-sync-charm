@@ -5,6 +5,7 @@ import { corPorAtingimento } from "@/lib/bonificacaoWhatsApp";
 import { Trophy, DollarSign, Target, Receipt, Percent, ShoppingCart, Loader2 } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import RoteiroDiarioCard from "./RoteiroDiarioCard";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell,
 } from "recharts";
@@ -70,6 +71,16 @@ export default function DashboardTab({ mes }: { mes: string }) {
           </div>
         </CardContent>
       </Card>
+
+      {/* Roteiro diário para bater meta */}
+      <RoteiroDiarioCard
+        mes={mes}
+        metaTotal={totais.meta}
+        ticketMeta={totais.ticket_medio_meta}
+        faturamentoRealizado={totais.faturamento_bruto}
+        pedidosRealizados={totais.qtd_pedidos}
+        pedidosDoMes={r.pedidos as any}
+      />
 
       {/* Ranking */}
       <Card>

@@ -755,6 +755,7 @@ export type Database = {
           mes_referencia: string
           meta_total: number
           modo_distribuicao: string
+          ticket_medio_meta: number
         }
         Insert: {
           created_at?: string
@@ -762,6 +763,7 @@ export type Database = {
           mes_referencia: string
           meta_total?: number
           modo_distribuicao?: string
+          ticket_medio_meta?: number
         }
         Update: {
           created_at?: string
@@ -769,6 +771,7 @@ export type Database = {
           mes_referencia?: string
           meta_total?: number
           modo_distribuicao?: string
+          ticket_medio_meta?: number
         }
         Relationships: []
       }
