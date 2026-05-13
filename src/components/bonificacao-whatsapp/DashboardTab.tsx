@@ -72,6 +72,16 @@ export default function DashboardTab({ mes }: { mes: string }) {
         </CardContent>
       </Card>
 
+      {/* Roteiro diário para bater meta */}
+      <RoteiroDiarioCard
+        mes={mes}
+        metaTotal={totais.meta}
+        ticketMeta={totais.ticket_medio_meta}
+        faturamentoRealizado={totais.faturamento_bruto}
+        pedidosRealizados={totais.qtd_pedidos}
+        pedidosDoMes={r.pedidos as any}
+      />
+
       {/* Ranking */}
       <Card>
         <CardHeader><CardTitle className="font-serif text-xl">Ranking de consultoras</CardTitle></CardHeader>
