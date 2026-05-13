@@ -241,11 +241,12 @@ export default function DashboardComercialPage() {
     });
   }, [noPeriodo, dataInicio, dataFim, metaDiariaHoje]);
 
-  // ===== canais (payment_form) =====
+  // ===== canais (point_sale) =====
   const canais = useMemo(() => {
     const map = new Map<string, { nome: string; valor: number; pedidos: number }>();
     for (const p of noPeriodo) {
-      const nome = (p.payment_form ?? "Outros").trim() || "Outros";
+      const raw = (p.point_sale ?? "").trim();
+      const nome = raw ? raw : "Não informado";
       const cur = map.get(nome) ?? { nome, valor: 0, pedidos: 0 };
       cur.valor += Number(p.total ?? 0);
       cur.pedidos += 1;
