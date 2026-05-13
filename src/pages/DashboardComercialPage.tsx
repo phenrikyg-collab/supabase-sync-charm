@@ -140,7 +140,7 @@ export default function DashboardComercialPage() {
     },
   });
 
-  // ===== fetch variants =====
+  // ===== fetch variants (apenas para estoque) =====
   const { data: variants = [], isLoading: loadVar } = useQuery({
     queryKey: ["dash-comercial-variants"],
     queryFn: async () => fetchAll<TrayVariant>("tray_products_variants", (q) => q),
@@ -156,26 +156,25 @@ export default function DashboardComercialPage() {
       ),
   });
 
-  const { data: metas = [] } = useMetasFinanceiras();
-  const { data: produtos = [] } = useProdutos();
-
-  // ===== fetch vendas do mês atual (view dedicada) =====
-  const { data: vendasMesAtual = [] } = useQuery({
-    queryKey: ["dash-comercial-vendas-mes-atual"],
+  // ===== fetch produtos vendidos (tray_productssold) — para top produtos =====
+  const { data: productssold = [] } = useQuery({
+    queryKey: ["dash-comercial-productssold"],
     queryFn: async () =>
       fetchAll<{
-        date: string | null;
-        id: number;
-        total: number | null;
-        discount: number | null;
-        payment_form: string | null;
-        orderstatus_status: string | null;
-        orderstatus_type: string | null;
-        customer_name: string | null;
-        customer_email: string | null;
-        shipment_value: number | null;
-      }>("vw_vendas_mes_atual", (q) => q.order("date", { ascending: false })),
+        order_id: string | null;
+        product_id: string | null;
+        variant_id: string | null;
+        name: string | null;
+        model: string | null;
+        reference: string | null;
+        price: number | null;
+        cost_price: number | null;
+        quantity: number | null;
+      }>("tray_productssold", (q) => q),
   });
+
+  const { data: metas = [] } = useMetasFinanceiras();
+  const { data: produtos = [] } = useProdutos();
 
   // ===== métricas =====
   const noPeriodo = useMemo(
