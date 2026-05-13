@@ -68,9 +68,25 @@ interface TrayOrder {
   date: string | null;
   total: number | null;
   discount: number | null;
+  discount_coupon: string | null;
   payment_form: string | null;
+  point_sale: string | null;
   orderstatus_status: string | null;
   orderstatus_type: string | null;
+}
+
+// extrai o valor de desconto do cupom no formato "NOME/24.90"
+function parseCupomValor(s: string | null | undefined): number {
+  if (!s) return 0;
+  const parts = String(s).split("/");
+  if (parts.length < 2) return 0;
+  const n = parseFloat(parts[parts.length - 1].replace(",", "."));
+  return isNaN(n) ? 0 : n;
+}
+
+// soma desconto bruto + cupom
+function descontoTotal(p: { discount: number | null; discount_coupon: string | null }): number {
+  return Number(p.discount ?? 0) + parseCupomValor(p.discount_coupon);
 }
 interface TrayVariant {
   variant_id: number;
@@ -176,8 +192,8 @@ export default function DashboardComercialPage() {
   const receitaComp = sum(noComp, "total");
   const totalPedidos = noPeriodo.length;
   const pedidosComp = noComp.length;
-  const totalDesconto = sum(noPeriodo, "discount");
-  const descontoComp = sum(noComp, "discount");
+  const totalDesconto = noPeriodo.reduce((a, b) => a + descontoTotal(b), 0);
+  const descontoComp = noComp.reduce((a, b) => a + descontoTotal(b), 0);
   const ticketMedio = totalPedidos > 0 ? receitaBruta / totalPedidos : 0;
   const ticketMedioComp = pedidosComp > 0 ? receitaComp / pedidosComp : 0;
   const descontoMedio = totalPedidos > 0 ? totalDesconto / totalPedidos : 0;
@@ -225,11 +241,12 @@ export default function DashboardComercialPage() {
     });
   }, [noPeriodo, dataInicio, dataFim, metaDiariaHoje]);
 
-  // ===== canais (payment_form) =====
+  // ===== canais (point_sale) =====
   const canais = useMemo(() => {
     const map = new Map<string, { nome: string; valor: number; pedidos: number }>();
     for (const p of noPeriodo) {
-      const nome = (p.payment_form ?? "Outros").trim() || "Outros";
+      const raw = (p.point_sale ?? "").trim();
+      const nome = raw ? raw : "Não informado";
       const cur = map.get(nome) ?? { nome, valor: 0, pedidos: 0 };
       cur.valor += Number(p.total ?? 0);
       cur.pedidos += 1;
@@ -341,16 +358,19 @@ Seja direto e específico. Use valores reais dos dados. Responda em português.`
     }
   };
 
-  const Delta = ({ atual, anterior, invert = false }: { atual: number; anterior: number; invert?: boolean }) => {
+  const Delta = ({ atual, anterior, invert = false, fmt }: { atual: number; anterior: number; invert?: boolean; fmt?: (n: number) => string }) => {
     if (anterior === 0 && atual === 0) return <span className="text-xs text-muted-foreground">—</span>;
     const diff = atual - anterior;
     const pct = anterior !== 0 ? (diff / Math.abs(anterior)) * 100 : 100;
     const positivo = invert ? diff < 0 : diff > 0;
     const Icon = positivo ? ArrowUpRight : ArrowDownRight;
     return (
-      <span className={cn("inline-flex items-center gap-1 text-xs font-medium", positivo ? "text-success" : "text-danger")}>
-        <Icon className="h-3 w-3" />
-        {fmtPct(Math.abs(pct))}
+      <span className="inline-flex items-center gap-1 text-xs">
+        <span className={cn("inline-flex items-center gap-0.5 font-medium", positivo ? "text-success" : "text-danger")}>
+          <Icon className="h-3 w-3" />
+          {fmtPct(Math.abs(pct))}
+        </span>
+        {fmt && <span className="text-muted-foreground">· {fmt(anterior)}</span>}
       </span>
     );
   };
@@ -406,14 +426,14 @@ Seja direto e específico. Use valores reais dos dados. Responda em português.`
 
       {/* SEÇÃO 2 — KPIs */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <KpiCard icon={DollarSign} label="Receita Bruta" value={fmtBRL(receitaBruta)} delta={<Delta atual={receitaBruta} anterior={receitaComp} />} sub="vs período anterior" />
-        <KpiCard icon={ShoppingCart} label="Nº de Pedidos" value={`${fmtNum(totalPedidos)} pedidos`} delta={<Delta atual={totalPedidos} anterior={pedidosComp} />} sub="vs período anterior" />
-        <KpiCard icon={Receipt} label="Ticket Médio" value={fmtBRL(ticketMedio)} delta={<Delta atual={ticketMedio} anterior={metaTicket || ticketMedioComp} />} sub={metaTicket ? `meta ${fmtBRL(metaTicket)}` : "vs período anterior"} />
+        <KpiCard icon={DollarSign} label="Receita Bruta" value={fmtBRL(receitaBruta)} delta={<Delta atual={receitaBruta} anterior={receitaComp} fmt={fmtBRL} />} sub="vs período anterior" />
+        <KpiCard icon={ShoppingCart} label="Nº de Pedidos" value={`${fmtNum(totalPedidos)} pedidos`} delta={<Delta atual={totalPedidos} anterior={pedidosComp} fmt={(n) => `${fmtNum(n)} ped.`} />} sub="vs período anterior" />
+        <KpiCard icon={Receipt} label="Ticket Médio" value={fmtBRL(ticketMedio)} delta={<Delta atual={ticketMedio} anterior={metaTicket || ticketMedioComp} fmt={fmtBRL} />} sub={metaTicket ? `meta ${fmtBRL(metaTicket)}` : "vs período anterior"} />
         <KpiCard icon={Target} label="Meta do Mês" value={fmtPct(pctMeta)} delta={<span className="text-xs text-muted-foreground">faltam {fmtBRL(faltaMeta)}</span>} sub={`de ${fmtBRL(metaMensal)}`} progress={Math.min(pctMeta, 100)} />
 
-        <KpiCard icon={Percent} label="Desconto Médio" value={`${fmtBRL(descontoMedio)} (${fmtPct(descontoPct)})`} delta={<Delta atual={descontoMedio} anterior={pedidosComp > 0 ? descontoComp / pedidosComp : 0} invert />} sub="vs período anterior" />
-        <KpiCard icon={TrendingDown} label="Desconto Total" value={fmtBRL(totalDesconto)} delta={<Delta atual={totalDesconto} anterior={descontoComp} invert />} sub="vs período anterior" />
-        <KpiCard icon={Wallet} label="Receita Líquida" value={fmtBRL(receitaLiquida)} delta={<Delta atual={receitaLiquida} anterior={receitaLiquidaComp} />} sub="vs período anterior" />
+        <KpiCard icon={Percent} label="Desconto Médio" value={`${fmtBRL(descontoMedio)} (${fmtPct(descontoPct)})`} delta={<Delta atual={descontoMedio} anterior={pedidosComp > 0 ? descontoComp / pedidosComp : 0} invert fmt={fmtBRL} />} sub="vs período anterior" />
+        <KpiCard icon={TrendingDown} label="Desconto Total" value={fmtBRL(totalDesconto)} delta={<Delta atual={totalDesconto} anterior={descontoComp} invert fmt={fmtBRL} />} sub="inclui cupons" />
+        <KpiCard icon={Wallet} label="Receita Líquida" value={fmtBRL(receitaLiquida)} delta={<Delta atual={receitaLiquida} anterior={receitaLiquidaComp} fmt={fmtBRL} />} sub="vs período anterior" />
         <KpiCard icon={Zap} label="Meta Diária" value={fmtBRL(metaDiariaHoje)} delta={<span className="text-xs text-muted-foreground">{diasUteisRestantes} dias úteis</span>} sub="necessário hoje" />
       </div>
 
