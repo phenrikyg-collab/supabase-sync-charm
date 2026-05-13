@@ -256,25 +256,58 @@ export default function DashboardComercialPage() {
     return arr.map((c) => ({ ...c, pct: total > 0 ? (c.valor / total) * 100 : 0 }));
   }, [noPeriodo]);
 
-  // ===== top produtos (cruza variants com produtos via bling_produto_id) =====
+  // ===== detalhe por canal (faturamento, ticket médio, desconto) =====
+  const canaisDetalhe = useMemo(() => {
+    const map = new Map<string, { nome: string; faturamento: number; pedidos: number; desconto: number }>();
+    for (const p of noPeriodo) {
+      const raw = (p.point_sale ?? "").trim();
+      const nome = raw ? raw : "Não informado";
+      const cur = map.get(nome) ?? { nome, faturamento: 0, pedidos: 0, desconto: 0 };
+      cur.faturamento += Number(p.total ?? 0);
+      cur.pedidos += 1;
+      cur.desconto += descontoTotal(p);
+      map.set(nome, cur);
+    }
+    return Array.from(map.values())
+      .map((c) => ({
+        ...c,
+        ticketMedio: c.pedidos > 0 ? c.faturamento / c.pedidos : 0,
+        descontoPct: c.faturamento > 0 ? (c.desconto / c.faturamento) * 100 : 0,
+      }))
+      .sort((a, b) => b.faturamento - a.faturamento);
+  }, [noPeriodo]);
+
+  // ===== top produtos (tray_productssold filtrado pelo período) =====
   const topProdutos = useMemo(() => {
-    const byProduct = new Map<string, { vendido: number; estoque: number; preco: number }>();
-    for (const v of variants) {
-      const k = String(v.variant_product_id ?? "");
-      const cur = byProduct.get(k) ?? { vendido: 0, estoque: 0, preco: 0 };
-      cur.vendido += Number(v.variant_quantity_sold ?? 0);
-      cur.estoque += Number(v.variant_stock ?? 0);
-      cur.preco = Math.max(cur.preco, Number(v.variant_price ?? 0));
+    const orderIds = new Set(noPeriodo.map((p) => String(p.id)));
+    const byProduct = new Map<string, { nome: string; vendido: number; receita: number; product_id: string }>();
+    for (const s of productssold) {
+      if (!s.order_id || !orderIds.has(String(s.order_id))) continue;
+      const k = String(s.product_id ?? "");
+      if (!k) continue;
+      const qtd = Number(s.quantity ?? 0);
+      const receita = Number(s.price ?? 0) * qtd;
+      const nome = (s.model || s.name?.split("<br>")[0] || s.reference || `#${k}`).trim();
+      const cur = byProduct.get(k) ?? { nome, vendido: 0, receita: 0, product_id: k };
+      cur.vendido += qtd;
+      cur.receita += receita;
       byProduct.set(k, cur);
     }
-    const list: { nome: string; vendido: number; estoque: number; preco: number }[] = [];
-    for (const [pid, agg] of byProduct.entries()) {
-      const prod = produtos.find((p: any) => String(p.bling_produto_id ?? "") === pid);
-      if (!prod) continue;
-      list.push({ nome: prod.nome_do_produto, vendido: agg.vendido, estoque: agg.estoque, preco: agg.preco });
+    // estoque a partir das variants
+    const estoquePor = new Map<string, number>();
+    for (const v of variants) {
+      const k = String(v.variant_product_id ?? "");
+      estoquePor.set(k, (estoquePor.get(k) ?? 0) + Number(v.variant_stock ?? 0));
     }
-    return list.sort((a, b) => b.vendido - a.vendido).slice(0, 10);
-  }, [variants, produtos]);
+    return Array.from(byProduct.values())
+      .map((p) => ({
+        ...p,
+        estoque: estoquePor.get(p.product_id) ?? 0,
+        preco: p.vendido > 0 ? p.receita / p.vendido : 0,
+      }))
+      .sort((a, b) => b.vendido - a.vendido)
+      .slice(0, 10);
+  }, [productssold, noPeriodo, variants]);
 
   // preço médio de venda por bling_produto_id (líquido de desconto, ponderado por quantidade)
   const precoMedioPorProduto = useMemo(() => {
