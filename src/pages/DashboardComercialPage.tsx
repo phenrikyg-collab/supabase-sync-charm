@@ -358,16 +358,19 @@ Seja direto e específico. Use valores reais dos dados. Responda em português.`
     }
   };
 
-  const Delta = ({ atual, anterior, invert = false }: { atual: number; anterior: number; invert?: boolean }) => {
+  const Delta = ({ atual, anterior, invert = false, fmt }: { atual: number; anterior: number; invert?: boolean; fmt?: (n: number) => string }) => {
     if (anterior === 0 && atual === 0) return <span className="text-xs text-muted-foreground">—</span>;
     const diff = atual - anterior;
     const pct = anterior !== 0 ? (diff / Math.abs(anterior)) * 100 : 100;
     const positivo = invert ? diff < 0 : diff > 0;
     const Icon = positivo ? ArrowUpRight : ArrowDownRight;
     return (
-      <span className={cn("inline-flex items-center gap-1 text-xs font-medium", positivo ? "text-success" : "text-danger")}>
-        <Icon className="h-3 w-3" />
-        {fmtPct(Math.abs(pct))}
+      <span className="inline-flex items-center gap-1 text-xs">
+        <span className={cn("inline-flex items-center gap-0.5 font-medium", positivo ? "text-success" : "text-danger")}>
+          <Icon className="h-3 w-3" />
+          {fmtPct(Math.abs(pct))}
+        </span>
+        {fmt && <span className="text-muted-foreground">· {fmt(anterior)}</span>}
       </span>
     );
   };
