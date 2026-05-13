@@ -173,6 +173,51 @@ export default function DashboardComercialPage() {
       }>("tray_productssold", (q) => q),
   });
 
+  // ===== fetch vendas novo vs recorrente (view) =====
+  const { data: vendasTipo = [] } = useQuery({
+    queryKey: ["dash-comercial-novo-recorrente", dataInicio.toISOString(), dataFim.toISOString()],
+    queryFn: async () =>
+      fetchAll<{ id: number; date: string | null; total: number | null; tipo_cliente: string | null }>(
+        "vw_vendas_novo_recorrente",
+        (q) =>
+          q.gte("date", format(dataInicio, "yyyy-MM-dd"))
+           .lte("date", format(dataFim, "yyyy-MM-dd"))
+      ),
+  });
+
+  const novoRecorrente = useMemo(() => {
+    const acc = { novo: { pedidos: 0, receita: 0 }, recorrente: { pedidos: 0, receita: 0 } };
+    for (const v of vendasTipo) {
+      const tipo = v.tipo_cliente === "novo" ? "novo" : v.tipo_cliente === "recorrente" ? "recorrente" : null;
+      if (!tipo) continue;
+      acc[tipo].pedidos += 1;
+      acc[tipo].receita += Number(v.total ?? 0);
+    }
+    const totalReceita = acc.novo.receita + acc.recorrente.receita;
+    const totalPedidosNR = acc.novo.pedidos + acc.recorrente.pedidos;
+    const novo = {
+      ...acc.novo,
+      ticket: acc.novo.pedidos > 0 ? acc.novo.receita / acc.novo.pedidos : 0,
+      pct: totalReceita > 0 ? (acc.novo.receita / totalReceita) * 100 : 0,
+    };
+    const recorrente = {
+      ...acc.recorrente,
+      ticket: acc.recorrente.pedidos > 0 ? acc.recorrente.receita / acc.recorrente.pedidos : 0,
+      pct: totalReceita > 0 ? (acc.recorrente.receita / totalReceita) * 100 : 0,
+    };
+    let insight = "";
+    if (recorrente.pct >= 60) {
+      insight = `✅ Base sólida de clientes fiéis — ${fmtPct(recorrente.pct)} da receita vem de recorrentes`;
+    } else if (novo.pct > 50) {
+      insight = `🆕 Alto volume de aquisição — ${fmtPct(novo.pct)} da receita vem de clientes novos`;
+    } else if (novo.ticket > recorrente.ticket && novo.ticket > 0) {
+      insight = `💡 Clientes novos têm ticket médio maior (${fmtBRL(novo.ticket)} vs ${fmtBRL(recorrente.ticket)})`;
+    } else if (recorrente.ticket > novo.ticket && recorrente.ticket > 0) {
+      insight = `💡 Clientes recorrentes compram mais (${fmtBRL(recorrente.ticket)} vs ${fmtBRL(novo.ticket)})`;
+    }
+    return { novo, recorrente, totalReceita, totalPedidosNR, insight };
+  }, [vendasTipo]);
+
   const { data: metas = [] } = useMetasFinanceiras();
   const { data: produtos = [] } = useProdutos();
 
