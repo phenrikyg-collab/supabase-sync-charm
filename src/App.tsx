@@ -19,7 +19,7 @@ import Oficinas from "./pages/Oficinas";
 import OficinaInterna from "./pages/OficinaInterna";
 import OrdensProducao from "./pages/OrdensProducao";
 import Producao from "./pages/Producao";
-import Expedicao from "./pages/Expedicao";
+
 import Financeiro from "./pages/Financeiro";
 import ContasPagar from "./pages/ContasPagar";
 import ContasReceber from "./pages/ContasReceber";
