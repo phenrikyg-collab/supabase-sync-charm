@@ -143,6 +143,24 @@ export default function DashboardComercialPage() {
   const { data: metas = [] } = useMetasFinanceiras();
   const { data: produtos = [] } = useProdutos();
 
+  // ===== fetch vendas do mês atual (view dedicada) =====
+  const { data: vendasMesAtual = [] } = useQuery({
+    queryKey: ["dash-comercial-vendas-mes-atual"],
+    queryFn: async () =>
+      fetchAll<{
+        date: string | null;
+        id: number;
+        total: number | null;
+        discount: number | null;
+        payment_form: string | null;
+        orderstatus_status: string | null;
+        orderstatus_type: string | null;
+        customer_name: string | null;
+        customer_email: string | null;
+        shipment_value: number | null;
+      }>("vw_vendas_mes_atual", (q) => q.order("date", { ascending: false })),
+  });
+
   // ===== métricas =====
   const noPeriodo = useMemo(
     () => pedidos.filter((p) => p.date && p.date >= format(dataInicio, "yyyy-MM-dd") && p.date <= format(dataFim, "yyyy-MM-dd")),
