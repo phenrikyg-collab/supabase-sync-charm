@@ -58,12 +58,10 @@ const parseCupomValor = (s?: string | null): number => {
 const descontoTotal = (p: TrayOrder) =>
   Number(p.discount ?? 0) + parseCupomValor(p.discount_coupon);
 
-// pedidos válidos: não cancelados, não devolvidos, não estornados
-const STATUSES_INVALIDOS = ["canceled", "cancelado", "refunded", "devolvido", "estornado", "chargeback"];
+// mesma regra do Dashboard Comercial: exclui apenas pedidos com type "canceled"
 function pedidoValido(p: TrayOrder): boolean {
   const t = (p.orderstatus_type ?? "").toLowerCase();
-  const s = (p.orderstatus_status ?? "").toLowerCase();
-  return !STATUSES_INVALIDOS.some((x) => t.includes(x) || s.includes(x));
+  return t !== "canceled";
 }
 
 export function useConsultoras() {
@@ -145,7 +143,9 @@ export function useApurarMes(mesRef: string) {
       const di = format(startOfMonth(dt), "yyyy-MM-dd");
       const df = format(endOfMonth(dt), "yyyy-MM-dd");
       return await fetchAll<TrayOrder>("tray_orders", (q: any) =>
-        q.gte("date", di).lte("date", df).ilike("point_sale", "%whatsapp%")
+        q.gte("date", di).lte("date", df)
+         .ilike("point_sale", "%whatsapp%")
+         .neq("orderstatus_type", "canceled")
       );
     },
   });
@@ -179,10 +179,9 @@ export function useApurarMes(mesRef: string) {
       const c = consultoraDoPedido(p);
       const bruto = Number(p.total ?? 0);
       const desc = descontoTotal(p);
-      const liq = bruto - desc;
       if (!c) {
         semConsultora.faturamento_bruto += bruto;
-        semConsultora.faturamento_liquido += liq;
+        semConsultora.faturamento_liquido += bruto;
         semConsultora.qtd_pedidos += 1;
         continue;
       }
@@ -190,7 +189,7 @@ export function useApurarMes(mesRef: string) {
         consultora: c, faturamento_bruto: 0, faturamento_liquido: 0, desconto: 0, qtd_pedidos: 0,
       };
       cur.faturamento_bruto += bruto;
-      cur.faturamento_liquido += liq;
+      cur.faturamento_liquido += bruto;
       cur.desconto += desc;
       cur.qtd_pedidos += 1;
       buckets.set(c.id, cur);
@@ -221,13 +220,15 @@ export function useApurarMes(mesRef: string) {
         const n = ativas.length || 1;
         metaConsultora = metaTotal / n;
       }
-      const ticket = b.qtd_pedidos > 0 ? b.faturamento_liquido / b.qtd_pedidos : 0;
+      // Alinhado ao Dashboard Comercial: faturamento e ticket usam o BRUTO (total dos pedidos)
+      const ticket = b.qtd_pedidos > 0 ? b.faturamento_bruto / b.qtd_pedidos : 0;
       const descPct = b.faturamento_bruto > 0 ? (b.desconto / b.faturamento_bruto) * 100 : 0;
-      const calc = calcularBonus(b.faturamento_liquido, metaConsultora, ticket, descPct, config);
+      const calc = calcularBonus(b.faturamento_bruto, metaConsultora, ticket, descPct, config);
       return {
         consultora: b.consultora,
         faturamento_bruto: b.faturamento_bruto,
-        faturamento_liquido: b.faturamento_liquido,
+        // mantém o nome do campo por compatibilidade com a UI, mas agora reflete o BRUTO (igual ao card do canal)
+        faturamento_liquido: b.faturamento_bruto,
         desconto: b.desconto,
         desconto_medio_pct: descPct,
         qtd_pedidos: b.qtd_pedidos,
@@ -235,12 +236,12 @@ export function useApurarMes(mesRef: string) {
         meta: metaConsultora,
         ...calc,
       };
-    }).sort((a, b) => b.faturamento_liquido - a.faturamento_liquido);
+    }).sort((a, b) => b.faturamento_bruto - a.faturamento_bruto);
 
-    const totalFatLiquido = linhas.reduce((a, l) => a + l.faturamento_liquido, 0);
     const totalPedidos = linhas.reduce((a, l) => a + l.qtd_pedidos, 0);
     const totalDesc = linhas.reduce((a, l) => a + l.desconto, 0);
     const totalBruto = linhas.reduce((a, l) => a + l.faturamento_bruto, 0);
+    const totalFatLiquido = totalBruto;
     const totalBonus = linhas.reduce((a, l) => a + l.bonus_final, 0);
 
     return {
