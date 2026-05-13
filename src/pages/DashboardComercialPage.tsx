@@ -115,7 +115,7 @@ export default function DashboardComercialPage() {
   const { data: pedidos = [], isLoading: loadPedidos } = useQuery({
     queryKey: ["dash-comercial-pedidos", dataInicio.toISOString(), dataFim.toISOString(), compInicio.toISOString()],
     queryFn: async () => {
-      return await fetchAll<TrayOrder>("v_tray_orders", (q) =>
+      return await fetchAll<TrayOrder>("tray_orders", (q) =>
         q.gte("date", format(compInicio, "yyyy-MM-dd"))
          .lte("date", format(dataFim, "yyyy-MM-dd"))
          .neq("orderstatus_type", "canceled")
