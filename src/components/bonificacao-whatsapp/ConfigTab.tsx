@@ -29,11 +29,13 @@ export default function ConfigTab({ mes }: { mes: string }) {
 
   // form meta
   const [metaTotal, setMetaTotal] = useState<string>("");
+  const [ticketMeta, setTicketMeta] = useState<string>("");
   const [modo, setModo] = useState<"individual" | "proporcional">("proporcional");
   const [metasIndState, setMetasIndState] = useState<Record<string, string>>({});
 
   useEffect(() => {
     setMetaTotal(meta?.meta_total ? String(meta.meta_total) : "");
+    setTicketMeta(meta?.ticket_medio_meta ? String(meta.ticket_medio_meta) : "");
     setModo(meta?.modo_distribuicao ?? "proporcional");
   }, [meta]);
 
@@ -77,8 +79,9 @@ export default function ConfigTab({ mes }: { mes: string }) {
   async function salvarMeta() {
     const valor = parseFloat(metaTotal.replace(",", "."));
     if (isNaN(valor)) return toast.error("Meta inválida");
+    const ticket = parseFloat(ticketMeta.replace(",", ".")) || 0;
     const { error } = await supabase.from("metas_whatsapp" as any).upsert(
-      { mes_referencia: mes, meta_total: valor, modo_distribuicao: modo },
+      { mes_referencia: mes, meta_total: valor, ticket_medio_meta: ticket, modo_distribuicao: modo },
       { onConflict: "mes_referencia" }
     );
     if (error) return toast.error(error.message);
@@ -119,15 +122,19 @@ export default function ConfigTab({ mes }: { mes: string }) {
       <Card>
         <CardHeader><CardTitle className="font-serif text-xl">Meta do canal — {mes}</CardTitle></CardHeader>
         <CardContent className="space-y-4">
-          <div className="grid md:grid-cols-3 gap-4">
+          <div className="grid md:grid-cols-4 gap-4">
             <div>
               <Label>Meta total (R$)</Label>
               <Input value={metaTotal} onChange={(e) => setMetaTotal(e.target.value)} placeholder="100000" />
             </div>
+            <div>
+              <Label>Ticket médio meta (R$)</Label>
+              <Input value={ticketMeta} onChange={(e) => setTicketMeta(e.target.value)} placeholder="380" />
+            </div>
             <div className="flex items-end gap-3">
               <div className="flex items-center gap-2">
                 <Switch checked={modo === "individual"} onCheckedChange={(v) => setModo(v ? "individual" : "proporcional")} />
-                <Label className="cursor-pointer">{modo === "individual" ? "Meta individual" : "Proporcional (igual entre consultoras ativas)"}</Label>
+                <Label className="cursor-pointer">{modo === "individual" ? "Meta individual" : "Proporcional"}</Label>
               </div>
             </div>
             <div className="flex items-end">

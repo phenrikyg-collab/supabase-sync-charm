@@ -34,6 +34,7 @@ export interface MetaWA {
   id: string;
   mes_referencia: string;
   meta_total: number;
+  ticket_medio_meta: number;
   modo_distribuicao: "individual" | "proporcional";
 }
 
