@@ -309,11 +309,12 @@ export default function DashboardComercialPage() {
       .slice(0, 10);
   }, [productssold, noPeriodo, variants]);
 
-  // preço médio de venda por product_id — baseado em cada pedido vendido (tray_productssold),
-  // já refletindo o desconto aplicado por item (price = preço efetivamente vendido)
+  // preço médio de venda por product_id NO PERÍODO — refletindo o desconto aplicado por item
   const precoMedioPorProduto = useMemo(() => {
+    const orderIds = new Set(noPeriodo.map((p) => String(p.id)));
     const map = new Map<string, { receita: number; qtd: number }>();
     for (const s of productssold) {
+      if (!s.order_id || !orderIds.has(String(s.order_id))) continue;
       const k = String(s.product_id ?? "");
       if (!k) continue;
       const qtd = Number(s.quantity ?? 0);
@@ -324,23 +325,46 @@ export default function DashboardComercialPage() {
       cur.qtd += qtd;
       map.set(k, cur);
     }
-    const out = new Map<string, number>();
-    for (const [k, v] of map.entries()) out.set(k, v.qtd > 0 ? v.receita / v.qtd : 0);
+    const out = new Map<string, { preco: number; qtd: number }>();
+    for (const [k, v] of map.entries()) out.set(k, { preco: v.qtd > 0 ? v.receita / v.qtd : 0, qtd: v.qtd });
     return out;
-  }, [productssold]);
+  }, [productssold, noPeriodo]);
 
-  const lucrativos = useMemo(
-    () =>
-      [...produtos]
-        .filter((p: any) => p.ativo)
-        .map((p: any) => ({
-          ...p,
-          preco_venda_medio: precoMedioPorProduto.get(String(p.bling_produto_id ?? "")) ?? 0,
-        }))
-        .sort((a: any, b: any) => Number(b.margem_real_percentual ?? 0) - Number(a.margem_real_percentual ?? 0))
-        .slice(0, 10),
-    [produtos, precoMedioPorProduto]
-  );
+  // Margem de contribuição = preço médio vendido − custos diretos − (% sobre venda)
+  // Considera apenas produtos efetivamente vendidos no período.
+  const lucrativos = useMemo(() => {
+    return [...produtos]
+      .filter((p: any) => p.ativo)
+      .map((p: any) => {
+        const info = precoMedioPorProduto.get(String(p.bling_produto_id ?? ""));
+        const precoMedio = info?.preco ?? 0;
+        const qtdVendida = info?.qtd ?? 0;
+        const custosDir =
+          Number(p.preco_custo ?? 0) +
+          Number(p.custo_costura ?? 0) +
+          Number(p.custo_corte ?? 0) +
+          Number(p.custo_embalagem ?? 0) +
+          Number(p.custo_frete ?? 0) +
+          Number(p.custo_marketing ?? 0);
+        const pctSobreVenda =
+          (Number(p.imposto_percentual ?? 0) +
+            Number(p.comissao_percentual ?? 0) +
+            Number(p.cupom_percentual ?? 0) +
+            Number(p.parcelamento_percentual ?? 0) +
+            Number(p.chargeback_percentual ?? 0) +
+            Number(p.cac_percentual ?? 0) +
+            Number(p.conteudo_percentual ?? 0) +
+            Number(p.overhead_percentual ?? 0) +
+            Number(p.devolucao_percentual ?? 0)) / 100;
+        const custosVar = precoMedio * pctSobreVenda;
+        const mcUnit = precoMedio - custosDir - custosVar;
+        const mcPct = precoMedio > 0 ? (mcUnit / precoMedio) * 100 : 0;
+        return { ...p, preco_venda_medio: precoMedio, qtd_vendida: qtdVendida, mc_unit: mcUnit, mc_pct: mcPct };
+      })
+      .filter((p: any) => p.qtd_vendida > 0)
+      .sort((a: any, b: any) => b.mc_pct - a.mc_pct)
+      .slice(0, 10);
+  }, [produtos, precoMedioPorProduto]);
 
   // ===== sugestões de produção =====
   const sugestoes = useMemo(() => {
