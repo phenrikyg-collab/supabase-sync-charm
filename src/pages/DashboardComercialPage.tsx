@@ -518,50 +518,58 @@ Seja direto e específico. Use valores reais dos dados. Responda em português.`
         </Card>
       </div>
 
-      {/* SEÇÃO 3.5 — Vendas do mês atual (vw_vendas_mes_atual) */}
+      {/* SEÇÃO 3.5 — Detalhamento por canal */}
       <Card>
         <CardHeader>
           <CardTitle className="text-lg font-serif flex items-center gap-2">
-            <ShoppingCart className="h-5 w-5" />
-            Vendas do mês atual
-            <Badge variant="secondary" className="ml-2 font-normal">
-              {fmtNum(vendasMesAtual.length)} pedidos · {fmtBRL(vendasMesAtual.reduce((a, b) => a + Number(b.total ?? 0), 0))}
-            </Badge>
+            <Package className="h-5 w-5" />
+            Detalhamento por canal
+            <Badge variant="secondary" className="ml-2 font-normal">{canaisDetalhe.length} canais</Badge>
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="max-h-[420px] overflow-y-auto">
-            <Table>
-              <TableHeader className="sticky top-0 bg-background">
-                <TableRow>
-                  <TableHead>Data</TableHead>
-                  <TableHead>Pedido</TableHead>
-                  <TableHead>Cliente</TableHead>
-                  <TableHead>Pagamento</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="text-right">Frete</TableHead>
-                  <TableHead className="text-right">Desconto</TableHead>
-                  <TableHead className="text-right">Total</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {vendasMesAtual.length === 0 ? (
-                  <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground py-6">Sem vendas no mês</TableCell></TableRow>
-                ) : vendasMesAtual.map((v) => (
-                  <TableRow key={v.id}>
-                    <TableCell className="whitespace-nowrap">{v.date ? format(parseISO(v.date), "dd/MM/yyyy") : "—"}</TableCell>
-                    <TableCell className="font-mono text-xs">#{v.id}</TableCell>
-                    <TableCell className="max-w-[200px] truncate">{v.customer_name ?? "—"}</TableCell>
-                    <TableCell>{v.payment_form ?? "—"}</TableCell>
-                    <TableCell><Badge variant="outline" className="font-normal">{v.orderstatus_status ?? v.orderstatus_type ?? "—"}</Badge></TableCell>
-                    <TableCell className="text-right">{fmtBRL(v.shipment_value)}</TableCell>
-                    <TableCell className="text-right text-danger">{Number(v.discount ?? 0) > 0 ? `−${fmtBRL(v.discount)}` : "—"}</TableCell>
-                    <TableCell className="text-right font-semibold">{fmtBRL(v.total)}</TableCell>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Canal</TableHead>
+                <TableHead className="text-right">Pedidos</TableHead>
+                <TableHead className="text-right">Faturamento</TableHead>
+                <TableHead className="text-right">Ticket Médio</TableHead>
+                <TableHead className="text-right">Desconto</TableHead>
+                <TableHead className="text-right">% Desc.</TableHead>
+                <TableHead className="text-right">Participação</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {canaisDetalhe.length === 0 ? (
+                <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-6">Sem vendas no período</TableCell></TableRow>
+              ) : canaisDetalhe.map((c, i) => {
+                const totFat = canaisDetalhe.reduce((a, b) => a + b.faturamento, 0);
+                const part = totFat > 0 ? (c.faturamento / totFat) * 100 : 0;
+                return (
+                  <TableRow key={c.nome}>
+                    <TableCell className="font-medium flex items-center gap-2">
+                      <span className="inline-block h-2.5 w-2.5 rounded-full" style={{ background: CHANNEL_COLORS[i % CHANNEL_COLORS.length] }} />
+                      {c.nome}
+                    </TableCell>
+                    <TableCell className="text-right">{fmtNum(c.pedidos)}</TableCell>
+                    <TableCell className="text-right font-semibold">{fmtBRL(c.faturamento)}</TableCell>
+                    <TableCell className="text-right">{fmtBRL(c.ticketMedio)}</TableCell>
+                    <TableCell className="text-right text-danger">{c.desconto > 0 ? `−${fmtBRL(c.desconto)}` : "—"}</TableCell>
+                    <TableCell className="text-right text-muted-foreground">{fmtPct(c.descontoPct)}</TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex items-center justify-end gap-2">
+                        <span className="text-xs text-muted-foreground w-12 text-right">{fmtPct(part)}</span>
+                        <div className="w-20 h-1.5 rounded-full bg-muted overflow-hidden">
+                          <div className="h-full rounded-full" style={{ width: `${Math.min(part, 100)}%`, background: CHANNEL_COLORS[i % CHANNEL_COLORS.length] }} />
+                        </div>
+                      </div>
+                    </TableCell>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
+                );
+              })}
+            </TableBody>
+          </Table>
         </CardContent>
       </Card>
 
