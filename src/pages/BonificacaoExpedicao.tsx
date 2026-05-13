@@ -186,68 +186,103 @@ function DashboardTab({ mes }: { mes: string }) {
         </div>
       </Card>
 
-      {/* Lista pedidos */}
-      <Card className="p-0 overflow-hidden">
-        <div className="px-6 py-4 border-b">
-          <h3 className="font-serif text-lg">Pedidos do mês ({ap.pedidos.length})</h3>
-        </div>
-        <div className="max-h-[520px] overflow-auto">
-          <Table>
-            <TableHeader className="sticky top-0 bg-background">
-              <TableRow>
-                <TableHead>Pedido</TableHead>
-                <TableHead>Data</TableHead>
-                <TableHead>Prazo Bling</TableHead>
-                <TableHead>Envio</TableHead>
-                <TableHead>Rastreio</TableHead>
-                <TableHead>Status</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {ap.pedidos.slice(0, 500).map((p) => {
-                const status = !p.shipment_date
-                  ? "pendente"
-                  : p.estimated_delivery_date && p.shipment_date <= p.estimated_delivery_date
-                  ? "no_prazo"
-                  : "atrasado";
-                return (
-                  <TableRow key={String(p.id)}>
-                    <TableCell className="font-mono text-xs">{String(p.id)}</TableCell>
-                    <TableCell>{fmtData(p.date)}</TableCell>
-                    <TableCell>{fmtData(p.estimated_delivery_date)}</TableCell>
-                    <TableCell>{fmtData(p.shipment_date)}</TableCell>
-                    <TableCell className="font-mono text-xs">
-                      {p.sending_code ?? "—"}
-                    </TableCell>
-                    <TableCell>
-                      {status === "no_prazo" && (
-                        <Badge className="bg-emerald-100 text-emerald-800 border border-emerald-200">
-                          No prazo
-                        </Badge>
-                      )}
-                      {status === "atrasado" && (
-                        <Badge className="bg-rose-100 text-rose-800 border border-rose-200">
-                          Atrasado
-                        </Badge>
-                      )}
-                      {status === "pendente" && (
-                        <Badge className="bg-amber-100 text-amber-800 border border-amber-200">
-                          Pendente
-                        </Badge>
-                      )}
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
-          {ap.pedidos.length > 500 && (
-            <div className="px-6 py-3 text-xs text-muted-foreground">
-              Mostrando os 500 primeiros pedidos. KPIs consideram todos os {ap.pedidos.length}.
+      {/* Lista pedidos em aberto (a expedir) */}
+      {(() => {
+        const HOJE = format(new Date(), "yyyy-MM-dd");
+        const EXCLUIR = new Set([
+          "sent", "shipped", "enviado",
+          "completed", "finished", "finalizado", "concluido", "concluído",
+          "canceled", "cancelled", "cancelado",
+          "refunded", "estornado",
+          "waiting_payment", "aguardando_pagamento", "aguardando pagamento",
+          "pending_payment",
+        ]);
+        const abertos = ap.pedidos
+          .filter((p) => !p.shipment_date)
+          .filter((p) => {
+            const s = (p.orderstatus_status ?? "").toLowerCase().trim();
+            const t = (p.orderstatus_type ?? "").toLowerCase().trim();
+            return !EXCLUIR.has(s) && !EXCLUIR.has(t);
+          })
+          .sort((a, b) => {
+            // mais crítico primeiro: prazo mais antigo no topo
+            const da = a.estimated_delivery_date ?? "9999-12-31";
+            const db_ = b.estimated_delivery_date ?? "9999-12-31";
+            return da.localeCompare(db_);
+          });
+
+        return (
+          <Card className="p-0 overflow-hidden">
+            <div className="px-6 py-4 border-b">
+              <h3 className="font-serif text-lg">
+                Pedidos em aberto a expedir ({abertos.length})
+              </h3>
+              <p className="text-xs text-muted-foreground mt-1">
+                Apenas pedidos pendentes de envio. Ordenados do mais crítico (prazo mais antigo) para o mais recente.
+              </p>
             </div>
-          )}
-        </div>
-      </Card>
+            <div className="max-h-[520px] overflow-auto">
+              <Table>
+                <TableHeader className="sticky top-0 bg-background">
+                  <TableRow>
+                    <TableHead>Pedido</TableHead>
+                    <TableHead>Data</TableHead>
+                    <TableHead>Prazo Bling</TableHead>
+                    <TableHead>Status interno</TableHead>
+                    <TableHead>Situação</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {abertos.length === 0 && (
+                    <TableRow>
+                      <TableCell colSpan={5} className="text-center text-muted-foreground py-10">
+                        Nenhum pedido em aberto neste mês.
+                      </TableCell>
+                    </TableRow>
+                  )}
+                  {abertos.slice(0, 500).map((p) => {
+                    const prazo = p.estimated_delivery_date ?? "";
+                    const atrasado = prazo && prazo < HOJE;
+                    const hoje = prazo === HOJE;
+                    return (
+                      <TableRow key={String(p.id)}>
+                        <TableCell className="font-mono text-xs">{String(p.id)}</TableCell>
+                        <TableCell>{fmtData(p.date)}</TableCell>
+                        <TableCell className={atrasado ? "text-rose-700 font-medium" : ""}>
+                          {fmtData(p.estimated_delivery_date)}
+                        </TableCell>
+                        <TableCell className="text-xs text-muted-foreground">
+                          {p.orderstatus_status ?? "—"}
+                        </TableCell>
+                        <TableCell>
+                          {atrasado ? (
+                            <Badge className="bg-rose-100 text-rose-800 border border-rose-200">
+                              Atrasado
+                            </Badge>
+                          ) : hoje ? (
+                            <Badge className="bg-amber-100 text-amber-800 border border-amber-200">
+                              Vence hoje
+                            </Badge>
+                          ) : (
+                            <Badge className="bg-emerald-100 text-emerald-800 border border-emerald-200">
+                              No prazo
+                            </Badge>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+              {abertos.length > 500 && (
+                <div className="px-6 py-3 text-xs text-muted-foreground">
+                  Mostrando os 500 primeiros. Total em aberto: {abertos.length}.
+                </div>
+              )}
+            </div>
+          </Card>
+        );
+      })()}
     </div>
   );
 }
