@@ -1,88 +1,80 @@
+## Módulo de Bonificação — Consultoras WhatsApp
 
-
-## Plano de Correção Completa — Fluxo de Cartão de Crédito
-
-### Diagnóstico dos Problemas Encontrados
-
-Após auditoria completa do código, identifiquei **7 problemas críticos**:
-
-1. **Duas rotas de importação divergentes** — `/importar` (ImportarPage + ImportacaoLancamentos + RevisaoLancamentos) e `/importar-extrato` (ImportarExtrato). A rota do menu lateral (`/importar`) **não tem suporte a cartão de crédito** — salva tudo com `status_pagamento: "pago"`, sem `conta_tipo`, sem `fatura_id`, sem flags DRE/fluxo.
-
-2. **RevisaoLancamentos.tsx** salva todos os registros com `status_pagamento: "pago"` e `origem: "importacao"` — **sem nenhum tratamento de cartão**.
-
-3. **DashboardFinanceiro.tsx** busca cartão com `origem === "cartao_credito"` (linha 102), mas a importação salva como `origem: "extrato_cartao"` — **nunca exibe o valor de cartão**.
-
-4. **ContasPagar.tsx** verifica `origem === "cartao_credito"` para badge (linha 873) — **nunca mostra o indicador visual**.
-
-5. **ImportarExtrato.tsx** (`/importar-extrato`) tem a lógica de cartão correta, mas **não está vinculada ao menu lateral** — o menu aponta para `/importar`.
-
-6. **Trigger `trg_atualizar_saldo_fatura` existe na migration mas não aparece em db-triggers** — precisa ser verificado se está ativo.
-
-7. **Nenhuma validação pós-importação** garante que todas as movimentações de cartão tenham `fatura_id` preenchido.
+Novo módulo dentro do ERP para calcular e acompanhar bônus mensais das consultoras de vendas via WhatsApp, com regras configuráveis e dashboard premium.
 
 ---
 
-### Plano de Implementação
+### 1. Backend (Supabase — instância externa `ezdtulcrqzmgocamjwwl`)
 
-#### 1. Unificar rota de importação no menu
+Novas tabelas:
 
-**Arquivo:** `src/components/AppSidebar.tsx`
-- Alterar a URL de "Importar Extrato" de `/importar` para `/importar-extrato`
+- **`consultoras_whatsapp`** — cadastro das consultoras
+  - `nome`, `apelido_canal` (identificador usado nas vendas para reconciliar pedidos), `telefone`, `ativa`, `meta_individual` (numeric, opcional)
 
-**Arquivo:** `src/App.tsx`
-- Manter ambas as rotas funcionando, mas o menu apontará para `/importar-extrato`
+- **`metas_whatsapp`** — meta mensal do canal
+  - `mes_referencia` (text "YYYY-MM"), `meta_total` (numeric), `modo_distribuicao` ('individual' | 'proporcional'), `created_at`
 
-#### 2. Adicionar modo Cartão na rota `/importar` (ImportacaoLancamentos + RevisaoLancamentos)
+- **`metas_whatsapp_consultoras`** — meta individual por consultora/mês (quando modo = individual)
+  - `mes_referencia`, `consultora_id`, `meta_valor`
 
-**Arquivo:** `src/components/ImportacaoLancamentos.tsx`
-- Adicionar toggle "Cartão de Crédito" com campos obrigatórios: nome do cartão e vencimento da fatura
-- Passar esses dados junto com os lançamentos para o componente pai
+- **`config_bonificacao_whatsapp`** — regras configuráveis (uma linha "ativa" + histórico)
+  - `faixas_meta` (jsonb): `[{min_pct, max_pct, bonus_base, label}]`
+  - `regras_desconto` (jsonb): `[{max_pct, multiplicador}]`
+  - `faixas_ticket` (jsonb): `[{min_valor, acelerador}]`
+  - `ativo` (bool), `vigencia_inicio` (date)
 
-**Arquivo:** `src/pages/ImportarPage.tsx`
-- Propagar dados de cartão (cartaoNome, faturaVencimento) entre ImportacaoLancamentos e RevisaoLancamentos
+- **`bonus_whatsapp_apurados`** — snapshot mensal calculado e congelado para histórico de pagamento
+  - `mes_referencia`, `consultora_id`, `faturamento_liquido`, `meta`, `pct_atingimento`, `ticket_medio`, `desconto_medio_pct`, `qtd_pedidos`, `bonus_base`, `multiplicador_desconto`, `acelerador_ticket`, `bonus_final`, `status` ('projetado'|'aprovado'|'pago'), `data_pagamento`
 
-**Arquivo:** `src/components/RevisaoLancamentos.tsx`
-- Receber dados de cartão como props opcionais
-- Se for cartão: ao salvar, criar/localizar fatura em `cartoes_faturas` antes de inserir
-- Definir corretamente para cada movimentação:
-  - `conta_tipo = 'cartao_fatura'`
-  - `fatura_id = ID da fatura`
-  - `impacta_dre = true`
-  - `impacta_fluxo = false`
-  - `status_pagamento = 'em_aberto'`
-  - `tipo = 'saida'`
-- Buscar/criar categoria padrão "não classificadas" como fallback para itens sem `categoria_id`
+Seed inicial em `config_bonificacao_whatsapp` com as faixas do briefing.
 
-#### 3. Corrigir filtros de detecção de cartão em outras telas
-
-**Arquivo:** `src/pages/DashboardFinanceiro.tsx`
-- Linha 102: trocar `origem === "cartao_credito"` por `conta_tipo === "cartao_fatura"` para detectar corretamente o valor de cartão no mês
-
-**Arquivo:** `src/pages/ContasPagar.tsx`
-- Linha 873: trocar `origem === "cartao_credito"` por `conta_tipo === "cartao_fatura"` para o badge visual
-
-#### 4. Garantir trigger ativo no banco
-
-**Migration SQL:**
-- Criar migration que faz `CREATE TRIGGER IF NOT EXISTS` (ou `DROP TRIGGER IF EXISTS` + `CREATE TRIGGER`) para garantir que `trg_atualizar_saldo_fatura` está ativo na tabela `movimentacoes_financeiras`
-
-#### 5. Manter compatibilidade
-
-- Importações antigas (sem cartão) continuam funcionando normalmente — `impacta_dre = true` e `impacta_fluxo = true` são os defaults da coluna
-- A rota `/importar-extrato` permanece funcional como alternativa
-- Nenhuma alteração em triggers existentes, DRE, ou fluxo de pagamento de fatura
+Reconciliação de pedidos → consultora: usa `tray_orders` filtrando canal WhatsApp (campo de canal/origem existente) + um identificador da consultora (provavelmente um campo de vendedor/observação). **Ponto a confirmar com o usuário** — ver perguntas abaixo.
 
 ---
 
-### Resumo das alterações por arquivo
+### 2. Frontend
 
-| Arquivo | Alteração |
-|---------|-----------|
-| `AppSidebar.tsx` | Menu → `/importar-extrato` |
-| `ImportacaoLancamentos.tsx` | Adicionar modo cartão (nome + vencimento) |
-| `ImportarPage.tsx` | Propagar dados cartão entre etapas |
-| `RevisaoLancamentos.tsx` | Criar fatura + flags corretas ao salvar cartão |
-| `DashboardFinanceiro.tsx` | Fix filtro cartão: `conta_tipo` em vez de `origem` |
-| `ContasPagar.tsx` | Fix badge cartão: `conta_tipo` em vez de `origem` |
-| Migration SQL | Garantir trigger ativo |
+Nova rota **`/bonificacao-whatsapp`** com 4 abas:
 
+1. **Dashboard** — cards (Faturamento canal, Meta, % Atingimento, Ticket médio, Desconto médio, Bônus projetado total), ranking de consultoras (tabela com barra de progresso colorida: vermelho <95%, amarelo 95-109%, verde 110-119%, roxo/dourado ≥120%), gráfico mensal de evolução, comparativo entre consultoras.
+2. **Apuração mensal** — seletor de mês, tabela detalhada por consultora com todos os componentes do cálculo (meta, realizado, %, ticket, desconto, bônus base, multiplicador, acelerador, total), botões "Aprovar" / "Marcar como pago", export Excel/PDF.
+3. **Histórico** — pagamentos anteriores (`bonus_whatsapp_apurados` com status pago).
+4. **Configurações** — CRUD de consultoras, meta mensal (com toggle individual/proporcional), faixas de bônus, regras de desconto, faixas de ticket.
+
+Componentes/arquivos novos:
+- `src/pages/BonificacaoWhatsAppPage.tsx`
+- `src/components/bonificacao-whatsapp/{Dashboard,Apuracao,Historico,Config}Tab.tsx`
+- `src/lib/bonificacaoWhatsApp.ts` — função pura `calcularBonus(faturamento, meta, ticket, descontoMedio, config)` aplicando exatamente a fórmula: `(bonus_base × multiplicador_desconto) + acelerador_ticket`, considerando apenas a maior faixa de ticket.
+- Hook `useBonificacaoWhatsApp(mes)` — busca pedidos faturados/pagos do canal WhatsApp do mês (excluindo cancelados/devolvidos/estornados), agrupa por consultora, calcula em tempo real.
+
+Estilo: usa o design system existente (Cormorant Garamond + DM Sans, dourado/bronze), mesmos padrões visuais do `DashboardComercialPage`.
+
+Menu lateral: adicionar item "Bonificação WhatsApp" próximo ao Dashboard Comercial.
+
+---
+
+### 3. Cálculo (resumo da lógica)
+
+```
+pedidos_validos = tray_orders WHERE canal = 'whatsapp'
+                                AND status IN ('faturado','pago')
+                                AND mes = mes_ref
+                                AND consultora_id = X
+faturamento_liquido = SUM(valor_liquido dos pedidos válidos)
+qtd_pedidos        = COUNT(pedidos válidos)
+ticket_medio       = faturamento_liquido / qtd_pedidos
+desconto_medio_pct = SUM(desconto) / SUM(valor_bruto) × 100
+pct_atingimento    = faturamento_liquido / meta × 100
+bonus_base         = faixa correspondente em config.faixas_meta
+multiplicador      = faixa correspondente em config.regras_desconto
+acelerador         = MAIOR faixa de ticket atingida
+bonus_final        = (bonus_base × multiplicador) + acelerador
+```
+
+---
+
+### 4. Perguntas que preciso responder antes de codar
+
+1. **Como identificar a consultora em cada pedido do canal WhatsApp?** Existe um campo em `tray_orders` (vendedor, observação, tag) que liga o pedido à consultora, ou precisamos criar uma tabela de mapeamento manual / regra por código de cupom?
+2. **Qual é exatamente o filtro de canal "WhatsApp"** nos pedidos hoje (campo + valor)?
+3. Quer que eu já crie o item de menu na sidebar e considere acesso liberado para todos os usuários autenticados, ou amarrado a `user_modules` específico?
