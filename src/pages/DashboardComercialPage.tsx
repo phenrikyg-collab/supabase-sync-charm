@@ -647,7 +647,7 @@ Seja direto e específico. Use valores reais dos dados. Responda em português.`
               <TableBody>
                 {topProdutos.length === 0 ? (
                   <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-6">Sem dados</TableCell></TableRow>
-                ) : topProdutos.map((p, i) => {
+                ) : topProdutos.slice(0, 10).map((p, i) => {
                   const status = p.estoque < 5 ? { l: "Crítico", c: "bg-danger/15 text-danger" } : p.estoque <= 20 ? { l: "Baixo", c: "bg-warning/15 text-warning" } : { l: "OK", c: "bg-success/15 text-success" };
                   return (
                     <TableRow key={i}>
