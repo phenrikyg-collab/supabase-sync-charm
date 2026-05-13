@@ -280,13 +280,26 @@ export default function DashboardComercialPage() {
   // ===== top produtos (tray_productssold filtrado pelo período) =====
   const topProdutos = useMemo(() => {
     const orderIds = new Set(noPeriodo.map((p) => String(p.id)));
+    const descontoPorPedido = new Map(noPeriodo.map((p) => [String(p.id), descontoTotal(p)]));
+    const brutoPorPedido = new Map<string, number>();
+
+    for (const s of productssold) {
+      if (!s.order_id || !orderIds.has(String(s.order_id))) continue;
+      const orderId = String(s.order_id);
+      brutoPorPedido.set(orderId, (brutoPorPedido.get(orderId) ?? 0) + Number(s.price ?? 0) * Number(s.quantity ?? 0));
+    }
+
     const byProduct = new Map<string, { nome: string; vendido: number; receita: number; custoTotal: number; product_id: string; reference: string }>();
     for (const s of productssold) {
       if (!s.order_id || !orderIds.has(String(s.order_id))) continue;
       const k = String(s.product_id ?? "");
       if (!k) continue;
+      const orderId = String(s.order_id);
       const qtd = Number(s.quantity ?? 0);
-      const receita = Number(s.price ?? 0) * qtd;
+      const receitaBrutaItem = Number(s.price ?? 0) * qtd;
+      const brutoPedido = brutoPorPedido.get(orderId) ?? 0;
+      const descontoRateado = brutoPedido > 0 ? (descontoPorPedido.get(orderId) ?? 0) * (receitaBrutaItem / brutoPedido) : 0;
+      const receita = Math.max(receitaBrutaItem - descontoRateado, 0);
       const custo = Number(s.cost_price ?? 0) * qtd;
       const nome = (s.model || s.name?.split("<br>")[0] || s.reference || `#${k}`).trim();
       const ref = (s.reference ?? "").trim();
