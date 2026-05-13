@@ -173,6 +173,51 @@ export default function DashboardComercialPage() {
       }>("tray_productssold", (q) => q),
   });
 
+  // ===== fetch vendas novo vs recorrente (view) =====
+  const { data: vendasTipo = [] } = useQuery({
+    queryKey: ["dash-comercial-novo-recorrente", dataInicio.toISOString(), dataFim.toISOString()],
+    queryFn: async () =>
+      fetchAll<{ id: number; date: string | null; total: number | null; tipo_cliente: string | null }>(
+        "vw_vendas_novo_recorrente",
+        (q) =>
+          q.gte("date", format(dataInicio, "yyyy-MM-dd"))
+           .lte("date", format(dataFim, "yyyy-MM-dd"))
+      ),
+  });
+
+  const novoRecorrente = useMemo(() => {
+    const acc = { novo: { pedidos: 0, receita: 0 }, recorrente: { pedidos: 0, receita: 0 } };
+    for (const v of vendasTipo) {
+      const tipo = v.tipo_cliente === "novo" ? "novo" : v.tipo_cliente === "recorrente" ? "recorrente" : null;
+      if (!tipo) continue;
+      acc[tipo].pedidos += 1;
+      acc[tipo].receita += Number(v.total ?? 0);
+    }
+    const totalReceita = acc.novo.receita + acc.recorrente.receita;
+    const totalPedidosNR = acc.novo.pedidos + acc.recorrente.pedidos;
+    const novo = {
+      ...acc.novo,
+      ticket: acc.novo.pedidos > 0 ? acc.novo.receita / acc.novo.pedidos : 0,
+      pct: totalReceita > 0 ? (acc.novo.receita / totalReceita) * 100 : 0,
+    };
+    const recorrente = {
+      ...acc.recorrente,
+      ticket: acc.recorrente.pedidos > 0 ? acc.recorrente.receita / acc.recorrente.pedidos : 0,
+      pct: totalReceita > 0 ? (acc.recorrente.receita / totalReceita) * 100 : 0,
+    };
+    let insight = "";
+    if (recorrente.pct >= 60) {
+      insight = `✅ Base sólida de clientes fiéis — ${fmtPct(recorrente.pct)} da receita vem de recorrentes`;
+    } else if (novo.pct > 50) {
+      insight = `🆕 Alto volume de aquisição — ${fmtPct(novo.pct)} da receita vem de clientes novos`;
+    } else if (novo.ticket > recorrente.ticket && novo.ticket > 0) {
+      insight = `💡 Clientes novos têm ticket médio maior (${fmtBRL(novo.ticket)} vs ${fmtBRL(recorrente.ticket)})`;
+    } else if (recorrente.ticket > novo.ticket && recorrente.ticket > 0) {
+      insight = `💡 Clientes recorrentes compram mais (${fmtBRL(recorrente.ticket)} vs ${fmtBRL(novo.ticket)})`;
+    }
+    return { novo, recorrente, totalReceita, totalPedidosNR, insight };
+  }, [vendasTipo]);
+
   const { data: metas = [] } = useMetasFinanceiras();
   const { data: produtos = [] } = useProdutos();
 
@@ -647,7 +692,85 @@ Seja direto e específico. Use valores reais dos dados. Responda em português.`
         </CardContent>
       </Card>
 
-      {/* SEÇÃO 4 — tabelas */}
+      {/* SEÇÃO 3.6 — Clientes Novos vs Recorrentes */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg font-serif flex items-center gap-2">
+            <Sparkles className="h-5 w-5" />
+            Clientes Novos vs Recorrentes
+            <Badge variant="secondary" className="ml-2 font-normal">{fmtNum(novoRecorrente.totalPedidosNR)} pedidos</Badge>
+          </CardTitle>
+          <p className="text-xs text-muted-foreground">Comparativo de receita, pedidos e ticket médio no período</p>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+            {/* Cards lado a lado */}
+            <div className="lg:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="rounded-lg border border-primary/30 bg-primary/5 p-4">
+                <div className="flex items-center gap-2 mb-3">
+                  <span className="text-xl">🆕</span>
+                  <h3 className="font-semibold text-foreground uppercase text-xs tracking-wide">Clientes Novos</h3>
+                </div>
+                <div className="space-y-1.5">
+                  <div className="flex justify-between text-sm"><span className="text-muted-foreground">Receita</span><span className="font-serif font-bold text-lg text-foreground">{fmtBRL(novoRecorrente.novo.receita)}</span></div>
+                  <div className="flex justify-between text-sm"><span className="text-muted-foreground">% da receita total</span><span className="font-semibold text-primary">{fmtPct(novoRecorrente.novo.pct)}</span></div>
+                  <div className="flex justify-between text-sm"><span className="text-muted-foreground">Pedidos</span><span className="font-medium text-foreground">{fmtNum(novoRecorrente.novo.pedidos)}</span></div>
+                  <div className="flex justify-between text-sm"><span className="text-muted-foreground">Ticket médio</span><span className="font-medium text-foreground">{fmtBRL(novoRecorrente.novo.ticket)}</span></div>
+                </div>
+              </div>
+              <div className="rounded-lg border border-success/30 bg-success/5 p-4">
+                <div className="flex items-center gap-2 mb-3">
+                  <span className="text-xl">🔄</span>
+                  <h3 className="font-semibold text-foreground uppercase text-xs tracking-wide">Clientes Recorrentes</h3>
+                </div>
+                <div className="space-y-1.5">
+                  <div className="flex justify-between text-sm"><span className="text-muted-foreground">Receita</span><span className="font-serif font-bold text-lg text-foreground">{fmtBRL(novoRecorrente.recorrente.receita)}</span></div>
+                  <div className="flex justify-between text-sm"><span className="text-muted-foreground">% da receita total</span><span className="font-semibold text-success">{fmtPct(novoRecorrente.recorrente.pct)}</span></div>
+                  <div className="flex justify-between text-sm"><span className="text-muted-foreground">Pedidos</span><span className="font-medium text-foreground">{fmtNum(novoRecorrente.recorrente.pedidos)}</span></div>
+                  <div className="flex justify-between text-sm"><span className="text-muted-foreground">Ticket médio</span><span className="font-medium text-foreground">{fmtBRL(novoRecorrente.recorrente.ticket)}</span></div>
+                </div>
+              </div>
+            </div>
+            {/* Donut */}
+            <div className="h-56">
+              {novoRecorrente.totalReceita === 0 ? (
+                <div className="h-full flex items-center justify-center text-sm text-muted-foreground">Sem vendas no período</div>
+              ) : (
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={[
+                        { nome: "Novos", valor: novoRecorrente.novo.receita, pct: novoRecorrente.novo.pct },
+                        { nome: "Recorrentes", valor: novoRecorrente.recorrente.receita, pct: novoRecorrente.recorrente.pct },
+                      ]}
+                      dataKey="valor"
+                      nameKey="nome"
+                      innerRadius={45}
+                      outerRadius={80}
+                      paddingAngle={2}
+                      stroke="hsl(var(--card))"
+                      strokeWidth={2}
+                    >
+                      <Cell fill="hsl(220, 60%, 50%)" />
+                      <Cell fill="hsl(152, 60%, 40%)" />
+                    </Pie>
+                    <Tooltip
+                      contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 8, fontSize: 12 }}
+                      formatter={(v: any, _n: any, p: any) => [`${fmtBRL(Number(v))} • ${fmtPct(p?.payload?.pct ?? 0)}`, p?.payload?.nome]}
+                    />
+                    <Legend iconType="circle" wrapperStyle={{ fontSize: 11 }} />
+                  </PieChart>
+                </ResponsiveContainer>
+              )}
+            </div>
+          </div>
+          {novoRecorrente.insight && (
+            <div className="mt-4 p-3 rounded-lg bg-muted/40 border border-border text-sm text-foreground">
+              {novoRecorrente.insight}
+            </div>
+          )}
+        </CardContent>
+      </Card>
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <Card>
           <CardHeader><CardTitle className="text-lg font-serif flex items-center gap-2"><Package className="h-5 w-5" /> Produtos mais vendidos</CardTitle></CardHeader>
