@@ -333,14 +333,14 @@ export default function DashboardComercialPage() {
       if (!prod && tp.nome) prod = porNome.get(tp.nome.toUpperCase());
 
       const precoMedio = tp.preco;
-      const custosDir = prod
-        ? Number(prod.preco_custo ?? 0) +
-          Number(prod.custo_costura ?? 0) +
-          Number(prod.custo_corte ?? 0) +
-          Number(prod.custo_embalagem ?? 0) +
-          Number(prod.custo_frete ?? 0) +
-          Number(prod.custo_marketing ?? 0)
-        : 0;
+      const custosDir = Number(tp.custoMedio ?? 0) +
+        (prod
+          ? Number(prod.custo_costura ?? 0) +
+            Number(prod.custo_corte ?? 0) +
+            Number(prod.custo_embalagem ?? 0) +
+            Number(prod.custo_frete ?? 0) +
+            Number(prod.custo_marketing ?? 0)
+          : 0);
       const pctSobreVenda = prod
         ? (Number(prod.imposto_percentual ?? 0) +
             Number(prod.comissao_percentual ?? 0) +
