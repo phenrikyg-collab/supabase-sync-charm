@@ -48,7 +48,7 @@ export default function BonificacaoExpedicao() {
     <div className="p-6 max-w-[1600px] mx-auto space-y-6">
       <div className="flex items-end justify-between gap-6 flex-wrap">
         <div>
-          <h1 className="font-serif text-4xl text-foreground">Bonificação Expedição</h1>
+          <h1 className="font-serif text-4xl text-foreground">Acompanhamento de envios</h1>
           <p className="text-muted-foreground text-sm mt-1">
             Apuração mensal do bônus pelo cumprimento de prazo de envio dos pedidos.
           </p>
