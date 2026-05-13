@@ -308,6 +308,7 @@ export default function DashboardComercialPage() {
         ...p,
         estoque: estoquePor.get(p.product_id) ?? 0,
         preco: p.vendido > 0 ? p.receita / p.vendido : 0,
+        custoMedio: p.vendido > 0 ? p.custoTotal / p.vendido : 0,
       }))
       .sort((a, b) => b.vendido - a.vendido);
   }, [productssold, noPeriodo, variants]);
