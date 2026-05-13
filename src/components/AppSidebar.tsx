@@ -41,6 +41,7 @@ const moduleGroups: ModuleGroup[] = [
     items: [
       { title: "Dashboard Comercial", url: "/dashboard-comercial", icon: LayoutDashboard },
       { title: "Meta Mensal", url: "/metas", icon: Target },
+      { title: "Bonificação WhatsApp", url: "/bonificacao-whatsapp", icon: Trophy },
     ],
   },
   {
