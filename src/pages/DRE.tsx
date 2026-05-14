@@ -1,4 +1,6 @@
 import { useState, useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 import { useMovimentacoesFinanceiras, useCategorias } from "@/hooks/useSupabase";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -6,6 +8,43 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TrendingUp, TrendingDown, AlertTriangle, ChevronDown, ChevronRight, Info, Eye } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+
+// extrai o valor de desconto do cupom no formato "NOME/24.90"
+function parseCupomValor(s: string | null | undefined): number {
+  if (!s) return 0;
+  const parts = String(s).split("/");
+  if (parts.length < 2) return 0;
+  const n = parseFloat(parts[parts.length - 1].replace(",", "."));
+  return isNaN(n) ? 0 : n;
+}
+
+// busca paginada (bypass do limite de 1000 do PostgREST)
+async function fetchAllTray<T = any>(build: (q: any) => any): Promise<T[]> {
+  const acc: T[] = [];
+  let from = 0;
+  const size = 1000;
+  while (true) {
+    const { data, error } = await build(
+      (supabase.from("tray_orders" as any).select("*") as any).range(from, from + size - 1)
+    );
+    if (error) throw error;
+    const rows = (data ?? []) as T[];
+    acc.push(...rows);
+    if (rows.length < size) break;
+    from += size;
+  }
+  return acc;
+}
+
+interface TrayOrderDre {
+  id: number;
+  date: string | null;
+  total: number | null;
+  discount: number | null;
+  discount_coupon: string | null;
+  orderstatus_type: string | null;
+}
+
 
 function formatCurrency(v: number | null | undefined) {
   if (v == null) return "R$ 0,00";
