@@ -163,8 +163,10 @@ function buildDreData(
 
     // Receita de vendas é alimentada exclusivamente por tray_orders
     // (mesma fonte do Dashboard Comercial). Ignoramos movimentações de origem bling
-    // para evitar duplicidade.
-    if (m.origem === "bling") return;
+    // para evitar duplicidade — exceto em março, onde os valores já foram importados
+    // anteriormente via Bling e o tray_orders é ignorado para evitar duplicidade reversa.
+    const mesMov = (m.data ?? "").substring(5, 7);
+    if (m.origem === "bling" && mesMov !== "03") return;
 
     const cat = m.categoria_id ? catMap[m.categoria_id] : null;
     const faixa = cat?.grupoDre || "";
