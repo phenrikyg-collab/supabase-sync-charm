@@ -370,6 +370,27 @@ export const useCreateMeta = () => {
     onSuccess: () => qc.invalidateQueries({ queryKey: ["metas"] }),
   });
 };
+export const useUpdateMeta = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, ...updates }: Partial<MetaFinanceira> & { id: number | string }) => {
+      const { data, error } = await supabase.from("metas_financeiras").update(updates).eq("id", id).select().single();
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["metas"] }),
+  });
+};
+export const useDeleteMeta = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: number | string) => {
+      const { error } = await supabase.from("metas_financeiras").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["metas"] }),
+  });
+};
 
 // Expedição
 export const useExpedicao = () =>
