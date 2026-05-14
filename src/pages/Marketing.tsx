@@ -67,6 +67,7 @@ export default function Marketing() {
   const [aquisicao, setAquisicao] = useState<any[]>([]);
   const [produtos, setProdutos] = useState<any[]>([]);
   const [funil, setFunil] = useState<any[]>([]);
+  const [paginas, setPaginas] = useState<any[]>([]);
 
   useEffect(() => {
     const { inicio, fim } = getDateRange(periodo);
@@ -79,12 +80,14 @@ export default function Marketing() {
       supabase.from("ga4_aquisicao_canais").select("*").gte("event_date", inicio).lte("event_date", fim),
       supabase.from("ga4_produtos_ecommerce").select("*").gte("event_date", inicio).lte("event_date", fim),
       supabase.from("ga4_funil_compra").select("*").gte("event_date", inicio).lte("event_date", fim),
+      supabase.from("ga4_sessoes_paginas").select("pagina, titulo, sessoes").gte("event_date", inicio).lte("event_date", fim),
     ])
-      .then(([a, p, f]) => {
-        console.log("Resultados:", { aquisicao: a.data?.length, produtos: p.data?.length, funil: f.data?.length });
+      .then(([a, p, f, pg]) => {
+        console.log("Resultados:", { aquisicao: a.data?.length, produtos: p.data?.length, funil: f.data?.length, paginas: pg.data?.length });
         setAquisicao(a.data || []);
         setProdutos(p.data || []);
         setFunil(f.data || []);
+        setPaginas(pg.data || []);
       })
       .finally(() => setLoading(false));
   }, [periodo]);
