@@ -428,6 +428,60 @@ export default function Marketing() {
             </CardContent>
           </Card>
         </TabsContent>
+
+        {/* ===== PÁGINAS ===== */}
+        <TabsContent value="paginas" className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <StatCard title="Total de Sessões" value={fmtInt(paginasTotalSessoes)} icon={MousePointerClick} variant="primary" />
+            <StatCard title="Páginas únicas" value={fmtInt(paginasAgg.length)} icon={Megaphone} />
+          </div>
+
+          <Card>
+            <CardHeader><CardTitle className="text-lg">Top 10 páginas por sessões</CardTitle></CardHeader>
+            <CardContent>
+              <ResponsiveContainer width="100%" height={350}>
+                <BarChart data={paginasAgg.slice(0, 10)} layout="vertical" margin={{ left: 30 }}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis type="number" />
+                  <YAxis dataKey="pagina" type="category" width={220} tick={{ fontSize: 11 }} />
+                  <Tooltip formatter={(v: any) => fmtInt(v)} />
+                  <Bar dataKey="sessoes" fill="hsl(var(--primary))" />
+                </BarChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader><CardTitle className="text-lg">Detalhamento por página</CardTitle></CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Página</TableHead>
+                    <TableHead>Título</TableHead>
+                    <TableHead className="text-right">Sessões</TableHead>
+                    <TableHead className="text-right">% do Total</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {paginasAgg.map((r) => (
+                    <TableRow key={r.pagina}>
+                      <TableCell className="font-mono text-xs max-w-[320px] truncate">{r.pagina}</TableCell>
+                      <TableCell className="max-w-[320px] truncate">{r.titulo}</TableCell>
+                      <TableCell className="text-right">{fmtInt(r.sessoes)}</TableCell>
+                      <TableCell className="text-right">
+                        {fmtPct(paginasTotalSessoes > 0 ? (r.sessoes / paginasTotalSessoes) * 100 : 0)}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                  {!paginasAgg.length && (
+                    <TableRow><TableCell colSpan={4} className="text-center text-muted-foreground">Sem dados no período</TableCell></TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        </TabsContent>
       </Tabs>
     </div>
   );
