@@ -86,31 +86,52 @@ export function useApurarExpedicao(mesRef: string) {
         q
           .gte("date", di)
           .lte("date", df)
-          .neq("orderstatus_type", "canceled")
           .not("estimated_delivery_date", "is", null)
       );
     },
   });
 
   return useMemo(() => {
-    const pedidos = pedidosQuery.data ?? [];
+    const todos = pedidosQuery.data ?? [];
+    const HOJE = format(new Date(), "yyyy-MM-dd");
+
+    // Excluir do cálculo: cancelados, cancelados automaticamente,
+    // aguardando pagamento e estornados. Demais (em aberto e finalizados) entram.
+    const EXCLUIR = new Set([
+      "canceled", "cancelled", "cancelado",
+      "canceled_auto", "cancelled_auto", "cancelado_auto", "cancelado automatico",
+      "refunded", "estornado",
+      "waiting_payment", "aguardando_pagamento", "aguardando pagamento",
+      "pending_payment",
+    ]);
+    const isExcluido = (p: TrayOrderExp) => {
+      const s = (p.orderstatus_status ?? "").toLowerCase().trim();
+      const t = (p.orderstatus_type ?? "").toLowerCase().trim();
+      return EXCLUIR.has(s) || EXCLUIR.has(t);
+    };
+
+    const pedidos = todos.filter((p) => !isExcluido(p));
+
     let no_prazo = 0;
     let atrasados = 0;
     let pendentes = 0;
 
     for (const p of pedidos) {
-      if (!p.shipment_date) {
-        pendentes += 1;
-      } else if (p.estimated_delivery_date && p.shipment_date <= p.estimated_delivery_date) {
-        no_prazo += 1;
+      const prazo = p.estimated_delivery_date ?? null;
+      if (p.shipment_date) {
+        // Já enviado: avalia contra o prazo
+        if (prazo && p.shipment_date <= prazo) no_prazo += 1;
+        else atrasados += 1;
       } else {
-        atrasados += 1;
+        // Ainda não enviado: se o prazo já passou, conta como atrasado
+        if (prazo && prazo < HOJE) atrasados += 1;
+        else pendentes += 1;
       }
     }
 
     const total = pedidos.length;
-    const enviados = no_prazo + atrasados;
-    const percentual_prazo = enviados > 0 ? (no_prazo / enviados) * 100 : 0;
+    // Base = todos os pedidos válidos do mês (no prazo + atrasados + pendentes ainda dentro do prazo)
+    const percentual_prazo = total > 0 ? (no_prazo / total) * 100 : 0;
 
     const faixa =
       faixas.find(
