@@ -91,11 +91,12 @@ const moduleGroups: ModuleGroup[] = [
     ],
   },
   {
-    key: "comercial",
+    key: "marketing",
     label: "Marketing",
     icon: Megaphone,
     items: [
       { title: "Dashboard GA4", url: "/marketing", icon: BarChart3 },
+      { title: "Conteúdo & CRM", url: "/conteudo", icon: CalendarDays },
     ],
   },
 ];
@@ -110,7 +111,7 @@ export function AppSidebar() {
 
   const visibleGroups = isAdmin
     ? moduleGroups
-    : moduleGroups.filter((g) => modules.includes(g.key));
+    : moduleGroups.filter((g) => g.key === "marketing" || modules.includes(g.key));
 
   return (
     <Sidebar collapsible="icon">
@@ -136,28 +137,7 @@ export function AppSidebar() {
 
         {/* Module Groups */}
         <div className="flex-1 overflow-y-auto space-y-1">
-          {/* Conteúdo & CRM - topo */}
-          <SidebarGroup>
-            <SidebarGroupContent>
-              <SidebarMenu>
-                <SidebarMenuItem>
-                  <SidebarMenuButton asChild>
-                    <NavLink
-                      to="/conteudo"
-                      className="transition-colors hover:bg-sidebar-accent"
-                      activeClassName="bg-sidebar-accent text-sidebar-primary font-medium"
-                    >
-                      <CalendarDays className="h-4 w-4 mr-2 shrink-0" />
-                      {!collapsed && <span>Conteúdo & CRM</span>}
-                    </NavLink>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              </SidebarMenu>
-            </SidebarGroupContent>
-          </SidebarGroup>
-
-          <Separator className="mx-3 bg-sidebar-border" />
-
+          {/* Module groups (Marketing inclui Dashboard GA4 + Conteúdo & CRM) */}
           {visibleGroups.map((group) => {
             const isGroupActive = group.items.some(
               (item) =>
