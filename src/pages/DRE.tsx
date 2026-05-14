@@ -376,6 +376,8 @@ export default function DRE() {
       if (!o.date) return false;
       if (!o.date.startsWith(anoSelecionado)) return false;
       if (mesSelecionado !== "todos" && !o.date.startsWith(mesSelecionado)) return false;
+      // Março: dados já importados via Bling anteriormente. Ignorar tray_orders para evitar duplicidade.
+      if (o.date.substring(5, 7) === "03") return false;
       return true;
     });
   }, [trayOrders, anoSelecionado, mesSelecionado]);
