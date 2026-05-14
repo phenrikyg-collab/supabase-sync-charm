@@ -351,9 +351,10 @@ export default function DRE() {
   const anos = useMemo(() => {
     const set = new Set<string>();
     (movs ?? []).forEach((m) => { if (m.data) set.add(m.data.substring(0, 4)); });
+    (trayOrders ?? []).forEach((o) => { if (o.date) set.add(o.date.substring(0, 4)); });
     if (set.size === 0) set.add(new Date().getFullYear().toString());
     return [...set].sort().reverse();
-  }, [movs]);
+  }, [movs, trayOrders]);
 
   const mesesDisponiveis = useMemo(() => {
     const set = new Set<string>();
