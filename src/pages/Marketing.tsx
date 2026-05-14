@@ -6,35 +6,54 @@ import { StatCard } from "@/components/StatCard";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Users, UserPlus, MousePointerClick, ShoppingCart, DollarSign, ShoppingBag, Loader2, Megaphone } from "lucide-react";
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Cell } from "recharts";
-
-type Periodo = "7" | "30" | "90";
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
 
 const fmtBRL = (n: number) =>
   (n || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 2 });
 const fmtInt = (n: number) => Math.round(n || 0).toLocaleString("pt-BR");
 const fmtPct = (n: number) => `${(n || 0).toFixed(1)}%`;
 
-function gerarRangeYYYYMMDD(dias: number) {
+const toYmd = (d: Date) =>
+  `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, "0")}${String(d.getDate()).padStart(2, "0")}`;
+
+type PeriodoOpt = { value: string; label: string; range: () => { inicio: string; fim: string } };
+
+const relRange = (dias: number) => () => {
   const fim = new Date();
   const inicio = new Date();
   inicio.setDate(fim.getDate() - dias + 1);
-  const toYmd = (d: Date) =>
-    `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, "0")}${String(d.getDate()).padStart(2, "0")}`;
   return { inicio: toYmd(inicio), fim: toYmd(fim) };
-}
+};
+
+const mesRange = (ano: number, mes: number) => () => {
+  const inicio = new Date(ano, mes - 1, 1);
+  const fim = new Date(ano, mes, 0);
+  return { inicio: toYmd(inicio), fim: toYmd(fim) };
+};
+
+const PERIODOS: PeriodoOpt[] = [
+  { value: "7d", label: "Últimos 7 dias", range: relRange(7) },
+  { value: "30d", label: "Últimos 30 dias", range: relRange(30) },
+  { value: "90d", label: "Últimos 90 dias", range: relRange(90) },
+  { value: "2026-01", label: "Janeiro 2026", range: mesRange(2026, 1) },
+  { value: "2026-02", label: "Fevereiro 2026", range: mesRange(2026, 2) },
+  { value: "2026-03", label: "Março 2026", range: mesRange(2026, 3) },
+  { value: "2026-04", label: "Abril 2026", range: mesRange(2026, 4) },
+  { value: "2026-05", label: "Maio 2026", range: mesRange(2026, 5) },
+];
 
 const num = (v: any) => (typeof v === "number" ? v : Number(v) || 0);
 
 export default function Marketing() {
-  const [periodo, setPeriodo] = useState<Periodo>("30");
+  const [periodo, setPeriodo] = useState("30d");
   const [loading, setLoading] = useState(false);
   const [aquisicao, setAquisicao] = useState<any[]>([]);
   const [produtos, setProdutos] = useState<any[]>([]);
   const [funil, setFunil] = useState<any[]>([]);
 
   useEffect(() => {
-    const { inicio, fim } = gerarRangeYYYYMMDD(Number(periodo));
+    const opt = PERIODOS.find((p) => p.value === periodo) || PERIODOS[1];
+    const { inicio, fim } = opt.range();
     setLoading(true);
     Promise.all([
       supabase.from("ga4_aquisicao_canais").select("*").gte("event_date", inicio).lte("event_date", fim),
@@ -53,45 +72,49 @@ export default function Marketing() {
   const aquisicaoAgg = useMemo(() => {
     const map = new Map<string, { canal: string; usuarios: number; novos_usuarios: number; sessoes: number }>();
     for (const r of aquisicao) {
-      const canal = r.canal || r.channel || r.default_channel_group || "Desconhecido";
+      const canal = r.canal || "Desconhecido";
       const cur = map.get(canal) || { canal, usuarios: 0, novos_usuarios: 0, sessoes: 0 };
-      cur.usuarios += num(r.usuarios ?? r.users);
-      cur.novos_usuarios += num(r.novos_usuarios ?? r.new_users);
-      cur.sessoes += num(r.sessoes ?? r.sessions);
+      cur.usuarios += num(r.usuarios);
+      cur.novos_usuarios += num(r.novos_usuarios);
+      cur.sessoes += num(r.sessoes);
       map.set(canal, cur);
     }
     return [...map.values()].sort((a, b) => b.usuarios - a.usuarios);
   }, [aquisicao]);
 
-  const aquisicaoTotais = useMemo(() => {
-    return aquisicaoAgg.reduce(
-      (acc, r) => ({
-        usuarios: acc.usuarios + r.usuarios,
-        novos: acc.novos + r.novos_usuarios,
-        sessoes: acc.sessoes + r.sessoes,
-      }),
-      { usuarios: 0, novos: 0, sessoes: 0 }
-    );
-  }, [aquisicaoAgg]);
+  const aquisicaoTotais = useMemo(
+    () =>
+      aquisicaoAgg.reduce(
+        (acc, r) => ({
+          usuarios: acc.usuarios + r.usuarios,
+          novos: acc.novos + r.novos_usuarios,
+          sessoes: acc.sessoes + r.sessoes,
+        }),
+        { usuarios: 0, novos: 0, sessoes: 0 }
+      ),
+    [aquisicaoAgg]
+  );
 
   // ===== Produtos =====
   const produtosAgg = useMemo(() => {
     const map = new Map<string, any>();
     for (const r of produtos) {
-      const nome = r.nome_item || r.item_name || "Sem nome";
+      const nome = r.nome_item || "Sem nome";
       const cur = map.get(nome) || {
         nome,
         sessoes: 0,
         itens_vistos: 0,
         adicionados_carrinho: 0,
+        iniciaram_pagamento: 0,
         compras: 0,
         receita: 0,
       };
-      cur.sessoes += num(r.sessoes ?? r.sessions);
-      cur.itens_vistos += num(r.itens_vistos ?? r.items_viewed ?? r.item_views);
-      cur.adicionados_carrinho += num(r.adicionados_carrinho ?? r.add_to_cart ?? r.itens_add_carrinho);
-      cur.compras += num(r.compras ?? r.purchases ?? r.itens_comprados);
-      cur.receita += num(r.receita ?? r.revenue ?? r.item_revenue);
+      cur.sessoes += num(r.sessoes);
+      cur.itens_vistos += num(r.itens_vistos);
+      cur.adicionados_carrinho += num(r.adicionados_carrinho);
+      cur.iniciaram_pagamento += num(r.iniciaram_pagamento);
+      cur.compras += num(r.compras);
+      cur.receita += num(r.receita);
       map.set(nome, cur);
     }
     return [...map.values()]
@@ -121,31 +144,30 @@ export default function Marketing() {
 
   // ===== Funil =====
   const ETAPAS = [
-    { key: "inicio_sessao", label: "Início de Sessão", alts: ["session_start", "sessions"] },
-    { key: "visualizou_produto", label: "Visualizou Produto", alts: ["view_item", "product_views"] },
-    { key: "adicionou_carrinho", label: "Adicionou Carrinho", alts: ["add_to_cart"] },
-    { key: "iniciou_pagamento", label: "Iniciou Pagamento", alts: ["begin_checkout", "checkout"] },
-    { key: "comprou", label: "Comprou", alts: ["purchase", "purchases"] },
-  ];
+    { key: "inicio_sessao", label: "Início de Sessão" },
+    { key: "visualizou_produto", label: "Visualizou Produto" },
+    { key: "adicionou_carrinho", label: "Adicionou Carrinho" },
+    { key: "iniciou_pagamento", label: "Iniciou Pagamento" },
+    { key: "comprou", label: "Comprou" },
+  ] as const;
 
-  const valorEtapa = (r: any, etapa: typeof ETAPAS[number]) =>
-    num(r[etapa.key] ?? etapa.alts.reduce((acc, k) => acc ?? r[k], undefined));
-
-  const funilAgg = useMemo(() => {
-    return ETAPAS.map((e) => ({
-      label: e.label,
-      total: funil.reduce((s, r) => s + valorEtapa(r, e), 0),
-    }));
-  }, [funil]);
+  const funilAgg = useMemo(
+    () =>
+      ETAPAS.map((e) => ({
+        label: e.label,
+        total: funil.reduce((s, r) => s + num(r[e.key]), 0),
+      })),
+    [funil]
+  );
 
   const funilDispositivo = useMemo(() => {
     const map = new Map<string, any>();
     for (const r of funil) {
-      const dev = (r.dispositivo || r.device_category || "outros").toLowerCase();
+      const dev = (r.dispositivo || "outros").toLowerCase();
       const cur =
         map.get(dev) ||
         { dispositivo: dev, ...Object.fromEntries(ETAPAS.map((e) => [e.key, 0])) };
-      for (const e of ETAPAS) cur[e.key] += valorEtapa(r, e);
+      for (const e of ETAPAS) cur[e.key] += num(r[e.key]);
       map.set(dev, cur);
     }
     return [...map.values()];
@@ -158,12 +180,12 @@ export default function Marketing() {
           <Megaphone className="h-7 w-7 text-primary" />
           <h1 className="text-3xl font-serif font-bold">Marketing</h1>
         </div>
-        <Select value={periodo} onValueChange={(v) => setPeriodo(v as Periodo)}>
-          <SelectTrigger className="w-[200px]"><SelectValue /></SelectTrigger>
+        <Select value={periodo} onValueChange={setPeriodo}>
+          <SelectTrigger className="w-[220px]"><SelectValue /></SelectTrigger>
           <SelectContent>
-            <SelectItem value="7">Últimos 7 dias</SelectItem>
-            <SelectItem value="30">Últimos 30 dias</SelectItem>
-            <SelectItem value="90">Últimos 90 dias</SelectItem>
+            {PERIODOS.map((p) => (
+              <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>
+            ))}
           </SelectContent>
         </Select>
       </div>
@@ -183,10 +205,11 @@ export default function Marketing() {
 
         {/* ===== AQUISIÇÃO ===== */}
         <TabsContent value="aquisicao" className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <StatCard title="Total de Usuários" value={fmtInt(aquisicaoTotais.usuarios)} icon={Users} variant="primary" />
             <StatCard title="Novos Usuários" value={fmtInt(aquisicaoTotais.novos)} icon={UserPlus} variant="success" />
             <StatCard title="Total de Sessões" value={fmtInt(aquisicaoTotais.sessoes)} icon={MousePointerClick} />
+            <StatCard title="Compras no Período" value={fmtInt(produtosTotais.compras)} icon={ShoppingBag} variant="success" />
           </div>
 
           <Card>
@@ -196,7 +219,7 @@ export default function Marketing() {
                 <BarChart data={aquisicaoAgg.slice(0, 10)} layout="vertical" margin={{ left: 30 }}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis type="number" />
-                  <YAxis dataKey="canal" type="category" width={120} />
+                  <YAxis dataKey="canal" type="category" width={140} />
                   <Tooltip formatter={(v: any) => fmtInt(v)} />
                   <Bar dataKey="usuarios" fill="hsl(var(--primary))" />
                 </BarChart>
@@ -205,7 +228,12 @@ export default function Marketing() {
           </Card>
 
           <Card>
-            <CardHeader><CardTitle className="text-lg">Detalhamento por canal</CardTitle></CardHeader>
+            <CardHeader>
+              <CardTitle className="text-lg">Detalhamento por canal</CardTitle>
+              <p className="text-xs text-muted-foreground">
+                Compras totais no período (não atribuíveis por canal no GA4): <span className="font-medium">{fmtInt(produtosTotais.compras)}</span>
+              </p>
+            </CardHeader>
             <CardContent>
               <Table>
                 <TableHeader>
@@ -214,7 +242,7 @@ export default function Marketing() {
                     <TableHead className="text-right">Usuários</TableHead>
                     <TableHead className="text-right">Novos</TableHead>
                     <TableHead className="text-right">Sessões</TableHead>
-                    <TableHead className="text-right">% do Total</TableHead>
+                    <TableHead className="text-right">% Usuários</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -262,6 +290,7 @@ export default function Marketing() {
                     <TableHead className="text-right">Sessões</TableHead>
                     <TableHead className="text-right">Itens Vistos</TableHead>
                     <TableHead className="text-right">Add. Carrinho</TableHead>
+                    <TableHead className="text-right">Init. Pagto</TableHead>
                     <TableHead className="text-right">Compras</TableHead>
                     <TableHead className="text-right">Receita</TableHead>
                     <TableHead className="text-right">Taxa Conv.</TableHead>
@@ -276,6 +305,7 @@ export default function Marketing() {
                         <TableCell className="text-right">{fmtInt(r.sessoes)}</TableCell>
                         <TableCell className="text-right">{fmtInt(r.itens_vistos)}</TableCell>
                         <TableCell className="text-right">{fmtInt(r.adicionados_carrinho)}</TableCell>
+                        <TableCell className="text-right">{fmtInt(r.iniciaram_pagamento)}</TableCell>
                         <TableCell className="text-right">{fmtInt(r.compras)}</TableCell>
                         <TableCell className="text-right">{fmtBRL(r.receita)}</TableCell>
                         <TableCell className={`text-right font-medium ${acima ? "text-success" : ""}`}>
@@ -285,7 +315,7 @@ export default function Marketing() {
                     );
                   })}
                   {!produtosAgg.length && (
-                    <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground">Sem dados no período</TableCell></TableRow>
+                    <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground">Sem dados no período</TableCell></TableRow>
                   )}
                 </TableBody>
               </Table>
@@ -314,16 +344,13 @@ export default function Marketing() {
                           {taxa !== null && (
                             <span className="ml-3">
                               <span className="text-success">{fmtPct(taxa)}</span>
-                              <span className="text-danger ml-2">(-{fmtPct(perda!)})</span>
+                              <span className="text-destructive ml-2">(-{fmtPct(perda!)})</span>
                             </span>
                           )}
                         </span>
                       </div>
                       <div className="h-8 bg-muted rounded overflow-hidden">
-                        <div
-                          className="h-full bg-primary transition-all"
-                          style={{ width: `${widthPct}%` }}
-                        />
+                        <div className="h-full bg-primary transition-all" style={{ width: `${widthPct}%` }} />
                       </div>
                     </div>
                   );
