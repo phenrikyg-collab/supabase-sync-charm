@@ -1,4 +1,6 @@
 import { useState, useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 import { useMovimentacoesFinanceiras, useCategorias } from "@/hooks/useSupabase";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -6,6 +8,43 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TrendingUp, TrendingDown, AlertTriangle, ChevronDown, ChevronRight, Info, Eye } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+
+// extrai o valor de desconto do cupom no formato "NOME/24.90"
+function parseCupomValor(s: string | null | undefined): number {
+  if (!s) return 0;
+  const parts = String(s).split("/");
+  if (parts.length < 2) return 0;
+  const n = parseFloat(parts[parts.length - 1].replace(",", "."));
+  return isNaN(n) ? 0 : n;
+}
+
+// busca paginada (bypass do limite de 1000 do PostgREST)
+async function fetchAllTray<T = any>(build: (q: any) => any): Promise<T[]> {
+  const acc: T[] = [];
+  let from = 0;
+  const size = 1000;
+  while (true) {
+    const { data, error } = await build(
+      (supabase.from("tray_orders" as any).select("*") as any).range(from, from + size - 1)
+    );
+    if (error) throw error;
+    const rows = (data ?? []) as T[];
+    acc.push(...rows);
+    if (rows.length < size) break;
+    from += size;
+  }
+  return acc;
+}
+
+interface TrayOrderDre {
+  id: number;
+  date: string | null;
+  total: number | null;
+  discount: number | null;
+  discount_coupon: string | null;
+  orderstatus_type: string | null;
+}
+
 
 function formatCurrency(v: number | null | undefined) {
   if (v == null) return "R$ 0,00";
@@ -98,6 +137,7 @@ interface FaixaGroup {
 function buildDreData(
   movs: any[],
   catMap: Record<string, CatInfo>,
+  trayOrders: TrayOrderDre[] = [],
 ) {
   // Accumulate: faixa → categoria → plano → { valor, count, transactions }
   const acc: Record<string, Record<string, Record<string, { valor: number; count: number; transactions: PlanoTransaction[] }>>> = {};
@@ -121,25 +161,18 @@ function buildDreData(
   movs.forEach((m) => {
     if (m.impacta_dre === false) return;
 
+    // Receita de vendas é alimentada exclusivamente por tray_orders
+    // (mesma fonte do Dashboard Comercial). Ignoramos movimentações de origem bling
+    // para evitar duplicidade.
+    if (m.origem === "bling") return;
+
     const cat = m.categoria_id ? catMap[m.categoria_id] : null;
     const faixa = cat?.grupoDre || "";
     const categoria = cat?.nomeCategoria || "Sem categoria";
     const plano = cat?.descricaoCategoria || m.descricao || "Outros";
     const isReceita = m.tipo === "entrada";
 
-    // Handle Bling sales specially
-    if (isReceita && m.origem === "bling") {
-      addEntry("RECEITAS", "Receita com Vendas", "Venda de produtos", m.valor ?? 0, m);
-
-      // Descontos go to deduções
-      const desconto = m.valor_desconto ?? 0;
-      if (desconto > 0) {
-        addEntry("DEDUÇÕES SOBRE VENDAS", "Estornos", "Descontos em vendas", desconto, m);
-      }
-      return;
-    }
-
-    // For receita entries not from bling
+    // For receita entries
     if (isReceita && faixa) {
       addEntry(faixa, categoria, plano, Math.abs(m.valor ?? 0), m);
       return;
@@ -148,6 +181,44 @@ function buildDreData(
     // Despesas / saídas
     if (!faixa) return; // skip uncategorized for DRE
     addEntry(faixa, categoria, plano, Math.abs(m.valor ?? 0), m);
+  });
+
+  // ===== Receita de vendas (tray_orders, mesma base do Dashboard Comercial) =====
+  trayOrders.forEach((o) => {
+    if (!o.date) return;
+    if ((o.orderstatus_type ?? "").toLowerCase() === "canceled") return;
+    const total = Number(o.total ?? 0);
+    if (total > 0) {
+      addEntry(
+        "RECEITAS",
+        "Receita com Vendas",
+        "Venda de produtos",
+        total,
+        {
+          id: `tray-${o.id}`,
+          descricao: `Pedido #${o.id}`,
+          data: o.date,
+          data_vencimento: null,
+          parcela_info: null,
+        }
+      );
+    }
+    const desconto = Number(o.discount ?? 0) + parseCupomValor(o.discount_coupon);
+    if (desconto > 0) {
+      addEntry(
+        "DEDUÇÕES SOBRE VENDAS",
+        "Estornos",
+        "Descontos em vendas",
+        desconto,
+        {
+          id: `tray-desc-${o.id}`,
+          descricao: `Desconto pedido #${o.id}`,
+          data: o.date,
+          data_vencimento: null,
+          parcela_info: null,
+        }
+      );
+    }
   });
 
   // Build structured groups
@@ -208,6 +279,11 @@ function buildDreData(
 
 export default function DRE() {
   const { data: movs, isLoading } = useMovimentacoesFinanceiras();
+  const { data: trayOrders = [] } = useQuery({
+    queryKey: ["dre-tray-orders"],
+    queryFn: async () =>
+      fetchAllTray<TrayOrderDre>((q) => q.neq("orderstatus_type", "canceled")),
+  });
   const { data: categorias } = useCategorias();
   const [anoSelecionado, setAnoSelecionado] = useState(new Date().getFullYear().toString());
   const [mesSelecionado, setMesSelecionado] = useState("todos");
@@ -293,7 +369,16 @@ export default function DRE() {
     });
   }, [movs, anoSelecionado, mesSelecionado]);
 
-  const dreData = useMemo(() => buildDreData(filtered, catMap), [filtered, catMap]);
+  const filteredTray = useMemo(() => {
+    return (trayOrders ?? []).filter((o) => {
+      if (!o.date) return false;
+      if (!o.date.startsWith(anoSelecionado)) return false;
+      if (mesSelecionado !== "todos" && !o.date.startsWith(mesSelecionado)) return false;
+      return true;
+    });
+  }, [trayOrders, anoSelecionado, mesSelecionado]);
+
+  const dreData = useMemo(() => buildDreData(filtered, catMap, filteredTray), [filtered, catMap, filteredTray]);
 
   const insights = useMemo(() => {
     const tips: { icon: React.ReactNode; text: string; type: "success" | "warning" | "danger" }[] = [];
