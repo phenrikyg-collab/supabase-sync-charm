@@ -163,8 +163,10 @@ function buildDreData(
 
     // Receita de vendas é alimentada exclusivamente por tray_orders
     // (mesma fonte do Dashboard Comercial). Ignoramos movimentações de origem bling
-    // para evitar duplicidade.
-    if (m.origem === "bling") return;
+    // para evitar duplicidade — exceto em março, onde os valores já foram importados
+    // anteriormente via Bling e o tray_orders é ignorado para evitar duplicidade reversa.
+    const mesMov = (m.data ?? "").substring(5, 7);
+    if (m.origem === "bling" && mesMov !== "03") return;
 
     const cat = m.categoria_id ? catMap[m.categoria_id] : null;
     const faixa = cat?.grupoDre || "";
@@ -374,6 +376,8 @@ export default function DRE() {
       if (!o.date) return false;
       if (!o.date.startsWith(anoSelecionado)) return false;
       if (mesSelecionado !== "todos" && !o.date.startsWith(mesSelecionado)) return false;
+      // Março: dados já importados via Bling anteriormente. Ignorar tray_orders para evitar duplicidade.
+      if (o.date.substring(5, 7) === "03") return false;
       return true;
     });
   }, [trayOrders, anoSelecionado, mesSelecionado]);
