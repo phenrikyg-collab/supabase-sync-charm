@@ -119,6 +119,7 @@ const AppRoutes = () => {
               <Route path="/orcamento" element={<OrcamentoPage />} />
               <Route path="/custos-fixos" element={<CustosFixos />} />
               <Route path="/admin/tv-interna" element={<AdminTVInterna />} />
+              <Route path="/marketing" element={<Marketing />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </AppLayout>
