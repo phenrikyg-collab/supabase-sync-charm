@@ -127,14 +127,15 @@ function buildDreData(
     const plano = cat?.descricaoCategoria || m.descricao || "Outros";
     const isReceita = m.tipo === "entrada";
 
-    // Handle Bling sales specially — alimenta o DRE com a venda LÍQUIDA (já sem desconto)
+    // Handle Bling sales specially
     if (isReceita && m.origem === "bling") {
-      const bruto = Number(m.valor ?? 0);
-      const desconto = Number(m.valor_desconto ?? 0);
-      const liquidoCampo = m.valor_liquido != null ? Number(m.valor_liquido) : null;
-      // Preferimos valor_liquido quando disponível; senão calculamos bruto - desconto
-      const liquido = liquidoCampo != null ? liquidoCampo : Math.max(bruto - desconto, 0);
-      addEntry("RECEITAS", "Receita com Vendas", "Venda de produtos", liquido, m);
+      addEntry("RECEITAS", "Receita com Vendas", "Venda de produtos", m.valor ?? 0, m);
+
+      // Descontos go to deduções
+      const desconto = m.valor_desconto ?? 0;
+      if (desconto > 0) {
+        addEntry("DEDUÇÕES SOBRE VENDAS", "Estornos", "Descontos em vendas", desconto, m);
+      }
       return;
     }
 
