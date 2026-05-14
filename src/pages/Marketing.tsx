@@ -62,15 +62,18 @@ const PERIODOS = [
 const num = (v: any) => (typeof v === "number" ? v : Number(v) || 0);
 
 export default function Marketing() {
-  const [periodo, setPeriodo] = useState("30d");
+  const [periodo, setPeriodo] = useState("30dias");
   const [loading, setLoading] = useState(false);
   const [aquisicao, setAquisicao] = useState<any[]>([]);
   const [produtos, setProdutos] = useState<any[]>([]);
   const [funil, setFunil] = useState<any[]>([]);
 
   useEffect(() => {
-    const opt = PERIODOS.find((p) => p.value === periodo) || PERIODOS[1];
-    const { inicio, fim } = opt.range();
+    const { inicio, fim } = getDateRange(periodo);
+    console.log("Período selecionado:", periodo);
+    console.log("Data início:", inicio);
+    console.log("Data fim:", fim);
+    console.log("Query params:", `event_date=gte.${inicio}&event_date=lte.${fim}`);
     setLoading(true);
     Promise.all([
       supabase.from("ga4_aquisicao_canais").select("*").gte("event_date", inicio).lte("event_date", fim),
@@ -78,6 +81,7 @@ export default function Marketing() {
       supabase.from("ga4_funil_compra").select("*").gte("event_date", inicio).lte("event_date", fim),
     ])
       .then(([a, p, f]) => {
+        console.log("Resultados:", { aquisicao: a.data?.length, produtos: p.data?.length, funil: f.data?.length });
         setAquisicao(a.data || []);
         setProdutos(p.data || []);
         setFunil(f.data || []);
