@@ -67,6 +67,7 @@ export default function Marketing() {
   const [aquisicao, setAquisicao] = useState<any[]>([]);
   const [produtos, setProdutos] = useState<any[]>([]);
   const [funil, setFunil] = useState<any[]>([]);
+  const [paginas, setPaginas] = useState<any[]>([]);
 
   useEffect(() => {
     const { inicio, fim } = getDateRange(periodo);
@@ -79,12 +80,14 @@ export default function Marketing() {
       supabase.from("ga4_aquisicao_canais").select("*").gte("event_date", inicio).lte("event_date", fim),
       supabase.from("ga4_produtos_ecommerce").select("*").gte("event_date", inicio).lte("event_date", fim),
       supabase.from("ga4_funil_compra").select("*").gte("event_date", inicio).lte("event_date", fim),
+      supabase.from("ga4_sessoes_paginas").select("pagina, titulo, sessoes").gte("event_date", inicio).lte("event_date", fim),
     ])
-      .then(([a, p, f]) => {
-        console.log("Resultados:", { aquisicao: a.data?.length, produtos: p.data?.length, funil: f.data?.length });
+      .then(([a, p, f, pg]) => {
+        console.log("Resultados:", { aquisicao: a.data?.length, produtos: p.data?.length, funil: f.data?.length, paginas: pg.data?.length });
         setAquisicao(a.data || []);
         setProdutos(p.data || []);
         setFunil(f.data || []);
+        setPaginas(pg.data || []);
       })
       .finally(() => setLoading(false));
   }, [periodo]);
@@ -194,6 +197,27 @@ export default function Marketing() {
     return [...map.values()];
   }, [funil]);
 
+  // ===== Páginas =====
+  const limparUrl = (u: string) =>
+    (u || "").replace(/^https?:\/\/[^/]+/i, "") || "/";
+
+  const paginasAgg = useMemo(() => {
+    const map = new Map<string, { pagina: string; titulo: string; sessoes: number }>();
+    for (const r of paginas) {
+      const key = limparUrl(r.pagina);
+      const cur = map.get(key) || { pagina: key, titulo: r.titulo || "", sessoes: 0 };
+      cur.sessoes += num(r.sessoes);
+      if (!cur.titulo && r.titulo) cur.titulo = r.titulo;
+      map.set(key, cur);
+    }
+    return [...map.values()].sort((a, b) => b.sessoes - a.sessoes);
+  }, [paginas]);
+
+  const paginasTotalSessoes = useMemo(
+    () => paginasAgg.reduce((s, r) => s + r.sessoes, 0),
+    [paginasAgg]
+  );
+
   return (
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-4">
@@ -222,6 +246,7 @@ export default function Marketing() {
           <TabsTrigger value="aquisicao">Aquisição</TabsTrigger>
           <TabsTrigger value="produtos">Produtos</TabsTrigger>
           <TabsTrigger value="funil">Funil de Compra</TabsTrigger>
+          <TabsTrigger value="paginas">Páginas</TabsTrigger>
         </TabsList>
 
         {/* ===== AQUISIÇÃO ===== */}
@@ -233,20 +258,7 @@ export default function Marketing() {
             <StatCard title="Compras no Período" value={fmtInt(produtosTotais.compras)} icon={ShoppingBag} variant="success" />
           </div>
 
-          <Card>
-            <CardHeader><CardTitle className="text-lg">Top 10 canais por usuários</CardTitle></CardHeader>
-            <CardContent>
-              <ResponsiveContainer width="100%" height={350}>
-                <BarChart data={aquisicaoAgg.slice(0, 10)} layout="vertical" margin={{ left: 30 }}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis type="number" />
-                  <YAxis dataKey="canal" type="category" width={140} />
-                  <Tooltip formatter={(v: any) => fmtInt(v)} />
-                  <Bar dataKey="usuarios" fill="hsl(var(--primary))" />
-                </BarChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
+
 
           <Card>
             <CardHeader>
@@ -410,6 +422,60 @@ export default function Marketing() {
                   })}
                   {!funilDispositivo.length && (
                     <TableRow><TableCell colSpan={ETAPAS.length + 2} className="text-center text-muted-foreground">Sem dados no período</TableCell></TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* ===== PÁGINAS ===== */}
+        <TabsContent value="paginas" className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <StatCard title="Total de Sessões" value={fmtInt(paginasTotalSessoes)} icon={MousePointerClick} variant="primary" />
+            <StatCard title="Páginas únicas" value={fmtInt(paginasAgg.length)} icon={Megaphone} />
+          </div>
+
+          <Card>
+            <CardHeader><CardTitle className="text-lg">Top 10 páginas por sessões</CardTitle></CardHeader>
+            <CardContent>
+              <ResponsiveContainer width="100%" height={350}>
+                <BarChart data={paginasAgg.slice(0, 10)} layout="vertical" margin={{ left: 30 }}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis type="number" />
+                  <YAxis dataKey="pagina" type="category" width={220} tick={{ fontSize: 11 }} />
+                  <Tooltip formatter={(v: any) => fmtInt(v)} />
+                  <Bar dataKey="sessoes" fill="hsl(var(--primary))" />
+                </BarChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader><CardTitle className="text-lg">Detalhamento por página</CardTitle></CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Página</TableHead>
+                    <TableHead>Título</TableHead>
+                    <TableHead className="text-right">Sessões</TableHead>
+                    <TableHead className="text-right">% do Total</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {paginasAgg.map((r) => (
+                    <TableRow key={r.pagina}>
+                      <TableCell className="font-mono text-xs max-w-[320px] truncate">{r.pagina}</TableCell>
+                      <TableCell className="max-w-[320px] truncate">{r.titulo}</TableCell>
+                      <TableCell className="text-right">{fmtInt(r.sessoes)}</TableCell>
+                      <TableCell className="text-right">
+                        {fmtPct(paginasTotalSessoes > 0 ? (r.sessoes / paginasTotalSessoes) * 100 : 0)}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                  {!paginasAgg.length && (
+                    <TableRow><TableCell colSpan={4} className="text-center text-muted-foreground">Sem dados no período</TableCell></TableRow>
                   )}
                 </TableBody>
               </Table>
