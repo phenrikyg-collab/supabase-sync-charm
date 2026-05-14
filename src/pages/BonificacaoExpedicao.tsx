@@ -240,38 +240,49 @@ function DashboardTab({ mes }: { mes: string }) {
                       </TableCell>
                     </TableRow>
                   )}
-                  {abertos.slice(0, 500).map((p) => {
-                    const prazo = p.estimated_delivery_date ?? "";
-                    const atrasado = prazo && prazo < HOJE;
-                    const hoje = prazo === HOJE;
-                    return (
-                      <TableRow key={String(p.id)}>
-                        <TableCell className="font-mono text-xs">{String(p.id)}</TableCell>
-                        <TableCell>{fmtData(p.date)}</TableCell>
-                        <TableCell className={atrasado ? "text-rose-700 font-medium" : ""}>
-                          {fmtData(p.estimated_delivery_date)}
-                        </TableCell>
-                        <TableCell className="text-xs text-muted-foreground">
-                          {p.orderstatus_status ?? "—"}
-                        </TableCell>
-                        <TableCell>
-                          {atrasado ? (
-                            <Badge className="bg-rose-100 text-rose-800 border border-rose-200">
-                              Atrasado
-                            </Badge>
-                          ) : hoje ? (
-                            <Badge className="bg-amber-100 text-amber-800 border border-amber-200">
-                              Vence hoje
-                            </Badge>
-                          ) : (
-                            <Badge className="bg-emerald-100 text-emerald-800 border border-emerald-200">
-                              No prazo
-                            </Badge>
-                          )}
-                        </TableCell>
-                      </TableRow>
+                  {(() => {
+                    const D2 = format(
+                      new Date(Date.now() + 2 * 24 * 60 * 60 * 1000),
+                      "yyyy-MM-dd"
                     );
-                  })}
+                    return abertos.slice(0, 500).map((p) => {
+                      const prazo = p.estimated_delivery_date ?? "";
+                      const atrasado = prazo && prazo < HOJE;
+                      const hoje = prazo === HOJE;
+                      const venceEm2 = prazo && prazo > HOJE && prazo <= D2;
+                      return (
+                        <TableRow key={String(p.id)}>
+                          <TableCell className="font-mono text-xs">{String(p.id)}</TableCell>
+                          <TableCell>{fmtData(p.date)}</TableCell>
+                          <TableCell className={atrasado ? "text-rose-700 font-medium" : ""}>
+                            {fmtData(p.estimated_delivery_date)}
+                          </TableCell>
+                          <TableCell className="text-xs text-muted-foreground">
+                            {p.orderstatus_status ?? "—"}
+                          </TableCell>
+                          <TableCell>
+                            {atrasado ? (
+                              <Badge className="bg-rose-100 text-rose-800 border border-rose-200">
+                                Atrasado
+                              </Badge>
+                            ) : hoje ? (
+                              <Badge className="bg-amber-100 text-amber-800 border border-amber-200">
+                                Vence hoje
+                              </Badge>
+                            ) : venceEm2 ? (
+                              <Badge className="bg-orange-100 text-orange-800 border border-orange-200">
+                                Vence em 2 dias
+                              </Badge>
+                            ) : (
+                              <Badge className="bg-emerald-100 text-emerald-800 border border-emerald-200">
+                                No prazo
+                              </Badge>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      );
+                    });
+                  })()}
                 </TableBody>
               </Table>
               {abertos.length > 500 && (
