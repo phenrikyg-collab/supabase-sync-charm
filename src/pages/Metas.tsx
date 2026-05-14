@@ -93,7 +93,7 @@ export default function Metas() {
     };
     try {
       if (editId != null) {
-        await updateMut.mutateAsync({ id: editId, ...payload });
+        await updateMut.mutateAsync({ id: editId as number, ...payload });
         toast.success("Meta atualizada!");
       } else {
         await createMut.mutateAsync(payload);
