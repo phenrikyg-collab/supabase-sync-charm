@@ -369,7 +369,16 @@ export default function DRE() {
     });
   }, [movs, anoSelecionado, mesSelecionado]);
 
-  const dreData = useMemo(() => buildDreData(filtered, catMap), [filtered, catMap]);
+  const filteredTray = useMemo(() => {
+    return (trayOrders ?? []).filter((o) => {
+      if (!o.date) return false;
+      if (!o.date.startsWith(anoSelecionado)) return false;
+      if (mesSelecionado !== "todos" && !o.date.startsWith(mesSelecionado)) return false;
+      return true;
+    });
+  }, [trayOrders, anoSelecionado, mesSelecionado]);
+
+  const dreData = useMemo(() => buildDreData(filtered, catMap, filteredTray), [filtered, catMap, filteredTray]);
 
   const insights = useMemo(() => {
     const tips: { icon: React.ReactNode; text: string; type: "success" | "warning" | "danger" }[] = [];
