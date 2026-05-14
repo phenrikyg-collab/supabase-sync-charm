@@ -111,7 +111,7 @@ export function AppSidebar() {
 
   const visibleGroups = isAdmin
     ? moduleGroups
-    : moduleGroups.filter((g) => modules.includes(g.key));
+    : moduleGroups.filter((g) => g.key === "marketing" || modules.includes(g.key));
 
   return (
     <Sidebar collapsible="icon">
