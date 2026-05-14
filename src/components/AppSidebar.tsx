@@ -1,7 +1,7 @@
 import {
   LayoutDashboard, Package, Plus, Palette, Scissors, Factory,
   Truck, DollarSign, Target, FileText, Building2, LogOut, Users, Home, BarChart3, Upload, Layers,
-  ShoppingBag, Banknote, Wrench, CreditCard, PieChart, Monitor, Settings, Trophy, CalendarDays, TrendingUp, ClipboardList,
+  ShoppingBag, Banknote, Wrench, CreditCard, PieChart, Monitor, Settings, Trophy, CalendarDays, TrendingUp, ClipboardList, Megaphone,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useAuth } from "@/contexts/AuthContext";
@@ -88,6 +88,14 @@ const moduleGroups: ModuleGroup[] = [
       { title: "Faturas Cartão", url: "/faturas", icon: CreditCard },
       { title: "Orçamento", url: "/orcamento", icon: Target },
       { title: "Custos Fixos", url: "/custos-fixos", icon: TrendingUp },
+    ],
+  },
+  {
+    key: "comercial",
+    label: "Marketing",
+    icon: Megaphone,
+    items: [
+      { title: "Dashboard GA4", url: "/marketing", icon: BarChart3 },
     ],
   },
 ];
