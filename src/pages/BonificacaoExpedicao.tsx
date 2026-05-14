@@ -223,7 +223,7 @@ function DashboardTab({ mes }: { mes: string }) {
             </div>
             <div className="max-h-[520px] overflow-auto">
               <Table>
-                <TableHeader className="sticky top-0 bg-background">
+                <TableHeader className="sticky top-0 bg-background z-10 shadow-sm [&_th]:bg-background">
                   <TableRow>
                     <TableHead>Pedido</TableHead>
                     <TableHead>Data</TableHead>
