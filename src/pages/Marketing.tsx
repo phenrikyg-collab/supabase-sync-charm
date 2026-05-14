@@ -13,47 +13,67 @@ const fmtBRL = (n: number) =>
 const fmtInt = (n: number) => Math.round(n || 0).toLocaleString("pt-BR");
 const fmtPct = (n: number) => `${(n || 0).toFixed(1)}%`;
 
-const toYmd = (d: Date) =>
-  `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, "0")}${String(d.getDate()).padStart(2, "0")}`;
+const getDateRange = (periodo: string) => {
+  const pad = (n: number) => String(n).padStart(2, "0");
+  const toYMD = (d: Date) =>
+    `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}`;
 
-type PeriodoOpt = { value: string; label: string; range: () => { inicio: string; fim: string } };
+  const hoje = new Date();
 
-const relRange = (dias: number) => () => {
-  const fim = new Date();
-  const inicio = new Date();
-  inicio.setDate(fim.getDate() - dias + 1);
-  return { inicio: toYmd(inicio), fim: toYmd(fim) };
+  if (periodo === "7dias") {
+    const ini = new Date(); ini.setDate(hoje.getDate() - 7);
+    return { inicio: toYMD(ini), fim: toYMD(hoje) };
+  }
+  if (periodo === "30dias") {
+    const ini = new Date(); ini.setDate(hoje.getDate() - 30);
+    return { inicio: toYMD(ini), fim: toYMD(hoje) };
+  }
+  if (periodo === "90dias") {
+    const ini = new Date(); ini.setDate(hoje.getDate() - 90);
+    return { inicio: toYMD(ini), fim: toYMD(hoje) };
+  }
+
+  const meses: Record<string, { inicio: string; fim: string }> = {
+    jan2026: { inicio: "20260101", fim: "20260131" },
+    fev2026: { inicio: "20260201", fim: "20260228" },
+    mar2026: { inicio: "20260301", fim: "20260331" },
+    abr2026: { inicio: "20260401", fim: "20260430" },
+    mai2026: { inicio: "20260501", fim: "20260531" },
+  };
+  return (
+    meses[periodo] ?? {
+      inicio: toYMD(new Date(new Date().setDate(hoje.getDate() - 30))),
+      fim: toYMD(hoje),
+    }
+  );
 };
 
-const mesRange = (ano: number, mes: number) => () => {
-  const inicio = new Date(ano, mes - 1, 1);
-  const fim = new Date(ano, mes, 0);
-  return { inicio: toYmd(inicio), fim: toYmd(fim) };
-};
-
-const PERIODOS: PeriodoOpt[] = [
-  { value: "7d", label: "Últimos 7 dias", range: relRange(7) },
-  { value: "30d", label: "Últimos 30 dias", range: relRange(30) },
-  { value: "90d", label: "Últimos 90 dias", range: relRange(90) },
-  { value: "2026-01", label: "Janeiro 2026", range: mesRange(2026, 1) },
-  { value: "2026-02", label: "Fevereiro 2026", range: mesRange(2026, 2) },
-  { value: "2026-03", label: "Março 2026", range: mesRange(2026, 3) },
-  { value: "2026-04", label: "Abril 2026", range: mesRange(2026, 4) },
-  { value: "2026-05", label: "Maio 2026", range: mesRange(2026, 5) },
+const PERIODOS = [
+  { value: "7dias", label: "Últimos 7 dias" },
+  { value: "30dias", label: "Últimos 30 dias" },
+  { value: "90dias", label: "Últimos 90 dias" },
+  { value: "jan2026", label: "Janeiro 2026" },
+  { value: "fev2026", label: "Fevereiro 2026" },
+  { value: "mar2026", label: "Março 2026" },
+  { value: "abr2026", label: "Abril 2026" },
+  { value: "mai2026", label: "Maio 2026" },
 ];
 
 const num = (v: any) => (typeof v === "number" ? v : Number(v) || 0);
 
 export default function Marketing() {
-  const [periodo, setPeriodo] = useState("30d");
+  const [periodo, setPeriodo] = useState("30dias");
   const [loading, setLoading] = useState(false);
   const [aquisicao, setAquisicao] = useState<any[]>([]);
   const [produtos, setProdutos] = useState<any[]>([]);
   const [funil, setFunil] = useState<any[]>([]);
 
   useEffect(() => {
-    const opt = PERIODOS.find((p) => p.value === periodo) || PERIODOS[1];
-    const { inicio, fim } = opt.range();
+    const { inicio, fim } = getDateRange(periodo);
+    console.log("Período selecionado:", periodo);
+    console.log("Data início:", inicio);
+    console.log("Data fim:", fim);
+    console.log("Query params:", `event_date=gte.${inicio}&event_date=lte.${fim}`);
     setLoading(true);
     Promise.all([
       supabase.from("ga4_aquisicao_canais").select("*").gte("event_date", inicio).lte("event_date", fim),
@@ -61,6 +81,7 @@ export default function Marketing() {
       supabase.from("ga4_funil_compra").select("*").gte("event_date", inicio).lte("event_date", fim),
     ])
       .then(([a, p, f]) => {
+        console.log("Resultados:", { aquisicao: a.data?.length, produtos: p.data?.length, funil: f.data?.length });
         setAquisicao(a.data || []);
         setProdutos(p.data || []);
         setFunil(f.data || []);
