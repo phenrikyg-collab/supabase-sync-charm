@@ -197,6 +197,27 @@ export default function Marketing() {
     return [...map.values()];
   }, [funil]);
 
+  // ===== Páginas =====
+  const limparUrl = (u: string) =>
+    (u || "").replace(/^https?:\/\/[^/]+/i, "") || "/";
+
+  const paginasAgg = useMemo(() => {
+    const map = new Map<string, { pagina: string; titulo: string; sessoes: number }>();
+    for (const r of paginas) {
+      const key = limparUrl(r.pagina);
+      const cur = map.get(key) || { pagina: key, titulo: r.titulo || "", sessoes: 0 };
+      cur.sessoes += num(r.sessoes);
+      if (!cur.titulo && r.titulo) cur.titulo = r.titulo;
+      map.set(key, cur);
+    }
+    return [...map.values()].sort((a, b) => b.sessoes - a.sessoes);
+  }, [paginas]);
+
+  const paginasTotalSessoes = useMemo(
+    () => paginasAgg.reduce((s, r) => s + r.sessoes, 0),
+    [paginasAgg]
+  );
+
   return (
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-4">
@@ -225,6 +246,7 @@ export default function Marketing() {
           <TabsTrigger value="aquisicao">Aquisição</TabsTrigger>
           <TabsTrigger value="produtos">Produtos</TabsTrigger>
           <TabsTrigger value="funil">Funil de Compra</TabsTrigger>
+          <TabsTrigger value="paginas">Páginas</TabsTrigger>
         </TabsList>
 
         {/* ===== AQUISIÇÃO ===== */}
@@ -236,20 +258,7 @@ export default function Marketing() {
             <StatCard title="Compras no Período" value={fmtInt(produtosTotais.compras)} icon={ShoppingBag} variant="success" />
           </div>
 
-          <Card>
-            <CardHeader><CardTitle className="text-lg">Top 10 canais por usuários</CardTitle></CardHeader>
-            <CardContent>
-              <ResponsiveContainer width="100%" height={350}>
-                <BarChart data={aquisicaoAgg.slice(0, 10)} layout="vertical" margin={{ left: 30 }}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis type="number" />
-                  <YAxis dataKey="canal" type="category" width={140} />
-                  <Tooltip formatter={(v: any) => fmtInt(v)} />
-                  <Bar dataKey="usuarios" fill="hsl(var(--primary))" />
-                </BarChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
+
 
           <Card>
             <CardHeader>
