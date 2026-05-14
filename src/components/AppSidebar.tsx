@@ -91,11 +91,12 @@ const moduleGroups: ModuleGroup[] = [
     ],
   },
   {
-    key: "comercial",
+    key: "marketing",
     label: "Marketing",
     icon: Megaphone,
     items: [
       { title: "Dashboard GA4", url: "/marketing", icon: BarChart3 },
+      { title: "Conteúdo & CRM", url: "/conteudo", icon: CalendarDays },
     ],
   },
 ];
