@@ -360,8 +360,11 @@ export default function DRE() {
     (movs ?? []).forEach((m) => {
       if (m.data && m.data.startsWith(anoSelecionado)) set.add(m.data.substring(0, 7));
     });
+    (trayOrders ?? []).forEach((o) => {
+      if (o.date && o.date.startsWith(anoSelecionado)) set.add(o.date.substring(0, 7));
+    });
     return [...set].sort();
-  }, [movs, anoSelecionado]);
+  }, [movs, trayOrders, anoSelecionado]);
 
   const filtered = useMemo(() => {
     return (movs ?? []).filter((m) => {
