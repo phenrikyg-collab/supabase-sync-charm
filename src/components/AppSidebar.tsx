@@ -90,6 +90,14 @@ const moduleGroups: ModuleGroup[] = [
       { title: "Custos Fixos", url: "/custos-fixos", icon: TrendingUp },
     ],
   },
+  {
+    key: "comercial",
+    label: "Marketing",
+    icon: Megaphone,
+    items: [
+      { title: "Dashboard GA4", url: "/marketing", icon: BarChart3 },
+    ],
+  },
 ];
 
 export function AppSidebar() {
