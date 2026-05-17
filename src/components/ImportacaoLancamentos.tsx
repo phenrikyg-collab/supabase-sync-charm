@@ -182,7 +182,7 @@ export default function ImportacaoLancamentos({ onImportar }: Props) {
     return true;
   };
 
-  const processSpreadsheetRows = (rows: any[][]) => {
+  const processSpreadsheetRows = async (rows: any[][]) => {
     if (!validarCartao()) return;
     if (!rows.length || rows.length < 2) { setErro("Planilha vazia ou sem dados."); return; }
 
@@ -203,6 +203,22 @@ export default function ImportacaoLancamentos({ onImportar }: Props) {
         if (match) return { ...l, categoria_id: match.id, categoria_nome: match.nome };
         return l;
       });
+
+      // Histórico: preenche categorias com base em meses anteriores
+      const precisaHistorico = lancamentos.some((l) => !l.categoria_id);
+      if (precisaHistorico) {
+        try {
+          const indice = await carregarHistoricoCategoria(categorias);
+          lancamentos = lancamentos.map((l) => {
+            if (l.categoria_id) return l;
+            const sug = sugerirCategoriaPorHistorico(l.descricao, indice);
+            if (sug) return { ...l, categoria_id: sug.id, categoria_nome: sug.nome };
+            return l;
+          });
+        } catch (e) {
+          console.warn("Falha ao carregar histórico de categorias:", e);
+        }
+      }
     }
 
     onImportar(lancamentos, getDadosCartao());
