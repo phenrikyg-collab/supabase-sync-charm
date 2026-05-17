@@ -44,6 +44,7 @@ import OrcamentoPage from "./pages/OrcamentoPage";
 import CustosFixos from "./pages/CustosFixos";
 import PlanoProducao from "./pages/PlanoProducao";
 import Marketing from "./pages/Marketing";
+import PadroesPedidos from "./pages/PadroesPedidos";
 import { Loader2 } from "lucide-react";
 
 const queryClient = new QueryClient({
@@ -120,6 +121,7 @@ const AppRoutes = () => {
               <Route path="/custos-fixos" element={<CustosFixos />} />
               <Route path="/admin/tv-interna" element={<AdminTVInterna />} />
               <Route path="/marketing" element={<Marketing />} />
+              <Route path="/padroes-pedidos" element={<PadroesPedidos />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </AppLayout>
