@@ -121,6 +121,7 @@ const AppRoutes = () => {
               <Route path="/custos-fixos" element={<CustosFixos />} />
               <Route path="/admin/tv-interna" element={<AdminTVInterna />} />
               <Route path="/marketing" element={<Marketing />} />
+              <Route path="/padroes-pedidos" element={<PadroesPedidos />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </AppLayout>
