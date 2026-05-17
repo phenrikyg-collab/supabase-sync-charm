@@ -2,6 +2,7 @@ import { useRef, useState } from "react";
 import { invokeEdgeFunction } from "@/lib/edgeFunctions";
 import { useCategorias } from "@/hooks/useSupabase";
 import { findCategoriaByDescricao } from "@/lib/categoriaMappings";
+import { carregarHistoricoCategoria, sugerirCategoriaPorHistorico } from "@/lib/historicoCategoria";
 import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
