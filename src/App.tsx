@@ -44,6 +44,7 @@ import OrcamentoPage from "./pages/OrcamentoPage";
 import CustosFixos from "./pages/CustosFixos";
 import PlanoProducao from "./pages/PlanoProducao";
 import Marketing from "./pages/Marketing";
+import PadroesPedidos from "./pages/PadroesPedidos";
 import { Loader2 } from "lucide-react";
 
 const queryClient = new QueryClient({
