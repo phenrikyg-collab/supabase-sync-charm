@@ -286,8 +286,28 @@ export default function ImportacaoLancamentos({ onImportar }: Props) {
         valor: Math.abs(t.valor),
         data: t.data,
         data_vencimento: t.data_vencimento || null,
+        categoria_id: t.categoria_id || null,
+        categoria_nome: t.categoria_sugerida || null,
         categoria: t.categoria_sugerida ? { nome: t.categoria_sugerida, id: t.categoria_id } : undefined,
       }));
+
+      // Histórico: preenche categorias com base em meses anteriores quando a IA não casou
+      if (categorias?.length && lancamentos.some((l) => !l.categoria_id)) {
+        try {
+          const indice = await carregarHistoricoCategoria(categorias);
+          for (const l of lancamentos) {
+            if (l.categoria_id) continue;
+            const sug = sugerirCategoriaPorHistorico(l.descricao, indice);
+            if (sug) {
+              l.categoria_id = sug.id;
+              l.categoria_nome = sug.nome;
+              l.categoria = { id: sug.id, nome: sug.nome };
+            }
+          }
+        } catch (e) {
+          console.warn("Falha ao carregar histórico de categorias:", e);
+        }
+      }
 
       // Validação do valor total
       if (Number.isFinite(valorFaturaNum) && valorFaturaNum! > 0) {
