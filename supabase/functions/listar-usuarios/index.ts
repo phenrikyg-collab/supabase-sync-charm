@@ -5,18 +5,22 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
+const EXTERNAL_SUPABASE_URL = 'https://ezdtulcrqzmgocamjwwl.supabase.co'
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
   }
 
   try {
-    const supabaseAdmin = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-    )
+    const serviceKey = Deno.env.get('EXTERNAL_SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    if (!serviceKey) {
+      throw new Error('EXTERNAL_SUPABASE_SERVICE_ROLE_KEY não configurada')
+    }
 
-    const { data: users, error } = await supabaseAdmin.auth.admin.listUsers()
+    const supabaseAdmin = createClient(EXTERNAL_SUPABASE_URL, serviceKey)
+
+    const { data: users, error } = await supabaseAdmin.auth.admin.listUsers({ perPage: 1000 })
 
     if (error) throw error
 
