@@ -9,6 +9,7 @@ import {
 } from "recharts";
 
 type Row = {
+  mes: string;
   semana_do_mes: number;
   num_dia_semana: number;
   nome_dia_semana: string;
