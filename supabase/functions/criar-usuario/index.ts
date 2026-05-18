@@ -37,19 +37,39 @@ Deno.serve(async (req) => {
 
     const supabaseAdmin = createClient(EXTERNAL_SUPABASE_URL, serviceKey)
 
-    const { data, error } = await supabaseAdmin.auth.admin.createUser({
+    let { data, error } = await supabaseAdmin.auth.admin.createUser({
       email,
       password,
       email_confirm: true,
     })
 
-    if (error) throw error
+    if (error && error.message.toLowerCase().includes('already been registered')) {
+      const { data: users, error: listError } = await supabaseAdmin.auth.admin.listUsers({ perPage: 1000 })
+      if (listError) throw listError
+
+      const existingUser = users.users.find((u: any) => u.email?.toLowerCase() === email.toLowerCase())
+      if (!existingUser) throw error
+
+      const { data: updated, error: updateError } = await supabaseAdmin.auth.admin.updateUserById(existingUser.id, {
+        password,
+        email_confirm: true,
+      })
+      if (updateError) throw updateError
+      data = updated
+    } else if (error) {
+      throw error
+    }
 
     const userId = data.user?.id
-    if (userId && Array.isArray(modules) && modules.length > 0) {
-      const inserts = modules.map((m: string) => ({ user_id: userId, module: m }))
-      const { error: modErr } = await supabaseAdmin.from('user_modules').insert(inserts)
-      if (modErr) throw modErr
+    if (userId && Array.isArray(modules)) {
+      const { error: deleteErr } = await supabaseAdmin.from('user_modules').delete().eq('user_id', userId)
+      if (deleteErr) throw deleteErr
+
+      if (modules.length > 0) {
+        const inserts = modules.map((m: string) => ({ user_id: userId, module: m }))
+        const { error: modErr } = await supabaseAdmin.from('user_modules').insert(inserts)
+        if (modErr) throw modErr
+      }
     }
 
     return new Response(
