@@ -766,6 +766,24 @@ function LancamentoForm({
             </div>
             <div>
               <Label>Cores disponíveis</Label>
+              {coresParent.length > 0 && (
+                <div className="flex flex-wrap gap-2 mt-1 mb-2 p-2 rounded border border-dashed bg-muted/30">
+                  <span className="text-[11px] text-muted-foreground w-full">Cores cadastradas no produto (clique para selecionar):</span>
+                  {coresParent.map((c) => {
+                    const selecionada = cores.split(",").map((x) => x.trim()).includes(c);
+                    return (
+                      <button
+                        type="button"
+                        key={c}
+                        onClick={() => toggleCorSelecionada(c)}
+                        className={`text-xs px-2 py-1 rounded border transition-colors ${selecionada ? "bg-primary text-primary-foreground border-primary" : "bg-background hover:bg-muted"}`}
+                      >
+                        {c}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
               <Input value={cores} onChange={(e) => setCores(e.target.value)} placeholder="Off White, Preto, Azul Celestial" />
             </div>
             <div>
