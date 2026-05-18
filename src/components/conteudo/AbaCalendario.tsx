@@ -102,15 +102,21 @@ export function AbaCalendario() {
     setLoading(true);
     try {
       const mesStr = pad(mes + 1);
-      const mesReferencia = `${ano}-${mesStr}`;
-      const dataInicio = `${mesReferencia}-01`;
+      const dataInicio = `${ano}-${mesStr}-01`;
       const ultimoDia = new Date(ano, mes + 1, 0).getDate();
-      const dataFim = `${mesReferencia}-${pad(ultimoDia)}`;
+      const dataFim = `${ano}-${mesStr}-${pad(ultimoDia)}`;
 
       const { data, error } = await (supabase as any)
         .from("calendario_comercial")
-        .select("*, conteudos_gerados(*)")
-        .or(`mes_referencia.eq.${mesReferencia},and(data.gte.${dataInicio},data.lte.${dataFim})`)
+        .select(`
+          id, data, titulo, tipo, status, descricao, canal, mes_referencia, criado_por_ia,
+          conteudos_gerados (
+            id, calendario_id, canal, copy_principal, copy_legenda, copy_cta,
+            hashtags, assunto_email, horario_sugerido, status, feedback_usuario, versao, tipo_campanha
+          )
+        `)
+        .gte("data", dataInicio)
+        .lte("data", dataFim)
         .order("data", { ascending: true });
       if (error) throw error;
       setDatas((data || []) as Calendario[]);
