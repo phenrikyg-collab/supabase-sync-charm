@@ -79,7 +79,7 @@ function AdminUsuariosContent() {
       // Fetch real emails from edge function
       let emailMap = new Map<string, string>();
       try {
-        const res = await invokeEdgeFunction<{ users: { id: string; email: string }[] }>("listar-usuarios", {});
+        const res = await invokeEdgeFunction("listar-usuarios", {}) as { users: { id: string; email: string }[] };
         res.users?.forEach((u: any) => emailMap.set(u.id, u.email));
       } catch (err) {
         console.error("Error fetching user emails:", err);
