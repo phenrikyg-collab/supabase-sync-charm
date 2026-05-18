@@ -360,6 +360,54 @@ Retorne APENAS o texto pronto para publicar, sem comentários, sem JSON, sem mar
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      <Dialog open={!!textoCampanha} onOpenChange={(o) => !o && setTextoCampanha(null)}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Gerar texto da campanha</DialogTitle>
+          </DialogHeader>
+          {textoCampanha && (
+            <div className="space-y-4">
+              <div className="text-sm bg-muted/50 rounded p-3 space-y-1">
+                <p className="font-medium">{textoCampanha.campanha.nome_produto}</p>
+                <p className="text-xs text-muted-foreground">
+                  Preço {brl(textoCampanha.view?.preco)} • Estoque {textoCampanha.view?.estoque_total ?? "—"} •
+                  Prioridade {textoCampanha.campanha.prioridade}/5
+                  {textoCampanha.campanha.motivo ? ` • ${textoCampanha.campanha.motivo}` : ""}
+                </p>
+              </div>
+              <Tabs value={textoCanal} onValueChange={(v) => setTextoCanal(v as any)}>
+                <TabsList className="grid grid-cols-3 w-full">
+                  <TabsTrigger value="instagram">Instagram</TabsTrigger>
+                  <TabsTrigger value="email">E-mail</TabsTrigger>
+                  <TabsTrigger value="whatsapp">WhatsApp</TabsTrigger>
+                </TabsList>
+                {(["instagram", "email", "whatsapp"] as const).map(canal => (
+                  <TabsContent key={canal} value={canal} className="space-y-3 mt-3">
+                    <Textarea
+                      value={textoGerado[canal] || ""}
+                      onChange={(e) => setTextoGerado(prev => ({ ...prev, [canal]: e.target.value }))}
+                      placeholder={`Clique em "Gerar texto" para criar o conteúdo de ${canal}…`}
+                      className="min-h-[260px] font-mono text-xs"
+                    />
+                    <div className="flex justify-between gap-2">
+                      <Button variant="outline" size="sm" onClick={copiarTexto} disabled={!textoGerado[canal]}>
+                        <Copy className="h-3 w-3 mr-1" /> Copiar
+                      </Button>
+                      <Button size="sm" onClick={gerarTexto} disabled={textoLoading}>
+                        <Sparkles className="h-3 w-3 mr-1" />
+                        {textoLoading ? "Gerando…" : textoGerado[canal] ? "Regenerar" : "Gerar texto"}
+                      </Button>
+                    </div>
+                  </TabsContent>
+                ))}
+              </Tabs>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setTextoCampanha(null)}>Fechar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
