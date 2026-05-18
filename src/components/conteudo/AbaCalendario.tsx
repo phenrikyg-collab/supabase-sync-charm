@@ -437,14 +437,14 @@ export function AbaCalendario() {
             <DialogDescription>A IA irá gerar conteúdo estratégico baseado em:</DialogDescription>
           </DialogHeader>
           <ul className="text-sm space-y-1.5 py-2">
-            <li>✓ Produtos em campanha ativa</li>
-            <li>✓ Produtos mais vendidos</li>
-            <li>✓ Produtos com estoque parado</li>
-            <li>✓ Datas comemorativas do mês</li>
-            <li>✓ Histórico de conteúdo publicado</li>
+            <li>✓ 1 Reels + 1 Carrossel + Stories por dia útil</li>
+            <li>✓ Email + WhatsApp VIP em todos os dias úteis</li>
+            <li>✓ Sábados: campanha de oferta WhatsApp</li>
+            <li>✓ Domingos: relacionamento WhatsApp</li>
+            <li>✓ Lançamentos e reposições com fluxo completo</li>
           </ul>
-          <p className="text-xs text-muted-foreground border-t pt-3">
-            Padrão: 1 Reels + 1 Carrossel por data • Sábados: campanha de oferta • Domingos: reativação/relacionamento
+          <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded p-2">
+            ⚠️ A geração é feita semana por semana. Aguarde até 2 minutos.
           </p>
           <DialogFooter>
             <Button variant="outline" onClick={() => setConfirmGerar(false)}>Cancelar</Button>
