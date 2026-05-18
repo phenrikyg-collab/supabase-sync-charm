@@ -303,10 +303,9 @@ export function AbaCalendario() {
               return (
                 <button
                   key={i}
-                  onClick={() => hasContent && openDate(items[0])}
-                  disabled={!hasContent}
-                  className={`h-24 rounded border p-1.5 text-left relative transition-colors flex flex-col ${
-                    hasContent ? "bg-card hover:bg-accent/30 cursor-pointer border-border" : "bg-muted/10 cursor-default border-transparent"
+                  onClick={() => hasContent ? openDate(items[0]) : openNova(cell.iso)}
+                  className={`h-24 rounded border p-1.5 text-left relative transition-colors flex flex-col group ${
+                    hasContent ? "bg-card hover:bg-accent/30 cursor-pointer border-border" : "bg-muted/10 hover:bg-muted/30 cursor-pointer border-dashed border-muted-foreground/20"
                   }`}
                 >
                   <div className="flex items-center justify-between">
