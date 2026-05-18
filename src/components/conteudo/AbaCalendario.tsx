@@ -282,6 +282,27 @@ export function AbaCalendario() {
     toast("Rejeitado");
   };
 
+  const [confirmRegen, setConfirmRegen] = useState<{ data: string; canal: string } | null>(null);
+  const [regenLoading, setRegenLoading] = useState(false);
+  const regenerarCanal = async () => {
+    if (!confirmRegen) return;
+    setRegenLoading(true);
+    try {
+      await invokeEdgeFunction("generate-content-calendar", {
+        mes_referencia: mesRef,
+        regenerar_data: confirmRegen.data,
+        regenerar_canal: confirmRegen.canal,
+      });
+      toast.success("Canal regenerado");
+      setConfirmRegen(null);
+      await fetchDatas();
+    } catch (e: any) {
+      toast.error("Erro ao regenerar", { description: e.message });
+    } finally {
+      setRegenLoading(false);
+    }
+  };
+
   const cells = useMemo(() => {
     const first = new Date(ano, mes, 1);
     const offset = first.getDay();
