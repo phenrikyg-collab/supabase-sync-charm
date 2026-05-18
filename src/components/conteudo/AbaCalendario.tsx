@@ -740,9 +740,9 @@ function ConteudoEditor({
           </div>
           <div>
             <Label className="text-xs">Hashtags</Label>
-            <Textarea rows={2} value={local.hashtags || ""} onChange={(e) => setLocal({ ...local, hashtags: e.target.value })} onBlur={() => blur("hashtags")} placeholder="#tag1 #tag2" />
+            <Textarea rows={2} value={Array.isArray(local.hashtags) ? (local.hashtags as any).join(" ") : (local.hashtags || "")} onChange={(e) => setLocal({ ...local, hashtags: e.target.value })} onBlur={() => blur("hashtags")} placeholder="#tag1 #tag2" />
             <div className="flex flex-wrap gap-1 mt-1">
-              {(local.hashtags || "").split(/\s+/).filter(Boolean).map((t, i) => (
+              {(Array.isArray(local.hashtags) ? (local.hashtags as any).join(" ") : (local.hashtags || "")).split(/\s+/).filter(Boolean).map((t: string, i: number) => (
                 <Badge key={i} variant="outline" className="text-[10px]">{t}</Badge>
               ))}
             </div>
