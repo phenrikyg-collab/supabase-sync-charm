@@ -10,7 +10,10 @@ import { Label } from "@/components/ui/label";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Sparkles, Loader2, ChevronLeft, ChevronRight, Check, X } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Sparkles, Loader2, ChevronLeft, ChevronRight, Check, X, Plus } from "lucide-react";
 import { invokeEdgeFunction } from "@/lib/edgeFunctions";
 
 type Calendario = {
@@ -21,6 +24,7 @@ type Calendario = {
   tipo: string;
   status: string;
   mes_referencia: string;
+  conteudos_gerados?: Conteudo[];
 };
 
 type Conteudo = {
@@ -33,6 +37,7 @@ type Conteudo = {
   hashtags: string | null;
   horario_sugerido: string | null;
   assunto_email: string | null;
+  tipo_campanha?: string | null;
   status: string | null;
   feedback_usuario: string | null;
 };
@@ -51,12 +56,19 @@ const STATUS_DOT: Record<string, string> = {
   rejeitado: "bg-red-500",
 };
 
-const CANAIS = [
-  { key: "instagram_feed", label: "Instagram Feed" },
-  { key: "instagram_story", label: "Instagram Story" },
+const CANAIS_OPTIONS = [
+  { key: "instagram_reels", label: "Instagram Reels" },
+  { key: "instagram_feed", label: "Instagram Carrossel" },
   { key: "email", label: "E-mail" },
   { key: "whatsapp_vip", label: "WhatsApp VIP" },
 ];
+
+const TIPO_CAMPANHA_DICAS: Record<string, string> = {
+  oferta: "Destaque o produto em campanha, crie urgência com estoque limitado e inclua link direto.",
+  segunda_compra: "Mencione a compra anterior, ofereça algo complementar ou exclusivo para quem já é cliente.",
+  reativacao: "Reconecte com saudade, mostre novidades e ofereça um benefício especial para voltar.",
+  manutencao: "Compartilhe conteúdo de valor, bastidores ou novidades sem pressão de venda.",
+};
 
 const DIAS_SEMANA = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
 const MESES = ["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
@@ -74,6 +86,8 @@ export function AbaCalendario() {
   const [datas, setDatas] = useState<Calendario[]>([]);
   const [loading, setLoading] = useState(false);
   const [gerando, setGerando] = useState(false);
+  const [confirmGerar, setConfirmGerar] = useState(false);
+  const [novaDataOpen, setNovaDataOpen] = useState(false);
   const [selected, setSelected] = useState<Calendario | null>(null);
   const [conteudos, setConteudos] = useState<Conteudo[]>([]);
   const [loadingConteudos, setLoadingConteudos] = useState(false);
@@ -83,10 +97,16 @@ export function AbaCalendario() {
   const fetchDatas = useCallback(async () => {
     setLoading(true);
     try {
+      const mesStr = pad(mes + 1);
+      const mesReferencia = `${ano}-${mesStr}`;
+      const dataInicio = `${mesReferencia}-01`;
+      const ultimoDia = new Date(ano, mes + 1, 0).getDate();
+      const dataFim = `${mesReferencia}-${pad(ultimoDia)}`;
+
       const { data, error } = await (supabase as any)
         .from("calendario_comercial")
-        .select("*")
-        .eq("mes_referencia", mesRef)
+        .select("*, conteudos_gerados(*)")
+        .or(`mes_referencia.eq.${mesReferencia},and(data.gte.${dataInicio},data.lte.${dataFim})`)
         .order("data", { ascending: true });
       if (error) throw error;
       setDatas((data || []) as Calendario[]);
@@ -96,11 +116,12 @@ export function AbaCalendario() {
     } finally {
       setLoading(false);
     }
-  }, [mesRef]);
+  }, [ano, mes]);
 
   useEffect(() => { fetchDatas(); }, [fetchDatas]);
 
   const handleGerar = async () => {
+    setConfirmGerar(false);
     setGerando(true);
     try {
       const res = await invokeEdgeFunction("generate-content-calendar", { mes_referencia: mesRef }) as any;
@@ -167,11 +188,11 @@ export function AbaCalendario() {
     const offset = first.getDay();
     const daysInMonth = new Date(ano, mes + 1, 0).getDate();
     const totalCells = Math.ceil((offset + daysInMonth) / 7) * 7;
-    const arr: ({ day: number; iso: string } | null)[] = [];
+    const arr: ({ day: number; iso: string; dow: number } | null)[] = [];
     for (let i = 0; i < totalCells; i++) {
       const dayNum = i - offset + 1;
       if (dayNum < 1 || dayNum > daysInMonth) arr.push(null);
-      else arr.push({ day: dayNum, iso: `${ano}-${pad(mes + 1)}-${pad(dayNum)}` });
+      else arr.push({ day: dayNum, iso: `${ano}-${pad(mes + 1)}-${pad(dayNum)}`, dow: i % 7 });
     }
     return arr;
   }, [ano, mes]);
@@ -219,10 +240,15 @@ export function AbaCalendario() {
           <Badge className="bg-blue-600 text-white hover:bg-blue-700">Publicado: {counts.publicado}</Badge>
         </div>
 
-        <Button onClick={handleGerar} disabled={gerando} className="gap-2">
-          {gerando ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-          {gerando ? "Gerando calendário com IA..." : "Gerar Calendário com IA"}
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" onClick={() => setNovaDataOpen(true)} className="gap-2">
+            <Plus className="h-4 w-4" /> Nova data
+          </Button>
+          <Button onClick={() => setConfirmGerar(true)} disabled={gerando} className="gap-2">
+            {gerando ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+            {gerando ? "Gerando..." : "Gerar Calendário com IA"}
+          </Button>
+        </div>
       </Card>
 
       {/* Calendário */}
@@ -243,12 +269,14 @@ export function AbaCalendario() {
               if (!cell) return <div key={i} className="h-24 bg-muted/20 rounded" />;
               const items = byDate.get(cell.iso) || [];
               const hasContent = items.length > 0;
+              const isSat = cell.dow === 6;
+              const isSun = cell.dow === 0;
               return (
                 <button
                   key={i}
                   onClick={() => hasContent && openDate(items[0])}
                   disabled={!hasContent}
-                  className={`h-24 rounded border p-1.5 text-left relative transition-colors ${
+                  className={`h-24 rounded border p-1.5 text-left relative transition-colors flex flex-col ${
                     hasContent ? "bg-card hover:bg-accent/30 cursor-pointer border-border" : "bg-muted/10 cursor-default border-transparent"
                   }`}
                 >
@@ -258,7 +286,7 @@ export function AbaCalendario() {
                       <span className={`h-2 w-2 rounded-full ${STATUS_DOT[items[0].status] || "bg-gray-300"}`} />
                     )}
                   </div>
-                  <div className="mt-1 space-y-0.5 overflow-hidden">
+                  <div className="mt-1 space-y-0.5 overflow-hidden flex-1">
                     {items.slice(0, 2).map((it) => (
                       <Badge key={it.id} className={`text-[9px] px-1 py-0 ${TIPO_COLORS[it.tipo] || "bg-gray-500 text-white"} block truncate w-full text-left`}>
                         {it.titulo}
@@ -266,12 +294,49 @@ export function AbaCalendario() {
                     ))}
                     {items.length > 2 && <span className="text-[9px] text-muted-foreground">+{items.length - 2}</span>}
                   </div>
+                  {isSat && (
+                    <span className="text-[8px] px-1 py-0.5 rounded bg-orange-500 text-white self-start">Oferta</span>
+                  )}
+                  {isSun && (
+                    <span className="text-[8px] px-1 py-0.5 rounded bg-blue-500 text-white self-start">Relacionamento</span>
+                  )}
                 </button>
               );
             })}
           </div>
         )}
       </Card>
+
+      {/* Confirmação Gerar IA */}
+      <Dialog open={confirmGerar} onOpenChange={setConfirmGerar}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="font-serif">Gerar calendário para {MESES[mes]}/{ano}</DialogTitle>
+            <DialogDescription>A IA irá gerar conteúdo estratégico baseado em:</DialogDescription>
+          </DialogHeader>
+          <ul className="text-sm space-y-1.5 py-2">
+            <li>✓ Produtos em campanha ativa</li>
+            <li>✓ Produtos mais vendidos</li>
+            <li>✓ Produtos com estoque parado</li>
+            <li>✓ Datas comemorativas do mês</li>
+            <li>✓ Histórico de conteúdo publicado</li>
+          </ul>
+          <p className="text-xs text-muted-foreground border-t pt-3">
+            Padrão: 1 Reels + 1 Carrossel por data • Sábados: campanha de oferta • Domingos: reativação/relacionamento
+          </p>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setConfirmGerar(false)}>Cancelar</Button>
+            <Button onClick={handleGerar} className="gap-2"><Sparkles className="h-4 w-4" /> Gerar agora</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Nova data manual */}
+      <NovaDataDialog
+        open={novaDataOpen}
+        onOpenChange={setNovaDataOpen}
+        onCreated={fetchDatas}
+      />
 
       {/* Drawer */}
       <Sheet open={!!selected} onOpenChange={(o) => !o && setSelected(null)}>
@@ -294,16 +359,46 @@ export function AbaCalendario() {
                   <Skeleton className="h-40 w-full" />
                 </div>
               ) : (
-                <Tabs defaultValue="instagram_feed" className="mt-6">
-                  <TabsList className="grid grid-cols-4 w-full">
-                    {CANAIS.map((c) => (
-                      <TabsTrigger key={c.key} value={c.key} className="text-xs">{c.label}</TabsTrigger>
-                    ))}
+                <Tabs defaultValue="instagram" className="mt-6">
+                  <TabsList className="grid grid-cols-3 w-full">
+                    <TabsTrigger value="instagram" className="text-xs">Instagram</TabsTrigger>
+                    <TabsTrigger value="email" className="text-xs">E-mail</TabsTrigger>
+                    <TabsTrigger value="whatsapp_vip" className="text-xs">WhatsApp VIP</TabsTrigger>
                   </TabsList>
-                  {CANAIS.map((canal) => {
-                    const ct = conteudos.find((c) => c.canal === canal.key);
+
+                  <TabsContent value="instagram" className="mt-4">
+                    <Tabs defaultValue="reels">
+                      <TabsList className="grid grid-cols-2 w-full">
+                        <TabsTrigger value="reels" className="text-xs">Reels</TabsTrigger>
+                        <TabsTrigger value="carrossel" className="text-xs">Carrossel</TabsTrigger>
+                      </TabsList>
+                      {[
+                        { sub: "reels", canal: "instagram_reels" },
+                        { sub: "carrossel", canal: "instagram_feed" },
+                      ].map(({ sub, canal }) => {
+                        const ct = conteudos.find((c) => c.canal === canal);
+                        return (
+                          <TabsContent key={sub} value={sub} className="space-y-3 mt-4">
+                            {!ct ? (
+                              <p className="text-sm text-muted-foreground">Sem conteúdo para este canal.</p>
+                            ) : (
+                              <ConteudoEditor
+                                conteudo={ct}
+                                onSave={updateConteudoField}
+                                onAprovar={() => aprovarConteudo(ct.id)}
+                                onRejeitar={() => rejeitarConteudo(ct.id)}
+                              />
+                            )}
+                          </TabsContent>
+                        );
+                      })}
+                    </Tabs>
+                  </TabsContent>
+
+                  {["email", "whatsapp_vip"].map((canal) => {
+                    const ct = conteudos.find((c) => c.canal === canal);
                     return (
-                      <TabsContent key={canal.key} value={canal.key} className="space-y-3 mt-4">
+                      <TabsContent key={canal} value={canal} className="space-y-3 mt-4">
                         {!ct ? (
                           <p className="text-sm text-muted-foreground">Sem conteúdo para este canal.</p>
                         ) : (
@@ -327,6 +422,104 @@ export function AbaCalendario() {
   );
 }
 
+function NovaDataDialog({ open, onOpenChange, onCreated }: { open: boolean; onOpenChange: (o: boolean) => void; onCreated: () => void }) {
+  const [data, setData] = useState("");
+  const [titulo, setTitulo] = useState("");
+  const [tipo, setTipo] = useState("conteudo");
+  const [descricao, setDescricao] = useState("");
+  const [canais, setCanais] = useState<string[]>([]);
+  const [saving, setSaving] = useState(false);
+
+  const reset = () => { setData(""); setTitulo(""); setTipo("conteudo"); setDescricao(""); setCanais([]); };
+
+  const toggleCanal = (c: string) => {
+    setCanais((prev) => prev.includes(c) ? prev.filter((x) => x !== c) : [...prev, c]);
+  };
+
+  const save = async () => {
+    if (!data || !titulo || !tipo) { toast.error("Preencha data, título e tipo"); return; }
+    setSaving(true);
+    try {
+      const mesRef = data.substring(0, 7);
+      const payload: any = {
+        data,
+        titulo,
+        tipo,
+        descricao: descricao || null,
+        status: "rascunho",
+        mes_referencia: mesRef,
+      };
+      // Optional fields — may not exist on schema; try and fallback
+      const tryFull = { ...payload, canal: canais, criado_por_ia: false };
+      let { error } = await (supabase as any).from("calendario_comercial").insert(tryFull);
+      if (error) {
+        // Retry without optional columns
+        const r2 = await (supabase as any).from("calendario_comercial").insert(payload);
+        if (r2.error) throw r2.error;
+      }
+      toast.success("Data adicionada!");
+      reset();
+      onOpenChange(false);
+      onCreated();
+    } catch (e: any) {
+      toast.error("Erro ao salvar", { description: e.message });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={(o) => { if (!o) reset(); onOpenChange(o); }}>
+      <DialogContent>
+        <DialogHeader><DialogTitle className="font-serif">Nova data</DialogTitle></DialogHeader>
+        <div className="space-y-3">
+          <div>
+            <Label className="text-xs">Data *</Label>
+            <Input type="date" value={data} onChange={(e) => setData(e.target.value)} />
+          </div>
+          <div>
+            <Label className="text-xs">Título *</Label>
+            <Input value={titulo} onChange={(e) => setTitulo(e.target.value)} />
+          </div>
+          <div>
+            <Label className="text-xs">Tipo *</Label>
+            <Select value={tipo} onValueChange={setTipo}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="comemorativa">Comemorativa</SelectItem>
+                <SelectItem value="campanha">Campanha</SelectItem>
+                <SelectItem value="lancamento">Lançamento</SelectItem>
+                <SelectItem value="conteudo">Conteúdo</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Label className="text-xs">Descrição</Label>
+            <Textarea rows={3} value={descricao} onChange={(e) => setDescricao(e.target.value)} />
+          </div>
+          <div>
+            <Label className="text-xs">Canais</Label>
+            <div className="grid grid-cols-2 gap-2 mt-1">
+              {CANAIS_OPTIONS.map((c) => (
+                <label key={c.key} className="flex items-center gap-2 text-sm cursor-pointer">
+                  <Checkbox checked={canais.includes(c.key)} onCheckedChange={() => toggleCanal(c.key)} />
+                  {c.label}
+                </label>
+              ))}
+            </div>
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
+          <Button onClick={save} disabled={saving}>
+            {saving && <Loader2 className="h-4 w-4 animate-spin mr-1" />} Confirmar
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 function ConteudoEditor({
   conteudo, onSave, onAprovar, onRejeitar,
 }: {
@@ -345,55 +538,80 @@ function ConteudoEditor({
   };
 
   const canal = conteudo.canal;
-  const showField = (f: string) => {
-    if (canal === "instagram_feed") return ["copy_principal","copy_legenda","copy_cta","hashtags","horario_sugerido"].includes(f);
-    if (canal === "instagram_story") return ["copy_principal","copy_cta"].includes(f);
-    if (canal === "email") return ["assunto_email","copy_principal","copy_cta"].includes(f);
-    if (canal === "whatsapp_vip") return ["copy_principal"].includes(f);
-    return true;
-  };
+  const isInstagram = canal === "instagram_feed" || canal === "instagram_reels";
+  const isEmail = canal === "email";
+  const isWhats = canal === "whatsapp_vip";
 
   return (
     <div className="space-y-3">
-      {showField("assunto_email") && (
+      {isEmail && (
         <div>
           <Label className="text-xs">Assunto</Label>
           <Input value={local.assunto_email || ""} onChange={(e) => setLocal({ ...local, assunto_email: e.target.value })} onBlur={() => blur("assunto_email")} />
         </div>
       )}
-      {showField("copy_principal") && (
+
+      {isWhats && (
         <div>
-          <Label className="text-xs">Copy Principal</Label>
-          <Textarea rows={4} value={local.copy_principal || ""} onChange={(e) => setLocal({ ...local, copy_principal: e.target.value })} onBlur={() => blur("copy_principal")} />
+          <Label className="text-xs">Tipo de campanha</Label>
+          <Select
+            value={local.tipo_campanha || ""}
+            onValueChange={(v) => {
+              setLocal({ ...local, tipo_campanha: v });
+              onSave(conteudo.id, "tipo_campanha", v);
+            }}
+          >
+            <SelectTrigger><SelectValue placeholder="Selecionar..." /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="oferta">Oferta — produto com urgência (Sábados)</SelectItem>
+              <SelectItem value="segunda_compra">Segunda compra — recompra incentivada</SelectItem>
+              <SelectItem value="reativacao">Reativação — clientes inativos 60+ dias</SelectItem>
+              <SelectItem value="manutencao">Manutenção — base ativa, conteúdo de valor</SelectItem>
+            </SelectContent>
+          </Select>
+          {local.tipo_campanha && TIPO_CAMPANHA_DICAS[local.tipo_campanha] && (
+            <p className="text-xs text-muted-foreground mt-1.5 p-2 bg-muted/40 rounded border-l-2 border-primary">
+              💡 {TIPO_CAMPANHA_DICAS[local.tipo_campanha]}
+            </p>
+          )}
         </div>
       )}
-      {showField("copy_legenda") && (
-        <div>
-          <Label className="text-xs">Legenda</Label>
-          <Textarea rows={3} value={local.copy_legenda || ""} onChange={(e) => setLocal({ ...local, copy_legenda: e.target.value })} onBlur={() => blur("copy_legenda")} />
-        </div>
+
+      <div>
+        <Label className="text-xs">Copy Principal</Label>
+        <Textarea rows={4} value={local.copy_principal || ""} onChange={(e) => setLocal({ ...local, copy_principal: e.target.value })} onBlur={() => blur("copy_principal")} />
+      </div>
+
+      {isInstagram && (
+        <>
+          <div>
+            <Label className="text-xs">Legenda</Label>
+            <Textarea rows={3} value={local.copy_legenda || ""} onChange={(e) => setLocal({ ...local, copy_legenda: e.target.value })} onBlur={() => blur("copy_legenda")} />
+          </div>
+          <div>
+            <Label className="text-xs">CTA</Label>
+            <Input value={local.copy_cta || ""} onChange={(e) => setLocal({ ...local, copy_cta: e.target.value })} onBlur={() => blur("copy_cta")} />
+          </div>
+          <div>
+            <Label className="text-xs">Hashtags</Label>
+            <Textarea rows={2} value={local.hashtags || ""} onChange={(e) => setLocal({ ...local, hashtags: e.target.value })} onBlur={() => blur("hashtags")} placeholder="#tag1 #tag2" />
+            <div className="flex flex-wrap gap-1 mt-1">
+              {(local.hashtags || "").split(/\s+/).filter(Boolean).map((t, i) => (
+                <Badge key={i} variant="outline" className="text-[10px]">{t}</Badge>
+              ))}
+            </div>
+          </div>
+          <div>
+            <Label className="text-xs">Horário Sugerido</Label>
+            <Input value={local.horario_sugerido || ""} onChange={(e) => setLocal({ ...local, horario_sugerido: e.target.value })} onBlur={() => blur("horario_sugerido")} placeholder="HH:MM" />
+          </div>
+        </>
       )}
-      {showField("copy_cta") && (
+
+      {isEmail && (
         <div>
           <Label className="text-xs">CTA</Label>
           <Input value={local.copy_cta || ""} onChange={(e) => setLocal({ ...local, copy_cta: e.target.value })} onBlur={() => blur("copy_cta")} />
-        </div>
-      )}
-      {showField("hashtags") && (
-        <div>
-          <Label className="text-xs">Hashtags</Label>
-          <Textarea rows={2} value={local.hashtags || ""} onChange={(e) => setLocal({ ...local, hashtags: e.target.value })} onBlur={() => blur("hashtags")} placeholder="#tag1 #tag2" />
-          <div className="flex flex-wrap gap-1 mt-1">
-            {(local.hashtags || "").split(/\s+/).filter(Boolean).map((t, i) => (
-              <Badge key={i} variant="outline" className="text-[10px]">{t}</Badge>
-            ))}
-          </div>
-        </div>
-      )}
-      {showField("horario_sugerido") && (
-        <div>
-          <Label className="text-xs">Horário Sugerido</Label>
-          <Input value={local.horario_sugerido || ""} onChange={(e) => setLocal({ ...local, horario_sugerido: e.target.value })} onBlur={() => blur("horario_sugerido")} placeholder="HH:MM" />
         </div>
       )}
 

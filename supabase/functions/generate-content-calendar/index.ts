@@ -50,7 +50,9 @@ Regras:
 - Inclua datas comemorativas brasileiras relevantes.
 - Misture com posts de conteúdo (dicas de styling, bastidores, depoimentos).
 - 8 a 14 datas no mês.
-- Cada data deve ter os 4 canais com copy adequada ao formato.`;
+- Padrão por data: 1 Reels (instagram_reels) + 1 Carrossel (instagram_feed) + 1 e-mail + 1 whatsapp_vip quando aplicável.
+- SÁBADOS: sempre criar entrada do tipo "campanha" com canal whatsapp_vip de OFERTA do produto em campanha ativa (urgência, estoque limitado, link direto). Adicione tipo_campanha: "oferta".
+- DOMINGOS: sempre criar entrada do tipo "conteudo" com canal whatsapp_vip de REATIVAÇÃO ou MANUTENÇÃO de base (saudade, novidades, benefício). Adicione tipo_campanha: "reativacao" ou "manutencao".`;
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
@@ -162,6 +164,7 @@ INSTRUÇÃO ESPECIAL: Gere conteúdo focado em impulsionar as vendas dos produto
         hashtags: Array.isArray(c.hashtags) ? c.hashtags.join(" ") : (c.hashtags || null),
         horario_sugerido: c.horario_sugerido || null,
         assunto_email: c.assunto_email || null,
+        tipo_campanha: c.tipo_campanha || null,
         status: "rascunho",
       }));
       if (conteudos.length) {
