@@ -32,6 +32,8 @@ interface ProdutoCampanhaRow {
   percentual_abaixo_media: number | null;
   status_campanha: string | null;
   apto_campanha: boolean | null;
+  dias_desde_criacao?: number | null;
+  urgencia_score?: number;
 }
 
 const STATUS_CONFIG: Record<string, { label: string; className: string }> = {
@@ -39,6 +41,7 @@ const STATUS_CONFIG: Record<string, { label: string; className: string }> = {
   quebra_grade: { label: "Quebra de grade", className: "bg-red-100 text-red-800 border-red-300" },
   estoque_baixo: { label: "Estoque baixo", className: "bg-yellow-100 text-yellow-800 border-yellow-300" },
   vendendo_bem: { label: "Vendendo bem", className: "bg-blue-100 text-blue-800 border-blue-300" },
+  urgente_antigo: { label: "Urgente (antigo)", className: "bg-orange-100 text-orange-800 border-orange-300" },
 };
 
 const PAGE_SIZE = 20;
@@ -67,7 +70,42 @@ export function AbaSugestoesAutomaticas() {
         .order("percentual_abaixo_media", { ascending: false })
         .limit(2000);
       if (error) throw error;
-      setRows((data as any) || []);
+      const base = ((data as any[]) || []) as ProdutoCampanhaRow[];
+
+      // Busca datas de criação dos produtos para calcular idade/urgência
+      const ids = base.map(r => r.id).filter(Boolean);
+      const datasMap = new Map<string, string>();
+      const CHUNK = 200;
+      for (let i = 0; i < ids.length; i += CHUNK) {
+        const slice = ids.slice(i, i + CHUNK);
+        const { data: prods } = await supabase
+          .from("produtos")
+          .select("id, created_at")
+          .in("id", slice as any);
+        (prods || []).forEach((p: any) => datasMap.set(String(p.id), p.created_at));
+      }
+
+      const hoje = Date.now();
+      const enriquecidos = base.map(r => {
+        const dt = datasMap.get(String(r.id));
+        const dias = dt ? Math.floor((hoje - new Date(dt).getTime()) / 86400000) : null;
+        const vendas = r.total_vendas ?? 0;
+        const estoque = r.estoque_total ?? 0;
+        // Urgência: produto antigo + pouca venda + ainda com estoque
+        const urgencia_score = dias != null
+          ? Math.round((dias / 30) * Math.max(0, 10 - vendas) * (estoque > 0 ? 1 : 0))
+          : 0;
+        let status = r.status_campanha;
+        // Marca como urgente_antigo se tem >180 dias, <5 vendas e estoque disponível
+        if (dias != null && dias >= 180 && vendas < 5 && estoque >= 1) {
+          status = "urgente_antigo";
+        }
+        return { ...r, dias_desde_criacao: dias, urgencia_score, status_campanha: status };
+      });
+
+      // Ordena urgentes primeiro
+      enriquecidos.sort((a, b) => (b.urgencia_score || 0) - (a.urgencia_score || 0));
+      setRows(enriquecidos);
     } catch (e: any) {
       toast.error("Erro ao carregar produtos: " + (e.message || ""));
     } finally {
@@ -82,6 +120,7 @@ export function AbaSugestoesAutomaticas() {
     quebra: rows.filter(r => r.status_campanha === "quebra_grade").length,
     baixo: rows.filter(r => r.status_campanha === "estoque_baixo").length,
     bem: rows.filter(r => r.status_campanha === "vendendo_bem").length,
+    urgente: rows.filter(r => r.status_campanha === "urgente_antigo").length,
   }), [rows]);
 
   const filtered = useMemo(() => {
@@ -139,10 +178,14 @@ export function AbaSugestoesAutomaticas() {
         <CardContent className="py-4 text-sm text-muted-foreground">
           Produtos identificados automaticamente como aptos para campanha: estoque ≥ 5 unidades,
           no máximo 2 variantes zeradas e vendas abaixo da média geral da loja.
+          Itens com mais de 180 dias de cadastro, menos de 5 vendas e estoque disponível são
+          marcados como <span className="font-medium text-orange-700">Urgente (antigo)</span> e
+          priorizados no topo.
         </CardContent>
       </Card>
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+        <MetricCard label="Urgente (antigo)" value={metricas.urgente} cls="border-orange-300 text-orange-700" />
         <MetricCard label="Aptos para campanha" value={metricas.apto} cls="border-green-300 text-green-700" />
         <MetricCard label="Quebra de grade" value={metricas.quebra} cls="border-red-300 text-red-700" />
         <MetricCard label="Estoque baixo" value={metricas.baixo} cls="border-yellow-300 text-yellow-700" />
@@ -160,6 +203,7 @@ export function AbaSugestoesAutomaticas() {
           <SelectTrigger className="sm:w-64"><SelectValue /></SelectTrigger>
           <SelectContent>
             <SelectItem value="todos">Todos os status</SelectItem>
+            <SelectItem value="urgente_antigo">Urgente (antigo)</SelectItem>
             <SelectItem value="apto_campanha">Apto para campanha</SelectItem>
             <SelectItem value="quebra_grade">Quebra de grade</SelectItem>
             <SelectItem value="estoque_baixo">Estoque baixo</SelectItem>
@@ -179,6 +223,7 @@ export function AbaSugestoesAutomaticas() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Produto</TableHead>
+                  <TableHead>Idade</TableHead>
                   <TableHead>Preço</TableHead>
                   <TableHead>Estoque</TableHead>
                   <TableHead>Vendas</TableHead>
@@ -202,6 +247,17 @@ export function AbaSugestoesAutomaticas() {
                             {p.nome_produto} <ExternalLink className="h-3 w-3" />
                           </a>
                         ) : p.nome_produto}
+                      </TableCell>
+                      <TableCell>
+                        {p.dias_desde_criacao != null ? (
+                          <Badge variant="outline" className={
+                            p.dias_desde_criacao >= 180 ? "bg-orange-100 text-orange-800" :
+                            p.dias_desde_criacao >= 90 ? "bg-yellow-100 text-yellow-800" :
+                            "bg-muted text-muted-foreground"
+                          }>
+                            {p.dias_desde_criacao}d
+                          </Badge>
+                        ) : "—"}
                       </TableCell>
                       <TableCell>{brl(p.preco)}</TableCell>
                       <TableCell>{estoqueBadge(p.estoque_total)}</TableCell>
@@ -232,7 +288,7 @@ export function AbaSugestoesAutomaticas() {
                   );
                 })}
                 {!pagedRows.length && (
-                  <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground py-8">
+                  <TableRow><TableCell colSpan={9} className="text-center text-muted-foreground py-8">
                     Nenhum produto encontrado
                   </TableCell></TableRow>
                 )}
