@@ -89,9 +89,12 @@ export function AbaCalendario() {
   const [gerando, setGerando] = useState(false);
   const [confirmGerar, setConfirmGerar] = useState(false);
   const [novaDataOpen, setNovaDataOpen] = useState(false);
+  const [editing, setEditing] = useState<Calendario | null>(null);
+  const [novaDataInitial, setNovaDataInitial] = useState<string>("");
   const [selected, setSelected] = useState<Calendario | null>(null);
   const [conteudos, setConteudos] = useState<Conteudo[]>([]);
   const [loadingConteudos, setLoadingConteudos] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState<Calendario | null>(null);
 
   const mesRef = `${ano}-${pad(mes + 1)}`;
 
