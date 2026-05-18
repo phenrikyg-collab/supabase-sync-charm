@@ -56,6 +56,8 @@ export function AbaSugestoesAutomaticas() {
   const [rows, setRows] = useState<ProdutoCampanhaRow[]>([]);
   const [busca, setBusca] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("todos");
+  const [idadeFilter, setIdadeFilter] = useState<string>("todos");
+  const [girarUrgente, setGirarUrgente] = useState(false);
   const [page, setPage] = useState(1);
   const [modalProduto, setModalProduto] = useState<ProdutoCampanhaRow | null>(null);
   const [form, setForm] = useState({ motivo: "", prioridade: 3, meta_vendas: "", observacao: "" });
@@ -125,16 +127,27 @@ export function AbaSugestoesAutomaticas() {
 
   const filtered = useMemo(() => {
     const b = busca.trim().toLowerCase();
+    const minDias = idadeFilter === "90" ? 90 :
+                    idadeFilter === "180" ? 180 :
+                    idadeFilter === "365" ? 365 : 0;
     return rows.filter(r => {
       if (statusFilter !== "todos" && r.status_campanha !== statusFilter) return false;
       if (b && !r.nome_produto?.toLowerCase().includes(b)) return false;
+      if (minDias > 0 && (r.dias_desde_criacao ?? 0) < minDias) return false;
+      if (girarUrgente) {
+        // Precisa girar: cadastrado há ≥90 dias, com estoque e poucas vendas
+        const dias = r.dias_desde_criacao ?? 0;
+        const vendas = r.total_vendas ?? 0;
+        const estoque = r.estoque_total ?? 0;
+        if (dias < 90 || estoque < 1 || vendas >= 10) return false;
+      }
       return true;
     });
-  }, [rows, busca, statusFilter]);
+  }, [rows, busca, statusFilter, idadeFilter, girarUrgente]);
 
   const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const pagedRows = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
-  useEffect(() => { setPage(1); }, [busca, statusFilter]);
+  useEffect(() => { setPage(1); }, [busca, statusFilter, idadeFilter, girarUrgente]);
 
   function abrirModal(p: ProdutoCampanhaRow) {
     setModalProduto(p);
@@ -192,15 +205,15 @@ export function AbaSugestoesAutomaticas() {
         <MetricCard label="Vendendo bem" value={metricas.bem} cls="border-blue-300 text-blue-700" />
       </div>
 
-      <div className="flex flex-col sm:flex-row gap-3">
+      <div className="flex flex-col sm:flex-row gap-3 flex-wrap">
         <Input
           placeholder="Buscar por nome do produto..."
           value={busca}
           onChange={(e) => setBusca(e.target.value)}
-          className="sm:max-w-md"
+          className="sm:max-w-xs"
         />
         <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="sm:w-64"><SelectValue /></SelectTrigger>
+          <SelectTrigger className="sm:w-56"><SelectValue placeholder="Status" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="todos">Todos os status</SelectItem>
             <SelectItem value="urgente_antigo">Urgente (antigo)</SelectItem>
@@ -210,6 +223,22 @@ export function AbaSugestoesAutomaticas() {
             <SelectItem value="vendendo_bem">Vendendo bem</SelectItem>
           </SelectContent>
         </Select>
+        <Select value={idadeFilter} onValueChange={setIdadeFilter}>
+          <SelectTrigger className="sm:w-56"><SelectValue placeholder="Idade" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="todos">Qualquer idade</SelectItem>
+            <SelectItem value="90">≥ 90 dias</SelectItem>
+            <SelectItem value="180">≥ 180 dias</SelectItem>
+            <SelectItem value="365">≥ 1 ano</SelectItem>
+          </SelectContent>
+        </Select>
+        <Button
+          variant={girarUrgente ? "default" : "outline"}
+          onClick={() => setGirarUrgente(v => !v)}
+          className={girarUrgente ? "bg-orange-600 hover:bg-orange-700" : ""}
+        >
+          Precisam girar
+        </Button>
       </div>
 
       <Card>
