@@ -30,8 +30,10 @@ const brl = (v: number) =>
 const num = (v: number) => new Intl.NumberFormat("pt-BR").format(v || 0);
 
 export default function PadroesPedidos() {
-  const [rows, setRows] = useState<Row[]>([]);
+  const [allRows, setAllRows] = useState<Row[]>([]);
   const [loading, setLoading] = useState(true);
+  const [mesDe, setMesDe] = useState<string>("");
+  const [mesAte, setMesAte] = useState<string>("");
 
   useEffect(() => {
     (async () => {
@@ -42,7 +44,7 @@ export default function PadroesPedidos() {
       while (true) {
         const { data, error } = await supabase
           .from("vw_padroes_pedidos" as any)
-          .select("semana_do_mes,num_dia_semana,nome_dia_semana,periodo_dia,total_pedidos,receita_total,ticket_medio")
+          .select("mes,semana_do_mes,num_dia_semana,nome_dia_semana,periodo_dia,total_pedidos,receita_total,ticket_medio")
           .range(from, from + size - 1);
         if (error) { console.error(error); break; }
         if (!data || data.length === 0) break;
@@ -50,10 +52,32 @@ export default function PadroesPedidos() {
         if (data.length < size) break;
         from += size;
       }
-      setRows(all);
+      setAllRows(all);
+      // Initialize range to full available span
+      const meses = Array.from(new Set(all.map((r) => (r.mes || "").slice(0, 7)))).filter(Boolean).sort();
+      if (meses.length) {
+        setMesDe(meses[0]);
+        setMesAte(meses[meses.length - 1]);
+      }
       setLoading(false);
     })();
   }, []);
+
+  const mesesDisponiveis = useMemo(
+    () => Array.from(new Set(allRows.map((r) => (r.mes || "").slice(0, 7)))).filter(Boolean).sort(),
+    [allRows]
+  );
+
+  const rows = useMemo(() => {
+    if (!mesDe && !mesAte) return allRows;
+    return allRows.filter((r) => {
+      const m = (r.mes || "").slice(0, 7);
+      if (mesDe && m < mesDe) return false;
+      if (mesAte && m > mesAte) return false;
+      return true;
+    });
+  }, [allRows, mesDe, mesAte]);
+
 
   // === Aggregations ===
   const porSemana = useMemo(() => {
