@@ -1162,10 +1162,10 @@ function AbaKpisTrafego({ mesRef }: { mesRef: string }) {
             </div>
           </div>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-            <SimBox label="Pedidos" value={num(Math.round(simPedidos))} />
-            <SimBox label="Sessões necessárias" value={num(Math.round(simSessoes))} />
-            <SimBox label="CPS necessário" value={brl(simCps)} />
-            <SimBox label="ROAS necessário" value={`${simRoas.toFixed(2)}x`} />
+            <SimBox label="Pedidos necessários" value={num(simPedidos)} />
+            <SimBox label="Sessões necessárias" value={num(simSessoes)} />
+            <SimBox label="CPS necessário" value={brl(simCps)} hint={cpsHist ? `hist. ${brl(cpsHist)}` : undefined} hintClass={cpsBadge} />
+            <SimBox label="ROAS necessário" value={`${simRoas.toFixed(2)}x`} hint={roasHist ? `hist. ${roasHist.toFixed(2)}x` : undefined} hintClass={roasBadge} />
           </div>
           <div className="text-sm">
             <strong>Viabilidade:</strong>{" "}
@@ -1173,6 +1173,9 @@ function AbaKpisTrafego({ mesRef }: { mesRef: string }) {
             {semaforo === "amarelo" && "🟡 Desafiador — exigirá melhoria de eficiência"}
             {semaforo === "vermelho" && "🔴 Muito agressivo — KPIs muito acima do histórico"}
             {semaforo === "muted" && "Informe meta e investimento para simular"}
+          </div>
+          <div className="text-xs bg-sky-50 border border-sky-200 rounded-md p-3 text-sky-900">
+            📊 Baseado em: Taxa de conversão média de <strong>{conversaoHist.toFixed(2)}%</strong>, Ticket médio de <strong>{brl(ticketHist)}</strong> (últimos {ultimos3.length} {ultimos3.length === 1 ? "mês" : "meses"})
           </div>
         </CardContent>
       </Card>
