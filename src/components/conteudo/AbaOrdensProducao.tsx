@@ -6,7 +6,6 @@ import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Package, ChevronDown, ChevronUp, Rocket, Loader2, AlertTriangle, CheckCircle2 } from "lucide-react";
@@ -52,7 +51,6 @@ export function AbaOrdensProducao() {
   const [cores, setCores] = useState<Map<string, string>>(new Map());
   const [lancamentos, setLancamentos] = useState<Lancamento[]>([]);
   const [loading, setLoading] = useState(true);
-  const [statusFilter, setStatusFilter] = useState("todos");
   const [search, setSearch] = useState("");
   const [expanded, setExpanded] = useState<Record<string, Etapa[]>>({});
   const [loadingEtapas, setLoadingEtapas] = useState<string | null>(null);
@@ -65,7 +63,7 @@ export function AbaOrdensProducao() {
     setLoading(true);
     try {
       const [oRes, pRes, cRes, lRes] = await Promise.all([
-        (supabase as any).from("ordens_producao").select("*").order("data_previsao_termino", { ascending: true, nullsFirst: false }),
+        (supabase as any).from("ordens_producao").select("*").not("status_ordem", "in", "(concluido,cancelado)").order("data_previsao_termino", { ascending: true, nullsFirst: false }),
         (supabase as any).from("produtos").select("id,nome_do_produto,tipo_do_produto,preco_venda"),
         (supabase as any).from("cores").select("id,nome_cor"),
         (supabase as any).from("lancamentos_pecas").select("id,nome_peca,data_lancamento"),
@@ -95,7 +93,6 @@ export function AbaOrdensProducao() {
   useEffect(() => { fetchAll(); }, [fetchAll]);
 
   const filtered = ordens.filter((o) => {
-    if (statusFilter !== "todos" && o.status_ordem !== statusFilter) return false;
     if (search && !(o.nome_produto || "").toLowerCase().includes(search.toLowerCase())) return false;
     return true;
   });
@@ -190,17 +187,10 @@ export function AbaOrdensProducao() {
 
   return (
     <div className="space-y-4">
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        <h2 className="font-serif text-lg">Ordens em Aberto</h2>
+      </div>
       <Card className="p-4 flex flex-wrap gap-3 items-center">
-        <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-[200px]"><SelectValue /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="todos">Todos os status</SelectItem>
-            <SelectItem value="em_producao">Em produção</SelectItem>
-            <SelectItem value="concluido">Concluído</SelectItem>
-            <SelectItem value="aguardando">Aguardando</SelectItem>
-            <SelectItem value="cancelado">Cancelado</SelectItem>
-          </SelectContent>
-        </Select>
         <Input placeholder="Buscar por produto..." value={search} onChange={(e) => setSearch(e.target.value)} className="max-w-sm" />
       </Card>
 
