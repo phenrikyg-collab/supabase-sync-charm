@@ -195,7 +195,6 @@ export function AbaCalendario() {
   const rejeitarConteudo = async (cid: string) => {
     await updateConteudoField(cid, "status", "rejeitado");
     toast("Rejeitado");
-    if (selected) fetchConteudos(selected.id);
   };
 
   const cells = useMemo(() => {
