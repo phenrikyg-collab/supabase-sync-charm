@@ -127,16 +127,27 @@ export function AbaSugestoesAutomaticas() {
 
   const filtered = useMemo(() => {
     const b = busca.trim().toLowerCase();
+    const minDias = idadeFilter === "90" ? 90 :
+                    idadeFilter === "180" ? 180 :
+                    idadeFilter === "365" ? 365 : 0;
     return rows.filter(r => {
       if (statusFilter !== "todos" && r.status_campanha !== statusFilter) return false;
       if (b && !r.nome_produto?.toLowerCase().includes(b)) return false;
+      if (minDias > 0 && (r.dias_desde_criacao ?? 0) < minDias) return false;
+      if (girarUrgente) {
+        // Precisa girar: cadastrado há ≥90 dias, com estoque e poucas vendas
+        const dias = r.dias_desde_criacao ?? 0;
+        const vendas = r.total_vendas ?? 0;
+        const estoque = r.estoque_total ?? 0;
+        if (dias < 90 || estoque < 1 || vendas >= 10) return false;
+      }
       return true;
     });
-  }, [rows, busca, statusFilter]);
+  }, [rows, busca, statusFilter, idadeFilter, girarUrgente]);
 
   const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const pagedRows = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
-  useEffect(() => { setPage(1); }, [busca, statusFilter]);
+  useEffect(() => { setPage(1); }, [busca, statusFilter, idadeFilter, girarUrgente]);
 
   function abrirModal(p: ProdutoCampanhaRow) {
     setModalProduto(p);
