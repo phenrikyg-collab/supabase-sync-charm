@@ -181,6 +181,31 @@ export function AbaCalendario() {
     fetchDatas();
   };
 
+  const handleDelete = async (cal: Calendario) => {
+    try {
+      await (supabase as any).from("conteudos_gerados").delete().eq("calendario_id", cal.id);
+      const { error } = await (supabase as any).from("calendario_comercial").delete().eq("id", cal.id);
+      if (error) throw error;
+      toast.success("Data excluída");
+      setConfirmDelete(null);
+      if (selected?.id === cal.id) setSelected(null);
+      fetchDatas();
+    } catch (e: any) {
+      toast.error("Erro ao excluir", { description: e.message });
+    }
+  };
+
+  const openEdit = (cal: Calendario) => {
+    setEditing(cal);
+    setNovaDataOpen(true);
+  };
+
+  const openNova = (iso?: string) => {
+    setEditing(null);
+    setNovaDataInitial(iso || "");
+    setNovaDataOpen(true);
+  };
+
   const rejeitarConteudo = async (cid: string) => {
     await updateConteudoField(cid, "status", "rejeitado");
     toast("Rejeitado");
