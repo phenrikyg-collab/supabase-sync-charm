@@ -227,6 +227,10 @@ function AbaCriarPlano({ mesRef, onGenerated }: { mesRef: string; onGenerated: (
     setConfirmOpen(false);
     setGerando(true);
     setStatusMsg("Gerando plano estratégico...");
+    // Aviso amarelo se passar de 90s
+    const slowWarn = setTimeout(() => {
+      toast.warning("Geração em andamento... Recarregue a página em alguns instantes.");
+    }, 90_000);
     try {
       const { data, error } = await supabase.functions.invoke("generate-commercial-plan", {
         body: {
@@ -237,20 +241,28 @@ function AbaCriarPlano({ mesRef, onGenerated }: { mesRef: string; onGenerated: (
       });
       if (error) throw error;
       setResposta(data);
-      // Recarrega plano persistido
-      const { data: planos } = await supabase
-        .from("planos_comerciais" as any)
-        .select("*")
-        .eq("mes_referencia", mesRef)
-        .order("created_at", { ascending: false })
-        .limit(1);
+      // Recarrega plano persistido + ações
+      const [{ data: planos }, { data: acoes }] = await Promise.all([
+        supabase
+          .from("planos_comerciais" as any)
+          .select("*")
+          .eq("mes_referencia", mesRef)
+          .order("created_at", { ascending: false })
+          .limit(1),
+        supabase
+          .from("acoes_comerciais" as any)
+          .select("id")
+          .eq("mes_referencia", mesRef),
+      ]);
       setPlano((planos as any)?.[0] || null);
-      toast.success(`Plano gerado: ${data?.total_acoes_geradas || 0} ações criadas`);
+      const totalAcoes = (acoes as any[])?.length || data?.total_acoes_geradas || 0;
+      toast.success(`Plano gerado! ${totalAcoes} ações criadas.`);
       onGenerated();
     } catch (e: any) {
       console.error(e);
       toast.error(e?.message || "Falha ao gerar plano");
     } finally {
+      clearTimeout(slowWarn);
       setGerando(false);
       setStatusMsg("");
     }
