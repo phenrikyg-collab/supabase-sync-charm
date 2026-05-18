@@ -239,17 +239,69 @@ export default function PadroesPedidos() {
     );
   }
 
+  const formatMesLabel = (m: string) => {
+    if (!m || m.length < 7) return m;
+    const [y, mo] = m.split("-");
+    return `${mo}/${y}`;
+  };
+
+  const resetFiltro = () => {
+    if (mesesDisponiveis.length) {
+      setMesDe(mesesDisponiveis[0]);
+      setMesAte(mesesDisponiveis[mesesDisponiveis.length - 1]);
+    }
+  };
+
   return (
     <div className="space-y-10 p-6 max-w-[1400px] mx-auto">
-      <div className="flex items-center gap-3">
-        <BarChart3 className="h-7 w-7 text-primary" />
-        <div>
-          <h1 className="font-serif text-3xl font-bold">Padrões de Pedidos</h1>
-          <p className="text-muted-foreground text-sm mt-1">
-            Análise de padrões de vendas — semana, dia da semana e período do dia
-          </p>
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <BarChart3 className="h-7 w-7 text-primary" />
+          <div>
+            <h1 className="font-serif text-3xl font-bold">Padrões de Pedidos</h1>
+            <p className="text-muted-foreground text-sm mt-1">
+              Análise de padrões de vendas — semana, dia da semana e período do dia
+            </p>
+          </div>
         </div>
+
+        <Card className="md:min-w-[360px]">
+          <CardContent className="p-3 flex flex-wrap items-end gap-3">
+            <div className="flex flex-col gap-1">
+              <label className="text-[11px] uppercase text-muted-foreground font-medium">De</label>
+              <select
+                value={mesDe}
+                onChange={(e) => setMesDe(e.target.value)}
+                className="h-9 rounded-md border border-input bg-background px-2 text-sm"
+              >
+                {mesesDisponiveis.map((m) => (
+                  <option key={m} value={m}>{formatMesLabel(m)}</option>
+                ))}
+              </select>
+            </div>
+            <div className="flex flex-col gap-1">
+              <label className="text-[11px] uppercase text-muted-foreground font-medium">Até</label>
+              <select
+                value={mesAte}
+                onChange={(e) => setMesAte(e.target.value)}
+                className="h-9 rounded-md border border-input bg-background px-2 text-sm"
+              >
+                {mesesDisponiveis.map((m) => (
+                  <option key={m} value={m}>{formatMesLabel(m)}</option>
+                ))}
+              </select>
+            </div>
+            <button
+              type="button"
+              onClick={resetFiltro}
+              className="h-9 px-3 text-xs rounded-md border border-input hover:bg-muted transition"
+            >
+              Limpar
+            </button>
+          </CardContent>
+        </Card>
       </div>
+
 
       {/* ============= SEÇÃO 1: SEMANA DO MÊS ============= */}
       <section className="space-y-4">
