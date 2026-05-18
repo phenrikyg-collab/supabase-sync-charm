@@ -70,7 +70,42 @@ export function AbaSugestoesAutomaticas() {
         .order("percentual_abaixo_media", { ascending: false })
         .limit(2000);
       if (error) throw error;
-      setRows((data as any) || []);
+      const base = ((data as any[]) || []) as ProdutoCampanhaRow[];
+
+      // Busca datas de criação dos produtos para calcular idade/urgência
+      const ids = base.map(r => r.id).filter(Boolean);
+      const datasMap = new Map<string, string>();
+      const CHUNK = 200;
+      for (let i = 0; i < ids.length; i += CHUNK) {
+        const slice = ids.slice(i, i + CHUNK);
+        const { data: prods } = await supabase
+          .from("produtos")
+          .select("id, created_at")
+          .in("id", slice as any);
+        (prods || []).forEach((p: any) => datasMap.set(String(p.id), p.created_at));
+      }
+
+      const hoje = Date.now();
+      const enriquecidos = base.map(r => {
+        const dt = datasMap.get(String(r.id));
+        const dias = dt ? Math.floor((hoje - new Date(dt).getTime()) / 86400000) : null;
+        const vendas = r.total_vendas ?? 0;
+        const estoque = r.estoque_total ?? 0;
+        // Urgência: produto antigo + pouca venda + ainda com estoque
+        const urgencia_score = dias != null
+          ? Math.round((dias / 30) * Math.max(0, 10 - vendas) * (estoque > 0 ? 1 : 0))
+          : 0;
+        let status = r.status_campanha;
+        // Marca como urgente_antigo se tem >180 dias, <5 vendas e estoque disponível
+        if (dias != null && dias >= 180 && vendas < 5 && estoque >= 1) {
+          status = "urgente_antigo";
+        }
+        return { ...r, dias_desde_criacao: dias, urgencia_score, status_campanha: status };
+      });
+
+      // Ordena urgentes primeiro
+      enriquecidos.sort((a, b) => (b.urgencia_score || 0) - (a.urgencia_score || 0));
+      setRows(enriquecidos);
     } catch (e: any) {
       toast.error("Erro ao carregar produtos: " + (e.message || ""));
     } finally {
