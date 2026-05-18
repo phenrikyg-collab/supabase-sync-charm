@@ -203,6 +203,7 @@ export function AbaSugestoesAutomaticas() {
           <SelectTrigger className="sm:w-64"><SelectValue /></SelectTrigger>
           <SelectContent>
             <SelectItem value="todos">Todos os status</SelectItem>
+            <SelectItem value="urgente_antigo">Urgente (antigo)</SelectItem>
             <SelectItem value="apto_campanha">Apto para campanha</SelectItem>
             <SelectItem value="quebra_grade">Quebra de grade</SelectItem>
             <SelectItem value="estoque_baixo">Estoque baixo</SelectItem>
