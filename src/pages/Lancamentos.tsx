@@ -537,26 +537,71 @@ function LancamentoForm({
     })();
   }, [open, produtos.length]);
 
+  // ---- parents vs variantes (variantes têm "Cor:" no nome) ----
+  const isVariante = (nm: string | null | undefined) => !!nm && /Cor:/i.test(nm);
+
+  // mapa parent.id -> { cores, tamanhos } derivado das variantes
+  const variantesPorParent = (() => {
+    const map: Record<string, { cores: Set<string>; tamanhos: Set<string> }> = {};
+    const parents = produtos.filter((p) => !isVariante(p.nome_do_produto));
+    for (const p of parents) map[p.id] = { cores: new Set(), tamanhos: new Set() };
+    const variantes = produtos.filter((p) => isVariante(p.nome_do_produto));
+    for (const v of variantes) {
+      const parent = parents.find((pa) => {
+        const baseNome = (pa.nome_do_produto || "").trim();
+        return baseNome && (v.nome_do_produto || "").toLowerCase().startsWith(baseNome.toLowerCase());
+      });
+      if (!parent) continue;
+      const corMatch = (v.nome_do_produto || "").match(/Cor:\s*([^;]+)/i);
+      const tamMatch = (v.nome_do_produto || "").match(/Tamanho:\s*([^;]+)/i);
+      if (corMatch) map[parent.id].cores.add(corMatch[1].trim());
+      if (tamMatch) map[parent.id].tamanhos.add(tamMatch[1].trim());
+    }
+    return map;
+  })();
+
+  const produtosPais = produtos.filter((p) => !isVariante(p.nome_do_produto));
+  const coresParent = produtoSelecionadoId
+    ? Array.from(variantesPorParent[produtoSelecionadoId]?.cores || []).sort()
+    : [];
+
   const aplicarProduto = (p: ProdutoOpt) => {
     setProdutoSelecionadoId(p.id);
     setNome(p.nome_do_produto || "");
     if (p.preco_venda != null) setPreco(String(p.preco_venda));
     if (p.tecido_do_produto) setTecido(p.tecido_do_produto);
     if (p.tipo_do_produto && !silhueta) setSilhueta(p.tipo_do_produto);
+
+    const info = variantesPorParent[p.id];
+    if (info) {
+      const cs = Array.from(info.cores).sort();
+      if (cs.length > 0) setCores(cs.join(", "));
+      const ts = Array.from(info.tamanhos);
+      const tsValidos = TAMANHOS.filter((t) => ts.includes(t));
+      if (tsValidos.length > 0) setTamanhos(tsValidos);
+    }
+
     toast.success("Dados do produto carregados", {
       description: p.codigo_sku ? `SKU: ${p.codigo_sku}` : undefined,
     });
   };
 
+  const toggleCorSelecionada = (cor: string) => {
+    const atuais = cores.split(",").map((c) => c.trim()).filter(Boolean);
+    const novo = atuais.includes(cor) ? atuais.filter((c) => c !== cor) : [...atuais, cor];
+    setCores(novo.join(", "));
+  };
+
   const produtosFiltrados = produtoBusca.trim().length === 0
-    ? produtos.slice(0, 8)
-    : produtos.filter((p) => {
+    ? produtosPais.slice(0, 8)
+    : produtosPais.filter((p) => {
         const q = produtoBusca.toLowerCase();
         return (
           (p.nome_do_produto || "").toLowerCase().includes(q) ||
           (p.codigo_sku || "").toLowerCase().includes(q)
         );
       }).slice(0, 20);
+
 
   const toggle = (arr: string[], v: string, setter: (a: string[]) => void) => {
     setter(arr.includes(v) ? arr.filter((x) => x !== v) : [...arr, v]);
