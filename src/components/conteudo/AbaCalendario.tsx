@@ -270,7 +270,7 @@ export function AbaCalendario() {
         </div>
 
         <div className="flex items-center gap-2">
-          <Button variant="outline" onClick={() => setNovaDataOpen(true)} className="gap-2">
+          <Button variant="outline" onClick={() => openNova()} className="gap-2">
             <Plus className="h-4 w-4" /> Nova data
           </Button>
           <Button onClick={() => setConfirmGerar(true)} disabled={gerando} className="gap-2">
