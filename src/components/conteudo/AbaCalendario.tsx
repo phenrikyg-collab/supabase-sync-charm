@@ -79,6 +79,35 @@ function formatDDMM(iso: string) {
   const [y, m, d] = iso.split("-");
   return `${d}/${m}/${y}`;
 }
+function formatLongDate(iso: string) {
+  const [y, m, d] = iso.split("-").map(Number);
+  const dt = new Date(y, m - 1, d);
+  const txt = dt.toLocaleDateString("pt-BR", { weekday: "long", day: "2-digit", month: "long", year: "numeric" });
+  return txt.charAt(0).toUpperCase() + txt.slice(1);
+}
+const FUNIL_BARS: Record<number, string> = {
+  0: "bg-slate-400",       // domingo
+  1: "bg-sky-300",         // descoberta seg
+  2: "bg-sky-300",         // descoberta ter
+  3: "bg-purple-400",      // conscientizacao qua
+  4: "bg-purple-400",      // conscientizacao qui
+  5: "bg-emerald-400",     // conversao sex
+  6: "bg-orange-400",      // sabado
+};
+const CANAL_ICONS: Record<string, string> = {
+  instagram_reels: "🎬",
+  instagram_feed: "📷",
+  instagram_story: "📱",
+  email: "✉️",
+  whatsapp_vip: "💬",
+};
+const CANAL_LABELS: Record<string, string> = {
+  instagram_reels: "🎬 Reels",
+  instagram_feed: "📷 Carrossel",
+  instagram_story: "📱 Stories",
+  email: "✉️ E-mail",
+  whatsapp_vip: "💬 WhatsApp VIP",
+};
 
 export function AbaCalendario() {
   const hoje = new Date();
