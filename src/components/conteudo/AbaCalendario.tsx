@@ -374,13 +374,25 @@ export function AbaCalendario() {
           {selected && (
             <>
               <SheetHeader>
-                <SheetTitle className="font-serif flex items-center gap-2">
-                  {selected.titulo}
-                  <Badge className={TIPO_COLORS[selected.tipo]}>{selected.tipo}</Badge>
-                </SheetTitle>
-                <SheetDescription>
-                  {formatDDMM(selected.data)} • {selected.descricao}
-                </SheetDescription>
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex-1">
+                    <SheetTitle className="font-serif flex items-center gap-2 flex-wrap">
+                      {selected.titulo}
+                      <Badge className={TIPO_COLORS[selected.tipo]}>{selected.tipo}</Badge>
+                    </SheetTitle>
+                    <SheetDescription className="mt-1">
+                      {formatDDMM(selected.data)} {selected.descricao ? `• ${selected.descricao}` : ""}
+                    </SheetDescription>
+                  </div>
+                  <div className="flex gap-1 shrink-0">
+                    <Button size="sm" variant="outline" onClick={() => openEdit(selected)} className="gap-1">
+                      <Pencil className="h-3.5 w-3.5" /> Editar
+                    </Button>
+                    <Button size="sm" variant="outline" onClick={() => setConfirmDelete(selected)} className="gap-1 text-red-600 hover:text-red-700">
+                      <Trash2 className="h-3.5 w-3.5" /> Excluir
+                    </Button>
+                  </div>
+                </div>
               </SheetHeader>
 
               {loadingConteudos ? (
