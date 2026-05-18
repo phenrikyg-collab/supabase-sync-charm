@@ -594,12 +594,13 @@ function NovaDataDialog({ open, onOpenChange, onSaved, editing, initialDate }: {
 }
 
 function ConteudoEditor({
-  conteudo, onSave, onAprovar, onRejeitar,
+  conteudo, onSave, onAprovar, onRejeitar, onPublicar,
 }: {
   conteudo: Conteudo;
   onSave: (id: string, field: string, value: any) => Promise<void>;
   onAprovar: () => void;
   onRejeitar: () => void;
+  onPublicar?: () => void;
 }) {
   const [local, setLocal] = useState(conteudo);
   useEffect(() => setLocal(conteudo), [conteudo.id]);
