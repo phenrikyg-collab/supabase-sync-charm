@@ -286,11 +286,7 @@ function AbaCriarPlano({ mesRef, onGenerated }: { mesRef: string; onGenerated: (
           <CardTitle className="text-lg">Configuração do plano</CardTitle>
           <CardDescription>Defina mês, meta e investimento previsto para gerar o plano com IA</CardDescription>
         </CardHeader>
-        <CardContent className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <div className="space-y-1.5">
-            <Label htmlFor="mes">Mês/Ano</Label>
-            <Input id="mes" type="month" value={mesRef} onChange={(e) => setMesRef(e.target.value)} />
-          </div>
+        <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="space-y-1.5">
             <Label htmlFor="meta">Meta de receita (R$)</Label>
             <Input
