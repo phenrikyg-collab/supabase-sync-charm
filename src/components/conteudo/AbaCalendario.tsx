@@ -135,20 +135,41 @@ export function AbaCalendario() {
       const ultimoDia = new Date(ano, mes + 1, 0).getDate();
       const dataFim = `${ano}-${mesStr}-${pad(ultimoDia)}`;
 
-      const { data, error } = await (supabase as any)
+      // Fetch calendar entries (no relational join — avoids PostgREST schema cache bugs)
+      const { data: cals, error: errCal } = await (supabase as any)
         .from("calendario_comercial")
-        .select(`
-          id, data, titulo, tipo, status, descricao, canal, mes_referencia, criado_por_ia,
-          conteudos_gerados (
-            id, calendario_id, canal, copy_principal, copy_legenda, copy_cta,
-            hashtags, assunto_email, horario_sugerido, status, feedback_usuario, versao, tipo_campanha
-          )
-        `)
+        .select("id, data, titulo, tipo, status, descricao, canal, mes_referencia, criado_por_ia")
         .gte("data", dataInicio)
         .lte("data", dataFim)
-        .order("data", { ascending: true });
-      if (error) throw error;
-      setDatas((data || []) as Calendario[]);
+        .order("data", { ascending: true })
+        .limit(2000);
+      if (errCal) throw errCal;
+
+      const calList = (cals || []) as any[];
+      const ids = calList.map((c) => c.id);
+
+      // Fetch conteudos in separate query, map client-side
+      const conteudosByCal: Record<string, any[]> = {};
+      if (ids.length > 0) {
+        const { data: cts, error: errCts } = await (supabase as any)
+          .from("conteudos_gerados")
+          .select("id, calendario_id, canal, copy_principal, copy_legenda, copy_cta, hashtags, assunto_email, horario_sugerido, status, feedback_usuario, tipo_campanha")
+          .in("calendario_id", ids)
+          .limit(5000);
+        if (errCts) throw errCts;
+        (cts || []).forEach((c: any) => {
+          const k = c.calendario_id;
+          if (!conteudosByCal[k]) conteudosByCal[k] = [];
+          conteudosByCal[k].push(c);
+        });
+      }
+
+      const merged = calList.map((c) => ({
+        ...c,
+        data: typeof c.data === "string" ? c.data.slice(0, 10) : c.data,
+        conteudos_gerados: conteudosByCal[c.id] || [],
+      }));
+      setDatas(merged as Calendario[]);
     } catch (e: any) {
       toast.error("Erro ao carregar calendário", { description: e.message });
       setDatas([]);
