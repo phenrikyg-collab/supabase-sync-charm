@@ -110,7 +110,7 @@ const AppRoutes = () => {
         <ProtectedRoute>
           <AppLayout>
             <Routes>
-              <Route path="/" element={<DashboardComercialPage />} />
+              <Route path="/" element={<HomeRedirect />} />
               <Route path="/dashboard-comercial" element={<DashboardComercialPage />} />
               <Route path="/dashboard-antigo" element={<Dashboard />} />
               <Route path="/produtos" element={<Produtos />} />
