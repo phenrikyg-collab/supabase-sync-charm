@@ -39,6 +39,7 @@ const STATUS_CONFIG: Record<string, { label: string; className: string }> = {
   quebra_grade: { label: "Quebra de grade", className: "bg-red-100 text-red-800 border-red-300" },
   estoque_baixo: { label: "Estoque baixo", className: "bg-yellow-100 text-yellow-800 border-yellow-300" },
   vendendo_bem: { label: "Vendendo bem", className: "bg-blue-100 text-blue-800 border-blue-300" },
+  urgente_antigo: { label: "Urgente (antigo)", className: "bg-orange-100 text-orange-800 border-orange-300" },
 };
 
 const PAGE_SIZE = 20;
