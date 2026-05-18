@@ -18,7 +18,9 @@ import {
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
-import { Star, ExternalLink, ChevronDown, Pause, X, Edit, RotateCcw } from "lucide-react";
+import { Star, ExternalLink, ChevronDown, Pause, X, Edit, RotateCcw, Sparkles, Copy } from "lucide-react";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { callClaude } from "@/lib/claudeApi";
 
 interface CampanhaRow {
   id: string;
@@ -71,6 +73,10 @@ export function AbaEmCampanha() {
   const [viewMap, setViewMap] = useState<Record<string, ViewRow>>({});
   const [editing, setEditing] = useState<CampanhaRow | null>(null);
   const [form, setForm] = useState({ motivo: "", prioridade: 3, meta_vendas: "", observacao: "" });
+  const [textoCampanha, setTextoCampanha] = useState<{ campanha: CampanhaRow; view?: ViewRow } | null>(null);
+  const [textoCanal, setTextoCanal] = useState<"instagram" | "email" | "whatsapp">("instagram");
+  const [textoLoading, setTextoLoading] = useState(false);
+  const [textoGerado, setTextoGerado] = useState<Record<string, string>>({});
 
   async function carregar() {
     setLoading(true);
@@ -134,6 +140,53 @@ export function AbaEmCampanha() {
     }).eq("id", editing.id);
     if (error) toast.error("Erro: " + error.message);
     else { toast.success("Campanha atualizada"); setEditing(null); carregar(); }
+  }
+
+  function abrirGerarTexto(c: CampanhaRow) {
+    setTextoCampanha({ campanha: c, view: viewMap[c.product_id] });
+    setTextoCanal("instagram");
+    setTextoGerado({});
+  }
+
+  async function gerarTexto() {
+    if (!textoCampanha) return;
+    const { campanha: c, view: v } = textoCampanha;
+    setTextoLoading(true);
+    try {
+      const canalDesc = {
+        instagram: "post para Instagram (legenda com gancho forte na 1ª linha, storytelling, CTA claro e 15 hashtags ao final)",
+        email: "e-mail marketing (assunto até 50 chars, preview text até 90 chars, corpo HTML simples com CTA)",
+        whatsapp: "mensagem de WhatsApp (curta, direta, emoji elegante, com CTA e cupom quando houver)",
+      }[textoCanal];
+
+      const prompt = `Gere um ${canalDesc} para uma campanha do produto abaixo.
+
+PRODUTO: ${c.nome_produto}
+PREÇO: ${brl(v?.preco)}
+ESTOQUE DISPONÍVEL: ${v?.estoque_total ?? "—"} unidades
+VENDAS RECENTES: ${v?.total_vendas ?? 0}
+${v?.percentual_abaixo_media != null ? `STATUS: vendendo ${Number(v.percentual_abaixo_media).toFixed(0)}% abaixo da média da loja\n` : ""}MOTIVO DA CAMPANHA: ${c.motivo || "girar estoque"}
+PRIORIDADE: ${c.prioridade}/5 ${c.prioridade === 5 ? "(URGENTE)" : ""}
+${c.meta_vendas ? `META: vender ${c.meta_vendas} unidades` : ""}
+${c.observacao ? `OBSERVAÇÕES: ${c.observacao}` : ""}
+${v?.url_produto ? `LINK: ${v.url_produto}` : ""}
+
+Retorne APENAS o texto pronto para publicar, sem comentários, sem JSON, sem markdown.`;
+
+      const result = await callClaude(prompt);
+      setTextoGerado(prev => ({ ...prev, [textoCanal]: result.trim() }));
+    } catch (e: any) {
+      toast.error("Erro ao gerar texto: " + (e.message || ""));
+    } finally {
+      setTextoLoading(false);
+    }
+  }
+
+  async function copiarTexto() {
+    const t = textoGerado[textoCanal];
+    if (!t) return;
+    await navigator.clipboard.writeText(t);
+    toast.success("Texto copiado!");
   }
 
   if (loading) {
@@ -214,7 +267,10 @@ export function AbaEmCampanha() {
                   Incluído em {new Date(c.created_at).toLocaleDateString("pt-BR")}
                 </p>
 
-                <div className="flex gap-2 pt-2 border-t">
+                <div className="flex flex-wrap gap-2 pt-2 border-t">
+                  <Button size="sm" onClick={() => abrirGerarTexto(c)}>
+                    <Sparkles className="h-3 w-3 mr-1" /> Gerar texto
+                  </Button>
                   <Button size="sm" variant="outline" onClick={() => abrirEdicao(c)}>
                     <Edit className="h-3 w-3 mr-1" /> Editar
                   </Button>
@@ -301,6 +357,54 @@ export function AbaEmCampanha() {
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditing(null)}>Cancelar</Button>
             <Button onClick={salvarEdicao}>Salvar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      <Dialog open={!!textoCampanha} onOpenChange={(o) => !o && setTextoCampanha(null)}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Gerar texto da campanha</DialogTitle>
+          </DialogHeader>
+          {textoCampanha && (
+            <div className="space-y-4">
+              <div className="text-sm bg-muted/50 rounded p-3 space-y-1">
+                <p className="font-medium">{textoCampanha.campanha.nome_produto}</p>
+                <p className="text-xs text-muted-foreground">
+                  Preço {brl(textoCampanha.view?.preco)} • Estoque {textoCampanha.view?.estoque_total ?? "—"} •
+                  Prioridade {textoCampanha.campanha.prioridade}/5
+                  {textoCampanha.campanha.motivo ? ` • ${textoCampanha.campanha.motivo}` : ""}
+                </p>
+              </div>
+              <Tabs value={textoCanal} onValueChange={(v) => setTextoCanal(v as any)}>
+                <TabsList className="grid grid-cols-3 w-full">
+                  <TabsTrigger value="instagram">Instagram</TabsTrigger>
+                  <TabsTrigger value="email">E-mail</TabsTrigger>
+                  <TabsTrigger value="whatsapp">WhatsApp</TabsTrigger>
+                </TabsList>
+                {(["instagram", "email", "whatsapp"] as const).map(canal => (
+                  <TabsContent key={canal} value={canal} className="space-y-3 mt-3">
+                    <Textarea
+                      value={textoGerado[canal] || ""}
+                      onChange={(e) => setTextoGerado(prev => ({ ...prev, [canal]: e.target.value }))}
+                      placeholder={`Clique em "Gerar texto" para criar o conteúdo de ${canal}…`}
+                      className="min-h-[260px] font-mono text-xs"
+                    />
+                    <div className="flex justify-between gap-2">
+                      <Button variant="outline" size="sm" onClick={copiarTexto} disabled={!textoGerado[canal]}>
+                        <Copy className="h-3 w-3 mr-1" /> Copiar
+                      </Button>
+                      <Button size="sm" onClick={gerarTexto} disabled={textoLoading}>
+                        <Sparkles className="h-3 w-3 mr-1" />
+                        {textoLoading ? "Gerando…" : textoGerado[canal] ? "Regenerar" : "Gerar texto"}
+                      </Button>
+                    </div>
+                  </TabsContent>
+                ))}
+              </Tabs>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setTextoCampanha(null)}>Fechar</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
