@@ -76,7 +76,15 @@ function AdminUsuariosContent() {
       modulesData?.forEach((m: any) => userIds.add(m.user_id));
       rolesData?.forEach((r: any) => userIds.add(r.user_id));
 
-      // We can't directly query auth.users from client, so we show user_id
+      // Fetch real emails from edge function
+      let emailMap = new Map<string, string>();
+      try {
+        const res = await invokeEdgeFunction<{ users: { id: string; email: string }[] }>("listar-usuarios", {});
+        res.users?.forEach((u: any) => emailMap.set(u.id, u.email));
+      } catch (err) {
+        console.error("Error fetching user emails:", err);
+      }
+
       // Group modules by user
       const userMap = new Map<string, AppModule[]>();
       modulesData?.forEach((m: any) => {
@@ -87,7 +95,7 @@ function AdminUsuariosContent() {
 
       const result: UserWithModules[] = Array.from(userIds).map((uid) => ({
         id: uid,
-        email: uid.substring(0, 8) + "...",
+        email: emailMap.get(uid) || uid.substring(0, 8) + "...",
         modules: userMap.get(uid) || [],
       }));
 
