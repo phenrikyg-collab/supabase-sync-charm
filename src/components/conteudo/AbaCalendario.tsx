@@ -359,11 +359,13 @@ export function AbaCalendario() {
         </DialogContent>
       </Dialog>
 
-      {/* Nova data manual */}
+      {/* Nova data / Editar */}
       <NovaDataDialog
         open={novaDataOpen}
-        onOpenChange={setNovaDataOpen}
-        onCreated={fetchDatas}
+        onOpenChange={(o) => { setNovaDataOpen(o); if (!o) { setEditing(null); setNovaDataInitial(""); } }}
+        onSaved={() => { fetchDatas(); if (editing && selected?.id === editing.id) setSelected(null); }}
+        editing={editing}
+        initialDate={novaDataInitial}
       />
 
       {/* Drawer */}
