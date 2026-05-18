@@ -411,7 +411,7 @@ export function AbaCalendario() {
         ) : (
           <div className="grid grid-cols-7 gap-1">
             {cells.map((cell, i) => {
-              if (!cell) return <div key={i} className="h-24 bg-muted/20 rounded" />;
+              if (!cell) return <div key={i} className="h-32 bg-muted/20 rounded" />;
               const items = byDate.get(cell.iso) || [];
               const hasContent = items.length > 0;
               const funilBar = FUNIL_BARS[cell.dow] || "bg-muted";
@@ -419,7 +419,7 @@ export function AbaCalendario() {
                 <button
                   key={i}
                   onClick={() => hasContent ? openDate(items[0]) : openNova(cell.iso)}
-                  className={`h-24 rounded border p-1.5 pb-2 text-left relative transition-colors flex flex-col group overflow-hidden ${
+                  className={`h-32 rounded border p-1.5 pb-2 text-left relative transition-colors flex flex-col group overflow-hidden ${
                     hasContent ? "bg-card hover:bg-accent/30 cursor-pointer border-border" : "bg-muted/10 hover:bg-muted/30 cursor-pointer border-dashed border-muted-foreground/20"
                   }`}
                 >
@@ -429,18 +429,21 @@ export function AbaCalendario() {
                       <span className={`h-2 w-2 rounded-full ${STATUS_DOT[items[0].status] || "bg-gray-300"}`} />
                     )}
                   </div>
-                  <div className="mt-1 space-y-0.5 overflow-hidden flex-1">
-                    {items.slice(0, 2).map((it) => {
+                  <div className="mt-1 space-y-0.5 overflow-y-auto flex-1 pr-0.5">
+                    {items.map((it) => {
                       const canais = Array.from(new Set((it.conteudos_gerados || []).map((c: any) => c.canal).filter(Boolean)));
                       const icons = canais.map((c) => CANAL_ICONS[c]).filter(Boolean).slice(0, 3).join("");
-                      const tit = (it.titulo || "").length > 20 ? (it.titulo || "").slice(0, 20) + "…" : it.titulo;
+                      const tit = (it.titulo || "").length > 18 ? (it.titulo || "").slice(0, 18) + "…" : it.titulo;
                       return (
-                        <Badge key={it.id} className={`text-[9px] px-1 py-0 ${TIPO_COLORS[it.tipo] || "bg-gray-500 text-white"} block truncate w-full text-left`}>
+                        <Badge
+                          key={it.id}
+                          onClick={(e) => { e.stopPropagation(); openDate(it); }}
+                          className={`text-[9px] px-1 py-0 ${TIPO_COLORS[it.tipo] || "bg-gray-500 text-white"} block truncate w-full text-left cursor-pointer`}
+                        >
                           {icons && <span className="mr-0.5">{icons}</span>}{tit}
                         </Badge>
                       );
                     })}
-                    {items.length > 2 && <span className="text-[9px] text-muted-foreground">+{items.length - 2}</span>}
                   </div>
                   <span className={`absolute bottom-0 left-0 right-0 h-1 ${funilBar}`} />
                 </button>
