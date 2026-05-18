@@ -140,13 +140,22 @@ export default function PlanoComercial() {
 
   return (
     <div className="space-y-6 p-6 max-w-[1400px] mx-auto">
-      <div className="flex items-center gap-3">
-        <Target className="h-7 w-7 text-primary" />
-        <div>
-          <h1 className="font-serif text-3xl font-bold">Plano Comercial</h1>
-          <p className="text-muted-foreground text-sm mt-1">
-            Estratégia mensal de receita, ações por semana e KPIs de tráfego pago
-          </p>
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        <div className="flex items-center gap-3">
+          <Target className="h-7 w-7 text-primary" />
+          <div>
+            <h1 className="font-serif text-3xl font-bold">Plano Comercial</h1>
+            <p className="text-muted-foreground text-sm mt-1">
+              Estratégia mensal de receita, ações por semana e KPIs de tráfego pago
+            </p>
+          </div>
+        </div>
+        <div className="flex items-end gap-3">
+          <div>
+            <Label className="text-xs">Mês de referência</Label>
+            <Input type="month" value={mesRef} onChange={(e) => setMesRef(e.target.value)} className="w-[180px]" />
+          </div>
+          <div className="text-xs text-muted-foreground pb-2.5">{formatMesLabel(mesRef)}</div>
         </div>
       </div>
 
@@ -158,13 +167,13 @@ export default function PlanoComercial() {
         </TabsList>
 
         <TabsContent value="criar" className="mt-6">
-          <AbaCriarPlano mesRef={mesRef} setMesRef={setMesRef} onGenerated={() => setTab("acoes")} />
+          <AbaCriarPlano mesRef={mesRef} onGenerated={() => setTab("acoes")} />
         </TabsContent>
         <TabsContent value="acoes" className="mt-6">
-          <AbaAcoes mesRef={mesRef} setMesRef={setMesRef} />
+          <AbaAcoes mesRef={mesRef} />
         </TabsContent>
         <TabsContent value="kpis" className="mt-6">
-          <AbaKpisTrafego />
+          <AbaKpisTrafego mesRef={mesRef} />
         </TabsContent>
       </Tabs>
     </div>
