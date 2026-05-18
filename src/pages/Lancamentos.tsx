@@ -1,0 +1,685 @@
+import { useEffect, useState, useCallback } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
+import { Card } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from "@/components/ui/select";
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
+} from "@/components/ui/dialog";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Sparkles, RefreshCw, Plus, ChevronDown, ChevronUp, ExternalLink, Pencil, Ban,
+} from "lucide-react";
+
+// ---------- tipos ----------
+type Lancamento = {
+  id: string;
+  nome_peca: string;
+  data_lancamento: string;
+  tipo_lancamento: string | null;
+  colecao: string | null;
+  preco: number | null;
+  status: string | null;
+  descricao: string | null;
+};
+
+type ChecklistItem = {
+  id: string;
+  lancamento_id: string;
+  fase: string;
+  tipo_item: string;
+  texto_item: string;
+  canal: string | null;
+  ordem: number;
+  concluido: boolean;
+  observacao: string | null;
+  conteudo_aprovado: string | null;
+  url_arquivo: string | null;
+};
+
+type Detalhes = {
+  tecido?: string;
+  cores?: string;
+  tamanhos?: string[];
+  silhueta?: string;
+  diferenciais?: string;
+  lifestyle?: string;
+  referencia_foto?: string;
+  canais?: string[];
+};
+
+// ---------- consts ----------
+const STATUS_COLORS: Record<string, string> = {
+  planejado: "bg-gray-400 text-white",
+  em_producao_conteudo: "bg-yellow-500 text-white",
+  pronto: "bg-blue-600 text-white",
+  lancado: "bg-green-600 text-white",
+  cancelado: "bg-red-600 text-white",
+};
+
+const STATUS_LABELS: Record<string, string> = {
+  planejado: "Planejado",
+  em_producao_conteudo: "Em produção de conteúdo",
+  pronto: "Pronto",
+  lancado: "Lançado",
+  cancelado: "Cancelado",
+};
+
+const TAMANHOS = ["PP", "P", "M", "G", "GG", "EG"];
+
+const CANAIS = [
+  { key: "fotos_site", label: "📷 Fotos para o site (fundo branco)" },
+  { key: "fotos_lifestyle", label: "🎨 Fotos lifestyle (externas/ambientadas)" },
+  { key: "video_site_detalhe", label: "🎬 Vídeo site — detalhe do produto" },
+  { key: "video_site_apresentacao", label: "🎬 Vídeo site — apresentação falada" },
+  { key: "reels", label: "📱 Reels Instagram" },
+  { key: "carrossel", label: "📷 Carrossel Instagram" },
+  { key: "email", label: "✉️ E-mail marketing" },
+  { key: "whatsapp_vip", label: "💬 WhatsApp VIP" },
+];
+
+const FASES = [
+  { key: "pre", label: "Pré-lançamento" },
+  { key: "lancamento", label: "Dia do lançamento" },
+  { key: "pos", label: "Pós-lançamento" },
+];
+
+const CANAL_COLORS: Record<string, string> = {
+  instagram: "bg-purple-600 text-white",
+  email: "bg-blue-600 text-white",
+  whatsapp_vip: "bg-green-600 text-white",
+  site_fotos: "bg-orange-500 text-white",
+  site_videos: "bg-orange-700 text-white",
+  anuncio: "bg-red-600 text-white",
+  geral: "bg-gray-500 text-white",
+};
+
+// ---------- helpers ----------
+function fmtDate(iso: string) {
+  if (!iso) return "—";
+  const [y, m, d] = iso.split("T")[0].split("-");
+  return `${d}/${m}/${y}`;
+}
+function fmtBRL(v: number | null | undefined) {
+  if (v == null) return "—";
+  return v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+}
+function parseDetalhes(s: string | null): Detalhes {
+  if (!s) return {};
+  try { return JSON.parse(s) as Detalhes; } catch { return {}; }
+}
+function proxTerca(iso: string) {
+  if (!iso) return "";
+  const [y, m, d] = iso.split("-").map(Number);
+  const dt = new Date(y, m - 1, d);
+  const diff = (2 - dt.getDay() + 7) % 7; // 2 = terça
+  dt.setDate(dt.getDate() + (diff === 0 ? 0 : diff));
+  return `${String(dt.getDate()).padStart(2, "0")}/${String(dt.getMonth() + 1).padStart(2, "0")}/${dt.getFullYear()}`;
+}
+function mesRef(iso: string) {
+  return iso ? iso.slice(0, 7) : "";
+}
+
+// ---------- página ----------
+export default function Lancamentos() {
+  const [lista, setLista] = useState<Lancamento[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [counts, setCounts] = useState<Record<string, { total: number; concluidos: number }>>({});
+  const [filtroTipo, setFiltroTipo] = useState<string>("todos");
+  const [filtroStatus, setFiltroStatus] = useState<string>("todos");
+  const [filtroMes, setFiltroMes] = useState<string>("todos");
+  const [openForm, setOpenForm] = useState(false);
+  const [editing, setEditing] = useState<Lancamento | null>(null);
+  const [expanded, setExpanded] = useState<string | null>(null);
+
+  const fetchAll = useCallback(async () => {
+    setLoading(true);
+    try {
+      const { data, error } = await (supabase as any)
+        .from("lancamentos_pecas")
+        .select("*")
+        .order("data_lancamento", { ascending: true });
+      if (error) throw error;
+      const list = (data || []) as Lancamento[];
+      setLista(list);
+
+      const cs: Record<string, { total: number; concluidos: number }> = {};
+      await Promise.all(list.map(async (l) => {
+        const { data: ck } = await (supabase as any)
+          .from("checklist_lancamento")
+          .select("concluido")
+          .eq("lancamento_id", l.id);
+        const total = (ck || []).length;
+        const concluidos = (ck || []).filter((c: any) => c.concluido).length;
+        cs[l.id] = { total, concluidos };
+      }));
+      setCounts(cs);
+    } catch (e: any) {
+      toast.error("Erro ao carregar lançamentos", { description: e.message });
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { fetchAll(); }, [fetchAll]);
+
+  const mesesDisponiveis = Array.from(new Set(lista.map((l) => mesRef(l.data_lancamento)))).filter(Boolean).sort();
+
+  const filtrados = lista.filter((l) => {
+    if (filtroTipo !== "todos" && l.tipo_lancamento !== filtroTipo) return false;
+    if (filtroStatus !== "todos" && (l.status || "planejado") !== filtroStatus) return false;
+    if (filtroMes !== "todos" && mesRef(l.data_lancamento) !== filtroMes) return false;
+    return true;
+  });
+
+  const cancelar = async (id: string) => {
+    if (!confirm("Cancelar este lançamento?")) return;
+    const { error } = await (supabase as any)
+      .from("lancamentos_pecas").update({ status: "cancelado" }).eq("id", id);
+    if (error) { toast.error("Erro", { description: error.message }); return; }
+    toast.success("Lançamento cancelado");
+    fetchAll();
+  };
+
+  return (
+    <div className="p-6 space-y-6 max-w-7xl mx-auto">
+      {/* Cabeçalho */}
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <h1 className="font-serif text-3xl font-bold tracking-tight">Lançamentos & Reposições</h1>
+          <p className="text-sm text-muted-foreground mt-1">Planejamento antecede a produção</p>
+        </div>
+        <Button
+          onClick={() => { setEditing(null); setOpenForm(true); }}
+          className="bg-orange-600 hover:bg-orange-700 text-white"
+        >
+          <Plus className="h-4 w-4 mr-2" /> Novo Lançamento
+        </Button>
+      </div>
+
+      {/* Filtros */}
+      <Card className="p-4 flex flex-wrap gap-3 items-end">
+        <div className="space-y-1">
+          <Label className="text-xs">Tipo</Label>
+          <div className="flex gap-1">
+            {[
+              { v: "todos", l: "Todos" },
+              { v: "lancamento", l: "✨ Lançamento" },
+              { v: "reposicao", l: "🔄 Reposição" },
+            ].map((o) => (
+              <Button key={o.v} size="sm" variant={filtroTipo === o.v ? "default" : "outline"} onClick={() => setFiltroTipo(o.v)}>
+                {o.l}
+              </Button>
+            ))}
+          </div>
+        </div>
+
+        <div className="space-y-1">
+          <Label className="text-xs">Mês</Label>
+          <Select value={filtroMes} onValueChange={setFiltroMes}>
+            <SelectTrigger className="w-[160px]"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="todos">Todos os meses</SelectItem>
+              {mesesDisponiveis.map((m) => <SelectItem key={m} value={m}>{m}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="space-y-1">
+          <Label className="text-xs">Status</Label>
+          <Select value={filtroStatus} onValueChange={setFiltroStatus}>
+            <SelectTrigger className="w-[220px]"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="todos">Todos</SelectItem>
+              {Object.entries(STATUS_LABELS).map(([k, v]) => (
+                <SelectItem key={k} value={k}>{v}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        <Button variant="ghost" size="sm" onClick={fetchAll}><RefreshCw className="h-4 w-4 mr-1" /> Atualizar</Button>
+      </Card>
+
+      {/* Lista */}
+      {loading ? (
+        <div className="space-y-3">{Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-40" />)}</div>
+      ) : filtrados.length === 0 ? (
+        <Card className="p-12 text-center text-sm text-muted-foreground">
+          Nenhum lançamento encontrado. Clique em <strong>Novo Lançamento</strong> para começar.
+        </Card>
+      ) : (
+        <div className="space-y-3">
+          {filtrados.map((l) => (
+            <LancamentoCard
+              key={l.id}
+              l={l}
+              count={counts[l.id] || { total: 0, concluidos: 0 }}
+              expanded={expanded === l.id}
+              onToggle={() => setExpanded(expanded === l.id ? null : l.id)}
+              onEdit={() => { setEditing(l); setOpenForm(true); }}
+              onCancel={() => cancelar(l.id)}
+              onChecklistChange={fetchAll}
+            />
+          ))}
+        </div>
+      )}
+
+      {/* Formulário */}
+      <LancamentoForm
+        open={openForm}
+        onOpenChange={setOpenForm}
+        editing={editing}
+        onSaved={() => { setOpenForm(false); fetchAll(); }}
+      />
+    </div>
+  );
+}
+
+// ---------- card ----------
+function LancamentoCard({
+  l, count, expanded, onToggle, onEdit, onCancel, onChecklistChange,
+}: {
+  l: Lancamento;
+  count: { total: number; concluidos: number };
+  expanded: boolean;
+  onToggle: () => void;
+  onEdit: () => void;
+  onCancel: () => void;
+  onChecklistChange: () => void;
+}) {
+  const det = parseDetalhes(l.descricao);
+  const pct = count.total > 0 ? (count.concluidos / count.total) * 100 : 0;
+  const status = l.status || "planejado";
+  const isLanc = l.tipo_lancamento === "lancamento";
+
+  return (
+    <Card className="p-4 space-y-3">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="space-y-2 flex-1 min-w-[240px]">
+          <div className="flex flex-wrap gap-2 items-center">
+            <Badge className={isLanc ? "bg-purple-600 text-white" : "bg-blue-500 text-white"}>
+              {isLanc ? "✨ Lançamento" : "🔄 Reposição"}
+            </Badge>
+            <Badge className={STATUS_COLORS[status]}>{STATUS_LABELS[status]}</Badge>
+            {l.colecao && <Badge variant="outline">{l.colecao}</Badge>}
+          </div>
+          <h3 className="font-serif text-xl font-semibold">{l.nome_peca}</h3>
+          <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted-foreground">
+            <span>📅 {fmtDate(l.data_lancamento)}</span>
+            <span>💰 {fmtBRL(l.preco)}</span>
+          </div>
+        </div>
+
+        <div className="flex flex-col items-end gap-2">
+          <div className="flex gap-2">
+            <Button size="sm" variant="outline" onClick={onEdit}><Pencil className="h-3 w-3 mr-1" /> Editar</Button>
+            {status !== "cancelado" && (
+              <Button size="sm" variant="ghost" className="text-red-600" onClick={onCancel}>
+                <Ban className="h-3 w-3 mr-1" /> Cancelar
+              </Button>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Progresso */}
+      <div className="space-y-1">
+        <div className="w-full bg-muted rounded-full h-2 overflow-hidden">
+          <div className="bg-primary h-full transition-all" style={{ width: `${pct}%` }} />
+        </div>
+        <div className="text-xs text-muted-foreground">
+          Checklist: {count.concluidos}/{count.total} itens concluídos
+        </div>
+      </div>
+
+      {/* Canais planejados */}
+      {det.canais && det.canais.length > 0 && (
+        <div className="flex flex-wrap gap-1">
+          {det.canais.map((c) => {
+            const lab = CANAIS.find((x) => x.key === c)?.label || c;
+            return <Badge key={c} variant="secondary" className="text-[10px]">{lab}</Badge>;
+          })}
+        </div>
+      )}
+
+      <Button size="sm" variant="ghost" onClick={onToggle} className="gap-1">
+        {expanded ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+        Ver checklist
+      </Button>
+
+      {expanded && <ChecklistView lancId={l.id} onChange={onChecklistChange} />}
+    </Card>
+  );
+}
+
+// ---------- checklist ----------
+function ChecklistView({ lancId, onChange }: { lancId: string; onChange: () => void }) {
+  const [items, setItems] = useState<ChecklistItem[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const fetchItems = useCallback(async () => {
+    setLoading(true);
+    const { data, error } = await (supabase as any)
+      .from("checklist_lancamento")
+      .select("*")
+      .eq("lancamento_id", lancId)
+      .order("ordem", { ascending: true });
+    if (error) toast.error("Erro ao carregar checklist", { description: error.message });
+    setItems((data || []) as ChecklistItem[]);
+    setLoading(false);
+  }, [lancId]);
+
+  useEffect(() => { fetchItems(); }, [fetchItems]);
+
+  const updateItem = async (id: string, patch: Partial<ChecklistItem>) => {
+    const payload: any = { ...patch, updated_at: new Date().toISOString() };
+    if ("concluido" in patch && patch.concluido) payload.concluido_em = new Date().toISOString();
+    const { error } = await (supabase as any).from("checklist_lancamento").update(payload).eq("id", id);
+    if (error) { toast.error("Erro ao salvar", { description: error.message }); return; }
+    setItems((prev) => prev.map((it) => (it.id === id ? { ...it, ...patch } : it)));
+    onChange();
+  };
+
+  if (loading) return <Skeleton className="h-40 mt-2" />;
+  if (items.length === 0) return <p className="text-xs text-muted-foreground text-center py-4">Sem itens no checklist.</p>;
+
+  return (
+    <Tabs defaultValue="pre" className="pt-2 border-t">
+      <TabsList className="grid grid-cols-3 w-full">
+        {FASES.map((f) => <TabsTrigger key={f.key} value={f.key} className="text-xs">{f.label}</TabsTrigger>)}
+      </TabsList>
+      {FASES.map((f) => {
+        const fItems = items.filter((it) => it.fase === f.key);
+        const fDone = fItems.filter((it) => it.concluido).length;
+        const fPct = fItems.length > 0 ? (fDone / fItems.length) * 100 : 0;
+        return (
+          <TabsContent key={f.key} value={f.key} className="space-y-3 mt-3">
+            <div className="space-y-1">
+              <div className="w-full bg-muted rounded-full h-1.5 overflow-hidden">
+                <div className="bg-primary h-full" style={{ width: `${fPct}%` }} />
+              </div>
+              <div className="text-[11px] text-muted-foreground">{fDone}/{fItems.length}</div>
+            </div>
+            {fItems.length === 0 ? (
+              <p className="text-xs text-muted-foreground text-center py-4">Sem itens nesta fase.</p>
+            ) : fItems.map((it) => <ChecklistRow key={it.id} item={it} onUpdate={updateItem} />)}
+          </TabsContent>
+        );
+      })}
+    </Tabs>
+  );
+}
+
+function ChecklistRow({ item, onUpdate }: { item: ChecklistItem; onUpdate: (id: string, p: Partial<ChecklistItem>) => void }) {
+  const [local, setLocal] = useState(item);
+  useEffect(() => setLocal(item), [item.id, item.concluido]);
+  const icon = item.tipo_item === "copy" ? "✍️" : item.tipo_item === "foto" ? "📷" : item.tipo_item === "video" ? "🎬" : "";
+  const canalCls = item.canal ? (CANAL_COLORS[item.canal] || "bg-gray-500 text-white") : "";
+  const blur = (field: keyof ChecklistItem) => {
+    if ((local as any)[field] !== (item as any)[field]) onUpdate(item.id, { [field]: (local as any)[field] } as any);
+  };
+  return (
+    <div className="border rounded-md p-3 space-y-2 bg-card">
+      <div className="flex items-start gap-2">
+        <Checkbox checked={local.concluido} onCheckedChange={(v) => { setLocal({ ...local, concluido: !!v }); onUpdate(item.id, { concluido: !!v }); }} />
+        <div className="flex-1">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-sm">{icon} {item.texto_item}</span>
+            {item.canal && <Badge className={`text-[10px] ${canalCls}`}>{item.canal}</Badge>}
+          </div>
+        </div>
+      </div>
+      {item.tipo_item === "copy" && (
+        <Textarea rows={3} placeholder="Cole aqui a copy aprovada..." value={local.conteudo_aprovado || ""}
+          onChange={(e) => setLocal({ ...local, conteudo_aprovado: e.target.value })} onBlur={() => blur("conteudo_aprovado")} />
+      )}
+      {(item.tipo_item === "foto" || item.tipo_item === "video") && (
+        <div>
+          <Input placeholder="Cole o link do arquivo (Google Drive, etc)" value={local.url_arquivo || ""}
+            onChange={(e) => setLocal({ ...local, url_arquivo: e.target.value })} onBlur={() => blur("url_arquivo")} />
+          {local.url_arquivo && (
+            <a href={local.url_arquivo} target="_blank" rel="noreferrer" className="text-xs text-primary hover:underline inline-flex items-center gap-1 mt-1">
+              Abrir arquivo <ExternalLink className="h-3 w-3" />
+            </a>
+          )}
+        </div>
+      )}
+      <Textarea rows={2} placeholder="Observação" value={local.observacao || ""}
+        onChange={(e) => setLocal({ ...local, observacao: e.target.value })} onBlur={() => blur("observacao")} className="text-xs" />
+    </div>
+  );
+}
+
+// ---------- formulário ----------
+function LancamentoForm({
+  open, onOpenChange, editing, onSaved,
+}: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  editing: Lancamento | null;
+  onSaved: () => void;
+}) {
+  const det0 = parseDetalhes(editing?.descricao || null);
+  const [nome, setNome] = useState("");
+  const [tipo, setTipo] = useState<string>("lancamento");
+  const [data, setData] = useState("");
+  const [colecao, setColecao] = useState("");
+  const [preco, setPreco] = useState<string>("");
+  const [status, setStatus] = useState<string>("planejado");
+  const [tecido, setTecido] = useState("");
+  const [cores, setCores] = useState("");
+  const [tamanhos, setTamanhos] = useState<string[]>([]);
+  const [silhueta, setSilhueta] = useState("");
+  const [diferenciais, setDiferenciais] = useState("");
+  const [lifestyle, setLifestyle] = useState("");
+  const [referencia, setReferencia] = useState("");
+  const [canais, setCanais] = useState<string[]>([]);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (!open) return;
+    const d = parseDetalhes(editing?.descricao || null);
+    setNome(editing?.nome_peca || "");
+    setTipo(editing?.tipo_lancamento || "lancamento");
+    setData(editing?.data_lancamento?.slice(0, 10) || "");
+    setColecao(editing?.colecao || "");
+    setPreco(editing?.preco != null ? String(editing.preco) : "");
+    setStatus(editing?.status || "planejado");
+    setTecido(d.tecido || "");
+    setCores(d.cores || "");
+    setTamanhos(d.tamanhos || []);
+    setSilhueta(d.silhueta || "");
+    setDiferenciais(d.diferenciais || "");
+    setLifestyle(d.lifestyle || "");
+    setReferencia(d.referencia_foto || "");
+    setCanais(d.canais || []);
+  }, [open, editing]);
+
+  const toggle = (arr: string[], v: string, setter: (a: string[]) => void) => {
+    setter(arr.includes(v) ? arr.filter((x) => x !== v) : [...arr, v]);
+  };
+
+  const submit = async () => {
+    if (!nome.trim()) { toast.error("Informe o nome da peça"); return; }
+    if (!tipo) { toast.error("Selecione o tipo"); return; }
+    if (!data) { toast.error("Informe a data de lançamento"); return; }
+    setSaving(true);
+    try {
+      const descricao = JSON.stringify({
+        tecido, cores, tamanhos, silhueta, diferenciais, lifestyle, referencia_foto: referencia, canais,
+      });
+      const payload: any = {
+        nome_peca: nome,
+        tipo_lancamento: tipo,
+        data_lancamento: data,
+        colecao: colecao || null,
+        preco: preco ? Number(preco) : null,
+        status,
+        descricao,
+      };
+
+      if (editing) {
+        const { error } = await (supabase as any)
+          .from("lancamentos_pecas").update(payload).eq("id", editing.id);
+        if (error) throw error;
+        toast.success("Lançamento atualizado");
+      } else {
+        const { data: ins, error } = await (supabase as any)
+          .from("lancamentos_pecas").insert(payload).select("id").single();
+        if (error) throw error;
+
+        // calendário comercial
+        const titulo = (tipo === "lancamento" ? "Lançamento: " : "Reposição: ") + nome;
+        const desc = [silhueta, lifestyle].filter(Boolean).join(" — ");
+        await (supabase as any).from("calendario_comercial").insert({
+          data,
+          titulo,
+          tipo: "lancamento",
+          status: "rascunho",
+          mes_referencia: mesRef(data),
+          tipo_lancamento: tipo,
+          descricao: desc || null,
+        });
+
+        toast.success("Lançamento criado! Checklist gerado automaticamente.", {
+          description: `ID: ${ins?.id?.slice(0, 8) || ""}`,
+        });
+      }
+      onSaved();
+    } catch (e: any) {
+      toast.error("Erro ao salvar", { description: e.message });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="font-serif text-2xl">
+            {editing ? "Editar lançamento" : "Novo lançamento"}
+          </DialogTitle>
+        </DialogHeader>
+
+        <div className="space-y-6">
+          {/* Informações básicas */}
+          <section className="space-y-3">
+            <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Informações básicas</h3>
+            <div>
+              <Label>Nome da peça *</Label>
+              <Input value={nome} onChange={(e) => setNome(e.target.value)} placeholder="Calça Flare Premium Linho" />
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div>
+                <Label>Tipo *</Label>
+                <Select value={tipo} onValueChange={setTipo}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="lancamento">✨ Lançamento — produto novo nunca vendido</SelectItem>
+                    <SelectItem value="reposicao">🔄 Reposição — produto que voltou ao estoque</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label>Data de lançamento *</Label>
+                <Input type="date" value={data} onChange={(e) => setData(e.target.value)} />
+                {data && <p className="text-[11px] text-muted-foreground mt-1">Live prevista para {proxTerca(data)}</p>}
+              </div>
+              <div>
+                <Label>Coleção</Label>
+                <Input value={colecao} onChange={(e) => setColecao(e.target.value)} placeholder="Inverno 2026" />
+              </div>
+              <div>
+                <Label>Preço (R$)</Label>
+                <Input type="number" step="0.01" value={preco} onChange={(e) => setPreco(e.target.value)} placeholder="0,00" />
+              </div>
+              <div className="md:col-span-2">
+                <Label>Status</Label>
+                <Select value={status} onValueChange={setStatus}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="planejado">Planejado</SelectItem>
+                    <SelectItem value="em_producao_conteudo">Em produção de conteúdo</SelectItem>
+                    <SelectItem value="pronto">Pronto</SelectItem>
+                    {editing && <SelectItem value="lancado">Lançado</SelectItem>}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          </section>
+
+          {/* Detalhes da peça */}
+          <section className="space-y-3">
+            <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Detalhes da peça</h3>
+            <div>
+              <Label>Tecido / Material</Label>
+              <Input value={tecido} onChange={(e) => setTecido(e.target.value)} placeholder="Linho italiano 70% algodão 30%" />
+            </div>
+            <div>
+              <Label>Cores disponíveis</Label>
+              <Input value={cores} onChange={(e) => setCores(e.target.value)} placeholder="Off White, Preto, Azul Celestial" />
+            </div>
+            <div>
+              <Label>Tamanhos previstos</Label>
+              <div className="flex flex-wrap gap-3 mt-1">
+                {TAMANHOS.map((t) => (
+                  <label key={t} className="flex items-center gap-1.5 text-sm">
+                    <Checkbox checked={tamanhos.includes(t)} onCheckedChange={() => toggle(tamanhos, t, setTamanhos)} />
+                    {t}
+                  </label>
+                ))}
+              </div>
+            </div>
+            <div>
+              <Label>Silhueta / Modelagem</Label>
+              <Input value={silhueta} onChange={(e) => setSilhueta(e.target.value)} placeholder="Flare de cintura alta com bolsos" />
+            </div>
+            <div>
+              <Label>Diferenciais premium</Label>
+              <Textarea rows={2} value={diferenciais} onChange={(e) => setDiferenciais(e.target.value)} placeholder="Tecido não amassa, caimento perfeito, forro interno..." />
+            </div>
+            <div>
+              <Label>Lifestyle / Ocasião de uso</Label>
+              <Textarea rows={2} value={lifestyle} onChange={(e) => setLifestyle(e.target.value)} placeholder="Mulher executiva 35-45 anos, reuniões corporativas..." />
+            </div>
+            <div>
+              <Label>Referência de foto / inspiração (URL)</Label>
+              <Input value={referencia} onChange={(e) => setReferencia(e.target.value)} placeholder="https://..." />
+            </div>
+          </section>
+
+          {/* Canais */}
+          <section className="space-y-3">
+            <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Canais de conteúdo planejados</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+              {CANAIS.map((c) => (
+                <label key={c.key} className="flex items-center gap-2 text-sm border rounded-md p-2 cursor-pointer hover:bg-muted/50">
+                  <Checkbox checked={canais.includes(c.key)} onCheckedChange={() => toggle(canais, c.key, setCanais)} />
+                  <span>{c.label}</span>
+                </label>
+              ))}
+            </div>
+          </section>
+        </div>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>Cancelar</Button>
+          <Button onClick={submit} disabled={saving} className="bg-orange-600 hover:bg-orange-700 text-white">
+            <Sparkles className="h-4 w-4 mr-1" /> {saving ? "Salvando..." : editing ? "Salvar alterações" : "Criar lançamento"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
