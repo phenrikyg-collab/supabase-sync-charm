@@ -460,6 +460,23 @@ export function AbaCalendario() {
           )}
         </SheetContent>
       </Sheet>
+
+      <AlertDialog open={!!confirmDelete} onOpenChange={(o) => !o && setConfirmDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="font-serif">Excluir esta data?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Isso vai apagar "{confirmDelete?.titulo}" e todos os conteúdos vinculados. Esta ação não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={() => confirmDelete && handleDelete(confirmDelete)} className="bg-red-600 hover:bg-red-700">
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
