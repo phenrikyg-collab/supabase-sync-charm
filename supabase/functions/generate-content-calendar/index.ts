@@ -136,8 +136,6 @@ INSTRUÇÃO ESPECIAL: Gere conteúdo focado em impulsionar as vendas dos produto
     const datas: any[] = parsed.datas || [];
     if (!datas.length) throw new Error("IA não retornou datas");
 
-    const sb = createClient(EXTERNAL_SUPABASE_URL, serviceKey);
-
     let totalDatas = 0, totalConteudos = 0;
     for (const d of datas) {
       const { data: cal, error: calErr } = await sb
