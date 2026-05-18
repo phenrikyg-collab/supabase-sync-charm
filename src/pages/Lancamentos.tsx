@@ -704,6 +704,9 @@ function LancamentoForm({
                         {p.preco_venda != null && <span>{fmtBRL(p.preco_venda)}</span>}
                         {p.tecido_do_produto && <span>{p.tecido_do_produto}</span>}
                         {p.tipo_do_produto && <span>{p.tipo_do_produto}</span>}
+                        {variantesPorParent[p.id]?.cores.size > 0 && (
+                          <span>{variantesPorParent[p.id].cores.size} cor(es)</span>
+                        )}
                       </div>
                     </button>
                   ))}
