@@ -174,7 +174,7 @@ export function AbaCalendario() {
       if (error) throw error;
       toast.success("Data excluída");
       setConfirmDelete(null);
-      if (selected?.id === cal.id) setSelected(null);
+      if (selectedId === cal.id) setSelectedId(null);
       fetchDatas();
     } catch (e: any) {
       toast.error("Erro ao excluir", { description: e.message });
