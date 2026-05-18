@@ -438,7 +438,10 @@ export function AbaCalendario() {
                   </TabsContent>
 
                   {["email", "whatsapp_vip"].map((canal) => {
-                    const ct = conteudos.find((c) => c.canal === canal);
+                    const ct = conteudos.find((c) => {
+                      const cc = (c as any).canal;
+                      return Array.isArray(cc) ? cc.includes(canal) : cc === canal;
+                    });
                     return (
                       <TabsContent key={canal} value={canal} className="space-y-3 mt-4">
                         {!ct ? (
