@@ -523,6 +523,23 @@ export function AbaCalendario() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <AlertDialog open={confirmLimparMes} onOpenChange={(o) => !o && setConfirmLimparMes(false)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="font-serif">Limpar calendário de {MESES[mes]} {ano}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Isso vai apagar TODAS as datas e conteúdos gerados deste mês. Esta ação não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setConfirmLimparMes(false)}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={limparMes} className="bg-red-600 hover:bg-red-700">
+              Limpar mês
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
