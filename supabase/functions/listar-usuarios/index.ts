@@ -7,13 +7,22 @@ const corsHeaders = {
 
 const EXTERNAL_SUPABASE_URL = 'https://ezdtulcrqzmgocamjwwl.supabase.co'
 
+function normalizeSecret(value: string) {
+  const trimmed = value.trim().replace(/^['"]|['"]$/g, '')
+  const jwt = trimmed.match(/eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+/)
+  if (jwt?.[0]) return jwt[0]
+  const secretKey = trimmed.match(/sb_secret_[A-Za-z0-9_-]+/)
+  if (secretKey?.[0]) return secretKey[0]
+  return trimmed.includes('=') ? trimmed.split('=').pop()?.trim().replace(/^['"]|['"]$/g, '') ?? trimmed : trimmed
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
   }
 
   try {
-    const serviceKey = Deno.env.get('EXTERNAL_SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    const serviceKey = normalizeSecret(Deno.env.get('EXTERNAL_SUPABASE_SERVICE_ROLE_KEY') ?? '')
     if (!serviceKey) {
       throw new Error('EXTERNAL_SUPABASE_SERVICE_ROLE_KEY não configurada')
     }
