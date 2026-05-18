@@ -91,9 +91,7 @@ export function AbaCalendario() {
   const [novaDataOpen, setNovaDataOpen] = useState(false);
   const [editing, setEditing] = useState<Calendario | null>(null);
   const [novaDataInitial, setNovaDataInitial] = useState<string>("");
-  const [selected, setSelected] = useState<Calendario | null>(null);
-  const [conteudos, setConteudos] = useState<Conteudo[]>([]);
-  const [loadingConteudos, setLoadingConteudos] = useState(false);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<Calendario | null>(null);
 
   const mesRef = `${ano}-${pad(mes + 1)}`;
@@ -124,6 +122,9 @@ export function AbaCalendario() {
 
   useEffect(() => { fetchDatas(); }, [fetchDatas]);
 
+  const selected = useMemo(() => datas.find((d) => d.id === selectedId) || null, [datas, selectedId]);
+  const conteudos = useMemo(() => (selected?.conteudos_gerados || []) as Conteudo[], [selected]);
+
   const handleGerar = async () => {
     setConfirmGerar(false);
     setGerando(true);
@@ -138,27 +139,7 @@ export function AbaCalendario() {
     }
   };
 
-  const fetchConteudos = useCallback(async (calId: string) => {
-    setLoadingConteudos(true);
-    try {
-      const { data, error } = await (supabase as any)
-        .from("conteudos_gerados")
-        .select("*")
-        .eq("calendario_id", calId);
-      if (error) throw error;
-      setConteudos((data || []) as Conteudo[]);
-    } catch (e: any) {
-      toast.error("Erro ao carregar conteúdos", { description: e.message });
-      setConteudos([]);
-    } finally {
-      setLoadingConteudos(false);
-    }
-  }, []);
-
-  const openDate = (d: Calendario) => {
-    setSelected(d);
-    fetchConteudos(d.id);
-  };
+  const openDate = (d: Calendario) => setSelectedId(d.id);
 
   const updateConteudoField = async (id: string, field: string, value: any) => {
     try {
@@ -167,6 +148,7 @@ export function AbaCalendario() {
         .update({ [field]: value, updated_at: new Date().toISOString() })
         .eq("id", id);
       if (error) throw error;
+      await fetchDatas();
     } catch (e: any) {
       toast.error("Erro ao salvar", { description: e.message });
     }
@@ -177,8 +159,12 @@ export function AbaCalendario() {
     await updateConteudoField(cid, "status", "aprovado");
     await (supabase as any).from("calendario_comercial").update({ status: "aprovado" }).eq("id", selected.id);
     toast.success("Aprovado");
-    fetchConteudos(selected.id);
     fetchDatas();
+  };
+
+  const publicarConteudo = async (cid: string) => {
+    await updateConteudoField(cid, "status", "publicado");
+    toast.success("Publicado");
   };
 
   const handleDelete = async (cal: Calendario) => {
