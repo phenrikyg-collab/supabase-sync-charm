@@ -475,7 +475,7 @@ export function AbaCalendario() {
                       <Badge className={TIPO_COLORS[selected.tipo]}>{selected.tipo}</Badge>
                     </SheetTitle>
                     <SheetDescription className="mt-1">
-                      {formatDDMM(selected.data)} {selected.descricao ? `• ${selected.descricao}` : ""}
+                      {formatLongDate(selected.data)} {selected.descricao ? `• ${selected.descricao}` : ""}
                     </SheetDescription>
                   </div>
                   <div className="flex gap-1 shrink-0">
@@ -489,31 +489,30 @@ export function AbaCalendario() {
                 </div>
               </SheetHeader>
 
-              <Tabs defaultValue="instagram" className="mt-6">
-                <TabsList className="grid grid-cols-3 w-full">
-                  <TabsTrigger value="instagram" className="text-xs">Instagram</TabsTrigger>
-                  <TabsTrigger value="email" className="text-xs">E-mail</TabsTrigger>
-                  <TabsTrigger value="whatsapp_vip" className="text-xs">WhatsApp VIP</TabsTrigger>
-                </TabsList>
-
-                <TabsContent value="instagram" className="mt-4">
-                  <Tabs defaultValue="instagram_reels">
-                    <TabsList className="grid grid-cols-2 w-full">
-                      <TabsTrigger value="instagram_reels" className="text-xs">🎬 Reels</TabsTrigger>
-                      <TabsTrigger value="instagram_feed" className="text-xs">🖼️ Carrossel</TabsTrigger>
+              {(() => {
+                const canaisOrder = ["instagram_reels", "instagram_feed", "instagram_story", "email", "whatsapp_vip"];
+                const present = canaisOrder.filter((k) => conteudos.some((c) => c.canal === k));
+                if (present.length === 0) {
+                  return <p className="text-sm text-muted-foreground mt-6">Nenhum conteúdo gerado para esta data ainda.</p>;
+                }
+                return (
+                  <Tabs defaultValue={present[0]} className="mt-6">
+                    <TabsList className="w-full flex flex-wrap h-auto">
+                      {present.map((k) => (
+                        <TabsTrigger key={k} value={k} className="text-xs flex-1">{CANAL_LABELS[k]}</TabsTrigger>
+                      ))}
                     </TabsList>
-                    {["instagram_reels", "instagram_feed"].map((canal) => {
-                      const list = conteudos.filter((c) => {
-                        const cc = (c as any).canal;
-                        return Array.isArray(cc) ? cc.includes(canal) : cc === canal;
-                      });
+                    {present.map((canal) => {
+                      const list = conteudos.filter((c) => c.canal === canal);
                       return (
                         <TabsContent key={canal} value={canal} className="space-y-4 mt-4">
-                          {list.length === 0 ? (
-                            <p className="text-sm text-muted-foreground">Sem conteúdo para este canal.</p>
-                          ) : (
-                            list.map((ct) => (
-                              <Card key={ct.id} className="p-3">
+                          {list.map((ct) => {
+                            const isLiveRoteiro = canal === "instagram_story" && (ct.copy_principal || "").startsWith("ROTEIRO LIVE");
+                            return (
+                              <Card key={ct.id} className={`p-3 ${isLiveRoteiro ? "bg-red-50 border-red-300" : ""}`}>
+                                {isLiveRoteiro && (
+                                  <div className="font-bold text-red-700 mb-2">🔴 ROTEIRO DA LIVE</div>
+                                )}
                                 <ConteudoEditor
                                   conteudo={ct}
                                   onSave={updateConteudoField}
@@ -521,41 +520,20 @@ export function AbaCalendario() {
                                   onRejeitar={() => rejeitarConteudo(ct.id)}
                                   onPublicar={() => publicarConteudo(ct.id)}
                                 />
+                                <div className="pt-3 mt-3 border-t">
+                                  <Button size="sm" variant="outline" className="gap-1 text-xs" onClick={() => setConfirmRegen({ data: selected.data, canal })}>
+                                    <Sparkles className="h-3.5 w-3.5" /> Regenerar canal
+                                  </Button>
+                                </div>
                               </Card>
-                            ))
-                          )}
+                            );
+                          })}
                         </TabsContent>
                       );
                     })}
                   </Tabs>
-                </TabsContent>
-
-                {["email", "whatsapp_vip"].map((canal) => {
-                  const list = conteudos.filter((c) => {
-                    const cc = (c as any).canal;
-                    return Array.isArray(cc) ? cc.includes(canal) : cc === canal;
-                  });
-                  return (
-                    <TabsContent key={canal} value={canal} className="space-y-4 mt-4">
-                      {list.length === 0 ? (
-                        <p className="text-sm text-muted-foreground">Sem conteúdo para este canal.</p>
-                      ) : (
-                        list.map((ct) => (
-                          <Card key={ct.id} className="p-3">
-                            <ConteudoEditor
-                              conteudo={ct}
-                              onSave={updateConteudoField}
-                              onAprovar={() => aprovarConteudo(ct.id)}
-                              onRejeitar={() => rejeitarConteudo(ct.id)}
-                              onPublicar={() => publicarConteudo(ct.id)}
-                            />
-                          </Card>
-                        ))
-                      )}
-                    </TabsContent>
-                  );
-                })}
-              </Tabs>
+                );
+              })()}
             </>
           )}
         </SheetContent>
