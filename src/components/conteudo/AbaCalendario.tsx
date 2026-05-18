@@ -135,20 +135,41 @@ export function AbaCalendario() {
       const ultimoDia = new Date(ano, mes + 1, 0).getDate();
       const dataFim = `${ano}-${mesStr}-${pad(ultimoDia)}`;
 
-      const { data, error } = await (supabase as any)
+      // Fetch calendar entries (no relational join — avoids PostgREST schema cache bugs)
+      const { data: cals, error: errCal } = await (supabase as any)
         .from("calendario_comercial")
-        .select(`
-          id, data, titulo, tipo, status, descricao, canal, mes_referencia, criado_por_ia,
-          conteudos_gerados (
-            id, calendario_id, canal, copy_principal, copy_legenda, copy_cta,
-            hashtags, assunto_email, horario_sugerido, status, feedback_usuario, versao, tipo_campanha
-          )
-        `)
+        .select("id, data, titulo, tipo, status, descricao, canal, mes_referencia, criado_por_ia")
         .gte("data", dataInicio)
         .lte("data", dataFim)
-        .order("data", { ascending: true });
-      if (error) throw error;
-      setDatas((data || []) as Calendario[]);
+        .order("data", { ascending: true })
+        .limit(2000);
+      if (errCal) throw errCal;
+
+      const calList = (cals || []) as any[];
+      const ids = calList.map((c) => c.id);
+
+      // Fetch conteudos in separate query, map client-side
+      const conteudosByCal: Record<string, any[]> = {};
+      if (ids.length > 0) {
+        const { data: cts, error: errCts } = await (supabase as any)
+          .from("conteudos_gerados")
+          .select("id, calendario_id, canal, copy_principal, copy_legenda, copy_cta, hashtags, assunto_email, horario_sugerido, status, feedback_usuario, tipo_campanha")
+          .in("calendario_id", ids)
+          .limit(5000);
+        if (errCts) throw errCts;
+        (cts || []).forEach((c: any) => {
+          const k = c.calendario_id;
+          if (!conteudosByCal[k]) conteudosByCal[k] = [];
+          conteudosByCal[k].push(c);
+        });
+      }
+
+      const merged = calList.map((c) => ({
+        ...c,
+        data: typeof c.data === "string" ? c.data.slice(0, 10) : c.data,
+        conteudos_gerados: conteudosByCal[c.id] || [],
+      }));
+      setDatas(merged as Calendario[]);
     } catch (e: any) {
       toast.error("Erro ao carregar calendário", { description: e.message });
       setDatas([]);
@@ -390,7 +411,7 @@ export function AbaCalendario() {
         ) : (
           <div className="grid grid-cols-7 gap-1">
             {cells.map((cell, i) => {
-              if (!cell) return <div key={i} className="h-24 bg-muted/20 rounded" />;
+              if (!cell) return <div key={i} className="h-32 bg-muted/20 rounded" />;
               const items = byDate.get(cell.iso) || [];
               const hasContent = items.length > 0;
               const funilBar = FUNIL_BARS[cell.dow] || "bg-muted";
@@ -398,7 +419,7 @@ export function AbaCalendario() {
                 <button
                   key={i}
                   onClick={() => hasContent ? openDate(items[0]) : openNova(cell.iso)}
-                  className={`h-24 rounded border p-1.5 pb-2 text-left relative transition-colors flex flex-col group overflow-hidden ${
+                  className={`h-32 rounded border p-1.5 pb-2 text-left relative transition-colors flex flex-col group overflow-hidden ${
                     hasContent ? "bg-card hover:bg-accent/30 cursor-pointer border-border" : "bg-muted/10 hover:bg-muted/30 cursor-pointer border-dashed border-muted-foreground/20"
                   }`}
                 >
@@ -408,18 +429,21 @@ export function AbaCalendario() {
                       <span className={`h-2 w-2 rounded-full ${STATUS_DOT[items[0].status] || "bg-gray-300"}`} />
                     )}
                   </div>
-                  <div className="mt-1 space-y-0.5 overflow-hidden flex-1">
-                    {items.slice(0, 2).map((it) => {
+                  <div className="mt-1 space-y-0.5 overflow-y-auto flex-1 pr-0.5">
+                    {items.map((it) => {
                       const canais = Array.from(new Set((it.conteudos_gerados || []).map((c: any) => c.canal).filter(Boolean)));
                       const icons = canais.map((c) => CANAL_ICONS[c]).filter(Boolean).slice(0, 3).join("");
-                      const tit = (it.titulo || "").length > 20 ? (it.titulo || "").slice(0, 20) + "…" : it.titulo;
+                      const tit = (it.titulo || "").length > 18 ? (it.titulo || "").slice(0, 18) + "…" : it.titulo;
                       return (
-                        <Badge key={it.id} className={`text-[9px] px-1 py-0 ${TIPO_COLORS[it.tipo] || "bg-gray-500 text-white"} block truncate w-full text-left`}>
+                        <Badge
+                          key={it.id}
+                          onClick={(e) => { e.stopPropagation(); openDate(it); }}
+                          className={`text-[9px] px-1 py-0 ${TIPO_COLORS[it.tipo] || "bg-gray-500 text-white"} block truncate w-full text-left cursor-pointer`}
+                        >
                           {icons && <span className="mr-0.5">{icons}</span>}{tit}
                         </Badge>
                       );
                     })}
-                    {items.length > 2 && <span className="text-[9px] text-muted-foreground">+{items.length - 2}</span>}
                   </div>
                   <span className={`absolute bottom-0 left-0 right-0 h-1 ${funilBar}`} />
                 </button>
