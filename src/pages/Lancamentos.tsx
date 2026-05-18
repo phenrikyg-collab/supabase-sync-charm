@@ -629,6 +629,43 @@ function LancamentoForm({
           {/* Informações básicas */}
           <section className="space-y-3">
             <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Informações básicas</h3>
+
+            {/* Seletor de produto cadastrado */}
+            <div className="rounded-md border border-dashed p-3 bg-muted/30 space-y-2">
+              <Label className="text-xs uppercase tracking-wider text-muted-foreground">
+                Buscar produto cadastrado (opcional — pré-preenche os campos)
+              </Label>
+              <Input
+                value={produtoBusca}
+                onChange={(e) => setProdutoBusca(e.target.value)}
+                placeholder="Digite nome ou SKU do produto..."
+              />
+              {produtos.length === 0 ? (
+                <p className="text-[11px] text-muted-foreground">Carregando produtos...</p>
+              ) : (
+                <div className="max-h-40 overflow-y-auto space-y-1">
+                  {produtosFiltrados.length === 0 ? (
+                    <p className="text-[11px] text-muted-foreground py-2 text-center">Nenhum produto encontrado.</p>
+                  ) : produtosFiltrados.map((p) => (
+                    <button
+                      type="button"
+                      key={p.id}
+                      onClick={() => aplicarProduto(p)}
+                      className={`w-full text-left px-2 py-1.5 rounded text-xs hover:bg-background transition-colors ${produtoSelecionadoId === p.id ? "bg-background ring-1 ring-primary" : ""}`}
+                    >
+                      <div className="font-medium truncate">{p.nome_do_produto}</div>
+                      <div className="text-[10px] text-muted-foreground flex flex-wrap gap-x-2">
+                        {p.codigo_sku && <span>SKU: {p.codigo_sku}</span>}
+                        {p.preco_venda != null && <span>{fmtBRL(p.preco_venda)}</span>}
+                        {p.tecido_do_produto && <span>{p.tecido_do_produto}</span>}
+                        {p.tipo_do_produto && <span>{p.tipo_do_produto}</span>}
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
             <div>
               <Label>Nome da peça *</Label>
               <Input value={nome} onChange={(e) => setNome(e.target.value)} placeholder="Calça Flare Premium Linho" />
