@@ -308,6 +308,10 @@ export function AbaCalendario() {
           <Button variant="outline" onClick={() => openNova()} className="gap-2">
             <Plus className="h-4 w-4" /> Nova data
           </Button>
+          <Button variant="outline" onClick={() => setConfirmLimparMes(true)} disabled={limpandoMes || datas.length === 0} className="gap-2 text-red-600 border-red-200 hover:bg-red-50">
+            {limpandoMes ? <Loader2 className="h-4 w-4 animate-spin" /> : <Eraser className="h-4 w-4" />}
+            Limpar mês
+          </Button>
           <Button onClick={() => setConfirmGerar(true)} disabled={gerando} className="gap-2">
             {gerando ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
             {gerando ? "Gerando..." : "Gerar Calendário com IA"}
