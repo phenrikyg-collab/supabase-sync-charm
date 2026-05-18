@@ -904,7 +904,7 @@ function ExportarCalendarioDialog({
 }
 
 // ===================== Aba 3: KPIs de Tráfego =====================
-function AbaKpisTrafego() {
+function AbaKpisTrafego({ mesRef }: { mesRef: string }) {
   const [loading, setLoading] = useState(true);
   const [kpis, setKpis] = useState<KpiRow[]>([]);
   const [investimentos, setInvestimentos] = useState<Investimento[]>([]);
