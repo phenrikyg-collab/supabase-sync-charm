@@ -63,14 +63,18 @@ export function AbaOrdensProducao() {
     setLoading(true);
     try {
       const [oRes, pRes, cRes, lRes] = await Promise.all([
-        (supabase as any).from("ordens_producao").select("*").not("status_ordem", "in", "(concluido,cancelado)").order("data_previsao_termino", { ascending: true, nullsFirst: false }),
+        (supabase as any).from("ordens_producao").select("*").order("data_previsao_termino", { ascending: true, nullsFirst: false }),
         (supabase as any).from("produtos").select("id,nome_do_produto,tipo_do_produto,preco_venda"),
         (supabase as any).from("cores").select("id,nome_cor"),
         (supabase as any).from("lancamentos_pecas").select("id,nome_peca,data_lancamento"),
       ]);
 
       if (oRes.error) throw oRes.error;
-      setOrdens((oRes.data || []) as Ordem[]);
+      const excluir = new Set(["concluido", "concluído", "cancelado"]);
+      const filtradas = ((oRes.data || []) as Ordem[]).filter(
+        (o) => !excluir.has((o.status_ordem || "").toLowerCase().trim())
+      );
+      setOrdens(filtradas);
 
       if (!pRes.error) {
         const pm = new Map<string, Produto>();
