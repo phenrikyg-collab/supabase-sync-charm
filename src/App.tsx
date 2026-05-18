@@ -150,6 +150,7 @@ const AppRoutes = () => {
               <Route path="/marketing" element={<Marketing />} />
               <Route path="/padroes-pedidos" element={<PadroesPedidos />} />
               <Route path="/produtos-campanha" element={<ProdutosCampanha />} />
+              <Route path="/plano-comercial" element={<PlanoComercial />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </AppLayout>
