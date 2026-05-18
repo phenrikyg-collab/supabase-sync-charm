@@ -348,7 +348,7 @@ export function AbaCalendario() {
       <NovaDataDialog
         open={novaDataOpen}
         onOpenChange={(o) => { setNovaDataOpen(o); if (!o) { setEditing(null); setNovaDataInitial(""); } }}
-        onSaved={() => { fetchDatas(); if (editing && selected?.id === editing.id) setSelected(null); }}
+        onSaved={() => { fetchDatas(); if (editing && selectedId === editing.id) setSelectedId(null); }}
         editing={editing}
         initialDate={novaDataInitial}
       />
