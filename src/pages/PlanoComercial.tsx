@@ -507,6 +507,10 @@ function AbaAcoes({ mesRef }: { mesRef: string }) {
     if (!distribuicao.length) return null;
     return distribuicao.reduce((a, b) => (b.meta_receita_semana > a.meta_receita_semana ? b : a));
   }, [distribuicao]);
+  const semanaFraca = useMemo(() => {
+    if (distribuicao.length < 2) return null;
+    return distribuicao.reduce((a, b) => (b.meta_receita_semana < a.meta_receita_semana ? b : a));
+  }, [distribuicao]);
 
   const acoesBySemana = useMemo(() => {
     const m: Record<number, Acao[]> = { 1: [], 2: [], 3: [], 4: [] };
