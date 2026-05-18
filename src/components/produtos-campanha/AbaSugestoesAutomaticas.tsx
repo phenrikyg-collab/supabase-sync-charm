@@ -120,6 +120,7 @@ export function AbaSugestoesAutomaticas() {
     quebra: rows.filter(r => r.status_campanha === "quebra_grade").length,
     baixo: rows.filter(r => r.status_campanha === "estoque_baixo").length,
     bem: rows.filter(r => r.status_campanha === "vendendo_bem").length,
+    urgente: rows.filter(r => r.status_campanha === "urgente_antigo").length,
   }), [rows]);
 
   const filtered = useMemo(() => {
