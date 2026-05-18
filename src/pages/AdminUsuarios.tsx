@@ -54,7 +54,7 @@ interface UserWithModules {
 function AdminUsuariosContent() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [selectedModules, setSelectedModules] = useState<AppModule[]>(["comercial", "producao", "financeiro"]);
+  const [selectedModules, setSelectedModules] = useState<AppModule[]>(["comercial", "producao", "financeiro", "logistica", "marketing"]);
   const [loading, setLoading] = useState(false);
   const [users, setUsers] = useState<UserWithModules[]>([]);
   const [loadingUsers, setLoadingUsers] = useState(true);
@@ -132,7 +132,7 @@ function AdminUsuariosContent() {
     toast({ title: "Usuário criado", description: `Acesso criado para ${email}` });
     setEmail("");
     setPassword("");
-    setSelectedModules(["comercial", "producao", "financeiro"]);
+    setSelectedModules(["comercial", "producao", "financeiro", "logistica", "marketing"]);
     setLoading(false);
     fetchUsers();
     queryClient.invalidateQueries({ queryKey: ["user-modules"] });
