@@ -481,13 +481,27 @@ export function AbaCalendario() {
   );
 }
 
-function NovaDataDialog({ open, onOpenChange, onCreated }: { open: boolean; onOpenChange: (o: boolean) => void; onCreated: () => void }) {
+function NovaDataDialog({ open, onOpenChange, onSaved, editing, initialDate }: { open: boolean; onOpenChange: (o: boolean) => void; onSaved: () => void; editing: Calendario | null; initialDate: string }) {
   const [data, setData] = useState("");
   const [titulo, setTitulo] = useState("");
   const [tipo, setTipo] = useState("conteudo");
   const [descricao, setDescricao] = useState("");
   const [canais, setCanais] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (!open) return;
+    if (editing) {
+      setData(editing.data);
+      setTitulo(editing.titulo);
+      setTipo(editing.tipo);
+      setDescricao(editing.descricao || "");
+      setCanais(Array.isArray((editing as any).canal) ? (editing as any).canal : []);
+    } else {
+      setData(initialDate || "");
+      setTitulo(""); setTipo("conteudo"); setDescricao(""); setCanais([]);
+    }
+  }, [open, editing, initialDate]);
 
   const reset = () => { setData(""); setTitulo(""); setTipo("conteudo"); setDescricao(""); setCanais([]); };
 
@@ -505,21 +519,29 @@ function NovaDataDialog({ open, onOpenChange, onCreated }: { open: boolean; onOp
         titulo,
         tipo,
         descricao: descricao || null,
-        status: "rascunho",
         mes_referencia: mesRef,
       };
-      // Optional fields — may not exist on schema; try and fallback
-      const tryFull = { ...payload, canal: canais, criado_por_ia: false };
-      let { error } = await (supabase as any).from("calendario_comercial").insert(tryFull);
-      if (error) {
-        // Retry without optional columns
-        const r2 = await (supabase as any).from("calendario_comercial").insert(payload);
-        if (r2.error) throw r2.error;
+      if (editing) {
+        const tryFull = { ...payload, canal: canais };
+        let { error } = await (supabase as any).from("calendario_comercial").update(tryFull).eq("id", editing.id);
+        if (error) {
+          const r2 = await (supabase as any).from("calendario_comercial").update(payload).eq("id", editing.id);
+          if (r2.error) throw r2.error;
+        }
+        toast.success("Data atualizada!");
+      } else {
+        const insertPayload = { ...payload, status: "rascunho" };
+        const tryFull = { ...insertPayload, canal: canais, criado_por_ia: false };
+        let { error } = await (supabase as any).from("calendario_comercial").insert(tryFull);
+        if (error) {
+          const r2 = await (supabase as any).from("calendario_comercial").insert(insertPayload);
+          if (r2.error) throw r2.error;
+        }
+        toast.success("Data adicionada!");
       }
-      toast.success("Data adicionada!");
       reset();
       onOpenChange(false);
-      onCreated();
+      onSaved();
     } catch (e: any) {
       toast.error("Erro ao salvar", { description: e.message });
     } finally {
@@ -530,7 +552,7 @@ function NovaDataDialog({ open, onOpenChange, onCreated }: { open: boolean; onOp
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!o) reset(); onOpenChange(o); }}>
       <DialogContent>
-        <DialogHeader><DialogTitle className="font-serif">Nova data</DialogTitle></DialogHeader>
+        <DialogHeader><DialogTitle className="font-serif">{editing ? "Editar data" : "Nova data"}</DialogTitle></DialogHeader>
         <div className="space-y-3">
           <div>
             <Label className="text-xs">Data *</Label>
