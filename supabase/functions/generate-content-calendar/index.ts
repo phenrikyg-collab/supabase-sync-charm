@@ -68,7 +68,45 @@ serve(async (req) => {
     if (!apiKey) throw new Error("ANTHROPIC_API_KEY não configurada");
     if (!serviceKey) throw new Error("EXTERNAL_SUPABASE_SERVICE_ROLE_KEY não configurada");
 
-    const userPrompt = `Gere o calendário comercial completo para o mês ${mes_referencia}. Use datas reais do mês e ano informados.`;
+    const sb = createClient(EXTERNAL_SUPABASE_URL, serviceKey);
+
+    // Buscar produtos em campanha ativa para enriquecer o prompt da IA
+    let campanhaContext = "";
+    try {
+      const { data: campanhas } = await sb
+        .from("produtos_campanha")
+        .select("product_id, nome_produto, motivo, prioridade, meta_vendas")
+        .eq("status", "ativo")
+        .order("prioridade", { ascending: false })
+        .limit(10);
+
+      if (campanhas && campanhas.length) {
+        const ids = campanhas.map((c: any) => c.product_id);
+        const { data: views } = await sb
+          .from("vw_produtos_campanha")
+          .select("id, preco, estoque_total, total_vendas, percentual_abaixo_media")
+          .in("id", ids as any);
+        const vMap: Record<string, any> = {};
+        (views || []).forEach((v: any) => { vMap[String(v.id)] = v; });
+
+        const lista = campanhas.map((c: any) => {
+          const v = vMap[String(c.product_id)] || {};
+          return `- ${c.nome_produto} | prioridade ${c.prioridade}/5 | motivo: ${c.motivo || "—"} | preço R$ ${v.preco || "?"} | estoque ${v.estoque_total ?? "?"} | vendas ${v.total_vendas ?? "?"} | ${v.percentual_abaixo_media ?? 0}% abaixo da média${c.meta_vendas ? ` | meta ${c.meta_vendas} un.` : ""}`;
+        }).join("\n");
+
+        campanhaContext = `
+
+PRODUTOS EM CAMPANHA ATIVA (priorize esses no calendário):
+${lista}
+
+INSTRUÇÃO ESPECIAL: Gere conteúdo focado em impulsionar as vendas dos produtos em campanha ativa acima. Para cada produto em campanha, sugira ao menos 1 post de Instagram (Reels ou Carrossel) destacando o produto, seus diferenciais e gerando desejo de compra. Priorize produtos com maior prioridade e maior percentual abaixo da média.`;
+      }
+    } catch (e) {
+      console.error("erro carregando produtos campanha", e);
+    }
+
+    const userPrompt = `Gere o calendário comercial completo para o mês ${mes_referencia}. Use datas reais do mês e ano informados.${campanhaContext}`;
+
 
     const aiRes = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
@@ -97,8 +135,6 @@ serve(async (req) => {
 
     const datas: any[] = parsed.datas || [];
     if (!datas.length) throw new Error("IA não retornou datas");
-
-    const sb = createClient(EXTERNAL_SUPABASE_URL, serviceKey);
 
     let totalDatas = 0, totalConteudos = 0;
     for (const d of datas) {
