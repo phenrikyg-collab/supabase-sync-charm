@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -73,6 +73,18 @@ type KpiRow = {
   roas: number;
 };
 
+type Distribuicao = { semana: number; percentual: number; meta_receita_semana: number; receita_historica: number };
+
+type PlanoData = {
+  plano: Plano | null;
+  acoes: Acao[];
+  kpis: KpiRow[];
+  investimentos: Investimento[];
+  distribuicao: Distribuicao[];
+  sugestaoMeta: number | null;
+  sugestaoInvestimento: number | null;
+};
+
 // ===================== Constants =====================
 const TIPO_ACAO_META: Record<string, { label: string; icon: any; classes: string }> = {
   kit_oferta:    { label: "🎁 Kit",         icon: Gift,         classes: "bg-emerald-100 text-emerald-800 border-emerald-300" },
@@ -126,17 +138,107 @@ function ultimoDiaMes(mes: string): number {
   return new Date(y, m, 0).getDate();
 }
 function semanaRange(mes: string, semana: number): string {
-  // Semana 1: dia 1-7, Semana 2: 8-14, Semana 3: 15-21, Semana 4: 22-fim
   const ultimo = ultimoDiaMes(mes);
   const ini = (semana - 1) * 7 + 1;
   const fim = semana === 4 ? ultimo : Math.min(ini + 6, ultimo);
   return `${String(ini).padStart(2,"0")}–${String(fim).padStart(2,"0")}/${mes.split("-")[1]}`;
 }
 
+const EMPTY_DATA: PlanoData = {
+  plano: null,
+  acoes: [],
+  kpis: [],
+  investimentos: [],
+  distribuicao: [],
+  sugestaoMeta: null,
+  sugestaoInvestimento: null,
+};
+
 // ===================== Page =====================
 export default function PlanoComercial() {
   const [mesRef, setMesRef] = useState<string>(mesAtualStr());
   const [tab, setTab] = useState<string>("criar");
+  const [loading, setLoading] = useState(false);
+  const [hasFetched, setHasFetched] = useState(false);
+  const [data, setData] = useState<PlanoData>(EMPTY_DATA);
+
+  // ÚNICO ponto de busca — somente dispara quando mesRef muda
+  const fetchTodosDados = useCallback(async (mes: string) => {
+    setLoading(true);
+    setHasFetched(false);
+    try {
+      const dataInicio = `${mes}-01`;
+      const [planoRes, acoesRes, kpisRes, padraoRes, metaRes, investRes, investHistRes] = await Promise.all([
+        supabase.from("planos_comerciais" as any).select("*").eq("mes_referencia", mes).order("created_at", { ascending: false }).limit(1),
+        supabase.from("acoes_comerciais" as any).select("*").eq("mes_referencia", mes).order("semana", { ascending: true }),
+        supabase.from("vw_kpis_trafego" as any).select("*").order("mes_referencia", { ascending: false }).limit(6),
+        supabase.from("vw_padroes_pedidos" as any).select("semana_do_mes,receita_total").limit(2000),
+        supabase.from("metas_financeiras" as any).select("meta_mensal").eq("mes", dataInicio).limit(1),
+        supabase.from("investimentos_midia" as any).select("facebook_ads,google_ads,outros").eq("mes_referencia", mes).limit(1),
+        supabase.from("investimentos_midia" as any).select("*").order("mes_referencia", { ascending: false }).limit(12),
+      ]);
+
+      const plano = ((planoRes.data as any) || [])[0] || null;
+      const acoes = ((acoesRes.data as any) || []) as Acao[];
+      const kpis = ((kpisRes.data as any) || []) as KpiRow[];
+      const investimentos = ((investHistRes.data as any) || []) as Investimento[];
+
+      // Distribuição por semana baseada em histórico
+      const map = new Map<number, number>();
+      ((padraoRes.data as any[]) || []).forEach((r) => {
+        const s = Number(r.semana_do_mes);
+        if (!s) return;
+        map.set(s, (map.get(s) || 0) + Number(r.receita_total || 0));
+      });
+      const totalReceita = Array.from(map.values()).reduce((s, v) => s + v, 0) || 1;
+      const distribuicao: Distribuicao[] = Array.from(map.entries())
+        .sort((a, b) => a[0] - b[0])
+        .map(([semana, rec]) => ({
+          semana,
+          percentual: Math.round((rec / totalReceita) * 100),
+          receita_historica: rec,
+          meta_receita_semana: ((plano?.meta_receita || 0) * rec) / totalReceita,
+        }));
+
+      // Sugestões para o formulário
+      const metaSug = ((metaRes.data as any) || [])[0]?.meta_mensal ?? null;
+      const inv = ((investRes.data as any) || [])[0];
+      const invSug = inv
+        ? Number(inv.facebook_ads || 0) + Number(inv.google_ads || 0) + Number(inv.outros || 0)
+        : null;
+
+      setData({
+        plano,
+        acoes,
+        kpis,
+        investimentos,
+        distribuicao,
+        sugestaoMeta: metaSug ? Number(metaSug) : null,
+        sugestaoInvestimento: invSug && invSug > 0 ? invSug : null,
+      });
+    } catch (err) {
+      console.error("Erro ao buscar dados:", err);
+      toast.error("Erro ao carregar dados");
+    } finally {
+      setLoading(false);
+      setHasFetched(true);
+    }
+  }, []);
+
+  // ÚNICO useEffect — APENAS mesRef como dependência
+  useEffect(() => {
+    fetchTodosDados(mesRef);
+  }, [mesRef, fetchTodosDados]);
+
+  const reload = useCallback(() => fetchTodosDados(mesRef), [mesRef, fetchTodosDados]);
+
+  // Atualização otimista local para edits dentro das ações (evita refetch global)
+  const updateAcaoLocal = useCallback((updated: Acao) => {
+    setData((prev) => ({ ...prev, acoes: prev.acoes.map((a) => (a.id === updated.id ? updated : a)) }));
+  }, []);
+  const updateInvestimentoLocal = useCallback((next: Investimento[]) => {
+    setData((prev) => ({ ...prev, investimentos: next }));
+  }, []);
 
   return (
     <div className="space-y-6 p-6 max-w-[1400px] mx-auto">
@@ -167,13 +269,30 @@ export default function PlanoComercial() {
         </TabsList>
 
         <TabsContent value="criar" className="mt-6">
-          <AbaCriarPlano mesRef={mesRef} onGenerated={() => setTab("acoes")} />
+          <AbaCriarPlano
+            mesRef={mesRef}
+            data={data}
+            loading={loading}
+            hasFetched={hasFetched}
+            reload={reload}
+            onGenerated={() => setTab("acoes")}
+          />
         </TabsContent>
         <TabsContent value="acoes" className="mt-6">
-          <AbaAcoes mesRef={mesRef} />
+          <AbaAcoes
+            mesRef={mesRef}
+            data={data}
+            loading={loading}
+            updateAcaoLocal={updateAcaoLocal}
+          />
         </TabsContent>
         <TabsContent value="kpis" className="mt-6">
-          <AbaKpisTrafego mesRef={mesRef} />
+          <AbaKpisTrafego
+            mesRef={mesRef}
+            data={data}
+            loading={loading}
+            updateInvestimentoLocal={updateInvestimentoLocal}
+          />
         </TabsContent>
       </Tabs>
     </div>
@@ -181,58 +300,44 @@ export default function PlanoComercial() {
 }
 
 // ===================== Aba 1: Criar Plano =====================
-function AbaCriarPlano({ mesRef, onGenerated }: { mesRef: string; onGenerated: () => void }) {
+function AbaCriarPlano({
+  mesRef, data, loading, hasFetched, reload, onGenerated,
+}: {
+  mesRef: string;
+  data: PlanoData;
+  loading: boolean;
+  hasFetched: boolean;
+  reload: () => Promise<void> | void;
+  onGenerated: () => void;
+}) {
+  const { plano, sugestaoMeta, sugestaoInvestimento } = data;
   const [metaReceita, setMetaReceita] = useState<string>("");
   const [investimento, setInvestimento] = useState<string>("");
-  const [loadingSugestoes, setLoadingSugestoes] = useState(false);
-  const [plano, setPlano] = useState<Plano | null>(null);
   const [resposta, setResposta] = useState<any | null>(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [gerando, setGerando] = useState(false);
   const [statusMsg, setStatusMsg] = useState("");
 
-  // Carrega sugestões automáticas (meta + investimento) e plano existente
+  // Preenche o formulário quando dados chegam (sem loop: depende de mesRef + hasFetched)
   useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      setLoadingSugestoes(true);
-      try {
-        const dataInicio = `${mesRef}-01`;
-        const [{ data: metas }, { data: invs }, { data: planos }] = await Promise.all([
-          supabase.from("metas_financeiras" as any).select("meta_mensal").eq("mes", dataInicio).limit(1),
-          supabase.from("investimentos_midia" as any).select("facebook_ads,google_ads,outros").eq("mes_referencia", mesRef).limit(1),
-          supabase.from("planos_comerciais" as any).select("*").eq("mes_referencia", mesRef).order("created_at", { ascending: false }).limit(1),
-        ]);
-        if (cancelled) return;
-        const meta = (metas as any)?.[0]?.meta_mensal;
-        if (meta && !metaReceita) setMetaReceita(String(meta));
-        const inv = (invs as any)?.[0];
-        if (inv && !investimento) {
-          const total = Number(inv.facebook_ads || 0) + Number(inv.google_ads || 0) + Number(inv.outros || 0);
-          if (total > 0) setInvestimento(String(total));
-        }
-        const p = (planos as any)?.[0] || null;
-        setPlano(p);
-        if (p?.meta_receita && !metaReceita) setMetaReceita(String(p.meta_receita));
-        if (p?.investimento_previsto && !investimento) setInvestimento(String(p.investimento_previsto));
-      } finally {
-        setLoadingSugestoes(false);
-      }
-    })();
-    return () => { cancelled = true; };
+    if (!hasFetched) return;
+    setResposta(null);
+    const meta = plano?.meta_receita ?? sugestaoMeta;
+    const inv = plano?.investimento_previsto ?? sugestaoInvestimento;
+    setMetaReceita(meta ? String(meta) : "");
+    setInvestimento(inv ? String(inv) : "");
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mesRef]);
+  }, [mesRef, hasFetched]);
 
   const handleGerar = async () => {
     setConfirmOpen(false);
     setGerando(true);
     setStatusMsg("Gerando plano estratégico...");
-    // Aviso amarelo se passar de 90s
     const slowWarn = setTimeout(() => {
       toast.warning("Geração em andamento... Recarregue a página em alguns instantes.");
     }, 90_000);
     try {
-      const { data, error } = await supabase.functions.invoke("generate-commercial-plan", {
+      const { data: resp, error } = await supabase.functions.invoke("generate-commercial-plan", {
         body: {
           mes_referencia: mesRef,
           meta_receita: Number(metaReceita),
@@ -240,22 +345,10 @@ function AbaCriarPlano({ mesRef, onGenerated }: { mesRef: string; onGenerated: (
         },
       });
       if (error) throw error;
-      setResposta(data);
-      // Recarrega plano persistido + ações
-      const [{ data: planos }, { data: acoes }] = await Promise.all([
-        supabase
-          .from("planos_comerciais" as any)
-          .select("*")
-          .eq("mes_referencia", mesRef)
-          .order("created_at", { ascending: false })
-          .limit(1),
-        supabase
-          .from("acoes_comerciais" as any)
-          .select("id")
-          .eq("mes_referencia", mesRef),
-      ]);
-      setPlano((planos as any)?.[0] || null);
-      const totalAcoes = (acoes as any[])?.length || data?.total_acoes_geradas || 0;
+      setResposta(resp);
+      // recarrega TODOS os dados UMA vez (não em loop)
+      await reload();
+      const totalAcoes = resp?.total_acoes_geradas || 0;
       toast.success(`Plano gerado! ${totalAcoes} ações criadas.`);
       onGenerated();
     } catch (e: any) {
@@ -275,7 +368,7 @@ function AbaCriarPlano({ mesRef, onGenerated }: { mesRef: string; onGenerated: (
       .update({ status: "aprovado" })
       .eq("id", plano.id);
     if (error) return toast.error(error.message);
-    setPlano({ ...plano, status: "aprovado" });
+    await reload();
     toast.success("Plano aprovado");
   };
 
@@ -289,6 +382,7 @@ function AbaCriarPlano({ mesRef, onGenerated }: { mesRef: string; onGenerated: (
   };
 
   const kpis = resposta?.kpis_necessarios;
+  const carregando = loading && !hasFetched;
 
   return (
     <div className="space-y-6">
@@ -308,7 +402,7 @@ function AbaCriarPlano({ mesRef, onGenerated }: { mesRef: string; onGenerated: (
               min="0"
               value={metaReceita}
               onChange={(e) => setMetaReceita(e.target.value)}
-              placeholder={loadingSugestoes ? "Carregando..." : "Ex: 250000"}
+              placeholder={carregando ? "Carregando..." : "Ex: 250000"}
             />
           </div>
           <div className="space-y-1.5">
@@ -320,7 +414,7 @@ function AbaCriarPlano({ mesRef, onGenerated }: { mesRef: string; onGenerated: (
               min="0"
               value={investimento}
               onChange={(e) => setInvestimento(e.target.value)}
-              placeholder={loadingSugestoes ? "Carregando..." : "Ex: 30000"}
+              placeholder={carregando ? "Carregando..." : "Ex: 30000"}
             />
           </div>
           <div className="flex items-end">
@@ -347,6 +441,13 @@ function AbaCriarPlano({ mesRef, onGenerated }: { mesRef: string; onGenerated: (
         </Card>
       )}
 
+      {carregando && !plano && (
+        <div className="space-y-3">
+          <Skeleton className="h-28" />
+          <Skeleton className="h-64" />
+        </div>
+      )}
+
       {/* Plano existente / Resposta IA */}
       {(plano || resposta) && (
         <Card>
@@ -365,7 +466,7 @@ function AbaCriarPlano({ mesRef, onGenerated }: { mesRef: string; onGenerated: (
                 <Button variant="outline" size="sm" onClick={() => setConfirmOpen(true)} disabled={gerando}>
                   <RotateCw className="h-4 w-4 mr-2" /> Regenerar
                 </Button>
-                {plano?.status !== "aprovado" && (
+                {plano?.status !== "aprovado" && plano && (
                   <Button size="sm" onClick={aprovarPlano} className="bg-emerald-600 hover:bg-emerald-700">
                     <CheckCircle2 className="h-4 w-4 mr-2" /> Aprovar plano
                   </Button>
@@ -462,46 +563,16 @@ function KpiBox({ label, value, variant }: { label: string; value: string; varia
 }
 
 // ===================== Aba 2: Ações por Semana =====================
-function AbaAcoes({ mesRef }: { mesRef: string }) {
-  const [loading, setLoading] = useState(true);
-  const [plano, setPlano] = useState<Plano | null>(null);
-  const [acoes, setAcoes] = useState<Acao[]>([]);
+function AbaAcoes({
+  mesRef, data, loading, updateAcaoLocal,
+}: {
+  mesRef: string;
+  data: PlanoData;
+  loading: boolean;
+  updateAcaoLocal: (a: Acao) => void;
+}) {
+  const { plano, acoes, distribuicao } = data;
   const [acaoSel, setAcaoSel] = useState<Acao | null>(null);
-  const [distribuicao, setDistribuicao] = useState<Array<{ semana: number; meta_receita_semana: number; percentual: number }>>([]);
-
-  const load = async () => {
-    setLoading(true);
-    const [{ data: planos }, { data: acs }] = await Promise.all([
-      supabase.from("planos_comerciais" as any).select("*").eq("mes_referencia", mesRef).order("created_at", { ascending: false }).limit(1),
-      supabase.from("acoes_comerciais" as any).select("*").eq("mes_referencia", mesRef).order("semana", { ascending: true }),
-    ]);
-    const p = (planos as any)?.[0] || null;
-    setPlano(p);
-    setAcoes(((acs as any) || []) as Acao[]);
-    // Distribuição: derivar do histórico semana_do_mes se sem plano salvo
-    const { data: hist } = await supabase
-      .from("vw_padroes_pedidos" as any)
-      .select("semana_do_mes,receita_total")
-      .limit(2000);
-    const map = new Map<number, number>();
-    (hist as any[] || []).forEach((r) => {
-      const s = Number(r.semana_do_mes);
-      if (!s) return;
-      map.set(s, (map.get(s) || 0) + Number(r.receita_total || 0));
-    });
-    const total = Array.from(map.values()).reduce((s, v) => s + v, 0) || 1;
-    const distr = Array.from(map.entries())
-      .sort((a, b) => a[0] - b[0])
-      .map(([semana, rec]) => ({
-        semana,
-        percentual: Math.round((rec / total) * 100),
-        meta_receita_semana: ((p?.meta_receita || 0) * rec) / total,
-      }));
-    setDistribuicao(distr);
-    setLoading(false);
-  };
-
-  useEffect(() => { load(); /* eslint-disable-next-line */ }, [mesRef]);
 
   const semanaPico = useMemo(() => {
     if (!distribuicao.length) return null;
@@ -537,14 +608,13 @@ function AbaAcoes({ mesRef }: { mesRef: string }) {
         </div>
       )}
 
-      {loading ? (
+      {loading && !acoes.length ? (
         <div className="space-y-3">
           <Skeleton className="h-28" />
           <Skeleton className="h-64" />
         </div>
       ) : (
         <>
-          {/* Distribuição por semana */}
           {distribuicao.length > 0 && (
             <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
               {distribuicao.map((d) => {
@@ -572,7 +642,6 @@ function AbaAcoes({ mesRef }: { mesRef: string }) {
             </div>
           )}
 
-          {/* Ações por semana */}
           {!plano && acoes.length === 0 ? (
             <Card>
               <CardContent className="pt-6 text-sm text-muted-foreground text-center">
@@ -616,7 +685,7 @@ function AbaAcoes({ mesRef }: { mesRef: string }) {
         acao={acaoSel}
         onClose={() => setAcaoSel(null)}
         onUpdated={(updated) => {
-          setAcoes((prev) => prev.map((a) => (a.id === updated.id ? updated : a)));
+          updateAcaoLocal(updated);
           setAcaoSel(updated);
         }}
         mesRef={mesRef}
@@ -666,6 +735,8 @@ function AcaoDrawer({
   const [produtoUrl, setProdutoUrl] = useState<string | null>(null);
   const [exportOpen, setExportOpen] = useState(false);
 
+  // Reset apenas quando id da ação muda (evita reload em re-renders do parent)
+  const acaoId = acao?.id ?? null;
   useEffect(() => {
     setLocal(acao);
     setProdutoUrl(null);
@@ -680,7 +751,8 @@ function AcaoDrawer({
           if (u) setProdutoUrl(u);
         });
     }
-  }, [acao]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [acaoId]);
 
   if (!local) return null;
 
@@ -698,19 +770,15 @@ function AcaoDrawer({
   };
 
   const aprovar = async () => {
-    await persistField("status", "aprovado");
+    await persistField("status", "aprovada");
     toast.success("Ação aprovada");
-  };
-  const cancelar = async () => {
-    await persistField("status", "cancelado");
-    toast.success("Ação cancelada");
   };
 
   return (
     <Sheet open={!!acao} onOpenChange={(o) => !o && onClose()}>
-      <SheetContent className="w-full sm:max-w-2xl overflow-y-auto">
+      <SheetContent className="sm:max-w-2xl overflow-y-auto">
         <SheetHeader>
-          <div className="flex items-center gap-2 flex-wrap mb-2">
+          <div className="flex items-center gap-2 flex-wrap">
             {meta && <Badge variant="outline" className={meta.classes}>{meta.label}</Badge>}
             {local.publico_alvo && (
               <Badge variant="outline" className={PUBLICO_COLORS[local.publico_alvo] || PUBLICO_COLORS.todos}>
@@ -718,95 +786,49 @@ function AcaoDrawer({
               </Badge>
             )}
             <Badge variant="outline">Semana {local.semana}</Badge>
-            {local.status && <Badge>{local.status}</Badge>}
           </div>
-          <SheetTitle className="text-xl">{local.titulo}</SheetTitle>
-          <SheetDescription>{local.descricao}</SheetDescription>
+          <SheetTitle className="text-left">{local.titulo}</SheetTitle>
+          {local.descricao && <SheetDescription className="text-left">{local.descricao}</SheetDescription>}
         </SheetHeader>
 
-        <div className="space-y-5 mt-5">
+        <div className="space-y-4 mt-6">
           {local.produto_foco && (
-            <div className="border rounded-md p-3 flex items-center justify-between gap-3 bg-muted/30">
-              <div className="text-sm">
-                <div className="text-xs text-muted-foreground">Produto foco</div>
-                <div className="font-semibold">{local.produto_foco}</div>
+            <div className="border rounded-md p-3 bg-muted/30 text-sm">
+              <div className="text-xs uppercase text-muted-foreground mb-1">Produto-foco</div>
+              <div className="flex items-center justify-between gap-2">
+                <span className="font-medium">{local.produto_foco}</span>
+                {produtoUrl && (
+                  <a href={produtoUrl} target="_blank" rel="noreferrer" className="text-primary text-xs flex items-center gap-1">
+                    Ver no site <ExternalLink className="h-3 w-3" />
+                  </a>
+                )}
               </div>
-              {produtoUrl && (
-                <a href={produtoUrl} target="_blank" rel="noreferrer" className="text-primary text-sm flex items-center gap-1 hover:underline">
-                  Ver produto <ExternalLink className="h-3.5 w-3.5" />
-                </a>
-              )}
             </div>
           )}
 
-          {/* Copies */}
-          <Tabs defaultValue="instagram">
-            <TabsList className="grid grid-cols-4 w-full">
-              <TabsTrigger value="instagram">📸 Instagram</TabsTrigger>
-              <TabsTrigger value="email">✉️ E-mail</TabsTrigger>
-              <TabsTrigger value="whatsapp">💬 WhatsApp</TabsTrigger>
-              <TabsTrigger value="anuncio">📢 Anúncio</TabsTrigger>
-            </TabsList>
-            <TabsContent value="instagram">
+          {(["copy_instagram","copy_email","copy_whatsapp","copy_anuncio"] as const).map((f) => (
+            <div key={f}>
+              <Label className="text-xs uppercase">
+                {f.replace("copy_", "").replace("_", " ")}
+              </Label>
               <Textarea
-                rows={8}
-                value={local.copy_instagram || ""}
-                onChange={(e) => setLocal({ ...local, copy_instagram: e.target.value })}
-                onBlur={(e) => persistField("copy_instagram", e.target.value)}
-                placeholder="Copy para Instagram..."
+                defaultValue={local[f] || ""}
+                rows={4}
+                onBlur={(e) => {
+                  if (e.target.value !== (local[f] || "")) persistField(f, e.target.value);
+                }}
               />
-            </TabsContent>
-            <TabsContent value="email">
-              <Textarea
-                rows={10}
-                value={local.copy_email || ""}
-                onChange={(e) => setLocal({ ...local, copy_email: e.target.value })}
-                onBlur={(e) => persistField("copy_email", e.target.value)}
-                placeholder="Assunto:&#10;&#10;Corpo do e-mail..."
-              />
-            </TabsContent>
-            <TabsContent value="whatsapp">
-              <Textarea
-                rows={8}
-                value={local.copy_whatsapp || ""}
-                onChange={(e) => setLocal({ ...local, copy_whatsapp: e.target.value })}
-                onBlur={(e) => persistField("copy_whatsapp", e.target.value)}
-                placeholder="Copy WhatsApp VIP..."
-              />
-            </TabsContent>
-            <TabsContent value="anuncio">
-              <Textarea
-                rows={8}
-                value={local.copy_anuncio || ""}
-                onChange={(e) => setLocal({ ...local, copy_anuncio: e.target.value })}
-                onBlur={(e) => persistField("copy_anuncio", e.target.value)}
-                placeholder="Copy do anúncio pago..."
-              />
-            </TabsContent>
-          </Tabs>
-
-          {/* KPIs */}
-          {local.kpis_trafego && typeof local.kpis_trafego === "object" && (
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-              {Object.entries(local.kpis_trafego).map(([k, v]) => (
-                <div key={k} className="border rounded-md p-2 bg-muted/30">
-                  <div className="text-[10px] uppercase text-muted-foreground">{k.replace(/_/g, " ")}</div>
-                  <div className="text-sm font-bold">{typeof v === "number" ? (k.includes("cps") || k.includes("budget") ? brl(v as number) : String(v)) : String(v)}</div>
-                </div>
-              ))}
             </div>
-          )}
+          ))}
 
-          {/* Ações */}
-          <div className="flex flex-wrap gap-2 pt-2 border-t">
-            <Button onClick={aprovar} className="bg-emerald-600 hover:bg-emerald-700" size="sm">
-              <CheckCircle2 className="h-4 w-4 mr-2" /> Aprovar ação
-            </Button>
-            <Button onClick={() => setExportOpen(true)} variant="outline" size="sm">
-              <CalendarDays className="h-4 w-4 mr-2" /> Exportar para calendário
-            </Button>
-            <Button onClick={cancelar} variant="outline" size="sm" className="text-red-600 hover:text-red-700">
-              <Trash2 className="h-4 w-4 mr-2" /> Cancelar ação
+          <div className="flex gap-2 flex-wrap pt-2">
+            {local.status !== "aprovada" && (
+              <Button size="sm" onClick={aprovar} className="bg-emerald-600 hover:bg-emerald-700">
+                <CheckCircle2 className="h-4 w-4 mr-2" /> Aprovar ação
+              </Button>
+            )}
+            <Button size="sm" variant="outline" onClick={() => setExportOpen(true)}>
+              <CalendarDays className="h-4 w-4 mr-2" /> Exportar p/ calendário
             </Button>
           </div>
         </div>
@@ -841,7 +863,8 @@ function ExportarCalendarioDialog({
       setData(`${mesRef}-15`);
       setCanais(acao.canais && acao.canais.length ? acao.canais : ["instagram_feed"]);
     }
-  }, [open, acao, mesRef]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
 
   const toggleCanal = (c: string) =>
     setCanais((cs) => (cs.includes(c) ? cs.filter((x) => x !== c) : [...cs, c]));
@@ -929,34 +952,21 @@ function ExportarCalendarioDialog({
 }
 
 // ===================== Aba 3: KPIs de Tráfego =====================
-function AbaKpisTrafego({ mesRef }: { mesRef: string }) {
-  const [loading, setLoading] = useState(true);
-  const [kpis, setKpis] = useState<KpiRow[]>([]);
-  const [investimentos, setInvestimentos] = useState<Investimento[]>([]);
-  const [planoAtual, setPlanoAtual] = useState<Plano | null>(null);
-  const [respostaCache, setRespostaCache] = useState<any | null>(null);
+function AbaKpisTrafego({
+  mesRef, data, loading, updateInvestimentoLocal,
+}: {
+  mesRef: string;
+  data: PlanoData;
+  loading: boolean;
+  updateInvestimentoLocal: (next: Investimento[]) => void;
+}) {
+  const { kpis, investimentos, plano: planoAtual } = data;
 
   // Simulador
   const [simMeta, setSimMeta] = useState<string>("");
   const [simInv, setSimInv] = useState<string>("");
 
-  const load = async () => {
-    setLoading(true);
-    const [{ data: ks }, { data: invs }, { data: planos }] = await Promise.all([
-      supabase.from("vw_kpis_trafego" as any).select("*").order("mes_referencia", { ascending: false }).limit(6),
-      supabase.from("investimentos_midia" as any).select("*").order("mes_referencia", { ascending: false }).limit(12),
-      supabase.from("planos_comerciais" as any).select("*").eq("mes_referencia", mesRef).order("created_at", { ascending: false }).limit(1),
-    ]);
-    setKpis(((ks as any) || []) as KpiRow[]);
-    setInvestimentos(((invs as any) || []) as Investimento[]);
-    setPlanoAtual((planos as any)?.[0] || null);
-    setLoading(false);
-  };
-
-  useEffect(() => { load(); /* eslint-disable-next-line */ }, [mesRef]);
-
   const atual = kpis[0];
-  // Médias dos últimos 3 meses (conforme spec)
   const ultimos3 = useMemo(() => kpis.slice(0, 3), [kpis]);
   const ticketHist = useMemo(() => {
     if (!ultimos3.length) return 0;
@@ -982,7 +992,6 @@ function AbaKpisTrafego({ mesRef }: { mesRef: string }) {
   const simCps = simSessoes && simInvNum ? simInvNum / simSessoes : 0;
   const simRoas = simInvNum ? simMetaNum / simInvNum : 0;
 
-  // Viabilidade individual
   const cpsViavel = cpsHist > 0 && simCps > 0 ? simCps <= cpsHist * 1.2 : null;
   const roasViavel = roasHist > 0 && simRoas > 0 ? simRoas <= roasHist * 1.5 : null;
 
@@ -1002,36 +1011,34 @@ function AbaKpisTrafego({ mesRef }: { mesRef: string }) {
   const cpsBadge = cpsViavel == null ? "" : cpsViavel ? "text-emerald-700" : (simCps <= cpsHist * 1.5 ? "text-amber-700" : "text-red-700");
   const roasBadge = roasViavel == null ? "" : roasViavel ? "text-emerald-700" : "text-red-700";
 
-
   const updateInv = async (mes: string, field: keyof Investimento, value: number) => {
     const row = investimentos.find((i) => i.mes_referencia === mes);
     if (row?.id) {
       const { error } = await supabase.from("investimentos_midia" as any).update({ [field]: value }).eq("id", row.id);
       if (error) return toast.error(error.message);
+      updateInvestimentoLocal(investimentos.map((i) => (i.mes_referencia === mes ? { ...i, [field]: value } : i)));
     } else {
-      const { data, error } = await supabase.from("investimentos_midia" as any).insert({ mes_referencia: mes, [field]: value }).select().single();
+      const { data: inserted, error } = await supabase.from("investimentos_midia" as any).insert({ mes_referencia: mes, [field]: value }).select().single();
       if (error) return toast.error(error.message);
-      setInvestimentos((prev) => [...prev, data as any]);
-      return;
+      updateInvestimentoLocal([...investimentos, inserted as any]);
     }
-    setInvestimentos((prev) => prev.map((i) => (i.mes_referencia === mes ? { ...i, [field]: value } : i)));
   };
 
   const addMes = async () => {
     const novoMes = prompt("Novo mês (YYYY-MM):", mesAtualStr());
     if (!novoMes || !/^\d{4}-\d{2}$/.test(novoMes)) return;
     if (investimentos.some((i) => i.mes_referencia === novoMes)) return toast.error("Mês já cadastrado");
-    const { data, error } = await supabase
+    const { data: inserted, error } = await supabase
       .from("investimentos_midia" as any)
       .insert({ mes_referencia: novoMes, facebook_ads: 0, google_ads: 0, outros: 0 })
       .select()
       .single();
     if (error) return toast.error(error.message);
-    setInvestimentos((prev) => [data as any, ...prev]);
+    updateInvestimentoLocal([inserted as any, ...investimentos]);
     toast.success("Mês adicionado");
   };
 
-  if (loading) {
+  if (loading && !kpis.length) {
     return (
       <div className="space-y-4">
         <Skeleton className="h-32" />
@@ -1041,7 +1048,6 @@ function AbaKpisTrafego({ mesRef }: { mesRef: string }) {
     );
   }
 
-  // Comparações com o plano atual (meta_*)
   const metaCps = planoAtual?.investimento_previsto && planoAtual?.meta_sessoes
     ? Number(planoAtual.investimento_previsto) / Number(planoAtual.meta_sessoes) : null;
   const metaRoas = planoAtual?.investimento_previsto && planoAtual?.meta_receita
@@ -1080,7 +1086,6 @@ function AbaKpisTrafego({ mesRef }: { mesRef: string }) {
         <CompCard label="Sessões" atualVal={atual?.total_sessoes} metaVal={planoAtual?.meta_sessoes} format={(v: any) => v != null ? num(v) : "—"} goodWhen="higher" />
       </div>
 
-      {/* Histórico KPIs */}
       <Card>
         <CardHeader><CardTitle className="text-base">Histórico (últimos {kpis.length} meses)</CardTitle></CardHeader>
         <CardContent className="overflow-x-auto">
@@ -1118,7 +1123,6 @@ function AbaKpisTrafego({ mesRef }: { mesRef: string }) {
         </CardContent>
       </Card>
 
-      {/* Investimentos editáveis */}
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle className="text-base">Investimentos por mês</CardTitle>
@@ -1167,7 +1171,6 @@ function AbaKpisTrafego({ mesRef }: { mesRef: string }) {
         </CardContent>
       </Card>
 
-      {/* Simulador */}
       <Card className={`border-2 ${semaforoStyle}`}>
         <CardHeader>
           <CardTitle className="text-base flex items-center gap-2"><TrendingUp className="h-4 w-4" /> Simulador de meta</CardTitle>
