@@ -372,13 +372,12 @@ export function AbaCalendario() {
               if (!cell) return <div key={i} className="h-24 bg-muted/20 rounded" />;
               const items = byDate.get(cell.iso) || [];
               const hasContent = items.length > 0;
-              const isSat = cell.dow === 6;
-              const isSun = cell.dow === 0;
+              const funilBar = FUNIL_BARS[cell.dow] || "bg-muted";
               return (
                 <button
                   key={i}
                   onClick={() => hasContent ? openDate(items[0]) : openNova(cell.iso)}
-                  className={`h-24 rounded border p-1.5 text-left relative transition-colors flex flex-col group ${
+                  className={`h-24 rounded border p-1.5 pb-2 text-left relative transition-colors flex flex-col group overflow-hidden ${
                     hasContent ? "bg-card hover:bg-accent/30 cursor-pointer border-border" : "bg-muted/10 hover:bg-muted/30 cursor-pointer border-dashed border-muted-foreground/20"
                   }`}
                 >
@@ -389,19 +388,19 @@ export function AbaCalendario() {
                     )}
                   </div>
                   <div className="mt-1 space-y-0.5 overflow-hidden flex-1">
-                    {items.slice(0, 2).map((it) => (
-                      <Badge key={it.id} className={`text-[9px] px-1 py-0 ${TIPO_COLORS[it.tipo] || "bg-gray-500 text-white"} block truncate w-full text-left`}>
-                        {it.titulo}
-                      </Badge>
-                    ))}
+                    {items.slice(0, 2).map((it) => {
+                      const canais = Array.from(new Set((it.conteudos_gerados || []).map((c: any) => c.canal).filter(Boolean)));
+                      const icons = canais.map((c) => CANAL_ICONS[c]).filter(Boolean).slice(0, 3).join("");
+                      const tit = (it.titulo || "").length > 20 ? (it.titulo || "").slice(0, 20) + "…" : it.titulo;
+                      return (
+                        <Badge key={it.id} className={`text-[9px] px-1 py-0 ${TIPO_COLORS[it.tipo] || "bg-gray-500 text-white"} block truncate w-full text-left`}>
+                          {icons && <span className="mr-0.5">{icons}</span>}{tit}
+                        </Badge>
+                      );
+                    })}
                     {items.length > 2 && <span className="text-[9px] text-muted-foreground">+{items.length - 2}</span>}
                   </div>
-                  {isSat && (
-                    <span className="text-[8px] px-1 py-0.5 rounded bg-orange-500 text-white self-start">Oferta</span>
-                  )}
-                  {isSun && (
-                    <span className="text-[8px] px-1 py-0.5 rounded bg-blue-500 text-white self-start">Relacionamento</span>
-                  )}
+                  <span className={`absolute bottom-0 left-0 right-0 h-1 ${funilBar}`} />
                 </button>
               );
             })}
