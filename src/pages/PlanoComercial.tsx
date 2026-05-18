@@ -140,13 +140,22 @@ export default function PlanoComercial() {
 
   return (
     <div className="space-y-6 p-6 max-w-[1400px] mx-auto">
-      <div className="flex items-center gap-3">
-        <Target className="h-7 w-7 text-primary" />
-        <div>
-          <h1 className="font-serif text-3xl font-bold">Plano Comercial</h1>
-          <p className="text-muted-foreground text-sm mt-1">
-            Estratégia mensal de receita, ações por semana e KPIs de tráfego pago
-          </p>
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        <div className="flex items-center gap-3">
+          <Target className="h-7 w-7 text-primary" />
+          <div>
+            <h1 className="font-serif text-3xl font-bold">Plano Comercial</h1>
+            <p className="text-muted-foreground text-sm mt-1">
+              Estratégia mensal de receita, ações por semana e KPIs de tráfego pago
+            </p>
+          </div>
+        </div>
+        <div className="flex items-end gap-3">
+          <div>
+            <Label className="text-xs">Mês de referência</Label>
+            <Input type="month" value={mesRef} onChange={(e) => setMesRef(e.target.value)} className="w-[180px]" />
+          </div>
+          <div className="text-xs text-muted-foreground pb-2.5">{formatMesLabel(mesRef)}</div>
         </div>
       </div>
 
@@ -158,13 +167,13 @@ export default function PlanoComercial() {
         </TabsList>
 
         <TabsContent value="criar" className="mt-6">
-          <AbaCriarPlano mesRef={mesRef} setMesRef={setMesRef} onGenerated={() => setTab("acoes")} />
+          <AbaCriarPlano mesRef={mesRef} onGenerated={() => setTab("acoes")} />
         </TabsContent>
         <TabsContent value="acoes" className="mt-6">
-          <AbaAcoes mesRef={mesRef} setMesRef={setMesRef} />
+          <AbaAcoes mesRef={mesRef} />
         </TabsContent>
         <TabsContent value="kpis" className="mt-6">
-          <AbaKpisTrafego />
+          <AbaKpisTrafego mesRef={mesRef} />
         </TabsContent>
       </Tabs>
     </div>
@@ -172,7 +181,7 @@ export default function PlanoComercial() {
 }
 
 // ===================== Aba 1: Criar Plano =====================
-function AbaCriarPlano({ mesRef, setMesRef, onGenerated }: { mesRef: string; setMesRef: (s: string) => void; onGenerated: () => void }) {
+function AbaCriarPlano({ mesRef, onGenerated }: { mesRef: string; onGenerated: () => void }) {
   const [metaReceita, setMetaReceita] = useState<string>("");
   const [investimento, setInvestimento] = useState<string>("");
   const [loadingSugestoes, setLoadingSugestoes] = useState(false);
@@ -218,6 +227,10 @@ function AbaCriarPlano({ mesRef, setMesRef, onGenerated }: { mesRef: string; set
     setConfirmOpen(false);
     setGerando(true);
     setStatusMsg("Gerando plano estratégico...");
+    // Aviso amarelo se passar de 90s
+    const slowWarn = setTimeout(() => {
+      toast.warning("Geração em andamento... Recarregue a página em alguns instantes.");
+    }, 90_000);
     try {
       const { data, error } = await supabase.functions.invoke("generate-commercial-plan", {
         body: {
@@ -228,20 +241,28 @@ function AbaCriarPlano({ mesRef, setMesRef, onGenerated }: { mesRef: string; set
       });
       if (error) throw error;
       setResposta(data);
-      // Recarrega plano persistido
-      const { data: planos } = await supabase
-        .from("planos_comerciais" as any)
-        .select("*")
-        .eq("mes_referencia", mesRef)
-        .order("created_at", { ascending: false })
-        .limit(1);
+      // Recarrega plano persistido + ações
+      const [{ data: planos }, { data: acoes }] = await Promise.all([
+        supabase
+          .from("planos_comerciais" as any)
+          .select("*")
+          .eq("mes_referencia", mesRef)
+          .order("created_at", { ascending: false })
+          .limit(1),
+        supabase
+          .from("acoes_comerciais" as any)
+          .select("id")
+          .eq("mes_referencia", mesRef),
+      ]);
       setPlano((planos as any)?.[0] || null);
-      toast.success(`Plano gerado: ${data?.total_acoes_geradas || 0} ações criadas`);
+      const totalAcoes = (acoes as any[])?.length || data?.total_acoes_geradas || 0;
+      toast.success(`Plano gerado! ${totalAcoes} ações criadas.`);
       onGenerated();
     } catch (e: any) {
       console.error(e);
       toast.error(e?.message || "Falha ao gerar plano");
     } finally {
+      clearTimeout(slowWarn);
       setGerando(false);
       setStatusMsg("");
     }
@@ -277,11 +298,7 @@ function AbaCriarPlano({ mesRef, setMesRef, onGenerated }: { mesRef: string; set
           <CardTitle className="text-lg">Configuração do plano</CardTitle>
           <CardDescription>Defina mês, meta e investimento previsto para gerar o plano com IA</CardDescription>
         </CardHeader>
-        <CardContent className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <div className="space-y-1.5">
-            <Label htmlFor="mes">Mês/Ano</Label>
-            <Input id="mes" type="month" value={mesRef} onChange={(e) => setMesRef(e.target.value)} />
-          </div>
+        <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="space-y-1.5">
             <Label htmlFor="meta">Meta de receita (R$)</Label>
             <Input
@@ -445,7 +462,7 @@ function KpiBox({ label, value, variant }: { label: string; value: string; varia
 }
 
 // ===================== Aba 2: Ações por Semana =====================
-function AbaAcoes({ mesRef, setMesRef }: { mesRef: string; setMesRef: (s: string) => void }) {
+function AbaAcoes({ mesRef }: { mesRef: string }) {
   const [loading, setLoading] = useState(true);
   const [plano, setPlano] = useState<Plano | null>(null);
   const [acoes, setAcoes] = useState<Acao[]>([]);
@@ -490,29 +507,35 @@ function AbaAcoes({ mesRef, setMesRef }: { mesRef: string; setMesRef: (s: string
     if (!distribuicao.length) return null;
     return distribuicao.reduce((a, b) => (b.meta_receita_semana > a.meta_receita_semana ? b : a));
   }, [distribuicao]);
+  const semanaFraca = useMemo(() => {
+    if (distribuicao.length < 2) return null;
+    return distribuicao.reduce((a, b) => (b.meta_receita_semana < a.meta_receita_semana ? b : a));
+  }, [distribuicao]);
 
   const acoesBySemana = useMemo(() => {
-    const m: Record<number, Acao[]> = { 1: [], 2: [], 3: [], 4: [] };
+    const m: Record<number, Acao[]> = { 1: [], 2: [], 3: [], 4: [], 5: [] };
     acoes.forEach((a) => {
       const s = Number(a.semana || 0);
-      if (s >= 1 && s <= 4) m[s].push(a);
+      if (s >= 1 && s <= 5) m[s].push(a);
     });
     return m;
   }, [acoes]);
 
+  const semanasParaExibir = useMemo(() => {
+    const set = new Set<number>([1, 2, 3, 4]);
+    distribuicao.forEach((d) => set.add(d.semana));
+    acoes.forEach((a) => { if (a.semana) set.add(Number(a.semana)); });
+    return Array.from(set).filter((s) => s >= 1 && s <= 5).sort((a, b) => a - b);
+  }, [distribuicao, acoes]);
+
   return (
     <div className="space-y-6">
-      <div className="flex items-end gap-3">
-        <div>
-          <Label className="text-xs">Mês</Label>
-          <Input type="month" value={mesRef} onChange={(e) => setMesRef(e.target.value)} className="w-[180px]" />
+      {plano && (
+        <div className="text-sm text-muted-foreground">
+          Meta total de <strong className="text-foreground">{formatMesLabel(mesRef)}</strong>:{" "}
+          <strong className="text-foreground">{brl(plano.meta_receita)}</strong>
         </div>
-        {plano && (
-          <div className="text-sm text-muted-foreground">
-            Meta total: <strong className="text-foreground">{brl(plano.meta_receita)}</strong>
-          </div>
-        )}
-      </div>
+      )}
 
       {loading ? (
         <div className="space-y-3">
@@ -526,12 +549,14 @@ function AbaAcoes({ mesRef, setMesRef }: { mesRef: string; setMesRef: (s: string
             <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
               {distribuicao.map((d) => {
                 const isPico = semanaPico && d.semana === semanaPico.semana;
+                const isFraca = semanaFraca && !isPico && d.semana === semanaFraca.semana;
                 return (
-                  <Card key={d.semana} className={isPico ? "border-amber-400 border-2" : ""}>
+                  <Card key={d.semana} className={isPico ? "border-amber-400 border-2" : isFraca ? "border-red-300 border-2" : ""}>
                     <CardHeader className="pb-2">
                       <div className="flex items-center justify-between">
                         <CardDescription className="font-semibold">Semana {d.semana}</CardDescription>
                         {isPico && <Badge className="bg-amber-500 hover:bg-amber-500 text-white">🏆 Pico</Badge>}
+                        {isFraca && <Badge className="bg-red-500 hover:bg-red-500 text-white">⚠️ Fraca</Badge>}
                       </div>
                     </CardHeader>
                     <CardContent className="space-y-1.5">
@@ -555,7 +580,7 @@ function AbaAcoes({ mesRef, setMesRef }: { mesRef: string; setMesRef: (s: string
               </CardContent>
             </Card>
           ) : (
-            [1, 2, 3, 4].map((s) => (
+            semanasParaExibir.map((s) => (
               <Card key={s}>
                 <CardHeader>
                   <div className="flex items-center justify-between flex-wrap gap-2">
@@ -904,7 +929,7 @@ function ExportarCalendarioDialog({
 }
 
 // ===================== Aba 3: KPIs de Tráfego =====================
-function AbaKpisTrafego() {
+function AbaKpisTrafego({ mesRef }: { mesRef: string }) {
   const [loading, setLoading] = useState(true);
   const [kpis, setKpis] = useState<KpiRow[]>([]);
   const [investimentos, setInvestimentos] = useState<Investimento[]>([]);
@@ -917,11 +942,10 @@ function AbaKpisTrafego() {
 
   const load = async () => {
     setLoading(true);
-    const mesAtual = mesAtualStr();
     const [{ data: ks }, { data: invs }, { data: planos }] = await Promise.all([
       supabase.from("vw_kpis_trafego" as any).select("*").order("mes_referencia", { ascending: false }).limit(6),
       supabase.from("investimentos_midia" as any).select("*").order("mes_referencia", { ascending: false }).limit(12),
-      supabase.from("planos_comerciais" as any).select("*").eq("mes_referencia", mesAtual).order("created_at", { ascending: false }).limit(1),
+      supabase.from("planos_comerciais" as any).select("*").eq("mes_referencia", mesRef).order("created_at", { ascending: false }).limit(1),
     ]);
     setKpis(((ks as any) || []) as KpiRow[]);
     setInvestimentos(((invs as any) || []) as Investimento[]);
@@ -929,38 +953,55 @@ function AbaKpisTrafego() {
     setLoading(false);
   };
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => { load(); /* eslint-disable-next-line */ }, [mesRef]);
 
   const atual = kpis[0];
+  // Médias dos últimos 3 meses (conforme spec)
+  const ultimos3 = useMemo(() => kpis.slice(0, 3), [kpis]);
   const ticketHist = useMemo(() => {
-    if (!kpis.length) return 0;
-    return kpis.reduce((s, k) => s + Number(k.ticket_medio || 0), 0) / kpis.length;
-  }, [kpis]);
+    if (!ultimos3.length) return 0;
+    return ultimos3.reduce((s, k) => s + Number(k.ticket_medio || 0), 0) / ultimos3.length;
+  }, [ultimos3]);
   const conversaoHist = useMemo(() => {
-    if (!kpis.length) return 0;
-    return kpis.reduce((s, k) => s + Number(k.taxa_conversao_pct || 0), 0) / kpis.length;
-  }, [kpis]);
+    if (!ultimos3.length) return 0;
+    return ultimos3.reduce((s, k) => s + Number(k.taxa_conversao_pct || 0), 0) / ultimos3.length;
+  }, [ultimos3]);
+  const cpsHist = useMemo(() => {
+    if (!ultimos3.length) return 0;
+    return ultimos3.reduce((s, k) => s + Number(k.cps || 0), 0) / ultimos3.length;
+  }, [ultimos3]);
+  const roasHist = useMemo(() => {
+    if (!ultimos3.length) return 0;
+    return ultimos3.reduce((s, k) => s + Number(k.roas || 0), 0) / ultimos3.length;
+  }, [ultimos3]);
 
   const simMetaNum = Number(simMeta) || 0;
   const simInvNum = Number(simInv) || 0;
-  const simPedidos = ticketHist ? simMetaNum / ticketHist : 0;
-  const simSessoes = conversaoHist ? simPedidos / (conversaoHist / 100) : 0;
-  const simCps = simSessoes ? simInvNum / simSessoes : 0;
+  const simPedidos = ticketHist ? Math.ceil(simMetaNum / ticketHist) : 0;
+  const simSessoes = conversaoHist ? Math.ceil(simPedidos / (conversaoHist / 100)) : 0;
+  const simCps = simSessoes && simInvNum ? simInvNum / simSessoes : 0;
   const simRoas = simInvNum ? simMetaNum / simInvNum : 0;
 
+  // Viabilidade individual
+  const cpsViavel = cpsHist > 0 && simCps > 0 ? simCps <= cpsHist * 1.2 : null;
+  const roasViavel = roasHist > 0 && simRoas > 0 ? simRoas <= roasHist * 1.5 : null;
+
   const semaforo = (() => {
-    if (!atual || !simSessoes) return "muted";
-    const ratioCps = atual.cps && simCps ? simCps / atual.cps : 1;
-    if (ratioCps >= 0.9 && simRoas <= (atual.roas || 0) * 1.1) return "verde";
-    if (ratioCps >= 0.6) return "amarelo";
+    if (!simSessoes || !cpsHist) return "muted";
+    if (cpsViavel && roasViavel) return "verde";
+    if (cpsViavel || roasViavel) return "amarelo";
     return "vermelho";
   })();
   const semaforoStyle = {
-    verde: "bg-emerald-100 border-emerald-400 text-emerald-900",
-    amarelo: "bg-amber-100 border-amber-400 text-amber-900",
-    vermelho: "bg-red-100 border-red-400 text-red-900",
-    muted: "bg-muted border-muted",
+    verde: "bg-emerald-50 border-emerald-400 text-emerald-900",
+    amarelo: "bg-amber-50 border-amber-400 text-amber-900",
+    vermelho: "bg-red-50 border-red-400 text-red-900",
+    muted: "bg-muted/30 border-border",
   }[semaforo];
+
+  const cpsBadge = cpsViavel == null ? "" : cpsViavel ? "text-emerald-700" : (simCps <= cpsHist * 1.5 ? "text-amber-700" : "text-red-700");
+  const roasBadge = roasViavel == null ? "" : roasViavel ? "text-emerald-700" : "text-red-700";
+
 
   const updateInv = async (mes: string, field: keyof Investimento, value: number) => {
     const row = investimentos.find((i) => i.mes_referencia === mes);
@@ -1146,10 +1187,10 @@ function AbaKpisTrafego() {
             </div>
           </div>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-            <SimBox label="Pedidos" value={num(Math.round(simPedidos))} />
-            <SimBox label="Sessões necessárias" value={num(Math.round(simSessoes))} />
-            <SimBox label="CPS necessário" value={brl(simCps)} />
-            <SimBox label="ROAS necessário" value={`${simRoas.toFixed(2)}x`} />
+            <SimBox label="Pedidos necessários" value={num(simPedidos)} />
+            <SimBox label="Sessões necessárias" value={num(simSessoes)} />
+            <SimBox label="CPS necessário" value={brl(simCps)} hint={cpsHist ? `hist. ${brl(cpsHist)}` : undefined} hintClass={cpsBadge} />
+            <SimBox label="ROAS necessário" value={`${simRoas.toFixed(2)}x`} hint={roasHist ? `hist. ${roasHist.toFixed(2)}x` : undefined} hintClass={roasBadge} />
           </div>
           <div className="text-sm">
             <strong>Viabilidade:</strong>{" "}
@@ -1158,17 +1199,21 @@ function AbaKpisTrafego() {
             {semaforo === "vermelho" && "🔴 Muito agressivo — KPIs muito acima do histórico"}
             {semaforo === "muted" && "Informe meta e investimento para simular"}
           </div>
+          <div className="text-xs bg-sky-50 border border-sky-200 rounded-md p-3 text-sky-900">
+            📊 Baseado em: Taxa de conversão média de <strong>{conversaoHist.toFixed(2)}%</strong>, Ticket médio de <strong>{brl(ticketHist)}</strong> (últimos {ultimos3.length} {ultimos3.length === 1 ? "mês" : "meses"})
+          </div>
         </CardContent>
       </Card>
     </div>
   );
 }
 
-function SimBox({ label, value }: { label: string; value: string }) {
+function SimBox({ label, value, hint, hintClass }: { label: string; value: string; hint?: string; hintClass?: string }) {
   return (
     <div className="border rounded-md p-2.5 bg-card">
       <div className="text-[11px] uppercase text-muted-foreground">{label}</div>
       <div className="text-base font-bold">{value}</div>
+      {hint && <div className={`text-[10px] mt-0.5 ${hintClass || "text-muted-foreground"}`}>{hint}</div>}
     </div>
   );
 }
