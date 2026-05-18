@@ -40,7 +40,7 @@ const moduleGroups: ModuleGroup[] = [
     icon: ShoppingBag,
     items: [
       { title: "Dashboard Comercial", url: "/dashboard-comercial", icon: LayoutDashboard },
-      { title: "Padrões de Pedidos", url: "/padroes-pedidos", icon: TrendingUp },
+      { title: "Padrões de Pedidos", url: "/padroes-pedidos", icon: BarChart3 },
       { title: "Meta Mensal", url: "/metas", icon: Target },
       { title: "Bonificação WhatsApp", url: "/bonificacao-whatsapp", icon: Trophy },
       { title: "Produtos & Campanha", url: "/produtos-campanha", icon: Tag },
