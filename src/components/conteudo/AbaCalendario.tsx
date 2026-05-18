@@ -13,7 +13,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Sparkles, Loader2, ChevronLeft, ChevronRight, Check, X, Plus } from "lucide-react";
+import { Sparkles, Loader2, ChevronLeft, ChevronRight, Check, X, Plus, Pencil, Trash2 } from "lucide-react";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { invokeEdgeFunction } from "@/lib/edgeFunctions";
 
 type Calendario = {
@@ -88,9 +89,12 @@ export function AbaCalendario() {
   const [gerando, setGerando] = useState(false);
   const [confirmGerar, setConfirmGerar] = useState(false);
   const [novaDataOpen, setNovaDataOpen] = useState(false);
+  const [editing, setEditing] = useState<Calendario | null>(null);
+  const [novaDataInitial, setNovaDataInitial] = useState<string>("");
   const [selected, setSelected] = useState<Calendario | null>(null);
   const [conteudos, setConteudos] = useState<Conteudo[]>([]);
   const [loadingConteudos, setLoadingConteudos] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState<Calendario | null>(null);
 
   const mesRef = `${ano}-${pad(mes + 1)}`;
 
@@ -177,6 +181,31 @@ export function AbaCalendario() {
     fetchDatas();
   };
 
+  const handleDelete = async (cal: Calendario) => {
+    try {
+      await (supabase as any).from("conteudos_gerados").delete().eq("calendario_id", cal.id);
+      const { error } = await (supabase as any).from("calendario_comercial").delete().eq("id", cal.id);
+      if (error) throw error;
+      toast.success("Data excluída");
+      setConfirmDelete(null);
+      if (selected?.id === cal.id) setSelected(null);
+      fetchDatas();
+    } catch (e: any) {
+      toast.error("Erro ao excluir", { description: e.message });
+    }
+  };
+
+  const openEdit = (cal: Calendario) => {
+    setEditing(cal);
+    setNovaDataOpen(true);
+  };
+
+  const openNova = (iso?: string) => {
+    setEditing(null);
+    setNovaDataInitial(iso || "");
+    setNovaDataOpen(true);
+  };
+
   const rejeitarConteudo = async (cid: string) => {
     await updateConteudoField(cid, "status", "rejeitado");
     toast("Rejeitado");
@@ -241,7 +270,7 @@ export function AbaCalendario() {
         </div>
 
         <div className="flex items-center gap-2">
-          <Button variant="outline" onClick={() => setNovaDataOpen(true)} className="gap-2">
+          <Button variant="outline" onClick={() => openNova()} className="gap-2">
             <Plus className="h-4 w-4" /> Nova data
           </Button>
           <Button onClick={() => setConfirmGerar(true)} disabled={gerando} className="gap-2">
@@ -274,10 +303,9 @@ export function AbaCalendario() {
               return (
                 <button
                   key={i}
-                  onClick={() => hasContent && openDate(items[0])}
-                  disabled={!hasContent}
-                  className={`h-24 rounded border p-1.5 text-left relative transition-colors flex flex-col ${
-                    hasContent ? "bg-card hover:bg-accent/30 cursor-pointer border-border" : "bg-muted/10 cursor-default border-transparent"
+                  onClick={() => hasContent ? openDate(items[0]) : openNova(cell.iso)}
+                  className={`h-24 rounded border p-1.5 text-left relative transition-colors flex flex-col group ${
+                    hasContent ? "bg-card hover:bg-accent/30 cursor-pointer border-border" : "bg-muted/10 hover:bg-muted/30 cursor-pointer border-dashed border-muted-foreground/20"
                   }`}
                 >
                   <div className="flex items-center justify-between">
@@ -331,11 +359,13 @@ export function AbaCalendario() {
         </DialogContent>
       </Dialog>
 
-      {/* Nova data manual */}
+      {/* Nova data / Editar */}
       <NovaDataDialog
         open={novaDataOpen}
-        onOpenChange={setNovaDataOpen}
-        onCreated={fetchDatas}
+        onOpenChange={(o) => { setNovaDataOpen(o); if (!o) { setEditing(null); setNovaDataInitial(""); } }}
+        onSaved={() => { fetchDatas(); if (editing && selected?.id === editing.id) setSelected(null); }}
+        editing={editing}
+        initialDate={novaDataInitial}
       />
 
       {/* Drawer */}
@@ -344,13 +374,25 @@ export function AbaCalendario() {
           {selected && (
             <>
               <SheetHeader>
-                <SheetTitle className="font-serif flex items-center gap-2">
-                  {selected.titulo}
-                  <Badge className={TIPO_COLORS[selected.tipo]}>{selected.tipo}</Badge>
-                </SheetTitle>
-                <SheetDescription>
-                  {formatDDMM(selected.data)} • {selected.descricao}
-                </SheetDescription>
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex-1">
+                    <SheetTitle className="font-serif flex items-center gap-2 flex-wrap">
+                      {selected.titulo}
+                      <Badge className={TIPO_COLORS[selected.tipo]}>{selected.tipo}</Badge>
+                    </SheetTitle>
+                    <SheetDescription className="mt-1">
+                      {formatDDMM(selected.data)} {selected.descricao ? `• ${selected.descricao}` : ""}
+                    </SheetDescription>
+                  </div>
+                  <div className="flex gap-1 shrink-0">
+                    <Button size="sm" variant="outline" onClick={() => openEdit(selected)} className="gap-1">
+                      <Pencil className="h-3.5 w-3.5" /> Editar
+                    </Button>
+                    <Button size="sm" variant="outline" onClick={() => setConfirmDelete(selected)} className="gap-1 text-red-600 hover:text-red-700">
+                      <Trash2 className="h-3.5 w-3.5" /> Excluir
+                    </Button>
+                  </div>
+                </div>
               </SheetHeader>
 
               {loadingConteudos ? (
@@ -418,17 +460,48 @@ export function AbaCalendario() {
           )}
         </SheetContent>
       </Sheet>
+
+      <AlertDialog open={!!confirmDelete} onOpenChange={(o) => !o && setConfirmDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="font-serif">Excluir esta data?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Isso vai apagar "{confirmDelete?.titulo}" e todos os conteúdos vinculados. Esta ação não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={() => confirmDelete && handleDelete(confirmDelete)} className="bg-red-600 hover:bg-red-700">
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
 
-function NovaDataDialog({ open, onOpenChange, onCreated }: { open: boolean; onOpenChange: (o: boolean) => void; onCreated: () => void }) {
+function NovaDataDialog({ open, onOpenChange, onSaved, editing, initialDate }: { open: boolean; onOpenChange: (o: boolean) => void; onSaved: () => void; editing: Calendario | null; initialDate: string }) {
   const [data, setData] = useState("");
   const [titulo, setTitulo] = useState("");
   const [tipo, setTipo] = useState("conteudo");
   const [descricao, setDescricao] = useState("");
   const [canais, setCanais] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (!open) return;
+    if (editing) {
+      setData(editing.data);
+      setTitulo(editing.titulo);
+      setTipo(editing.tipo);
+      setDescricao(editing.descricao || "");
+      setCanais(Array.isArray((editing as any).canal) ? (editing as any).canal : []);
+    } else {
+      setData(initialDate || "");
+      setTitulo(""); setTipo("conteudo"); setDescricao(""); setCanais([]);
+    }
+  }, [open, editing, initialDate]);
 
   const reset = () => { setData(""); setTitulo(""); setTipo("conteudo"); setDescricao(""); setCanais([]); };
 
@@ -446,21 +519,29 @@ function NovaDataDialog({ open, onOpenChange, onCreated }: { open: boolean; onOp
         titulo,
         tipo,
         descricao: descricao || null,
-        status: "rascunho",
         mes_referencia: mesRef,
       };
-      // Optional fields — may not exist on schema; try and fallback
-      const tryFull = { ...payload, canal: canais, criado_por_ia: false };
-      let { error } = await (supabase as any).from("calendario_comercial").insert(tryFull);
-      if (error) {
-        // Retry without optional columns
-        const r2 = await (supabase as any).from("calendario_comercial").insert(payload);
-        if (r2.error) throw r2.error;
+      if (editing) {
+        const tryFull = { ...payload, canal: canais };
+        let { error } = await (supabase as any).from("calendario_comercial").update(tryFull).eq("id", editing.id);
+        if (error) {
+          const r2 = await (supabase as any).from("calendario_comercial").update(payload).eq("id", editing.id);
+          if (r2.error) throw r2.error;
+        }
+        toast.success("Data atualizada!");
+      } else {
+        const insertPayload = { ...payload, status: "rascunho" };
+        const tryFull = { ...insertPayload, canal: canais, criado_por_ia: false };
+        let { error } = await (supabase as any).from("calendario_comercial").insert(tryFull);
+        if (error) {
+          const r2 = await (supabase as any).from("calendario_comercial").insert(insertPayload);
+          if (r2.error) throw r2.error;
+        }
+        toast.success("Data adicionada!");
       }
-      toast.success("Data adicionada!");
       reset();
       onOpenChange(false);
-      onCreated();
+      onSaved();
     } catch (e: any) {
       toast.error("Erro ao salvar", { description: e.message });
     } finally {
@@ -471,7 +552,7 @@ function NovaDataDialog({ open, onOpenChange, onCreated }: { open: boolean; onOp
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!o) reset(); onOpenChange(o); }}>
       <DialogContent>
-        <DialogHeader><DialogTitle className="font-serif">Nova data</DialogTitle></DialogHeader>
+        <DialogHeader><DialogTitle className="font-serif">{editing ? "Editar data" : "Nova data"}</DialogTitle></DialogHeader>
         <div className="space-y-3">
           <div>
             <Label className="text-xs">Data *</Label>
