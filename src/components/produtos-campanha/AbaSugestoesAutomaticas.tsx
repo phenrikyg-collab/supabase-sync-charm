@@ -72,17 +72,17 @@ export function AbaSugestoesAutomaticas() {
       if (error) throw error;
       const base = ((data as any[]) || []) as ProdutoCampanhaRow[];
 
-      // Busca datas de criação dos produtos para calcular idade/urgência
+      // Busca datas de criação dos produtos (tray_products.created) para calcular idade/urgência
       const ids = base.map(r => r.id).filter(Boolean);
       const datasMap = new Map<string, string>();
       const CHUNK = 200;
       for (let i = 0; i < ids.length; i += CHUNK) {
         const slice = ids.slice(i, i + CHUNK);
         const { data: prods } = await supabase
-          .from("produtos")
-          .select("id, created_at")
+          .from("tray_products" as any)
+          .select("id, created")
           .in("id", slice as any);
-        (prods || []).forEach((p: any) => datasMap.set(String(p.id), p.created_at));
+        (prods || []).forEach((p: any) => datasMap.set(String(p.id), p.created));
       }
 
       const hoje = Date.now();
