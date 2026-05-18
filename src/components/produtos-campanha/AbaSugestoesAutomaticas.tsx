@@ -178,10 +178,14 @@ export function AbaSugestoesAutomaticas() {
         <CardContent className="py-4 text-sm text-muted-foreground">
           Produtos identificados automaticamente como aptos para campanha: estoque ≥ 5 unidades,
           no máximo 2 variantes zeradas e vendas abaixo da média geral da loja.
+          Itens com mais de 180 dias de cadastro, menos de 5 vendas e estoque disponível são
+          marcados como <span className="font-medium text-orange-700">Urgente (antigo)</span> e
+          priorizados no topo.
         </CardContent>
       </Card>
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+        <MetricCard label="Urgente (antigo)" value={metricas.urgente} cls="border-orange-300 text-orange-700" />
         <MetricCard label="Aptos para campanha" value={metricas.apto} cls="border-green-300 text-green-700" />
         <MetricCard label="Quebra de grade" value={metricas.quebra} cls="border-red-300 text-red-700" />
         <MetricCard label="Estoque baixo" value={metricas.baixo} cls="border-yellow-300 text-yellow-700" />
