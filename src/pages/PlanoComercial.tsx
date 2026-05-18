@@ -1183,11 +1183,12 @@ function AbaKpisTrafego({ mesRef }: { mesRef: string }) {
   );
 }
 
-function SimBox({ label, value }: { label: string; value: string }) {
+function SimBox({ label, value, hint, hintClass }: { label: string; value: string; hint?: string; hintClass?: string }) {
   return (
     <div className="border rounded-md p-2.5 bg-card">
       <div className="text-[11px] uppercase text-muted-foreground">{label}</div>
       <div className="text-base font-bold">{value}</div>
+      {hint && <div className={`text-[10px] mt-0.5 ${hintClass || "text-muted-foreground"}`}>{hint}</div>}
     </div>
   );
 }
