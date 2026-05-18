@@ -46,6 +46,7 @@ import PlanoProducao from "./pages/PlanoProducao";
 import Marketing from "./pages/Marketing";
 import PadroesPedidos from "./pages/PadroesPedidos";
 import { Loader2 } from "lucide-react";
+import { useUserModules } from "@/hooks/useUserModules";
 
 const queryClient = new QueryClient({
   defaultOptions: {
