@@ -142,6 +142,53 @@ export function AbaEmCampanha() {
     else { toast.success("Campanha atualizada"); setEditing(null); carregar(); }
   }
 
+  function abrirGerarTexto(c: CampanhaRow) {
+    setTextoCampanha({ campanha: c, view: viewMap[c.product_id] });
+    setTextoCanal("instagram");
+    setTextoGerado({});
+  }
+
+  async function gerarTexto() {
+    if (!textoCampanha) return;
+    const { campanha: c, view: v } = textoCampanha;
+    setTextoLoading(true);
+    try {
+      const canalDesc = {
+        instagram: "post para Instagram (legenda com gancho forte na 1ª linha, storytelling, CTA claro e 15 hashtags ao final)",
+        email: "e-mail marketing (assunto até 50 chars, preview text até 90 chars, corpo HTML simples com CTA)",
+        whatsapp: "mensagem de WhatsApp (curta, direta, emoji elegante, com CTA e cupom quando houver)",
+      }[textoCanal];
+
+      const prompt = `Gere um ${canalDesc} para uma campanha do produto abaixo.
+
+PRODUTO: ${c.nome_produto}
+PREÇO: ${brl(v?.preco)}
+ESTOQUE DISPONÍVEL: ${v?.estoque_total ?? "—"} unidades
+VENDAS RECENTES: ${v?.total_vendas ?? 0}
+${v?.percentual_abaixo_media != null ? `STATUS: vendendo ${Number(v.percentual_abaixo_media).toFixed(0)}% abaixo da média da loja\n` : ""}MOTIVO DA CAMPANHA: ${c.motivo || "girar estoque"}
+PRIORIDADE: ${c.prioridade}/5 ${c.prioridade === 5 ? "(URGENTE)" : ""}
+${c.meta_vendas ? `META: vender ${c.meta_vendas} unidades` : ""}
+${c.observacao ? `OBSERVAÇÕES: ${c.observacao}` : ""}
+${v?.url_produto ? `LINK: ${v.url_produto}` : ""}
+
+Retorne APENAS o texto pronto para publicar, sem comentários, sem JSON, sem markdown.`;
+
+      const result = await callClaude(prompt);
+      setTextoGerado(prev => ({ ...prev, [textoCanal]: result.trim() }));
+    } catch (e: any) {
+      toast.error("Erro ao gerar texto: " + (e.message || ""));
+    } finally {
+      setTextoLoading(false);
+    }
+  }
+
+  async function copiarTexto() {
+    const t = textoGerado[textoCanal];
+    if (!t) return;
+    await navigator.clipboard.writeText(t);
+    toast.success("Texto copiado!");
+  }
+
   if (loading) {
     return <div className="space-y-3">{Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-32 w-full" />)}</div>;
   }
