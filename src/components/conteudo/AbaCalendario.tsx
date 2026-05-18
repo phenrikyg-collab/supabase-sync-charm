@@ -141,6 +141,54 @@ export function AbaCalendario() {
     }
   };
 
+  const limparMes = async () => {
+    setConfirmLimparMes(false);
+    setLimpandoMes(true);
+    try {
+      const mesStr = pad(mes + 1);
+      const mesReferencia = `${ano}-${mesStr}`;
+      const dataInicio = `${mesReferencia}-01`;
+      const ultimoDia = new Date(ano, mes + 1, 0).getDate();
+      const dataFim = `${mesReferencia}-${pad(ultimoDia)}`;
+
+      const { data: datasMes, error: errFetch } = await (supabase as any)
+        .from("calendario_comercial")
+        .select("id")
+        .gte("data", dataInicio)
+        .lte("data", dataFim);
+      if (errFetch) throw errFetch;
+
+      const ids = (datasMes || []).map((d: any) => d.id);
+      if (ids.length === 0) {
+        toast.info("Nenhuma data encontrada para este mês.");
+        setLimpandoMes(false);
+        return;
+      }
+
+      // Delete conteudos_gerados first
+      const { error: errCont } = await (supabase as any)
+        .from("conteudos_gerados")
+        .delete()
+        .in("calendario_id", ids);
+      if (errCont) throw errCont;
+
+      // Delete calendario_comercial entries
+      const { error: errCal } = await (supabase as any)
+        .from("calendario_comercial")
+        .delete()
+        .in("id", ids);
+      if (errCal) throw errCal;
+
+      toast.success(`Mês limpo! ${ids.length} data(s) e conteúdos vinculados removidos.`);
+      setSelectedId(null);
+      await fetchDatas();
+    } catch (e: any) {
+      toast.error("Erro ao limpar mês", { description: e.message });
+    } finally {
+      setLimpandoMes(false);
+    }
+  };
+
   const openDate = (d: Calendario) => setSelectedId(d.id);
 
   const updateConteudoField = async (id: string, field: string, value: any) => {
