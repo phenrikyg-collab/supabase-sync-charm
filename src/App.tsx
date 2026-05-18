@@ -47,6 +47,7 @@ import Marketing from "./pages/Marketing";
 import PadroesPedidos from "./pages/PadroesPedidos";
 import ProdutosCampanha from "./pages/ProdutosCampanha";
 import PlanoComercial from "./pages/PlanoComercial";
+import Lancamentos from "./pages/Lancamentos";
 import { Loader2 } from "lucide-react";
 import { useUserModules } from "@/hooks/useUserModules";
 
@@ -151,6 +152,7 @@ const AppRoutes = () => {
               <Route path="/padroes-pedidos" element={<PadroesPedidos />} />
               <Route path="/produtos-campanha" element={<ProdutosCampanha />} />
               <Route path="/plano-comercial" element={<PlanoComercial />} />
+              <Route path="/lancamentos" element={<Lancamentos />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </AppLayout>
