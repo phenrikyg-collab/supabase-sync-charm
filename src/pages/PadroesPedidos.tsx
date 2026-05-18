@@ -1,91 +1,47 @@
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Sparkles, Sun, Sunset, Moon, Copy } from "lucide-react";
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Cell } from "recharts";
-import { callClaude } from "@/lib/claudeApi";
-import { useToast } from "@/hooks/use-toast";
+import { Skeleton } from "@/components/ui/skeleton";
+import { ShoppingBag, Sun, CloudSun, Moon, BarChart3 } from "lucide-react";
+import {
+  BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Cell, ReferenceLine,
+} from "recharts";
 
-type Periodo = "manha" | "tarde" | "noite";
-const DIAS = ["Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado"];
-const PERIODOS: { key: Periodo; label: string; icon: any; range: string }[] = [
-  { key: "manha", label: "Manhã", icon: Sun, range: "06h – 12h" },
-  { key: "tarde", label: "Tarde", icon: Sunset, range: "12h – 18h" },
-  { key: "noite", label: "Noite", icon: Moon, range: "18h – 06h" },
-];
+type Row = {
+  semana_do_mes: number;
+  num_dia_semana: number;
+  nome_dia_semana: string;
+  periodo_dia: string;
+  total_pedidos: number;
+  receita_total: number;
+  ticket_medio: number;
+};
 
-interface PedidoRow {
-  id: number;
-  date: string;
-  total: number;
-  store_note: string | null;
-  orderstatus_type: string | null;
-  point_sale: string | null;
-}
+const DIAS_PT: Record<string, string> = {
+  Sunday: "Domingo", Monday: "Segunda", Tuesday: "Terça",
+  Wednesday: "Quarta", Thursday: "Quinta", Friday: "Sexta", Saturday: "Sábado",
+};
+const DIAS_CURTO = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
 
-interface ProdutoEstoque {
-  id: number;
-  name: string;
-  stock: number;
-  price: number;
-  quantity_sold: number | null;
-  promotional_price: number | null;
-}
-
-function classificarPeriodo(hour: number): Periodo {
-  if (hour >= 6 && hour < 12) return "manha";
-  if (hour >= 12 && hour < 18) return "tarde";
-  return "noite";
-}
-
-function extrairHora(p: PedidoRow): number | null {
-  const note = p.store_note ?? "";
-  const m = note.match(/(\d{2})\/(\d{2})\/(\d{4})\s+(\d{2}):(\d{2}):(\d{2})/);
-  if (m) return parseInt(m[4], 10);
-  return null;
-}
-
-function brl(v: number) {
-  return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v || 0);
-}
+const brl = (v: number) =>
+  new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v || 0);
+const num = (v: number) => new Intl.NumberFormat("pt-BR").format(v || 0);
 
 export default function PadroesPedidos() {
-  const { toast } = useToast();
-  const [periodo, setPeriodo] = useState("30dias");
+  const [rows, setRows] = useState<Row[]>([]);
   const [loading, setLoading] = useState(true);
-  const [pedidos, setPedidos] = useState<PedidoRow[]>([]);
-  const [produtos, setProdutos] = useState<ProdutoEstoque[]>([]);
-  const [sugestao, setSugestao] = useState<string>("");
-  const [gerando, setGerando] = useState(false);
-
-  const getDateRange = (p: string) => {
-    const hoje = new Date();
-    const fim = hoje.toISOString().slice(0, 10);
-    const dias = p === "7dias" ? 7 : p === "30dias" ? 30 : p === "60dias" ? 60 : 90;
-    const inicio = new Date(hoje);
-    inicio.setDate(inicio.getDate() - dias);
-    return { inicio: inicio.toISOString().slice(0, 10), fim };
-  };
 
   useEffect(() => {
     (async () => {
       setLoading(true);
-      const { inicio, fim } = getDateRange(periodo);
-
-      const all: PedidoRow[] = [];
+      const all: Row[] = [];
       let from = 0;
       const size = 1000;
-      // paginate
       while (true) {
         const { data, error } = await supabase
-          .from("tray_orders" as any)
-          .select("id,date,total,store_note,orderstatus_type,point_sale")
-          .gte("date", inicio)
-          .lte("date", fim)
+          .from("vw_padroes_pedidos" as any)
+          .select("semana_do_mes,num_dia_semana,nome_dia_semana,periodo_dia,total_pedidos,receita_total,ticket_medio")
           .range(from, from + size - 1);
         if (error) { console.error(error); break; }
         if (!data || data.length === 0) break;
@@ -93,363 +49,441 @@ export default function PadroesPedidos() {
         if (data.length < size) break;
         from += size;
       }
-      setPedidos(all);
-
-      const { data: prods } = await supabase
-        .from("tray_products" as any)
-        .select("id,name,stock,price,quantity_sold,promotional_price,available")
-        .eq("available", 1)
-        .gt("stock", 0)
-        .order("quantity_sold", { ascending: false })
-        .limit(60);
-      setProdutos((prods as any) || []);
+      setRows(all);
       setLoading(false);
     })();
-  }, [periodo]);
+  }, []);
 
-  // Heatmap: dia da semana x período
-  const heatmap = useMemo(() => {
-    const matrix: number[][] = Array.from({ length: 7 }, () => [0, 0, 0]);
-    const valor: number[][] = Array.from({ length: 7 }, () => [0, 0, 0]);
-    let totalComHora = 0;
-    pedidos.forEach((p) => {
-      const hora = extrairHora(p);
-      if (hora === null) return;
-      // parse date as local
-      const [y, m, d] = p.date.split("-").map(Number);
-      const dt = new Date(y, m - 1, d);
-      const dia = dt.getDay();
-      const per = classificarPeriodo(hora);
-      const col = per === "manha" ? 0 : per === "tarde" ? 1 : 2;
-      matrix[dia][col] += 1;
-      valor[dia][col] += Number(p.total) || 0;
-      totalComHora += 1;
+  // === Aggregations ===
+  const porSemana = useMemo(() => {
+    const map = new Map<number, { pedidos: number; receita: number; ticketSum: number; ticketN: number }>();
+    rows.forEach((r) => {
+      const s = Number(r.semana_do_mes);
+      if (!s) return;
+      if (!map.has(s)) map.set(s, { pedidos: 0, receita: 0, ticketSum: 0, ticketN: 0 });
+      const o = map.get(s)!;
+      o.pedidos += Number(r.total_pedidos) || 0;
+      o.receita += Number(r.receita_total) || 0;
+      o.ticketSum += Number(r.ticket_medio) || 0;
+      o.ticketN += 1;
     });
-    return { matrix, valor, totalComHora };
-  }, [pedidos]);
+    return Array.from(map.entries())
+      .sort((a, b) => a[0] - b[0])
+      .map(([semana, o]) => ({
+        semana,
+        label: `Semana ${semana}`,
+        pedidos: o.pedidos,
+        receita: o.receita,
+        ticket: o.ticketN ? o.ticketSum / o.ticketN : 0,
+      }));
+  }, [rows]);
 
-  const maxCell = useMemo(() => {
-    let max = 0;
-    heatmap.matrix.forEach((row) => row.forEach((c) => (max = Math.max(max, c))));
-    return max || 1;
-  }, [heatmap]);
-
-  // Por dia da semana (total)
-  const porDiaSemana = useMemo(() => {
-    return DIAS.map((nome, i) => {
-      const total = heatmap.matrix[i].reduce((a, b) => a + b, 0);
-      const valor = heatmap.valor[i].reduce((a, b) => a + b, 0);
-      return { dia: nome.slice(0, 3), total, valor };
+  const porDia = useMemo(() => {
+    const map = new Map<number, { nome: string; pedidos: number; receita: number; ticketSum: number; ticketN: number }>();
+    rows.forEach((r) => {
+      const d = Number(r.num_dia_semana);
+      if (Number.isNaN(d)) return;
+      if (!map.has(d)) map.set(d, { nome: r.nome_dia_semana, pedidos: 0, receita: 0, ticketSum: 0, ticketN: 0 });
+      const o = map.get(d)!;
+      o.pedidos += Number(r.total_pedidos) || 0;
+      o.receita += Number(r.receita_total) || 0;
+      o.ticketSum += Number(r.ticket_medio) || 0;
+      o.ticketN += 1;
     });
-  }, [heatmap]);
+    return Array.from(map.entries())
+      .sort((a, b) => a[0] - b[0])
+      .map(([num_dia, o]) => ({
+        num_dia,
+        nome_en: o.nome,
+        nome: DIAS_PT[o.nome] || o.nome,
+        curto: DIAS_CURTO[num_dia] || o.nome.slice(0, 3),
+        pedidos: o.pedidos,
+        receita: o.receita,
+        ticket: o.ticketN ? o.ticketSum / o.ticketN : 0,
+      }));
+  }, [rows]);
 
-  // Por período (total)
   const porPeriodo = useMemo(() => {
-    return PERIODOS.map((p, idx) => {
-      let total = 0;
-      let valor = 0;
-      for (let i = 0; i < 7; i++) {
-        total += heatmap.matrix[i][idx];
-        valor += heatmap.valor[i][idx];
-      }
-      return { ...p, total, valor };
+    const labels: Record<string, { label: string; icon: any }> = {
+      manha: { label: "Manhã", icon: Sun },
+      tarde: { label: "Tarde", icon: CloudSun },
+      noite: { label: "Noite", icon: Moon },
+    };
+    const order = ["manha", "tarde", "noite"];
+    const map = new Map<string, { pedidos: number; receita: number; ticketSum: number; ticketN: number }>();
+    rows.forEach((r) => {
+      if (!r.periodo_dia || r.periodo_dia === "nao_informado") return;
+      if (!map.has(r.periodo_dia)) map.set(r.periodo_dia, { pedidos: 0, receita: 0, ticketSum: 0, ticketN: 0 });
+      const o = map.get(r.periodo_dia)!;
+      o.pedidos += Number(r.total_pedidos) || 0;
+      o.receita += Number(r.receita_total) || 0;
+      o.ticketSum += Number(r.ticket_medio) || 0;
+      o.ticketN += 1;
     });
-  }, [heatmap]);
+    return order
+      .filter((k) => map.has(k))
+      .map((k) => {
+        const o = map.get(k)!;
+        return {
+          key: k,
+          label: labels[k]?.label || k,
+          Icon: labels[k]?.icon || Sun,
+          pedidos: o.pedidos,
+          receita: o.receita,
+          ticket: o.ticketN ? o.ticketSum / o.ticketN : 0,
+        };
+      });
+  }, [rows]);
 
-  // Insights
-  const insights = useMemo(() => {
-    if (heatmap.totalComHora === 0) return null;
-    let bestDia = { dia: "—", total: 0 };
-    porDiaSemana.forEach((d) => { if (d.total > bestDia.total) bestDia = { dia: DIAS[porDiaSemana.indexOf(d)], total: d.total }; });
-    let bestPer = { label: "—", total: 0 };
-    porPeriodo.forEach((p) => { if (p.total > bestPer.total) bestPer = { label: p.label, total: p.total }; });
+  const heatmap = useMemo(() => {
+    // Linhas: semana 1-4 | Colunas: dia 0-6
+    const matrix: { receita: number; pedidos: number }[][] = Array.from({ length: 4 }, () =>
+      Array.from({ length: 7 }, () => ({ receita: 0, pedidos: 0 }))
+    );
+    rows.forEach((r) => {
+      const s = Number(r.semana_do_mes);
+      const d = Number(r.num_dia_semana);
+      if (s < 1 || s > 4 || Number.isNaN(d) || d < 0 || d > 6) return;
+      matrix[s - 1][d].receita += Number(r.receita_total) || 0;
+      matrix[s - 1][d].pedidos += Number(r.total_pedidos) || 0;
+    });
+    let max = 0;
+    matrix.forEach((row) => row.forEach((c) => { if (c.receita > max) max = c.receita; }));
+    return { matrix, max: max || 1 };
+  }, [rows]);
 
-    // worst day (oportunidade)
-    let worstDia = { dia: "—", total: Infinity };
-    porDiaSemana.forEach((d, idx) => { if (d.total < worstDia.total) worstDia = { dia: DIAS[idx], total: d.total }; });
+  // === Cores p/ heatmap (intensidade de receita) ===
+  const heatColor = (v: number, max: number) => {
+    if (v === 0) return "hsl(0 0% 96%)";
+    const r = v / max;
+    if (r > 0.75) return "hsl(140 55% 35%)";    // verde escuro
+    if (r > 0.5) return "hsl(140 50% 55%)";     // verde claro
+    if (r > 0.25) return "hsl(45 90% 65%)";     // amarelo
+    return "hsl(10 80% 80%)";                   // vermelho claro
+  };
+  const heatText = (v: number, max: number) => (v / max > 0.5 ? "#fff" : "#1D1D1B");
 
-    return { bestDia, bestPer, worstDia };
-  }, [heatmap, porDiaSemana, porPeriodo]);
+  // === Insights derivados ===
+  const semanaMaior = porSemana.reduce((a, b) => (b.receita > a.receita ? b : a), porSemana[0] || { receita: 0 } as any);
+  const semanasReais = porSemana.filter((s) => s.semana !== 5);
+  const semanaMenor = semanasReais.reduce((a, b) => (b.receita < a.receita ? b : a), semanasReais[0] || { receita: 0 } as any);
+  const mediaSemana = porSemana.length
+    ? porSemana.reduce((s, x) => s + x.receita, 0) / porSemana.length
+    : 0;
+  const totalReceitaMes = porSemana.reduce((s, x) => s + x.receita, 0);
 
-  const totalPedidos = pedidos.length;
-  const totalFat = pedidos.reduce((s, p) => s + (Number(p.total) || 0), 0);
-  const ticket = totalPedidos ? totalFat / totalPedidos : 0;
+  const diaMaior = porDia.reduce((a, b) => (b.receita > a.receita ? b : a), porDia[0] || { receita: 0 } as any);
+  const totalReceitaSemana = porDia.reduce((s, x) => s + x.receita, 0);
+  const receitaFimSemana = porDia
+    .filter((d) => d.num_dia === 0 || d.num_dia === 6)
+    .reduce((s, x) => s + x.receita, 0);
+  const pctTerca = totalReceitaSemana
+    ? ((porDia.find((d) => d.num_dia === 2)?.receita || 0) / totalReceitaSemana) * 100
+    : 0;
+  const pctFimSemana = totalReceitaSemana ? (receitaFimSemana / totalReceitaSemana) * 100 : 0;
 
-  const gerarSugestao = async () => {
-    setGerando(true);
-    setSugestao("");
-    try {
-      const hoje = new Date();
-      const diaHoje = DIAS[hoje.getDay()];
-      const topProdutos = produtos.slice(0, 12).map(
-        (p) => `- ${p.name} (estoque: ${p.stock}, preço: ${brl(p.price)}, vendidos: ${p.quantity_sold ?? 0})`
-      ).join("\n");
-
-      const padrao = porDiaSemana.map((d, i) => `${DIAS[i]}: ${d.total} pedidos (${brl(d.valor)})`).join("\n");
-      const periodos = porPeriodo.map((p) => `${p.label} (${p.range}): ${p.total} pedidos`).join("\n");
-
-      const prompt = `Você é estrategista de marketing da Use Mariana Cardoso (moda feminina premium, calças modeladoras).
-
-HOJE é ${diaHoje}, ${hoje.toLocaleDateString("pt-BR")}.
-
-PADRÃO DE VENDAS (últimos ${periodo}):
-${padrao}
-
-POR PERÍODO DO DIA:
-${periodos}
-
-MELHOR DIA: ${insights?.bestDia.dia} | MELHOR PERÍODO: ${insights?.bestPer.label}
-OPORTUNIDADE (dia mais fraco): ${insights?.worstDia.dia}
-
-PRODUTOS COM ESTOQUE DISPONÍVEL (top vendidos):
-${topProdutos}
-
-Crie 3 ideias de campanhas pontuais para disparo no WhatsApp HOJE, considerando:
-1. Os melhores horários para disparar
-2. Aproveitar os produtos com estoque
-3. Estimular venda em dias/horários mais fracos quando aplicável
-4. Tom de voz Mariana Cardoso: sofisticado, próximo, empoderador
-
-Para cada ideia retorne:
-**Campanha [N]: [Nome]**
-- 🎯 Objetivo
-- ⏰ Melhor horário de disparo (hoje)
-- 🛍️ Produtos sugeridos (use os com estoque)
-- 💬 Copy pronta para WhatsApp (texto curto, com emoji, CTA claro)
-- 💡 Por que vai funcionar
-
-Seja direto e acionável. Markdown.`;
-
-      const res = await callClaude(prompt);
-      setSugestao(res);
-    } catch (e: any) {
-      toast({ title: "Erro", description: e?.message || "Falha ao gerar sugestões", variant: "destructive" });
-    } finally {
-      setGerando(false);
-    }
+  const periodoMaior = porPeriodo.reduce((a, b) => (b.receita > a.receita ? b : a), porPeriodo[0] || { receita: 0 } as any);
+  const totalPedidosPeriodo = porPeriodo.reduce((s, x) => s + x.pedidos, 0);
+  const pctPeriodoMaior = totalPedidosPeriodo
+    ? ((periodoMaior?.pedidos || 0) / totalPedidosPeriodo) * 100
+    : 0;
+  const horarioPostagem: Record<string, string> = {
+    manha: "entre 7h e 9h",
+    tarde: "entre 11h e 13h",
+    noite: "entre 17h e 19h",
   };
 
-  const copiarSugestao = () => {
-    navigator.clipboard.writeText(sugestao);
-    toast({ title: "Copiado!", description: "Sugestões copiadas para a área de transferência." });
-  };
+  // Melhor célula do heatmap
+  let melhorCelula = { semana: 0, dia: 0, receita: 0 };
+  heatmap.matrix.forEach((row, si) =>
+    row.forEach((c, di) => {
+      if (c.receita > melhorCelula.receita) melhorCelula = { semana: si + 1, dia: di, receita: c.receita };
+    })
+  );
 
-  const cellColor = (v: number) => {
-    const intensity = v / maxCell;
-    return `hsl(38 60% ${95 - intensity * 50}%)`;
-  };
+  if (loading) {
+    return (
+      <div className="space-y-6 p-6 max-w-[1400px] mx-auto">
+        <Skeleton className="h-10 w-72" />
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+          {Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-32" />)}
+        </div>
+        <Skeleton className="h-72" />
+        <Skeleton className="h-72" />
+      </div>
+    );
+  }
 
   return (
-    <div className="space-y-6 p-6 max-w-[1400px] mx-auto">
-      <div className="flex items-center justify-between flex-wrap gap-4">
+    <div className="space-y-10 p-6 max-w-[1400px] mx-auto">
+      <div className="flex items-center gap-3">
+        <BarChart3 className="h-7 w-7 text-primary" />
         <div>
           <h1 className="font-serif text-3xl font-bold">Padrões de Pedidos</h1>
           <p className="text-muted-foreground text-sm mt-1">
-            Dias e horários de maior conversão + sugestões de campanhas WhatsApp
+            Análise de padrões de vendas — semana, dia da semana e período do dia
           </p>
         </div>
-        <Select value={periodo} onValueChange={setPeriodo}>
-          <SelectTrigger className="w-[180px]"><SelectValue /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="7dias">Últimos 7 dias</SelectItem>
-            <SelectItem value="30dias">Últimos 30 dias</SelectItem>
-            <SelectItem value="60dias">Últimos 60 dias</SelectItem>
-            <SelectItem value="90dias">Últimos 90 dias</SelectItem>
-          </SelectContent>
-        </Select>
       </div>
 
-      {loading ? (
-        <div className="flex justify-center py-20"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
-      ) : (
-        <>
-          {/* KPIs */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-            <Card><CardHeader className="pb-2"><CardDescription>Total de pedidos</CardDescription><CardTitle className="text-2xl">{totalPedidos}</CardTitle></CardHeader></Card>
-            <Card><CardHeader className="pb-2"><CardDescription>Faturamento</CardDescription><CardTitle className="text-2xl">{brl(totalFat)}</CardTitle></CardHeader></Card>
-            <Card><CardHeader className="pb-2"><CardDescription>Ticket médio</CardDescription><CardTitle className="text-2xl">{brl(ticket)}</CardTitle></CardHeader></Card>
-            <Card><CardHeader className="pb-2"><CardDescription>Com horário identificado</CardDescription><CardTitle className="text-2xl">{heatmap.totalComHora}</CardTitle></CardHeader></Card>
-          </div>
+      {/* ============= SEÇÃO 1: SEMANA DO MÊS ============= */}
+      <section className="space-y-4">
+        <h2 className="font-serif text-2xl font-semibold">1. Padrão por semana do mês</h2>
 
-          {/* Insights */}
-          {insights && (
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <Card className="border-l-4 border-l-primary">
-                <CardHeader className="pb-2"><CardDescription>🏆 Melhor dia</CardDescription><CardTitle className="text-xl">{insights.bestDia.dia}</CardTitle></CardHeader>
-                <CardContent className="text-sm text-muted-foreground">{insights.bestDia.total} pedidos no período</CardContent>
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+          {porSemana.map((s) => {
+            const isBest = s.semana === semanaMaior?.semana;
+            const isWorst = s.semana === semanaMenor?.semana && s.semana !== 5;
+            return (
+              <Card key={s.semana} className={isBest ? "border-emerald-500 border-2" : isWorst ? "border-red-400 border-2" : ""}>
+                <CardHeader className="pb-2">
+                  <div className="flex items-center justify-between">
+                    <CardDescription className="font-semibold">{s.label}</CardDescription>
+                    {isBest && <Badge className="bg-emerald-600 hover:bg-emerald-600">🏆 Melhor</Badge>}
+                    {isWorst && <Badge variant="destructive">⚠️ Fraca</Badge>}
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-1.5">
+                  <div className="flex items-center gap-2 text-sm">
+                    <ShoppingBag className="h-4 w-4 text-muted-foreground" />
+                    <span className="font-semibold">{num(s.pedidos)}</span>
+                    <span className="text-muted-foreground">pedidos</span>
+                  </div>
+                  <div className="text-lg font-bold">{brl(s.receita)}</div>
+                  <div className="text-xs text-muted-foreground">Ticket: {brl(s.ticket)}</div>
+                </CardContent>
               </Card>
-              <Card className="border-l-4 border-l-primary">
-                <CardHeader className="pb-2"><CardDescription>⏰ Melhor período</CardDescription><CardTitle className="text-xl">{insights.bestPer.label}</CardTitle></CardHeader>
-                <CardContent className="text-sm text-muted-foreground">{insights.bestPer.total} pedidos no período</CardContent>
+            );
+          })}
+        </div>
+
+        <Card>
+          <CardHeader><CardTitle className="text-base">Receita por semana</CardTitle></CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={280}>
+              <BarChart data={porSemana}>
+                <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
+                <XAxis dataKey="label" />
+                <YAxis tickFormatter={(v) => `R$ ${(v / 1000).toFixed(0)}k`} />
+                <Tooltip formatter={(v: number) => brl(v)} />
+                <ReferenceLine y={mediaSemana} stroke="hsl(var(--muted-foreground))" strokeDasharray="4 4" label={{ value: "Média", position: "right", fill: "hsl(var(--muted-foreground))", fontSize: 11 }} />
+                <Bar dataKey="receita" radius={[6, 6, 0, 0]}>
+                  {porSemana.map((s) => (
+                    <Cell
+                      key={s.semana}
+                      fill={
+                        s.semana === semanaMaior?.semana
+                          ? "hsl(140 55% 40%)"
+                          : s.semana === semanaMenor?.semana && s.semana !== 5
+                          ? "hsl(0 70% 55%)"
+                          : "hsl(210 70% 55%)"
+                      }
+                    />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-sky-50 border-sky-200">
+          <CardContent className="pt-6 text-sm text-sky-900">
+            💡 <strong>Insight:</strong> A {semanaMaior?.label?.toLowerCase()} concentra{" "}
+            <strong>{totalReceitaMes ? ((semanaMaior.receita / totalReceitaMes) * 100).toFixed(1) : "0"}%</strong> da receita mensal.{" "}
+            {semanaMenor && (
+              <>
+                A {semanaMenor.label.toLowerCase()} é historicamente a mais fraca (
+                <strong>{totalReceitaMes ? ((semanaMenor.receita / totalReceitaMes) * 100).toFixed(1) : "0"}%</strong>) — ideal para campanhas de reativação.
+              </>
+            )}
+          </CardContent>
+        </Card>
+      </section>
+
+      {/* ============= SEÇÃO 2: DIA DA SEMANA ============= */}
+      <section className="space-y-4">
+        <h2 className="font-serif text-2xl font-semibold">2. Padrão por dia da semana</h2>
+
+        <div className="grid grid-cols-2 md:grid-cols-7 gap-3">
+          {porDia.map((d) => {
+            const isBest = d.num_dia === diaMaior?.num_dia;
+            const isLive = d.num_dia === 2;
+            const isWeekend = d.num_dia === 0 || d.num_dia === 6;
+            return (
+              <Card key={d.num_dia} className={isBest ? "border-emerald-500 border-2" : ""}>
+                <CardHeader className="pb-2">
+                  <CardDescription className="font-semibold">{d.nome}</CardDescription>
+                  <div className="flex flex-wrap gap-1 mt-1">
+                    {isBest && <Badge className="bg-emerald-600 hover:bg-emerald-600 text-[10px]">🏆 Melhor</Badge>}
+                    {isLive && <Badge className="bg-pink-600 hover:bg-pink-600 text-[10px]">📱 Live</Badge>}
+                    {isWeekend && <Badge className="bg-amber-600 hover:bg-amber-600 text-[10px]">💬 WhatsApp</Badge>}
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-1">
+                  <div className="text-xs text-muted-foreground">{num(d.pedidos)} pedidos</div>
+                  <div className="text-sm font-bold">{brl(d.receita)}</div>
+                  <div className="text-[11px] text-muted-foreground">Ticket: {brl(d.ticket)}</div>
+                </CardContent>
               </Card>
-              <Card className="border-l-4 border-l-amber-500">
-                <CardHeader className="pb-2"><CardDescription>💡 Oportunidade</CardDescription><CardTitle className="text-xl">{insights.worstDia.dia}</CardTitle></CardHeader>
-                <CardContent className="text-sm text-muted-foreground">Dia mais fraco — foco em campanhas</CardContent>
+            );
+          })}
+        </div>
+
+        <Card>
+          <CardHeader><CardTitle className="text-base">Receita por dia da semana</CardTitle></CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={280}>
+              <BarChart data={porDia}>
+                <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
+                <XAxis dataKey="curto" />
+                <YAxis tickFormatter={(v) => `R$ ${(v / 1000).toFixed(0)}k`} />
+                <Tooltip formatter={(v: number) => brl(v)} labelFormatter={(l, p: any) => p?.[0]?.payload?.nome || l} />
+                <Bar dataKey="receita" radius={[6, 6, 0, 0]}>
+                  {porDia.map((d) => (
+                    <Cell
+                      key={d.num_dia}
+                      fill={
+                        d.num_dia === diaMaior?.num_dia
+                          ? "hsl(140 55% 40%)"
+                          : d.num_dia === 0 || d.num_dia === 6
+                          ? "hsl(28 85% 55%)"
+                          : "hsl(210 70% 55%)"
+                      }
+                    />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-emerald-50 border-emerald-200">
+          <CardContent className="pt-6 text-sm text-emerald-900">
+            💡 <strong>Terça-feira</strong> concentra <strong>{pctTerca.toFixed(1)}%</strong> das vendas semanais — confirma a escolha da live às terças.{" "}
+            Fim de semana (sáb+dom) representa apenas <strong>{pctFimSemana.toFixed(1)}%</strong> — campanhas WhatsApp VIP são essenciais nesses dias.
+          </CardContent>
+        </Card>
+      </section>
+
+      {/* ============= SEÇÃO 3: PERÍODO DO DIA ============= */}
+      <section className="space-y-4">
+        <h2 className="font-serif text-2xl font-semibold">3. Padrão por período do dia</h2>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          {porPeriodo.map((p) => {
+            const isBest = p.key === periodoMaior?.key;
+            const Icon = p.Icon;
+            const emoji = p.key === "manha" ? "☀️" : p.key === "tarde" ? "🌤️" : "🌙";
+            return (
+              <Card key={p.key} className={isBest ? "border-emerald-500 border-2" : ""}>
+                <CardHeader className="pb-2">
+                  <div className="flex items-center justify-between">
+                    <CardDescription className="flex items-center gap-2 font-semibold">
+                      <span className="text-lg">{emoji}</span>
+                      <Icon className="h-4 w-4" />
+                      {p.label}
+                    </CardDescription>
+                    {isBest && <Badge className="bg-emerald-600 hover:bg-emerald-600">🏆 Pico</Badge>}
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-1.5">
+                  <div className="text-sm">{num(p.pedidos)} pedidos</div>
+                  <div className="text-lg font-bold">{brl(p.receita)}</div>
+                  <div className="text-xs text-muted-foreground">Ticket: {brl(p.ticket)}</div>
+                </CardContent>
               </Card>
+            );
+          })}
+        </div>
+
+        <Card>
+          <CardHeader><CardTitle className="text-base">Distribuição de pedidos por período</CardTitle></CardHeader>
+          <CardContent>
+            <div className="space-y-4 pt-2">
+              {porPeriodo.map((p) => {
+                const pct = totalPedidosPeriodo ? (p.pedidos / totalPedidosPeriodo) * 100 : 0;
+                return (
+                  <div key={p.key}>
+                    <div className="flex justify-between text-sm mb-1">
+                      <span className="font-medium">{p.label}</span>
+                      <span className="font-semibold">{num(p.pedidos)} · {pct.toFixed(1)}%</span>
+                    </div>
+                    <div className="h-3 bg-muted rounded-full overflow-hidden">
+                      <div
+                        className="h-full rounded-full"
+                        style={{
+                          width: `${pct}%`,
+                          backgroundColor: p.key === periodoMaior?.key ? "hsl(140 55% 40%)" : "hsl(210 70% 55%)",
+                        }}
+                      />
+                    </div>
+                  </div>
+                );
+              })}
             </div>
-          )}
+          </CardContent>
+        </Card>
 
-          {/* Heatmap */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Mapa de calor — Dia × Período</CardTitle>
-              <CardDescription>Quantidade de pedidos por dia da semana e horário</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="overflow-x-auto">
-                <table className="w-full border-collapse">
-                  <thead>
-                    <tr>
-                      <th className="text-left p-2 text-xs uppercase text-muted-foreground">Dia</th>
-                      {PERIODOS.map((p) => (
-                        <th key={p.key} className="text-center p-2 text-xs uppercase text-muted-foreground">
-                          <div className="flex flex-col items-center gap-1">
-                            <p.icon className="h-4 w-4" />
-                            <span>{p.label}</span>
-                            <span className="text-[10px] font-normal normal-case">{p.range}</span>
-                          </div>
-                        </th>
-                      ))}
-                      <th className="text-center p-2 text-xs uppercase text-muted-foreground">Total</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {DIAS.map((nome, i) => {
-                      const total = heatmap.matrix[i].reduce((a, b) => a + b, 0);
-                      return (
-                        <tr key={nome} className="border-t">
-                          <td className="p-2 font-medium">{nome}</td>
-                          {heatmap.matrix[i].map((v, j) => (
-                            <td key={j} className="p-1">
-                              <div
-                                className="rounded p-3 text-center font-semibold"
-                                style={{ backgroundColor: cellColor(v), color: v / maxCell > 0.5 ? "#1D1D1B" : "#666" }}
-                              >
-                                <div className="text-lg">{v}</div>
-                                <div className="text-[10px] font-normal opacity-70">{brl(heatmap.valor[i][j])}</div>
-                              </div>
-                            </td>
-                          ))}
-                          <td className="p-2 text-center font-bold">{total}</td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-              {heatmap.totalComHora === 0 && (
-                <p className="text-sm text-muted-foreground mt-4 text-center">
-                  Nenhum pedido com horário identificado no período selecionado.
-                </p>
-              )}
-            </CardContent>
-          </Card>
+        <Card className="bg-purple-50 border-purple-200">
+          <CardContent className="pt-6 text-sm text-purple-900">
+            💡 <strong>{pctPeriodoMaior.toFixed(1)}%</strong> das vendas acontecem à{" "}
+            <strong>{periodoMaior?.label?.toLowerCase()}</strong>. Sugestão: publicar conteúdo no Instagram{" "}
+            <strong>{horarioPostagem[periodoMaior?.key] || "antes do pico"}</strong> para maximizar conversão.
+          </CardContent>
+        </Card>
+      </section>
 
-          {/* Gráfico por dia */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            <Card>
-              <CardHeader><CardTitle>Pedidos por dia da semana</CardTitle></CardHeader>
-              <CardContent>
-                <ResponsiveContainer width="100%" height={260}>
-                  <BarChart data={porDiaSemana}>
-                    <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
-                    <XAxis dataKey="dia" />
-                    <YAxis />
-                    <Tooltip />
-                    <Bar dataKey="total" radius={[6, 6, 0, 0]}>
-                      {porDiaSemana.map((d, i) => (
-                        <Cell key={i} fill={d.total === Math.max(...porDiaSemana.map((x) => x.total)) ? "hsl(45 65% 55%)" : "hsl(45 40% 75%)"} />
-                      ))}
-                    </Bar>
-                  </BarChart>
-                </ResponsiveContainer>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader><CardTitle>Distribuição por período</CardTitle></CardHeader>
-              <CardContent>
-                <div className="space-y-4 pt-2">
-                  {porPeriodo.map((p) => {
-                    const totalAll = porPeriodo.reduce((s, x) => s + x.total, 0) || 1;
-                    const pct = (p.total / totalAll) * 100;
-                    return (
-                      <div key={p.key}>
-                        <div className="flex justify-between items-center mb-1">
-                          <span className="flex items-center gap-2 text-sm font-medium"><p.icon className="h-4 w-4" />{p.label} <span className="text-muted-foreground text-xs">({p.range})</span></span>
-                          <span className="text-sm font-semibold">{p.total} · {pct.toFixed(1)}%</span>
-                        </div>
-                        <div className="h-3 bg-muted rounded-full overflow-hidden">
-                          <div className="h-full bg-primary rounded-full transition-all" style={{ width: `${pct}%` }} />
-                        </div>
-                        <div className="text-xs text-muted-foreground mt-1">{brl(p.valor)}</div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </CardContent>
-            </Card>
-          </div>
+      {/* ============= SEÇÃO 4: HEATMAP SEMANA x DIA ============= */}
+      <section className="space-y-4">
+        <h2 className="font-serif text-2xl font-semibold">4. Cruzamento Semana × Dia</h2>
 
-          {/* IA Sugestões */}
-          <Card className="border-primary/30">
-            <CardHeader>
-              <div className="flex items-center justify-between flex-wrap gap-3">
-                <div>
-                  <CardTitle className="flex items-center gap-2"><Sparkles className="h-5 w-5 text-primary" /> Sugestões de campanha WhatsApp</CardTitle>
-                  <CardDescription>IA gera 3 ideias acionáveis com base nos padrões + estoque disponível</CardDescription>
-                </div>
-                <div className="flex gap-2">
-                  {sugestao && (
-                    <Button variant="outline" size="sm" onClick={copiarSugestao}><Copy className="h-4 w-4 mr-2" />Copiar</Button>
-                  )}
-                  <Button onClick={gerarSugestao} disabled={gerando || produtos.length === 0}>
-                    {gerando ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Gerando...</> : <><Sparkles className="h-4 w-4 mr-2" />Gerar ideias para hoje</>}
-                  </Button>
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent>
-              {sugestao ? (
-                <div className="prose prose-sm max-w-none whitespace-pre-wrap text-foreground">{sugestao}</div>
-              ) : (
-                <p className="text-sm text-muted-foreground">Clique em "Gerar ideias para hoje" para receber campanhas personalizadas.</p>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Produtos em estoque */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Produtos disponíveis para campanha</CardTitle>
-              <CardDescription>Top vendidos com estoque positivo ({produtos.length} produtos)</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="overflow-x-auto max-h-[400px]">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Produto</TableHead>
-                      <TableHead className="text-right">Estoque</TableHead>
-                      <TableHead className="text-right">Preço</TableHead>
-                      <TableHead className="text-right">Vendidos</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {produtos.slice(0, 25).map((p) => (
-                      <TableRow key={p.id}>
-                        <TableCell className="font-medium">{p.name}</TableCell>
-                        <TableCell className="text-right"><Badge variant={p.stock > 10 ? "default" : "secondary"}>{p.stock}</Badge></TableCell>
-                        <TableCell className="text-right">{brl(p.promotional_price && p.promotional_price > 0 ? p.promotional_price : p.price)}</TableCell>
-                        <TableCell className="text-right text-muted-foreground">{p.quantity_sold ?? 0}</TableCell>
-                      </TableRow>
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Mapa de calor — Receita por semana × dia da semana</CardTitle>
+            <CardDescription>Verde escuro = mais receita · Vermelho claro = menos receita</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="overflow-x-auto">
+              <table className="w-full border-separate border-spacing-1">
+                <thead>
+                  <tr>
+                    <th className="text-left text-xs uppercase text-muted-foreground p-2"></th>
+                    {DIAS_CURTO.map((d) => (
+                      <th key={d} className="text-center text-xs uppercase text-muted-foreground p-2">{d}</th>
                     ))}
-                  </TableBody>
-                </Table>
-              </div>
-            </CardContent>
-          </Card>
-        </>
-      )}
+                  </tr>
+                </thead>
+                <tbody>
+                  {heatmap.matrix.map((row, si) => (
+                    <tr key={si}>
+                      <td className="p-2 font-medium text-sm">Semana {si + 1}</td>
+                      {row.map((c, di) => (
+                        <td key={di} className="p-0">
+                          <div
+                            className="rounded p-2 text-center min-w-[90px]"
+                            style={{ backgroundColor: heatColor(c.receita, heatmap.max), color: heatText(c.receita, heatmap.max) }}
+                          >
+                            <div className="text-sm font-bold">{brl(c.receita)}</div>
+                            <div className="text-[10px] opacity-90">{num(c.pedidos)} ped.</div>
+                          </div>
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-amber-50 border-amber-200">
+          <CardContent className="pt-6 text-sm text-amber-900">
+            🎯 <strong>Melhor janela para lançamentos:</strong>{" "}
+            <strong>{DIAS_PT[Object.keys(DIAS_PT)[melhorCelula.dia]] || DIAS_CURTO[melhorCelula.dia]}</strong>{" "}
+            da <strong>semana {melhorCelula.semana}</strong> — historicamente o maior volume de vendas do mês ({brl(melhorCelula.receita)}).
+          </CardContent>
+        </Card>
+      </section>
     </div>
   );
 }
