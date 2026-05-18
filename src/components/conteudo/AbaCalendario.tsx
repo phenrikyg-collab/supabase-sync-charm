@@ -621,7 +621,8 @@ function ConteudoEditor({
     }
   };
 
-  const canal = conteudo.canal;
+  const rawCanal = (conteudo as any).canal;
+  const canal: string = Array.isArray(rawCanal) ? rawCanal[0] : rawCanal;
   const isInstagram = canal === "instagram_feed" || canal === "instagram_reels";
   const isEmail = canal === "email";
   const isWhats = canal === "whatsapp_vip";
