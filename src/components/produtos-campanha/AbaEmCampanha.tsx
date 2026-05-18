@@ -267,7 +267,10 @@ Retorne APENAS o texto pronto para publicar, sem comentários, sem JSON, sem mar
                   Incluído em {new Date(c.created_at).toLocaleDateString("pt-BR")}
                 </p>
 
-                <div className="flex gap-2 pt-2 border-t">
+                <div className="flex flex-wrap gap-2 pt-2 border-t">
+                  <Button size="sm" onClick={() => abrirGerarTexto(c)}>
+                    <Sparkles className="h-3 w-3 mr-1" /> Gerar texto
+                  </Button>
                   <Button size="sm" variant="outline" onClick={() => abrirEdicao(c)}>
                     <Edit className="h-3 w-3 mr-1" /> Editar
                   </Button>
