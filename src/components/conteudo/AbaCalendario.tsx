@@ -409,18 +409,18 @@ export function AbaCalendario() {
                   </TabsList>
 
                   <TabsContent value="instagram" className="mt-4">
-                    <Tabs defaultValue="reels">
+                    <Tabs defaultValue="instagram_reels">
                       <TabsList className="grid grid-cols-2 w-full">
-                        <TabsTrigger value="reels" className="text-xs">Reels</TabsTrigger>
-                        <TabsTrigger value="carrossel" className="text-xs">Carrossel</TabsTrigger>
+                        <TabsTrigger value="instagram_reels" className="text-xs">Reels</TabsTrigger>
+                        <TabsTrigger value="instagram_feed" className="text-xs">Carrossel</TabsTrigger>
                       </TabsList>
-                      {[
-                        { sub: "reels", canal: "instagram_reels" },
-                        { sub: "carrossel", canal: "instagram_feed" },
-                      ].map(({ sub, canal }) => {
-                        const ct = conteudos.find((c) => c.canal === canal);
+                      {["instagram_reels", "instagram_feed"].map((canal) => {
+                        const ct = conteudos.find((c) => {
+                          const cc = (c as any).canal;
+                          return Array.isArray(cc) ? cc.includes(canal) : cc === canal;
+                        });
                         return (
-                          <TabsContent key={sub} value={sub} className="space-y-3 mt-4">
+                          <TabsContent key={canal} value={canal} className="space-y-3 mt-4">
                             {!ct ? (
                               <p className="text-sm text-muted-foreground">Sem conteúdo para este canal.</p>
                             ) : (
@@ -438,7 +438,10 @@ export function AbaCalendario() {
                   </TabsContent>
 
                   {["email", "whatsapp_vip"].map((canal) => {
-                    const ct = conteudos.find((c) => c.canal === canal);
+                    const ct = conteudos.find((c) => {
+                      const cc = (c as any).canal;
+                      return Array.isArray(cc) ? cc.includes(canal) : cc === canal;
+                    });
                     return (
                       <TabsContent key={canal} value={canal} className="space-y-3 mt-4">
                         {!ct ? (
@@ -618,7 +621,8 @@ function ConteudoEditor({
     }
   };
 
-  const canal = conteudo.canal;
+  const rawCanal = (conteudo as any).canal;
+  const canal: string = Array.isArray(rawCanal) ? rawCanal[0] : rawCanal;
   const isInstagram = canal === "instagram_feed" || canal === "instagram_reels";
   const isEmail = canal === "email";
   const isWhats = canal === "whatsapp_vip";
