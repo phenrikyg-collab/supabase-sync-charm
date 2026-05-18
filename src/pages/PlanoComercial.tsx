@@ -513,13 +513,20 @@ function AbaAcoes({ mesRef }: { mesRef: string }) {
   }, [distribuicao]);
 
   const acoesBySemana = useMemo(() => {
-    const m: Record<number, Acao[]> = { 1: [], 2: [], 3: [], 4: [] };
+    const m: Record<number, Acao[]> = { 1: [], 2: [], 3: [], 4: [], 5: [] };
     acoes.forEach((a) => {
       const s = Number(a.semana || 0);
-      if (s >= 1 && s <= 4) m[s].push(a);
+      if (s >= 1 && s <= 5) m[s].push(a);
     });
     return m;
   }, [acoes]);
+
+  const semanasParaExibir = useMemo(() => {
+    const set = new Set<number>([1, 2, 3, 4]);
+    distribuicao.forEach((d) => set.add(d.semana));
+    acoes.forEach((a) => { if (a.semana) set.add(Number(a.semana)); });
+    return Array.from(set).filter((s) => s >= 1 && s <= 5).sort((a, b) => a - b);
+  }, [distribuicao, acoes]);
 
   return (
     <div className="space-y-6">
