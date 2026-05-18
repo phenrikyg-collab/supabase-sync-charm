@@ -56,6 +56,8 @@ export function AbaSugestoesAutomaticas() {
   const [rows, setRows] = useState<ProdutoCampanhaRow[]>([]);
   const [busca, setBusca] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("todos");
+  const [idadeFilter, setIdadeFilter] = useState<string>("todos");
+  const [girarUrgente, setGirarUrgente] = useState(false);
   const [page, setPage] = useState(1);
   const [modalProduto, setModalProduto] = useState<ProdutoCampanhaRow | null>(null);
   const [form, setForm] = useState({ motivo: "", prioridade: 3, meta_vendas: "", observacao: "" });
