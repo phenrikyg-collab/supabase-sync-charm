@@ -36,6 +36,7 @@ import { UserPlus, Loader2, ShoppingBag, Banknote, Wrench, Save, Truck, Megaphon
 import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
 import type { AppModule } from "@/hooks/useUserModules";
+import { invokeEdgeFunction } from "@/lib/edgeFunctions";
 
 const MODULE_OPTIONS: { key: AppModule; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
   { key: "comercial", label: "Comercial", icon: ShoppingBag },
