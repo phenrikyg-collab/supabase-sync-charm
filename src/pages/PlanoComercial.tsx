@@ -450,7 +450,7 @@ function KpiBox({ label, value, variant }: { label: string; value: string; varia
 }
 
 // ===================== Aba 2: Ações por Semana =====================
-function AbaAcoes({ mesRef, setMesRef }: { mesRef: string; setMesRef: (s: string) => void }) {
+function AbaAcoes({ mesRef }: { mesRef: string }) {
   const [loading, setLoading] = useState(true);
   const [plano, setPlano] = useState<Plano | null>(null);
   const [acoes, setAcoes] = useState<Acao[]>([]);
