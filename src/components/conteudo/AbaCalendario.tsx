@@ -13,7 +13,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Sparkles, Loader2, ChevronLeft, ChevronRight, Check, X, Plus, Pencil, Trash2 } from "lucide-react";
+import { Sparkles, Loader2, ChevronLeft, ChevronRight, Check, X, Plus, Pencil, Trash2, Eraser } from "lucide-react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { invokeEdgeFunction } from "@/lib/edgeFunctions";
 
@@ -93,6 +93,8 @@ export function AbaCalendario() {
   const [novaDataInitial, setNovaDataInitial] = useState<string>("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<Calendario | null>(null);
+  const [confirmLimparMes, setConfirmLimparMes] = useState(false);
+  const [limpandoMes, setLimpandoMes] = useState(false);
 
   const mesRef = `${ano}-${pad(mes + 1)}`;
 
@@ -136,6 +138,54 @@ export function AbaCalendario() {
       toast.error("Erro ao gerar calendário", { description: e.message });
     } finally {
       setGerando(false);
+    }
+  };
+
+  const limparMes = async () => {
+    setConfirmLimparMes(false);
+    setLimpandoMes(true);
+    try {
+      const mesStr = pad(mes + 1);
+      const mesReferencia = `${ano}-${mesStr}`;
+      const dataInicio = `${mesReferencia}-01`;
+      const ultimoDia = new Date(ano, mes + 1, 0).getDate();
+      const dataFim = `${mesReferencia}-${pad(ultimoDia)}`;
+
+      const { data: datasMes, error: errFetch } = await (supabase as any)
+        .from("calendario_comercial")
+        .select("id")
+        .gte("data", dataInicio)
+        .lte("data", dataFim);
+      if (errFetch) throw errFetch;
+
+      const ids = (datasMes || []).map((d: any) => d.id);
+      if (ids.length === 0) {
+        toast.info("Nenhuma data encontrada para este mês.");
+        setLimpandoMes(false);
+        return;
+      }
+
+      // Delete conteudos_gerados first
+      const { error: errCont } = await (supabase as any)
+        .from("conteudos_gerados")
+        .delete()
+        .in("calendario_id", ids);
+      if (errCont) throw errCont;
+
+      // Delete calendario_comercial entries
+      const { error: errCal } = await (supabase as any)
+        .from("calendario_comercial")
+        .delete()
+        .in("id", ids);
+      if (errCal) throw errCal;
+
+      toast.success(`Mês limpo! ${ids.length} data(s) e conteúdos vinculados removidos.`);
+      setSelectedId(null);
+      await fetchDatas();
+    } catch (e: any) {
+      toast.error("Erro ao limpar mês", { description: e.message });
+    } finally {
+      setLimpandoMes(false);
     }
   };
 
@@ -257,6 +307,10 @@ export function AbaCalendario() {
         <div className="flex items-center gap-2">
           <Button variant="outline" onClick={() => openNova()} className="gap-2">
             <Plus className="h-4 w-4" /> Nova data
+          </Button>
+          <Button variant="outline" onClick={() => setConfirmLimparMes(true)} disabled={limpandoMes || datas.length === 0} className="gap-2 text-red-600 border-red-200 hover:bg-red-50">
+            {limpandoMes ? <Loader2 className="h-4 w-4 animate-spin" /> : <Eraser className="h-4 w-4" />}
+            Limpar mês
           </Button>
           <Button onClick={() => setConfirmGerar(true)} disabled={gerando} className="gap-2">
             {gerando ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
@@ -465,6 +519,23 @@ export function AbaCalendario() {
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
             <AlertDialogAction onClick={() => confirmDelete && handleDelete(confirmDelete)} className="bg-red-600 hover:bg-red-700">
               Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={confirmLimparMes} onOpenChange={(o) => !o && setConfirmLimparMes(false)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="font-serif">Limpar calendário de {MESES[mes]} {ano}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Isso vai apagar TODAS as datas e conteúdos gerados deste mês. Esta ação não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setConfirmLimparMes(false)}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={limparMes} className="bg-red-600 hover:bg-red-700">
+              Limpar mês
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
