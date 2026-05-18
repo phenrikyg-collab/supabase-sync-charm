@@ -354,7 +354,7 @@ export function AbaCalendario() {
       />
 
       {/* Drawer */}
-      <Sheet open={!!selected} onOpenChange={(o) => !o && setSelected(null)}>
+      <Sheet open={!!selected} onOpenChange={(o) => !o && setSelectedId(null)}>
         <SheetContent className="w-full sm:max-w-2xl overflow-y-auto">
           {selected && (
             <>
@@ -380,74 +380,78 @@ export function AbaCalendario() {
                 </div>
               </SheetHeader>
 
-              {loadingConteudos ? (
-                <div className="mt-6 space-y-2">
-                  <Skeleton className="h-10 w-full" />
-                  <Skeleton className="h-40 w-full" />
-                </div>
-              ) : (
-                <Tabs defaultValue="instagram" className="mt-6">
-                  <TabsList className="grid grid-cols-3 w-full">
-                    <TabsTrigger value="instagram" className="text-xs">Instagram</TabsTrigger>
-                    <TabsTrigger value="email" className="text-xs">E-mail</TabsTrigger>
-                    <TabsTrigger value="whatsapp_vip" className="text-xs">WhatsApp VIP</TabsTrigger>
-                  </TabsList>
+              <Tabs defaultValue="instagram" className="mt-6">
+                <TabsList className="grid grid-cols-3 w-full">
+                  <TabsTrigger value="instagram" className="text-xs">Instagram</TabsTrigger>
+                  <TabsTrigger value="email" className="text-xs">E-mail</TabsTrigger>
+                  <TabsTrigger value="whatsapp_vip" className="text-xs">WhatsApp VIP</TabsTrigger>
+                </TabsList>
 
-                  <TabsContent value="instagram" className="mt-4">
-                    <Tabs defaultValue="instagram_reels">
-                      <TabsList className="grid grid-cols-2 w-full">
-                        <TabsTrigger value="instagram_reels" className="text-xs">Reels</TabsTrigger>
-                        <TabsTrigger value="instagram_feed" className="text-xs">Carrossel</TabsTrigger>
-                      </TabsList>
-                      {["instagram_reels", "instagram_feed"].map((canal) => {
-                        const ct = conteudos.find((c) => {
-                          const cc = (c as any).canal;
-                          return Array.isArray(cc) ? cc.includes(canal) : cc === canal;
-                        });
-                        return (
-                          <TabsContent key={canal} value={canal} className="space-y-3 mt-4">
-                            {!ct ? (
-                              <p className="text-sm text-muted-foreground">Sem conteúdo para este canal.</p>
-                            ) : (
-                              <ConteudoEditor
-                                conteudo={ct}
-                                onSave={updateConteudoField}
-                                onAprovar={() => aprovarConteudo(ct.id)}
-                                onRejeitar={() => rejeitarConteudo(ct.id)}
-                              />
-                            )}
-                          </TabsContent>
-                        );
-                      })}
-                    </Tabs>
-                  </TabsContent>
+                <TabsContent value="instagram" className="mt-4">
+                  <Tabs defaultValue="instagram_reels">
+                    <TabsList className="grid grid-cols-2 w-full">
+                      <TabsTrigger value="instagram_reels" className="text-xs">🎬 Reels</TabsTrigger>
+                      <TabsTrigger value="instagram_feed" className="text-xs">🖼️ Carrossel</TabsTrigger>
+                    </TabsList>
+                    {["instagram_reels", "instagram_feed"].map((canal) => {
+                      const list = conteudos.filter((c) => {
+                        const cc = (c as any).canal;
+                        return Array.isArray(cc) ? cc.includes(canal) : cc === canal;
+                      });
+                      return (
+                        <TabsContent key={canal} value={canal} className="space-y-4 mt-4">
+                          {list.length === 0 ? (
+                            <p className="text-sm text-muted-foreground">Sem conteúdo para este canal.</p>
+                          ) : (
+                            list.map((ct) => (
+                              <Card key={ct.id} className="p-3">
+                                <ConteudoEditor
+                                  conteudo={ct}
+                                  onSave={updateConteudoField}
+                                  onAprovar={() => aprovarConteudo(ct.id)}
+                                  onRejeitar={() => rejeitarConteudo(ct.id)}
+                                  onPublicar={() => publicarConteudo(ct.id)}
+                                />
+                              </Card>
+                            ))
+                          )}
+                        </TabsContent>
+                      );
+                    })}
+                  </Tabs>
+                </TabsContent>
 
-                  {["email", "whatsapp_vip"].map((canal) => {
-                    const ct = conteudos.find((c) => {
-                      const cc = (c as any).canal;
-                      return Array.isArray(cc) ? cc.includes(canal) : cc === canal;
-                    });
-                    return (
-                      <TabsContent key={canal} value={canal} className="space-y-3 mt-4">
-                        {!ct ? (
-                          <p className="text-sm text-muted-foreground">Sem conteúdo para este canal.</p>
-                        ) : (
-                          <ConteudoEditor
-                            conteudo={ct}
-                            onSave={updateConteudoField}
-                            onAprovar={() => aprovarConteudo(ct.id)}
-                            onRejeitar={() => rejeitarConteudo(ct.id)}
-                          />
-                        )}
-                      </TabsContent>
-                    );
-                  })}
-                </Tabs>
-              )}
+                {["email", "whatsapp_vip"].map((canal) => {
+                  const list = conteudos.filter((c) => {
+                    const cc = (c as any).canal;
+                    return Array.isArray(cc) ? cc.includes(canal) : cc === canal;
+                  });
+                  return (
+                    <TabsContent key={canal} value={canal} className="space-y-4 mt-4">
+                      {list.length === 0 ? (
+                        <p className="text-sm text-muted-foreground">Sem conteúdo para este canal.</p>
+                      ) : (
+                        list.map((ct) => (
+                          <Card key={ct.id} className="p-3">
+                            <ConteudoEditor
+                              conteudo={ct}
+                              onSave={updateConteudoField}
+                              onAprovar={() => aprovarConteudo(ct.id)}
+                              onRejeitar={() => rejeitarConteudo(ct.id)}
+                              onPublicar={() => publicarConteudo(ct.id)}
+                            />
+                          </Card>
+                        ))
+                      )}
+                    </TabsContent>
+                  );
+                })}
+              </Tabs>
             </>
           )}
         </SheetContent>
       </Sheet>
+
 
       <AlertDialog open={!!confirmDelete} onOpenChange={(o) => !o && setConfirmDelete(null)}>
         <AlertDialogContent>
