@@ -32,7 +32,7 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { UserPlus, Loader2, ShoppingBag, Banknote, Wrench, Save } from "lucide-react";
+import { UserPlus, Loader2, ShoppingBag, Banknote, Wrench, Save, Truck, Megaphone } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
 import type { AppModule } from "@/hooks/useUserModules";
@@ -41,6 +41,8 @@ const MODULE_OPTIONS: { key: AppModule; label: string; icon: React.ComponentType
   { key: "comercial", label: "Comercial", icon: ShoppingBag },
   { key: "producao", label: "Produção", icon: Wrench },
   { key: "financeiro", label: "Financeiro", icon: Banknote },
+  { key: "logistica", label: "Logística", icon: Truck },
+  { key: "marketing", label: "Marketing", icon: Megaphone },
 ];
 
 interface UserWithModules {
