@@ -507,17 +507,12 @@ function AbaAcoes({ mesRef }: { mesRef: string }) {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-end gap-3">
-        <div>
-          <Label className="text-xs">Mês</Label>
-          <Input type="month" value={mesRef} onChange={(e) => setMesRef(e.target.value)} className="w-[180px]" />
+      {plano && (
+        <div className="text-sm text-muted-foreground">
+          Meta total de <strong className="text-foreground">{formatMesLabel(mesRef)}</strong>:{" "}
+          <strong className="text-foreground">{brl(plano.meta_receita)}</strong>
         </div>
-        {plano && (
-          <div className="text-sm text-muted-foreground">
-            Meta total: <strong className="text-foreground">{brl(plano.meta_receita)}</strong>
-          </div>
-        )}
-      </div>
+      )}
 
       {loading ? (
         <div className="space-y-3">
