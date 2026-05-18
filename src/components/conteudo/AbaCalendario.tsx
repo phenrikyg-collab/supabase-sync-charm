@@ -79,6 +79,35 @@ function formatDDMM(iso: string) {
   const [y, m, d] = iso.split("-");
   return `${d}/${m}/${y}`;
 }
+function formatLongDate(iso: string) {
+  const [y, m, d] = iso.split("-").map(Number);
+  const dt = new Date(y, m - 1, d);
+  const txt = dt.toLocaleDateString("pt-BR", { weekday: "long", day: "2-digit", month: "long", year: "numeric" });
+  return txt.charAt(0).toUpperCase() + txt.slice(1);
+}
+const FUNIL_BARS: Record<number, string> = {
+  0: "bg-slate-400",       // domingo
+  1: "bg-sky-300",         // descoberta seg
+  2: "bg-sky-300",         // descoberta ter
+  3: "bg-purple-400",      // conscientizacao qua
+  4: "bg-purple-400",      // conscientizacao qui
+  5: "bg-emerald-400",     // conversao sex
+  6: "bg-orange-400",      // sabado
+};
+const CANAL_ICONS: Record<string, string> = {
+  instagram_reels: "🎬",
+  instagram_feed: "📷",
+  instagram_story: "📱",
+  email: "✉️",
+  whatsapp_vip: "💬",
+};
+const CANAL_LABELS: Record<string, string> = {
+  instagram_reels: "🎬 Reels",
+  instagram_feed: "📷 Carrossel",
+  instagram_story: "📱 Stories",
+  email: "✉️ E-mail",
+  whatsapp_vip: "💬 WhatsApp VIP",
+};
 
 export function AbaCalendario() {
   const hoje = new Date();
@@ -102,15 +131,21 @@ export function AbaCalendario() {
     setLoading(true);
     try {
       const mesStr = pad(mes + 1);
-      const mesReferencia = `${ano}-${mesStr}`;
-      const dataInicio = `${mesReferencia}-01`;
+      const dataInicio = `${ano}-${mesStr}-01`;
       const ultimoDia = new Date(ano, mes + 1, 0).getDate();
-      const dataFim = `${mesReferencia}-${pad(ultimoDia)}`;
+      const dataFim = `${ano}-${mesStr}-${pad(ultimoDia)}`;
 
       const { data, error } = await (supabase as any)
         .from("calendario_comercial")
-        .select("*, conteudos_gerados(*)")
-        .or(`mes_referencia.eq.${mesReferencia},and(data.gte.${dataInicio},data.lte.${dataFim})`)
+        .select(`
+          id, data, titulo, tipo, status, descricao, canal, mes_referencia, criado_por_ia,
+          conteudos_gerados (
+            id, calendario_id, canal, copy_principal, copy_legenda, copy_cta,
+            hashtags, assunto_email, horario_sugerido, status, feedback_usuario, versao, tipo_campanha
+          )
+        `)
+        .gte("data", dataInicio)
+        .lte("data", dataFim)
         .order("data", { ascending: true });
       if (error) throw error;
       setDatas((data || []) as Calendario[]);
@@ -247,6 +282,27 @@ export function AbaCalendario() {
     toast("Rejeitado");
   };
 
+  const [confirmRegen, setConfirmRegen] = useState<{ data: string; canal: string } | null>(null);
+  const [regenLoading, setRegenLoading] = useState(false);
+  const regenerarCanal = async () => {
+    if (!confirmRegen) return;
+    setRegenLoading(true);
+    try {
+      await invokeEdgeFunction("generate-content-calendar", {
+        mes_referencia: mesRef,
+        regenerar_data: confirmRegen.data,
+        regenerar_canal: confirmRegen.canal,
+      });
+      toast.success("Canal regenerado");
+      setConfirmRegen(null);
+      await fetchDatas();
+    } catch (e: any) {
+      toast.error("Erro ao regenerar", { description: e.message });
+    } finally {
+      setRegenLoading(false);
+    }
+  };
+
   const cells = useMemo(() => {
     const first = new Date(ano, mes, 1);
     const offset = first.getDay();
@@ -337,13 +393,12 @@ export function AbaCalendario() {
               if (!cell) return <div key={i} className="h-24 bg-muted/20 rounded" />;
               const items = byDate.get(cell.iso) || [];
               const hasContent = items.length > 0;
-              const isSat = cell.dow === 6;
-              const isSun = cell.dow === 0;
+              const funilBar = FUNIL_BARS[cell.dow] || "bg-muted";
               return (
                 <button
                   key={i}
                   onClick={() => hasContent ? openDate(items[0]) : openNova(cell.iso)}
-                  className={`h-24 rounded border p-1.5 text-left relative transition-colors flex flex-col group ${
+                  className={`h-24 rounded border p-1.5 pb-2 text-left relative transition-colors flex flex-col group overflow-hidden ${
                     hasContent ? "bg-card hover:bg-accent/30 cursor-pointer border-border" : "bg-muted/10 hover:bg-muted/30 cursor-pointer border-dashed border-muted-foreground/20"
                   }`}
                 >
@@ -354,19 +409,19 @@ export function AbaCalendario() {
                     )}
                   </div>
                   <div className="mt-1 space-y-0.5 overflow-hidden flex-1">
-                    {items.slice(0, 2).map((it) => (
-                      <Badge key={it.id} className={`text-[9px] px-1 py-0 ${TIPO_COLORS[it.tipo] || "bg-gray-500 text-white"} block truncate w-full text-left`}>
-                        {it.titulo}
-                      </Badge>
-                    ))}
+                    {items.slice(0, 2).map((it) => {
+                      const canais = Array.from(new Set((it.conteudos_gerados || []).map((c: any) => c.canal).filter(Boolean)));
+                      const icons = canais.map((c) => CANAL_ICONS[c]).filter(Boolean).slice(0, 3).join("");
+                      const tit = (it.titulo || "").length > 20 ? (it.titulo || "").slice(0, 20) + "…" : it.titulo;
+                      return (
+                        <Badge key={it.id} className={`text-[9px] px-1 py-0 ${TIPO_COLORS[it.tipo] || "bg-gray-500 text-white"} block truncate w-full text-left`}>
+                          {icons && <span className="mr-0.5">{icons}</span>}{tit}
+                        </Badge>
+                      );
+                    })}
                     {items.length > 2 && <span className="text-[9px] text-muted-foreground">+{items.length - 2}</span>}
                   </div>
-                  {isSat && (
-                    <span className="text-[8px] px-1 py-0.5 rounded bg-orange-500 text-white self-start">Oferta</span>
-                  )}
-                  {isSun && (
-                    <span className="text-[8px] px-1 py-0.5 rounded bg-blue-500 text-white self-start">Relacionamento</span>
-                  )}
+                  <span className={`absolute bottom-0 left-0 right-0 h-1 ${funilBar}`} />
                 </button>
               );
             })}
@@ -382,14 +437,14 @@ export function AbaCalendario() {
             <DialogDescription>A IA irá gerar conteúdo estratégico baseado em:</DialogDescription>
           </DialogHeader>
           <ul className="text-sm space-y-1.5 py-2">
-            <li>✓ Produtos em campanha ativa</li>
-            <li>✓ Produtos mais vendidos</li>
-            <li>✓ Produtos com estoque parado</li>
-            <li>✓ Datas comemorativas do mês</li>
-            <li>✓ Histórico de conteúdo publicado</li>
+            <li>✓ 1 Reels + 1 Carrossel + Stories por dia útil</li>
+            <li>✓ Email + WhatsApp VIP em todos os dias úteis</li>
+            <li>✓ Sábados: campanha de oferta WhatsApp</li>
+            <li>✓ Domingos: relacionamento WhatsApp</li>
+            <li>✓ Lançamentos e reposições com fluxo completo</li>
           </ul>
-          <p className="text-xs text-muted-foreground border-t pt-3">
-            Padrão: 1 Reels + 1 Carrossel por data • Sábados: campanha de oferta • Domingos: reativação/relacionamento
+          <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded p-2">
+            ⚠️ A geração é feita semana por semana. Aguarde até 2 minutos.
           </p>
           <DialogFooter>
             <Button variant="outline" onClick={() => setConfirmGerar(false)}>Cancelar</Button>
@@ -420,7 +475,7 @@ export function AbaCalendario() {
                       <Badge className={TIPO_COLORS[selected.tipo]}>{selected.tipo}</Badge>
                     </SheetTitle>
                     <SheetDescription className="mt-1">
-                      {formatDDMM(selected.data)} {selected.descricao ? `• ${selected.descricao}` : ""}
+                      {formatLongDate(selected.data)} {selected.descricao ? `• ${selected.descricao}` : ""}
                     </SheetDescription>
                   </div>
                   <div className="flex gap-1 shrink-0">
@@ -434,31 +489,30 @@ export function AbaCalendario() {
                 </div>
               </SheetHeader>
 
-              <Tabs defaultValue="instagram" className="mt-6">
-                <TabsList className="grid grid-cols-3 w-full">
-                  <TabsTrigger value="instagram" className="text-xs">Instagram</TabsTrigger>
-                  <TabsTrigger value="email" className="text-xs">E-mail</TabsTrigger>
-                  <TabsTrigger value="whatsapp_vip" className="text-xs">WhatsApp VIP</TabsTrigger>
-                </TabsList>
-
-                <TabsContent value="instagram" className="mt-4">
-                  <Tabs defaultValue="instagram_reels">
-                    <TabsList className="grid grid-cols-2 w-full">
-                      <TabsTrigger value="instagram_reels" className="text-xs">🎬 Reels</TabsTrigger>
-                      <TabsTrigger value="instagram_feed" className="text-xs">🖼️ Carrossel</TabsTrigger>
+              {(() => {
+                const canaisOrder = ["instagram_reels", "instagram_feed", "instagram_story", "email", "whatsapp_vip"];
+                const present = canaisOrder.filter((k) => conteudos.some((c) => c.canal === k));
+                if (present.length === 0) {
+                  return <p className="text-sm text-muted-foreground mt-6">Nenhum conteúdo gerado para esta data ainda.</p>;
+                }
+                return (
+                  <Tabs defaultValue={present[0]} className="mt-6">
+                    <TabsList className="w-full flex flex-wrap h-auto">
+                      {present.map((k) => (
+                        <TabsTrigger key={k} value={k} className="text-xs flex-1">{CANAL_LABELS[k]}</TabsTrigger>
+                      ))}
                     </TabsList>
-                    {["instagram_reels", "instagram_feed"].map((canal) => {
-                      const list = conteudos.filter((c) => {
-                        const cc = (c as any).canal;
-                        return Array.isArray(cc) ? cc.includes(canal) : cc === canal;
-                      });
+                    {present.map((canal) => {
+                      const list = conteudos.filter((c) => c.canal === canal);
                       return (
                         <TabsContent key={canal} value={canal} className="space-y-4 mt-4">
-                          {list.length === 0 ? (
-                            <p className="text-sm text-muted-foreground">Sem conteúdo para este canal.</p>
-                          ) : (
-                            list.map((ct) => (
-                              <Card key={ct.id} className="p-3">
+                          {list.map((ct) => {
+                            const isLiveRoteiro = canal === "instagram_story" && (ct.copy_principal || "").startsWith("ROTEIRO LIVE");
+                            return (
+                              <Card key={ct.id} className={`p-3 ${isLiveRoteiro ? "bg-red-50 border-red-300" : ""}`}>
+                                {isLiveRoteiro && (
+                                  <div className="font-bold text-red-700 mb-2">🔴 ROTEIRO DA LIVE</div>
+                                )}
                                 <ConteudoEditor
                                   conteudo={ct}
                                   onSave={updateConteudoField}
@@ -466,41 +520,20 @@ export function AbaCalendario() {
                                   onRejeitar={() => rejeitarConteudo(ct.id)}
                                   onPublicar={() => publicarConteudo(ct.id)}
                                 />
+                                <div className="pt-3 mt-3 border-t">
+                                  <Button size="sm" variant="outline" className="gap-1 text-xs" onClick={() => setConfirmRegen({ data: selected.data, canal })}>
+                                    <Sparkles className="h-3.5 w-3.5" /> Regenerar canal
+                                  </Button>
+                                </div>
                               </Card>
-                            ))
-                          )}
+                            );
+                          })}
                         </TabsContent>
                       );
                     })}
                   </Tabs>
-                </TabsContent>
-
-                {["email", "whatsapp_vip"].map((canal) => {
-                  const list = conteudos.filter((c) => {
-                    const cc = (c as any).canal;
-                    return Array.isArray(cc) ? cc.includes(canal) : cc === canal;
-                  });
-                  return (
-                    <TabsContent key={canal} value={canal} className="space-y-4 mt-4">
-                      {list.length === 0 ? (
-                        <p className="text-sm text-muted-foreground">Sem conteúdo para este canal.</p>
-                      ) : (
-                        list.map((ct) => (
-                          <Card key={ct.id} className="p-3">
-                            <ConteudoEditor
-                              conteudo={ct}
-                              onSave={updateConteudoField}
-                              onAprovar={() => aprovarConteudo(ct.id)}
-                              onRejeitar={() => rejeitarConteudo(ct.id)}
-                              onPublicar={() => publicarConteudo(ct.id)}
-                            />
-                          </Card>
-                        ))
-                      )}
-                    </TabsContent>
-                  );
-                })}
-              </Tabs>
+                );
+              })()}
             </>
           )}
         </SheetContent>
@@ -536,6 +569,24 @@ export function AbaCalendario() {
             <AlertDialogCancel onClick={() => setConfirmLimparMes(false)}>Cancelar</AlertDialogCancel>
             <AlertDialogAction onClick={limparMes} className="bg-red-600 hover:bg-red-700">
               Limpar mês
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={!!confirmRegen} onOpenChange={(o) => !o && setConfirmRegen(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="font-serif">Regenerar este canal?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza? O conteúdo atual será substituído pelo novo gerado pela IA.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={regenLoading}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={(e) => { e.preventDefault(); regenerarCanal(); }} disabled={regenLoading}>
+              {regenLoading ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Sparkles className="h-4 w-4 mr-1" />}
+              Regenerar
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
