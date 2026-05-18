@@ -542,12 +542,14 @@ function AbaAcoes({ mesRef }: { mesRef: string }) {
             <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
               {distribuicao.map((d) => {
                 const isPico = semanaPico && d.semana === semanaPico.semana;
+                const isFraca = semanaFraca && !isPico && d.semana === semanaFraca.semana;
                 return (
-                  <Card key={d.semana} className={isPico ? "border-amber-400 border-2" : ""}>
+                  <Card key={d.semana} className={isPico ? "border-amber-400 border-2" : isFraca ? "border-red-300 border-2" : ""}>
                     <CardHeader className="pb-2">
                       <div className="flex items-center justify-between">
                         <CardDescription className="font-semibold">Semana {d.semana}</CardDescription>
                         {isPico && <Badge className="bg-amber-500 hover:bg-amber-500 text-white">🏆 Pico</Badge>}
+                        {isFraca && <Badge className="bg-red-500 hover:bg-red-500 text-white">⚠️ Fraca</Badge>}
                       </div>
                     </CardHeader>
                     <CardContent className="space-y-1.5">
