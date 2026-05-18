@@ -695,11 +695,16 @@ function ConteudoEditor({
         <Textarea rows={2} value={local.feedback_usuario || ""} onChange={(e) => setLocal({ ...local, feedback_usuario: e.target.value })} onBlur={() => blur("feedback_usuario")} />
       </div>
 
-      <div className="flex items-center gap-2 pt-2">
-        <Button onClick={onAprovar} className="gap-1 bg-green-600 hover:bg-green-700 text-white">
+      <div className="flex items-center gap-2 pt-2 flex-wrap">
+        <Button onClick={onAprovar} size="sm" className="gap-1 bg-green-600 hover:bg-green-700 text-white">
           <Check className="h-4 w-4" /> Aprovar
         </Button>
-        <Button onClick={onRejeitar} variant="outline" className="gap-1">
+        {onPublicar && (
+          <Button onClick={onPublicar} size="sm" className="gap-1 bg-blue-600 hover:bg-blue-700 text-white">
+            Publicar
+          </Button>
+        )}
+        <Button onClick={onRejeitar} size="sm" variant="outline" className="gap-1">
           <X className="h-4 w-4" /> Rejeitar
         </Button>
         {local.status && <Badge variant="secondary" className="ml-auto">{local.status}</Badge>}
