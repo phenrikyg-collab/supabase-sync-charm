@@ -224,11 +224,9 @@ export function AbaSugestoesAutomaticas() {
                         {cfg ? <Badge variant="outline" className={cfg.className}>{cfg.label}</Badge> : "—"}
                       </TableCell>
                       <TableCell className="text-right">
-                        {p.apto_campanha && (
-                          <Button size="sm" onClick={() => abrirModal(p)}>
-                            <Plus className="h-3 w-3 mr-1" /> Campanha
-                          </Button>
-                        )}
+                        <Button size="sm" onClick={() => abrirModal(p)}>
+                          <Plus className="h-3 w-3 mr-1" /> Campanha
+                        </Button>
                       </TableCell>
                     </TableRow>
                   );
