@@ -461,6 +461,15 @@ function ChecklistRow({ item, onUpdate }: { item: ChecklistItem; onUpdate: (id: 
 }
 
 // ---------- formulário ----------
+type ProdutoOpt = {
+  id: string;
+  nome_do_produto: string;
+  codigo_sku: string | null;
+  preco_venda: number | null;
+  tipo_do_produto: string | null;
+  tecido_do_produto: string | null;
+};
+
 function LancamentoForm({
   open, onOpenChange, editing, onSaved,
 }: {
@@ -469,7 +478,6 @@ function LancamentoForm({
   editing: Lancamento | null;
   onSaved: () => void;
 }) {
-  const det0 = parseDetalhes(editing?.descricao || null);
   const [nome, setNome] = useState("");
   const [tipo, setTipo] = useState<string>("lancamento");
   const [data, setData] = useState("");
@@ -485,6 +493,11 @@ function LancamentoForm({
   const [referencia, setReferencia] = useState("");
   const [canais, setCanais] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
+
+  // produtos cadastrados (para pré-preencher o formulário)
+  const [produtos, setProdutos] = useState<ProdutoOpt[]>([]);
+  const [produtoBusca, setProdutoBusca] = useState("");
+  const [produtoSelecionadoId, setProdutoSelecionadoId] = useState<string>("");
 
   useEffect(() => {
     if (!open) return;
@@ -503,7 +516,47 @@ function LancamentoForm({
     setLifestyle(d.lifestyle || "");
     setReferencia(d.referencia_foto || "");
     setCanais(d.canais || []);
+    setProdutoBusca("");
+    setProdutoSelecionadoId("");
   }, [open, editing]);
+
+  // carrega produtos uma vez quando o form abre
+  useEffect(() => {
+    if (!open || produtos.length > 0) return;
+    (async () => {
+      const { data, error } = await (supabase as any)
+        .from("produtos")
+        .select("id, nome_do_produto, codigo_sku, preco_venda, tipo_do_produto, tecido_do_produto, ativo")
+        .eq("ativo", true)
+        .order("nome_do_produto", { ascending: true });
+      if (error) {
+        toast.error("Erro ao carregar produtos", { description: error.message });
+        return;
+      }
+      setProdutos((data || []) as ProdutoOpt[]);
+    })();
+  }, [open, produtos.length]);
+
+  const aplicarProduto = (p: ProdutoOpt) => {
+    setProdutoSelecionadoId(p.id);
+    setNome(p.nome_do_produto || "");
+    if (p.preco_venda != null) setPreco(String(p.preco_venda));
+    if (p.tecido_do_produto) setTecido(p.tecido_do_produto);
+    if (p.tipo_do_produto && !silhueta) setSilhueta(p.tipo_do_produto);
+    toast.success("Dados do produto carregados", {
+      description: p.codigo_sku ? `SKU: ${p.codigo_sku}` : undefined,
+    });
+  };
+
+  const produtosFiltrados = produtoBusca.trim().length === 0
+    ? produtos.slice(0, 8)
+    : produtos.filter((p) => {
+        const q = produtoBusca.toLowerCase();
+        return (
+          (p.nome_do_produto || "").toLowerCase().includes(q) ||
+          (p.codigo_sku || "").toLowerCase().includes(q)
+        );
+      }).slice(0, 20);
 
   const toggle = (arr: string[], v: string, setter: (a: string[]) => void) => {
     setter(arr.includes(v) ? arr.filter((x) => x !== v) : [...arr, v]);
