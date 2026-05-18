@@ -205,15 +205,15 @@ export function AbaSugestoesAutomaticas() {
         <MetricCard label="Vendendo bem" value={metricas.bem} cls="border-blue-300 text-blue-700" />
       </div>
 
-      <div className="flex flex-col sm:flex-row gap-3">
+      <div className="flex flex-col sm:flex-row gap-3 flex-wrap">
         <Input
           placeholder="Buscar por nome do produto..."
           value={busca}
           onChange={(e) => setBusca(e.target.value)}
-          className="sm:max-w-md"
+          className="sm:max-w-xs"
         />
         <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="sm:w-64"><SelectValue /></SelectTrigger>
+          <SelectTrigger className="sm:w-56"><SelectValue placeholder="Status" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="todos">Todos os status</SelectItem>
             <SelectItem value="urgente_antigo">Urgente (antigo)</SelectItem>
@@ -223,6 +223,22 @@ export function AbaSugestoesAutomaticas() {
             <SelectItem value="vendendo_bem">Vendendo bem</SelectItem>
           </SelectContent>
         </Select>
+        <Select value={idadeFilter} onValueChange={setIdadeFilter}>
+          <SelectTrigger className="sm:w-56"><SelectValue placeholder="Idade" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="todos">Qualquer idade</SelectItem>
+            <SelectItem value="90">≥ 90 dias</SelectItem>
+            <SelectItem value="180">≥ 180 dias</SelectItem>
+            <SelectItem value="365">≥ 1 ano</SelectItem>
+          </SelectContent>
+        </Select>
+        <Button
+          variant={girarUrgente ? "default" : "outline"}
+          onClick={() => setGirarUrgente(v => !v)}
+          className={girarUrgente ? "bg-orange-600 hover:bg-orange-700" : ""}
+        >
+          Precisam girar
+        </Button>
       </div>
 
       <Card>
