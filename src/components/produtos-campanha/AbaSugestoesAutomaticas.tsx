@@ -32,6 +32,8 @@ interface ProdutoCampanhaRow {
   percentual_abaixo_media: number | null;
   status_campanha: string | null;
   apto_campanha: boolean | null;
+  dias_desde_criacao?: number | null;
+  urgencia_score?: number;
 }
 
 const STATUS_CONFIG: Record<string, { label: string; className: string }> = {
