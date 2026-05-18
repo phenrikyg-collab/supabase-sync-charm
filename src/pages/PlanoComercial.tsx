@@ -580,7 +580,7 @@ function AbaAcoes({ mesRef }: { mesRef: string }) {
               </CardContent>
             </Card>
           ) : (
-            [1, 2, 3, 4].map((s) => (
+            semanasParaExibir.map((s) => (
               <Card key={s}>
                 <CardHeader>
                   <div className="flex items-center justify-between flex-wrap gap-2">
