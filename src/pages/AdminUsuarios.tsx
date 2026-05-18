@@ -116,35 +116,26 @@ function AdminUsuariosContent() {
     if (!email || !password) return;
     setLoading(true);
 
-    const { data: signUpData, error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: { emailRedirectTo: window.location.origin },
-    });
+    try {
+      const res = await invokeEdgeFunction("criar-usuario", {
+        email,
+        password,
+        modules: selectedModules,
+      }) as { user?: { id: string }; error?: string };
 
-    if (error) {
-      toast({ title: "Erro ao criar usuário", description: error.message, variant: "destructive" });
+      if (res?.error) throw new Error(res.error);
+
+      toast({ title: "Usuário criado", description: `Acesso criado para ${email}` });
+      setEmail("");
+      setPassword("");
+      setSelectedModules(["comercial", "producao", "financeiro", "logistica", "marketing"]);
+      fetchUsers();
+      queryClient.invalidateQueries({ queryKey: ["user-modules"] });
+    } catch (err: any) {
+      toast({ title: "Erro ao criar usuário", description: err.message, variant: "destructive" });
+    } finally {
       setLoading(false);
-      return;
     }
-
-    // Assign modules to new user
-    const newUserId = signUpData.user?.id;
-    if (newUserId && selectedModules.length > 0) {
-      const inserts = selectedModules.map((mod) => ({
-        user_id: newUserId,
-        module: mod,
-      }));
-      await supabase.from("user_modules").insert(inserts);
-    }
-
-    toast({ title: "Usuário criado", description: `Acesso criado para ${email}` });
-    setEmail("");
-    setPassword("");
-    setSelectedModules(["comercial", "producao", "financeiro", "logistica", "marketing"]);
-    setLoading(false);
-    fetchUsers();
-    queryClient.invalidateQueries({ queryKey: ["user-modules"] });
   };
 
   const toggleNewModule = (mod: AppModule) => {

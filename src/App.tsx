@@ -46,6 +46,7 @@ import PlanoProducao from "./pages/PlanoProducao";
 import Marketing from "./pages/Marketing";
 import PadroesPedidos from "./pages/PadroesPedidos";
 import { Loader2 } from "lucide-react";
+import { useUserModules } from "@/hooks/useUserModules";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -67,6 +68,30 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+const MODULE_HOME: Record<string, string> = {
+  comercial: "/dashboard-comercial",
+  producao: "/ordens-producao",
+  financeiro: "/dashboard-financeiro",
+  logistica: "/bonificacao-expedicao",
+  marketing: "/marketing",
+};
+
+function HomeRedirect() {
+  const { modules, isLoading } = useUserModules();
+  if (isLoading) return (
+    <div className="min-h-[60vh] flex items-center justify-center">
+      <Loader2 className="h-8 w-8 animate-spin text-primary" />
+    </div>
+  );
+  // Admin or full access default
+  if (modules.length === 0 || modules.includes("comercial")) {
+    return <Navigate to="/dashboard-comercial" replace />;
+  }
+  const order: string[] = ["comercial", "financeiro", "producao", "logistica", "marketing"];
+  const first = order.find((m) => modules.includes(m as any)) || "comercial";
+  return <Navigate to={MODULE_HOME[first]} replace />;
+}
+
 const AppRoutes = () => {
   const { user, loading } = useAuth();
 
@@ -85,7 +110,7 @@ const AppRoutes = () => {
         <ProtectedRoute>
           <AppLayout>
             <Routes>
-              <Route path="/" element={<DashboardComercialPage />} />
+              <Route path="/" element={<HomeRedirect />} />
               <Route path="/dashboard-comercial" element={<DashboardComercialPage />} />
               <Route path="/dashboard-antigo" element={<Dashboard />} />
               <Route path="/produtos" element={<Produtos />} />
