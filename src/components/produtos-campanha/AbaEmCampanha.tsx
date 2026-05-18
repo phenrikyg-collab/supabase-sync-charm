@@ -73,6 +73,10 @@ export function AbaEmCampanha() {
   const [viewMap, setViewMap] = useState<Record<string, ViewRow>>({});
   const [editing, setEditing] = useState<CampanhaRow | null>(null);
   const [form, setForm] = useState({ motivo: "", prioridade: 3, meta_vendas: "", observacao: "" });
+  const [textoCampanha, setTextoCampanha] = useState<{ campanha: CampanhaRow; view?: ViewRow } | null>(null);
+  const [textoCanal, setTextoCanal] = useState<"instagram" | "email" | "whatsapp">("instagram");
+  const [textoLoading, setTextoLoading] = useState(false);
+  const [textoGerado, setTextoGerado] = useState<Record<string, string>>({});
 
   async function carregar() {
     setLoading(true);
