@@ -91,9 +91,7 @@ export function AbaCalendario() {
   const [novaDataOpen, setNovaDataOpen] = useState(false);
   const [editing, setEditing] = useState<Calendario | null>(null);
   const [novaDataInitial, setNovaDataInitial] = useState<string>("");
-  const [selected, setSelected] = useState<Calendario | null>(null);
-  const [conteudos, setConteudos] = useState<Conteudo[]>([]);
-  const [loadingConteudos, setLoadingConteudos] = useState(false);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<Calendario | null>(null);
 
   const mesRef = `${ano}-${pad(mes + 1)}`;
@@ -124,6 +122,9 @@ export function AbaCalendario() {
 
   useEffect(() => { fetchDatas(); }, [fetchDatas]);
 
+  const selected = useMemo(() => datas.find((d) => d.id === selectedId) || null, [datas, selectedId]);
+  const conteudos = useMemo(() => (selected?.conteudos_gerados || []) as Conteudo[], [selected]);
+
   const handleGerar = async () => {
     setConfirmGerar(false);
     setGerando(true);
@@ -138,27 +139,7 @@ export function AbaCalendario() {
     }
   };
 
-  const fetchConteudos = useCallback(async (calId: string) => {
-    setLoadingConteudos(true);
-    try {
-      const { data, error } = await (supabase as any)
-        .from("conteudos_gerados")
-        .select("*")
-        .eq("calendario_id", calId);
-      if (error) throw error;
-      setConteudos((data || []) as Conteudo[]);
-    } catch (e: any) {
-      toast.error("Erro ao carregar conteúdos", { description: e.message });
-      setConteudos([]);
-    } finally {
-      setLoadingConteudos(false);
-    }
-  }, []);
-
-  const openDate = (d: Calendario) => {
-    setSelected(d);
-    fetchConteudos(d.id);
-  };
+  const openDate = (d: Calendario) => setSelectedId(d.id);
 
   const updateConteudoField = async (id: string, field: string, value: any) => {
     try {
@@ -167,6 +148,7 @@ export function AbaCalendario() {
         .update({ [field]: value, updated_at: new Date().toISOString() })
         .eq("id", id);
       if (error) throw error;
+      await fetchDatas();
     } catch (e: any) {
       toast.error("Erro ao salvar", { description: e.message });
     }
@@ -177,8 +159,12 @@ export function AbaCalendario() {
     await updateConteudoField(cid, "status", "aprovado");
     await (supabase as any).from("calendario_comercial").update({ status: "aprovado" }).eq("id", selected.id);
     toast.success("Aprovado");
-    fetchConteudos(selected.id);
     fetchDatas();
+  };
+
+  const publicarConteudo = async (cid: string) => {
+    await updateConteudoField(cid, "status", "publicado");
+    toast.success("Publicado");
   };
 
   const handleDelete = async (cal: Calendario) => {
@@ -188,7 +174,7 @@ export function AbaCalendario() {
       if (error) throw error;
       toast.success("Data excluída");
       setConfirmDelete(null);
-      if (selected?.id === cal.id) setSelected(null);
+      if (selectedId === cal.id) setSelectedId(null);
       fetchDatas();
     } catch (e: any) {
       toast.error("Erro ao excluir", { description: e.message });
@@ -209,7 +195,6 @@ export function AbaCalendario() {
   const rejeitarConteudo = async (cid: string) => {
     await updateConteudoField(cid, "status", "rejeitado");
     toast("Rejeitado");
-    if (selected) fetchConteudos(selected.id);
   };
 
   const cells = useMemo(() => {
@@ -363,13 +348,13 @@ export function AbaCalendario() {
       <NovaDataDialog
         open={novaDataOpen}
         onOpenChange={(o) => { setNovaDataOpen(o); if (!o) { setEditing(null); setNovaDataInitial(""); } }}
-        onSaved={() => { fetchDatas(); if (editing && selected?.id === editing.id) setSelected(null); }}
+        onSaved={() => { fetchDatas(); if (editing && selectedId === editing.id) setSelectedId(null); }}
         editing={editing}
         initialDate={novaDataInitial}
       />
 
       {/* Drawer */}
-      <Sheet open={!!selected} onOpenChange={(o) => !o && setSelected(null)}>
+      <Sheet open={!!selected} onOpenChange={(o) => !o && setSelectedId(null)}>
         <SheetContent className="w-full sm:max-w-2xl overflow-y-auto">
           {selected && (
             <>
@@ -395,74 +380,78 @@ export function AbaCalendario() {
                 </div>
               </SheetHeader>
 
-              {loadingConteudos ? (
-                <div className="mt-6 space-y-2">
-                  <Skeleton className="h-10 w-full" />
-                  <Skeleton className="h-40 w-full" />
-                </div>
-              ) : (
-                <Tabs defaultValue="instagram" className="mt-6">
-                  <TabsList className="grid grid-cols-3 w-full">
-                    <TabsTrigger value="instagram" className="text-xs">Instagram</TabsTrigger>
-                    <TabsTrigger value="email" className="text-xs">E-mail</TabsTrigger>
-                    <TabsTrigger value="whatsapp_vip" className="text-xs">WhatsApp VIP</TabsTrigger>
-                  </TabsList>
+              <Tabs defaultValue="instagram" className="mt-6">
+                <TabsList className="grid grid-cols-3 w-full">
+                  <TabsTrigger value="instagram" className="text-xs">Instagram</TabsTrigger>
+                  <TabsTrigger value="email" className="text-xs">E-mail</TabsTrigger>
+                  <TabsTrigger value="whatsapp_vip" className="text-xs">WhatsApp VIP</TabsTrigger>
+                </TabsList>
 
-                  <TabsContent value="instagram" className="mt-4">
-                    <Tabs defaultValue="instagram_reels">
-                      <TabsList className="grid grid-cols-2 w-full">
-                        <TabsTrigger value="instagram_reels" className="text-xs">Reels</TabsTrigger>
-                        <TabsTrigger value="instagram_feed" className="text-xs">Carrossel</TabsTrigger>
-                      </TabsList>
-                      {["instagram_reels", "instagram_feed"].map((canal) => {
-                        const ct = conteudos.find((c) => {
-                          const cc = (c as any).canal;
-                          return Array.isArray(cc) ? cc.includes(canal) : cc === canal;
-                        });
-                        return (
-                          <TabsContent key={canal} value={canal} className="space-y-3 mt-4">
-                            {!ct ? (
-                              <p className="text-sm text-muted-foreground">Sem conteúdo para este canal.</p>
-                            ) : (
-                              <ConteudoEditor
-                                conteudo={ct}
-                                onSave={updateConteudoField}
-                                onAprovar={() => aprovarConteudo(ct.id)}
-                                onRejeitar={() => rejeitarConteudo(ct.id)}
-                              />
-                            )}
-                          </TabsContent>
-                        );
-                      })}
-                    </Tabs>
-                  </TabsContent>
+                <TabsContent value="instagram" className="mt-4">
+                  <Tabs defaultValue="instagram_reels">
+                    <TabsList className="grid grid-cols-2 w-full">
+                      <TabsTrigger value="instagram_reels" className="text-xs">🎬 Reels</TabsTrigger>
+                      <TabsTrigger value="instagram_feed" className="text-xs">🖼️ Carrossel</TabsTrigger>
+                    </TabsList>
+                    {["instagram_reels", "instagram_feed"].map((canal) => {
+                      const list = conteudos.filter((c) => {
+                        const cc = (c as any).canal;
+                        return Array.isArray(cc) ? cc.includes(canal) : cc === canal;
+                      });
+                      return (
+                        <TabsContent key={canal} value={canal} className="space-y-4 mt-4">
+                          {list.length === 0 ? (
+                            <p className="text-sm text-muted-foreground">Sem conteúdo para este canal.</p>
+                          ) : (
+                            list.map((ct) => (
+                              <Card key={ct.id} className="p-3">
+                                <ConteudoEditor
+                                  conteudo={ct}
+                                  onSave={updateConteudoField}
+                                  onAprovar={() => aprovarConteudo(ct.id)}
+                                  onRejeitar={() => rejeitarConteudo(ct.id)}
+                                  onPublicar={() => publicarConteudo(ct.id)}
+                                />
+                              </Card>
+                            ))
+                          )}
+                        </TabsContent>
+                      );
+                    })}
+                  </Tabs>
+                </TabsContent>
 
-                  {["email", "whatsapp_vip"].map((canal) => {
-                    const ct = conteudos.find((c) => {
-                      const cc = (c as any).canal;
-                      return Array.isArray(cc) ? cc.includes(canal) : cc === canal;
-                    });
-                    return (
-                      <TabsContent key={canal} value={canal} className="space-y-3 mt-4">
-                        {!ct ? (
-                          <p className="text-sm text-muted-foreground">Sem conteúdo para este canal.</p>
-                        ) : (
-                          <ConteudoEditor
-                            conteudo={ct}
-                            onSave={updateConteudoField}
-                            onAprovar={() => aprovarConteudo(ct.id)}
-                            onRejeitar={() => rejeitarConteudo(ct.id)}
-                          />
-                        )}
-                      </TabsContent>
-                    );
-                  })}
-                </Tabs>
-              )}
+                {["email", "whatsapp_vip"].map((canal) => {
+                  const list = conteudos.filter((c) => {
+                    const cc = (c as any).canal;
+                    return Array.isArray(cc) ? cc.includes(canal) : cc === canal;
+                  });
+                  return (
+                    <TabsContent key={canal} value={canal} className="space-y-4 mt-4">
+                      {list.length === 0 ? (
+                        <p className="text-sm text-muted-foreground">Sem conteúdo para este canal.</p>
+                      ) : (
+                        list.map((ct) => (
+                          <Card key={ct.id} className="p-3">
+                            <ConteudoEditor
+                              conteudo={ct}
+                              onSave={updateConteudoField}
+                              onAprovar={() => aprovarConteudo(ct.id)}
+                              onRejeitar={() => rejeitarConteudo(ct.id)}
+                              onPublicar={() => publicarConteudo(ct.id)}
+                            />
+                          </Card>
+                        ))
+                      )}
+                    </TabsContent>
+                  );
+                })}
+              </Tabs>
             </>
           )}
         </SheetContent>
       </Sheet>
+
 
       <AlertDialog open={!!confirmDelete} onOpenChange={(o) => !o && setConfirmDelete(null)}>
         <AlertDialogContent>
@@ -605,12 +594,13 @@ function NovaDataDialog({ open, onOpenChange, onSaved, editing, initialDate }: {
 }
 
 function ConteudoEditor({
-  conteudo, onSave, onAprovar, onRejeitar,
+  conteudo, onSave, onAprovar, onRejeitar, onPublicar,
 }: {
   conteudo: Conteudo;
   onSave: (id: string, field: string, value: any) => Promise<void>;
   onAprovar: () => void;
   onRejeitar: () => void;
+  onPublicar?: () => void;
 }) {
   const [local, setLocal] = useState(conteudo);
   useEffect(() => setLocal(conteudo), [conteudo.id]);
@@ -705,11 +695,16 @@ function ConteudoEditor({
         <Textarea rows={2} value={local.feedback_usuario || ""} onChange={(e) => setLocal({ ...local, feedback_usuario: e.target.value })} onBlur={() => blur("feedback_usuario")} />
       </div>
 
-      <div className="flex items-center gap-2 pt-2">
-        <Button onClick={onAprovar} className="gap-1 bg-green-600 hover:bg-green-700 text-white">
+      <div className="flex items-center gap-2 pt-2 flex-wrap">
+        <Button onClick={onAprovar} size="sm" className="gap-1 bg-green-600 hover:bg-green-700 text-white">
           <Check className="h-4 w-4" /> Aprovar
         </Button>
-        <Button onClick={onRejeitar} variant="outline" className="gap-1">
+        {onPublicar && (
+          <Button onClick={onPublicar} size="sm" className="gap-1 bg-blue-600 hover:bg-blue-700 text-white">
+            Publicar
+          </Button>
+        )}
+        <Button onClick={onRejeitar} size="sm" variant="outline" className="gap-1">
           <X className="h-4 w-4" /> Rejeitar
         </Button>
         {local.status && <Badge variant="secondary" className="ml-auto">{local.status}</Badge>}
