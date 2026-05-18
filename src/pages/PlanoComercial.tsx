@@ -253,12 +253,34 @@ export default function PlanoComercial() {
           </div>
         </div>
         <div className="flex items-end gap-3">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={async () => {
+              const mes = "2026-07";
+              const [r1, r2, r3, r4] = await Promise.all([
+                supabase.from("planos_comerciais" as any).select("id, mes_referencia, status").eq("mes_referencia", mes),
+                supabase.from("acoes_comerciais" as any).select("id, semana, tipo_acao, titulo").eq("mes_referencia", mes).limit(5),
+                supabase.from("vw_padroes_pedidos" as any).select("semana_do_mes, total_pedidos").limit(5),
+                supabase.from("vw_kpis_trafego" as any).select("mes_referencia, total_sessoes, cps, roas").limit(3),
+              ]);
+              alert(JSON.stringify({
+                planos: r1.data, planos_erro: r1.error,
+                acoes: r2.data, acoes_erro: r2.error,
+                padrao: r3.data, padrao_erro: r3.error,
+                kpis: r4.data, kpis_erro: r4.error,
+              }, null, 2));
+            }}
+          >
+            🔍 Debug
+          </Button>
           <div>
             <Label className="text-xs">Mês de referência</Label>
             <Input type="month" value={mesRef} onChange={(e) => setMesRef(e.target.value)} className="w-[180px]" />
           </div>
           <div className="text-xs text-muted-foreground pb-2.5">{formatMesLabel(mesRef)}</div>
         </div>
+
       </div>
 
       <Tabs value={tab} onValueChange={setTab} className="w-full">
