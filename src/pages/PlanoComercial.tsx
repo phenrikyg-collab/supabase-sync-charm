@@ -181,7 +181,7 @@ export default function PlanoComercial() {
 }
 
 // ===================== Aba 1: Criar Plano =====================
-function AbaCriarPlano({ mesRef, setMesRef, onGenerated }: { mesRef: string; setMesRef: (s: string) => void; onGenerated: () => void }) {
+function AbaCriarPlano({ mesRef, onGenerated }: { mesRef: string; onGenerated: () => void }) {
   const [metaReceita, setMetaReceita] = useState<string>("");
   const [investimento, setInvestimento] = useState<string>("");
   const [loadingSugestoes, setLoadingSugestoes] = useState(false);
