@@ -917,11 +917,10 @@ function AbaKpisTrafego({ mesRef }: { mesRef: string }) {
 
   const load = async () => {
     setLoading(true);
-    const mesAtual = mesAtualStr();
     const [{ data: ks }, { data: invs }, { data: planos }] = await Promise.all([
       supabase.from("vw_kpis_trafego" as any).select("*").order("mes_referencia", { ascending: false }).limit(6),
       supabase.from("investimentos_midia" as any).select("*").order("mes_referencia", { ascending: false }).limit(12),
-      supabase.from("planos_comerciais" as any).select("*").eq("mes_referencia", mesAtual).order("created_at", { ascending: false }).limit(1),
+      supabase.from("planos_comerciais" as any).select("*").eq("mes_referencia", mesRef).order("created_at", { ascending: false }).limit(1),
     ]);
     setKpis(((ks as any) || []) as KpiRow[]);
     setInvestimentos(((invs as any) || []) as Investimento[]);
@@ -929,38 +928,55 @@ function AbaKpisTrafego({ mesRef }: { mesRef: string }) {
     setLoading(false);
   };
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => { load(); /* eslint-disable-next-line */ }, [mesRef]);
 
   const atual = kpis[0];
+  // Médias dos últimos 3 meses (conforme spec)
+  const ultimos3 = useMemo(() => kpis.slice(0, 3), [kpis]);
   const ticketHist = useMemo(() => {
-    if (!kpis.length) return 0;
-    return kpis.reduce((s, k) => s + Number(k.ticket_medio || 0), 0) / kpis.length;
-  }, [kpis]);
+    if (!ultimos3.length) return 0;
+    return ultimos3.reduce((s, k) => s + Number(k.ticket_medio || 0), 0) / ultimos3.length;
+  }, [ultimos3]);
   const conversaoHist = useMemo(() => {
-    if (!kpis.length) return 0;
-    return kpis.reduce((s, k) => s + Number(k.taxa_conversao_pct || 0), 0) / kpis.length;
-  }, [kpis]);
+    if (!ultimos3.length) return 0;
+    return ultimos3.reduce((s, k) => s + Number(k.taxa_conversao_pct || 0), 0) / ultimos3.length;
+  }, [ultimos3]);
+  const cpsHist = useMemo(() => {
+    if (!ultimos3.length) return 0;
+    return ultimos3.reduce((s, k) => s + Number(k.cps || 0), 0) / ultimos3.length;
+  }, [ultimos3]);
+  const roasHist = useMemo(() => {
+    if (!ultimos3.length) return 0;
+    return ultimos3.reduce((s, k) => s + Number(k.roas || 0), 0) / ultimos3.length;
+  }, [ultimos3]);
 
   const simMetaNum = Number(simMeta) || 0;
   const simInvNum = Number(simInv) || 0;
-  const simPedidos = ticketHist ? simMetaNum / ticketHist : 0;
-  const simSessoes = conversaoHist ? simPedidos / (conversaoHist / 100) : 0;
-  const simCps = simSessoes ? simInvNum / simSessoes : 0;
+  const simPedidos = ticketHist ? Math.ceil(simMetaNum / ticketHist) : 0;
+  const simSessoes = conversaoHist ? Math.ceil(simPedidos / (conversaoHist / 100)) : 0;
+  const simCps = simSessoes && simInvNum ? simInvNum / simSessoes : 0;
   const simRoas = simInvNum ? simMetaNum / simInvNum : 0;
 
+  // Viabilidade individual
+  const cpsViavel = cpsHist > 0 && simCps > 0 ? simCps <= cpsHist * 1.2 : null;
+  const roasViavel = roasHist > 0 && simRoas > 0 ? simRoas <= roasHist * 1.5 : null;
+
   const semaforo = (() => {
-    if (!atual || !simSessoes) return "muted";
-    const ratioCps = atual.cps && simCps ? simCps / atual.cps : 1;
-    if (ratioCps >= 0.9 && simRoas <= (atual.roas || 0) * 1.1) return "verde";
-    if (ratioCps >= 0.6) return "amarelo";
+    if (!simSessoes || !cpsHist) return "muted";
+    if (cpsViavel && roasViavel) return "verde";
+    if (cpsViavel || roasViavel) return "amarelo";
     return "vermelho";
   })();
   const semaforoStyle = {
-    verde: "bg-emerald-100 border-emerald-400 text-emerald-900",
-    amarelo: "bg-amber-100 border-amber-400 text-amber-900",
-    vermelho: "bg-red-100 border-red-400 text-red-900",
-    muted: "bg-muted border-muted",
+    verde: "bg-emerald-50 border-emerald-400 text-emerald-900",
+    amarelo: "bg-amber-50 border-amber-400 text-amber-900",
+    vermelho: "bg-red-50 border-red-400 text-red-900",
+    muted: "bg-muted/30 border-border",
   }[semaforo];
+
+  const cpsBadge = cpsViavel == null ? "" : cpsViavel ? "text-emerald-700" : (simCps <= cpsHist * 1.5 ? "text-amber-700" : "text-red-700");
+  const roasBadge = roasViavel == null ? "" : roasViavel ? "text-emerald-700" : "text-red-700";
+
 
   const updateInv = async (mes: string, field: keyof Investimento, value: number) => {
     const row = investimentos.find((i) => i.mes_referencia === mes);
