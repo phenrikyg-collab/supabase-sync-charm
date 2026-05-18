@@ -223,6 +223,7 @@ export function AbaSugestoesAutomaticas() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Produto</TableHead>
+                  <TableHead>Idade</TableHead>
                   <TableHead>Preço</TableHead>
                   <TableHead>Estoque</TableHead>
                   <TableHead>Vendas</TableHead>
