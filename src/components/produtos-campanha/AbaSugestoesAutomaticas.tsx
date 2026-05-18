@@ -288,7 +288,7 @@ export function AbaSugestoesAutomaticas() {
                   );
                 })}
                 {!pagedRows.length && (
-                  <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground py-8">
+                  <TableRow><TableCell colSpan={9} className="text-center text-muted-foreground py-8">
                     Nenhum produto encontrado
                   </TableCell></TableRow>
                 )}
