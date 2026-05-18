@@ -248,6 +248,17 @@ export function AbaSugestoesAutomaticas() {
                           </a>
                         ) : p.nome_produto}
                       </TableCell>
+                      <TableCell>
+                        {p.dias_desde_criacao != null ? (
+                          <Badge variant="outline" className={
+                            p.dias_desde_criacao >= 180 ? "bg-orange-100 text-orange-800" :
+                            p.dias_desde_criacao >= 90 ? "bg-yellow-100 text-yellow-800" :
+                            "bg-muted text-muted-foreground"
+                          }>
+                            {p.dias_desde_criacao}d
+                          </Badge>
+                        ) : "—"}
+                      </TableCell>
                       <TableCell>{brl(p.preco)}</TableCell>
                       <TableCell>{estoqueBadge(p.estoque_total)}</TableCell>
                       <TableCell>{p.total_vendas ?? 0}</TableCell>
