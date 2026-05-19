@@ -470,6 +470,46 @@ type ProdutoOpt = {
   tecido_do_produto: string | null;
 };
 
+type TrayProd = {
+  id: string;                 // "tray-{variant_product_id}"
+  variant_product_id: number;
+  nome: string;               // derivado do slug da URL
+  reference: string | null;   // ex. PREGA-AZ
+  custo: number | null;       // variant_cost_price (mín. > 0)
+  preco: number | null;       // variant_price (máx.)
+  cores: string[];
+  tamanhos: string[];
+  qtdVariantes: number;
+  jaCadastrado: boolean;      // match com produtos pelo nome/SKU
+};
+
+// decodifica escapes do dict-python (\xf3 → ó)
+function decodePy(s: string): string {
+  return s.replace(/\\x([0-9a-fA-F]{2})/g, (_, h) =>
+    String.fromCharCode(parseInt(h, 16))
+  );
+}
+function slugify(s: string) {
+  return s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
+}
+function extrairNomeTray(url: string | null): string {
+  if (!url) return "";
+  const m = url.match(/\/([a-z0-9-]+)\?variant_id=/i);
+  if (!m) return "";
+  return m[1].split("-").map((p) => p.charAt(0).toUpperCase() + p.slice(1)).join(" ");
+}
+function extrairCorTray(sku: string | null): string | null {
+  if (!sku) return null;
+  const m = sku.match(/'type':\s*u?'Cor'[^}]*'value':\s*u?'([^']+)'/i);
+  return m ? decodePy(m[1]).trim() : null;
+}
+function extrairTamanhoTray(sku: string | null): string | null {
+  if (!sku) return null;
+  const m = sku.match(/'type':\s*u?'Tamanho'[^}]*'value':\s*u?'([^']+)'/i);
+  return m ? decodePy(m[1]).trim() : null;
+}
+
 function LancamentoForm({
   open, onOpenChange, editing, onSaved,
 }: {
