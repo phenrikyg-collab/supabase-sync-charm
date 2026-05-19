@@ -577,39 +577,17 @@ function LancamentoForm({
     })();
   }, [open, produtos.length]);
 
-  // produtos cadastrados (para pré-preencher o formulário)
-  const [produtos, setProdutos] = useState<ProdutoOpt[]>([]);
-  const [produtoBusca, setProdutoBusca] = useState("");
-  const [produtoSelecionadoId, setProdutoSelecionadoId] = useState<string>("");
+  // produtos Tray (importados da loja)
   const [trayProdutos, setTrayProdutos] = useState<TrayProd[]>([]);
   const [fonte, setFonte] = useState<"cadastrados" | "tray">("cadastrados");
   const [trayAplicado, setTrayAplicado] = useState<TrayProd | null>(null);
 
-  // (resetar campos do form já ocorre acima)
   useEffect(() => {
     if (!open) return;
-    setProdutoBusca("");
-    setProdutoSelecionadoId("");
     setTrayAplicado(null);
     setFonte("cadastrados");
   }, [open, editing]);
 
-  // carrega produtos uma vez quando o form abre
-  useEffect(() => {
-    if (!open || produtos.length > 0) return;
-    (async () => {
-      const { data, error } = await (supabase as any)
-        .from("produtos")
-        .select("id, nome_do_produto, codigo_sku, preco_venda, tipo_do_produto, tecido_do_produto, ativo")
-        .eq("ativo", true)
-        .order("nome_do_produto", { ascending: true });
-      if (error) {
-        toast.error("Erro ao carregar produtos", { description: error.message });
-        return;
-      }
-      setProdutos((data || []) as ProdutoOpt[]);
-    })();
-  }, [open, produtos.length]);
 
   // carrega variantes Tray (paginação para passar do limite de 1000)
   useEffect(() => {
