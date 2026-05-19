@@ -835,41 +835,110 @@ function LancamentoForm({
           <section className="space-y-3">
             <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Informações básicas</h3>
 
-            {/* Seletor de produto cadastrado */}
+            {/* Seletor de produto cadastrado / Tray */}
             <div className="rounded-md border border-dashed p-3 bg-muted/30 space-y-2">
-              <Label className="text-xs uppercase tracking-wider text-muted-foreground">
-                Buscar produto cadastrado (opcional — pré-preenche os campos)
-              </Label>
+              <div className="flex items-center justify-between gap-2 flex-wrap">
+                <Label className="text-xs uppercase tracking-wider text-muted-foreground">
+                  Pré-preencher a partir de um produto
+                </Label>
+                <div className="flex gap-1">
+                  <Button
+                    type="button" size="sm"
+                    variant={fonte === "cadastrados" ? "default" : "outline"}
+                    onClick={() => setFonte("cadastrados")}
+                  >
+                    Cadastrados ({produtos.filter((p) => !isVariante(p.nome_do_produto)).length})
+                  </Button>
+                  <Button
+                    type="button" size="sm"
+                    variant={fonte === "tray" ? "default" : "outline"}
+                    onClick={() => setFonte("tray")}
+                  >
+                    Tray ({trayProdutos.length})
+                  </Button>
+                </div>
+              </div>
               <Input
                 value={produtoBusca}
                 onChange={(e) => setProdutoBusca(e.target.value)}
-                placeholder="Digite nome ou SKU do produto..."
+                placeholder={fonte === "tray" ? "Buscar produto Tray (nome ou referência)..." : "Digite nome ou SKU do produto..."}
               />
-              {produtos.length === 0 ? (
-                <p className="text-[11px] text-muted-foreground">Carregando produtos...</p>
+
+              {fonte === "cadastrados" ? (
+                produtos.length === 0 ? (
+                  <p className="text-[11px] text-muted-foreground">Carregando produtos...</p>
+                ) : (
+                  <div className="max-h-48 overflow-y-auto space-y-1">
+                    {produtosFiltrados.length === 0 ? (
+                      <p className="text-[11px] text-muted-foreground py-2 text-center">Nenhum produto encontrado.</p>
+                    ) : produtosFiltrados.map((p) => (
+                      <button
+                        type="button"
+                        key={p.id}
+                        onClick={() => aplicarProduto(p)}
+                        className={`w-full text-left px-2 py-1.5 rounded text-xs hover:bg-background transition-colors ${produtoSelecionadoId === p.id ? "bg-background ring-1 ring-primary" : ""}`}
+                      >
+                        <div className="font-medium truncate">{p.nome_do_produto}</div>
+                        <div className="text-[10px] text-muted-foreground flex flex-wrap gap-x-2">
+                          {p.codigo_sku && <span>SKU: {p.codigo_sku}</span>}
+                          {p.preco_venda != null && <span>{fmtBRL(p.preco_venda)}</span>}
+                          {p.tecido_do_produto && <span>{p.tecido_do_produto}</span>}
+                          {p.tipo_do_produto && <span>{p.tipo_do_produto}</span>}
+                          {variantesPorParent[p.id]?.cores.size > 0 && (
+                            <span>{variantesPorParent[p.id].cores.size} cor(es)</span>
+                          )}
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                )
               ) : (
-                <div className="max-h-40 overflow-y-auto space-y-1">
-                  {produtosFiltrados.length === 0 ? (
-                    <p className="text-[11px] text-muted-foreground py-2 text-center">Nenhum produto encontrado.</p>
-                  ) : produtosFiltrados.map((p) => (
-                    <button
-                      type="button"
-                      key={p.id}
-                      onClick={() => aplicarProduto(p)}
-                      className={`w-full text-left px-2 py-1.5 rounded text-xs hover:bg-background transition-colors ${produtoSelecionadoId === p.id ? "bg-background ring-1 ring-primary" : ""}`}
-                    >
-                      <div className="font-medium truncate">{p.nome_do_produto}</div>
-                      <div className="text-[10px] text-muted-foreground flex flex-wrap gap-x-2">
-                        {p.codigo_sku && <span>SKU: {p.codigo_sku}</span>}
-                        {p.preco_venda != null && <span>{fmtBRL(p.preco_venda)}</span>}
-                        {p.tecido_do_produto && <span>{p.tecido_do_produto}</span>}
-                        {p.tipo_do_produto && <span>{p.tipo_do_produto}</span>}
-                        {variantesPorParent[p.id]?.cores.size > 0 && (
-                          <span>{variantesPorParent[p.id].cores.size} cor(es)</span>
-                        )}
-                      </div>
-                    </button>
-                  ))}
+                trayProdutos.length === 0 ? (
+                  <p className="text-[11px] text-muted-foreground">Carregando produtos Tray...</p>
+                ) : (
+                  <div className="max-h-48 overflow-y-auto space-y-1">
+                    {trayFiltrados.length === 0 ? (
+                      <p className="text-[11px] text-muted-foreground py-2 text-center">Nenhum produto Tray encontrado.</p>
+                    ) : trayFiltrados.map((t) => (
+                      <button
+                        type="button"
+                        key={t.id}
+                        onClick={() => aplicarTray(t)}
+                        className={`w-full text-left px-2 py-1.5 rounded text-xs hover:bg-background transition-colors ${trayAplicado?.id === t.id ? "bg-background ring-1 ring-primary" : ""}`}
+                      >
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium truncate flex-1">{t.nome}</span>
+                          {t.jaCadastrado ? (
+                            <Badge variant="outline" className="text-[9px] h-4 px-1">já cadastrado</Badge>
+                          ) : (
+                            <Badge className="text-[9px] h-4 px-1 bg-orange-600 text-white">novo</Badge>
+                          )}
+                        </div>
+                        <div className="text-[10px] text-muted-foreground flex flex-wrap gap-x-2">
+                          {t.reference && <span>Ref: {t.reference}</span>}
+                          {t.custo != null && <span>Custo: {fmtBRL(t.custo)}</span>}
+                          {t.preco != null && <span>Venda: {fmtBRL(t.preco)}</span>}
+                          {t.cores.length > 0 && <span>{t.cores.length} cor(es)</span>}
+                          <span>{t.qtdVariantes} variante(s)</span>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                )
+              )}
+
+              {trayAplicado && (
+                <div className="text-[11px] rounded bg-background p-2 border border-dashed flex flex-wrap gap-x-3 gap-y-1">
+                  <span className="font-medium">Tray aplicado:</span>
+                  <span>{trayAplicado.nome}</span>
+                  {trayAplicado.custo != null && (
+                    <span className="text-muted-foreground">
+                      Custo (Tray): <strong>{fmtBRL(trayAplicado.custo)}</strong>
+                    </span>
+                  )}
+                  {!trayAplicado.jaCadastrado && (
+                    <span className="text-orange-700">⚠ Produto sem cadastro — preços a definir</span>
+                  )}
                 </div>
               )}
             </div>
