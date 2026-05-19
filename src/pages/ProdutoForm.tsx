@@ -1,4 +1,5 @@
-import { useNavigate, useParams } from "react-router-dom";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
+import type { TrayProd } from "@/hooks/useTrayProdutos";
 import { useForm } from "react-hook-form";
 import { useProduto, useCreateProduto, useUpdateProduto, useAviamentos, useProdutoAviamentos, useSaveProdutoAviamentos, useTecidos, useCreateAviamento } from "@/hooks/useSupabase";
 import { Card, CardContent } from "@/components/ui/card";
