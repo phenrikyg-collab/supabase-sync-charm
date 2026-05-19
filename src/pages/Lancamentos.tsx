@@ -727,6 +727,19 @@ function LancamentoForm({
     setCores(novo.join(", "));
   };
 
+  const aplicarTray = (t: TrayProd) => {
+    setTrayAplicado(t);
+    setProdutoSelecionadoId("");
+    if (!nome || nome.trim().length === 0) setNome(t.nome);
+    if (t.preco != null && t.preco > 0) setPreco(String(t.preco));
+    if (t.cores.length > 0) setCores(t.cores.join(", "));
+    const tsValidos = TAMANHOS.filter((x) => t.tamanhos.some((y) => y.toUpperCase().includes(x)));
+    if (tsValidos.length > 0) setTamanhos(tsValidos);
+    toast.success("Produto Tray carregado", {
+      description: t.custo != null ? `Custo Tray: ${fmtBRL(t.custo)}` : t.reference || undefined,
+    });
+  };
+
   const produtosFiltrados = produtoBusca.trim().length === 0
     ? produtosPais.slice(0, 8)
     : produtosPais.filter((p) => {
@@ -736,6 +749,18 @@ function LancamentoForm({
           (p.codigo_sku || "").toLowerCase().includes(q)
         );
       }).slice(0, 20);
+
+  const trayFiltrados = (() => {
+    const q = produtoBusca.trim().toLowerCase();
+    const base = q.length === 0
+      ? trayProdutos
+      : trayProdutos.filter((t) =>
+          t.nome.toLowerCase().includes(q) ||
+          (t.reference || "").toLowerCase().includes(q)
+        );
+    return base.slice(0, 30);
+  })();
+
 
 
   const toggle = (arr: string[], v: string, setter: (a: string[]) => void) => {
