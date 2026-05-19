@@ -127,7 +127,20 @@ export default function ProdutoForm() {
     }
   }, [produto, isEdit, reset]);
 
+  // Pré-preenche quando importando da Tray (somente novo produto, uma vez)
   useEffect(() => {
+    if (isEdit || !trayImport) return;
+    setValue("nome_do_produto", trayImport.nome || "");
+    if (trayImport.reference) setValue("codigo_sku", trayImport.reference);
+    if (trayImport.custo != null) setValue("preco_custo", trayImport.custo);
+    if (trayImport.preco != null) setValue("preco_venda", trayImport.preco);
+    toast.info("Produto Tray carregado", {
+      description: "Revise nome, custo e preço e ajuste a formação de preço.",
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+
     if (produtoAviamentos?.length) {
       setAviItems(produtoAviamentos.map((pa) => ({
         aviamento_id: pa.aviamento_id ?? "",
