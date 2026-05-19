@@ -55,6 +55,8 @@ function toNumber(value: unknown, fallback = 0) {
 export default function ProdutoForm() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
+  const trayImport = (location.state as { tray?: TrayProd } | null)?.tray ?? null;
   const isEdit = !!id && id !== "novo";
   const { data: produto } = useProduto(isEdit ? id : "");
   const { data: aviamentos } = useAviamentos();
