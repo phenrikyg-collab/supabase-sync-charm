@@ -1,4 +1,5 @@
-import { useNavigate, useParams } from "react-router-dom";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
+import type { TrayProd } from "@/hooks/useTrayProdutos";
 import { useForm } from "react-hook-form";
 import { useProduto, useCreateProduto, useUpdateProduto, useAviamentos, useProdutoAviamentos, useSaveProdutoAviamentos, useTecidos, useCreateAviamento } from "@/hooks/useSupabase";
 import { Card, CardContent } from "@/components/ui/card";
@@ -54,6 +55,8 @@ function toNumber(value: unknown, fallback = 0) {
 export default function ProdutoForm() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
+  const trayImport = (location.state as { tray?: TrayProd } | null)?.tray ?? null;
   const isEdit = !!id && id !== "novo";
   const { data: produto } = useProduto(isEdit ? id : "");
   const { data: aviamentos } = useAviamentos();
@@ -124,6 +127,18 @@ export default function ProdutoForm() {
     }
   }, [produto, isEdit, reset]);
 
+  // Pré-preenche quando importando da Tray (somente novo produto, uma vez)
+  useEffect(() => {
+    if (isEdit || !trayImport) return;
+    setValue("nome_do_produto", trayImport.nome || "");
+    if (trayImport.reference) setValue("codigo_sku", trayImport.reference);
+    if (trayImport.custo != null) setValue("preco_custo", trayImport.custo);
+    if (trayImport.preco != null) setValue("preco_venda", trayImport.preco);
+    toast.info("Produto Tray carregado", {
+      description: "Revise nome, custo e preço e ajuste a formação de preço.",
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   useEffect(() => {
     if (produtoAviamentos?.length) {
       setAviItems(produtoAviamentos.map((pa) => ({
