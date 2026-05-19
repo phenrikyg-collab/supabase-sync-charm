@@ -470,6 +470,46 @@ type ProdutoOpt = {
   tecido_do_produto: string | null;
 };
 
+type TrayProd = {
+  id: string;                 // "tray-{variant_product_id}"
+  variant_product_id: number;
+  nome: string;               // derivado do slug da URL
+  reference: string | null;   // ex. PREGA-AZ
+  custo: number | null;       // variant_cost_price (mín. > 0)
+  preco: number | null;       // variant_price (máx.)
+  cores: string[];
+  tamanhos: string[];
+  qtdVariantes: number;
+  jaCadastrado: boolean;      // match com produtos pelo nome/SKU
+};
+
+// decodifica escapes do dict-python (\xf3 → ó)
+function decodePy(s: string): string {
+  return s.replace(/\\x([0-9a-fA-F]{2})/g, (_, h) =>
+    String.fromCharCode(parseInt(h, 16))
+  );
+}
+function slugify(s: string) {
+  return s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
+}
+function extrairNomeTray(url: string | null): string {
+  if (!url) return "";
+  const m = url.match(/\/([a-z0-9-]+)\?variant_id=/i);
+  if (!m) return "";
+  return m[1].split("-").map((p) => p.charAt(0).toUpperCase() + p.slice(1)).join(" ");
+}
+function extrairCorTray(sku: string | null): string | null {
+  if (!sku) return null;
+  const m = sku.match(/'type':\s*u?'Cor'[^}]*'value':\s*u?'([^']+)'/i);
+  return m ? decodePy(m[1]).trim() : null;
+}
+function extrairTamanhoTray(sku: string | null): string | null {
+  if (!sku) return null;
+  const m = sku.match(/'type':\s*u?'Tamanho'[^}]*'value':\s*u?'([^']+)'/i);
+  return m ? decodePy(m[1]).trim() : null;
+}
+
 function LancamentoForm({
   open, onOpenChange, editing, onSaved,
 }: {
@@ -537,6 +577,101 @@ function LancamentoForm({
     })();
   }, [open, produtos.length]);
 
+  // produtos Tray (importados da loja)
+  const [trayProdutos, setTrayProdutos] = useState<TrayProd[]>([]);
+  const [fonte, setFonte] = useState<"cadastrados" | "tray">("cadastrados");
+  const [trayAplicado, setTrayAplicado] = useState<TrayProd | null>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    setTrayAplicado(null);
+    setFonte("cadastrados");
+  }, [open, editing]);
+
+
+  // carrega variantes Tray (paginação para passar do limite de 1000)
+  useEffect(() => {
+    if (!open || trayProdutos.length > 0) return;
+    (async () => {
+      try {
+        const PAGE = 1000;
+        let from = 0;
+        const all: any[] = [];
+        for (let i = 0; i < 10; i++) {
+          const { data, error } = await (supabase as any)
+            .from("tray_products_variants")
+            .select("variant_product_id, variant_sku, variant_url, variant_reference, variant_cost_price, variant_price")
+            .range(from, from + PAGE - 1);
+          if (error) throw error;
+          if (!data || data.length === 0) break;
+          all.push(...data);
+          if (data.length < PAGE) break;
+          from += PAGE;
+        }
+
+        // agrupa por variant_product_id
+        const grupos = new Map<number, any[]>();
+        for (const v of all) {
+          if (v.variant_product_id == null) continue;
+          const arr = grupos.get(v.variant_product_id) || [];
+          arr.push(v);
+          grupos.set(v.variant_product_id, arr);
+        }
+
+        const produtosSlugs = new Set(
+          produtos.map((p) => slugify(p.nome_do_produto || ""))
+        );
+        const produtosSkus = new Set(
+          produtos.map((p) => (p.codigo_sku || "").trim().toLowerCase()).filter(Boolean)
+        );
+
+        const lista: TrayProd[] = [];
+        for (const [pid, vs] of grupos) {
+          const cores = new Set<string>();
+          const tams = new Set<string>();
+          let custo: number | null = null;
+          let preco: number | null = null;
+          let nome = "";
+          let reference: string | null = null;
+          for (const v of vs) {
+            const c = extrairCorTray(v.variant_sku);
+            if (c) cores.add(c);
+            const t = extrairTamanhoTray(v.variant_sku);
+            if (t) tams.add(t);
+            const cp = Number(v.variant_cost_price) || 0;
+            if (cp > 0 && (custo == null || cp < custo)) custo = cp;
+            const pp = Number(v.variant_price) || 0;
+            if (pp > 0 && (preco == null || pp > preco)) preco = pp;
+            if (!nome) nome = extrairNomeTray(v.variant_url);
+            if (!reference && v.variant_reference) reference = v.variant_reference;
+          }
+          if (!nome) nome = `Produto Tray #${pid}`;
+          const slug = slugify(nome);
+          const refLower = (reference || "").trim().toLowerCase();
+          const jaCadastrado =
+            produtosSlugs.has(slug) ||
+            (refLower.length > 0 && produtosSkus.has(refLower));
+          lista.push({
+            id: `tray-${pid}`,
+            variant_product_id: pid,
+            nome,
+            reference,
+            custo,
+            preco,
+            cores: Array.from(cores).sort(),
+            tamanhos: Array.from(tams),
+            qtdVariantes: vs.length,
+            jaCadastrado,
+          });
+        }
+        lista.sort((a, b) => a.nome.localeCompare(b.nome));
+        setTrayProdutos(lista);
+      } catch (e: any) {
+        toast.error("Erro ao carregar produtos Tray", { description: e.message });
+      }
+    })();
+  }, [open, produtos, trayProdutos.length]);
+
   // ---- parents vs variantes (variantes têm "Cor:" no nome) ----
   const isVariante = (nm: string | null | undefined) => !!nm && /Cor:/i.test(nm);
 
@@ -592,6 +727,19 @@ function LancamentoForm({
     setCores(novo.join(", "));
   };
 
+  const aplicarTray = (t: TrayProd) => {
+    setTrayAplicado(t);
+    setProdutoSelecionadoId("");
+    if (!nome || nome.trim().length === 0) setNome(t.nome);
+    if (t.preco != null && t.preco > 0) setPreco(String(t.preco));
+    if (t.cores.length > 0) setCores(t.cores.join(", "));
+    const tsValidos = TAMANHOS.filter((x) => t.tamanhos.some((y) => y.toUpperCase().includes(x)));
+    if (tsValidos.length > 0) setTamanhos(tsValidos);
+    toast.success("Produto Tray carregado", {
+      description: t.custo != null ? `Custo Tray: ${fmtBRL(t.custo)}` : t.reference || undefined,
+    });
+  };
+
   const produtosFiltrados = produtoBusca.trim().length === 0
     ? produtosPais.slice(0, 8)
     : produtosPais.filter((p) => {
@@ -601,6 +749,18 @@ function LancamentoForm({
           (p.codigo_sku || "").toLowerCase().includes(q)
         );
       }).slice(0, 20);
+
+  const trayFiltrados = (() => {
+    const q = produtoBusca.trim().toLowerCase();
+    const base = q.length === 0
+      ? trayProdutos
+      : trayProdutos.filter((t) =>
+          t.nome.toLowerCase().includes(q) ||
+          (t.reference || "").toLowerCase().includes(q)
+        );
+    return base.slice(0, 30);
+  })();
+
 
 
   const toggle = (arr: string[], v: string, setter: (a: string[]) => void) => {
@@ -675,41 +835,110 @@ function LancamentoForm({
           <section className="space-y-3">
             <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Informações básicas</h3>
 
-            {/* Seletor de produto cadastrado */}
+            {/* Seletor de produto cadastrado / Tray */}
             <div className="rounded-md border border-dashed p-3 bg-muted/30 space-y-2">
-              <Label className="text-xs uppercase tracking-wider text-muted-foreground">
-                Buscar produto cadastrado (opcional — pré-preenche os campos)
-              </Label>
+              <div className="flex items-center justify-between gap-2 flex-wrap">
+                <Label className="text-xs uppercase tracking-wider text-muted-foreground">
+                  Pré-preencher a partir de um produto
+                </Label>
+                <div className="flex gap-1">
+                  <Button
+                    type="button" size="sm"
+                    variant={fonte === "cadastrados" ? "default" : "outline"}
+                    onClick={() => setFonte("cadastrados")}
+                  >
+                    Cadastrados ({produtos.filter((p) => !isVariante(p.nome_do_produto)).length})
+                  </Button>
+                  <Button
+                    type="button" size="sm"
+                    variant={fonte === "tray" ? "default" : "outline"}
+                    onClick={() => setFonte("tray")}
+                  >
+                    Tray ({trayProdutos.length})
+                  </Button>
+                </div>
+              </div>
               <Input
                 value={produtoBusca}
                 onChange={(e) => setProdutoBusca(e.target.value)}
-                placeholder="Digite nome ou SKU do produto..."
+                placeholder={fonte === "tray" ? "Buscar produto Tray (nome ou referência)..." : "Digite nome ou SKU do produto..."}
               />
-              {produtos.length === 0 ? (
-                <p className="text-[11px] text-muted-foreground">Carregando produtos...</p>
+
+              {fonte === "cadastrados" ? (
+                produtos.length === 0 ? (
+                  <p className="text-[11px] text-muted-foreground">Carregando produtos...</p>
+                ) : (
+                  <div className="max-h-48 overflow-y-auto space-y-1">
+                    {produtosFiltrados.length === 0 ? (
+                      <p className="text-[11px] text-muted-foreground py-2 text-center">Nenhum produto encontrado.</p>
+                    ) : produtosFiltrados.map((p) => (
+                      <button
+                        type="button"
+                        key={p.id}
+                        onClick={() => aplicarProduto(p)}
+                        className={`w-full text-left px-2 py-1.5 rounded text-xs hover:bg-background transition-colors ${produtoSelecionadoId === p.id ? "bg-background ring-1 ring-primary" : ""}`}
+                      >
+                        <div className="font-medium truncate">{p.nome_do_produto}</div>
+                        <div className="text-[10px] text-muted-foreground flex flex-wrap gap-x-2">
+                          {p.codigo_sku && <span>SKU: {p.codigo_sku}</span>}
+                          {p.preco_venda != null && <span>{fmtBRL(p.preco_venda)}</span>}
+                          {p.tecido_do_produto && <span>{p.tecido_do_produto}</span>}
+                          {p.tipo_do_produto && <span>{p.tipo_do_produto}</span>}
+                          {variantesPorParent[p.id]?.cores.size > 0 && (
+                            <span>{variantesPorParent[p.id].cores.size} cor(es)</span>
+                          )}
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                )
               ) : (
-                <div className="max-h-40 overflow-y-auto space-y-1">
-                  {produtosFiltrados.length === 0 ? (
-                    <p className="text-[11px] text-muted-foreground py-2 text-center">Nenhum produto encontrado.</p>
-                  ) : produtosFiltrados.map((p) => (
-                    <button
-                      type="button"
-                      key={p.id}
-                      onClick={() => aplicarProduto(p)}
-                      className={`w-full text-left px-2 py-1.5 rounded text-xs hover:bg-background transition-colors ${produtoSelecionadoId === p.id ? "bg-background ring-1 ring-primary" : ""}`}
-                    >
-                      <div className="font-medium truncate">{p.nome_do_produto}</div>
-                      <div className="text-[10px] text-muted-foreground flex flex-wrap gap-x-2">
-                        {p.codigo_sku && <span>SKU: {p.codigo_sku}</span>}
-                        {p.preco_venda != null && <span>{fmtBRL(p.preco_venda)}</span>}
-                        {p.tecido_do_produto && <span>{p.tecido_do_produto}</span>}
-                        {p.tipo_do_produto && <span>{p.tipo_do_produto}</span>}
-                        {variantesPorParent[p.id]?.cores.size > 0 && (
-                          <span>{variantesPorParent[p.id].cores.size} cor(es)</span>
-                        )}
-                      </div>
-                    </button>
-                  ))}
+                trayProdutos.length === 0 ? (
+                  <p className="text-[11px] text-muted-foreground">Carregando produtos Tray...</p>
+                ) : (
+                  <div className="max-h-48 overflow-y-auto space-y-1">
+                    {trayFiltrados.length === 0 ? (
+                      <p className="text-[11px] text-muted-foreground py-2 text-center">Nenhum produto Tray encontrado.</p>
+                    ) : trayFiltrados.map((t) => (
+                      <button
+                        type="button"
+                        key={t.id}
+                        onClick={() => aplicarTray(t)}
+                        className={`w-full text-left px-2 py-1.5 rounded text-xs hover:bg-background transition-colors ${trayAplicado?.id === t.id ? "bg-background ring-1 ring-primary" : ""}`}
+                      >
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium truncate flex-1">{t.nome}</span>
+                          {t.jaCadastrado ? (
+                            <Badge variant="outline" className="text-[9px] h-4 px-1">já cadastrado</Badge>
+                          ) : (
+                            <Badge className="text-[9px] h-4 px-1 bg-orange-600 text-white">novo</Badge>
+                          )}
+                        </div>
+                        <div className="text-[10px] text-muted-foreground flex flex-wrap gap-x-2">
+                          {t.reference && <span>Ref: {t.reference}</span>}
+                          {t.custo != null && <span>Custo: {fmtBRL(t.custo)}</span>}
+                          {t.preco != null && <span>Venda: {fmtBRL(t.preco)}</span>}
+                          {t.cores.length > 0 && <span>{t.cores.length} cor(es)</span>}
+                          <span>{t.qtdVariantes} variante(s)</span>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                )
+              )}
+
+              {trayAplicado && (
+                <div className="text-[11px] rounded bg-background p-2 border border-dashed flex flex-wrap gap-x-3 gap-y-1">
+                  <span className="font-medium">Tray aplicado:</span>
+                  <span>{trayAplicado.nome}</span>
+                  {trayAplicado.custo != null && (
+                    <span className="text-muted-foreground">
+                      Custo (Tray): <strong>{fmtBRL(trayAplicado.custo)}</strong>
+                    </span>
+                  )}
+                  {!trayAplicado.jaCadastrado && (
+                    <span className="text-orange-700">⚠ Produto sem cadastro — preços a definir</span>
+                  )}
                 </div>
               )}
             </div>
