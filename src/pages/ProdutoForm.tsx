@@ -139,8 +139,7 @@ export default function ProdutoForm() {
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-
+  useEffect(() => {
     if (produtoAviamentos?.length) {
       setAviItems(produtoAviamentos.map((pa) => ({
         aviamento_id: pa.aviamento_id ?? "",
