@@ -29,17 +29,19 @@ export default function Produtos() {
   const navigate = useNavigate();
 
   const rows: Row[] = useMemo(() => {
-    const prodRows: Row[] = (produtos || []).map((p) => ({
-      kind: "produto" as const,
-      id: p.id,
-      sku: p.codigo_sku,
-      nome: p.nome_do_produto,
-      tecido: p.tecido_do_produto,
-      custo: p.preco_custo,
-      venda: p.preco_venda,
-      margem: p.margem_real_percentual,
-      ativo: !!p.ativo,
-    }));
+    const prodRows: Row[] = (produtos || [])
+      .filter((p) => !/Cor:/i.test(p.nome_do_produto || ""))
+      .map((p) => ({
+        kind: "produto" as const,
+        id: p.id,
+        sku: p.codigo_sku,
+        nome: p.nome_do_produto,
+        tecido: p.tecido_do_produto,
+        custo: p.preco_custo,
+        venda: p.preco_venda,
+        margem: p.margem_real_percentual,
+        ativo: !!p.ativo,
+      }));
     const trayRows: Row[] = (tray || [])
       .filter((t) => !t.jaCadastrado)
       .map((t) => ({
