@@ -577,6 +577,123 @@ function LancamentoForm({
     })();
   }, [open, produtos.length]);
 
+  // produtos cadastrados (para pré-preencher o formulário)
+  const [produtos, setProdutos] = useState<ProdutoOpt[]>([]);
+  const [produtoBusca, setProdutoBusca] = useState("");
+  const [produtoSelecionadoId, setProdutoSelecionadoId] = useState<string>("");
+  const [trayProdutos, setTrayProdutos] = useState<TrayProd[]>([]);
+  const [fonte, setFonte] = useState<"cadastrados" | "tray">("cadastrados");
+  const [trayAplicado, setTrayAplicado] = useState<TrayProd | null>(null);
+
+  // (resetar campos do form já ocorre acima)
+  useEffect(() => {
+    if (!open) return;
+    setProdutoBusca("");
+    setProdutoSelecionadoId("");
+    setTrayAplicado(null);
+    setFonte("cadastrados");
+  }, [open, editing]);
+
+  // carrega produtos uma vez quando o form abre
+  useEffect(() => {
+    if (!open || produtos.length > 0) return;
+    (async () => {
+      const { data, error } = await (supabase as any)
+        .from("produtos")
+        .select("id, nome_do_produto, codigo_sku, preco_venda, tipo_do_produto, tecido_do_produto, ativo")
+        .eq("ativo", true)
+        .order("nome_do_produto", { ascending: true });
+      if (error) {
+        toast.error("Erro ao carregar produtos", { description: error.message });
+        return;
+      }
+      setProdutos((data || []) as ProdutoOpt[]);
+    })();
+  }, [open, produtos.length]);
+
+  // carrega variantes Tray (paginação para passar do limite de 1000)
+  useEffect(() => {
+    if (!open || trayProdutos.length > 0) return;
+    (async () => {
+      try {
+        const PAGE = 1000;
+        let from = 0;
+        const all: any[] = [];
+        for (let i = 0; i < 10; i++) {
+          const { data, error } = await (supabase as any)
+            .from("tray_products_variants")
+            .select("variant_product_id, variant_sku, variant_url, variant_reference, variant_cost_price, variant_price")
+            .range(from, from + PAGE - 1);
+          if (error) throw error;
+          if (!data || data.length === 0) break;
+          all.push(...data);
+          if (data.length < PAGE) break;
+          from += PAGE;
+        }
+
+        // agrupa por variant_product_id
+        const grupos = new Map<number, any[]>();
+        for (const v of all) {
+          if (v.variant_product_id == null) continue;
+          const arr = grupos.get(v.variant_product_id) || [];
+          arr.push(v);
+          grupos.set(v.variant_product_id, arr);
+        }
+
+        const produtosSlugs = new Set(
+          produtos.map((p) => slugify(p.nome_do_produto || ""))
+        );
+        const produtosSkus = new Set(
+          produtos.map((p) => (p.codigo_sku || "").trim().toLowerCase()).filter(Boolean)
+        );
+
+        const lista: TrayProd[] = [];
+        for (const [pid, vs] of grupos) {
+          const cores = new Set<string>();
+          const tams = new Set<string>();
+          let custo: number | null = null;
+          let preco: number | null = null;
+          let nome = "";
+          let reference: string | null = null;
+          for (const v of vs) {
+            const c = extrairCorTray(v.variant_sku);
+            if (c) cores.add(c);
+            const t = extrairTamanhoTray(v.variant_sku);
+            if (t) tams.add(t);
+            const cp = Number(v.variant_cost_price) || 0;
+            if (cp > 0 && (custo == null || cp < custo)) custo = cp;
+            const pp = Number(v.variant_price) || 0;
+            if (pp > 0 && (preco == null || pp > preco)) preco = pp;
+            if (!nome) nome = extrairNomeTray(v.variant_url);
+            if (!reference && v.variant_reference) reference = v.variant_reference;
+          }
+          if (!nome) nome = `Produto Tray #${pid}`;
+          const slug = slugify(nome);
+          const refLower = (reference || "").trim().toLowerCase();
+          const jaCadastrado =
+            produtosSlugs.has(slug) ||
+            (refLower.length > 0 && produtosSkus.has(refLower));
+          lista.push({
+            id: `tray-${pid}`,
+            variant_product_id: pid,
+            nome,
+            reference,
+            custo,
+            preco,
+            cores: Array.from(cores).sort(),
+            tamanhos: Array.from(tams),
+            qtdVariantes: vs.length,
+            jaCadastrado,
+          });
+        }
+        lista.sort((a, b) => a.nome.localeCompare(b.nome));
+        setTrayProdutos(lista);
+      } catch (e: any) {
+        toast.error("Erro ao carregar produtos Tray", { description: e.message });
+      }
+    })();
+  }, [open, produtos, trayProdutos.length]);
+
   // ---- parents vs variantes (variantes têm "Cor:" no nome) ----
   const isVariante = (nm: string | null | undefined) => !!nm && /Cor:/i.test(nm);
 
