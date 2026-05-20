@@ -81,6 +81,9 @@ export function AbaEmCampanha() {
   const [textoCanal, setTextoCanal] = useState<"instagram" | "email" | "whatsapp">("instagram");
   const [textoLoading, setTextoLoading] = useState(false);
   const [textoGerado, setTextoGerado] = useState<Record<string, string>>({});
+  const [categoria, setCategoria] = useState<CategoriaKey>("todos");
+  const [vendasPos, setVendasPos] = useState<Record<string, number>>({});
+  const { map: precoMinMap } = usePrecoMinimo();
 
   async function carregar() {
     setLoading(true);
