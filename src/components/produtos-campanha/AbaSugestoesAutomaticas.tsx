@@ -296,7 +296,12 @@ export function AbaSugestoesAutomaticas() {
                           </Badge>
                         ) : "—"}
                       </TableCell>
-                      <TableCell>{brl(p.preco)}</TableCell>
+                      <TableCell>
+                        <div className="space-y-1">
+                          <div>{brl(p.preco)}</div>
+                          <PrecoMinimoInfo row={precoMinMap.get(String(p.id))} compact />
+                        </div>
+                      </TableCell>
                       <TableCell>{estoqueBadge(p.estoque_total)}</TableCell>
                       <TableCell>{p.total_vendas ?? 0}</TableCell>
                       <TableCell>
