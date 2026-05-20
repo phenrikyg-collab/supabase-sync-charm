@@ -139,9 +139,9 @@ export function AbaSugestoesAutomaticas() {
     return rows.filter(r => {
       if (statusFilter !== "todos" && r.status_campanha !== statusFilter) return false;
       if (b && !r.nome_produto?.toLowerCase().includes(b)) return false;
+      if (categoria !== "todos" && categorizarProduto(r.nome_produto) !== categoria) return false;
       if (minDias > 0 && (r.dias_desde_criacao ?? 0) < minDias) return false;
       if (girarUrgente) {
-        // Precisa girar: cadastrado há ≥90 dias, com estoque e poucas vendas
         const dias = r.dias_desde_criacao ?? 0;
         const vendas = r.total_vendas ?? 0;
         const estoque = r.estoque_total ?? 0;
@@ -149,11 +149,11 @@ export function AbaSugestoesAutomaticas() {
       }
       return true;
     });
-  }, [rows, busca, statusFilter, idadeFilter, girarUrgente]);
+  }, [rows, busca, statusFilter, idadeFilter, girarUrgente, categoria]);
 
   const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const pagedRows = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
-  useEffect(() => { setPage(1); }, [busca, statusFilter, idadeFilter, girarUrgente]);
+  useEffect(() => { setPage(1); }, [busca, statusFilter, idadeFilter, girarUrgente, categoria]);
 
   function abrirModal(p: ProdutoCampanhaRow) {
     setModalProduto(p);
