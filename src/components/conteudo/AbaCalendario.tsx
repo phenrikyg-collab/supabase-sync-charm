@@ -15,6 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Checkbox } from "@/components/ui/checkbox";
 import { Sparkles, Loader2, ChevronLeft, ChevronRight, Check, X, Plus, Pencil, Trash2, Eraser } from "lucide-react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { Progress } from "@/components/ui/progress";
 import { invokeEdgeFunction } from "@/lib/edgeFunctions";
 
 type Calendario = {
