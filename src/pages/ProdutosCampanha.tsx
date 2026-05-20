@@ -3,6 +3,7 @@ import { Tag } from "lucide-react";
 import { AbaSugestoesAutomaticas } from "@/components/produtos-campanha/AbaSugestoesAutomaticas";
 import { AbaEmCampanha } from "@/components/produtos-campanha/AbaEmCampanha";
 import { AbaSugestoesVenda } from "@/components/produtos-campanha/AbaSugestoesVenda";
+import { ConfigPrecificacao } from "@/components/produtos-campanha/ConfigPrecificacao";
 
 export default function ProdutosCampanha() {
   return (
@@ -18,10 +19,11 @@ export default function ProdutosCampanha() {
       </div>
 
       <Tabs defaultValue="sugestoes" className="w-full">
-        <TabsList className="grid w-full grid-cols-3 max-w-3xl">
+        <TabsList className="grid w-full grid-cols-4 max-w-4xl">
           <TabsTrigger value="sugestoes">Sugestões Automáticas</TabsTrigger>
           <TabsTrigger value="campanha">Em Campanha</TabsTrigger>
           <TabsTrigger value="venda">Sugestões de Venda</TabsTrigger>
+          <TabsTrigger value="config">Configuração</TabsTrigger>
         </TabsList>
         <TabsContent value="sugestoes" className="mt-6">
           <AbaSugestoesAutomaticas />
@@ -31,6 +33,9 @@ export default function ProdutosCampanha() {
         </TabsContent>
         <TabsContent value="venda" className="mt-6">
           <AbaSugestoesVenda />
+        </TabsContent>
+        <TabsContent value="config" className="mt-6">
+          <ConfigPrecificacao />
         </TabsContent>
       </Tabs>
     </div>
