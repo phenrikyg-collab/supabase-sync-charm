@@ -211,6 +211,8 @@ export function AbaSugestoesAutomaticas() {
         <MetricCard label="Vendendo bem" value={metricas.bem} cls="border-blue-300 text-blue-700" />
       </div>
 
+      <CategoryFilter value={categoria} onChange={setCategoria} />
+
       <div className="flex flex-col sm:flex-row gap-3 flex-wrap">
         <Input
           placeholder="Buscar por nome do produto..."
