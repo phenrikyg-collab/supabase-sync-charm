@@ -15,6 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Checkbox } from "@/components/ui/checkbox";
 import { Sparkles, Loader2, ChevronLeft, ChevronRight, Check, X, Plus, Pencil, Trash2, Eraser } from "lucide-react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { Progress } from "@/components/ui/progress";
 import { invokeEdgeFunction } from "@/lib/edgeFunctions";
 
 type Calendario = {
@@ -124,6 +125,10 @@ export function AbaCalendario() {
   const [confirmDelete, setConfirmDelete] = useState<Calendario | null>(null);
   const [confirmLimparMes, setConfirmLimparMes] = useState(false);
   const [limpandoMes, setLimpandoMes] = useState(false);
+  const [progressoPct, setProgressoPct] = useState(0);
+  const [progressoMensagem, setProgressoMensagem] = useState<string | null>(null);
+
+
 
   const mesRef = `${ano}-${pad(mes + 1)}`;
 
@@ -183,17 +188,58 @@ export function AbaCalendario() {
   const selected = useMemo(() => datas.find((d) => d.id === selectedId) || null, [datas, selectedId]);
   const conteudos = useMemo(() => (selected?.conteudos_gerados || []) as Conteudo[], [selected]);
 
+  const iaCount = useMemo(() => datas.filter((d: any) => (d as any).criado_por_ia).length, [datas]);
+
   const handleGerar = async () => {
     setConfirmGerar(false);
     setGerando(true);
+    setProgressoPct(0);
+    setProgressoMensagem("Iniciando geração...");
+    let totalGerado = 0;
+    const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
+    const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+    const url = `${SUPABASE_URL}/functions/v1/generate-content-calendar`;
+
     try {
-      const res = await invokeEdgeFunction("generate-content-calendar", { mes_referencia: mesRef }) as any;
-      toast.success(`Calendário gerado!`, { description: `${res.total_datas} datas e ${res.total_conteudos} peças de conteúdo.` });
+      for (let semana = 1; semana <= 5; semana++) {
+        setProgressoMensagem(`Gerando semana ${semana} de 5...`);
+        setProgressoPct((semana - 1) * 20);
+
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 120000);
+        try {
+          const r = await fetch(url, {
+            method: "POST",
+            signal: controller.signal,
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+              apikey: SUPABASE_ANON_KEY,
+            },
+            body: JSON.stringify({ mes_referencia: mesRef, semana }),
+          });
+          if (r.ok) {
+            const data = await r.json();
+            totalGerado += data.total_datas_geradas ?? data.total_datas ?? 0;
+          } else {
+            console.log("semana", semana, "status:", r.status);
+          }
+        } catch (e: any) {
+          console.log("semana", semana, "erro:", e?.message);
+        } finally {
+          clearTimeout(timeout);
+        }
+        setProgressoPct(semana * 20);
+      }
+      setProgressoMensagem(null);
       await fetchDatas();
+      toast.success(`${totalGerado} datas geradas com sucesso!`);
     } catch (e: any) {
       toast.error("Erro ao gerar calendário", { description: e.message });
     } finally {
       setGerando(false);
+      setProgressoPct(0);
+      setProgressoMensagem(null);
     }
   };
 
@@ -201,41 +247,33 @@ export function AbaCalendario() {
     setConfirmLimparMes(false);
     setLimpandoMes(true);
     try {
-      const mesStr = pad(mes + 1);
-      const mesReferencia = `${ano}-${mesStr}`;
-      const dataInicio = `${mesReferencia}-01`;
-      const ultimoDia = new Date(ano, mes + 1, 0).getDate();
-      const dataFim = `${mesReferencia}-${pad(ultimoDia)}`;
-
       const { data: datasMes, error: errFetch } = await (supabase as any)
         .from("calendario_comercial")
         .select("id")
-        .gte("data", dataInicio)
-        .lte("data", dataFim);
+        .eq("mes_referencia", mesRef)
+        .eq("criado_por_ia", true);
       if (errFetch) throw errFetch;
 
       const ids = (datasMes || []).map((d: any) => d.id);
       if (ids.length === 0) {
-        toast.info("Nenhuma data encontrada para este mês.");
+        toast.info("Nenhum conteúdo gerado por IA neste mês.");
         setLimpandoMes(false);
         return;
       }
 
-      // Delete conteudos_gerados first
       const { error: errCont } = await (supabase as any)
         .from("conteudos_gerados")
         .delete()
         .in("calendario_id", ids);
       if (errCont) throw errCont;
 
-      // Delete calendario_comercial entries
       const { error: errCal } = await (supabase as any)
         .from("calendario_comercial")
         .delete()
         .in("id", ids);
       if (errCal) throw errCal;
 
-      toast.success(`Mês limpo! ${ids.length} data(s) e conteúdos vinculados removidos.`);
+      toast.success("Mês limpo com sucesso", { description: `${ids.length} entrada(s) removida(s).` });
       setSelectedId(null);
       await fetchDatas();
     } catch (e: any) {
@@ -244,6 +282,7 @@ export function AbaCalendario() {
       setLimpandoMes(false);
     }
   };
+
 
   const openDate = (d: Calendario) => setSelectedId(d.id);
 
@@ -396,6 +435,19 @@ export function AbaCalendario() {
         </div>
       </Card>
 
+      {gerando && progressoMensagem && (
+        <Card className="p-4 space-y-2 border-primary/40">
+          <div className="flex items-center gap-2 text-sm">
+            <Loader2 className="h-4 w-4 animate-spin text-primary" />
+            <span className="font-medium">{progressoMensagem}</span>
+            <span className="ml-auto text-xs text-muted-foreground">{progressoPct}%</span>
+          </div>
+          <Progress value={progressoPct} />
+        </Card>
+      )}
+
+
+
       {/* Calendário */}
       <Card className="p-4">
         <div className="grid grid-cols-7 gap-1 mb-2">
@@ -420,8 +472,12 @@ export function AbaCalendario() {
                   key={i}
                   onClick={() => hasContent ? openDate(items[0]) : openNova(cell.iso)}
                   className={`h-32 rounded border p-1.5 pb-2 text-left relative transition-colors flex flex-col group overflow-hidden ${
-                    hasContent ? "bg-card hover:bg-accent/30 cursor-pointer border-border" : "bg-muted/10 hover:bg-muted/30 cursor-pointer border-dashed border-muted-foreground/20"
+                    hasContent
+                      ? "bg-white hover:bg-accent/30 cursor-pointer border-border"
+                      : "hover:bg-muted/30 cursor-pointer border-dashed border-muted-foreground/20"
                   }`}
+                  style={!hasContent ? { backgroundColor: "#F8F9FA" } : undefined}
+
                 >
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-medium">{cell.day}</span>
@@ -584,9 +640,11 @@ export function AbaCalendario() {
       <AlertDialog open={confirmLimparMes} onOpenChange={(o) => !o && setConfirmLimparMes(false)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle className="font-serif">Limpar calendário de {MESES[mes]} {ano}?</AlertDialogTitle>
+            <AlertDialogTitle className="font-serif">Limpar conteúdo de IA — {MESES[mes]}/{ano}?</AlertDialogTitle>
             <AlertDialogDescription>
-              Isso vai apagar TODAS as datas e conteúdos gerados deste mês. Esta ação não pode ser desfeita.
+              Tem certeza que deseja limpar todo o conteúdo gerado por IA em {MESES[mes]}/{ano}?
+              <br /><br />
+              Esta ação removerá <strong>{iaCount}</strong> entrada(s) e não pode ser desfeita.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
