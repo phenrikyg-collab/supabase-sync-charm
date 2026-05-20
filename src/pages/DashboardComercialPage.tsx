@@ -105,6 +105,7 @@ export default function DashboardComercialPage() {
   const [customRange, setCustomRange] = useState<{ from?: Date; to?: Date }>({});
   const [aiInsights, setAiInsights] = useState<string>("");
   const [loadingAi, setLoadingAi] = useState(false);
+  const [categoriaFiltro, setCategoriaFiltro] = useState<CategoriaKey>("todos");
 
   const { dataInicio, dataFim, label } = useMemo(() => {
     const hoje = new Date();
