@@ -435,6 +435,19 @@ export function AbaCalendario() {
         </div>
       </Card>
 
+      {gerando && progressoMensagem && (
+        <Card className="p-4 space-y-2 border-primary/40">
+          <div className="flex items-center gap-2 text-sm">
+            <Loader2 className="h-4 w-4 animate-spin text-primary" />
+            <span className="font-medium">{progressoMensagem}</span>
+            <span className="ml-auto text-xs text-muted-foreground">{progressoPct}%</span>
+          </div>
+          <Progress value={progressoPct} />
+        </Card>
+      )}
+
+
+
       {/* Calendário */}
       <Card className="p-4">
         <div className="grid grid-cols-7 gap-1 mb-2">
