@@ -261,7 +261,7 @@ export function AbaSugestoesAutomaticas() {
                 <TableRow>
                   <TableHead>Produto</TableHead>
                   <TableHead>Idade</TableHead>
-                  <TableHead>Preço</TableHead>
+                  <TableHead>Preço / Mínimo</TableHead>
                   <TableHead>Estoque</TableHead>
                   <TableHead>Vendas</TableHead>
                   <TableHead className="min-w-[160px]">% abaixo média</TableHead>
