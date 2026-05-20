@@ -21,6 +21,10 @@ import {
 import { Star, ExternalLink, ChevronDown, Pause, X, Edit, RotateCcw, Sparkles, Copy } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { callClaude } from "@/lib/claudeApi";
+import { CategoryFilter } from "./CategoryFilter";
+import { CategoriaKey, categorizarProduto } from "@/lib/categorias";
+import { usePrecoMinimo } from "@/hooks/usePrecoMinimo";
+import { PrecoMinimoInfo } from "./PrecoMinimoInfo";
 
 interface CampanhaRow {
   id: string;
@@ -77,6 +81,9 @@ export function AbaEmCampanha() {
   const [textoCanal, setTextoCanal] = useState<"instagram" | "email" | "whatsapp">("instagram");
   const [textoLoading, setTextoLoading] = useState(false);
   const [textoGerado, setTextoGerado] = useState<Record<string, string>>({});
+  const [categoria, setCategoria] = useState<CategoriaKey>("todos");
+  const [vendasPos, setVendasPos] = useState<Record<string, number>>({});
+  const { map: precoMinMap } = usePrecoMinimo();
 
   async function carregar() {
     setLoading(true);
@@ -105,7 +112,42 @@ export function AbaEmCampanha() {
   }
   useEffect(() => { carregar(); }, []);
 
-  const ativos = campanhas.filter(c => c.status === "ativo");
+  // Busca vendas pós-data de criação de cada campanha
+  useEffect(() => {
+    (async () => {
+      const ativos = campanhas.filter((c) => c.status === "ativo");
+      if (!ativos.length) return;
+      const result: Record<string, number> = {};
+      await Promise.all(ativos.map(async (c) => {
+        try {
+          const dataIni = (c.created_at || "").slice(0, 10);
+          const { data: sold } = await (supabase as any)
+            .from("tray_productssold")
+            .select("order_id, quantity")
+            .eq("product_id", c.product_id);
+          const orderIds = Array.from(new Set((sold || []).map((s: any) => String(s.order_id)).filter(Boolean)));
+          if (!orderIds.length) { result[c.id] = 0; return; }
+          const { data: orders } = await (supabase as any)
+            .from("tray_orders")
+            .select("id, date, orderstatus_type")
+            .in("id", orderIds)
+            .gte("date", dataIni);
+          const validIds = new Set((orders || [])
+            .filter((o: any) => !["canceled", "Cancelado", "cancelled"].includes(o.orderstatus_type))
+            .map((o: any) => String(o.id)));
+          const total = (sold || []).reduce((acc: number, s: any) => {
+            return validIds.has(String(s.order_id)) ? acc + Number(s.quantity || 0) : acc;
+          }, 0);
+          result[c.id] = total;
+        } catch { result[c.id] = 0; }
+      }));
+      setVendasPos(result);
+    })();
+  }, [campanhas]);
+
+  const ativos = campanhas
+    .filter((c) => c.status === "ativo")
+    .filter((c) => categoria === "todos" || categorizarProduto(c.nome_produto) === categoria);
   const inativos = campanhas.filter(c => c.status !== "ativo");
 
   const metricas = useMemo(() => ({
@@ -210,17 +252,21 @@ Retorne APENAS o texto pronto para publicar, sem comentários, sem JSON, sem mar
         </CardContent></Card>
       </div>
 
+      <CategoryFilter value={categoria} onChange={setCategoria} />
+
       {!ativos.length && (
         <Card><CardContent className="py-12 text-center text-muted-foreground">
-          Nenhum produto em campanha ativa. Adicione produtos pela aba "Sugestões Automáticas".
+          Nenhum produto em campanha ativa nessa categoria.
         </CardContent></Card>
       )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {ativos.map(c => {
           const v = viewMap[c.product_id];
-          const pctMeta = c.meta_vendas && v?.total_vendas
-            ? Math.min(100, (v.total_vendas / c.meta_vendas) * 100) : 0;
+          const vendas = vendasPos[c.id] ?? 0;
+          const pctMeta = c.meta_vendas
+            ? Math.min(100, (vendas / c.meta_vendas) * 100) : 0;
+          const dataIni = new Date(c.created_at).toLocaleDateString("pt-BR");
           return (
             <Card key={c.id}>
               <CardContent className="p-5 space-y-3">
@@ -247,9 +293,11 @@ Retorne APENAS o texto pronto para publicar, sem comentários, sem JSON, sem mar
                   </div>
                 </div>
 
+                <PrecoMinimoInfo row={precoMinMap.get(String(c.product_id))} compact />
+
                 <div>
                   <div className="flex justify-between text-xs mb-1">
-                    <span>{c.meta_vendas ? `${v?.total_vendas ?? 0} vendas de ${c.meta_vendas} meta` : "Sem meta definida"}</span>
+                    <span>{c.meta_vendas ? `${vendas} vendas desde ${dataIni} de ${c.meta_vendas} meta` : "Sem meta definida"}</span>
                     {c.meta_vendas ? <span>{pctMeta.toFixed(0)}%</span> : null}
                   </div>
                   <Progress value={pctMeta} className="h-2" />

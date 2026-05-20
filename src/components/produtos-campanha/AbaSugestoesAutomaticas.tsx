@@ -19,6 +19,10 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ExternalLink, Plus, Star } from "lucide-react";
+import { CategoryFilter } from "./CategoryFilter";
+import { CategoriaKey, categorizarProduto } from "@/lib/categorias";
+import { usePrecoMinimo } from "@/hooks/usePrecoMinimo";
+import { PrecoMinimoInfo } from "./PrecoMinimoInfo";
 
 interface ProdutoCampanhaRow {
   id: any;
@@ -57,11 +61,13 @@ export function AbaSugestoesAutomaticas() {
   const [busca, setBusca] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("todos");
   const [idadeFilter, setIdadeFilter] = useState<string>("todos");
+  const [categoria, setCategoria] = useState<CategoriaKey>("todos");
   const [girarUrgente, setGirarUrgente] = useState(false);
   const [page, setPage] = useState(1);
   const [modalProduto, setModalProduto] = useState<ProdutoCampanhaRow | null>(null);
   const [form, setForm] = useState({ motivo: "", prioridade: 3, meta_vendas: "", observacao: "" });
   const [saving, setSaving] = useState(false);
+  const { map: precoMinMap } = usePrecoMinimo();
 
   async function carregar() {
     setLoading(true);
@@ -133,9 +139,9 @@ export function AbaSugestoesAutomaticas() {
     return rows.filter(r => {
       if (statusFilter !== "todos" && r.status_campanha !== statusFilter) return false;
       if (b && !r.nome_produto?.toLowerCase().includes(b)) return false;
+      if (categoria !== "todos" && categorizarProduto(r.nome_produto) !== categoria) return false;
       if (minDias > 0 && (r.dias_desde_criacao ?? 0) < minDias) return false;
       if (girarUrgente) {
-        // Precisa girar: cadastrado há ≥90 dias, com estoque e poucas vendas
         const dias = r.dias_desde_criacao ?? 0;
         const vendas = r.total_vendas ?? 0;
         const estoque = r.estoque_total ?? 0;
@@ -143,11 +149,11 @@ export function AbaSugestoesAutomaticas() {
       }
       return true;
     });
-  }, [rows, busca, statusFilter, idadeFilter, girarUrgente]);
+  }, [rows, busca, statusFilter, idadeFilter, girarUrgente, categoria]);
 
   const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const pagedRows = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
-  useEffect(() => { setPage(1); }, [busca, statusFilter, idadeFilter, girarUrgente]);
+  useEffect(() => { setPage(1); }, [busca, statusFilter, idadeFilter, girarUrgente, categoria]);
 
   function abrirModal(p: ProdutoCampanhaRow) {
     setModalProduto(p);
@@ -205,6 +211,8 @@ export function AbaSugestoesAutomaticas() {
         <MetricCard label="Vendendo bem" value={metricas.bem} cls="border-blue-300 text-blue-700" />
       </div>
 
+      <CategoryFilter value={categoria} onChange={setCategoria} />
+
       <div className="flex flex-col sm:flex-row gap-3 flex-wrap">
         <Input
           placeholder="Buscar por nome do produto..."
@@ -253,7 +261,7 @@ export function AbaSugestoesAutomaticas() {
                 <TableRow>
                   <TableHead>Produto</TableHead>
                   <TableHead>Idade</TableHead>
-                  <TableHead>Preço</TableHead>
+                  <TableHead>Preço / Mínimo</TableHead>
                   <TableHead>Estoque</TableHead>
                   <TableHead>Vendas</TableHead>
                   <TableHead className="min-w-[160px]">% abaixo média</TableHead>
@@ -288,7 +296,12 @@ export function AbaSugestoesAutomaticas() {
                           </Badge>
                         ) : "—"}
                       </TableCell>
-                      <TableCell>{brl(p.preco)}</TableCell>
+                      <TableCell>
+                        <div className="space-y-1">
+                          <div>{brl(p.preco)}</div>
+                          <PrecoMinimoInfo row={precoMinMap.get(String(p.id))} compact />
+                        </div>
+                      </TableCell>
                       <TableCell>{estoqueBadge(p.estoque_total)}</TableCell>
                       <TableCell>{p.total_vendas ?? 0}</TableCell>
                       <TableCell>
