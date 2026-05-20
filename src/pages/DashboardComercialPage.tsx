@@ -774,8 +774,6 @@ Seja direto e específico. Use valores reais dos dados. Responda em português.`
           )}
         </CardContent>
       </Card>
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <Card>
       <Card>
         <CardContent className="py-4">
           <div className="flex items-center justify-between gap-3 flex-wrap">
