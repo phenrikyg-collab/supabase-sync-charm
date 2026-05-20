@@ -112,7 +112,42 @@ export function AbaEmCampanha() {
   }
   useEffect(() => { carregar(); }, []);
 
-  const ativos = campanhas.filter(c => c.status === "ativo");
+  // Busca vendas pós-data de criação de cada campanha
+  useEffect(() => {
+    (async () => {
+      const ativos = campanhas.filter((c) => c.status === "ativo");
+      if (!ativos.length) return;
+      const result: Record<string, number> = {};
+      await Promise.all(ativos.map(async (c) => {
+        try {
+          const dataIni = (c.created_at || "").slice(0, 10);
+          const { data: sold } = await (supabase as any)
+            .from("tray_productssold")
+            .select("order_id, quantity")
+            .eq("product_id", c.product_id);
+          const orderIds = Array.from(new Set((sold || []).map((s: any) => String(s.order_id)).filter(Boolean)));
+          if (!orderIds.length) { result[c.id] = 0; return; }
+          const { data: orders } = await (supabase as any)
+            .from("tray_orders")
+            .select("id, date, orderstatus_type")
+            .in("id", orderIds)
+            .gte("date", dataIni);
+          const validIds = new Set((orders || [])
+            .filter((o: any) => !["canceled", "Cancelado", "cancelled"].includes(o.orderstatus_type))
+            .map((o: any) => String(o.id)));
+          const total = (sold || []).reduce((acc: number, s: any) => {
+            return validIds.has(String(s.order_id)) ? acc + Number(s.quantity || 0) : acc;
+          }, 0);
+          result[c.id] = total;
+        } catch { result[c.id] = 0; }
+      }));
+      setVendasPos(result);
+    })();
+  }, [campanhas]);
+
+  const ativos = campanhas
+    .filter((c) => c.status === "ativo")
+    .filter((c) => categoria === "todos" || categorizarProduto(c.nome_produto) === categoria);
   const inativos = campanhas.filter(c => c.status !== "ativo");
 
   const metricas = useMemo(() => ({
