@@ -295,6 +295,21 @@ function DashboardTab({ mes }: { mes: string }) {
                           <TableCell className={atrasado ? "text-rose-700 font-medium" : ""}>
                             {fmtData(p.estimated_delivery_date)}
                           </TableCell>
+                          <TableCell className="max-w-[320px]">
+                            <div className="flex flex-wrap gap-1">
+                              {(produtosPorPedido[String(p.id)] ?? []).slice(0, 6).map((nome, idx) => (
+                                <Badge key={idx} variant="outline" className="text-[10px] font-normal max-w-[200px] truncate" title={nome}>
+                                  {nome}
+                                </Badge>
+                              ))}
+                              {(produtosPorPedido[String(p.id)]?.length ?? 0) > 6 && (
+                                <Badge variant="outline" className="text-[10px]">+{(produtosPorPedido[String(p.id)]!.length - 6)}</Badge>
+                              )}
+                              {!produtosPorPedido[String(p.id)] && (
+                                <span className="text-[10px] text-muted-foreground">—</span>
+                              )}
+                            </div>
+                          </TableCell>
                           <TableCell className="text-xs text-muted-foreground">
                             {p.orderstatus_status ?? "—"}
                           </TableCell>
