@@ -125,6 +125,10 @@ export function AbaCalendario() {
   const [confirmDelete, setConfirmDelete] = useState<Calendario | null>(null);
   const [confirmLimparMes, setConfirmLimparMes] = useState(false);
   const [limpandoMes, setLimpandoMes] = useState(false);
+  const [progressoPct, setProgressoPct] = useState(0);
+  const [progressoMensagem, setProgressoMensagem] = useState<string | null>(null);
+
+
 
   const mesRef = `${ano}-${pad(mes + 1)}`;
 
