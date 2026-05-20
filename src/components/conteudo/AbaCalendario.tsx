@@ -459,8 +459,12 @@ export function AbaCalendario() {
                   key={i}
                   onClick={() => hasContent ? openDate(items[0]) : openNova(cell.iso)}
                   className={`h-32 rounded border p-1.5 pb-2 text-left relative transition-colors flex flex-col group overflow-hidden ${
-                    hasContent ? "bg-card hover:bg-accent/30 cursor-pointer border-border" : "bg-muted/10 hover:bg-muted/30 cursor-pointer border-dashed border-muted-foreground/20"
+                    hasContent
+                      ? "bg-white hover:bg-accent/30 cursor-pointer border-border"
+                      : "hover:bg-muted/30 cursor-pointer border-dashed border-muted-foreground/20"
                   }`}
+                  style={!hasContent ? { backgroundColor: "#F8F9FA" } : undefined}
+
                 >
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-medium">{cell.day}</span>
