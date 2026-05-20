@@ -813,7 +813,8 @@ Seja direto e específico. Use valores reais dos dados. Responda em português.`
                       <TableCell className="text-center"><Badge className={cn("border-0", status.c)}>{status.l}</Badge></TableCell>
                     </TableRow>
                   );
-                })}
+                });
+                })()}
               </TableBody>
             </Table>
           </CardContent>
