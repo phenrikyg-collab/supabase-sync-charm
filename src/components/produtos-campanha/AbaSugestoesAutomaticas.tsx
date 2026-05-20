@@ -61,11 +61,13 @@ export function AbaSugestoesAutomaticas() {
   const [busca, setBusca] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("todos");
   const [idadeFilter, setIdadeFilter] = useState<string>("todos");
+  const [categoria, setCategoria] = useState<CategoriaKey>("todos");
   const [girarUrgente, setGirarUrgente] = useState(false);
   const [page, setPage] = useState(1);
   const [modalProduto, setModalProduto] = useState<ProdutoCampanhaRow | null>(null);
   const [form, setForm] = useState({ motivo: "", prioridade: 3, meta_vendas: "", observacao: "" });
   const [saving, setSaving] = useState(false);
+  const { map: precoMinMap } = usePrecoMinimo();
 
   async function carregar() {
     setLoading(true);
