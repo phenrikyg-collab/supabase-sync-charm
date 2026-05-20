@@ -93,6 +93,42 @@ export default function BonificacaoExpedicao() {
 function DashboardTab({ mes }: { mes: string }) {
   const ap = useApurarExpedicao(mes);
   const fechar = useFecharApuracao();
+  const [produtosPorPedido, setProdutosPorPedido] = useState<Record<string, string[]>>({});
+
+  useEffect(() => {
+    const ids = (ap.pedidos ?? [])
+      .filter((p: any) => !p.shipment_date)
+      .map((p: any) => String(p.id))
+      .slice(0, 500);
+    if (ids.length === 0) {
+      setProdutosPorPedido({});
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      const map: Record<string, string[]> = {};
+      const chunkSize = 200;
+      for (let i = 0; i < ids.length; i += chunkSize) {
+        const chunk = ids.slice(i, i + chunkSize);
+        const { data, error } = await supabase
+          .from("tray_productssold")
+          .select("order_id, name, model, reference, quantity")
+          .in("order_id", chunk);
+        if (error || !data) continue;
+        for (const row of data as any[]) {
+          const oid = String(row.order_id);
+          const nome = (row.model || (row.name ? String(row.name).split("<br>")[0] : null) || row.reference || "Produto").trim();
+          const qtd = Number(row.quantity ?? 1);
+          const label = qtd > 1 ? `${nome} (${qtd})` : nome;
+          if (!map[oid]) map[oid] = [];
+          map[oid].push(label);
+        }
+      }
+      if (!cancelled) setProdutosPorPedido(map);
+    })();
+    return () => { cancelled = true; };
+  }, [ap.pedidos]);
+
 
   if (ap.isLoading) {
     return (
