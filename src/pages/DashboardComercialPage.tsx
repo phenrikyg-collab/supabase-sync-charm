@@ -838,9 +838,12 @@ Seja direto e específico. Use valores reais dos dados. Responda em português.`
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {lucrativos.length === 0 ? (
-                  <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-6">Sem vendas no período</TableCell></TableRow>
-                ) : lucrativos.map((p: any) => {
+                {(() => {
+                  const filtrados = categoriaFiltro === "todos" ? lucrativos : lucrativos.filter((p: any) => categorizarProduto(p.nome) === categoriaFiltro);
+                  if (filtrados.length === 0) return (
+                    <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-6">Sem vendas no período</TableCell></TableRow>
+                  );
+                  return filtrados.map((p: any) => {
                   const toneCls =
                     p.insight.tone === "success" ? "bg-success/15 text-success" :
                     p.insight.tone === "warning" ? "bg-warning/15 text-warning" :
@@ -863,7 +866,8 @@ Seja direto e específico. Use valores reais dos dados. Responda em português.`
                       </TableCell>
                     </TableRow>
                   );
-                })}
+                });
+                })()}
               </TableBody>
             </Table>
           </CardContent>
