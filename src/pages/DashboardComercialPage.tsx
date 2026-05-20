@@ -27,6 +27,8 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { callClaude } from "@/lib/claudeApi";
 import { useMetasFinanceiras, useProdutos } from "@/hooks/useSupabase";
+import { CategoryFilter } from "@/components/produtos-campanha/CategoryFilter";
+import { CategoriaKey, categorizarProduto } from "@/lib/categorias";
 
 // ============ helpers ============
 const fmtBRL = (n: number | null | undefined) =>
