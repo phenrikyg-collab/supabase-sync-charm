@@ -252,17 +252,21 @@ Retorne APENAS o texto pronto para publicar, sem comentários, sem JSON, sem mar
         </CardContent></Card>
       </div>
 
+      <CategoryFilter value={categoria} onChange={setCategoria} />
+
       {!ativos.length && (
         <Card><CardContent className="py-12 text-center text-muted-foreground">
-          Nenhum produto em campanha ativa. Adicione produtos pela aba "Sugestões Automáticas".
+          Nenhum produto em campanha ativa nessa categoria.
         </CardContent></Card>
       )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {ativos.map(c => {
           const v = viewMap[c.product_id];
-          const pctMeta = c.meta_vendas && v?.total_vendas
-            ? Math.min(100, (v.total_vendas / c.meta_vendas) * 100) : 0;
+          const vendas = vendasPos[c.id] ?? 0;
+          const pctMeta = c.meta_vendas
+            ? Math.min(100, (vendas / c.meta_vendas) * 100) : 0;
+          const dataIni = new Date(c.created_at).toLocaleDateString("pt-BR");
           return (
             <Card key={c.id}>
               <CardContent className="p-5 space-y-3">
@@ -289,9 +293,11 @@ Retorne APENAS o texto pronto para publicar, sem comentários, sem JSON, sem mar
                   </div>
                 </div>
 
+                <PrecoMinimoInfo row={precoMinMap.get(String(c.product_id))} compact />
+
                 <div>
                   <div className="flex justify-between text-xs mb-1">
-                    <span>{c.meta_vendas ? `${v?.total_vendas ?? 0} vendas de ${c.meta_vendas} meta` : "Sem meta definida"}</span>
+                    <span>{c.meta_vendas ? `${vendas} vendas desde ${dataIni} de ${c.meta_vendas} meta` : "Sem meta definida"}</span>
                     {c.meta_vendas ? <span>{pctMeta.toFixed(0)}%</span> : null}
                   </div>
                   <Progress value={pctMeta} className="h-2" />
