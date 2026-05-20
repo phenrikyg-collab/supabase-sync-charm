@@ -265,6 +265,7 @@ function DashboardTab({ mes }: { mes: string }) {
                     <TableHead>Pedido</TableHead>
                     <TableHead>Data</TableHead>
                     <TableHead>Prazo de envio</TableHead>
+                    <TableHead>Produtos</TableHead>
                     <TableHead>Status interno</TableHead>
                     <TableHead>Situação</TableHead>
                   </TableRow>
@@ -272,7 +273,7 @@ function DashboardTab({ mes }: { mes: string }) {
                 <TableBody>
                   {abertos.length === 0 && (
                     <TableRow>
-                      <TableCell colSpan={5} className="text-center text-muted-foreground py-10">
+                      <TableCell colSpan={6} className="text-center text-muted-foreground py-10">
                         Nenhum pedido em aberto neste mês.
                       </TableCell>
                     </TableRow>
