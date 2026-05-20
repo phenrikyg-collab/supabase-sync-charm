@@ -93,6 +93,42 @@ export default function BonificacaoExpedicao() {
 function DashboardTab({ mes }: { mes: string }) {
   const ap = useApurarExpedicao(mes);
   const fechar = useFecharApuracao();
+  const [produtosPorPedido, setProdutosPorPedido] = useState<Record<string, string[]>>({});
+
+  useEffect(() => {
+    const ids = (ap.pedidos ?? [])
+      .filter((p: any) => !p.shipment_date)
+      .map((p: any) => String(p.id))
+      .slice(0, 500);
+    if (ids.length === 0) {
+      setProdutosPorPedido({});
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      const map: Record<string, string[]> = {};
+      const chunkSize = 200;
+      for (let i = 0; i < ids.length; i += chunkSize) {
+        const chunk = ids.slice(i, i + chunkSize);
+        const { data, error } = await supabase
+          .from("tray_productssold")
+          .select("order_id, name, model, reference, quantity")
+          .in("order_id", chunk);
+        if (error || !data) continue;
+        for (const row of data as any[]) {
+          const oid = String(row.order_id);
+          const nome = (row.model || (row.name ? String(row.name).split("<br>")[0] : null) || row.reference || "Produto").trim();
+          const qtd = Number(row.quantity ?? 1);
+          const label = qtd > 1 ? `${nome} (${qtd})` : nome;
+          if (!map[oid]) map[oid] = [];
+          map[oid].push(label);
+        }
+      }
+      if (!cancelled) setProdutosPorPedido(map);
+    })();
+    return () => { cancelled = true; };
+  }, [ap.pedidos]);
+
 
   if (ap.isLoading) {
     return (
@@ -229,6 +265,7 @@ function DashboardTab({ mes }: { mes: string }) {
                     <TableHead>Pedido</TableHead>
                     <TableHead>Data</TableHead>
                     <TableHead>Prazo de envio</TableHead>
+                    <TableHead>Produtos</TableHead>
                     <TableHead>Status interno</TableHead>
                     <TableHead>Situação</TableHead>
                   </TableRow>
@@ -236,7 +273,7 @@ function DashboardTab({ mes }: { mes: string }) {
                 <TableBody>
                   {abertos.length === 0 && (
                     <TableRow>
-                      <TableCell colSpan={5} className="text-center text-muted-foreground py-10">
+                      <TableCell colSpan={6} className="text-center text-muted-foreground py-10">
                         Nenhum pedido em aberto neste mês.
                       </TableCell>
                     </TableRow>
@@ -257,6 +294,21 @@ function DashboardTab({ mes }: { mes: string }) {
                           <TableCell>{fmtData(p.date)}</TableCell>
                           <TableCell className={atrasado ? "text-rose-700 font-medium" : ""}>
                             {fmtData(p.estimated_delivery_date)}
+                          </TableCell>
+                          <TableCell className="max-w-[320px]">
+                            <div className="flex flex-wrap gap-1">
+                              {(produtosPorPedido[String(p.id)] ?? []).slice(0, 6).map((nome, idx) => (
+                                <Badge key={idx} variant="outline" className="text-[10px] font-normal max-w-[200px] truncate" title={nome}>
+                                  {nome}
+                                </Badge>
+                              ))}
+                              {(produtosPorPedido[String(p.id)]?.length ?? 0) > 6 && (
+                                <Badge variant="outline" className="text-[10px]">+{(produtosPorPedido[String(p.id)]!.length - 6)}</Badge>
+                              )}
+                              {!produtosPorPedido[String(p.id)] && (
+                                <span className="text-[10px] text-muted-foreground">—</span>
+                              )}
+                            </div>
                           </TableCell>
                           <TableCell className="text-xs text-muted-foreground">
                             {p.orderstatus_status ?? "—"}

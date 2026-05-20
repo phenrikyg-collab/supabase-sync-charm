@@ -27,6 +27,8 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { callClaude } from "@/lib/claudeApi";
 import { useMetasFinanceiras, useProdutos } from "@/hooks/useSupabase";
+import { CategoryFilter } from "@/components/produtos-campanha/CategoryFilter";
+import { CategoriaKey, categorizarProduto } from "@/lib/categorias";
 
 // ============ helpers ============
 const fmtBRL = (n: number | null | undefined) =>
@@ -103,6 +105,7 @@ export default function DashboardComercialPage() {
   const [customRange, setCustomRange] = useState<{ from?: Date; to?: Date }>({});
   const [aiInsights, setAiInsights] = useState<string>("");
   const [loadingAi, setLoadingAi] = useState(false);
+  const [categoriaFiltro, setCategoriaFiltro] = useState<CategoriaKey>("todos");
 
   const { dataInicio, dataFim, label } = useMemo(() => {
     const hoje = new Date();
@@ -771,6 +774,14 @@ Seja direto e específico. Use valores reais dos dados. Responda em português.`
           )}
         </CardContent>
       </Card>
+      <Card>
+        <CardContent className="py-4">
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            <p className="text-sm font-medium text-muted-foreground">Filtrar produtos por categoria</p>
+            <CategoryFilter value={categoriaFiltro} onChange={setCategoriaFiltro} />
+          </div>
+        </CardContent>
+      </Card>
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <Card>
           <CardHeader><CardTitle className="text-lg font-serif flex items-center gap-2"><Package className="h-5 w-5" /> Produtos mais vendidos</CardTitle></CardHeader>
@@ -786,9 +797,12 @@ Seja direto e específico. Use valores reais dos dados. Responda em português.`
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {topProdutos.length === 0 ? (
-                  <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-6">Sem dados</TableCell></TableRow>
-                ) : topProdutos.slice(0, 10).map((p, i) => {
+                {(() => {
+                  const filtrados = categoriaFiltro === "todos" ? topProdutos : topProdutos.filter((p) => categorizarProduto(p.nome) === categoriaFiltro);
+                  if (filtrados.length === 0) return (
+                    <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-6">Sem dados</TableCell></TableRow>
+                  );
+                  return filtrados.slice(0, 10).map((p, i) => {
                   const status = p.estoque < 5 ? { l: "Crítico", c: "bg-danger/15 text-danger" } : p.estoque <= 20 ? { l: "Baixo", c: "bg-warning/15 text-warning" } : { l: "OK", c: "bg-success/15 text-success" };
                   return (
                     <TableRow key={i}>
@@ -799,7 +813,8 @@ Seja direto e específico. Use valores reais dos dados. Responda em português.`
                       <TableCell className="text-center"><Badge className={cn("border-0", status.c)}>{status.l}</Badge></TableCell>
                     </TableRow>
                   );
-                })}
+                });
+                })()}
               </TableBody>
             </Table>
           </CardContent>
@@ -823,9 +838,12 @@ Seja direto e específico. Use valores reais dos dados. Responda em português.`
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {lucrativos.length === 0 ? (
-                  <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-6">Sem vendas no período</TableCell></TableRow>
-                ) : lucrativos.map((p: any) => {
+                {(() => {
+                  const filtrados = categoriaFiltro === "todos" ? lucrativos : lucrativos.filter((p: any) => categorizarProduto(p.nome) === categoriaFiltro);
+                  if (filtrados.length === 0) return (
+                    <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-6">Sem vendas no período</TableCell></TableRow>
+                  );
+                  return filtrados.map((p: any) => {
                   const toneCls =
                     p.insight.tone === "success" ? "bg-success/15 text-success" :
                     p.insight.tone === "warning" ? "bg-warning/15 text-warning" :
@@ -848,7 +866,8 @@ Seja direto e específico. Use valores reais dos dados. Responda em português.`
                       </TableCell>
                     </TableRow>
                   );
-                })}
+                });
+                })()}
               </TableBody>
             </Table>
           </CardContent>
