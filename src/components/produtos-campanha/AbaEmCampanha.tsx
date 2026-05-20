@@ -21,6 +21,10 @@ import {
 import { Star, ExternalLink, ChevronDown, Pause, X, Edit, RotateCcw, Sparkles, Copy } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { callClaude } from "@/lib/claudeApi";
+import { CategoryFilter } from "./CategoryFilter";
+import { CategoriaKey, categorizarProduto } from "@/lib/categorias";
+import { usePrecoMinimo } from "@/hooks/usePrecoMinimo";
+import { PrecoMinimoInfo } from "./PrecoMinimoInfo";
 
 interface CampanhaRow {
   id: string;
