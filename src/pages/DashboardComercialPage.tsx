@@ -776,6 +776,16 @@ Seja direto e específico. Use valores reais dos dados. Responda em português.`
       </Card>
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <Card>
+      <Card>
+        <CardContent className="py-4">
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            <p className="text-sm font-medium text-muted-foreground">Filtrar produtos por categoria</p>
+            <CategoryFilter value={categoriaFiltro} onChange={setCategoriaFiltro} />
+          </div>
+        </CardContent>
+      </Card>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <Card>
           <CardHeader><CardTitle className="text-lg font-serif flex items-center gap-2"><Package className="h-5 w-5" /> Produtos mais vendidos</CardTitle></CardHeader>
           <CardContent>
             <Table>
