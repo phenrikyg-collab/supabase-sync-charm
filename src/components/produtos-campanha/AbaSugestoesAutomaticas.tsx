@@ -19,6 +19,10 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ExternalLink, Plus, Star } from "lucide-react";
+import { CategoryFilter } from "./CategoryFilter";
+import { CategoriaKey, categorizarProduto } from "@/lib/categorias";
+import { usePrecoMinimo } from "@/hooks/usePrecoMinimo";
+import { PrecoMinimoInfo } from "./PrecoMinimoInfo";
 
 interface ProdutoCampanhaRow {
   id: any;
