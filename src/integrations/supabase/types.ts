@@ -1043,6 +1043,7 @@ export type Database = {
           created_at: string | null
           id: string
           ordem_corte_id: string | null
+          produto_id: string | null
           quantidade: number
           tamanho: string
         }
@@ -1051,6 +1052,7 @@ export type Database = {
           created_at?: string | null
           id?: string
           ordem_corte_id?: string | null
+          produto_id?: string | null
           quantidade?: number
           tamanho: string
         }
@@ -1059,6 +1061,7 @@ export type Database = {
           created_at?: string | null
           id?: string
           ordem_corte_id?: string | null
+          produto_id?: string | null
           quantidade?: number
           tamanho?: string
         }
@@ -1068,6 +1071,13 @@ export type Database = {
             columns: ["ordem_corte_id"]
             isOneToOne: false
             referencedRelation: "ordens_corte"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ordens_corte_grade_produto_id_fkey"
+            columns: ["produto_id"]
+            isOneToOne: false
+            referencedRelation: "produtos"
             referencedColumns: ["id"]
           },
         ]

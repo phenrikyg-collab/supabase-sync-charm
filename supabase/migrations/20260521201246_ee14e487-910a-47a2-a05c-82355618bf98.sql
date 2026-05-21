@@ -1,0 +1,2 @@
+ALTER TABLE public.ordens_corte_grade ADD COLUMN IF NOT EXISTS produto_id uuid REFERENCES public.produtos(id) ON DELETE SET NULL;
+CREATE INDEX IF NOT EXISTS idx_ordens_corte_grade_produto ON public.ordens_corte_grade(produto_id);
