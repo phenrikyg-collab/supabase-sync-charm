@@ -15,7 +15,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Sparkles, Loader2, ChevronLeft, ChevronRight, Plus, Pencil, Trash2, ArrowRight, CalendarPlus, Check, X } from "lucide-react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { invokeEdgeFunction } from "@/lib/edgeFunctions";
+
 
 type Calendario = {
   id: string;
@@ -242,26 +242,8 @@ export function AbaCalendario() {
     toast("Rejeitado");
   };
 
-  const [confirmRegen, setConfirmRegen] = useState<{ data: string; canal: string } | null>(null);
-  const [regenLoading, setRegenLoading] = useState(false);
-  const regenerarCanal = async () => {
-    if (!confirmRegen) return;
-    setRegenLoading(true);
-    try {
-      await invokeEdgeFunction("generate-content-calendar", {
-        mes_referencia: mesRef,
-        regenerar_data: confirmRegen.data,
-        regenerar_canal: confirmRegen.canal,
-      });
-      toast.success("Canal regenerado");
-      setConfirmRegen(null);
-      await fetchDatas();
-    } catch (e: any) {
-      toast.error("Erro ao regenerar", { description: e.message });
-    } finally {
-      setRegenLoading(false);
-    }
-  };
+  // Geração/regeneração de conteúdo é responsabilidade do Plano Comercial.
+
 
   const cells = useMemo(() => {
     const first = new Date(ano, mes, 1);
@@ -475,11 +457,8 @@ export function AbaCalendario() {
                                   onRejeitar={() => rejeitarConteudo(ct.id)}
                                   onPublicar={() => publicarConteudo(ct.id)}
                                 />
-                                <div className="pt-3 mt-3 border-t">
-                                  <Button size="sm" variant="outline" className="gap-1 text-xs" onClick={() => setConfirmRegen({ data: selected.data, canal })}>
-                                    <Sparkles className="h-3.5 w-3.5" /> Regenerar canal
-                                  </Button>
-                                </div>
+
+
                               </Card>
                             );
                           })}
@@ -513,23 +492,7 @@ export function AbaCalendario() {
       </AlertDialog>
 
 
-      <AlertDialog open={!!confirmRegen} onOpenChange={(o) => !o && setConfirmRegen(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle className="font-serif">Regenerar este canal?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Tem certeza? O conteúdo atual será substituído pelo novo gerado pela IA.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={regenLoading}>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={(e) => { e.preventDefault(); regenerarCanal(); }} disabled={regenLoading}>
-              {regenLoading ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Sparkles className="h-4 w-4 mr-1" />}
-              Regenerar
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+
     </div>
   );
 }
