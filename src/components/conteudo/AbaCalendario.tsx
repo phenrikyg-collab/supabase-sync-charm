@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -10,12 +11,10 @@ import { Label } from "@/components/ui/label";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Sparkles, Loader2, ChevronLeft, ChevronRight, Check, X, Plus, Pencil, Trash2, Eraser } from "lucide-react";
+import { Sparkles, Loader2, ChevronLeft, ChevronRight, Plus, Pencil, Trash2, ArrowRight, CalendarPlus, Check, X } from "lucide-react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { Progress } from "@/components/ui/progress";
 import { invokeEdgeFunction } from "@/lib/edgeFunctions";
 
 type Calendario = {
@@ -111,24 +110,17 @@ const CANAL_LABELS: Record<string, string> = {
 };
 
 export function AbaCalendario() {
+  const navigate = useNavigate();
   const hoje = new Date();
   const [ano, setAno] = useState(hoje.getFullYear());
   const [mes, setMes] = useState(hoje.getMonth()); // 0-11
   const [datas, setDatas] = useState<Calendario[]>([]);
   const [loading, setLoading] = useState(false);
-  const [gerando, setGerando] = useState(false);
-  const [confirmGerar, setConfirmGerar] = useState(false);
   const [novaDataOpen, setNovaDataOpen] = useState(false);
   const [editing, setEditing] = useState<Calendario | null>(null);
   const [novaDataInitial, setNovaDataInitial] = useState<string>("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<Calendario | null>(null);
-  const [confirmLimparMes, setConfirmLimparMes] = useState(false);
-  const [limpandoMes, setLimpandoMes] = useState(false);
-  const [progressoPct, setProgressoPct] = useState(0);
-  const [progressoMensagem, setProgressoMensagem] = useState<string | null>(null);
-
-
 
   const mesRef = `${ano}-${pad(mes + 1)}`;
 
@@ -188,100 +180,8 @@ export function AbaCalendario() {
   const selected = useMemo(() => datas.find((d) => d.id === selectedId) || null, [datas, selectedId]);
   const conteudos = useMemo(() => (selected?.conteudos_gerados || []) as Conteudo[], [selected]);
 
-  const iaCount = useMemo(() => datas.filter((d: any) => (d as any).criado_por_ia).length, [datas]);
+  // Calendário é somente leitura. Geração de conteúdo acontece via Plano Comercial / Edge Function.
 
-  const handleGerar = async () => {
-    setConfirmGerar(false);
-    setGerando(true);
-    setProgressoPct(0);
-    setProgressoMensagem("Iniciando geração...");
-    let totalGerado = 0;
-    const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
-    const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
-    const url = `${SUPABASE_URL}/functions/v1/generate-content-calendar`;
-
-    try {
-      for (let semana = 1; semana <= 5; semana++) {
-        setProgressoMensagem(`Gerando semana ${semana} de 5...`);
-        setProgressoPct((semana - 1) * 20);
-
-        const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), 120000);
-        try {
-          const r = await fetch(url, {
-            method: "POST",
-            signal: controller.signal,
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
-              apikey: SUPABASE_ANON_KEY,
-            },
-            body: JSON.stringify({ mes_referencia: mesRef, semana }),
-          });
-          if (r.ok) {
-            const data = await r.json();
-            totalGerado += data.total_datas_geradas ?? data.total_datas ?? 0;
-          } else {
-            console.log("semana", semana, "status:", r.status);
-          }
-        } catch (e: any) {
-          console.log("semana", semana, "erro:", e?.message);
-        } finally {
-          clearTimeout(timeout);
-        }
-        setProgressoPct(semana * 20);
-      }
-      setProgressoMensagem(null);
-      await fetchDatas();
-      toast.success(`${totalGerado} datas geradas com sucesso!`);
-    } catch (e: any) {
-      toast.error("Erro ao gerar calendário", { description: e.message });
-    } finally {
-      setGerando(false);
-      setProgressoPct(0);
-      setProgressoMensagem(null);
-    }
-  };
-
-  const limparMes = async () => {
-    setConfirmLimparMes(false);
-    setLimpandoMes(true);
-    try {
-      const { data: datasMes, error: errFetch } = await (supabase as any)
-        .from("calendario_comercial")
-        .select("id")
-        .eq("mes_referencia", mesRef)
-        .eq("criado_por_ia", true);
-      if (errFetch) throw errFetch;
-
-      const ids = (datasMes || []).map((d: any) => d.id);
-      if (ids.length === 0) {
-        toast.info("Nenhum conteúdo gerado por IA neste mês.");
-        setLimpandoMes(false);
-        return;
-      }
-
-      const { error: errCont } = await (supabase as any)
-        .from("conteudos_gerados")
-        .delete()
-        .in("calendario_id", ids);
-      if (errCont) throw errCont;
-
-      const { error: errCal } = await (supabase as any)
-        .from("calendario_comercial")
-        .delete()
-        .in("id", ids);
-      if (errCal) throw errCal;
-
-      toast.success("Mês limpo com sucesso", { description: `${ids.length} entrada(s) removida(s).` });
-      setSelectedId(null);
-      await fetchDatas();
-    } catch (e: any) {
-      toast.error("Erro ao limpar mês", { description: e.message });
-    } finally {
-      setLimpandoMes(false);
-    }
-  };
 
 
   const openDate = (d: Calendario) => setSelectedId(d.id);
@@ -421,30 +321,28 @@ export function AbaCalendario() {
         </div>
 
         <div className="flex items-center gap-2">
+          <Button variant="outline" onClick={() => navigate("/plano-comercial")} className="gap-2">
+            Ver Plano Comercial <ArrowRight className="h-4 w-4" />
+          </Button>
           <Button variant="outline" onClick={() => openNova()} className="gap-2">
             <Plus className="h-4 w-4" /> Nova data
-          </Button>
-          <Button variant="outline" onClick={() => setConfirmLimparMes(true)} disabled={limpandoMes || datas.length === 0} className="gap-2 text-red-600 border-red-200 hover:bg-red-50">
-            {limpandoMes ? <Loader2 className="h-4 w-4 animate-spin" /> : <Eraser className="h-4 w-4" />}
-            Limpar mês
-          </Button>
-          <Button onClick={() => setConfirmGerar(true)} disabled={gerando} className="gap-2">
-            {gerando ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-            {gerando ? "Gerando..." : "Gerar Calendário com IA"}
           </Button>
         </div>
       </Card>
 
-      {gerando && progressoMensagem && (
-        <Card className="p-4 space-y-2 border-primary/40">
-          <div className="flex items-center gap-2 text-sm">
-            <Loader2 className="h-4 w-4 animate-spin text-primary" />
-            <span className="font-medium">{progressoMensagem}</span>
-            <span className="ml-auto text-xs text-muted-foreground">{progressoPct}%</span>
-          </div>
-          <Progress value={progressoPct} />
+      {!loading && datas.length === 0 && (
+        <Card className="p-8 text-center space-y-3 border-dashed">
+          <CalendarPlus className="h-10 w-10 mx-auto text-muted-foreground" />
+          <div className="font-serif text-lg">Nenhum conteúdo gerado para este mês</div>
+          <p className="text-sm text-muted-foreground max-w-md mx-auto">
+            Para gerar o calendário, acesse o Plano Comercial e defina a meta do mês.
+          </p>
+          <Button onClick={() => navigate("/plano-comercial")} className="gap-2">
+            Ir para Plano Comercial <ArrowRight className="h-4 w-4" />
+          </Button>
         </Card>
       )}
+
 
 
 
@@ -509,29 +407,6 @@ export function AbaCalendario() {
         )}
       </Card>
 
-      {/* Confirmação Gerar IA */}
-      <Dialog open={confirmGerar} onOpenChange={setConfirmGerar}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle className="font-serif">Gerar calendário para {MESES[mes]}/{ano}</DialogTitle>
-            <DialogDescription>A IA irá gerar conteúdo estratégico baseado em:</DialogDescription>
-          </DialogHeader>
-          <ul className="text-sm space-y-1.5 py-2">
-            <li>✓ 1 Reels + 1 Carrossel + Stories por dia útil</li>
-            <li>✓ Email + WhatsApp VIP em todos os dias úteis</li>
-            <li>✓ Sábados: campanha de oferta WhatsApp</li>
-            <li>✓ Domingos: relacionamento WhatsApp</li>
-            <li>✓ Lançamentos e reposições com fluxo completo</li>
-          </ul>
-          <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded p-2">
-            ⚠️ A geração é feita semana por semana. Aguarde até 2 minutos.
-          </p>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setConfirmGerar(false)}>Cancelar</Button>
-            <Button onClick={handleGerar} className="gap-2"><Sparkles className="h-4 w-4" /> Gerar agora</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
 
       {/* Nova data / Editar */}
       <NovaDataDialog
@@ -637,24 +512,6 @@ export function AbaCalendario() {
         </AlertDialogContent>
       </AlertDialog>
 
-      <AlertDialog open={confirmLimparMes} onOpenChange={(o) => !o && setConfirmLimparMes(false)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle className="font-serif">Limpar conteúdo de IA — {MESES[mes]}/{ano}?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Tem certeza que deseja limpar todo o conteúdo gerado por IA em {MESES[mes]}/{ano}?
-              <br /><br />
-              Esta ação removerá <strong>{iaCount}</strong> entrada(s) e não pode ser desfeita.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setConfirmLimparMes(false)}>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={limparMes} className="bg-red-600 hover:bg-red-700">
-              Limpar mês
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
 
       <AlertDialog open={!!confirmRegen} onOpenChange={(o) => !o && setConfirmRegen(null)}>
         <AlertDialogContent>
@@ -680,9 +537,8 @@ export function AbaCalendario() {
 function NovaDataDialog({ open, onOpenChange, onSaved, editing, initialDate }: { open: boolean; onOpenChange: (o: boolean) => void; onSaved: () => void; editing: Calendario | null; initialDate: string }) {
   const [data, setData] = useState("");
   const [titulo, setTitulo] = useState("");
-  const [tipo, setTipo] = useState("conteudo");
+  const [tipo, setTipo] = useState("comemorativa");
   const [descricao, setDescricao] = useState("");
-  const [canais, setCanais] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -690,20 +546,16 @@ function NovaDataDialog({ open, onOpenChange, onSaved, editing, initialDate }: {
     if (editing) {
       setData(editing.data);
       setTitulo(editing.titulo);
+      // Apenas tipos manuais editáveis: comemorativa / lancamento. Outros mantém o valor original.
       setTipo(editing.tipo);
       setDescricao(editing.descricao || "");
-      setCanais(Array.isArray((editing as any).canal) ? (editing as any).canal : []);
     } else {
       setData(initialDate || "");
-      setTitulo(""); setTipo("conteudo"); setDescricao(""); setCanais([]);
+      setTitulo(""); setTipo("comemorativa"); setDescricao("");
     }
   }, [open, editing, initialDate]);
 
-  const reset = () => { setData(""); setTitulo(""); setTipo("conteudo"); setDescricao(""); setCanais([]); };
-
-  const toggleCanal = (c: string) => {
-    setCanais((prev) => prev.includes(c) ? prev.filter((x) => x !== c) : [...prev, c]);
-  };
+  const reset = () => { setData(""); setTitulo(""); setTipo("comemorativa"); setDescricao(""); };
 
   const save = async () => {
     if (!data || !titulo || !tipo) { toast.error("Preencha data, título e tipo"); return; }
@@ -718,19 +570,14 @@ function NovaDataDialog({ open, onOpenChange, onSaved, editing, initialDate }: {
         mes_referencia: mesRef,
       };
       if (editing) {
-        const tryFull = { ...payload, canal: canais };
-        let { error } = await (supabase as any).from("calendario_comercial").update(tryFull).eq("id", editing.id);
-        if (error) {
-          const r2 = await (supabase as any).from("calendario_comercial").update(payload).eq("id", editing.id);
-          if (r2.error) throw r2.error;
-        }
+        const { error } = await (supabase as any).from("calendario_comercial").update(payload).eq("id", editing.id);
+        if (error) throw error;
         toast.success("Data atualizada!");
       } else {
-        const insertPayload = { ...payload, status: "rascunho" };
-        const tryFull = { ...insertPayload, canal: canais, criado_por_ia: false };
-        let { error } = await (supabase as any).from("calendario_comercial").insert(tryFull);
+        const insertPayload = { ...payload, status: "aprovado", criado_por_ia: false };
+        const { error } = await (supabase as any).from("calendario_comercial").insert(insertPayload);
         if (error) {
-          const r2 = await (supabase as any).from("calendario_comercial").insert(insertPayload);
+          const r2 = await (supabase as any).from("calendario_comercial").insert({ ...payload, status: "aprovado" });
           if (r2.error) throw r2.error;
         }
         toast.success("Data adicionada!");
@@ -763,27 +610,17 @@ function NovaDataDialog({ open, onOpenChange, onSaved, editing, initialDate }: {
             <Select value={tipo} onValueChange={setTipo}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="comemorativa">Comemorativa</SelectItem>
-                <SelectItem value="campanha">Campanha</SelectItem>
-                <SelectItem value="lancamento">Lançamento</SelectItem>
-                <SelectItem value="conteudo">Conteúdo</SelectItem>
+                <SelectItem value="comemorativa">Comemorativa — Datas especiais e feriados</SelectItem>
+                <SelectItem value="lancamento">Lançamento — Lançamento ou reposição de peça</SelectItem>
               </SelectContent>
             </Select>
+            <p className="text-[11px] text-muted-foreground mt-1">
+              Conteúdo de marketing é gerado automaticamente pelo Plano Comercial.
+            </p>
           </div>
           <div>
             <Label className="text-xs">Descrição</Label>
             <Textarea rows={3} value={descricao} onChange={(e) => setDescricao(e.target.value)} />
-          </div>
-          <div>
-            <Label className="text-xs">Canais</Label>
-            <div className="grid grid-cols-2 gap-2 mt-1">
-              {CANAIS_OPTIONS.map((c) => (
-                <label key={c.key} className="flex items-center gap-2 text-sm cursor-pointer">
-                  <Checkbox checked={canais.includes(c.key)} onCheckedChange={() => toggleCanal(c.key)} />
-                  {c.label}
-                </label>
-              ))}
-            </div>
           </div>
         </div>
         <DialogFooter>
@@ -796,6 +633,7 @@ function NovaDataDialog({ open, onOpenChange, onSaved, editing, initialDate }: {
     </Dialog>
   );
 }
+
 
 function ConteudoEditor({
   conteudo, onSave, onAprovar, onRejeitar, onPublicar,
