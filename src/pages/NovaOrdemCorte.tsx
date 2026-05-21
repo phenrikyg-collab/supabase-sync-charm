@@ -31,7 +31,7 @@ export default function NovaOrdemCorte() {
 
   const [produtosSelecionados, setProdutosSelecionados] = useState<ProdutoSelecionado[]>([]);
   const [searchProduto, setSearchProduto] = useState("");
-  const [gradeMultiCor, setGradeMultiCor] = useState<Record<string, Record<string, number>>>({});
+  const [gradeMultiCor, setGradeMultiCor] = useState<Record<string, Record<string, Record<string, number>>>>({});
   const [selectedRolos, setSelectedRolos] = useState<Set<string>>(new Set());
   const [metrosRolo, setMetrosRolo] = useState<Record<string, number>>({});
   const [roloMode, setRoloMode] = useState<Record<string, "total" | "parcial">>({});
@@ -134,15 +134,24 @@ export default function NovaOrdemCorte() {
   }, [coresFromRolos, metrosRisco]);
 
 
-  const setGradeForCor = (corKey: string, tamanho: string, qty: number) => {
+  const setGradeForCor = (produtoId: string, corKey: string, tamanho: string, qty: number) => {
     setGradeMultiCor((prev) => ({
       ...prev,
-      [corKey]: { ...(prev[corKey] ?? {}), [tamanho]: qty },
+      [produtoId]: {
+        ...(prev[produtoId] ?? {}),
+        [corKey]: { ...(prev[produtoId]?.[corKey] ?? {}), [tamanho]: qty },
+      },
     }));
   };
 
   const totalPecas = Object.values(gradeMultiCor).reduce(
-    (sum, grades) => sum + Object.values(grades).reduce((a, b) => a + (b || 0), 0), 0
+    (sum, byCor) =>
+      sum +
+      Object.values(byCor).reduce(
+        (s, grades) => s + Object.values(grades).reduce((a, b) => a + (b || 0), 0),
+        0,
+      ),
+    0,
   );
 
   const metrosAlocados = Array.from(selectedRolos).reduce((a, id) => a + (metrosRolo[id] ?? 0), 0);
@@ -201,12 +210,14 @@ export default function NovaOrdemCorte() {
     }
 
     try {
-      const gradeItems: { cor_id: string | null; tamanho: string; quantidade: number }[] = [];
-      for (const [corKey, grades] of Object.entries(gradeMultiCor)) {
-        const corInfo = coresFromRolos.find(([k]) => k === corKey);
-        const corId = corInfo?.[1]?.cor_id ?? null;
-        for (const [tamanho, quantidade] of Object.entries(grades)) {
-          if (quantidade > 0) gradeItems.push({ cor_id: corId, tamanho, quantidade });
+      const gradeItems: { produto_id: string | null; cor_id: string | null; tamanho: string; quantidade: number }[] = [];
+      for (const [produtoId, byCor] of Object.entries(gradeMultiCor)) {
+        for (const [corKey, grades] of Object.entries(byCor)) {
+          const corInfo = coresFromRolos.find(([k]) => k === corKey);
+          const corId = corInfo?.[1]?.cor_id ?? null;
+          for (const [tamanho, quantidade] of Object.entries(grades)) {
+            if (quantidade > 0) gradeItems.push({ produto_id: produtoId, cor_id: corId, tamanho, quantidade });
+          }
         }
       }
 
@@ -380,43 +391,59 @@ export default function NovaOrdemCorte() {
             </div>
           </div>
 
-          {/* Grade per color - manual entry per size for each unique color from selected rolls */}
-          {coresFromRolos.length > 0 && (
-            <div className="space-y-4">
+          {/* Grade per product + color */}
+          {coresFromRolos.length > 0 && produtosSelecionados.length > 0 && (
+            <div className="space-y-6">
               <div className="flex items-center justify-between">
-                <Label>Grade de Tamanhos por Cor ({coresFromRolos.length} cor{coresFromRolos.length !== 1 ? "es" : ""})</Label>
-                <span className="text-xs text-muted-foreground">Informe manualmente a quantidade por tamanho em cada cor</span>
+                <Label>Grade de Tamanhos por Produto e Cor</Label>
+                <span className="text-xs text-muted-foreground">Informe a quantidade por tamanho em cada cor, separada por modelo</span>
               </div>
-              {coresFromRolos.map(([corKey, corInfo]) => {
-                const subtotalCor = TAMANHOS.reduce((s, t) => s + (gradeMultiCor[corKey]?.[t] ?? 0), 0);
+              {produtosSelecionados.map((prod) => {
+                const subtotalProduto = coresFromRolos.reduce(
+                  (s, [corKey]) =>
+                    s + TAMANHOS.reduce((ss, t) => ss + (gradeMultiCor[prod.id]?.[corKey]?.[t] ?? 0), 0),
+                  0,
+                );
                 return (
-                  <div key={corKey} className="p-4 rounded-lg border border-border space-y-3">
+                  <div key={prod.id} className="rounded-lg border border-primary/30 bg-primary/5 p-4 space-y-3">
                     <div className="flex items-center justify-between flex-wrap gap-2">
-                      <div className="flex items-center gap-2">
-                        <div className="w-4 h-4 rounded-full border border-border" style={{ backgroundColor: corInfo.cor_hex }} />
-                        <span className="font-medium text-sm text-foreground">{corInfo.cor_nome}</span>
-                        <span className="text-xs text-muted-foreground">• {corInfo.metrosCor.toFixed(1)}m alocados</span>
-                      </div>
-                      <div className="flex items-center gap-3 text-sm">
-                        <span className="text-xs text-muted-foreground">Subtotal: <strong className="text-foreground">{subtotalCor} pç</strong></span>
-                        <span className="text-xs text-muted-foreground">
-                          Folhas estimadas: <strong className="text-foreground">{folhasPorCor[corKey] ?? 0}</strong>
-                        </span>
-                      </div>
-
+                      <span className="font-serif text-base font-semibold text-foreground">{prod.nome}</span>
+                      <span className="text-xs text-muted-foreground">Subtotal do modelo: <strong className="text-foreground">{subtotalProduto} pç</strong></span>
                     </div>
-                    <div className="grid grid-cols-3 md:grid-cols-6 gap-3">
-                      {TAMANHOS.map((t) => (
-                        <div key={t} className="space-y-1">
-                          <span className="text-xs font-medium text-muted-foreground">{t}</span>
-                          <Input
-                            type="number" min={0}
-                            value={gradeMultiCor[corKey]?.[t] ?? ""}
-                            onChange={(e) => setGradeForCor(corKey, t, Number(e.target.value))}
-                            placeholder="0"
-                          />
-                        </div>
-                      ))}
+                    <div className="space-y-3">
+                      {coresFromRolos.map(([corKey, corInfo]) => {
+                        const subtotalCor = TAMANHOS.reduce((s, t) => s + (gradeMultiCor[prod.id]?.[corKey]?.[t] ?? 0), 0);
+                        return (
+                          <div key={corKey} className="p-3 rounded-lg border border-border bg-background space-y-3">
+                            <div className="flex items-center justify-between flex-wrap gap-2">
+                              <div className="flex items-center gap-2">
+                                <div className="w-4 h-4 rounded-full border border-border" style={{ backgroundColor: corInfo.cor_hex }} />
+                                <span className="font-medium text-sm text-foreground">{corInfo.cor_nome}</span>
+                                <span className="text-xs text-muted-foreground">• {corInfo.metrosCor.toFixed(1)}m alocados</span>
+                              </div>
+                              <div className="flex items-center gap-3 text-sm">
+                                <span className="text-xs text-muted-foreground">Subtotal: <strong className="text-foreground">{subtotalCor} pç</strong></span>
+                                <span className="text-xs text-muted-foreground">
+                                  Folhas estimadas: <strong className="text-foreground">{folhasPorCor[corKey] ?? 0}</strong>
+                                </span>
+                              </div>
+                            </div>
+                            <div className="grid grid-cols-3 md:grid-cols-6 gap-3">
+                              {TAMANHOS.map((t) => (
+                                <div key={t} className="space-y-1">
+                                  <span className="text-xs font-medium text-muted-foreground">{t}</span>
+                                  <Input
+                                    type="number" min={0}
+                                    value={gradeMultiCor[prod.id]?.[corKey]?.[t] ?? ""}
+                                    onChange={(e) => setGradeForCor(prod.id, corKey, t, Number(e.target.value))}
+                                    placeholder="0"
+                                  />
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        );
+                      })}
                     </div>
                   </div>
                 );

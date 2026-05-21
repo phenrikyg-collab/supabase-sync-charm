@@ -409,7 +409,7 @@ export const useCreateOrdemCorte = () => {
     mutationFn: async (payload: {
       ordem: Partial<OrdemCorte>;
       produtos: { produto_id: string; nome_produto: string }[];
-      grade: { cor_id: string | null; tamanho: string; quantidade: number }[];
+      grade: { produto_id?: string | null; cor_id: string | null; tamanho: string; quantidade: number }[];
       rolos: { rolo_id: string; metragem_utilizada: number }[];
     }) => {
       // Create ordem
