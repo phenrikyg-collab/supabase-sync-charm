@@ -407,29 +407,6 @@ export function AbaCalendario() {
         )}
       </Card>
 
-      {/* Confirmação Gerar IA */}
-      <Dialog open={confirmGerar} onOpenChange={setConfirmGerar}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle className="font-serif">Gerar calendário para {MESES[mes]}/{ano}</DialogTitle>
-            <DialogDescription>A IA irá gerar conteúdo estratégico baseado em:</DialogDescription>
-          </DialogHeader>
-          <ul className="text-sm space-y-1.5 py-2">
-            <li>✓ 1 Reels + 1 Carrossel + Stories por dia útil</li>
-            <li>✓ Email + WhatsApp VIP em todos os dias úteis</li>
-            <li>✓ Sábados: campanha de oferta WhatsApp</li>
-            <li>✓ Domingos: relacionamento WhatsApp</li>
-            <li>✓ Lançamentos e reposições com fluxo completo</li>
-          </ul>
-          <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded p-2">
-            ⚠️ A geração é feita semana por semana. Aguarde até 2 minutos.
-          </p>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setConfirmGerar(false)}>Cancelar</Button>
-            <Button onClick={handleGerar} className="gap-2"><Sparkles className="h-4 w-4" /> Gerar agora</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
 
       {/* Nova data / Editar */}
       <NovaDataDialog
