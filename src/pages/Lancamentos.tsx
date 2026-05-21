@@ -195,6 +195,22 @@ export default function Lancamentos() {
     fetchAll();
   };
 
+  const excluir = async (id: string) => {
+    try {
+      const { error: e1 } = await (supabase as any)
+        .from("checklist_lancamento").delete().eq("lancamento_id", id);
+      if (e1) throw e1;
+      const { error: e2 } = await (supabase as any)
+        .from("lancamentos_pecas").delete().eq("id", id);
+      if (e2) throw e2;
+      toast.success("Lançamento excluído");
+      setConfirmDel(null);
+      fetchAll();
+    } catch (e: any) {
+      toast.error("Erro ao excluir", { description: e.message });
+    }
+  };
+
   return (
     <div className="p-6 space-y-6 max-w-7xl mx-auto">
       {/* Cabeçalho */}
