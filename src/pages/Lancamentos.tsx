@@ -17,8 +17,12 @@ import {
 } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
-  Sparkles, RefreshCw, Plus, ChevronDown, ChevronUp, ExternalLink, Pencil, Ban,
+  Sparkles, RefreshCw, Plus, ChevronDown, ChevronUp, ExternalLink, Pencil, Ban, Trash2,
 } from "lucide-react";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 // ---------- tipos ----------
 type Lancamento = {
