@@ -425,20 +425,14 @@ export default function NovaOrdemCorte() {
             </div>
           )}
 
-          <div className="p-4 rounded-lg bg-muted/50 border border-border grid grid-cols-3 gap-4">
+          <div className="p-4 rounded-lg bg-muted/50 border border-border grid grid-cols-2 gap-4">
             <div>
               <p className="text-xs text-muted-foreground">Total de Peças</p>
               <p className="text-xl font-serif font-bold text-foreground">{totalPecas}</p>
             </div>
             <div>
-              <p className="text-xs text-muted-foreground">Consumo Total (estimado)</p>
-              <p className="text-xl font-serif font-bold text-foreground">{consumoTotal.toFixed(2)}m</p>
-            </div>
-            <div>
               <p className="text-xs text-muted-foreground">Metros Alocados</p>
-              <p className={`text-xl font-serif font-bold ${estoqueInsuficiente ? "text-destructive" : "text-foreground"}`}>
-                {metrosAlocados.toFixed(2)}m
-              </p>
+              <p className="text-xl font-serif font-bold text-foreground">{metrosAlocados.toFixed(2)}m</p>
             </div>
           </div>
 
@@ -448,12 +442,6 @@ export default function NovaOrdemCorte() {
             </div>
           )}
 
-          {estoqueInsuficiente && consumoTotal > 0 && (
-            <div className="flex items-center gap-2 p-3 bg-destructive/10 border border-destructive/30 rounded-lg text-sm text-destructive">
-              <AlertTriangle className="h-4 w-4" />
-              Metragem alocada ({metrosAlocados.toFixed(2)}m) é menor que o consumo necessário ({consumoTotal.toFixed(2)}m)
-            </div>
-          )}
 
           <div className="flex justify-end gap-3">
             <Button variant="outline" onClick={() => navigate("/ordens-corte")}>Cancelar</Button>
