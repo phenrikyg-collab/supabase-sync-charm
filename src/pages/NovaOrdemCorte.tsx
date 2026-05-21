@@ -31,7 +31,7 @@ export default function NovaOrdemCorte() {
 
   const [produtosSelecionados, setProdutosSelecionados] = useState<ProdutoSelecionado[]>([]);
   const [searchProduto, setSearchProduto] = useState("");
-  const [gradeMultiCor, setGradeMultiCor] = useState<Record<string, Record<string, number>>>({});
+  const [gradeMultiCor, setGradeMultiCor] = useState<Record<string, Record<string, Record<string, number>>>>({});
   const [selectedRolos, setSelectedRolos] = useState<Set<string>>(new Set());
   const [metrosRolo, setMetrosRolo] = useState<Record<string, number>>({});
   const [roloMode, setRoloMode] = useState<Record<string, "total" | "parcial">>({});
