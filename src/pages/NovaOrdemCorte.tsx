@@ -269,7 +269,7 @@ export default function NovaOrdemCorte() {
                 {produtosSelecionados.map((p) => (
                   <div key={p.id} className="flex items-center gap-1.5 bg-primary/10 border border-primary/20 rounded-lg px-3 py-1.5 text-sm">
                     <span className="font-medium text-foreground">{p.nome}</span>
-                    <span className="text-xs text-muted-foreground">({p.consumo}m/pç)</span>
+                    
                     <button onClick={() => removeProduto(p.id)} className="ml-1 text-muted-foreground hover:text-destructive">
                       <X className="h-3.5 w-3.5" />
                     </button>
