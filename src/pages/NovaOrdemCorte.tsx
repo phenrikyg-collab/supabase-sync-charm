@@ -145,13 +145,8 @@ export default function NovaOrdemCorte() {
     (sum, grades) => sum + Object.values(grades).reduce((a, b) => a + (b || 0), 0), 0
   );
 
-  // Average consumption across selected products (same fabric/risco shared)
-  const consumoMedio = produtosSelecionados.length > 0
-    ? produtosSelecionados.reduce((sum, p) => sum + p.consumo, 0) / produtosSelecionados.length
-    : 0;
-  const consumoTotal = totalPecas * consumoMedio;
   const metrosAlocados = Array.from(selectedRolos).reduce((a, id) => a + (metrosRolo[id] ?? 0), 0);
-  const estoqueInsuficiente = consumoTotal > 0 && metrosAlocados < consumoTotal;
+
 
   // Filter available rolos
   const rolosDisponiveis = useMemo(() => {
