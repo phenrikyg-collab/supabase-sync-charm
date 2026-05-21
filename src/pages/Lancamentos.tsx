@@ -17,8 +17,12 @@ import {
 } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
-  Sparkles, RefreshCw, Plus, ChevronDown, ChevronUp, ExternalLink, Pencil, Ban,
+  Sparkles, RefreshCw, Plus, ChevronDown, ChevronUp, ExternalLink, Pencil, Ban, Trash2,
 } from "lucide-react";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 // ---------- tipos ----------
 type Lancamento = {
@@ -140,6 +144,7 @@ export default function Lancamentos() {
   const [openForm, setOpenForm] = useState(false);
   const [editing, setEditing] = useState<Lancamento | null>(null);
   const [expanded, setExpanded] = useState<string | null>(null);
+  const [confirmDel, setConfirmDel] = useState<Lancamento | null>(null);
 
   const fetchAll = useCallback(async () => {
     setLoading(true);
@@ -188,6 +193,22 @@ export default function Lancamentos() {
     if (error) { toast.error("Erro", { description: error.message }); return; }
     toast.success("Lançamento cancelado");
     fetchAll();
+  };
+
+  const excluir = async (id: string) => {
+    try {
+      const { error: e1 } = await (supabase as any)
+        .from("checklist_lancamento").delete().eq("lancamento_id", id);
+      if (e1) throw e1;
+      const { error: e2 } = await (supabase as any)
+        .from("lancamentos_pecas").delete().eq("id", id);
+      if (e2) throw e2;
+      toast.success("Lançamento excluído");
+      setConfirmDel(null);
+      fetchAll();
+    } catch (e: any) {
+      toast.error("Erro ao excluir", { description: e.message });
+    }
   };
 
   return (
@@ -268,11 +289,33 @@ export default function Lancamentos() {
               onToggle={() => setExpanded(expanded === l.id ? null : l.id)}
               onEdit={() => { setEditing(l); setOpenForm(true); }}
               onCancel={() => cancelar(l.id)}
+              onDelete={() => setConfirmDel(l)}
               onChecklistChange={fetchAll}
             />
           ))}
         </div>
       )}
+
+      <AlertDialog open={!!confirmDel} onOpenChange={(o) => !o && setConfirmDel(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir lançamento?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja excluir <strong>{confirmDel?.nome_peca}</strong>?
+              Esta ação removerá o lançamento e todo seu checklist. Não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-red-600 hover:bg-red-700"
+              onClick={() => confirmDel && excluir(confirmDel.id)}
+            >
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Formulário */}
       <LancamentoForm
@@ -287,7 +330,7 @@ export default function Lancamentos() {
 
 // ---------- card ----------
 function LancamentoCard({
-  l, count, expanded, onToggle, onEdit, onCancel, onChecklistChange,
+  l, count, expanded, onToggle, onEdit, onCancel, onDelete, onChecklistChange,
 }: {
   l: Lancamento;
   count: { total: number; concluidos: number };
@@ -295,6 +338,7 @@ function LancamentoCard({
   onToggle: () => void;
   onEdit: () => void;
   onCancel: () => void;
+  onDelete: () => void;
   onChecklistChange: () => void;
 }) {
   const det = parseDetalhes(l.descricao);
@@ -328,6 +372,9 @@ function LancamentoCard({
                 <Ban className="h-3 w-3 mr-1" /> Cancelar
               </Button>
             )}
+            <Button size="sm" variant="ghost" className="text-red-700" onClick={onDelete}>
+              <Trash2 className="h-3 w-3 mr-1" /> Excluir
+            </Button>
           </div>
         </div>
       </div>
