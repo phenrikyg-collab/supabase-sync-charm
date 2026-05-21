@@ -145,13 +145,8 @@ export default function NovaOrdemCorte() {
     (sum, grades) => sum + Object.values(grades).reduce((a, b) => a + (b || 0), 0), 0
   );
 
-  // Average consumption across selected products (same fabric/risco shared)
-  const consumoMedio = produtosSelecionados.length > 0
-    ? produtosSelecionados.reduce((sum, p) => sum + p.consumo, 0) / produtosSelecionados.length
-    : 0;
-  const consumoTotal = totalPecas * consumoMedio;
   const metrosAlocados = Array.from(selectedRolos).reduce((a, id) => a + (metrosRolo[id] ?? 0), 0);
-  const estoqueInsuficiente = consumoTotal > 0 && metrosAlocados < consumoTotal;
+
 
   // Filter available rolos
   const rolosDisponiveis = useMemo(() => {
@@ -195,7 +190,7 @@ export default function NovaOrdemCorte() {
   const handleSubmit = async () => {
     if (produtosSelecionados.length === 0) { toast.error("Selecione ao menos um produto"); return; }
     if (selectedRolos.size === 0) { toast.error("Selecione ao menos um rolo"); return; }
-    if (estoqueInsuficiente) { toast.error("Metragem alocada insuficiente para o consumo total"); return; }
+    
     for (const roloId of selectedRolos) {
       const rolo = rolos?.find((r) => r.id === roloId);
       const alocado = metrosRolo[roloId] ?? 0;
@@ -274,7 +269,7 @@ export default function NovaOrdemCorte() {
                 {produtosSelecionados.map((p) => (
                   <div key={p.id} className="flex items-center gap-1.5 bg-primary/10 border border-primary/20 rounded-lg px-3 py-1.5 text-sm">
                     <span className="font-medium text-foreground">{p.nome}</span>
-                    <span className="text-xs text-muted-foreground">({p.consumo}m/pç)</span>
+                    
                     <button onClick={() => removeProduto(p.id)} className="ml-1 text-muted-foreground hover:text-destructive">
                       <X className="h-3.5 w-3.5" />
                     </button>
@@ -306,9 +301,8 @@ export default function NovaOrdemCorte() {
                       <span className="font-medium text-popover-foreground">{p.nome_do_produto}</span>
                     </span>
                     <span className="flex items-center gap-3">
-                      {p.consumo_de_tecido != null && (
-                        <span className="text-muted-foreground text-xs">{p.consumo_de_tecido}m/pç</span>
-                      )}
+
+
                       {p.codigo_sku && <span className="text-muted-foreground text-xs">{p.codigo_sku}</span>}
                     </span>
                   </button>
@@ -430,20 +424,14 @@ export default function NovaOrdemCorte() {
             </div>
           )}
 
-          <div className="p-4 rounded-lg bg-muted/50 border border-border grid grid-cols-3 gap-4">
+          <div className="p-4 rounded-lg bg-muted/50 border border-border grid grid-cols-2 gap-4">
             <div>
               <p className="text-xs text-muted-foreground">Total de Peças</p>
               <p className="text-xl font-serif font-bold text-foreground">{totalPecas}</p>
             </div>
             <div>
-              <p className="text-xs text-muted-foreground">Consumo Total (estimado)</p>
-              <p className="text-xl font-serif font-bold text-foreground">{consumoTotal.toFixed(2)}m</p>
-            </div>
-            <div>
               <p className="text-xs text-muted-foreground">Metros Alocados</p>
-              <p className={`text-xl font-serif font-bold ${estoqueInsuficiente ? "text-destructive" : "text-foreground"}`}>
-                {metrosAlocados.toFixed(2)}m
-              </p>
+              <p className="text-xl font-serif font-bold text-foreground">{metrosAlocados.toFixed(2)}m</p>
             </div>
           </div>
 
@@ -453,12 +441,6 @@ export default function NovaOrdemCorte() {
             </div>
           )}
 
-          {estoqueInsuficiente && consumoTotal > 0 && (
-            <div className="flex items-center gap-2 p-3 bg-destructive/10 border border-destructive/30 rounded-lg text-sm text-destructive">
-              <AlertTriangle className="h-4 w-4" />
-              Metragem alocada ({metrosAlocados.toFixed(2)}m) é menor que o consumo necessário ({consumoTotal.toFixed(2)}m)
-            </div>
-          )}
 
           <div className="flex justify-end gap-3">
             <Button variant="outline" onClick={() => navigate("/ordens-corte")}>Cancelar</Button>
