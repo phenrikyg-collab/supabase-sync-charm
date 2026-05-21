@@ -144,6 +144,7 @@ export default function Lancamentos() {
   const [openForm, setOpenForm] = useState(false);
   const [editing, setEditing] = useState<Lancamento | null>(null);
   const [expanded, setExpanded] = useState<string | null>(null);
+  const [confirmDel, setConfirmDel] = useState<Lancamento | null>(null);
 
   const fetchAll = useCallback(async () => {
     setLoading(true);
