@@ -372,6 +372,9 @@ function LancamentoCard({
                 <Ban className="h-3 w-3 mr-1" /> Cancelar
               </Button>
             )}
+            <Button size="sm" variant="ghost" className="text-red-700" onClick={onDelete}>
+              <Trash2 className="h-3 w-3 mr-1" /> Excluir
+            </Button>
           </div>
         </div>
       </div>
