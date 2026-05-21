@@ -110,24 +110,17 @@ const CANAL_LABELS: Record<string, string> = {
 };
 
 export function AbaCalendario() {
+  const navigate = useNavigate();
   const hoje = new Date();
   const [ano, setAno] = useState(hoje.getFullYear());
   const [mes, setMes] = useState(hoje.getMonth()); // 0-11
   const [datas, setDatas] = useState<Calendario[]>([]);
   const [loading, setLoading] = useState(false);
-  const [gerando, setGerando] = useState(false);
-  const [confirmGerar, setConfirmGerar] = useState(false);
   const [novaDataOpen, setNovaDataOpen] = useState(false);
   const [editing, setEditing] = useState<Calendario | null>(null);
   const [novaDataInitial, setNovaDataInitial] = useState<string>("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<Calendario | null>(null);
-  const [confirmLimparMes, setConfirmLimparMes] = useState(false);
-  const [limpandoMes, setLimpandoMes] = useState(false);
-  const [progressoPct, setProgressoPct] = useState(0);
-  const [progressoMensagem, setProgressoMensagem] = useState<string | null>(null);
-
-
 
   const mesRef = `${ano}-${pad(mes + 1)}`;
 
