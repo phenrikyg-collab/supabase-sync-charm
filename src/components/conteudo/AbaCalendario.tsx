@@ -13,7 +13,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Sparkles, Loader2, ChevronLeft, ChevronRight, Plus, Pencil, Trash2, ArrowRight, CalendarPlus } from "lucide-react";
+import { Sparkles, Loader2, ChevronLeft, ChevronRight, Plus, Pencil, Trash2, ArrowRight, CalendarPlus, Check, X } from "lucide-react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { invokeEdgeFunction } from "@/lib/edgeFunctions";
 
