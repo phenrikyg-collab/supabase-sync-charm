@@ -190,7 +190,7 @@ export default function NovaOrdemCorte() {
   const handleSubmit = async () => {
     if (produtosSelecionados.length === 0) { toast.error("Selecione ao menos um produto"); return; }
     if (selectedRolos.size === 0) { toast.error("Selecione ao menos um rolo"); return; }
-    if (estoqueInsuficiente) { toast.error("Metragem alocada insuficiente para o consumo total"); return; }
+    
     for (const roloId of selectedRolos) {
       const rolo = rolos?.find((r) => r.id === roloId);
       const alocado = metrosRolo[roloId] ?? 0;
