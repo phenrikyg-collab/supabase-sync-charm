@@ -457,6 +457,7 @@ export function AbaCalendario() {
                                   onRejeitar={() => rejeitarConteudo(ct.id)}
                                   onPublicar={() => publicarConteudo(ct.id)}
                                 />
+
                                 <div className="pt-3 mt-3 border-t">
                                   <Button size="sm" variant="outline" className="gap-1 text-xs" onClick={() => setConfirmRegen({ data: selected.data, canal })}>
                                     <Sparkles className="h-3.5 w-3.5" /> Regenerar canal
