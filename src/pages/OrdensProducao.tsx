@@ -263,21 +263,29 @@ export default function OrdensProducao() {
       setOcGradeInfo(grades.map((g: any) => `${corMap[g.cor_id]?.nome_cor ?? "?"} ${g.tamanho}: ${g.quantidade}`).join(" | "));
 
       const isMulti = prods.length > 1;
+      const hasProdutoIdInGrade = grades.some((g: any) => g.produto_id);
 
-      const buildAlocacoes = (idx: number, total: number): GradeAlloc[] =>
-        grades.map((g: any) => ({
+      const buildAlocacoes = (produtoId: string, total: number): GradeAlloc[] => {
+        // Prefer per-product grade rows when available (new OCs save grade per modelo)
+        const filtered = hasProdutoIdInGrade
+          ? grades.filter((g: any) => g.produto_id === produtoId)
+          : grades;
+        return filtered.map((g: any) => ({
           corId: g.cor_id ?? null,
           corNome: corMap[g.cor_id]?.nome_cor ?? "—",
           tamanho: g.tamanho,
           disponivel: g.quantidade ?? 0,
-          // For single product: take full quantity. For multiple: leave 0 to require manual split.
-          quantidade: total === 1 ? (g.quantidade ?? 0) : 0,
+          // If grade is per-product, fill with full quantity. Otherwise legacy split logic.
+          quantidade: hasProdutoIdInGrade || total === 1 ? (g.quantidade ?? 0) : 0,
         }));
+      };
 
       const newProdutosOP: ProdutoOP[] = prods.map((p: any, idx: number) => {
         const produtoId = p.produto_id ?? "";
         const tempoEfetivo = produtoId ? getTempoEfetivoFicha(produtoId) : 0;
-        const previsaoAuto = produtoId ? getPrevisaoTerminoPorFicha(produtoId, totalPecas) : "";
+        const alocacoesProd = buildAlocacoes(produtoId, prods.length || 1);
+        const totalProduto = alocacoesProd.reduce((a, x) => a + (Number(x.quantidade) || 0), 0);
+        const previsaoAuto = produtoId ? getPrevisaoTerminoPorFicha(produtoId, totalProduto || totalPecas) : "";
         return {
           produtoId,
           nomeProduto: p.nome_produto ?? "—",
@@ -286,13 +294,13 @@ export default function OrdensProducao() {
           custoEstimadoPeca: 0,
           fichaMinutos: tempoEfetivo,
           fichaMinutosManual: false,
-          alocacoes: buildAlocacoes(idx, prods.length || 1),
+          alocacoes: alocacoesProd,
         };
       });
       const fallback: ProdutoOP[] = [{
         produtoId: "", nomeProduto: "—", oficinaId: "", previsaoTermino: "",
         custoEstimadoPeca: 0, fichaMinutos: 0, fichaMinutosManual: false,
-        alocacoes: buildAlocacoes(0, 1),
+        alocacoes: buildAlocacoes("", 1),
       }];
       setProdutosOP(newProdutosOP.length > 0 ? newProdutosOP : fallback);
     });
