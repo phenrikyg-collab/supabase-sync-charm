@@ -512,24 +512,6 @@ export function AbaCalendario() {
         </AlertDialogContent>
       </AlertDialog>
 
-      <AlertDialog open={confirmLimparMes} onOpenChange={(o) => !o && setConfirmLimparMes(false)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle className="font-serif">Limpar conteúdo de IA — {MESES[mes]}/{ano}?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Tem certeza que deseja limpar todo o conteúdo gerado por IA em {MESES[mes]}/{ano}?
-              <br /><br />
-              Esta ação removerá <strong>{iaCount}</strong> entrada(s) e não pode ser desfeita.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setConfirmLimparMes(false)}>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={limparMes} className="bg-red-600 hover:bg-red-700">
-              Limpar mês
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
 
       <AlertDialog open={!!confirmRegen} onOpenChange={(o) => !o && setConfirmRegen(null)}>
         <AlertDialogContent>
