@@ -321,30 +321,28 @@ export function AbaCalendario() {
         </div>
 
         <div className="flex items-center gap-2">
+          <Button variant="outline" onClick={() => navigate("/plano-comercial")} className="gap-2">
+            Ver Plano Comercial <ArrowRight className="h-4 w-4" />
+          </Button>
           <Button variant="outline" onClick={() => openNova()} className="gap-2">
             <Plus className="h-4 w-4" /> Nova data
-          </Button>
-          <Button variant="outline" onClick={() => setConfirmLimparMes(true)} disabled={limpandoMes || datas.length === 0} className="gap-2 text-red-600 border-red-200 hover:bg-red-50">
-            {limpandoMes ? <Loader2 className="h-4 w-4 animate-spin" /> : <Eraser className="h-4 w-4" />}
-            Limpar mês
-          </Button>
-          <Button onClick={() => setConfirmGerar(true)} disabled={gerando} className="gap-2">
-            {gerando ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-            {gerando ? "Gerando..." : "Gerar Calendário com IA"}
           </Button>
         </div>
       </Card>
 
-      {gerando && progressoMensagem && (
-        <Card className="p-4 space-y-2 border-primary/40">
-          <div className="flex items-center gap-2 text-sm">
-            <Loader2 className="h-4 w-4 animate-spin text-primary" />
-            <span className="font-medium">{progressoMensagem}</span>
-            <span className="ml-auto text-xs text-muted-foreground">{progressoPct}%</span>
-          </div>
-          <Progress value={progressoPct} />
+      {!loading && datas.length === 0 && (
+        <Card className="p-8 text-center space-y-3 border-dashed">
+          <CalendarPlus className="h-10 w-10 mx-auto text-muted-foreground" />
+          <div className="font-serif text-lg">Nenhum conteúdo gerado para este mês</div>
+          <p className="text-sm text-muted-foreground max-w-md mx-auto">
+            Para gerar o calendário, acesse o Plano Comercial e defina a meta do mês.
+          </p>
+          <Button onClick={() => navigate("/plano-comercial")} className="gap-2">
+            Ir para Plano Comercial <ArrowRight className="h-4 w-4" />
+          </Button>
         </Card>
       )}
+
 
 
 
