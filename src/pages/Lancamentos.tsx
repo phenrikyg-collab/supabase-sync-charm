@@ -289,11 +289,33 @@ export default function Lancamentos() {
               onToggle={() => setExpanded(expanded === l.id ? null : l.id)}
               onEdit={() => { setEditing(l); setOpenForm(true); }}
               onCancel={() => cancelar(l.id)}
+              onDelete={() => setConfirmDel(l)}
               onChecklistChange={fetchAll}
             />
           ))}
         </div>
       )}
+
+      <AlertDialog open={!!confirmDel} onOpenChange={(o) => !o && setConfirmDel(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir lançamento?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja excluir <strong>{confirmDel?.nome_peca}</strong>?
+              Esta ação removerá o lançamento e todo seu checklist. Não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-red-600 hover:bg-red-700"
+              onClick={() => confirmDel && excluir(confirmDel.id)}
+            >
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Formulário */}
       <LancamentoForm
