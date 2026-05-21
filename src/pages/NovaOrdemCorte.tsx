@@ -301,9 +301,8 @@ export default function NovaOrdemCorte() {
                       <span className="font-medium text-popover-foreground">{p.nome_do_produto}</span>
                     </span>
                     <span className="flex items-center gap-3">
-                      {p.consumo_de_tecido != null && (
-                        <span className="text-muted-foreground text-xs">{p.consumo_de_tecido}m/pç</span>
-                      )}
+
+
                       {p.codigo_sku && <span className="text-muted-foreground text-xs">{p.codigo_sku}</span>}
                     </span>
                   </button>
