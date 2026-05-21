@@ -210,12 +210,14 @@ export default function NovaOrdemCorte() {
     }
 
     try {
-      const gradeItems: { cor_id: string | null; tamanho: string; quantidade: number }[] = [];
-      for (const [corKey, grades] of Object.entries(gradeMultiCor)) {
-        const corInfo = coresFromRolos.find(([k]) => k === corKey);
-        const corId = corInfo?.[1]?.cor_id ?? null;
-        for (const [tamanho, quantidade] of Object.entries(grades)) {
-          if (quantidade > 0) gradeItems.push({ cor_id: corId, tamanho, quantidade });
+      const gradeItems: { produto_id: string | null; cor_id: string | null; tamanho: string; quantidade: number }[] = [];
+      for (const [produtoId, byCor] of Object.entries(gradeMultiCor)) {
+        for (const [corKey, grades] of Object.entries(byCor)) {
+          const corInfo = coresFromRolos.find(([k]) => k === corKey);
+          const corId = corInfo?.[1]?.cor_id ?? null;
+          for (const [tamanho, quantidade] of Object.entries(grades)) {
+            if (quantidade > 0) gradeItems.push({ produto_id: produtoId, cor_id: corId, tamanho, quantidade });
+          }
         }
       }
 
