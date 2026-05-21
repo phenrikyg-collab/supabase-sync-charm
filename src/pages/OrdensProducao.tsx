@@ -309,16 +309,22 @@ export default function OrdensProducao() {
   // Sum alloc per product (used both for display and creation)
   const sumAlloc = (p: ProdutoOP) => p.alocacoes.reduce((a, x) => a + (Number(x.quantidade) || 0), 0);
 
-  // Validation: total allocated per (cor,tamanho) across all products must not exceed disponivel
+  // Validation: total allocated per (cor,tamanho) across all products must not exceed disponivel.
+  // When grade is per-product (each produto has its own disponivel), scope key by produtoId too.
   const allocOverflow = useMemo(() => {
     const overflow: { key: string; alocado: number; disponivel: number }[] = [];
     if (produtosOP.length === 0) return overflow;
+    const perProduct = ocGradeRaw.some((g: any) => g.produto_id);
     const keys = new Set<string>();
-    produtosOP.forEach(p => p.alocacoes.forEach(a => keys.add(`${a.corId ?? "null"}__${a.tamanho}`)));
+    produtosOP.forEach(p => p.alocacoes.forEach(a => {
+      const scope = perProduct ? (p.produtoId || "") : "__shared__";
+      keys.add(`${scope}__${a.corId ?? "null"}__${a.tamanho}`);
+    }));
     keys.forEach(k => {
       let alocado = 0; let disponivel = 0;
       produtosOP.forEach(p => p.alocacoes.forEach(a => {
-        if (`${a.corId ?? "null"}__${a.tamanho}` === k) {
+        const scope = perProduct ? (p.produtoId || "") : "__shared__";
+        if (`${scope}__${a.corId ?? "null"}__${a.tamanho}` === k) {
           alocado += Number(a.quantidade) || 0;
           disponivel = a.disponivel;
         }
@@ -326,7 +332,7 @@ export default function OrdensProducao() {
       if (alocado > disponivel) overflow.push({ key: k, alocado, disponivel });
     });
     return overflow;
-  }, [produtosOP]);
+  }, [produtosOP, ocGradeRaw]);
 
   const handleCreate = async () => {
     if (!ocId) { toast.error("Selecione uma OC"); return; }
