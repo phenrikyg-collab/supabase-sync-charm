@@ -134,15 +134,24 @@ export default function NovaOrdemCorte() {
   }, [coresFromRolos, metrosRisco]);
 
 
-  const setGradeForCor = (corKey: string, tamanho: string, qty: number) => {
+  const setGradeForCor = (produtoId: string, corKey: string, tamanho: string, qty: number) => {
     setGradeMultiCor((prev) => ({
       ...prev,
-      [corKey]: { ...(prev[corKey] ?? {}), [tamanho]: qty },
+      [produtoId]: {
+        ...(prev[produtoId] ?? {}),
+        [corKey]: { ...(prev[produtoId]?.[corKey] ?? {}), [tamanho]: qty },
+      },
     }));
   };
 
   const totalPecas = Object.values(gradeMultiCor).reduce(
-    (sum, grades) => sum + Object.values(grades).reduce((a, b) => a + (b || 0), 0), 0
+    (sum, byCor) =>
+      sum +
+      Object.values(byCor).reduce(
+        (s, grades) => s + Object.values(grades).reduce((a, b) => a + (b || 0), 0),
+        0,
+      ),
+    0,
   );
 
   const metrosAlocados = Array.from(selectedRolos).reduce((a, id) => a + (metrosRolo[id] ?? 0), 0);
