@@ -537,9 +537,8 @@ export function AbaCalendario() {
 function NovaDataDialog({ open, onOpenChange, onSaved, editing, initialDate }: { open: boolean; onOpenChange: (o: boolean) => void; onSaved: () => void; editing: Calendario | null; initialDate: string }) {
   const [data, setData] = useState("");
   const [titulo, setTitulo] = useState("");
-  const [tipo, setTipo] = useState("conteudo");
+  const [tipo, setTipo] = useState("comemorativa");
   const [descricao, setDescricao] = useState("");
-  const [canais, setCanais] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -547,20 +546,16 @@ function NovaDataDialog({ open, onOpenChange, onSaved, editing, initialDate }: {
     if (editing) {
       setData(editing.data);
       setTitulo(editing.titulo);
+      // Apenas tipos manuais editáveis: comemorativa / lancamento. Outros mantém o valor original.
       setTipo(editing.tipo);
       setDescricao(editing.descricao || "");
-      setCanais(Array.isArray((editing as any).canal) ? (editing as any).canal : []);
     } else {
       setData(initialDate || "");
-      setTitulo(""); setTipo("conteudo"); setDescricao(""); setCanais([]);
+      setTitulo(""); setTipo("comemorativa"); setDescricao("");
     }
   }, [open, editing, initialDate]);
 
-  const reset = () => { setData(""); setTitulo(""); setTipo("conteudo"); setDescricao(""); setCanais([]); };
-
-  const toggleCanal = (c: string) => {
-    setCanais((prev) => prev.includes(c) ? prev.filter((x) => x !== c) : [...prev, c]);
-  };
+  const reset = () => { setData(""); setTitulo(""); setTipo("comemorativa"); setDescricao(""); };
 
   const save = async () => {
     if (!data || !titulo || !tipo) { toast.error("Preencha data, título e tipo"); return; }
@@ -575,19 +570,14 @@ function NovaDataDialog({ open, onOpenChange, onSaved, editing, initialDate }: {
         mes_referencia: mesRef,
       };
       if (editing) {
-        const tryFull = { ...payload, canal: canais };
-        let { error } = await (supabase as any).from("calendario_comercial").update(tryFull).eq("id", editing.id);
-        if (error) {
-          const r2 = await (supabase as any).from("calendario_comercial").update(payload).eq("id", editing.id);
-          if (r2.error) throw r2.error;
-        }
+        const { error } = await (supabase as any).from("calendario_comercial").update(payload).eq("id", editing.id);
+        if (error) throw error;
         toast.success("Data atualizada!");
       } else {
-        const insertPayload = { ...payload, status: "rascunho" };
-        const tryFull = { ...insertPayload, canal: canais, criado_por_ia: false };
-        let { error } = await (supabase as any).from("calendario_comercial").insert(tryFull);
+        const insertPayload = { ...payload, status: "aprovado", criado_por_ia: false };
+        const { error } = await (supabase as any).from("calendario_comercial").insert(insertPayload);
         if (error) {
-          const r2 = await (supabase as any).from("calendario_comercial").insert(insertPayload);
+          const r2 = await (supabase as any).from("calendario_comercial").insert({ ...payload, status: "aprovado" });
           if (r2.error) throw r2.error;
         }
         toast.success("Data adicionada!");
@@ -620,27 +610,17 @@ function NovaDataDialog({ open, onOpenChange, onSaved, editing, initialDate }: {
             <Select value={tipo} onValueChange={setTipo}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="comemorativa">Comemorativa</SelectItem>
-                <SelectItem value="campanha">Campanha</SelectItem>
-                <SelectItem value="lancamento">Lançamento</SelectItem>
-                <SelectItem value="conteudo">Conteúdo</SelectItem>
+                <SelectItem value="comemorativa">Comemorativa — Datas especiais e feriados</SelectItem>
+                <SelectItem value="lancamento">Lançamento — Lançamento ou reposição de peça</SelectItem>
               </SelectContent>
             </Select>
+            <p className="text-[11px] text-muted-foreground mt-1">
+              Conteúdo de marketing é gerado automaticamente pelo Plano Comercial.
+            </p>
           </div>
           <div>
             <Label className="text-xs">Descrição</Label>
             <Textarea rows={3} value={descricao} onChange={(e) => setDescricao(e.target.value)} />
-          </div>
-          <div>
-            <Label className="text-xs">Canais</Label>
-            <div className="grid grid-cols-2 gap-2 mt-1">
-              {CANAIS_OPTIONS.map((c) => (
-                <label key={c.key} className="flex items-center gap-2 text-sm cursor-pointer">
-                  <Checkbox checked={canais.includes(c.key)} onCheckedChange={() => toggleCanal(c.key)} />
-                  {c.label}
-                </label>
-              ))}
-            </div>
           </div>
         </div>
         <DialogFooter>
@@ -653,6 +633,7 @@ function NovaDataDialog({ open, onOpenChange, onSaved, editing, initialDate }: {
     </Dialog>
   );
 }
+
 
 function ConteudoEditor({
   conteudo, onSave, onAprovar, onRejeitar, onPublicar,
