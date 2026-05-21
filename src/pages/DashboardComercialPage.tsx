@@ -269,8 +269,8 @@ export default function DashboardComercialPage() {
   const pctMeta = metaMensal > 0 ? (realizadoMes / metaMensal) * 100 : 0;
   const faltaMeta = Math.max(metaMensal - realizadoMes, 0);
   const hoje = new Date();
-  const diasUteisPassados = diasUteis(startOfMonth(hoje), hoje);
-  const diasUteisRestantes = Math.max(diasUteisMes - diasUteisPassados, 0);
+  // Dias úteis restantes = de hoje (inclusive) até o último dia do mês, removendo sáb/dom
+  const diasUteisRestantes = diasUteis(startOfDay(hoje), endOfMonth(hoje));
   const metaDiariaHoje = diasUteisRestantes > 0 ? faltaMeta / diasUteisRestantes : 0;
 
   // ===== série diária =====
