@@ -243,7 +243,10 @@ export default function NovaOrdemCorte() {
       toast.success(`Ordem de corte criada com ${produtosSelecionados.length} produto(s)!`);
       navigate("/ordens-corte");
     } catch (e: unknown) {
-      toast.error(e instanceof Error ? e.message : "Erro ao criar ordem de corte");
+      console.error("[NovaOrdemCorte] erro ao criar ordem:", e);
+      const err = e as { message?: string; details?: string; hint?: string; code?: string };
+      const msg = [err?.code, err?.message, err?.details, err?.hint].filter(Boolean).join(" | ");
+      toast.error(msg || "Erro ao criar ordem de corte");
     }
   };
 
