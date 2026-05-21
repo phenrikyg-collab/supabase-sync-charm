@@ -123,10 +123,9 @@ export default function NovaOrdemCorte() {
     return Array.from(map.entries());
   }, [selectedRolos, rolos, metrosRolo, coresPorId, coresPorNome]);
 
-  // Calculate folhas per color = metros da cor / metragem do risco (auto-calculated, manually overridable)
-  const [folhasOverride, setFolhasOverride] = useState<Record<string, number | null>>({});
-  
-  const folhasPorCorCalc = useMemo(() => {
+  // Folhas por cor = metragem alocada da cor / metragem do risco (estimativa automática)
+  // Os valores reais são informados manualmente na Ordem de Produção, pois há sobras de tecido.
+  const folhasPorCor = useMemo(() => {
     const result: Record<string, number> = {};
     for (const [corKey, corInfo] of coresFromRolos) {
       result[corKey] = metrosRisco > 0 ? Math.floor(corInfo.metrosCor / metrosRisco) : 0;
@@ -134,13 +133,6 @@ export default function NovaOrdemCorte() {
     return result;
   }, [coresFromRolos, metrosRisco]);
 
-  const folhasPorCor = useMemo(() => {
-    const result: Record<string, number> = {};
-    for (const [corKey] of coresFromRolos) {
-      result[corKey] = folhasOverride[corKey] ?? folhasPorCorCalc[corKey] ?? 0;
-    }
-    return result;
-  }, [coresFromRolos, folhasPorCorCalc, folhasOverride]);
 
   const setGradeForCor = (corKey: string, tamanho: string, qty: number) => {
     setGradeMultiCor((prev) => ({
@@ -413,17 +405,11 @@ export default function NovaOrdemCorte() {
                       </div>
                       <div className="flex items-center gap-3 text-sm">
                         <span className="text-xs text-muted-foreground">Subtotal: <strong className="text-foreground">{subtotalCor} pç</strong></span>
-                        <span className="text-xs text-muted-foreground">Folhas calc: {folhasPorCorCalc[corKey] ?? 0}</span>
-                        <div className="flex items-center gap-1">
-                          <span className="text-xs text-muted-foreground">Folhas:</span>
-                          <Input
-                            type="number" min={0}
-                            className="w-20 h-7 text-sm"
-                            value={folhasPorCor[corKey] ?? 0}
-                            onChange={(e) => setFolhasOverride((prev) => ({ ...prev, [corKey]: Number(e.target.value) }))}
-                          />
-                        </div>
+                        <span className="text-xs text-muted-foreground">
+                          Folhas estimadas: <strong className="text-foreground">{folhasPorCor[corKey] ?? 0}</strong>
+                        </span>
                       </div>
+
                     </div>
                     <div className="grid grid-cols-3 md:grid-cols-6 gap-3">
                       {TAMANHOS.map((t) => (
