@@ -330,7 +330,7 @@ export default function Lancamentos() {
 
 // ---------- card ----------
 function LancamentoCard({
-  l, count, expanded, onToggle, onEdit, onCancel, onChecklistChange,
+  l, count, expanded, onToggle, onEdit, onCancel, onDelete, onChecklistChange,
 }: {
   l: Lancamento;
   count: { total: number; concluidos: number };
@@ -338,6 +338,7 @@ function LancamentoCard({
   onToggle: () => void;
   onEdit: () => void;
   onCancel: () => void;
+  onDelete: () => void;
   onChecklistChange: () => void;
 }) {
   const det = parseDetalhes(l.descricao);
