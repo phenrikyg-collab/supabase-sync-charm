@@ -16,6 +16,8 @@ interface Post {
   engagement: number;
   video_views: number;
   data_extracao?: string;
+  permalink?: string;
+  media_url?: string;
 }
 
 export default function MarketingAnalytics() {
