@@ -274,29 +274,44 @@ export default function OrdensCorte() {
                     {o.produtos.map((p) => p.nome_produto).join(", ") || "—"}
                   </div>
                   {(() => {
-                    // Group grade by cor_id
-                    const byColor = new Map<string, { cor_id: string | null; items: { tamanho: string; quantidade: number }[] }>();
-                    o.grade.forEach((g) => {
-                      const key = g.cor_id ?? "sem-cor";
-                      const entry = byColor.get(key) ?? { cor_id: g.cor_id, items: [] };
-                      entry.items.push({ tamanho: g.tamanho, quantidade: g.quantidade });
-                      byColor.set(key, entry);
-                    });
-                    return Array.from(byColor.entries()).map(([key, { cor_id, items }]) => {
-                      const cor = cor_id ? coresMap.get(cor_id) : null;
+                    const produtosList = o.produtos.length
+                      ? o.produtos
+                      : [{ id: "sem", produto_id: null, nome_produto: "Sem produto" }];
+                    return produtosList.map((prod) => {
+                      const gradeProd = o.grade.filter((g) => (g.produto_id ?? null) === (prod.produto_id ?? null));
+                      if (gradeProd.length === 0) return null;
+                      const subtotalProd = gradeProd.reduce((a, g) => a + g.quantidade, 0);
+                      const byColor = new Map<string, { cor_id: string | null; items: { tamanho: string; quantidade: number }[] }>();
+                      gradeProd.forEach((g) => {
+                        const key = g.cor_id ?? "sem-cor";
+                        const entry = byColor.get(key) ?? { cor_id: g.cor_id, items: [] };
+                        entry.items.push({ tamanho: g.tamanho, quantidade: g.quantidade });
+                        byColor.set(key, entry);
+                      });
                       return (
-                        <div key={key} className="space-y-1">
-                          <div className="flex items-center gap-1.5">
-                            <div className="w-3 h-3 rounded-full border border-border" style={{ backgroundColor: cor?.cor_hex ?? "#ccc" }} />
-                            <span className="text-xs font-medium text-muted-foreground">{cor?.nome_cor ?? "Sem cor"}</span>
+                        <div key={prod.produto_id ?? prod.id} className="space-y-1.5 p-2 rounded-md border border-border bg-muted/30">
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs font-semibold text-foreground">{prod.nome_produto}</span>
+                            <span className="text-xs text-muted-foreground">{subtotalProd} pç</span>
                           </div>
-                          <div className="flex flex-wrap gap-1.5">
-                            {items.map((g, j) => (
-                              <span key={j} className="text-xs bg-muted px-2 py-1 rounded-md text-muted-foreground">
-                                {g.tamanho}: {g.quantidade}
-                              </span>
-                            ))}
-                          </div>
+                          {Array.from(byColor.entries()).map(([key, { cor_id, items }]) => {
+                            const cor = cor_id ? coresMap.get(cor_id) : null;
+                            return (
+                              <div key={key} className="space-y-1">
+                                <div className="flex items-center gap-1.5">
+                                  <div className="w-3 h-3 rounded-full border border-border" style={{ backgroundColor: cor?.cor_hex ?? "#ccc" }} />
+                                  <span className="text-xs font-medium text-muted-foreground">{cor?.nome_cor ?? "Sem cor"}</span>
+                                </div>
+                                <div className="flex flex-wrap gap-1.5">
+                                  {items.map((g, j) => (
+                                    <span key={j} className="text-xs bg-background px-2 py-1 rounded-md text-muted-foreground border border-border">
+                                      {g.tamanho}: {g.quantidade}
+                                    </span>
+                                  ))}
+                                </div>
+                              </div>
+                            );
+                          })}
                         </div>
                       );
                     });
