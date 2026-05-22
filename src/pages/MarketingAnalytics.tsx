@@ -295,34 +295,9 @@ Seja direto, específico e use os dados reais. Máximo 600 palavras.`;
                 <ArrowUp size={20} className="text-green-500" />
                 Top 5 Posts por Alcance
               </h2>
-              <div className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {topPosts.map((post, i) => (
-                  <div key={post.id} className="flex items-start gap-4 pb-4 border-b border-slate-700 last:border-0">
-                    <div className="text-amber-500 font-bold text-lg w-8 h-8 flex items-center justify-center bg-amber-500/20 rounded-full flex-shrink-0">
-                      {i + 1}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-white font-semibold text-xs md:text-sm line-clamp-2">
-                        {post.caption || `Post ${post.media_id?.substring(0, 8)}`}
-                      </p>
-                      <div className="flex gap-3 md:gap-6 mt-2 text-xs md:text-sm flex-wrap">
-                        <span className="text-slate-400">
-                          <span className="text-green-400 font-semibold">{post.reach?.toLocaleString()}</span> alcance
-                        </span>
-                        <span className="text-slate-400">
-                          <span className="text-blue-400 font-semibold">{Math.round(post.engagement || 0)}</span> engajamento
-                        </span>
-                        <span className="text-slate-400">
-                          <span className="text-purple-400 font-semibold">{post.saved}</span> salvos
-                        </span>
-                      </div>
-                    </div>
-                    <div className="text-right flex-shrink-0">
-                      <span className={`px-2 md:px-3 py-1 rounded text-xs font-semibold ${post.media_type === 'REELS' ? 'bg-red-500/20 text-red-400' : 'bg-blue-500/20 text-blue-400'}`}>
-                        {post.media_type === 'REELS' ? 'Reel' : 'Carrossel'}
-                      </span>
-                    </div>
-                  </div>
+                  <PostCard key={post.id} post={post} rank={i + 1} />
                 ))}
               </div>
             </div>
