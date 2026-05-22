@@ -37,9 +37,14 @@ export default function MarketingAnalytics() {
       setError('');
       setLoading(true);
 
+      const seteDiasAtras = new Date();
+      seteDiasAtras.setDate(seteDiasAtras.getDate() - 7);
+      const dataInicio = seteDiasAtras.toISOString().split('T')[0];
+
       const { data: postsData, error: postsError } = await supabase
         .from('instagram_posts')
         .select('*')
+        .gte('data_publicacao', dataInicio)
         .order('reach', { ascending: false })
         .limit(50);
 
