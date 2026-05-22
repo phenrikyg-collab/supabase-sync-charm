@@ -42,12 +42,10 @@ export default function MarketingAnalytics() {
 
       if (postsError) throw postsError;
 
+      setPosts(postsData || []);
       if (postsData && postsData.length > 0) {
-        setPosts(postsData);
         setUltimaAtualizacao(postsData[0]?.data_extracao || '');
         generateInsights(postsData);
-      } else {
-        setError('Nenhum post encontrado.');
       }
     } catch (err: any) {
       setError('Erro ao carregar dados: ' + err.message);
@@ -113,6 +111,8 @@ Substituir por: storytelling de produto, educação de qualidade, comunidade e p
     </div>
   );
 
+  const isEmpty = posts.length === 0;
+
   const reelsData = posts.filter(p => p.media_type === 'REELS');
   const carrosselData = posts.filter(p => p.media_type === 'CAROUSEL_ALBUM');
   const topPosts = posts.slice(0, 5);
@@ -175,6 +175,16 @@ Substituir por: storytelling de produto, educação de qualidade, comunidade e p
             Performance Instagram · {posts.length} posts analisados
           </p>
         </div>
+
+        {isEmpty && (
+          <div className="mb-8 bg-amber-500/10 border border-amber-500/30 rounded-lg p-6 text-center">
+            <AlertCircle size={32} className="text-amber-500 mx-auto mb-2" />
+            <h2 className="text-white font-bold mb-1">Nenhum post encontrado</h2>
+            <p className="text-slate-300 text-sm">
+              A tabela <code className="text-amber-400">instagram_posts</code> está vazia. Assim que houver dados sincronizados do Windsor.ai, as análises aparecerão aqui automaticamente.
+            </p>
+          </div>
+        )}
 
         {/* KPIs */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
