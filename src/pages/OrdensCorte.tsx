@@ -23,7 +23,7 @@ interface OrdemCorteEnriched {
   quantidade_folhas: number | null;
   created_at: string | null;
   produtos: { id: string; produto_id: string | null; nome_produto: string | null }[];
-  grade: { tamanho: string; quantidade: number; cor_id: string | null }[];
+  grade: { tamanho: string; quantidade: number; cor_id: string | null; produto_id: string | null }[];
 }
 
 export default function OrdensCorte() {
