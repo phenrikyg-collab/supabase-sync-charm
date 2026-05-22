@@ -477,34 +477,42 @@ export default function OrdensProducao() {
   };
 
   const printOrdemProducao = (o: any) => {
-    const gradeItems: any[] = o.gradeInfo ?? [];
+    const allGrade: any[] = o.gradeInfo ?? [];
+    // Filter grade rows by this OP's produto_id when grade is per-modelo
+    const hasProdutoId = allGrade.some((g: any) => g.produto_id);
+    const gradeItems = hasProdutoId && o.produto_id
+      ? allGrade.filter((g: any) => g.produto_id === o.produto_id)
+      : allGrade;
     const gradeRows = gradeItems.map((g: any) => {
       const cor = g.cor_id ? corMap[g.cor_id] : null;
       return `<tr><td>${cor ? `<span class="color-dot" style="background:${cor.cor_hex ?? '#ccc'}"></span>${cor.nome_cor}` : "—"}</td><td>${g.tamanho}</td><td>${g.quantidade}</td></tr>`;
     }).join("");
     const oficina = o.oficina_id ? oficinaMap[o.oficina_id] : null;
-    const total = gradeItems.reduce((a: number, g: any) => a + (g.quantidade ?? 0), 0);
+    const ocNumero = o.ordem_corte_id ? (ocMap[o.ordem_corte_id]?.numero_oc ?? "—") : "—";
+    const qtdOP = o.quantidade_pecas_ordem ?? o.quantidade ?? 0;
+    const totalGrade = gradeItems.reduce((a: number, g: any) => a + (g.quantidade ?? 0), 0);
     printHTML(`Ordem de Produção - ${o.nome_produto}`, `
       <div class="header">
-        <div><h1>Ordem de Produção</h1><div class="subtitle">${o.nome_produto ?? "—"}</div></div>
+        <div><h1>Ordem de Produção</h1><div class="subtitle">${o.nome_produto ?? "—"} — ${ocNumero}</div></div>
         <div class="company"><img src="/images/logo.png" class="logo" alt="MC" /><br/>Gestão - Mariana Cardoso</div>
       </div>
       <div class="section">
         <div class="section-title">Informações</div>
         <div class="info-grid">
           <div class="info-item"><label>Produto</label><span>${o.nome_produto ?? "—"}</span></div>
+          <div class="info-item"><label>Ordem de Corte</label><span>${ocNumero}</span></div>
           <div class="info-item"><label>Status</label>${statusBadgeHTML(o.status_ordem ?? "")}</div>
           <div class="info-item"><label>Oficina</label><span>${oficina?.nome_oficina ?? "—"}</span></div>
-          <div class="info-item"><label>Quantidade</label><span>${o.quantidade ?? o.quantidade_pecas_ordem ?? 0} peças</span></div>
+          <div class="info-item"><label>Quantidade da OP</label><span><strong>${qtdOP} peças</strong></span></div>
           <div class="info-item"><label>Início</label><span>${formatDateBR(o.data_inicio)}</span></div>
           <div class="info-item"><label>Fim</label><span>${formatDateBR(o.data_fim)}</span></div>
           <div class="info-item"><label>Previsão Término</label><span>${formatDateBR(o.data_previsao_termino)}</span></div>
         </div>
       </div>
       ${gradeItems.length > 0 ? `<div class="section">
-        <div class="section-title">Grade</div>
+        <div class="section-title">Grade deste Modelo</div>
         <table><thead><tr><th>Cor</th><th>Tamanho</th><th>Quantidade</th></tr></thead>
-        <tbody>${gradeRows}<tr class="total-row"><td colspan="2">Total</td><td>${total}</td></tr></tbody></table>
+        <tbody>${gradeRows}<tr class="total-row"><td colspan="2">Total</td><td>${totalGrade}</td></tr></tbody></table>
       </div>` : ""}
     `);
   };
