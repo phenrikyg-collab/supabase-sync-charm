@@ -42,12 +42,10 @@ export default function MarketingAnalytics() {
 
       if (postsError) throw postsError;
 
+      setPosts(postsData || []);
       if (postsData && postsData.length > 0) {
-        setPosts(postsData);
         setUltimaAtualizacao(postsData[0]?.data_extracao || '');
         generateInsights(postsData);
-      } else {
-        setError('Nenhum post encontrado.');
       }
     } catch (err: any) {
       setError('Erro ao carregar dados: ' + err.message);
