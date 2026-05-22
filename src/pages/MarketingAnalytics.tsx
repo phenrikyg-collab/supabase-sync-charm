@@ -187,6 +187,62 @@ Seja direto, específico e use os dados reais. Máximo 600 palavras.`;
 
   const COLORS = ['#E8CD7E', '#8B6914'];
 
+  const PostCard = ({ post, rank }: { post: Post; rank: number }) => (
+    <div className={`bg-slate-800 rounded-xl overflow-hidden border transition hover:border-amber-500/50 ${rank === 1 ? 'border-amber-500/60' : 'border-slate-700'}`}>
+      <div className="relative aspect-square bg-slate-700">
+        {post.media_url ? (
+          <img
+            src={post.media_url}
+            alt={post.caption || 'Post Instagram'}
+            className="w-full h-full object-cover"
+            onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
+          />
+        ) : (
+          <div className="w-full h-full flex items-center justify-center">
+            <span className="text-slate-500 text-4xl">📷</span>
+          </div>
+        )}
+        <span className={`absolute top-2 right-2 text-xs px-2 py-0.5 rounded font-bold ${post.media_type === 'REELS' ? 'bg-red-500/80 text-white' : 'bg-blue-500/80 text-white'}`}>
+          {post.media_type === 'REELS' ? '▶ Reel' : '⊞ Carrossel'}
+        </span>
+        {rank === 1 && (
+          <span className="absolute top-2 left-2 text-xs px-2 py-0.5 rounded font-bold bg-amber-500 text-white">
+            🏆 #1
+          </span>
+        )}
+      </div>
+      <div className="p-4">
+        <p className="text-white text-sm line-clamp-2 mb-3 min-h-[2.5rem]">
+          {post.caption || 'Sem legenda'}
+        </p>
+        <div className="grid grid-cols-3 gap-2 text-center">
+          <div>
+            <p className="text-emerald-400 font-bold text-sm">{post.reach?.toLocaleString() || 0}</p>
+            <p className="text-slate-500 text-xs">alcance</p>
+          </div>
+          <div>
+            <p className="text-blue-400 font-bold text-sm">{Math.round(post.engagement || 0)}</p>
+            <p className="text-slate-500 text-xs">engajamento</p>
+          </div>
+          <div>
+            <p className="text-purple-400 font-bold text-sm">{post.saved || 0}</p>
+            <p className="text-slate-500 text-xs">salvos</p>
+          </div>
+        </div>
+        {post.permalink && (
+          <a
+            href={post.permalink}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="mt-3 block text-center text-xs text-amber-500 hover:text-amber-400 transition"
+          >
+            Ver no Instagram →
+          </a>
+        )}
+      </div>
+    </div>
+  );
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-4 md:p-8">
       <div className="max-w-7xl mx-auto">
