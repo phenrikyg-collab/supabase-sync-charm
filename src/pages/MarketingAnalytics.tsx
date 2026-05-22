@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { TrendingUp, AlertCircle, Zap, Target, ArrowUp } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
+import { invokeEdgeFunction } from '@/lib/edgeFunctions';
 
 interface Post {
   id: string;
@@ -54,36 +55,53 @@ export default function MarketingAnalytics() {
     }
   };
 
-  const generateInsights = (postsData: Post[]) => {
-    const topPosts = postsData.slice(0, 3);
-    const lowPosts = postsData.slice(-3);
-    const avgEngagement = postsData.reduce((s, p) => s + (p.engagement || 0), 0) / postsData.length;
-    const reels = postsData.filter(p => p.media_type === 'REELS');
-    const avgReachReels = reels.reduce((s, p) => s + (p.reach || 0), 0) / Math.max(reels.length, 1);
+  const generateInsights = async (postsData: Post[]) => {
+    try {
+      const topPosts = [...postsData].sort((a, b) => (b.reach || 0) - (a.reach || 0)).slice(0, 5);
+      const lowPosts = [...postsData].sort((a, b) => (a.reach || 0) - (b.reach || 0)).slice(0, 3);
+      const reels = postsData.filter(p => p.media_type === 'REELS');
+      const carrosseis = postsData.filter(p => p.media_type === 'CAROUSEL_ALBUM');
+      const avgEngagement = postsData.reduce((s, p) => s + (p.engagement || 0), 0) / postsData.length;
 
-    setInsights(`**1. O QUE ESTÁ FUNCIONANDO**
+      const prompt = `Você é especialista em marketing digital para marcas premium de moda.
 
-Os ${reels.length} Reels têm alcance médio de ${Math.round(avgReachReels).toLocaleString()} — significativamente superior aos Carrosséis. O padrão dos top posts é claro: storytelling + educação sobre qualidade de tecidos + aspiração lifestyle.
+CONTEXTO DA MARCA:
+Mariana Cardoso é uma marca de moda premium brasileira.
+Posicionamento: a cliente não pensa "vou comprar uma calça" — ela pensa "quero fazer parte do universo Mariana Cardoso".
+Compete por ASPIRAÇÃO e PERTENCIMENTO, não por preço.
+Valores: qualidade técnica (tecidos, cortes), exclusividade, comunidade.
 
-O Reel "${topPosts[0]?.caption?.substring(0, 50)}..." alcançou ${topPosts[0]?.reach?.toLocaleString()} pessoas porque não vende uma calça — vende a sensação de vestir algo que foi pensado para o seu corpo. Isso é posicionamento premium funcionando.
+DADOS DO INSTAGRAM:
+Total de posts: ${postsData.length}
+Reels: ${reels.length} | Carrosséis: ${carrosseis.length}
+Engajamento médio: ${avgEngagement.toFixed(0)}
+Alcance médio Reels: ${Math.round(reels.reduce((s,p) => s+(p.reach||0),0)/Math.max(reels.length,1)).toLocaleString()}
+Alcance médio Carrosséis: ${Math.round(carrosseis.reduce((s,p) => s+(p.reach||0),0)/Math.max(carrosseis.length,1)).toLocaleString()}
 
-**2. O QUE NÃO ESTÁ FUNCIONANDO**
+TOP 5 POSTS (maior alcance):
+${topPosts.map((p,i) => `${i+1}. [${p.media_type}] Alcance: ${p.reach?.toLocaleString()} | Engajamento: ${Math.round(p.engagement||0)} | Salvos: ${p.saved} | "${p.caption?.substring(0,80)}"`).join('\n')}
 
-Posts com baixo alcance (abaixo de ${Math.round(avgEngagement * 10)}) têm algo em comum: são transacionais. Anunciam lançamentos sem narrativa, mostram produtos sem contexto emocional. A cliente premium não responde a catálogos — ela responde a universos.
+MENOR PERFORMANCE:
+${lowPosts.map((p,i) => `${i+1}. [${p.media_type}] Alcance: ${p.reach?.toLocaleString()} | "${p.caption?.substring(0,80)}"`).join('\n')}
 
-Posts que falam de data/hora de lançamento sem construir antecipação e desejo são os que menos performam.
+Gere análise estratégica em 4 seções:
+1. O QUE ESTÁ FUNCIONANDO
+Identifique padrões nos top posts. Storytelling? Educação sobre tecido? Lifestyle? Aspiração?
+2. O QUE NÃO ESTÁ PERFORMANDO E POR QUÊ
+Analise posts com menor alcance. São transacionais? Informativos sem emoção?
+3. OPORTUNIDADES ESTRATÉGICAS
+3 oportunidades concretas para fortalecer posicionamento premium.
+4. RECOMENDAÇÕES DE PARADA
+Que tipos de conteúdo pausar? Por quê dilui o posicionamento?
 
-**3. OPORTUNIDADES ESTRATÉGICAS**
+Seja direto, específico e use os dados reais. Máximo 600 palavras.`;
 
-- Série "Por que esse tecido muda tudo": cada post explica um diferencial técnico (elastano, malha enchanté, twill marant) em formato Reel educativo
-- Conteúdo de bastidores: o processo de desenvolvimento de uma peça — design, fit, ajustes — cria percepção premium sem falar de preço
-- "Uma semana no universo MC": série de looks reais no dia a dia, não editorial — aspiração acessível
-
-**4. RECOMENDAÇÕES DE PARADA**
-
-Pausar imediatamente: posts apenas informativos ("lançamento às 20h"), carrosséis técnicos sem narrativa, qualquer conteúdo que mencione desconto como benefício principal.
-
-Substituir por: storytelling de produto, educação de qualidade, comunidade e pertencimento.`);
+      const data = await invokeEdgeFunction('marketing-insights', { prompt });
+      setInsights(data.insights || 'Erro ao gerar insights.');
+    } catch (err: any) {
+      console.error('Erro insights:', err);
+      setInsights('Erro ao conectar com IA. Tente recarregar a página.');
+    }
   };
 
   if (loading) return (
