@@ -111,6 +111,8 @@ Substituir por: storytelling de produto, educação de qualidade, comunidade e p
     </div>
   );
 
+  const isEmpty = posts.length === 0;
+
   const reelsData = posts.filter(p => p.media_type === 'REELS');
   const carrosselData = posts.filter(p => p.media_type === 'CAROUSEL_ALBUM');
   const topPosts = posts.slice(0, 5);
