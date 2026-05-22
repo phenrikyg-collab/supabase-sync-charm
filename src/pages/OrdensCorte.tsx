@@ -83,8 +83,44 @@ export default function OrdensCorte() {
   const totalPecas = (grade: { quantidade: number }[]) => grade.reduce((a, g) => a + g.quantidade, 0);
 
   const printOrdem = (o: OrdemCorteEnriched) => {
-    const gradeRows = o.grade.map((g) => `<tr><td>${g.tamanho}</td><td>${g.quantidade}</td></tr>`).join("");
     const total = totalPecas(o.grade);
+    // Group grade by produto_id, then by cor_id
+    const produtosList = o.produtos.length
+      ? o.produtos
+      : [{ id: "sem", produto_id: null, nome_produto: "Sem produto" }];
+
+    const renderProduto = (prod: { produto_id: string | null; nome_produto: string | null }) => {
+      const gradeProd = o.grade.filter((g) => (g.produto_id ?? null) === (prod.produto_id ?? null));
+      if (gradeProd.length === 0) return "";
+      const byCor = new Map<string, { cor_id: string | null; items: { tamanho: string; quantidade: number }[]; subtotal: number }>();
+      gradeProd.forEach((g) => {
+        const key = g.cor_id ?? "sem-cor";
+        const entry = byCor.get(key) ?? { cor_id: g.cor_id, items: [], subtotal: 0 };
+        entry.items.push({ tamanho: g.tamanho, quantidade: g.quantidade });
+        entry.subtotal += g.quantidade;
+        byCor.set(key, entry);
+      });
+      const subtotalProd = gradeProd.reduce((a, g) => a + g.quantidade, 0);
+      const corBlocks = Array.from(byCor.values()).map(({ cor_id, items, subtotal }) => {
+        const cor = cor_id ? coresMap.get(cor_id) : null;
+        const rows = items.map((g) => `<tr><td>${g.tamanho}</td><td>${g.quantidade}</td></tr>`).join("");
+        return `
+          <div style="margin-top:8px;">
+            <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;">
+              <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${cor?.cor_hex ?? "#ccc"};border:1px solid #999;"></span>
+              <strong>${cor?.nome_cor ?? "Sem cor"}</strong>
+              <span style="color:#666;">— Subtotal: ${subtotal} pç</span>
+            </div>
+            <table><thead><tr><th>Tamanho</th><th>Quantidade</th></tr></thead><tbody>${rows}</tbody></table>
+          </div>`;
+      }).join("");
+      return `
+        <div class="section" style="page-break-inside:avoid;">
+          <div class="section-title">Modelo: ${prod.nome_produto ?? "—"} <span style="font-weight:normal;color:#666;">(${subtotalProd} pç)</span></div>
+          ${corBlocks}
+        </div>`;
+    };
+
     printHTML(`Ordem de Corte - ${o.numero_oc}`, `
       <div class="header">
         <div>
@@ -102,15 +138,10 @@ export default function OrdensCorte() {
           <div class="info-item"><label>Produto(s)</label><span>${o.produtos.map((p) => p.nome_produto).join(", ") || "—"}</span></div>
           <div class="info-item"><label>Metragem Risco</label><span>${o.metragem_risco}m</span></div>
           <div class="info-item"><label>Folhas</label><span>${o.quantidade_folhas ?? "—"}</span></div>
+          <div class="info-item"><label>Total Geral</label><span><strong>${total} pç</strong></span></div>
         </div>
       </div>
-      <div class="section">
-        <div class="section-title">Grade de Tamanhos</div>
-        <table>
-          <thead><tr><th>Tamanho</th><th>Quantidade</th></tr></thead>
-          <tbody>${gradeRows}<tr class="total-row"><td>Total</td><td>${total}</td></tr></tbody>
-        </table>
-      </div>
+      ${produtosList.map(renderProduto).join("")}
     `);
   };
 
