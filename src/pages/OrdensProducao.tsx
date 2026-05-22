@@ -230,10 +230,14 @@ export default function OrdensProducao() {
         list.push(g);
         gradeByOc.set(g.ordem_corte_id, list);
       });
-      setOrdensEnriched(ordens.map((o) => ({
-        ...o,
-        gradeInfo: o.ordem_corte_id ? (gradeByOc.get(o.ordem_corte_id) ?? []) : [],
-      })));
+      setOrdensEnriched(ordens.map((o) => {
+        const all = o.ordem_corte_id ? (gradeByOc.get(o.ordem_corte_id) ?? []) : [];
+        const hasProdutoId = all.some((g: any) => g.produto_id);
+        const filtered = hasProdutoId && o.produto_id
+          ? all.filter((g: any) => g.produto_id === o.produto_id)
+          : all;
+        return { ...o, gradeInfo: filtered };
+      }));
     });
   }, [ordens]);
 
