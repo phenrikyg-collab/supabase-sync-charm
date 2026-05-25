@@ -273,13 +273,7 @@ export default function PlanoComercial() {
         setMetaReceita(
           metaData ? String((metaData as any).meta_mensal || "") : "",
         );
-        setInvestimentoPrev(
-          inv
-            ? String(
-                Number(inv.facebook_ads || 0) + Number(inv.google_ads || 0),
-              )
-            : "",
-        );
+        setContextoIA("");
       }
     } catch (e: any) {
       setErro(e.message);
