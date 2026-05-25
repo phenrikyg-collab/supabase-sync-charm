@@ -184,11 +184,12 @@ function TabColaboradores() {
       return null;
     }
 
+    // Store the canonical storage URL pattern; TVInterna resolves to a signed URL on read.
     const { data: urlData } = supabase.storage
       .from("colaboradores-fotos")
       .getPublicUrl(path);
 
-    return urlData.publicUrl + "?t=" + Date.now();
+    return urlData.publicUrl;
   };
 
   const handleSave = async () => {
