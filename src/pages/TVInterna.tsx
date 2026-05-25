@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { resolveSignedPhotoUrls } from "@/lib/photoUrl";
 import { format, parseISO, getDaysInMonth } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { motion, AnimatePresence } from "framer-motion";
@@ -99,8 +100,23 @@ export default function TVInterna() {
           .eq("ativo", true)
           .order("prioridade", { ascending: false }),
       ]);
-      if (colabRes.data) setColaboradores(colabRes.data);
-      if (escalaRes.data) setEscala(escalaRes.data as any);
+      const colabs = (colabRes.data ?? []) as Colaborador[];
+      const escalaRows = (escalaRes.data ?? []) as EscalaLimpeza[];
+      const allUrls = [
+        ...colabs.map((c) => c.foto_url),
+        ...escalaRows.map((e) => e.colaboradores?.foto_url ?? null),
+      ];
+      const signed = await resolveSignedPhotoUrls(allUrls);
+      const mapUrl = (u: string | null) => (u && signed[u]) || u;
+      setColaboradores(colabs.map((c) => ({ ...c, foto_url: mapUrl(c.foto_url) })));
+      setEscala(
+        escalaRows.map((e) => ({
+          ...e,
+          colaboradores: e.colaboradores
+            ? { ...e.colaboradores, foto_url: mapUrl(e.colaboradores.foto_url) }
+            : e.colaboradores,
+        }))
+      );
       if (avisosRes.data) setAvisos(avisosRes.data);
     };
     fetchAll();
