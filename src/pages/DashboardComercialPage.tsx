@@ -466,6 +466,138 @@ export default function DashboardComercialPage() {
     return itens.sort((a, b) => b.mc_total - a.mc_total).slice(0, 10);
   }, [topProdutos, produtos, dataInicio, dataFim]);
 
+  // ===== Top produtos do período comparativo (mesma lógica simplificada) =====
+  const topProdutosComp = useMemo(() => {
+    const orderIds = new Set(noComp.map((p) => String(p.id)));
+    const byProduct = new Map<string, { nome: string; vendido: number; receita: number; product_id: string }>();
+    for (const s of productssold) {
+      if (!s.order_id || !orderIds.has(String(s.order_id))) continue;
+      const k = String(s.product_id ?? "");
+      if (!k) continue;
+      const qtd = Number(s.quantity ?? 0);
+      const receita = Number(s.price ?? 0) * qtd;
+      const nome = (s.model || s.name?.split("<br>")[0] || s.reference || `#${k}`).trim();
+      const cur = byProduct.get(k) ?? { nome, vendido: 0, receita: 0, product_id: k };
+      cur.vendido += qtd;
+      cur.receita += receita;
+      byProduct.set(k, cur);
+    }
+    return Array.from(byProduct.values());
+  }, [productssold, noComp]);
+
+  // ===== Sessões GA4 atual vs comparativo =====
+  const ga4Comparativo = useMemo(() => {
+    const iniAtual = format(dataInicio, "yyyy-MM-dd");
+    const fimAtual = format(dataFim, "yyyy-MM-dd");
+    const iniComp = format(compInicio, "yyyy-MM-dd");
+    const fimComp = format(compFim, "yyyy-MM-dd");
+    let sessoesAtual = 0, sessoesComp = 0, usuariosAtual = 0, usuariosComp = 0;
+    for (const r of ga4Sessoes) {
+      const d = r.event_date;
+      if (!d) continue;
+      if (d >= iniAtual && d <= fimAtual) {
+        sessoesAtual += Number(r.sessoes ?? 0);
+        usuariosAtual += Number(r.usuarios ?? 0);
+      } else if (d >= iniComp && d <= fimComp) {
+        sessoesComp += Number(r.sessoes ?? 0);
+        usuariosComp += Number(r.usuarios ?? 0);
+      }
+    }
+    const conversaoAtual = sessoesAtual > 0 ? (totalPedidos / sessoesAtual) * 100 : 0;
+    const conversaoComp = sessoesComp > 0 ? (pedidosComp / sessoesComp) * 100 : 0;
+    const disponivel = sessoesAtual > 0 || sessoesComp > 0;
+    return { sessoesAtual, sessoesComp, usuariosAtual, usuariosComp, conversaoAtual, conversaoComp, disponivel };
+  }, [ga4Sessoes, dataInicio, dataFim, compInicio, compFim, totalPedidos, pedidosComp]);
+
+  // ===== Comparativo de produtos (subiu/caiu) =====
+  const produtosComparativo = useMemo(() => {
+    const mapComp = new Map(topProdutosComp.map((p) => [p.product_id, p]));
+    const mapAtual = new Map(topProdutos.map((p) => [p.product_id, p]));
+    const ids = new Set([...mapAtual.keys(), ...mapComp.keys()]);
+    const linhas: Array<{ product_id: string; nome: string; vendAtual: number; vendComp: number; recAtual: number; recComp: number; deltaRec: number }> = [];
+    for (const id of ids) {
+      const a = mapAtual.get(id);
+      const c = mapComp.get(id);
+      const nome = a?.nome ?? c?.nome ?? `#${id}`;
+      const vendAtual = a?.vendido ?? 0;
+      const vendComp = c?.vendido ?? 0;
+      const recAtual = a?.receita ?? 0;
+      const recComp = c?.receita ?? 0;
+      linhas.push({ product_id: id, nome, vendAtual, vendComp, recAtual, recComp, deltaRec: recAtual - recComp });
+    }
+    const subiram = [...linhas].sort((a, b) => b.deltaRec - a.deltaRec).slice(0, 5).filter((l) => l.deltaRec > 0);
+    const cairam = [...linhas].sort((a, b) => a.deltaRec - b.deltaRec).slice(0, 5).filter((l) => l.deltaRec < 0);
+    return { subiram, cairam };
+  }, [topProdutos, topProdutosComp]);
+
+  // ===== Motivos da diferença =====
+  const motivos = useMemo(() => {
+    const out: Array<{ tipo: "positivo" | "negativo" | "neutro"; texto: string }> = [];
+    const deltaReceita = receitaBruta - receitaComp;
+    const deltaPedidos = totalPedidos - pedidosComp;
+    const deltaTicket = ticketMedio - ticketMedioComp;
+    const pctReceita = receitaComp > 0 ? (deltaReceita / receitaComp) * 100 : 0;
+
+    if (Math.abs(pctReceita) < 1 && receitaComp > 0) {
+      out.push({ tipo: "neutro", texto: `Receita estável (${fmtPct(pctReceita)} vs período anterior).` });
+    } else if (receitaComp > 0) {
+      out.push({
+        tipo: deltaReceita >= 0 ? "positivo" : "negativo",
+        texto: `Receita ${deltaReceita >= 0 ? "subiu" : "caiu"} ${fmtPct(Math.abs(pctReceita))} (${fmtBRL(receitaBruta)} vs ${fmtBRL(receitaComp)}).`,
+      });
+    }
+
+    if (pedidosComp > 0) {
+      const pctPed = (deltaPedidos / pedidosComp) * 100;
+      if (Math.abs(pctPed) >= 5) {
+        out.push({
+          tipo: deltaPedidos >= 0 ? "positivo" : "negativo",
+          texto: `Volume de pedidos ${deltaPedidos >= 0 ? "aumentou" : "diminuiu"} ${fmtPct(Math.abs(pctPed))} (${fmtNum(totalPedidos)} vs ${fmtNum(pedidosComp)}).`,
+        });
+      }
+    }
+
+    if (ticketMedioComp > 0) {
+      const pctTk = (deltaTicket / ticketMedioComp) * 100;
+      if (Math.abs(pctTk) >= 3) {
+        out.push({
+          tipo: deltaTicket >= 0 ? "positivo" : "negativo",
+          texto: `Ticket médio ${deltaTicket >= 0 ? "subiu" : "caiu"} ${fmtPct(Math.abs(pctTk))} (${fmtBRL(ticketMedio)} vs ${fmtBRL(ticketMedioComp)}).`,
+        });
+      }
+    }
+
+    if (ga4Comparativo.disponivel && ga4Comparativo.sessoesComp > 0) {
+      const deltaSes = ga4Comparativo.sessoesAtual - ga4Comparativo.sessoesComp;
+      const pctSes = (deltaSes / ga4Comparativo.sessoesComp) * 100;
+      if (Math.abs(pctSes) >= 3) {
+        out.push({
+          tipo: deltaSes >= 0 ? "positivo" : "negativo",
+          texto: `Tráfego do site (GA4) ${deltaSes >= 0 ? "cresceu" : "caiu"} ${fmtPct(Math.abs(pctSes))} (${fmtNum(ga4Comparativo.sessoesAtual)} vs ${fmtNum(ga4Comparativo.sessoesComp)} sessões).`,
+        });
+      }
+      const deltaConv = ga4Comparativo.conversaoAtual - ga4Comparativo.conversaoComp;
+      if (Math.abs(deltaConv) >= 0.1 && ga4Comparativo.conversaoComp > 0) {
+        out.push({
+          tipo: deltaConv >= 0 ? "positivo" : "negativo",
+          texto: `Taxa de conversão ${deltaConv >= 0 ? "subiu" : "caiu"} de ${fmtPct(ga4Comparativo.conversaoComp, 2)} para ${fmtPct(ga4Comparativo.conversaoAtual, 2)}.`,
+        });
+      }
+    }
+
+    if (produtosComparativo.subiram[0]) {
+      const t = produtosComparativo.subiram[0];
+      out.push({ tipo: "positivo", texto: `Maior crescimento: ${t.nome} (+${fmtBRL(t.deltaRec)} • ${fmtNum(t.vendAtual)} vs ${fmtNum(t.vendComp)} un).` });
+    }
+    if (produtosComparativo.cairam[0]) {
+      const t = produtosComparativo.cairam[0];
+      out.push({ tipo: "negativo", texto: `Maior queda: ${t.nome} (${fmtBRL(t.deltaRec)} • ${fmtNum(t.vendAtual)} vs ${fmtNum(t.vendComp)} un).` });
+    }
+
+    return out;
+  }, [receitaBruta, receitaComp, totalPedidos, pedidosComp, ticketMedio, ticketMedioComp, ga4Comparativo, produtosComparativo]);
+
+
   // ===== sugestões de produção =====
   const sugestoes = useMemo(() => {
     const dias = Math.max(differenceInCalendarDays(dataFim, dataInicio) + 1, 1);
