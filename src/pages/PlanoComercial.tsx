@@ -59,6 +59,10 @@ import {
 import { invokeEdgeFunction } from "@/lib/edgeFunctions";
 import { cn } from "@/lib/utils";
 
+const EXTERNAL_SUPABASE_URL = "https://ezdtulcrqzmgocamjwwl.supabase.co";
+const EXTERNAL_SUPABASE_ANON_KEY =
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV6ZHR1bGNycXptZ29jYW1qd3dsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE2MjIwMzAsImV4cCI6MjA4NzE5ODAzMH0.7CyKzK3cs-Cd-Wrh69oUAEtxW95l8iZLMCXi_3nAIPU";
+
 // ---------------- Helpers ----------------
 const formatBRL = (v: number | null | undefined) =>
   new Intl.NumberFormat("pt-BR", {
@@ -292,18 +296,19 @@ export default function PlanoComercial() {
     setConfirmGerar(false);
     setConfirmRegen(false);
     try {
-      // Esta edge function vive no Supabase externo (ezdtulcrqzmgocamjwwl),
-      // por isso chamamos via supabase.functions.invoke em vez do helper
-      // invokeEdgeFunction (que aponta para o Lovable Cloud).
-      const { data, error } = await supabase.functions.invoke("generate-commercial-plan", {
-        body: {
+      await invokeEdgeFunction(
+        "generate-commercial-plan",
+        {
           mes_referencia: mes,
           meta_receita: Number(metaReceita),
           contexto_ia: contextoIA,
         },
-      });
-      if (error) throw error;
-      if (data?.error) throw new Error(data.error);
+        {
+          baseUrl: EXTERNAL_SUPABASE_URL,
+          anonKey: EXTERNAL_SUPABASE_ANON_KEY,
+          timeoutMs: 300_000,
+        },
+      );
       toast.success("Plano gerado!");
       await carregarDados(mes);
     } catch (e: any) {
