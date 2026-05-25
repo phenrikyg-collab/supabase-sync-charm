@@ -177,7 +177,7 @@ export default function PlanoComercial() {
 
   // formulário criação
   const [metaReceita, setMetaReceita] = useState<string>("");
-  const [investimentoPrev, setInvestimentoPrev] = useState<string>("");
+  const [contextoIA, setContextoIA] = useState<string>("");
   const [gerando, setGerando] = useState(false);
   const [confirmGerar, setConfirmGerar] = useState(false);
   const [confirmRegen, setConfirmRegen] = useState(false);
