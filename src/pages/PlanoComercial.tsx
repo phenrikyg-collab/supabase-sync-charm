@@ -726,8 +726,8 @@ export default function PlanoComercial() {
               <DialogTitle>Gerar plano com IA?</DialogTitle>
               <DialogDescription>
                 Vamos criar o plano comercial completo para {formatMes(mes)} com
-                meta {formatBRL(Number(metaReceita))} e investimento{" "}
-                {formatBRL(Number(investimentoPrev))}.
+                meta {formatBRL(Number(metaReceita))}
+                {contextoIA ? ", considerando o contexto informado" : ""}.
               </DialogDescription>
             </DialogHeader>
             <DialogFooter>
