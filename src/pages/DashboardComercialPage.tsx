@@ -923,6 +923,137 @@ Seja direto e específico. Use valores reais dos dados. Responda em português.`
           )}
         </CardContent>
       </Card>
+
+      {/* SEÇÃO 3.7 — Análise comparativa: motivos da diferença */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg font-serif flex items-center gap-2">
+            <TrendingUp className="h-5 w-5" />
+            Análise comparativa: o que mudou
+          </CardTitle>
+          <p className="text-xs text-muted-foreground">
+            <strong>{label}</strong> ({fmtData(dataInicio)}–{fmtData(dataFim)}) vs período anterior ({fmtData(compInicio)}–{fmtData(compFim)})
+          </p>
+        </CardHeader>
+        <CardContent className="space-y-5">
+          {/* Mini KPIs comparativos */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <div className="rounded-lg border bg-muted/30 p-3">
+              <p className="text-xs uppercase tracking-wide text-muted-foreground">Receita</p>
+              <p className="font-serif font-bold text-foreground">{fmtBRL(receitaBruta)}</p>
+              <p className="text-xs text-muted-foreground">antes: {fmtBRL(receitaComp)}</p>
+            </div>
+            <div className="rounded-lg border bg-muted/30 p-3">
+              <p className="text-xs uppercase tracking-wide text-muted-foreground">Pedidos</p>
+              <p className="font-serif font-bold text-foreground">{fmtNum(totalPedidos)}</p>
+              <p className="text-xs text-muted-foreground">antes: {fmtNum(pedidosComp)}</p>
+            </div>
+            <div className="rounded-lg border bg-muted/30 p-3">
+              <p className="text-xs uppercase tracking-wide text-muted-foreground">Ticket médio</p>
+              <p className="font-serif font-bold text-foreground">{fmtBRL(ticketMedio)}</p>
+              <p className="text-xs text-muted-foreground">antes: {fmtBRL(ticketMedioComp)}</p>
+            </div>
+            <div className="rounded-lg border bg-muted/30 p-3">
+              <p className="text-xs uppercase tracking-wide text-muted-foreground">Sessões (GA4)</p>
+              <p className="font-serif font-bold text-foreground">
+                {ga4Comparativo.disponivel ? fmtNum(ga4Comparativo.sessoesAtual) : "—"}
+              </p>
+              <p className="text-xs text-muted-foreground">
+                {ga4Comparativo.disponivel ? `antes: ${fmtNum(ga4Comparativo.sessoesComp)}` : "sem dados GA4"}
+              </p>
+            </div>
+          </div>
+
+          {/* Motivos */}
+          <div>
+            <h4 className="text-sm font-semibold mb-2 text-foreground">Principais motivos da diferença</h4>
+            {motivos.length === 0 ? (
+              <p className="text-sm text-muted-foreground">Sem variações relevantes detectadas.</p>
+            ) : (
+              <ul className="space-y-2">
+                {motivos.map((m, i) => (
+                  <li
+                    key={i}
+                    className={cn(
+                      "text-sm px-3 py-2 rounded-md border-l-4 bg-muted/30",
+                      m.tipo === "positivo" && "border-success text-foreground",
+                      m.tipo === "negativo" && "border-danger text-foreground",
+                      m.tipo === "neutro" && "border-muted-foreground/40 text-muted-foreground"
+                    )}
+                  >
+                    {m.tipo === "positivo" && <ArrowUpRight className="inline h-4 w-4 mr-1.5 text-success" />}
+                    {m.tipo === "negativo" && <ArrowDownRight className="inline h-4 w-4 mr-1.5 text-danger" />}
+                    {m.texto}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+
+          {/* Produtos que mais subiram / caíram */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <h4 className="text-sm font-semibold mb-2 text-foreground flex items-center gap-1.5">
+                <ArrowUpRight className="h-4 w-4 text-success" /> Produtos que mais subiram
+              </h4>
+              {produtosComparativo.subiram.length === 0 ? (
+                <p className="text-xs text-muted-foreground py-2">Nenhum produto com crescimento relevante.</p>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Produto</TableHead>
+                      <TableHead className="text-right">Atual</TableHead>
+                      <TableHead className="text-right">Antes</TableHead>
+                      <TableHead className="text-right">Δ Receita</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {produtosComparativo.subiram.map((p) => (
+                      <TableRow key={p.product_id}>
+                        <TableCell className="font-medium max-w-[180px] truncate" title={p.nome}>{p.nome}</TableCell>
+                        <TableCell className="text-right">{fmtNum(p.vendAtual)}</TableCell>
+                        <TableCell className="text-right text-muted-foreground">{fmtNum(p.vendComp)}</TableCell>
+                        <TableCell className="text-right font-semibold text-success">+{fmtBRL(p.deltaRec)}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
+            </div>
+            <div>
+              <h4 className="text-sm font-semibold mb-2 text-foreground flex items-center gap-1.5">
+                <ArrowDownRight className="h-4 w-4 text-danger" /> Produtos que mais caíram
+              </h4>
+              {produtosComparativo.cairam.length === 0 ? (
+                <p className="text-xs text-muted-foreground py-2">Nenhum produto com queda relevante.</p>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Produto</TableHead>
+                      <TableHead className="text-right">Atual</TableHead>
+                      <TableHead className="text-right">Antes</TableHead>
+                      <TableHead className="text-right">Δ Receita</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {produtosComparativo.cairam.map((p) => (
+                      <TableRow key={p.product_id}>
+                        <TableCell className="font-medium max-w-[180px] truncate" title={p.nome}>{p.nome}</TableCell>
+                        <TableCell className="text-right">{fmtNum(p.vendAtual)}</TableCell>
+                        <TableCell className="text-right text-muted-foreground">{fmtNum(p.vendComp)}</TableCell>
+                        <TableCell className="text-right font-semibold text-danger">{fmtBRL(p.deltaRec)}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
       <Card>
         <CardContent className="py-4">
           <div className="flex items-center justify-between gap-3 flex-wrap">
