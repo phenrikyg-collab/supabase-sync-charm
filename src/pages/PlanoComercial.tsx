@@ -177,7 +177,7 @@ export default function PlanoComercial() {
 
   // formulário criação
   const [metaReceita, setMetaReceita] = useState<string>("");
-  const [investimentoPrev, setInvestimentoPrev] = useState<string>("");
+  const [contextoIA, setContextoIA] = useState<string>("");
   const [gerando, setGerando] = useState(false);
   const [confirmGerar, setConfirmGerar] = useState(false);
   const [confirmRegen, setConfirmRegen] = useState(false);
@@ -273,13 +273,7 @@ export default function PlanoComercial() {
         setMetaReceita(
           metaData ? String((metaData as any).meta_mensal || "") : "",
         );
-        setInvestimentoPrev(
-          inv
-            ? String(
-                Number(inv.facebook_ads || 0) + Number(inv.google_ads || 0),
-              )
-            : "",
-        );
+        setContextoIA("");
       }
     } catch (e: any) {
       setErro(e.message);
@@ -301,7 +295,7 @@ export default function PlanoComercial() {
       await invokeEdgeFunction("generate-commercial-plan", {
         mes_referencia: mes,
         meta_receita: Number(metaReceita),
-        investimento_previsto: Number(investimentoPrev),
+        contexto_ia: contextoIA,
       });
       toast.success("Plano gerado!");
       await carregarDados(mes);
@@ -504,17 +498,20 @@ export default function PlanoComercial() {
                     )}
                   </div>
                   <div>
-                    <Label>Investimento previsto (R$)</Label>
-                    <Input
-                      type="number"
-                      value={investimentoPrev}
-                      onChange={(e) => setInvestimentoPrev(e.target.value)}
-                      placeholder="Ex: 30000"
+                    <Label>Informações para a IA</Label>
+                    <Textarea
+                      value={contextoIA}
+                      onChange={(e) => setContextoIA(e.target.value)}
+                      placeholder="Ex: foco em lançamento de cápsula de inverno, estoque alto de vestidos, campanha de Dia das Mães, evitar promoções agressivas, priorizar live de quarta..."
+                      rows={6}
                     />
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Contextos, prioridades, eventos e restrições do mês que a IA deve considerar.
+                    </p>
                   </div>
                   <Button
                     onClick={() => setConfirmGerar(true)}
-                    disabled={!metaReceita || !investimentoPrev || gerando}
+                    disabled={!metaReceita || gerando}
                     className="bg-orange-500 hover:bg-orange-600 text-white"
                   >
                     <Sparkles className="mr-2 h-4 w-4" />
@@ -729,8 +726,8 @@ export default function PlanoComercial() {
               <DialogTitle>Gerar plano com IA?</DialogTitle>
               <DialogDescription>
                 Vamos criar o plano comercial completo para {formatMes(mes)} com
-                meta {formatBRL(Number(metaReceita))} e investimento{" "}
-                {formatBRL(Number(investimentoPrev))}.
+                meta {formatBRL(Number(metaReceita))}
+                {contextoIA ? ", considerando o contexto informado" : ""}.
               </DialogDescription>
             </DialogHeader>
             <DialogFooter>
