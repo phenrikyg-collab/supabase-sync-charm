@@ -31,7 +31,7 @@ export async function resolveSignedPhotoUrl(
   const { data, error } = await supabase.storage
     .from(BUCKET)
     .createSignedUrl(path, SIGN_TTL_SECONDS);
-  if (error || !data?.signedUrl) return null;
+  if (error || !data?.signedUrl) return storedUrl;
   return data.signedUrl;
 }
 
