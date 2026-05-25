@@ -292,15 +292,22 @@ export default function PlanoComercial() {
     setConfirmGerar(false);
     setConfirmRegen(false);
     try {
-      await invokeEdgeFunction("generate-commercial-plan", {
-        mes_referencia: mes,
-        meta_receita: Number(metaReceita),
-        contexto_ia: contextoIA,
+      // Esta edge function vive no Supabase externo (ezdtulcrqzmgocamjwwl),
+      // por isso chamamos via supabase.functions.invoke em vez do helper
+      // invokeEdgeFunction (que aponta para o Lovable Cloud).
+      const { data, error } = await supabase.functions.invoke("generate-commercial-plan", {
+        body: {
+          mes_referencia: mes,
+          meta_receita: Number(metaReceita),
+          contexto_ia: contextoIA,
+        },
       });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
       toast.success("Plano gerado!");
       await carregarDados(mes);
     } catch (e: any) {
-      toast.error("Erro ao gerar plano: " + e.message);
+      toast.error("Erro ao gerar plano: " + (e?.message || "falha desconhecida"));
     } finally {
       setGerando(false);
     }
