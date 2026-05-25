@@ -498,17 +498,20 @@ export default function PlanoComercial() {
                     )}
                   </div>
                   <div>
-                    <Label>Investimento previsto (R$)</Label>
-                    <Input
-                      type="number"
-                      value={investimentoPrev}
-                      onChange={(e) => setInvestimentoPrev(e.target.value)}
-                      placeholder="Ex: 30000"
+                    <Label>Informações para a IA</Label>
+                    <Textarea
+                      value={contextoIA}
+                      onChange={(e) => setContextoIA(e.target.value)}
+                      placeholder="Ex: foco em lançamento de cápsula de inverno, estoque alto de vestidos, campanha de Dia das Mães, evitar promoções agressivas, priorizar live de quarta..."
+                      rows={6}
                     />
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Contextos, prioridades, eventos e restrições do mês que a IA deve considerar.
+                    </p>
                   </div>
                   <Button
                     onClick={() => setConfirmGerar(true)}
-                    disabled={!metaReceita || !investimentoPrev || gerando}
+                    disabled={!metaReceita || gerando}
                     className="bg-orange-500 hover:bg-orange-600 text-white"
                   >
                     <Sparkles className="mr-2 h-4 w-4" />
