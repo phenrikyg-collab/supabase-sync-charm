@@ -1,5 +1,6 @@
 import { useEffect, useState, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { resolveSignedPhotoUrls } from "@/lib/photoUrl";
 import { format, addDays, startOfWeek, getDay } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { toast } from "@/hooks/use-toast";
@@ -129,7 +130,9 @@ function TabColaboradores() {
       .from("colaboradores")
       .select("*")
       .order("nome");
-    setLista(data || []);
+    const rows = (data || []) as Colaborador[];
+    const signed = await resolveSignedPhotoUrls(rows.map((c) => c.foto_url));
+    setLista(rows.map((c) => ({ ...c, foto_url: (c.foto_url && signed[c.foto_url]) || c.foto_url })));
     setLoading(false);
   };
 
