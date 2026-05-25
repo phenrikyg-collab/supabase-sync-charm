@@ -188,6 +188,23 @@ export default function DashboardComercialPage() {
       ),
   });
 
+  // ===== GA4: sessões do período atual + comparativo =====
+  const { data: ga4Sessoes = [] } = useQuery({
+    queryKey: ["dash-comercial-ga4-sessoes", compInicio.toISOString(), dataFim.toISOString()],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("ga4_aquisicao_canais" as any)
+        .select("event_date, sessoes, usuarios, novos_usuarios, canal")
+        .gte("event_date", format(compInicio, "yyyy-MM-dd"))
+        .lte("event_date", format(dataFim, "yyyy-MM-dd"));
+      if (error) {
+        console.warn("GA4 indisponível:", error.message);
+        return [];
+      }
+      return (data ?? []) as Array<{ event_date: string; sessoes: number | null; usuarios: number | null; novos_usuarios: number | null; canal: string | null }>;
+    },
+  });
+
   const novoRecorrente = useMemo(() => {
     const acc = { novo: { pedidos: 0, receita: 0 }, recorrente: { pedidos: 0, receita: 0 } };
     for (const v of vendasTipo) {
