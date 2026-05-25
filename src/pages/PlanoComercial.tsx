@@ -295,7 +295,7 @@ export default function PlanoComercial() {
       await invokeEdgeFunction("generate-commercial-plan", {
         mes_referencia: mes,
         meta_receita: Number(metaReceita),
-        investimento_previsto: Number(investimentoPrev),
+        contexto_ia: contextoIA,
       });
       toast.success("Plano gerado!");
       await carregarDados(mes);
