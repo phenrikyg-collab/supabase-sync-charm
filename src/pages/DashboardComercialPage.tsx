@@ -252,18 +252,20 @@ export default function DashboardComercialPage() {
   );
 
   const sum = (arr: TrayOrder[], k: keyof TrayOrder) => arr.reduce((a, b) => a + Number((b[k] as number) ?? 0), 0);
-  const receitaBruta = sum(noPeriodo, "total");
-  const receitaComp = sum(noComp, "total");
+  // Na Tray, o campo `total` já é o valor final do pedido (líquido, após desconto).
+  // Receita Líquida = soma dos totais. Receita Bruta = total + desconto (antes do desconto).
   const totalPedidos = noPeriodo.length;
   const pedidosComp = noComp.length;
   const totalDesconto = noPeriodo.reduce((a, b) => a + descontoTotal(b), 0);
   const descontoComp = noComp.reduce((a, b) => a + descontoTotal(b), 0);
-  const ticketMedio = totalPedidos > 0 ? receitaBruta / totalPedidos : 0;
-  const ticketMedioComp = pedidosComp > 0 ? receitaComp / pedidosComp : 0;
+  const receitaLiquida = sum(noPeriodo, "total");
+  const receitaLiquidaComp = sum(noComp, "total");
+  const receitaBruta = receitaLiquida + totalDesconto;
+  const receitaComp = receitaLiquidaComp + descontoComp;
+  const ticketMedio = totalPedidos > 0 ? receitaLiquida / totalPedidos : 0;
+  const ticketMedioComp = pedidosComp > 0 ? receitaLiquidaComp / pedidosComp : 0;
   const descontoMedio = totalPedidos > 0 ? totalDesconto / totalPedidos : 0;
   const descontoPct = receitaBruta > 0 ? (totalDesconto / receitaBruta) * 100 : 0;
-  const receitaLiquida = receitaBruta - totalDesconto;
-  const receitaLiquidaComp = receitaComp - descontoComp;
 
   // ===== meta do mês atual =====
   const metaAtual = useMemo(() => {
