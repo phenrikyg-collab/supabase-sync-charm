@@ -1,7 +1,7 @@
 import {
   LayoutDashboard, Package, Plus, Palette, Scissors, Factory,
   Truck, DollarSign, Target, FileText, Building2, LogOut, Users, Home, BarChart3, Upload, Layers,
-  ShoppingBag, Banknote, Wrench, CreditCard, PieChart, Monitor, Settings, Trophy, CalendarDays, TrendingUp, ClipboardList, Megaphone, Tag, Sparkles,
+  ShoppingBag, Banknote, Wrench, CreditCard, PieChart, Monitor, Settings, Trophy, CalendarDays, TrendingUp, ClipboardList, Megaphone, Tag, Sparkles, Heart,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useAuth } from "@/contexts/AuthContext";
@@ -101,6 +101,7 @@ const moduleGroups: ModuleGroup[] = [
     items: [
       { title: "Dashboard GA4", url: "/marketing", icon: BarChart3 },
       { title: "Analytics Instagram", url: "/marketing-analytics", icon: Sparkles },
+      { title: "Embaixadoras", url: "/embaixadoras", icon: Heart },
       { title: "Conteúdo & CRM", url: "/conteudo", icon: CalendarDays },
     ],
   },
