@@ -49,6 +49,9 @@ import ProdutosCampanha from "./pages/ProdutosCampanha";
 import PlanoComercial from "./pages/PlanoComercial";
 import Lancamentos from "./pages/Lancamentos";
 import MarketingAnalytics from "./pages/MarketingAnalytics";
+import Embaixadoras from "./pages/Embaixadoras";
+import EmbaixadoraNova from "./pages/EmbaixadoraNova";
+import EmbaixadoraPerfil from "./pages/EmbaixadoraPerfil";
 import { Loader2 } from "lucide-react";
 import { useUserModules } from "@/hooks/useUserModules";
 
