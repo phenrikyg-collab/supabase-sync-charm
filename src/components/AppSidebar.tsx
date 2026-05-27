@@ -101,6 +101,7 @@ const moduleGroups: ModuleGroup[] = [
     items: [
       { title: "Dashboard GA4", url: "/marketing", icon: BarChart3 },
       { title: "Analytics Instagram", url: "/marketing-analytics", icon: Sparkles },
+      { title: "Embaixadoras", url: "/embaixadoras", icon: Heart },
       { title: "Conteúdo & CRM", url: "/conteudo", icon: CalendarDays },
     ],
   },
