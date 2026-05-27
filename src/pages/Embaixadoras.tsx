@@ -126,7 +126,7 @@ export default function Embaixadoras() {
           title="Entregas Atrasadas"
           value={String(kpis?.atrasadas ?? 0)}
           icon={AlertTriangle}
-          valueClassName={(kpis?.atrasadas ?? 0) > 0 ? "text-red-600" : undefined}
+          variant={(kpis?.atrasadas ?? 0) > 0 ? "danger" : "default"}
         />
         <StatCard title="Receita Gerada (mês)" value={formatCurrency(kpis?.receitaMes)} icon={DollarSign} />
         <StatCard title="Cupons Usados (mês)" value={String(kpis?.cuponsMes ?? 0)} icon={Ticket} />
