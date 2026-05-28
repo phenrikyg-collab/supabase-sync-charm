@@ -379,7 +379,7 @@ export function AbaCalendario() {
 
 
       {/* Calendário */}
-      <Card className="p-4">
+      <Card key={mesRef} className="p-4">
         <div className="grid grid-cols-7 gap-1 mb-2">
           {DIAS_SEMANA.map((d) => (
             <div key={d} className="text-center text-xs font-medium text-muted-foreground py-2">{d}</div>
