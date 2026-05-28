@@ -350,6 +350,9 @@ export function AbaCalendario() {
         </div>
 
         <div className="flex items-center gap-2">
+          <Button variant="outline" onClick={fetchDatas} disabled={loading} className="gap-2">
+            <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} /> Recarregar
+          </Button>
           <Button variant="outline" onClick={() => navigate("/plano-comercial")} className="gap-2">
             Ver Plano Comercial <ArrowRight className="h-4 w-4" />
           </Button>
