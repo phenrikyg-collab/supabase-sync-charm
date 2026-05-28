@@ -249,7 +249,47 @@ export function AbaCalendario() {
     toast("Rejeitado");
   };
 
-  // Geração/regeneração de conteúdo é responsabilidade do Plano Comercial.
+  const regenerarDia = async () => {
+    if (!selected) return;
+    setRegenLoading(true);
+    try {
+      // 1. Remove conteúdo gerado por IA existente da data
+      await (supabase as any)
+        .from("conteudos_gerados")
+        .delete()
+        .eq("calendario_id", selected.id);
+      await (supabase as any)
+        .from("calendario_comercial")
+        .delete()
+        .eq("id", selected.id);
+
+      // 2. Chama Edge Function passando a data específica
+      await invokeEdgeFunction(
+        "generate-content-calendar",
+        {
+          mes_referencia: selected.mes_referencia || mesRef,
+          datas_especificas: [selected.data],
+          instrucao_adicional: regenInstrucao || undefined,
+        },
+        {
+          baseUrl: EXTERNAL_SUPABASE_URL,
+          anonKey: EXTERNAL_SUPABASE_ANON_KEY,
+          timeoutMs: 300_000,
+        },
+      );
+
+      toast.success("Dia regenerado!");
+      setRegenOpen(false);
+      setRegenInstrucao("");
+      setSelectedId(null);
+      await fetchDatas();
+    } catch (e: any) {
+      toast.error("Erro ao regenerar", { description: e?.message });
+    } finally {
+      setRegenLoading(false);
+    }
+  };
+
 
 
   const cells = useMemo(() => {
