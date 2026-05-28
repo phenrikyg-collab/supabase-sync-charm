@@ -125,6 +125,9 @@ export function AbaCalendario() {
   const [novaDataInitial, setNovaDataInitial] = useState<string>("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<Calendario | null>(null);
+  const [regenOpen, setRegenOpen] = useState(false);
+  const [regenInstrucao, setRegenInstrucao] = useState("");
+  const [regenLoading, setRegenLoading] = useState(false);
 
   const mesRef = `${ano}-${pad(mes + 1)}`;
 
