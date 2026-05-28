@@ -365,9 +365,9 @@ export function AbaCalendario() {
       {!loading && datas.length === 0 && (
         <Card className="p-8 text-center space-y-3 border-dashed">
           <CalendarPlus className="h-10 w-10 mx-auto text-muted-foreground" />
-          <div className="font-serif text-lg">Nenhum conteúdo gerado para este mês</div>
+          <div className="font-serif text-lg">Nenhum conteúdo para este mês</div>
           <p className="text-sm text-muted-foreground max-w-md mx-auto">
-            Para gerar o calendário, acesse o Plano Comercial e defina a meta do mês.
+            Acesse o Plano Comercial para gerar.
           </p>
           <Button onClick={() => navigate("/plano-comercial")} className="gap-2">
             Ir para Plano Comercial <ArrowRight className="h-4 w-4" />
