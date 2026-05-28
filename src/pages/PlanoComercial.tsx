@@ -509,9 +509,7 @@ export default function PlanoComercial() {
           </div>
         </div>
 
-        <div key={mes} className="contents">
-
-        <Tabs defaultValue="visao" className="space-y-6">
+        <Tabs key={mes} defaultValue="visao" className="space-y-6">
           <TabsList className="grid w-full grid-cols-3 max-w-2xl">
             <TabsTrigger value="visao">Visão Geral</TabsTrigger>
             <TabsTrigger value="acoes">Ações por Semana</TabsTrigger>
