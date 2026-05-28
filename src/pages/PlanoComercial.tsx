@@ -678,7 +678,10 @@ export default function PlanoComercial() {
                   <SemanaSection
                     key={sem}
                     semana={sem}
+                    mes={mes}
                     metaReceita={distSem?.meta_receita || 0}
+                    metaPercentual={distSem?.percentual || 0}
+                    metaTotalPlano={Number(plano?.meta_receita || 0)}
                     acoes={semAcoes}
                     onAbrir={setAcaoAberta}
                   />
