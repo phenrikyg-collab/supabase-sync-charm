@@ -297,11 +297,30 @@ export default function PlanoComercial() {
     setConfirmGerar(false);
     setConfirmRegen(false);
     try {
+      // 1. Buscar SEMPRE a meta financeira do mês antes de chamar a IA
+      const dataInicio = `${mes}-01`;
+      const { data: metaFinDb } = await supabase
+        .from("metas_financeiras" as any)
+        .select("meta_mensal, meta_ticket_medio")
+        .eq("mes", dataInicio)
+        .maybeSingle();
+
+      const metaReceitaAuto =
+        Number((metaFinDb as any)?.meta_mensal) || Number(metaReceita) || 0;
+
+      if (!metaReceitaAuto) {
+        toast.error(
+          "Cadastre a meta financeira do mês em Meta Mensal antes de gerar o plano.",
+        );
+        setGerando(false);
+        return;
+      }
+
       await invokeEdgeFunction(
         "generate-commercial-plan",
         {
           mes_referencia: mes,
-          meta_receita: Number(metaReceita),
+          meta_receita: metaReceitaAuto,
           contexto_ia: contextoIA,
         },
         {
