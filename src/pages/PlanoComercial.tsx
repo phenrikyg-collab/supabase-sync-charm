@@ -297,11 +297,30 @@ export default function PlanoComercial() {
     setConfirmGerar(false);
     setConfirmRegen(false);
     try {
+      // 1. Buscar SEMPRE a meta financeira do mês antes de chamar a IA
+      const dataInicio = `${mes}-01`;
+      const { data: metaFinDb } = await supabase
+        .from("metas_financeiras" as any)
+        .select("meta_mensal, meta_ticket_medio")
+        .eq("mes", dataInicio)
+        .maybeSingle();
+
+      const metaReceitaAuto =
+        Number((metaFinDb as any)?.meta_mensal) || Number(metaReceita) || 0;
+
+      if (!metaReceitaAuto) {
+        toast.error(
+          "Cadastre a meta financeira do mês em Meta Mensal antes de gerar o plano.",
+        );
+        setGerando(false);
+        return;
+      }
+
       await invokeEdgeFunction(
         "generate-commercial-plan",
         {
           mes_referencia: mes,
-          meta_receita: Number(metaReceita),
+          meta_receita: metaReceitaAuto,
           contexto_ia: contextoIA,
         },
         {
@@ -659,7 +678,10 @@ export default function PlanoComercial() {
                   <SemanaSection
                     key={sem}
                     semana={sem}
+                    mes={mes}
                     metaReceita={distSem?.meta_receita || 0}
+                    metaPercentual={distSem?.percentual || 0}
+                    metaTotalPlano={Number(plano?.meta_receita || 0)}
                     acoes={semAcoes}
                     onAbrir={setAcaoAberta}
                   />
@@ -828,14 +850,48 @@ function KpiPill({
   );
 }
 
+// Datas reais da semana N do mês "YYYY-MM"
+function datasSemanaN(semana: number, mes: string) {
+  const [ano, mesNum] = mes.split("-").map(Number);
+  const inicio = new Date(ano, mesNum - 1, (semana - 1) * 7 + 1);
+  const fim = new Date(ano, mesNum - 1, semana * 7);
+  const ultimoDia = new Date(ano, mesNum, 0);
+  if (fim > ultimoDia) fim.setDate(ultimoDia.getDate());
+  if (inicio > ultimoDia) return null;
+  return { inicio, fim };
+}
+
+const ddmm = (d: Date) =>
+  `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}`;
+
+// Dia da semana ideal por tipo de ação (para o calendário)
+const DIA_IDEAL_POR_TIPO: Record<string, string> = {
+  live: "Terça-feira",
+  kit_oferta: "Segunda ou Terça",
+  novos_clientes: "Segunda ou Terça",
+  reativacao: "Domingo",
+  whatsapp: "Domingo",
+  email_mkt: "Quinta-feira",
+  lancamento: "Terça-feira",
+  reposicao: "Terça-feira",
+};
+const diaIdealParaTipo = (tipo: string) =>
+  DIA_IDEAL_POR_TIPO[tipo] || "Sexta-feira";
+
 function SemanaSection({
   semana,
+  mes,
   metaReceita,
+  metaPercentual,
+  metaTotalPlano,
   acoes,
   onAbrir,
 }: {
   semana: number;
+  mes: string;
   metaReceita: number;
+  metaPercentual: number;
+  metaTotalPlano: number;
   acoes: any[];
   onAbrir: (a: any) => void;
 }) {
@@ -857,16 +913,89 @@ function SemanaSection({
       (!filtroPublico || a.publico_alvo === filtroPublico),
   );
 
+  // Resumo da semana
+  const datas = datasSemanaN(semana, mes);
+  const pct = metaPercentual || (metaTotalPlano ? Math.round((metaReceita / metaTotalPlano) * 100) : 0);
+
+  const isNovo = (p?: string) =>
+    !!p && /(novo|aquisi|prospec)/i.test(p);
+  const isRecorrente = (p?: string) =>
+    !!p && /(recorr|fidel|vip|cliente|reat)/i.test(p);
+
+  const totalAlvo = acoes.length || 1;
+  const qtdNovos = acoes.filter((a) => isNovo(a.publico_alvo)).length;
+  const qtdRecorrentes = acoes.filter((a) => isRecorrente(a.publico_alvo)).length;
+  const pctNovos = Math.round((qtdNovos / totalAlvo) * 100);
+  const pctRecorrentes = Math.round((qtdRecorrentes / totalAlvo) * 100);
+
+  const contagemTipos = acoes.reduce<Record<string, number>>((acc, a) => {
+    if (!a.tipo_acao) return acc;
+    acc[a.tipo_acao] = (acc[a.tipo_acao] || 0) + 1;
+    return acc;
+  }, {});
+
   return (
     <Card>
       <CardHeader>
-        <div className="flex items-center justify-between flex-wrap gap-3">
-          <div>
-            <CardTitle>Semana {semana}</CardTitle>
-            <p className="text-sm text-muted-foreground mt-1">
-              Meta: {formatBRL(metaReceita)} · {acoes.length} ações
-            </p>
+        <div className="flex items-start justify-between flex-wrap gap-3">
+          <div className="flex-1 min-w-[260px] space-y-3">
+            <div className="flex items-center gap-2 flex-wrap">
+              <CardTitle>
+                Semana {semana}
+                {datas && (
+                  <span className="text-muted-foreground font-normal text-base ml-2">
+                    — {ddmm(datas.inicio)} a {ddmm(datas.fim)}
+                  </span>
+                )}
+              </CardTitle>
+              {semana === 2 && (
+                <Badge className="bg-success/15 text-success border-success/30" variant="outline">
+                  <Trophy className="h-3 w-3 mr-1" /> Semana pico
+                </Badge>
+              )}
+              {semana === 3 && (
+                <Badge className="bg-destructive/15 text-destructive border-destructive/30" variant="outline">
+                  <AlertTriangle className="h-3 w-3 mr-1" /> Semana fraca
+                </Badge>
+              )}
+            </div>
+
+            <div className="text-sm text-muted-foreground">
+              Meta: <strong className="text-foreground">{formatBRL(metaReceita)}</strong>
+              {pct > 0 && <span> ({pct}% da meta total)</span>} · {acoes.length} ações
+            </div>
+
+            {(qtdNovos + qtdRecorrentes) > 0 && (
+              <div className="space-y-1">
+                <div className="flex items-center justify-between text-[11px] text-muted-foreground">
+                  <span>Novos {pctNovos}%</span>
+                  <span>Recorrentes {pctRecorrentes}%</span>
+                </div>
+                <div className="h-2 w-full rounded-full overflow-hidden bg-muted flex">
+                  <div className="h-full bg-cyan-500" style={{ width: `${pctNovos}%` }} />
+                  <div className="h-full bg-primary" style={{ width: `${pctRecorrentes}%` }} />
+                </div>
+              </div>
+            )}
+
+            {Object.keys(contagemTipos).length > 0 && (
+              <div className="flex flex-wrap gap-1.5">
+                {Object.entries(contagemTipos).map(([t, n]) => {
+                  const m = TIPO_ACAO_META[t];
+                  return (
+                    <Badge
+                      key={t}
+                      variant="outline"
+                      className={cn("border text-xs", m?.className || "bg-muted text-muted-foreground border-border")}
+                    >
+                      {m?.emoji || "•"} {n} {m?.label || t}
+                    </Badge>
+                  );
+                })}
+              </div>
+            )}
           </div>
+
           <div className="flex gap-2">
             <select
               value={filtroTipo}
@@ -954,6 +1083,10 @@ function AcaoCard({ acao, onClick }: { acao: any; onClick: () => void }) {
           ))}
         </div>
       )}
+      <p className="text-[11px] text-muted-foreground pt-1 border-t mt-2">
+        📅 Será exportado para o calendário em{" "}
+        <strong className="text-foreground">{diaIdealParaTipo(acao.tipo_acao)}</strong>
+      </p>
     </motion.button>
   );
 }

@@ -1,7 +1,7 @@
 import {
   LayoutDashboard, Package, Plus, Palette, Scissors, Factory,
   Truck, DollarSign, Target, FileText, Building2, LogOut, Users, Home, BarChart3, Upload, Layers,
-  ShoppingBag, Banknote, Wrench, CreditCard, PieChart, Monitor, Settings, Trophy, CalendarDays, TrendingUp, ClipboardList, Megaphone, Tag, Sparkles, Heart,
+  ShoppingBag, Banknote, Wrench, CreditCard, PieChart, Monitor, Settings, Trophy, CalendarDays, TrendingUp, ClipboardList, Megaphone, Tag, Sparkles, Heart, LayoutGrid,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useAuth } from "@/contexts/AuthContext";
@@ -42,6 +42,7 @@ const moduleGroups: ModuleGroup[] = [
       { title: "Dashboard Comercial", url: "/dashboard-comercial", icon: LayoutDashboard },
       { title: "Padrões de Pedidos", url: "/padroes-pedidos", icon: BarChart3 },
       { title: "Plano Comercial", url: "/plano-comercial", icon: Target },
+      { title: "Ordens de Produção", url: "/ordens-producao", icon: LayoutGrid },
       { title: "Lançamentos & Reposições", url: "/lancamentos", icon: Sparkles },
       { title: "Meta Mensal", url: "/metas", icon: Target },
       { title: "Bonificação WhatsApp", url: "/bonificacao-whatsapp", icon: Trophy },

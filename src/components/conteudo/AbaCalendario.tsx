@@ -13,8 +13,12 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Sparkles, Loader2, ChevronLeft, ChevronRight, Plus, Pencil, Trash2, ArrowRight, CalendarPlus, Check, X } from "lucide-react";
+import { Sparkles, Loader2, ChevronLeft, ChevronRight, Plus, Pencil, Trash2, ArrowRight, CalendarPlus, Check, X, RefreshCw } from "lucide-react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { invokeEdgeFunction } from "@/lib/edgeFunctions";
+
+const EXTERNAL_SUPABASE_URL = "https://ezdtulcrqzmgocamjwwl.supabase.co";
+const EXTERNAL_SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV6ZHR1bGNycXptZ29jYW1qd3dsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE2MjIwMzAsImV4cCI6MjA4NzE5ODAzMH0.7CyKzK3cs-Cd-Wrh69oUAEtxW95l8iZLMCXi_3nAIPU";
 
 
 type Calendario = {
@@ -121,6 +125,9 @@ export function AbaCalendario() {
   const [novaDataInitial, setNovaDataInitial] = useState<string>("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<Calendario | null>(null);
+  const [regenOpen, setRegenOpen] = useState(false);
+  const [regenInstrucao, setRegenInstrucao] = useState("");
+  const [regenLoading, setRegenLoading] = useState(false);
 
   const mesRef = `${ano}-${pad(mes + 1)}`;
 
@@ -242,7 +249,47 @@ export function AbaCalendario() {
     toast("Rejeitado");
   };
 
-  // Geração/regeneração de conteúdo é responsabilidade do Plano Comercial.
+  const regenerarDia = async () => {
+    if (!selected) return;
+    setRegenLoading(true);
+    try {
+      // 1. Remove conteúdo gerado por IA existente da data
+      await (supabase as any)
+        .from("conteudos_gerados")
+        .delete()
+        .eq("calendario_id", selected.id);
+      await (supabase as any)
+        .from("calendario_comercial")
+        .delete()
+        .eq("id", selected.id);
+
+      // 2. Chama Edge Function passando a data específica
+      await invokeEdgeFunction(
+        "generate-content-calendar",
+        {
+          mes_referencia: selected.mes_referencia || mesRef,
+          datas_especificas: [selected.data],
+          instrucao_adicional: regenInstrucao || undefined,
+        },
+        {
+          baseUrl: EXTERNAL_SUPABASE_URL,
+          anonKey: EXTERNAL_SUPABASE_ANON_KEY,
+          timeoutMs: 300_000,
+        },
+      );
+
+      toast.success("Dia regenerado!");
+      setRegenOpen(false);
+      setRegenInstrucao("");
+      setSelectedId(null);
+      await fetchDatas();
+    } catch (e: any) {
+      toast.error("Erro ao regenerar", { description: e?.message });
+    } finally {
+      setRegenLoading(false);
+    }
+  };
+
 
 
   const cells = useMemo(() => {
@@ -415,7 +462,10 @@ export function AbaCalendario() {
                       {formatLongDate(selected.data)} {selected.descricao ? `• ${selected.descricao}` : ""}
                     </SheetDescription>
                   </div>
-                  <div className="flex gap-1 shrink-0">
+                  <div className="flex gap-1 shrink-0 flex-wrap">
+                    <Button size="sm" variant="outline" onClick={() => setRegenOpen(true)} className="gap-1 border-primary/40 text-primary hover:bg-primary/5">
+                      <RefreshCw className="h-3.5 w-3.5" /> Regenerar este dia
+                    </Button>
                     <Button size="sm" variant="outline" onClick={() => openEdit(selected)} className="gap-1">
                       <Pencil className="h-3.5 w-3.5" /> Editar
                     </Button>
@@ -490,6 +540,40 @@ export function AbaCalendario() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <Dialog open={regenOpen} onOpenChange={(o) => { if (!regenLoading) { setRegenOpen(o); if (!o) setRegenInstrucao(""); } }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="font-serif">🔄 Regenerar este dia</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <Label className="text-sm">O que quer mudar neste dia?</Label>
+            <Textarea
+              value={regenInstrucao}
+              onChange={(e) => setRegenInstrucao(e.target.value)}
+              rows={5}
+              placeholder="Ex: focar mais em lifestyle, mencionar o Dia das Mães, tom mais íntimo, destacar tecido e qualidade..."
+              disabled={regenLoading}
+            />
+            <p className="text-xs text-muted-foreground">
+              O conteúdo atual desta data será substituído por uma nova geração da IA.
+            </p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setRegenOpen(false)} disabled={regenLoading}>
+              Cancelar
+            </Button>
+            <Button onClick={regenerarDia} disabled={regenLoading}>
+              {regenLoading ? (
+                <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Regenerando...</>
+              ) : (
+                <><RefreshCw className="h-4 w-4 mr-2" /> Regenerar</>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
 
 
 
