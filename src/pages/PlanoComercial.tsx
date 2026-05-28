@@ -57,6 +57,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { invokeEdgeFunction } from "@/lib/edgeFunctions";
+import { callClaude, safeParseJSONObject } from "@/lib/claudeApi";
 import { cn } from "@/lib/utils";
 
 const EXTERNAL_SUPABASE_URL = "https://ezdtulcrqzmgocamjwwl.supabase.co";
@@ -1016,6 +1017,12 @@ function DrawerAcao({
         )}
 
         {/* Copies */}
+        <div className="flex items-center justify-between">
+          <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+            Copies
+          </h3>
+          <RegenerarCopyButton acao={acao} onChange={onChange} />
+        </div>
         <Tabs defaultValue="instagram">
           <TabsList className="grid grid-cols-4">
             <TabsTrigger value="instagram">📸 Insta</TabsTrigger>
@@ -1060,6 +1067,220 @@ function DrawerAcao({
           )}
         </div>
       </div>
+    </>
+  );
+}
+
+// ---------------- Regenerar Copy ----------------
+const COPY_CHIPS: { label: string; text: string }[] = [
+  { label: "🧵 Foco no tecido e qualidade", text: "Quero focar mais no tecido, caimento e durabilidade da peça." },
+  { label: "⏰ Criar urgência elegante", text: "Criar urgência elegante, sem pressão agressiva — escassez sofisticada." },
+  { label: "💝 Tom emocional e pessoal", text: "Tom mais íntimo e emocional, como uma mensagem pessoal de uma amiga." },
+  { label: "👗 Destaque lifestyle", text: "Menos produto, mais estilo de vida, autoestima e empoderamento." },
+  { label: "⭐ História de cliente", text: "Construir a copy a partir de uma história de cliente que transformou o look." },
+  { label: "🎯 Mais direto e objetivo", text: "Tom mais direto e objetivo, sem floreios — convite claro à ação." },
+];
+
+function RegenerarCopyButton({
+  acao,
+  onChange,
+}: {
+  acao: any;
+  onChange: (campo: string, valor: any) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [contexto, setContexto] = useState("");
+  const [gerando, setGerando] = useState(false);
+  const [preview, setPreview] = useState<{
+    copy_instagram: string;
+    copy_email: string;
+    copy_whatsapp: string;
+  } | null>(null);
+
+  const addChip = (texto: string) => {
+    setContexto((prev) => (prev ? `${prev.trim()}\n- ${texto}` : `- ${texto}`));
+  };
+
+  const gerar = async () => {
+    setGerando(true);
+    try {
+      const produtoFoco = acao.produto_foco || "—";
+      const userPrompt = `Acao comercial para Use Mariana Cardoso (marca premium moda feminina):
+
+Tipo: ${acao.tipo_acao}
+Titulo: ${acao.titulo}
+Produto: ${produtoFoco}
+Publico: ${acao.publico_alvo || "—"}
+Canais: ${(acao.canais || []).join(", ")}
+Meta da semana: R$ ${Number(acao.meta_receita_semana || 0).toLocaleString("pt-BR")}
+
+INSTRUCOES ESPECIFICAS DO USUARIO:
+${contexto || "Manter tom sofisticado e lifestyle da marca"}
+
+Regras: NUNCA preco transacional. SEMPRE investimento exclusividade custo-por-uso.
+Tom: sofisticado autentico empoderador como amiga que entende de moda.
+
+Retorne JSON puro:
+{
+  "copy_instagram": "copy reels/feed lifestyle aspiracional max 5 linhas emojis sutis",
+  "copy_email": "assunto: [titulo atrativo] | corpo: [narrativa 3-4 linhas investimento qualidade]",
+  "copy_whatsapp": "mensagem pessoal exclusiva grupo VIP max 4 linhas como amiga de confianca"
+}`;
+
+      const raw = await callClaude(userPrompt);
+      const json = safeParseJSONObject(raw);
+      if (!json.copy_instagram && !json.copy_email && !json.copy_whatsapp) {
+        throw new Error("IA não retornou copies válidas");
+      }
+      setPreview({
+        copy_instagram: json.copy_instagram || "",
+        copy_email: json.copy_email || "",
+        copy_whatsapp: json.copy_whatsapp || "",
+      });
+    } catch (e: any) {
+      toast.error("Erro ao gerar copy: " + (e?.message || "falha"));
+    } finally {
+      setGerando(false);
+    }
+  };
+
+  const salvarTudo = async () => {
+    if (!preview) return;
+    await Promise.all([
+      onChange("copy_instagram", preview.copy_instagram),
+      onChange("copy_email", preview.copy_email),
+      onChange("copy_whatsapp", preview.copy_whatsapp),
+    ]);
+    toast.success("Copies salvas!");
+    setOpen(false);
+    setPreview(null);
+    setContexto("");
+  };
+
+  const fechar = (o: boolean) => {
+    setOpen(o);
+    if (!o) {
+      setPreview(null);
+      setContexto("");
+    }
+  };
+
+  return (
+    <>
+      <Button
+        size="sm"
+        variant="outline"
+        onClick={() => setOpen(true)}
+        className="border-primary/40 text-primary hover:bg-primary/10"
+      >
+        <Sparkles className="mr-2 h-3.5 w-3.5" /> Regenerar copy
+      </Button>
+
+      <Dialog open={open} onOpenChange={fechar}>
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="font-serif flex items-center gap-2">
+              <Sparkles className="h-5 w-5 text-primary" />
+              Regenerar copy — {acao.titulo}
+            </DialogTitle>
+            <DialogDescription>
+              Oriente a IA sobre o que ajustar. Você pode revisar antes de salvar.
+            </DialogDescription>
+          </DialogHeader>
+
+          {!preview ? (
+            <div className="space-y-4">
+              <div>
+                <Label className="text-sm font-medium">
+                  O que você quer mudar ou aprofundar?
+                </Label>
+                <Textarea
+                  value={contexto}
+                  onChange={(e) => setContexto(e.target.value)}
+                  rows={5}
+                  className="mt-2"
+                  placeholder={`Descreva livremente o que quer ajustar. Exemplos:
+- Quero focar mais no tecido e durabilidade da peça
+- Mencionar que é Dia das Mães e criar urgência elegante
+- Tom mais íntimo, como se fosse uma mensagem pessoal
+- Destacar que só tem tamanhos M e G disponíveis
+- Criar uma história de cliente que transformou o look
+- Menos produto, mais estilo de vida e empoderamento`}
+                />
+              </div>
+
+              <div>
+                <p className="text-xs text-muted-foreground mb-2">
+                  Sugestões rápidas (clique para adicionar):
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {COPY_CHIPS.map((chip) => (
+                    <button
+                      key={chip.label}
+                      type="button"
+                      onClick={() => addChip(chip.text)}
+                      className="text-xs px-3 py-1.5 rounded-full border border-primary/30 bg-primary/5 hover:bg-primary/15 text-foreground transition-colors"
+                    >
+                      {chip.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <DialogFooter>
+                <Button variant="outline" onClick={() => fechar(false)}>
+                  Cancelar
+                </Button>
+                <Button onClick={gerar} disabled={gerando}>
+                  <Sparkles className="mr-2 h-4 w-4" />
+                  {gerando ? "Gerando..." : "Gerar copies"}
+                </Button>
+              </DialogFooter>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <p className="text-xs text-muted-foreground">
+                Revise e ajuste cada copy antes de salvar.
+              </p>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                {[
+                  { key: "copy_instagram", icon: "📸", label: "Instagram" },
+                  { key: "copy_email", icon: "✉️", label: "E-mail" },
+                  { key: "copy_whatsapp", icon: "💬", label: "WhatsApp" },
+                ].map((c) => (
+                  <Card key={c.key} className="border-primary/20">
+                    <CardHeader className="p-3 pb-2">
+                      <CardTitle className="text-sm font-semibold flex items-center gap-1.5">
+                        <span>{c.icon}</span> {c.label}
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="p-3 pt-0">
+                      <Textarea
+                        value={(preview as any)[c.key]}
+                        onChange={(e) =>
+                          setPreview((prev) =>
+                            prev ? { ...prev, [c.key]: e.target.value } : prev,
+                          )
+                        }
+                        rows={10}
+                        className="text-xs resize-none"
+                      />
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+              <DialogFooter className="gap-2">
+                <Button variant="outline" onClick={() => setPreview(null)}>
+                  <RefreshCw className="mr-2 h-4 w-4" /> Gerar novamente
+                </Button>
+                <Button onClick={salvarTudo}>
+                  💾 Salvar todas as copies
+                </Button>
+              </DialogFooter>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </>
   );
 }
