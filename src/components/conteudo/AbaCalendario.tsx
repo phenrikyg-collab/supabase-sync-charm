@@ -462,7 +462,10 @@ export function AbaCalendario() {
                       {formatLongDate(selected.data)} {selected.descricao ? `• ${selected.descricao}` : ""}
                     </SheetDescription>
                   </div>
-                  <div className="flex gap-1 shrink-0">
+                  <div className="flex gap-1 shrink-0 flex-wrap">
+                    <Button size="sm" variant="outline" onClick={() => setRegenOpen(true)} className="gap-1 border-primary/40 text-primary hover:bg-primary/5">
+                      <RefreshCw className="h-3.5 w-3.5" /> Regenerar este dia
+                    </Button>
                     <Button size="sm" variant="outline" onClick={() => openEdit(selected)} className="gap-1">
                       <Pencil className="h-3.5 w-3.5" /> Editar
                     </Button>
