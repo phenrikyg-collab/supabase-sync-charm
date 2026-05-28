@@ -541,6 +541,40 @@ export function AbaCalendario() {
         </AlertDialogContent>
       </AlertDialog>
 
+      <Dialog open={regenOpen} onOpenChange={(o) => { if (!regenLoading) { setRegenOpen(o); if (!o) setRegenInstrucao(""); } }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="font-serif">🔄 Regenerar este dia</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <Label className="text-sm">O que quer mudar neste dia?</Label>
+            <Textarea
+              value={regenInstrucao}
+              onChange={(e) => setRegenInstrucao(e.target.value)}
+              rows={5}
+              placeholder="Ex: focar mais em lifestyle, mencionar o Dia das Mães, tom mais íntimo, destacar tecido e qualidade..."
+              disabled={regenLoading}
+            />
+            <p className="text-xs text-muted-foreground">
+              O conteúdo atual desta data será substituído por uma nova geração da IA.
+            </p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setRegenOpen(false)} disabled={regenLoading}>
+              Cancelar
+            </Button>
+            <Button onClick={regenerarDia} disabled={regenLoading}>
+              {regenLoading ? (
+                <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Regenerando...</>
+              ) : (
+                <><RefreshCw className="h-4 w-4 mr-2" /> Regenerar</>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+
 
 
     </div>
