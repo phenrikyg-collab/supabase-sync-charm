@@ -350,6 +350,9 @@ export function AbaCalendario() {
         </div>
 
         <div className="flex items-center gap-2">
+          <Button variant="outline" onClick={fetchDatas} disabled={loading} className="gap-2">
+            <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} /> Recarregar
+          </Button>
           <Button variant="outline" onClick={() => navigate("/plano-comercial")} className="gap-2">
             Ver Plano Comercial <ArrowRight className="h-4 w-4" />
           </Button>
@@ -362,9 +365,9 @@ export function AbaCalendario() {
       {!loading && datas.length === 0 && (
         <Card className="p-8 text-center space-y-3 border-dashed">
           <CalendarPlus className="h-10 w-10 mx-auto text-muted-foreground" />
-          <div className="font-serif text-lg">Nenhum conteúdo gerado para este mês</div>
+          <div className="font-serif text-lg">Nenhum conteúdo para este mês</div>
           <p className="text-sm text-muted-foreground max-w-md mx-auto">
-            Para gerar o calendário, acesse o Plano Comercial e defina a meta do mês.
+            Acesse o Plano Comercial para gerar.
           </p>
           <Button onClick={() => navigate("/plano-comercial")} className="gap-2">
             Ir para Plano Comercial <ArrowRight className="h-4 w-4" />
@@ -376,7 +379,7 @@ export function AbaCalendario() {
 
 
       {/* Calendário */}
-      <Card className="p-4">
+      <Card key={mesRef} className="p-4">
         <div className="grid grid-cols-7 gap-1 mb-2">
           {DIAS_SEMANA.map((d) => (
             <div key={d} className="text-center text-xs font-medium text-muted-foreground py-2">{d}</div>
