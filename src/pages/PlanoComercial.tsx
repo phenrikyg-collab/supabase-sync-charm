@@ -476,26 +476,40 @@ export default function PlanoComercial() {
               Planejamento estratégico por semana
             </p>
           </div>
-          <div className="flex items-center gap-2 bg-card border rounded-lg p-1">
+          <div className="flex items-center gap-2">
             <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => handleMudarMes(-1)}
+              variant="outline"
+              size="sm"
+              onClick={() => carregarDados(mes)}
+              disabled={loading}
+              className="gap-2"
             >
-              <ChevronLeft className="h-4 w-4" />
+              <RefreshCw className={cn("h-4 w-4", loading && "animate-spin")} />
+              Recarregar
             </Button>
-            <div className="px-4 py-2 min-w-[180px] text-center font-medium">
-              {formatMes(mes)}
+            <div className="flex items-center gap-2 bg-card border rounded-lg p-1">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => handleMudarMes(-1)}
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+              <div className="px-4 py-2 min-w-[180px] text-center font-medium">
+                {formatMes(mes)}
+              </div>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => handleMudarMes(1)}
+              >
+                <ChevronRight className="h-4 w-4" />
+              </Button>
             </div>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => handleMudarMes(1)}
-            >
-              <ChevronRight className="h-4 w-4" />
-            </Button>
           </div>
         </div>
+
+        <div key={mes} className="contents">
 
         <Tabs defaultValue="visao" className="space-y-6">
           <TabsList className="grid w-full grid-cols-3 max-w-2xl">
