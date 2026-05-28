@@ -57,6 +57,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { invokeEdgeFunction } from "@/lib/edgeFunctions";
+import { callClaude, safeParseJSONObject } from "@/lib/claudeApi";
 import { cn } from "@/lib/utils";
 
 const EXTERNAL_SUPABASE_URL = "https://ezdtulcrqzmgocamjwwl.supabase.co";
