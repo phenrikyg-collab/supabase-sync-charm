@@ -890,6 +890,36 @@ const DIA_IDEAL_POR_TIPO: Record<string, string> = {
 const diaIdealParaTipo = (tipo: string) =>
   DIA_IDEAL_POR_TIPO[tipo] || "Sexta-feira";
 
+// ---- Conteúdo por dia (kpis_trafego) ----
+const DIA_SEMANA_META: Record<
+  number,
+  { nome: string; abrev: string; className: string }
+> = {
+  0: { nome: "Domingo", abrev: "DOM", className: "bg-muted text-muted-foreground border-border" },
+  1: { nome: "Segunda", abrev: "SEG", className: "bg-blue-900 text-white border-blue-900" },
+  2: { nome: "Terça", abrev: "TER", className: "bg-purple-700 text-white border-purple-700" },
+  3: { nome: "Quarta", abrev: "QUA", className: "bg-green-700 text-white border-green-700" },
+  4: { nome: "Quinta", abrev: "QUI", className: "bg-orange-600 text-white border-orange-600" },
+  5: { nome: "Sexta", abrev: "SEX", className: "bg-pink-600 text-white border-pink-600" },
+  6: { nome: "Sábado", abrev: "SAB", className: "bg-primary text-primary-foreground border-primary" },
+};
+
+function parseLocalDate(s?: string | null): Date | null {
+  if (!s) return null;
+  const m = String(s).slice(0, 10).match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!m) return null;
+  return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+}
+
+function getKT(acao: any): any {
+  const k = acao?.kpis_trafego;
+  return k && typeof k === "object" && !Array.isArray(k) ? k : {};
+}
+
+function getDiaAcao(acao: any): Date | null {
+  return parseLocalDate(getKT(acao).data);
+}
+
 function SemanaSection({
   semana,
   mes,
@@ -919,11 +949,27 @@ function SemanaSection({
     [acoes],
   );
 
-  const filtradas = acoes.filter(
-    (a) =>
-      (!filtroTipo || a.tipo_acao === filtroTipo) &&
-      (!filtroPublico || a.publico_alvo === filtroPublico),
-  );
+  const filtradas = acoes
+    .filter(
+      (a) =>
+        (!filtroTipo || a.tipo_acao === filtroTipo) &&
+        (!filtroPublico || a.publico_alvo === filtroPublico),
+    )
+    .sort((a, b) => {
+      const da = getKT(a).data || "";
+      const db = getKT(b).data || "";
+      return String(da).localeCompare(String(db));
+    });
+
+  // Canais cobertos a partir do conteúdo dos dias
+  const canaisCobertos = new Set<string>();
+  acoes.forEach((a) => {
+    const k = getKT(a);
+    if (k.reels || a.copy_instagram) canaisCobertos.add("Instagram");
+    if (k.email_assunto || k.email_copy || a.copy_email) canaisCobertos.add("Email");
+    if (k.whatsapp || a.copy_whatsapp) canaisCobertos.add("WhatsApp");
+  });
+  const diasPlanejados = acoes.filter((a) => getKT(a).data).length;
 
   // Resumo da semana
   const datas = datasSemanaN(semana, mes);
@@ -1006,7 +1052,30 @@ function SemanaSection({
                 })}
               </div>
             )}
+
+            <div className="flex items-center gap-3 flex-wrap text-xs text-muted-foreground pt-1">
+              {diasPlanejados > 0 && (
+                <span>
+                  📅 <strong className="text-foreground">{diasPlanejados}</strong>{" "}
+                  {diasPlanejados === 1 ? "dia planejado" : "dias planejados"}
+                </span>
+              )}
+              {canaisCobertos.size > 0 && (
+                <div className="flex items-center gap-1 flex-wrap">
+                  <span>Canais:</span>
+                  {Array.from(canaisCobertos).map((c) => (
+                    <Badge key={c} variant="secondary" className="text-[10px]">
+                      {c === "Instagram" && "📸 "}
+                      {c === "Email" && "✉️ "}
+                      {c === "WhatsApp" && "💬 "}
+                      {c}
+                    </Badge>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
+
 
           <div className="flex gap-2">
             <select
@@ -1059,6 +1128,15 @@ function AcaoCard({ acao, onClick }: { acao: any; onClick: () => void }) {
     emoji: "•",
     className: "bg-muted text-muted-foreground border-border",
   };
+  const kt = getKT(acao);
+  const dataDia = getDiaAcao(acao);
+  const diaMeta = dataDia ? DIA_SEMANA_META[dataDia.getDay()] : null;
+
+  const canaisDia: string[] = [];
+  if (kt.reels) canaisDia.push("📸 Instagram");
+  if (kt.email_assunto || kt.email_copy) canaisDia.push("✉️ Email");
+  if (kt.whatsapp) canaisDia.push("💬 WhatsApp");
+
   return (
     <motion.button
       whileHover={{ y: -2 }}
@@ -1066,11 +1144,18 @@ function AcaoCard({ acao, onClick }: { acao: any; onClick: () => void }) {
       className="text-left rounded-lg border bg-card p-4 space-y-2 hover:shadow-md transition-shadow"
     >
       <div className="flex items-center gap-2 flex-wrap">
+        {diaMeta && dataDia && (
+          <Badge variant="outline" className={cn("border font-semibold", diaMeta.className)}>
+            {diaMeta.abrev} · {ddmm(dataDia)}
+          </Badge>
+        )}
         <Badge variant="outline" className={cn("border", meta.className)}>
           {meta.emoji} {meta.label}
         </Badge>
-        {acao.publico_alvo && (
-          <Badge variant="secondary">{acao.publico_alvo}</Badge>
+        {acao.exportado_calendario && (
+          <Badge variant="outline" className="border bg-success/15 text-success border-success/30">
+            📅 Exportado
+          </Badge>
         )}
         <Badge
           variant="outline"
@@ -1080,12 +1165,17 @@ function AcaoCard({ acao, onClick }: { acao: any; onClick: () => void }) {
         </Badge>
       </div>
       <h3 className="font-semibold leading-snug">{acao.titulo}</h3>
+      {kt.angulo && (
+        <p className="text-xs italic text-muted-foreground leading-snug">
+          {kt.angulo}
+        </p>
+      )}
       {acao.produto_foco && (
         <p className="text-xs text-muted-foreground">📦 {acao.produto_foco}</p>
       )}
-      {acao.canais?.length > 0 && (
+      {canaisDia.length > 0 && (
         <div className="flex flex-wrap gap-1 pt-1">
-          {acao.canais.map((c: string) => (
+          {canaisDia.map((c) => (
             <span
               key={c}
               className="text-[10px] px-2 py-0.5 rounded-full bg-muted text-muted-foreground"
@@ -1095,10 +1185,6 @@ function AcaoCard({ acao, onClick }: { acao: any; onClick: () => void }) {
           ))}
         </div>
       )}
-      <p className="text-[11px] text-muted-foreground pt-1 border-t mt-2">
-        📅 Será exportado para o calendário em{" "}
-        <strong className="text-foreground">{diaIdealParaTipo(acao.tipo_acao)}</strong>
-      </p>
     </motion.button>
   );
 }
@@ -1117,13 +1203,27 @@ function DrawerAcao({
   onExportar: () => void;
 }) {
   const meta = TIPO_ACAO_META[acao.tipo_acao];
+  const kt = getKT(acao);
+  const dataDia = getDiaAcao(acao);
+  const diaMeta = dataDia ? DIA_SEMANA_META[dataDia.getDay()] : null;
+
   return (
     <>
       <SheetHeader>
         <div className="flex items-center gap-2 flex-wrap">
+          {diaMeta && dataDia && (
+            <Badge variant="outline" className={cn("border font-semibold", diaMeta.className)}>
+              {diaMeta.nome} · {ddmm(dataDia)}
+            </Badge>
+          )}
           {meta && (
             <Badge variant="outline" className={cn("border", meta.className)}>
               {meta.emoji} {meta.label}
+            </Badge>
+          )}
+          {acao.exportado_calendario && (
+            <Badge variant="outline" className="border bg-success/15 text-success border-success/30">
+              📅 Exportado
             </Badge>
           )}
           <Badge
@@ -1134,6 +1234,9 @@ function DrawerAcao({
           </Badge>
         </div>
         <SheetTitle className="font-serif">{acao.titulo}</SheetTitle>
+        {kt.angulo && (
+          <p className="text-sm italic text-muted-foreground">{kt.angulo}</p>
+        )}
         <SheetDescription className="whitespace-pre-wrap">
           {acao.descricao}
         </SheetDescription>
@@ -1161,39 +1264,57 @@ function DrawerAcao({
           </div>
         )}
 
-        {/* Copies */}
+        {/* Conteúdo por canal (dia) */}
         <div className="flex items-center justify-between">
           <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-            Copies
+            Conteúdo do dia
           </h3>
           <RegenerarCopyButton acao={acao} onChange={onChange} />
         </div>
         <Tabs defaultValue="instagram">
-          <TabsList className="grid grid-cols-4">
-            <TabsTrigger value="instagram">📸 Insta</TabsTrigger>
+          <TabsList className="grid grid-cols-3">
+            <TabsTrigger value="instagram">📸 Instagram Reels</TabsTrigger>
             <TabsTrigger value="email">✉️ E-mail</TabsTrigger>
-            <TabsTrigger value="whatsapp">💬 WhatsApp</TabsTrigger>
-            <TabsTrigger value="anuncio">📢 Anúncio</TabsTrigger>
+            <TabsTrigger value="whatsapp">💬 WhatsApp VIP</TabsTrigger>
           </TabsList>
-          {[
-            ["instagram", "copy_instagram"],
-            ["email", "copy_email"],
-            ["whatsapp", "copy_whatsapp"],
-            ["anuncio", "copy_anuncio"],
-          ].map(([k, campo]) => (
-            <TabsContent key={k} value={k}>
-              <Textarea
-                defaultValue={acao[campo] || ""}
-                onBlur={(e) =>
-                  e.target.value !== (acao[campo] || "") &&
-                  onChange(campo, e.target.value)
+
+          <TabsContent value="instagram" className="space-y-2">
+            <Label className="text-xs">Copy / Legenda</Label>
+            <Textarea
+              key={`ig-${acao.id}`}
+              defaultValue={kt.reels ?? acao.copy_instagram ?? ""}
+              onBlur={(e) => {
+                const v = e.target.value;
+                if (v !== (kt.reels ?? acao.copy_instagram ?? "")) {
+                  onChange("copy_instagram", v);
                 }
-                rows={10}
-                placeholder="Copy ainda não gerado"
-              />
-            </TabsContent>
-          ))}
+              }}
+              rows={10}
+              placeholder="Copy do Reels para este dia"
+            />
+          </TabsContent>
+
+          <TabsContent value="email" className="space-y-3">
+            <EmailEditor acao={acao} kt={kt} onChange={onChange} />
+          </TabsContent>
+
+          <TabsContent value="whatsapp" className="space-y-2">
+            <Label className="text-xs">Mensagem</Label>
+            <Textarea
+              key={`wa-${acao.id}`}
+              defaultValue={kt.whatsapp ?? acao.copy_whatsapp ?? ""}
+              onBlur={(e) => {
+                const v = e.target.value;
+                if (v !== (kt.whatsapp ?? acao.copy_whatsapp ?? "")) {
+                  onChange("copy_whatsapp", v);
+                }
+              }}
+              rows={10}
+              placeholder="Mensagem WhatsApp VIP para este dia"
+            />
+          </TabsContent>
         </Tabs>
+
 
         {/* Ações */}
         <div className="flex flex-wrap gap-2 pt-4 border-t">
@@ -1225,6 +1346,59 @@ const COPY_CHIPS: { label: string; text: string }[] = [
   { label: "⭐ História de cliente", text: "Construir a copy a partir de uma história de cliente que transformou o look." },
   { label: "🎯 Mais direto e objetivo", text: "Tom mais direto e objetivo, sem floreios — convite claro à ação." },
 ];
+
+function EmailEditor({
+  acao,
+  kt,
+  onChange,
+}: {
+  acao: any;
+  kt: any;
+  onChange: (campo: string, valor: any) => void;
+}) {
+  const initialAssunto = kt.email_assunto ?? "";
+  const initialCorpo =
+    kt.email_copy ??
+    (acao.copy_email && !kt.email_assunto ? acao.copy_email : "");
+
+  const [assunto, setAssunto] = useState<string>(initialAssunto);
+  const [corpo, setCorpo] = useState<string>(initialCorpo);
+
+  const salvar = (a: string, c: string) => {
+    const combinado = `${a} | ${c}`;
+    if (combinado !== (acao.copy_email ?? "")) {
+      onChange("copy_email", combinado);
+    }
+  };
+
+  return (
+    <>
+      <div className="space-y-2">
+        <Label className="text-xs">Assunto</Label>
+        <Input
+          key={`em-as-${acao.id}`}
+          value={assunto}
+          onChange={(e) => setAssunto(e.target.value)}
+          onBlur={() => salvar(assunto, corpo)}
+          placeholder="Assunto do e-mail"
+        />
+      </div>
+      <div className="space-y-2">
+        <Label className="text-xs">Corpo</Label>
+        <Textarea
+          key={`em-co-${acao.id}`}
+          value={corpo}
+          onChange={(e) => setCorpo(e.target.value)}
+          onBlur={() => salvar(assunto, corpo)}
+          rows={9}
+          placeholder="Corpo do e-mail para este dia"
+        />
+      </div>
+    </>
+  );
+}
+
+
 
 function RegenerarCopyButton({
   acao,
