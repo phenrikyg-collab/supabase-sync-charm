@@ -151,7 +151,9 @@ serve(async (req) => {
     const body = await req.json()
     const mes_referencia = body.mes_referencia ?? '2026-06'
     const contexto_ia: string = (body.contexto_ia ?? '').toString()
-    const supabase = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!)
+    const serviceKey = normalizeSecret(Deno.env.get('EXTERNAL_SUPABASE_SERVICE_ROLE_KEY') ?? '')
+    if (!serviceKey) throw new Error('EXTERNAL_SUPABASE_SERVICE_ROLE_KEY nao configurada')
+    const supabase = createClient(EXTERNAL_SUPABASE_URL, serviceKey)
     const apiKey = Deno.env.get('ANTHROPIC_API_KEY')!
     const [ano, mes] = mes_referencia.split('-').map(Number)
     const dataInicio = mes_referencia + '-01'
