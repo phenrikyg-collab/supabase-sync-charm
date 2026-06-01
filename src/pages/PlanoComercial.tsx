@@ -1052,7 +1052,30 @@ function SemanaSection({
                 })}
               </div>
             )}
+
+            <div className="flex items-center gap-3 flex-wrap text-xs text-muted-foreground pt-1">
+              {diasPlanejados > 0 && (
+                <span>
+                  📅 <strong className="text-foreground">{diasPlanejados}</strong>{" "}
+                  {diasPlanejados === 1 ? "dia planejado" : "dias planejados"}
+                </span>
+              )}
+              {canaisCobertos.size > 0 && (
+                <div className="flex items-center gap-1 flex-wrap">
+                  <span>Canais:</span>
+                  {Array.from(canaisCobertos).map((c) => (
+                    <Badge key={c} variant="secondary" className="text-[10px]">
+                      {c === "Instagram" && "📸 "}
+                      {c === "Email" && "✉️ "}
+                      {c === "WhatsApp" && "💬 "}
+                      {c}
+                    </Badge>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
+
 
           <div className="flex gap-2">
             <select
