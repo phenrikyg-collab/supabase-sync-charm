@@ -1347,6 +1347,59 @@ const COPY_CHIPS: { label: string; text: string }[] = [
   { label: "🎯 Mais direto e objetivo", text: "Tom mais direto e objetivo, sem floreios — convite claro à ação." },
 ];
 
+function EmailEditor({
+  acao,
+  kt,
+  onChange,
+}: {
+  acao: any;
+  kt: any;
+  onChange: (campo: string, valor: any) => void;
+}) {
+  const initialAssunto = kt.email_assunto ?? "";
+  const initialCorpo =
+    kt.email_copy ??
+    (acao.copy_email && !kt.email_assunto ? acao.copy_email : "");
+
+  const [assunto, setAssunto] = useState<string>(initialAssunto);
+  const [corpo, setCorpo] = useState<string>(initialCorpo);
+
+  const salvar = (a: string, c: string) => {
+    const combinado = `${a} | ${c}`;
+    if (combinado !== (acao.copy_email ?? "")) {
+      onChange("copy_email", combinado);
+    }
+  };
+
+  return (
+    <>
+      <div className="space-y-2">
+        <Label className="text-xs">Assunto</Label>
+        <Input
+          key={`em-as-${acao.id}`}
+          value={assunto}
+          onChange={(e) => setAssunto(e.target.value)}
+          onBlur={() => salvar(assunto, corpo)}
+          placeholder="Assunto do e-mail"
+        />
+      </div>
+      <div className="space-y-2">
+        <Label className="text-xs">Corpo</Label>
+        <Textarea
+          key={`em-co-${acao.id}`}
+          value={corpo}
+          onChange={(e) => setCorpo(e.target.value)}
+          onBlur={() => salvar(assunto, corpo)}
+          rows={9}
+          placeholder="Corpo do e-mail para este dia"
+        />
+      </div>
+    </>
+  );
+}
+
+
+
 function RegenerarCopyButton({
   acao,
   onChange,
