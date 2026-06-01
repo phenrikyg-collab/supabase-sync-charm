@@ -6,6 +6,17 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
+const EXTERNAL_SUPABASE_URL = 'https://ezdtulcrqzmgocamjwwl.supabase.co'
+
+function normalizeSecret(value: string) {
+  const trimmed = value.trim().replace(/^['"]|['"]$/g, '')
+  const jwt = trimmed.match(/eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+/)
+  if (jwt?.[0]) return jwt[0]
+  const sk = trimmed.match(/sb_secret_[A-Za-z0-9_-]+/)
+  if (sk?.[0]) return sk[0]
+  return trimmed
+}
+
 function ultimoDiaMes(ano: number, mes: number): string {
   return new Date(ano, mes, 0).toISOString().split('T')[0]
 }
