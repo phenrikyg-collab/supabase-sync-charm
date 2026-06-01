@@ -1,8 +1,9 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { calcularBonus, CONFIG_PADRAO, ConfigBonificacao } from "@/lib/bonificacaoWhatsApp";
 import { startOfMonth, endOfMonth, format, parse } from "date-fns";
+
 
 async function fetchAll<T = any>(table: string, build: (q: any) => any): Promise<T[]> {
   const acc: T[] = [];
