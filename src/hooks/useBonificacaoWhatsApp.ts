@@ -152,7 +152,7 @@ export function useApurarMes(mesRef: string) {
     },
   });
 
-  return useMemo(() => {
+  const resultado = useMemo(() => {
     const ativas = consultoras.filter((c) => c.ativa);
     const validos = pedidos.filter(pedidoValido);
 
