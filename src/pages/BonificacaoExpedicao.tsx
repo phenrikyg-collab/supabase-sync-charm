@@ -9,8 +9,11 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Loader2, Save, Trash2, Plus, CheckCircle2, AlertTriangle, Clock, Truck } from "lucide-react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { Loader2, Save, Trash2, Plus, CheckCircle2, AlertTriangle, Clock, Truck, Factory } from "lucide-react";
 import {
   useApurarExpedicao,
   useHistoricoExpedicao,
@@ -20,6 +23,7 @@ import {
   useExcluirFaixa,
   type FaixaBonificacao,
 } from "@/hooks/useBonificacaoExpedicao";
+import { useCreateOrdemProducao, useOficinas, useProdutos } from "@/hooks/useSupabase";
 
 const fmtBRL = (v: number) =>
   v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -90,16 +94,65 @@ export default function BonificacaoExpedicao() {
 
 /* ───────────── Dashboard ───────────── */
 
+type TrayOpen = {
+  id: string | number;
+  date: string | null;
+  estimated_delivery_date: string | null;
+  shipment_date: string | null;
+  orderstatus_type: string | null;
+  orderstatus_status: string | null;
+};
+
+const EXCLUIR_STATUS = new Set([
+  "sent", "shipped", "enviado",
+  "completed", "finished", "finalizado", "concluido", "concluído",
+  "canceled", "cancelled", "cancelado",
+  "refunded", "estornado",
+  "waiting_payment", "aguardando_pagamento", "aguardando pagamento",
+  "pending_payment",
+]);
+
+async function fetchTodosAbertos(): Promise<TrayOpen[]> {
+  const acc: TrayOpen[] = [];
+  let from = 0;
+  const size = 1000;
+  // eslint-disable-next-line no-constant-condition
+  while (true) {
+    const { data, error } = await supabase
+      .from("tray_orders" as any)
+      .select("id,date,estimated_delivery_date,shipment_date,orderstatus_type,orderstatus_status")
+      .is("shipment_date", null)
+      .range(from, from + size - 1);
+    if (error) throw error;
+    const rows = (data ?? []) as TrayOpen[];
+    acc.push(...rows);
+    if (rows.length < size) break;
+    from += size;
+  }
+  return acc.filter((p) => {
+    const s = (p.orderstatus_status ?? "").toLowerCase().trim();
+    const t = (p.orderstatus_type ?? "").toLowerCase().trim();
+    return !EXCLUIR_STATUS.has(s) && !EXCLUIR_STATUS.has(t);
+  });
+}
+
 function DashboardTab({ mes }: { mes: string }) {
   const ap = useApurarExpedicao(mes);
   const fechar = useFecharApuracao();
+  const qc = useQueryClient();
   const [produtosPorPedido, setProdutosPorPedido] = useState<Record<string, string[]>>({});
+  const [prazoEdit, setPrazoEdit] = useState<Record<string, string>>({});
+  const [savingPrazo, setSavingPrazo] = useState<Record<string, boolean>>({});
+  const [opDialogPedido, setOpDialogPedido] = useState<TrayOpen | null>(null);
+
+  const abertosQ = useQuery({
+    queryKey: ["tray-abertos-all"],
+    queryFn: fetchTodosAbertos,
+  });
+  const abertosAll = abertosQ.data ?? [];
 
   useEffect(() => {
-    const ids = (ap.pedidos ?? [])
-      .filter((p: any) => !p.shipment_date)
-      .map((p: any) => String(p.id))
-      .slice(0, 500);
+    const ids = abertosAll.map((p) => String(p.id));
     if (ids.length === 0) {
       setProdutosPorPedido({});
       return;
@@ -127,8 +180,25 @@ function DashboardTab({ mes }: { mes: string }) {
       if (!cancelled) setProdutosPorPedido(map);
     })();
     return () => { cancelled = true; };
-  }, [ap.pedidos]);
+  }, [abertosAll.length]);
 
+  const savePrazo = async (pedidoId: string, novoPrazo: string) => {
+    setSavingPrazo((s) => ({ ...s, [pedidoId]: true }));
+    try {
+      const { error } = await supabase
+        .from("tray_orders" as any)
+        .update({ estimated_delivery_date: novoPrazo })
+        .eq("id", pedidoId);
+      if (error) throw error;
+      toast.success("Prazo atualizado.");
+      qc.invalidateQueries({ queryKey: ["tray-abertos-all"] });
+      qc.invalidateQueries({ queryKey: ["pedidos-expedicao"] });
+    } catch (e: any) {
+      toast.error(e?.message ?? "Erro ao atualizar prazo.");
+    } finally {
+      setSavingPrazo((s) => ({ ...s, [pedidoId]: false }));
+    }
+  };
 
   if (ap.isLoading) {
     return (
@@ -158,198 +228,308 @@ function DashboardTab({ mes }: { mes: string }) {
     }
   };
 
+  const HOJE = format(new Date(), "yyyy-MM-dd");
+  const D2 = format(new Date(Date.now() + 2 * 24 * 60 * 60 * 1000), "yyyy-MM-dd");
+  const abertosOrdenados = [...abertosAll].sort((a, b) => {
+    const da = a.estimated_delivery_date ?? "9999-12-31";
+    const db_ = b.estimated_delivery_date ?? "9999-12-31";
+    return da.localeCompare(db_);
+  });
+
   return (
     <div className="space-y-6">
       {/* KPIs */}
       <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
-        <KPI
-          icon={<Truck className="w-4 h-4" />}
-          label="Total de pedidos"
-          value={String(ap.kpis.total_pedidos)}
-          hint={fmtMesLabel(mes)}
-        />
-        <KPI
-          icon={<CheckCircle2 className="w-4 h-4 text-emerald-600" />}
-          label="No prazo"
-          value={String(ap.kpis.pedidos_no_prazo)}
-          tone="emerald"
-        />
-        <KPI
-          icon={<AlertTriangle className="w-4 h-4 text-rose-600" />}
-          label="Atrasados"
-          value={String(ap.kpis.pedidos_atrasados)}
-          tone="rose"
-        />
-        <KPI
-          icon={<Clock className="w-4 h-4 text-amber-600" />}
-          label="Pendentes (sem envio)"
-          value={String(ap.kpis.pedidos_pendentes)}
-          tone="amber"
-        />
-        <KPI
-          label="% no prazo (s/ pendentes)"
-          value={fmtPct(ap.kpis.percentual_prazo)}
-          tone="primary"
-        />
+        <KPI icon={<Truck className="w-4 h-4" />} label="Total de pedidos" value={String(ap.kpis.total_pedidos)} hint={fmtMesLabel(mes)} />
+        <KPI icon={<CheckCircle2 className="w-4 h-4 text-emerald-600" />} label="No prazo" value={String(ap.kpis.pedidos_no_prazo)} tone="emerald" />
+        <KPI icon={<AlertTriangle className="w-4 h-4 text-rose-600" />} label="Atrasados" value={String(ap.kpis.pedidos_atrasados)} tone="rose" />
+        <KPI icon={<Clock className="w-4 h-4 text-amber-600" />} label="Pendentes (sem envio)" value={String(ap.kpis.pedidos_pendentes)} tone="amber" />
+        <KPI label="% no prazo (s/ pendentes)" value={fmtPct(ap.kpis.percentual_prazo)} tone="primary" />
       </div>
 
       {/* Faixa + bônus */}
       <Card className="p-6">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
-            <div className="text-xs uppercase tracking-wider text-muted-foreground">
-              Faixa atingida
-            </div>
+            <div className="text-xs uppercase tracking-wider text-muted-foreground">Faixa atingida</div>
             <div className="font-serif text-2xl text-foreground mt-1">
               {ap.faixa_atingida ?? "Nenhuma faixa cadastrada para este percentual"}
             </div>
           </div>
           <div className="text-right">
-            <div className="text-xs uppercase tracking-wider text-muted-foreground">
-              Bônus do mês
-            </div>
-            <div className="font-serif text-3xl text-primary mt-1">
-              {fmtBRL(ap.valor_bonus)}
-            </div>
+            <div className="text-xs uppercase tracking-wider text-muted-foreground">Bônus do mês</div>
+            <div className="font-serif text-3xl text-primary mt-1">{fmtBRL(ap.valor_bonus)}</div>
           </div>
           <Button onClick={onFechar} disabled={fechar.isPending}>
-            {fechar.isPending ? (
-              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-            ) : (
-              <Save className="w-4 h-4 mr-2" />
-            )}
+            {fechar.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
             Salvar / Fechar mês
           </Button>
         </div>
       </Card>
 
-      {/* Lista pedidos em aberto (a expedir) */}
-      {(() => {
-        const HOJE = format(new Date(), "yyyy-MM-dd");
-        const EXCLUIR = new Set([
-          "sent", "shipped", "enviado",
-          "completed", "finished", "finalizado", "concluido", "concluído",
-          "canceled", "cancelled", "cancelado",
-          "refunded", "estornado",
-          "waiting_payment", "aguardando_pagamento", "aguardando pagamento",
-          "pending_payment",
-        ]);
-        const abertos = ap.pedidos
-          .filter((p) => !p.shipment_date)
-          .filter((p) => {
-            const s = (p.orderstatus_status ?? "").toLowerCase().trim();
-            const t = (p.orderstatus_type ?? "").toLowerCase().trim();
-            return !EXCLUIR.has(s) && !EXCLUIR.has(t);
-          })
-          .sort((a, b) => {
-            // mais crítico primeiro: prazo mais antigo no topo
-            const da = a.estimated_delivery_date ?? "9999-12-31";
-            const db_ = b.estimated_delivery_date ?? "9999-12-31";
-            return da.localeCompare(db_);
-          });
-
-        return (
-          <Card className="p-0 overflow-hidden">
-            <div className="px-6 py-4 border-b">
-              <h3 className="font-serif text-lg">
-                Pedidos em aberto a expedir ({abertos.length})
-              </h3>
-              <p className="text-xs text-muted-foreground mt-1">
-                Apenas pedidos pendentes de envio. Ordenados do mais crítico (prazo mais antigo) para o mais recente.
-              </p>
-            </div>
-            <div className="max-h-[520px] overflow-auto">
-              <Table>
-                <TableHeader className="sticky top-0 bg-background z-10 shadow-sm [&_th]:bg-background">
-                  <TableRow>
-                    <TableHead>Pedido</TableHead>
-                    <TableHead>Data</TableHead>
-                    <TableHead>Prazo de envio</TableHead>
-                    <TableHead>Produtos</TableHead>
-                    <TableHead>Status interno</TableHead>
-                    <TableHead>Situação</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {abertos.length === 0 && (
-                    <TableRow>
-                      <TableCell colSpan={6} className="text-center text-muted-foreground py-10">
-                        Nenhum pedido em aberto neste mês.
-                      </TableCell>
-                    </TableRow>
-                  )}
-                  {(() => {
-                    const D2 = format(
-                      new Date(Date.now() + 2 * 24 * 60 * 60 * 1000),
-                      "yyyy-MM-dd"
-                    );
-                    return abertos.slice(0, 500).map((p) => {
-                      const prazo = p.estimated_delivery_date ?? "";
-                      const atrasado = prazo && prazo < HOJE;
-                      const hoje = prazo === HOJE;
-                      const venceEm2 = prazo && prazo > HOJE && prazo <= D2;
-                      return (
-                        <TableRow key={String(p.id)}>
-                          <TableCell className="font-mono text-xs">{String(p.id)}</TableCell>
-                          <TableCell>{fmtData(p.date)}</TableCell>
-                          <TableCell className={atrasado ? "text-rose-700 font-medium" : ""}>
-                            {fmtData(p.estimated_delivery_date)}
-                          </TableCell>
-                          <TableCell className="max-w-[320px]">
-                            <div className="flex flex-wrap gap-1">
-                              {(produtosPorPedido[String(p.id)] ?? []).slice(0, 6).map((nome, idx) => (
-                                <Badge key={idx} variant="outline" className="text-[10px] font-normal max-w-[200px] truncate" title={nome}>
-                                  {nome}
-                                </Badge>
-                              ))}
-                              {(produtosPorPedido[String(p.id)]?.length ?? 0) > 6 && (
-                                <Badge variant="outline" className="text-[10px]">+{(produtosPorPedido[String(p.id)]!.length - 6)}</Badge>
-                              )}
-                              {!produtosPorPedido[String(p.id)] && (
-                                <span className="text-[10px] text-muted-foreground">—</span>
-                              )}
-                            </div>
-                          </TableCell>
-                          <TableCell className="text-xs text-muted-foreground">
-                            {p.orderstatus_status ?? "—"}
-                          </TableCell>
-                          <TableCell>
-                            {atrasado ? (
-                              <Badge className="bg-rose-100 text-rose-800 border border-rose-200">
-                                Atrasado
-                              </Badge>
-                            ) : hoje ? (
-                              <Badge className="bg-amber-100 text-amber-800 border border-amber-200">
-                                Vence hoje
-                              </Badge>
-                            ) : venceEm2 ? (
-                              <Badge className="bg-orange-100 text-orange-800 border border-orange-200">
-                                Vence em 2 dias
-                              </Badge>
-                            ) : (
-                              <Badge className="bg-emerald-100 text-emerald-800 border border-emerald-200">
-                                No prazo
-                              </Badge>
-                            )}
-                          </TableCell>
-                        </TableRow>
-                      );
-                    });
-                  })()}
-                </TableBody>
-              </Table>
-              {abertos.length > 500 && (
-                <div className="px-6 py-3 text-xs text-muted-foreground">
-                  Mostrando os 500 primeiros. Total em aberto: {abertos.length}.
-                </div>
+      {/* Lista pedidos em aberto (todos, independente do mês) */}
+      <Card className="p-0 overflow-hidden">
+        <div className="px-6 py-4 border-b">
+          <h3 className="font-serif text-lg">
+            Pedidos em aberto a expedir ({abertosOrdenados.length})
+          </h3>
+          <p className="text-xs text-muted-foreground mt-1">
+            Todos os pedidos pendentes de envio, independente do mês de referência. Ordenados do mais crítico (prazo mais antigo) para o mais recente. O prazo de postagem pode ser editado diretamente na lista.
+          </p>
+        </div>
+        <div className="max-h-[620px] overflow-auto">
+          <Table>
+            <TableHeader className="sticky top-0 bg-background z-10 shadow-sm [&_th]:bg-background">
+              <TableRow>
+                <TableHead>Pedido</TableHead>
+                <TableHead>Data</TableHead>
+                <TableHead>Prazo de envio</TableHead>
+                <TableHead>Produtos</TableHead>
+                <TableHead>Status interno</TableHead>
+                <TableHead>Situação</TableHead>
+                <TableHead className="text-right">Ações</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {abertosQ.isLoading && (
+                <TableRow>
+                  <TableCell colSpan={7} className="text-center py-10">
+                    <Loader2 className="w-5 h-5 animate-spin inline text-primary" />
+                  </TableCell>
+                </TableRow>
               )}
-            </div>
-          </Card>
-        );
-      })()}
+              {!abertosQ.isLoading && abertosOrdenados.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={7} className="text-center text-muted-foreground py-10">
+                    Nenhum pedido em aberto.
+                  </TableCell>
+                </TableRow>
+              )}
+              {abertosOrdenados.map((p) => {
+                const pid = String(p.id);
+                const prazo = p.estimated_delivery_date ?? "";
+                const atrasado = prazo && prazo < HOJE;
+                const hoje = prazo === HOJE;
+                const venceEm2 = prazo && prazo > HOJE && prazo <= D2;
+                const editValue = prazoEdit[pid] ?? (prazo ? prazo.slice(0, 10) : "");
+                return (
+                  <TableRow key={pid}>
+                    <TableCell className="font-mono text-xs">{pid}</TableCell>
+                    <TableCell>{fmtData(p.date)}</TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-1">
+                        <Input
+                          type="date"
+                          value={editValue}
+                          disabled={!!savingPrazo[pid]}
+                          onChange={(e) => setPrazoEdit((s) => ({ ...s, [pid]: e.target.value }))}
+                          onBlur={(e) => {
+                            const v = e.target.value;
+                            if (v && v !== (prazo ? prazo.slice(0, 10) : "")) savePrazo(pid, v);
+                          }}
+                          className={`h-8 w-[140px] text-xs ${atrasado ? "text-rose-700 font-medium" : ""}`}
+                        />
+                        {savingPrazo[pid] && <Loader2 className="w-3 h-3 animate-spin text-muted-foreground" />}
+                      </div>
+                    </TableCell>
+                    <TableCell className="max-w-[320px]">
+                      <div className="flex flex-wrap gap-1">
+                        {(produtosPorPedido[pid] ?? []).slice(0, 6).map((nome, idx) => (
+                          <Badge key={idx} variant="outline" className="text-[10px] font-normal max-w-[200px] truncate" title={nome}>
+                            {nome}
+                          </Badge>
+                        ))}
+                        {(produtosPorPedido[pid]?.length ?? 0) > 6 && (
+                          <Badge variant="outline" className="text-[10px]">+{(produtosPorPedido[pid]!.length - 6)}</Badge>
+                        )}
+                        {!produtosPorPedido[pid] && (
+                          <span className="text-[10px] text-muted-foreground">—</span>
+                        )}
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-xs text-muted-foreground">
+                      {p.orderstatus_status ?? "—"}
+                    </TableCell>
+                    <TableCell>
+                      {atrasado ? (
+                        <Badge className="bg-rose-100 text-rose-800 border border-rose-200">Atrasado</Badge>
+                      ) : hoje ? (
+                        <Badge className="bg-amber-100 text-amber-800 border border-amber-200">Vence hoje</Badge>
+                      ) : venceEm2 ? (
+                        <Badge className="bg-orange-100 text-orange-800 border border-orange-200">Vence em 2 dias</Badge>
+                      ) : (
+                        <Badge className="bg-emerald-100 text-emerald-800 border border-emerald-200">No prazo</Badge>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <Button size="sm" variant="outline" onClick={() => setOpDialogPedido(p)}>
+                        <Factory className="w-3.5 h-3.5 mr-1" />
+                        Gerar OP
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+        </div>
+      </Card>
+
+      <GerarOPDialog
+        pedido={opDialogPedido}
+        produtosSugeridos={opDialogPedido ? (produtosPorPedido[String(opDialogPedido.id)] ?? []) : []}
+        onClose={() => setOpDialogPedido(null)}
+      />
     </div>
   );
 }
+
+function GerarOPDialog({
+  pedido,
+  produtosSugeridos,
+  onClose,
+}: {
+  pedido: TrayOpen | null;
+  produtosSugeridos: string[];
+  onClose: () => void;
+}) {
+  const { data: produtos = [] } = useProdutos();
+  const { data: oficinas = [] } = useOficinas();
+  const createOP = useCreateOrdemProducao();
+
+  const [nomeProduto, setNomeProduto] = useState("");
+  const [produtoId, setProdutoId] = useState<string>("");
+  const [quantidade, setQuantidade] = useState<number>(1);
+  const [oficinaId, setOficinaId] = useState<string>("");
+  const [previsao, setPrevisao] = useState<string>("");
+
+  useEffect(() => {
+    if (pedido) {
+      const sug = produtosSugeridos[0] ?? "";
+      const semQtd = sug.replace(/\s*\(\d+\)\s*$/, "").trim();
+      setNomeProduto(semQtd);
+      setProdutoId("");
+      setQuantidade(1);
+      setOficinaId("");
+      setPrevisao(pedido.estimated_delivery_date ? pedido.estimated_delivery_date.slice(0, 10) : "");
+    }
+  }, [pedido]);
+
+  const open = !!pedido;
+
+  const onSubmit = async () => {
+    if (!nomeProduto.trim()) {
+      toast.error("Informe o nome do produto.");
+      return;
+    }
+    if (!quantidade || quantidade < 1) {
+      toast.error("Quantidade inválida.");
+      return;
+    }
+    try {
+      await createOP.mutateAsync({
+        nome_produto: nomeProduto.trim(),
+        quantidade_pecas_ordem: quantidade,
+        quantidade,
+        produto_id: produtoId || null,
+        oficina_id: oficinaId || null,
+        status_ordem: "Corte",
+        data_previsao_termino: previsao || null,
+      } as any);
+      toast.success("Ordem de produção criada e enviada ao Kanban.");
+      onClose();
+    } catch (e: any) {
+      toast.error(e?.message ?? "Erro ao criar ordem.");
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-w-lg">
+        <DialogHeader>
+          <DialogTitle>Gerar Ordem de Produção</DialogTitle>
+        </DialogHeader>
+        {pedido && (
+          <div className="space-y-4">
+            <div className="text-xs text-muted-foreground">
+              Pedido <span className="font-mono">{String(pedido.id)}</span> · prazo {fmtData(pedido.estimated_delivery_date)}
+            </div>
+
+            {produtosSugeridos.length > 0 && (
+              <div className="rounded-md border bg-muted/40 p-2 space-y-1">
+                <div className="text-[11px] uppercase tracking-wider text-muted-foreground">Produtos do pedido</div>
+                <div className="flex flex-wrap gap-1">
+                  {produtosSugeridos.map((n, i) => (
+                    <button
+                      key={i}
+                      type="button"
+                      onClick={() => setNomeProduto(n.replace(/\s*\(\d+\)\s*$/, "").trim())}
+                      className="text-[11px] px-2 py-0.5 rounded border bg-background hover:bg-accent"
+                    >
+                      {n}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div>
+              <Label>Nome do produto</Label>
+              <Input value={nomeProduto} onChange={(e) => setNomeProduto(e.target.value)} />
+            </div>
+
+            <div>
+              <Label>Produto cadastrado (opcional)</Label>
+              <Select value={produtoId} onValueChange={(v) => {
+                setProdutoId(v);
+                const p = produtos.find((x: any) => x.id === v);
+                if (p?.nome_do_produto) setNomeProduto(p.nome_do_produto);
+              }}>
+                <SelectTrigger><SelectValue placeholder="Vincular a produto..." /></SelectTrigger>
+                <SelectContent>
+                  {produtos.map((p: any) => (
+                    <SelectItem key={p.id} value={p.id}>{p.nome_do_produto}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label>Quantidade</Label>
+                <Input type="number" min={1} value={quantidade} onChange={(e) => setQuantidade(Number(e.target.value))} />
+              </div>
+              <div>
+                <Label>Previsão de término</Label>
+                <Input type="date" value={previsao} onChange={(e) => setPrevisao(e.target.value)} />
+              </div>
+            </div>
+
+            <div>
+              <Label>Oficina (opcional)</Label>
+              <Select value={oficinaId} onValueChange={setOficinaId}>
+                <SelectTrigger><SelectValue placeholder="Selecionar oficina..." /></SelectTrigger>
+                <SelectContent>
+                  {oficinas.map((o: any) => (
+                    <SelectItem key={o.id} value={o.id}>{o.nome_oficina}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        )}
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>Cancelar</Button>
+          <Button onClick={onSubmit} disabled={createOP.isPending}>
+            {createOP.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Factory className="w-4 h-4 mr-2" />}
+            Criar OP
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 
 function KPI({
   icon,
