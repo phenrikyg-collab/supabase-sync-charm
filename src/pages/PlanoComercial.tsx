@@ -949,11 +949,27 @@ function SemanaSection({
     [acoes],
   );
 
-  const filtradas = acoes.filter(
-    (a) =>
-      (!filtroTipo || a.tipo_acao === filtroTipo) &&
-      (!filtroPublico || a.publico_alvo === filtroPublico),
-  );
+  const filtradas = acoes
+    .filter(
+      (a) =>
+        (!filtroTipo || a.tipo_acao === filtroTipo) &&
+        (!filtroPublico || a.publico_alvo === filtroPublico),
+    )
+    .sort((a, b) => {
+      const da = getKT(a).data || "";
+      const db = getKT(b).data || "";
+      return String(da).localeCompare(String(db));
+    });
+
+  // Canais cobertos a partir do conteúdo dos dias
+  const canaisCobertos = new Set<string>();
+  acoes.forEach((a) => {
+    const k = getKT(a);
+    if (k.reels || a.copy_instagram) canaisCobertos.add("Instagram");
+    if (k.email_assunto || k.email_copy || a.copy_email) canaisCobertos.add("Email");
+    if (k.whatsapp || a.copy_whatsapp) canaisCobertos.add("WhatsApp");
+  });
+  const diasPlanejados = acoes.filter((a) => getKT(a).data).length;
 
   // Resumo da semana
   const datas = datasSemanaN(semana, mes);
