@@ -1128,6 +1128,15 @@ function AcaoCard({ acao, onClick }: { acao: any; onClick: () => void }) {
     emoji: "•",
     className: "bg-muted text-muted-foreground border-border",
   };
+  const kt = getKT(acao);
+  const dataDia = getDiaAcao(acao);
+  const diaMeta = dataDia ? DIA_SEMANA_META[dataDia.getDay()] : null;
+
+  const canaisDia: string[] = [];
+  if (kt.reels) canaisDia.push("📸 Instagram");
+  if (kt.email_assunto || kt.email_copy) canaisDia.push("✉️ Email");
+  if (kt.whatsapp) canaisDia.push("💬 WhatsApp");
+
   return (
     <motion.button
       whileHover={{ y: -2 }}
@@ -1135,11 +1144,18 @@ function AcaoCard({ acao, onClick }: { acao: any; onClick: () => void }) {
       className="text-left rounded-lg border bg-card p-4 space-y-2 hover:shadow-md transition-shadow"
     >
       <div className="flex items-center gap-2 flex-wrap">
+        {diaMeta && dataDia && (
+          <Badge variant="outline" className={cn("border font-semibold", diaMeta.className)}>
+            {diaMeta.abrev} · {ddmm(dataDia)}
+          </Badge>
+        )}
         <Badge variant="outline" className={cn("border", meta.className)}>
           {meta.emoji} {meta.label}
         </Badge>
-        {acao.publico_alvo && (
-          <Badge variant="secondary">{acao.publico_alvo}</Badge>
+        {acao.exportado_calendario && (
+          <Badge variant="outline" className="border bg-success/15 text-success border-success/30">
+            📅 Exportado
+          </Badge>
         )}
         <Badge
           variant="outline"
@@ -1149,12 +1165,17 @@ function AcaoCard({ acao, onClick }: { acao: any; onClick: () => void }) {
         </Badge>
       </div>
       <h3 className="font-semibold leading-snug">{acao.titulo}</h3>
+      {kt.angulo && (
+        <p className="text-xs italic text-muted-foreground leading-snug">
+          {kt.angulo}
+        </p>
+      )}
       {acao.produto_foco && (
         <p className="text-xs text-muted-foreground">📦 {acao.produto_foco}</p>
       )}
-      {acao.canais?.length > 0 && (
+      {canaisDia.length > 0 && (
         <div className="flex flex-wrap gap-1 pt-1">
-          {acao.canais.map((c: string) => (
+          {canaisDia.map((c) => (
             <span
               key={c}
               className="text-[10px] px-2 py-0.5 rounded-full bg-muted text-muted-foreground"
@@ -1164,10 +1185,6 @@ function AcaoCard({ acao, onClick }: { acao: any; onClick: () => void }) {
           ))}
         </div>
       )}
-      <p className="text-[11px] text-muted-foreground pt-1 border-t mt-2">
-        📅 Será exportado para o calendário em{" "}
-        <strong className="text-foreground">{diaIdealParaTipo(acao.tipo_acao)}</strong>
-      </p>
     </motion.button>
   );
 }
