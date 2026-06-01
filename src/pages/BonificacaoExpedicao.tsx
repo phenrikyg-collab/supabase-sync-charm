@@ -9,8 +9,11 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Loader2, Save, Trash2, Plus, CheckCircle2, AlertTriangle, Clock, Truck } from "lucide-react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { Loader2, Save, Trash2, Plus, CheckCircle2, AlertTriangle, Clock, Truck, Factory } from "lucide-react";
 import {
   useApurarExpedicao,
   useHistoricoExpedicao,
@@ -20,6 +23,7 @@ import {
   useExcluirFaixa,
   type FaixaBonificacao,
 } from "@/hooks/useBonificacaoExpedicao";
+import { useCreateOrdemProducao, useOficinas, useProdutos } from "@/hooks/useSupabase";
 
 const fmtBRL = (v: number) =>
   v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
