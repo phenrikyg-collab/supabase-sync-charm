@@ -890,6 +890,36 @@ const DIA_IDEAL_POR_TIPO: Record<string, string> = {
 const diaIdealParaTipo = (tipo: string) =>
   DIA_IDEAL_POR_TIPO[tipo] || "Sexta-feira";
 
+// ---- Conteúdo por dia (kpis_trafego) ----
+const DIA_SEMANA_META: Record<
+  number,
+  { nome: string; abrev: string; className: string }
+> = {
+  0: { nome: "Domingo", abrev: "DOM", className: "bg-muted text-muted-foreground border-border" },
+  1: { nome: "Segunda", abrev: "SEG", className: "bg-blue-900 text-white border-blue-900" },
+  2: { nome: "Terça", abrev: "TER", className: "bg-purple-700 text-white border-purple-700" },
+  3: { nome: "Quarta", abrev: "QUA", className: "bg-green-700 text-white border-green-700" },
+  4: { nome: "Quinta", abrev: "QUI", className: "bg-orange-600 text-white border-orange-600" },
+  5: { nome: "Sexta", abrev: "SEX", className: "bg-pink-600 text-white border-pink-600" },
+  6: { nome: "Sábado", abrev: "SAB", className: "bg-primary text-primary-foreground border-primary" },
+};
+
+function parseLocalDate(s?: string | null): Date | null {
+  if (!s) return null;
+  const m = String(s).slice(0, 10).match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!m) return null;
+  return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+}
+
+function getKT(acao: any): any {
+  const k = acao?.kpis_trafego;
+  return k && typeof k === "object" && !Array.isArray(k) ? k : {};
+}
+
+function getDiaAcao(acao: any): Date | null {
+  return parseLocalDate(getKT(acao).data);
+}
+
 function SemanaSection({
   semana,
   mes,
