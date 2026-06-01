@@ -324,8 +324,6 @@ export default function PlanoComercial() {
           contexto_ia: contextoIA,
         },
         {
-          baseUrl: EXTERNAL_SUPABASE_URL,
-          anonKey: EXTERNAL_SUPABASE_ANON_KEY,
           timeoutMs: 300_000,
         },
       );
