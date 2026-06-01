@@ -1,8 +1,9 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { calcularBonus, CONFIG_PADRAO, ConfigBonificacao } from "@/lib/bonificacaoWhatsApp";
 import { startOfMonth, endOfMonth, format, parse } from "date-fns";
+
 
 async function fetchAll<T = any>(table: string, build: (q: any) => any): Promise<T[]> {
   const acc: T[] = [];
@@ -151,7 +152,7 @@ export function useApurarMes(mesRef: string) {
     },
   });
 
-  return useMemo(() => {
+  const resultado = useMemo(() => {
     const ativas = consultoras.filter((c) => c.ativa);
     const validos = pedidos.filter(pedidoValido);
 
@@ -266,4 +267,51 @@ export function useApurarMes(mesRef: string) {
       config,
     };
   }, [consultoras, pedidos, meta, metasInd, config, isLoading]);
+
+  // Auto-persiste a projeção do mês em bonus_whatsapp_apurados (status 'projetado'),
+  // desde que ainda não exista um snapshot aprovado/pago para a consultora no mês.
+  const lastSnapshotKey = useRef<string>("");
+  useEffect(() => {
+    if (resultado.isLoading) return;
+    if (!resultado.linhas.length) return;
+    const key = `${mesRef}:${resultado.linhas.map((l) => `${l.consultora.id}:${l.bonus_final.toFixed(2)}:${l.faturamento_bruto.toFixed(2)}`).join("|")}`;
+    if (key === lastSnapshotKey.current) return;
+    lastSnapshotKey.current = key;
+
+    (async () => {
+      const { data: existentes } = await supabase
+        .from("bonus_whatsapp_apurados" as any)
+        .select("consultora_id,status")
+        .eq("mes_referencia", mesRef);
+      const congelados = new Set(
+        ((existentes ?? []) as Array<{ consultora_id: string; status: string }>)
+          .filter((r) => r.status === "aprovado" || r.status === "pago")
+          .map((r) => r.consultora_id)
+      );
+      const rows = resultado.linhas
+        .filter((l) => !congelados.has(l.consultora.id))
+        .map((l) => ({
+          mes_referencia: mesRef,
+          consultora_id: l.consultora.id,
+          faturamento_liquido: l.faturamento_liquido,
+          meta: l.meta,
+          pct_atingimento: l.pct_atingimento,
+          ticket_medio: l.ticket_medio,
+          desconto_medio_pct: l.desconto_medio_pct,
+          qtd_pedidos: l.qtd_pedidos,
+          bonus_base: l.bonus_base,
+          multiplicador_desconto: l.multiplicador_desconto,
+          acelerador_ticket: l.acelerador_ticket,
+          bonus_final: l.bonus_final,
+          status: "projetado",
+          data_pagamento: null as string | null,
+        }));
+      if (rows.length === 0) return;
+      await supabase
+        .from("bonus_whatsapp_apurados" as any)
+        .upsert(rows, { onConflict: "mes_referencia,consultora_id" });
+    })();
+  }, [resultado, mesRef]);
+
+  return resultado;
 }
