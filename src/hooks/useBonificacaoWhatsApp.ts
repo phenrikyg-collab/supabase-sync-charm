@@ -315,5 +315,3 @@ export function useApurarMes(mesRef: string) {
 
   return resultado;
 }
-
-}
