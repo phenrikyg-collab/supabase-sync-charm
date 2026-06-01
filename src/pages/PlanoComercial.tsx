@@ -1203,13 +1203,27 @@ function DrawerAcao({
   onExportar: () => void;
 }) {
   const meta = TIPO_ACAO_META[acao.tipo_acao];
+  const kt = getKT(acao);
+  const dataDia = getDiaAcao(acao);
+  const diaMeta = dataDia ? DIA_SEMANA_META[dataDia.getDay()] : null;
+
   return (
     <>
       <SheetHeader>
         <div className="flex items-center gap-2 flex-wrap">
+          {diaMeta && dataDia && (
+            <Badge variant="outline" className={cn("border font-semibold", diaMeta.className)}>
+              {diaMeta.nome} · {ddmm(dataDia)}
+            </Badge>
+          )}
           {meta && (
             <Badge variant="outline" className={cn("border", meta.className)}>
               {meta.emoji} {meta.label}
+            </Badge>
+          )}
+          {acao.exportado_calendario && (
+            <Badge variant="outline" className="border bg-success/15 text-success border-success/30">
+              📅 Exportado
             </Badge>
           )}
           <Badge
@@ -1220,6 +1234,9 @@ function DrawerAcao({
           </Badge>
         </div>
         <SheetTitle className="font-serif">{acao.titulo}</SheetTitle>
+        {kt.angulo && (
+          <p className="text-sm italic text-muted-foreground">{kt.angulo}</p>
+        )}
         <SheetDescription className="whitespace-pre-wrap">
           {acao.descricao}
         </SheetDescription>
@@ -1247,39 +1264,57 @@ function DrawerAcao({
           </div>
         )}
 
-        {/* Copies */}
+        {/* Conteúdo por canal (dia) */}
         <div className="flex items-center justify-between">
           <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-            Copies
+            Conteúdo do dia
           </h3>
           <RegenerarCopyButton acao={acao} onChange={onChange} />
         </div>
         <Tabs defaultValue="instagram">
-          <TabsList className="grid grid-cols-4">
-            <TabsTrigger value="instagram">📸 Insta</TabsTrigger>
+          <TabsList className="grid grid-cols-3">
+            <TabsTrigger value="instagram">📸 Instagram Reels</TabsTrigger>
             <TabsTrigger value="email">✉️ E-mail</TabsTrigger>
-            <TabsTrigger value="whatsapp">💬 WhatsApp</TabsTrigger>
-            <TabsTrigger value="anuncio">📢 Anúncio</TabsTrigger>
+            <TabsTrigger value="whatsapp">💬 WhatsApp VIP</TabsTrigger>
           </TabsList>
-          {[
-            ["instagram", "copy_instagram"],
-            ["email", "copy_email"],
-            ["whatsapp", "copy_whatsapp"],
-            ["anuncio", "copy_anuncio"],
-          ].map(([k, campo]) => (
-            <TabsContent key={k} value={k}>
-              <Textarea
-                defaultValue={acao[campo] || ""}
-                onBlur={(e) =>
-                  e.target.value !== (acao[campo] || "") &&
-                  onChange(campo, e.target.value)
+
+          <TabsContent value="instagram" className="space-y-2">
+            <Label className="text-xs">Copy / Legenda</Label>
+            <Textarea
+              key={`ig-${acao.id}`}
+              defaultValue={kt.reels ?? acao.copy_instagram ?? ""}
+              onBlur={(e) => {
+                const v = e.target.value;
+                if (v !== (kt.reels ?? acao.copy_instagram ?? "")) {
+                  onChange("copy_instagram", v);
                 }
-                rows={10}
-                placeholder="Copy ainda não gerado"
-              />
-            </TabsContent>
-          ))}
+              }}
+              rows={10}
+              placeholder="Copy do Reels para este dia"
+            />
+          </TabsContent>
+
+          <TabsContent value="email" className="space-y-3">
+            <EmailEditor acao={acao} kt={kt} onChange={onChange} />
+          </TabsContent>
+
+          <TabsContent value="whatsapp" className="space-y-2">
+            <Label className="text-xs">Mensagem</Label>
+            <Textarea
+              key={`wa-${acao.id}`}
+              defaultValue={kt.whatsapp ?? acao.copy_whatsapp ?? ""}
+              onBlur={(e) => {
+                const v = e.target.value;
+                if (v !== (kt.whatsapp ?? acao.copy_whatsapp ?? "")) {
+                  onChange("copy_whatsapp", v);
+                }
+              }}
+              rows={10}
+              placeholder="Mensagem WhatsApp VIP para este dia"
+            />
+          </TabsContent>
         </Tabs>
+
 
         {/* Ações */}
         <div className="flex flex-wrap gap-2 pt-4 border-t">
