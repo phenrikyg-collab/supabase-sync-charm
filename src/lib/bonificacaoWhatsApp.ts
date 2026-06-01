@@ -59,9 +59,19 @@ export function calcularBonus(
 ): ResultadoBonus {
   const pct = meta > 0 ? (faturamento_liquido / meta) * 100 : 0;
 
+  // Busca a faixa exata; se houver gaps na configuração (ex.: 91-99 e 101-115),
+  // cai para a maior faixa cujo min_pct <= pct, evitando que valores intermediários
+  // (ex.: 100,45%) sejam tratados como "Abaixo da meta".
+  const faixaExata = config.faixas_meta.find(
+    (f) => pct >= f.min_pct && pct <= f.max_pct
+  );
   const faixa =
-    config.faixas_meta.find((f) => pct >= f.min_pct && pct <= f.max_pct) ??
+    faixaExata ??
+    [...config.faixas_meta]
+      .filter((f) => pct >= f.min_pct)
+      .sort((a, b) => b.min_pct - a.min_pct)[0] ??
     config.faixas_meta[0];
+
 
   const regraDesc =
     [...config.regras_desconto]
