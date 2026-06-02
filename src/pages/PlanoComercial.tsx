@@ -321,7 +321,7 @@ export default function PlanoComercial() {
         {
           mes_referencia: mes,
           meta_receita: metaReceitaAuto,
-          contexto_ia: contextoIA,
+          informacoes_adicionais: contextoIA,
         },
         {
           timeoutMs: 300_000,
