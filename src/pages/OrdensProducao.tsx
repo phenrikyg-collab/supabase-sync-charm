@@ -215,7 +215,9 @@ export default function OrdensProducao() {
     }).reduce((sum, o) => sum + (o.quantidade_pecas_ordem ?? o.quantidade ?? 0), 0);
   }, [ordens, oficinasInternasIds]);
 
-  const ocsDisponiveis = ordensCorte?.filter((oc) => oc.status === "Planejada") ?? [];
+  // Mostra OCs ainda disponíveis para gerar OP: Planejada ou Em Produção
+  // (algumas OCs ficam "Em Produção" mesmo sem OP gerada, ex.: OC-0029)
+  const ocsDisponiveis = ordensCorte?.filter((oc) => oc.status === "Planejada" || oc.status === "Em Produção") ?? [];
 
   // Fetch grade info for each ordem de produção
   useEffect(() => {
