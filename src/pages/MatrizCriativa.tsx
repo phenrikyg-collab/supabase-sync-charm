@@ -13,6 +13,7 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
 import { Loader2, Heart, AlertTriangle, Sparkles } from "lucide-react";
+import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 
 const sb = supabase as any;
@@ -388,6 +389,88 @@ function CriativoCard({ c, onOpen, onAprovar }: any) {
   );
 }
 
+function parseRoteiroVideo(texto: string) {
+  const cenas: { numero: string; tempo: string; camera: string; fala: string; visual: string }[] = [];
+  const t = texto.replace(/\r/g, "\n");
+  // Match each scene block: [CENA N - ...] or CENA N - ...
+  const regex = /(?:\[?\s*CENA\s*(\d+)[^\]]*\]?)\s*(.*?)(?=(?:\[?\s*CENA\s*\d+)|$)/gsi;
+  let m;
+  while ((m = regex.exec(t)) !== null) {
+    const numero = m[1];
+    const corpo = m[2].trim();
+    const tempoMatch = corpo.match(/(\d+\s*s?\s*(?:a|–|-)\s*\d+\s*s?)/i) || corpo.match(/(\d+\s*s?\s*[-–—]\s*\d+\s*s?)/i);
+    const tempo = tempoMatch ? tempoMatch[1].trim() : "";
+    const camMatch = corpo.match(/C[ÂA]MERA:\s*(.*?)(?=\||FALA:|VISUAL:|$)/i);
+    const camera = camMatch ? camMatch[1].trim() : "";
+    const falaMatch = corpo.match(/FALA:\s*(.*?)(?=\||VISUAL:|$)/i);
+    const fala = falaMatch ? falaMatch[1].trim() : "";
+    const visMatch = corpo.match(/VISUAL:\s*(.*?)(?=\||$)/i);
+    const visual = visMatch ? visMatch[1].trim() : "";
+    if (numero) cenas.push({ numero, tempo, camera, fala, visual });
+  }
+  return cenas;
+}
+
+function RoteiroVideo({ texto }: { texto: string }) {
+  const cenas = parseRoteiroVideo(texto);
+  if (cenas.length === 0) {
+    return (
+      <pre className="font-mono text-xs bg-muted p-4 rounded whitespace-pre-wrap">
+        {texto}
+      </pre>
+    );
+  }
+  return (
+    <div className="space-y-4">
+      {cenas.map((cena, idx) => (
+        <div key={cena.numero}>
+          {idx > 0 && <Separator className="my-4 bg-border/40" />}
+          <div className="rounded-lg border border-border/60 overflow-hidden">
+            <div className="bg-primary/10 px-3 py-2 flex items-center gap-2">
+              <span className="text-xs font-bold uppercase tracking-wider text-primary">
+                CENA {cena.numero}
+              </span>
+              {cena.tempo && (
+                <span className="text-[11px] text-muted-foreground">
+                  • {cena.tempo}
+                </span>
+              )}
+            </div>
+            <div className="p-3 space-y-2 text-sm">
+              {cena.camera && (
+                <div>
+                  <span className="text-[11px] font-semibold uppercase tracking-wide text-blue-600">
+                    CÂMERA
+                  </span>
+                  <p className="text-foreground/90">{cena.camera}</p>
+                </div>
+              )}
+              {cena.fala && (
+                <div>
+                  <span className="text-[11px] font-semibold uppercase tracking-wide text-green-600">
+                    FALA
+                  </span>
+                  <p className="text-foreground/90 italic">
+                    "{cena.fala.replace(/^"/, "").replace(/"$/, "")}"
+                  </p>
+                </div>
+              )}
+              {cena.visual && (
+                <div>
+                  <span className="text-[11px] font-semibold uppercase tracking-wide text-secondary-foreground/70">
+                    VISUAL
+                  </span>
+                  <p className="text-foreground/90">{cena.visual}</p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function CriativoModal({ criativo, onClose, onAction }: any) {
   if (!criativo) return null;
   const isVideo = /video|reels/i.test(criativo.formato || "");
@@ -410,11 +493,7 @@ function CriativoModal({ criativo, onClose, onAction }: any) {
           </TabsList>
           <TabsContent value="conteudo" className="space-y-3">
             {isVideo ? (
-              <pre className="font-mono text-xs bg-muted p-4 rounded whitespace-pre-wrap">
-                {(criativo.roteiro_completo || "").split("\n").map((linha: string, i: number) => (
-                  <div key={i}><span className="text-primary font-bold">{linha.match(/^cena\s*\d+/i) ? "" : ""}</span>{linha}</div>
-                ))}
-              </pre>
+              <RoteiroVideo texto={criativo.roteiro_completo || ""} />
             ) : (
               <div className="space-y-2 text-sm">
                 {criativo.headline_principal && <p><strong>Headline:</strong> {criativo.headline_principal}</p>}
