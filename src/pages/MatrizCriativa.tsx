@@ -493,11 +493,7 @@ function CriativoModal({ criativo, onClose, onAction }: any) {
           </TabsList>
           <TabsContent value="conteudo" className="space-y-3">
             {isVideo ? (
-              <pre className="font-mono text-xs bg-muted p-4 rounded whitespace-pre-wrap">
-                {(criativo.roteiro_completo || "").split("\n").map((linha: string, i: number) => (
-                  <div key={i}><span className="text-primary font-bold">{linha.match(/^cena\s*\d+/i) ? "" : ""}</span>{linha}</div>
-                ))}
-              </pre>
+              <RoteiroVideo texto={criativo.roteiro_completo || ""} />
             ) : (
               <div className="space-y-2 text-sm">
                 {criativo.headline_principal && <p><strong>Headline:</strong> {criativo.headline_principal}</p>}
