@@ -963,10 +963,15 @@ function AbaBiblioteca() {
         </div>
       )}
 
-      <CriativoModal criativo={modal} onClose={() => setModal(null)} onAction={async (status: string) => {
-        if (modal?.id) await setStatus(modal.id, status);
-        setModal(null);
-      }} />
+      <CriativoModal
+        criativo={modal}
+        onClose={() => setModal(null)}
+        regenerando={modal && regenerandoId === modal.id}
+        onAprovar={async () => { if (modal?.id) { await setStatus(modal.id, "aprovado"); setModal(null); } }}
+        onEmProducao={async () => { if (modal?.id) await setStatus(modal.id, "em_producao"); }}
+        onRegenerar={async () => { if (modal) await regenerar(modal); }}
+        onExcluir={async () => { if (modal?.id) { await excluir(modal.id); setModal(null); } }}
+      />
     </div>
   );
 }
