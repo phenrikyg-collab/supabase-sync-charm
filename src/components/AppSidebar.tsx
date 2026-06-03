@@ -2,6 +2,7 @@ import {
   LayoutDashboard, Package, Plus, Palette, Scissors, Factory,
   Truck, DollarSign, Target, FileText, Building2, LogOut, Users, Home, BarChart3, Upload, Layers,
   ShoppingBag, Banknote, Wrench, CreditCard, PieChart, Monitor, Settings, Trophy, CalendarDays, TrendingUp, ClipboardList, Megaphone, Tag, Sparkles, Heart, LayoutGrid,
+  Compass,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useAuth } from "@/contexts/AuthContext";
@@ -106,6 +107,16 @@ const moduleGroups: ModuleGroup[] = [
       { title: "Conteúdo & CRM", url: "/conteudo", icon: CalendarDays },
     ],
   },
+  {
+    key: "planejamento" as AppModule,
+    label: "Planejamento Estratégico",
+    icon: Compass,
+    items: [
+      { title: "Visão Anual", url: "/planejamento/anual", icon: BarChart3 },
+      { title: "Planejamento Mensal", url: "/planejamento/mensal", icon: CalendarDays },
+      { title: "Simulador", url: "/planejamento/simulador", icon: Target },
+    ],
+  },
 ];
 
 export function AppSidebar() {
@@ -118,7 +129,7 @@ export function AppSidebar() {
 
   const visibleGroups = isAdmin
     ? moduleGroups
-    : moduleGroups.filter((g) => g.key === "marketing" || modules.includes(g.key));
+    : moduleGroups.filter((g) => g.key === "marketing" || g.key === ("planejamento" as AppModule) || modules.includes(g.key));
 
   return (
     <Sidebar collapsible="icon">
