@@ -530,6 +530,7 @@ function CriativoModal({ criativo, onClose, onAction }: any) {
             </div>
           </TabsContent>
         </Tabs>
+        <ImagemMetaAds criativo={criativo} />
         <DialogFooter>
           <Button onClick={() => onAction("aprovado")}>Aprovar</Button>
           <Button variant="secondary" onClick={() => onAction("em_producao")}>Em Produção</Button>
