@@ -815,15 +815,23 @@ function AbaBiblioteca() {
   const [fFormato, setFFormato] = useState("__all__");
   const [fStatus, setFStatus] = useState("__all__");
 
+  const [regenerandoId, setRegenerandoId] = useState<string | null>(null);
+
   async function load() {
     setLoading(true);
     const [c, p, pr] = await Promise.all([
-      sb.from("mc_criativos").select("*, mc_personas(nome, emoji)").order("created_at", { ascending: false }),
-      sb.from("mc_personas").select("id, nome"),
+      sb.from("mc_criativos").select("*").order("created_at", { ascending: false }),
+      sb.from("mc_personas").select("id, nome, emoji"),
       sb.from("mc_produtos_marca").select("id, nome"),
     ]);
-    setList(c.data || []);
-    setPersonas(p.data || []);
+    if (c.error) toast({ title: "Erro ao carregar criativos", description: c.error.message, variant: "destructive" });
+    const personasArr = p.data || [];
+    const lista = (c.data || []).map((it: any) => {
+      const pers = personasArr.find((x: any) => x.id === it.persona_id);
+      return { ...it, mc_personas: pers ? { nome: pers.nome, emoji: pers.emoji } : null };
+    });
+    setList(lista);
+    setPersonas(personasArr);
     setProdutos(pr.data || []);
     setLoading(false);
   }
@@ -838,9 +846,37 @@ function AbaBiblioteca() {
   );
 
   async function setStatus(id: string, status: string) {
-    await sb.from("mc_criativos").update({ status }).eq("id", id);
+    const { error } = await sb.from("mc_criativos").update({ status }).eq("id", id);
+    if (error) return toast({ title: "Erro", description: error.message, variant: "destructive" });
     setList((l) => l.map((c) => (c.id === id ? { ...c, status } : c)));
-    toast({ title: "Status atualizado" });
+    setModal((m: any) => (m && m.id === id ? { ...m, status } : m));
+    toast({ title: status === "aprovado" ? "Criativo aprovado!" : `Status: ${status}` });
+  }
+
+  async function excluir(id: string) {
+    const { error } = await sb.from("mc_criativos").delete().eq("id", id);
+    if (error) return toast({ title: "Erro ao excluir", description: error.message, variant: "destructive" });
+    setList((l) => l.filter((c) => c.id !== id));
+    setModal((m: any) => (m && m.id === id ? null : m));
+    toast({ title: "Criativo removido" });
+  }
+
+  async function regenerar(c: any) {
+    if (!c?.id) return;
+    setRegenerandoId(c.id);
+    try {
+      const novo = await regerarCriativo(c);
+      if (!novo) throw new Error("Nada retornado");
+      const pers = personas.find((x: any) => x.id === novo.persona_id);
+      const novoEnriquecido = { ...novo, mc_personas: pers ? { nome: pers.nome, emoji: pers.emoji } : null };
+      setList((l) => l.map((x) => (x.id === c.id ? novoEnriquecido : x)));
+      setModal((m: any) => (m && m.id === c.id ? novoEnriquecido : m));
+      toast({ title: "Criativo regenerado" });
+    } catch (e: any) {
+      toast({ title: "Erro ao regenerar", description: e.message, variant: "destructive" });
+    } finally {
+      setRegenerandoId(null);
+    }
   }
 
   return (
