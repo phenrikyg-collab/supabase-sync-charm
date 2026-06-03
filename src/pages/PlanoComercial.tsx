@@ -1,23 +1,16 @@
-import { useState, useEffect, useRef, useMemo } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { motion } from "framer-motion";
 import {
   ChevronLeft,
   ChevronRight,
   Sparkles,
   Target,
-  TrendingUp,
-  DollarSign,
-  ShoppingBag,
-  Activity,
-  CheckCircle2,
   RefreshCw,
+  CheckCircle2,
   Calendar as CalendarIcon,
-  X,
-  Trophy,
-  AlertTriangle,
-  Info,
+  Flame,
+  Loader2,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -26,28 +19,13 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { Skeleton } from "@/components/ui/skeleton";
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetDescription,
-} from "@/components/ui/sheet";
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
 import {
   Table,
   TableBody,
@@ -59,12 +37,8 @@ import {
 import { invokeEdgeFunction } from "@/lib/edgeFunctions";
 import { callClaude, safeParseJSONObject } from "@/lib/claudeApi";
 import { cn } from "@/lib/utils";
+import { useNavigate } from "react-router-dom";
 
-const EXTERNAL_SUPABASE_URL = "https://ezdtulcrqzmgocamjwwl.supabase.co";
-const EXTERNAL_SUPABASE_ANON_KEY =
-  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV6ZHR1bGNycXptZ29jYW1qd3dsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE2MjIwMzAsImV4cCI6MjA4NzE5ODAzMH0.7CyKzK3cs-Cd-Wrh69oUAEtxW95l8iZLMCXi_3nAIPU";
-
-// ---------------- Helpers ----------------
 const formatBRL = (v: number | null | undefined) =>
   new Intl.NumberFormat("pt-BR", {
     style: "currency",
@@ -73,2142 +47,908 @@ const formatBRL = (v: number | null | undefined) =>
     maximumFractionDigits: 0,
   }).format(Number(v || 0));
 
-const formatBRLDec = (v: number | null | undefined) =>
-  new Intl.NumberFormat("pt-BR", {
-    style: "currency",
-    currency: "BRL",
-  }).format(Number(v || 0));
-
-const formatNumber = (v: number | null | undefined) =>
-  new Intl.NumberFormat("pt-BR").format(Number(v || 0));
-
-const formatMes = (mes: string) => {
-  const [y, m] = mes.split("-");
-  const nomes = [
-    "Janeiro",
-    "Fevereiro",
-    "Março",
-    "Abril",
-    "Maio",
-    "Junho",
-    "Julho",
-    "Agosto",
-    "Setembro",
-    "Outubro",
-    "Novembro",
-    "Dezembro",
-  ];
-  return `${nomes[Number(m) - 1]} / ${y}`;
+const formatDDMM = (d: string | null | undefined) => {
+  if (!d) return "—";
+  const p = d.split("-");
+  if (p.length !== 3) return d;
+  return `${p[2]}/${p[1]}`;
 };
 
-const navegarMes = (mes: string, dir: number) => {
-  const [y, m] = mes.split("-").map(Number);
-  const d = new Date(y, m - 1 + dir, 1);
+const mesLabel = (mes: string) => {
+  const [a, m] = mes.split("-").map(Number);
+  const nomes = ["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
+  return `${nomes[m - 1]} ${a}`;
+};
+
+const addMonths = (mes: string, delta: number) => {
+  const [a, m] = mes.split("-").map(Number);
+  const d = new Date(a, m - 1 + delta, 1);
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
 };
 
-// ---------------- Tipos de ação ----------------
-const TIPO_ACAO_META: Record<
-  string,
-  { label: string; emoji: string; className: string }
-> = {
-  kit_oferta: {
-    label: "Kit",
-    emoji: "🎁",
-    className: "bg-success/15 text-success border-success/30",
-  },
-  live: {
-    label: "Live",
-    emoji: "🔴",
-    className: "bg-destructive/15 text-destructive border-destructive/30",
-  },
-  lancamento: {
-    label: "Lançamento",
-    emoji: "✨",
-    className: "bg-purple-500/15 text-purple-600 border-purple-500/30",
-  },
-  reposicao: {
-    label: "Reposição",
-    emoji: "🔄",
-    className: "bg-blue-500/15 text-blue-600 border-blue-500/30",
-  },
-  reativacao: {
-    label: "Reativação",
-    emoji: "💌",
-    className: "bg-orange-500/15 text-orange-600 border-orange-500/30",
-  },
-  novos_clientes: {
-    label: "Novos",
-    emoji: "🆕",
-    className: "bg-cyan-500/15 text-cyan-600 border-cyan-500/30",
-  },
-  trafego_pago: {
-    label: "Tráfego",
-    emoji: "📱",
-    className: "bg-yellow-500/15 text-yellow-700 border-yellow-500/30",
-  },
-  email_mkt: {
-    label: "E-mail",
-    emoji: "✉️",
-    className: "bg-muted text-muted-foreground border-border",
-  },
-  whatsapp: {
-    label: "WhatsApp",
-    emoji: "💬",
-    className: "bg-emerald-700/15 text-emerald-700 border-emerald-700/30",
-  },
+const currentMes = () => {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
 };
 
-const STATUS_BADGE: Record<string, string> = {
-  rascunho: "bg-muted text-muted-foreground border-border",
-  aprovado: "bg-success/15 text-success border-success/30",
-  exportado: "bg-blue-500/15 text-blue-600 border-blue-500/30",
-  cancelado: "bg-destructive/15 text-destructive border-destructive/30",
-  em_execucao: "bg-warning/15 text-warning border-warning/30",
-};
-
-// ---------------- Componente principal ----------------
-export default function PlanoComercial() {
-  const [mes, setMes] = useState("2026-07");
-  const [plano, setPlano] = useState<any>(null);
-  const [acoes, setAcoes] = useState<any[]>([]);
-  const [distribuicao, setDistribuicao] = useState<any[]>([]);
-  const [kpis, setKpis] = useState<any[]>([]);
-  const [investimentos, setInvestimentos] = useState<any[]>([]);
-  const [metaFin, setMetaFin] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
-  const [erro, setErro] = useState<string | null>(null);
-  const fetchRef = useRef(false);
-
-  // formulário criação
-  const [metaReceita, setMetaReceita] = useState<string>("");
-  const [contextoIA, setContextoIA] = useState<string>("");
-  const [gerando, setGerando] = useState(false);
-  const [confirmGerar, setConfirmGerar] = useState(false);
-  const [confirmRegen, setConfirmRegen] = useState(false);
-
-  // drawer da ação
-  const [acaoAberta, setAcaoAberta] = useState<any>(null);
-  const [exportarOpen, setExportarOpen] = useState(false);
-  const [dataExport, setDataExport] = useState("");
-
-  useEffect(() => {
-    if (fetchRef.current) return;
-    fetchRef.current = true;
-    carregarDados(mes);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  const carregarDados = async (mesRef: string) => {
-    setLoading(true);
-    setErro(null);
-    setMes(mesRef);
-
-    try {
-      const { data: planoData, error: planoErro } = await supabase
-        .from("planos_comerciais" as any)
-        .select("*")
-        .eq("mes_referencia", mesRef)
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      if (planoErro) throw new Error("Erro plano: " + planoErro.message);
-      setPlano(planoData);
-
-      const { data: acoesData, error: acoesErro } = await supabase
-        .from("acoes_comerciais" as any)
-        .select("*")
-        .eq("mes_referencia", mesRef)
-        .order("semana", { ascending: true });
-      if (acoesErro) throw new Error("Erro acoes: " + acoesErro.message);
-      setAcoes(acoesData || []);
-
-      const { data: padrao } = await supabase
-        .from("vw_padroes_pedidos" as any)
-        .select("semana_do_mes, receita_total, total_pedidos");
-
-      if (padrao) {
-        const resumo: Record<number, number> = {};
-        (padrao as any[]).forEach((r: any) => {
-          const s = Number(r.semana_do_mes);
-          resumo[s] = (resumo[s] || 0) + Number(r.receita_total);
-        });
-        const total = Object.values(resumo).reduce((s, v) => s + v, 0);
-        const dist = Object.entries(resumo)
-          .map(([s, v]) => ({
-            semana: parseInt(s),
-            percentual: total ? Math.round((v / total) * 100) : 0,
-            meta_receita:
-              planoData && total
-                ? Math.round(((planoData as any).meta_receita * v) / total)
-                : 0,
-          }))
-          .sort((a, b) => a.semana - b.semana);
-        setDistribuicao(dist);
-      }
-
-      const { data: kpisData } = await supabase
-        .from("vw_kpis_trafego" as any)
-        .select("*")
-        .order("mes_referencia", { ascending: false })
-        .limit(6);
-      setKpis((kpisData as any[]) || []);
-
-      const { data: invData } = await supabase
-        .from("investimentos_midia" as any)
-        .select("*")
-        .order("mes_referencia", { ascending: false })
-        .limit(12);
-      setInvestimentos((invData as any[]) || []);
-
-      // meta financeira
-      const mesData = `${mesRef}-01`;
-      const { data: metaData } = await supabase
-        .from("metas_financeiras" as any)
-        .select("*")
-        .eq("mes", mesData)
-        .maybeSingle();
-      setMetaFin(metaData);
-
-      // Pré-preencher form se não tem plano
-      if (!planoData) {
-        const inv = (invData as any[])?.find(
-          (i: any) => i.mes_referencia === mesRef,
-        );
-        setMetaReceita(
-          metaData ? String((metaData as any).meta_mensal || "") : "",
-        );
-        setContextoIA("");
-      }
-    } catch (e: any) {
-      setErro(e.message);
-      toast.error(e.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleMudarMes = (dir: number) => {
-    carregarDados(navegarMes(mes, dir));
-  };
-
-  const gerarPlano = async () => {
-    setGerando(true);
-    setConfirmGerar(false);
-    setConfirmRegen(false);
-    try {
-      // 1. Buscar SEMPRE a meta financeira do mês antes de chamar a IA
-      const dataInicio = `${mes}-01`;
-      const { data: metaFinDb } = await supabase
-        .from("metas_financeiras" as any)
-        .select("meta_mensal, meta_ticket_medio")
-        .eq("mes", dataInicio)
-        .maybeSingle();
-
-      const metaReceitaAuto =
-        Number((metaFinDb as any)?.meta_mensal) || Number(metaReceita) || 0;
-
-      if (!metaReceitaAuto) {
-        toast.error(
-          "Cadastre a meta financeira do mês em Meta Mensal antes de gerar o plano.",
-        );
-        setGerando(false);
-        return;
-      }
-
-      await invokeEdgeFunction(
-        "generate-commercial-plan",
-        {
-          mes_referencia: mes,
-          meta_receita: metaReceitaAuto,
-          informacoes_adicionais: contextoIA,
-        },
-        {
-          timeoutMs: 300_000,
-        },
-      );
-      toast.success("Plano gerado!");
-      await carregarDados(mes);
-    } catch (e: any) {
-      toast.error("Erro ao gerar plano: " + (e?.message || "falha desconhecida"));
-    } finally {
-      setGerando(false);
-    }
-  };
-
-  const aprovarPlano = async () => {
-    if (!plano) return;
-    const { error } = await supabase
-      .from("planos_comerciais" as any)
-      .update({ status: "aprovado" } as any)
-      .eq("id", plano.id);
-    if (error) return toast.error("Erro: " + error.message);
-    setPlano({ ...plano, status: "aprovado" });
-    toast.success("Plano aprovado!");
-  };
-
-  // ---- Atualizações ações ----
-  const atualizarAcaoCampo = async (id: string, campo: string, valor: any) => {
-    const { error } = await supabase
-      .from("acoes_comerciais" as any)
-      .update({ [campo]: valor, updated_at: new Date().toISOString() } as any)
-      .eq("id", id);
-    if (error) return toast.error("Erro: " + error.message);
-    setAcoes((prev) =>
-      prev.map((a) => (a.id === id ? { ...a, [campo]: valor } : a)),
-    );
-    if (acaoAberta?.id === id) setAcaoAberta({ ...acaoAberta, [campo]: valor });
-  };
-
-  const aprovarAcao = (id: string) =>
-    atualizarAcaoCampo(id, "status", "aprovado").then(() =>
-      toast.success("Ação aprovada"),
-    );
-  const cancelarAcao = (id: string) =>
-    atualizarAcaoCampo(id, "status", "cancelado").then(() =>
-      toast.success("Ação cancelada"),
-    );
-
-  const exportarParaCalendario = async () => {
-    if (!acaoAberta || !dataExport) return;
-    try {
-      const { data: cal, error: e1 } = await supabase
-        .from("calendario_comercial" as any)
-        .insert({
-          data: dataExport,
-          titulo: acaoAberta.titulo,
-          tipo: "conteudo",
-          descricao: acaoAberta.descricao,
-          canal: acaoAberta.canais,
-          mes_referencia: mes,
-          criado_por_ia: true,
-        } as any)
-        .select()
-        .single();
-      if (e1) throw e1;
-
-      const inserts: any[] = [];
-      const mapCopy: Record<string, string | null> = {
-        instagram_reels: acaoAberta.copy_instagram,
-        instagram_feed: acaoAberta.copy_instagram,
-        email: acaoAberta.copy_email,
-        whatsapp_vip: acaoAberta.copy_whatsapp,
-        anuncio: acaoAberta.copy_anuncio,
-      };
-      (acaoAberta.canais || []).forEach((c: string) => {
-        const copy = mapCopy[c];
-        if (copy) {
-          inserts.push({
-            calendario_id: (cal as any).id,
-            canal: c,
-            copy_principal: copy,
-            status: "rascunho",
-          });
-        }
-      });
-      if (inserts.length) {
-        await supabase.from("conteudos_gerados" as any).insert(inserts as any);
-      }
-      await atualizarAcaoCampo(acaoAberta.id, "exportado_calendario", true);
-      await atualizarAcaoCampo(acaoAberta.id, "status", "exportado");
-      toast.success("Exportado para o calendário!");
-      setExportarOpen(false);
-      setDataExport("");
-    } catch (e: any) {
-      toast.error("Erro: " + e.message);
-    }
-  };
-
-  const salvarInvestimento = async (
-    mesRef: string,
-    campo: string,
-    valor: number,
-  ) => {
-    const existe = investimentos.find((i) => i.mes_referencia === mesRef);
-    if (existe) {
-      const { error } = await supabase
-        .from("investimentos_midia" as any)
-        .update({ [campo]: valor, updated_at: new Date().toISOString() } as any)
-        .eq("id", existe.id);
-      if (error) return toast.error("Erro: " + error.message);
-      setInvestimentos((prev) =>
-        prev.map((i) =>
-          i.mes_referencia === mesRef ? { ...i, [campo]: valor } : i,
-        ),
-      );
-    } else {
-      const { data, error } = await supabase
-        .from("investimentos_midia" as any)
-        .insert({ mes_referencia: mesRef, [campo]: valor } as any)
-        .select()
-        .single();
-      if (error) return toast.error("Erro: " + error.message);
-      setInvestimentos((prev) => [data as any, ...prev]);
-    }
-  };
-
-  // ---------------- Render ----------------
-  if (loading) return <LoadingSkeleton />;
-  if (erro)
-    return (
-      <div className="p-8 text-destructive">
-        <h2 className="font-bold mb-2">Erro</h2>
-        <pre className="whitespace-pre-wrap">{erro}</pre>
-        <Button className="mt-4" onClick={() => carregarDados(mes)}>
-          Tentar novamente
-        </Button>
-      </div>
-    );
-
-  return (
-    <TooltipProvider>
-      <div className="p-6 lg:p-8 space-y-6 max-w-[1600px] mx-auto">
-        {/* Cabeçalho */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div>
-            <h1 className="text-3xl font-serif font-bold tracking-tight flex items-center gap-3">
-              <Target className="h-7 w-7 text-primary" />
-              Plano Comercial
-            </h1>
-            <p className="text-muted-foreground mt-1">
-              Planejamento estratégico por semana
-            </p>
-          </div>
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => carregarDados(mes)}
-              disabled={loading}
-              className="gap-2"
-            >
-              <RefreshCw className={cn("h-4 w-4", loading && "animate-spin")} />
-              Recarregar
-            </Button>
-            <div className="flex items-center gap-2 bg-card border rounded-lg p-1">
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => handleMudarMes(-1)}
-              >
-                <ChevronLeft className="h-4 w-4" />
-              </Button>
-              <div className="px-4 py-2 min-w-[180px] text-center font-medium">
-                {formatMes(mes)}
-              </div>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => handleMudarMes(1)}
-              >
-                <ChevronRight className="h-4 w-4" />
-              </Button>
-            </div>
-          </div>
-        </div>
-
-        <Tabs key={mes} defaultValue="visao" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-3 max-w-2xl">
-            <TabsTrigger value="visao">Visão Geral</TabsTrigger>
-            <TabsTrigger value="acoes">Ações por Semana</TabsTrigger>
-            <TabsTrigger value="kpis">KPIs de Tráfego</TabsTrigger>
-          </TabsList>
-
-          {/* ============ ABA 1 ============ */}
-          <TabsContent value="visao" className="space-y-6">
-            {!plano ? (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Sparkles className="h-5 w-5 text-primary" />
-                    Criar plano para {formatMes(mes)}
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4 max-w-2xl">
-                  <div>
-                    <Label>Meta de receita (R$)</Label>
-                    <Input
-                      type="number"
-                      value={metaReceita}
-                      onChange={(e) => setMetaReceita(e.target.value)}
-                      placeholder="Ex: 300000"
-                    />
-                    {metaFin && (
-                      <p className="text-xs text-muted-foreground mt-1">
-                        Sugerido: {formatBRL(metaFin.meta_mensal)}
-                      </p>
-                    )}
-                  </div>
-                  <div>
-                    <Label>Informações para a IA</Label>
-                    <Textarea
-                      value={contextoIA}
-                      onChange={(e) => setContextoIA(e.target.value)}
-                      placeholder="Ex: foco em lançamento de cápsula de inverno, estoque alto de vestidos, campanha de Dia das Mães, evitar promoções agressivas, priorizar live de quarta..."
-                      rows={6}
-                    />
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Contextos, prioridades, eventos e restrições do mês que a IA deve considerar.
-                    </p>
-                  </div>
-                  <Button
-                    onClick={() => setConfirmGerar(true)}
-                    disabled={!metaReceita || gerando}
-                    className="bg-orange-500 hover:bg-orange-600 text-white"
-                  >
-                    <Sparkles className="mr-2 h-4 w-4" />
-                    {gerando ? "Gerando..." : "Gerar Plano com IA"}
-                  </Button>
-                </CardContent>
-              </Card>
-            ) : (
-              <>
-                <Card>
-                  <CardHeader>
-                    <div className="flex items-start justify-between flex-wrap gap-3">
-                      <div className="space-y-2">
-                        <div className="flex items-center gap-2">
-                          <CardTitle>Resumo do plano</CardTitle>
-                          <Badge
-                            className={cn(
-                              "border",
-                              STATUS_BADGE[plano.status] || STATUS_BADGE.rascunho,
-                            )}
-                            variant="outline"
-                          >
-                            {plano.status}
-                          </Badge>
-                        </div>
-                      </div>
-                      <div className="flex gap-2">
-                        {plano.status !== "aprovado" && (
-                          <Button onClick={aprovarPlano} variant="default">
-                            <CheckCircle2 className="mr-2 h-4 w-4" />
-                            Aprovar plano
-                          </Button>
-                        )}
-                        <Button
-                          variant="outline"
-                          onClick={() => setConfirmRegen(true)}
-                        >
-                          <RefreshCw className="mr-2 h-4 w-4" />
-                          Regenerar
-                        </Button>
-                      </div>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="space-y-6">
-                    <p className="text-sm leading-relaxed text-muted-foreground whitespace-pre-wrap">
-                      {plano.resumo_ia}
-                    </p>
-                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                      <KpiPill
-                        icon={DollarSign}
-                        label="Meta receita"
-                        value={formatBRL(plano.meta_receita)}
-                      />
-                      <KpiPill
-                        icon={ShoppingBag}
-                        label="Meta pedidos"
-                        value={`${formatNumber(plano.meta_pedidos)} pedidos`}
-                      />
-                      <KpiPill
-                        icon={Activity}
-                        label="CPS máximo"
-                        value={formatBRLDec(plano.meta_cps_maximo)}
-                        tooltip="Custo por Sessão máximo para atingir a meta"
-                      />
-                      <KpiPill
-                        icon={TrendingUp}
-                        label="ROAS necessário"
-                        value={`${Number(plano.meta_roas || 0).toFixed(2)}x`}
-                        tooltip="Retorno sobre investimento necessário"
-                      />
-                    </div>
-                  </CardContent>
-                </Card>
-
-                <HealthScoreCard plano={plano} />
-
-                <div>
-                  <h2 className="text-lg font-semibold mb-3">
-                    Distribuição por semana
-                  </h2>
-                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
-                    {distribuicao.map((d) => (
-                      <Card key={d.semana}>
-                        <CardContent className="p-4 space-y-2">
-                          <div className="flex items-center justify-between">
-                            <span className="text-sm font-medium">
-                              Semana {d.semana}
-                            </span>
-                            {d.semana === 2 && (
-                              <Badge className="bg-success/15 text-success border-success/30" variant="outline">
-                                <Trophy className="h-3 w-3 mr-1" /> Pico
-                              </Badge>
-                            )}
-                            {d.semana === 3 && (
-                              <Badge className="bg-destructive/15 text-destructive border-destructive/30" variant="outline">
-                                <AlertTriangle className="h-3 w-3 mr-1" /> Fraca
-                              </Badge>
-                            )}
-                          </div>
-                          <div className="text-2xl font-serif font-bold">
-                            {d.percentual}%
-                          </div>
-                          <div className="text-xs text-muted-foreground">
-                            {formatBRL(d.meta_receita)}
-                          </div>
-                          <div className="h-2 bg-muted rounded-full overflow-hidden">
-                            <div
-                              className="h-full bg-primary"
-                              style={{ width: `${Math.min(d.percentual * 3, 100)}%` }}
-                            />
-                          </div>
-                        </CardContent>
-                      </Card>
-                    ))}
-                  </div>
-                </div>
-              </>
-            )}
-          </TabsContent>
-
-          {/* ============ ABA 2 ============ */}
-          <TabsContent value="acoes" className="space-y-6">
-            {!plano ? (
-              <Card>
-                <CardContent className="p-8 text-center text-muted-foreground">
-                  Gere um plano na aba "Visão Geral" para visualizar as ações.
-                </CardContent>
-              </Card>
-            ) : (
-              [1, 2, 3, 4].map((sem) => {
-                const semAcoes = acoes.filter((a) => a.semana === sem);
-                const distSem = distribuicao.find((d) => d.semana === sem);
-                return (
-                  <SemanaSection
-                    key={sem}
-                    semana={sem}
-                    mes={mes}
-                    metaReceita={distSem?.meta_receita || 0}
-                    metaPercentual={distSem?.percentual || 0}
-                    metaTotalPlano={Number(plano?.meta_receita || 0)}
-                    acoes={semAcoes}
-                    onAbrir={setAcaoAberta}
-                  />
-                );
-              })
-            )}
-          </TabsContent>
-
-          {/* ============ ABA 3 ============ */}
-          <TabsContent value="kpis" className="space-y-6">
-            <KpisTrafegoTab
-              kpis={kpis}
-              plano={plano}
-              investimentos={investimentos}
-              mes={mes}
-              onSalvarInvestimento={salvarInvestimento}
-            />
-          </TabsContent>
-        </Tabs>
-
-        {/* Drawer Ação */}
-        <Sheet open={!!acaoAberta} onOpenChange={(o) => !o && setAcaoAberta(null)}>
-          <SheetContent className="w-full sm:max-w-2xl overflow-y-auto">
-            {acaoAberta && (
-              <DrawerAcao
-                acao={acaoAberta}
-                onChange={(c, v) => atualizarAcaoCampo(acaoAberta.id, c, v)}
-                onAprovar={() => aprovarAcao(acaoAberta.id)}
-                onCancelar={() => cancelarAcao(acaoAberta.id)}
-                onExportar={() => setExportarOpen(true)}
-              />
-            )}
-          </SheetContent>
-        </Sheet>
-
-        {/* Modal exportar */}
-        <Dialog open={exportarOpen} onOpenChange={setExportarOpen}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Exportar para calendário</DialogTitle>
-              <DialogDescription>
-                Escolha a data para publicação. Os canais serão exportados conforme a ação.
-              </DialogDescription>
-            </DialogHeader>
-            <div className="space-y-3">
-              <Label>Data de publicação</Label>
-              <Input
-                type="date"
-                value={dataExport}
-                onChange={(e) => setDataExport(e.target.value)}
-              />
-              {acaoAberta && (
-                <div className="flex flex-wrap gap-1">
-                  {(acaoAberta.canais || []).map((c: string) => (
-                    <Badge key={c} variant="secondary">
-                      {c}
-                    </Badge>
-                  ))}
-                </div>
-              )}
-            </div>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setExportarOpen(false)}>
-                Cancelar
-              </Button>
-              <Button onClick={exportarParaCalendario} disabled={!dataExport}>
-                Confirmar
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-
-        {/* Confirmar gerar */}
-        <Dialog open={confirmGerar} onOpenChange={setConfirmGerar}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Gerar plano com IA?</DialogTitle>
-              <DialogDescription>
-                Vamos criar o plano comercial completo para {formatMes(mes)} com
-                meta {formatBRL(Number(metaReceita))}
-                {contextoIA ? ", considerando o contexto informado" : ""}.
-              </DialogDescription>
-            </DialogHeader>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setConfirmGerar(false)}>
-                Cancelar
-              </Button>
-              <Button onClick={gerarPlano} disabled={gerando}>
-                {gerando ? "Gerando..." : "Confirmar"}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-
-        {/* Confirmar regenerar */}
-        <Dialog open={confirmRegen} onOpenChange={setConfirmRegen}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Regenerar o plano?</DialogTitle>
-              <DialogDescription>
-                O plano atual e suas ações serão substituídos por uma nova versão gerada pela IA.
-              </DialogDescription>
-            </DialogHeader>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setConfirmRegen(false)}>
-                Cancelar
-              </Button>
-              <Button
-                variant="destructive"
-                onClick={gerarPlano}
-                disabled={gerando}
-              >
-                {gerando ? "Regenerando..." : "Regenerar"}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      </div>
-    </TooltipProvider>
-  );
-}
-
-// ---------------- Sub-componentes ----------------
-
-function LoadingSkeleton() {
-  return (
-    <div className="p-8 space-y-6">
-      <Skeleton className="h-10 w-64" />
-      <Skeleton className="h-12 w-full max-w-2xl" />
-      <div className="grid grid-cols-4 gap-4">
-        {[1, 2, 3, 4].map((i) => (
-          <Skeleton key={i} className="h-32" />
-        ))}
-      </div>
-      <Skeleton className="h-64 w-full" />
-    </div>
-  );
-}
-
-function KpiPill({
-  icon: Icon,
-  label,
-  value,
-  tooltip,
-}: {
-  icon: any;
-  label: string;
-  value: string;
-  tooltip?: string;
-}) {
-  const content = (
-    <div className="rounded-lg border bg-card p-4 space-y-1">
-      <div className="flex items-center gap-2 text-xs text-muted-foreground uppercase tracking-wide">
-        <Icon className="h-3.5 w-3.5" /> {label}
-        {tooltip && <Info className="h-3 w-3 opacity-60" />}
-      </div>
-      <div className="text-xl font-serif font-bold">{value}</div>
-    </div>
-  );
-  if (!tooltip) return content;
-  return (
-    <Tooltip>
-      <TooltipTrigger asChild>{content}</TooltipTrigger>
-      <TooltipContent>{tooltip}</TooltipContent>
-    </Tooltip>
-  );
-}
-
-// Datas reais da semana N do mês "YYYY-MM"
-function datasSemanaN(semana: number, mes: string) {
-  const [ano, mesNum] = mes.split("-").map(Number);
-  const inicio = new Date(ano, mesNum - 1, (semana - 1) * 7 + 1);
-  const fim = new Date(ano, mesNum - 1, semana * 7);
-  const ultimoDia = new Date(ano, mesNum, 0);
-  if (fim > ultimoDia) fim.setDate(ultimoDia.getDate());
-  if (inicio > ultimoDia) return null;
-  return { inicio, fim };
-}
-
-const ddmm = (d: Date) =>
-  `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}`;
-
-// Dia da semana ideal por tipo de ação (para o calendário)
-const DIA_IDEAL_POR_TIPO: Record<string, string> = {
-  live: "Terça-feira",
-  kit_oferta: "Segunda ou Terça",
-  novos_clientes: "Segunda ou Terça",
-  reativacao: "Domingo",
-  whatsapp: "Domingo",
-  email_mkt: "Quinta-feira",
-  lancamento: "Terça-feira",
-  reposicao: "Terça-feira",
-};
-const diaIdealParaTipo = (tipo: string) =>
-  DIA_IDEAL_POR_TIPO[tipo] || "Sexta-feira";
-
-// ---- Conteúdo por dia (kpis_trafego) ----
-const DIA_SEMANA_META: Record<
-  number,
-  { nome: string; abrev: string; className: string }
-> = {
-  0: { nome: "Domingo", abrev: "DOM", className: "bg-muted text-muted-foreground border-border" },
-  1: { nome: "Segunda", abrev: "SEG", className: "bg-blue-900 text-white border-blue-900" },
-  2: { nome: "Terça", abrev: "TER", className: "bg-purple-700 text-white border-purple-700" },
-  3: { nome: "Quarta", abrev: "QUA", className: "bg-green-700 text-white border-green-700" },
-  4: { nome: "Quinta", abrev: "QUI", className: "bg-orange-600 text-white border-orange-600" },
-  5: { nome: "Sexta", abrev: "SEX", className: "bg-pink-600 text-white border-pink-600" },
-  6: { nome: "Sábado", abrev: "SAB", className: "bg-primary text-primary-foreground border-primary" },
-};
-
-function parseLocalDate(s?: string | null): Date | null {
-  if (!s) return null;
-  const m = String(s).slice(0, 10).match(/^(\d{4})-(\d{2})-(\d{2})$/);
-  if (!m) return null;
-  return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
-}
-
-function getKT(acao: any): any {
-  const k = acao?.kpis_trafego;
-  return k && typeof k === "object" && !Array.isArray(k) ? k : {};
-}
-
-function getDiaAcao(acao: any): Date | null {
-  return parseLocalDate(getKT(acao).data);
-}
-
-function SemanaSection({
-  semana,
-  mes,
-  metaReceita,
-  metaPercentual,
-  metaTotalPlano,
-  acoes,
-  onAbrir,
-}: {
-  semana: number;
-  mes: string;
-  metaReceita: number;
-  metaPercentual: number;
-  metaTotalPlano: number;
-  acoes: any[];
-  onAbrir: (a: any) => void;
-}) {
-  const [filtroTipo, setFiltroTipo] = useState("");
-  const [filtroPublico, setFiltroPublico] = useState("");
-
-  const tipos = useMemo(
-    () => Array.from(new Set(acoes.map((a) => a.tipo_acao).filter(Boolean))),
-    [acoes],
-  );
-  const publicos = useMemo(
-    () => Array.from(new Set(acoes.map((a) => a.publico_alvo).filter(Boolean))),
-    [acoes],
-  );
-
-  const filtradas = acoes
-    .filter(
-      (a) =>
-        (!filtroTipo || a.tipo_acao === filtroTipo) &&
-        (!filtroPublico || a.publico_alvo === filtroPublico),
-    )
-    .sort((a, b) => {
-      const da = getKT(a).data || "";
-      const db = getKT(b).data || "";
-      return String(da).localeCompare(String(db));
-    });
-
-  // Canais cobertos a partir do conteúdo dos dias
-  const canaisCobertos = new Set<string>();
-  acoes.forEach((a) => {
-    const k = getKT(a);
-    if (k.reels || a.copy_instagram) canaisCobertos.add("Instagram");
-    if (k.email_assunto || k.email_copy || a.copy_email) canaisCobertos.add("Email");
-    if (k.whatsapp || a.copy_whatsapp) canaisCobertos.add("WhatsApp");
-  });
-  const diasPlanejados = acoes.filter((a) => getKT(a).data).length;
-
-  // Resumo da semana
-  const datas = datasSemanaN(semana, mes);
-  const pct = metaPercentual || (metaTotalPlano ? Math.round((metaReceita / metaTotalPlano) * 100) : 0);
-
-  const isNovo = (p?: string) =>
-    !!p && /(novo|aquisi|prospec)/i.test(p);
-  const isRecorrente = (p?: string) =>
-    !!p && /(recorr|fidel|vip|cliente|reat)/i.test(p);
-
-  const totalAlvo = acoes.length || 1;
-  const qtdNovos = acoes.filter((a) => isNovo(a.publico_alvo)).length;
-  const qtdRecorrentes = acoes.filter((a) => isRecorrente(a.publico_alvo)).length;
-  const pctNovos = Math.round((qtdNovos / totalAlvo) * 100);
-  const pctRecorrentes = Math.round((qtdRecorrentes / totalAlvo) * 100);
-
-  const contagemTipos = acoes.reduce<Record<string, number>>((acc, a) => {
-    if (!a.tipo_acao) return acc;
-    acc[a.tipo_acao] = (acc[a.tipo_acao] || 0) + 1;
-    return acc;
-  }, {});
-
-  return (
-    <Card>
-      <CardHeader>
-        <div className="flex items-start justify-between flex-wrap gap-3">
-          <div className="flex-1 min-w-[260px] space-y-3">
-            <div className="flex items-center gap-2 flex-wrap">
-              <CardTitle>
-                Semana {semana}
-                {datas && (
-                  <span className="text-muted-foreground font-normal text-base ml-2">
-                    — {ddmm(datas.inicio)} a {ddmm(datas.fim)}
-                  </span>
-                )}
-              </CardTitle>
-              {semana === 2 && (
-                <Badge className="bg-success/15 text-success border-success/30" variant="outline">
-                  <Trophy className="h-3 w-3 mr-1" /> Semana pico
-                </Badge>
-              )}
-              {semana === 3 && (
-                <Badge className="bg-destructive/15 text-destructive border-destructive/30" variant="outline">
-                  <AlertTriangle className="h-3 w-3 mr-1" /> Semana fraca
-                </Badge>
-              )}
-            </div>
-
-            <div className="text-sm text-muted-foreground">
-              Meta: <strong className="text-foreground">{formatBRL(metaReceita)}</strong>
-              {pct > 0 && <span> ({pct}% da meta total)</span>} · {acoes.length} ações
-            </div>
-
-            {(qtdNovos + qtdRecorrentes) > 0 && (
-              <div className="space-y-1">
-                <div className="flex items-center justify-between text-[11px] text-muted-foreground">
-                  <span>Novos {pctNovos}%</span>
-                  <span>Recorrentes {pctRecorrentes}%</span>
-                </div>
-                <div className="h-2 w-full rounded-full overflow-hidden bg-muted flex">
-                  <div className="h-full bg-cyan-500" style={{ width: `${pctNovos}%` }} />
-                  <div className="h-full bg-primary" style={{ width: `${pctRecorrentes}%` }} />
-                </div>
-              </div>
-            )}
-
-            {Object.keys(contagemTipos).length > 0 && (
-              <div className="flex flex-wrap gap-1.5">
-                {Object.entries(contagemTipos).map(([t, n]) => {
-                  const m = TIPO_ACAO_META[t];
-                  return (
-                    <Badge
-                      key={t}
-                      variant="outline"
-                      className={cn("border text-xs", m?.className || "bg-muted text-muted-foreground border-border")}
-                    >
-                      {m?.emoji || "•"} {n} {m?.label || t}
-                    </Badge>
-                  );
-                })}
-              </div>
-            )}
-
-            <div className="flex items-center gap-3 flex-wrap text-xs text-muted-foreground pt-1">
-              {diasPlanejados > 0 && (
-                <span>
-                  📅 <strong className="text-foreground">{diasPlanejados}</strong>{" "}
-                  {diasPlanejados === 1 ? "dia planejado" : "dias planejados"}
-                </span>
-              )}
-              {canaisCobertos.size > 0 && (
-                <div className="flex items-center gap-1 flex-wrap">
-                  <span>Canais:</span>
-                  {Array.from(canaisCobertos).map((c) => (
-                    <Badge key={c} variant="secondary" className="text-[10px]">
-                      {c === "Instagram" && "📸 "}
-                      {c === "Email" && "✉️ "}
-                      {c === "WhatsApp" && "💬 "}
-                      {c}
-                    </Badge>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-
-
-          <div className="flex gap-2">
-            <select
-              value={filtroTipo}
-              onChange={(e) => setFiltroTipo(e.target.value)}
-              className="h-9 rounded-md border bg-background px-3 text-sm"
-            >
-              <option value="">Todos os tipos</option>
-              {tipos.map((t) => (
-                <option key={t} value={t}>
-                  {TIPO_ACAO_META[t]?.label || t}
-                </option>
-              ))}
-            </select>
-            <select
-              value={filtroPublico}
-              onChange={(e) => setFiltroPublico(e.target.value)}
-              className="h-9 rounded-md border bg-background px-3 text-sm"
-            >
-              <option value="">Todos públicos</option>
-              {publicos.map((p) => (
-                <option key={p} value={p}>
-                  {p}
-                </option>
-              ))}
-            </select>
-          </div>
-        </div>
-      </CardHeader>
-      <CardContent>
-        {filtradas.length === 0 ? (
-          <p className="text-sm text-muted-foreground py-4 text-center">
-            Nenhuma ação para esta semana.
-          </p>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            {filtradas.map((acao) => (
-              <AcaoCard key={acao.id} acao={acao} onClick={() => onAbrir(acao)} />
-            ))}
-          </div>
-        )}
-      </CardContent>
-    </Card>
-  );
-}
-
-// ---------------- Helpers das novas ações (campanhas) ----------------
-const TIPO_CAMPANHA_META: Record<string, { label: string; className: string }> = {
-  sazonal: { label: "Sazonal", className: "bg-orange-500/15 text-orange-600 border-orange-500/30" },
-  estrutural: { label: "Estrutural", className: "bg-blue-500/15 text-blue-600 border-blue-500/30" },
-  tatica: { label: "Tática", className: "bg-purple-500/15 text-purple-600 border-purple-500/30" },
-};
-
-function formatarDataBR(s?: string | null): string {
-  if (!s) return "";
-  const m = String(s).slice(0, 10).match(/^(\d{4})-(\d{2})-(\d{2})$/);
-  if (!m) return String(s);
-  return `${m[3]}/${m[2]}/${m[1]}`;
-}
-
-function formatarPeriodo(p?: string | null): string {
-  if (!p) return "";
-  const partes = String(p).split(/\s*(?:a|-|até|–)\s*/i);
-  if (partes.length === 2 && /^\d{4}-\d{2}-\d{2}/.test(partes[0])) {
-    return `${formatarDataBR(partes[0])} a ${formatarDataBR(partes[1])}`;
-  }
-  return String(p);
-}
-
-function AcaoCard({ acao, onClick }: { acao: any; onClick: () => void }) {
-  const kt = getKT(acao);
-  const numero = kt.numero ?? acao.semana;
-  const tipoCamp = String(kt.tipo_campanha || "").toLowerCase();
-  const tipoMeta = TIPO_CAMPANHA_META[tipoCamp];
-  const peso = kt.peso_pct;
-  const periodo = formatarPeriodo(kt.periodo);
-  const preAq = kt.pre_aquecimento;
-  const canaisNovos: string[] = kt?.novos?.canais ?? [];
-  const canaisVip: string[] = kt?.recorrentes?.canais ?? [];
-
-  return (
-    <motion.button
-      whileHover={{ y: -2 }}
-      onClick={onClick}
-      className="text-left rounded-lg border bg-card p-4 space-y-2 hover:shadow-md transition-shadow"
-    >
-      <div className="flex items-center gap-2 flex-wrap">
-        <Badge variant="outline" className="border bg-primary/10 text-primary border-primary/30 font-semibold">
-          Ação {numero}
-        </Badge>
-        {tipoMeta && (
-          <Badge variant="outline" className={cn("border", tipoMeta.className)}>
-            {tipoMeta.label}
-          </Badge>
-        )}
-        {peso != null && (
-          <Badge variant="outline" className="border bg-muted text-foreground">
-            {peso}%
-          </Badge>
-        )}
-        {acao.exportado_calendario && (
-          <Badge variant="outline" className="border bg-success/15 text-success border-success/30">
-            📅 Exportado
-          </Badge>
-        )}
-        <Badge
-          variant="outline"
-          className={cn("border ml-auto", STATUS_BADGE[acao.status] || "")}
-        >
-          {acao.status}
-        </Badge>
-      </div>
-
-      <h3 className="font-semibold leading-snug text-base">{acao.titulo}</h3>
-
-      {periodo && (
-        <p className="text-xs text-muted-foreground">📆 {periodo}</p>
-      )}
-
-      <p className="text-sm font-medium">
-        🎯 Meta: <span className="text-primary">{formatBRL(acao.meta_receita_semana)}</span>
-      </p>
-
-      {preAq && (
-        <Badge variant="outline" className="border bg-orange-500/10 text-orange-600 border-orange-500/30 text-[11px]">
-          🔥 Pré-aquecimento: {formatarDataBR(preAq)}
-        </Badge>
-      )}
-
-      {(canaisNovos.length > 0 || canaisVip.length > 0) && (
-        <div className="space-y-1 pt-1">
-          {canaisNovos.length > 0 && (
-            <div className="flex flex-wrap items-center gap-1 text-[11px]">
-              <span className="text-muted-foreground">👥 Novos:</span>
-              {canaisNovos.map((c) => (
-                <span key={`n-${c}`} className="px-2 py-0.5 rounded-full bg-cyan-500/10 text-cyan-700 border border-cyan-500/20">
-                  {c}
-                </span>
-              ))}
-            </div>
-          )}
-          {canaisVip.length > 0 && (
-            <div className="flex flex-wrap items-center gap-1 text-[11px]">
-              <span className="text-muted-foreground">⭐ VIP:</span>
-              {canaisVip.map((c) => (
-                <span key={`v-${c}`} className="px-2 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20">
-                  {c}
-                </span>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-    </motion.button>
-  );
-}
-
-// ---------------- Health Score ----------------
-function HealthScoreCard({ plano }: { plano: any }) {
-  const hs = plano?.health_score;
-  if (!hs) return null;
-
-  let status = "";
-  let alertas: string[] = [];
-  let resumoTexto = "";
-
-  if (typeof hs === "string") {
-    resumoTexto = hs;
-    status = hs;
-  } else if (typeof hs === "object") {
-    status = String(hs.status || hs.nivel || "").toLowerCase();
-    alertas = Array.isArray(hs.alertas) ? hs.alertas : Array.isArray(hs.alerts) ? hs.alerts : [];
-    resumoTexto = hs.resumo || hs.descricao || "";
-  }
-
-  const isOk = /saud|ok|healthy|verde/i.test(status);
-  const isRisco = /risc|crit|red|verm/i.test(status);
-  const isAtencao = !isOk && !isRisco;
-
-  const icone = isOk ? "✅" : isRisco ? "🔴" : "⚠️";
-  const label = isOk ? "Saudável" : isRisco ? "Risco" : "Atenção";
-  const cor = isOk
-    ? "bg-success/10 border-success/30 text-success"
-    : isRisco
-      ? "bg-destructive/10 border-destructive/30 text-destructive"
-      : "bg-warning/10 border-warning/30 text-warning";
-
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2 text-lg">
-          Health Score do Plano
-          <Badge variant="outline" className={cn("border", cor)}>
-            {icone} {label}
-          </Badge>
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-3">
-        {resumoTexto && (
-          <p className="text-sm text-muted-foreground whitespace-pre-wrap">{resumoTexto}</p>
-        )}
-        {alertas.length > 0 && (
-          <div className="space-y-1.5">
-            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              Alertas
-            </p>
-            <ul className="space-y-1">
-              {alertas.map((a, i) => (
-                <li key={i} className="text-sm flex gap-2">
-                  <AlertTriangle className="h-4 w-4 text-warning shrink-0 mt-0.5" />
-                  <span>{a}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
-      </CardContent>
-    </Card>
-  );
-}
-
-// ---------------- Drawer Ação ----------------
-function DrawerAcao({
-  acao,
-  onChange,
-  onAprovar,
-  onCancelar,
-  onExportar,
-}: {
-  acao: any;
-  onChange: (campo: string, valor: any) => void;
-  onAprovar: () => void;
-  onCancelar: () => void;
-  onExportar: () => void;
-}) {
-  const kt = getKT(acao);
-  const numero = kt.numero ?? acao.semana;
-  const tipoCamp = String(kt.tipo_campanha || "").toLowerCase();
-  const tipoMeta = TIPO_CAMPANHA_META[tipoCamp];
-  const peso = kt.peso_pct;
-  const periodo = formatarPeriodo(kt.periodo);
-  const preAq = kt.pre_aquecimento;
-
-  const novos = kt.novos || {};
-  const vip = kt.recorrentes || {};
-  const kits: any[] = Array.isArray(kt.kits) ? kt.kits : [];
-  const planoDiario: any[] = Array.isArray(kt.plano_execucao_diario) ? kt.plano_execucao_diario : [];
-  const estrategiaCanais = kt.estrategia_canais || {};
-  const metricas: string[] = Array.isArray(kt.metricas) ? kt.metricas : [];
-  const kpiPrior = kt.kpi_prioritario;
-  const resultado = kt.resultado_esperado || {};
-
-  // Salva uma chave dentro de kpis_trafego.estrategia_canais e também em uma coluna direta se houver mapeamento
-  const salvarCanalCopy = (canalKey: string, valor: string, colunaDireta?: string) => {
-    const novoKt = {
-      ...kt,
-      estrategia_canais: { ...estrategiaCanais, [canalKey]: valor },
-    };
-    onChange("kpis_trafego", novoKt);
-    if (colunaDireta) onChange(colunaDireta, valor);
-  };
-
-  return (
-    <>
-      <SheetHeader>
-        <div className="flex items-center gap-2 flex-wrap">
-          <Badge variant="outline" className="border bg-primary/10 text-primary border-primary/30 font-semibold">
-            Ação {numero}
-          </Badge>
-          {tipoMeta && (
-            <Badge variant="outline" className={cn("border", tipoMeta.className)}>
-              {tipoMeta.label}
-            </Badge>
-          )}
-          {peso != null && (
-            <Badge variant="outline" className="border bg-muted text-foreground">
-              {peso}%
-            </Badge>
-          )}
-          <Badge variant="outline" className={cn("border", STATUS_BADGE[acao.status] || "")}>
-            {acao.status}
-          </Badge>
-        </div>
-        <SheetTitle className="font-serif">{acao.titulo}</SheetTitle>
-        {periodo && (
-          <p className="text-sm text-muted-foreground">📆 {periodo}</p>
-        )}
-        <p className="text-sm font-medium">
-          🎯 Meta: <span className="text-primary">{formatBRL(acao.meta_receita_semana)}</span>
-        </p>
-        {preAq && (
-          <Badge variant="outline" className="border bg-orange-500/10 text-orange-600 border-orange-500/30 w-fit">
-            🔥 Pré-aquecimento: {formatarDataBR(preAq)}
-          </Badge>
-        )}
-      </SheetHeader>
-
-      <div className="mt-6">
-        <Tabs defaultValue="estrategia">
-          <TabsList className="grid grid-cols-4 w-full">
-            <TabsTrigger value="estrategia">📋 Estratégia</TabsTrigger>
-            <TabsTrigger value="plano">📅 Plano Diário</TabsTrigger>
-            <TabsTrigger value="copies">📢 Copies</TabsTrigger>
-            <TabsTrigger value="metricas">📊 Métricas</TabsTrigger>
-          </TabsList>
-
-          {/* Aba Estratégia */}
-          <TabsContent value="estrategia" className="space-y-5 pt-4">
-            {acao.descricao && (
-              <p className="text-sm whitespace-pre-wrap leading-relaxed">{acao.descricao}</p>
-            )}
-
-            <SecaoPublico titulo="👥 Novos Clientes" dados={novos} cor="cyan" />
-            <SecaoPublico titulo="⭐ Clientes VIP" dados={vip} cor="primary" />
-
-            {kits.length > 0 && (
-              <div className="space-y-3">
-                <h4 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-                  🎁 Kits
-                </h4>
-                {kits.map((kit, i) => (
-                  <Card key={i} className="border-primary/20">
-                    <CardHeader className="p-3 pb-2">
-                      <CardTitle className="text-base font-serif">
-                        {kit.nome || `Kit ${i + 1}`}
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent className="p-3 pt-0 space-y-1.5 text-sm">
-                      {kit.produtos && (
-                        <p>
-                          <span className="text-muted-foreground">Produtos: </span>
-                          {Array.isArray(kit.produtos) ? kit.produtos.join(", ") : kit.produtos}
-                        </p>
-                      )}
-                      {kit.mecanica && (
-                        <p>
-                          <span className="text-muted-foreground">Mecânica: </span>
-                          {kit.mecanica}
-                        </p>
-                      )}
-                      {kit.preco != null && (
-                        <p>
-                          <span className="text-muted-foreground">Preço: </span>
-                          {formatBRLDec(kit.preco)}
-                        </p>
-                      )}
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            )}
-          </TabsContent>
-
-          {/* Aba Plano Diário */}
-          <TabsContent value="plano" className="pt-4">
-            {planoDiario.length === 0 ? (
-              <p className="text-sm text-muted-foreground text-center py-6">
-                Nenhum plano diário disponível.
-              </p>
-            ) : (
-              <div className="border rounded-lg overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="whitespace-nowrap">Dia</TableHead>
-                      <TableHead className="whitespace-nowrap">Fase</TableHead>
-                      <TableHead className="whitespace-nowrap">Canal Novos</TableHead>
-                      <TableHead>Mensagem Novos</TableHead>
-                      <TableHead className="whitespace-nowrap">Canal VIP</TableHead>
-                      <TableHead>Mensagem VIP</TableHead>
-                      <TableHead>Gatilho</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {planoDiario.map((d, i) => (
-                      <TableRow key={i}>
-                        <TableCell className="font-medium whitespace-nowrap">
-                          {formatarDataBR(d.dia || d.data) || d.dia_semana || "—"}
-                        </TableCell>
-                        <TableCell className="text-xs">{d.fase || "—"}</TableCell>
-                        <TableCell className="text-xs whitespace-nowrap">
-                          {d.canal_novos || d.novos_canal || "—"}
-                        </TableCell>
-                        <TableCell className="text-xs max-w-[200px]">
-                          {d.mensagem_novos || d.novos_mensagem || "—"}
-                        </TableCell>
-                        <TableCell className="text-xs whitespace-nowrap">
-                          {d.canal_vip || d.vip_canal || "—"}
-                        </TableCell>
-                        <TableCell className="text-xs max-w-[200px]">
-                          {d.mensagem_vip || d.vip_mensagem || "—"}
-                        </TableCell>
-                        <TableCell className="text-xs">{d.gatilho || "—"}</TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            )}
-          </TabsContent>
-
-          {/* Aba Copies por Canal */}
-          <TabsContent value="copies" className="pt-4 space-y-3">
-            <div className="flex justify-end">
-              <RegenerarCopyButton acao={acao} onChange={onChange} />
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              <CanalCopyCard
-                icone="📸"
-                titulo="Instagram Reels"
-                acaoId={acao.id}
-                defaultValue={estrategiaCanais.instagram_reels ?? acao.copy_instagram ?? ""}
-                onSave={(v) => salvarCanalCopy("instagram_reels", v, "copy_instagram")}
-              />
-              <CanalCopyCard
-                icone="🖼️"
-                titulo="Instagram Feed"
-                acaoId={acao.id}
-                defaultValue={estrategiaCanais.instagram_feed ?? ""}
-                onSave={(v) => salvarCanalCopy("instagram_feed", v)}
-              />
-              <CanalCopyCard
-                icone="📱"
-                titulo="Instagram Stories"
-                acaoId={acao.id}
-                defaultValue={estrategiaCanais.instagram_stories ?? ""}
-                onSave={(v) => salvarCanalCopy("instagram_stories", v)}
-              />
-              <CanalCopyCard
-                icone="✉️"
-                titulo="E-mail"
-                acaoId={acao.id}
-                defaultValue={estrategiaCanais.email ?? acao.copy_email ?? ""}
-                onSave={(v) => salvarCanalCopy("email", v, "copy_email")}
-              />
-              <CanalCopyCard
-                icone="💬"
-                titulo="WhatsApp VIP"
-                acaoId={acao.id}
-                defaultValue={estrategiaCanais.whatsapp_vip ?? acao.copy_whatsapp ?? ""}
-                onSave={(v) => salvarCanalCopy("whatsapp_vip", v, "copy_whatsapp")}
-              />
-              <CanalCopyCard
-                icone="🎯"
-                titulo="Mídia Paga"
-                acaoId={acao.id}
-                defaultValue={estrategiaCanais.midia_paga ?? ""}
-                onSave={(v) => salvarCanalCopy("midia_paga", v)}
-              />
-            </div>
-          </TabsContent>
-
-          {/* Aba Métricas */}
-          <TabsContent value="metricas" className="pt-4 space-y-4">
-            {metricas.length > 0 && (
-              <div>
-                <h4 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground mb-2">
-                  Métricas de acompanhamento
-                </h4>
-                <ul className="space-y-1">
-                  {metricas.map((m, i) => (
-                    <li key={i} className="text-sm flex gap-2">
-                      <span className="text-primary">•</span>
-                      <span>{m}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-
-            {kpiPrior && (
-              <div className="rounded-lg border bg-primary/5 border-primary/30 p-4">
-                <p className="text-xs uppercase tracking-wide text-muted-foreground">
-                  KPI Prioritário
-                </p>
-                <p className="text-lg font-serif font-bold text-primary mt-1">{kpiPrior}</p>
-              </div>
-            )}
-
-            {(resultado.receita_novos || resultado.receita_recorrentes || resultado.pedidos_estimados) && (
-              <div>
-                <h4 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground mb-2">
-                  Resultado Esperado
-                </h4>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                  {resultado.receita_novos != null && (
-                    <KpiPill icon={DollarSign} label="Receita novos" value={formatBRL(Number(resultado.receita_novos))} />
-                  )}
-                  {resultado.receita_recorrentes != null && (
-                    <KpiPill icon={DollarSign} label="Receita VIP" value={formatBRL(Number(resultado.receita_recorrentes))} />
-                  )}
-                  {resultado.pedidos_estimados != null && (
-                    <KpiPill icon={ShoppingBag} label="Pedidos" value={formatNumber(Number(resultado.pedidos_estimados))} />
-                  )}
-                </div>
-              </div>
-            )}
-          </TabsContent>
-        </Tabs>
-
-        {/* Ações */}
-        <div className="flex flex-wrap gap-2 pt-6 mt-6 border-t">
-          {acao.status !== "aprovado" && (
-            <Button onClick={onAprovar}>
-              <CheckCircle2 className="mr-2 h-4 w-4" /> Aprovar campanha
-            </Button>
-          )}
-          <Button variant="outline" onClick={onExportar}>
-            <CalendarIcon className="mr-2 h-4 w-4" /> Exportar p/ calendário
-          </Button>
-          {acao.status !== "cancelado" && (
-            <Button variant="destructive" onClick={onCancelar}>
-              <X className="mr-2 h-4 w-4" /> Cancelar
-            </Button>
-          )}
-        </div>
-      </div>
-    </>
-  );
-}
-
-function SecaoPublico({ titulo, dados, cor }: { titulo: string; dados: any; cor: "cyan" | "primary" }) {
-  if (!dados || (typeof dados === "object" && Object.keys(dados).length === 0)) return null;
-  const corClasse = cor === "cyan"
-    ? "border-cyan-500/30 bg-cyan-500/5"
-    : "border-primary/30 bg-primary/5";
-  return (
-    <div className={cn("rounded-lg border p-4 space-y-2", corClasse)}>
-      <h4 className="font-semibold text-sm">{titulo}</h4>
-      {dados.oferta && (
-        <p className="text-sm"><span className="text-muted-foreground">Oferta: </span>{dados.oferta}</p>
-      )}
-      {dados.gatilho && (
-        <p className="text-sm"><span className="text-muted-foreground">Gatilho: </span>{dados.gatilho}</p>
-      )}
-      {dados.mecanica && (
-        <p className="text-sm"><span className="text-muted-foreground">Mecânica: </span>{dados.mecanica}</p>
-      )}
-      {Array.isArray(dados.canais) && dados.canais.length > 0 && (
-        <div className="flex flex-wrap gap-1 pt-1">
-          {dados.canais.map((c: string) => (
-            <Badge key={c} variant="secondary" className="text-[11px]">{c}</Badge>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
-function CanalCopyCard({
-  icone,
-  titulo,
-  acaoId,
-  defaultValue,
-  onSave,
-}: {
-  icone: string;
-  titulo: string;
-  acaoId: string;
-  defaultValue: string;
-  onSave: (v: string) => void;
-}) {
-  return (
-    <Card>
-      <CardHeader className="p-3 pb-2">
-        <CardTitle className="text-sm font-semibold flex items-center gap-1.5">
-          <span>{icone}</span> {titulo}
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="p-3 pt-0">
-        <Textarea
-          key={`${titulo}-${acaoId}`}
-          defaultValue={defaultValue}
-          onBlur={(e) => {
-            const v = e.target.value;
-            if (v !== defaultValue) onSave(v);
-          }}
-          rows={6}
-          className="text-xs resize-none"
-          placeholder={`Copy para ${titulo}`}
-        />
-      </CardContent>
-    </Card>
-  );
-}
-
-
-// ---------------- Regenerar Copy ----------------
-const COPY_CHIPS: { label: string; text: string }[] = [
-  { label: "🧵 Foco no tecido e qualidade", text: "Quero focar mais no tecido, caimento e durabilidade da peça." },
-  { label: "⏰ Criar urgência elegante", text: "Criar urgência elegante, sem pressão agressiva — escassez sofisticada." },
-  { label: "💝 Tom emocional e pessoal", text: "Tom mais íntimo e emocional, como uma mensagem pessoal de uma amiga." },
-  { label: "👗 Destaque lifestyle", text: "Menos produto, mais estilo de vida, autoestima e empoderamento." },
-  { label: "⭐ História de cliente", text: "Construir a copy a partir de uma história de cliente que transformou o look." },
-  { label: "🎯 Mais direto e objetivo", text: "Tom mais direto e objetivo, sem floreios — convite claro à ação." },
+const loadingMessages = [
+  "Analisando dados do negócio...",
+  "Identificando oportunidades do mês...",
+  "Estruturando as 4 campanhas...",
+  "Definindo ofertas e gatilhos...",
 ];
 
-function EmailEditor({
-  acao,
-  kt,
-  onChange,
-}: {
-  acao: any;
-  kt: any;
-  onChange: (campo: string, valor: any) => void;
-}) {
-  const initialAssunto = kt.email_assunto ?? "";
-  const initialCorpo =
-    kt.email_copy ??
-    (acao.copy_email && !kt.email_assunto ? acao.copy_email : "");
-
-  const [assunto, setAssunto] = useState<string>(initialAssunto);
-  const [corpo, setCorpo] = useState<string>(initialCorpo);
-
-  const salvar = (a: string, c: string) => {
-    const combinado = `${a} | ${c}`;
-    if (combinado !== (acao.copy_email ?? "")) {
-      onChange("copy_email", combinado);
-    }
+const corBorda = (n: number) => {
+  const m: Record<number, string> = {
+    1: "border-l-blue-500",
+    2: "border-l-green-500",
+    3: "border-l-orange-500",
+    4: "border-l-purple-500",
   };
+  return m[n] ?? "border-l-gray-400";
+};
 
-  return (
-    <>
-      <div className="space-y-2">
-        <Label className="text-xs">Assunto</Label>
-        <Input
-          key={`em-as-${acao.id}`}
-          value={assunto}
-          onChange={(e) => setAssunto(e.target.value)}
-          onBlur={() => salvar(assunto, corpo)}
-          placeholder="Assunto do e-mail"
-        />
-      </div>
-      <div className="space-y-2">
-        <Label className="text-xs">Corpo</Label>
-        <Textarea
-          key={`em-co-${acao.id}`}
-          value={corpo}
-          onChange={(e) => setCorpo(e.target.value)}
-          onBlur={() => salvar(assunto, corpo)}
-          rows={9}
-          placeholder="Corpo do e-mail para este dia"
-        />
-      </div>
-    </>
-  );
-}
+const corFase = (fase: string) => {
+  const f = (fase || "").toLowerCase();
+  if (f.includes("pre")) return "bg-yellow-100 text-yellow-800 border-yellow-300";
+  if (f.includes("abertura")) return "bg-green-100 text-green-800 border-green-300";
+  if (f.includes("meio")) return "bg-blue-100 text-blue-800 border-blue-300";
+  if (f.includes("encerr")) return "bg-red-100 text-red-800 border-red-300";
+  return "bg-gray-100 text-gray-800 border-gray-300";
+};
 
+type Plano = any;
+type Campanha = any;
 
+export default function PlanoComercial() {
+  const navigate = useNavigate();
+  const [mesAtual, setMesAtual] = useState<string>(currentMes());
+  const [plano, setPlano] = useState<Plano | null>(null);
+  const [campanhas, setCampanhas] = useState<Campanha[]>([]);
+  const [loading, setLoading] = useState(true);
 
-function RegenerarCopyButton({
-  acao,
-  onChange,
-}: {
-  acao: any;
-  onChange: (campo: string, valor: any) => void;
-}) {
-  const [open, setOpen] = useState(false);
-  const [contexto, setContexto] = useState("");
+  // Estado 1
+  const [metaReceita, setMetaReceita] = useState<string>("");
+  const [metaImportada, setMetaImportada] = useState(false);
+  const [pctAquisicao, setPctAquisicao] = useState<number>(60);
+  const [briefing, setBriefing] = useState<string>("");
   const [gerando, setGerando] = useState(false);
-  const [preview, setPreview] = useState<{
-    copy_instagram: string;
-    copy_email: string;
-    copy_whatsapp: string;
-  } | null>(null);
+  const [loadingMsgIdx, setLoadingMsgIdx] = useState(0);
 
-  const addChip = (texto: string) => {
-    setContexto((prev) => (prev ? `${prev.trim()}\n- ${texto}` : `- ${texto}`));
-  };
+  // Expansão
+  const [expandida, setExpandida] = useState<string | null>(null);
 
-  const gerar = async () => {
-    setGerando(true);
-    try {
-      const produtoFoco = acao.produto_foco || "—";
-      const userPrompt = `Acao comercial para Use Mariana Cardoso (marca premium moda feminina):
+  // Regenerar campanha
+  const [regenAlvo, setRegenAlvo] = useState<Campanha | null>(null);
+  const [regenInstr, setRegenInstr] = useState("");
+  const [regenLoading, setRegenLoading] = useState(false);
 
-Tipo: ${acao.tipo_acao}
-Titulo: ${acao.titulo}
-Produto: ${produtoFoco}
-Publico: ${acao.publico_alvo || "—"}
-Canais: ${(acao.canais || []).join(", ")}
-Meta da semana: R$ ${Number(acao.meta_receita_semana || 0).toLocaleString("pt-BR")}
+  // Exportar calendário
+  const [exportConfirm, setExportConfirm] = useState(false);
+  const [exporting, setExporting] = useState(false);
 
-INSTRUCOES ESPECIFICAS DO USUARIO:
-${contexto || "Manter tom sofisticado e lifestyle da marca"}
+  const carregar = useCallback(async () => {
+    setLoading(true);
+    setExpandida(null);
+    const dataInicio = `${mesAtual}-01`;
 
-Regras: NUNCA preco transacional. SEMPRE investimento exclusividade custo-por-uso.
-Tom: sofisticado autentico empoderador como amiga que entende de moda.
+    const { data: p } = await supabase
+      .from("planos_comerciais")
+      .select("*")
+      .eq("mes_referencia", mesAtual)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
 
-Retorne JSON puro:
-{
-  "copy_instagram": "copy reels/feed lifestyle aspiracional max 5 linhas emojis sutis",
-  "copy_email": "assunto: [titulo atrativo] | corpo: [narrativa 3-4 linhas investimento qualidade]",
-  "copy_whatsapp": "mensagem pessoal exclusiva grupo VIP max 4 linhas como amiga de confianca"
-}`;
+    setPlano(p);
 
-      const raw = await callClaude(userPrompt);
-      const json = safeParseJSONObject(raw);
-      if (!json.copy_instagram && !json.copy_email && !json.copy_whatsapp) {
-        throw new Error("IA não retornou copies válidas");
+    if (p) {
+      const { data: c } = await supabase
+        .from("campanhas_comerciais")
+        .select("*")
+        .eq("mes_referencia", mesAtual)
+        .order("numero", { ascending: true });
+      setCampanhas(c ?? []);
+    } else {
+      setCampanhas([]);
+      // Buscar meta financeira
+      const { data: meta } = await supabase
+        .from("metas_financeiras")
+        .select("meta_mensal")
+        .gte("mes", dataInicio)
+        .lte("mes", dataInicio)
+        .maybeSingle();
+      if (meta?.meta_mensal) {
+        setMetaReceita(String(meta.meta_mensal));
+        setMetaImportada(true);
+      } else {
+        setMetaReceita("");
+        setMetaImportada(false);
       }
-      setPreview({
-        copy_instagram: json.copy_instagram || "",
-        copy_email: json.copy_email || "",
-        copy_whatsapp: json.copy_whatsapp || "",
+      setBriefing("");
+      setPctAquisicao(60);
+    }
+    setLoading(false);
+  }, [mesAtual]);
+
+  useEffect(() => {
+    carregar();
+  }, [carregar]);
+
+  // Animação loading messages
+  useEffect(() => {
+    if (!gerando) return;
+    const i = window.setInterval(() => {
+      setLoadingMsgIdx((x) => (x + 1) % loadingMessages.length);
+    }, 2500);
+    return () => window.clearInterval(i);
+  }, [gerando]);
+
+  const handleGerar = async () => {
+    const meta = parseFloat(metaReceita);
+    if (!meta || meta <= 0) {
+      toast.error("Informe uma meta de receita válida");
+      return;
+    }
+    setGerando(true);
+    setLoadingMsgIdx(0);
+    try {
+      const body = {
+        mes_referencia: mesAtual,
+        meta_receita: meta,
+        pct_aquisicao: pctAquisicao,
+        pct_retencao: 100 - pctAquisicao,
+        briefing,
+      };
+      await invokeEdgeFunction("generate-commercial-plan", body, {
+        timeoutMs: 120_000,
       });
+      toast.success("Plano gerado com sucesso!");
+      await carregar();
     } catch (e: any) {
-      toast.error("Erro ao gerar copy: " + (e?.message || "falha"));
+      toast.error(e?.message || "Erro ao gerar plano");
     } finally {
       setGerando(false);
     }
   };
 
-  const salvarTudo = async () => {
-    if (!preview) return;
-    await Promise.all([
-      onChange("copy_instagram", preview.copy_instagram),
-      onChange("copy_email", preview.copy_email),
-      onChange("copy_whatsapp", preview.copy_whatsapp),
-    ]);
-    toast.success("Copies salvas!");
-    setOpen(false);
-    setPreview(null);
-    setContexto("");
+  const handleAprovarPlano = async () => {
+    if (!plano) return;
+    const { error } = await supabase
+      .from("planos_comerciais")
+      .update({ status: "aprovado" })
+      .eq("id", plano.id);
+    if (error) {
+      toast.error("Erro ao aprovar plano");
+      return;
+    }
+    toast.success("Plano aprovado!");
+    carregar();
   };
 
-  const fechar = (o: boolean) => {
-    setOpen(o);
-    if (!o) {
-      setPreview(null);
-      setContexto("");
+  const handleAprovarCampanha = async (c: Campanha) => {
+    const { error } = await supabase
+      .from("campanhas_comerciais")
+      .update({ status: "aprovado" })
+      .eq("id", c.id);
+    if (error) {
+      toast.error("Erro ao aprovar campanha");
+      return;
+    }
+    toast.success("Campanha aprovada");
+    carregar();
+  };
+
+  const handleRegenerarPlano = async () => {
+    if (!plano) return;
+    if (!confirm("Apagar este plano e suas campanhas para gerar um novo?")) return;
+    await supabase.from("campanhas_comerciais").delete().eq("mes_referencia", mesAtual);
+    await supabase.from("planos_comerciais").delete().eq("id", plano.id);
+    toast.success("Plano apagado. Configure um novo.");
+    carregar();
+  };
+
+  const handleSalvarCopy = async (c: Campanha, campo: string, valor: string) => {
+    if (valor === (c[campo] ?? "")) return;
+    const { error } = await supabase
+      .from("campanhas_comerciais")
+      .update({ [campo]: valor })
+      .eq("id", c.id);
+    if (error) {
+      toast.error("Erro ao salvar");
+      return;
+    }
+    toast.success("Salvo");
+    setCampanhas((prev) =>
+      prev.map((x) => (x.id === c.id ? { ...x, [campo]: valor } : x)),
+    );
+  };
+
+  const handleRegenerarCampanha = async () => {
+    if (!regenAlvo) return;
+    setRegenLoading(true);
+    try {
+      const prompt = `Regenere esta campanha aplicando o ajuste solicitado. Mantenha a estrutura JSON.
+
+CAMPANHA ATUAL: ${JSON.stringify(regenAlvo)}
+
+AJUSTE: ${regenInstr}
+
+Retorne APENAS JSON puro (sem markdown) com os mesmos campos da campanha atualizada, no formato:
+{
+  "nome_comercial": "...",
+  "subtitulo": "...",
+  "conceito_narrativo": "...",
+  "novos": { "oferta": "...", "gatilho": "...", "mecanica": "..." },
+  "recorrentes": { "oferta": "...", "gatilho": "...", "mecanica": "..." },
+  "kits": [{ "nome": "...", "produtos": "...", "mecanica": "...", "preco_sugerido": "..." }],
+  "plano_diario": [{ "data": "YYYY-MM-DD", "fase": "...", "canal_novos": "...", "mensagem_novos": "...", "canal_vip": "...", "mensagem_vip": "...", "gatilho": "..." }],
+  "estrategia_canais": {
+    "instagram_reels": "...", "instagram_feed": "...", "instagram_stories": "...",
+    "email": "...", "whatsapp_vip": "...", "midia_paga": "..."
+  },
+  "metricas": ["..."],
+  "kpi_prioritario": "...",
+  "resultado_esperado": { "receita_novos": 0, "receita_recorrentes": 0, "pedidos_totais": 0 }
+}`;
+      const raw = await callClaude(prompt);
+      const nova = safeParseJSONObject(raw);
+      if (!nova || !Object.keys(nova).length) throw new Error("Resposta inválida da IA");
+      const upd: any = {
+        nome_comercial: nova.nome_comercial ?? regenAlvo.nome_comercial,
+        subtitulo: nova.subtitulo ?? regenAlvo.subtitulo,
+        conceito_narrativo: nova.conceito_narrativo ?? regenAlvo.conceito_narrativo,
+        novos_oferta: nova.novos?.oferta ?? regenAlvo.novos_oferta,
+        novos_gatilho: nova.novos?.gatilho ?? regenAlvo.novos_gatilho,
+        novos_mecanica: nova.novos?.mecanica ?? regenAlvo.novos_mecanica,
+        rec_oferta: nova.recorrentes?.oferta ?? regenAlvo.rec_oferta,
+        rec_gatilho: nova.recorrentes?.gatilho ?? regenAlvo.rec_gatilho,
+        rec_mecanica: nova.recorrentes?.mecanica ?? regenAlvo.rec_mecanica,
+        kits: nova.kits ?? regenAlvo.kits,
+        plano_diario: nova.plano_diario ?? regenAlvo.plano_diario,
+        estrategia_instagram_reels: nova.estrategia_canais?.instagram_reels ?? regenAlvo.estrategia_instagram_reels,
+        estrategia_instagram_feed: nova.estrategia_canais?.instagram_feed ?? regenAlvo.estrategia_instagram_feed,
+        estrategia_instagram_stories: nova.estrategia_canais?.instagram_stories ?? regenAlvo.estrategia_instagram_stories,
+        estrategia_email: nova.estrategia_canais?.email ?? regenAlvo.estrategia_email,
+        estrategia_whatsapp: nova.estrategia_canais?.whatsapp_vip ?? regenAlvo.estrategia_whatsapp,
+        estrategia_midia_paga: nova.estrategia_canais?.midia_paga ?? regenAlvo.estrategia_midia_paga,
+        metricas: nova.metricas ?? regenAlvo.metricas,
+        kpi_prioritario: nova.kpi_prioritario ?? regenAlvo.kpi_prioritario,
+        receita_esperada_novos: nova.resultado_esperado?.receita_novos ?? regenAlvo.receita_esperada_novos,
+        receita_esperada_rec: nova.resultado_esperado?.receita_recorrentes ?? regenAlvo.receita_esperada_rec,
+        pedidos_esperados: nova.resultado_esperado?.pedidos_totais ?? regenAlvo.pedidos_esperados,
+      };
+      const { error } = await supabase
+        .from("campanhas_comerciais")
+        .update(upd)
+        .eq("id", regenAlvo.id);
+      if (error) throw error;
+      toast.success("Campanha regenerada!");
+      setRegenAlvo(null);
+      setRegenInstr("");
+      carregar();
+    } catch (e: any) {
+      toast.error(e?.message || "Erro ao regenerar");
+    } finally {
+      setRegenLoading(false);
     }
   };
 
+  const handleExportar = async () => {
+    if (!plano) return;
+    setExporting(true);
+    try {
+      await invokeEdgeFunction("export-plan-to-calendar", {
+        plano_id: plano.id,
+        mes_referencia: mesAtual,
+      });
+      toast.success("Calendário gerado!", {
+        action: {
+          label: "Ver Calendário →",
+          onClick: () => navigate("/conteudo-crm"),
+        },
+      });
+      setExportConfirm(false);
+    } catch (e: any) {
+      toast.error(e?.message || "Erro ao exportar");
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  // ============ RENDER ============
   return (
-    <>
-      <Button
-        size="sm"
-        variant="outline"
-        onClick={() => setOpen(true)}
-        className="border-primary/40 text-primary hover:bg-primary/10"
-      >
-        <Sparkles className="mr-2 h-3.5 w-3.5" /> Regenerar copy
-      </Button>
+    <div className="container mx-auto px-4 py-6 max-w-7xl">
+      {/* Cabeçalho */}
+      <div className="flex items-center justify-between mb-6 flex-wrap gap-4">
+        <div className="flex items-center gap-3">
+          <Target className="h-7 w-7 text-primary" />
+          <h1 className="text-2xl font-bold tracking-tight">Plano Comercial</h1>
+          {plano && (
+            <Badge
+              variant={plano.status === "aprovado" ? "default" : "secondary"}
+              className={plano.status === "aprovado" ? "bg-green-600" : ""}
+            >
+              {plano.status}
+            </Badge>
+          )}
+        </div>
+        <div className="flex items-center gap-2">
+          <Button
+            size="icon"
+            variant="outline"
+            onClick={() => setMesAtual(addMonths(mesAtual, -1))}
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
+          <div className="px-4 py-2 border rounded-md font-medium min-w-[160px] text-center">
+            {mesLabel(mesAtual)}
+          </div>
+          <Button
+            size="icon"
+            variant="outline"
+            onClick={() => setMesAtual(addMonths(mesAtual, 1))}
+          >
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+        </div>
+      </div>
 
-      <Dialog open={open} onOpenChange={fechar}>
-        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="font-serif flex items-center gap-2">
-              <Sparkles className="h-5 w-5 text-primary" />
-              Regenerar copy — {acao.titulo}
-            </DialogTitle>
-            <DialogDescription>
-              Oriente a IA sobre o que ajustar. Você pode revisar antes de salvar.
-            </DialogDescription>
-          </DialogHeader>
+      {loading && (
+        <div className="flex items-center justify-center py-20 text-muted-foreground">
+          <Loader2 className="h-6 w-6 animate-spin mr-2" /> Carregando...
+        </div>
+      )}
 
-          {!preview ? (
-            <div className="space-y-4">
+      {/* ESTADO 1 - SEM PLANO */}
+      {!loading && !plano && (
+        <div className="flex items-center justify-center py-10">
+          <Card className="w-full max-w-2xl">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Sparkles className="h-5 w-5 text-orange-500" />
+                Criar Plano para {mesLabel(mesAtual)}
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-5">
               <div>
-                <Label className="text-sm font-medium">
-                  O que você quer mudar ou aprofundar?
-                </Label>
+                <Label>Meta de receita (R$)</Label>
+                <div className="flex items-center gap-2">
+                  <Input
+                    type="number"
+                    value={metaReceita}
+                    onChange={(e) => {
+                      setMetaReceita(e.target.value);
+                      setMetaImportada(false);
+                    }}
+                    placeholder="Ex: 150000"
+                  />
+                  {metaImportada && (
+                    <Badge className="bg-green-100 text-green-800 border border-green-300 whitespace-nowrap">
+                      ✓ Meta importada
+                    </Badge>
+                  )}
+                </div>
+              </div>
+
+              <div>
+                <Label>Distribuição Aquisição × Retenção</Label>
+                <div className="grid grid-cols-2 gap-3 mt-1">
+                  <div>
+                    <Label className="text-xs text-muted-foreground">% Aquisição</Label>
+                    <Input
+                      type="number"
+                      min={0}
+                      max={100}
+                      value={pctAquisicao}
+                      onChange={(e) => {
+                        const v = Math.max(0, Math.min(100, Number(e.target.value) || 0));
+                        setPctAquisicao(v);
+                      }}
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs text-muted-foreground">% Retenção</Label>
+                    <Input type="number" value={100 - pctAquisicao} disabled />
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <Label>Briefing do mês</Label>
                 <Textarea
-                  value={contexto}
-                  onChange={(e) => setContexto(e.target.value)}
-                  rows={5}
-                  className="mt-2"
-                  placeholder={`Descreva livremente o que quer ajustar. Exemplos:
-- Quero focar mais no tecido e durabilidade da peça
-- Mencionar que é Dia das Mães e criar urgência elegante
-- Tom mais íntimo, como se fosse uma mensagem pessoal
-- Destacar que só tem tamanhos M e G disponíveis
-- Criar uma história de cliente que transformou o look
-- Menos produto, mais estilo de vida e empoderamento`}
+                  rows={8}
+                  value={briefing}
+                  onChange={(e) => setBriefing(e.target.value)}
+                  placeholder={`Descreva o que acontece neste mês:
+• Lançamentos e datas (ex: lançamento dia 02, live dia 09)
+• Campanhas planejadas (ex: Campanha Dia das Mães 01-10/05)
+• Eventos especiais, temas, foco estratégico
+• Produtos em destaque, estoque alto, prioridades`}
                 />
               </div>
 
-              <div>
-                <p className="text-xs text-muted-foreground mb-2">
-                  Sugestões rápidas (clique para adicionar):
-                </p>
-                <div className="flex flex-wrap gap-2">
-                  {COPY_CHIPS.map((chip) => (
-                    <button
-                      key={chip.label}
-                      type="button"
-                      onClick={() => addChip(chip.text)}
-                      className="text-xs px-3 py-1.5 rounded-full border border-primary/30 bg-primary/5 hover:bg-primary/15 text-foreground transition-colors"
-                    >
-                      {chip.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <DialogFooter>
-                <Button variant="outline" onClick={() => fechar(false)}>
-                  Cancelar
-                </Button>
-                <Button onClick={gerar} disabled={gerando}>
-                  <Sparkles className="mr-2 h-4 w-4" />
-                  {gerando ? "Gerando..." : "Gerar copies"}
-                </Button>
-              </DialogFooter>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              <p className="text-xs text-muted-foreground">
-                Revise e ajuste cada copy antes de salvar.
-              </p>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                {[
-                  { key: "copy_instagram", icon: "📸", label: "Instagram" },
-                  { key: "copy_email", icon: "✉️", label: "E-mail" },
-                  { key: "copy_whatsapp", icon: "💬", label: "WhatsApp" },
-                ].map((c) => (
-                  <Card key={c.key} className="border-primary/20">
-                    <CardHeader className="p-3 pb-2">
-                      <CardTitle className="text-sm font-semibold flex items-center gap-1.5">
-                        <span>{c.icon}</span> {c.label}
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent className="p-3 pt-0">
-                      <Textarea
-                        value={(preview as any)[c.key]}
-                        onChange={(e) =>
-                          setPreview((prev) =>
-                            prev ? { ...prev, [c.key]: e.target.value } : prev,
-                          )
-                        }
-                        rows={10}
-                        className="text-xs resize-none"
-                      />
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-              <DialogFooter className="gap-2">
-                <Button variant="outline" onClick={() => setPreview(null)}>
-                  <RefreshCw className="mr-2 h-4 w-4" /> Gerar novamente
-                </Button>
-                <Button onClick={salvarTudo}>
-                  💾 Salvar todas as copies
-                </Button>
-              </DialogFooter>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
-    </>
-  );
-}
-
-function KpisTrafegoTab({
-  kpis,
-  plano,
-  investimentos,
-  mes,
-  onSalvarInvestimento,
-}: {
-  kpis: any[];
-  plano: any;
-  investimentos: any[];
-  mes: string;
-  onSalvarInvestimento: (mes: string, campo: string, v: number) => void;
-}) {
-  const ultimo = kpis[0];
-  const ticketMedio =
-    kpis.slice(0, 3).reduce((s, k) => s + Number(k.ticket_medio || 0), 0) /
-    Math.max(kpis.slice(0, 3).length, 1);
-  const taxaConv =
-    kpis.slice(0, 3).reduce((s, k) => s + Number(k.taxa_conversao_pct || 0), 0) /
-    Math.max(kpis.slice(0, 3).length, 1);
-  const cpsHist =
-    kpis.slice(0, 3).reduce((s, k) => s + Number(k.cps || 0), 0) /
-    Math.max(kpis.slice(0, 3).length, 1);
-
-  const [simReceita, setSimReceita] = useState("");
-  const [simInv, setSimInv] = useState("");
-  const sim = useMemo(() => {
-    const r = Number(simReceita);
-    const i = Number(simInv);
-    if (!r || !i || !ticketMedio || !taxaConv)
-      return null;
-    const pedidos = r / ticketMedio;
-    const sessoes = pedidos / (taxaConv / 100);
-    const cps = i / sessoes;
-    const roas = r / i;
-    let cor: "success" | "warning" | "destructive" = "success";
-    let label = "Viável";
-    if (cps > cpsHist * 2) {
-      cor = "destructive";
-      label = "Agressivo";
-    } else if (cps > cpsHist * 1.2) {
-      cor = "warning";
-      label = "Desafiador";
-    }
-    return { pedidos, sessoes, cps, roas, cor, label };
-  }, [simReceita, simInv, ticketMedio, taxaConv, cpsHist]);
-
-  return (
-    <div className="space-y-6">
-      {/* Cards atuais vs plano */}
-      {ultimo && (
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          <ComparativoCard
-            label="CPS"
-            atual={formatBRLDec(ultimo.cps)}
-            meta={plano ? formatBRLDec(plano.meta_cps_maximo) : "—"}
-            ok={plano ? Number(ultimo.cps) <= Number(plano.meta_cps_maximo) : true}
-          />
-          <ComparativoCard
-            label="ROAS"
-            atual={`${Number(ultimo.roas || 0).toFixed(2)}x`}
-            meta={plano ? `${Number(plano.meta_roas || 0).toFixed(2)}x` : "—"}
-            ok={plano ? Number(ultimo.roas) >= Number(plano.meta_roas) : true}
-          />
-          <ComparativoCard
-            label="Tx Conversão"
-            atual={`${Number(ultimo.taxa_conversao_pct || 0).toFixed(2)}%`}
-            meta={plano ? `${Number(plano.meta_conversao || 0).toFixed(2)}%` : "—"}
-            ok={
-              plano
-                ? Number(ultimo.taxa_conversao_pct) >=
-                  Number(plano.meta_conversao)
-                : true
-            }
-          />
-          <ComparativoCard
-            label="Sessões"
-            atual={formatNumber(ultimo.total_sessoes)}
-            meta={plano ? formatNumber(plano.meta_sessoes) : "—"}
-            ok={plano ? Number(ultimo.total_sessoes) >= Number(plano.meta_sessoes) : true}
-          />
+              <Button
+                onClick={handleGerar}
+                disabled={gerando}
+                className="w-full bg-orange-500 hover:bg-orange-600 text-white"
+                size="lg"
+              >
+                {gerando ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Sparkles className="h-4 w-4" />
+                )}
+                Gerar Plano com IA
+              </Button>
+            </CardContent>
+          </Card>
         </div>
       )}
 
-      {/* Histórico */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Histórico (últimos 6 meses)</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Mês</TableHead>
-                <TableHead>Sessões</TableHead>
-                <TableHead>Pedidos</TableHead>
-                <TableHead>Ticket</TableHead>
-                <TableHead>Invest.</TableHead>
-                <TableHead>CPS</TableHead>
-                <TableHead>ROAS</TableHead>
-                <TableHead>Conv.</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {kpis.map((k) => (
-                <TableRow key={k.mes_referencia}>
-                  <TableCell className="font-medium">{k.mes_referencia}</TableCell>
-                  <TableCell>{formatNumber(k.total_sessoes)}</TableCell>
-                  <TableCell>{formatNumber(k.total_pedidos)}</TableCell>
-                  <TableCell>{formatBRLDec(k.ticket_medio)}</TableCell>
-                  <TableCell>{formatBRL(k.investimento_total)}</TableCell>
-                  <TableCell>{formatBRLDec(k.cps)}</TableCell>
-                  <TableCell>{Number(k.roas || 0).toFixed(2)}x</TableCell>
-                  <TableCell>
-                    {Number(k.taxa_conversao_pct || 0).toFixed(2)}%
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
-
-      {/* Simulador */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Simulador</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            <div>
-              <Label>Meta receita (R$)</Label>
-              <Input
-                type="number"
-                value={simReceita}
-                onChange={(e) => setSimReceita(e.target.value)}
-              />
-            </div>
-            <div>
-              <Label>Investimento (R$)</Label>
-              <Input
-                type="number"
-                value={simInv}
-                onChange={(e) => setSimInv(e.target.value)}
-              />
-            </div>
+      {/* Loading overlay ao gerar */}
+      {gerando && (
+        <div className="fixed inset-0 bg-background/85 backdrop-blur-sm z-50 flex items-center justify-center">
+          <div className="text-center space-y-4">
+            <Loader2 className="h-12 w-12 animate-spin text-primary mx-auto" />
+            <p className="text-lg font-medium animate-pulse">
+              {loadingMessages[loadingMsgIdx]}
+            </p>
           </div>
-          {sim && (
-            <>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                <KpiPill icon={ShoppingBag} label="Pedidos" value={formatNumber(Math.round(sim.pedidos))} />
-                <KpiPill icon={Activity} label="Sessões" value={formatNumber(Math.round(sim.sessoes))} />
-                <KpiPill icon={DollarSign} label="CPS" value={formatBRLDec(sim.cps)} />
-                <KpiPill icon={TrendingUp} label="ROAS" value={`${sim.roas.toFixed(2)}x`} />
-              </div>
-              <Badge
-                variant="outline"
-                className={cn(
-                  "border text-sm px-3 py-1",
-                  sim.cor === "success" &&
-                    "bg-success/15 text-success border-success/30",
-                  sim.cor === "warning" &&
-                    "bg-warning/15 text-warning border-warning/30",
-                  sim.cor === "destructive" &&
-                    "bg-destructive/15 text-destructive border-destructive/30",
-                )}
-              >
-                {sim.label}
-              </Badge>
-            </>
-          )}
-          <p className="text-xs text-muted-foreground flex items-center gap-2">
-            <Info className="h-3 w-3" />
-            Baseado em conversão de {taxaConv.toFixed(2)}% e ticket médio de{" "}
-            {formatBRLDec(ticketMedio)} (últimos 3 meses)
-          </p>
-        </CardContent>
-      </Card>
+        </div>
+      )}
 
-      {/* Investimentos */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Investimentos por mês</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Mês</TableHead>
-                <TableHead>Facebook</TableHead>
-                <TableHead>Google</TableHead>
-                <TableHead>Outros</TableHead>
-                <TableHead>Total</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {investimentos.map((inv) => {
-                const total =
-                  Number(inv.facebook_ads || 0) +
-                  Number(inv.google_ads || 0) +
-                  Number(inv.outros || 0);
-                return (
-                  <TableRow key={inv.id}>
-                    <TableCell className="font-medium">
-                      {inv.mes_referencia}
-                    </TableCell>
-                    <TableCell>
-                      <Input
-                        type="number"
-                        className="h-8 w-28"
-                        defaultValue={inv.facebook_ads || 0}
-                        onBlur={(e) => {
-                          const v = Number(e.target.value);
-                          if (v !== Number(inv.facebook_ads || 0))
-                            onSalvarInvestimento(inv.mes_referencia, "facebook_ads", v);
-                        }}
-                      />
-                    </TableCell>
-                    <TableCell>
-                      <Input
-                        type="number"
-                        className="h-8 w-28"
-                        defaultValue={inv.google_ads || 0}
-                        onBlur={(e) => {
-                          const v = Number(e.target.value);
-                          if (v !== Number(inv.google_ads || 0))
-                            onSalvarInvestimento(inv.mes_referencia, "google_ads", v);
-                        }}
-                      />
-                    </TableCell>
-                    <TableCell>
-                      <Input
-                        type="number"
-                        className="h-8 w-28"
-                        defaultValue={inv.outros || 0}
-                        onBlur={(e) => {
-                          const v = Number(e.target.value);
-                          if (v !== Number(inv.outros || 0))
-                            onSalvarInvestimento(inv.mes_referencia, "outros", v);
-                        }}
-                      />
-                    </TableCell>
-                    <TableCell className="font-semibold">
-                      {formatBRL(total)}
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+      {/* ESTADO 2/3 - PLANO GERADO */}
+      {!loading && plano && (
+        <div className="space-y-6">
+          {/* Botões de ação */}
+          <div className="flex flex-wrap gap-2 justify-end">
+            {plano.status !== "aprovado" && (
+              <Button
+                onClick={handleAprovarPlano}
+                className="bg-green-600 hover:bg-green-700 text-white"
+              >
+                <CheckCircle2 className="h-4 w-4" /> Aprovar Plano
+              </Button>
+            )}
+            <Button variant="outline" onClick={handleRegenerarPlano}>
+              <RefreshCw className="h-4 w-4" /> Regenerar
+            </Button>
+          </div>
+
+          {/* Estado 3 banner */}
+          {plano.status === "aprovado" && (
+            <Card className="bg-green-50 border-green-300">
+              <CardContent className="p-5 flex items-center justify-between gap-4 flex-wrap">
+                <div className="flex items-center gap-2 text-green-800 font-semibold">
+                  <CheckCircle2 className="h-5 w-5" /> Plano Aprovado
+                </div>
+                <Button
+                  onClick={() => setExportConfirm(true)}
+                  className="bg-primary hover:bg-primary/90"
+                >
+                  <CalendarIcon className="h-4 w-4" /> Gerar Calendário de Conteúdo
+                </Button>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Narrativa do mês */}
+          <Card className="bg-amber-50/60 border-amber-200">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-base">
+                <Target className="h-5 w-5 text-amber-700" />
+                Estratégia de {mesLabel(mesAtual).split(" ")[0]}
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <p className="text-sm leading-relaxed whitespace-pre-wrap">
+                {plano.resumo_ia || "—"}
+              </p>
+              <div className="grid grid-cols-3 gap-4 pt-3 border-t border-amber-200">
+                <div>
+                  <p className="text-xs text-muted-foreground">Meta</p>
+                  <p className="text-lg font-bold">{formatBRL(plano.meta_receita)}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Pedidos</p>
+                  <p className="text-lg font-bold">{plano.meta_pedidos ?? "—"}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Ticket Médio</p>
+                  <p className="text-lg font-bold">
+                    {formatBRL(plano.meta_ticket_medio)}
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Campanhas */}
+          {campanhas.length === 0 && (
+            <p className="text-center text-muted-foreground py-10">
+              Nenhuma campanha encontrada para este plano.
+            </p>
+          )}
+
+          {campanhas.map((c) => (
+            <Card key={c.id} className={cn("border-l-4", corBorda(c.numero))}>
+              <CardContent className="p-5 space-y-4">
+                {/* Linha 1 - Badges */}
+                <div className="flex flex-wrap items-center gap-2">
+                  <Badge variant="secondary">CAMPANHA {c.numero}</Badge>
+                  {c.tipo && <Badge variant="outline">{c.tipo}</Badge>}
+                  {c.peso_pct != null && <Badge variant="outline">{c.peso_pct}%</Badge>}
+                  {c.meta_receita != null && (
+                    <Badge className="bg-primary/10 text-primary border-primary/30">
+                      {formatBRL(c.meta_receita)}
+                    </Badge>
+                  )}
+                  {c.status === "aprovado" && (
+                    <Badge className="bg-green-600">aprovado</Badge>
+                  )}
+                </div>
+
+                {/* Linha 2 - Nome */}
+                <div>
+                  <h3 className="text-xl font-bold">{c.nome_comercial}</h3>
+                  {c.subtitulo && (
+                    <p className="text-sm text-muted-foreground mt-0.5">{c.subtitulo}</p>
+                  )}
+                </div>
+
+                {/* Linha 3 - Período */}
+                <div className="flex flex-wrap items-center gap-3 text-sm">
+                  <span className="flex items-center gap-1">
+                    <CalendarIcon className="h-4 w-4 text-muted-foreground" />
+                    {formatDDMM(c.periodo_inicio)} a {formatDDMM(c.periodo_fim)}
+                  </span>
+                  {c.pre_aquecimento_inicio && (
+                    <Badge className="bg-orange-100 text-orange-800 border-orange-300">
+                      <Flame className="h-3 w-3 mr-1" /> Pré-aquecimento: {formatDDMM(c.pre_aquecimento_inicio)}
+                    </Badge>
+                  )}
+                </div>
+
+                {/* Linha 4 - Dois blocos */}
+                <div className="grid md:grid-cols-2 gap-3">
+                  <div className="rounded-lg p-4 bg-blue-50 border border-blue-200">
+                    <p className="font-semibold text-blue-900 mb-2">👥 Clientes Novos</p>
+                    <div className="space-y-1.5 text-sm">
+                      <p><span className="font-medium">Oferta:</span> {c.novos_oferta || "—"}</p>
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium">Gatilho:</span>
+                        {c.novos_gatilho ? (
+                          <Badge variant="outline">{c.novos_gatilho}</Badge>
+                        ) : "—"}
+                      </div>
+                      <div className="flex flex-wrap gap-1 mt-1">
+                        {(c.novos_canais ?? []).map((ch: string, i: number) => (
+                          <Badge key={i} variant="secondary" className="text-xs">{ch}</Badge>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="rounded-lg p-4 bg-amber-50 border border-amber-200">
+                    <p className="font-semibold text-amber-900 mb-2">⭐ Clientes VIP</p>
+                    <div className="space-y-1.5 text-sm">
+                      <p><span className="font-medium">Oferta:</span> {c.rec_oferta || "—"}</p>
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium">Gatilho:</span>
+                        {c.rec_gatilho ? (
+                          <Badge variant="outline">{c.rec_gatilho}</Badge>
+                        ) : "—"}
+                      </div>
+                      <div className="flex flex-wrap gap-1 mt-1">
+                        {(c.rec_canais ?? []).map((ch: string, i: number) => (
+                          <Badge key={i} variant="secondary" className="text-xs">{ch}</Badge>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Linha 5 - Kits */}
+                {Array.isArray(c.kits) && c.kits.length > 0 && (
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="text-sm font-medium">🎁 Kits:</span>
+                    {c.kits.map((k: any, i: number) => (
+                      <Badge key={i} variant="outline">{k?.nome || `Kit ${i + 1}`}</Badge>
+                    ))}
+                  </div>
+                )}
+
+                {/* Linha 6 - Botões */}
+                <div className="flex flex-wrap gap-2 pt-2 border-t">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setExpandida(expandida === c.id ? null : c.id)}
+                  >
+                    {expandida === c.id ? "Ocultar detalhes ↑" : "Ver detalhes ↓"}
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => {
+                      setRegenAlvo(c);
+                      setRegenInstr("");
+                    }}
+                  >
+                    <RefreshCw className="h-3 w-3" /> Regenerar campanha
+                  </Button>
+                  {c.status !== "aprovado" && (
+                    <Button
+                      size="sm"
+                      onClick={() => handleAprovarCampanha(c)}
+                      className="bg-green-600 hover:bg-green-700 text-white"
+                    >
+                      <CheckCircle2 className="h-3 w-3" /> Aprovar campanha
+                    </Button>
+                  )}
+                </div>
+
+                {/* Expansão */}
+                {expandida === c.id && <DetalheCampanha campanha={c} onSalvarCopy={handleSalvarCopy} />}
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
+
+      {/* Modal Regenerar */}
+      <Dialog open={!!regenAlvo} onOpenChange={(o) => !o && setRegenAlvo(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Regenerar: {regenAlvo?.nome_comercial}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <Label>O que deseja ajustar?</Label>
+            <Textarea
+              rows={5}
+              value={regenInstr}
+              onChange={(e) => setRegenInstr(e.target.value)}
+              placeholder="Ex: aumentar foco em novos clientes, trocar gatilho para urgência, adicionar kit especial para Dia dos Namorados..."
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setRegenAlvo(null)}>
+              Cancelar
+            </Button>
+            <Button
+              onClick={handleRegenerarCampanha}
+              disabled={regenLoading || !regenInstr.trim()}
+              className="bg-orange-500 hover:bg-orange-600 text-white"
+            >
+              {regenLoading ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Sparkles className="h-4 w-4" />
+              )}
+              Regenerar com IA
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal Exportar */}
+      <Dialog open={exportConfirm} onOpenChange={setExportConfirm}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Gerar calendário de conteúdo</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm">
+            Criar entradas no calendário para as {campanhas.length} campanhas de {mesLabel(mesAtual)}?
+          </p>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setExportConfirm(false)}>
+              Cancelar
+            </Button>
+            <Button onClick={handleExportar} disabled={exporting}>
+              {exporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <CalendarIcon className="h-4 w-4" />}
+              Gerar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
 
-function ComparativoCard({
+// ============ Sub-componente: Detalhe ============
+function DetalheCampanha({
+  campanha,
+  onSalvarCopy,
+}: {
+  campanha: any;
+  onSalvarCopy: (c: any, campo: string, valor: string) => void;
+}) {
+  const c = campanha;
+  const planoDiario: any[] = Array.isArray(c.plano_diario) ? c.plano_diario : [];
+  const metricas: string[] = Array.isArray(c.metricas) ? c.metricas : [];
+  const kits: any[] = Array.isArray(c.kits) ? c.kits : [];
+
+  return (
+    <div className="pt-4 border-t">
+      <Tabs defaultValue="estrategia">
+        <TabsList className="flex flex-wrap h-auto">
+          <TabsTrigger value="estrategia">📋 Estratégia</TabsTrigger>
+          <TabsTrigger value="diario">📅 Plano Diário</TabsTrigger>
+          <TabsTrigger value="copies">📢 Copies por Canal</TabsTrigger>
+          <TabsTrigger value="metricas">📊 Métricas</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="estrategia" className="space-y-4 mt-4">
+          {c.conceito_narrativo && (
+            <Card className="bg-muted/40">
+              <CardContent className="p-4 text-sm whitespace-pre-wrap leading-relaxed">
+                {c.conceito_narrativo}
+              </CardContent>
+            </Card>
+          )}
+          <div className="grid md:grid-cols-2 gap-3">
+            <Card className="bg-blue-50 border-blue-200">
+              <CardContent className="p-4 space-y-2 text-sm">
+                <p className="font-semibold text-blue-900">Clientes Novos</p>
+                <p><span className="font-medium">Oferta:</span> {c.novos_oferta || "—"}</p>
+                <p><span className="font-medium">Gatilho:</span> {c.novos_gatilho || "—"}</p>
+                <p><span className="font-medium">Mecânica:</span> {c.novos_mecanica || "—"}</p>
+              </CardContent>
+            </Card>
+            <Card className="bg-amber-50 border-amber-200">
+              <CardContent className="p-4 space-y-2 text-sm">
+                <p className="font-semibold text-amber-900">Clientes VIP</p>
+                <p><span className="font-medium">Oferta:</span> {c.rec_oferta || "—"}</p>
+                <p><span className="font-medium">Gatilho:</span> {c.rec_gatilho || "—"}</p>
+                <p><span className="font-medium">Mecânica:</span> {c.rec_mecanica || "—"}</p>
+              </CardContent>
+            </Card>
+          </div>
+          {kits.length > 0 && (
+            <div className="space-y-2">
+              <p className="font-semibold text-sm">🎁 Kits</p>
+              <div className="grid gap-2">
+                {kits.map((k, i) => (
+                  <Card key={i}>
+                    <CardContent className="p-3 text-sm space-y-1">
+                      <p className="font-semibold">{k.nome || `Kit ${i + 1}`}</p>
+                      {k.produtos && <p><span className="text-muted-foreground">Produtos:</span> {k.produtos}</p>}
+                      {k.mecanica && <p><span className="text-muted-foreground">Mecânica:</span> {k.mecanica}</p>}
+                      {k.preco_sugerido && <p><span className="text-muted-foreground">Preço sugerido:</span> {k.preco_sugerido}</p>}
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </div>
+          )}
+        </TabsContent>
+
+        <TabsContent value="diario" className="mt-4">
+          {planoDiario.length === 0 ? (
+            <p className="text-sm text-muted-foreground py-6 text-center">
+              Sem plano diário definido.
+            </p>
+          ) : (
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Data</TableHead>
+                    <TableHead>Fase</TableHead>
+                    <TableHead>Canal Novos</TableHead>
+                    <TableHead>Mensagem Novos</TableHead>
+                    <TableHead>Canal VIP</TableHead>
+                    <TableHead>Mensagem VIP</TableHead>
+                    <TableHead>Gatilho</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {planoDiario.map((d, i) => (
+                    <TableRow key={i}>
+                      <TableCell className="whitespace-nowrap">{formatDDMM(d.data)}</TableCell>
+                      <TableCell>
+                        {d.fase && (
+                          <Badge variant="outline" className={cn("border", corFase(d.fase))}>
+                            {d.fase}
+                          </Badge>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-xs">{d.canal_novos || "—"}</TableCell>
+                      <TableCell className="text-xs max-w-xs">{d.mensagem_novos || "—"}</TableCell>
+                      <TableCell className="text-xs">{d.canal_vip || "—"}</TableCell>
+                      <TableCell className="text-xs max-w-xs">{d.mensagem_vip || "—"}</TableCell>
+                      <TableCell className="text-xs">{d.gatilho || "—"}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </TabsContent>
+
+        <TabsContent value="copies" className="mt-4 space-y-3">
+          {[
+            { label: "📱 Instagram Reels", campo: "estrategia_instagram_reels" },
+            { label: "🖼️ Instagram Feed", campo: "estrategia_instagram_feed" },
+            { label: "⭕ Instagram Stories", campo: "estrategia_instagram_stories" },
+            { label: "📧 E-mail", campo: "estrategia_email" },
+            { label: "💬 WhatsApp VIP", campo: "estrategia_whatsapp" },
+            { label: "💰 Mídia Paga", campo: "estrategia_midia_paga" },
+          ].map(({ label, campo }) => (
+            <CopyEditor
+              key={campo}
+              label={label}
+              valorInicial={c[campo] || ""}
+              onSave={(v) => onSalvarCopy(c, campo, v)}
+            />
+          ))}
+        </TabsContent>
+
+        <TabsContent value="metricas" className="mt-4 space-y-4">
+          {metricas.length > 0 && (
+            <div className="space-y-1">
+              <p className="font-semibold text-sm">Métricas</p>
+              <ul className="text-sm list-disc list-inside space-y-0.5">
+                {metricas.map((m, i) => <li key={i}>{m}</li>)}
+              </ul>
+            </div>
+          )}
+          {c.kpi_prioritario && (
+            <Card className="bg-primary/5 border-primary/30">
+              <CardContent className="p-4">
+                <p className="text-xs uppercase text-muted-foreground mb-1">KPI Prioritário</p>
+                <p className="text-lg font-bold text-primary">{c.kpi_prioritario}</p>
+              </CardContent>
+            </Card>
+          )}
+          <div className="grid grid-cols-3 gap-3">
+            <Card>
+              <CardContent className="p-4">
+                <p className="text-xs text-muted-foreground">Receita Novos</p>
+                <p className="text-lg font-bold">{formatBRL(c.receita_esperada_novos)}</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="p-4">
+                <p className="text-xs text-muted-foreground">Receita VIP</p>
+                <p className="text-lg font-bold">{formatBRL(c.receita_esperada_rec)}</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="p-4">
+                <p className="text-xs text-muted-foreground">Pedidos</p>
+                <p className="text-lg font-bold">{c.pedidos_esperados ?? "—"}</p>
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+      </Tabs>
+    </div>
+  );
+}
+
+function CopyEditor({
   label,
-  atual,
-  meta,
-  ok,
+  valorInicial,
+  onSave,
 }: {
   label: string;
-  atual: string;
-  meta: string;
-  ok: boolean;
+  valorInicial: string;
+  onSave: (v: string) => void;
 }) {
+  const [valor, setValor] = useState(valorInicial);
+  useEffect(() => setValor(valorInicial), [valorInicial]);
   return (
-    <div
-      className={cn(
-        "rounded-lg border p-4 space-y-1",
-        ok ? "bg-success/5 border-success/30" : "bg-destructive/5 border-destructive/30",
-      )}
-    >
-      <div className="text-xs text-muted-foreground uppercase tracking-wide">
-        {label}
-      </div>
-      <div className="text-2xl font-serif font-bold">{atual}</div>
-      <div className="text-xs text-muted-foreground">Meta: {meta}</div>
+    <div>
+      <Label className="text-sm font-medium">{label}</Label>
+      <Textarea
+        rows={4}
+        value={valor}
+        onChange={(e) => setValor(e.target.value)}
+        onBlur={() => onSave(valor)}
+        className="mt-1"
+      />
     </div>
   );
 }
