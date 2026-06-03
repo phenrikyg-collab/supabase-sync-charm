@@ -807,15 +807,15 @@ function DetalheCampanha({
           </div>
           {kits.length > 0 && (
             <div className="space-y-2">
-              <p className="font-semibold text-sm">🎁 Kits</p>
+              <p className="font-semibold text-sm">🎁 Combos e Ofertas</p>
               <div className="grid gap-2">
                 {kits.map((k, i) => (
                   <Card key={i}>
                     <CardContent className="p-3 text-sm space-y-1">
-                      <p className="font-semibold">{k.nome || `Kit ${i + 1}`}</p>
+                      <p className="font-semibold">{k.nome || `Combo ${i + 1}`}</p>
                       {k.produtos && <p><span className="text-muted-foreground">Produtos:</span> {k.produtos}</p>}
-                      {k.mecanica && <p><span className="text-muted-foreground">Mecânica:</span> {k.mecanica}</p>}
-                      {k.preco_sugerido && <p><span className="text-muted-foreground">Preço sugerido:</span> {k.preco_sugerido}</p>}
+                      {k.condicao && <p><span className="text-muted-foreground">Condição:</span> {k.condicao}</p>}
+                      {k.mecanica && !k.condicao && <p><span className="text-muted-foreground">Mecânica:</span> {k.mecanica}</p>}
                     </CardContent>
                   </Card>
                 ))}
@@ -867,22 +867,52 @@ function DetalheCampanha({
           )}
         </TabsContent>
 
-        <TabsContent value="copies" className="mt-4 space-y-3">
-          {[
-            { label: "📱 Instagram Reels", campo: "estrategia_instagram_reels" },
-            { label: "🖼️ Instagram Feed", campo: "estrategia_instagram_feed" },
-            { label: "⭕ Instagram Stories", campo: "estrategia_instagram_stories" },
-            { label: "📧 E-mail", campo: "estrategia_email" },
-            { label: "💬 WhatsApp VIP", campo: "estrategia_whatsapp" },
-            { label: "💰 Mídia Paga", campo: "estrategia_midia_paga" },
-          ].map(({ label, campo }) => (
-            <CopyEditor
-              key={campo}
-              label={label}
-              valorInicial={c[campo] || ""}
-              onSave={(v) => onSalvarCopy(c, campo, v)}
-            />
-          ))}
+        <TabsContent value="copies" className="mt-4 space-y-4">
+          <CopyEditor
+            label="📱 Instagram Reels — Copy pronta"
+            valorInicial={c.estrategia_instagram_reels || ""}
+            onSave={(v) => onSalvarCopy(c, "estrategia_instagram_reels", v)}
+          />
+          <CopyEditor
+            label="🖼️ Instagram Feed — Copy pronta"
+            valorInicial={c.estrategia_instagram_feed || ""}
+            onSave={(v) => onSalvarCopy(c, "estrategia_instagram_feed", v)}
+          />
+          <CopyJsonFrames
+            label="⭕ Instagram Stories"
+            valor={c.estrategia_instagram_stories}
+            campos={[
+              { key: "f1", label: "Frame 1" },
+              { key: "f2", label: "Frame 2" },
+              { key: "f3", label: "Frame 3 (CTA)" },
+            ]}
+            onSave={(novo) => onSalvarCopy(c, "estrategia_instagram_stories", novo)}
+          />
+          <CopyEditor
+            label="💬 Grupo VIP — Mensagem exclusiva"
+            valorInicial={c.estrategia_whatsapp || ""}
+            onSave={(v) => onSalvarCopy(c, "estrategia_whatsapp", v)}
+          />
+          <CopyJsonFrames
+            label="🆕 Novos Clientes"
+            valor={c.estrategia_midia_paga}
+            campos={[
+              { key: "abordagem", label: "Abordagem" },
+              { key: "oferta", label: "Oferta de entrada" },
+              { key: "cta", label: "CTA" },
+            ]}
+            onSave={(novo) => onSalvarCopy(c, "estrategia_midia_paga", novo)}
+          />
+          <CopyJsonFrames
+            label="🔁 Conversão 2ª Compra"
+            valor={c.estrategia_email}
+            campos={[
+              { key: "gatilho", label: "Gatilho" },
+              { key: "oferta", label: "Oferta" },
+              { key: "mensagem", label: "Mensagem WhatsApp" },
+            ]}
+            onSave={(novo) => onSalvarCopy(c, "estrategia_email", novo)}
+          />
         </TabsContent>
 
         <TabsContent value="metricas" className="mt-4 space-y-4">
@@ -950,5 +980,77 @@ function CopyEditor({
         className="mt-1"
       />
     </div>
+  );
+}
+
+function safeParseJson(v: any): Record<string, any> | null {
+  if (!v) return null;
+  if (typeof v === "object") return v;
+  try {
+    const p = JSON.parse(v);
+    return typeof p === "object" && p ? p : null;
+  } catch {
+    return null;
+  }
+}
+
+function CopyJsonFrames({
+  label,
+  valor,
+  campos,
+  onSave,
+}: {
+  label: string;
+  valor: any;
+  campos: { key: string; label: string }[];
+  onSave: (novoJson: string) => void;
+}) {
+  const parsed = safeParseJson(valor);
+  const [state, setState] = useState<Record<string, string>>(() => {
+    if (parsed) {
+      const o: Record<string, string> = {};
+      campos.forEach((c) => (o[c.key] = parsed[c.key] ?? ""));
+      return o;
+    }
+    return Object.fromEntries(campos.map((c) => [c.key, ""]));
+  });
+  useEffect(() => {
+    const p = safeParseJson(valor);
+    if (p) {
+      const o: Record<string, string> = {};
+      campos.forEach((c) => (o[c.key] = p[c.key] ?? ""));
+      setState(o);
+    }
+  }, [valor]);
+
+  // Texto direto fallback (quando não é JSON válido)
+  if (valor && !parsed) {
+    return (
+      <CopyEditor
+        label={label}
+        valorInicial={typeof valor === "string" ? valor : String(valor)}
+        onSave={onSave}
+      />
+    );
+  }
+
+  return (
+    <Card>
+      <CardContent className="p-4 space-y-3">
+        <p className="text-sm font-medium">{label}</p>
+        {campos.map((c) => (
+          <div key={c.key}>
+            <Label className="text-xs text-muted-foreground">{c.label}</Label>
+            <Textarea
+              rows={2}
+              value={state[c.key] || ""}
+              onChange={(e) => setState((s) => ({ ...s, [c.key]: e.target.value }))}
+              onBlur={() => onSave(JSON.stringify({ ...state }))}
+              className="mt-1"
+            />
+          </div>
+        ))}
+      </CardContent>
+    </Card>
   );
 }
