@@ -40,12 +40,8 @@ const moduleGroups: ModuleGroup[] = [
     label: "Comercial",
     icon: ShoppingBag,
     items: [
-      { title: "Dashboard Comercial", url: "/dashboard-comercial", icon: LayoutDashboard },
-      { title: "Padrões de Pedidos", url: "/padroes-pedidos", icon: BarChart3 },
-      { title: "Plano Comercial", url: "/plano-comercial", icon: Target },
       { title: "Ordens de Produção", url: "/ordens-producao", icon: LayoutGrid },
       { title: "Lançamentos & Reposições", url: "/lancamentos", icon: Sparkles },
-      { title: "Meta Mensal", url: "/metas", icon: Target },
       { title: "Bonificação WhatsApp", url: "/bonificacao-whatsapp", icon: Trophy },
       { title: "Produtos & Campanha", url: "/produtos-campanha", icon: Tag },
     ],
@@ -112,6 +108,10 @@ const moduleGroups: ModuleGroup[] = [
     label: "Planejamento Estratégico",
     icon: Compass,
     items: [
+      { title: "Dashboard Comercial", url: "/dashboard-comercial", icon: LayoutDashboard },
+      { title: "Padrões de Pedidos", url: "/padroes-pedidos", icon: BarChart3 },
+      { title: "Plano Comercial", url: "/plano-comercial", icon: Target },
+      { title: "Meta Mensal", url: "/metas", icon: Target },
       { title: "Visão Anual", url: "/planejamento/anual", icon: BarChart3 },
       { title: "Planejamento Mensal", url: "/planejamento/mensal", icon: CalendarDays },
       { title: "Simulador", url: "/planejamento/simulador", icon: Target },
