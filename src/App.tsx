@@ -55,6 +55,7 @@ import EmbaixadoraPerfil from "./pages/EmbaixadoraPerfil";
 import PlanejamentoAnual from "./pages/PlanejamentoAnual";
 import PlanejamentoMensal from "./pages/PlanejamentoMensal";
 import PlanejamentoSimulador from "./pages/PlanejamentoSimulador";
+import MatrizCriativa from "./pages/MatrizCriativa";
 import { Loader2 } from "lucide-react";
 import { useUserModules } from "@/hooks/useUserModules";
 
@@ -167,6 +168,7 @@ const AppRoutes = () => {
               <Route path="/planejamento/anual" element={<PlanejamentoAnual />} />
               <Route path="/planejamento/mensal" element={<PlanejamentoMensal />} />
               <Route path="/planejamento/simulador" element={<PlanejamentoSimulador />} />
+              <Route path="/marketing/matriz-criativa" element={<MatrizCriativa />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </AppLayout>
