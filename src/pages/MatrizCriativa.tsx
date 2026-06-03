@@ -418,20 +418,30 @@ function AbaGerar() {
             </h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {resultado.map((c, i) => (
-                <CriativoCard key={c.id ?? i} c={c} onOpen={() => setModal(c)} onAprovar={() => aprovar(c.id)} />
+                <CriativoCard
+                  key={c.id ?? i}
+                  c={c}
+                  regenerando={regenerandoId === c.id}
+                  onOpen={() => setModal(c)}
+                  onAprovar={() => aprovar(c.id)}
+                  onRegenerar={() => regenerar(c)}
+                  onExcluir={() => excluir(c.id)}
+                />
               ))}
             </div>
           </div>
         )}
       </div>
 
-      <CriativoModal criativo={modal} onClose={() => setModal(null)} onAction={async (status) => {
-        if (!modal?.id) return;
-        await sb.from("mc_criativos").update({ status }).eq("id", modal.id);
-        toast({ title: `Status atualizado: ${status}` });
-        setResultado((r) => r?.map((c) => (c.id === modal.id ? { ...c, status } : c)) ?? null);
-        setModal(null);
-      }} />
+      <CriativoModal
+        criativo={modal}
+        onClose={() => setModal(null)}
+        regenerando={modal && regenerandoId === modal.id}
+        onAprovar={async () => { if (modal?.id) { await aprovar(modal.id); setModal(null); } }}
+        onEmProducao={async () => { if (modal?.id) await atualizarStatus(modal.id, "em_producao"); }}
+        onRegenerar={async () => { if (modal) await regenerar(modal); }}
+        onExcluir={async () => { if (modal?.id) { await excluir(modal.id); setModal(null); } }}
+      />
     </div>
   );
 }
