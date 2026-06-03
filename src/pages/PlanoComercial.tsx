@@ -982,3 +982,75 @@ function CopyEditor({
     </div>
   );
 }
+
+function safeParseJson(v: any): Record<string, any> | null {
+  if (!v) return null;
+  if (typeof v === "object") return v;
+  try {
+    const p = JSON.parse(v);
+    return typeof p === "object" && p ? p : null;
+  } catch {
+    return null;
+  }
+}
+
+function CopyJsonFrames({
+  label,
+  valor,
+  campos,
+  onSave,
+}: {
+  label: string;
+  valor: any;
+  campos: { key: string; label: string }[];
+  onSave: (novoJson: string) => void;
+}) {
+  const parsed = safeParseJson(valor);
+  const [state, setState] = useState<Record<string, string>>(() => {
+    if (parsed) {
+      const o: Record<string, string> = {};
+      campos.forEach((c) => (o[c.key] = parsed[c.key] ?? ""));
+      return o;
+    }
+    return Object.fromEntries(campos.map((c) => [c.key, ""]));
+  });
+  useEffect(() => {
+    const p = safeParseJson(valor);
+    if (p) {
+      const o: Record<string, string> = {};
+      campos.forEach((c) => (o[c.key] = p[c.key] ?? ""));
+      setState(o);
+    }
+  }, [valor]);
+
+  // Texto direto fallback (quando não é JSON válido)
+  if (valor && !parsed) {
+    return (
+      <CopyEditor
+        label={label}
+        valorInicial={typeof valor === "string" ? valor : String(valor)}
+        onSave={onSave}
+      />
+    );
+  }
+
+  return (
+    <Card>
+      <CardContent className="p-4 space-y-3">
+        <p className="text-sm font-medium">{label}</p>
+        {campos.map((c) => (
+          <div key={c.key}>
+            <Label className="text-xs text-muted-foreground">{c.label}</Label>
+            <Textarea
+              rows={2}
+              value={state[c.key] || ""}
+              onChange={(e) => setState((s) => ({ ...s, [c.key]: e.target.value }))}
+              onBlur={() => onSave(JSON.stringify({ ...state }))}
+              className="mt-1"
+            />
+          </div>
+        ))}
+      </CardContent>
+    </Card>
+  );
+}
