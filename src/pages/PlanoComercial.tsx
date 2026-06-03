@@ -807,15 +807,15 @@ function DetalheCampanha({
           </div>
           {kits.length > 0 && (
             <div className="space-y-2">
-              <p className="font-semibold text-sm">🎁 Kits</p>
+              <p className="font-semibold text-sm">🎁 Combos e Ofertas</p>
               <div className="grid gap-2">
                 {kits.map((k, i) => (
                   <Card key={i}>
                     <CardContent className="p-3 text-sm space-y-1">
-                      <p className="font-semibold">{k.nome || `Kit ${i + 1}`}</p>
+                      <p className="font-semibold">{k.nome || `Combo ${i + 1}`}</p>
                       {k.produtos && <p><span className="text-muted-foreground">Produtos:</span> {k.produtos}</p>}
-                      {k.mecanica && <p><span className="text-muted-foreground">Mecânica:</span> {k.mecanica}</p>}
-                      {k.preco_sugerido && <p><span className="text-muted-foreground">Preço sugerido:</span> {k.preco_sugerido}</p>}
+                      {k.condicao && <p><span className="text-muted-foreground">Condição:</span> {k.condicao}</p>}
+                      {k.mecanica && !k.condicao && <p><span className="text-muted-foreground">Mecânica:</span> {k.mecanica}</p>}
                     </CardContent>
                   </Card>
                 ))}
