@@ -587,6 +587,117 @@ const TIPOS_FOTO = [
   { id: "com_texto", label: "✍️ Com Texto — headline e CTA sobrepostos" },
 ];
 
+const CORMORANT_FONT_URL =
+  "url(https://fonts.gstatic.com/s/cormorantgaramond/v21/co3WmX5slCNuHLi8bLeY9MK7whWMhyjYqXtK.woff2)";
+let cormorantFontPromise: Promise<void> | null = null;
+async function ensureCormorantFont() {
+  if (typeof window === "undefined") return;
+  if (!cormorantFontPromise) {
+    cormorantFontPromise = (async () => {
+      try {
+        const face = new (window as any).FontFace("Cormorant Garamond", CORMORANT_FONT_URL);
+        const loaded = await face.load();
+        (document as any).fonts.add(loaded);
+      } catch (e) {
+        console.warn("Falha ao carregar fonte Cormorant Garamond", e);
+      }
+    })();
+  }
+  return cormorantFontPromise;
+}
+
+function wrapText(
+  ctx: CanvasRenderingContext2D,
+  text: string,
+  maxWidth: number
+): string[] {
+  const words = text.split(/\s+/);
+  const lines: string[] = [];
+  let current = "";
+  for (const w of words) {
+    const test = current ? `${current} ${w}` : w;
+    if (ctx.measureText(test).width > maxWidth && current) {
+      lines.push(current);
+      current = w;
+    } else {
+      current = test;
+    }
+  }
+  if (current) lines.push(current);
+  return lines;
+}
+
+async function composeCanvasOverlay(
+  imageBaseUrl: string,
+  dados: { headline?: string; subheadline?: string; cta?: string }
+): Promise<string> {
+  await ensureCormorantFont();
+  const img = new Image();
+  img.crossOrigin = "anonymous";
+  await new Promise<void>((resolve, reject) => {
+    img.onload = () => resolve();
+    img.onerror = () => reject(new Error("Falha ao carregar imagem base"));
+    img.src = imageBaseUrl;
+  });
+
+  const canvas = document.createElement("canvas");
+  canvas.width = img.naturalWidth;
+  canvas.height = img.naturalHeight;
+  const ctx = canvas.getContext("2d")!;
+  ctx.drawImage(img, 0, 0);
+
+  // Scale factors based on a 1080 reference
+  const scale = canvas.width / 1080;
+  const overlayHeight = canvas.height / 3;
+  const overlayY = canvas.height - overlayHeight;
+  ctx.fillStyle = "rgba(0,0,0,0.45)";
+  ctx.fillRect(0, overlayY, canvas.width, overlayHeight);
+
+  const paddingX = 60 * scale;
+  const maxTextWidth = canvas.width - paddingX * 2;
+  let cursorY = overlayY + 70 * scale;
+
+  ctx.textBaseline = "top";
+  ctx.textAlign = "left";
+
+  if (dados.headline) {
+    ctx.font = `bold ${52 * scale}px "Cormorant Garamond", serif`;
+    ctx.fillStyle = "#8b6a14";
+    const lines = wrapText(ctx, dados.headline, maxTextWidth);
+    for (const line of lines) {
+      ctx.fillText(line, paddingX, cursorY);
+      cursorY += 60 * scale;
+    }
+    cursorY += 10 * scale;
+  }
+
+  if (dados.subheadline) {
+    ctx.font = `${32 * scale}px "Cormorant Garamond", serif`;
+    ctx.fillStyle = "#ffffff";
+    const lines = wrapText(ctx, dados.subheadline, maxTextWidth);
+    for (const line of lines) {
+      ctx.fillText(line, paddingX, cursorY);
+      cursorY += 38 * scale;
+    }
+    cursorY += 18 * scale;
+  }
+
+  if (dados.cta) {
+    ctx.font = `bold ${28 * scale}px "Cormorant Garamond", serif`;
+    const padH = 28 * scale;
+    const padV = 14 * scale;
+    const metrics = ctx.measureText(dados.cta);
+    const boxW = metrics.width + padH * 2;
+    const boxH = 28 * scale + padV * 2;
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(paddingX, cursorY, boxW, boxH);
+    ctx.fillStyle = "#8b6a14";
+    ctx.fillText(dados.cta, paddingX + padH, cursorY + padV);
+  }
+
+  return canvas.toDataURL("image/jpeg", 0.95);
+}
+
 function ImagemMetaAds({ criativo }: { criativo: any }) {
   const { toast } = useToast();
   const [formato, setFormato] = useState("feed_retrato");
@@ -622,7 +733,24 @@ function ImagemMetaAds({ criativo }: { criativo: any }) {
       );
       const data = await res.json();
       if (!res.ok) throw new Error(data?.erro || data?.error || `Erro ${res.status}`);
-      setImagemUrl(data.imagem_gerada_url || data.url || null);
+
+      let finalUrl: string | null = data.imagem_gerada_url || data.url || null;
+
+      if (data.renderizar_texto_no_frontend && data.imagem_base_url) {
+        try {
+          finalUrl = await composeCanvasOverlay(data.imagem_base_url, data.dados_texto || {});
+        } catch (err: any) {
+          console.error(err);
+          toast({
+            title: "Erro ao compor texto na imagem",
+            description: err?.message,
+            variant: "destructive",
+          });
+          finalUrl = data.imagem_base_url;
+        }
+      }
+
+      setImagemUrl(finalUrl);
       setStatus(data.imagem_gerada_status || "gerada");
       setTipoFotoGerado(tipoFoto);
       setCorHexGerado(corHex || null);
@@ -632,6 +760,16 @@ function ImagemMetaAds({ criativo }: { criativo: any }) {
     } finally {
       setLoading(false);
     }
+  }
+
+  function download() {
+    if (!imagemUrl) return;
+    const a = document.createElement("a");
+    a.href = imagemUrl;
+    a.download = `criativo-${criativo.id}.jpg`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
   }
 
   const tipoFotoLabel = (id: string) => TIPOS_FOTO.find((t) => t.id === id)?.label ?? id;
