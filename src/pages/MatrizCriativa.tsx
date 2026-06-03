@@ -745,13 +745,55 @@ function CriativoModal({
           </TabsContent>
         </Tabs>
         <ImagemMetaAds criativo={criativo} />
-        <DialogFooter>
-          <Button onClick={() => onAction("aprovado")}>Aprovar</Button>
-          <Button variant="secondary" onClick={() => onAction("em_producao")}>Em Produção</Button>
-          <Button variant="outline" onClick={() => onAction("arquivado")}>Arquivar</Button>
+        <DialogFooter className="flex-wrap gap-2">
+          <Button onClick={onAprovar} disabled={regenerando}>
+            <Check className="h-4 w-4" /> Aprovar
+          </Button>
+          <Button variant="secondary" onClick={onEmProducao} disabled={regenerando}>
+            <Play className="h-4 w-4" /> Em Produção
+          </Button>
+          <Button variant="outline" onClick={() => setConfirmRegen(true)} disabled={regenerando}>
+            {regenerando ? <Loader2 className="h-4 w-4 animate-spin" /> : <RotateCw className="h-4 w-4" />}
+            Regenerar com IA
+          </Button>
+          <Button variant="destructive" onClick={() => setConfirmDel(true)} disabled={regenerando}>
+            <Trash2 className="h-4 w-4" /> Reprovar e Excluir
+          </Button>
           <Button variant="ghost" onClick={onClose}>Fechar</Button>
         </DialogFooter>
       </DialogContent>
+
+      <AlertDialog open={confirmRegen} onOpenChange={setConfirmRegen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Regenerar criativo?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Vamos gerar um novo criativo com os mesmos parâmetros (produto, persona, pilar, formato, etapa, tipo). O criativo atual será substituído.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={async () => { setConfirmRegen(false); await onRegenerar?.(); }}>
+              Regenerar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={confirmDel} onOpenChange={setConfirmDel}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Tem certeza?</AlertDialogTitle>
+            <AlertDialogDescription>O criativo será excluído permanentemente.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={async () => { setConfirmDel(false); await onExcluir?.(); }}>
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Dialog>
   );
 }
