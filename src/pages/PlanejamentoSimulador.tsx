@@ -1,252 +1,269 @@
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import {
-  Drivers, calcularCascata, DRIVER_LABELS, DEFAULT_DRIVERS,
-} from "@/hooks/usePlanejamentoCascata";
+import { PlanejamentoMensal as PM, fmtBRL, fmtNum, fmtPct } from "@/hooks/usePlanejamentoMensal";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Trophy } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 
-const ANO = 2026;
-const DRIVER_KEYS: (keyof Drivers)[] = [
-  "ticket_medio", "taxa_conversao", "retencao", "aprovacao",
-  "cps_midia", "invest_midia", "invest_vip", "invest_imp", "sessoes_org",
-];
+interface Manual {
+  receita_captada: number;
+  taxa_aprovacao: number;
+  pedidos_captados: number;
+  taxa_aquisicao: number;
+  sessoes_totais: number;
+  sessoes_midia: number;
+  investimento_total: number;
+}
 
-const fmtBRL = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 });
-const fmtNum = (v: number) => Math.round(v).toLocaleString("pt-BR");
+interface Cenario {
+  nome: string;
+  descricao: string;
+  m: Manual;
+}
 
-interface Cenario { id?: string; nome: string; descricao: string; drivers: Drivers; }
+function calc(m: Manual) {
+  const rf = m.receita_captada * m.taxa_aprovacao / 100;
+  const pf = m.pedidos_captados * m.taxa_aprovacao / 100;
+  const pa = pf * m.taxa_aquisicao / 100;
+  const ra = rf * m.taxa_aquisicao / 100;
+  return {
+    receita_faturada: rf,
+    pedidos_faturados: pf,
+    pedidos_aquisicao: pa,
+    receita_aquisicao: ra,
+    roas_faturado: m.investimento_total > 0 ? rf / m.investimento_total : 0,
+    cac_novos: pa > 0 ? m.investimento_total / pa : 0,
+    adcost_pct: rf > 0 ? (m.investimento_total / rf) * 100 : 0,
+  };
+}
 
-const DEFAULT_CENARIOS = (base: Drivers): Cenario[] => [
-  { nome: "Cenário A — Ticket +30", descricao: "Aumento de ticket médio para R$ 380", drivers: { ...base, ticket_medio: 380 } },
-  { nome: "Cenário B — Conversão", descricao: "Conversão sobe para 2.4%", drivers: { ...base, taxa_conversao: 2.4 } },
-  { nome: "Cenário C — CPS baixo", descricao: "Redução do CPS para R$ 0,90", drivers: { ...base, cps_midia: 0.9 } },
-];
+const DEFAULT: Manual = {
+  receita_captada: 380000, taxa_aprovacao: 90, pedidos_captados: 1000,
+  taxa_aquisicao: 70, sessoes_totais: 80000, sessoes_midia: 30000, investimento_total: 60000,
+};
 
 export default function PlanejamentoSimulador() {
-  const [base, setBase] = useState<Drivers>(DEFAULT_DRIVERS);
-  const [cenarios, setCenarios] = useState<Cenario[]>([]);
+  const [base, setBase] = useState<Manual>(DEFAULT);
   const [loading, setLoading] = useState(true);
-  const mesAtual = new Date().getMonth() + 1;
+  const [cenarios, setCenarios] = useState<Cenario[]>([]);
 
   useEffect(() => {
     (async () => {
       setLoading(true);
-      const [{ data: dBase }, { data: dSims }] = await Promise.all([
-        supabase.from("planejamento_drivers" as any).select("*").eq("ano", ANO).eq("mes", mesAtual).maybeSingle(),
-        supabase.from("planejamento_simulacoes" as any).select("*").eq("ano", ANO).eq("mes_referencia", mesAtual).order("created_at"),
+      const { data } = await (supabase as any)
+        .from("planejamento_mensal")
+        .select("*")
+        .eq("ano", 2026).eq("mes", 6).eq("tipo", "planejado")
+        .maybeSingle();
+      const r = (data as PM | null);
+      const b: Manual = r ? {
+        receita_captada: r.receita_captada ?? DEFAULT.receita_captada,
+        taxa_aprovacao: r.taxa_aprovacao ?? DEFAULT.taxa_aprovacao,
+        pedidos_captados: r.pedidos_captados ?? DEFAULT.pedidos_captados,
+        taxa_aquisicao: r.taxa_aquisicao ?? DEFAULT.taxa_aquisicao,
+        sessoes_totais: r.sessoes_totais ?? DEFAULT.sessoes_totais,
+        sessoes_midia: r.sessoes_midia ?? DEFAULT.sessoes_midia,
+        investimento_total: r.investimento_total ?? DEFAULT.investimento_total,
+      } : DEFAULT;
+      setBase(b);
+      setCenarios([
+        { nome: "Cenário A", descricao: "Crescimento de captação", m: { ...b, receita_captada: 420000 } },
+        { nome: "Cenário B", descricao: "Melhora no gateway", m: { ...b, taxa_aprovacao: 92 } },
+        { nome: "Cenário C", descricao: "Foco em retenção", m: { ...b, taxa_aquisicao: 60 } },
       ]);
-      let baseDrivers = DEFAULT_DRIVERS;
-      if (dBase) {
-        const dd: any = dBase;
-        baseDrivers = {
-          retencao: dd.retencao, aprovacao: dd.aprovacao, ticket_medio: dd.ticket_medio,
-          taxa_conversao: dd.taxa_conversao, invest_midia: dd.invest_midia, invest_vip: dd.invest_vip,
-          invest_imp: dd.invest_imp, sessoes_org: dd.sessoes_org, cps_midia: dd.cps_midia,
-        };
-      }
-      setBase(baseDrivers);
-      if (dSims && dSims.length > 0) {
-        setCenarios((dSims as any[]).map((s) => ({
-          id: s.id, nome: s.nome, descricao: s.descricao ?? "",
-          drivers: {
-            retencao: s.retencao, aprovacao: s.aprovacao, ticket_medio: s.ticket_medio,
-            taxa_conversao: s.taxa_conversao, invest_midia: s.invest_midia, invest_vip: s.invest_vip,
-            invest_imp: s.invest_imp, sessoes_org: s.sessoes_org, cps_midia: s.cps_midia,
-          },
-        })));
-      } else {
-        setCenarios(DEFAULT_CENARIOS(baseDrivers));
-      }
       setLoading(false);
     })();
-  }, [mesAtual]);
+  }, []);
 
-  const cBase = useMemo(() => calcularCascata(base), [base]);
-  const cCens = useMemo(() => cenarios.map((c) => calcularCascata(c.drivers)), [cenarios]);
+  const calcs = useMemo(() => ({
+    base: calc(base),
+    cenarios: cenarios.map((c) => calc(c.m)),
+  }), [base, cenarios]);
 
-  const persistCenario = async (idx: number) => {
-    const c = cenarios[idx];
-    const cc = calcularCascata(c.drivers);
-    const impacto = cc.receita_faturada - cBase.receita_faturada;
-    const payload: any = {
-      ano: ANO, mes_referencia: mesAtual,
-      nome: c.nome, descricao: c.descricao,
-      ...c.drivers,
-      receita_faturada: cc.receita_faturada, roas_faturado: cc.roas_faturado,
-      impacto_vs_base: impacto,
-      impacto_pct: cBase.receita_faturada > 0 ? (impacto / cBase.receita_faturada) * 100 : 0,
-    };
-    let res;
-    if (c.id) res = await supabase.from("planejamento_simulacoes" as any).update(payload).eq("id", c.id);
-    else {
-      res = await supabase.from("planejamento_simulacoes" as any).insert(payload).select().single();
-      if (res.data) setCenarios((prev) => prev.map((x, i) => i === idx ? { ...x, id: (res.data as any).id } : x));
-    }
-    if (res.error) toast.error("Erro ao salvar"); else toast.success("Cenário salvo 💛", { duration: 1500 });
+  const updateCenario = (i: number, patch: Partial<Cenario>) => {
+    setCenarios((cs) => cs.map((c, idx) => idx === i ? { ...c, ...patch } : c));
+  };
+  const updateManual = (i: number, k: keyof Manual, v: number) => {
+    setCenarios((cs) => cs.map((c, idx) => idx === i ? { ...c, m: { ...c.m, [k]: v } } : c));
   };
 
-  const ranking = useMemo(() => {
-    return cenarios
-      .map((c, i) => ({ idx: i, nome: c.nome, impacto: cCens[i].receita_faturada - cBase.receita_faturada }))
-      .sort((a, b) => b.impacto - a.impacto);
-  }, [cenarios, cCens, cBase]);
-
-  const planoAcao = useMemo(() => {
-    return cenarios.map((c, i) => {
-      const impacto = cCens[i].receita_faturada - cBase.receita_faturada;
-      // qual driver mudou
-      const changed = DRIVER_KEYS.find((k) => c.drivers[k] !== base[k]);
-      const prioridade = impacto > 10000 ? "ALTA" : impacto > 5000 ? "MÉDIA" : "BAIXA";
-      return { driver: changed, meta: changed ? c.drivers[changed] : null, impacto, prioridade };
+  const salvarSimulacao = async () => {
+    const { error } = await (supabase as any).from("planejamento_simulacoes").insert({
+      nome: `Simulação ${new Date().toLocaleDateString("pt-BR")}`,
+      ano: 2026, mes: 6, base, cenarios,
     });
-  }, [cenarios, cCens, cBase, base]);
+    if (error) toast.error("Erro ao salvar simulação");
+    else toast.success("Simulação salva 💛");
+  };
 
-  if (loading) return <div className="p-6 space-y-4"><Skeleton className="h-12 w-64" /><Skeleton className="h-96" /></div>;
+  if (loading) return <div className="p-6 space-y-4"><Skeleton className="h-12 w-72" /><Skeleton className="h-96" /></div>;
+
+  const linhas: Array<{ label: string; fmt: (v: number) => string; key: keyof ReturnType<typeof calc> }> = [
+    { label: "Receita Faturada", key: "receita_faturada", fmt: (v) => fmtBRL(v) },
+    { label: "ROAS", key: "roas_faturado", fmt: (v) => v.toFixed(2) + "x" },
+    { label: "CAC Novos", key: "cac_novos", fmt: (v) => fmtBRL(v) },
+    { label: "Pedidos Fat.", key: "pedidos_faturados", fmt: (v) => fmtNum(v) },
+    { label: "AdCost", key: "adcost_pct", fmt: (v) => v.toFixed(1) + "%" },
+  ];
+
+  const deltaReceita = calcs.cenarios.reduce((s, c) => s + (c.receita_faturada - calcs.base.receita_faturada), 0);
+  const totalAcum = calcs.base.receita_faturada + deltaReceita;
+
+  // Plano de ação
+  const acoes = cenarios.flatMap((c, i) => {
+    const impacto = calcs.cenarios[i].receita_faturada - calcs.base.receita_faturada;
+    const campos = (Object.keys(c.m) as (keyof Manual)[]).filter((k) => c.m[k] !== base[k]);
+    return campos.map((k) => ({
+      campo: k, atual: base[k], meta: c.m[k], impacto, cenario: c.nome,
+    }));
+  }).sort((a, b) => Math.abs(b.impacto) - Math.abs(a.impacto));
+
+  const prioridade = (v: number) => Math.abs(v) > 15000 ? "ALTA" : Math.abs(v) > 5000 ? "MÉDIA" : "BAIXA";
+  const prioBg = (p: string) => p === "ALTA" ? "#FFE8E5" : p === "MÉDIA" ? "#FFFBEA" : "#D4F5DE";
+  const prioFg = (p: string) => p === "ALTA" ? "#C0392B" : p === "MÉDIA" ? "#A07800" : "#2D7D46";
 
   return (
     <div className="p-6 space-y-6 max-w-[1600px] mx-auto">
-      <h1 className="text-3xl font-serif">Simulador de Cenários</h1>
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <h1 className="text-3xl font-serif text-[#1D1D1B]">Simulador</h1>
+        <Button onClick={salvarSimulacao} style={{ background: "#1D1D1B", color: "#E8CD7E" }}>Salvar Simulação</Button>
+      </div>
 
-      {/* Base */}
-      <Card className="bg-sidebar-background text-sidebar-foreground border-sidebar-border">
-        <CardHeader><CardTitle className="font-serif text-xl text-sidebar-primary">Cenário Base</CardTitle></CardHeader>
-        <CardContent className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <div><p className="text-xs uppercase opacity-60">Receita Faturada</p><p className="text-xl font-serif text-sidebar-primary">{fmtBRL(cBase.receita_faturada)}</p></div>
-          <div><p className="text-xs uppercase opacity-60">ROAS</p><p className="text-xl font-serif">{cBase.roas_faturado.toFixed(2)}x</p></div>
-          <div><p className="text-xs uppercase opacity-60">Pedidos Faturados</p><p className="text-xl font-serif">{fmtNum(cBase.pedidos_faturados)}</p></div>
-          <div><p className="text-xs uppercase opacity-60">CAC</p><p className="text-xl font-serif">{fmtBRL(cBase.cac)}</p></div>
-        </CardContent>
-      </Card>
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
+        {/* Base */}
+        <Card style={{ borderColor: "#F5E9B8" }}>
+          <CardHeader><CardTitle className="font-serif text-base">Base (Jun 2026)</CardTitle></CardHeader>
+          <CardContent className="space-y-2 text-xs">
+            {(Object.keys(base) as (keyof Manual)[]).map((k) => (
+              <div key={k} className="flex justify-between">
+                <span className="text-muted-foreground">{k}</span>
+                <strong>{base[k]}</strong>
+              </div>
+            ))}
+            <div className="border-t pt-2 mt-2 space-y-1" style={{ borderColor: "#F5E9B8" }}>
+              <div className="flex justify-between"><span>Rec. Faturada</span><strong>{fmtBRL(calcs.base.receita_faturada)}</strong></div>
+              <div className="flex justify-between"><span>ROAS</span><strong>{calcs.base.roas_faturado.toFixed(2)}x</strong></div>
+              <div className="flex justify-between"><span>CAC Novos</span><strong>{fmtBRL(calcs.base.cac_novos)}</strong></div>
+            </div>
+          </CardContent>
+        </Card>
 
-      {/* Cenários */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         {cenarios.map((c, i) => (
-          <Card key={i}>
-            <CardHeader>
-              <Input value={c.nome} onChange={(e) => setCenarios((p) => p.map((x, idx) => idx === i ? { ...x, nome: e.target.value } : x))} onBlur={() => persistCenario(i)} className="font-serif text-lg" />
-              <Input value={c.descricao} onChange={(e) => setCenarios((p) => p.map((x, idx) => idx === i ? { ...x, descricao: e.target.value } : x))} onBlur={() => persistCenario(i)} className="text-xs mt-1" placeholder="Descrição" />
+          <Card key={i} style={{ borderColor: "#E8CD7E" }}>
+            <CardHeader className="space-y-2">
+              <Input value={c.nome} onChange={(e) => updateCenario(i, { nome: e.target.value })} className="font-serif text-base h-8" />
+              <Input value={c.descricao} onChange={(e) => updateCenario(i, { descricao: e.target.value })} className="text-xs h-7" placeholder="Descrição" />
             </CardHeader>
-            <CardContent className="space-y-2 text-sm">
-              {DRIVER_KEYS.map((k) => (
+            <CardContent className="space-y-1.5 text-xs">
+              {(Object.keys(c.m) as (keyof Manual)[]).map((k) => (
                 <div key={k} className="flex items-center justify-between gap-2">
-                  <label className="text-xs flex-1">{DRIVER_LABELS[k].label}</label>
-                  <Input type="number" step="0.01" value={c.drivers[k] as number}
-                    onChange={(e) => setCenarios((p) => p.map((x, idx) => idx === i ? { ...x, drivers: { ...x.drivers, [k]: Number(e.target.value.replace(",", ".")) || 0 } } : x))}
-                    onBlur={() => persistCenario(i)}
-                    className="h-8 w-24 text-xs text-right" />
+                  <span className="text-muted-foreground truncate">{k}</span>
+                  <Input type="number" value={c.m[k]} onChange={(e) => updateManual(i, k, Number(e.target.value))}
+                    className="h-7 w-24 text-right" style={{ background: c.m[k] !== base[k] ? "#FFFBEA" : "#FAF8F3" }} />
                 </div>
               ))}
+              <div className="border-t pt-2 mt-2 space-y-1" style={{ borderColor: "#F5E9B8" }}>
+                <div className="flex justify-between"><span>Rec. Faturada</span><strong>{fmtBRL(calcs.cenarios[i].receita_faturada)}</strong></div>
+                <div className="flex justify-between"><span>ROAS</span><strong>{calcs.cenarios[i].roas_faturado.toFixed(2)}x</strong></div>
+                <div className="flex justify-between"><span>CAC Novos</span><strong>{fmtBRL(calcs.cenarios[i].cac_novos)}</strong></div>
+              </div>
             </CardContent>
           </Card>
         ))}
       </div>
 
-      {/* Tabela comparativa */}
-      <Card>
-        <CardHeader><CardTitle className="font-serif text-xl">Comparativo</CardTitle></CardHeader>
+      {/* Tabela Comparativa */}
+      <Card style={{ borderColor: "#F5E9B8" }}>
+        <CardHeader><CardTitle className="font-serif text-lg">Tabela Comparativa</CardTitle></CardHeader>
         <CardContent className="overflow-x-auto">
           <table className="w-full text-sm">
-            <thead className="bg-sidebar-background text-sidebar-foreground">
+            <thead style={{ background: "#1D1D1B", color: "#E8CD7E" }}>
               <tr>
-                <th className="px-3 py-2 text-left">Métrica</th>
-                <th className="px-3 py-2 text-right">Base</th>
-                {cenarios.map((c, i) => <th key={i} className="px-3 py-2 text-right">{c.nome}</th>)}
+                <th className="px-3 py-2 text-left text-xs uppercase">Métrica</th>
+                <th className="px-3 py-2 text-left text-xs uppercase">Base</th>
+                {cenarios.map((c, i) => (<th key={i} className="px-3 py-2 text-left text-xs uppercase">{c.nome}</th>))}
               </tr>
             </thead>
             <tbody>
-              {([
-                ["Receita Faturada", (x: any) => x.receita_faturada, fmtBRL],
-                ["ROAS", (x: any) => x.roas_faturado, (v: number) => `${v.toFixed(2)}x`],
-                ["Pedidos Faturados", (x: any) => x.pedidos_faturados, fmtNum],
-                ["CAC", (x: any) => x.cac, fmtBRL],
-                ["Sessões", (x: any) => x.sessoes_totais, fmtNum],
-                ["AdCost %", (x: any) => x.adcost_pct, (v: number) => `${v.toFixed(1)}%`],
-              ] as const).map(([label, fn, fmt]) => (
-                <tr key={label as string} className="border-t">
-                  <td className="px-3 py-2 font-medium">{label}</td>
-                  <td className="px-3 py-2 text-right">{fmt(fn(cBase))}</td>
-                  {cCens.map((c, i) => <td key={i} className="px-3 py-2 text-right">{fmt(fn(c))}</td>)}
+              {linhas.map((l) => (
+                <tr key={l.key} className="border-b" style={{ borderColor: "#F5E9B8" }}>
+                  <td className="px-3 py-2 font-medium">{l.label}</td>
+                  <td className="px-3 py-2">{l.fmt(calcs.base[l.key])}</td>
+                  {calcs.cenarios.map((c, i) => {
+                    const delta = c[l.key] - calcs.base[l.key];
+                    const pct = calcs.base[l.key] !== 0 ? (delta / calcs.base[l.key]) * 100 : 0;
+                    return (
+                      <td key={i} className="px-3 py-2">
+                        <div>{l.fmt(c[l.key])}</div>
+                        <div className={`text-[10px] ${delta > 0 ? "text-emerald-600" : delta < 0 ? "text-rose-600" : "text-muted-foreground"}`}>
+                          Δ {delta > 0 ? "+" : ""}{l.fmt(Math.abs(delta))} ({pct > 0 ? "+" : ""}{pct.toFixed(1)}%)
+                        </div>
+                      </td>
+                    );
+                  })}
                 </tr>
               ))}
-              <tr className="border-t bg-accent/40">
-                <td className="px-3 py-2 font-semibold">Impacto vs. Base (Receita)</td>
-                <td className="px-3 py-2 text-right">—</td>
-                {cCens.map((c, i) => {
-                  const delta = c.receita_faturada - cBase.receita_faturada;
-                  return <td key={i} className={`px-3 py-2 text-right font-semibold ${delta >= 0 ? "text-success" : "text-destructive"}`}>{delta >= 0 ? "+" : ""}{fmtBRL(delta)}</td>;
-                })}
-              </tr>
             </tbody>
           </table>
         </CardContent>
       </Card>
 
       {/* Impacto Acumulado */}
-      <Card className="border-primary/30 bg-primary/5">
-        <CardHeader><CardTitle className="font-serif text-xl">Impacto Acumulado</CardTitle></CardHeader>
+      <Card style={{ background: "#1D1D1B", borderColor: "#1D1D1B" }}>
+        <CardHeader><CardTitle className="font-serif text-lg text-[#E8CD7E]">Impacto Acumulado</CardTitle></CardHeader>
         <CardContent>
-          {(() => {
-            const totalDelta = cCens.reduce((s, c) => s + (c.receita_faturada - cBase.receita_faturada), 0);
-            const total = cBase.receita_faturada + totalDelta;
-            const pct = cBase.receita_faturada > 0 ? (totalDelta / cBase.receita_faturada) * 100 : 0;
-            return (
-              <div className="space-y-2">
-                <p className="text-lg">
-                  <span>{fmtBRL(cBase.receita_faturada)}</span>
-                  {cCens.map((c, i) => {
-                    const d = c.receita_faturada - cBase.receita_faturada;
-                    return <span key={i} className={d >= 0 ? "text-success" : "text-destructive"}> {d >= 0 ? "+" : "−"} {fmtBRL(Math.abs(d))}</span>;
-                  })}
-                  <span className="font-serif text-primary"> = {fmtBRL(total)}</span>
-                </p>
-                <p className="text-sm">Crescimento total vs. base: <strong className={pct >= 0 ? "text-success" : "text-destructive"}>{pct.toFixed(1)}%</strong></p>
-              </div>
-            );
-          })()}
+          <div className="flex items-center justify-center flex-wrap gap-3 text-[#FAF8F3]">
+            <div className="text-center"><div className="text-xs opacity-70">Base</div><div className="text-xl font-serif text-[#E8CD7E]">{fmtBRL(calcs.base.receita_faturada)}</div></div>
+            {calcs.cenarios.map((c, i) => {
+              const d = c.receita_faturada - calcs.base.receita_faturada;
+              return (
+                <div key={i} className="text-center">
+                  <div className="text-xs opacity-70">+Δ {cenarios[i].nome}</div>
+                  <div className={`text-xl font-serif ${d >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
+                    {d >= 0 ? "+" : ""}{fmtBRL(d)}
+                  </div>
+                </div>
+              );
+            })}
+            <div className="text-center border-l pl-4" style={{ borderColor: "#E8CD7E" }}>
+              <div className="text-xs opacity-70">Total</div>
+              <div className="text-2xl font-serif text-[#E8CD7E]">{fmtBRL(totalAcum)}</div>
+            </div>
+          </div>
+          <p className="text-center text-xs text-[#E8CD7E]/70 mt-3">
+            {calcs.base.receita_faturada > 0 && `+${((deltaReceita / calcs.base.receita_faturada) * 100).toFixed(1)}% vs base se todos os cenários se confirmarem`}
+          </p>
         </CardContent>
       </Card>
 
-      {/* Ranking */}
-      <Card>
-        <CardHeader><CardTitle className="font-serif text-xl flex items-center gap-2"><Trophy className="h-5 w-5 text-primary" /> Ranking de Cenários</CardTitle></CardHeader>
-        <CardContent className="space-y-2">
-          {ranking.map((r, i) => {
-            const medals = ["🥇", "🥈", "🥉"];
-            const colors = ["bg-primary/20", "bg-muted", "bg-accent/40"];
-            return (
-              <div key={r.idx} className={`flex items-center justify-between p-3 rounded border ${colors[i] ?? ""}`}>
-                <span className="font-medium">{medals[i] ?? `${i + 1}º`} {r.nome}</span>
-                <span className={`font-semibold ${r.impacto >= 0 ? "text-success" : "text-destructive"}`}>{r.impacto >= 0 ? "+" : ""}{fmtBRL(r.impacto)}</span>
-              </div>
-            );
-          })}
-        </CardContent>
-      </Card>
-
-      {/* Plano de ação */}
-      <Card>
-        <CardHeader><CardTitle className="font-serif text-xl">Plano de Ação por Driver</CardTitle></CardHeader>
-        <CardContent>
+      {/* Plano de Ação */}
+      <Card style={{ borderColor: "#F5E9B8" }}>
+        <CardHeader><CardTitle className="font-serif text-lg">Plano de Ação</CardTitle></CardHeader>
+        <CardContent className="overflow-x-auto">
           <table className="w-full text-sm">
-            <thead className="bg-sidebar-background text-sidebar-foreground">
-              <tr><th className="px-3 py-2 text-left">Driver</th><th className="px-3 py-2 text-right">Meta</th><th className="px-3 py-2 text-right">Impacto Estimado</th><th className="px-3 py-2 text-center">Prioridade</th></tr>
+            <thead style={{ background: "#1D1D1B", color: "#E8CD7E" }}>
+              <tr>
+                {["Campo","Cenário","Valor Atual","Meta","Impacto R$","Prioridade"].map((h) => (
+                  <th key={h} className="px-3 py-2 text-left text-xs uppercase">{h}</th>
+                ))}
+              </tr>
             </thead>
             <tbody>
-              {planoAcao.map((p, i) => (
-                <tr key={i} className="border-t">
-                  <td className="px-3 py-2">{p.driver ? DRIVER_LABELS[p.driver].label : "—"}</td>
-                  <td className="px-3 py-2 text-right">{p.meta ?? "—"}</td>
-                  <td className={`px-3 py-2 text-right ${p.impacto >= 0 ? "text-success" : "text-destructive"}`}>{fmtBRL(p.impacto)}</td>
-                  <td className="px-3 py-2 text-center">
-                    <Badge className={p.prioridade === "ALTA" ? "bg-destructive text-destructive-foreground" : p.prioridade === "MÉDIA" ? "bg-warning text-warning-foreground" : "bg-muted"}>{p.prioridade}</Badge>
-                  </td>
-                </tr>
-              ))}
+              {acoes.map((a, i) => {
+                const p = prioridade(a.impacto);
+                return (
+                  <tr key={i} className="border-b" style={{ borderColor: "#F5E9B8" }}>
+                    <td className="px-3 py-2 font-medium">{a.campo}</td>
+                    <td className="px-3 py-2">{a.cenario}</td>
+                    <td className="px-3 py-2">{a.atual}</td>
+                    <td className="px-3 py-2">{a.meta}</td>
+                    <td className={`px-3 py-2 ${a.impacto > 0 ? "text-emerald-600" : "text-rose-600"}`}>{a.impacto > 0 ? "+" : ""}{fmtBRL(a.impacto)}</td>
+                    <td className="px-3 py-2"><span className="px-2 py-0.5 rounded text-xs font-semibold" style={{ background: prioBg(p), color: prioFg(p) }}>{p}</span></td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </CardContent>
