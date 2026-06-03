@@ -12,9 +12,41 @@ import { Skeleton } from "@/components/ui/skeleton";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
-import { Loader2, Heart, AlertTriangle, Sparkles } from "lucide-react";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Loader2, Heart, AlertTriangle, Sparkles, RotateCw, Trash2, Check, Play } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
+
+const EDGE_GERAR_CRIATIVOS =
+  "https://ezdtulcrqzmgocamjwwl.supabase.co/functions/v1/gerar-criativos";
+
+async function regerarCriativo(c: any): Promise<any | null> {
+  const body = {
+    produto_nome: c.produto_nome ?? null,
+    produto_id: c.produto_id ?? null,
+    persona_id: c.persona_id,
+    pilares: c.pilar ? [c.pilar] : [],
+    formatos: c.formato ? [c.formato] : [],
+    etapa_funil: c.etapa_funil ?? null,
+    tipo_conteudo: c.tipo_conteudo ?? null,
+  };
+  const r = await fetch(EDGE_GERAR_CRIATIVOS, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!r.ok) throw new Error(await r.text());
+  const data = await r.json();
+  const lista = data.criativos || data || [];
+  const novo = Array.isArray(lista) ? lista[0] : null;
+  if (novo && c.id) {
+    await sb.from("mc_criativos").delete().eq("id", c.id);
+  }
+  return novo;
+}
 
 const sb = supabase as any;
 
@@ -179,11 +211,49 @@ function AbaGerar() {
     }
   }
 
+  const [regenerandoId, setRegenerandoId] = useState<string | null>(null);
+
   async function aprovar(id: string) {
+    if (!id) return toast({ title: "Criativo sem ID", variant: "destructive" });
     const { error } = await sb.from("mc_criativos").update({ status: "aprovado" }).eq("id", id);
-    if (error) return toast({ title: "Erro", variant: "destructive" });
-    toast({ title: "Criativo aprovado 💛" });
+    if (error) return toast({ title: "Erro ao aprovar", description: error.message, variant: "destructive" });
+    toast({ title: "Criativo aprovado!" });
     setResultado((r) => r?.map((c) => (c.id === id ? { ...c, status: "aprovado" } : c)) ?? null);
+    setModal((m: any) => (m && m.id === id ? { ...m, status: "aprovado" } : m));
+  }
+
+  async function atualizarStatus(id: string, status: string) {
+    if (!id) return;
+    const { error } = await sb.from("mc_criativos").update({ status }).eq("id", id);
+    if (error) return toast({ title: "Erro", description: error.message, variant: "destructive" });
+    toast({ title: `Status: ${status}` });
+    setResultado((r) => r?.map((c) => (c.id === id ? { ...c, status } : c)) ?? null);
+    setModal((m: any) => (m && m.id === id ? { ...m, status } : m));
+  }
+
+  async function excluir(id: string) {
+    if (!id) return;
+    const { error } = await sb.from("mc_criativos").delete().eq("id", id);
+    if (error) return toast({ title: "Erro ao excluir", description: error.message, variant: "destructive" });
+    setResultado((r) => r?.filter((c) => c.id !== id) ?? null);
+    setModal((m: any) => (m && m.id === id ? null : m));
+    toast({ title: "Criativo removido" });
+  }
+
+  async function regenerar(c: any) {
+    if (!c?.id) return;
+    setRegenerandoId(c.id);
+    try {
+      const novo = await regerarCriativo(c);
+      if (!novo) throw new Error("Nada retornado");
+      setResultado((r) => r?.map((x) => (x.id === c.id ? novo : x)) ?? null);
+      setModal((m: any) => (m && m.id === c.id ? novo : m));
+      toast({ title: "Criativo regenerado" });
+    } catch (e: any) {
+      toast({ title: "Erro ao regenerar", description: e.message, variant: "destructive" });
+    } finally {
+      setRegenerandoId(null);
+    }
   }
 
   if (loadingDados) {
@@ -348,26 +418,37 @@ function AbaGerar() {
             </h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {resultado.map((c, i) => (
-                <CriativoCard key={c.id ?? i} c={c} onOpen={() => setModal(c)} onAprovar={() => aprovar(c.id)} />
+                <CriativoCard
+                  key={c.id ?? i}
+                  c={c}
+                  regenerando={regenerandoId === c.id}
+                  onOpen={() => setModal(c)}
+                  onAprovar={() => aprovar(c.id)}
+                  onRegenerar={() => regenerar(c)}
+                  onExcluir={() => excluir(c.id)}
+                />
               ))}
             </div>
           </div>
         )}
       </div>
 
-      <CriativoModal criativo={modal} onClose={() => setModal(null)} onAction={async (status) => {
-        if (!modal?.id) return;
-        await sb.from("mc_criativos").update({ status }).eq("id", modal.id);
-        toast({ title: `Status atualizado: ${status}` });
-        setResultado((r) => r?.map((c) => (c.id === modal.id ? { ...c, status } : c)) ?? null);
-        setModal(null);
-      }} />
+      <CriativoModal
+        criativo={modal}
+        onClose={() => setModal(null)}
+        regenerando={modal && regenerandoId === modal.id}
+        onAprovar={async () => { if (modal?.id) { await aprovar(modal.id); setModal(null); } }}
+        onEmProducao={async () => { if (modal?.id) await atualizarStatus(modal.id, "em_producao"); }}
+        onRegenerar={async () => { if (modal) await regenerar(modal); }}
+        onExcluir={async () => { if (modal?.id) { await excluir(modal.id); setModal(null); } }}
+      />
     </div>
   );
 }
 
-function CriativoCard({ c, onOpen, onAprovar }: any) {
+function CriativoCard({ c, onOpen, onAprovar, onRegenerar, onExcluir, regenerando }: any) {
   const preview = (c.roteiro_hook || c.headline_principal || "").split("\n").slice(0, 2).join(" ");
+  const [confirmDel, setConfirmDel] = useState(false);
   return (
     <Card>
       <CardContent className="p-4 space-y-2">
@@ -375,16 +456,38 @@ function CriativoCard({ c, onOpen, onAprovar }: any) {
           {c.pilar && <Badge className={pilarColor(c.pilar)}>{pilarLabel(c.pilar)}</Badge>}
           {c.formato && <Badge variant="outline">{c.formato}</Badge>}
           {c.etapa_funil && <Badge variant="secondary">{c.etapa_funil}</Badge>}
+          {c.status && <Badge className={STATUS_COLORS[c.status] ?? ""}>{c.status}</Badge>}
         </div>
         <h3 className="font-semibold text-base">{c.titulo}</h3>
         {c.angulo && <p className="text-xs text-muted-foreground"><strong>Ângulo:</strong> {c.angulo}</p>}
         {c.tom_mensagem && <p className="text-xs text-muted-foreground"><strong>Tom:</strong> {c.tom_mensagem}</p>}
         {preview && <p className="text-sm line-clamp-2 text-foreground/80">{preview}</p>}
-        <div className="flex gap-2 pt-2">
+        <div className="flex flex-wrap gap-2 pt-2">
           <Button size="sm" variant="outline" onClick={onOpen}>Ver Completo</Button>
-          <Button size="sm" onClick={onAprovar}>Aprovar</Button>
+          <Button size="sm" onClick={onAprovar} disabled={regenerando}>
+            <Check className="h-3 w-3" /> Aprovar
+          </Button>
+          <Button size="sm" variant="secondary" onClick={onRegenerar} disabled={regenerando}>
+            {regenerando ? <Loader2 className="h-3 w-3 animate-spin" /> : <RotateCw className="h-3 w-3" />}
+            Regenerar
+          </Button>
+          <Button size="sm" variant="destructive" onClick={() => setConfirmDel(true)} disabled={regenerando}>
+            <Trash2 className="h-3 w-3" /> Excluir
+          </Button>
         </div>
       </CardContent>
+      <AlertDialog open={confirmDel} onOpenChange={setConfirmDel}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir criativo?</AlertDialogTitle>
+            <AlertDialogDescription>Esta ação não pode ser desfeita.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={onExcluir}>Excluir</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Card>
   );
 }
@@ -575,7 +678,13 @@ function ImagemMetaAds({ criativo }: { criativo: any }) {
   );
 }
 
-function CriativoModal({ criativo, onClose, onAction }: any) {
+function CriativoModal({
+  criativo, onClose,
+  onAprovar, onEmProducao, onRegenerar, onExcluir,
+  regenerando,
+}: any) {
+  const [confirmRegen, setConfirmRegen] = useState(false);
+  const [confirmDel, setConfirmDel] = useState(false);
   if (!criativo) return null;
   const isVideo = /video|reels/i.test(criativo.formato || "");
   return (
@@ -587,6 +696,7 @@ function CriativoModal({ criativo, onClose, onAction }: any) {
             {criativo.pilar && <Badge className={pilarColor(criativo.pilar)}>{pilarLabel(criativo.pilar)}</Badge>}
             {criativo.formato && <Badge variant="outline">{criativo.formato}</Badge>}
             {criativo.etapa_funil && <Badge variant="secondary">{criativo.etapa_funil}</Badge>}
+            {criativo.status && <Badge className={STATUS_COLORS[criativo.status] ?? ""}>{criativo.status}</Badge>}
           </div>
         </DialogHeader>
         <Tabs defaultValue="conteudo">
@@ -635,13 +745,55 @@ function CriativoModal({ criativo, onClose, onAction }: any) {
           </TabsContent>
         </Tabs>
         <ImagemMetaAds criativo={criativo} />
-        <DialogFooter>
-          <Button onClick={() => onAction("aprovado")}>Aprovar</Button>
-          <Button variant="secondary" onClick={() => onAction("em_producao")}>Em Produção</Button>
-          <Button variant="outline" onClick={() => onAction("arquivado")}>Arquivar</Button>
+        <DialogFooter className="flex-wrap gap-2">
+          <Button onClick={onAprovar} disabled={regenerando}>
+            <Check className="h-4 w-4" /> Aprovar
+          </Button>
+          <Button variant="secondary" onClick={onEmProducao} disabled={regenerando}>
+            <Play className="h-4 w-4" /> Em Produção
+          </Button>
+          <Button variant="outline" onClick={() => setConfirmRegen(true)} disabled={regenerando}>
+            {regenerando ? <Loader2 className="h-4 w-4 animate-spin" /> : <RotateCw className="h-4 w-4" />}
+            Regenerar com IA
+          </Button>
+          <Button variant="destructive" onClick={() => setConfirmDel(true)} disabled={regenerando}>
+            <Trash2 className="h-4 w-4" /> Reprovar e Excluir
+          </Button>
           <Button variant="ghost" onClick={onClose}>Fechar</Button>
         </DialogFooter>
       </DialogContent>
+
+      <AlertDialog open={confirmRegen} onOpenChange={setConfirmRegen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Regenerar criativo?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Vamos gerar um novo criativo com os mesmos parâmetros (produto, persona, pilar, formato, etapa, tipo). O criativo atual será substituído.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={async () => { setConfirmRegen(false); await onRegenerar?.(); }}>
+              Regenerar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={confirmDel} onOpenChange={setConfirmDel}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Tem certeza?</AlertDialogTitle>
+            <AlertDialogDescription>O criativo será excluído permanentemente.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={async () => { setConfirmDel(false); await onExcluir?.(); }}>
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Dialog>
   );
 }
@@ -663,15 +815,23 @@ function AbaBiblioteca() {
   const [fFormato, setFFormato] = useState("__all__");
   const [fStatus, setFStatus] = useState("__all__");
 
+  const [regenerandoId, setRegenerandoId] = useState<string | null>(null);
+
   async function load() {
     setLoading(true);
     const [c, p, pr] = await Promise.all([
-      sb.from("mc_criativos").select("*, mc_personas(nome, emoji)").order("created_at", { ascending: false }),
-      sb.from("mc_personas").select("id, nome"),
+      sb.from("mc_criativos").select("*").order("created_at", { ascending: false }),
+      sb.from("mc_personas").select("id, nome, emoji"),
       sb.from("mc_produtos_marca").select("id, nome"),
     ]);
-    setList(c.data || []);
-    setPersonas(p.data || []);
+    if (c.error) toast({ title: "Erro ao carregar criativos", description: c.error.message, variant: "destructive" });
+    const personasArr = p.data || [];
+    const lista = (c.data || []).map((it: any) => {
+      const pers = personasArr.find((x: any) => x.id === it.persona_id);
+      return { ...it, mc_personas: pers ? { nome: pers.nome, emoji: pers.emoji } : null };
+    });
+    setList(lista);
+    setPersonas(personasArr);
     setProdutos(pr.data || []);
     setLoading(false);
   }
@@ -686,9 +846,37 @@ function AbaBiblioteca() {
   );
 
   async function setStatus(id: string, status: string) {
-    await sb.from("mc_criativos").update({ status }).eq("id", id);
+    const { error } = await sb.from("mc_criativos").update({ status }).eq("id", id);
+    if (error) return toast({ title: "Erro", description: error.message, variant: "destructive" });
     setList((l) => l.map((c) => (c.id === id ? { ...c, status } : c)));
-    toast({ title: "Status atualizado" });
+    setModal((m: any) => (m && m.id === id ? { ...m, status } : m));
+    toast({ title: status === "aprovado" ? "Criativo aprovado!" : `Status: ${status}` });
+  }
+
+  async function excluir(id: string) {
+    const { error } = await sb.from("mc_criativos").delete().eq("id", id);
+    if (error) return toast({ title: "Erro ao excluir", description: error.message, variant: "destructive" });
+    setList((l) => l.filter((c) => c.id !== id));
+    setModal((m: any) => (m && m.id === id ? null : m));
+    toast({ title: "Criativo removido" });
+  }
+
+  async function regenerar(c: any) {
+    if (!c?.id) return;
+    setRegenerandoId(c.id);
+    try {
+      const novo = await regerarCriativo(c);
+      if (!novo) throw new Error("Nada retornado");
+      const pers = personas.find((x: any) => x.id === novo.persona_id);
+      const novoEnriquecido = { ...novo, mc_personas: pers ? { nome: pers.nome, emoji: pers.emoji } : null };
+      setList((l) => l.map((x) => (x.id === c.id ? novoEnriquecido : x)));
+      setModal((m: any) => (m && m.id === c.id ? novoEnriquecido : m));
+      toast({ title: "Criativo regenerado" });
+    } catch (e: any) {
+      toast({ title: "Erro ao regenerar", description: e.message, variant: "destructive" });
+    } finally {
+      setRegenerandoId(null);
+    }
   }
 
   return (
@@ -775,10 +963,15 @@ function AbaBiblioteca() {
         </div>
       )}
 
-      <CriativoModal criativo={modal} onClose={() => setModal(null)} onAction={async (status: string) => {
-        if (modal?.id) await setStatus(modal.id, status);
-        setModal(null);
-      }} />
+      <CriativoModal
+        criativo={modal}
+        onClose={() => setModal(null)}
+        regenerando={modal && regenerandoId === modal.id}
+        onAprovar={async () => { if (modal?.id) { await setStatus(modal.id, "aprovado"); setModal(null); } }}
+        onEmProducao={async () => { if (modal?.id) await setStatus(modal.id, "em_producao"); }}
+        onRegenerar={async () => { if (modal) await regenerar(modal); }}
+        onExcluir={async () => { if (modal?.id) { await excluir(modal.id); setModal(null); } }}
+      />
     </div>
   );
 }
