@@ -698,6 +698,68 @@ async function composeCanvasOverlay(
   return canvas.toDataURL("image/jpeg", 0.95);
 }
 
+function hexToRgb(hex: string): { r: number; g: number; b: number } {
+  const clean = hex.replace("#", "");
+  const full = clean.length === 3 ? clean.split("").map((c) => c + c).join("") : clean;
+  const n = parseInt(full, 16);
+  return { r: (n >> 16) & 255, g: (n >> 8) & 255, b: n & 255 };
+}
+
+async function recolorGarmentImage(imageUrl: string, hex: string): Promise<string> {
+  const img = new Image();
+  img.crossOrigin = "anonymous";
+  await new Promise<void>((resolve, reject) => {
+    img.onload = () => resolve();
+    img.onerror = () => reject(new Error("Falha ao carregar imagem do produto"));
+    img.src = imageUrl;
+  });
+
+  const canvas = document.createElement("canvas");
+  canvas.width = img.naturalWidth;
+  canvas.height = img.naturalHeight;
+  const ctx = canvas.getContext("2d")!;
+  ctx.drawImage(img, 0, 0);
+
+  const target = hexToRgb(hex);
+  const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+  const d = imgData.data;
+
+  // Average luminance of garment-ish pixels (skip near-white background)
+  let sum = 0;
+  let count = 0;
+  for (let i = 0; i < d.length; i += 4) {
+    const r = d[i], g = d[i + 1], b = d[i + 2];
+    const lum = 0.299 * r + 0.587 * g + 0.114 * b;
+    if (lum < 240) {
+      sum += lum;
+      count++;
+    }
+  }
+  const avgLum = count > 0 ? sum / count : 128;
+
+  for (let i = 0; i < d.length; i += 4) {
+    const r = d[i], g = d[i + 1], b = d[i + 2];
+    const lum = 0.299 * r + 0.587 * g + 0.114 * b;
+    // Preserve near-white background and transparent pixels
+    if (lum >= 240) continue;
+    // Ratio relative to avg keeps shadows/highlights/texture
+    const ratio = lum / Math.max(avgLum, 1);
+    const nr = Math.min(255, Math.max(0, target.r * ratio));
+    const ng = Math.min(255, Math.max(0, target.g * ratio));
+    const nb = Math.min(255, Math.max(0, target.b * ratio));
+    // Blend slightly with original luminance for texture preservation
+    const blend = 0.85;
+    d[i] = nr * blend + lum * (1 - blend);
+    d[i + 1] = ng * blend + lum * (1 - blend);
+    d[i + 2] = nb * blend + lum * (1 - blend);
+  }
+
+  ctx.putImageData(imgData, 0, 0);
+  return canvas.toDataURL("image/jpeg", 0.92);
+}
+
+
+
 function ImagemMetaAds({ criativo }: { criativo: any }) {
   const { toast } = useToast();
   const [formato, setFormato] = useState("feed_retrato");
@@ -717,6 +779,20 @@ function ImagemMetaAds({ criativo }: { criativo: any }) {
   async function gerar() {
     setLoading(true);
     try {
+      let garmentBase64: string | null = null;
+      if (corHex && criativo.imagem_produto_url) {
+        try {
+          garmentBase64 = await recolorGarmentImage(criativo.imagem_produto_url, corHex);
+        } catch (err: any) {
+          console.error("Falha ao recolorir imagem:", err);
+          toast({
+            title: "Não foi possível trocar a cor localmente",
+            description: "Seguindo com a imagem original.",
+            variant: "destructive",
+          });
+        }
+      }
+
       const res = await fetch(
         "https://ezdtulcrqzmgocamjwwl.supabase.co/functions/v1/gerar-imagem-criativo",
         {
@@ -728,11 +804,13 @@ function ImagemMetaAds({ criativo }: { criativo: any }) {
             formato_anuncio: formato,
             tipo_foto: tipoFoto,
             cor_hex: corHex || null,
+            garment_image_base64: garmentBase64,
           }),
         }
       );
       const data = await res.json();
       if (!res.ok) throw new Error(data?.erro || data?.error || `Erro ${res.status}`);
+
 
       let finalUrl: string | null = data.imagem_gerada_url || data.url || null;
 
