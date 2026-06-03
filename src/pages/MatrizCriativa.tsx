@@ -717,6 +717,20 @@ function ImagemMetaAds({ criativo }: { criativo: any }) {
   async function gerar() {
     setLoading(true);
     try {
+      let garmentBase64: string | null = null;
+      if (corHex && criativo.imagem_produto_url) {
+        try {
+          garmentBase64 = await recolorGarmentImage(criativo.imagem_produto_url, corHex);
+        } catch (err: any) {
+          console.error("Falha ao recolorir imagem:", err);
+          toast({
+            title: "Não foi possível trocar a cor localmente",
+            description: "Seguindo com a imagem original.",
+            variant: "destructive",
+          });
+        }
+      }
+
       const res = await fetch(
         "https://ezdtulcrqzmgocamjwwl.supabase.co/functions/v1/gerar-imagem-criativo",
         {
@@ -728,11 +742,13 @@ function ImagemMetaAds({ criativo }: { criativo: any }) {
             formato_anuncio: formato,
             tipo_foto: tipoFoto,
             cor_hex: corHex || null,
+            garment_image_base64: garmentBase64,
           }),
         }
       );
       const data = await res.json();
       if (!res.ok) throw new Error(data?.erro || data?.error || `Erro ${res.status}`);
+
 
       let finalUrl: string | null = data.imagem_gerada_url || data.url || null;
 
