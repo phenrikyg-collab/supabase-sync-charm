@@ -1100,6 +1100,9 @@ function CriativoModal({
             {regenerando ? <Loader2 className="h-4 w-4 animate-spin" /> : <RotateCw className="h-4 w-4" />}
             Regenerar com IA
           </Button>
+          <Button variant="outline" onClick={() => imprimirCriativo(criativo)}>
+            <Printer className="h-4 w-4" /> Imprimir
+          </Button>
           <Button variant="destructive" onClick={() => setConfirmDel(true)} disabled={regenerando}>
             <Trash2 className="h-4 w-4" /> Reprovar e Excluir
           </Button>
