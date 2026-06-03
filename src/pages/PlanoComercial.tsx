@@ -628,6 +628,8 @@ export default function PlanoComercial() {
                   </CardContent>
                 </Card>
 
+                <HealthScoreCard plano={plano} />
+
                 <div>
                   <h2 className="text-lg font-semibold mb-3">
                     Distribuição por semana
