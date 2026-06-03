@@ -867,22 +867,52 @@ function DetalheCampanha({
           )}
         </TabsContent>
 
-        <TabsContent value="copies" className="mt-4 space-y-3">
-          {[
-            { label: "📱 Instagram Reels", campo: "estrategia_instagram_reels" },
-            { label: "🖼️ Instagram Feed", campo: "estrategia_instagram_feed" },
-            { label: "⭕ Instagram Stories", campo: "estrategia_instagram_stories" },
-            { label: "📧 E-mail", campo: "estrategia_email" },
-            { label: "💬 WhatsApp VIP", campo: "estrategia_whatsapp" },
-            { label: "💰 Mídia Paga", campo: "estrategia_midia_paga" },
-          ].map(({ label, campo }) => (
-            <CopyEditor
-              key={campo}
-              label={label}
-              valorInicial={c[campo] || ""}
-              onSave={(v) => onSalvarCopy(c, campo, v)}
-            />
-          ))}
+        <TabsContent value="copies" className="mt-4 space-y-4">
+          <CopyEditor
+            label="📱 Instagram Reels — Copy pronta"
+            valorInicial={c.estrategia_instagram_reels || ""}
+            onSave={(v) => onSalvarCopy(c, "estrategia_instagram_reels", v)}
+          />
+          <CopyEditor
+            label="🖼️ Instagram Feed — Copy pronta"
+            valorInicial={c.estrategia_instagram_feed || ""}
+            onSave={(v) => onSalvarCopy(c, "estrategia_instagram_feed", v)}
+          />
+          <CopyJsonFrames
+            label="⭕ Instagram Stories"
+            valor={c.estrategia_instagram_stories}
+            campos={[
+              { key: "f1", label: "Frame 1" },
+              { key: "f2", label: "Frame 2" },
+              { key: "f3", label: "Frame 3 (CTA)" },
+            ]}
+            onSave={(novo) => onSalvarCopy(c, "estrategia_instagram_stories", novo)}
+          />
+          <CopyEditor
+            label="💬 Grupo VIP — Mensagem exclusiva"
+            valorInicial={c.estrategia_whatsapp || ""}
+            onSave={(v) => onSalvarCopy(c, "estrategia_whatsapp", v)}
+          />
+          <CopyJsonFrames
+            label="🆕 Novos Clientes"
+            valor={c.estrategia_midia_paga}
+            campos={[
+              { key: "abordagem", label: "Abordagem" },
+              { key: "oferta", label: "Oferta de entrada" },
+              { key: "cta", label: "CTA" },
+            ]}
+            onSave={(novo) => onSalvarCopy(c, "estrategia_midia_paga", novo)}
+          />
+          <CopyJsonFrames
+            label="🔁 Conversão 2ª Compra"
+            valor={c.estrategia_email}
+            campos={[
+              { key: "gatilho", label: "Gatilho" },
+              { key: "oferta", label: "Oferta" },
+              { key: "mensagem", label: "Mensagem WhatsApp" },
+            ]}
+            onSave={(novo) => onSalvarCopy(c, "estrategia_email", novo)}
+          />
         </TabsContent>
 
         <TabsContent value="metricas" className="mt-4 space-y-4">
