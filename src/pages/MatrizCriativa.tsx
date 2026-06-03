@@ -12,9 +12,41 @@ import { Skeleton } from "@/components/ui/skeleton";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
-import { Loader2, Heart, AlertTriangle, Sparkles } from "lucide-react";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Loader2, Heart, AlertTriangle, Sparkles, RotateCw, Trash2, Check, Play } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
+
+const EDGE_GERAR_CRIATIVOS =
+  "https://ezdtulcrqzmgocamjwwl.supabase.co/functions/v1/gerar-criativos";
+
+async function regerarCriativo(c: any): Promise<any | null> {
+  const body = {
+    produto_nome: c.produto_nome ?? null,
+    produto_id: c.produto_id ?? null,
+    persona_id: c.persona_id,
+    pilares: c.pilar ? [c.pilar] : [],
+    formatos: c.formato ? [c.formato] : [],
+    etapa_funil: c.etapa_funil ?? null,
+    tipo_conteudo: c.tipo_conteudo ?? null,
+  };
+  const r = await fetch(EDGE_GERAR_CRIATIVOS, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!r.ok) throw new Error(await r.text());
+  const data = await r.json();
+  const lista = data.criativos || data || [];
+  const novo = Array.isArray(lista) ? lista[0] : null;
+  if (novo && c.id) {
+    await sb.from("mc_criativos").delete().eq("id", c.id);
+  }
+  return novo;
+}
 
 const sb = supabase as any;
 
