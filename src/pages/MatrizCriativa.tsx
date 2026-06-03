@@ -471,6 +471,110 @@ function RoteiroVideo({ texto }: { texto: string }) {
   );
 }
 
+const FORMATOS_ANUNCIO = [
+  { id: "feed_retrato", label: "Feed / Reels 4:5 (1080×1350) — Recomendado" },
+  { id: "feed_quadrado", label: "Feed Quadrado 1:1 (1080×1080)" },
+  { id: "stories", label: "Stories / Reels 9:16 (1080×1920)" },
+  { id: "banner_paisagem", label: "Banner Paisagem 1.91:1 (1200×628)" },
+];
+
+function ImagemMetaAds({ criativo }: { criativo: any }) {
+  const { toast } = useToast();
+  const [formato, setFormato] = useState("feed_retrato");
+  const [loading, setLoading] = useState(false);
+  const [imagemUrl, setImagemUrl] = useState<string | null>(criativo.imagem_gerada_url || null);
+  const [status, setStatus] = useState<string | null>(criativo.imagem_gerada_status || null);
+
+  useEffect(() => {
+    setImagemUrl(criativo.imagem_gerada_url || null);
+    setStatus(criativo.imagem_gerada_status || null);
+  }, [criativo.id, criativo.imagem_gerada_url, criativo.imagem_gerada_status]);
+
+  async function gerar() {
+    setLoading(true);
+    try {
+      const res = await fetch(
+        "https://ezdtulcrqzmgocamjwwl.supabase.co/functions/v1/gerar-imagem-criativo",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            criativo_id: criativo.id,
+            produto_id: criativo.produto_id,
+            formato_anuncio: formato,
+          }),
+        }
+      );
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.erro || data?.error || `Erro ${res.status}`);
+      setImagemUrl(data.imagem_gerada_url || data.url || null);
+      setStatus(data.imagem_gerada_status || "gerada");
+      toast({ title: "Imagem gerada com sucesso" });
+    } catch (e: any) {
+      toast({ title: "Erro ao gerar imagem", description: e.message, variant: "destructive" });
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <div className="mt-4 rounded-lg border p-4 space-y-3">
+      <div className="flex items-center justify-between">
+        <h3 className="font-semibold text-sm">Imagem para Meta Ads</h3>
+        {status === "gerada" && <Badge className="bg-green-600 text-white">Gerada</Badge>}
+      </div>
+
+      <div className="space-y-2">
+        <Label className="text-xs">Formato do Anúncio</Label>
+        <Select value={formato} onValueChange={setFormato} disabled={loading}>
+          <SelectTrigger><SelectValue /></SelectTrigger>
+          <SelectContent>
+            {FORMATOS_ANUNCIO.map((f) => (
+              <SelectItem key={f.id} value={f.id}>{f.label}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      <Button
+        onClick={gerar}
+        disabled={loading}
+        className="bg-purple-600 hover:bg-purple-700 text-white w-full"
+      >
+        {loading ? (
+          <><Loader2 className="animate-spin" /> Gerando imagem com fal.ai...</>
+        ) : (
+          <>{imagemUrl ? "Gerar Novamente" : "Gerar Imagem com IA"}</>
+        )}
+      </Button>
+      {loading && (
+        <p className="text-xs text-muted-foreground text-center">Tempo estimado: 15-30 segundos</p>
+      )}
+
+      {imagemUrl && !loading && (
+        <div className="space-y-3 pt-2">
+          <img src={imagemUrl} alt="Imagem gerada" className="max-w-full rounded-lg border" />
+          {criativo.imagem_produto_url && (
+            <div className="flex items-center gap-3">
+              <img
+                src={criativo.imagem_produto_url}
+                alt="Referência original"
+                className="w-20 h-20 object-cover rounded border"
+              />
+              <span className="text-xs text-muted-foreground">Referência original</span>
+            </div>
+          )}
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm" onClick={() => window.open(imagemUrl, "_blank")}>
+              Download
+            </Button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function CriativoModal({ criativo, onClose, onAction }: any) {
   if (!criativo) return null;
   const isVideo = /video|reels/i.test(criativo.formato || "");
