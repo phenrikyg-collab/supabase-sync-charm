@@ -211,11 +211,49 @@ function AbaGerar() {
     }
   }
 
+  const [regenerandoId, setRegenerandoId] = useState<string | null>(null);
+
   async function aprovar(id: string) {
+    if (!id) return toast({ title: "Criativo sem ID", variant: "destructive" });
     const { error } = await sb.from("mc_criativos").update({ status: "aprovado" }).eq("id", id);
-    if (error) return toast({ title: "Erro", variant: "destructive" });
-    toast({ title: "Criativo aprovado 💛" });
+    if (error) return toast({ title: "Erro ao aprovar", description: error.message, variant: "destructive" });
+    toast({ title: "Criativo aprovado!" });
     setResultado((r) => r?.map((c) => (c.id === id ? { ...c, status: "aprovado" } : c)) ?? null);
+    setModal((m: any) => (m && m.id === id ? { ...m, status: "aprovado" } : m));
+  }
+
+  async function atualizarStatus(id: string, status: string) {
+    if (!id) return;
+    const { error } = await sb.from("mc_criativos").update({ status }).eq("id", id);
+    if (error) return toast({ title: "Erro", description: error.message, variant: "destructive" });
+    toast({ title: `Status: ${status}` });
+    setResultado((r) => r?.map((c) => (c.id === id ? { ...c, status } : c)) ?? null);
+    setModal((m: any) => (m && m.id === id ? { ...m, status } : m));
+  }
+
+  async function excluir(id: string) {
+    if (!id) return;
+    const { error } = await sb.from("mc_criativos").delete().eq("id", id);
+    if (error) return toast({ title: "Erro ao excluir", description: error.message, variant: "destructive" });
+    setResultado((r) => r?.filter((c) => c.id !== id) ?? null);
+    setModal((m: any) => (m && m.id === id ? null : m));
+    toast({ title: "Criativo removido" });
+  }
+
+  async function regenerar(c: any) {
+    if (!c?.id) return;
+    setRegenerandoId(c.id);
+    try {
+      const novo = await regerarCriativo(c);
+      if (!novo) throw new Error("Nada retornado");
+      setResultado((r) => r?.map((x) => (x.id === c.id ? novo : x)) ?? null);
+      setModal((m: any) => (m && m.id === c.id ? novo : m));
+      toast({ title: "Criativo regenerado" });
+    } catch (e: any) {
+      toast({ title: "Erro ao regenerar", description: e.message, variant: "destructive" });
+    } finally {
+      setRegenerandoId(null);
+    }
   }
 
   if (loadingDados) {
