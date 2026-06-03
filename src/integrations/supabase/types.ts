@@ -1237,6 +1237,141 @@ export type Database = {
           },
         ]
       }
+      planejamento_mensal: {
+        Row: {
+          adcost_pct: number | null
+          ano: number
+          cac_geral: number | null
+          cac_novos: number | null
+          cps_geral: number | null
+          cps_midia: number | null
+          created_at: string
+          id: string
+          investimento_total: number | null
+          mes: number
+          observacoes: string | null
+          pedidos_aquisicao: number | null
+          pedidos_captados: number | null
+          pedidos_faturados: number | null
+          pedidos_retencao: number | null
+          peso_mes_pct: number | null
+          receita_aquisicao: number | null
+          receita_captada: number | null
+          receita_faturada: number | null
+          receita_retencao: number | null
+          roas_faturado: number | null
+          sessoes_midia: number | null
+          sessoes_totais: number | null
+          status: string
+          taxa_aprovacao: number | null
+          taxa_aquisicao: number | null
+          taxa_retencao: number | null
+          ticket_medio_aquisicao: number | null
+          ticket_medio_geral: number | null
+          ticket_medio_retencao: number | null
+          tipo: string
+          updated_at: string
+        }
+        Insert: {
+          adcost_pct?: number | null
+          ano: number
+          cac_geral?: number | null
+          cac_novos?: number | null
+          cps_geral?: number | null
+          cps_midia?: number | null
+          created_at?: string
+          id?: string
+          investimento_total?: number | null
+          mes: number
+          observacoes?: string | null
+          pedidos_aquisicao?: number | null
+          pedidos_captados?: number | null
+          pedidos_faturados?: number | null
+          pedidos_retencao?: number | null
+          peso_mes_pct?: number | null
+          receita_aquisicao?: number | null
+          receita_captada?: number | null
+          receita_faturada?: number | null
+          receita_retencao?: number | null
+          roas_faturado?: number | null
+          sessoes_midia?: number | null
+          sessoes_totais?: number | null
+          status?: string
+          taxa_aprovacao?: number | null
+          taxa_aquisicao?: number | null
+          taxa_retencao?: number | null
+          ticket_medio_aquisicao?: number | null
+          ticket_medio_geral?: number | null
+          ticket_medio_retencao?: number | null
+          tipo: string
+          updated_at?: string
+        }
+        Update: {
+          adcost_pct?: number | null
+          ano?: number
+          cac_geral?: number | null
+          cac_novos?: number | null
+          cps_geral?: number | null
+          cps_midia?: number | null
+          created_at?: string
+          id?: string
+          investimento_total?: number | null
+          mes?: number
+          observacoes?: string | null
+          pedidos_aquisicao?: number | null
+          pedidos_captados?: number | null
+          pedidos_faturados?: number | null
+          pedidos_retencao?: number | null
+          peso_mes_pct?: number | null
+          receita_aquisicao?: number | null
+          receita_captada?: number | null
+          receita_faturada?: number | null
+          receita_retencao?: number | null
+          roas_faturado?: number | null
+          sessoes_midia?: number | null
+          sessoes_totais?: number | null
+          status?: string
+          taxa_aprovacao?: number | null
+          taxa_aquisicao?: number | null
+          taxa_retencao?: number | null
+          ticket_medio_aquisicao?: number | null
+          ticket_medio_geral?: number | null
+          ticket_medio_retencao?: number | null
+          tipo?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      planejamento_simulacoes: {
+        Row: {
+          ano: number
+          base: Json
+          cenarios: Json
+          created_at: string
+          id: string
+          mes: number
+          nome: string
+        }
+        Insert: {
+          ano: number
+          base: Json
+          cenarios: Json
+          created_at?: string
+          id?: string
+          mes: number
+          nome: string
+        }
+        Update: {
+          ano?: number
+          base?: Json
+          cenarios?: Json
+          created_at?: string
+          id?: string
+          mes?: number
+          nome?: string
+        }
+        Relationships: []
+      }
       planos_producao: {
         Row: {
           created_at: string
