@@ -1122,20 +1122,39 @@ function SemanaSection({
   );
 }
 
-function AcaoCard({ acao, onClick }: { acao: any; onClick: () => void }) {
-  const meta = TIPO_ACAO_META[acao.tipo_acao] || {
-    label: acao.tipo_acao,
-    emoji: "•",
-    className: "bg-muted text-muted-foreground border-border",
-  };
-  const kt = getKT(acao);
-  const dataDia = getDiaAcao(acao);
-  const diaMeta = dataDia ? DIA_SEMANA_META[dataDia.getDay()] : null;
+// ---------------- Helpers das novas ações (campanhas) ----------------
+const TIPO_CAMPANHA_META: Record<string, { label: string; className: string }> = {
+  sazonal: { label: "Sazonal", className: "bg-orange-500/15 text-orange-600 border-orange-500/30" },
+  estrutural: { label: "Estrutural", className: "bg-blue-500/15 text-blue-600 border-blue-500/30" },
+  tatica: { label: "Tática", className: "bg-purple-500/15 text-purple-600 border-purple-500/30" },
+};
 
-  const canaisDia: string[] = [];
-  if (kt.reels) canaisDia.push("📸 Instagram");
-  if (kt.email_assunto || kt.email_copy) canaisDia.push("✉️ Email");
-  if (kt.whatsapp) canaisDia.push("💬 WhatsApp");
+function formatarDataBR(s?: string | null): string {
+  if (!s) return "";
+  const m = String(s).slice(0, 10).match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!m) return String(s);
+  return `${m[3]}/${m[2]}/${m[1]}`;
+}
+
+function formatarPeriodo(p?: string | null): string {
+  if (!p) return "";
+  const partes = String(p).split(/\s*(?:a|-|até|–)\s*/i);
+  if (partes.length === 2 && /^\d{4}-\d{2}-\d{2}/.test(partes[0])) {
+    return `${formatarDataBR(partes[0])} a ${formatarDataBR(partes[1])}`;
+  }
+  return String(p);
+}
+
+function AcaoCard({ acao, onClick }: { acao: any; onClick: () => void }) {
+  const kt = getKT(acao);
+  const numero = kt.numero ?? acao.semana;
+  const tipoCamp = String(kt.tipo_campanha || "").toLowerCase();
+  const tipoMeta = TIPO_CAMPANHA_META[tipoCamp];
+  const peso = kt.peso_pct;
+  const periodo = formatarPeriodo(kt.periodo);
+  const preAq = kt.pre_aquecimento;
+  const canaisNovos: string[] = kt?.novos?.canais ?? [];
+  const canaisVip: string[] = kt?.recorrentes?.canais ?? [];
 
   return (
     <motion.button
@@ -1144,14 +1163,19 @@ function AcaoCard({ acao, onClick }: { acao: any; onClick: () => void }) {
       className="text-left rounded-lg border bg-card p-4 space-y-2 hover:shadow-md transition-shadow"
     >
       <div className="flex items-center gap-2 flex-wrap">
-        {diaMeta && dataDia && (
-          <Badge variant="outline" className={cn("border font-semibold", diaMeta.className)}>
-            {diaMeta.abrev} · {ddmm(dataDia)}
+        <Badge variant="outline" className="border bg-primary/10 text-primary border-primary/30 font-semibold">
+          Ação {numero}
+        </Badge>
+        {tipoMeta && (
+          <Badge variant="outline" className={cn("border", tipoMeta.className)}>
+            {tipoMeta.label}
           </Badge>
         )}
-        <Badge variant="outline" className={cn("border", meta.className)}>
-          {meta.emoji} {meta.label}
-        </Badge>
+        {peso != null && (
+          <Badge variant="outline" className="border bg-muted text-foreground">
+            {peso}%
+          </Badge>
+        )}
         {acao.exportado_calendario && (
           <Badge variant="outline" className="border bg-success/15 text-success border-success/30">
             📅 Exportado
@@ -1164,31 +1188,116 @@ function AcaoCard({ acao, onClick }: { acao: any; onClick: () => void }) {
           {acao.status}
         </Badge>
       </div>
-      <h3 className="font-semibold leading-snug">{acao.titulo}</h3>
-      {kt.angulo && (
-        <p className="text-xs italic text-muted-foreground leading-snug">
-          {kt.angulo}
-        </p>
+
+      <h3 className="font-semibold leading-snug text-base">{acao.titulo}</h3>
+
+      {periodo && (
+        <p className="text-xs text-muted-foreground">📆 {periodo}</p>
       )}
-      {acao.produto_foco && (
-        <p className="text-xs text-muted-foreground">📦 {acao.produto_foco}</p>
+
+      <p className="text-sm font-medium">
+        🎯 Meta: <span className="text-primary">{formatBRL(acao.meta_receita_semana)}</span>
+      </p>
+
+      {preAq && (
+        <Badge variant="outline" className="border bg-orange-500/10 text-orange-600 border-orange-500/30 text-[11px]">
+          🔥 Pré-aquecimento: {formatarDataBR(preAq)}
+        </Badge>
       )}
-      {canaisDia.length > 0 && (
-        <div className="flex flex-wrap gap-1 pt-1">
-          {canaisDia.map((c) => (
-            <span
-              key={c}
-              className="text-[10px] px-2 py-0.5 rounded-full bg-muted text-muted-foreground"
-            >
-              {c}
-            </span>
-          ))}
+
+      {(canaisNovos.length > 0 || canaisVip.length > 0) && (
+        <div className="space-y-1 pt-1">
+          {canaisNovos.length > 0 && (
+            <div className="flex flex-wrap items-center gap-1 text-[11px]">
+              <span className="text-muted-foreground">👥 Novos:</span>
+              {canaisNovos.map((c) => (
+                <span key={`n-${c}`} className="px-2 py-0.5 rounded-full bg-cyan-500/10 text-cyan-700 border border-cyan-500/20">
+                  {c}
+                </span>
+              ))}
+            </div>
+          )}
+          {canaisVip.length > 0 && (
+            <div className="flex flex-wrap items-center gap-1 text-[11px]">
+              <span className="text-muted-foreground">⭐ VIP:</span>
+              {canaisVip.map((c) => (
+                <span key={`v-${c}`} className="px-2 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20">
+                  {c}
+                </span>
+              ))}
+            </div>
+          )}
         </div>
       )}
     </motion.button>
   );
 }
 
+// ---------------- Health Score ----------------
+function HealthScoreCard({ plano }: { plano: any }) {
+  const hs = plano?.health_score;
+  if (!hs) return null;
+
+  let status = "";
+  let alertas: string[] = [];
+  let resumoTexto = "";
+
+  if (typeof hs === "string") {
+    resumoTexto = hs;
+    status = hs;
+  } else if (typeof hs === "object") {
+    status = String(hs.status || hs.nivel || "").toLowerCase();
+    alertas = Array.isArray(hs.alertas) ? hs.alertas : Array.isArray(hs.alerts) ? hs.alerts : [];
+    resumoTexto = hs.resumo || hs.descricao || "";
+  }
+
+  const isOk = /saud|ok|healthy|verde/i.test(status);
+  const isRisco = /risc|crit|red|verm/i.test(status);
+  const isAtencao = !isOk && !isRisco;
+
+  const icone = isOk ? "✅" : isRisco ? "🔴" : "⚠️";
+  const label = isOk ? "Saudável" : isRisco ? "Risco" : "Atenção";
+  const cor = isOk
+    ? "bg-success/10 border-success/30 text-success"
+    : isRisco
+      ? "bg-destructive/10 border-destructive/30 text-destructive"
+      : "bg-warning/10 border-warning/30 text-warning";
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2 text-lg">
+          Health Score do Plano
+          <Badge variant="outline" className={cn("border", cor)}>
+            {icone} {label}
+          </Badge>
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        {resumoTexto && (
+          <p className="text-sm text-muted-foreground whitespace-pre-wrap">{resumoTexto}</p>
+        )}
+        {alertas.length > 0 && (
+          <div className="space-y-1.5">
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              Alertas
+            </p>
+            <ul className="space-y-1">
+              {alertas.map((a, i) => (
+                <li key={i} className="text-sm flex gap-2">
+                  <AlertTriangle className="h-4 w-4 text-warning shrink-0 mt-0.5" />
+                  <span>{a}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+// ---------------- Drawer Ação ----------------
 function DrawerAcao({
   acao,
   onChange,
@@ -1202,125 +1311,276 @@ function DrawerAcao({
   onCancelar: () => void;
   onExportar: () => void;
 }) {
-  const meta = TIPO_ACAO_META[acao.tipo_acao];
   const kt = getKT(acao);
-  const dataDia = getDiaAcao(acao);
-  const diaMeta = dataDia ? DIA_SEMANA_META[dataDia.getDay()] : null;
+  const numero = kt.numero ?? acao.semana;
+  const tipoCamp = String(kt.tipo_campanha || "").toLowerCase();
+  const tipoMeta = TIPO_CAMPANHA_META[tipoCamp];
+  const peso = kt.peso_pct;
+  const periodo = formatarPeriodo(kt.periodo);
+  const preAq = kt.pre_aquecimento;
+
+  const novos = kt.novos || {};
+  const vip = kt.recorrentes || {};
+  const kits: any[] = Array.isArray(kt.kits) ? kt.kits : [];
+  const planoDiario: any[] = Array.isArray(kt.plano_execucao_diario) ? kt.plano_execucao_diario : [];
+  const estrategiaCanais = kt.estrategia_canais || {};
+  const metricas: string[] = Array.isArray(kt.metricas) ? kt.metricas : [];
+  const kpiPrior = kt.kpi_prioritario;
+  const resultado = kt.resultado_esperado || {};
+
+  // Salva uma chave dentro de kpis_trafego.estrategia_canais e também em uma coluna direta se houver mapeamento
+  const salvarCanalCopy = (canalKey: string, valor: string, colunaDireta?: string) => {
+    const novoKt = {
+      ...kt,
+      estrategia_canais: { ...estrategiaCanais, [canalKey]: valor },
+    };
+    onChange("kpis_trafego", novoKt);
+    if (colunaDireta) onChange(colunaDireta, valor);
+  };
 
   return (
     <>
       <SheetHeader>
         <div className="flex items-center gap-2 flex-wrap">
-          {diaMeta && dataDia && (
-            <Badge variant="outline" className={cn("border font-semibold", diaMeta.className)}>
-              {diaMeta.nome} · {ddmm(dataDia)}
+          <Badge variant="outline" className="border bg-primary/10 text-primary border-primary/30 font-semibold">
+            Ação {numero}
+          </Badge>
+          {tipoMeta && (
+            <Badge variant="outline" className={cn("border", tipoMeta.className)}>
+              {tipoMeta.label}
             </Badge>
           )}
-          {meta && (
-            <Badge variant="outline" className={cn("border", meta.className)}>
-              {meta.emoji} {meta.label}
+          {peso != null && (
+            <Badge variant="outline" className="border bg-muted text-foreground">
+              {peso}%
             </Badge>
           )}
-          {acao.exportado_calendario && (
-            <Badge variant="outline" className="border bg-success/15 text-success border-success/30">
-              📅 Exportado
-            </Badge>
-          )}
-          <Badge
-            variant="outline"
-            className={cn("border", STATUS_BADGE[acao.status] || "")}
-          >
+          <Badge variant="outline" className={cn("border", STATUS_BADGE[acao.status] || "")}>
             {acao.status}
           </Badge>
         </div>
         <SheetTitle className="font-serif">{acao.titulo}</SheetTitle>
-        {kt.angulo && (
-          <p className="text-sm italic text-muted-foreground">{kt.angulo}</p>
+        {periodo && (
+          <p className="text-sm text-muted-foreground">📆 {periodo}</p>
         )}
-        <SheetDescription className="whitespace-pre-wrap">
-          {acao.descricao}
-        </SheetDescription>
+        <p className="text-sm font-medium">
+          🎯 Meta: <span className="text-primary">{formatBRL(acao.meta_receita_semana)}</span>
+        </p>
+        {preAq && (
+          <Badge variant="outline" className="border bg-orange-500/10 text-orange-600 border-orange-500/30 w-fit">
+            🔥 Pré-aquecimento: {formatarDataBR(preAq)}
+          </Badge>
+        )}
       </SheetHeader>
 
-      <div className="mt-6 space-y-6">
-        {/* KPIs trafego */}
-        {(acao.cps_alvo ||
-          acao.roas_alvo ||
-          acao.budget_semana ||
-          acao.sessoes_alvo) && (
-          <div className="grid grid-cols-2 gap-2">
-            {acao.cps_alvo && (
-              <KpiPill icon={Activity} label="CPS alvo" value={formatBRLDec(acao.cps_alvo)} />
-            )}
-            {acao.roas_alvo && (
-              <KpiPill icon={TrendingUp} label="ROAS alvo" value={`${Number(acao.roas_alvo).toFixed(2)}x`} />
-            )}
-            {acao.budget_semana && (
-              <KpiPill icon={DollarSign} label="Budget" value={formatBRL(acao.budget_semana)} />
-            )}
-            {acao.sessoes_alvo && (
-              <KpiPill icon={Activity} label="Sessões" value={formatNumber(acao.sessoes_alvo)} />
-            )}
-          </div>
-        )}
-
-        {/* Conteúdo por canal (dia) */}
-        <div className="flex items-center justify-between">
-          <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-            Conteúdo do dia
-          </h3>
-          <RegenerarCopyButton acao={acao} onChange={onChange} />
-        </div>
-        <Tabs defaultValue="instagram">
-          <TabsList className="grid grid-cols-3">
-            <TabsTrigger value="instagram">📸 Instagram Reels</TabsTrigger>
-            <TabsTrigger value="email">✉️ E-mail</TabsTrigger>
-            <TabsTrigger value="whatsapp">💬 WhatsApp VIP</TabsTrigger>
+      <div className="mt-6">
+        <Tabs defaultValue="estrategia">
+          <TabsList className="grid grid-cols-4 w-full">
+            <TabsTrigger value="estrategia">📋 Estratégia</TabsTrigger>
+            <TabsTrigger value="plano">📅 Plano Diário</TabsTrigger>
+            <TabsTrigger value="copies">📢 Copies</TabsTrigger>
+            <TabsTrigger value="metricas">📊 Métricas</TabsTrigger>
           </TabsList>
 
-          <TabsContent value="instagram" className="space-y-2">
-            <Label className="text-xs">Copy / Legenda</Label>
-            <Textarea
-              key={`ig-${acao.id}`}
-              defaultValue={kt.reels ?? acao.copy_instagram ?? ""}
-              onBlur={(e) => {
-                const v = e.target.value;
-                if (v !== (kt.reels ?? acao.copy_instagram ?? "")) {
-                  onChange("copy_instagram", v);
-                }
-              }}
-              rows={10}
-              placeholder="Copy do Reels para este dia"
-            />
+          {/* Aba Estratégia */}
+          <TabsContent value="estrategia" className="space-y-5 pt-4">
+            {acao.descricao && (
+              <p className="text-sm whitespace-pre-wrap leading-relaxed">{acao.descricao}</p>
+            )}
+
+            <SecaoPublico titulo="👥 Novos Clientes" dados={novos} cor="cyan" />
+            <SecaoPublico titulo="⭐ Clientes VIP" dados={vip} cor="primary" />
+
+            {kits.length > 0 && (
+              <div className="space-y-3">
+                <h4 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+                  🎁 Kits
+                </h4>
+                {kits.map((kit, i) => (
+                  <Card key={i} className="border-primary/20">
+                    <CardHeader className="p-3 pb-2">
+                      <CardTitle className="text-base font-serif">
+                        {kit.nome || `Kit ${i + 1}`}
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="p-3 pt-0 space-y-1.5 text-sm">
+                      {kit.produtos && (
+                        <p>
+                          <span className="text-muted-foreground">Produtos: </span>
+                          {Array.isArray(kit.produtos) ? kit.produtos.join(", ") : kit.produtos}
+                        </p>
+                      )}
+                      {kit.mecanica && (
+                        <p>
+                          <span className="text-muted-foreground">Mecânica: </span>
+                          {kit.mecanica}
+                        </p>
+                      )}
+                      {kit.preco != null && (
+                        <p>
+                          <span className="text-muted-foreground">Preço: </span>
+                          {formatBRLDec(kit.preco)}
+                        </p>
+                      )}
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
           </TabsContent>
 
-          <TabsContent value="email" className="space-y-3">
-            <EmailEditor acao={acao} kt={kt} onChange={onChange} />
+          {/* Aba Plano Diário */}
+          <TabsContent value="plano" className="pt-4">
+            {planoDiario.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-6">
+                Nenhum plano diário disponível.
+              </p>
+            ) : (
+              <div className="border rounded-lg overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="whitespace-nowrap">Dia</TableHead>
+                      <TableHead className="whitespace-nowrap">Fase</TableHead>
+                      <TableHead className="whitespace-nowrap">Canal Novos</TableHead>
+                      <TableHead>Mensagem Novos</TableHead>
+                      <TableHead className="whitespace-nowrap">Canal VIP</TableHead>
+                      <TableHead>Mensagem VIP</TableHead>
+                      <TableHead>Gatilho</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {planoDiario.map((d, i) => (
+                      <TableRow key={i}>
+                        <TableCell className="font-medium whitespace-nowrap">
+                          {formatarDataBR(d.dia || d.data) || d.dia_semana || "—"}
+                        </TableCell>
+                        <TableCell className="text-xs">{d.fase || "—"}</TableCell>
+                        <TableCell className="text-xs whitespace-nowrap">
+                          {d.canal_novos || d.novos_canal || "—"}
+                        </TableCell>
+                        <TableCell className="text-xs max-w-[200px]">
+                          {d.mensagem_novos || d.novos_mensagem || "—"}
+                        </TableCell>
+                        <TableCell className="text-xs whitespace-nowrap">
+                          {d.canal_vip || d.vip_canal || "—"}
+                        </TableCell>
+                        <TableCell className="text-xs max-w-[200px]">
+                          {d.mensagem_vip || d.vip_mensagem || "—"}
+                        </TableCell>
+                        <TableCell className="text-xs">{d.gatilho || "—"}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
           </TabsContent>
 
-          <TabsContent value="whatsapp" className="space-y-2">
-            <Label className="text-xs">Mensagem</Label>
-            <Textarea
-              key={`wa-${acao.id}`}
-              defaultValue={kt.whatsapp ?? acao.copy_whatsapp ?? ""}
-              onBlur={(e) => {
-                const v = e.target.value;
-                if (v !== (kt.whatsapp ?? acao.copy_whatsapp ?? "")) {
-                  onChange("copy_whatsapp", v);
-                }
-              }}
-              rows={10}
-              placeholder="Mensagem WhatsApp VIP para este dia"
-            />
+          {/* Aba Copies por Canal */}
+          <TabsContent value="copies" className="pt-4 space-y-3">
+            <div className="flex justify-end">
+              <RegenerarCopyButton acao={acao} onChange={onChange} />
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <CanalCopyCard
+                icone="📸"
+                titulo="Instagram Reels"
+                acaoId={acao.id}
+                defaultValue={estrategiaCanais.instagram_reels ?? acao.copy_instagram ?? ""}
+                onSave={(v) => salvarCanalCopy("instagram_reels", v, "copy_instagram")}
+              />
+              <CanalCopyCard
+                icone="🖼️"
+                titulo="Instagram Feed"
+                acaoId={acao.id}
+                defaultValue={estrategiaCanais.instagram_feed ?? ""}
+                onSave={(v) => salvarCanalCopy("instagram_feed", v)}
+              />
+              <CanalCopyCard
+                icone="📱"
+                titulo="Instagram Stories"
+                acaoId={acao.id}
+                defaultValue={estrategiaCanais.instagram_stories ?? ""}
+                onSave={(v) => salvarCanalCopy("instagram_stories", v)}
+              />
+              <CanalCopyCard
+                icone="✉️"
+                titulo="E-mail"
+                acaoId={acao.id}
+                defaultValue={estrategiaCanais.email ?? acao.copy_email ?? ""}
+                onSave={(v) => salvarCanalCopy("email", v, "copy_email")}
+              />
+              <CanalCopyCard
+                icone="💬"
+                titulo="WhatsApp VIP"
+                acaoId={acao.id}
+                defaultValue={estrategiaCanais.whatsapp_vip ?? acao.copy_whatsapp ?? ""}
+                onSave={(v) => salvarCanalCopy("whatsapp_vip", v, "copy_whatsapp")}
+              />
+              <CanalCopyCard
+                icone="🎯"
+                titulo="Mídia Paga"
+                acaoId={acao.id}
+                defaultValue={estrategiaCanais.midia_paga ?? ""}
+                onSave={(v) => salvarCanalCopy("midia_paga", v)}
+              />
+            </div>
+          </TabsContent>
+
+          {/* Aba Métricas */}
+          <TabsContent value="metricas" className="pt-4 space-y-4">
+            {metricas.length > 0 && (
+              <div>
+                <h4 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground mb-2">
+                  Métricas de acompanhamento
+                </h4>
+                <ul className="space-y-1">
+                  {metricas.map((m, i) => (
+                    <li key={i} className="text-sm flex gap-2">
+                      <span className="text-primary">•</span>
+                      <span>{m}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {kpiPrior && (
+              <div className="rounded-lg border bg-primary/5 border-primary/30 p-4">
+                <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                  KPI Prioritário
+                </p>
+                <p className="text-lg font-serif font-bold text-primary mt-1">{kpiPrior}</p>
+              </div>
+            )}
+
+            {(resultado.receita_novos || resultado.receita_recorrentes || resultado.pedidos_estimados) && (
+              <div>
+                <h4 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground mb-2">
+                  Resultado Esperado
+                </h4>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  {resultado.receita_novos != null && (
+                    <KpiPill icon={DollarSign} label="Receita novos" value={formatBRL(Number(resultado.receita_novos))} />
+                  )}
+                  {resultado.receita_recorrentes != null && (
+                    <KpiPill icon={DollarSign} label="Receita VIP" value={formatBRL(Number(resultado.receita_recorrentes))} />
+                  )}
+                  {resultado.pedidos_estimados != null && (
+                    <KpiPill icon={ShoppingBag} label="Pedidos" value={formatNumber(Number(resultado.pedidos_estimados))} />
+                  )}
+                </div>
+              </div>
+            )}
           </TabsContent>
         </Tabs>
 
-
         {/* Ações */}
-        <div className="flex flex-wrap gap-2 pt-4 border-t">
+        <div className="flex flex-wrap gap-2 pt-6 mt-6 border-t">
           {acao.status !== "aprovado" && (
             <Button onClick={onAprovar}>
-              <CheckCircle2 className="mr-2 h-4 w-4" /> Aprovar
+              <CheckCircle2 className="mr-2 h-4 w-4" /> Aprovar campanha
             </Button>
           )}
           <Button variant="outline" onClick={onExportar}>
@@ -1336,6 +1596,72 @@ function DrawerAcao({
     </>
   );
 }
+
+function SecaoPublico({ titulo, dados, cor }: { titulo: string; dados: any; cor: "cyan" | "primary" }) {
+  if (!dados || (typeof dados === "object" && Object.keys(dados).length === 0)) return null;
+  const corClasse = cor === "cyan"
+    ? "border-cyan-500/30 bg-cyan-500/5"
+    : "border-primary/30 bg-primary/5";
+  return (
+    <div className={cn("rounded-lg border p-4 space-y-2", corClasse)}>
+      <h4 className="font-semibold text-sm">{titulo}</h4>
+      {dados.oferta && (
+        <p className="text-sm"><span className="text-muted-foreground">Oferta: </span>{dados.oferta}</p>
+      )}
+      {dados.gatilho && (
+        <p className="text-sm"><span className="text-muted-foreground">Gatilho: </span>{dados.gatilho}</p>
+      )}
+      {dados.mecanica && (
+        <p className="text-sm"><span className="text-muted-foreground">Mecânica: </span>{dados.mecanica}</p>
+      )}
+      {Array.isArray(dados.canais) && dados.canais.length > 0 && (
+        <div className="flex flex-wrap gap-1 pt-1">
+          {dados.canais.map((c: string) => (
+            <Badge key={c} variant="secondary" className="text-[11px]">{c}</Badge>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function CanalCopyCard({
+  icone,
+  titulo,
+  acaoId,
+  defaultValue,
+  onSave,
+}: {
+  icone: string;
+  titulo: string;
+  acaoId: string;
+  defaultValue: string;
+  onSave: (v: string) => void;
+}) {
+  return (
+    <Card>
+      <CardHeader className="p-3 pb-2">
+        <CardTitle className="text-sm font-semibold flex items-center gap-1.5">
+          <span>{icone}</span> {titulo}
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="p-3 pt-0">
+        <Textarea
+          key={`${titulo}-${acaoId}`}
+          defaultValue={defaultValue}
+          onBlur={(e) => {
+            const v = e.target.value;
+            if (v !== defaultValue) onSave(v);
+          }}
+          rows={6}
+          className="text-xs resize-none"
+          placeholder={`Copy para ${titulo}`}
+        />
+      </CardContent>
+    </Card>
+  );
+}
+
 
 // ---------------- Regenerar Copy ----------------
 const COPY_CHIPS: { label: string; text: string }[] = [
