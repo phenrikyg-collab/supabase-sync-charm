@@ -678,7 +678,13 @@ function ImagemMetaAds({ criativo }: { criativo: any }) {
   );
 }
 
-function CriativoModal({ criativo, onClose, onAction }: any) {
+function CriativoModal({
+  criativo, onClose,
+  onAprovar, onEmProducao, onRegenerar, onExcluir,
+  regenerando,
+}: any) {
+  const [confirmRegen, setConfirmRegen] = useState(false);
+  const [confirmDel, setConfirmDel] = useState(false);
   if (!criativo) return null;
   const isVideo = /video|reels/i.test(criativo.formato || "");
   return (
@@ -690,6 +696,7 @@ function CriativoModal({ criativo, onClose, onAction }: any) {
             {criativo.pilar && <Badge className={pilarColor(criativo.pilar)}>{pilarLabel(criativo.pilar)}</Badge>}
             {criativo.formato && <Badge variant="outline">{criativo.formato}</Badge>}
             {criativo.etapa_funil && <Badge variant="secondary">{criativo.etapa_funil}</Badge>}
+            {criativo.status && <Badge className={STATUS_COLORS[criativo.status] ?? ""}>{criativo.status}</Badge>}
           </div>
         </DialogHeader>
         <Tabs defaultValue="conteudo">
