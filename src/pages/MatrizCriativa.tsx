@@ -446,8 +446,9 @@ function AbaGerar() {
   );
 }
 
-function CriativoCard({ c, onOpen, onAprovar }: any) {
+function CriativoCard({ c, onOpen, onAprovar, onRegenerar, onExcluir, regenerando }: any) {
   const preview = (c.roteiro_hook || c.headline_principal || "").split("\n").slice(0, 2).join(" ");
+  const [confirmDel, setConfirmDel] = useState(false);
   return (
     <Card>
       <CardContent className="p-4 space-y-2">
@@ -455,16 +456,38 @@ function CriativoCard({ c, onOpen, onAprovar }: any) {
           {c.pilar && <Badge className={pilarColor(c.pilar)}>{pilarLabel(c.pilar)}</Badge>}
           {c.formato && <Badge variant="outline">{c.formato}</Badge>}
           {c.etapa_funil && <Badge variant="secondary">{c.etapa_funil}</Badge>}
+          {c.status && <Badge className={STATUS_COLORS[c.status] ?? ""}>{c.status}</Badge>}
         </div>
         <h3 className="font-semibold text-base">{c.titulo}</h3>
         {c.angulo && <p className="text-xs text-muted-foreground"><strong>Ângulo:</strong> {c.angulo}</p>}
         {c.tom_mensagem && <p className="text-xs text-muted-foreground"><strong>Tom:</strong> {c.tom_mensagem}</p>}
         {preview && <p className="text-sm line-clamp-2 text-foreground/80">{preview}</p>}
-        <div className="flex gap-2 pt-2">
+        <div className="flex flex-wrap gap-2 pt-2">
           <Button size="sm" variant="outline" onClick={onOpen}>Ver Completo</Button>
-          <Button size="sm" onClick={onAprovar}>Aprovar</Button>
+          <Button size="sm" onClick={onAprovar} disabled={regenerando}>
+            <Check className="h-3 w-3" /> Aprovar
+          </Button>
+          <Button size="sm" variant="secondary" onClick={onRegenerar} disabled={regenerando}>
+            {regenerando ? <Loader2 className="h-3 w-3 animate-spin" /> : <RotateCw className="h-3 w-3" />}
+            Regenerar
+          </Button>
+          <Button size="sm" variant="destructive" onClick={() => setConfirmDel(true)} disabled={regenerando}>
+            <Trash2 className="h-3 w-3" /> Excluir
+          </Button>
         </div>
       </CardContent>
+      <AlertDialog open={confirmDel} onOpenChange={setConfirmDel}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir criativo?</AlertDialogTitle>
+            <AlertDialogDescription>Esta ação não pode ser desfeita.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={onExcluir}>Excluir</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Card>
   );
 }
