@@ -164,6 +164,9 @@ const AppRoutes = () => {
               <Route path="/embaixadoras" element={<Embaixadoras />} />
               <Route path="/embaixadoras/nova" element={<EmbaixadoraNova />} />
               <Route path="/embaixadoras/:id" element={<EmbaixadoraPerfil />} />
+              <Route path="/planejamento/anual" element={<PlanejamentoAnual />} />
+              <Route path="/planejamento/mensal" element={<PlanejamentoMensal />} />
+              <Route path="/planejamento/simulador" element={<PlanejamentoSimulador />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </AppLayout>
