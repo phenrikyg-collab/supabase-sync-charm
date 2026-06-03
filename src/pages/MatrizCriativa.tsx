@@ -886,7 +886,7 @@ function ImagemMetaAds({ criativo }: { criativo: any }) {
             </div>
           )}
           <div className="flex gap-2">
-            <Button variant="outline" size="sm" onClick={() => window.open(imagemUrl!, "_blank")}>
+            <Button variant="outline" size="sm" onClick={download}>
               Download
             </Button>
             <Button variant="outline" size="sm" onClick={gerar} disabled={loading}>
