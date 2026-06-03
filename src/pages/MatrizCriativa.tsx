@@ -581,12 +581,22 @@ const FORMATOS_ANUNCIO = [
   { id: "banner_paisagem", label: "Banner Paisagem 1.91:1 (1200×628)" },
 ];
 
+const TIPOS_FOTO = [
+  { id: "lifestyle", label: "🌿 Lifestyle — modelo em cena ambientada" },
+  { id: "estudio", label: "⬜ Estúdio — fundo branco, foco na peça" },
+  { id: "com_texto", label: "✍️ Com Texto — headline e CTA sobrepostos" },
+];
+
 function ImagemMetaAds({ criativo }: { criativo: any }) {
   const { toast } = useToast();
   const [formato, setFormato] = useState("feed_retrato");
+  const [tipoFoto, setTipoFoto] = useState("lifestyle");
+  const [corHex, setCorHex] = useState<string>("");
   const [loading, setLoading] = useState(false);
   const [imagemUrl, setImagemUrl] = useState<string | null>(criativo.imagem_gerada_url || null);
   const [status, setStatus] = useState<string | null>(criativo.imagem_gerada_status || null);
+  const [tipoFotoGerado, setTipoFotoGerado] = useState<string | null>(null);
+  const [corHexGerado, setCorHexGerado] = useState<string | null>(null);
 
   useEffect(() => {
     setImagemUrl(criativo.imagem_gerada_url || null);
@@ -605,6 +615,8 @@ function ImagemMetaAds({ criativo }: { criativo: any }) {
             criativo_id: criativo.id,
             produto_id: criativo.produto_id,
             formato_anuncio: formato,
+            tipo_foto: tipoFoto,
+            cor_hex: corHex || null,
           }),
         }
       );
@@ -612,6 +624,8 @@ function ImagemMetaAds({ criativo }: { criativo: any }) {
       if (!res.ok) throw new Error(data?.erro || data?.error || `Erro ${res.status}`);
       setImagemUrl(data.imagem_gerada_url || data.url || null);
       setStatus(data.imagem_gerada_status || "gerada");
+      setTipoFotoGerado(tipoFoto);
+      setCorHexGerado(corHex || null);
       toast({ title: "Imagem gerada com sucesso" });
     } catch (e: any) {
       toast({ title: "Erro ao gerar imagem", description: e.message, variant: "destructive" });
@@ -619,6 +633,8 @@ function ImagemMetaAds({ criativo }: { criativo: any }) {
       setLoading(false);
     }
   }
+
+  const tipoFotoLabel = (id: string) => TIPOS_FOTO.find((t) => t.id === id)?.label ?? id;
 
   return (
     <div className="mt-4 rounded-lg border p-4 space-y-3">
@@ -639,6 +655,56 @@ function ImagemMetaAds({ criativo }: { criativo: any }) {
         </Select>
       </div>
 
+      <div className="space-y-2">
+        <Label className="text-xs">Tipo de Foto</Label>
+        <Select value={tipoFoto} onValueChange={setTipoFoto} disabled={loading}>
+          <SelectTrigger><SelectValue /></SelectTrigger>
+          <SelectContent>
+            {TIPOS_FOTO.map((t) => (
+              <SelectItem key={t.id} value={t.id}>{t.label}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      <div className="space-y-2">
+        <Label className="text-xs">Trocar cor da peça (opcional)</Label>
+        <div className="flex items-center gap-2">
+          <input
+            type="color"
+            value={corHex || "#ffffff"}
+            onChange={(e) => setCorHex(e.target.value)}
+            disabled={loading}
+            className="h-10 w-12 rounded border border-input cursor-pointer bg-background"
+          />
+          <Input
+            value={corHex}
+            onChange={(e) => setCorHex(e.target.value)}
+            placeholder="Selecione uma cor ou deixe em branco"
+            disabled={loading}
+            className="flex-1"
+          />
+          {corHex && (
+            <>
+              <div
+                className="h-10 w-10 rounded border border-input"
+                style={{ backgroundColor: corHex }}
+                title={corHex}
+              />
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => setCorHex("")}
+                disabled={loading}
+              >
+                Limpar
+              </Button>
+            </>
+          )}
+        </div>
+      </div>
+
       <Button
         onClick={gerar}
         disabled={loading}
@@ -657,19 +723,36 @@ function ImagemMetaAds({ criativo }: { criativo: any }) {
       {imagemUrl && !loading && (
         <div className="space-y-3 pt-2">
           <img src={imagemUrl} alt="Imagem gerada" className="max-w-full rounded-lg border" />
+          <div className="flex flex-wrap items-center gap-2">
+            {tipoFotoGerado && (
+              <Badge variant="secondary">{tipoFotoLabel(tipoFotoGerado)}</Badge>
+            )}
+            {corHexGerado && (
+              <Badge variant="outline" className="flex items-center gap-1.5">
+                <span
+                  className="inline-block h-3 w-3 rounded-sm border"
+                  style={{ backgroundColor: corHexGerado }}
+                />
+                {corHexGerado}
+              </Badge>
+            )}
+          </div>
           {criativo.imagem_produto_url && (
             <div className="flex items-center gap-3">
               <img
                 src={criativo.imagem_produto_url}
-                alt="Referência original"
+                alt="Produto original"
                 className="w-20 h-20 object-cover rounded border"
               />
-              <span className="text-xs text-muted-foreground">Referência original</span>
+              <span className="text-xs text-muted-foreground">Produto original</span>
             </div>
           )}
           <div className="flex gap-2">
-            <Button variant="outline" size="sm" onClick={() => window.open(imagemUrl, "_blank")}>
+            <Button variant="outline" size="sm" onClick={() => window.open(imagemUrl!, "_blank")}>
               Download
+            </Button>
+            <Button variant="outline" size="sm" onClick={gerar} disabled={loading}>
+              Gerar Novamente
             </Button>
           </div>
         </div>
