@@ -899,6 +899,129 @@ function ImagemMetaAds({ criativo }: { criativo: any }) {
   );
 }
 
+function escapeHtml(s: any): string {
+  return String(s ?? "")
+    .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+}
+
+function roteiroParaHtml(texto: string): string {
+  if (!texto) return "";
+  const partes = texto.split(/\[CENA\s*/i).filter(Boolean);
+  if (partes.length <= 1) return `<p>${escapeHtml(texto)}</p>`;
+  return partes.map((p) => {
+    const headerMatch = p.match(/^([^\]]+)\]/);
+    const header = headerMatch ? headerMatch[1] : "";
+    const corpo = p.replace(/^[^\]]+\]\s*/, "");
+    const camera = corpo.match(/CÂMERA:\s*([^|]+)/i)?.[1]?.trim() ?? "";
+    const fala = corpo.match(/FALA:\s*([^|]+)/i)?.[1]?.trim() ?? "";
+    const visual = corpo.match(/VISUAL:\s*([^|]+)/i)?.[1]?.trim() ?? "";
+    return `
+      <div class="cena">
+        <div class="cena-header">CENA ${escapeHtml(header)}</div>
+        ${camera ? `<p><span class="lbl camera">CÂMERA:</span> ${escapeHtml(camera)}</p>` : ""}
+        ${fala ? `<p><span class="lbl fala">FALA:</span> <em>${escapeHtml(fala)}</em></p>` : ""}
+        ${visual ? `<p><span class="lbl visual">VISUAL:</span> ${escapeHtml(visual)}</p>` : ""}
+      </div>`;
+  }).join("");
+}
+
+function imprimirCriativo(c: any) {
+  const isVideo = /video|reels/i.test(c.formato || "");
+  const obs = String(c.observacoes_producao || "").split("\n").filter(Boolean);
+  const win = window.open("", "_blank", "width=900,height=700");
+  if (!win) return;
+  const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Criativo - ${escapeHtml(c.titulo)}</title>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;700&family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:'DM Sans',Arial,sans-serif;color:#1D1D1B;padding:32px;font-size:13px;line-height:1.5}
+    h1{font-family:'Cormorant Garamond',serif;font-size:28px;font-weight:700;margin-bottom:6px}
+    h2{font-family:'Cormorant Garamond',serif;font-size:18px;font-weight:700;margin:20px 0 8px;padding-bottom:4px;border-bottom:2px solid #8B6914;color:#8B6914;text-transform:uppercase;letter-spacing:.5px}
+    .badges{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0 16px}
+    .badge{display:inline-block;padding:3px 10px;border-radius:4px;font-size:11px;font-weight:600;background:#F5F5F5;border:1px solid #ddd}
+    .badge.gold{background:#E8CD7E;color:#1D1D1B;border-color:#8B6914}
+    .meta{display:grid;grid-template-columns:repeat(3,1fr);gap:8px 16px;background:#F5F5F5;padding:12px;border-radius:6px;margin-bottom:16px}
+    .meta div label{font-size:10px;text-transform:uppercase;color:#888;display:block;margin-bottom:2px}
+    .meta div span{font-size:13px;font-weight:500}
+    p{margin:6px 0}
+    ul{margin:6px 0 6px 22px}
+    li{margin:3px 0}
+    .cena{border:1px solid #eee;border-left:4px solid #8B6914;border-radius:6px;padding:10px 14px;margin:10px 0;page-break-inside:avoid}
+    .cena-header{background:rgba(232,205,126,.25);color:#8B6914;padding:4px 8px;border-radius:4px;font-weight:700;font-size:12px;margin-bottom:8px;display:inline-block}
+    .lbl{font-weight:700;font-size:11px;text-transform:uppercase;letter-spacing:.3px}
+    .lbl.camera{color:#1e40af}
+    .lbl.fala{color:#065f46}
+    .lbl.visual{color:#555}
+    .dsb{padding:12px;border-radius:6px;margin:8px 0;border-left:4px solid}
+    .dsb.dor{background:rgba(239,68,68,.08);border-color:#ef4444}
+    .dsb.sol{background:rgba(59,130,246,.08);border-color:#3b82f6}
+    .dsb.ben{background:rgba(34,197,94,.08);border-color:#22c55e}
+    .dsb b{display:block;margin-bottom:4px;font-size:12px;letter-spacing:.5px}
+    .checklist{margin-top:8px}
+    .checklist li{list-style:none;margin:6px 0;padding-left:24px;position:relative}
+    .checklist li:before{content:"";position:absolute;left:0;top:2px;width:14px;height:14px;border:1.5px solid #8B6914;border-radius:3px}
+    .footer{margin-top:32px;padding-top:10px;border-top:1px solid #ddd;font-size:10px;color:#999;display:flex;justify-content:space-between}
+    @media print{body{padding:18px}@page{margin:14mm}}
+  </style></head><body>
+    <h1>${escapeHtml(c.titulo || "Criativo")}</h1>
+    <div class="badges">
+      ${c.pilar ? `<span class="badge gold">${escapeHtml(pilarLabel(c.pilar))}</span>` : ""}
+      ${c.formato ? `<span class="badge">${escapeHtml(c.formato)}</span>` : ""}
+      ${c.etapa_funil ? `<span class="badge">${escapeHtml(c.etapa_funil)}</span>` : ""}
+      ${c.tipo_conteudo ? `<span class="badge">${escapeHtml(c.tipo_conteudo)}</span>` : ""}
+      ${c.status ? `<span class="badge">${escapeHtml(c.status)}</span>` : ""}
+    </div>
+    <div class="meta">
+      ${c.produto_nome ? `<div><label>Produto</label><span>${escapeHtml(c.produto_nome)}</span></div>` : ""}
+      ${c.tom_mensagem ? `<div><label>Tom</label><span>${escapeHtml(c.tom_mensagem)}</span></div>` : ""}
+      ${c.persona_id ? `<div><label>Persona</label><span>${escapeHtml(c.mc_personas?.nome || c.persona_id)}</span></div>` : ""}
+    </div>
+
+    <h2>Conteúdo</h2>
+    ${isVideo
+      ? roteiroParaHtml(c.roteiro_completo || "")
+      : `
+        ${c.headline_principal ? `<p><b>Headline:</b> ${escapeHtml(c.headline_principal)}</p>` : ""}
+        ${c.subheadline ? `<p><b>Subheadline:</b> ${escapeHtml(c.subheadline)}</p>` : ""}
+        ${c.descricao_visual ? `<p><b>Visual:</b> ${escapeHtml(c.descricao_visual)}</p>` : ""}
+        ${c.elementos_visuais ? `<p><b>Elementos:</b> ${escapeHtml(c.elementos_visuais)}</p>` : ""}
+        ${c.texto_cta_imagem ? `<p><b>CTA:</b> ${escapeHtml(c.texto_cta_imagem)}</p>` : ""}
+      `}
+
+    ${(c.dor_texto || c.solucao_texto || c.beneficio_texto) ? `
+      <h2>DSB — Dor / Solução / Benefício</h2>
+      ${c.dor_texto ? `<div class="dsb dor"><b>DOR</b>${escapeHtml(c.dor_texto)}</div>` : ""}
+      ${c.solucao_texto ? `<div class="dsb sol"><b>SOLUÇÃO</b>${escapeHtml(c.solucao_texto)}</div>` : ""}
+      ${c.beneficio_texto ? `<div class="dsb ben"><b>BENEFÍCIO</b>${escapeHtml(c.beneficio_texto)}</div>` : ""}
+    ` : ""}
+
+    ${c.referencia_estetica ? `<h2>Referência Estética</h2><p>${escapeHtml(c.referencia_estetica)}</p>` : ""}
+    ${obs.length ? `<h2>Observações de Produção</h2><ul>${obs.map((o) => `<li>${escapeHtml(o)}</li>`).join("")}</ul>` : ""}
+
+    <h2>Checklist da Equipe de Criação</h2>
+    <ul class="checklist">
+      <li>Briefing lido e compreendido</li>
+      <li>Referências visuais coletadas</li>
+      <li>Locação / setup definido</li>
+      <li>Figurino e produto preparados</li>
+      <li>Gravação / captura realizada</li>
+      <li>Edição finalizada conforme roteiro</li>
+      <li>Revisão de copy (headline, CTA, legendas)</li>
+      <li>Aprovação interna</li>
+      <li>Publicado / agendado</li>
+    </ul>
+
+    <div class="footer">
+      <span>Mariana Cardoso — Matriz Criativa</span>
+      <span>Impresso em ${new Date().toLocaleString("pt-BR")}</span>
+    </div>
+    <script>window.onload=function(){setTimeout(function(){window.print()},300)}</script>
+  </body></html>`;
+  win.document.write(html);
+  win.document.close();
+}
+
 function CriativoModal({
   criativo, onClose,
   onAprovar, onEmProducao, onRegenerar, onExcluir,
