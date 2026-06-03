@@ -36,6 +36,20 @@ interface ModuleGroup {
 
 const moduleGroups: ModuleGroup[] = [
   {
+    key: "planejamento" as AppModule,
+    label: "Planejamento Estratégico",
+    icon: Compass,
+    items: [
+      { title: "Dashboard Comercial", url: "/dashboard-comercial", icon: LayoutDashboard },
+      { title: "Padrões de Pedidos", url: "/padroes-pedidos", icon: BarChart3 },
+      { title: "Plano Comercial", url: "/plano-comercial", icon: Target },
+      { title: "Meta Mensal", url: "/metas", icon: Target },
+      { title: "Visão Anual", url: "/planejamento/anual", icon: BarChart3 },
+      { title: "Planejamento Mensal", url: "/planejamento/mensal", icon: CalendarDays },
+      { title: "Simulador", url: "/planejamento/simulador", icon: Target },
+    ],
+  },
+  {
     key: "comercial",
     label: "Comercial",
     icon: ShoppingBag,
@@ -101,20 +115,6 @@ const moduleGroups: ModuleGroup[] = [
       { title: "Analytics Instagram", url: "/marketing-analytics", icon: Sparkles },
       { title: "Embaixadoras", url: "/embaixadoras", icon: Heart },
       { title: "Conteúdo & CRM", url: "/conteudo", icon: CalendarDays },
-    ],
-  },
-  {
-    key: "planejamento" as AppModule,
-    label: "Planejamento Estratégico",
-    icon: Compass,
-    items: [
-      { title: "Dashboard Comercial", url: "/dashboard-comercial", icon: LayoutDashboard },
-      { title: "Padrões de Pedidos", url: "/padroes-pedidos", icon: BarChart3 },
-      { title: "Plano Comercial", url: "/plano-comercial", icon: Target },
-      { title: "Meta Mensal", url: "/metas", icon: Target },
-      { title: "Visão Anual", url: "/planejamento/anual", icon: BarChart3 },
-      { title: "Planejamento Mensal", url: "/planejamento/mensal", icon: CalendarDays },
-      { title: "Simulador", url: "/planejamento/simulador", icon: Target },
     ],
   },
 ];
