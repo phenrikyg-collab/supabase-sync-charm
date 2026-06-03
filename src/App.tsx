@@ -52,6 +52,9 @@ import MarketingAnalytics from "./pages/MarketingAnalytics";
 import Embaixadoras from "./pages/Embaixadoras";
 import EmbaixadoraNova from "./pages/EmbaixadoraNova";
 import EmbaixadoraPerfil from "./pages/EmbaixadoraPerfil";
+import PlanejamentoAnual from "./pages/PlanejamentoAnual";
+import PlanejamentoMensal from "./pages/PlanejamentoMensal";
+import PlanejamentoSimulador from "./pages/PlanejamentoSimulador";
 import { Loader2 } from "lucide-react";
 import { useUserModules } from "@/hooks/useUserModules";
 
