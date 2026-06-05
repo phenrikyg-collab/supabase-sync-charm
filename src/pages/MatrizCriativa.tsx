@@ -801,7 +801,7 @@ function ImagemMetaAds({ criativo }: { criativo: any }) {
   const [tipoFotoGerado, setTipoFotoGerado] = useState<string | null>(null);
   const [corHexGerado, setCorHexGerado] = useState<string | null>(null);
   const [modelos, setModelos] = useState<any[]>([]);
-  const [modeloSelecionadoId, setModeloSelecionadoId] = useState<string>("ia");
+  const [modeloId, setModeloId] = useState<string | null>(null);
 
   useEffect(() => {
     setImagemUrl(criativo.imagem_gerada_url || null);
