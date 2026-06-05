@@ -801,7 +801,7 @@ function ImagemMetaAds({ criativo }: { criativo: any }) {
   const [tipoFotoGerado, setTipoFotoGerado] = useState<string | null>(null);
   const [corHexGerado, setCorHexGerado] = useState<string | null>(null);
   const [modelos, setModelos] = useState<any[]>([]);
-  const [modeloId, setModeloId] = useState<string>("__ai__");
+  const [modeloSelecionadoId, setModeloSelecionadoId] = useState<string>("ia");
 
   useEffect(() => {
     setImagemUrl(criativo.imagem_gerada_url || null);
@@ -810,14 +810,18 @@ function ImagemMetaAds({ criativo }: { criativo: any }) {
 
   useEffect(() => {
     (async () => {
-      const { data } = await sb
+      const { data, error } = await sb
         .from("mc_modelos")
-        .select("id, nome, foto_url")
+        .select("id, nome, foto_url, faixa_etaria")
         .eq("ativa", true)
-        .order("nome");
+        .order("created_at", { ascending: false });
+      if (error) console.error("Erro ao carregar modelos:", error);
+      console.log("Modelos carregadas:", data);
       setModelos(data || []);
     })();
   }, []);
+
+  const modeloSelecionada = modelos.find((m) => m.id === modeloSelecionadoId);
 
   async function gerar() {
     setLoading(true);
