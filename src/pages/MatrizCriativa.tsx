@@ -851,14 +851,18 @@ function ImagemMetaAds({ criativo }: { criativo: any }) {
       };
       console.log("Payload completo:", payload);
 
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 120000);
       const res = await fetch(
         "https://ezdtulcrqzmgocamjwwl.supabase.co/functions/v1/gerar-imagem-criativo",
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload),
+          signal: controller.signal,
         }
       );
+      clearTimeout(timeoutId);
       const data = await res.json();
       if (!res.ok) throw new Error(data?.erro || data?.error || `Erro ${res.status}`);
 
