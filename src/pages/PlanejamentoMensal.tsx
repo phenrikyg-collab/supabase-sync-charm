@@ -67,11 +67,13 @@ function RoasBadge({ v }: { v: number | null | undefined }) {
   return <Badge style={{ background: cls.bg, color: cls.fg }}>{v.toFixed(2)}x</Badge>;
 }
 
-function Trend({ cur, prev }: { cur: number | null; prev: number | null }) {
+function Trend({ cur, prev, lowerIsBetter = false }: { cur: number | null; prev: number | null; lowerIsBetter?: boolean }) {
   if (cur == null || prev == null) return <Minus className="inline h-3 w-3 text-muted-foreground" />;
-  if (cur > prev) return <ArrowUp className="inline h-3 w-3 text-emerald-600" />;
-  if (cur < prev) return <ArrowDown className="inline h-3 w-3 text-rose-600" />;
-  return <Minus className="inline h-3 w-3 text-muted-foreground" />;
+  if (cur === prev) return <Minus className="inline h-3 w-3 text-muted-foreground" />;
+  const up = cur > prev;
+  const good = lowerIsBetter ? !up : up;
+  const cls = good ? "text-emerald-600" : "text-rose-600";
+  return up ? <ArrowUp className={`inline h-3 w-3 ${cls}`} /> : <ArrowDown className={`inline h-3 w-3 ${cls}`} />;
 }
 
 type PilarStatus = "verde" | "amarelo" | "vermelho";
