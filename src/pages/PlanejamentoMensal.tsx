@@ -74,6 +74,116 @@ function Trend({ cur, prev }: { cur: number | null; prev: number | null }) {
   return <Minus className="inline h-3 w-3 text-muted-foreground" />;
 }
 
+type PilarStatus = "verde" | "amarelo" | "vermelho";
+
+function pilarDot(s: PilarStatus) {
+  const map = { verde: "🟢", amarelo: "🟡", vermelho: "🔴" };
+  return map[s];
+}
+
+interface Pilar {
+  nome: string;
+  atual: number | null | undefined;
+  meta: string;
+  status: PilarStatus;
+  fmt: (v: number | null | undefined) => string;
+}
+
+function NovePilaresCard({ data, historico }: { data: PM | null; historico: PM[] }) {
+  const avg = (k: keyof PM): number | null => {
+    const xs = historico.map((r) => r[k] as number | null).filter((v): v is number => v != null && isFinite(v));
+    return xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : null;
+  };
+
+  const metaReceita = avg("receita_captada") ?? 400000;
+  const metaPedidos = avg("pedidos_captados") ?? 950;
+  const metaSessoes = avg("sessoes_totais") ?? 190000;
+  const metaInvest = avg("investimento_total") ?? 16000;
+  const mediaCac = avg("cac_novos") ?? 140;
+
+  const statusMeta = (atual: number | null | undefined, meta: number, maiorMelhor = true): PilarStatus => {
+    if (atual == null || !isFinite(atual)) return "amarelo";
+    if (maiorMelhor) {
+      if (atual >= meta) return "verde";
+      if (atual >= meta * 0.9) return "amarelo";
+      return "vermelho";
+    } else {
+      if (atual <= meta) return "verde";
+      if (atual <= meta * 1.1) return "amarelo";
+      return "vermelho";
+    }
+  };
+
+  const statusAprovacao = (v: number | null | undefined): PilarStatus =>
+    v == null ? "amarelo" : v >= 90 ? "verde" : v >= 85 ? "amarelo" : "vermelho";
+  const statusRoas = (v: number | null | undefined): PilarStatus =>
+    v == null ? "amarelo" : v >= 3.5 ? "verde" : v >= 2.5 ? "amarelo" : "vermelho";
+  const statusConv = (v: number | null | undefined): PilarStatus =>
+    v == null ? "amarelo" : v >= 0.5 ? "verde" : v >= 0.3 ? "amarelo" : "vermelho";
+  const statusAquisicao = (v: number | null | undefined): PilarStatus => {
+    if (v == null) return "amarelo";
+    if (v >= 60 && v <= 75) return "verde";
+    if (v > 75 && v <= 85) return "amarelo";
+    return "vermelho";
+  };
+  const statusCac = (v: number | null | undefined): PilarStatus => {
+    if (v == null) return "amarelo";
+    if (v <= mediaCac) return "verde";
+    if (v <= mediaCac * 1.2) return "amarelo";
+    return "vermelho";
+  };
+
+  const pilares: Pilar[] = [
+    { nome: "Receita Captada", atual: data?.receita_captada, meta: fmtBRL(metaReceita),
+      status: statusMeta(data?.receita_captada, metaReceita, true), fmt: fmtBRL },
+    { nome: "Taxa de Aprovação", atual: data?.taxa_aprovacao, meta: "≥ 90%",
+      status: statusAprovacao(data?.taxa_aprovacao), fmt: fmtPct },
+    { nome: "Pedidos Captados", atual: data?.pedidos_captados, meta: fmtNum(metaPedidos),
+      status: statusMeta(data?.pedidos_captados, metaPedidos, true), fmt: fmtNum },
+    { nome: "Taxa de Aquisição", atual: data?.taxa_aquisicao, meta: "60-75%",
+      status: statusAquisicao(data?.taxa_aquisicao), fmt: fmtPct },
+    { nome: "Taxa de Conversão", atual: (data as any)?.taxa_conversao, meta: "≥ 0,5%",
+      status: statusConv((data as any)?.taxa_conversao), fmt: (v) => v == null ? "—" : v.toFixed(2) + "%" },
+    { nome: "Sessões Totais", atual: data?.sessoes_totais, meta: fmtNum(metaSessoes),
+      status: statusMeta(data?.sessoes_totais, metaSessoes, true), fmt: fmtNum },
+    { nome: "Investimento Total", atual: data?.investimento_total, meta: fmtBRL(metaInvest),
+      status: statusMeta(data?.investimento_total, metaInvest, false), fmt: fmtBRL },
+    { nome: "ROAS Faturado", atual: data?.roas_faturado, meta: "≥ 3,5x",
+      status: statusRoas(data?.roas_faturado), fmt: (v) => v == null ? "—" : v.toFixed(2) + "x" },
+    { nome: "CAC Novos", atual: data?.cac_novos, meta: `≤ ${fmtBRL(mediaCac)}`,
+      status: statusCac(data?.cac_novos), fmt: fmtBRL },
+  ];
+
+  return (
+    <Card style={{ borderColor: "#E8CD7E" }}>
+      <CardHeader><CardTitle className="font-serif text-lg">9 Pilares do Planejamento</CardTitle></CardHeader>
+      <CardContent className="p-0">
+        <table className="w-full text-sm">
+          <thead style={{ background: "#1D1D1B", color: "#E8CD7E" }}>
+            <tr>
+              <th className="px-3 py-2 text-left text-xs uppercase tracking-wider">Pilar</th>
+              <th className="px-3 py-2 text-right text-xs uppercase tracking-wider">Atual</th>
+              <th className="px-3 py-2 text-right text-xs uppercase tracking-wider">Meta</th>
+              <th className="px-3 py-2 text-center text-xs uppercase tracking-wider">Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            {pilares.map((p, i) => (
+              <tr key={p.nome} className={i % 2 ? "bg-[#FAF8F3]" : "bg-white"}>
+                <td className="px-3 py-2 font-medium">{p.nome}</td>
+                <td className="px-3 py-2 text-right">{p.fmt(p.atual)}</td>
+                <td className="px-3 py-2 text-right text-muted-foreground">{p.meta}</td>
+                <td className="px-3 py-2 text-center text-base">{pilarDot(p.status)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        <p className="text-[11px] text-muted-foreground px-3 py-2">Metas calculadas a partir da média dos meses realizados.</p>
+      </CardContent>
+    </Card>
+  );
+}
+
 export default function PlanejamentoMensal() {
   const [search, setSearch] = useSearchParams();
   const now = new Date();
@@ -114,10 +224,13 @@ export default function PlanejamentoMensal() {
     const pr = pf - pa;
     const rr = rc - ra;
     return {
-      receita_faturada: rf, pedidos_faturados: pf,
+      receita_faturada: rf,
+      receita_cancelada: rc - rf,
+      pedidos_faturados: pf,
       pedidos_aquisicao: pa, receita_aquisicao: ra,
       pedidos_retencao: pr, receita_retencao: rr,
       taxa_retencao: 100 - tq,
+      taxa_conversao: st > 0 ? (pc / st) * 100 : null,
       ticket_medio_aquisicao: pa > 0 ? ra / pa : null,
       ticket_medio_retencao: pr > 0 ? rr / pr : null,
       ticket_medio_geral: pf > 0 ? rf / pf : null,
@@ -216,6 +329,7 @@ export default function PlanejamentoMensal() {
               <NumInput label="Receita Captada" suffix="R$" value={form.receita_captada} onChange={(v) => setField("receita_captada", v)} disabled={isSaving} />
               <NumInput label="Taxa de Aprovação" suffix="%" value={form.taxa_aprovacao} onChange={(v) => setField("taxa_aprovacao", v)} disabled={isSaving} />
               <CalcField label="Receita Faturada = Captada × Aprovação%" value={preview.receita_faturada} format="brl" />
+              <CalcField label="Receita Cancelada = Captada − Faturada" value={preview.receita_cancelada} format="brl" />
             </CardContent>
           </Card>
 
@@ -252,6 +366,7 @@ export default function PlanejamentoMensal() {
             <CardContent className="space-y-3">
               <NumInput label="Sessões Totais" value={form.sessoes_totais} onChange={(v) => setField("sessoes_totais", v)} disabled={isSaving} />
               <NumInput label="Sessões Mídia" value={form.sessoes_midia} onChange={(v) => setField("sessoes_midia", v)} disabled={isSaving} />
+              <CalcField label="Taxa de Conversão = Pedidos Captados / Sessões × 100" value={preview.taxa_conversao} format="pct" />
               <NumInput label="Investimento Total" suffix="R$" value={form.investimento_total} onChange={(v) => setField("investimento_total", v)} disabled={isSaving} />
               <div className="grid grid-cols-2 gap-2">
                 <CalcField label="CPS Geral" value={preview.cps_geral} format="brl" />
@@ -282,7 +397,11 @@ export default function PlanejamentoMensal() {
                   <div className="text-[10px] uppercase tracking-wider text-[#E8CD7E]/70">{k.label}</div>
                   <div className="text-2xl font-serif mt-1 text-[#E8CD7E]">
                     {k.custom ?? k.value}
-                  </div>
+          </div>
+
+          <NovePilaresCard data={data} historico={historico} />
+
+
                 </CardContent>
               </Card>
             ))}
