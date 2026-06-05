@@ -843,7 +843,7 @@ function ImagemMetaAds({ criativo }: { criativo: any }) {
       const payload = {
         criativo_id: criativo.id,
         produto_id: criativo.produto_id,
-        modelo_id: modeloSelecionadoId === "ia" ? null : modeloSelecionadoId,
+        modelo_id: modeloId,
         formato_anuncio: formato,
         tipo_foto: tipoFoto,
         cor_hex: corHex || null,
