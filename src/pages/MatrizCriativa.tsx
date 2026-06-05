@@ -1211,9 +1211,51 @@ function CriativoModal({
               <Card><CardContent className="p-3"><strong>Referência Estética:</strong> {criativo.referencia_estetica}</CardContent></Card>
             )}
             {criativo.observacoes_producao && (
-              <ul className="list-disc pl-5 space-y-1">
-                {String(criativo.observacoes_producao).split("\n").filter(Boolean).map((o, i) => <li key={i}>{o}</li>)}
-              </ul>
+              <div className="space-y-2">
+                {(() => {
+                  const text = String(criativo.observacoes_producao || "");
+                  const labelMap: Record<string, string> = {
+                    local: "📍",
+                    iluminacao: "💡",
+                    roupa: "👗",
+                    "cabelo e maquiagem": "💄",
+                    equipamento: "🎥",
+                    "cuidados com a peca": "✋",
+                    "cuidados com a peça": "✋",
+                    "tom de atuacao": "🎭",
+                    "tom de atuação": "🎭",
+                    "duracao por cena": "⏱️",
+                    "duração por cena": "⏱️",
+                  };
+                  const regex = /^([A-ZÀ-Ú\s]+):\s*(.*)$/gim;
+                  const matches: { label: string; content: string; icon: string }[] = [];
+                  let m;
+                  while ((m = regex.exec(text)) !== null) {
+                    const rawLabel = m[1].trim();
+                    const content = m[2].trim();
+                    const key = rawLabel.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+                    const icon = labelMap[key] || "•";
+                    matches.push({ label: rawLabel, content, icon });
+                  }
+                  if (matches.length === 0) {
+                    return text.split("\n").filter(Boolean).map((o, i) => (
+                      <div key={i} className="flex gap-2 items-start">
+                        <span className="mt-0.5">•</span>
+                        <span className="text-muted-foreground">{o}</span>
+                      </div>
+                    ));
+                  }
+                  return matches.map((item, i) => (
+                    <div key={i} className="rounded border p-3 bg-[#FFF8E8]/50">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="text-base">{item.icon}</span>
+                        <span className="font-bold text-[13px] uppercase tracking-wide text-primary">{item.label}</span>
+                      </div>
+                      <p className="text-sm text-muted-foreground leading-relaxed">{item.content}</p>
+                    </div>
+                  ));
+                })()}
+              </div>
             )}
             {criativo.tom_mensagem && <Badge>{criativo.tom_mensagem}</Badge>}
           </TabsContent>
