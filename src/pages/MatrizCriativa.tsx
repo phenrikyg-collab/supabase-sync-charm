@@ -925,22 +925,34 @@ function ImagemMetaAds({ criativo }: { criativo: any }) {
       {modelos.length > 0 && (
         <div className="space-y-2">
           <Label className="text-xs">Modelo</Label>
-          <Select value={modeloId} onValueChange={setModeloId} disabled={loading}>
-            <SelectTrigger><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="__ai__">🤖 Gerar modelo com IA</SelectItem>
-              {modelos.map((m) => (
-                <SelectItem key={m.id} value={m.id}>
-                  <span className="inline-flex items-center gap-2">
-                    {m.foto_url && (
-                      <img src={m.foto_url} alt="" className="h-6 w-6 rounded-full object-cover" />
-                    )}
-                    {m.nome}
-                  </span>
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <div className="flex items-center gap-3">
+            <div className="flex-1">
+              <Select value={modeloSelecionadoId} onValueChange={setModeloSelecionadoId} disabled={loading}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ia">🤖 Gerar modelo com IA</SelectItem>
+                  {modelos.map((m) => (
+                    <SelectItem key={m.id} value={m.id}>
+                      <span className="inline-flex items-center gap-2">
+                        {m.foto_url && (
+                          <img src={m.foto_url} alt="" className="h-6 w-6 rounded-full object-cover" />
+                        )}
+                        {m.nome}
+                        {m.faixa_etaria && <span className="text-xs text-muted-foreground">· {m.faixa_etaria}</span>}
+                      </span>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            {modeloSelecionada?.foto_url && (
+              <img
+                src={modeloSelecionada.foto_url}
+                alt={modeloSelecionada.nome}
+                style={{ width: 60, height: 80, objectFit: "cover", borderRadius: 8 }}
+              />
+            )}
+          </div>
         </div>
       )}
 
