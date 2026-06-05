@@ -800,11 +800,24 @@ function ImagemMetaAds({ criativo }: { criativo: any }) {
   const [status, setStatus] = useState<string | null>(criativo.imagem_gerada_status || null);
   const [tipoFotoGerado, setTipoFotoGerado] = useState<string | null>(null);
   const [corHexGerado, setCorHexGerado] = useState<string | null>(null);
+  const [modelos, setModelos] = useState<any[]>([]);
+  const [modeloId, setModeloId] = useState<string>("__ai__");
 
   useEffect(() => {
     setImagemUrl(criativo.imagem_gerada_url || null);
     setStatus(criativo.imagem_gerada_status || null);
   }, [criativo.id, criativo.imagem_gerada_url, criativo.imagem_gerada_status]);
+
+  useEffect(() => {
+    (async () => {
+      const { data } = await sb
+        .from("mc_modelos")
+        .select("id, nome, foto_url")
+        .eq("ativa", true)
+        .order("nome");
+      setModelos(data || []);
+    })();
+  }, []);
 
   async function gerar() {
     setLoading(true);
