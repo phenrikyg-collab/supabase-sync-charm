@@ -840,20 +840,23 @@ function ImagemMetaAds({ criativo }: { criativo: any }) {
         }
       }
 
+      const payload = {
+        criativo_id: criativo.id,
+        produto_id: criativo.produto_id,
+        modelo_id: modeloSelecionadoId === "ia" ? null : modeloSelecionadoId,
+        formato_anuncio: formato,
+        tipo_foto: tipoFoto,
+        cor_hex: corHex || null,
+        garment_image_base64: garmentBase64,
+      };
+      console.log("Payload completo:", payload);
+
       const res = await fetch(
         "https://ezdtulcrqzmgocamjwwl.supabase.co/functions/v1/gerar-imagem-criativo",
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            criativo_id: criativo.id,
-            produto_id: criativo.produto_id,
-            formato_anuncio: formato,
-            tipo_foto: tipoFoto,
-            cor_hex: corHex || null,
-            garment_image_base64: garmentBase64,
-            modelo_id: modeloId && modeloId !== "__ai__" ? modeloId : null,
-          }),
+          body: JSON.stringify(payload),
         }
       );
       const data = await res.json();
