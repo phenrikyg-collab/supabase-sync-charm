@@ -821,7 +821,7 @@ function ImagemMetaAds({ criativo }: { criativo: any }) {
     })();
   }, []);
 
-  const modeloSelecionada = modelos.find((m) => m.id === modeloSelecionadoId);
+  const modeloSelecionada = modelos.find((m) => m.id === modeloId);
 
   async function gerar() {
     setLoading(true);
