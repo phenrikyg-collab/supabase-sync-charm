@@ -89,69 +89,63 @@ interface Pilar {
   fmt: (v: number | null | undefined) => string;
 }
 
-function NovePilaresCard({ data, historico }: { data: PM | null; historico: PM[] }) {
-  const avg = (k: keyof PM): number | null => {
-    const xs = historico.map((r) => r[k] as number | null).filter((v): v is number => v != null && isFinite(v));
-    return xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : null;
+function NovePilaresCard({ atualData, metaData }: { atualData: PM | null; metaData: PM | null }) {
+  const statusGreaterIsBetter = (atual: number | null | undefined, meta: number | null | undefined): PilarStatus | "neutro" => {
+    if (atual == null || !isFinite(atual)) return "neutro";
+    if (meta == null || !isFinite(meta) || meta === 0) return "neutro";
+    if (atual >= meta) return "verde";
+    if (atual >= meta * 0.9) return "amarelo";
+    return "vermelho";
   };
-
-  const metaReceita = avg("receita_captada") ?? 400000;
-  const metaPedidos = avg("pedidos_captados") ?? 950;
-  const metaSessoes = avg("sessoes_totais") ?? 190000;
-  const metaInvest = avg("investimento_total") ?? 16000;
-  const mediaCac = avg("cac_novos") ?? 140;
-
-  const statusMeta = (atual: number | null | undefined, meta: number, maiorMelhor = true): PilarStatus => {
-    if (atual == null || !isFinite(atual)) return "amarelo";
-    if (maiorMelhor) {
-      if (atual >= meta) return "verde";
-      if (atual >= meta * 0.9) return "amarelo";
-      return "vermelho";
-    } else {
-      if (atual <= meta) return "verde";
-      if (atual <= meta * 1.1) return "amarelo";
-      return "vermelho";
-    }
+  const statusLessIsBetter = (atual: number | null | undefined, meta: number | null | undefined, tolerance = 0.1): PilarStatus | "neutro" => {
+    if (atual == null || !isFinite(atual)) return "neutro";
+    if (meta == null || !isFinite(meta) || meta === 0) return "neutro";
+    if (atual <= meta) return "verde";
+    if (atual <= meta * (1 + tolerance)) return "amarelo";
+    return "vermelho";
   };
-
-  const statusAprovacao = (v: number | null | undefined): PilarStatus =>
-    v == null ? "amarelo" : v >= 90 ? "verde" : v >= 85 ? "amarelo" : "vermelho";
-  const statusRoas = (v: number | null | undefined): PilarStatus =>
-    v == null ? "amarelo" : v >= 3.5 ? "verde" : v >= 2.5 ? "amarelo" : "vermelho";
-  const statusConv = (v: number | null | undefined): PilarStatus =>
-    v == null ? "amarelo" : v >= 0.5 ? "verde" : v >= 0.3 ? "amarelo" : "vermelho";
-  const statusAquisicao = (v: number | null | undefined): PilarStatus => {
-    if (v == null) return "amarelo";
+  const statusAprovacao = (v: number | null | undefined): PilarStatus | "neutro" =>
+    v == null ? "neutro" : v >= 90 ? "verde" : v >= 85 ? "amarelo" : "vermelho";
+  const statusRoas = (v: number | null | undefined): PilarStatus | "neutro" =>
+    v == null ? "neutro" : v >= 3.5 ? "verde" : v >= 2.5 ? "amarelo" : "vermelho";
+  const statusConv = (v: number | null | undefined): PilarStatus | "neutro" =>
+    v == null ? "neutro" : v >= 0.5 ? "verde" : v >= 0.3 ? "amarelo" : "vermelho";
+  const statusAquisicao = (v: number | null | undefined): PilarStatus | "neutro" => {
+    if (v == null) return "neutro";
     if (v >= 60 && v <= 75) return "verde";
-    if (v > 75 && v <= 85) return "amarelo";
-    return "vermelho";
-  };
-  const statusCac = (v: number | null | undefined): PilarStatus => {
-    if (v == null) return "amarelo";
-    if (v <= mediaCac) return "verde";
-    if (v <= mediaCac * 1.2) return "amarelo";
+    if ((v > 75 && v <= 85) || (v >= 50 && v < 60)) return "amarelo";
     return "vermelho";
   };
 
-  const pilares: Pilar[] = [
-    { nome: "Receita Captada", atual: data?.receita_captada, meta: fmtBRL(metaReceita),
-      status: statusMeta(data?.receita_captada, metaReceita, true), fmt: fmtBRL },
-    { nome: "Taxa de Aprovação", atual: data?.taxa_aprovacao, meta: "≥ 90%",
-      status: statusAprovacao(data?.taxa_aprovacao), fmt: fmtPct },
-    { nome: "Pedidos Captados", atual: data?.pedidos_captados, meta: fmtNum(metaPedidos),
-      status: statusMeta(data?.pedidos_captados, metaPedidos, true), fmt: fmtNum },
-    { nome: "Taxa de Aquisição", atual: data?.taxa_aquisicao, meta: "60-75%",
-      status: statusAquisicao(data?.taxa_aquisicao), fmt: fmtPct },
-    { nome: "Taxa de Conversão", atual: (data as any)?.taxa_conversao, meta: "≥ 0,5%",
-      status: statusConv((data as any)?.taxa_conversao), fmt: (v) => v == null ? "—" : v.toFixed(2) + "%" },
-    { nome: "Sessões Totais", atual: data?.sessoes_totais, meta: fmtNum(metaSessoes),
-      status: statusMeta(data?.sessoes_totais, metaSessoes, true), fmt: fmtNum },
-    { nome: "Investimento Total", atual: data?.investimento_total, meta: fmtBRL(metaInvest),
-      status: statusMeta(data?.investimento_total, metaInvest, false), fmt: fmtBRL },
-    { nome: "ROAS Faturado", atual: data?.roas_faturado, meta: "≥ 3,5x",
-      status: statusRoas(data?.roas_faturado), fmt: (v) => v == null ? "—" : v.toFixed(2) + "x" },
-    { nome: "CAC Novos", atual: data?.cac_novos, meta: `≤ ${fmtBRL(mediaCac)}`,
-      status: statusCac(data?.cac_novos), fmt: fmtBRL },
+  const dot = (s: PilarStatus | "neutro") => {
+    if (s === "verde") return <span>🟢</span>;
+    if (s === "amarelo") return <span>🟡</span>;
+    if (s === "vermelho") return <span>🔴</span>;
+    return <span className="inline-block w-3 h-3 rounded-full bg-muted-foreground/30" />;
+  };
+
+  const fmtRoas = (v: number | null | undefined) => v == null || !isFinite(v) ? "—" : v.toFixed(2) + "x";
+  const fmtConv = (v: number | null | undefined) => v == null || !isFinite(v) ? "—" : v.toFixed(2) + "%";
+
+  const pilares = [
+    { nome: "Receita Captada", atual: atualData?.receita_captada, meta: metaData?.receita_captada, fmt: fmtBRL,
+      status: statusGreaterIsBetter(atualData?.receita_captada, metaData?.receita_captada) },
+    { nome: "Taxa de Aprovação", atual: atualData?.taxa_aprovacao, meta: metaData?.taxa_aprovacao, fmt: fmtPct,
+      status: statusAprovacao(atualData?.taxa_aprovacao) },
+    { nome: "Pedidos Captados", atual: atualData?.pedidos_captados, meta: metaData?.pedidos_captados, fmt: fmtNum,
+      status: statusGreaterIsBetter(atualData?.pedidos_captados, metaData?.pedidos_captados) },
+    { nome: "Taxa de Aquisição", atual: atualData?.taxa_aquisicao, meta: metaData?.taxa_aquisicao, fmt: fmtPct,
+      status: statusAquisicao(atualData?.taxa_aquisicao) },
+    { nome: "Taxa de Conversão", atual: atualData?.taxa_conversao, meta: metaData?.taxa_conversao, fmt: fmtConv,
+      status: statusConv(atualData?.taxa_conversao) },
+    { nome: "Sessões Totais", atual: atualData?.sessoes_totais, meta: metaData?.sessoes_totais, fmt: fmtNum,
+      status: statusGreaterIsBetter(atualData?.sessoes_totais, metaData?.sessoes_totais) },
+    { nome: "Investimento Total", atual: atualData?.investimento_total, meta: metaData?.investimento_total, fmt: fmtBRL,
+      status: statusLessIsBetter(atualData?.investimento_total, metaData?.investimento_total, 0.1) },
+    { nome: "ROAS Faturado", atual: atualData?.roas_faturado, meta: metaData?.roas_faturado, fmt: fmtRoas,
+      status: statusRoas(atualData?.roas_faturado) },
+    { nome: "CAC Novos", atual: atualData?.cac_novos, meta: metaData?.cac_novos, fmt: fmtBRL,
+      status: statusLessIsBetter(atualData?.cac_novos, metaData?.cac_novos, 0.2) },
   ];
 
   return (
@@ -171,14 +165,14 @@ function NovePilaresCard({ data, historico }: { data: PM | null; historico: PM[]
             {pilares.map((p, i) => (
               <tr key={p.nome} className={i % 2 ? "bg-[#FAF8F3]" : "bg-white"}>
                 <td className="px-3 py-2 font-medium">{p.nome}</td>
-                <td className="px-3 py-2 text-right">{p.fmt(p.atual)}</td>
-                <td className="px-3 py-2 text-right text-muted-foreground">{p.meta}</td>
-                <td className="px-3 py-2 text-center text-base">{pilarDot(p.status)}</td>
+                <td className="px-3 py-2 text-right">{p.fmt(p.atual as any)}</td>
+                <td className="px-3 py-2 text-right text-muted-foreground">{p.fmt(p.meta as any)}</td>
+                <td className="px-3 py-2 text-center text-base">{dot(p.status)}</td>
               </tr>
             ))}
           </tbody>
         </table>
-        <p className="text-[11px] text-muted-foreground px-3 py-2">Metas calculadas a partir da média dos meses realizados.</p>
+        <p className="text-[11px] text-muted-foreground px-3 py-2">Meta = registro planejado do mês selecionado.</p>
       </CardContent>
     </Card>
   );
