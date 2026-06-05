@@ -273,6 +273,11 @@ export default function PlanejamentoMensal() {
 
   // Histórico (últimos 6 meses realizados)
   const [historico, setHistorico] = useState<PM[]>([]);
+  // Registro planejado do mês atual (usado como Meta nos 9 pilares e na tabela)
+  const [planejadoMes, setPlanejadoMes] = useState<PM | null>(null);
+  // Registro realizado do mês atual (para preencher coluna ATUAL quando tipo='planejado')
+  const [realizadoMes, setRealizadoMes] = useState<PM | null>(null);
+
   useEffect(() => {
     (async () => {
       const { data: rows } = await (supabase as any)
@@ -285,6 +290,23 @@ export default function PlanejamentoMensal() {
       setHistorico(((rows as PM[]) ?? []).reverse());
     })();
   }, [data]);
+
+  useEffect(() => {
+    (async () => {
+      const [{ data: pln }, { data: rea }] = await Promise.all([
+        (supabase as any).from("planejamento_mensal").select("*")
+          .eq("ano", ano).eq("mes", mes).eq("tipo", "planejado").maybeSingle(),
+        (supabase as any).from("planejamento_mensal").select("*")
+          .eq("ano", ano).eq("mes", mes).eq("tipo", "realizado").maybeSingle(),
+      ]);
+      setPlanejadoMes((pln as PM) ?? null);
+      setRealizadoMes((rea as PM) ?? null);
+    })();
+  }, [ano, mes, data]);
+
+  const pilaresAtual = tipo === "realizado" ? (realizadoMes ?? data) : (data ?? planejadoMes);
+  const pilaresMeta = tipo === "realizado" ? planejadoMes : null;
+
 
   if (isLoading) {
     return <div className="p-6 space-y-4"><Skeleton className="h-12 w-72" /><div className="grid lg:grid-cols-2 gap-6"><Skeleton className="h-[600px]" /><Skeleton className="h-[600px]" /></div></div>;
