@@ -915,6 +915,28 @@ function ImagemMetaAds({ criativo }: { criativo: any }) {
         </Select>
       </div>
 
+      {modelos.length > 0 && (
+        <div className="space-y-2">
+          <Label className="text-xs">Modelo</Label>
+          <Select value={modeloId} onValueChange={setModeloId} disabled={loading}>
+            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="__ai__">🤖 Gerar modelo com IA</SelectItem>
+              {modelos.map((m) => (
+                <SelectItem key={m.id} value={m.id}>
+                  <span className="inline-flex items-center gap-2">
+                    {m.foto_url && (
+                      <img src={m.foto_url} alt="" className="h-6 w-6 rounded-full object-cover" />
+                    )}
+                    {m.nome}
+                  </span>
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      )}
+
       <div className="space-y-2">
         <Label className="text-xs">Tipo de Foto</Label>
         <Select value={tipoFoto} onValueChange={setTipoFoto} disabled={loading}>
