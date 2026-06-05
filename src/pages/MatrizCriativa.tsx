@@ -16,7 +16,9 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Loader2, Heart, AlertTriangle, Sparkles, RotateCw, Trash2, Check, Play, Printer } from "lucide-react";
+import { Loader2, Heart, AlertTriangle, Sparkles, RotateCw, Trash2, Check, Play, Printer, Upload, Bot } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 
