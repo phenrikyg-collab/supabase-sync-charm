@@ -748,6 +748,45 @@ export type Database = {
           },
         ]
       }
+      mc_modelos: {
+        Row: {
+          adequada_para: string[]
+          ativa: boolean
+          created_at: string
+          descricao: string | null
+          faixa_etaria: string | null
+          foto_estudio_url: string | null
+          foto_url: string
+          id: string
+          nome: string
+          updated_at: string
+        }
+        Insert: {
+          adequada_para?: string[]
+          ativa?: boolean
+          created_at?: string
+          descricao?: string | null
+          faixa_etaria?: string | null
+          foto_estudio_url?: string | null
+          foto_url: string
+          id?: string
+          nome: string
+          updated_at?: string
+        }
+        Update: {
+          adequada_para?: string[]
+          ativa?: boolean
+          created_at?: string
+          descricao?: string | null
+          faixa_etaria?: string | null
+          foto_estudio_url?: string | null
+          foto_url?: string
+          id?: string
+          nome?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       metas_whatsapp: {
         Row: {
           created_at: string
