@@ -1256,6 +1256,7 @@ export type Database = {
           pedidos_retencao: number | null
           peso_mes_pct: number | null
           receita_aquisicao: number | null
+          receita_cancelada: number | null
           receita_captada: number | null
           receita_faturada: number | null
           receita_retencao: number | null
@@ -1265,6 +1266,7 @@ export type Database = {
           status: string
           taxa_aprovacao: number | null
           taxa_aquisicao: number | null
+          taxa_conversao: number | null
           taxa_retencao: number | null
           ticket_medio_aquisicao: number | null
           ticket_medio_geral: number | null
@@ -1290,6 +1292,7 @@ export type Database = {
           pedidos_retencao?: number | null
           peso_mes_pct?: number | null
           receita_aquisicao?: number | null
+          receita_cancelada?: number | null
           receita_captada?: number | null
           receita_faturada?: number | null
           receita_retencao?: number | null
@@ -1299,6 +1302,7 @@ export type Database = {
           status?: string
           taxa_aprovacao?: number | null
           taxa_aquisicao?: number | null
+          taxa_conversao?: number | null
           taxa_retencao?: number | null
           ticket_medio_aquisicao?: number | null
           ticket_medio_geral?: number | null
@@ -1324,6 +1328,7 @@ export type Database = {
           pedidos_retencao?: number | null
           peso_mes_pct?: number | null
           receita_aquisicao?: number | null
+          receita_cancelada?: number | null
           receita_captada?: number | null
           receita_faturada?: number | null
           receita_retencao?: number | null
@@ -1333,6 +1338,7 @@ export type Database = {
           status?: string
           taxa_aprovacao?: number | null
           taxa_aquisicao?: number | null
+          taxa_conversao?: number | null
           taxa_retencao?: number | null
           ticket_medio_aquisicao?: number | null
           ticket_medio_geral?: number | null
