@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -91,21 +91,14 @@ interface Pilar {
   fmt: (v: number | null | undefined) => string;
 }
 
-function NovePilaresCard({ atualData, metaData }: { atualData: PM | null; metaData: PM | null }) {
-  const statusGreaterIsBetter = (atual: number | null | undefined, meta: number | null | undefined): PilarStatus | "neutro" => {
-    if (atual == null || !isFinite(atual)) return "neutro";
-    if (meta == null || !isFinite(meta) || meta === 0) return "neutro";
-    if (atual >= meta) return "verde";
-    if (atual >= meta * 0.9) return "amarelo";
-    return "vermelho";
-  };
-  const statusLessIsBetter = (atual: number | null | undefined, meta: number | null | undefined, tolerance = 0.1): PilarStatus | "neutro" => {
-    if (atual == null || !isFinite(atual)) return "neutro";
-    if (meta == null || !isFinite(meta) || meta === 0) return "neutro";
-    if (atual <= meta) return "verde";
-    if (atual <= meta * (1 + tolerance)) return "amarelo";
-    return "vermelho";
-  };
+function NovePilaresCard({
+  atualData, metaValues, metaLabel = "Meta", footnote,
+}: {
+  atualData: Partial<PM> | null;
+  metaValues: Partial<Record<keyof PM, number | null>>;
+  metaLabel?: string;
+  footnote?: string;
+}) {
   const statusAprovacao = (v: number | null | undefined): PilarStatus | "neutro" =>
     v == null ? "neutro" : v >= 90 ? "verde" : v >= 85 ? "amarelo" : "vermelho";
   const statusRoas = (v: number | null | undefined): PilarStatus | "neutro" =>
@@ -116,6 +109,20 @@ function NovePilaresCard({ atualData, metaData }: { atualData: PM | null; metaDa
     if (v == null) return "neutro";
     if (v >= 60 && v <= 75) return "verde";
     if ((v > 75 && v <= 85) || (v >= 50 && v < 60)) return "amarelo";
+    return "vermelho";
+  };
+  const statusGreater = (atual: number | null | undefined, meta: number | null | undefined): PilarStatus | "neutro" => {
+    if (atual == null || !isFinite(atual)) return "neutro";
+    if (meta == null || !isFinite(meta) || meta === 0) return "neutro";
+    if (atual >= meta) return "verde";
+    if (atual >= meta * 0.9) return "amarelo";
+    return "vermelho";
+  };
+  const statusLess = (atual: number | null | undefined, meta: number | null | undefined, tol = 0.1): PilarStatus | "neutro" => {
+    if (atual == null || !isFinite(atual)) return "neutro";
+    if (meta == null || !isFinite(meta) || meta === 0) return "neutro";
+    if (atual <= meta) return "verde";
+    if (atual <= meta * (1 + tol)) return "amarelo";
     return "vermelho";
   };
 
@@ -129,25 +136,27 @@ function NovePilaresCard({ atualData, metaData }: { atualData: PM | null; metaDa
   const fmtRoas = (v: number | null | undefined) => v == null || !isFinite(v) ? "—" : v.toFixed(2) + "x";
   const fmtConv = (v: number | null | undefined) => v == null || !isFinite(v) ? "—" : v.toFixed(2) + "%";
 
+  const a = atualData ?? {};
+  const m = metaValues ?? {};
   const pilares = [
-    { nome: "Receita Captada", atual: atualData?.receita_captada, meta: metaData?.receita_captada, fmt: fmtBRL,
-      status: statusGreaterIsBetter(atualData?.receita_captada, metaData?.receita_captada) },
-    { nome: "Taxa de Aprovação", atual: atualData?.taxa_aprovacao, meta: metaData?.taxa_aprovacao, fmt: fmtPct,
-      status: statusAprovacao(atualData?.taxa_aprovacao) },
-    { nome: "Pedidos Captados", atual: atualData?.pedidos_captados, meta: metaData?.pedidos_captados, fmt: fmtNum,
-      status: statusGreaterIsBetter(atualData?.pedidos_captados, metaData?.pedidos_captados) },
-    { nome: "Taxa de Aquisição", atual: atualData?.taxa_aquisicao, meta: metaData?.taxa_aquisicao, fmt: fmtPct,
-      status: statusAquisicao(atualData?.taxa_aquisicao) },
-    { nome: "Taxa de Conversão", atual: atualData?.taxa_conversao, meta: metaData?.taxa_conversao, fmt: fmtConv,
-      status: statusConv(atualData?.taxa_conversao) },
-    { nome: "Sessões Totais", atual: atualData?.sessoes_totais, meta: metaData?.sessoes_totais, fmt: fmtNum,
-      status: statusGreaterIsBetter(atualData?.sessoes_totais, metaData?.sessoes_totais) },
-    { nome: "Investimento Total", atual: atualData?.investimento_total, meta: metaData?.investimento_total, fmt: fmtBRL,
-      status: statusLessIsBetter(atualData?.investimento_total, metaData?.investimento_total, 0.1) },
-    { nome: "ROAS Faturado", atual: atualData?.roas_faturado, meta: metaData?.roas_faturado, fmt: fmtRoas,
-      status: statusRoas(atualData?.roas_faturado) },
-    { nome: "CAC Novos", atual: atualData?.cac_novos, meta: metaData?.cac_novos, fmt: fmtBRL,
-      status: statusLessIsBetter(atualData?.cac_novos, metaData?.cac_novos, 0.2) },
+    { nome: "Receita Captada", atual: a.receita_captada, meta: m.receita_captada, fmt: fmtBRL,
+      status: statusGreater(a.receita_captada, m.receita_captada) },
+    { nome: "Taxa de Aprovação", atual: a.taxa_aprovacao, meta: m.taxa_aprovacao, fmt: fmtPct,
+      status: statusAprovacao(a.taxa_aprovacao) },
+    { nome: "Pedidos Captados", atual: a.pedidos_captados, meta: m.pedidos_captados, fmt: fmtNum,
+      status: statusGreater(a.pedidos_captados, m.pedidos_captados) },
+    { nome: "Taxa de Aquisição", atual: a.taxa_aquisicao, meta: m.taxa_aquisicao, fmt: fmtPct,
+      status: statusAquisicao(a.taxa_aquisicao) },
+    { nome: "Taxa de Conversão", atual: a.taxa_conversao, meta: m.taxa_conversao, fmt: fmtConv,
+      status: statusConv(a.taxa_conversao) },
+    { nome: "Sessões Totais", atual: a.sessoes_totais, meta: m.sessoes_totais, fmt: fmtNum,
+      status: statusGreater(a.sessoes_totais, m.sessoes_totais) },
+    { nome: "Investimento Total", atual: a.investimento_total, meta: m.investimento_total, fmt: fmtBRL,
+      status: statusLess(a.investimento_total, m.investimento_total, 0.1) },
+    { nome: "ROAS Faturado", atual: a.roas_faturado, meta: m.roas_faturado, fmt: fmtRoas,
+      status: statusRoas(a.roas_faturado) },
+    { nome: "CAC Novos", atual: a.cac_novos, meta: m.cac_novos, fmt: fmtBRL,
+      status: statusLess(a.cac_novos, m.cac_novos, 0.2) },
   ];
 
   return (
@@ -159,7 +168,7 @@ function NovePilaresCard({ atualData, metaData }: { atualData: PM | null; metaDa
             <tr>
               <th className="px-3 py-2 text-left text-xs uppercase tracking-wider">Pilar</th>
               <th className="px-3 py-2 text-right text-xs uppercase tracking-wider">Atual</th>
-              <th className="px-3 py-2 text-right text-xs uppercase tracking-wider">Meta</th>
+              <th className="px-3 py-2 text-right text-xs uppercase tracking-wider">{metaLabel}</th>
               <th className="px-3 py-2 text-center text-xs uppercase tracking-wider">Status</th>
             </tr>
           </thead>
@@ -174,7 +183,7 @@ function NovePilaresCard({ atualData, metaData }: { atualData: PM | null; metaDa
             ))}
           </tbody>
         </table>
-        <p className="text-[11px] text-muted-foreground px-3 py-2">Meta = registro planejado do mês selecionado.</p>
+        {footnote && <p className="text-[11px] text-muted-foreground px-3 py-2">{footnote}</p>}
       </CardContent>
     </Card>
   );
@@ -304,8 +313,49 @@ export default function PlanejamentoMensal() {
     })();
   }, [ano, mes, data]);
 
-  const pilaresAtual = tipo === "realizado" ? (realizadoMes ?? data) : (data ?? planejadoMes);
-  const pilaresMeta = tipo === "realizado" ? planejadoMes : null;
+  // Média histórica baseada nos últimos meses realizados carregados
+  const histAvgFor = (k: keyof PM): number | null => {
+    const xs = historico
+      .map((r) => r[k] as number | null)
+      .filter((v): v is number => v != null && isFinite(v));
+    return xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : null;
+  };
+
+  // Para campos do planejado: usa o valor salvo; se null, tenta derivar das fórmulas
+  const planejadoVal = (k: keyof PM): number | null => {
+    if (!planejadoMes) return null;
+    const v = planejadoMes[k] as number | null;
+    if (v != null && isFinite(v as number)) return v as number;
+    const it = planejadoMes.investimento_total ?? null;
+    const rf = planejadoMes.receita_faturada ?? null;
+    const pa = planejadoMes.pedidos_aquisicao ?? null;
+    const pc = planejadoMes.pedidos_captados ?? null;
+    const st = planejadoMes.sessoes_totais ?? null;
+    if (k === "roas_faturado" && rf && it) return rf / it;
+    if (k === "cac_novos" && it && pa) return it / pa;
+    if (k === "taxa_conversao" && pc && st) return (pc / st) * 100;
+    return null;
+  };
+
+  const PILAR_KEYS: (keyof PM)[] = [
+    "receita_captada", "taxa_aprovacao", "pedidos_captados", "taxa_aquisicao",
+    "taxa_conversao", "sessoes_totais", "investimento_total", "roas_faturado", "cac_novos",
+  ];
+
+  const pilaresAtual: Partial<PM> = tipo === "realizado"
+    ? ((realizadoMes ?? data ?? {}) as Partial<PM>)
+    : ((data ?? planejadoMes ?? {}) as Partial<PM>);
+
+  const pilaresMeta: Partial<Record<keyof PM, number | null>> = {};
+  if (tipo === "realizado") {
+    for (const k of PILAR_KEYS) pilaresMeta[k] = planejadoVal(k) ?? histAvgFor(k);
+  } else {
+    for (const k of PILAR_KEYS) pilaresMeta[k] = histAvgFor(k);
+  }
+  const metaLabel = tipo === "realizado" ? "Meta" : "Média Histórica";
+  const metaFootnote = tipo === "realizado"
+    ? "Meta = registro planejado do mês (fallback: média dos realizados anteriores)."
+    : "Média histórica calculada a partir dos últimos meses realizados.";
 
 
   if (isLoading) {
@@ -421,7 +471,7 @@ export default function PlanejamentoMensal() {
             ))}
           </div>
 
-          <NovePilaresCard atualData={pilaresAtual} metaData={pilaresMeta} />
+          <NovePilaresCard atualData={pilaresAtual} metaValues={pilaresMeta} metaLabel={metaLabel} footnote={metaFootnote} />
 
 
           <Card style={{ borderColor: "#F5E9B8" }}>
@@ -495,43 +545,61 @@ export default function PlanejamentoMensal() {
         </div>
       </div>
 
-      {/* HISTÓRICO */}
+      {/* HISTÓRICO — KPIs nas linhas, meses nas colunas */}
       <Card style={{ borderColor: "#F5E9B8" }}>
-        <CardHeader><CardTitle className="font-serif text-lg">Histórico — Últimos 6 Meses Realizados</CardTitle></CardHeader>
-        <CardContent>
+        <CardHeader>
+          <CardTitle className="font-serif text-lg">
+            Histórico — Últimos 6 Meses Realizados ({historico.length} {historico.length === 1 ? "mês" : "meses"})
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="p-0">
           {historico.length === 0 ? (
-            <p className="text-sm text-muted-foreground">Nenhum mês realizado registrado ainda</p>
+            <p className="text-sm text-muted-foreground p-4">Nenhum mês realizado registrado ainda</p>
           ) : (() => {
-            type Col = {
+            type Row = {
               key: keyof PM;
               label: string;
               fmt: (v: number | null | undefined) => string;
               lowerIsBetter?: boolean;
             };
+            type Group = { label: string; rows: Row[]; bg?: string };
             const fmtRoas = (v: number | null | undefined) => v == null || !isFinite(v) ? "—" : v.toFixed(2) + "x";
-            const cols: Col[] = [
-              { key: "receita_captada", label: "Rec. Captada", fmt: fmtBRL },
-              { key: "receita_faturada", label: "Rec. Faturada", fmt: fmtBRL },
-              { key: "receita_cancelada", label: "Rec. Cancelada", fmt: fmtBRL, lowerIsBetter: true },
-              { key: "pedidos_captados", label: "Pedidos Cap.", fmt: (v) => fmtNum(v) },
-              { key: "pedidos_faturados", label: "Pedidos Fat.", fmt: (v) => fmtNum(v) },
-              { key: "taxa_aprovacao", label: "Tx. Aprovação", fmt: fmtPct },
-              { key: "taxa_aquisicao", label: "Tx. Aquisição", fmt: fmtPct, lowerIsBetter: true },
-              { key: "taxa_retencao", label: "Tx. Retenção", fmt: fmtPct },
-              { key: "taxa_conversao", label: "Tx. Conversão", fmt: fmtPct },
-              { key: "sessoes_totais", label: "Sessões Totais", fmt: (v) => fmtNum(v) },
-              { key: "sessoes_midia", label: "Sessões Mídia", fmt: (v) => fmtNum(v) },
-              { key: "investimento_total", label: "Invest. Total", fmt: fmtBRL, lowerIsBetter: true },
-              { key: "cps_geral", label: "CPS Geral", fmt: fmtBRL, lowerIsBetter: true },
-              { key: "cps_midia", label: "CPS Mídia", fmt: fmtBRL, lowerIsBetter: true },
-              { key: "cac_novos", label: "CAC Novos", fmt: fmtBRL, lowerIsBetter: true },
-              { key: "cac_geral", label: "CAC Geral", fmt: fmtBRL, lowerIsBetter: true },
-              { key: "roas_faturado", label: "ROAS", fmt: fmtRoas },
-              { key: "adcost_pct", label: "AdCost%", fmt: fmtPct, lowerIsBetter: true },
-              { key: "ticket_medio_geral", label: "Ticket Geral", fmt: fmtBRL },
-              { key: "ticket_medio_aquisicao", label: "Ticket Aquis.", fmt: fmtBRL },
-              { key: "ticket_medio_retencao", label: "Ticket Ret.", fmt: fmtBRL },
-              { key: "peso_mes_pct", label: "Peso Mês%", fmt: fmtPct },
+
+            const groups: Group[] = [
+              { label: "Receitas", bg: "#FBF7EC", rows: [
+                { key: "receita_captada", label: "Receita Captada", fmt: fmtBRL },
+                { key: "receita_faturada", label: "Receita Faturada", fmt: fmtBRL },
+                { key: "receita_cancelada", label: "Receita Cancelada", fmt: fmtBRL, lowerIsBetter: true },
+              ]},
+              { label: "Pedidos", rows: [
+                { key: "pedidos_captados", label: "Pedidos Captados", fmt: (v) => fmtNum(v) },
+                { key: "pedidos_faturados", label: "Pedidos Faturados", fmt: (v) => fmtNum(v) },
+              ]},
+              { label: "Taxas", bg: "#FBF7EC", rows: [
+                { key: "taxa_aprovacao", label: "Tx. Aprovação", fmt: fmtPct },
+                { key: "taxa_aquisicao", label: "Tx. Aquisição", fmt: fmtPct, lowerIsBetter: true },
+                { key: "taxa_retencao", label: "Tx. Retenção", fmt: fmtPct },
+                { key: "taxa_conversao", label: "Tx. Conversão", fmt: fmtPct },
+              ]},
+              { label: "Tráfego", rows: [
+                { key: "sessoes_totais", label: "Sessões Totais", fmt: (v) => fmtNum(v) },
+                { key: "sessoes_midia", label: "Sessões Mídia", fmt: (v) => fmtNum(v) },
+              ]},
+              { label: "Investimento & Eficiência", bg: "#FBF7EC", rows: [
+                { key: "investimento_total", label: "Invest. Total", fmt: fmtBRL, lowerIsBetter: true },
+                { key: "cps_geral", label: "CPS Geral", fmt: fmtBRL, lowerIsBetter: true },
+                { key: "cps_midia", label: "CPS Mídia", fmt: fmtBRL, lowerIsBetter: true },
+                { key: "cac_novos", label: "CAC Novos", fmt: fmtBRL, lowerIsBetter: true },
+                { key: "cac_geral", label: "CAC Geral", fmt: fmtBRL, lowerIsBetter: true },
+              ]},
+              { label: "Resultados", rows: [
+                { key: "roas_faturado", label: "ROAS Faturado", fmt: fmtRoas },
+                { key: "adcost_pct", label: "AdCost %", fmt: fmtPct, lowerIsBetter: true },
+                { key: "ticket_medio_geral", label: "Ticket Geral", fmt: fmtBRL },
+                { key: "ticket_medio_aquisicao", label: "Ticket Aquisição", fmt: fmtBRL },
+                { key: "ticket_medio_retencao", label: "Ticket Retenção", fmt: fmtBRL },
+                { key: "peso_mes_pct", label: "Peso do Mês %", fmt: fmtPct },
+              ]},
             ];
 
             const avg = (k: keyof PM) => {
@@ -539,66 +607,98 @@ export default function PlanejamentoMensal() {
               return xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : null;
             };
 
-            const stickyCellBase: React.CSSProperties = {
-              position: "sticky", left: 0, zIndex: 2, minWidth: 110,
+            const stickyKpiBase: React.CSSProperties = {
+              position: "sticky", left: 0, zIndex: 2, minWidth: 180,
             };
+            const cellPad = "10px 14px";
+            const headPad = "12px 14px";
+            const monthIsCurrent = (m: PM) => m.ano === ano && m.mes === mes;
+            const totalCols = 1 + historico.length + 2; // KPI + meses + Média + Meta
 
             return (
-              <div className="overflow-x-auto rounded-md border" style={{ borderColor: "#F5E9B8" }}>
-                <table className="w-full text-[11px]" style={{ borderCollapse: "separate", borderSpacing: 0 }}>
-                  <thead style={{ background: "#1D1D1B", color: "#E8CD7E", position: "sticky", top: 0, zIndex: 3 }}>
-                    <tr>
-                      <th className="px-3 py-2 text-left uppercase tracking-wider"
-                          style={{ ...stickyCellBase, background: "#1D1D1B", zIndex: 4 }}>Mês</th>
-                      {cols.map((c) => (
-                        <th key={c.key as string} className="px-3 py-2 text-right uppercase tracking-wider whitespace-nowrap">{c.label}</th>
+              <div className="overflow-auto max-h-[640px]" style={{ borderTop: "1px solid #F5E9B8" }}>
+                <table className="w-full" style={{ borderCollapse: "separate", borderSpacing: 0, fontSize: 13 }}>
+                  <thead style={{ position: "sticky", top: 0, zIndex: 5 }}>
+                    <tr style={{ background: "#1D1D1B", color: "#E8CD7E" }}>
+                      <th className="text-left uppercase whitespace-nowrap"
+                          style={{ ...stickyKpiBase, background: "#1D1D1B", zIndex: 6, padding: headPad, letterSpacing: 1 }}>
+                        KPI / Métrica
+                      </th>
+                      {historico.map((m) => (
+                        <th key={m.id}
+                            className="text-right uppercase whitespace-nowrap"
+                            style={{
+                              padding: headPad, letterSpacing: 1, minWidth: 110, width: 110,
+                              borderLeft: monthIsCurrent(m) ? "2px solid #E8CD7E" : undefined,
+                              borderRight: monthIsCurrent(m) ? "2px solid #E8CD7E" : undefined,
+                            }}>
+                          {MESES[m.mes - 1].slice(0, 3)}/{String(m.ano).slice(-2)}
+                        </th>
                       ))}
+                      <th className="text-right uppercase whitespace-nowrap"
+                          style={{ padding: headPad, letterSpacing: 1, minWidth: 110, background: "#FAF6EE", color: "#1D1D1B" }}>
+                        Média
+                      </th>
+                      <th className="text-right uppercase whitespace-nowrap"
+                          style={{ padding: headPad, letterSpacing: 1, minWidth: 110, background: "#FFF8E8", color: "#8B6914" }}>
+                        Meta Planejada
+                      </th>
                     </tr>
                   </thead>
                   <tbody>
-                    {historico.map((row, i) => {
-                      const prev = historico[i - 1];
-                      const atual = row.ano === ano && row.mes === mes;
-                      const rowBg = i % 2 ? "#FAF8F3" : "#FFFFFF";
-                      return (
-                        <tr key={row.id}
-                            style={atual ? { boxShadow: "inset 0 0 0 2px #E8CD7E", background: rowBg } : { background: rowBg }}>
-                          <td className="px-3 py-2 font-medium whitespace-nowrap"
-                              style={{ ...stickyCellBase, background: rowBg }}>
-                            {MESES[row.mes - 1].slice(0, 3)}/{row.ano}
+                    {groups.map((g, gi) => (
+                      <React.Fragment key={`g-${gi}`}>
+                        <tr key={`g-${gi}`}>
+                          <td colSpan={totalCols}
+                              style={{
+                                background: "#1D1D1B", color: "#E8CD7E",
+                                padding: "4px 14px", fontSize: 10,
+                                textTransform: "uppercase", letterSpacing: 1, fontWeight: 600,
+                              }}>
+                            {g.label}
                           </td>
-                          {cols.map((c) => {
-                            const v = row[c.key] as number | null;
-                            const pv = (prev?.[c.key] ?? null) as number | null;
-                            return (
-                              <td key={c.key as string} className="px-3 py-2 text-right whitespace-nowrap">
-                                {c.fmt(v)} <Trend cur={v} prev={pv} lowerIsBetter={c.lowerIsBetter} />
-                              </td>
-                            );
-                          })}
                         </tr>
-                      );
-                    })}
-                    <tr style={{ background: "#FAF6EE", fontWeight: 600 }}>
-                      <td className="px-3 py-2 whitespace-nowrap"
-                          style={{ ...stickyCellBase, background: "#FAF6EE" }}>Média</td>
-                      {cols.map((c) => (
-                        <td key={c.key as string} className="px-3 py-2 text-right whitespace-nowrap">{c.fmt(avg(c.key))}</td>
-                      ))}
-                    </tr>
-                    {planejadoMes && (
-                      <tr style={{ background: "#FFF8E8", fontWeight: 600 }}>
-                        <td className="px-3 py-2 whitespace-nowrap"
-                            style={{ ...stickyCellBase, background: "#FFF8E8", color: "#8B6914" }}>
-                          Meta planejada
-                        </td>
-                        {cols.map((c) => (
-                          <td key={c.key as string} className="px-3 py-2 text-right whitespace-nowrap" style={{ color: "#8B6914" }}>
-                            {c.fmt(planejadoMes[c.key] as number | null)}
-                          </td>
-                        ))}
-                      </tr>
-                    )}
+                        {g.rows.map((r, ri) => {
+                          const rowBg = g.bg ?? (ri % 2 ? "#FAF8F3" : "#FFFFFF");
+                          const mediaVal = avg(r.key);
+                          const metaVal = planejadoMes ? planejadoVal(r.key) : null;
+                          return (
+                            <tr key={r.key as string} style={{ background: rowBg, minHeight: 44 }}>
+                              <td className="font-medium whitespace-nowrap"
+                                  style={{ ...stickyKpiBase, background: rowBg, padding: cellPad }}>
+                                {r.label}
+                              </td>
+                              {historico.map((m, mi) => {
+                                const v = m[r.key] as number | null;
+                                const pv = mi > 0 ? (historico[mi - 1][r.key] as number | null) : null;
+                                const cur = monthIsCurrent(m);
+                                return (
+                                  <td key={m.id} className="text-right whitespace-nowrap"
+                                      style={{
+                                        padding: cellPad,
+                                        borderLeft: cur ? "2px solid #E8CD7E" : undefined,
+                                        borderRight: cur ? "2px solid #E8CD7E" : undefined,
+                                      }}>
+                                    <span>{r.fmt(v)}</span>
+                                    <span style={{ fontSize: 11, marginLeft: 4 }}>
+                                      <Trend cur={v} prev={pv} lowerIsBetter={r.lowerIsBetter} />
+                                    </span>
+                                  </td>
+                                );
+                              })}
+                              <td className="text-right whitespace-nowrap"
+                                  style={{ padding: cellPad, background: "#FAF6EE", fontWeight: 700 }}>
+                                {r.fmt(mediaVal)}
+                              </td>
+                              <td className="text-right whitespace-nowrap"
+                                  style={{ padding: cellPad, background: "#FFF8E8", color: "#8B6914", fontWeight: 600 }}>
+                                {r.fmt(metaVal)}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </React.Fragment>
+                    ))}
                   </tbody>
                 </table>
               </div>
