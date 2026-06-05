@@ -74,20 +74,44 @@ export function usePlanejamentoMensal(ano: number, mes: number, tipo: "planejado
   const salvarCamposManuais = async (campos: Partial<PlanejamentoMensal>) => {
     setIsSaving(true);
     try {
-      const payload: any = { ano, mes, tipo };
+      // 1. Filtrar APENAS campos manuais (campos calculados são preenchidos pelo trigger)
+      const payload: Record<string, any> = {};
       for (const k of CAMPOS_MANUAIS) {
         if (k in campos) payload[k] = (campos as any)[k];
       }
-      let res;
-      if (data?.id) {
-        res = await (supabase as any).from("planejamento_mensal").update(payload).eq("id", data.id);
+
+      let recordId = data?.id;
+
+      if (recordId) {
+        // 2. UPDATE somente com os manuais
+        const { error: updateError } = await (supabase as any)
+          .from("planejamento_mensal")
+          .update(payload)
+          .eq("id", recordId);
+        if (updateError) throw updateError;
       } else {
-        res = await (supabase as any).from("planejamento_mensal").insert(payload);
+        // INSERT com manuais + chaves do registro
+        const { data: inserted, error: insertError } = await (supabase as any)
+          .from("planejamento_mensal")
+          .insert({ ...payload, ano, mes, tipo })
+          .select("id")
+          .single();
+        if (insertError) throw insertError;
+        recordId = inserted.id;
       }
-      if (res.error) throw res.error;
-      await fetch();
+
+      // 3. SELECT separado para buscar os calculados pelo trigger
+      const { data: updated, error: selectError } = await (supabase as any)
+        .from("planejamento_mensal")
+        .select("*")
+        .eq("id", recordId)
+        .single();
+      if (selectError) throw selectError;
+
+      setData(updated as PlanejamentoMensal);
       toast.success("Salvo 💛", { duration: 2000 });
     } catch (e: any) {
+      console.error(e);
       toast.error("Erro ao salvar. Tente novamente.");
       setError(e.message);
     } finally {
