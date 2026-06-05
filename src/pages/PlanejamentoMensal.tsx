@@ -287,7 +287,11 @@ export default function PlanejamentoMensal() {
                   <div className="text-[10px] uppercase tracking-wider text-[#E8CD7E]/70">{k.label}</div>
                   <div className="text-2xl font-serif mt-1 text-[#E8CD7E]">
                     {k.custom ?? k.value}
-                  </div>
+          </div>
+
+          <NovePilaresCard data={data} historico={historico} />
+
+
                 </CardContent>
               </Card>
             ))}
