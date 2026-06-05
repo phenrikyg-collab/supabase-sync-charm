@@ -922,28 +922,29 @@ function ImagemMetaAds({ criativo }: { criativo: any }) {
         </Select>
       </div>
 
+      {(() => { console.log("Modelos disponíveis:", modelos?.length, modelos); return null; })()}
       {modelos.length > 0 && (
         <div className="space-y-2">
           <Label className="text-xs">Modelo</Label>
           <div className="flex items-center gap-3">
             <div className="flex-1">
-              <Select value={modeloSelecionadoId} onValueChange={setModeloSelecionadoId} disabled={loading}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="ia">🤖 Gerar modelo com IA</SelectItem>
-                  {modelos.map((m) => (
-                    <SelectItem key={m.id} value={m.id}>
-                      <span className="inline-flex items-center gap-2">
-                        {m.foto_url && (
-                          <img src={m.foto_url} alt="" className="h-6 w-6 rounded-full object-cover" />
-                        )}
-                        {m.nome}
-                        {m.faixa_etaria && <span className="text-xs text-muted-foreground">· {m.faixa_etaria}</span>}
-                      </span>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <select
+                value={modeloId || "ia"}
+                disabled={loading}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setModeloId(val === "ia" ? null : val);
+                  console.log("Modelo selecionada:", val);
+                }}
+                className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <option value="ia">🤖 Gerar modelo com IA</option>
+                {modelos?.map((m) => (
+                  <option key={m.id} value={m.id}>
+                    {m.nome}{m.faixa_etaria ? ` · ${m.faixa_etaria}` : ""}
+                  </option>
+                ))}
+              </select>
             </div>
             {modeloSelecionada?.foto_url && (
               <img
