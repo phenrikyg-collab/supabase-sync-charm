@@ -313,8 +313,49 @@ export default function PlanejamentoMensal() {
     })();
   }, [ano, mes, data]);
 
-  const pilaresAtual = tipo === "realizado" ? (realizadoMes ?? data) : (data ?? planejadoMes);
-  const pilaresMeta = tipo === "realizado" ? planejadoMes : null;
+  // Média histórica baseada nos últimos meses realizados carregados
+  const histAvgFor = (k: keyof PM): number | null => {
+    const xs = historico
+      .map((r) => r[k] as number | null)
+      .filter((v): v is number => v != null && isFinite(v));
+    return xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : null;
+  };
+
+  // Para campos do planejado: usa o valor salvo; se null, tenta derivar das fórmulas
+  const planejadoVal = (k: keyof PM): number | null => {
+    if (!planejadoMes) return null;
+    const v = planejadoMes[k] as number | null;
+    if (v != null && isFinite(v as number)) return v as number;
+    const it = planejadoMes.investimento_total ?? null;
+    const rf = planejadoMes.receita_faturada ?? null;
+    const pa = planejadoMes.pedidos_aquisicao ?? null;
+    const pc = planejadoMes.pedidos_captados ?? null;
+    const st = planejadoMes.sessoes_totais ?? null;
+    if (k === "roas_faturado" && rf && it) return rf / it;
+    if (k === "cac_novos" && it && pa) return it / pa;
+    if (k === "taxa_conversao" && pc && st) return (pc / st) * 100;
+    return null;
+  };
+
+  const PILAR_KEYS: (keyof PM)[] = [
+    "receita_captada", "taxa_aprovacao", "pedidos_captados", "taxa_aquisicao",
+    "taxa_conversao", "sessoes_totais", "investimento_total", "roas_faturado", "cac_novos",
+  ];
+
+  const pilaresAtual: Partial<PM> = tipo === "realizado"
+    ? ((realizadoMes ?? data ?? {}) as Partial<PM>)
+    : ((data ?? planejadoMes ?? {}) as Partial<PM>);
+
+  const pilaresMeta: Partial<Record<keyof PM, number | null>> = {};
+  if (tipo === "realizado") {
+    for (const k of PILAR_KEYS) pilaresMeta[k] = planejadoVal(k) ?? histAvgFor(k);
+  } else {
+    for (const k of PILAR_KEYS) pilaresMeta[k] = histAvgFor(k);
+  }
+  const metaLabel = tipo === "realizado" ? "Meta" : "Média Histórica";
+  const metaFootnote = tipo === "realizado"
+    ? "Meta = registro planejado do mês (fallback: média dos realizados anteriores)."
+    : "Média histórica calculada a partir dos últimos meses realizados.";
 
 
   if (isLoading) {
