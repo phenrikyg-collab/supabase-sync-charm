@@ -501,55 +501,109 @@ export default function PlanejamentoMensal() {
         <CardContent>
           {historico.length === 0 ? (
             <p className="text-sm text-muted-foreground">Nenhum mês realizado registrado ainda</p>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead style={{ background: "#1D1D1B", color: "#E8CD7E" }}>
-                  <tr>
-                    {["Mês", "Rec. Faturada", "ROAS", "CAC Novos", "Taxa Ret.", "Ticket Geral", "AdCost"].map((h) => (
-                      <th key={h} className="px-3 py-2 text-left text-xs uppercase tracking-wider">{h}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {historico.map((row, i) => {
-                    const prev = historico[i - 1];
-                    const atual = row.ano === ano && row.mes === mes;
-                    return (
-                      <tr key={row.id} className={i % 2 ? "bg-[#FAF8F3]" : "bg-white"}
-                        style={atual ? { boxShadow: "inset 0 0 0 2px #E8CD7E" } : {}}>
-                        <td className="px-3 py-2 font-medium">{MESES[row.mes - 1].slice(0, 3)}/{row.ano}</td>
-                        <td className="px-3 py-2">{fmtBRL(row.receita_faturada)} <Trend cur={row.receita_faturada} prev={prev?.receita_faturada ?? null} /></td>
-                        <td className="px-3 py-2"><RoasBadge v={row.roas_faturado} /></td>
-                        <td className="px-3 py-2">{fmtBRL(row.cac_novos)} <Trend cur={row.cac_novos} prev={prev?.cac_novos ?? null} /></td>
-                        <td className="px-3 py-2">{fmtPct(row.taxa_retencao)}</td>
-                        <td className="px-3 py-2">{fmtBRL(row.ticket_medio_geral)}</td>
-                        <td className="px-3 py-2">{fmtPct(row.adcost_pct)}</td>
+          ) : (() => {
+            type Col = {
+              key: keyof PM;
+              label: string;
+              fmt: (v: number | null | undefined) => string;
+              lowerIsBetter?: boolean;
+            };
+            const fmtRoas = (v: number | null | undefined) => v == null || !isFinite(v) ? "—" : v.toFixed(2) + "x";
+            const cols: Col[] = [
+              { key: "receita_captada", label: "Rec. Captada", fmt: fmtBRL },
+              { key: "receita_faturada", label: "Rec. Faturada", fmt: fmtBRL },
+              { key: "receita_cancelada", label: "Rec. Cancelada", fmt: fmtBRL, lowerIsBetter: true },
+              { key: "pedidos_captados", label: "Pedidos Cap.", fmt: (v) => fmtNum(v) },
+              { key: "pedidos_faturados", label: "Pedidos Fat.", fmt: (v) => fmtNum(v) },
+              { key: "taxa_aprovacao", label: "Tx. Aprovação", fmt: fmtPct },
+              { key: "taxa_aquisicao", label: "Tx. Aquisição", fmt: fmtPct, lowerIsBetter: true },
+              { key: "taxa_retencao", label: "Tx. Retenção", fmt: fmtPct },
+              { key: "taxa_conversao", label: "Tx. Conversão", fmt: fmtPct },
+              { key: "sessoes_totais", label: "Sessões Totais", fmt: (v) => fmtNum(v) },
+              { key: "sessoes_midia", label: "Sessões Mídia", fmt: (v) => fmtNum(v) },
+              { key: "investimento_total", label: "Invest. Total", fmt: fmtBRL, lowerIsBetter: true },
+              { key: "cps_geral", label: "CPS Geral", fmt: fmtBRL, lowerIsBetter: true },
+              { key: "cps_midia", label: "CPS Mídia", fmt: fmtBRL, lowerIsBetter: true },
+              { key: "cac_novos", label: "CAC Novos", fmt: fmtBRL, lowerIsBetter: true },
+              { key: "cac_geral", label: "CAC Geral", fmt: fmtBRL, lowerIsBetter: true },
+              { key: "roas_faturado", label: "ROAS", fmt: fmtRoas },
+              { key: "adcost_pct", label: "AdCost%", fmt: fmtPct, lowerIsBetter: true },
+              { key: "ticket_medio_geral", label: "Ticket Geral", fmt: fmtBRL },
+              { key: "ticket_medio_aquisicao", label: "Ticket Aquis.", fmt: fmtBRL },
+              { key: "ticket_medio_retencao", label: "Ticket Ret.", fmt: fmtBRL },
+              { key: "peso_mes_pct", label: "Peso Mês%", fmt: fmtPct },
+            ];
+
+            const avg = (k: keyof PM) => {
+              const xs = historico.map((r) => r[k] as number | null).filter((v): v is number => v != null && isFinite(v));
+              return xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : null;
+            };
+
+            const stickyCellBase: React.CSSProperties = {
+              position: "sticky", left: 0, zIndex: 2, minWidth: 110,
+            };
+
+            return (
+              <div className="overflow-x-auto rounded-md border" style={{ borderColor: "#F5E9B8" }}>
+                <table className="w-full text-[11px]" style={{ borderCollapse: "separate", borderSpacing: 0 }}>
+                  <thead style={{ background: "#1D1D1B", color: "#E8CD7E", position: "sticky", top: 0, zIndex: 3 }}>
+                    <tr>
+                      <th className="px-3 py-2 text-left uppercase tracking-wider"
+                          style={{ ...stickyCellBase, background: "#1D1D1B", zIndex: 4 }}>Mês</th>
+                      {cols.map((c) => (
+                        <th key={c.key as string} className="px-3 py-2 text-right uppercase tracking-wider whitespace-nowrap">{c.label}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {historico.map((row, i) => {
+                      const prev = historico[i - 1];
+                      const atual = row.ano === ano && row.mes === mes;
+                      const rowBg = i % 2 ? "#FAF8F3" : "#FFFFFF";
+                      return (
+                        <tr key={row.id}
+                            style={atual ? { boxShadow: "inset 0 0 0 2px #E8CD7E", background: rowBg } : { background: rowBg }}>
+                          <td className="px-3 py-2 font-medium whitespace-nowrap"
+                              style={{ ...stickyCellBase, background: rowBg }}>
+                            {MESES[row.mes - 1].slice(0, 3)}/{row.ano}
+                          </td>
+                          {cols.map((c) => {
+                            const v = row[c.key] as number | null;
+                            const pv = (prev?.[c.key] ?? null) as number | null;
+                            return (
+                              <td key={c.key as string} className="px-3 py-2 text-right whitespace-nowrap">
+                                {c.fmt(v)} <Trend cur={v} prev={pv} lowerIsBetter={c.lowerIsBetter} />
+                              </td>
+                            );
+                          })}
+                        </tr>
+                      );
+                    })}
+                    <tr style={{ background: "#FAF6EE", fontWeight: 600 }}>
+                      <td className="px-3 py-2 whitespace-nowrap"
+                          style={{ ...stickyCellBase, background: "#FAF6EE" }}>Média</td>
+                      {cols.map((c) => (
+                        <td key={c.key as string} className="px-3 py-2 text-right whitespace-nowrap">{c.fmt(avg(c.key))}</td>
+                      ))}
+                    </tr>
+                    {planejadoMes && (
+                      <tr style={{ background: "#FFF8E8", fontWeight: 600 }}>
+                        <td className="px-3 py-2 whitespace-nowrap"
+                            style={{ ...stickyCellBase, background: "#FFF8E8", color: "#8B6914" }}>
+                          Meta planejada
+                        </td>
+                        {cols.map((c) => (
+                          <td key={c.key as string} className="px-3 py-2 text-right whitespace-nowrap" style={{ color: "#8B6914" }}>
+                            {c.fmt(planejadoMes[c.key] as number | null)}
+                          </td>
+                        ))}
                       </tr>
-                    );
-                  })}
-                  {historico.length > 0 && (() => {
-                    const avg = (k: keyof PM) => {
-                      const xs = historico.map((r) => r[k] as number | null).filter((v): v is number => v != null);
-                      return xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : null;
-                    };
-                    return (
-                      <tr style={{ background: "#FAF6EE", fontWeight: 600 }}>
-                        <td className="px-3 py-2">Média</td>
-                        <td className="px-3 py-2">{fmtBRL(avg("receita_faturada"))}</td>
-                        <td className="px-3 py-2">{avg("roas_faturado") != null ? (avg("roas_faturado") as number).toFixed(2) + "x" : "—"}</td>
-                        <td className="px-3 py-2">{fmtBRL(avg("cac_novos"))}</td>
-                        <td className="px-3 py-2">{fmtPct(avg("taxa_retencao"))}</td>
-                        <td className="px-3 py-2">{fmtBRL(avg("ticket_medio_geral"))}</td>
-                        <td className="px-3 py-2">{fmtPct(avg("adcost_pct"))}</td>
-                      </tr>
-                    );
-                  })()}
-                </tbody>
-              </table>
-              <p className="text-xs text-muted-foreground mt-2">Próximos meses planejados com base nessa média histórica.</p>
-            </div>
-          )}
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            );
+          })()}
         </CardContent>
       </Card>
     </div>
