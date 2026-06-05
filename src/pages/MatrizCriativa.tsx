@@ -492,24 +492,56 @@ function CriativoCard({ c, onOpen, onAprovar, onRegenerar, onExcluir, regenerand
   );
 }
 
-function parseRoteiroVideo(texto: string) {
-  const cenas: { numero: string; tempo: string; camera: string; fala: string; visual: string }[] = [];
-  const t = texto.replace(/\r/g, "\n");
-  // Match each scene block: [CENA N - ...] or CENA N - ...
-  const regex = /(?:\[?\s*CENA\s*(\d+)[^\]]*\]?)\s*(.*?)(?=(?:\[?\s*CENA\s*\d+)|$)/gsi;
-  let m;
-  while ((m = regex.exec(t)) !== null) {
+type Cena = {
+  numero: string;
+  tempo: string;
+  camera: string;
+  fala: string;
+  visual: string;
+  expressao: string;
+  som: string;
+};
+
+function parseRoteiroVideo(texto: string): Cena[] {
+  const t = (texto || "").replace(/\r/g, "");
+  if (!t.trim()) return [];
+
+  // 1) Split por [CENA N ...] — captura o header e o corpo até o próximo [CENA ou fim
+  const cenas: Cena[] = [];
+  // Regex captura: 1) número  2) miolo do header (tempo)  3) corpo até próximo [CENA ou fim
+  const re = /\[\s*CENA\s*(\d+)\s*([^\]]*)\]([\s\S]*?)(?=\[\s*CENA\s*\d+|$)/gi;
+  let m: RegExpExecArray | null;
+
+  const extractField = (corpo: string, labels: string[]): string => {
+    // Constrói lookahead com TODOS os labels conhecidos + separador --- + fim
+    const allLabels = ["CAMERA", "C[ÂA]MERA", "FALA", "VISUAL", "EXPRESS[ÃA]O", "EXPRESSAO", "SOM"];
+    const stop = `(?=^\\s*(?:${allLabels.join("|")})\\s*:|^\\s*---\\s*$|\\Z)`;
+    for (const lbl of labels) {
+      const r = new RegExp(`^\\s*${lbl}\\s*:\\s*([\\s\\S]*?)${stop}`, "im");
+      const mm = corpo.match(r);
+      if (mm && mm[1] != null) {
+        return mm[1].trim().replace(/\n+/g, " ").trim();
+      }
+    }
+    return "";
+  };
+
+  while ((m = re.exec(t)) !== null) {
     const numero = m[1];
-    const corpo = m[2].trim();
-    const tempoMatch = corpo.match(/(\d+\s*s?\s*(?:a|–|-)\s*\d+\s*s?)/i) || corpo.match(/(\d+\s*s?\s*[-–—]\s*\d+\s*s?)/i);
-    const tempo = tempoMatch ? tempoMatch[1].trim() : "";
-    const camMatch = corpo.match(/C[ÂA]MERA:\s*(.*?)(?=\||FALA:|VISUAL:|$)/i);
-    const camera = camMatch ? camMatch[1].trim() : "";
-    const falaMatch = corpo.match(/FALA:\s*(.*?)(?=\||VISUAL:|$)/i);
-    const fala = falaMatch ? falaMatch[1].trim() : "";
-    const visMatch = corpo.match(/VISUAL:\s*(.*?)(?=\||$)/i);
-    const visual = visMatch ? visMatch[1].trim() : "";
-    if (numero) cenas.push({ numero, tempo, camera, fala, visual });
+    const headerRest = (m[2] || "").trim(); // ex: "- 0s a 3s"
+    const corpo = (m[3] || "").trim();
+    const tempoMatch = headerRest.match(/(\d+\s*s?\s*(?:a|até|–|—|-)\s*\d+\s*s?)/i);
+    const tempo = tempoMatch ? tempoMatch[1].trim() : headerRest.replace(/^[-–—\s]+/, "");
+
+    cenas.push({
+      numero,
+      tempo,
+      camera: extractField(corpo, ["CAMERA", "C[ÂA]MERA"]),
+      fala: extractField(corpo, ["FALA"]),
+      visual: extractField(corpo, ["VISUAL"]),
+      expressao: extractField(corpo, ["EXPRESS[ÃA]O", "EXPRESSAO"]),
+      som: extractField(corpo, ["SOM"]),
+    });
   }
   return cenas;
 }
@@ -523,10 +555,17 @@ function RoteiroVideo({ texto }: { texto: string }) {
       </pre>
     );
   }
+  const linhas: { key: keyof Cena; label: string; badge: string; italic?: boolean; quote?: boolean }[] = [
+    { key: "camera", label: "CÂMERA", badge: "bg-blue-100 text-blue-700 border-blue-200" },
+    { key: "fala", label: "FALA", badge: "bg-green-100 text-green-700 border-green-200", italic: true, quote: true },
+    { key: "visual", label: "VISUAL", badge: "bg-purple-100 text-purple-700 border-purple-200" },
+    { key: "expressao", label: "EXPRESSÃO", badge: "bg-orange-100 text-orange-700 border-orange-200" },
+    { key: "som", label: "SOM", badge: "bg-gray-100 text-gray-700 border-gray-200" },
+  ];
   return (
     <div className="space-y-4">
       {cenas.map((cena, idx) => (
-        <div key={cena.numero}>
+        <div key={`${cena.numero}-${idx}`}>
           {idx > 0 && <Separator className="my-4 bg-border/40" />}
           <div className="rounded-lg border border-border/60 overflow-hidden">
             <div className="bg-primary/10 px-3 py-2 flex items-center gap-2">
@@ -534,38 +573,25 @@ function RoteiroVideo({ texto }: { texto: string }) {
                 CENA {cena.numero}
               </span>
               {cena.tempo && (
-                <span className="text-[11px] text-muted-foreground">
-                  • {cena.tempo}
-                </span>
+                <span className="text-[11px] text-muted-foreground">• {cena.tempo}</span>
               )}
             </div>
             <div className="p-3 space-y-2 text-sm">
-              {cena.camera && (
-                <div>
-                  <span className="text-[11px] font-semibold uppercase tracking-wide text-blue-600">
-                    CÂMERA
-                  </span>
-                  <p className="text-foreground/90">{cena.camera}</p>
-                </div>
-              )}
-              {cena.fala && (
-                <div>
-                  <span className="text-[11px] font-semibold uppercase tracking-wide text-green-600">
-                    FALA
-                  </span>
-                  <p className="text-foreground/90 italic">
-                    "{cena.fala.replace(/^"/, "").replace(/"$/, "")}"
-                  </p>
-                </div>
-              )}
-              {cena.visual && (
-                <div>
-                  <span className="text-[11px] font-semibold uppercase tracking-wide text-secondary-foreground/70">
-                    VISUAL
-                  </span>
-                  <p className="text-foreground/90">{cena.visual}</p>
-                </div>
-              )}
+              {linhas.map((l) => {
+                const v = (cena[l.key] as string) || "";
+                if (!v) return null;
+                const clean = l.quote ? v.replace(/^["“”]/, "").replace(/["“”]$/, "") : v;
+                return (
+                  <div key={l.key} className="flex gap-2 items-start">
+                    <span className={`shrink-0 inline-block text-[10px] font-semibold uppercase tracking-wide px-2 py-0.5 rounded border ${l.badge}`}>
+                      {l.label}
+                    </span>
+                    <p className={`text-foreground/90 ${l.italic ? "italic" : ""}`}>
+                      {l.quote ? `"${clean}"` : clean}
+                    </p>
+                  </div>
+                );
+              })}
             </div>
           </div>
         </div>
