@@ -848,6 +848,7 @@ function ImagemMetaAds({ criativo }: { criativo: any }) {
             tipo_foto: tipoFoto,
             cor_hex: corHex || null,
             garment_image_base64: garmentBase64,
+            modelo_id: modeloId && modeloId !== "__ai__" ? modeloId : null,
           }),
         }
       );
