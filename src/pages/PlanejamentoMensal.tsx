@@ -415,15 +415,14 @@ export default function PlanejamentoMensal() {
                   <div className="text-[10px] uppercase tracking-wider text-[#E8CD7E]/70">{k.label}</div>
                   <div className="text-2xl font-serif mt-1 text-[#E8CD7E]">
                     {k.custom ?? k.value}
-          </div>
-
-          <NovePilaresCard data={data} historico={historico} />
-
-
+                  </div>
                 </CardContent>
               </Card>
             ))}
           </div>
+
+          <NovePilaresCard atualData={pilaresAtual} metaData={pilaresMeta} />
+
 
           <Card style={{ borderColor: "#F5E9B8" }}>
             <CardHeader><CardTitle className="font-serif text-lg">Eficiência</CardTitle></CardHeader>
