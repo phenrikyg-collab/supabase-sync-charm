@@ -33,6 +33,8 @@ export interface PlanejamentoMensal {
   adcost_pct: number | null;
   peso_mes_pct: number | null;
   observacoes: string | null;
+  receita_cancelada: number | null;
+  taxa_conversao: number | null;
 }
 
 export const CAMPOS_MANUAIS = [
