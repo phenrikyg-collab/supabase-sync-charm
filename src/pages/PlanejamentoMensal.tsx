@@ -545,43 +545,61 @@ export default function PlanejamentoMensal() {
         </div>
       </div>
 
-      {/* HISTÓRICO */}
+      {/* HISTÓRICO — KPIs nas linhas, meses nas colunas */}
       <Card style={{ borderColor: "#F5E9B8" }}>
-        <CardHeader><CardTitle className="font-serif text-lg">Histórico — Últimos 6 Meses Realizados</CardTitle></CardHeader>
-        <CardContent>
+        <CardHeader>
+          <CardTitle className="font-serif text-lg">
+            Histórico — Últimos 6 Meses Realizados ({historico.length} {historico.length === 1 ? "mês" : "meses"})
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="p-0">
           {historico.length === 0 ? (
-            <p className="text-sm text-muted-foreground">Nenhum mês realizado registrado ainda</p>
+            <p className="text-sm text-muted-foreground p-4">Nenhum mês realizado registrado ainda</p>
           ) : (() => {
-            type Col = {
+            type Row = {
               key: keyof PM;
               label: string;
               fmt: (v: number | null | undefined) => string;
               lowerIsBetter?: boolean;
             };
+            type Group = { label: string; rows: Row[]; bg?: string };
             const fmtRoas = (v: number | null | undefined) => v == null || !isFinite(v) ? "—" : v.toFixed(2) + "x";
-            const cols: Col[] = [
-              { key: "receita_captada", label: "Rec. Captada", fmt: fmtBRL },
-              { key: "receita_faturada", label: "Rec. Faturada", fmt: fmtBRL },
-              { key: "receita_cancelada", label: "Rec. Cancelada", fmt: fmtBRL, lowerIsBetter: true },
-              { key: "pedidos_captados", label: "Pedidos Cap.", fmt: (v) => fmtNum(v) },
-              { key: "pedidos_faturados", label: "Pedidos Fat.", fmt: (v) => fmtNum(v) },
-              { key: "taxa_aprovacao", label: "Tx. Aprovação", fmt: fmtPct },
-              { key: "taxa_aquisicao", label: "Tx. Aquisição", fmt: fmtPct, lowerIsBetter: true },
-              { key: "taxa_retencao", label: "Tx. Retenção", fmt: fmtPct },
-              { key: "taxa_conversao", label: "Tx. Conversão", fmt: fmtPct },
-              { key: "sessoes_totais", label: "Sessões Totais", fmt: (v) => fmtNum(v) },
-              { key: "sessoes_midia", label: "Sessões Mídia", fmt: (v) => fmtNum(v) },
-              { key: "investimento_total", label: "Invest. Total", fmt: fmtBRL, lowerIsBetter: true },
-              { key: "cps_geral", label: "CPS Geral", fmt: fmtBRL, lowerIsBetter: true },
-              { key: "cps_midia", label: "CPS Mídia", fmt: fmtBRL, lowerIsBetter: true },
-              { key: "cac_novos", label: "CAC Novos", fmt: fmtBRL, lowerIsBetter: true },
-              { key: "cac_geral", label: "CAC Geral", fmt: fmtBRL, lowerIsBetter: true },
-              { key: "roas_faturado", label: "ROAS", fmt: fmtRoas },
-              { key: "adcost_pct", label: "AdCost%", fmt: fmtPct, lowerIsBetter: true },
-              { key: "ticket_medio_geral", label: "Ticket Geral", fmt: fmtBRL },
-              { key: "ticket_medio_aquisicao", label: "Ticket Aquis.", fmt: fmtBRL },
-              { key: "ticket_medio_retencao", label: "Ticket Ret.", fmt: fmtBRL },
-              { key: "peso_mes_pct", label: "Peso Mês%", fmt: fmtPct },
+
+            const groups: Group[] = [
+              { label: "Receitas", bg: "#FBF7EC", rows: [
+                { key: "receita_captada", label: "Receita Captada", fmt: fmtBRL },
+                { key: "receita_faturada", label: "Receita Faturada", fmt: fmtBRL },
+                { key: "receita_cancelada", label: "Receita Cancelada", fmt: fmtBRL, lowerIsBetter: true },
+              ]},
+              { label: "Pedidos", rows: [
+                { key: "pedidos_captados", label: "Pedidos Captados", fmt: (v) => fmtNum(v) },
+                { key: "pedidos_faturados", label: "Pedidos Faturados", fmt: (v) => fmtNum(v) },
+              ]},
+              { label: "Taxas", bg: "#FBF7EC", rows: [
+                { key: "taxa_aprovacao", label: "Tx. Aprovação", fmt: fmtPct },
+                { key: "taxa_aquisicao", label: "Tx. Aquisição", fmt: fmtPct, lowerIsBetter: true },
+                { key: "taxa_retencao", label: "Tx. Retenção", fmt: fmtPct },
+                { key: "taxa_conversao", label: "Tx. Conversão", fmt: fmtPct },
+              ]},
+              { label: "Tráfego", rows: [
+                { key: "sessoes_totais", label: "Sessões Totais", fmt: (v) => fmtNum(v) },
+                { key: "sessoes_midia", label: "Sessões Mídia", fmt: (v) => fmtNum(v) },
+              ]},
+              { label: "Investimento & Eficiência", bg: "#FBF7EC", rows: [
+                { key: "investimento_total", label: "Invest. Total", fmt: fmtBRL, lowerIsBetter: true },
+                { key: "cps_geral", label: "CPS Geral", fmt: fmtBRL, lowerIsBetter: true },
+                { key: "cps_midia", label: "CPS Mídia", fmt: fmtBRL, lowerIsBetter: true },
+                { key: "cac_novos", label: "CAC Novos", fmt: fmtBRL, lowerIsBetter: true },
+                { key: "cac_geral", label: "CAC Geral", fmt: fmtBRL, lowerIsBetter: true },
+              ]},
+              { label: "Resultados", rows: [
+                { key: "roas_faturado", label: "ROAS Faturado", fmt: fmtRoas },
+                { key: "adcost_pct", label: "AdCost %", fmt: fmtPct, lowerIsBetter: true },
+                { key: "ticket_medio_geral", label: "Ticket Geral", fmt: fmtBRL },
+                { key: "ticket_medio_aquisicao", label: "Ticket Aquisição", fmt: fmtBRL },
+                { key: "ticket_medio_retencao", label: "Ticket Retenção", fmt: fmtBRL },
+                { key: "peso_mes_pct", label: "Peso do Mês %", fmt: fmtPct },
+              ]},
             ];
 
             const avg = (k: keyof PM) => {
@@ -589,66 +607,98 @@ export default function PlanejamentoMensal() {
               return xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : null;
             };
 
-            const stickyCellBase: React.CSSProperties = {
-              position: "sticky", left: 0, zIndex: 2, minWidth: 110,
+            const stickyKpiBase: React.CSSProperties = {
+              position: "sticky", left: 0, zIndex: 2, minWidth: 180,
             };
+            const cellPad = "10px 14px";
+            const headPad = "12px 14px";
+            const monthIsCurrent = (m: PM) => m.ano === ano && m.mes === mes;
+            const totalCols = 1 + historico.length + 2; // KPI + meses + Média + Meta
 
             return (
-              <div className="overflow-x-auto rounded-md border" style={{ borderColor: "#F5E9B8" }}>
-                <table className="w-full text-[11px]" style={{ borderCollapse: "separate", borderSpacing: 0 }}>
-                  <thead style={{ background: "#1D1D1B", color: "#E8CD7E", position: "sticky", top: 0, zIndex: 3 }}>
-                    <tr>
-                      <th className="px-3 py-2 text-left uppercase tracking-wider"
-                          style={{ ...stickyCellBase, background: "#1D1D1B", zIndex: 4 }}>Mês</th>
-                      {cols.map((c) => (
-                        <th key={c.key as string} className="px-3 py-2 text-right uppercase tracking-wider whitespace-nowrap">{c.label}</th>
+              <div className="overflow-auto max-h-[640px]" style={{ borderTop: "1px solid #F5E9B8" }}>
+                <table className="w-full" style={{ borderCollapse: "separate", borderSpacing: 0, fontSize: 13 }}>
+                  <thead style={{ position: "sticky", top: 0, zIndex: 5 }}>
+                    <tr style={{ background: "#1D1D1B", color: "#E8CD7E" }}>
+                      <th className="text-left uppercase whitespace-nowrap"
+                          style={{ ...stickyKpiBase, background: "#1D1D1B", zIndex: 6, padding: headPad, letterSpacing: 1 }}>
+                        KPI / Métrica
+                      </th>
+                      {historico.map((m) => (
+                        <th key={m.id}
+                            className="text-right uppercase whitespace-nowrap"
+                            style={{
+                              padding: headPad, letterSpacing: 1, minWidth: 110, width: 110,
+                              borderLeft: monthIsCurrent(m) ? "2px solid #E8CD7E" : undefined,
+                              borderRight: monthIsCurrent(m) ? "2px solid #E8CD7E" : undefined,
+                            }}>
+                          {MESES[m.mes - 1].slice(0, 3)}/{String(m.ano).slice(-2)}
+                        </th>
                       ))}
+                      <th className="text-right uppercase whitespace-nowrap"
+                          style={{ padding: headPad, letterSpacing: 1, minWidth: 110, background: "#FAF6EE", color: "#1D1D1B" }}>
+                        Média
+                      </th>
+                      <th className="text-right uppercase whitespace-nowrap"
+                          style={{ padding: headPad, letterSpacing: 1, minWidth: 110, background: "#FFF8E8", color: "#8B6914" }}>
+                        Meta Planejada
+                      </th>
                     </tr>
                   </thead>
                   <tbody>
-                    {historico.map((row, i) => {
-                      const prev = historico[i - 1];
-                      const atual = row.ano === ano && row.mes === mes;
-                      const rowBg = i % 2 ? "#FAF8F3" : "#FFFFFF";
-                      return (
-                        <tr key={row.id}
-                            style={atual ? { boxShadow: "inset 0 0 0 2px #E8CD7E", background: rowBg } : { background: rowBg }}>
-                          <td className="px-3 py-2 font-medium whitespace-nowrap"
-                              style={{ ...stickyCellBase, background: rowBg }}>
-                            {MESES[row.mes - 1].slice(0, 3)}/{row.ano}
+                    {groups.map((g, gi) => (
+                      <>
+                        <tr key={`g-${gi}`}>
+                          <td colSpan={totalCols}
+                              style={{
+                                background: "#1D1D1B", color: "#E8CD7E",
+                                padding: "4px 14px", fontSize: 10,
+                                textTransform: "uppercase", letterSpacing: 1, fontWeight: 600,
+                              }}>
+                            {g.label}
                           </td>
-                          {cols.map((c) => {
-                            const v = row[c.key] as number | null;
-                            const pv = (prev?.[c.key] ?? null) as number | null;
-                            return (
-                              <td key={c.key as string} className="px-3 py-2 text-right whitespace-nowrap">
-                                {c.fmt(v)} <Trend cur={v} prev={pv} lowerIsBetter={c.lowerIsBetter} />
-                              </td>
-                            );
-                          })}
                         </tr>
-                      );
-                    })}
-                    <tr style={{ background: "#FAF6EE", fontWeight: 600 }}>
-                      <td className="px-3 py-2 whitespace-nowrap"
-                          style={{ ...stickyCellBase, background: "#FAF6EE" }}>Média</td>
-                      {cols.map((c) => (
-                        <td key={c.key as string} className="px-3 py-2 text-right whitespace-nowrap">{c.fmt(avg(c.key))}</td>
-                      ))}
-                    </tr>
-                    {planejadoMes && (
-                      <tr style={{ background: "#FFF8E8", fontWeight: 600 }}>
-                        <td className="px-3 py-2 whitespace-nowrap"
-                            style={{ ...stickyCellBase, background: "#FFF8E8", color: "#8B6914" }}>
-                          Meta planejada
-                        </td>
-                        {cols.map((c) => (
-                          <td key={c.key as string} className="px-3 py-2 text-right whitespace-nowrap" style={{ color: "#8B6914" }}>
-                            {c.fmt(planejadoMes[c.key] as number | null)}
-                          </td>
-                        ))}
-                      </tr>
-                    )}
+                        {g.rows.map((r, ri) => {
+                          const rowBg = g.bg ?? (ri % 2 ? "#FAF8F3" : "#FFFFFF");
+                          const mediaVal = avg(r.key);
+                          const metaVal = planejadoMes ? planejadoVal(r.key) : null;
+                          return (
+                            <tr key={r.key as string} style={{ background: rowBg, minHeight: 44 }}>
+                              <td className="font-medium whitespace-nowrap"
+                                  style={{ ...stickyKpiBase, background: rowBg, padding: cellPad }}>
+                                {r.label}
+                              </td>
+                              {historico.map((m, mi) => {
+                                const v = m[r.key] as number | null;
+                                const pv = mi > 0 ? (historico[mi - 1][r.key] as number | null) : null;
+                                const cur = monthIsCurrent(m);
+                                return (
+                                  <td key={m.id} className="text-right whitespace-nowrap"
+                                      style={{
+                                        padding: cellPad,
+                                        borderLeft: cur ? "2px solid #E8CD7E" : undefined,
+                                        borderRight: cur ? "2px solid #E8CD7E" : undefined,
+                                      }}>
+                                    <span>{r.fmt(v)}</span>
+                                    <span style={{ fontSize: 11, marginLeft: 4 }}>
+                                      <Trend cur={v} prev={pv} lowerIsBetter={r.lowerIsBetter} />
+                                    </span>
+                                  </td>
+                                );
+                              })}
+                              <td className="text-right whitespace-nowrap"
+                                  style={{ padding: cellPad, background: "#FAF6EE", fontWeight: 700 }}>
+                                {r.fmt(mediaVal)}
+                              </td>
+                              <td className="text-right whitespace-nowrap"
+                                  style={{ padding: cellPad, background: "#FFF8E8", color: "#8B6914", fontWeight: 600 }}>
+                                {r.fmt(metaVal)}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </>
+                    ))}
                   </tbody>
                 </table>
               </div>
