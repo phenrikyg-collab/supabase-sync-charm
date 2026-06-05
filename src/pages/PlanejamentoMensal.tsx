@@ -647,7 +647,7 @@ export default function PlanejamentoMensal() {
                   </thead>
                   <tbody>
                     {groups.map((g, gi) => (
-                      <>
+                      <React.Fragment key={`g-${gi}`}>
                         <tr key={`g-${gi}`}>
                           <td colSpan={totalCols}
                               style={{
