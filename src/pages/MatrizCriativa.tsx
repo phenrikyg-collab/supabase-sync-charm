@@ -1017,7 +1017,7 @@ function ImagemMetaAds({ criativo }: { criativo: any }) {
         className="bg-purple-600 hover:bg-purple-700 text-white w-full"
       >
         {loading ? (
-          <><Loader2 className="animate-spin" /> Gerando imagem com fal.ai...</>
+          <><Loader2 className="animate-spin" /> Gerando imagem... pode levar até 60 segundos</>
         ) : (
           <>{imagemUrl ? "Gerar Novamente" : "Gerar Imagem com IA"}</>
         )}
