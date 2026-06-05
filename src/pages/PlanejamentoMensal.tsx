@@ -697,7 +697,7 @@ export default function PlanejamentoMensal() {
                             </tr>
                           );
                         })}
-                      </>
+                      </React.Fragment>
                     ))}
                   </tbody>
                 </table>
