@@ -91,21 +91,14 @@ interface Pilar {
   fmt: (v: number | null | undefined) => string;
 }
 
-function NovePilaresCard({ atualData, metaData }: { atualData: PM | null; metaData: PM | null }) {
-  const statusGreaterIsBetter = (atual: number | null | undefined, meta: number | null | undefined): PilarStatus | "neutro" => {
-    if (atual == null || !isFinite(atual)) return "neutro";
-    if (meta == null || !isFinite(meta) || meta === 0) return "neutro";
-    if (atual >= meta) return "verde";
-    if (atual >= meta * 0.9) return "amarelo";
-    return "vermelho";
-  };
-  const statusLessIsBetter = (atual: number | null | undefined, meta: number | null | undefined, tolerance = 0.1): PilarStatus | "neutro" => {
-    if (atual == null || !isFinite(atual)) return "neutro";
-    if (meta == null || !isFinite(meta) || meta === 0) return "neutro";
-    if (atual <= meta) return "verde";
-    if (atual <= meta * (1 + tolerance)) return "amarelo";
-    return "vermelho";
-  };
+function NovePilaresCard({
+  atualData, metaValues, metaLabel = "Meta", footnote,
+}: {
+  atualData: Partial<PM> | null;
+  metaValues: Partial<Record<keyof PM, number | null>>;
+  metaLabel?: string;
+  footnote?: string;
+}) {
   const statusAprovacao = (v: number | null | undefined): PilarStatus | "neutro" =>
     v == null ? "neutro" : v >= 90 ? "verde" : v >= 85 ? "amarelo" : "vermelho";
   const statusRoas = (v: number | null | undefined): PilarStatus | "neutro" =>
@@ -116,6 +109,20 @@ function NovePilaresCard({ atualData, metaData }: { atualData: PM | null; metaDa
     if (v == null) return "neutro";
     if (v >= 60 && v <= 75) return "verde";
     if ((v > 75 && v <= 85) || (v >= 50 && v < 60)) return "amarelo";
+    return "vermelho";
+  };
+  const statusGreater = (atual: number | null | undefined, meta: number | null | undefined): PilarStatus | "neutro" => {
+    if (atual == null || !isFinite(atual)) return "neutro";
+    if (meta == null || !isFinite(meta) || meta === 0) return "neutro";
+    if (atual >= meta) return "verde";
+    if (atual >= meta * 0.9) return "amarelo";
+    return "vermelho";
+  };
+  const statusLess = (atual: number | null | undefined, meta: number | null | undefined, tol = 0.1): PilarStatus | "neutro" => {
+    if (atual == null || !isFinite(atual)) return "neutro";
+    if (meta == null || !isFinite(meta) || meta === 0) return "neutro";
+    if (atual <= meta) return "verde";
+    if (atual <= meta * (1 + tol)) return "amarelo";
     return "vermelho";
   };
 
@@ -129,25 +136,27 @@ function NovePilaresCard({ atualData, metaData }: { atualData: PM | null; metaDa
   const fmtRoas = (v: number | null | undefined) => v == null || !isFinite(v) ? "—" : v.toFixed(2) + "x";
   const fmtConv = (v: number | null | undefined) => v == null || !isFinite(v) ? "—" : v.toFixed(2) + "%";
 
+  const a = atualData ?? {};
+  const m = metaValues ?? {};
   const pilares = [
-    { nome: "Receita Captada", atual: atualData?.receita_captada, meta: metaData?.receita_captada, fmt: fmtBRL,
-      status: statusGreaterIsBetter(atualData?.receita_captada, metaData?.receita_captada) },
-    { nome: "Taxa de Aprovação", atual: atualData?.taxa_aprovacao, meta: metaData?.taxa_aprovacao, fmt: fmtPct,
-      status: statusAprovacao(atualData?.taxa_aprovacao) },
-    { nome: "Pedidos Captados", atual: atualData?.pedidos_captados, meta: metaData?.pedidos_captados, fmt: fmtNum,
-      status: statusGreaterIsBetter(atualData?.pedidos_captados, metaData?.pedidos_captados) },
-    { nome: "Taxa de Aquisição", atual: atualData?.taxa_aquisicao, meta: metaData?.taxa_aquisicao, fmt: fmtPct,
-      status: statusAquisicao(atualData?.taxa_aquisicao) },
-    { nome: "Taxa de Conversão", atual: atualData?.taxa_conversao, meta: metaData?.taxa_conversao, fmt: fmtConv,
-      status: statusConv(atualData?.taxa_conversao) },
-    { nome: "Sessões Totais", atual: atualData?.sessoes_totais, meta: metaData?.sessoes_totais, fmt: fmtNum,
-      status: statusGreaterIsBetter(atualData?.sessoes_totais, metaData?.sessoes_totais) },
-    { nome: "Investimento Total", atual: atualData?.investimento_total, meta: metaData?.investimento_total, fmt: fmtBRL,
-      status: statusLessIsBetter(atualData?.investimento_total, metaData?.investimento_total, 0.1) },
-    { nome: "ROAS Faturado", atual: atualData?.roas_faturado, meta: metaData?.roas_faturado, fmt: fmtRoas,
-      status: statusRoas(atualData?.roas_faturado) },
-    { nome: "CAC Novos", atual: atualData?.cac_novos, meta: metaData?.cac_novos, fmt: fmtBRL,
-      status: statusLessIsBetter(atualData?.cac_novos, metaData?.cac_novos, 0.2) },
+    { nome: "Receita Captada", atual: a.receita_captada, meta: m.receita_captada, fmt: fmtBRL,
+      status: statusGreater(a.receita_captada, m.receita_captada) },
+    { nome: "Taxa de Aprovação", atual: a.taxa_aprovacao, meta: m.taxa_aprovacao, fmt: fmtPct,
+      status: statusAprovacao(a.taxa_aprovacao) },
+    { nome: "Pedidos Captados", atual: a.pedidos_captados, meta: m.pedidos_captados, fmt: fmtNum,
+      status: statusGreater(a.pedidos_captados, m.pedidos_captados) },
+    { nome: "Taxa de Aquisição", atual: a.taxa_aquisicao, meta: m.taxa_aquisicao, fmt: fmtPct,
+      status: statusAquisicao(a.taxa_aquisicao) },
+    { nome: "Taxa de Conversão", atual: a.taxa_conversao, meta: m.taxa_conversao, fmt: fmtConv,
+      status: statusConv(a.taxa_conversao) },
+    { nome: "Sessões Totais", atual: a.sessoes_totais, meta: m.sessoes_totais, fmt: fmtNum,
+      status: statusGreater(a.sessoes_totais, m.sessoes_totais) },
+    { nome: "Investimento Total", atual: a.investimento_total, meta: m.investimento_total, fmt: fmtBRL,
+      status: statusLess(a.investimento_total, m.investimento_total, 0.1) },
+    { nome: "ROAS Faturado", atual: a.roas_faturado, meta: m.roas_faturado, fmt: fmtRoas,
+      status: statusRoas(a.roas_faturado) },
+    { nome: "CAC Novos", atual: a.cac_novos, meta: m.cac_novos, fmt: fmtBRL,
+      status: statusLess(a.cac_novos, m.cac_novos, 0.2) },
   ];
 
   return (
@@ -159,7 +168,7 @@ function NovePilaresCard({ atualData, metaData }: { atualData: PM | null; metaDa
             <tr>
               <th className="px-3 py-2 text-left text-xs uppercase tracking-wider">Pilar</th>
               <th className="px-3 py-2 text-right text-xs uppercase tracking-wider">Atual</th>
-              <th className="px-3 py-2 text-right text-xs uppercase tracking-wider">Meta</th>
+              <th className="px-3 py-2 text-right text-xs uppercase tracking-wider">{metaLabel}</th>
               <th className="px-3 py-2 text-center text-xs uppercase tracking-wider">Status</th>
             </tr>
           </thead>
@@ -174,7 +183,7 @@ function NovePilaresCard({ atualData, metaData }: { atualData: PM | null; metaDa
             ))}
           </tbody>
         </table>
-        <p className="text-[11px] text-muted-foreground px-3 py-2">Meta = registro planejado do mês selecionado.</p>
+        {footnote && <p className="text-[11px] text-muted-foreground px-3 py-2">{footnote}</p>}
       </CardContent>
     </Card>
   );
