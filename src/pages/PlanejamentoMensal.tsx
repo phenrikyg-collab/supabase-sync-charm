@@ -256,6 +256,7 @@ export default function PlanejamentoMensal() {
             <CardContent className="space-y-3">
               <NumInput label="Sessões Totais" value={form.sessoes_totais} onChange={(v) => setField("sessoes_totais", v)} disabled={isSaving} />
               <NumInput label="Sessões Mídia" value={form.sessoes_midia} onChange={(v) => setField("sessoes_midia", v)} disabled={isSaving} />
+              <CalcField label="Taxa de Conversão = Pedidos Captados / Sessões × 100" value={preview.taxa_conversao} format="pct" />
               <NumInput label="Investimento Total" suffix="R$" value={form.investimento_total} onChange={(v) => setField("investimento_total", v)} disabled={isSaving} />
               <div className="grid grid-cols-2 gap-2">
                 <CalcField label="CPS Geral" value={preview.cps_geral} format="brl" />
