@@ -801,7 +801,7 @@ function ImagemMetaAds({ criativo }: { criativo: any }) {
   const [tipoFotoGerado, setTipoFotoGerado] = useState<string | null>(null);
   const [corHexGerado, setCorHexGerado] = useState<string | null>(null);
   const [modelos, setModelos] = useState<any[]>([]);
-  const [modeloId, setModeloId] = useState<string>("__ai__");
+  const [modeloSelecionadoId, setModeloSelecionadoId] = useState<string>("ia");
 
   useEffect(() => {
     setImagemUrl(criativo.imagem_gerada_url || null);
@@ -810,14 +810,18 @@ function ImagemMetaAds({ criativo }: { criativo: any }) {
 
   useEffect(() => {
     (async () => {
-      const { data } = await sb
+      const { data, error } = await sb
         .from("mc_modelos")
-        .select("id, nome, foto_url")
+        .select("id, nome, foto_url, faixa_etaria")
         .eq("ativa", true)
-        .order("nome");
+        .order("created_at", { ascending: false });
+      if (error) console.error("Erro ao carregar modelos:", error);
+      console.log("Modelos carregadas:", data);
       setModelos(data || []);
     })();
   }, []);
+
+  const modeloSelecionada = modelos.find((m) => m.id === modeloSelecionadoId);
 
   async function gerar() {
     setLoading(true);
@@ -836,20 +840,23 @@ function ImagemMetaAds({ criativo }: { criativo: any }) {
         }
       }
 
+      const payload = {
+        criativo_id: criativo.id,
+        produto_id: criativo.produto_id,
+        modelo_id: modeloSelecionadoId === "ia" ? null : modeloSelecionadoId,
+        formato_anuncio: formato,
+        tipo_foto: tipoFoto,
+        cor_hex: corHex || null,
+        garment_image_base64: garmentBase64,
+      };
+      console.log("Payload completo:", payload);
+
       const res = await fetch(
         "https://ezdtulcrqzmgocamjwwl.supabase.co/functions/v1/gerar-imagem-criativo",
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            criativo_id: criativo.id,
-            produto_id: criativo.produto_id,
-            formato_anuncio: formato,
-            tipo_foto: tipoFoto,
-            cor_hex: corHex || null,
-            garment_image_base64: garmentBase64,
-            modelo_id: modeloId && modeloId !== "__ai__" ? modeloId : null,
-          }),
+          body: JSON.stringify(payload),
         }
       );
       const data = await res.json();
@@ -918,22 +925,34 @@ function ImagemMetaAds({ criativo }: { criativo: any }) {
       {modelos.length > 0 && (
         <div className="space-y-2">
           <Label className="text-xs">Modelo</Label>
-          <Select value={modeloId} onValueChange={setModeloId} disabled={loading}>
-            <SelectTrigger><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="__ai__">🤖 Gerar modelo com IA</SelectItem>
-              {modelos.map((m) => (
-                <SelectItem key={m.id} value={m.id}>
-                  <span className="inline-flex items-center gap-2">
-                    {m.foto_url && (
-                      <img src={m.foto_url} alt="" className="h-6 w-6 rounded-full object-cover" />
-                    )}
-                    {m.nome}
-                  </span>
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <div className="flex items-center gap-3">
+            <div className="flex-1">
+              <Select value={modeloSelecionadoId} onValueChange={setModeloSelecionadoId} disabled={loading}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ia">🤖 Gerar modelo com IA</SelectItem>
+                  {modelos.map((m) => (
+                    <SelectItem key={m.id} value={m.id}>
+                      <span className="inline-flex items-center gap-2">
+                        {m.foto_url && (
+                          <img src={m.foto_url} alt="" className="h-6 w-6 rounded-full object-cover" />
+                        )}
+                        {m.nome}
+                        {m.faixa_etaria && <span className="text-xs text-muted-foreground">· {m.faixa_etaria}</span>}
+                      </span>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            {modeloSelecionada?.foto_url && (
+              <img
+                src={modeloSelecionada.foto_url}
+                alt={modeloSelecionada.nome}
+                style={{ width: 60, height: 80, objectFit: "cover", borderRadius: 8 }}
+              />
+            )}
+          </div>
         </div>
       )}
 
