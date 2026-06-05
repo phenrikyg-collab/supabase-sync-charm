@@ -113,10 +113,12 @@ export default function MatrizCriativa() {
           <TabsTrigger value="gerar">Gerar Criativos</TabsTrigger>
           <TabsTrigger value="biblioteca">Biblioteca</TabsTrigger>
           <TabsTrigger value="personas">Personas</TabsTrigger>
+          <TabsTrigger value="modelos">Modelos</TabsTrigger>
         </TabsList>
         <TabsContent value="gerar"><AbaGerar /></TabsContent>
         <TabsContent value="biblioteca"><AbaBiblioteca /></TabsContent>
         <TabsContent value="personas"><AbaPersonas /></TabsContent>
+        <TabsContent value="modelos"><AbaModelos /></TabsContent>
       </Tabs>
     </div>
   );
