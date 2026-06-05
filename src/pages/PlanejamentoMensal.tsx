@@ -114,10 +114,13 @@ export default function PlanejamentoMensal() {
     const pr = pf - pa;
     const rr = rc - ra;
     return {
-      receita_faturada: rf, pedidos_faturados: pf,
+      receita_faturada: rf,
+      receita_cancelada: rc - rf,
+      pedidos_faturados: pf,
       pedidos_aquisicao: pa, receita_aquisicao: ra,
       pedidos_retencao: pr, receita_retencao: rr,
       taxa_retencao: 100 - tq,
+      taxa_conversao: st > 0 ? (pc / st) * 100 : null,
       ticket_medio_aquisicao: pa > 0 ? ra / pa : null,
       ticket_medio_retencao: pr > 0 ? rr / pr : null,
       ticket_medio_geral: pf > 0 ? rf / pf : null,
