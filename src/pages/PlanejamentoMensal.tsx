@@ -471,7 +471,7 @@ export default function PlanejamentoMensal() {
             ))}
           </div>
 
-          <NovePilaresCard atualData={pilaresAtual} metaData={pilaresMeta} />
+          <NovePilaresCard atualData={pilaresAtual} metaValues={pilaresMeta} metaLabel={metaLabel} footnote={metaFootnote} />
 
 
           <Card style={{ borderColor: "#F5E9B8" }}>
