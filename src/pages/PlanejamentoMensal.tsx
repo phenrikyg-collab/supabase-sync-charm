@@ -67,11 +67,13 @@ function RoasBadge({ v }: { v: number | null | undefined }) {
   return <Badge style={{ background: cls.bg, color: cls.fg }}>{v.toFixed(2)}x</Badge>;
 }
 
-function Trend({ cur, prev }: { cur: number | null; prev: number | null }) {
+function Trend({ cur, prev, lowerIsBetter = false }: { cur: number | null; prev: number | null; lowerIsBetter?: boolean }) {
   if (cur == null || prev == null) return <Minus className="inline h-3 w-3 text-muted-foreground" />;
-  if (cur > prev) return <ArrowUp className="inline h-3 w-3 text-emerald-600" />;
-  if (cur < prev) return <ArrowDown className="inline h-3 w-3 text-rose-600" />;
-  return <Minus className="inline h-3 w-3 text-muted-foreground" />;
+  if (cur === prev) return <Minus className="inline h-3 w-3 text-muted-foreground" />;
+  const up = cur > prev;
+  const good = lowerIsBetter ? !up : up;
+  const cls = good ? "text-emerald-600" : "text-rose-600";
+  return up ? <ArrowUp className={`inline h-3 w-3 ${cls}`} /> : <ArrowDown className={`inline h-3 w-3 ${cls}`} />;
 }
 
 type PilarStatus = "verde" | "amarelo" | "vermelho";
@@ -89,69 +91,63 @@ interface Pilar {
   fmt: (v: number | null | undefined) => string;
 }
 
-function NovePilaresCard({ data, historico }: { data: PM | null; historico: PM[] }) {
-  const avg = (k: keyof PM): number | null => {
-    const xs = historico.map((r) => r[k] as number | null).filter((v): v is number => v != null && isFinite(v));
-    return xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : null;
+function NovePilaresCard({ atualData, metaData }: { atualData: PM | null; metaData: PM | null }) {
+  const statusGreaterIsBetter = (atual: number | null | undefined, meta: number | null | undefined): PilarStatus | "neutro" => {
+    if (atual == null || !isFinite(atual)) return "neutro";
+    if (meta == null || !isFinite(meta) || meta === 0) return "neutro";
+    if (atual >= meta) return "verde";
+    if (atual >= meta * 0.9) return "amarelo";
+    return "vermelho";
   };
-
-  const metaReceita = avg("receita_captada") ?? 400000;
-  const metaPedidos = avg("pedidos_captados") ?? 950;
-  const metaSessoes = avg("sessoes_totais") ?? 190000;
-  const metaInvest = avg("investimento_total") ?? 16000;
-  const mediaCac = avg("cac_novos") ?? 140;
-
-  const statusMeta = (atual: number | null | undefined, meta: number, maiorMelhor = true): PilarStatus => {
-    if (atual == null || !isFinite(atual)) return "amarelo";
-    if (maiorMelhor) {
-      if (atual >= meta) return "verde";
-      if (atual >= meta * 0.9) return "amarelo";
-      return "vermelho";
-    } else {
-      if (atual <= meta) return "verde";
-      if (atual <= meta * 1.1) return "amarelo";
-      return "vermelho";
-    }
+  const statusLessIsBetter = (atual: number | null | undefined, meta: number | null | undefined, tolerance = 0.1): PilarStatus | "neutro" => {
+    if (atual == null || !isFinite(atual)) return "neutro";
+    if (meta == null || !isFinite(meta) || meta === 0) return "neutro";
+    if (atual <= meta) return "verde";
+    if (atual <= meta * (1 + tolerance)) return "amarelo";
+    return "vermelho";
   };
-
-  const statusAprovacao = (v: number | null | undefined): PilarStatus =>
-    v == null ? "amarelo" : v >= 90 ? "verde" : v >= 85 ? "amarelo" : "vermelho";
-  const statusRoas = (v: number | null | undefined): PilarStatus =>
-    v == null ? "amarelo" : v >= 3.5 ? "verde" : v >= 2.5 ? "amarelo" : "vermelho";
-  const statusConv = (v: number | null | undefined): PilarStatus =>
-    v == null ? "amarelo" : v >= 0.5 ? "verde" : v >= 0.3 ? "amarelo" : "vermelho";
-  const statusAquisicao = (v: number | null | undefined): PilarStatus => {
-    if (v == null) return "amarelo";
+  const statusAprovacao = (v: number | null | undefined): PilarStatus | "neutro" =>
+    v == null ? "neutro" : v >= 90 ? "verde" : v >= 85 ? "amarelo" : "vermelho";
+  const statusRoas = (v: number | null | undefined): PilarStatus | "neutro" =>
+    v == null ? "neutro" : v >= 3.5 ? "verde" : v >= 2.5 ? "amarelo" : "vermelho";
+  const statusConv = (v: number | null | undefined): PilarStatus | "neutro" =>
+    v == null ? "neutro" : v >= 0.5 ? "verde" : v >= 0.3 ? "amarelo" : "vermelho";
+  const statusAquisicao = (v: number | null | undefined): PilarStatus | "neutro" => {
+    if (v == null) return "neutro";
     if (v >= 60 && v <= 75) return "verde";
-    if (v > 75 && v <= 85) return "amarelo";
-    return "vermelho";
-  };
-  const statusCac = (v: number | null | undefined): PilarStatus => {
-    if (v == null) return "amarelo";
-    if (v <= mediaCac) return "verde";
-    if (v <= mediaCac * 1.2) return "amarelo";
+    if ((v > 75 && v <= 85) || (v >= 50 && v < 60)) return "amarelo";
     return "vermelho";
   };
 
-  const pilares: Pilar[] = [
-    { nome: "Receita Captada", atual: data?.receita_captada, meta: fmtBRL(metaReceita),
-      status: statusMeta(data?.receita_captada, metaReceita, true), fmt: fmtBRL },
-    { nome: "Taxa de Aprovação", atual: data?.taxa_aprovacao, meta: "≥ 90%",
-      status: statusAprovacao(data?.taxa_aprovacao), fmt: fmtPct },
-    { nome: "Pedidos Captados", atual: data?.pedidos_captados, meta: fmtNum(metaPedidos),
-      status: statusMeta(data?.pedidos_captados, metaPedidos, true), fmt: fmtNum },
-    { nome: "Taxa de Aquisição", atual: data?.taxa_aquisicao, meta: "60-75%",
-      status: statusAquisicao(data?.taxa_aquisicao), fmt: fmtPct },
-    { nome: "Taxa de Conversão", atual: (data as any)?.taxa_conversao, meta: "≥ 0,5%",
-      status: statusConv((data as any)?.taxa_conversao), fmt: (v) => v == null ? "—" : v.toFixed(2) + "%" },
-    { nome: "Sessões Totais", atual: data?.sessoes_totais, meta: fmtNum(metaSessoes),
-      status: statusMeta(data?.sessoes_totais, metaSessoes, true), fmt: fmtNum },
-    { nome: "Investimento Total", atual: data?.investimento_total, meta: fmtBRL(metaInvest),
-      status: statusMeta(data?.investimento_total, metaInvest, false), fmt: fmtBRL },
-    { nome: "ROAS Faturado", atual: data?.roas_faturado, meta: "≥ 3,5x",
-      status: statusRoas(data?.roas_faturado), fmt: (v) => v == null ? "—" : v.toFixed(2) + "x" },
-    { nome: "CAC Novos", atual: data?.cac_novos, meta: `≤ ${fmtBRL(mediaCac)}`,
-      status: statusCac(data?.cac_novos), fmt: fmtBRL },
+  const dot = (s: PilarStatus | "neutro") => {
+    if (s === "verde") return <span>🟢</span>;
+    if (s === "amarelo") return <span>🟡</span>;
+    if (s === "vermelho") return <span>🔴</span>;
+    return <span className="inline-block w-3 h-3 rounded-full bg-muted-foreground/30" />;
+  };
+
+  const fmtRoas = (v: number | null | undefined) => v == null || !isFinite(v) ? "—" : v.toFixed(2) + "x";
+  const fmtConv = (v: number | null | undefined) => v == null || !isFinite(v) ? "—" : v.toFixed(2) + "%";
+
+  const pilares = [
+    { nome: "Receita Captada", atual: atualData?.receita_captada, meta: metaData?.receita_captada, fmt: fmtBRL,
+      status: statusGreaterIsBetter(atualData?.receita_captada, metaData?.receita_captada) },
+    { nome: "Taxa de Aprovação", atual: atualData?.taxa_aprovacao, meta: metaData?.taxa_aprovacao, fmt: fmtPct,
+      status: statusAprovacao(atualData?.taxa_aprovacao) },
+    { nome: "Pedidos Captados", atual: atualData?.pedidos_captados, meta: metaData?.pedidos_captados, fmt: fmtNum,
+      status: statusGreaterIsBetter(atualData?.pedidos_captados, metaData?.pedidos_captados) },
+    { nome: "Taxa de Aquisição", atual: atualData?.taxa_aquisicao, meta: metaData?.taxa_aquisicao, fmt: fmtPct,
+      status: statusAquisicao(atualData?.taxa_aquisicao) },
+    { nome: "Taxa de Conversão", atual: atualData?.taxa_conversao, meta: metaData?.taxa_conversao, fmt: fmtConv,
+      status: statusConv(atualData?.taxa_conversao) },
+    { nome: "Sessões Totais", atual: atualData?.sessoes_totais, meta: metaData?.sessoes_totais, fmt: fmtNum,
+      status: statusGreaterIsBetter(atualData?.sessoes_totais, metaData?.sessoes_totais) },
+    { nome: "Investimento Total", atual: atualData?.investimento_total, meta: metaData?.investimento_total, fmt: fmtBRL,
+      status: statusLessIsBetter(atualData?.investimento_total, metaData?.investimento_total, 0.1) },
+    { nome: "ROAS Faturado", atual: atualData?.roas_faturado, meta: metaData?.roas_faturado, fmt: fmtRoas,
+      status: statusRoas(atualData?.roas_faturado) },
+    { nome: "CAC Novos", atual: atualData?.cac_novos, meta: metaData?.cac_novos, fmt: fmtBRL,
+      status: statusLessIsBetter(atualData?.cac_novos, metaData?.cac_novos, 0.2) },
   ];
 
   return (
@@ -171,14 +167,14 @@ function NovePilaresCard({ data, historico }: { data: PM | null; historico: PM[]
             {pilares.map((p, i) => (
               <tr key={p.nome} className={i % 2 ? "bg-[#FAF8F3]" : "bg-white"}>
                 <td className="px-3 py-2 font-medium">{p.nome}</td>
-                <td className="px-3 py-2 text-right">{p.fmt(p.atual)}</td>
-                <td className="px-3 py-2 text-right text-muted-foreground">{p.meta}</td>
-                <td className="px-3 py-2 text-center text-base">{pilarDot(p.status)}</td>
+                <td className="px-3 py-2 text-right">{p.fmt(p.atual as any)}</td>
+                <td className="px-3 py-2 text-right text-muted-foreground">{p.fmt(p.meta as any)}</td>
+                <td className="px-3 py-2 text-center text-base">{dot(p.status)}</td>
               </tr>
             ))}
           </tbody>
         </table>
-        <p className="text-[11px] text-muted-foreground px-3 py-2">Metas calculadas a partir da média dos meses realizados.</p>
+        <p className="text-[11px] text-muted-foreground px-3 py-2">Meta = registro planejado do mês selecionado.</p>
       </CardContent>
     </Card>
   );
@@ -277,6 +273,11 @@ export default function PlanejamentoMensal() {
 
   // Histórico (últimos 6 meses realizados)
   const [historico, setHistorico] = useState<PM[]>([]);
+  // Registro planejado do mês atual (usado como Meta nos 9 pilares e na tabela)
+  const [planejadoMes, setPlanejadoMes] = useState<PM | null>(null);
+  // Registro realizado do mês atual (para preencher coluna ATUAL quando tipo='planejado')
+  const [realizadoMes, setRealizadoMes] = useState<PM | null>(null);
+
   useEffect(() => {
     (async () => {
       const { data: rows } = await (supabase as any)
@@ -289,6 +290,23 @@ export default function PlanejamentoMensal() {
       setHistorico(((rows as PM[]) ?? []).reverse());
     })();
   }, [data]);
+
+  useEffect(() => {
+    (async () => {
+      const [{ data: pln }, { data: rea }] = await Promise.all([
+        (supabase as any).from("planejamento_mensal").select("*")
+          .eq("ano", ano).eq("mes", mes).eq("tipo", "planejado").maybeSingle(),
+        (supabase as any).from("planejamento_mensal").select("*")
+          .eq("ano", ano).eq("mes", mes).eq("tipo", "realizado").maybeSingle(),
+      ]);
+      setPlanejadoMes((pln as PM) ?? null);
+      setRealizadoMes((rea as PM) ?? null);
+    })();
+  }, [ano, mes, data]);
+
+  const pilaresAtual = tipo === "realizado" ? (realizadoMes ?? data) : (data ?? planejadoMes);
+  const pilaresMeta = tipo === "realizado" ? planejadoMes : null;
+
 
   if (isLoading) {
     return <div className="p-6 space-y-4"><Skeleton className="h-12 w-72" /><div className="grid lg:grid-cols-2 gap-6"><Skeleton className="h-[600px]" /><Skeleton className="h-[600px]" /></div></div>;
@@ -397,15 +415,14 @@ export default function PlanejamentoMensal() {
                   <div className="text-[10px] uppercase tracking-wider text-[#E8CD7E]/70">{k.label}</div>
                   <div className="text-2xl font-serif mt-1 text-[#E8CD7E]">
                     {k.custom ?? k.value}
-          </div>
-
-          <NovePilaresCard data={data} historico={historico} />
-
-
+                  </div>
                 </CardContent>
               </Card>
             ))}
           </div>
+
+          <NovePilaresCard atualData={pilaresAtual} metaData={pilaresMeta} />
+
 
           <Card style={{ borderColor: "#F5E9B8" }}>
             <CardHeader><CardTitle className="font-serif text-lg">Eficiência</CardTitle></CardHeader>
@@ -484,55 +501,109 @@ export default function PlanejamentoMensal() {
         <CardContent>
           {historico.length === 0 ? (
             <p className="text-sm text-muted-foreground">Nenhum mês realizado registrado ainda</p>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead style={{ background: "#1D1D1B", color: "#E8CD7E" }}>
-                  <tr>
-                    {["Mês", "Rec. Faturada", "ROAS", "CAC Novos", "Taxa Ret.", "Ticket Geral", "AdCost"].map((h) => (
-                      <th key={h} className="px-3 py-2 text-left text-xs uppercase tracking-wider">{h}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {historico.map((row, i) => {
-                    const prev = historico[i - 1];
-                    const atual = row.ano === ano && row.mes === mes;
-                    return (
-                      <tr key={row.id} className={i % 2 ? "bg-[#FAF8F3]" : "bg-white"}
-                        style={atual ? { boxShadow: "inset 0 0 0 2px #E8CD7E" } : {}}>
-                        <td className="px-3 py-2 font-medium">{MESES[row.mes - 1].slice(0, 3)}/{row.ano}</td>
-                        <td className="px-3 py-2">{fmtBRL(row.receita_faturada)} <Trend cur={row.receita_faturada} prev={prev?.receita_faturada ?? null} /></td>
-                        <td className="px-3 py-2"><RoasBadge v={row.roas_faturado} /></td>
-                        <td className="px-3 py-2">{fmtBRL(row.cac_novos)} <Trend cur={row.cac_novos} prev={prev?.cac_novos ?? null} /></td>
-                        <td className="px-3 py-2">{fmtPct(row.taxa_retencao)}</td>
-                        <td className="px-3 py-2">{fmtBRL(row.ticket_medio_geral)}</td>
-                        <td className="px-3 py-2">{fmtPct(row.adcost_pct)}</td>
+          ) : (() => {
+            type Col = {
+              key: keyof PM;
+              label: string;
+              fmt: (v: number | null | undefined) => string;
+              lowerIsBetter?: boolean;
+            };
+            const fmtRoas = (v: number | null | undefined) => v == null || !isFinite(v) ? "—" : v.toFixed(2) + "x";
+            const cols: Col[] = [
+              { key: "receita_captada", label: "Rec. Captada", fmt: fmtBRL },
+              { key: "receita_faturada", label: "Rec. Faturada", fmt: fmtBRL },
+              { key: "receita_cancelada", label: "Rec. Cancelada", fmt: fmtBRL, lowerIsBetter: true },
+              { key: "pedidos_captados", label: "Pedidos Cap.", fmt: (v) => fmtNum(v) },
+              { key: "pedidos_faturados", label: "Pedidos Fat.", fmt: (v) => fmtNum(v) },
+              { key: "taxa_aprovacao", label: "Tx. Aprovação", fmt: fmtPct },
+              { key: "taxa_aquisicao", label: "Tx. Aquisição", fmt: fmtPct, lowerIsBetter: true },
+              { key: "taxa_retencao", label: "Tx. Retenção", fmt: fmtPct },
+              { key: "taxa_conversao", label: "Tx. Conversão", fmt: fmtPct },
+              { key: "sessoes_totais", label: "Sessões Totais", fmt: (v) => fmtNum(v) },
+              { key: "sessoes_midia", label: "Sessões Mídia", fmt: (v) => fmtNum(v) },
+              { key: "investimento_total", label: "Invest. Total", fmt: fmtBRL, lowerIsBetter: true },
+              { key: "cps_geral", label: "CPS Geral", fmt: fmtBRL, lowerIsBetter: true },
+              { key: "cps_midia", label: "CPS Mídia", fmt: fmtBRL, lowerIsBetter: true },
+              { key: "cac_novos", label: "CAC Novos", fmt: fmtBRL, lowerIsBetter: true },
+              { key: "cac_geral", label: "CAC Geral", fmt: fmtBRL, lowerIsBetter: true },
+              { key: "roas_faturado", label: "ROAS", fmt: fmtRoas },
+              { key: "adcost_pct", label: "AdCost%", fmt: fmtPct, lowerIsBetter: true },
+              { key: "ticket_medio_geral", label: "Ticket Geral", fmt: fmtBRL },
+              { key: "ticket_medio_aquisicao", label: "Ticket Aquis.", fmt: fmtBRL },
+              { key: "ticket_medio_retencao", label: "Ticket Ret.", fmt: fmtBRL },
+              { key: "peso_mes_pct", label: "Peso Mês%", fmt: fmtPct },
+            ];
+
+            const avg = (k: keyof PM) => {
+              const xs = historico.map((r) => r[k] as number | null).filter((v): v is number => v != null && isFinite(v));
+              return xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : null;
+            };
+
+            const stickyCellBase: React.CSSProperties = {
+              position: "sticky", left: 0, zIndex: 2, minWidth: 110,
+            };
+
+            return (
+              <div className="overflow-x-auto rounded-md border" style={{ borderColor: "#F5E9B8" }}>
+                <table className="w-full text-[11px]" style={{ borderCollapse: "separate", borderSpacing: 0 }}>
+                  <thead style={{ background: "#1D1D1B", color: "#E8CD7E", position: "sticky", top: 0, zIndex: 3 }}>
+                    <tr>
+                      <th className="px-3 py-2 text-left uppercase tracking-wider"
+                          style={{ ...stickyCellBase, background: "#1D1D1B", zIndex: 4 }}>Mês</th>
+                      {cols.map((c) => (
+                        <th key={c.key as string} className="px-3 py-2 text-right uppercase tracking-wider whitespace-nowrap">{c.label}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {historico.map((row, i) => {
+                      const prev = historico[i - 1];
+                      const atual = row.ano === ano && row.mes === mes;
+                      const rowBg = i % 2 ? "#FAF8F3" : "#FFFFFF";
+                      return (
+                        <tr key={row.id}
+                            style={atual ? { boxShadow: "inset 0 0 0 2px #E8CD7E", background: rowBg } : { background: rowBg }}>
+                          <td className="px-3 py-2 font-medium whitespace-nowrap"
+                              style={{ ...stickyCellBase, background: rowBg }}>
+                            {MESES[row.mes - 1].slice(0, 3)}/{row.ano}
+                          </td>
+                          {cols.map((c) => {
+                            const v = row[c.key] as number | null;
+                            const pv = (prev?.[c.key] ?? null) as number | null;
+                            return (
+                              <td key={c.key as string} className="px-3 py-2 text-right whitespace-nowrap">
+                                {c.fmt(v)} <Trend cur={v} prev={pv} lowerIsBetter={c.lowerIsBetter} />
+                              </td>
+                            );
+                          })}
+                        </tr>
+                      );
+                    })}
+                    <tr style={{ background: "#FAF6EE", fontWeight: 600 }}>
+                      <td className="px-3 py-2 whitespace-nowrap"
+                          style={{ ...stickyCellBase, background: "#FAF6EE" }}>Média</td>
+                      {cols.map((c) => (
+                        <td key={c.key as string} className="px-3 py-2 text-right whitespace-nowrap">{c.fmt(avg(c.key))}</td>
+                      ))}
+                    </tr>
+                    {planejadoMes && (
+                      <tr style={{ background: "#FFF8E8", fontWeight: 600 }}>
+                        <td className="px-3 py-2 whitespace-nowrap"
+                            style={{ ...stickyCellBase, background: "#FFF8E8", color: "#8B6914" }}>
+                          Meta planejada
+                        </td>
+                        {cols.map((c) => (
+                          <td key={c.key as string} className="px-3 py-2 text-right whitespace-nowrap" style={{ color: "#8B6914" }}>
+                            {c.fmt(planejadoMes[c.key] as number | null)}
+                          </td>
+                        ))}
                       </tr>
-                    );
-                  })}
-                  {historico.length > 0 && (() => {
-                    const avg = (k: keyof PM) => {
-                      const xs = historico.map((r) => r[k] as number | null).filter((v): v is number => v != null);
-                      return xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : null;
-                    };
-                    return (
-                      <tr style={{ background: "#FAF6EE", fontWeight: 600 }}>
-                        <td className="px-3 py-2">Média</td>
-                        <td className="px-3 py-2">{fmtBRL(avg("receita_faturada"))}</td>
-                        <td className="px-3 py-2">{avg("roas_faturado") != null ? (avg("roas_faturado") as number).toFixed(2) + "x" : "—"}</td>
-                        <td className="px-3 py-2">{fmtBRL(avg("cac_novos"))}</td>
-                        <td className="px-3 py-2">{fmtPct(avg("taxa_retencao"))}</td>
-                        <td className="px-3 py-2">{fmtBRL(avg("ticket_medio_geral"))}</td>
-                        <td className="px-3 py-2">{fmtPct(avg("adcost_pct"))}</td>
-                      </tr>
-                    );
-                  })()}
-                </tbody>
-              </table>
-              <p className="text-xs text-muted-foreground mt-2">Próximos meses planejados com base nessa média histórica.</p>
-            </div>
-          )}
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            );
+          })()}
         </CardContent>
       </Card>
     </div>
