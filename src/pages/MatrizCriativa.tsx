@@ -1127,19 +1127,59 @@ function CriativoModal({
             <TabsTrigger value="producao">Produção</TabsTrigger>
             <TabsTrigger value="dsb">DSB</TabsTrigger>
           </TabsList>
-          <TabsContent value="conteudo" className="space-y-3">
+          <TabsContent value="conteudo" className="space-y-4">
             {isVideo ? (
-              <RoteiroVideo texto={criativo.roteiro_completo || ""} />
+              <div className="space-y-3">
+                <div className="flex flex-wrap items-center gap-2">
+                  <h3 className="text-lg font-serif font-semibold">{criativo.titulo}</h3>
+                  {criativo.duracao_estimada_seg != null && (
+                    <Badge variant="outline" className="text-xs">
+                      ⏱ {criativo.duracao_estimada_seg}s
+                    </Badge>
+                  )}
+                </div>
+                {criativo.roteiro_hook && (
+                  <div className="rounded-lg border-l-4 border-amber-500 bg-amber-50 dark:bg-amber-950/20 p-3">
+                    <p className="text-[11px] font-bold uppercase tracking-wider text-amber-700 dark:text-amber-400 mb-1">
+                      🎯 HOOK
+                    </p>
+                    <p className="text-sm font-medium">{criativo.roteiro_hook}</p>
+                  </div>
+                )}
+                <RoteiroVideo texto={criativo.roteiro_completo || ""} />
+              </div>
             ) : (
-              <div className="space-y-2 text-sm">
-                {criativo.headline_principal && <p><strong>Headline:</strong> {criativo.headline_principal}</p>}
-                {criativo.subheadline && <p><strong>Subheadline:</strong> {criativo.subheadline}</p>}
+              <div className="space-y-3 text-sm">
+                {criativo.headline_principal && (
+                  <h3 className="text-xl font-serif font-semibold leading-tight">{criativo.headline_principal}</h3>
+                )}
+                {criativo.subheadline && <p className="text-base text-muted-foreground">{criativo.subheadline}</p>}
                 {criativo.descricao_visual && <p><strong>Visual:</strong> {criativo.descricao_visual}</p>}
                 {criativo.elementos_visuais && <p><strong>Elementos:</strong> {criativo.elementos_visuais}</p>}
-                {criativo.texto_cta_imagem && <p><strong>CTA:</strong> {criativo.texto_cta_imagem}</p>}
+                {criativo.texto_cta_imagem && (
+                  <div className="rounded border-l-4 border-primary bg-primary/5 p-2">
+                    <strong>CTA:</strong> {criativo.texto_cta_imagem}
+                  </div>
+                )}
+                {/carrossel/i.test(criativo.formato || "") && criativo.slides_carrossel && (
+                  <div className="space-y-2 pt-2">
+                    <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Slides</p>
+                    {String(criativo.slides_carrossel)
+                      .split(/\n\s*\n|\[SLIDE\s*\d+|SLIDE\s*\d+\s*[-–:]/i)
+                      .map((s) => s.trim())
+                      .filter(Boolean)
+                      .map((slide, i) => (
+                        <div key={i} className="rounded border p-2">
+                          <span className="text-[11px] font-bold uppercase tracking-wider text-primary">Slide {i + 1}</span>
+                          <p className="text-sm mt-1 whitespace-pre-wrap">{slide}</p>
+                        </div>
+                      ))}
+                  </div>
+                )}
               </div>
             )}
           </TabsContent>
+
           <TabsContent value="producao" className="space-y-3 text-sm">
             {criativo.referencia_estetica && (
               <Card><CardContent className="p-3"><strong>Referência Estética:</strong> {criativo.referencia_estetica}</CardContent></Card>
