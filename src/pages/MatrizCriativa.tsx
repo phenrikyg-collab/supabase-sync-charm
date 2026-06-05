@@ -16,7 +16,9 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Loader2, Heart, AlertTriangle, Sparkles, RotateCw, Trash2, Check, Play, Printer } from "lucide-react";
+import { Loader2, Heart, AlertTriangle, Sparkles, RotateCw, Trash2, Check, Play, Printer, Upload, Bot } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 
@@ -111,10 +113,12 @@ export default function MatrizCriativa() {
           <TabsTrigger value="gerar">Gerar Criativos</TabsTrigger>
           <TabsTrigger value="biblioteca">Biblioteca</TabsTrigger>
           <TabsTrigger value="personas">Personas</TabsTrigger>
+          <TabsTrigger value="modelos">Modelos</TabsTrigger>
         </TabsList>
         <TabsContent value="gerar"><AbaGerar /></TabsContent>
         <TabsContent value="biblioteca"><AbaBiblioteca /></TabsContent>
         <TabsContent value="personas"><AbaPersonas /></TabsContent>
+        <TabsContent value="modelos"><AbaModelos /></TabsContent>
       </Tabs>
     </div>
   );
@@ -796,11 +800,24 @@ function ImagemMetaAds({ criativo }: { criativo: any }) {
   const [status, setStatus] = useState<string | null>(criativo.imagem_gerada_status || null);
   const [tipoFotoGerado, setTipoFotoGerado] = useState<string | null>(null);
   const [corHexGerado, setCorHexGerado] = useState<string | null>(null);
+  const [modelos, setModelos] = useState<any[]>([]);
+  const [modeloId, setModeloId] = useState<string>("__ai__");
 
   useEffect(() => {
     setImagemUrl(criativo.imagem_gerada_url || null);
     setStatus(criativo.imagem_gerada_status || null);
   }, [criativo.id, criativo.imagem_gerada_url, criativo.imagem_gerada_status]);
+
+  useEffect(() => {
+    (async () => {
+      const { data } = await sb
+        .from("mc_modelos")
+        .select("id, nome, foto_url")
+        .eq("ativa", true)
+        .order("nome");
+      setModelos(data || []);
+    })();
+  }, []);
 
   async function gerar() {
     setLoading(true);
@@ -831,6 +848,7 @@ function ImagemMetaAds({ criativo }: { criativo: any }) {
             tipo_foto: tipoFoto,
             cor_hex: corHex || null,
             garment_image_base64: garmentBase64,
+            modelo_id: modeloId && modeloId !== "__ai__" ? modeloId : null,
           }),
         }
       );
@@ -896,6 +914,28 @@ function ImagemMetaAds({ criativo }: { criativo: any }) {
           </SelectContent>
         </Select>
       </div>
+
+      {modelos.length > 0 && (
+        <div className="space-y-2">
+          <Label className="text-xs">Modelo</Label>
+          <Select value={modeloId} onValueChange={setModeloId} disabled={loading}>
+            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="__ai__">🤖 Gerar modelo com IA</SelectItem>
+              {modelos.map((m) => (
+                <SelectItem key={m.id} value={m.id}>
+                  <span className="inline-flex items-center gap-2">
+                    {m.foto_url && (
+                      <img src={m.foto_url} alt="" className="h-6 w-6 rounded-full object-cover" />
+                    )}
+                    {m.nome}
+                  </span>
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      )}
 
       <div className="space-y-2">
         <Label className="text-xs">Tipo de Foto</Label>
@@ -1569,6 +1609,271 @@ function AbaPersonas() {
           </CardContent>
         </Card>
       ))}
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────
+// ABA MODELOS — Biblioteca de modelos da marca
+// ─────────────────────────────────────────────────────────────
+const CATEGORIAS_MODELO = [
+  { id: "todos", label: "Todos" },
+  { id: "calcas", label: "Calças" },
+  { id: "blusas", label: "Blusas" },
+  { id: "vestidos", label: "Vestidos" },
+  { id: "conjuntos", label: "Conjuntos" },
+];
+
+function AbaModelos() {
+  const { toast } = useToast();
+  const [modelos, setModelos] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const [nome, setNome] = useState("");
+  const [descricao, setDescricao] = useState("");
+  const [adequada, setAdequada] = useState<string[]>(["todos"]);
+  const [faixa, setFaixa] = useState("");
+  const [foto, setFoto] = useState<File | null>(null);
+  const [fotoPreview, setFotoPreview] = useState<string | null>(null);
+  const [fotoEstudio, setFotoEstudio] = useState<File | null>(null);
+  const [fotoEstudioPreview, setFotoEstudioPreview] = useState<string | null>(null);
+  const [salvando, setSalvando] = useState(false);
+  const [excluirId, setExcluirId] = useState<string | null>(null);
+
+  async function carregar() {
+    setLoading(true);
+    const { data } = await sb
+      .from("mc_modelos")
+      .select("*")
+      .order("created_at", { ascending: false });
+    setModelos(data || []);
+    setLoading(false);
+  }
+  useEffect(() => { carregar(); }, []);
+
+  function handleFoto(setFile: any, setPrev: any, max = 10) {
+    return (e: React.ChangeEvent<HTMLInputElement>) => {
+      const f = e.target.files?.[0];
+      if (!f) return;
+      if (f.size > max * 1024 * 1024) {
+        toast({ title: `Imagem maior que ${max}MB`, variant: "destructive" });
+        return;
+      }
+      if (!["image/jpeg", "image/png", "image/webp"].includes(f.type)) {
+        toast({ title: "Formato inválido (use JPG, PNG ou WEBP)", variant: "destructive" });
+        return;
+      }
+      setFile(f);
+      const reader = new FileReader();
+      reader.onload = (ev) => setPrev(ev.target?.result as string);
+      reader.readAsDataURL(f);
+    };
+  }
+
+  function toggleCategoria(id: string) {
+    setAdequada((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+    );
+  }
+
+  function limparForm() {
+    setNome(""); setDescricao(""); setAdequada(["todos"]); setFaixa("");
+    setFoto(null); setFotoPreview(null);
+    setFotoEstudio(null); setFotoEstudioPreview(null);
+  }
+
+  async function uploadFoto(file: File): Promise<string> {
+    const safe = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
+    const path = `${Date.now()}_${safe}`;
+    const { error } = await supabase.storage.from("modelos-marca").upload(path, file, {
+      contentType: file.type,
+      upsert: false,
+    });
+    if (error) throw error;
+    const { data } = supabase.storage.from("modelos-marca").getPublicUrl(path);
+    return data.publicUrl;
+  }
+
+  async function salvar() {
+    if (!nome.trim()) { toast({ title: "Informe o nome da modelo", variant: "destructive" }); return; }
+    if (!foto) { toast({ title: "Foto principal é obrigatória", variant: "destructive" }); return; }
+    if (adequada.length === 0) { toast({ title: "Selecione ao menos uma categoria", variant: "destructive" }); return; }
+    setSalvando(true);
+    try {
+      const foto_url = await uploadFoto(foto);
+      let foto_estudio_url: string | null = null;
+      if (fotoEstudio) foto_estudio_url = await uploadFoto(fotoEstudio);
+
+      const { error } = await sb.from("mc_modelos").insert({
+        nome: nome.trim(),
+        descricao: descricao.trim() || null,
+        foto_url,
+        foto_estudio_url,
+        adequada_para: adequada,
+        faixa_etaria: faixa.trim() || null,
+      });
+      if (error) throw error;
+      toast({ title: "Modelo salva com sucesso!" });
+      limparForm();
+      carregar();
+    } catch (e: any) {
+      toast({ title: "Erro ao salvar modelo", description: e.message, variant: "destructive" });
+    } finally {
+      setSalvando(false);
+    }
+  }
+
+  async function toggleAtiva(m: any) {
+    const { error } = await sb.from("mc_modelos").update({ ativa: !m.ativa }).eq("id", m.id);
+    if (error) { toast({ title: "Erro ao atualizar", variant: "destructive" }); return; }
+    setModelos((prev) => prev.map((x) => x.id === m.id ? { ...x, ativa: !m.ativa } : x));
+  }
+
+  async function excluir(id: string) {
+    const { error } = await sb.from("mc_modelos").delete().eq("id", id);
+    if (error) { toast({ title: "Erro ao excluir", variant: "destructive" }); return; }
+    setExcluirId(null);
+    setModelos((prev) => prev.filter((x) => x.id !== id));
+    toast({ title: "Modelo excluída" });
+  }
+
+  return (
+    <div className="space-y-6 mt-4">
+      {/* SEÇÃO 1 — Upload */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base flex items-center gap-2">
+            <Upload className="h-4 w-4" /> Cadastrar nova modelo
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label>Nome da Modelo *</Label>
+              <Input value={nome} onChange={(e) => setNome(e.target.value)} placeholder="Ex: Ana Paula" />
+            </div>
+            <div className="space-y-2">
+              <Label>Faixa Etária</Label>
+              <Input value={faixa} onChange={(e) => setFaixa(e.target.value)} placeholder="Ex: 35-45 anos" />
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label>Descrição</Label>
+            <Textarea
+              value={descricao}
+              onChange={(e) => setDescricao(e.target.value)}
+              placeholder="Ex: Modelo loira, 40 anos, estilo executivo"
+              rows={2}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label>Adequada para</Label>
+            <div className="flex flex-wrap gap-3">
+              {CATEGORIAS_MODELO.map((c) => (
+                <label key={c.id} className="flex items-center gap-2 text-sm cursor-pointer">
+                  <Checkbox
+                    checked={adequada.includes(c.id)}
+                    onCheckedChange={() => toggleCategoria(c.id)}
+                  />
+                  {c.label}
+                </label>
+              ))}
+            </div>
+          </div>
+
+          <div className="grid md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label>Foto principal * (máx 10MB)</Label>
+              <Input type="file" accept="image/jpeg,image/png,image/webp" onChange={handleFoto(setFoto, setFotoPreview)} />
+              {fotoPreview && (
+                <img src={fotoPreview} alt="Preview" className="rounded-md border max-h-48 object-cover" />
+              )}
+            </div>
+            <div className="space-y-2">
+              <Label>Foto em fundo branco (opcional — melhora resultado no estúdio)</Label>
+              <Input type="file" accept="image/jpeg,image/png,image/webp" onChange={handleFoto(setFotoEstudio, setFotoEstudioPreview)} />
+              {fotoEstudioPreview && (
+                <img src={fotoEstudioPreview} alt="Preview estúdio" className="rounded-md border max-h-48 object-cover" />
+              )}
+            </div>
+          </div>
+
+          <Button onClick={salvar} disabled={salvando} className="w-full md:w-auto">
+            {salvando ? <><Loader2 className="animate-spin mr-2 h-4 w-4" /> Salvando...</> : "Salvar Modelo"}
+          </Button>
+        </CardContent>
+      </Card>
+
+      {/* SEÇÃO 2 — Grid */}
+      <div>
+        <h2 className="font-serif text-xl mb-3">Modelos cadastradas</h2>
+        {loading ? (
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            {[1, 2, 3, 4].map((i) => <Skeleton key={i} className="h-80" />)}
+          </div>
+        ) : modelos.length === 0 ? (
+          <p className="text-sm text-muted-foreground">Nenhuma modelo cadastrada ainda.</p>
+        ) : (
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            {modelos.map((m) => (
+              <Card key={m.id} className={m.ativa ? "" : "opacity-60"}>
+                <div className="aspect-[3/4] overflow-hidden rounded-t-lg bg-muted">
+                  {m.foto_url && (
+                    <img src={m.foto_url} alt={m.nome} className="w-full h-full object-cover" />
+                  )}
+                </div>
+                <CardContent className="p-3 space-y-2">
+                  <div className="flex items-start justify-between gap-2">
+                    <h3 className="font-bold text-sm">{m.nome}</h3>
+                    {m.faixa_etaria && <Badge variant="outline" className="text-[10px]">{m.faixa_etaria}</Badge>}
+                  </div>
+                  <div className="flex flex-wrap gap-1">
+                    {(m.adequada_para || []).map((c: string) => (
+                      <Badge key={c} variant="secondary" className="text-[10px]">{c}</Badge>
+                    ))}
+                  </div>
+                  {m.descricao && (
+                    <p className="text-[11px] text-muted-foreground line-clamp-2">{m.descricao}</p>
+                  )}
+                  <div className="flex items-center justify-between pt-2 border-t">
+                    <label className="flex items-center gap-2 text-xs cursor-pointer">
+                      <Switch checked={m.ativa} onCheckedChange={() => toggleAtiva(m)} />
+                      {m.ativa ? "Ativa" : "Inativa"}
+                    </label>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => setExcluirId(m.id)}
+                      className="text-destructive h-7 px-2"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <AlertDialog open={!!excluirId} onOpenChange={(v) => !v && setExcluirId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir modelo?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta ação não pode ser desfeita. A modelo será removida da biblioteca.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={() => excluirId && excluir(excluirId)}>
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
