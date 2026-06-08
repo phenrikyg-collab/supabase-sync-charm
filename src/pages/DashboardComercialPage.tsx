@@ -121,12 +121,11 @@ export default function DashboardComercialPage() {
     return { dataInicio: startOfDay(di), dataFim: endOfDay(df), label: `${fmtData(di)} – ${fmtData(df)}` };
   }, [periodo, customRange]);
 
-  // período comparativo (mesma duração imediatamente anterior)
+  // período comparativo (mesmo intervalo do mês anterior)
   const { compInicio, compFim } = useMemo(() => {
-    const dur = differenceInCalendarDays(dataFim, dataInicio);
     return {
-      compInicio: subDays(dataInicio, dur + 1),
-      compFim: subDays(dataInicio, 1),
+      compInicio: startOfDay(subMonths(dataInicio, 1)),
+      compFim: endOfDay(subMonths(dataFim, 1)),
     };
   }, [dataInicio, dataFim]);
 
