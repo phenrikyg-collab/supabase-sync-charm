@@ -1029,6 +1029,7 @@ function HistoricoTab() {
           ))}
         </TableBody>
       </Table>
+      </div>
     </Card>
   );
 }
