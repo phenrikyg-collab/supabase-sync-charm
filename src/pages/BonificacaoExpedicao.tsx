@@ -245,6 +245,48 @@ function DashboardTab({ mes }: { mes: string }) {
     });
   }
 
+  // OPs ativas: soma de peças em produção por (nome_produto + cor)
+  const opsAtivasQ = useQuery({
+    queryKey: ["ops-ativas-producao"],
+    queryFn: async () => {
+      const [ops, cores] = await Promise.all([
+        supabase
+          .from("ordens_producao" as any)
+          .select("nome_produto, cor_id, quantidade, quantidade_pecas_ordem, status_ordem"),
+        supabase.from("cores" as any).select("id, nome_cor"),
+      ]);
+      const coresMap: Record<string, string> = {};
+      for (const c of (cores.data ?? []) as any[]) coresMap[String(c.id)] = (c.nome_cor ?? "").trim();
+      const ATIVOS = new Set(["corte", "costura", "revisao", "revisão", "em conserto"]);
+      const map: Record<string, number> = {};
+      for (const o of (ops.data ?? []) as any[]) {
+        const st = (o.status_ordem ?? "").toLowerCase().trim();
+        if (!ATIVOS.has(st)) continue;
+        const nome = (o.nome_produto ?? "").trim().toLowerCase();
+        const cor = (coresMap[String(o.cor_id)] ?? "").trim().toLowerCase();
+        const qtd = Number(o.quantidade_pecas_ordem ?? o.quantidade ?? 0);
+        if (!nome) continue;
+        const key = `${nome}||${cor}`;
+        map[key] = (map[key] ?? 0) + qtd;
+      }
+      return map;
+    },
+  });
+  const opsMap = opsAtivasQ.data ?? {};
+
+  const emProducaoPara = (nome: string, cor: string) => {
+    const k = `${nome.trim().toLowerCase()}||${cor === "—" ? "" : cor.trim().toLowerCase()}`;
+    if (opsMap[k] != null) return opsMap[k];
+    // fallback: somar todas as cores se cor não bater
+    const nomeKey = nome.trim().toLowerCase();
+    let total = 0;
+    let found = false;
+    for (const [k2, v] of Object.entries(opsMap)) {
+      if (k2.startsWith(nomeKey + "||")) { total += v; found = true; }
+    }
+    return found ? total : 0;
+  };
+
   // Agregação por produto + cor + tamanho
   const agregado = (() => {
     const acc = new Map<string, { nome: string; cor: string; tamanho: string; qtd: number; pedidos: Set<string> }>();
@@ -500,26 +542,39 @@ function DashboardTab({ mes }: { mes: string }) {
                 <TableHead>Cor</TableHead>
                 <TableHead>Tamanho</TableHead>
                 <TableHead className="text-right">Qtd. peças</TableHead>
+                <TableHead className="text-right">Em produção</TableHead>
                 <TableHead className="text-right">Pedidos</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {agregado.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={5} className="text-center text-muted-foreground py-10">
+                  <TableCell colSpan={6} className="text-center text-muted-foreground py-10">
                     Nenhum produto para somar.
                   </TableCell>
                 </TableRow>
               )}
-              {agregado.map((r, i) => (
-                <TableRow key={i}>
-                  <TableCell className="font-medium">{r.nome}</TableCell>
-                  <TableCell>{r.cor}</TableCell>
-                  <TableCell>{r.tamanho}</TableCell>
-                  <TableCell className="text-right font-semibold">{r.qtd}</TableCell>
-                  <TableCell className="text-right text-muted-foreground">{r.pedidos.size}</TableCell>
-                </TableRow>
-              ))}
+              {agregado.map((r, i) => {
+                const emProd = emProducaoPara(r.nome, r.cor);
+                return (
+                  <TableRow key={i}>
+                    <TableCell className="font-medium">{r.nome}</TableCell>
+                    <TableCell>{r.cor}</TableCell>
+                    <TableCell>{r.tamanho}</TableCell>
+                    <TableCell className="text-right font-semibold">{r.qtd}</TableCell>
+                    <TableCell className="text-right">
+                      {emProd > 0 ? (
+                        <Badge className="bg-amber-100 text-amber-800 border border-amber-200">
+                          <Factory className="w-3 h-3 mr-1" />{emProd}
+                        </Badge>
+                      ) : (
+                        <span className="text-muted-foreground">—</span>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-right text-muted-foreground">{r.pedidos.size}</TableCell>
+                  </TableRow>
+                );
+              })}
             </TableBody>
           </Table>
         </div>
