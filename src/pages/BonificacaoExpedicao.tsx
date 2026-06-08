@@ -245,46 +245,102 @@ function DashboardTab({ mes }: { mes: string }) {
     });
   }
 
-  // OPs ativas: soma de peças em produção por (nome_produto + cor)
+  // OPs ativas: soma de peças em produção por (nome_produto + cor + tamanho).
+  // ordens_producao não tem tamanho; usamos ordens_corte_grade para abrir por tamanho
+  // e distribuímos proporcionalmente caso a soma da grade difira da qtd da OP.
   const opsAtivasQ = useQuery({
-    queryKey: ["ops-ativas-producao"],
+    queryKey: ["ops-ativas-producao-grade"],
     queryFn: async () => {
       const [ops, cores] = await Promise.all([
         supabase
           .from("ordens_producao" as any)
-          .select("nome_produto, cor_id, quantidade, quantidade_pecas_ordem, status_ordem"),
+          .select("produto_id, nome_produto, cor_id, ordem_corte_id, quantidade, quantidade_pecas_ordem, status_ordem"),
         supabase.from("cores" as any).select("id, nome_cor"),
       ]);
       const coresMap: Record<string, string> = {};
       for (const c of (cores.data ?? []) as any[]) coresMap[String(c.id)] = (c.nome_cor ?? "").trim();
       const ATIVOS = new Set(["corte", "costura", "revisao", "revisão", "em conserto"]);
+      const activeOps = ((ops.data ?? []) as any[]).filter((o) =>
+        ATIVOS.has((o.status_ordem ?? "").toLowerCase().trim())
+      );
+
+      const nomePorProduto: Record<string, string> = {};
+      for (const o of activeOps) {
+        if (o.produto_id) nomePorProduto[String(o.produto_id)] = (o.nome_produto ?? "").trim().toLowerCase();
+      }
+
+      const opQtdPorChave: Record<string, number> = {};
+      const ocIds = new Set<string>();
+      for (const o of activeOps) {
+        const qtd = Number(o.quantidade_pecas_ordem ?? o.quantidade ?? 0);
+        if (o.ordem_corte_id && o.produto_id) {
+          const k = `${o.ordem_corte_id}|${o.produto_id}|${o.cor_id ?? ""}`;
+          opQtdPorChave[k] = (opQtdPorChave[k] ?? 0) + qtd;
+          ocIds.add(String(o.ordem_corte_id));
+        }
+      }
+
       const map: Record<string, number> = {};
-      for (const o of (ops.data ?? []) as any[]) {
-        const st = (o.status_ordem ?? "").toLowerCase().trim();
-        if (!ATIVOS.has(st)) continue;
+      const fallback: Record<string, number> = {};
+
+      if (ocIds.size > 0) {
+        const ocList = Array.from(ocIds);
+        const grades: any[] = [];
+        const CHUNK = 100;
+        for (let i = 0; i < ocList.length; i += CHUNK) {
+          const slice = ocList.slice(i, i + CHUNK);
+          const { data } = await supabase
+            .from("ordens_corte_grade" as any)
+            .select("ordem_corte_id, produto_id, cor_id, tamanho, quantidade")
+            .in("ordem_corte_id", slice);
+          if (data) grades.push(...(data as any[]));
+        }
+
+        const totalGradePorChave: Record<string, number> = {};
+        for (const g of grades) {
+          const k = `${g.ordem_corte_id}|${g.produto_id}|${g.cor_id ?? ""}`;
+          totalGradePorChave[k] = (totalGradePorChave[k] ?? 0) + Number(g.quantidade ?? 0);
+        }
+
+        for (const g of grades) {
+          const k = `${g.ordem_corte_id}|${g.produto_id}|${g.cor_id ?? ""}`;
+          const qtdOp = opQtdPorChave[k];
+          if (qtdOp == null) continue;
+          const totalGrade = totalGradePorChave[k] || 0;
+          const qtdGrade = Number(g.quantidade ?? 0);
+          const qtdEfetiva =
+            totalGrade > 0 ? Math.round((qtdGrade * qtdOp) / totalGrade) : qtdGrade;
+          const nome = nomePorProduto[String(g.produto_id)] ?? "";
+          const cor = (coresMap[String(g.cor_id)] ?? "").trim().toLowerCase();
+          const tam = (g.tamanho ?? "").toString().trim().toLowerCase();
+          if (!nome) continue;
+          map[`${nome}||${cor}||${tam}`] = (map[`${nome}||${cor}||${tam}`] ?? 0) + qtdEfetiva;
+          const fkey = `${nome}||${cor}`;
+          fallback[fkey] = (fallback[fkey] ?? 0) + qtdEfetiva;
+        }
+      }
+
+      for (const o of activeOps) {
+        if (o.ordem_corte_id) continue;
+        const qtd = Number(o.quantidade_pecas_ordem ?? o.quantidade ?? 0);
         const nome = (o.nome_produto ?? "").trim().toLowerCase();
         const cor = (coresMap[String(o.cor_id)] ?? "").trim().toLowerCase();
-        const qtd = Number(o.quantidade_pecas_ordem ?? o.quantidade ?? 0);
         if (!nome) continue;
-        const key = `${nome}||${cor}`;
-        map[key] = (map[key] ?? 0) + qtd;
+        fallback[`${nome}||${cor}`] = (fallback[`${nome}||${cor}`] ?? 0) + qtd;
       }
-      return map;
+
+      return { map, fallback };
     },
   });
-  const opsMap = opsAtivasQ.data ?? {};
+  const opsData = opsAtivasQ.data ?? { map: {} as Record<string, number>, fallback: {} as Record<string, number> };
 
-  const emProducaoPara = (nome: string, cor: string) => {
-    const k = `${nome.trim().toLowerCase()}||${cor === "—" ? "" : cor.trim().toLowerCase()}`;
-    if (opsMap[k] != null) return opsMap[k];
-    // fallback: somar todas as cores se cor não bater
-    const nomeKey = nome.trim().toLowerCase();
-    let total = 0;
-    let found = false;
-    for (const [k2, v] of Object.entries(opsMap)) {
-      if (k2.startsWith(nomeKey + "||")) { total += v; found = true; }
-    }
-    return found ? total : 0;
+  const emProducaoPara = (nome: string, cor: string, tamanho: string) => {
+    const n = nome.trim().toLowerCase();
+    const c = cor === "—" ? "" : cor.trim().toLowerCase();
+    const t = tamanho === "—" ? "" : tamanho.trim().toLowerCase();
+    const exact = opsData.map[`${n}||${c}||${t}`];
+    if (exact != null) return exact;
+    return opsData.fallback[`${n}||${c}`] ?? 0;
   };
 
   // Agregação por produto + cor + tamanho
@@ -555,7 +611,7 @@ function DashboardTab({ mes }: { mes: string }) {
                 </TableRow>
               )}
               {agregado.map((r, i) => {
-                const emProd = emProducaoPara(r.nome, r.cor);
+                const emProd = emProducaoPara(r.nome, r.cor, r.tamanho);
                 return (
                   <TableRow key={i}>
                     <TableCell className="font-medium">{r.nome}</TableCell>
