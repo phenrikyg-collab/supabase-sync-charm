@@ -557,8 +557,15 @@ function DashboardTab({ mes }: { mes: string }) {
                 const hoje = prazo === HOJE;
                 const venceEm2 = prazo && prazo > HOJE && prazo <= D2;
                 const editValue = prazoEdit[pid] ?? (prazo ? prazo.slice(0, 10) : "");
+                const rowTone = atrasado
+                  ? "bg-rose-50/70 hover:bg-rose-100/70"
+                  : hoje
+                  ? "bg-amber-50/70 hover:bg-amber-100/70"
+                  : venceEm2
+                  ? "bg-orange-50/60 hover:bg-orange-100/60"
+                  : "";
                 return (
-                  <TableRow key={pid}>
+                  <TableRow key={pid} className={rowTone}>
                     <TableCell className="font-mono text-xs">{pid}</TableCell>
                     <TableCell>{fmtData(p.date)}</TableCell>
                     <TableCell>
