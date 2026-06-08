@@ -334,13 +334,57 @@ function DashboardTab({ mes }: { mes: string }) {
   });
   const opsData = opsAtivasQ.data ?? { map: {} as Record<string, number>, fallback: {} as Record<string, number> };
 
+  const norm = (s: string) =>
+    (s ?? "")
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase()
+      .replace(/[^a-z0-9\s]/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+
+  // Índices normalizados (acentos, pontuação, case) sobre os dados de OPs
+  const opsNorm = (() => {
+    const exact: Record<string, number> = {};
+    const porNomeCor: Record<string, number> = {};
+    const porNome: Record<string, number> = {};
+    for (const [k, v] of Object.entries(opsData.map)) {
+      const [n, c, t] = k.split("||");
+      const nn = norm(n), nc = norm(c), nt = norm(t);
+      exact[`${nn}||${nc}||${nt}`] = (exact[`${nn}||${nc}||${nt}`] ?? 0) + v;
+      porNomeCor[`${nn}||${nc}`] = (porNomeCor[`${nn}||${nc}`] ?? 0) + v;
+      porNome[nn] = (porNome[nn] ?? 0) + v;
+    }
+    for (const [k, v] of Object.entries(opsData.fallback)) {
+      const [n, c] = k.split("||");
+      const nn = norm(n), nc = norm(c);
+      if (porNomeCor[`${nn}||${nc}`] == null) porNomeCor[`${nn}||${nc}`] = v;
+      porNome[nn] = (porNome[nn] ?? 0);
+    }
+    return { exact, porNomeCor, porNome, nomes: Object.keys(porNome).filter(Boolean) };
+  })();
+
   const emProducaoPara = (nome: string, cor: string, tamanho: string) => {
-    const n = nome.trim().toLowerCase();
-    const c = cor === "—" ? "" : cor.trim().toLowerCase();
-    const t = tamanho === "—" ? "" : tamanho.trim().toLowerCase();
-    const exact = opsData.map[`${n}||${c}||${t}`];
-    if (exact != null) return exact;
-    return opsData.fallback[`${n}||${c}`] ?? 0;
+    const n = norm(nome);
+    const c = cor === "—" ? "" : norm(cor);
+    const t = tamanho === "—" ? "" : norm(tamanho);
+    if (n && c && t && opsNorm.exact[`${n}||${c}||${t}`] != null) return opsNorm.exact[`${n}||${c}||${t}`];
+    if (n && c && opsNorm.porNomeCor[`${n}||${c}`] != null) return opsNorm.porNomeCor[`${n}||${c}`];
+    if (n && opsNorm.porNome[n]) return opsNorm.porNome[n];
+    // fallback contains: nome do pedido contém OP ou vice-versa
+    if (!n) return 0;
+    let total = 0;
+    for (const opNome of opsNorm.nomes) {
+      if (opNome === n) continue;
+      if (n.includes(opNome) || opNome.includes(n)) {
+        if (c && opsNorm.porNomeCor[`${opNome}||${c}`] != null) {
+          total += opsNorm.porNomeCor[`${opNome}||${c}`];
+        } else {
+          total += opsNorm.porNome[opNome] ?? 0;
+        }
+      }
+    }
+    return total;
   };
 
   // Agregação por produto + cor + tamanho
