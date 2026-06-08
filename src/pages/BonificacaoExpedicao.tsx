@@ -611,7 +611,7 @@ function DashboardTab({ mes }: { mes: string }) {
                 </TableRow>
               )}
               {agregado.map((r, i) => {
-                const emProd = emProducaoPara(r.nome, r.cor);
+                const emProd = emProducaoPara(r.nome, r.cor, r.tamanho);
                 return (
                   <TableRow key={i}>
                     <TableCell className="font-medium">{r.nome}</TableCell>
