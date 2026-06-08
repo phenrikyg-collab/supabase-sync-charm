@@ -1148,8 +1148,9 @@ function ConfigTab() {
       </Card>
 
       <Card className="p-0 overflow-hidden">
+        <div className="max-h-[620px] overflow-auto">
         <Table>
-          <TableHeader>
+          <TableHeader className="sticky top-0 bg-background z-10 shadow-sm [&_th]:bg-background">
             <TableRow>
               <TableHead>% mínimo</TableHead>
               <TableHead>% máximo</TableHead>
