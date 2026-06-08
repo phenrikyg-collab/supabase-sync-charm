@@ -269,13 +269,19 @@ function DashboardTab({ mes }: { mes: string }) {
         if (o.produto_id) nomePorProduto[String(o.produto_id)] = (o.nome_produto ?? "").trim().toLowerCase();
       }
 
-      const opQtdPorChave: Record<string, number> = {};
+      // Indexa qtd da OP por (oc|prod|cor) E por (oc|prod) — porque cor_id na OP pode ser null
+      const opQtdPorChaveCor: Record<string, number> = {};
+      const opQtdPorOcProd: Record<string, number> = {};
       const ocIds = new Set<string>();
       for (const o of activeOps) {
         const qtd = Number(o.quantidade_pecas_ordem ?? o.quantidade ?? 0);
         if (o.ordem_corte_id && o.produto_id) {
-          const k = `${o.ordem_corte_id}|${o.produto_id}|${o.cor_id ?? ""}`;
-          opQtdPorChave[k] = (opQtdPorChave[k] ?? 0) + qtd;
+          const kop = `${o.ordem_corte_id}|${o.produto_id}`;
+          opQtdPorOcProd[kop] = (opQtdPorOcProd[kop] ?? 0) + qtd;
+          if (o.cor_id) {
+            const k = `${kop}|${o.cor_id}`;
+            opQtdPorChaveCor[k] = (opQtdPorChaveCor[k] ?? 0) + qtd;
+          }
           ocIds.add(String(o.ordem_corte_id));
         }
       }
@@ -296,24 +302,39 @@ function DashboardTab({ mes }: { mes: string }) {
           if (data) grades.push(...(data as any[]));
         }
 
-        const totalGradePorChave: Record<string, number> = {};
+        // Totais de grade por (oc|prod|cor) e por (oc|prod) — só de produtos que têm OP
+        const totalGradePorCor: Record<string, number> = {};
+        const totalGradePorOcProd: Record<string, number> = {};
         for (const g of grades) {
-          const k = `${g.ordem_corte_id}|${g.produto_id}|${g.cor_id ?? ""}`;
-          totalGradePorChave[k] = (totalGradePorChave[k] ?? 0) + Number(g.quantidade ?? 0);
+          if (!nomePorProduto[String(g.produto_id)]) continue;
+          const kop = `${g.ordem_corte_id}|${g.produto_id}`;
+          const k = `${kop}|${g.cor_id ?? ""}`;
+          totalGradePorCor[k] = (totalGradePorCor[k] ?? 0) + Number(g.quantidade ?? 0);
+          totalGradePorOcProd[kop] = (totalGradePorOcProd[kop] ?? 0) + Number(g.quantidade ?? 0);
         }
 
         for (const g of grades) {
-          const k = `${g.ordem_corte_id}|${g.produto_id}|${g.cor_id ?? ""}`;
-          const qtdOp = opQtdPorChave[k];
+          const nome = nomePorProduto[String(g.produto_id)] ?? "";
+          if (!nome) continue;
+          const kop = `${g.ordem_corte_id}|${g.produto_id}`;
+          const k = `${kop}|${g.cor_id ?? ""}`;
+
+          // Tenta atribuir qtd da OP específica daquela cor; se a OP não tem cor (cor_id null),
+          // distribui o total da OP (por oc|prod) proporcionalmente entre todas as linhas da grade.
+          let qtdOp = opQtdPorChaveCor[k];
+          let totalGrade = totalGradePorCor[k] || 0;
+          if (qtdOp == null) {
+            qtdOp = opQtdPorOcProd[kop];
+            totalGrade = totalGradePorOcProd[kop] || 0;
+          }
           if (qtdOp == null) continue;
-          const totalGrade = totalGradePorChave[k] || 0;
+
           const qtdGrade = Number(g.quantidade ?? 0);
           const qtdEfetiva =
             totalGrade > 0 ? Math.round((qtdGrade * qtdOp) / totalGrade) : qtdGrade;
-          const nome = nomePorProduto[String(g.produto_id)] ?? "";
+
           const cor = (coresMap[String(g.cor_id)] ?? "").trim().toLowerCase();
           const tam = (g.tamanho ?? "").toString().trim().toLowerCase();
-          if (!nome) continue;
           map[`${nome}||${cor}||${tam}`] = (map[`${nome}||${cor}||${tam}`] ?? 0) + qtdEfetiva;
           const fkey = `${nome}||${cor}`;
           fallback[fkey] = (fallback[fkey] ?? 0) + qtdEfetiva;
