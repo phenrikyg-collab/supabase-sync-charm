@@ -479,11 +479,130 @@ function DashboardTab({ mes }: { mes: string }) {
         </div>
       </Card>
 
+      {/* Produtos parados — somatório por produto + cor + tamanho */}
+      <Card className="p-0 overflow-hidden">
+        <div className="px-6 py-4 border-b flex items-center justify-between gap-3 flex-wrap">
+          <div>
+            <h3 className="font-serif text-lg">Produtos parados em pedidos em aberto</h3>
+            <p className="text-xs text-muted-foreground mt-1">
+              Soma de peças por produto, cor e tamanho considerando todos os pedidos pendentes de envio acima.
+            </p>
+          </div>
+          <Badge variant="outline" className="text-xs">
+            {agregado.reduce((s, r) => s + r.qtd, 0)} peças · {agregado.length} variações
+          </Badge>
+        </div>
+        <div className="max-h-[500px] overflow-auto">
+          <Table>
+            <TableHeader className="sticky top-0 bg-background z-10 shadow-sm [&_th]:bg-background">
+              <TableRow>
+                <TableHead>Produto</TableHead>
+                <TableHead>Cor</TableHead>
+                <TableHead>Tamanho</TableHead>
+                <TableHead className="text-right">Qtd. peças</TableHead>
+                <TableHead className="text-right">Pedidos</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {agregado.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={5} className="text-center text-muted-foreground py-10">
+                    Nenhum produto para somar.
+                  </TableCell>
+                </TableRow>
+              )}
+              {agregado.map((r, i) => (
+                <TableRow key={i}>
+                  <TableCell className="font-medium">{r.nome}</TableCell>
+                  <TableCell>{r.cor}</TableCell>
+                  <TableCell>{r.tamanho}</TableCell>
+                  <TableCell className="text-right font-semibold">{r.qtd}</TableCell>
+                  <TableCell className="text-right text-muted-foreground">{r.pedidos.size}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      </Card>
+
       <GerarOPDialog
         pedido={opDialogPedido}
         produtosSugeridos={opDialogPedido ? (produtosPorPedido[String(opDialogPedido.id)] ?? []) : []}
         onClose={() => setOpDialogPedido(null)}
       />
+
+      {/* Dialog justificativa alteração de prazo */}
+      <Dialog
+        open={!!justifDialog}
+        onOpenChange={(o) => {
+          if (!o) {
+            // cancelar: reverter input para o valor original
+            if (justifDialog) {
+              setPrazoEdit((s) => ({ ...s, [justifDialog.pid]: justifDialog.prazoAnterior }));
+            }
+            setJustifDialog(null);
+            setJustifText("");
+          }
+        }}
+      >
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Justificar alteração do prazo</DialogTitle>
+          </DialogHeader>
+          {justifDialog && (
+            <div className="space-y-3">
+              <div className="text-xs text-muted-foreground">
+                Pedido <span className="font-mono">{justifDialog.pid}</span>
+              </div>
+              <div className="text-sm">
+                <span className="text-muted-foreground">De </span>
+                <span className="font-medium">{fmtData(justifDialog.prazoAnterior || null)}</span>
+                <span className="text-muted-foreground"> para </span>
+                <span className="font-medium">{fmtData(justifDialog.prazoNovo)}</span>
+              </div>
+              <div>
+                <Label>Motivo da alteração <span className="text-rose-600">*</span></Label>
+                <textarea
+                  value={justifText}
+                  onChange={(e) => setJustifText(e.target.value)}
+                  rows={4}
+                  className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  placeholder="Descreva o motivo da alteração do prazo..."
+                />
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                if (justifDialog) {
+                  setPrazoEdit((s) => ({ ...s, [justifDialog.pid]: justifDialog.prazoAnterior }));
+                }
+                setJustifDialog(null);
+                setJustifText("");
+              }}
+            >
+              Cancelar
+            </Button>
+            <Button
+              onClick={async () => {
+                if (!justifDialog) return;
+                if (justifText.trim().length < 5) {
+                  toast.error("Informe uma justificativa (mín. 5 caracteres).");
+                  return;
+                }
+                const { pid, prazoAnterior, prazoNovo } = justifDialog;
+                setJustifDialog(null);
+                await savePrazo(pid, prazoNovo, prazoAnterior, justifText.trim());
+                setJustifText("");
+              }}
+            >
+              Confirmar alteração
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
