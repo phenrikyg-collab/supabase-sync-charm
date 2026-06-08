@@ -428,7 +428,8 @@ function DashboardTab({ mes }: { mes: string }) {
                           onChange={(e) => setPrazoEdit((s) => ({ ...s, [pid]: e.target.value }))}
                           onBlur={(e) => {
                             const v = e.target.value;
-                            if (v && v !== (prazo ? prazo.slice(0, 10) : "")) savePrazo(pid, v);
+                            const anterior = prazo ? prazo.slice(0, 10) : "";
+                            if (v && v !== anterior) requestEditPrazo(pid, anterior, v);
                           }}
                           className={`h-8 w-[140px] text-xs ${atrasado ? "text-rose-700 font-medium" : ""}`}
                         />
