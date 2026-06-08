@@ -136,14 +136,32 @@ async function fetchTodosAbertos(): Promise<TrayOpen[]> {
   });
 }
 
+type ItemPedido = { nome: string; cor: string; tamanho: string; qtd: number; variant_id: string | null };
+
+function decodePy(s: string): string {
+  try { return decodeURIComponent(escape(s)); } catch { return s; }
+}
+function extrairCorTraySku(sku: string | null): string | null {
+  if (!sku) return null;
+  const m = sku.match(/'type':\s*u?'Cor'[^}]*'value':\s*u?'([^']+)'/i);
+  return m ? decodePy(m[1]).trim() : null;
+}
+function extrairTamanhoTraySku(sku: string | null): string | null {
+  if (!sku) return null;
+  const m = sku.match(/'type':\s*u?'Tamanho'[^}]*'value':\s*u?'([^']+)'/i);
+  return m ? decodePy(m[1]).trim() : null;
+}
+
 function DashboardTab({ mes }: { mes: string }) {
   const ap = useApurarExpedicao(mes);
   const fechar = useFecharApuracao();
   const qc = useQueryClient();
-  const [produtosPorPedido, setProdutosPorPedido] = useState<Record<string, string[]>>({});
+  const [itensPorPedido, setItensPorPedido] = useState<Record<string, ItemPedido[]>>({});
   const [prazoEdit, setPrazoEdit] = useState<Record<string, string>>({});
   const [savingPrazo, setSavingPrazo] = useState<Record<string, boolean>>({});
   const [opDialogPedido, setOpDialogPedido] = useState<TrayOpen | null>(null);
+  const [justifDialog, setJustifDialog] = useState<{ pid: string; prazoAnterior: string; prazoNovo: string } | null>(null);
+  const [justifText, setJustifText] = useState("");
 
   const abertosQ = useQuery({
     queryKey: ["tray-abertos-all"],
@@ -151,38 +169,107 @@ function DashboardTab({ mes }: { mes: string }) {
   });
   const abertosAll = abertosQ.data ?? [];
 
+  // Mapa variant_id -> { cor, tamanho } para todas as variantes Tray
+  const variantsQ = useQuery({
+    queryKey: ["tray-variants-cor-tamanho"],
+    queryFn: async () => {
+      const map: Record<string, { cor: string | null; tamanho: string | null }> = {};
+      let from = 0;
+      const size = 1000;
+      // eslint-disable-next-line no-constant-condition
+      while (true) {
+        const { data, error } = await supabase
+          .from("tray_products_variants" as any)
+          .select("variant_id, variant_sku")
+          .range(from, from + size - 1);
+        if (error) break;
+        const rows = (data ?? []) as any[];
+        for (const v of rows) {
+          map[String(v.variant_id)] = {
+            cor: extrairCorTraySku(v.variant_sku),
+            tamanho: extrairTamanhoTraySku(v.variant_sku),
+          };
+        }
+        if (rows.length < size) break;
+        from += size;
+      }
+      return map;
+    },
+  });
+  const variantsMap = variantsQ.data ?? {};
+
   useEffect(() => {
     const ids = abertosAll.map((p) => String(p.id));
     if (ids.length === 0) {
-      setProdutosPorPedido({});
+      setItensPorPedido({});
       return;
     }
     let cancelled = false;
     (async () => {
-      const map: Record<string, string[]> = {};
+      const map: Record<string, ItemPedido[]> = {};
       const chunkSize = 200;
       for (let i = 0; i < ids.length; i += chunkSize) {
         const chunk = ids.slice(i, i + chunkSize);
         const { data, error } = await supabase
           .from("tray_productssold")
-          .select("order_id, name, model, reference, quantity")
+          .select("order_id, name, model, reference, quantity, variant_id")
           .in("order_id", chunk);
         if (error || !data) continue;
         for (const row of data as any[]) {
           const oid = String(row.order_id);
           const nome = (row.model || (row.name ? String(row.name).split("<br>")[0] : null) || row.reference || "Produto").trim();
           const qtd = Number(row.quantity ?? 1);
-          const label = qtd > 1 ? `${nome} (${qtd})` : nome;
+          const vid = row.variant_id != null ? String(row.variant_id) : null;
+          const v = vid ? variantsMap[vid] : null;
+          const cor = v?.cor ?? extrairCorTraySku(row.reference) ?? "—";
+          const tamanho = v?.tamanho ?? extrairTamanhoTraySku(row.reference) ?? "—";
           if (!map[oid]) map[oid] = [];
-          map[oid].push(label);
+          map[oid].push({ nome, cor, tamanho, qtd, variant_id: vid });
         }
       }
-      if (!cancelled) setProdutosPorPedido(map);
+      if (!cancelled) setItensPorPedido(map);
     })();
     return () => { cancelled = true; };
-  }, [abertosAll.length]);
+  }, [abertosAll.length, variantsQ.data]);
 
-  const savePrazo = async (pedidoId: string, novoPrazo: string) => {
+  // Lista para exibir badges com nome (compat com lógica anterior)
+  const produtosPorPedido: Record<string, string[]> = {};
+  for (const [oid, itens] of Object.entries(itensPorPedido)) {
+    produtosPorPedido[oid] = itens.map((it) => {
+      const base = it.nome;
+      const extra: string[] = [];
+      if (it.cor !== "—") extra.push(it.cor);
+      if (it.tamanho !== "—") extra.push(it.tamanho);
+      const suf = extra.length ? ` [${extra.join(" / ")}]` : "";
+      return it.qtd > 1 ? `${base}${suf} (${it.qtd})` : `${base}${suf}`;
+    });
+  }
+
+  // Agregação por produto + cor + tamanho
+  const agregado = (() => {
+    const acc = new Map<string, { nome: string; cor: string; tamanho: string; qtd: number; pedidos: Set<string> }>();
+    for (const [oid, itens] of Object.entries(itensPorPedido)) {
+      for (const it of itens) {
+        const key = `${it.nome}||${it.cor}||${it.tamanho}`;
+        const cur = acc.get(key);
+        if (cur) {
+          cur.qtd += it.qtd;
+          cur.pedidos.add(oid);
+        } else {
+          acc.set(key, { nome: it.nome, cor: it.cor, tamanho: it.tamanho, qtd: it.qtd, pedidos: new Set([oid]) });
+        }
+      }
+    }
+    return Array.from(acc.values()).sort((a, b) => b.qtd - a.qtd);
+  })();
+
+  const requestEditPrazo = (pid: string, prazoAnterior: string, prazoNovo: string) => {
+    if (!prazoNovo || prazoNovo === prazoAnterior) return;
+    setJustifText("");
+    setJustifDialog({ pid, prazoAnterior, prazoNovo });
+  };
+
+  const savePrazo = async (pedidoId: string, novoPrazo: string, prazoAnterior: string, justificativa: string) => {
     setSavingPrazo((s) => ({ ...s, [pedidoId]: true }));
     try {
       const { error } = await supabase
@@ -190,6 +277,22 @@ function DashboardTab({ mes }: { mes: string }) {
         .update({ estimated_delivery_date: novoPrazo })
         .eq("id", pedidoId);
       if (error) throw error;
+
+      // Registra a alteração (best-effort; ignora se tabela não existir)
+      const { data: userData } = await supabase.auth.getUser();
+      const { error: errLog } = await supabase
+        .from("expedicao_alteracoes_prazo" as any)
+        .insert({
+          pedido_id: pedidoId,
+          prazo_anterior: prazoAnterior || null,
+          prazo_novo: novoPrazo,
+          justificativa,
+          alterado_por: userData?.user?.id ?? null,
+        } as any);
+      if (errLog) {
+        console.warn("Falha ao registrar justificativa:", errLog.message);
+      }
+
       toast.success("Prazo atualizado.");
       qc.invalidateQueries({ queryKey: ["tray-abertos-all"] });
       qc.invalidateQueries({ queryKey: ["pedidos-expedicao"] });
@@ -325,7 +428,8 @@ function DashboardTab({ mes }: { mes: string }) {
                           onChange={(e) => setPrazoEdit((s) => ({ ...s, [pid]: e.target.value }))}
                           onBlur={(e) => {
                             const v = e.target.value;
-                            if (v && v !== (prazo ? prazo.slice(0, 10) : "")) savePrazo(pid, v);
+                            const anterior = prazo ? prazo.slice(0, 10) : "";
+                            if (v && v !== anterior) requestEditPrazo(pid, anterior, v);
                           }}
                           className={`h-8 w-[140px] text-xs ${atrasado ? "text-rose-700 font-medium" : ""}`}
                         />
@@ -375,11 +479,130 @@ function DashboardTab({ mes }: { mes: string }) {
         </div>
       </Card>
 
+      {/* Produtos parados — somatório por produto + cor + tamanho */}
+      <Card className="p-0 overflow-hidden">
+        <div className="px-6 py-4 border-b flex items-center justify-between gap-3 flex-wrap">
+          <div>
+            <h3 className="font-serif text-lg">Produtos parados em pedidos em aberto</h3>
+            <p className="text-xs text-muted-foreground mt-1">
+              Soma de peças por produto, cor e tamanho considerando todos os pedidos pendentes de envio acima.
+            </p>
+          </div>
+          <Badge variant="outline" className="text-xs">
+            {agregado.reduce((s, r) => s + r.qtd, 0)} peças · {agregado.length} variações
+          </Badge>
+        </div>
+        <div className="max-h-[500px] overflow-auto">
+          <Table>
+            <TableHeader className="sticky top-0 bg-background z-10 shadow-sm [&_th]:bg-background">
+              <TableRow>
+                <TableHead>Produto</TableHead>
+                <TableHead>Cor</TableHead>
+                <TableHead>Tamanho</TableHead>
+                <TableHead className="text-right">Qtd. peças</TableHead>
+                <TableHead className="text-right">Pedidos</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {agregado.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={5} className="text-center text-muted-foreground py-10">
+                    Nenhum produto para somar.
+                  </TableCell>
+                </TableRow>
+              )}
+              {agregado.map((r, i) => (
+                <TableRow key={i}>
+                  <TableCell className="font-medium">{r.nome}</TableCell>
+                  <TableCell>{r.cor}</TableCell>
+                  <TableCell>{r.tamanho}</TableCell>
+                  <TableCell className="text-right font-semibold">{r.qtd}</TableCell>
+                  <TableCell className="text-right text-muted-foreground">{r.pedidos.size}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      </Card>
+
       <GerarOPDialog
         pedido={opDialogPedido}
         produtosSugeridos={opDialogPedido ? (produtosPorPedido[String(opDialogPedido.id)] ?? []) : []}
         onClose={() => setOpDialogPedido(null)}
       />
+
+      {/* Dialog justificativa alteração de prazo */}
+      <Dialog
+        open={!!justifDialog}
+        onOpenChange={(o) => {
+          if (!o) {
+            // cancelar: reverter input para o valor original
+            if (justifDialog) {
+              setPrazoEdit((s) => ({ ...s, [justifDialog.pid]: justifDialog.prazoAnterior }));
+            }
+            setJustifDialog(null);
+            setJustifText("");
+          }
+        }}
+      >
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Justificar alteração do prazo</DialogTitle>
+          </DialogHeader>
+          {justifDialog && (
+            <div className="space-y-3">
+              <div className="text-xs text-muted-foreground">
+                Pedido <span className="font-mono">{justifDialog.pid}</span>
+              </div>
+              <div className="text-sm">
+                <span className="text-muted-foreground">De </span>
+                <span className="font-medium">{fmtData(justifDialog.prazoAnterior || null)}</span>
+                <span className="text-muted-foreground"> para </span>
+                <span className="font-medium">{fmtData(justifDialog.prazoNovo)}</span>
+              </div>
+              <div>
+                <Label>Motivo da alteração <span className="text-rose-600">*</span></Label>
+                <textarea
+                  value={justifText}
+                  onChange={(e) => setJustifText(e.target.value)}
+                  rows={4}
+                  className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  placeholder="Descreva o motivo da alteração do prazo..."
+                />
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                if (justifDialog) {
+                  setPrazoEdit((s) => ({ ...s, [justifDialog.pid]: justifDialog.prazoAnterior }));
+                }
+                setJustifDialog(null);
+                setJustifText("");
+              }}
+            >
+              Cancelar
+            </Button>
+            <Button
+              onClick={async () => {
+                if (!justifDialog) return;
+                if (justifText.trim().length < 5) {
+                  toast.error("Informe uma justificativa (mín. 5 caracteres).");
+                  return;
+                }
+                const { pid, prazoAnterior, prazoNovo } = justifDialog;
+                setJustifDialog(null);
+                await savePrazo(pid, prazoNovo, prazoAnterior, justifText.trim());
+                setJustifText("");
+              }}
+            >
+              Confirmar alteração
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
