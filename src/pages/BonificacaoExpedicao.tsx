@@ -136,14 +136,32 @@ async function fetchTodosAbertos(): Promise<TrayOpen[]> {
   });
 }
 
+type ItemPedido = { nome: string; cor: string; tamanho: string; qtd: number; variant_id: string | null };
+
+function decodePy(s: string): string {
+  try { return decodeURIComponent(escape(s)); } catch { return s; }
+}
+function extrairCorTraySku(sku: string | null): string | null {
+  if (!sku) return null;
+  const m = sku.match(/'type':\s*u?'Cor'[^}]*'value':\s*u?'([^']+)'/i);
+  return m ? decodePy(m[1]).trim() : null;
+}
+function extrairTamanhoTraySku(sku: string | null): string | null {
+  if (!sku) return null;
+  const m = sku.match(/'type':\s*u?'Tamanho'[^}]*'value':\s*u?'([^']+)'/i);
+  return m ? decodePy(m[1]).trim() : null;
+}
+
 function DashboardTab({ mes }: { mes: string }) {
   const ap = useApurarExpedicao(mes);
   const fechar = useFecharApuracao();
   const qc = useQueryClient();
-  const [produtosPorPedido, setProdutosPorPedido] = useState<Record<string, string[]>>({});
+  const [itensPorPedido, setItensPorPedido] = useState<Record<string, ItemPedido[]>>({});
   const [prazoEdit, setPrazoEdit] = useState<Record<string, string>>({});
   const [savingPrazo, setSavingPrazo] = useState<Record<string, boolean>>({});
   const [opDialogPedido, setOpDialogPedido] = useState<TrayOpen | null>(null);
+  const [justifDialog, setJustifDialog] = useState<{ pid: string; prazoAnterior: string; prazoNovo: string } | null>(null);
+  const [justifText, setJustifText] = useState("");
 
   const abertosQ = useQuery({
     queryKey: ["tray-abertos-all"],
@@ -151,38 +169,107 @@ function DashboardTab({ mes }: { mes: string }) {
   });
   const abertosAll = abertosQ.data ?? [];
 
+  // Mapa variant_id -> { cor, tamanho } para todas as variantes Tray
+  const variantsQ = useQuery({
+    queryKey: ["tray-variants-cor-tamanho"],
+    queryFn: async () => {
+      const map: Record<string, { cor: string | null; tamanho: string | null }> = {};
+      let from = 0;
+      const size = 1000;
+      // eslint-disable-next-line no-constant-condition
+      while (true) {
+        const { data, error } = await supabase
+          .from("tray_products_variants" as any)
+          .select("variant_id, variant_sku")
+          .range(from, from + size - 1);
+        if (error) break;
+        const rows = (data ?? []) as any[];
+        for (const v of rows) {
+          map[String(v.variant_id)] = {
+            cor: extrairCorTraySku(v.variant_sku),
+            tamanho: extrairTamanhoTraySku(v.variant_sku),
+          };
+        }
+        if (rows.length < size) break;
+        from += size;
+      }
+      return map;
+    },
+  });
+  const variantsMap = variantsQ.data ?? {};
+
   useEffect(() => {
     const ids = abertosAll.map((p) => String(p.id));
     if (ids.length === 0) {
-      setProdutosPorPedido({});
+      setItensPorPedido({});
       return;
     }
     let cancelled = false;
     (async () => {
-      const map: Record<string, string[]> = {};
+      const map: Record<string, ItemPedido[]> = {};
       const chunkSize = 200;
       for (let i = 0; i < ids.length; i += chunkSize) {
         const chunk = ids.slice(i, i + chunkSize);
         const { data, error } = await supabase
           .from("tray_productssold")
-          .select("order_id, name, model, reference, quantity")
+          .select("order_id, name, model, reference, quantity, variant_id")
           .in("order_id", chunk);
         if (error || !data) continue;
         for (const row of data as any[]) {
           const oid = String(row.order_id);
           const nome = (row.model || (row.name ? String(row.name).split("<br>")[0] : null) || row.reference || "Produto").trim();
           const qtd = Number(row.quantity ?? 1);
-          const label = qtd > 1 ? `${nome} (${qtd})` : nome;
+          const vid = row.variant_id != null ? String(row.variant_id) : null;
+          const v = vid ? variantsMap[vid] : null;
+          const cor = v?.cor ?? extrairCorTraySku(row.reference) ?? "—";
+          const tamanho = v?.tamanho ?? extrairTamanhoTraySku(row.reference) ?? "—";
           if (!map[oid]) map[oid] = [];
-          map[oid].push(label);
+          map[oid].push({ nome, cor, tamanho, qtd, variant_id: vid });
         }
       }
-      if (!cancelled) setProdutosPorPedido(map);
+      if (!cancelled) setItensPorPedido(map);
     })();
     return () => { cancelled = true; };
-  }, [abertosAll.length]);
+  }, [abertosAll.length, variantsQ.data]);
 
-  const savePrazo = async (pedidoId: string, novoPrazo: string) => {
+  // Lista para exibir badges com nome (compat com lógica anterior)
+  const produtosPorPedido: Record<string, string[]> = {};
+  for (const [oid, itens] of Object.entries(itensPorPedido)) {
+    produtosPorPedido[oid] = itens.map((it) => {
+      const base = it.nome;
+      const extra: string[] = [];
+      if (it.cor !== "—") extra.push(it.cor);
+      if (it.tamanho !== "—") extra.push(it.tamanho);
+      const suf = extra.length ? ` [${extra.join(" / ")}]` : "";
+      return it.qtd > 1 ? `${base}${suf} (${it.qtd})` : `${base}${suf}`;
+    });
+  }
+
+  // Agregação por produto + cor + tamanho
+  const agregado = (() => {
+    const acc = new Map<string, { nome: string; cor: string; tamanho: string; qtd: number; pedidos: Set<string> }>();
+    for (const [oid, itens] of Object.entries(itensPorPedido)) {
+      for (const it of itens) {
+        const key = `${it.nome}||${it.cor}||${it.tamanho}`;
+        const cur = acc.get(key);
+        if (cur) {
+          cur.qtd += it.qtd;
+          cur.pedidos.add(oid);
+        } else {
+          acc.set(key, { nome: it.nome, cor: it.cor, tamanho: it.tamanho, qtd: it.qtd, pedidos: new Set([oid]) });
+        }
+      }
+    }
+    return Array.from(acc.values()).sort((a, b) => b.qtd - a.qtd);
+  })();
+
+  const requestEditPrazo = (pid: string, prazoAnterior: string, prazoNovo: string) => {
+    if (!prazoNovo || prazoNovo === prazoAnterior) return;
+    setJustifText("");
+    setJustifDialog({ pid, prazoAnterior, prazoNovo });
+  };
+
+  const savePrazo = async (pedidoId: string, novoPrazo: string, prazoAnterior: string, justificativa: string) => {
     setSavingPrazo((s) => ({ ...s, [pedidoId]: true }));
     try {
       const { error } = await supabase
@@ -190,6 +277,22 @@ function DashboardTab({ mes }: { mes: string }) {
         .update({ estimated_delivery_date: novoPrazo })
         .eq("id", pedidoId);
       if (error) throw error;
+
+      // Registra a alteração (best-effort; ignora se tabela não existir)
+      const { data: userData } = await supabase.auth.getUser();
+      const { error: errLog } = await supabase
+        .from("expedicao_alteracoes_prazo" as any)
+        .insert({
+          pedido_id: pedidoId,
+          prazo_anterior: prazoAnterior || null,
+          prazo_novo: novoPrazo,
+          justificativa,
+          alterado_por: userData?.user?.id ?? null,
+        } as any);
+      if (errLog) {
+        console.warn("Falha ao registrar justificativa:", errLog.message);
+      }
+
       toast.success("Prazo atualizado.");
       qc.invalidateQueries({ queryKey: ["tray-abertos-all"] });
       qc.invalidateQueries({ queryKey: ["pedidos-expedicao"] });
