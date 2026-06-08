@@ -648,23 +648,35 @@ function DashboardTab({ mes }: { mes: string }) {
                 <TableHead>Produto</TableHead>
                 <TableHead>Cor</TableHead>
                 <TableHead>Tamanho</TableHead>
-                <TableHead className="text-right">Qtd. peças</TableHead>
+                <TableHead className="text-right">Vendido</TableHead>
                 <TableHead className="text-right">Em produção</TableHead>
+                <TableHead className="text-right">Saldo</TableHead>
                 <TableHead className="text-right">Pedidos</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {agregado.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center text-muted-foreground py-10">
+                  <TableCell colSpan={7} className="text-center text-muted-foreground py-10">
                     Nenhum produto para somar.
                   </TableCell>
                 </TableRow>
               )}
               {agregado.map((r, i) => {
                 const emProd = emProducaoPara(r.nome, r.cor, r.tamanho);
+                const saldo = emProd - r.qtd;
+                const critico = saldo < 0;
+                const ok = saldo >= 0 && emProd > 0;
+                const semProd = emProd === 0;
+                const rowTone = critico
+                  ? "bg-rose-50/70 hover:bg-rose-100/70"
+                  : semProd
+                  ? "bg-amber-50/60 hover:bg-amber-100/60"
+                  : ok
+                  ? "bg-emerald-50/50 hover:bg-emerald-100/50"
+                  : "";
                 return (
-                  <TableRow key={i}>
+                  <TableRow key={i} className={rowTone}>
                     <TableCell className="font-medium">{r.nome}</TableCell>
                     <TableCell>{r.cor}</TableCell>
                     <TableCell>{r.tamanho}</TableCell>
@@ -675,7 +687,16 @@ function DashboardTab({ mes }: { mes: string }) {
                           <Factory className="w-3 h-3 mr-1" />{emProd}
                         </Badge>
                       ) : (
-                        <span className="text-muted-foreground">—</span>
+                        <Badge variant="outline" className="text-muted-foreground">0</Badge>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      {critico ? (
+                        <Badge className="bg-rose-100 text-rose-800 border border-rose-200">
+                          <AlertTriangle className="w-3 h-3 mr-1" />{saldo}
+                        </Badge>
+                      ) : (
+                        <Badge className="bg-emerald-100 text-emerald-800 border border-emerald-200">+{saldo}</Badge>
                       )}
                     </TableCell>
                     <TableCell className="text-right text-muted-foreground">{r.pedidos.size}</TableCell>
