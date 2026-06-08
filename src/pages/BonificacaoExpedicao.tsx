@@ -245,6 +245,48 @@ function DashboardTab({ mes }: { mes: string }) {
     });
   }
 
+  // OPs ativas: soma de peças em produção por (nome_produto + cor)
+  const opsAtivasQ = useQuery({
+    queryKey: ["ops-ativas-producao"],
+    queryFn: async () => {
+      const [ops, cores] = await Promise.all([
+        supabase
+          .from("ordens_producao" as any)
+          .select("nome_produto, cor_id, quantidade, quantidade_pecas_ordem, status_ordem"),
+        supabase.from("cores" as any).select("id, nome_cor"),
+      ]);
+      const coresMap: Record<string, string> = {};
+      for (const c of (cores.data ?? []) as any[]) coresMap[String(c.id)] = (c.nome_cor ?? "").trim();
+      const ATIVOS = new Set(["corte", "costura", "revisao", "revisão", "em conserto"]);
+      const map: Record<string, number> = {};
+      for (const o of (ops.data ?? []) as any[]) {
+        const st = (o.status_ordem ?? "").toLowerCase().trim();
+        if (!ATIVOS.has(st)) continue;
+        const nome = (o.nome_produto ?? "").trim().toLowerCase();
+        const cor = (coresMap[String(o.cor_id)] ?? "").trim().toLowerCase();
+        const qtd = Number(o.quantidade_pecas_ordem ?? o.quantidade ?? 0);
+        if (!nome) continue;
+        const key = `${nome}||${cor}`;
+        map[key] = (map[key] ?? 0) + qtd;
+      }
+      return map;
+    },
+  });
+  const opsMap = opsAtivasQ.data ?? {};
+
+  const emProducaoPara = (nome: string, cor: string) => {
+    const k = `${nome.trim().toLowerCase()}||${cor === "—" ? "" : cor.trim().toLowerCase()}`;
+    if (opsMap[k] != null) return opsMap[k];
+    // fallback: somar todas as cores se cor não bater
+    const nomeKey = nome.trim().toLowerCase();
+    let total = 0;
+    let found = false;
+    for (const [k2, v] of Object.entries(opsMap)) {
+      if (k2.startsWith(nomeKey + "||")) { total += v; found = true; }
+    }
+    return found ? total : 0;
+  };
+
   // Agregação por produto + cor + tamanho
   const agregado = (() => {
     const acc = new Map<string, { nome: string; cor: string; tamanho: string; qtd: number; pedidos: Set<string> }>();
