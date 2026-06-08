@@ -1172,6 +1172,7 @@ function ConfigTab() {
             ))}
           </TableBody>
         </Table>
+        </div>
       </Card>
     </div>
   );
