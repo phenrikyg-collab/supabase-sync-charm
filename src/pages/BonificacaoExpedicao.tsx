@@ -334,13 +334,57 @@ function DashboardTab({ mes }: { mes: string }) {
   });
   const opsData = opsAtivasQ.data ?? { map: {} as Record<string, number>, fallback: {} as Record<string, number> };
 
+  const norm = (s: string) =>
+    (s ?? "")
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase()
+      .replace(/[^a-z0-9\s]/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+
+  // Índices normalizados (acentos, pontuação, case) sobre os dados de OPs
+  const opsNorm = (() => {
+    const exact: Record<string, number> = {};
+    const porNomeCor: Record<string, number> = {};
+    const porNome: Record<string, number> = {};
+    for (const [k, v] of Object.entries(opsData.map)) {
+      const [n, c, t] = k.split("||");
+      const nn = norm(n), nc = norm(c), nt = norm(t);
+      exact[`${nn}||${nc}||${nt}`] = (exact[`${nn}||${nc}||${nt}`] ?? 0) + v;
+      porNomeCor[`${nn}||${nc}`] = (porNomeCor[`${nn}||${nc}`] ?? 0) + v;
+      porNome[nn] = (porNome[nn] ?? 0) + v;
+    }
+    for (const [k, v] of Object.entries(opsData.fallback)) {
+      const [n, c] = k.split("||");
+      const nn = norm(n), nc = norm(c);
+      if (porNomeCor[`${nn}||${nc}`] == null) porNomeCor[`${nn}||${nc}`] = v;
+      porNome[nn] = (porNome[nn] ?? 0);
+    }
+    return { exact, porNomeCor, porNome, nomes: Object.keys(porNome).filter(Boolean) };
+  })();
+
   const emProducaoPara = (nome: string, cor: string, tamanho: string) => {
-    const n = nome.trim().toLowerCase();
-    const c = cor === "—" ? "" : cor.trim().toLowerCase();
-    const t = tamanho === "—" ? "" : tamanho.trim().toLowerCase();
-    const exact = opsData.map[`${n}||${c}||${t}`];
-    if (exact != null) return exact;
-    return opsData.fallback[`${n}||${c}`] ?? 0;
+    const n = norm(nome);
+    const c = cor === "—" ? "" : norm(cor);
+    const t = tamanho === "—" ? "" : norm(tamanho);
+    if (n && c && t && opsNorm.exact[`${n}||${c}||${t}`] != null) return opsNorm.exact[`${n}||${c}||${t}`];
+    if (n && c && opsNorm.porNomeCor[`${n}||${c}`] != null) return opsNorm.porNomeCor[`${n}||${c}`];
+    if (n && opsNorm.porNome[n]) return opsNorm.porNome[n];
+    // fallback contains: nome do pedido contém OP ou vice-versa
+    if (!n) return 0;
+    let total = 0;
+    for (const opNome of opsNorm.nomes) {
+      if (opNome === n) continue;
+      if (n.includes(opNome) || opNome.includes(n)) {
+        if (c && opsNorm.porNomeCor[`${opNome}||${c}`] != null) {
+          total += opsNorm.porNomeCor[`${opNome}||${c}`];
+        } else {
+          total += opsNorm.porNome[opNome] ?? 0;
+        }
+      }
+    }
+    return total;
   };
 
   // Agregação por produto + cor + tamanho
@@ -513,8 +557,15 @@ function DashboardTab({ mes }: { mes: string }) {
                 const hoje = prazo === HOJE;
                 const venceEm2 = prazo && prazo > HOJE && prazo <= D2;
                 const editValue = prazoEdit[pid] ?? (prazo ? prazo.slice(0, 10) : "");
+                const rowTone = atrasado
+                  ? "bg-rose-50/70 hover:bg-rose-100/70"
+                  : hoje
+                  ? "bg-amber-50/70 hover:bg-amber-100/70"
+                  : venceEm2
+                  ? "bg-orange-50/60 hover:bg-orange-100/60"
+                  : "";
                 return (
-                  <TableRow key={pid}>
+                  <TableRow key={pid} className={rowTone}>
                     <TableCell className="font-mono text-xs">{pid}</TableCell>
                     <TableCell>{fmtData(p.date)}</TableCell>
                     <TableCell>
@@ -597,23 +648,35 @@ function DashboardTab({ mes }: { mes: string }) {
                 <TableHead>Produto</TableHead>
                 <TableHead>Cor</TableHead>
                 <TableHead>Tamanho</TableHead>
-                <TableHead className="text-right">Qtd. peças</TableHead>
+                <TableHead className="text-right">Vendido</TableHead>
                 <TableHead className="text-right">Em produção</TableHead>
+                <TableHead className="text-right">Saldo</TableHead>
                 <TableHead className="text-right">Pedidos</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {agregado.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center text-muted-foreground py-10">
+                  <TableCell colSpan={7} className="text-center text-muted-foreground py-10">
                     Nenhum produto para somar.
                   </TableCell>
                 </TableRow>
               )}
               {agregado.map((r, i) => {
                 const emProd = emProducaoPara(r.nome, r.cor, r.tamanho);
+                const saldo = emProd - r.qtd;
+                const critico = saldo < 0;
+                const ok = saldo >= 0 && emProd > 0;
+                const semProd = emProd === 0;
+                const rowTone = critico
+                  ? "bg-rose-50/70 hover:bg-rose-100/70"
+                  : semProd
+                  ? "bg-amber-50/60 hover:bg-amber-100/60"
+                  : ok
+                  ? "bg-emerald-50/50 hover:bg-emerald-100/50"
+                  : "";
                 return (
-                  <TableRow key={i}>
+                  <TableRow key={i} className={rowTone}>
                     <TableCell className="font-medium">{r.nome}</TableCell>
                     <TableCell>{r.cor}</TableCell>
                     <TableCell>{r.tamanho}</TableCell>
@@ -624,7 +687,16 @@ function DashboardTab({ mes }: { mes: string }) {
                           <Factory className="w-3 h-3 mr-1" />{emProd}
                         </Badge>
                       ) : (
-                        <span className="text-muted-foreground">—</span>
+                        <Badge variant="outline" className="text-muted-foreground">0</Badge>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      {critico ? (
+                        <Badge className="bg-rose-100 text-rose-800 border border-rose-200">
+                          <AlertTriangle className="w-3 h-3 mr-1" />{saldo}
+                        </Badge>
+                      ) : (
+                        <Badge className="bg-emerald-100 text-emerald-800 border border-emerald-200">+{saldo}</Badge>
                       )}
                     </TableCell>
                     <TableCell className="text-right text-muted-foreground">{r.pedidos.size}</TableCell>
@@ -913,8 +985,9 @@ function HistoricoTab() {
   }
   return (
     <Card className="p-0 overflow-hidden">
+      <div className="max-h-[620px] overflow-auto">
       <Table>
-        <TableHeader>
+        <TableHeader className="sticky top-0 bg-background z-10 shadow-sm [&_th]:bg-background">
           <TableRow>
             <TableHead>Mês</TableHead>
             <TableHead className="text-right">Total</TableHead>
@@ -956,6 +1029,7 @@ function HistoricoTab() {
           ))}
         </TableBody>
       </Table>
+      </div>
     </Card>
   );
 }
@@ -1074,8 +1148,9 @@ function ConfigTab() {
       </Card>
 
       <Card className="p-0 overflow-hidden">
+        <div className="max-h-[620px] overflow-auto">
         <Table>
-          <TableHeader>
+          <TableHeader className="sticky top-0 bg-background z-10 shadow-sm [&_th]:bg-background">
             <TableRow>
               <TableHead>% mínimo</TableHead>
               <TableHead>% máximo</TableHead>
@@ -1097,6 +1172,7 @@ function ConfigTab() {
             ))}
           </TableBody>
         </Table>
+        </div>
       </Card>
     </div>
   );
