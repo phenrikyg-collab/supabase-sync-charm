@@ -542,26 +542,39 @@ function DashboardTab({ mes }: { mes: string }) {
                 <TableHead>Cor</TableHead>
                 <TableHead>Tamanho</TableHead>
                 <TableHead className="text-right">Qtd. peças</TableHead>
+                <TableHead className="text-right">Em produção</TableHead>
                 <TableHead className="text-right">Pedidos</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {agregado.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={5} className="text-center text-muted-foreground py-10">
+                  <TableCell colSpan={6} className="text-center text-muted-foreground py-10">
                     Nenhum produto para somar.
                   </TableCell>
                 </TableRow>
               )}
-              {agregado.map((r, i) => (
-                <TableRow key={i}>
-                  <TableCell className="font-medium">{r.nome}</TableCell>
-                  <TableCell>{r.cor}</TableCell>
-                  <TableCell>{r.tamanho}</TableCell>
-                  <TableCell className="text-right font-semibold">{r.qtd}</TableCell>
-                  <TableCell className="text-right text-muted-foreground">{r.pedidos.size}</TableCell>
-                </TableRow>
-              ))}
+              {agregado.map((r, i) => {
+                const emProd = emProducaoPara(r.nome, r.cor);
+                return (
+                  <TableRow key={i}>
+                    <TableCell className="font-medium">{r.nome}</TableCell>
+                    <TableCell>{r.cor}</TableCell>
+                    <TableCell>{r.tamanho}</TableCell>
+                    <TableCell className="text-right font-semibold">{r.qtd}</TableCell>
+                    <TableCell className="text-right">
+                      {emProd > 0 ? (
+                        <Badge className="bg-amber-100 text-amber-800 border border-amber-200">
+                          <Factory className="w-3 h-3 mr-1" />{emProd}
+                        </Badge>
+                      ) : (
+                        <span className="text-muted-foreground">—</span>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-right text-muted-foreground">{r.pedidos.size}</TableCell>
+                  </TableRow>
+                );
+              })}
             </TableBody>
           </Table>
         </div>
