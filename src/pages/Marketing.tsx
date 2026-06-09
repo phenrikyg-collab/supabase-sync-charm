@@ -72,29 +72,33 @@ export default function Marketing() {
   const [produtos, setProdutos] = useState<any[]>([]);
   const [funil, setFunil] = useState<any[]>([]);
   const [paginas, setPaginas] = useState<any[]>([]);
+  const [windsorProdutos, setWindsorProdutos] = useState<any[]>([]);
+  const [windsorCanais, setWindsorCanais] = useState<any[]>([]);
 
   useEffect(() => {
     const { inicio, fim } = getDateRange(periodo);
-    console.log("Período selecionado:", periodo);
-    console.log("Data início:", inicio);
-    console.log("Data fim:", fim);
-    console.log("Query params:", `event_date=gte.${inicio}&event_date=lte.${fim}`);
+    const inicioDash = toDashDate(inicio);
+    const fimDash = toDashDate(fim);
     setLoading(true);
     Promise.all([
       supabase.from("ga4_aquisicao_canais").select("*").gte("event_date", inicio).lte("event_date", fim),
       supabase.from("ga4_produtos_ecommerce").select("*").gte("event_date", inicio).lte("event_date", fim),
       supabase.from("ga4_funil_compra").select("*").gte("event_date", inicio).lte("event_date", fim),
       supabase.from("ga4_sessoes_paginas").select("pagina, titulo, sessoes").gte("event_date", inicio).lte("event_date", fim),
+      supabase.from("windsor_produtos" as any).select("*").gte("date", inicioDash).lte("date", fimDash),
+      supabase.from("windsor_canais" as any).select("*").gte("date", inicioDash).lte("date", fimDash),
     ])
-      .then(([a, p, f, pg]) => {
-        console.log("Resultados:", { aquisicao: a.data?.length, produtos: p.data?.length, funil: f.data?.length, paginas: pg.data?.length });
+      .then(([a, p, f, pg, wp, wc]: any[]) => {
         setAquisicao(a.data || []);
         setProdutos(p.data || []);
         setFunil(f.data || []);
         setPaginas(pg.data || []);
+        setWindsorProdutos(wp.data || []);
+        setWindsorCanais(wc.data || []);
       })
       .finally(() => setLoading(false));
   }, [periodo]);
+
 
   // ===== Aquisição =====
   const aquisicaoAgg = useMemo(() => {
