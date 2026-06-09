@@ -278,30 +278,50 @@ export default function Marketing() {
   }, [windsorProdutosAgg]);
 
   // ===== Windsor Canais (Mariana Cardoso) =====
+  const [wcSortCol, setWcSortCol] = useState<string>("ecommerce_purchases");
+  const [wcSortDir, setWcSortDir] = useState<"asc" | "desc">("desc");
+  const wcToggleSort = (col: string) => {
+    if (wcSortCol === col) setWcSortDir(wcSortDir === "desc" ? "asc" : "desc");
+    else { setWcSortCol(col); setWcSortDir("desc"); }
+  };
+
   const windsorCanaisAgg = useMemo(() => {
     const map = new Map<string, any>();
     for (const r of windsorCanais) {
-      const key = r.source || "Desconhecido";
+      const key = r.session_custom_channel_group || "Desconhecido";
       const cur = map.get(key) || {
-        source: key, sessions: 0, actions_add_to_cart: 0,
+        canal: key, sessions: 0, actions_add_to_cart: 0,
         actions_initiate_checkout: 0, ecommerce_purchases: 0, purchase_revenue: 0,
       };
       cur.sessions += num(r.sessions);
-      cur.actions_add_to_cart += num(r.actions_add_to_cart);
+      cur.actions_add_to_cart += num(r.actions_offsite_conversion_fb_pixel_add_to_cart);
       cur.actions_initiate_checkout += num(r.actions_initiate_checkout);
       cur.ecommerce_purchases += num(r.ecommerce_purchases);
       cur.purchase_revenue += num(r.purchase_revenue);
       map.set(key, cur);
     }
-    return [...map.values()]
-      .map((r) => ({
-        ...r,
-        taxa_sc: r.sessions > 0 ? (r.actions_add_to_cart / r.sessions) * 100 : 0,
-        taxa_cc: r.actions_add_to_cart > 0 ? (r.actions_initiate_checkout / r.actions_add_to_cart) * 100 : null,
-        taxa_final: r.sessions > 0 ? (r.ecommerce_purchases / r.sessions) * 100 : 0,
-      }))
-      .sort((a, b) => b.ecommerce_purchases - a.ecommerce_purchases);
+    return [...map.values()].map((r) => ({
+      ...r,
+      taxa_sc: r.sessions > 0 ? (r.actions_add_to_cart / r.sessions) * 100 : 0,
+      taxa_cc: r.actions_add_to_cart > 0 ? (r.actions_initiate_checkout / r.actions_add_to_cart) * 100 : null,
+      taxa_final: r.sessions > 0 ? (r.ecommerce_purchases / r.sessions) * 100 : 0,
+    }));
   }, [windsorCanais]);
+
+  const windsorCanaisSorted = useMemo(() => {
+    const arr = [...windsorCanaisAgg];
+    arr.sort((a: any, b: any) => {
+      const av = a[wcSortCol]; const bv = b[wcSortCol];
+      if (typeof av === "string" || typeof bv === "string") {
+        return wcSortDir === "desc"
+          ? String(bv ?? "").localeCompare(String(av ?? ""))
+          : String(av ?? "").localeCompare(String(bv ?? ""));
+      }
+      const an = av ?? -Infinity; const bn = bv ?? -Infinity;
+      return wcSortDir === "desc" ? (bn as number) - (an as number) : (an as number) - (bn as number);
+    });
+    return arr;
+  }, [windsorCanaisAgg, wcSortCol, wcSortDir]);
 
   const windsorCanaisTotais = useMemo(
     () => windsorCanaisAgg.reduce(
@@ -669,7 +689,7 @@ export default function Marketing() {
 
           <Card>
             <CardHeader>
-              <CardTitle className="text-lg">Performance por canal (Windsor)</CardTitle>
+              <CardTitle className="text-lg">Performance por canal - Mariana Cardoso</CardTitle>
               <p className="text-xs text-muted-foreground">
                 Médias — Sessão→Carrinho: <span className="font-medium">{fmtPct(wcMedias.sc)}</span> · Carrinho→Checkout: <span className="font-medium">{fmtPct(wcMedias.cc)}</span> · Conv. Final: <span className="font-medium">{fmtPct(wcMedias.final)}</span>
               </p>
@@ -678,25 +698,35 @@ export default function Marketing() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Canal</TableHead>
-                    <TableHead className="text-right">Sessões</TableHead>
-                    <TableHead className="text-right">Add. Carrinho</TableHead>
-                    <TableHead className="text-right">Iniciaram Pagto</TableHead>
-                    <TableHead className="text-right">Compras</TableHead>
-                    <TableHead className="text-right">Receita</TableHead>
-                    <TableHead className="text-right">Sessão→Carrinho</TableHead>
-                    <TableHead className="text-right">Carrinho→Checkout</TableHead>
-                    <TableHead className="text-right">Conv. Final</TableHead>
+                    {[
+                      { key: "canal", label: "Canal", align: "left" },
+                      { key: "sessions", label: "Sessões", align: "right" },
+                      { key: "actions_add_to_cart", label: "Add. Carrinho", align: "right" },
+                      { key: "actions_initiate_checkout", label: "Iniciaram Pagto", align: "right" },
+                      { key: "ecommerce_purchases", label: "Compras", align: "right" },
+                      { key: "purchase_revenue", label: "Receita", align: "right" },
+                      { key: "taxa_sc", label: "Sessão→Carrinho", align: "right" },
+                      { key: "taxa_cc", label: "Carrinho→Checkout", align: "right" },
+                      { key: "taxa_final", label: "Conv. Final", align: "right" },
+                    ].map((c) => (
+                      <TableHead
+                        key={c.key}
+                        className={`${c.align === "right" ? "text-right" : ""} cursor-pointer select-none hover:text-foreground`}
+                        onClick={() => wcToggleSort(c.key)}
+                      >
+                        {c.label}{wcSortCol === c.key ? (wcSortDir === "desc" ? " ↓" : " ↑") : ""}
+                      </TableHead>
+                    ))}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {windsorCanaisAgg.map((r) => {
+                  {windsorCanaisSorted.map((r) => {
                     const scOk = r.taxa_sc > wcMedias.sc;
                     const ccOk = r.taxa_cc !== null && r.taxa_cc > wcMedias.cc;
                     const fOk = r.taxa_final > wcMedias.final;
                     return (
-                      <TableRow key={r.source}>
-                        <TableCell className="font-medium">{r.source}</TableCell>
+                      <TableRow key={r.canal}>
+                        <TableCell className="font-medium">{r.canal}</TableCell>
                         <TableCell className="text-right">{fmtInt(r.sessions)}</TableCell>
                         <TableCell className="text-right">{fmtInt(r.actions_add_to_cart)}</TableCell>
                         <TableCell className="text-right">{fmtInt(r.actions_initiate_checkout)}</TableCell>
@@ -708,7 +738,7 @@ export default function Marketing() {
                       </TableRow>
                     );
                   })}
-                  {!windsorCanaisAgg.length && (
+                  {!windsorCanaisSorted.length && (
                     <TableRow><TableCell colSpan={9} className="text-center text-muted-foreground">Sem dados no período</TableCell></TableRow>
                   )}
                 </TableBody>
