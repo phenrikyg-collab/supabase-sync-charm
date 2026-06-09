@@ -381,62 +381,6 @@ export default function Marketing() {
 
 
 
-        {/* ===== PRODUTOS ===== */}
-        <TabsContent value="produtos" className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <StatCard title="Sessões" value={fmtInt(produtosTotais.sessoes)} icon={MousePointerClick} />
-            <StatCard title="Add. ao Carrinho" value={fmtInt(produtosTotais.carrinho)} icon={ShoppingCart} variant="warning" />
-            <StatCard title="Compras" value={fmtInt(produtosTotais.compras)} icon={ShoppingBag} variant="success" />
-            <StatCard title="Receita" value={fmtBRL(produtosTotais.receita)} icon={DollarSign} variant="primary" />
-          </div>
-
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">Performance por produto</CardTitle>
-              <p className="text-xs text-muted-foreground">
-                Taxa de conversão média: <span className="font-medium">{fmtPct(taxaMediaConv)}</span> — produtos acima da média destacados em verde
-              </p>
-            </CardHeader>
-            <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Produto</TableHead>
-                    <TableHead className="text-right">Sessões</TableHead>
-                    <TableHead className="text-right">Itens Vistos</TableHead>
-                    <TableHead className="text-right">Add. Carrinho</TableHead>
-                    <TableHead className="text-right">Init. Pagto</TableHead>
-                    <TableHead className="text-right">Compras</TableHead>
-                    <TableHead className="text-right">Receita</TableHead>
-                    <TableHead className="text-right">Taxa Conv.</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {produtosAgg.map((r) => {
-                    const acima = r.taxa_conv > taxaMediaConv && r.sessoes > 0;
-                    return (
-                      <TableRow key={r.nome} className={acima ? "bg-success/10" : ""}>
-                        <TableCell className="font-medium max-w-[280px] truncate">{r.nome}</TableCell>
-                        <TableCell className="text-right">{fmtInt(r.sessoes)}</TableCell>
-                        <TableCell className="text-right">{fmtInt(r.itens_vistos)}</TableCell>
-                        <TableCell className="text-right">{fmtInt(r.adicionados_carrinho)}</TableCell>
-                        <TableCell className="text-right">{fmtInt(r.iniciaram_pagamento)}</TableCell>
-                        <TableCell className="text-right">{fmtInt(r.compras)}</TableCell>
-                        <TableCell className="text-right">{fmtBRL(r.receita)}</TableCell>
-                        <TableCell className={`text-right font-medium ${acima ? "text-success" : ""}`}>
-                          {fmtPct(r.taxa_conv)}
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
-                  {!produtosAgg.length && (
-                    <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground">Sem dados no período</TableCell></TableRow>
-                  )}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
-        </TabsContent>
 
         {/* ===== FUNIL ===== */}
         <TabsContent value="funil" className="space-y-6">
