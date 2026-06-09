@@ -106,7 +106,7 @@ export default function Marketing() {
       supabase.from("ga4_funil_compra").select("*").gte("event_date", inicio).lte("event_date", fim),
       supabase.from("ga4_sessoes_paginas").select("pagina, titulo, sessoes").gte("event_date", inicio).lte("event_date", fim),
       fetchAll("windsor_produtos", "date", inicioDash, fimDash, "date, item_name, sessions, items_viewed, items_added_to_cart, items_purchased, item_revenue"),
-      fetchAll("windsor_canais", "date", inicioDash, fimDash),
+      fetchAll("windsor_canais", "date", inicioDash, fimDash, "date, session_custom_channel_group, sessions, add_to_carts, checkouts, items_purchased, purchase_revenue"),
     ])
       .then(([a, p, f, pg, wp, wc]: any[]) => {
         setAquisicao(a.data || []);
@@ -359,7 +359,7 @@ export default function Marketing() {
   }, [windsorProdutosAgg]);
 
   // ===== Windsor Canais (Mariana Cardoso) =====
-  const [wcSortCol, setWcSortCol] = useState<string>("ecommerce_purchases");
+  const [wcSortCol, setWcSortCol] = useState<string>("items_purchased");
   const [wcSortDir, setWcSortDir] = useState<"asc" | "desc">("desc");
   const wcToggleSort = (col: string) => {
     if (wcSortCol === col) setWcSortDir(wcSortDir === "desc" ? "asc" : "desc");
@@ -371,22 +371,22 @@ export default function Marketing() {
     for (const r of windsorCanais) {
       const key = r.session_custom_channel_group || "Desconhecido";
       const cur = map.get(key) || {
-        canal: key, sessions: 0, actions_add_to_cart: 0,
-        actions_initiate_checkout: 0, ecommerce_purchases: 0, purchase_revenue: 0,
+        canal: key, sessions: 0, add_to_carts: 0,
+        checkouts: 0, items_purchased: 0, purchase_revenue: 0,
       };
       cur.sessions += num(r.sessions);
-      cur.actions_add_to_cart += num(r.actions_offsite_conversion_fb_pixel_add_to_cart);
-      cur.actions_initiate_checkout += num(r.actions_initiate_checkout);
-      cur.ecommerce_purchases += num(r.ecommerce_purchases);
+      cur.add_to_carts += num(r.add_to_carts);
+      cur.checkouts += num(r.checkouts);
+      cur.items_purchased += num(r.items_purchased);
       cur.purchase_revenue += num(r.purchase_revenue);
       map.set(key, cur);
     }
     return [...map.values()].map((r) => ({
       ...r,
-      taxa_sc: r.sessions > 0 ? (r.actions_add_to_cart / r.sessions) * 100 : 0,
-      taxa_cc: r.actions_add_to_cart > 0 ? (r.actions_initiate_checkout / r.actions_add_to_cart) * 100 : null,
-      taxa_final: r.sessions > 0 ? (r.ecommerce_purchases / r.sessions) * 100 : 0,
-    }));
+      taxa_sc: r.sessions > 0 ? (r.add_to_carts / r.sessions) * 100 : 0,
+      taxa_cc: r.add_to_carts > 0 ? (r.checkouts / r.add_to_carts) * 100 : null,
+      taxa_final: r.sessions > 0 ? (r.items_purchased / r.sessions) * 100 : 0,
+    })).sort((a, b) => b.items_purchased - a.items_purchased);
   }, [windsorCanais]);
 
   const windsorCanaisSorted = useMemo(() => {
@@ -408,12 +408,12 @@ export default function Marketing() {
     () => windsorCanaisAgg.reduce(
       (a, r) => ({
         sessions: a.sessions + r.sessions,
-        actions_add_to_cart: a.actions_add_to_cart + r.actions_add_to_cart,
-        actions_initiate_checkout: a.actions_initiate_checkout + r.actions_initiate_checkout,
-        ecommerce_purchases: a.ecommerce_purchases + r.ecommerce_purchases,
+        add_to_carts: a.add_to_carts + r.add_to_carts,
+        checkouts: a.checkouts + r.checkouts,
+        items_purchased: a.items_purchased + r.items_purchased,
         purchase_revenue: a.purchase_revenue + r.purchase_revenue,
       }),
-      { sessions: 0, actions_add_to_cart: 0, actions_initiate_checkout: 0, ecommerce_purchases: 0, purchase_revenue: 0 }
+      { sessions: 0, add_to_carts: 0, checkouts: 0, items_purchased: 0, purchase_revenue: 0 }
     ),
     [windsorCanaisAgg]
   );
@@ -652,9 +652,9 @@ export default function Marketing() {
         <TabsContent value="windsor-canais" className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
             <StatCard title="Sessões" value={fmtInt(windsorCanaisTotais.sessions)} icon={MousePointerClick} />
-            <StatCard title="Add. Carrinho" value={fmtInt(windsorCanaisTotais.actions_add_to_cart)} icon={ShoppingCart} variant="warning" />
-            <StatCard title="Iniciaram Pagamento" value={fmtInt(windsorCanaisTotais.actions_initiate_checkout)} icon={ShoppingCart} />
-            <StatCard title="Compras" value={fmtInt(windsorCanaisTotais.ecommerce_purchases)} icon={ShoppingBag} variant="success" />
+            <StatCard title="Add. Carrinho" value={fmtInt(windsorCanaisTotais.add_to_carts)} icon={ShoppingCart} variant="warning" />
+            <StatCard title="Iniciaram Pagamento" value={fmtInt(windsorCanaisTotais.checkouts)} icon={ShoppingCart} />
+            <StatCard title="Compras" value={fmtInt(windsorCanaisTotais.items_purchased)} icon={ShoppingBag} variant="success" />
             <StatCard title="Receita Total" value={fmtBRL(windsorCanaisTotais.purchase_revenue)} icon={DollarSign} variant="primary" />
           </div>
 
@@ -672,9 +672,9 @@ export default function Marketing() {
                     {[
                       { key: "canal", label: "Canal", align: "left" },
                       { key: "sessions", label: "Sessões", align: "right" },
-                      { key: "actions_add_to_cart", label: "Add. Carrinho", align: "right" },
-                      { key: "actions_initiate_checkout", label: "Iniciaram Pagto", align: "right" },
-                      { key: "ecommerce_purchases", label: "Compras", align: "right" },
+                      { key: "add_to_carts", label: "Add. Carrinho", align: "right" },
+                      { key: "checkouts", label: "Iniciaram Pagto", align: "right" },
+                      { key: "items_purchased", label: "Compras", align: "right" },
                       { key: "purchase_revenue", label: "Receita", align: "right" },
                       { key: "taxa_sc", label: "Sessão→Carrinho", align: "right" },
                       { key: "taxa_cc", label: "Carrinho→Checkout", align: "right" },
@@ -699,9 +699,9 @@ export default function Marketing() {
                       <TableRow key={r.canal}>
                         <TableCell className="font-medium">{r.canal}</TableCell>
                         <TableCell className="text-right">{fmtInt(r.sessions)}</TableCell>
-                        <TableCell className="text-right">{fmtInt(r.actions_add_to_cart)}</TableCell>
-                        <TableCell className="text-right">{fmtInt(r.actions_initiate_checkout)}</TableCell>
-                        <TableCell className="text-right">{fmtInt(r.ecommerce_purchases)}</TableCell>
+                        <TableCell className="text-right">{fmtInt(r.add_to_carts)}</TableCell>
+                        <TableCell className="text-right">{fmtInt(r.checkouts)}</TableCell>
+                        <TableCell className="text-right">{fmtInt(r.items_purchased)}</TableCell>
                         <TableCell className="text-right">{fmtBRL(r.purchase_revenue)}</TableCell>
                         <TableCell className={`text-right ${scOk ? "text-success font-medium" : ""}`}>{fmtPct(r.taxa_sc)}</TableCell>
                         <TableCell className={`text-right ${ccOk ? "text-success font-medium" : ""}`}>{r.taxa_cc === null ? "—" : fmtPct(r.taxa_cc)}</TableCell>
