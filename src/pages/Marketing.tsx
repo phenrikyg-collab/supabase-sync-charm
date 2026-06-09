@@ -34,11 +34,10 @@ const getDateRange = (periodo: string) => {
   }
 
   const meses: Record<string, { inicio: string; fim: string }> = {
-    jan2026: { inicio: "20260101", fim: "20260131" },
-    fev2026: { inicio: "20260201", fim: "20260228" },
     mar2026: { inicio: "20260301", fim: "20260331" },
     abr2026: { inicio: "20260401", fim: "20260430" },
     mai2026: { inicio: "20260501", fim: "20260531" },
+    jun2026: { inicio: "20260601", fim: "20260630" },
   };
   return (
     meses[periodo] ?? {
