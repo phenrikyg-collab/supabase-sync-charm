@@ -689,7 +689,7 @@ export default function Marketing() {
 
           <Card>
             <CardHeader>
-              <CardTitle className="text-lg">Performance por canal (Windsor)</CardTitle>
+              <CardTitle className="text-lg">Performance por canal - Mariana Cardoso</CardTitle>
               <p className="text-xs text-muted-foreground">
                 Médias — Sessão→Carrinho: <span className="font-medium">{fmtPct(wcMedias.sc)}</span> · Carrinho→Checkout: <span className="font-medium">{fmtPct(wcMedias.cc)}</span> · Conv. Final: <span className="font-medium">{fmtPct(wcMedias.final)}</span>
               </p>
@@ -698,25 +698,35 @@ export default function Marketing() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Canal</TableHead>
-                    <TableHead className="text-right">Sessões</TableHead>
-                    <TableHead className="text-right">Add. Carrinho</TableHead>
-                    <TableHead className="text-right">Iniciaram Pagto</TableHead>
-                    <TableHead className="text-right">Compras</TableHead>
-                    <TableHead className="text-right">Receita</TableHead>
-                    <TableHead className="text-right">Sessão→Carrinho</TableHead>
-                    <TableHead className="text-right">Carrinho→Checkout</TableHead>
-                    <TableHead className="text-right">Conv. Final</TableHead>
+                    {[
+                      { key: "canal", label: "Canal", align: "left" },
+                      { key: "sessions", label: "Sessões", align: "right" },
+                      { key: "actions_add_to_cart", label: "Add. Carrinho", align: "right" },
+                      { key: "actions_initiate_checkout", label: "Iniciaram Pagto", align: "right" },
+                      { key: "ecommerce_purchases", label: "Compras", align: "right" },
+                      { key: "purchase_revenue", label: "Receita", align: "right" },
+                      { key: "taxa_sc", label: "Sessão→Carrinho", align: "right" },
+                      { key: "taxa_cc", label: "Carrinho→Checkout", align: "right" },
+                      { key: "taxa_final", label: "Conv. Final", align: "right" },
+                    ].map((c) => (
+                      <TableHead
+                        key={c.key}
+                        className={`${c.align === "right" ? "text-right" : ""} cursor-pointer select-none hover:text-foreground`}
+                        onClick={() => wcToggleSort(c.key)}
+                      >
+                        {c.label}{wcSortCol === c.key ? (wcSortDir === "desc" ? " ↓" : " ↑") : ""}
+                      </TableHead>
+                    ))}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {windsorCanaisAgg.map((r) => {
+                  {windsorCanaisSorted.map((r) => {
                     const scOk = r.taxa_sc > wcMedias.sc;
                     const ccOk = r.taxa_cc !== null && r.taxa_cc > wcMedias.cc;
                     const fOk = r.taxa_final > wcMedias.final;
                     return (
-                      <TableRow key={r.source}>
-                        <TableCell className="font-medium">{r.source}</TableCell>
+                      <TableRow key={r.canal}>
+                        <TableCell className="font-medium">{r.canal}</TableCell>
                         <TableCell className="text-right">{fmtInt(r.sessions)}</TableCell>
                         <TableCell className="text-right">{fmtInt(r.actions_add_to_cart)}</TableCell>
                         <TableCell className="text-right">{fmtInt(r.actions_initiate_checkout)}</TableCell>
@@ -728,7 +738,7 @@ export default function Marketing() {
                       </TableRow>
                     );
                   })}
-                  {!windsorCanaisAgg.length && (
+                  {!windsorCanaisSorted.length && (
                     <TableRow><TableCell colSpan={9} className="text-center text-muted-foreground">Sem dados no período</TableCell></TableRow>
                   )}
                 </TableBody>
