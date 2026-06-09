@@ -226,6 +226,109 @@ export default function Marketing() {
     [paginasAgg]
   );
 
+  // ===== Windsor Produtos (Mariana Cardoso) =====
+  const windsorProdutosAgg = useMemo(() => {
+    const map = new Map<string, any>();
+    for (const r of windsorProdutos) {
+      const key = r.item_name || "Sem nome";
+      const cur = map.get(key) || {
+        item_name: key, sessions: 0, items_viewed: 0,
+        items_added_to_cart: 0, items_purchased: 0, item_revenue: 0,
+      };
+      cur.sessions += num(r.sessions);
+      cur.items_viewed += num(r.items_viewed);
+      cur.items_added_to_cart += num(r.items_added_to_cart);
+      cur.items_purchased += num(r.items_purchased);
+      cur.item_revenue += num(r.item_revenue);
+      map.set(key, cur);
+    }
+    return [...map.values()]
+      .map((r) => ({
+        ...r,
+        taxa_sc: r.sessions > 0 ? (r.items_added_to_cart / r.sessions) * 100 : 0,
+        taxa_cc: r.items_added_to_cart > 0 ? (r.items_purchased / r.items_added_to_cart) * 100 : null,
+        taxa_final: r.sessions > 0 ? (r.items_purchased / r.sessions) * 100 : 0,
+      }))
+      .sort((a, b) => b.items_purchased - a.items_purchased);
+  }, [windsorProdutos]);
+
+  const windsorProdutosTotais = useMemo(
+    () => windsorProdutosAgg.reduce(
+      (a, r) => ({
+        sessions: a.sessions + r.sessions,
+        items_viewed: a.items_viewed + r.items_viewed,
+        items_added_to_cart: a.items_added_to_cart + r.items_added_to_cart,
+        items_purchased: a.items_purchased + r.items_purchased,
+        item_revenue: a.item_revenue + r.item_revenue,
+      }),
+      { sessions: 0, items_viewed: 0, items_added_to_cart: 0, items_purchased: 0, item_revenue: 0 }
+    ),
+    [windsorProdutosAgg]
+  );
+
+  const wpMedias = useMemo(() => {
+    const v = windsorProdutosAgg;
+    if (!v.length) return { sc: 0, cc: 0, final: 0 };
+    const ccs = v.filter((x) => x.taxa_cc !== null);
+    return {
+      sc: v.reduce((s, x) => s + x.taxa_sc, 0) / v.length,
+      cc: ccs.length ? ccs.reduce((s, x) => s + (x.taxa_cc || 0), 0) / ccs.length : 0,
+      final: v.reduce((s, x) => s + x.taxa_final, 0) / v.length,
+    };
+  }, [windsorProdutosAgg]);
+
+  // ===== Windsor Canais (Mariana Cardoso) =====
+  const windsorCanaisAgg = useMemo(() => {
+    const map = new Map<string, any>();
+    for (const r of windsorCanais) {
+      const key = r.source || "Desconhecido";
+      const cur = map.get(key) || {
+        source: key, sessions: 0, actions_add_to_cart: 0,
+        actions_initiate_checkout: 0, ecommerce_purchases: 0, purchase_revenue: 0,
+      };
+      cur.sessions += num(r.sessions);
+      cur.actions_add_to_cart += num(r.actions_add_to_cart);
+      cur.actions_initiate_checkout += num(r.actions_initiate_checkout);
+      cur.ecommerce_purchases += num(r.ecommerce_purchases);
+      cur.purchase_revenue += num(r.purchase_revenue);
+      map.set(key, cur);
+    }
+    return [...map.values()]
+      .map((r) => ({
+        ...r,
+        taxa_sc: r.sessions > 0 ? (r.actions_add_to_cart / r.sessions) * 100 : 0,
+        taxa_cc: r.actions_add_to_cart > 0 ? (r.actions_initiate_checkout / r.actions_add_to_cart) * 100 : null,
+        taxa_final: r.sessions > 0 ? (r.ecommerce_purchases / r.sessions) * 100 : 0,
+      }))
+      .sort((a, b) => b.ecommerce_purchases - a.ecommerce_purchases);
+  }, [windsorCanais]);
+
+  const windsorCanaisTotais = useMemo(
+    () => windsorCanaisAgg.reduce(
+      (a, r) => ({
+        sessions: a.sessions + r.sessions,
+        actions_add_to_cart: a.actions_add_to_cart + r.actions_add_to_cart,
+        actions_initiate_checkout: a.actions_initiate_checkout + r.actions_initiate_checkout,
+        ecommerce_purchases: a.ecommerce_purchases + r.ecommerce_purchases,
+        purchase_revenue: a.purchase_revenue + r.purchase_revenue,
+      }),
+      { sessions: 0, actions_add_to_cart: 0, actions_initiate_checkout: 0, ecommerce_purchases: 0, purchase_revenue: 0 }
+    ),
+    [windsorCanaisAgg]
+  );
+
+  const wcMedias = useMemo(() => {
+    const v = windsorCanaisAgg;
+    if (!v.length) return { sc: 0, cc: 0, final: 0 };
+    const ccs = v.filter((x) => x.taxa_cc !== null);
+    return {
+      sc: v.reduce((s, x) => s + x.taxa_sc, 0) / v.length,
+      cc: ccs.length ? ccs.reduce((s, x) => s + (x.taxa_cc || 0), 0) / ccs.length : 0,
+      final: v.reduce((s, x) => s + x.taxa_final, 0) / v.length,
+    };
+  }, [windsorCanaisAgg]);
+
+
   return (
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-4">
