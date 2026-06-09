@@ -80,21 +80,41 @@ export default function Marketing() {
     const inicioDash = toDashDate(inicio);
     const fimDash = toDashDate(fim);
     setLoading(true);
+
+    // Recursive fetch to bypass PostgREST 1000-row default limit
+    const fetchAll = async (table: string, dateCol: string, ini: string, end: string, columns = "*") => {
+      const pageSize = 1000;
+      let from = 0;
+      const all: any[] = [];
+      while (true) {
+        const { data, error } = await (supabase.from(table as any) as any)
+          .select(columns)
+          .gte(dateCol, ini)
+          .lte(dateCol, end)
+          .range(from, from + pageSize - 1);
+        if (error || !data || data.length === 0) break;
+        all.push(...data);
+        if (data.length < pageSize) break;
+        from += pageSize;
+      }
+      return all;
+    };
+
     Promise.all([
       supabase.from("ga4_aquisicao_canais").select("*").gte("event_date", inicio).lte("event_date", fim),
       supabase.from("ga4_produtos_ecommerce").select("*").gte("event_date", inicio).lte("event_date", fim),
       supabase.from("ga4_funil_compra").select("*").gte("event_date", inicio).lte("event_date", fim),
       supabase.from("ga4_sessoes_paginas").select("pagina, titulo, sessoes").gte("event_date", inicio).lte("event_date", fim),
-      supabase.from("windsor_produtos" as any).select("*").gte("date", inicioDash).lte("date", fimDash),
-      supabase.from("windsor_canais" as any).select("*").gte("date", inicioDash).lte("date", fimDash),
+      fetchAll("windsor_produtos", "date", inicioDash, fimDash, "date, item_name, sessions, items_viewed, items_added_to_cart, items_purchased, item_revenue"),
+      fetchAll("windsor_canais", "date", inicioDash, fimDash),
     ])
       .then(([a, p, f, pg, wp, wc]: any[]) => {
         setAquisicao(a.data || []);
         setProdutos(p.data || []);
         setFunil(f.data || []);
         setPaginas(pg.data || []);
-        setWindsorProdutos(wp.data || []);
-        setWindsorCanais(wc.data || []);
+        setWindsorProdutos(wp || []);
+        setWindsorCanais(wc || []);
       })
       .finally(() => setLoading(false));
   }, [periodo]);
