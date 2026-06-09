@@ -596,7 +596,128 @@ export default function Marketing() {
             </CardContent>
           </Card>
         </TabsContent>
+
+        {/* ===== WINDSOR PRODUTOS ===== */}
+        <TabsContent value="windsor-produtos" className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+            <StatCard title="Sessões" value={fmtInt(windsorProdutosTotais.sessions)} icon={MousePointerClick} />
+            <StatCard title="Visualizados" value={fmtInt(windsorProdutosTotais.items_viewed)} icon={Users} />
+            <StatCard title="Add. Carrinho" value={fmtInt(windsorProdutosTotais.items_added_to_cart)} icon={ShoppingCart} variant="warning" />
+            <StatCard title="Compras" value={fmtInt(windsorProdutosTotais.items_purchased)} icon={ShoppingBag} variant="success" />
+            <StatCard title="Receita Total" value={fmtBRL(windsorProdutosTotais.item_revenue)} icon={DollarSign} variant="primary" />
+          </div>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">Performance por produto (Windsor)</CardTitle>
+              <p className="text-xs text-muted-foreground">
+                Médias — Sessão→Carrinho: <span className="font-medium">{fmtPct(wpMedias.sc)}</span> · Carrinho→Compra: <span className="font-medium">{fmtPct(wpMedias.cc)}</span> · Conv. Final: <span className="font-medium">{fmtPct(wpMedias.final)}</span>
+              </p>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Produto</TableHead>
+                    <TableHead className="text-right">Sessões</TableHead>
+                    <TableHead className="text-right">Visualizados</TableHead>
+                    <TableHead className="text-right">Add. Carrinho</TableHead>
+                    <TableHead className="text-right">Compras</TableHead>
+                    <TableHead className="text-right">Receita</TableHead>
+                    <TableHead className="text-right">Sessão→Carrinho</TableHead>
+                    <TableHead className="text-right">Carrinho→Compra</TableHead>
+                    <TableHead className="text-right">Conv. Final</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {windsorProdutosAgg.map((r) => {
+                    const scOk = r.taxa_sc > wpMedias.sc;
+                    const ccOk = r.taxa_cc !== null && r.taxa_cc > wpMedias.cc;
+                    const fOk = r.taxa_final > wpMedias.final;
+                    return (
+                      <TableRow key={r.item_name}>
+                        <TableCell className="font-medium max-w-[280px] truncate">{r.item_name}</TableCell>
+                        <TableCell className="text-right">{fmtInt(r.sessions)}</TableCell>
+                        <TableCell className="text-right">{fmtInt(r.items_viewed)}</TableCell>
+                        <TableCell className="text-right">{fmtInt(r.items_added_to_cart)}</TableCell>
+                        <TableCell className="text-right">{fmtInt(r.items_purchased)}</TableCell>
+                        <TableCell className="text-right">{fmtBRL(r.item_revenue)}</TableCell>
+                        <TableCell className={`text-right ${scOk ? "text-success font-medium" : ""}`}>{fmtPct(r.taxa_sc)}</TableCell>
+                        <TableCell className={`text-right ${ccOk ? "text-success font-medium" : ""}`}>{r.taxa_cc === null ? "—" : fmtPct(r.taxa_cc)}</TableCell>
+                        <TableCell className={`text-right ${fOk ? "text-success font-medium" : ""}`}>{fmtPct(r.taxa_final)}</TableCell>
+                      </TableRow>
+                    );
+                  })}
+                  {!windsorProdutosAgg.length && (
+                    <TableRow><TableCell colSpan={9} className="text-center text-muted-foreground">Sem dados no período</TableCell></TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* ===== WINDSOR CANAIS ===== */}
+        <TabsContent value="windsor-canais" className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+            <StatCard title="Sessões" value={fmtInt(windsorCanaisTotais.sessions)} icon={MousePointerClick} />
+            <StatCard title="Add. Carrinho" value={fmtInt(windsorCanaisTotais.actions_add_to_cart)} icon={ShoppingCart} variant="warning" />
+            <StatCard title="Iniciaram Pagamento" value={fmtInt(windsorCanaisTotais.actions_initiate_checkout)} icon={ShoppingCart} />
+            <StatCard title="Compras" value={fmtInt(windsorCanaisTotais.ecommerce_purchases)} icon={ShoppingBag} variant="success" />
+            <StatCard title="Receita Total" value={fmtBRL(windsorCanaisTotais.purchase_revenue)} icon={DollarSign} variant="primary" />
+          </div>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">Performance por canal (Windsor)</CardTitle>
+              <p className="text-xs text-muted-foreground">
+                Médias — Sessão→Carrinho: <span className="font-medium">{fmtPct(wcMedias.sc)}</span> · Carrinho→Checkout: <span className="font-medium">{fmtPct(wcMedias.cc)}</span> · Conv. Final: <span className="font-medium">{fmtPct(wcMedias.final)}</span>
+              </p>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Canal</TableHead>
+                    <TableHead className="text-right">Sessões</TableHead>
+                    <TableHead className="text-right">Add. Carrinho</TableHead>
+                    <TableHead className="text-right">Iniciaram Pagto</TableHead>
+                    <TableHead className="text-right">Compras</TableHead>
+                    <TableHead className="text-right">Receita</TableHead>
+                    <TableHead className="text-right">Sessão→Carrinho</TableHead>
+                    <TableHead className="text-right">Carrinho→Checkout</TableHead>
+                    <TableHead className="text-right">Conv. Final</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {windsorCanaisAgg.map((r) => {
+                    const scOk = r.taxa_sc > wcMedias.sc;
+                    const ccOk = r.taxa_cc !== null && r.taxa_cc > wcMedias.cc;
+                    const fOk = r.taxa_final > wcMedias.final;
+                    return (
+                      <TableRow key={r.source}>
+                        <TableCell className="font-medium">{r.source}</TableCell>
+                        <TableCell className="text-right">{fmtInt(r.sessions)}</TableCell>
+                        <TableCell className="text-right">{fmtInt(r.actions_add_to_cart)}</TableCell>
+                        <TableCell className="text-right">{fmtInt(r.actions_initiate_checkout)}</TableCell>
+                        <TableCell className="text-right">{fmtInt(r.ecommerce_purchases)}</TableCell>
+                        <TableCell className="text-right">{fmtBRL(r.purchase_revenue)}</TableCell>
+                        <TableCell className={`text-right ${scOk ? "text-success font-medium" : ""}`}>{fmtPct(r.taxa_sc)}</TableCell>
+                        <TableCell className={`text-right ${ccOk ? "text-success font-medium" : ""}`}>{r.taxa_cc === null ? "—" : fmtPct(r.taxa_cc)}</TableCell>
+                        <TableCell className={`text-right ${fOk ? "text-success font-medium" : ""}`}>{fmtPct(r.taxa_final)}</TableCell>
+                      </TableRow>
+                    );
+                  })}
+                  {!windsorCanaisAgg.length && (
+                    <TableRow><TableCell colSpan={9} className="text-center text-muted-foreground">Sem dados no período</TableCell></TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        </TabsContent>
       </Tabs>
+
     </div>
   );
 }
