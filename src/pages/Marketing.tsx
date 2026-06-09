@@ -359,7 +359,7 @@ export default function Marketing() {
   }, [windsorProdutosAgg]);
 
   // ===== Windsor Canais (Mariana Cardoso) =====
-  const [wcSortCol, setWcSortCol] = useState<string>("ecommerce_purchases");
+  const [wcSortCol, setWcSortCol] = useState<string>("items_purchased");
   const [wcSortDir, setWcSortDir] = useState<"asc" | "desc">("desc");
   const wcToggleSort = (col: string) => {
     if (wcSortCol === col) setWcSortDir(wcSortDir === "desc" ? "asc" : "desc");
@@ -371,22 +371,22 @@ export default function Marketing() {
     for (const r of windsorCanais) {
       const key = r.session_custom_channel_group || "Desconhecido";
       const cur = map.get(key) || {
-        canal: key, sessions: 0, actions_add_to_cart: 0,
-        actions_initiate_checkout: 0, ecommerce_purchases: 0, purchase_revenue: 0,
+        canal: key, sessions: 0, add_to_carts: 0,
+        checkouts: 0, items_purchased: 0, purchase_revenue: 0,
       };
       cur.sessions += num(r.sessions);
-      cur.actions_add_to_cart += num(r.actions_offsite_conversion_fb_pixel_add_to_cart);
-      cur.actions_initiate_checkout += num(r.actions_initiate_checkout);
-      cur.ecommerce_purchases += num(r.ecommerce_purchases);
+      cur.add_to_carts += num(r.add_to_carts);
+      cur.checkouts += num(r.checkouts);
+      cur.items_purchased += num(r.items_purchased);
       cur.purchase_revenue += num(r.purchase_revenue);
       map.set(key, cur);
     }
     return [...map.values()].map((r) => ({
       ...r,
-      taxa_sc: r.sessions > 0 ? (r.actions_add_to_cart / r.sessions) * 100 : 0,
-      taxa_cc: r.actions_add_to_cart > 0 ? (r.actions_initiate_checkout / r.actions_add_to_cart) * 100 : null,
-      taxa_final: r.sessions > 0 ? (r.ecommerce_purchases / r.sessions) * 100 : 0,
-    }));
+      taxa_sc: r.sessions > 0 ? (r.add_to_carts / r.sessions) * 100 : 0,
+      taxa_cc: r.add_to_carts > 0 ? (r.checkouts / r.add_to_carts) * 100 : null,
+      taxa_final: r.sessions > 0 ? (r.items_purchased / r.sessions) * 100 : 0,
+    })).sort((a, b) => b.items_purchased - a.items_purchased);
   }, [windsorCanais]);
 
   const windsorCanaisSorted = useMemo(() => {
