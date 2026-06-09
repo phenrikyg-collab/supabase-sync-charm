@@ -372,66 +372,14 @@ export default function Marketing() {
         </div>
       )}
 
-      <Tabs defaultValue="aquisicao">
+      <Tabs defaultValue="paginas">
         <TabsList className="flex-wrap h-auto">
-          <TabsTrigger value="aquisicao">Aquisição</TabsTrigger>
-          <TabsTrigger value="produtos">Produtos</TabsTrigger>
-          <TabsTrigger value="funil">Funil de Compra</TabsTrigger>
           <TabsTrigger value="paginas">Páginas</TabsTrigger>
           <TabsTrigger value="windsor-produtos">Produtos - Mariana Cardoso</TabsTrigger>
           <TabsTrigger value="windsor-canais">Sessões por Canal - Mariana Cardoso</TabsTrigger>
         </TabsList>
 
 
-        {/* ===== AQUISIÇÃO ===== */}
-        <TabsContent value="aquisicao" className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <StatCard title="Total de Usuários" value={fmtInt(aquisicaoTotais.usuarios)} icon={Users} variant="primary" />
-            <StatCard title="Novos Usuários" value={fmtInt(aquisicaoTotais.novos)} icon={UserPlus} variant="success" />
-            <StatCard title="Total de Sessões" value={fmtInt(aquisicaoTotais.sessoes)} icon={MousePointerClick} />
-            <StatCard title="Compras no Período" value={fmtInt(produtosTotais.compras)} icon={ShoppingBag} variant="success" />
-          </div>
-
-
-
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">Detalhamento por canal</CardTitle>
-              <p className="text-xs text-muted-foreground">
-                Compras totais no período (não atribuíveis por canal no GA4): <span className="font-medium">{fmtInt(produtosTotais.compras)}</span>
-              </p>
-            </CardHeader>
-            <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Canal</TableHead>
-                    <TableHead className="text-right">Usuários</TableHead>
-                    <TableHead className="text-right">Novos</TableHead>
-                    <TableHead className="text-right">Sessões</TableHead>
-                    <TableHead className="text-right">% Usuários</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {aquisicaoAgg.map((r) => (
-                    <TableRow key={r.canal}>
-                      <TableCell className="font-medium">{r.canal}</TableCell>
-                      <TableCell className="text-right">{fmtInt(r.usuarios)}</TableCell>
-                      <TableCell className="text-right">{fmtInt(r.novos_usuarios)}</TableCell>
-                      <TableCell className="text-right">{fmtInt(r.sessoes)}</TableCell>
-                      <TableCell className="text-right">
-                        {fmtPct(aquisicaoTotais.usuarios > 0 ? (r.usuarios / aquisicaoTotais.usuarios) * 100 : 0)}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                  {!aquisicaoAgg.length && (
-                    <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground">Sem dados no período</TableCell></TableRow>
-                  )}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
-        </TabsContent>
 
         {/* ===== PRODUTOS ===== */}
         <TabsContent value="produtos" className="space-y-6">
