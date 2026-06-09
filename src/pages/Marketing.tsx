@@ -277,6 +277,67 @@ export default function Marketing() {
     };
   }, [windsorProdutosAgg]);
 
+  // ===== Windsor Produtos: ordenação =====
+  const [wpSortCol, setWpSortCol] = useState<string>("items_purchased");
+  const [wpSortDir, setWpSortDir] = useState<"asc" | "desc">("desc");
+  const wpToggleSort = (col: string) => {
+    if (wpSortCol === col) setWpSortDir(wpSortDir === "desc" ? "asc" : "desc");
+    else { setWpSortCol(col); setWpSortDir("desc"); }
+  };
+  const windsorProdutosSorted = useMemo(() => {
+    const arr = [...windsorProdutosAgg];
+    arr.sort((a: any, b: any) => {
+      const av = a[wpSortCol]; const bv = b[wpSortCol];
+      if (typeof av === "string" || typeof bv === "string") {
+        return wpSortDir === "desc"
+          ? String(bv ?? "").localeCompare(String(av ?? ""))
+          : String(av ?? "").localeCompare(String(bv ?? ""));
+      }
+      const an = av ?? -Infinity; const bn = bv ?? -Infinity;
+      return wpSortDir === "desc" ? (bn as number) - (an as number) : (an as number) - (bn as number);
+    });
+    return arr;
+  }, [windsorProdutosAgg, wpSortCol, wpSortDir]);
+
+  // ===== Matriz de Produtos (scatter) =====
+  const wpMatriz = useMemo(() => {
+    const pts = windsorProdutosAgg
+      .filter((r) => r.sessions > 0)
+      .map((r) => ({
+        item_name: r.item_name,
+        x: r.taxa_final,
+        y: r.item_revenue,
+        z: Math.max(r.items_purchased, 1),
+        purchases: r.items_purchased,
+      }));
+    const receitas = pts.map((p) => p.y).sort((a, b) => a - b);
+    const medianaReceita = receitas.length
+      ? receitas.length % 2
+        ? receitas[(receitas.length - 1) / 2]
+        : (receitas[receitas.length / 2 - 1] + receitas[receitas.length / 2]) / 2
+      : 0;
+    const quadrantColor = (p: any) => {
+      const altaConv = p.x >= 5;
+      const altaRec = p.y >= medianaReceita;
+      if (altaConv && altaRec) return "#16a34a";
+      if (altaConv && !altaRec) return "#2563eb";
+      if (!altaConv && altaRec) return "#dc2626";
+      return "#9ca3af";
+    };
+    const labelQuad = (p: any) => {
+      const altaConv = p.x >= 5;
+      const altaRec = p.y >= medianaReceita;
+      if (altaConv && altaRec) return "Escalar";
+      if (altaConv && !altaRec) return "Oportunidade";
+      if (!altaConv && altaRec) return "Corrigir";
+      return "Monitorar";
+    };
+    return {
+      pts: pts.map((p) => ({ ...p, fill: quadrantColor(p), quadrante: labelQuad(p) })),
+      medianaReceita,
+    };
+  }, [windsorProdutosAgg]);
+
   // ===== Windsor Canais (Mariana Cardoso) =====
   const [wcSortCol, setWcSortCol] = useState<string>("ecommerce_purchases");
   const [wcSortDir, setWcSortDir] = useState<"asc" | "desc">("desc");
