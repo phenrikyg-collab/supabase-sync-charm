@@ -408,12 +408,12 @@ export default function Marketing() {
     () => windsorCanaisAgg.reduce(
       (a, r) => ({
         sessions: a.sessions + r.sessions,
-        actions_add_to_cart: a.actions_add_to_cart + r.actions_add_to_cart,
-        actions_initiate_checkout: a.actions_initiate_checkout + r.actions_initiate_checkout,
-        ecommerce_purchases: a.ecommerce_purchases + r.ecommerce_purchases,
+        add_to_carts: a.add_to_carts + r.add_to_carts,
+        checkouts: a.checkouts + r.checkouts,
+        items_purchased: a.items_purchased + r.items_purchased,
         purchase_revenue: a.purchase_revenue + r.purchase_revenue,
       }),
-      { sessions: 0, actions_add_to_cart: 0, actions_initiate_checkout: 0, ecommerce_purchases: 0, purchase_revenue: 0 }
+      { sessions: 0, add_to_carts: 0, checkouts: 0, items_purchased: 0, purchase_revenue: 0 }
     ),
     [windsorCanaisAgg]
   );
