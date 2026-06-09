@@ -328,11 +328,12 @@ export default function Marketing() {
         z: Math.max(r.items_purchased, 1),
         purchases: r.items_purchased,
       }));
-    const receitas = pts.map((p) => p.y).sort((a, b) => a - b);
-    const medianaReceita = receitas.length
-      ? receitas.length % 2
-        ? receitas[(receitas.length - 1) / 2]
-        : (receitas[receitas.length / 2 - 1] + receitas[receitas.length / 2]) / 2
+    const produtosComReceita = windsorProdutosAgg.filter((p: any) => p.item_revenue > 0);
+    const receitasOrdenadas = produtosComReceita
+      .map((p: any) => p.item_revenue)
+      .sort((a: number, b: number) => a - b);
+    const medianaReceita = receitasOrdenadas.length > 0
+      ? receitasOrdenadas[Math.floor(receitasOrdenadas.length / 2)]
       : 0;
     const quadrantColor = (p: any) => {
       const altaConv = p.x >= 5;
@@ -518,9 +519,8 @@ export default function Marketing() {
 
         {/* ===== WINDSOR PRODUTOS ===== */}
         <TabsContent value="windsor-produtos" className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <StatCard title="VISUALIZAÇÕES" value={fmtInt(windsorProdutosTotais.items_viewed)} icon={MousePointerClick} />
-            <StatCard title="Visualizados" value={fmtInt(windsorProdutosTotais.items_viewed)} icon={Users} />
             <StatCard title="Add. Carrinho" value={fmtInt(windsorProdutosTotais.items_added_to_cart)} icon={ShoppingCart} variant="warning" />
             <StatCard title="Compras" value={fmtInt(windsorProdutosTotais.items_purchased)} icon={ShoppingBag} variant="success" />
             <StatCard title="Receita Total" value={fmtBRL(windsorProdutosTotais.item_revenue)} icon={DollarSign} variant="primary" />
