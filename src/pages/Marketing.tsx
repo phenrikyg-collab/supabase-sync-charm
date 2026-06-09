@@ -652,9 +652,9 @@ export default function Marketing() {
         <TabsContent value="windsor-canais" className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
             <StatCard title="Sessões" value={fmtInt(windsorCanaisTotais.sessions)} icon={MousePointerClick} />
-            <StatCard title="Add. Carrinho" value={fmtInt(windsorCanaisTotais.actions_add_to_cart)} icon={ShoppingCart} variant="warning" />
-            <StatCard title="Iniciaram Pagamento" value={fmtInt(windsorCanaisTotais.actions_initiate_checkout)} icon={ShoppingCart} />
-            <StatCard title="Compras" value={fmtInt(windsorCanaisTotais.ecommerce_purchases)} icon={ShoppingBag} variant="success" />
+            <StatCard title="Add. Carrinho" value={fmtInt(windsorCanaisTotais.add_to_carts)} icon={ShoppingCart} variant="warning" />
+            <StatCard title="Iniciaram Pagamento" value={fmtInt(windsorCanaisTotais.checkouts)} icon={ShoppingCart} />
+            <StatCard title="Compras" value={fmtInt(windsorCanaisTotais.items_purchased)} icon={ShoppingBag} variant="success" />
             <StatCard title="Receita Total" value={fmtBRL(windsorCanaisTotais.purchase_revenue)} icon={DollarSign} variant="primary" />
           </div>
 
