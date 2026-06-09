@@ -34,11 +34,10 @@ const getDateRange = (periodo: string) => {
   }
 
   const meses: Record<string, { inicio: string; fim: string }> = {
-    jan2026: { inicio: "20260101", fim: "20260131" },
-    fev2026: { inicio: "20260201", fim: "20260228" },
     mar2026: { inicio: "20260301", fim: "20260331" },
     abr2026: { inicio: "20260401", fim: "20260430" },
     mai2026: { inicio: "20260501", fim: "20260531" },
+    jun2026: { inicio: "20260601", fim: "20260630" },
   };
   return (
     meses[periodo] ?? {
@@ -56,11 +55,10 @@ const PERIODOS = [
   { value: "7dias", label: "Últimos 7 dias" },
   { value: "30dias", label: "Últimos 30 dias" },
   { value: "90dias", label: "Últimos 90 dias" },
-  { value: "jan2026", label: "Janeiro 2026" },
-  { value: "fev2026", label: "Fevereiro 2026" },
   { value: "mar2026", label: "Março 2026" },
   { value: "abr2026", label: "Abril 2026" },
   { value: "mai2026", label: "Maio 2026" },
+  { value: "jun2026", label: "Junho 2026" },
 ];
 
 const num = (v: any) => (typeof v === "number" ? v : Number(v) || 0);
