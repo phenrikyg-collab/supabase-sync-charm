@@ -699,9 +699,9 @@ export default function Marketing() {
                       <TableRow key={r.canal}>
                         <TableCell className="font-medium">{r.canal}</TableCell>
                         <TableCell className="text-right">{fmtInt(r.sessions)}</TableCell>
-                        <TableCell className="text-right">{fmtInt(r.actions_add_to_cart)}</TableCell>
-                        <TableCell className="text-right">{fmtInt(r.actions_initiate_checkout)}</TableCell>
-                        <TableCell className="text-right">{fmtInt(r.ecommerce_purchases)}</TableCell>
+                        <TableCell className="text-right">{fmtInt(r.add_to_carts)}</TableCell>
+                        <TableCell className="text-right">{fmtInt(r.checkouts)}</TableCell>
+                        <TableCell className="text-right">{fmtInt(r.items_purchased)}</TableCell>
                         <TableCell className="text-right">{fmtBRL(r.purchase_revenue)}</TableCell>
                         <TableCell className={`text-right ${scOk ? "text-success font-medium" : ""}`}>{fmtPct(r.taxa_sc)}</TableCell>
                         <TableCell className={`text-right ${ccOk ? "text-success font-medium" : ""}`}>{r.taxa_cc === null ? "—" : fmtPct(r.taxa_cc)}</TableCell>
