@@ -263,9 +263,9 @@ export default function Marketing() {
     return [...map.values()]
       .map((r) => ({
         ...r,
-        taxa_sc: r.sessions > 0 ? (r.items_added_to_cart / r.sessions) * 100 : 0,
+        taxa_sc: r.items_viewed > 0 ? (r.items_added_to_cart / r.items_viewed) * 100 : 0,
         taxa_cc: r.items_added_to_cart > 0 ? (r.items_purchased / r.items_added_to_cart) * 100 : null,
-        taxa_final: r.sessions > 0 ? (r.items_purchased / r.sessions) * 100 : 0,
+        taxa_final: r.items_viewed > 0 ? (r.items_purchased / r.items_viewed) * 100 : 0,
       }))
       .sort((a, b) => b.items_purchased - a.items_purchased);
   }, [windsorProdutos]);
@@ -320,7 +320,7 @@ export default function Marketing() {
   // ===== Matriz de Produtos (scatter) =====
   const wpMatriz = useMemo(() => {
     const pts = windsorProdutosAgg
-      .filter((r) => r.sessions > 0)
+      .filter((r) => r.items_viewed > 0)
       .map((r) => ({
         item_name: r.item_name,
         x: r.taxa_final,
@@ -519,7 +519,7 @@ export default function Marketing() {
         {/* ===== WINDSOR PRODUTOS ===== */}
         <TabsContent value="windsor-produtos" className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-            <StatCard title="Sessões" value={fmtInt(windsorProdutosTotais.sessions)} icon={MousePointerClick} />
+            <StatCard title="VISUALIZAÇÕES" value={fmtInt(windsorProdutosTotais.items_viewed)} icon={MousePointerClick} />
             <StatCard title="Visualizados" value={fmtInt(windsorProdutosTotais.items_viewed)} icon={Users} />
             <StatCard title="Add. Carrinho" value={fmtInt(windsorProdutosTotais.items_added_to_cart)} icon={ShoppingCart} variant="warning" />
             <StatCard title="Compras" value={fmtInt(windsorProdutosTotais.items_purchased)} icon={ShoppingBag} variant="success" />
@@ -542,7 +542,7 @@ export default function Marketing() {
                     dataKey="x"
                     name="Conversão"
                     unit="%"
-                    label={{ value: "Taxa de Conversão Final (%)", position: "insideBottom", offset: -10 }}
+                    label={{ value: "Taxa de Conversão sobre Visualizações (%)", position: "insideBottom", offset: -10 }}
                   />
                   <YAxis
                     type="number"
@@ -590,7 +590,10 @@ export default function Marketing() {
             <CardHeader>
               <CardTitle className="text-lg">Performance por produto (Windsor)</CardTitle>
               <p className="text-xs text-muted-foreground">
-                Médias — Sessão→Carrinho: <span className="font-medium">{fmtPct(wpMedias.sc)}</span> · Carrinho→Compra: <span className="font-medium">{fmtPct(wpMedias.cc)}</span> · Conv. Final: <span className="font-medium">{fmtPct(wpMedias.final)}</span>
+                Visualizações = total de vezes que o produto foi visualizado em sessões. Taxa de conversão calculada sobre visualizações.
+              </p>
+              <p className="text-xs text-muted-foreground">
+                Médias — Vis.→Carrinho: <span className="font-medium">{fmtPct(wpMedias.sc)}</span> · Carrinho→Compra: <span className="font-medium">{fmtPct(wpMedias.cc)}</span> · Conv. Final: <span className="font-medium">{fmtPct(wpMedias.final)}</span>
               </p>
             </CardHeader>
             <CardContent>
@@ -599,12 +602,12 @@ export default function Marketing() {
                   <TableRow>
                     {[
                       { key: "item_name", label: "Produto", align: "left" },
-                      { key: "sessions", label: "Sessões", align: "right" },
+                      { key: "sessions", label: "Visualizações de Produto", align: "right" },
                       { key: "items_viewed", label: "Visualizados", align: "right" },
                       { key: "items_added_to_cart", label: "Add. Carrinho", align: "right" },
                       { key: "items_purchased", label: "Compras", align: "right" },
                       { key: "item_revenue", label: "Receita", align: "right" },
-                      { key: "taxa_sc", label: "Sessão→Carrinho", align: "right" },
+                      { key: "taxa_sc", label: "Vis.→Carrinho", align: "right" },
                       { key: "taxa_cc", label: "Carrinho→Compra", align: "right" },
                       { key: "taxa_final", label: "Conv. Final", align: "right" },
                     ].map((c) => (
