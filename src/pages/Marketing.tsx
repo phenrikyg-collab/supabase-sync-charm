@@ -6,7 +6,7 @@ import { StatCard } from "@/components/StatCard";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Users, UserPlus, MousePointerClick, ShoppingCart, DollarSign, ShoppingBag, Loader2, Megaphone } from "lucide-react";
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, ScatterChart, Scatter, ZAxis, ReferenceLine, Cell } from "recharts";
 
 const fmtBRL = (n: number) =>
   (n || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 2 });
@@ -277,6 +277,67 @@ export default function Marketing() {
     };
   }, [windsorProdutosAgg]);
 
+  // ===== Windsor Produtos: ordenação =====
+  const [wpSortCol, setWpSortCol] = useState<string>("items_purchased");
+  const [wpSortDir, setWpSortDir] = useState<"asc" | "desc">("desc");
+  const wpToggleSort = (col: string) => {
+    if (wpSortCol === col) setWpSortDir(wpSortDir === "desc" ? "asc" : "desc");
+    else { setWpSortCol(col); setWpSortDir("desc"); }
+  };
+  const windsorProdutosSorted = useMemo(() => {
+    const arr = [...windsorProdutosAgg];
+    arr.sort((a: any, b: any) => {
+      const av = a[wpSortCol]; const bv = b[wpSortCol];
+      if (typeof av === "string" || typeof bv === "string") {
+        return wpSortDir === "desc"
+          ? String(bv ?? "").localeCompare(String(av ?? ""))
+          : String(av ?? "").localeCompare(String(bv ?? ""));
+      }
+      const an = av ?? -Infinity; const bn = bv ?? -Infinity;
+      return wpSortDir === "desc" ? (bn as number) - (an as number) : (an as number) - (bn as number);
+    });
+    return arr;
+  }, [windsorProdutosAgg, wpSortCol, wpSortDir]);
+
+  // ===== Matriz de Produtos (scatter) =====
+  const wpMatriz = useMemo(() => {
+    const pts = windsorProdutosAgg
+      .filter((r) => r.sessions > 0)
+      .map((r) => ({
+        item_name: r.item_name,
+        x: r.taxa_final,
+        y: r.item_revenue,
+        z: Math.max(r.items_purchased, 1),
+        purchases: r.items_purchased,
+      }));
+    const receitas = pts.map((p) => p.y).sort((a, b) => a - b);
+    const medianaReceita = receitas.length
+      ? receitas.length % 2
+        ? receitas[(receitas.length - 1) / 2]
+        : (receitas[receitas.length / 2 - 1] + receitas[receitas.length / 2]) / 2
+      : 0;
+    const quadrantColor = (p: any) => {
+      const altaConv = p.x >= 5;
+      const altaRec = p.y >= medianaReceita;
+      if (altaConv && altaRec) return "#16a34a";
+      if (altaConv && !altaRec) return "#2563eb";
+      if (!altaConv && altaRec) return "#dc2626";
+      return "#9ca3af";
+    };
+    const labelQuad = (p: any) => {
+      const altaConv = p.x >= 5;
+      const altaRec = p.y >= medianaReceita;
+      if (altaConv && altaRec) return "Escalar";
+      if (altaConv && !altaRec) return "Oportunidade";
+      if (!altaConv && altaRec) return "Corrigir";
+      return "Monitorar";
+    };
+    return {
+      pts: pts.map((p) => ({ ...p, fill: quadrantColor(p), quadrante: labelQuad(p) })),
+      medianaReceita,
+    };
+  }, [windsorProdutosAgg]);
+
   // ===== Windsor Canais (Mariana Cardoso) =====
   const [wcSortCol, setWcSortCol] = useState<string>("ecommerce_purchases");
   const [wcSortDir, setWcSortDir] = useState<"asc" | "desc">("desc");
@@ -449,6 +510,66 @@ export default function Marketing() {
 
           <Card>
             <CardHeader>
+              <CardTitle className="text-lg">Matriz de Produtos — Conversão × Receita</CardTitle>
+              <p className="text-xs text-muted-foreground">
+                Linha vertical em 5% de conversão · Linha horizontal na mediana de receita ({fmtBRL(wpMatriz.medianaReceita)})
+              </p>
+            </CardHeader>
+            <CardContent>
+              <ResponsiveContainer width="100%" height={400}>
+                <ScatterChart margin={{ top: 20, right: 30, bottom: 40, left: 60 }}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis
+                    type="number"
+                    dataKey="x"
+                    name="Conversão"
+                    unit="%"
+                    label={{ value: "Taxa de Conversão Final (%)", position: "insideBottom", offset: -10 }}
+                  />
+                  <YAxis
+                    type="number"
+                    dataKey="y"
+                    name="Receita"
+                    tickFormatter={(v) => fmtBRL(v)}
+                    label={{ value: "Receita", angle: -90, position: "insideLeft", offset: -10 }}
+                  />
+                  <ZAxis type="number" dataKey="z" range={[60, 600]} name="Compras" />
+                  <Tooltip
+                    cursor={{ strokeDasharray: "3 3" }}
+                    content={({ active, payload }: any) => {
+                      if (!active || !payload?.length) return null;
+                      const p = payload[0].payload;
+                      return (
+                        <div className="rounded-md border bg-popover px-3 py-2 text-xs shadow-md">
+                          <div className="font-medium mb-1">{p.item_name}</div>
+                          <div>Conversão: {fmtPct(p.x)}</div>
+                          <div>Receita: {fmtBRL(p.y)}</div>
+                          <div>Compras: {fmtInt(p.purchases)}</div>
+                          <div className="mt-1 font-medium" style={{ color: p.fill }}>{p.quadrante}</div>
+                        </div>
+                      );
+                    }}
+                  />
+                  <ReferenceLine x={5} stroke="#64748b" strokeDasharray="4 4" />
+                  <ReferenceLine y={wpMatriz.medianaReceita} stroke="#64748b" strokeDasharray="4 4" />
+                  <Scatter data={wpMatriz.pts}>
+                    {wpMatriz.pts.map((p, i) => (
+                      <Cell key={i} fill={p.fill} />
+                    ))}
+                  </Scatter>
+                </ScatterChart>
+              </ResponsiveContainer>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mt-4 text-xs">
+                <div className="flex items-start gap-2"><span className="mt-1 inline-block h-3 w-3 rounded-full" style={{ background: "#16a34a" }} /><div><div className="font-medium">Escalar</div><div className="text-muted-foreground">alta conversão + alta receita</div></div></div>
+                <div className="flex items-start gap-2"><span className="mt-1 inline-block h-3 w-3 rounded-full" style={{ background: "#2563eb" }} /><div><div className="font-medium">Oportunidade</div><div className="text-muted-foreground">alta conversão + baixa receita</div></div></div>
+                <div className="flex items-start gap-2"><span className="mt-1 inline-block h-3 w-3 rounded-full" style={{ background: "#dc2626" }} /><div><div className="font-medium">Corrigir</div><div className="text-muted-foreground">baixa conversão + alta receita</div></div></div>
+                <div className="flex items-start gap-2"><span className="mt-1 inline-block h-3 w-3 rounded-full" style={{ background: "#9ca3af" }} /><div><div className="font-medium">Monitorar</div><div className="text-muted-foreground">baixa conversão + baixa receita</div></div></div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
               <CardTitle className="text-lg">Performance por produto (Windsor)</CardTitle>
               <p className="text-xs text-muted-foreground">
                 Médias — Sessão→Carrinho: <span className="font-medium">{fmtPct(wpMedias.sc)}</span> · Carrinho→Compra: <span className="font-medium">{fmtPct(wpMedias.cc)}</span> · Conv. Final: <span className="font-medium">{fmtPct(wpMedias.final)}</span>
@@ -458,19 +579,29 @@ export default function Marketing() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Produto</TableHead>
-                    <TableHead className="text-right">Sessões</TableHead>
-                    <TableHead className="text-right">Visualizados</TableHead>
-                    <TableHead className="text-right">Add. Carrinho</TableHead>
-                    <TableHead className="text-right">Compras</TableHead>
-                    <TableHead className="text-right">Receita</TableHead>
-                    <TableHead className="text-right">Sessão→Carrinho</TableHead>
-                    <TableHead className="text-right">Carrinho→Compra</TableHead>
-                    <TableHead className="text-right">Conv. Final</TableHead>
+                    {[
+                      { key: "item_name", label: "Produto", align: "left" },
+                      { key: "sessions", label: "Sessões", align: "right" },
+                      { key: "items_viewed", label: "Visualizados", align: "right" },
+                      { key: "items_added_to_cart", label: "Add. Carrinho", align: "right" },
+                      { key: "items_purchased", label: "Compras", align: "right" },
+                      { key: "item_revenue", label: "Receita", align: "right" },
+                      { key: "taxa_sc", label: "Sessão→Carrinho", align: "right" },
+                      { key: "taxa_cc", label: "Carrinho→Compra", align: "right" },
+                      { key: "taxa_final", label: "Conv. Final", align: "right" },
+                    ].map((c) => (
+                      <TableHead
+                        key={c.key}
+                        className={`${c.align === "right" ? "text-right" : ""} cursor-pointer select-none`}
+                        onClick={() => wpToggleSort(c.key)}
+                      >
+                        {c.label} {wpSortCol === c.key ? (wpSortDir === "desc" ? "↓" : "↑") : ""}
+                      </TableHead>
+                    ))}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {windsorProdutosAgg.map((r) => {
+                  {windsorProdutosSorted.map((r) => {
                     const scOk = r.taxa_sc > wpMedias.sc;
                     const ccOk = r.taxa_cc !== null && r.taxa_cc > wpMedias.cc;
                     const fOk = r.taxa_final > wpMedias.final;
@@ -488,7 +619,7 @@ export default function Marketing() {
                       </TableRow>
                     );
                   })}
-                  {!windsorProdutosAgg.length && (
+                  {!windsorProdutosSorted.length && (
                     <TableRow><TableCell colSpan={9} className="text-center text-muted-foreground">Sem dados no período</TableCell></TableRow>
                   )}
                 </TableBody>
