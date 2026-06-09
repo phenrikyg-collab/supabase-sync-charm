@@ -672,9 +672,9 @@ export default function Marketing() {
                     {[
                       { key: "canal", label: "Canal", align: "left" },
                       { key: "sessions", label: "Sessões", align: "right" },
-                      { key: "actions_add_to_cart", label: "Add. Carrinho", align: "right" },
-                      { key: "actions_initiate_checkout", label: "Iniciaram Pagto", align: "right" },
-                      { key: "ecommerce_purchases", label: "Compras", align: "right" },
+                      { key: "add_to_carts", label: "Add. Carrinho", align: "right" },
+                      { key: "checkouts", label: "Iniciaram Pagto", align: "right" },
+                      { key: "items_purchased", label: "Compras", align: "right" },
                       { key: "purchase_revenue", label: "Receita", align: "right" },
                       { key: "taxa_sc", label: "Sessão→Carrinho", align: "right" },
                       { key: "taxa_cc", label: "Carrinho→Checkout", align: "right" },
