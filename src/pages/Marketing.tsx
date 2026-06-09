@@ -278,30 +278,50 @@ export default function Marketing() {
   }, [windsorProdutosAgg]);
 
   // ===== Windsor Canais (Mariana Cardoso) =====
+  const [wcSortCol, setWcSortCol] = useState<string>("ecommerce_purchases");
+  const [wcSortDir, setWcSortDir] = useState<"asc" | "desc">("desc");
+  const wcToggleSort = (col: string) => {
+    if (wcSortCol === col) setWcSortDir(wcSortDir === "desc" ? "asc" : "desc");
+    else { setWcSortCol(col); setWcSortDir("desc"); }
+  };
+
   const windsorCanaisAgg = useMemo(() => {
     const map = new Map<string, any>();
     for (const r of windsorCanais) {
-      const key = r.source || "Desconhecido";
+      const key = r.session_custom_channel_group || "Desconhecido";
       const cur = map.get(key) || {
-        source: key, sessions: 0, actions_add_to_cart: 0,
+        canal: key, sessions: 0, actions_add_to_cart: 0,
         actions_initiate_checkout: 0, ecommerce_purchases: 0, purchase_revenue: 0,
       };
       cur.sessions += num(r.sessions);
-      cur.actions_add_to_cart += num(r.actions_add_to_cart);
+      cur.actions_add_to_cart += num(r.actions_offsite_conversion_fb_pixel_add_to_cart);
       cur.actions_initiate_checkout += num(r.actions_initiate_checkout);
       cur.ecommerce_purchases += num(r.ecommerce_purchases);
       cur.purchase_revenue += num(r.purchase_revenue);
       map.set(key, cur);
     }
-    return [...map.values()]
-      .map((r) => ({
-        ...r,
-        taxa_sc: r.sessions > 0 ? (r.actions_add_to_cart / r.sessions) * 100 : 0,
-        taxa_cc: r.actions_add_to_cart > 0 ? (r.actions_initiate_checkout / r.actions_add_to_cart) * 100 : null,
-        taxa_final: r.sessions > 0 ? (r.ecommerce_purchases / r.sessions) * 100 : 0,
-      }))
-      .sort((a, b) => b.ecommerce_purchases - a.ecommerce_purchases);
+    return [...map.values()].map((r) => ({
+      ...r,
+      taxa_sc: r.sessions > 0 ? (r.actions_add_to_cart / r.sessions) * 100 : 0,
+      taxa_cc: r.actions_add_to_cart > 0 ? (r.actions_initiate_checkout / r.actions_add_to_cart) * 100 : null,
+      taxa_final: r.sessions > 0 ? (r.ecommerce_purchases / r.sessions) * 100 : 0,
+    }));
   }, [windsorCanais]);
+
+  const windsorCanaisSorted = useMemo(() => {
+    const arr = [...windsorCanaisAgg];
+    arr.sort((a: any, b: any) => {
+      const av = a[wcSortCol]; const bv = b[wcSortCol];
+      if (typeof av === "string" || typeof bv === "string") {
+        return wcSortDir === "desc"
+          ? String(bv ?? "").localeCompare(String(av ?? ""))
+          : String(av ?? "").localeCompare(String(bv ?? ""));
+      }
+      const an = av ?? -Infinity; const bn = bv ?? -Infinity;
+      return wcSortDir === "desc" ? (bn as number) - (an as number) : (an as number) - (bn as number);
+    });
+    return arr;
+  }, [windsorCanaisAgg, wcSortCol, wcSortDir]);
 
   const windsorCanaisTotais = useMemo(
     () => windsorCanaisAgg.reduce(
