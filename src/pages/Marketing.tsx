@@ -56,11 +56,10 @@ const PERIODOS = [
   { value: "7dias", label: "Últimos 7 dias" },
   { value: "30dias", label: "Últimos 30 dias" },
   { value: "90dias", label: "Últimos 90 dias" },
-  { value: "jan2026", label: "Janeiro 2026" },
-  { value: "fev2026", label: "Fevereiro 2026" },
   { value: "mar2026", label: "Março 2026" },
   { value: "abr2026", label: "Abril 2026" },
   { value: "mai2026", label: "Maio 2026" },
+  { value: "jun2026", label: "Junho 2026" },
 ];
 
 const num = (v: any) => (typeof v === "number" ? v : Number(v) || 0);
