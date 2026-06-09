@@ -353,12 +353,15 @@ export default function Marketing() {
       )}
 
       <Tabs defaultValue="aquisicao">
-        <TabsList>
+        <TabsList className="flex-wrap h-auto">
           <TabsTrigger value="aquisicao">Aquisição</TabsTrigger>
           <TabsTrigger value="produtos">Produtos</TabsTrigger>
           <TabsTrigger value="funil">Funil de Compra</TabsTrigger>
           <TabsTrigger value="paginas">Páginas</TabsTrigger>
+          <TabsTrigger value="windsor-produtos">Produtos - Mariana Cardoso</TabsTrigger>
+          <TabsTrigger value="windsor-canais">Sessões por Canal - Mariana Cardoso</TabsTrigger>
         </TabsList>
+
 
         {/* ===== AQUISIÇÃO ===== */}
         <TabsContent value="aquisicao" className="space-y-6">
