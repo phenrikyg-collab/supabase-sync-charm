@@ -106,7 +106,7 @@ export default function Marketing() {
       supabase.from("ga4_funil_compra").select("*").gte("event_date", inicio).lte("event_date", fim),
       supabase.from("ga4_sessoes_paginas").select("pagina, titulo, sessoes").gte("event_date", inicio).lte("event_date", fim),
       fetchAll("windsor_produtos", "date", inicioDash, fimDash, "date, item_name, sessions, items_viewed, items_added_to_cart, items_purchased, item_revenue"),
-      fetchAll("windsor_canais", "date", inicioDash, fimDash),
+      fetchAll("windsor_canais", "date", inicioDash, fimDash, "date, session_custom_channel_group, sessions, add_to_carts, checkouts, items_purchased, purchase_revenue"),
     ])
       .then(([a, p, f, pg, wp, wc]: any[]) => {
         setAquisicao(a.data || []);
