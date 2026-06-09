@@ -48,6 +48,10 @@ const getDateRange = (periodo: string) => {
   );
 };
 
+const toDashDate = (ymd: string) =>
+  ymd.length === 8 ? `${ymd.slice(0, 4)}-${ymd.slice(4, 6)}-${ymd.slice(6, 8)}` : ymd;
+
+
 const PERIODOS = [
   { value: "7dias", label: "Últimos 7 dias" },
   { value: "30dias", label: "Últimos 30 dias" },
