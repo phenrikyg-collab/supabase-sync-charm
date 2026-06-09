@@ -48,6 +48,10 @@ const getDateRange = (periodo: string) => {
   );
 };
 
+const toDashDate = (ymd: string) =>
+  ymd.length === 8 ? `${ymd.slice(0, 4)}-${ymd.slice(4, 6)}-${ymd.slice(6, 8)}` : ymd;
+
+
 const PERIODOS = [
   { value: "7dias", label: "Últimos 7 dias" },
   { value: "30dias", label: "Últimos 30 dias" },
@@ -68,29 +72,33 @@ export default function Marketing() {
   const [produtos, setProdutos] = useState<any[]>([]);
   const [funil, setFunil] = useState<any[]>([]);
   const [paginas, setPaginas] = useState<any[]>([]);
+  const [windsorProdutos, setWindsorProdutos] = useState<any[]>([]);
+  const [windsorCanais, setWindsorCanais] = useState<any[]>([]);
 
   useEffect(() => {
     const { inicio, fim } = getDateRange(periodo);
-    console.log("Período selecionado:", periodo);
-    console.log("Data início:", inicio);
-    console.log("Data fim:", fim);
-    console.log("Query params:", `event_date=gte.${inicio}&event_date=lte.${fim}`);
+    const inicioDash = toDashDate(inicio);
+    const fimDash = toDashDate(fim);
     setLoading(true);
     Promise.all([
       supabase.from("ga4_aquisicao_canais").select("*").gte("event_date", inicio).lte("event_date", fim),
       supabase.from("ga4_produtos_ecommerce").select("*").gte("event_date", inicio).lte("event_date", fim),
       supabase.from("ga4_funil_compra").select("*").gte("event_date", inicio).lte("event_date", fim),
       supabase.from("ga4_sessoes_paginas").select("pagina, titulo, sessoes").gte("event_date", inicio).lte("event_date", fim),
+      supabase.from("windsor_produtos" as any).select("*").gte("date", inicioDash).lte("date", fimDash),
+      supabase.from("windsor_canais" as any).select("*").gte("date", inicioDash).lte("date", fimDash),
     ])
-      .then(([a, p, f, pg]) => {
-        console.log("Resultados:", { aquisicao: a.data?.length, produtos: p.data?.length, funil: f.data?.length, paginas: pg.data?.length });
+      .then(([a, p, f, pg, wp, wc]: any[]) => {
         setAquisicao(a.data || []);
         setProdutos(p.data || []);
         setFunil(f.data || []);
         setPaginas(pg.data || []);
+        setWindsorProdutos(wp.data || []);
+        setWindsorCanais(wc.data || []);
       })
       .finally(() => setLoading(false));
   }, [periodo]);
+
 
   // ===== Aquisição =====
   const aquisicaoAgg = useMemo(() => {
@@ -218,6 +226,109 @@ export default function Marketing() {
     [paginasAgg]
   );
 
+  // ===== Windsor Produtos (Mariana Cardoso) =====
+  const windsorProdutosAgg = useMemo(() => {
+    const map = new Map<string, any>();
+    for (const r of windsorProdutos) {
+      const key = r.item_name || "Sem nome";
+      const cur = map.get(key) || {
+        item_name: key, sessions: 0, items_viewed: 0,
+        items_added_to_cart: 0, items_purchased: 0, item_revenue: 0,
+      };
+      cur.sessions += num(r.sessions);
+      cur.items_viewed += num(r.items_viewed);
+      cur.items_added_to_cart += num(r.items_added_to_cart);
+      cur.items_purchased += num(r.items_purchased);
+      cur.item_revenue += num(r.item_revenue);
+      map.set(key, cur);
+    }
+    return [...map.values()]
+      .map((r) => ({
+        ...r,
+        taxa_sc: r.sessions > 0 ? (r.items_added_to_cart / r.sessions) * 100 : 0,
+        taxa_cc: r.items_added_to_cart > 0 ? (r.items_purchased / r.items_added_to_cart) * 100 : null,
+        taxa_final: r.sessions > 0 ? (r.items_purchased / r.sessions) * 100 : 0,
+      }))
+      .sort((a, b) => b.items_purchased - a.items_purchased);
+  }, [windsorProdutos]);
+
+  const windsorProdutosTotais = useMemo(
+    () => windsorProdutosAgg.reduce(
+      (a, r) => ({
+        sessions: a.sessions + r.sessions,
+        items_viewed: a.items_viewed + r.items_viewed,
+        items_added_to_cart: a.items_added_to_cart + r.items_added_to_cart,
+        items_purchased: a.items_purchased + r.items_purchased,
+        item_revenue: a.item_revenue + r.item_revenue,
+      }),
+      { sessions: 0, items_viewed: 0, items_added_to_cart: 0, items_purchased: 0, item_revenue: 0 }
+    ),
+    [windsorProdutosAgg]
+  );
+
+  const wpMedias = useMemo(() => {
+    const v = windsorProdutosAgg;
+    if (!v.length) return { sc: 0, cc: 0, final: 0 };
+    const ccs = v.filter((x) => x.taxa_cc !== null);
+    return {
+      sc: v.reduce((s, x) => s + x.taxa_sc, 0) / v.length,
+      cc: ccs.length ? ccs.reduce((s, x) => s + (x.taxa_cc || 0), 0) / ccs.length : 0,
+      final: v.reduce((s, x) => s + x.taxa_final, 0) / v.length,
+    };
+  }, [windsorProdutosAgg]);
+
+  // ===== Windsor Canais (Mariana Cardoso) =====
+  const windsorCanaisAgg = useMemo(() => {
+    const map = new Map<string, any>();
+    for (const r of windsorCanais) {
+      const key = r.source || "Desconhecido";
+      const cur = map.get(key) || {
+        source: key, sessions: 0, actions_add_to_cart: 0,
+        actions_initiate_checkout: 0, ecommerce_purchases: 0, purchase_revenue: 0,
+      };
+      cur.sessions += num(r.sessions);
+      cur.actions_add_to_cart += num(r.actions_add_to_cart);
+      cur.actions_initiate_checkout += num(r.actions_initiate_checkout);
+      cur.ecommerce_purchases += num(r.ecommerce_purchases);
+      cur.purchase_revenue += num(r.purchase_revenue);
+      map.set(key, cur);
+    }
+    return [...map.values()]
+      .map((r) => ({
+        ...r,
+        taxa_sc: r.sessions > 0 ? (r.actions_add_to_cart / r.sessions) * 100 : 0,
+        taxa_cc: r.actions_add_to_cart > 0 ? (r.actions_initiate_checkout / r.actions_add_to_cart) * 100 : null,
+        taxa_final: r.sessions > 0 ? (r.ecommerce_purchases / r.sessions) * 100 : 0,
+      }))
+      .sort((a, b) => b.ecommerce_purchases - a.ecommerce_purchases);
+  }, [windsorCanais]);
+
+  const windsorCanaisTotais = useMemo(
+    () => windsorCanaisAgg.reduce(
+      (a, r) => ({
+        sessions: a.sessions + r.sessions,
+        actions_add_to_cart: a.actions_add_to_cart + r.actions_add_to_cart,
+        actions_initiate_checkout: a.actions_initiate_checkout + r.actions_initiate_checkout,
+        ecommerce_purchases: a.ecommerce_purchases + r.ecommerce_purchases,
+        purchase_revenue: a.purchase_revenue + r.purchase_revenue,
+      }),
+      { sessions: 0, actions_add_to_cart: 0, actions_initiate_checkout: 0, ecommerce_purchases: 0, purchase_revenue: 0 }
+    ),
+    [windsorCanaisAgg]
+  );
+
+  const wcMedias = useMemo(() => {
+    const v = windsorCanaisAgg;
+    if (!v.length) return { sc: 0, cc: 0, final: 0 };
+    const ccs = v.filter((x) => x.taxa_cc !== null);
+    return {
+      sc: v.reduce((s, x) => s + x.taxa_sc, 0) / v.length,
+      cc: ccs.length ? ccs.reduce((s, x) => s + (x.taxa_cc || 0), 0) / ccs.length : 0,
+      final: v.reduce((s, x) => s + x.taxa_final, 0) / v.length,
+    };
+  }, [windsorCanaisAgg]);
+
+
   return (
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-4">
@@ -242,12 +353,15 @@ export default function Marketing() {
       )}
 
       <Tabs defaultValue="aquisicao">
-        <TabsList>
+        <TabsList className="flex-wrap h-auto">
           <TabsTrigger value="aquisicao">Aquisição</TabsTrigger>
           <TabsTrigger value="produtos">Produtos</TabsTrigger>
           <TabsTrigger value="funil">Funil de Compra</TabsTrigger>
           <TabsTrigger value="paginas">Páginas</TabsTrigger>
+          <TabsTrigger value="windsor-produtos">Produtos - Mariana Cardoso</TabsTrigger>
+          <TabsTrigger value="windsor-canais">Sessões por Canal - Mariana Cardoso</TabsTrigger>
         </TabsList>
+
 
         {/* ===== AQUISIÇÃO ===== */}
         <TabsContent value="aquisicao" className="space-y-6">
@@ -482,7 +596,128 @@ export default function Marketing() {
             </CardContent>
           </Card>
         </TabsContent>
+
+        {/* ===== WINDSOR PRODUTOS ===== */}
+        <TabsContent value="windsor-produtos" className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+            <StatCard title="Sessões" value={fmtInt(windsorProdutosTotais.sessions)} icon={MousePointerClick} />
+            <StatCard title="Visualizados" value={fmtInt(windsorProdutosTotais.items_viewed)} icon={Users} />
+            <StatCard title="Add. Carrinho" value={fmtInt(windsorProdutosTotais.items_added_to_cart)} icon={ShoppingCart} variant="warning" />
+            <StatCard title="Compras" value={fmtInt(windsorProdutosTotais.items_purchased)} icon={ShoppingBag} variant="success" />
+            <StatCard title="Receita Total" value={fmtBRL(windsorProdutosTotais.item_revenue)} icon={DollarSign} variant="primary" />
+          </div>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">Performance por produto (Windsor)</CardTitle>
+              <p className="text-xs text-muted-foreground">
+                Médias — Sessão→Carrinho: <span className="font-medium">{fmtPct(wpMedias.sc)}</span> · Carrinho→Compra: <span className="font-medium">{fmtPct(wpMedias.cc)}</span> · Conv. Final: <span className="font-medium">{fmtPct(wpMedias.final)}</span>
+              </p>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Produto</TableHead>
+                    <TableHead className="text-right">Sessões</TableHead>
+                    <TableHead className="text-right">Visualizados</TableHead>
+                    <TableHead className="text-right">Add. Carrinho</TableHead>
+                    <TableHead className="text-right">Compras</TableHead>
+                    <TableHead className="text-right">Receita</TableHead>
+                    <TableHead className="text-right">Sessão→Carrinho</TableHead>
+                    <TableHead className="text-right">Carrinho→Compra</TableHead>
+                    <TableHead className="text-right">Conv. Final</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {windsorProdutosAgg.map((r) => {
+                    const scOk = r.taxa_sc > wpMedias.sc;
+                    const ccOk = r.taxa_cc !== null && r.taxa_cc > wpMedias.cc;
+                    const fOk = r.taxa_final > wpMedias.final;
+                    return (
+                      <TableRow key={r.item_name}>
+                        <TableCell className="font-medium max-w-[280px] truncate">{r.item_name}</TableCell>
+                        <TableCell className="text-right">{fmtInt(r.sessions)}</TableCell>
+                        <TableCell className="text-right">{fmtInt(r.items_viewed)}</TableCell>
+                        <TableCell className="text-right">{fmtInt(r.items_added_to_cart)}</TableCell>
+                        <TableCell className="text-right">{fmtInt(r.items_purchased)}</TableCell>
+                        <TableCell className="text-right">{fmtBRL(r.item_revenue)}</TableCell>
+                        <TableCell className={`text-right ${scOk ? "text-success font-medium" : ""}`}>{fmtPct(r.taxa_sc)}</TableCell>
+                        <TableCell className={`text-right ${ccOk ? "text-success font-medium" : ""}`}>{r.taxa_cc === null ? "—" : fmtPct(r.taxa_cc)}</TableCell>
+                        <TableCell className={`text-right ${fOk ? "text-success font-medium" : ""}`}>{fmtPct(r.taxa_final)}</TableCell>
+                      </TableRow>
+                    );
+                  })}
+                  {!windsorProdutosAgg.length && (
+                    <TableRow><TableCell colSpan={9} className="text-center text-muted-foreground">Sem dados no período</TableCell></TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* ===== WINDSOR CANAIS ===== */}
+        <TabsContent value="windsor-canais" className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+            <StatCard title="Sessões" value={fmtInt(windsorCanaisTotais.sessions)} icon={MousePointerClick} />
+            <StatCard title="Add. Carrinho" value={fmtInt(windsorCanaisTotais.actions_add_to_cart)} icon={ShoppingCart} variant="warning" />
+            <StatCard title="Iniciaram Pagamento" value={fmtInt(windsorCanaisTotais.actions_initiate_checkout)} icon={ShoppingCart} />
+            <StatCard title="Compras" value={fmtInt(windsorCanaisTotais.ecommerce_purchases)} icon={ShoppingBag} variant="success" />
+            <StatCard title="Receita Total" value={fmtBRL(windsorCanaisTotais.purchase_revenue)} icon={DollarSign} variant="primary" />
+          </div>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">Performance por canal (Windsor)</CardTitle>
+              <p className="text-xs text-muted-foreground">
+                Médias — Sessão→Carrinho: <span className="font-medium">{fmtPct(wcMedias.sc)}</span> · Carrinho→Checkout: <span className="font-medium">{fmtPct(wcMedias.cc)}</span> · Conv. Final: <span className="font-medium">{fmtPct(wcMedias.final)}</span>
+              </p>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Canal</TableHead>
+                    <TableHead className="text-right">Sessões</TableHead>
+                    <TableHead className="text-right">Add. Carrinho</TableHead>
+                    <TableHead className="text-right">Iniciaram Pagto</TableHead>
+                    <TableHead className="text-right">Compras</TableHead>
+                    <TableHead className="text-right">Receita</TableHead>
+                    <TableHead className="text-right">Sessão→Carrinho</TableHead>
+                    <TableHead className="text-right">Carrinho→Checkout</TableHead>
+                    <TableHead className="text-right">Conv. Final</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {windsorCanaisAgg.map((r) => {
+                    const scOk = r.taxa_sc > wcMedias.sc;
+                    const ccOk = r.taxa_cc !== null && r.taxa_cc > wcMedias.cc;
+                    const fOk = r.taxa_final > wcMedias.final;
+                    return (
+                      <TableRow key={r.source}>
+                        <TableCell className="font-medium">{r.source}</TableCell>
+                        <TableCell className="text-right">{fmtInt(r.sessions)}</TableCell>
+                        <TableCell className="text-right">{fmtInt(r.actions_add_to_cart)}</TableCell>
+                        <TableCell className="text-right">{fmtInt(r.actions_initiate_checkout)}</TableCell>
+                        <TableCell className="text-right">{fmtInt(r.ecommerce_purchases)}</TableCell>
+                        <TableCell className="text-right">{fmtBRL(r.purchase_revenue)}</TableCell>
+                        <TableCell className={`text-right ${scOk ? "text-success font-medium" : ""}`}>{fmtPct(r.taxa_sc)}</TableCell>
+                        <TableCell className={`text-right ${ccOk ? "text-success font-medium" : ""}`}>{r.taxa_cc === null ? "—" : fmtPct(r.taxa_cc)}</TableCell>
+                        <TableCell className={`text-right ${fOk ? "text-success font-medium" : ""}`}>{fmtPct(r.taxa_final)}</TableCell>
+                      </TableRow>
+                    );
+                  })}
+                  {!windsorCanaisAgg.length && (
+                    <TableRow><TableCell colSpan={9} className="text-center text-muted-foreground">Sem dados no período</TableCell></TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        </TabsContent>
       </Tabs>
+
     </div>
   );
 }
