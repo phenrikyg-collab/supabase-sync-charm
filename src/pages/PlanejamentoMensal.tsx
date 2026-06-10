@@ -216,9 +216,24 @@ export default function PlanejamentoMensal() {
       sessoes_totais: data?.sessoes_totais ?? null,
       sessoes_midia: data?.sessoes_midia ?? null,
       investimento_total: data?.investimento_total ?? null,
+      sessoes_organicas: data?.sessoes_organicas ?? null,
+      premissa_taxa_conversao: data?.premissa_taxa_conversao ?? null,
+      premissa_ticket_medio: data?.premissa_ticket_medio ?? null,
+      premissa_taxa_aprovacao: data?.premissa_taxa_aprovacao ?? null,
+      premissa_taxa_aquisicao: data?.premissa_taxa_aquisicao ?? null,
+      premissa_cps_midia: data?.premissa_cps_midia ?? null,
     });
     setDirty(false);
   }, [data]);
+
+  // Média histórica via RPC (para premissas e meta dos 9 pilares quando planejado)
+  const [mediaHist, setMediaHist] = useState<MediaHistorica | null>(null);
+  useEffect(() => {
+    (async () => {
+      const m = await buscarMediaHistorica(ano, mes);
+      setMediaHist(m);
+    })();
+  }, [ano, mes]);
 
   // Preview local dos cálculos (apenas exibição enquanto edita)
   const preview = useMemo(() => {
