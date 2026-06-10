@@ -312,7 +312,7 @@ Gere análise estratégica em 4 seções: O QUE ESTÁ FUNCIONANDO, O QUE NÃO ES
       });
       if (error) throw error;
       toast({ title: '✓ Análise gerada com sucesso!' });
-      await fetchAnaliseConteudo();
+      await Promise.all([fetchAnaliseConteudo(), fetchSugestoes()]);
     } catch (err: any) {
       toast({ title: 'Erro ao gerar análise', description: err.message });
     } finally {
