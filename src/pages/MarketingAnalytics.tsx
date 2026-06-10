@@ -302,7 +302,7 @@ Gere análise estratégica em 4 seções: O QUE ESTÁ FUNCIONANDO, O QUE NÃO ES
     setAnaliseConteudo(log?.[0]?.detalhes || null);
   };
 
-  useEffect(() => { fetchAnaliseConteudo(); }, []);
+  useEffect(() => { fetchAnaliseConteudo(); }, [refreshKey]);
 
   const handleGerarNovaAnalise = async () => {
     setLoadingNovaAnalise(true);
@@ -313,7 +313,7 @@ Gere análise estratégica em 4 seções: O QUE ESTÁ FUNCIONANDO, O QUE NÃO ES
       });
       if (error) throw error;
       toast({ title: '✓ Análise gerada com sucesso!' });
-      await Promise.all([fetchAnaliseConteudo(), fetchSugestoes()]);
+      setRefreshKey(prev => prev + 1);
     } catch (err: any) {
       toast({ title: 'Erro ao gerar análise', description: err.message });
     } finally {
