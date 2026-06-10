@@ -372,12 +372,22 @@ export default function PlanejamentoMensal() {
   if (tipo === "realizado") {
     for (const k of PILAR_KEYS) pilaresMeta[k] = planejadoVal(k) ?? histAvgFor(k);
   } else {
-    for (const k of PILAR_KEYS) pilaresMeta[k] = histAvgFor(k);
+    // Planejado: meta = média histórica via RPC
+    const mh = mediaHist;
+    pilaresMeta.receita_captada = mh?.receita_captada ?? null;
+    pilaresMeta.taxa_aprovacao = mh?.taxa_aprovacao ?? null;
+    pilaresMeta.pedidos_captados = mh?.pedidos_captados ?? null;
+    pilaresMeta.taxa_aquisicao = mh?.taxa_aquisicao ?? null;
+    pilaresMeta.taxa_conversao = mh?.taxa_conversao ?? null;
+    pilaresMeta.sessoes_totais = mh?.sessoes_totais ?? null;
+    pilaresMeta.investimento_total = mh?.investimento_total ?? null;
+    pilaresMeta.roas_faturado = mh?.roas_faturado ?? null;
+    pilaresMeta.cac_novos = mh?.cac_novos ?? null;
   }
   const metaLabel = tipo === "realizado" ? "Meta" : "Média Histórica";
   const metaFootnote = tipo === "realizado"
     ? "Meta = registro planejado do mês (fallback: média dos realizados anteriores)."
-    : "Média histórica calculada a partir dos últimos meses realizados.";
+    : "Média histórica vinda da função media_historica() — últimos 6 meses realizados.";
 
 
   if (isLoading) {
