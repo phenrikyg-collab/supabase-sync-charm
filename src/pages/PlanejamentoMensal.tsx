@@ -196,6 +196,106 @@ function NovePilaresCard({
   );
 }
 
+function PlanejadoForm({
+  form, setField, isSaving, mediaHist,
+}: {
+  form: Manual;
+  setField: (k: keyof Manual, v: number | null) => void;
+  isSaving: boolean;
+  mediaHist: MediaHistorica | null;
+}) {
+  const st = form.sessoes_totais ?? 0;
+  const so = form.sessoes_organicas ?? 0;
+  const sm = Math.max(st - so, 0);
+  const cps = form.premissa_cps_midia ?? 0;
+  const it = sm * cps;
+  const tc = form.premissa_taxa_conversao ?? 0;
+  const tm = form.premissa_ticket_medio ?? 0;
+  const ta = form.premissa_taxa_aprovacao ?? 0;
+  const pc = st * tc / 100;
+  const rc = pc * tm;
+  const rf = rc * ta / 100;
+  const pf = pc * ta / 100;
+
+  const aplicarMedia = () => {
+    if (!mediaHist) return;
+    if (mediaHist.taxa_conversao != null) setField("premissa_taxa_conversao", Number(mediaHist.taxa_conversao));
+    if (mediaHist.ticket_medio != null) setField("premissa_ticket_medio", Number(mediaHist.ticket_medio));
+    if (mediaHist.taxa_aprovacao != null) setField("premissa_taxa_aprovacao", Number(mediaHist.taxa_aprovacao));
+    if (mediaHist.taxa_aquisicao != null) setField("premissa_taxa_aquisicao", Number(mediaHist.taxa_aquisicao));
+    if (mediaHist.cps_midia != null) setField("premissa_cps_midia", Number(mediaHist.cps_midia));
+  };
+
+  const sub = (label: string, v: number | null | undefined, fmt: (x: number) => string) => (
+    <p className="text-[11px] text-muted-foreground mt-0.5">
+      Média histórica: {v == null || !isFinite(v) ? "—" : fmt(Number(v))}
+    </p>
+  );
+
+  return (
+    <>
+      <Card style={{ borderColor: "#F5E9B8" }}>
+        <CardHeader><CardTitle className="font-serif text-lg">Meta de Sessões</CardTitle></CardHeader>
+        <CardContent className="space-y-3">
+          <NumInput label="Meta de Sessões Totais" value={form.sessoes_totais} onChange={(v) => setField("sessoes_totais", v)} disabled={isSaving} />
+          <NumInput label="Sessões Orgânicas Esperadas" value={form.sessoes_organicas} onChange={(v) => setField("sessoes_organicas", v)} disabled={isSaving} />
+          <CalcField label="Sessões Mídia = Total − Orgânicas" value={sm} />
+        </CardContent>
+      </Card>
+
+      <Card style={{ borderColor: "#F5E9B8" }}>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0">
+          <CardTitle className="font-serif text-lg">Premissas (médias históricas)</CardTitle>
+          <Button type="button" variant="outline" size="sm" onClick={aplicarMedia} disabled={!mediaHist} className="gap-1">
+            <RefreshCw className="h-3 w-3" /> Recalcular com média histórica
+          </Button>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div>
+            <NumInput label="Taxa de Conversão" suffix="%" value={form.premissa_taxa_conversao} onChange={(v) => setField("premissa_taxa_conversao", v)} disabled={isSaving} />
+            {sub("", mediaHist?.taxa_conversao, (x) => `${x.toFixed(2)}%`)}
+          </div>
+          <div>
+            <NumInput label="Ticket Médio" suffix="R$" value={form.premissa_ticket_medio} onChange={(v) => setField("premissa_ticket_medio", v)} disabled={isSaving} />
+            {sub("", mediaHist?.ticket_medio, (x) => `R$ ${x.toFixed(0)}`)}
+          </div>
+          <div>
+            <NumInput label="Taxa de Aprovação" suffix="%" value={form.premissa_taxa_aprovacao} onChange={(v) => setField("premissa_taxa_aprovacao", v)} disabled={isSaving} />
+            {sub("", mediaHist?.taxa_aprovacao, (x) => `${x.toFixed(1)}%`)}
+          </div>
+          <div>
+            <NumInput label="Taxa de Aquisição" suffix="%" value={form.premissa_taxa_aquisicao} onChange={(v) => setField("premissa_taxa_aquisicao", v)} disabled={isSaving} />
+            {sub("", mediaHist?.taxa_aquisicao, (x) => `${x.toFixed(1)}%`)}
+          </div>
+          <div>
+            <NumInput label="CPS Médio Mídia" suffix="R$" value={form.premissa_cps_midia} onChange={(v) => setField("premissa_cps_midia", v)} disabled={isSaving} />
+            {sub("", mediaHist?.cps_midia, (x) => `R$ ${x.toFixed(2)}`)}
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card style={{ borderColor: "#E8CD7E", background: "#FAF6EE" }}>
+        <CardHeader><CardTitle className="font-serif text-lg">Resultado da Projeção</CardTitle></CardHeader>
+        <CardContent className="space-y-3">
+          <div className="grid grid-cols-2 gap-2">
+            <CalcField label="Sessões Mídia" value={sm} />
+            <CalcField label="Investimento Total" value={it} format="brl" />
+            <CalcField label="Pedidos Captados" value={pc} />
+            <CalcField label="Receita Captada" value={rc} format="brl" />
+            <CalcField label="Pedidos Faturados" value={pf} />
+          </div>
+          <div className="rounded-md px-3 py-3" style={{ background: "#1D1D1B" }}>
+            <div className="text-[10px] uppercase tracking-wider text-[#E8CD7E]/70">Receita Faturada</div>
+            <div className="text-2xl font-serif text-[#E8CD7E] mt-1">{fmtBRL(rf)}</div>
+          </div>
+        </CardContent>
+      </Card>
+    </>
+  );
+}
+
+
+
 export default function PlanejamentoMensal() {
   const [search, setSearch] = useSearchParams();
   const now = new Date();
