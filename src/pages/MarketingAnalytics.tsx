@@ -333,16 +333,40 @@ Gere análise estratégica em 4 seções: O QUE ESTÁ FUNCIONANDO, O QUE NÃO ES
       }}
     >
       <div className="relative aspect-square" style={{ background: C.tabBg }}>
-        {post.media_url ? (
-          <img
-            src={post.media_url}
-            alt={post.caption || 'Post Instagram'}
-            className="w-full h-full object-cover"
-            onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
-          />
+        {(post.thumbnail_url || post.media_url) ? (
+          <>
+            <img
+              src={post.thumbnail_url || post.media_url}
+              alt={post.caption || 'Post Instagram'}
+              crossOrigin="anonymous"
+              referrerPolicy="no-referrer"
+              className="w-full h-full object-cover"
+              onError={(e) => {
+                const img = e.currentTarget as HTMLImageElement;
+                img.style.display = 'none';
+                const next = img.nextElementSibling as HTMLElement | null;
+                if (next) next.classList.remove('hidden');
+              }}
+            />
+            <div
+              className="hidden w-full h-full absolute inset-0 flex flex-col items-center justify-center"
+              style={{ background: 'linear-gradient(180deg, #F0EDE6 0%, #E8E6E0 100%)' }}
+            >
+              <span className="text-5xl" style={{ color: '#8B6914' }}>
+                {MEDIA_ICON[post.media_type] || '📷'}
+              </span>
+              <span className="text-xs mt-2" style={{ color: '#6B6B69' }}>{post.media_type}</span>
+            </div>
+          </>
         ) : (
-          <div className="w-full h-full flex items-center justify-center text-4xl" style={{ color: C.textSec }}>
-            📷
+          <div
+            className="w-full h-full flex flex-col items-center justify-center"
+            style={{ background: 'linear-gradient(180deg, #F0EDE6 0%, #E8E6E0 100%)' }}
+          >
+            <span className="text-5xl" style={{ color: '#8B6914' }}>
+              {MEDIA_ICON[post.media_type] || '📷'}
+            </span>
+            <span className="text-xs mt-2" style={{ color: '#6B6B69' }}>{post.media_type}</span>
           </div>
         )}
         <span
@@ -352,7 +376,7 @@ Gere análise estratégica em 4 seções: O QUE ESTÁ FUNCIONANDO, O QUE NÃO ES
             color: '#fff',
           }}
         >
-          {post.media_type === 'REELS' ? '▶ Reel' : '⊞ Carrossel'}
+          {post.media_type === 'REELS' ? '▶ Reel' : post.media_type === 'CAROUSEL_ALBUM' ? '⊞ Carrossel' : '🖼 Post'}
         </span>
         {rank === 1 && (
           <span
