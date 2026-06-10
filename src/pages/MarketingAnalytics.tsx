@@ -172,10 +172,25 @@ Gere análise estratégica em 4 seções: O QUE ESTÁ FUNCIONANDO, O QUE NÃO ES
 
   const handleEnviarMatriz = async (id: string) => {
     setEnviados(prev => new Set(prev).add(id));
-    toast({ title: '✓ Enviado para a Matriz Criativa!' });
-    // TODO quando tabela existir:
-    // await supabase.from('conteudos_gerados').update({ status: 'em_revisao' }).eq('id', id);
+    try {
+      await (supabase as any).from('conteudos_gerados').update({ status: 'em_revisao' }).eq('id', id);
+      toast({ title: '✓ Enviado para a Matriz Criativa!' });
+    } catch (err: any) {
+      toast({ title: 'Erro ao enviar', description: err.message });
+    }
   };
+
+  useEffect(() => {
+    (async () => {
+      const { data } = await (supabase as any)
+        .from('conteudos_gerados')
+        .select('id, canal, copy_principal, copy_legenda, copy_cta, metadados, status, created_at, origem')
+        .eq('origem', 'analise_performance')
+        .order('created_at', { ascending: false })
+        .limit(6);
+      if (data) setSugestoes(data);
+    })();
+  }, []);
 
   // ===== Métricas =====
   const isEmpty = posts.length === 0;
