@@ -19,7 +19,15 @@ interface Post {
   data_extracao?: string;
   permalink?: string;
   media_url?: string;
+  thumbnail_url?: string;
 }
+
+const MEDIA_ICON: Record<string, string> = {
+  REELS: '▶',
+  CAROUSEL_ALBUM: '⊞',
+  IMAGE: '🖼',
+  VIDEO: '▶',
+};
 
 // ===== Paleta =====
 const C = {
@@ -164,10 +172,25 @@ Gere análise estratégica em 4 seções: O QUE ESTÁ FUNCIONANDO, O QUE NÃO ES
 
   const handleEnviarMatriz = async (id: string) => {
     setEnviados(prev => new Set(prev).add(id));
-    toast({ title: '✓ Enviado para a Matriz Criativa!' });
-    // TODO quando tabela existir:
-    // await supabase.from('conteudos_gerados').update({ status: 'em_revisao' }).eq('id', id);
+    try {
+      await (supabase as any).from('conteudos_gerados').update({ status: 'em_revisao' }).eq('id', id);
+      toast({ title: '✓ Enviado para a Matriz Criativa!' });
+    } catch (err: any) {
+      toast({ title: 'Erro ao enviar', description: err.message });
+    }
   };
+
+  useEffect(() => {
+    (async () => {
+      const { data } = await (supabase as any)
+        .from('conteudos_gerados')
+        .select('id, canal, copy_principal, copy_legenda, copy_cta, metadados, status, created_at, origem')
+        .eq('origem', 'analise_performance')
+        .order('created_at', { ascending: false })
+        .limit(6);
+      if (data) setSugestoes(data);
+    })();
+  }, []);
 
   // ===== Métricas =====
   const isEmpty = posts.length === 0;
@@ -223,6 +246,26 @@ Gere análise estratégica em 4 seções: O QUE ESTÁ FUNCIONANDO, O QUE NÃO ES
       isPct: true,
     },
   ];
+
+  // ===== Performance por formato (mesmos períodos) =====
+  const FORMATO_META: Record<string, { label: string; icon: string; cor: string }> = {
+    REELS: { label: 'Reels', icon: '▶', cor: '#7C3AED' },
+    CAROUSEL_ALBUM: { label: 'Carrossel', icon: '⊞', cor: '#4A90D9' },
+    IMAGE: { label: 'Post Fixo', icon: '🖼', cor: '#8B6914' },
+  };
+  const aggByFormato = (list: Post[], type: string) => {
+    const arr = list.filter(p => p.media_type === type);
+    return {
+      alcance: arr.reduce((s, p) => s + (p.reach || 0), 0),
+      engajamento: arr.reduce((s, p) => s + (p.engagement || 0), 0),
+    };
+  };
+  const formatos = ['REELS', 'CAROUSEL_ALBUM', 'IMAGE'].map(t => ({
+    type: t,
+    ...FORMATO_META[t],
+    ant: aggByFormato(postsAnteriores, t),
+    atual: aggByFormato(posts, t),
+  }));
 
   const tabs = [
     { id: 'overview', label: 'Visão Geral' },
@@ -310,16 +353,40 @@ Gere análise estratégica em 4 seções: O QUE ESTÁ FUNCIONANDO, O QUE NÃO ES
       }}
     >
       <div className="relative aspect-square" style={{ background: C.tabBg }}>
-        {post.media_url ? (
-          <img
-            src={post.media_url}
-            alt={post.caption || 'Post Instagram'}
-            className="w-full h-full object-cover"
-            onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
-          />
+        {(post.thumbnail_url || post.media_url) ? (
+          <>
+            <img
+              src={post.thumbnail_url || post.media_url}
+              alt={post.caption || 'Post Instagram'}
+              crossOrigin="anonymous"
+              referrerPolicy="no-referrer"
+              className="w-full h-full object-cover"
+              onError={(e) => {
+                const img = e.currentTarget as HTMLImageElement;
+                img.style.display = 'none';
+                const next = img.nextElementSibling as HTMLElement | null;
+                if (next) next.classList.remove('hidden');
+              }}
+            />
+            <div
+              className="hidden w-full h-full absolute inset-0 flex flex-col items-center justify-center"
+              style={{ background: 'linear-gradient(180deg, #F0EDE6 0%, #E8E6E0 100%)' }}
+            >
+              <span className="text-5xl" style={{ color: '#8B6914' }}>
+                {MEDIA_ICON[post.media_type] || '📷'}
+              </span>
+              <span className="text-xs mt-2" style={{ color: '#6B6B69' }}>{post.media_type}</span>
+            </div>
+          </>
         ) : (
-          <div className="w-full h-full flex items-center justify-center text-4xl" style={{ color: C.textSec }}>
-            📷
+          <div
+            className="w-full h-full flex flex-col items-center justify-center"
+            style={{ background: 'linear-gradient(180deg, #F0EDE6 0%, #E8E6E0 100%)' }}
+          >
+            <span className="text-5xl" style={{ color: '#8B6914' }}>
+              {MEDIA_ICON[post.media_type] || '📷'}
+            </span>
+            <span className="text-xs mt-2" style={{ color: '#6B6B69' }}>{post.media_type}</span>
           </div>
         )}
         <span
@@ -329,7 +396,7 @@ Gere análise estratégica em 4 seções: O QUE ESTÁ FUNCIONANDO, O QUE NÃO ES
             color: '#fff',
           }}
         >
-          {post.media_type === 'REELS' ? '▶ Reel' : '⊞ Carrossel'}
+          {post.media_type === 'REELS' ? '▶ Reel' : post.media_type === 'CAROUSEL_ALBUM' ? '⊞ Carrossel' : '🖼 Post'}
         </span>
         {rank === 1 && (
           <span
@@ -750,7 +817,64 @@ Gere análise estratégica em 4 seções: O QUE ESTÁ FUNCIONANDO, O QUE NÃO ES
                 <span>📊</span>
                 <p className="text-sm italic" style={{ color: C.textSec }}>{insightSemana}</p>
               </div>
+
+              {/* Performance por Formato */}
+              <div className="mt-8">
+                <h3
+                  className="text-lg md:text-xl mb-4"
+                  style={{ color: C.text, fontFamily: 'Cormorant Garamond, serif', fontWeight: 600 }}
+                >
+                  Performance por Formato
+                </h3>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr style={{ borderBottom: `1px solid ${C.border}` }}>
+                        <th className="text-left py-3 px-2 font-semibold" style={{ color: C.textSec }}>Formato</th>
+                        <th className="text-right py-3 px-2 font-semibold" style={{ color: C.textSec }}>Período Anterior</th>
+                        <th className="text-right py-3 px-2 font-semibold" style={{ color: C.textSec }}>Período Atual</th>
+                        <th className="text-right py-3 px-2 font-semibold" style={{ color: C.textSec }}>Var. Alcance</th>
+                        <th className="text-right py-3 px-2 font-semibold" style={{ color: C.textSec }}>Var. Eng.</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {formatos.map(f => {
+                        const varAlc = pctVar(f.atual.alcance, f.ant.alcance);
+                        const varEng = pctVar(f.atual.engajamento, f.ant.engajamento);
+                        const Cell = ({ v }: { v: number }) => {
+                          const pos = v >= 0;
+                          return (
+                            <span className="inline-flex items-center gap-1 font-semibold" style={{ color: pos ? '#2D7A4F' : '#C0392B' }}>
+                              {pos ? <ArrowUp size={12} /> : <ArrowDown size={12} />}
+                              {Math.abs(v).toFixed(1)}%
+                            </span>
+                          );
+                        };
+                        return (
+                          <tr key={f.type} style={{ borderBottom: `1px solid ${C.border}` }}>
+                            <td className="py-3 px-2" style={{ color: C.text }}>
+                              <span className="inline-flex items-center gap-2">
+                                <span className="text-lg" style={{ color: f.cor }}>{f.icon}</span>
+                                <span className="font-medium">{f.label}</span>
+                              </span>
+                            </td>
+                            <td className="text-right py-3 px-2" style={{ color: C.textSec }}>
+                              {f.ant.alcance.toLocaleString('pt-BR')} / {Math.round(f.ant.engajamento).toLocaleString('pt-BR')}
+                            </td>
+                            <td className="text-right py-3 px-2 font-semibold" style={{ color: C.text }}>
+                              {f.atual.alcance.toLocaleString('pt-BR')} / {Math.round(f.atual.engajamento).toLocaleString('pt-BR')}
+                            </td>
+                            <td className="text-right py-3 px-2"><Cell v={varAlc} /></td>
+                            <td className="text-right py-3 px-2"><Cell v={varEng} /></td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
             </Card>
+
 
             {/* Seção 3 — Sugestões com IA */}
             <Card>
@@ -775,14 +899,16 @@ Gere análise estratégica em 4 seções: O QUE ESTÁ FUNCIONANDO, O QUE NÃO ES
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {sugestoes.map((s: any) => {
-                    const cat = s.categoria || 'lifestyle';
-                    const corCat: any = { lifestyle: C.green, educacional: C.blue, produto: C.bronze };
-                    const cor = corCat[cat] || C.bronze;
                     const enviado = enviados.has(s.id);
                     const meta = (() => {
                       try { return typeof s.metadados === 'string' ? JSON.parse(s.metadados) : (s.metadados || {}); }
                       catch { return {}; }
                     })();
+                    const cat = meta.categoria || s.categoria || 'lifestyle';
+                    const corCat: any = { lifestyle: '#2D7A4F', educacional: '#4A90D9', produto: '#8B6914' };
+                    const cor = corCat[cat] || C.bronze;
+                    const canalColors: any = { instagram_reels: '#7C3AED', instagram_feed: C.gold };
+                    const canalBg = canalColors[s.canal] || C.textSec;
                     return (
                       <div
                         key={s.id}
@@ -795,19 +921,22 @@ Gere análise estratégica em 4 seções: O QUE ESTÁ FUNCIONANDO, O QUE NÃO ES
                         }}
                       >
                         <div className="p-4">
-                          <div className="flex justify-between items-start mb-2">
+                          <div className="flex justify-between items-start mb-2 gap-2">
                             <h3 className="font-semibold text-base flex-1" style={{ color: C.text }}>
                               {s.copy_principal}
                             </h3>
                             <span
-                              className="text-[10px] px-2 py-0.5 rounded uppercase tracking-wide font-medium ml-2"
-                              style={{ background: `${cor}22`, color: cor }}
+                              className="text-[10px] px-2 py-0.5 rounded uppercase tracking-wide font-medium whitespace-nowrap"
+                              style={{ background: canalBg, color: '#fff' }}
                             >
-                              {cat}
+                              {s.canal === 'instagram_reels' ? 'Reels' : s.canal === 'instagram_feed' ? 'Feed' : s.canal}
                             </span>
                           </div>
                           <div className="flex flex-wrap gap-1 mb-3">
-                            {[meta.tipo_conteudo, meta.persona, meta.etapa_funil].filter(Boolean).map((t: string, i: number) => (
+                            <span className="text-[10px] px-2 py-0.5 rounded font-medium" style={{ background: `${cor}22`, color: cor }}>
+                              {cat}
+                            </span>
+                            {[meta.persona, meta.angulo, meta.etapa_funil].filter(Boolean).map((t: string, i: number) => (
                               <span
                                 key={i}
                                 className="text-[10px] px-2 py-0.5 rounded"
