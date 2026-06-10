@@ -19,7 +19,15 @@ interface Post {
   data_extracao?: string;
   permalink?: string;
   media_url?: string;
+  thumbnail_url?: string;
 }
+
+const MEDIA_ICON: Record<string, string> = {
+  REELS: '▶',
+  CAROUSEL_ALBUM: '⊞',
+  IMAGE: '🖼',
+  VIDEO: '▶',
+};
 
 // ===== Paleta =====
 const C = {
