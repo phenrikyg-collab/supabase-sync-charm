@@ -75,6 +75,7 @@ export default function MarketingAnalytics() {
   const [posts56, setPosts56] = useState<any[]>([]);
   const [analiseConteudo, setAnaliseConteudo] = useState<any>(null);
   const [loadingNovaAnalise, setLoadingNovaAnalise] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   useEffect(() => {
     fetchData();
@@ -194,7 +195,7 @@ Gere análise estratégica em 4 seções: O QUE ESTÁ FUNCIONANDO, O QUE NÃO ES
     if (data) setSugestoes(data);
   };
 
-  useEffect(() => { fetchSugestoes(); }, []);
+  useEffect(() => { fetchSugestoes(); }, [refreshKey]);
 
 
   // ===== Métricas =====
@@ -301,7 +302,7 @@ Gere análise estratégica em 4 seções: O QUE ESTÁ FUNCIONANDO, O QUE NÃO ES
     setAnaliseConteudo(log?.[0]?.detalhes || null);
   };
 
-  useEffect(() => { fetchAnaliseConteudo(); }, []);
+  useEffect(() => { fetchAnaliseConteudo(); }, [refreshKey]);
 
   const handleGerarNovaAnalise = async () => {
     setLoadingNovaAnalise(true);
@@ -312,7 +313,7 @@ Gere análise estratégica em 4 seções: O QUE ESTÁ FUNCIONANDO, O QUE NÃO ES
       });
       if (error) throw error;
       toast({ title: '✓ Análise gerada com sucesso!' });
-      await Promise.all([fetchAnaliseConteudo(), fetchSugestoes()]);
+      setRefreshKey(prev => prev + 1);
     } catch (err: any) {
       toast({ title: 'Erro ao gerar análise', description: err.message });
     } finally {
@@ -992,24 +993,42 @@ Gere análise estratégica em 4 seções: O QUE ESTÁ FUNCIONANDO, O QUE NÃO ES
                         </tr>
                       </thead>
                       <tbody>
-                        {semanas.slice(-8).map((s: any) => {
-                          const isAtual = s.inicio === chaveAtual;
-                          const taxa = s.alcance ? (s.engagement / s.alcance) * 100 : 0;
-                          const fimDt = new Date(s.inicio); fimDt.setDate(fimDt.getDate() + 6);
-                          const fim = fimDt.toISOString().split('T')[0];
-                          const melhorFmt = Object.entries(s.formatos).sort((a: any, b: any) => b[1] - a[1])[0]?.[0] || '—';
-                          const labelFmt: any = { REELS: '▶ Reels', CAROUSEL_ALBUM: '⊞ Carrossel', IMAGE: '🖼 Post' };
-                          return (
-                            <tr key={s.inicio} style={{ borderBottom: `1px solid ${C.border}`, background: isAtual ? C.bg : 'transparent', borderLeft: isAtual ? `3px solid ${C.bronze}` : 'none' }}>
-                              <td className="py-3 px-2" style={{ color: C.text }}>{fmtDate(s.inicio)} – {fmtDate(fim)}{isAtual && <span className="ml-2 text-[10px] px-2 py-0.5 rounded" style={{ background: C.gold, color: C.text }}>atual</span>}</td>
-                              <td className="text-right py-3 px-2" style={{ color: C.text }}>{s.posts}</td>
-                              <td className="text-right py-3 px-2" style={{ color: C.text }}>{s.alcance.toLocaleString('pt-BR')}</td>
-                              <td className="text-right py-3 px-2" style={{ color: C.text }}>{Math.round(s.engagement).toLocaleString('pt-BR')}</td>
-                              <td className="text-right py-3 px-2" style={{ color: C.text }}>{taxa.toFixed(2)}%</td>
-                              <td className="text-right py-3 px-2" style={{ color: C.textSec }}>{labelFmt[melhorFmt] || melhorFmt}</td>
-                            </tr>
-                          );
-                        })}
+                        {(() => {
+                          const ultimas = semanas.slice(-8);
+                          const deltaBadge = (cur: number, prev: number | null) => {
+                            if (prev === null || prev === undefined) return <span className="text-[10px]" style={{ color: C.textSec }}>—</span>;
+                            if (prev === 0 && cur === 0) return <span className="text-[10px]" style={{ color: C.textSec }}>—</span>;
+                            const diff = prev === 0 ? 100 : ((cur - prev) / prev) * 100;
+                            const up = diff >= 0;
+                            const bg = up ? '#E8F5EE' : '#FDECEC';
+                            const color = up ? C.green : '#C0392B';
+                            return (
+                              <span className="ml-2 text-[10px] px-1.5 py-0.5 rounded font-semibold" style={{ background: bg, color }}>
+                                {up ? '▲' : '▼'} {Math.abs(diff).toFixed(0)}%
+                              </span>
+                            );
+                          };
+                          return ultimas.map((s: any, idx: number) => {
+                            const prev = idx > 0 ? ultimas[idx - 1] : null;
+                            const isAtual = s.inicio === chaveAtual;
+                            const taxa = s.alcance ? (s.engagement / s.alcance) * 100 : 0;
+                            const taxaPrev = prev && prev.alcance ? (prev.engagement / prev.alcance) * 100 : null;
+                            const fimDt = new Date(s.inicio); fimDt.setDate(fimDt.getDate() + 6);
+                            const fim = fimDt.toISOString().split('T')[0];
+                            const melhorFmt = Object.entries(s.formatos).sort((a: any, b: any) => (b[1] as number) - (a[1] as number))[0]?.[0] || '—';
+                            const labelFmt: any = { REELS: '▶ Reels', CAROUSEL_ALBUM: '⊞ Carrossel', IMAGE: '🖼 Post' };
+                            return (
+                              <tr key={s.inicio} style={{ borderBottom: `1px solid ${C.border}`, background: isAtual ? C.bg : 'transparent', borderLeft: isAtual ? `3px solid ${C.bronze}` : 'none' }}>
+                                <td className="py-3 px-2" style={{ color: C.text }}>{fmtDate(s.inicio)} – {fmtDate(fim)}{isAtual && <span className="ml-2 text-[10px] px-2 py-0.5 rounded" style={{ background: C.gold, color: C.text }}>atual</span>}</td>
+                                <td className="text-right py-3 px-2" style={{ color: C.text }}>{s.posts}{deltaBadge(s.posts, prev?.posts ?? null)}</td>
+                                <td className="text-right py-3 px-2" style={{ color: C.text }}>{s.alcance.toLocaleString('pt-BR')}{deltaBadge(s.alcance, prev?.alcance ?? null)}</td>
+                                <td className="text-right py-3 px-2" style={{ color: C.text }}>{Math.round(s.engagement).toLocaleString('pt-BR')}{deltaBadge(s.engagement, prev?.engagement ?? null)}</td>
+                                <td className="text-right py-3 px-2" style={{ color: C.text }}>{taxa.toFixed(2)}%{deltaBadge(taxa, taxaPrev)}</td>
+                                <td className="text-right py-3 px-2" style={{ color: C.textSec }}>{labelFmt[melhorFmt] || melhorFmt}</td>
+                              </tr>
+                            );
+                          });
+                        })()}
                       </tbody>
                     </table>
                   </div>
