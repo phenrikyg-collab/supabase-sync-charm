@@ -195,7 +195,7 @@ Gere análise estratégica em 4 seções: O QUE ESTÁ FUNCIONANDO, O QUE NÃO ES
     if (data) setSugestoes(data);
   };
 
-  useEffect(() => { fetchSugestoes(); }, []);
+  useEffect(() => { fetchSugestoes(); }, [refreshKey]);
 
 
   // ===== Métricas =====
