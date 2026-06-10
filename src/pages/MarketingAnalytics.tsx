@@ -817,7 +817,64 @@ Gere análise estratégica em 4 seções: O QUE ESTÁ FUNCIONANDO, O QUE NÃO ES
                 <span>📊</span>
                 <p className="text-sm italic" style={{ color: C.textSec }}>{insightSemana}</p>
               </div>
+
+              {/* Performance por Formato */}
+              <div className="mt-8">
+                <h3
+                  className="text-lg md:text-xl mb-4"
+                  style={{ color: C.text, fontFamily: 'Cormorant Garamond, serif', fontWeight: 600 }}
+                >
+                  Performance por Formato
+                </h3>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr style={{ borderBottom: `1px solid ${C.border}` }}>
+                        <th className="text-left py-3 px-2 font-semibold" style={{ color: C.textSec }}>Formato</th>
+                        <th className="text-right py-3 px-2 font-semibold" style={{ color: C.textSec }}>Período Anterior</th>
+                        <th className="text-right py-3 px-2 font-semibold" style={{ color: C.textSec }}>Período Atual</th>
+                        <th className="text-right py-3 px-2 font-semibold" style={{ color: C.textSec }}>Var. Alcance</th>
+                        <th className="text-right py-3 px-2 font-semibold" style={{ color: C.textSec }}>Var. Eng.</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {formatos.map(f => {
+                        const varAlc = pctVar(f.atual.alcance, f.ant.alcance);
+                        const varEng = pctVar(f.atual.engajamento, f.ant.engajamento);
+                        const Cell = ({ v }: { v: number }) => {
+                          const pos = v >= 0;
+                          return (
+                            <span className="inline-flex items-center gap-1 font-semibold" style={{ color: pos ? '#2D7A4F' : '#C0392B' }}>
+                              {pos ? <ArrowUp size={12} /> : <ArrowDown size={12} />}
+                              {Math.abs(v).toFixed(1)}%
+                            </span>
+                          );
+                        };
+                        return (
+                          <tr key={f.type} style={{ borderBottom: `1px solid ${C.border}` }}>
+                            <td className="py-3 px-2" style={{ color: C.text }}>
+                              <span className="inline-flex items-center gap-2">
+                                <span className="text-lg" style={{ color: f.cor }}>{f.icon}</span>
+                                <span className="font-medium">{f.label}</span>
+                              </span>
+                            </td>
+                            <td className="text-right py-3 px-2" style={{ color: C.textSec }}>
+                              {f.ant.alcance.toLocaleString('pt-BR')} / {Math.round(f.ant.engajamento).toLocaleString('pt-BR')}
+                            </td>
+                            <td className="text-right py-3 px-2 font-semibold" style={{ color: C.text }}>
+                              {f.atual.alcance.toLocaleString('pt-BR')} / {Math.round(f.atual.engajamento).toLocaleString('pt-BR')}
+                            </td>
+                            <td className="text-right py-3 px-2"><Cell v={varAlc} /></td>
+                            <td className="text-right py-3 px-2"><Cell v={varEng} /></td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
             </Card>
+
 
             {/* Seção 3 — Sugestões com IA */}
             <Card>
