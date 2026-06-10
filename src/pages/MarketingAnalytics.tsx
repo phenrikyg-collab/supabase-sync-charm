@@ -184,17 +184,18 @@ Gere análise estratégica em 4 seções: O QUE ESTÁ FUNCIONANDO, O QUE NÃO ES
     }
   };
 
-  useEffect(() => {
-    (async () => {
-      const { data } = await (supabase as any)
-        .from('conteudos_gerados')
-        .select('id, canal, copy_principal, copy_legenda, copy_cta, metadados, status, created_at, origem')
-        .eq('origem', 'analise_performance')
-        .order('created_at', { ascending: false })
-        .limit(6);
-      if (data) setSugestoes(data);
-    })();
-  }, []);
+  const fetchSugestoes = async () => {
+    const { data } = await (supabase as any)
+      .from('conteudos_gerados')
+      .select('id, canal, copy_principal, copy_legenda, copy_cta, metadados, status, created_at, origem')
+      .eq('origem', 'analise_performance')
+      .order('created_at', { ascending: false })
+      .limit(6);
+    if (data) setSugestoes(data);
+  };
+
+  useEffect(() => { fetchSugestoes(); }, []);
+
 
   // ===== Métricas =====
   const isEmpty = posts.length === 0;
@@ -311,7 +312,7 @@ Gere análise estratégica em 4 seções: O QUE ESTÁ FUNCIONANDO, O QUE NÃO ES
       });
       if (error) throw error;
       toast({ title: '✓ Análise gerada com sucesso!' });
-      await fetchAnaliseConteudo();
+      await Promise.all([fetchAnaliseConteudo(), fetchSugestoes()]);
     } catch (err: any) {
       toast({ title: 'Erro ao gerar análise', description: err.message });
     } finally {
