@@ -1294,6 +1294,11 @@ export type Database = {
           pedidos_faturados: number | null
           pedidos_retencao: number | null
           peso_mes_pct: number | null
+          premissa_cps_midia: number | null
+          premissa_taxa_aprovacao: number | null
+          premissa_taxa_aquisicao: number | null
+          premissa_taxa_conversao: number | null
+          premissa_ticket_medio: number | null
           receita_aquisicao: number | null
           receita_cancelada: number | null
           receita_captada: number | null
@@ -1301,6 +1306,7 @@ export type Database = {
           receita_retencao: number | null
           roas_faturado: number | null
           sessoes_midia: number | null
+          sessoes_organicas: number | null
           sessoes_totais: number | null
           status: string
           taxa_aprovacao: number | null
@@ -1330,6 +1336,11 @@ export type Database = {
           pedidos_faturados?: number | null
           pedidos_retencao?: number | null
           peso_mes_pct?: number | null
+          premissa_cps_midia?: number | null
+          premissa_taxa_aprovacao?: number | null
+          premissa_taxa_aquisicao?: number | null
+          premissa_taxa_conversao?: number | null
+          premissa_ticket_medio?: number | null
           receita_aquisicao?: number | null
           receita_cancelada?: number | null
           receita_captada?: number | null
@@ -1337,6 +1348,7 @@ export type Database = {
           receita_retencao?: number | null
           roas_faturado?: number | null
           sessoes_midia?: number | null
+          sessoes_organicas?: number | null
           sessoes_totais?: number | null
           status?: string
           taxa_aprovacao?: number | null
@@ -1366,6 +1378,11 @@ export type Database = {
           pedidos_faturados?: number | null
           pedidos_retencao?: number | null
           peso_mes_pct?: number | null
+          premissa_cps_midia?: number | null
+          premissa_taxa_aprovacao?: number | null
+          premissa_taxa_aquisicao?: number | null
+          premissa_taxa_conversao?: number | null
+          premissa_ticket_medio?: number | null
           receita_aquisicao?: number | null
           receita_cancelada?: number | null
           receita_captada?: number | null
@@ -1373,6 +1390,7 @@ export type Database = {
           receita_retencao?: number | null
           roas_faturado?: number | null
           sessoes_midia?: number | null
+          sessoes_organicas?: number | null
           sessoes_totais?: number | null
           status?: string
           taxa_aprovacao?: number | null
@@ -2095,6 +2113,23 @@ export type Database = {
           _user_id: string
         }
         Returns: boolean
+      }
+      media_historica: {
+        Args: { p_ano: number; p_mes: number }
+        Returns: {
+          cac_novos: number
+          cps_midia: number
+          investimento_total: number
+          pedidos_captados: number
+          receita_captada: number
+          roas_faturado: number
+          sessoes_organicas: number
+          sessoes_totais: number
+          taxa_aprovacao: number
+          taxa_aquisicao: number
+          taxa_conversao: number
+          ticket_medio: number
+        }[]
       }
     }
     Enums: {
