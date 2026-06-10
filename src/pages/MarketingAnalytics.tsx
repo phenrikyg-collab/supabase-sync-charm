@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
 import { BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { TrendingUp, AlertCircle, Zap, Target, ArrowUp } from 'lucide-react';
+import { TrendingUp, AlertCircle, Zap, Target, ArrowUp, ArrowDown, Sparkles, RefreshCw, ChevronDown, Send, CheckCircle2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { invokeEdgeFunction } from '@/lib/edgeFunctions';
+import { useToast } from '@/hooks/use-toast';
 
 interface Post {
   id: string;
@@ -20,37 +21,84 @@ interface Post {
   media_url?: string;
 }
 
+// ===== Paleta =====
+const C = {
+  bg: '#FAF8F3',
+  card: '#FFFFFF',
+  text: '#1D1D1B',
+  textSec: '#6B6B69',
+  gold: '#E8CD7E',
+  bronze: '#8B6914',
+  border: '#E8E6E0',
+  green: '#2D7A4F',
+  red: '#C0392B',
+  blue: '#4A90D9',
+  tabBg: '#F0EDE6',
+};
+
+const fmtPct = (n: number) => `${(n || 0).toFixed(1)}%`;
+const pctVar = (atual: number, anterior: number) => {
+  if (!anterior) return 0;
+  return ((atual - anterior) / anterior) * 100;
+};
+
+const PERIODOS = [
+  { value: 7, label: '7 dias' },
+  { value: 30, label: '30 dias' },
+  { value: 60, label: '60 dias' },
+  { value: 90, label: '90 dias' },
+];
+
 export default function MarketingAnalytics() {
+  const { toast } = useToast();
   const [posts, setPosts] = useState<Post[]>([]);
+  const [postsAnteriores, setPostsAnteriores] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
   const [insights, setInsights] = useState('');
   const [selectedTab, setSelectedTab] = useState('overview');
   const [error, setError] = useState('');
+  const [periodoDias, setPeriodoDias] = useState(30);
   const [ultimaAtualizacao, setUltimaAtualizacao] = useState('');
+  const [sugestoes, setSugestoes] = useState<any[]>([]);
+  const [enviados, setEnviados] = useState<Set<string>>(new Set());
+  const [openCaption, setOpenCaption] = useState<Record<string, boolean>>({});
+  const [loadingAnalise, setLoadingAnalise] = useState(false);
 
   useEffect(() => {
     fetchData();
-  }, []);
+  }, [periodoDias]);
 
   const fetchData = async () => {
     try {
       setError('');
       setLoading(true);
 
-      const seteDiasAtras = new Date();
-      seteDiasAtras.setDate(seteDiasAtras.getDate() - 7);
-      const dataInicio = seteDiasAtras.toISOString().split('T')[0];
+      const inicio = new Date();
+      inicio.setDate(inicio.getDate() - periodoDias);
+      const inicioStr = inicio.toISOString().split('T')[0];
+
+      const anterior = new Date();
+      anterior.setDate(anterior.getDate() - periodoDias * 2);
+      const anteriorStr = anterior.toISOString().split('T')[0];
 
       const { data: postsData, error: postsError } = await supabase
         .from('instagram_posts')
         .select('*')
-        .gte('data_publicacao', dataInicio)
+        .gte('data_publicacao', inicioStr)
         .order('reach', { ascending: false })
-        .limit(50);
+        .limit(200);
 
       if (postsError) throw postsError;
 
+      const { data: postsAntData } = await supabase
+        .from('instagram_posts')
+        .select('*')
+        .gte('data_publicacao', anteriorStr)
+        .lt('data_publicacao', inicioStr)
+        .limit(200);
+
       setPosts(postsData || []);
+      setPostsAnteriores(postsAntData || []);
       if (postsData && postsData.length > 0) {
         setUltimaAtualizacao(postsData[0]?.data_extracao || '');
         generateInsights(postsData);
@@ -76,32 +124,21 @@ CONTEXTO DA MARCA:
 Mariana Cardoso é uma marca de moda premium brasileira.
 Posicionamento: a cliente não pensa "vou comprar uma calça" — ela pensa "quero fazer parte do universo Mariana Cardoso".
 Compete por ASPIRAÇÃO e PERTENCIMENTO, não por preço.
-Valores: qualidade técnica (tecidos, cortes), exclusividade, comunidade.
 
-DADOS DO INSTAGRAM:
+DADOS:
 Total de posts: ${postsData.length}
 Reels: ${reels.length} | Carrosséis: ${carrosseis.length}
 Engajamento médio: ${avgEngagement.toFixed(0)}
 Alcance médio Reels: ${Math.round(reels.reduce((s,p) => s+(p.reach||0),0)/Math.max(reels.length,1)).toLocaleString()}
 Alcance médio Carrosséis: ${Math.round(carrosseis.reduce((s,p) => s+(p.reach||0),0)/Math.max(carrosseis.length,1)).toLocaleString()}
 
-TOP 5 POSTS (maior alcance):
-${topPosts.map((p,i) => `${i+1}. [${p.media_type}] Alcance: ${p.reach?.toLocaleString()} | Engajamento: ${Math.round(p.engagement||0)} | Salvos: ${p.saved} | "${p.caption?.substring(0,80)}"`).join('\n')}
+TOP 5 POSTS:
+${topPosts.map((p,i) => `${i+1}. [${p.media_type}] Alcance: ${p.reach?.toLocaleString()} | "${p.caption?.substring(0,80)}"`).join('\n')}
 
 MENOR PERFORMANCE:
 ${lowPosts.map((p,i) => `${i+1}. [${p.media_type}] Alcance: ${p.reach?.toLocaleString()} | "${p.caption?.substring(0,80)}"`).join('\n')}
 
-Gere análise estratégica em 4 seções:
-1. O QUE ESTÁ FUNCIONANDO
-Identifique padrões nos top posts. Storytelling? Educação sobre tecido? Lifestyle? Aspiração?
-2. O QUE NÃO ESTÁ PERFORMANDO E POR QUÊ
-Analise posts com menor alcance. São transacionais? Informativos sem emoção?
-3. OPORTUNIDADES ESTRATÉGICAS
-3 oportunidades concretas para fortalecer posicionamento premium.
-4. RECOMENDAÇÕES DE PARADA
-Que tipos de conteúdo pausar? Por quê dilui o posicionamento?
-
-Seja direto, específico e use os dados reais. Máximo 600 palavras.`;
+Gere análise estratégica em 4 seções: O QUE ESTÁ FUNCIONANDO, O QUE NÃO ESTÁ PERFORMANDO, OPORTUNIDADES ESTRATÉGICAS, RECOMENDAÇÕES DE PARADA. Máximo 600 palavras.`;
 
       const data = await invokeEdgeFunction('marketing-insights', { prompt });
       setInsights(data.insights || 'Erro ao gerar insights.');
@@ -111,41 +148,43 @@ Seja direto, específico e use os dados reais. Máximo 600 palavras.`;
     }
   };
 
-  if (loading) return (
-    <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
-      <div className="animate-pulse text-center">
-        <div className="w-12 h-12 bg-amber-500 rounded-full mx-auto mb-4 animate-bounce"></div>
-        <p className="text-slate-300">Carregando análises...</p>
-      </div>
-    </div>
-  );
+  const handleAtualizarAnalise = async () => {
+    setLoadingAnalise(true);
+    try {
+      // Edge function `marketing-content-suggestions` ainda não existe — placeholder
+      await new Promise(r => setTimeout(r, 800));
+      toast({
+        title: 'Função pendente',
+        description: 'A edge function marketing-content-suggestions ainda não foi criada. UI pronta para integração.',
+      });
+    } finally {
+      setLoadingAnalise(false);
+    }
+  };
 
-  if (error && posts.length === 0) return (
-    <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-4">
-      <div className="text-center">
-        <AlertCircle size={48} className="text-red-500 mx-auto mb-4" />
-        <h1 className="text-2xl font-bold text-white mb-2">Erro ao carregar</h1>
-        <p className="text-slate-300 mb-6">{error}</p>
-        <button
-          onClick={fetchData}
-          className="px-6 py-2 bg-amber-500 text-white rounded-lg hover:bg-amber-600 transition"
-        >
-          Tentar Novamente
-        </button>
-      </div>
-    </div>
-  );
+  const handleEnviarMatriz = async (id: string) => {
+    setEnviados(prev => new Set(prev).add(id));
+    toast({ title: '✓ Enviado para a Matriz Criativa!' });
+    // TODO quando tabela existir:
+    // await supabase.from('conteudos_gerados').update({ status: 'em_revisao' }).eq('id', id);
+  };
 
+  // ===== Métricas =====
   const isEmpty = posts.length === 0;
-
   const reelsData = posts.filter(p => p.media_type === 'REELS');
   const carrosselData = posts.filter(p => p.media_type === 'CAROUSEL_ALBUM');
   const topPosts = posts.slice(0, 5);
   const lowPosts = posts.slice().sort((a, b) => (a.reach || 0) - (b.reach || 0)).slice(0, 3);
+
   const totalReach = posts.reduce((s, p) => s + (p.reach || 0), 0);
   const totalEngagement = posts.reduce((s, p) => s + (p.engagement || 0), 0);
   const totalSaved = posts.reduce((s, p) => s + (p.saved || 0), 0);
   const totalShares = posts.reduce((s, p) => s + (p.shares || 0), 0);
+
+  const prevReach = postsAnteriores.reduce((s, p) => s + (p.reach || 0), 0);
+  const prevEng = postsAnteriores.reduce((s, p) => s + (p.engagement || 0), 0);
+  const prevSaved = postsAnteriores.reduce((s, p) => s + (p.saved || 0), 0);
+  const prevShares = postsAnteriores.reduce((s, p) => s + (p.shares || 0), 0);
 
   const chartData = [
     {
@@ -159,10 +198,30 @@ Seja direto, específico e use os dados reais. Máximo 600 palavras.`;
       Engajamento: Math.round(carrosselData.reduce((s, p) => s + (p.engagement || 0), 0) / Math.max(carrosselData.length, 1)),
     },
   ];
-
   const pieData = [
     { name: 'Reels', value: reelsData.length },
     { name: 'Carrosséis', value: carrosselData.length },
+  ];
+
+  // ===== Mix placeholder (até backend popular) =====
+  const mixAtual = { lifestyle: 0, educacional: 0, produto: 0 };
+  const mixMeta = { lifestyle: 70, educacional: 20, produto: 10 };
+  const diagnosticoMix = 'Conecte a edge function marketing-content-suggestions para receber o diagnóstico automático do mix de conteúdo.';
+  const insightSemana = 'Aguardando análise da IA. A comparação semanal aparecerá aqui assim que o backend estiver populado.';
+
+  // ===== Comparativo (real, baseado nos dois períodos) =====
+  const comparativo = [
+    { metrica: 'Posts publicados', ant: postsAnteriores.length, atual: posts.length },
+    { metrica: 'Alcance total', ant: prevReach, atual: totalReach },
+    { metrica: 'Engajamento', ant: Math.round(prevEng), atual: Math.round(totalEngagement) },
+    { metrica: 'Salvamentos', ant: prevSaved, atual: totalSaved },
+    { metrica: 'Compartilhamentos', ant: prevShares, atual: totalShares },
+    {
+      metrica: 'Taxa de engajamento',
+      ant: prevReach ? (prevEng / prevReach) * 100 : 0,
+      atual: totalReach ? (totalEngagement / totalReach) * 100 : 0,
+      isPct: true,
+    },
   ];
 
   const tabs = [
@@ -172,24 +231,85 @@ Seja direto, específico e use os dados reais. Máximo 600 palavras.`;
     { id: 'recommendations', label: 'Recomendações' },
   ];
 
-  const KpiCard = ({ icon, label, value, change }: any) => (
-    <div className="bg-gradient-to-br from-slate-800 to-slate-900 border border-amber-500/20 rounded-lg p-6 hover:border-amber-500/40 transition">
-      <div className="flex items-center justify-between mb-2">
-        <div className="text-amber-500">{icon}</div>
-        <span className={`text-xs font-semibold ${change?.startsWith('-') ? 'text-red-400' : 'text-green-400'}`}>
-          {change}
-        </span>
+  // ===== Componentes auxiliares =====
+  const KpiCard = ({ icon, label, value, change, accent }: any) => {
+    const positive = change >= 0;
+    return (
+      <div
+        className="rounded-lg p-5 transition hover:translate-y-[-2px]"
+        style={{
+          background: C.card,
+          borderLeft: `3px solid ${accent}`,
+          boxShadow: '0 1px 3px rgba(0,0,0,0.08)',
+        }}
+      >
+        <div className="flex items-center justify-between mb-3">
+          <div style={{ color: accent }}>{icon}</div>
+          {change !== undefined && (
+            <span
+              className="text-xs font-semibold flex items-center gap-1"
+              style={{ color: positive ? C.green : C.red }}
+            >
+              {positive ? <ArrowUp size={12} /> : <ArrowDown size={12} />}
+              {Math.abs(change).toFixed(1)}%
+            </span>
+          )}
+        </div>
+        <p
+          className="text-[11px] mb-1 uppercase tracking-wider"
+          style={{ color: C.textSec, fontFamily: 'DM Sans, sans-serif' }}
+        >
+          {label}
+        </p>
+        <p
+          className="text-3xl font-bold"
+          style={{ color: C.text, fontFamily: 'DM Sans, sans-serif' }}
+        >
+          {value}
+        </p>
       </div>
-      <p className="text-slate-400 text-sm mb-1">{label}</p>
-      <p className="text-2xl font-bold text-white">{value}</p>
+    );
+  };
+
+  const Card = ({ children, className = '' }: any) => (
+    <div
+      className={`rounded-lg p-5 md:p-6 ${className}`}
+      style={{
+        background: C.card,
+        border: `1px solid ${C.border}`,
+        boxShadow: '0 1px 3px rgba(0,0,0,0.08)',
+      }}
+    >
+      {children}
     </div>
   );
 
-  const COLORS = ['#E8CD7E', '#8B6914'];
+  const SectionTitle = ({ children, subtitle }: any) => (
+    <div className="mb-5">
+      <h2
+        className="text-xl md:text-2xl"
+        style={{ color: C.text, fontFamily: 'Cormorant Garamond, serif', fontWeight: 600 }}
+      >
+        {children}
+      </h2>
+      {subtitle && (
+        <p className="text-sm mt-1" style={{ color: C.textSec }}>
+          {subtitle}
+        </p>
+      )}
+    </div>
+  );
 
   const PostCard = ({ post, rank }: { post: Post; rank: number }) => (
-    <div className={`bg-slate-800 rounded-xl overflow-hidden border transition hover:border-amber-500/50 ${rank === 1 ? 'border-amber-500/60' : 'border-slate-700'}`}>
-      <div className="relative aspect-square bg-slate-700">
+    <div
+      className="rounded-lg overflow-hidden transition hover:translate-y-[-2px]"
+      style={{
+        background: C.card,
+        border: `1px solid ${rank === 1 ? C.gold : C.border}`,
+        boxShadow: '0 1px 3px rgba(0,0,0,0.08)',
+      }}
+    >
+      <div className="relative aspect-square" style={{ background: C.tabBg }}>
         {post.media_url ? (
           <img
             src={post.media_url}
@@ -198,35 +318,44 @@ Seja direto, específico e use os dados reais. Máximo 600 palavras.`;
             onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
           />
         ) : (
-          <div className="w-full h-full flex items-center justify-center">
-            <span className="text-slate-500 text-4xl">📷</span>
+          <div className="w-full h-full flex items-center justify-center text-4xl" style={{ color: C.textSec }}>
+            📷
           </div>
         )}
-        <span className={`absolute top-2 right-2 text-xs px-2 py-0.5 rounded font-bold ${post.media_type === 'REELS' ? 'bg-red-500/80 text-white' : 'bg-blue-500/80 text-white'}`}>
+        <span
+          className="absolute top-2 right-2 text-xs px-2 py-0.5 rounded font-semibold"
+          style={{
+            background: post.media_type === 'REELS' ? C.bronze : C.blue,
+            color: '#fff',
+          }}
+        >
           {post.media_type === 'REELS' ? '▶ Reel' : '⊞ Carrossel'}
         </span>
         {rank === 1 && (
-          <span className="absolute top-2 left-2 text-xs px-2 py-0.5 rounded font-bold bg-amber-500 text-white">
+          <span
+            className="absolute top-2 left-2 text-xs px-2 py-0.5 rounded font-semibold"
+            style={{ background: C.gold, color: C.text }}
+          >
             🏆 #1
           </span>
         )}
       </div>
       <div className="p-4">
-        <p className="text-white text-sm line-clamp-2 mb-3 min-h-[2.5rem]">
+        <p className="text-sm line-clamp-2 mb-3 min-h-[2.5rem]" style={{ color: C.text }}>
           {post.caption || 'Sem legenda'}
         </p>
         <div className="grid grid-cols-3 gap-2 text-center">
           <div>
-            <p className="text-emerald-400 font-bold text-sm">{post.reach?.toLocaleString() || 0}</p>
-            <p className="text-slate-500 text-xs">alcance</p>
+            <p className="font-bold text-sm" style={{ color: C.green }}>{post.reach?.toLocaleString() || 0}</p>
+            <p className="text-xs" style={{ color: C.textSec }}>alcance</p>
           </div>
           <div>
-            <p className="text-blue-400 font-bold text-sm">{Math.round(post.engagement || 0)}</p>
-            <p className="text-slate-500 text-xs">engajamento</p>
+            <p className="font-bold text-sm" style={{ color: C.blue }}>{Math.round(post.engagement || 0)}</p>
+            <p className="text-xs" style={{ color: C.textSec }}>engaj.</p>
           </div>
           <div>
-            <p className="text-purple-400 font-bold text-sm">{post.saved || 0}</p>
-            <p className="text-slate-500 text-xs">salvos</p>
+            <p className="font-bold text-sm" style={{ color: C.bronze }}>{post.saved || 0}</p>
+            <p className="text-xs" style={{ color: C.textSec }}>salvos</p>
           </div>
         </div>
         {post.permalink && (
@@ -234,7 +363,8 @@ Seja direto, específico e use os dados reais. Máximo 600 palavras.`;
             href={post.permalink}
             target="_blank"
             rel="noopener noreferrer"
-            className="mt-3 block text-center text-xs text-amber-500 hover:text-amber-400 transition"
+            className="mt-3 block text-center text-xs transition"
+            style={{ color: C.bronze }}
           >
             Ver no Instagram →
           </a>
@@ -243,45 +373,136 @@ Seja direto, específico e use os dados reais. Máximo 600 palavras.`;
     </div>
   );
 
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-4 md:p-8">
-      <div className="max-w-7xl mx-auto">
-        {/* Header */}
-        <div className="mb-8">
-          <div className="flex items-center justify-between mb-2">
-            <h1 className="text-3xl md:text-4xl font-bold text-white">Marketing Analytics</h1>
-            <div className="text-amber-500 text-xs md:text-sm">Mariana Cardoso</div>
-          </div>
-          <p className="text-slate-400 text-sm md:text-base">
-            Performance Instagram · {posts.length} posts analisados
-          </p>
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen" style={{ background: C.bg }}>
+        <div className="text-center">
+          <div className="w-10 h-10 rounded-full mx-auto mb-4 animate-bounce" style={{ background: C.gold }} />
+          <p style={{ color: C.textSec }}>Carregando análises...</p>
         </div>
+      </div>
+    );
+  }
 
+  if (error && posts.length === 0) {
+    return (
+      <div className="flex items-center justify-center min-h-screen p-4" style={{ background: C.bg }}>
+        <div className="text-center">
+          <AlertCircle size={48} style={{ color: C.red }} className="mx-auto mb-4" />
+          <h1 className="text-2xl font-bold mb-2" style={{ color: C.text, fontFamily: 'Cormorant Garamond, serif' }}>
+            Erro ao carregar
+          </h1>
+          <p className="mb-6" style={{ color: C.textSec }}>{error}</p>
+          <button
+            onClick={fetchData}
+            className="px-6 py-2 rounded-lg transition"
+            style={{ background: C.text, color: C.gold }}
+          >
+            Tentar Novamente
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen" style={{ background: C.bg }}>
+      {/* Header */}
+      <div style={{ background: C.card, borderBottom: `1px solid ${C.border}` }}>
+        <div className="max-w-7xl mx-auto px-4 md:px-8 py-6 flex items-center justify-between flex-wrap gap-4">
+          <div>
+            <h1
+              className="text-2xl md:text-[28px]"
+              style={{ color: C.text, fontFamily: 'Cormorant Garamond, serif', fontWeight: 600 }}
+            >
+              Marketing Analytics
+            </h1>
+            <p className="text-sm mt-1" style={{ color: C.textSec, fontFamily: 'DM Sans, sans-serif' }}>
+              Performance Instagram · {posts.length} posts analisados
+            </p>
+          </div>
+          <div className="flex gap-2">
+            {PERIODOS.map(p => (
+              <button
+                key={p.value}
+                onClick={() => setPeriodoDias(p.value)}
+                className="px-4 py-2 text-sm rounded-full transition"
+                style={{
+                  background: periodoDias === p.value ? C.text : 'transparent',
+                  color: periodoDias === p.value ? C.gold : C.textSec,
+                  border: `1px solid ${periodoDias === p.value ? C.text : C.border}`,
+                  fontFamily: 'DM Sans, sans-serif',
+                }}
+              >
+                {p.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <div className="max-w-7xl mx-auto p-4 md:p-8">
         {isEmpty && (
-          <div className="mb-8 bg-amber-500/10 border border-amber-500/30 rounded-lg p-6 text-center">
-            <AlertCircle size={32} className="text-amber-500 mx-auto mb-2" />
-            <h2 className="text-white font-bold mb-1">Nenhum post encontrado</h2>
-            <p className="text-slate-300 text-sm">
-              A tabela <code className="text-amber-400">instagram_posts</code> está vazia. Assim que houver dados sincronizados do Windsor.ai, as análises aparecerão aqui automaticamente.
+          <div
+            className="mb-6 p-5 rounded-lg text-center"
+            style={{ background: '#FFF9E6', border: `1px solid ${C.gold}` }}
+          >
+            <AlertCircle size={28} style={{ color: C.bronze }} className="mx-auto mb-2" />
+            <h2 className="font-semibold mb-1" style={{ color: C.text }}>Nenhum post encontrado</h2>
+            <p className="text-sm" style={{ color: C.textSec }}>
+              A tabela <code style={{ color: C.bronze }}>instagram_posts</code> está vazia neste período.
             </p>
           </div>
         )}
 
         {/* KPIs */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-          <KpiCard icon={<TrendingUp size={20} />} label="Alcance Total" value={(totalReach / 1000).toFixed(1) + 'K'} change="+12.5%" />
-          <KpiCard icon={<Zap size={20} />} label="Engajamento Total" value={Math.round(totalEngagement).toLocaleString()} change="+8.2%" />
-          <KpiCard icon={<Target size={20} />} label="Salvamentos" value={totalSaved.toLocaleString()} change="+5.3%" />
-          <KpiCard icon={<ArrowUp size={20} />} label="Compartilhamentos" value={totalShares.toLocaleString()} change="+3.1%" />
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+          <KpiCard
+            icon={<TrendingUp size={20} />}
+            label="Alcance Total"
+            value={(totalReach / 1000).toFixed(1) + 'K'}
+            change={pctVar(totalReach, prevReach)}
+            accent={C.bronze}
+          />
+          <KpiCard
+            icon={<Zap size={20} />}
+            label="Engajamento Total"
+            value={Math.round(totalEngagement).toLocaleString()}
+            change={pctVar(totalEngagement, prevEng)}
+            accent={C.gold}
+          />
+          <KpiCard
+            icon={<Target size={20} />}
+            label="Salvamentos"
+            value={totalSaved.toLocaleString()}
+            change={pctVar(totalSaved, prevSaved)}
+            accent={C.green}
+          />
+          <KpiCard
+            icon={<ArrowUp size={20} />}
+            label="Compartilhamentos"
+            value={totalShares.toLocaleString()}
+            change={pctVar(totalShares, prevShares)}
+            accent={C.blue}
+          />
         </div>
 
         {/* Tabs */}
-        <div className="flex gap-2 md:gap-4 border-b border-slate-700 overflow-x-auto mb-8">
+        <div
+          className="inline-flex gap-1 p-1 rounded-lg mb-6 overflow-x-auto"
+          style={{ background: C.tabBg }}
+        >
           {tabs.map(tab => (
             <button
               key={tab.id}
               onClick={() => setSelectedTab(tab.id)}
-              className={`px-4 py-3 text-sm font-semibold whitespace-nowrap transition border-b-2 ${selectedTab === tab.id ? 'border-amber-500 text-amber-500' : 'border-transparent text-slate-400 hover:text-slate-300'}`}>
+              className="px-4 py-2 text-sm font-medium whitespace-nowrap rounded-lg transition"
+              style={{
+                background: selectedTab === tab.id ? C.text : 'transparent',
+                color: selectedTab === tab.id ? C.gold : C.textSec,
+                fontFamily: 'DM Sans, sans-serif',
+              }}
+            >
               {tab.label}
             </button>
           ))}
@@ -289,69 +510,74 @@ Seja direto, específico e use os dados reais. Máximo 600 palavras.`;
 
         {/* Tab: Visão Geral */}
         {selectedTab === 'overview' && (
-          <div className="space-y-8">
-            <div className="bg-gradient-to-br from-slate-800 to-slate-900 border border-slate-700 rounded-lg p-4 md:p-6">
-              <h2 className="text-lg md:text-xl font-bold text-white mb-6 flex items-center gap-2">
-                <ArrowUp size={20} className="text-green-500" />
-                Top 5 Posts por Alcance
-              </h2>
+          <div className="space-y-6">
+            <Card>
+              <SectionTitle>Top 5 Posts por Alcance</SectionTitle>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {topPosts.map((post, i) => (
                   <PostCard key={post.id} post={post} rank={i + 1} />
                 ))}
               </div>
-            </div>
+            </Card>
 
-            <div className="bg-gradient-to-br from-slate-800 to-slate-900 border border-red-500/20 rounded-lg p-4 md:p-6">
-              <h2 className="text-lg md:text-xl font-bold text-white mb-6 flex items-center gap-2">
-                <AlertCircle size={20} className="text-red-500" />
-                ⚠️ Menor Performance — Considerar Pausa
-              </h2>
-              <div className="space-y-4">
+            <Card>
+              <SectionTitle subtitle="Posts com menor performance — considerar pausa ou reformulação">
+                ⚠️ Menor Performance
+              </SectionTitle>
+              <div className="space-y-3">
                 {lowPosts.map((post, i) => (
-                  <div key={post.id} className="flex items-start gap-4 pb-4 border-b border-slate-700 last:border-0">
-                    <div className="text-red-500 font-bold text-lg w-8 h-8 flex items-center justify-center bg-red-500/20 rounded-full flex-shrink-0">
+                  <div
+                    key={post.id}
+                    className="flex items-start gap-4 pb-3"
+                    style={{ borderBottom: i === lowPosts.length - 1 ? 'none' : `1px solid ${C.border}` }}
+                  >
+                    <div
+                      className="font-bold text-sm w-8 h-8 flex items-center justify-center rounded-full flex-shrink-0"
+                      style={{ background: '#FBEAE5', color: C.red }}
+                    >
                       {i + 1}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-white font-semibold text-xs md:text-sm line-clamp-2">
+                      <p className="font-medium text-sm line-clamp-2" style={{ color: C.text }}>
                         {post.caption || `Post ${post.media_id?.substring(0, 8)}`}
                       </p>
-                      <p className="text-red-400 text-xs mt-2">
-                        💡 Revisar abordagem — conteúdo pode estar muito transacional
+                      <p className="text-xs mt-1" style={{ color: C.red }}>
+                        💡 Revisar abordagem — pode estar muito transacional
                       </p>
                     </div>
                     <div className="text-right flex-shrink-0">
-                      <span className="text-slate-400 font-semibold text-xs md:text-sm">{post.reach?.toLocaleString()} alcance</span>
+                      <span className="font-semibold text-sm" style={{ color: C.textSec }}>
+                        {post.reach?.toLocaleString()} alcance
+                      </span>
                     </div>
                   </div>
                 ))}
               </div>
-            </div>
+            </Card>
           </div>
         )}
 
         {/* Tab: Performance */}
         {selectedTab === 'performance' && (
-          <div className="space-y-8">
-            <div className="bg-gradient-to-br from-slate-800 to-slate-900 border border-slate-700 rounded-lg p-4 md:p-6">
-              <h2 className="text-lg md:text-xl font-bold text-white mb-6">Reels vs Carrosséis — Médias</h2>
+          <div className="space-y-6">
+            <Card>
+              <SectionTitle>Reels vs Carrosséis — Médias</SectionTitle>
               <ResponsiveContainer width="100%" height={300}>
                 <BarChart data={chartData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
-                  <XAxis dataKey="name" stroke="#94a3b8" />
-                  <YAxis stroke="#94a3b8" />
-                  <Tooltip contentStyle={{ backgroundColor: '#1e293b', border: '1px solid #475569', color: '#fff' }} />
+                  <CartesianGrid strokeDasharray="3 3" stroke={C.border} />
+                  <XAxis dataKey="name" stroke={C.textSec} />
+                  <YAxis stroke={C.textSec} />
+                  <Tooltip contentStyle={{ background: C.card, border: `1px solid ${C.border}`, color: C.text }} />
                   <Legend />
-                  <Bar dataKey="Alcance" fill="#E8CD7E" />
-                  <Bar dataKey="Engajamento" fill="#8B6914" />
+                  <Bar dataKey="Alcance" fill={C.bronze} />
+                  <Bar dataKey="Engajamento" fill={C.gold} />
                 </BarChart>
               </ResponsiveContainer>
-            </div>
+            </Card>
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-              <div className="bg-gradient-to-br from-slate-800 to-slate-900 border border-slate-700 rounded-lg p-4 md:p-6">
-                <h2 className="text-lg md:text-xl font-bold text-white mb-6">Mix de Conteúdo</h2>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <Card>
+                <SectionTitle>Mix de Conteúdo</SectionTitle>
                 <ResponsiveContainer width="100%" height={250}>
                   <PieChart>
                     <Pie
@@ -365,123 +591,284 @@ Seja direto, específico e use os dados reais. Máximo 600 palavras.`;
                       label={({ name, value }) => `${name}: ${value}`}
                       labelLine={false}
                     >
-                      {pieData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                      {pieData.map((_, i) => (
+                        <Cell key={i} fill={i === 0 ? C.bronze : C.gold} />
                       ))}
                     </Pie>
-                    <Tooltip contentStyle={{ backgroundColor: '#1e293b', border: '1px solid #475569', color: '#fff' }} />
+                    <Tooltip contentStyle={{ background: C.card, border: `1px solid ${C.border}`, color: C.text }} />
                   </PieChart>
                 </ResponsiveContainer>
-              </div>
+              </Card>
 
-              <div className="bg-gradient-to-br from-slate-800 to-slate-900 border border-slate-700 rounded-lg p-4 md:p-6">
-                <h2 className="text-lg md:text-xl font-bold text-white mb-6">Alcance Médio por Tipo</h2>
+              <Card>
+                <SectionTitle>Alcance Médio por Tipo</SectionTitle>
                 <div className="space-y-4">
-                  {chartData.map((item, i) => (
+                  {chartData.map(item => (
                     <div key={item.name}>
-                      <div className="flex justify-between text-sm mb-1">
-                        <span className="text-white font-semibold">{item.name}</span>
-                        <span className="text-amber-400 font-semibold">{item.Alcance.toLocaleString()}</span>
+                      <div className="flex justify-between text-sm mb-2">
+                        <span className="font-semibold" style={{ color: C.text }}>{item.name}</span>
+                        <span className="font-semibold" style={{ color: C.bronze }}>
+                          {item.Alcance.toLocaleString()}
+                        </span>
                       </div>
-                      <div className="w-full bg-slate-700 rounded-full h-3">
+                      <div className="w-full rounded-full h-3" style={{ background: C.tabBg }}>
                         <div
-                          className="bg-gradient-to-r from-amber-500 to-amber-300 h-3 rounded-full transition-all"
-                          style={{ width: `${Math.min((item.Alcance / Math.max(...chartData.map(d => d.Alcance))) * 100, 100)}%` }}
+                          className="h-3 rounded-full transition-all"
+                          style={{
+                            width: `${Math.min((item.Alcance / Math.max(...chartData.map(d => d.Alcance))) * 100, 100)}%`,
+                            background: `linear-gradient(90deg, ${C.bronze}, ${C.gold})`,
+                          }}
                         />
                       </div>
                     </div>
                   ))}
                 </div>
-              </div>
+              </Card>
             </div>
           </div>
         )}
 
         {/* Tab: Insights IA */}
         {selectedTab === 'insights' && (
-          <div className="bg-gradient-to-br from-slate-800 to-slate-900 border border-slate-700 rounded-lg p-4 md:p-6">
-            <h2 className="text-lg md:text-xl font-bold text-white mb-6 flex items-center gap-2">
-              <Zap size={20} className="text-amber-500" />
-              🤖 Insights Estratégicos — IA
-            </h2>
-            <div className="text-slate-300 whitespace-pre-line leading-relaxed">
-              {insights}
+          <Card>
+            <SectionTitle>🤖 Insights Estratégicos — IA</SectionTitle>
+            <div className="whitespace-pre-line leading-relaxed text-sm" style={{ color: C.text }}>
+              {insights || 'Gerando insights...'}
             </div>
-          </div>
+          </Card>
         )}
 
         {/* Tab: Recomendações */}
         {selectedTab === 'recommendations' && (
-          <div className="space-y-8">
-            <div className="bg-gradient-to-br from-slate-800 to-slate-900 border border-green-500/20 rounded-lg p-4 md:p-6">
-              <h2 className="text-lg md:text-xl font-bold text-white mb-6 flex items-center gap-2">
-                <TrendingUp size={20} className="text-green-500" />
-                ✅ Continue Fazendo
-              </h2>
-              <ul className="space-y-3 text-slate-300">
-                <li className="flex items-start gap-2">
-                  <span className="text-green-400 mt-1">→</span>
-                  <span><strong>Reels com storytelling de qualidade:</strong> Educação sobre tecidos, conforto e diferencial técnico geram aspiração e alto alcance</span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <span className="text-green-400 mt-1">→</span>
-                  <span><strong>Lives de lançamento:</strong> Criam senso de comunidade, exclusividade e pertencimento ao universo MC</span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <span className="text-green-400 mt-1">→</span>
-                  <span><strong>Posts lifestyle de looks completos:</strong> Mostram o universo, não apenas o produto</span>
-                </li>
-              </ul>
-            </div>
+          <div className="space-y-6">
+            {/* Seção 1 — Mix de Conteúdo */}
+            <Card>
+              <div className="flex items-start justify-between mb-5 flex-wrap gap-3">
+                <div>
+                  <h2
+                    className="text-xl md:text-2xl"
+                    style={{ color: C.text, fontFamily: 'Cormorant Garamond, serif', fontWeight: 600 }}
+                  >
+                    Mix de Conteúdo
+                  </h2>
+                  <p className="text-sm mt-1" style={{ color: C.textSec }}>
+                    Meta: 70% lifestyle · 20% educacional · 10% produto direto
+                  </p>
+                </div>
+                <button
+                  onClick={handleAtualizarAnalise}
+                  disabled={loadingAnalise}
+                  className="flex items-center gap-2 px-4 py-2 text-sm rounded-lg transition disabled:opacity-50"
+                  style={{ background: C.text, color: C.gold, fontFamily: 'DM Sans, sans-serif' }}
+                >
+                  <RefreshCw size={14} className={loadingAnalise ? 'animate-spin' : ''} />
+                  Atualizar Análise
+                </button>
+              </div>
 
-            <div className="bg-gradient-to-br from-slate-800 to-slate-900 border border-red-500/20 rounded-lg p-4 md:p-6">
-              <h2 className="text-lg md:text-xl font-bold text-white mb-6 flex items-center gap-2">
-                <AlertCircle size={20} className="text-red-500" />
-                ❌ Pausar ou Reformular
-              </h2>
-              <ul className="space-y-3 text-slate-300">
-                <li className="flex items-start gap-2">
-                  <span className="text-red-400 mt-1">→</span>
-                  <span><strong>Posts só informativos:</strong> "Lançamento às 20h" sem narrativa não cria desejo</span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <span className="text-red-400 mt-1">→</span>
-                  <span><strong>Carrosséis catálogo:</strong> Listagem de peças sem contexto emocional não performa</span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <span className="text-red-400 mt-1">→</span>
-                  <span><strong>Ênfase em desconto:</strong> Dilui posicionamento premium — trocar por exclusividade e valor percebido</span>
-                </li>
-              </ul>
-            </div>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-5">
+                {[
+                  { key: 'lifestyle', label: 'Lifestyle', color: C.green, atual: mixAtual.lifestyle, meta: mixMeta.lifestyle },
+                  { key: 'educacional', label: 'Educacional', color: C.blue, atual: mixAtual.educacional, meta: mixMeta.educacional },
+                  { key: 'produto', label: 'Produto', color: C.bronze, atual: mixAtual.produto, meta: mixMeta.produto },
+                ].map(b => {
+                  const naMeta = b.atual >= b.meta;
+                  return (
+                    <div key={b.key}>
+                      <div className="flex justify-between items-center mb-2">
+                        <span className="text-sm font-semibold" style={{ color: C.text }}>{b.label}</span>
+                        <span className="text-xs" style={{ color: C.textSec }}>{b.atual}% / {b.meta}%</span>
+                      </div>
+                      <div className="w-full rounded-full h-3 mb-2" style={{ background: C.tabBg }}>
+                        <div
+                          className="h-3 rounded-full transition-all"
+                          style={{ width: `${Math.min((b.atual / b.meta) * 100, 100)}%`, background: b.color }}
+                        />
+                      </div>
+                      <span
+                        className="inline-block text-[11px] px-2 py-0.5 rounded font-medium"
+                        style={{
+                          background: naMeta ? '#E8F5EE' : '#FFF4D6',
+                          color: naMeta ? C.green : C.bronze,
+                        }}
+                      >
+                        {naMeta ? '✓ Na meta' : '⚠ Abaixo da meta'}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
 
-            <div className="bg-gradient-to-br from-slate-800 to-slate-900 border border-amber-500/20 rounded-lg p-4 md:p-6">
-              <h2 className="text-lg md:text-xl font-bold text-white mb-6 flex items-center gap-2">
-                <Target size={20} className="text-amber-500" />
-                🎯 Oportunidades Identificadas
-              </h2>
-              <ul className="space-y-3 text-slate-300">
-                <li className="flex items-start gap-2">
-                  <span className="text-amber-400 mt-1">→</span>
-                  <span><strong>Bastidores do processo criativo:</strong> Fit room, desenvolvimento de peças, escolha de tecidos</span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <span className="text-amber-400 mt-1">→</span>
-                  <span><strong>Série "A ciência do conforto":</strong> Reel educativo por tipo de tecido — elastano, malha enchanté, twill marant</span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <span className="text-amber-400 mt-1">→</span>
-                  <span><strong>Comunidade MC:</strong> Clientes reais usando as peças no dia a dia — pertencimento, não influencer marketing</span>
-                </li>
-              </ul>
-            </div>
+              <div className="flex items-start gap-3 p-4 rounded-lg" style={{ background: C.tabBg }}>
+                <span>💡</span>
+                <p className="text-sm italic" style={{ color: C.textSec }}>{diagnosticoMix}</p>
+              </div>
+            </Card>
+
+            {/* Seção 2 — Comparativo Semanal */}
+            <Card>
+              <SectionTitle subtitle={`Últimos ${periodoDias} dias vs ${periodoDias} dias anteriores`}>
+                Comparativo Semanal
+              </SectionTitle>
+
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr style={{ borderBottom: `1px solid ${C.border}` }}>
+                      <th className="text-left py-3 px-2 font-semibold" style={{ color: C.textSec }}>Métrica</th>
+                      <th className="text-right py-3 px-2 font-semibold" style={{ color: C.textSec }}>Período Anterior</th>
+                      <th className="text-right py-3 px-2 font-semibold" style={{ color: C.textSec }}>Período Atual</th>
+                      <th className="text-right py-3 px-2 font-semibold" style={{ color: C.textSec }}>Variação</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {comparativo.map(row => {
+                      const variacao = pctVar(row.atual, row.ant);
+                      const positivo = variacao >= 0;
+                      const fmt = (v: number) =>
+                        row.isPct ? fmtPct(v) : Math.round(v).toLocaleString('pt-BR');
+                      return (
+                        <tr key={row.metrica} style={{ borderBottom: `1px solid ${C.border}` }}>
+                          <td className="py-3 px-2" style={{ color: C.text }}>{row.metrica}</td>
+                          <td className="text-right py-3 px-2" style={{ color: C.textSec }}>{fmt(row.ant)}</td>
+                          <td className="text-right py-3 px-2 font-semibold" style={{ color: C.text }}>{fmt(row.atual)}</td>
+                          <td
+                            className="text-right py-3 px-2 font-semibold flex items-center justify-end gap-1"
+                            style={{ color: positivo ? C.green : C.red }}
+                          >
+                            {positivo ? <ArrowUp size={12} /> : <ArrowDown size={12} />}
+                            {Math.abs(variacao).toFixed(1)}%
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+
+              <div className="flex items-start gap-3 p-4 rounded-lg mt-4" style={{ background: C.tabBg }}>
+                <span>📊</span>
+                <p className="text-sm italic" style={{ color: C.textSec }}>{insightSemana}</p>
+              </div>
+            </Card>
+
+            {/* Seção 3 — Sugestões com IA */}
+            <Card>
+              <SectionTitle subtitle="Baseadas nos seus posts de maior performance">
+                Sugestões de Conteúdo com IA
+              </SectionTitle>
+
+              {sugestoes.length === 0 ? (
+                <div
+                  className="text-center py-12 rounded-lg"
+                  style={{ background: C.tabBg, border: `1px dashed ${C.border}` }}
+                >
+                  <Sparkles size={32} className="mx-auto mb-3" style={{ color: C.bronze }} />
+                  <p className="text-sm font-medium mb-1" style={{ color: C.text }}>
+                    Nenhuma sugestão gerada ainda
+                  </p>
+                  <p className="text-xs" style={{ color: C.textSec }}>
+                    Conecte a tabela <code style={{ color: C.bronze }}>conteudos_gerados</code> e a edge function{' '}
+                    <code style={{ color: C.bronze }}>marketing-content-suggestions</code> para popular esta seção.
+                  </p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {sugestoes.map((s: any) => {
+                    const cat = s.categoria || 'lifestyle';
+                    const corCat: any = { lifestyle: C.green, educacional: C.blue, produto: C.bronze };
+                    const cor = corCat[cat] || C.bronze;
+                    const enviado = enviados.has(s.id);
+                    const meta = (() => {
+                      try { return typeof s.metadados === 'string' ? JSON.parse(s.metadados) : (s.metadados || {}); }
+                      catch { return {}; }
+                    })();
+                    return (
+                      <div
+                        key={s.id}
+                        className="rounded-lg overflow-hidden"
+                        style={{
+                          background: C.card,
+                          border: `1px solid ${C.border}`,
+                          borderTop: `3px solid ${cor}`,
+                          boxShadow: '0 1px 3px rgba(0,0,0,0.06)',
+                        }}
+                      >
+                        <div className="p-4">
+                          <div className="flex justify-between items-start mb-2">
+                            <h3 className="font-semibold text-base flex-1" style={{ color: C.text }}>
+                              {s.copy_principal}
+                            </h3>
+                            <span
+                              className="text-[10px] px-2 py-0.5 rounded uppercase tracking-wide font-medium ml-2"
+                              style={{ background: `${cor}22`, color: cor }}
+                            >
+                              {cat}
+                            </span>
+                          </div>
+                          <div className="flex flex-wrap gap-1 mb-3">
+                            {[meta.tipo_conteudo, meta.persona, meta.etapa_funil].filter(Boolean).map((t: string, i: number) => (
+                              <span
+                                key={i}
+                                className="text-[10px] px-2 py-0.5 rounded"
+                                style={{ background: C.tabBg, color: C.textSec }}
+                              >
+                                {t}
+                              </span>
+                            ))}
+                          </div>
+                          <p className="text-sm mb-3" style={{ color: C.textSec }}>{s.copy_legenda}</p>
+                          <button
+                            onClick={() => setOpenCaption(p => ({ ...p, [s.id]: !p[s.id] }))}
+                            className="flex items-center gap-1 text-xs mb-2"
+                            style={{ color: C.bronze }}
+                          >
+                            Ver caption sugerida
+                            <ChevronDown
+                              size={12}
+                              style={{
+                                transform: openCaption[s.id] ? 'rotate(180deg)' : 'rotate(0)',
+                                transition: 'transform 0.2s',
+                              }}
+                            />
+                          </button>
+                          {openCaption[s.id] && (
+                            <div className="p-3 rounded-lg text-sm mb-3" style={{ background: C.tabBg, color: C.text }}>
+                              {s.copy_cta}
+                            </div>
+                          )}
+                          {meta.motivo && (
+                            <div className="flex items-start gap-2 mb-3 text-[13px] italic" style={{ color: C.textSec }}>
+                              <span>💡</span>
+                              <span>{meta.motivo}</span>
+                            </div>
+                          )}
+                          <button
+                            onClick={() => !enviado && handleEnviarMatriz(s.id)}
+                            disabled={enviado}
+                            className="w-full flex items-center justify-center gap-2 py-2 text-sm rounded-lg transition disabled:opacity-60"
+                            style={{
+                              background: enviado ? C.green : C.text,
+                              color: enviado ? '#fff' : C.gold,
+                              fontFamily: 'DM Sans, sans-serif',
+                            }}
+                          >
+                            {enviado ? (<><CheckCircle2 size={14} /> Enviado</>) : (<><Send size={14} /> Enviar para Matriz Criativa</>)}
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </Card>
           </div>
         )}
 
         {/* Footer */}
-        <div className="mt-12 pt-6 border-t border-slate-700 text-center">
-          <p className="text-slate-500 text-sm">
-            {ultimaAtualizacao ? `Dados de ${new Date(ultimaAtualizacao).toLocaleDateString('pt-BR')}` : ''} · {posts.length} posts · Dashboard Mariana Cardoso Premium
+        <div className="mt-10 pt-6 text-center" style={{ borderTop: `1px solid ${C.border}` }}>
+          <p className="text-xs" style={{ color: C.textSec }}>
+            {ultimaAtualizacao ? `Dados de ${new Date(ultimaAtualizacao).toLocaleDateString('pt-BR')}` : ''} · {posts.length} posts · Dashboard Mariana Cardoso
           </p>
         </div>
       </div>
