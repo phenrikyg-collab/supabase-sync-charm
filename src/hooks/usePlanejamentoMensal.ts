@@ -35,9 +35,16 @@ export interface PlanejamentoMensal {
   observacoes: string | null;
   receita_cancelada: number | null;
   taxa_conversao: number | null;
+  // Planejado-only
+  sessoes_organicas: number | null;
+  premissa_taxa_conversao: number | null;
+  premissa_ticket_medio: number | null;
+  premissa_taxa_aprovacao: number | null;
+  premissa_taxa_aquisicao: number | null;
+  premissa_cps_midia: number | null;
 }
 
-export const CAMPOS_MANUAIS = [
+export const CAMPOS_MANUAIS_REALIZADO = [
   "receita_captada",
   "taxa_aprovacao",
   "pedidos_captados",
@@ -46,6 +53,44 @@ export const CAMPOS_MANUAIS = [
   "sessoes_midia",
   "investimento_total",
 ] as const;
+
+export const CAMPOS_MANUAIS_PLANEJADO = [
+  "sessoes_totais",
+  "sessoes_organicas",
+  "premissa_taxa_conversao",
+  "premissa_ticket_medio",
+  "premissa_taxa_aprovacao",
+  "premissa_taxa_aquisicao",
+  "premissa_cps_midia",
+] as const;
+
+// Compat
+export const CAMPOS_MANUAIS = CAMPOS_MANUAIS_REALIZADO;
+
+export interface MediaHistorica {
+  taxa_conversao: number | null;
+  ticket_medio: number | null;
+  taxa_aprovacao: number | null;
+  taxa_aquisicao: number | null;
+  cps_midia: number | null;
+  sessoes_organicas: number | null;
+  sessoes_totais: number | null;
+  receita_captada: number | null;
+  pedidos_captados: number | null;
+  investimento_total: number | null;
+  roas_faturado: number | null;
+  cac_novos: number | null;
+}
+
+export async function buscarMediaHistorica(ano: number, mes: number): Promise<MediaHistorica | null> {
+  const { data, error } = await (supabase as any).rpc("media_historica", { p_ano: ano, p_mes: mes });
+  if (error) {
+    console.error("media_historica", error);
+    return null;
+  }
+  const row = Array.isArray(data) ? data[0] : data;
+  return (row as MediaHistorica) ?? null;
+}
 
 export function usePlanejamentoMensal(ano: number, mes: number, tipo: "planejado" | "realizado") {
   const [data, setData] = useState<PlanejamentoMensal | null>(null);
@@ -74,33 +119,32 @@ export function usePlanejamentoMensal(ano: number, mes: number, tipo: "planejado
   const salvarCamposManuais = async (campos: Partial<PlanejamentoMensal>) => {
     setIsSaving(true);
     try {
-      // 1. Filtrar APENAS campos manuais (campos calculados são preenchidos pelo trigger)
+      const tipoAtual = (data?.tipo ?? tipo) as "planejado" | "realizado";
+      const lista = tipoAtual === "planejado" ? CAMPOS_MANUAIS_PLANEJADO : CAMPOS_MANUAIS_REALIZADO;
+
       const payload: Record<string, any> = {};
-      for (const k of CAMPOS_MANUAIS) {
+      for (const k of lista) {
         if (k in campos) payload[k] = (campos as any)[k];
       }
 
       let recordId = data?.id;
 
       if (recordId) {
-        // 2. UPDATE somente com os manuais
         const { error: updateError } = await (supabase as any)
           .from("planejamento_mensal")
           .update(payload)
           .eq("id", recordId);
         if (updateError) throw updateError;
       } else {
-        // INSERT com manuais + chaves do registro
         const { data: inserted, error: insertError } = await (supabase as any)
           .from("planejamento_mensal")
-          .insert({ ...payload, ano, mes, tipo })
+          .insert({ ...payload, ano, mes, tipo: tipoAtual })
           .select("id")
           .single();
         if (insertError) throw insertError;
         recordId = inserted.id;
       }
 
-      // 3. SELECT separado para buscar os calculados pelo trigger
       const { data: updated, error: selectError } = await (supabase as any)
         .from("planejamento_mensal")
         .select("*")

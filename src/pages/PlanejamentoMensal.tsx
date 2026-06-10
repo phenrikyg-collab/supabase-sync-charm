@@ -3,16 +3,23 @@ import { useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import {
   usePlanejamentoMensal, PlanejamentoMensal as PM,
-  MESES, fmtBRL, fmtNum, fmtPct, CAMPOS_MANUAIS,
+  MESES, fmtBRL, fmtNum, fmtPct,
+  buscarMediaHistorica, MediaHistorica,
 } from "@/hooks/usePlanejamentoMensal";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { ChevronLeft, ChevronRight, AlertTriangle, CheckCircle2, ArrowUp, ArrowDown, Minus } from "lucide-react";
+import { ChevronLeft, ChevronRight, AlertTriangle, CheckCircle2, ArrowUp, ArrowDown, Minus, RefreshCw } from "lucide-react";
 
-type Manual = Partial<Record<typeof CAMPOS_MANUAIS[number], number | null>>;
+type Manual = Partial<Record<
+  | "receita_captada" | "taxa_aprovacao" | "pedidos_captados" | "taxa_aquisicao"
+  | "sessoes_totais" | "sessoes_midia" | "investimento_total"
+  | "sessoes_organicas" | "premissa_taxa_conversao" | "premissa_ticket_medio"
+  | "premissa_taxa_aprovacao" | "premissa_taxa_aquisicao" | "premissa_cps_midia",
+  number | null
+>>;
 
 const calcBadge = (className = "") => (
   <span className={`ml-2 text-[10px] uppercase tracking-wider text-muted-foreground ${className}`}>calc</span>
@@ -189,6 +196,106 @@ function NovePilaresCard({
   );
 }
 
+function PlanejadoForm({
+  form, setField, isSaving, mediaHist,
+}: {
+  form: Manual;
+  setField: (k: keyof Manual, v: number | null) => void;
+  isSaving: boolean;
+  mediaHist: MediaHistorica | null;
+}) {
+  const st = form.sessoes_totais ?? 0;
+  const so = form.sessoes_organicas ?? 0;
+  const sm = Math.max(st - so, 0);
+  const cps = form.premissa_cps_midia ?? 0;
+  const it = sm * cps;
+  const tc = form.premissa_taxa_conversao ?? 0;
+  const tm = form.premissa_ticket_medio ?? 0;
+  const ta = form.premissa_taxa_aprovacao ?? 0;
+  const pc = st * tc / 100;
+  const rc = pc * tm;
+  const rf = rc * ta / 100;
+  const pf = pc * ta / 100;
+
+  const aplicarMedia = () => {
+    if (!mediaHist) return;
+    if (mediaHist.taxa_conversao != null) setField("premissa_taxa_conversao", Number(mediaHist.taxa_conversao));
+    if (mediaHist.ticket_medio != null) setField("premissa_ticket_medio", Number(mediaHist.ticket_medio));
+    if (mediaHist.taxa_aprovacao != null) setField("premissa_taxa_aprovacao", Number(mediaHist.taxa_aprovacao));
+    if (mediaHist.taxa_aquisicao != null) setField("premissa_taxa_aquisicao", Number(mediaHist.taxa_aquisicao));
+    if (mediaHist.cps_midia != null) setField("premissa_cps_midia", Number(mediaHist.cps_midia));
+  };
+
+  const sub = (label: string, v: number | null | undefined, fmt: (x: number) => string) => (
+    <p className="text-[11px] text-muted-foreground mt-0.5">
+      Média histórica: {v == null || !isFinite(v) ? "—" : fmt(Number(v))}
+    </p>
+  );
+
+  return (
+    <>
+      <Card style={{ borderColor: "#F5E9B8" }}>
+        <CardHeader><CardTitle className="font-serif text-lg">Meta de Sessões</CardTitle></CardHeader>
+        <CardContent className="space-y-3">
+          <NumInput label="Meta de Sessões Totais" value={form.sessoes_totais} onChange={(v) => setField("sessoes_totais", v)} disabled={isSaving} />
+          <NumInput label="Sessões Orgânicas Esperadas" value={form.sessoes_organicas} onChange={(v) => setField("sessoes_organicas", v)} disabled={isSaving} />
+          <CalcField label="Sessões Mídia = Total − Orgânicas" value={sm} />
+        </CardContent>
+      </Card>
+
+      <Card style={{ borderColor: "#F5E9B8" }}>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0">
+          <CardTitle className="font-serif text-lg">Premissas (médias históricas)</CardTitle>
+          <Button type="button" variant="outline" size="sm" onClick={aplicarMedia} disabled={!mediaHist} className="gap-1">
+            <RefreshCw className="h-3 w-3" /> Recalcular com média histórica
+          </Button>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div>
+            <NumInput label="Taxa de Conversão" suffix="%" value={form.premissa_taxa_conversao} onChange={(v) => setField("premissa_taxa_conversao", v)} disabled={isSaving} />
+            {sub("", mediaHist?.taxa_conversao, (x) => `${x.toFixed(2)}%`)}
+          </div>
+          <div>
+            <NumInput label="Ticket Médio" suffix="R$" value={form.premissa_ticket_medio} onChange={(v) => setField("premissa_ticket_medio", v)} disabled={isSaving} />
+            {sub("", mediaHist?.ticket_medio, (x) => `R$ ${x.toFixed(0)}`)}
+          </div>
+          <div>
+            <NumInput label="Taxa de Aprovação" suffix="%" value={form.premissa_taxa_aprovacao} onChange={(v) => setField("premissa_taxa_aprovacao", v)} disabled={isSaving} />
+            {sub("", mediaHist?.taxa_aprovacao, (x) => `${x.toFixed(1)}%`)}
+          </div>
+          <div>
+            <NumInput label="Taxa de Aquisição" suffix="%" value={form.premissa_taxa_aquisicao} onChange={(v) => setField("premissa_taxa_aquisicao", v)} disabled={isSaving} />
+            {sub("", mediaHist?.taxa_aquisicao, (x) => `${x.toFixed(1)}%`)}
+          </div>
+          <div>
+            <NumInput label="CPS Médio Mídia" suffix="R$" value={form.premissa_cps_midia} onChange={(v) => setField("premissa_cps_midia", v)} disabled={isSaving} />
+            {sub("", mediaHist?.cps_midia, (x) => `R$ ${x.toFixed(2)}`)}
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card style={{ borderColor: "#E8CD7E", background: "#FAF6EE" }}>
+        <CardHeader><CardTitle className="font-serif text-lg">Resultado da Projeção</CardTitle></CardHeader>
+        <CardContent className="space-y-3">
+          <div className="grid grid-cols-2 gap-2">
+            <CalcField label="Sessões Mídia" value={sm} />
+            <CalcField label="Investimento Total" value={it} format="brl" />
+            <CalcField label="Pedidos Captados" value={pc} />
+            <CalcField label="Receita Captada" value={rc} format="brl" />
+            <CalcField label="Pedidos Faturados" value={pf} />
+          </div>
+          <div className="rounded-md px-3 py-3" style={{ background: "#1D1D1B" }}>
+            <div className="text-[10px] uppercase tracking-wider text-[#E8CD7E]/70">Receita Faturada</div>
+            <div className="text-2xl font-serif text-[#E8CD7E] mt-1">{fmtBRL(rf)}</div>
+          </div>
+        </CardContent>
+      </Card>
+    </>
+  );
+}
+
+
+
 export default function PlanejamentoMensal() {
   const [search, setSearch] = useSearchParams();
   const now = new Date();
@@ -209,9 +316,24 @@ export default function PlanejamentoMensal() {
       sessoes_totais: data?.sessoes_totais ?? null,
       sessoes_midia: data?.sessoes_midia ?? null,
       investimento_total: data?.investimento_total ?? null,
+      sessoes_organicas: data?.sessoes_organicas ?? null,
+      premissa_taxa_conversao: data?.premissa_taxa_conversao ?? null,
+      premissa_ticket_medio: data?.premissa_ticket_medio ?? null,
+      premissa_taxa_aprovacao: data?.premissa_taxa_aprovacao ?? null,
+      premissa_taxa_aquisicao: data?.premissa_taxa_aquisicao ?? null,
+      premissa_cps_midia: data?.premissa_cps_midia ?? null,
     });
     setDirty(false);
   }, [data]);
+
+  // Média histórica via RPC (para premissas e meta dos 9 pilares quando planejado)
+  const [mediaHist, setMediaHist] = useState<MediaHistorica | null>(null);
+  useEffect(() => {
+    (async () => {
+      const m = await buscarMediaHistorica(ano, mes);
+      setMediaHist(m);
+    })();
+  }, [ano, mes]);
 
   // Preview local dos cálculos (apenas exibição enquanto edita)
   const preview = useMemo(() => {
@@ -350,12 +472,22 @@ export default function PlanejamentoMensal() {
   if (tipo === "realizado") {
     for (const k of PILAR_KEYS) pilaresMeta[k] = planejadoVal(k) ?? histAvgFor(k);
   } else {
-    for (const k of PILAR_KEYS) pilaresMeta[k] = histAvgFor(k);
+    // Planejado: meta = média histórica via RPC
+    const mh = mediaHist;
+    pilaresMeta.receita_captada = mh?.receita_captada ?? null;
+    pilaresMeta.taxa_aprovacao = mh?.taxa_aprovacao ?? null;
+    pilaresMeta.pedidos_captados = mh?.pedidos_captados ?? null;
+    pilaresMeta.taxa_aquisicao = mh?.taxa_aquisicao ?? null;
+    pilaresMeta.taxa_conversao = mh?.taxa_conversao ?? null;
+    pilaresMeta.sessoes_totais = mh?.sessoes_totais ?? null;
+    pilaresMeta.investimento_total = mh?.investimento_total ?? null;
+    pilaresMeta.roas_faturado = mh?.roas_faturado ?? null;
+    pilaresMeta.cac_novos = mh?.cac_novos ?? null;
   }
   const metaLabel = tipo === "realizado" ? "Meta" : "Média Histórica";
   const metaFootnote = tipo === "realizado"
     ? "Meta = registro planejado do mês (fallback: média dos realizados anteriores)."
-    : "Média histórica calculada a partir dos últimos meses realizados.";
+    : "Média histórica vinda da função media_historica() — últimos 6 meses realizados.";
 
 
   if (isLoading) {
@@ -391,65 +523,77 @@ export default function PlanejamentoMensal() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* COLUNA ESQUERDA — FORM */}
         <div className="space-y-4">
-          <Card style={{ borderColor: "#F5E9B8" }}>
-            <CardHeader><CardTitle className="font-serif text-lg">Receita</CardTitle></CardHeader>
-            <CardContent className="space-y-3">
-              <NumInput label="Receita Captada" suffix="R$" value={form.receita_captada} onChange={(v) => setField("receita_captada", v)} disabled={isSaving} />
-              <NumInput label="Taxa de Aprovação" suffix="%" value={form.taxa_aprovacao} onChange={(v) => setField("taxa_aprovacao", v)} disabled={isSaving} />
-              <CalcField label="Receita Faturada = Captada × Aprovação%" value={preview.receita_faturada} format="brl" />
-              <CalcField label="Receita Cancelada = Captada − Faturada" value={preview.receita_cancelada} format="brl" />
-            </CardContent>
-          </Card>
+          {tipo === "realizado" ? (
+            <>
+              <Card style={{ borderColor: "#F5E9B8" }}>
+                <CardHeader><CardTitle className="font-serif text-lg">Receita</CardTitle></CardHeader>
+                <CardContent className="space-y-3">
+                  <NumInput label="Receita Captada" suffix="R$" value={form.receita_captada} onChange={(v) => setField("receita_captada", v)} disabled={isSaving} />
+                  <NumInput label="Taxa de Aprovação" suffix="%" value={form.taxa_aprovacao} onChange={(v) => setField("taxa_aprovacao", v)} disabled={isSaving} />
+                  <CalcField label="Receita Faturada = Captada × Aprovação%" value={preview.receita_faturada} format="brl" />
+                  <CalcField label="Receita Cancelada = Captada − Faturada" value={preview.receita_cancelada} format="brl" />
+                </CardContent>
+              </Card>
 
-          <Card style={{ borderColor: "#F5E9B8" }}>
-            <CardHeader><CardTitle className="font-serif text-lg">Pedidos</CardTitle></CardHeader>
-            <CardContent className="space-y-3">
-              <NumInput label="Pedidos Captados" value={form.pedidos_captados} onChange={(v) => setField("pedidos_captados", v)} disabled={isSaving} />
-              <CalcField label="Pedidos Faturados = Captados × Aprovação%" value={preview.pedidos_faturados} />
-            </CardContent>
-          </Card>
+              <Card style={{ borderColor: "#F5E9B8" }}>
+                <CardHeader><CardTitle className="font-serif text-lg">Pedidos</CardTitle></CardHeader>
+                <CardContent className="space-y-3">
+                  <NumInput label="Pedidos Captados" value={form.pedidos_captados} onChange={(v) => setField("pedidos_captados", v)} disabled={isSaving} />
+                  <CalcField label="Pedidos Faturados = Captados × Aprovação%" value={preview.pedidos_faturados} />
+                </CardContent>
+              </Card>
 
-          <Card style={{ borderColor: "#F5E9B8" }}>
-            <CardHeader><CardTitle className="font-serif text-lg">Aquisição vs Retenção</CardTitle></CardHeader>
-            <CardContent className="space-y-3">
-              <NumInput label="Taxa de Aquisição" suffix="%" value={form.taxa_aquisicao} onChange={(v) => setField("taxa_aquisicao", v)} disabled={isSaving} />
-              <CalcField label="Taxa de Retenção = 100 − Aquisição" value={preview.taxa_retencao} format="pct" />
-              <div className="text-xs uppercase tracking-wider text-muted-foreground mt-2">Aquisição</div>
-              <div className="grid grid-cols-2 gap-2">
-                <CalcField label="Pedidos Aquisição" value={preview.pedidos_aquisicao} />
-                <CalcField label="Receita Aquisição" value={preview.receita_aquisicao} format="brl" />
-              </div>
-              <CalcField label="Ticket Médio Aquisição" value={preview.ticket_medio_aquisicao} format="brl" />
-              <div className="text-xs uppercase tracking-wider text-muted-foreground mt-2">Retenção</div>
-              <div className="grid grid-cols-2 gap-2">
-                <CalcField label="Pedidos Retenção" value={preview.pedidos_retencao} />
-                <CalcField label="Receita Retenção" value={preview.receita_retencao} format="brl" />
-              </div>
-              <CalcField label="Ticket Médio Retenção" value={preview.ticket_medio_retencao} format="brl" />
-            </CardContent>
-          </Card>
+              <Card style={{ borderColor: "#F5E9B8" }}>
+                <CardHeader><CardTitle className="font-serif text-lg">Aquisição vs Retenção</CardTitle></CardHeader>
+                <CardContent className="space-y-3">
+                  <NumInput label="Taxa de Aquisição" suffix="%" value={form.taxa_aquisicao} onChange={(v) => setField("taxa_aquisicao", v)} disabled={isSaving} />
+                  <CalcField label="Taxa de Retenção = 100 − Aquisição" value={preview.taxa_retencao} format="pct" />
+                  <div className="text-xs uppercase tracking-wider text-muted-foreground mt-2">Aquisição</div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <CalcField label="Pedidos Aquisição" value={preview.pedidos_aquisicao} />
+                    <CalcField label="Receita Aquisição" value={preview.receita_aquisicao} format="brl" />
+                  </div>
+                  <CalcField label="Ticket Médio Aquisição" value={preview.ticket_medio_aquisicao} format="brl" />
+                  <div className="text-xs uppercase tracking-wider text-muted-foreground mt-2">Retenção</div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <CalcField label="Pedidos Retenção" value={preview.pedidos_retencao} />
+                    <CalcField label="Receita Retenção" value={preview.receita_retencao} format="brl" />
+                  </div>
+                  <CalcField label="Ticket Médio Retenção" value={preview.ticket_medio_retencao} format="brl" />
+                </CardContent>
+              </Card>
 
-          <Card style={{ borderColor: "#F5E9B8" }}>
-            <CardHeader><CardTitle className="font-serif text-lg">Tráfego & Investimento</CardTitle></CardHeader>
-            <CardContent className="space-y-3">
-              <NumInput label="Sessões Totais" value={form.sessoes_totais} onChange={(v) => setField("sessoes_totais", v)} disabled={isSaving} />
-              <NumInput label="Sessões Mídia" value={form.sessoes_midia} onChange={(v) => setField("sessoes_midia", v)} disabled={isSaving} />
-              <CalcField label="Taxa de Conversão = Pedidos Captados / Sessões × 100" value={preview.taxa_conversao} format="pct" />
-              <NumInput label="Investimento Total" suffix="R$" value={form.investimento_total} onChange={(v) => setField("investimento_total", v)} disabled={isSaving} />
-              <div className="grid grid-cols-2 gap-2">
-                <CalcField label="CPS Geral" value={preview.cps_geral} format="brl" />
-                <CalcField label="CPS Mídia" value={preview.cps_midia} format="brl" />
-              </div>
-            </CardContent>
-          </Card>
+              <Card style={{ borderColor: "#F5E9B8" }}>
+                <CardHeader><CardTitle className="font-serif text-lg">Tráfego & Investimento</CardTitle></CardHeader>
+                <CardContent className="space-y-3">
+                  <NumInput label="Sessões Totais" value={form.sessoes_totais} onChange={(v) => setField("sessoes_totais", v)} disabled={isSaving} />
+                  <NumInput label="Sessões Mídia" value={form.sessoes_midia} onChange={(v) => setField("sessoes_midia", v)} disabled={isSaving} />
+                  <CalcField label="Taxa de Conversão = Pedidos Captados / Sessões × 100" value={preview.taxa_conversao} format="pct" />
+                  <NumInput label="Investimento Total" suffix="R$" value={form.investimento_total} onChange={(v) => setField("investimento_total", v)} disabled={isSaving} />
+                  <div className="grid grid-cols-2 gap-2">
+                    <CalcField label="CPS Geral" value={preview.cps_geral} format="brl" />
+                    <CalcField label="CPS Mídia" value={preview.cps_midia} format="brl" />
+                  </div>
+                </CardContent>
+              </Card>
+            </>
+          ) : (
+            <PlanejadoForm
+              form={form}
+              setField={setField}
+              isSaving={isSaving}
+              mediaHist={mediaHist}
+            />
+          )}
 
           <div className="sticky bottom-2 pt-2">
             <Button onClick={salvar} disabled={!dirty || isSaving}
               className="w-full" style={{ background: "#1D1D1B", color: "#E8CD7E" }}>
-              {isSaving ? "Salvando..." : "Salvar"}
+              {isSaving ? "Salvando..." : tipo === "planejado" ? "Salvar Premissas e Recalcular" : "Salvar"}
             </Button>
           </div>
         </div>
+
 
         {/* COLUNA DIREITA — RESULTADOS */}
         <div className="space-y-4">
