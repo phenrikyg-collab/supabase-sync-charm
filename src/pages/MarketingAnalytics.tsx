@@ -274,9 +274,54 @@ Gere análise estratégica em 4 seções: O QUE ESTÁ FUNCIONANDO, O QUE NÃO ES
   const tabs = [
     { id: 'overview', label: 'Visão Geral' },
     { id: 'performance', label: 'Performance' },
+    { id: 'content-analysis', label: 'Análise de Conteúdo' },
     { id: 'insights', label: 'Insights IA' },
     { id: 'recommendations', label: 'Recomendações' },
   ];
+
+  // ===== Fetch Análise de Conteúdo (60d) =====
+  const fetchAnaliseConteudo = async () => {
+    const d60 = new Date(); d60.setDate(d60.getDate() - 60);
+    const d56 = new Date(); d56.setDate(d56.getDate() - 56);
+    const [{ data: p60 }, { data: p56 }, { data: log }] = await Promise.all([
+      supabase.from('instagram_posts').select('*').gte('data_publicacao', d60.toISOString().split('T')[0]),
+      supabase.from('instagram_posts')
+        .select('data_publicacao, reach, engagement, saves, shares, media_type')
+        .gte('data_publicacao', d56.toISOString().split('T')[0])
+        .order('data_publicacao', { ascending: true }),
+      (supabase as any).from('instagram_sync_log')
+        .select('detalhes, executado_em')
+        .eq('status', 'analise_conteudo')
+        .order('executado_em', { ascending: false })
+        .limit(1),
+    ]);
+    setPosts60(p60 || []);
+    setPosts56(p56 || []);
+    setAnaliseConteudo(log?.[0]?.detalhes || null);
+  };
+
+  useEffect(() => { fetchAnaliseConteudo(); }, []);
+
+  const handleGerarNovaAnalise = async () => {
+    setLoadingNovaAnalise(true);
+    try {
+      const SUPABASE_URL = 'https://ezdtulcrqzmgocamjwwl.supabase.co';
+      const ANON = (supabase as any).supabaseKey || (supabase as any).rest?.headers?.apikey;
+      const res = await fetch(`${SUPABASE_URL}/functions/v1/marketing-content-suggestions`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${ANON}`, apikey: ANON },
+        body: JSON.stringify({}),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      toast({ title: '✓ Nova análise gerada' });
+      await fetchAnaliseConteudo();
+    } catch (err: any) {
+      toast({ title: 'Erro ao gerar análise', description: err.message });
+    } finally {
+      setLoadingNovaAnalise(false);
+    }
+  };
+
 
   // ===== Componentes auxiliares =====
   const KpiCard = ({ icon, label, value, change, accent }: any) => {
