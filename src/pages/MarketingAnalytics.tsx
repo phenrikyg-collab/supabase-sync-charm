@@ -744,6 +744,282 @@ Gere análise estratégica em 4 seções: O QUE ESTÁ FUNCIONANDO, O QUE NÃO ES
           </div>
         )}
 
+        {/* Tab: Análise de Conteúdo */}
+        {selectedTab === 'content-analysis' && (() => {
+          const total = posts60.length;
+          const reels60 = posts60.filter(p => p.media_type === 'REELS');
+          const carr60 = posts60.filter(p => p.media_type === 'CAROUSEL_ALBUM');
+          const img60 = posts60.filter(p => p.media_type === 'IMAGE');
+          const avgEngBy = (arr: any[]) => arr.length ? arr.reduce((s, p) => s + (p.engagement || 0), 0) / arr.length : 0;
+          const formatList = [
+            { type: 'REELS', label: 'Reels', icon: '▶', arr: reels60 },
+            { type: 'CAROUSEL_ALBUM', label: 'Carrossel', icon: '⊞', arr: carr60 },
+            { type: 'IMAGE', label: 'Post Fixo', icon: '🖼', arr: img60 },
+          ];
+          const melhor = formatList.reduce((m, f) => avgEngBy(f.arr) > avgEngBy(m.arr) ? f : m, formatList[0]);
+
+          const mix = analiseConteudo?.analise_mix_conteudo || {};
+          const comp = analiseConteudo?.comparativo_semanas || {};
+          const mixBars = [
+            { key: 'lifestyle', label: 'Lifestyle', cor: C.green, meta: 70, data: mix.lifestyle },
+            { key: 'educacional', label: 'Educacional', cor: C.blue, meta: 20, data: mix.educacional },
+            { key: 'produto', label: 'Produto', cor: C.bronze, meta: 10, data: mix.produto },
+          ];
+          const statusBadge = (s: string) => {
+            if (s === 'na_meta') return { bg: '#E8F5EE', color: C.green, label: '✓ Na meta' };
+            if (s === 'acima_meta') return { bg: '#FBEAE5', color: C.red, label: '✗ Acima da meta' };
+            return { bg: '#FFF4D6', color: C.bronze, label: '⚠ Abaixo da meta' };
+          };
+
+          const compMetrics = [
+            { key: 'posts_publicados', label: 'Posts publicados' },
+            { key: 'alcance_total', label: 'Alcance total' },
+            { key: 'engajamento_total', label: 'Engajamento total' },
+            { key: 'salvamentos', label: 'Salvamentos' },
+            { key: 'compartilhamentos', label: 'Compartilhamentos' },
+            { key: 'taxa_engajamento', label: 'Taxa de engajamento', isPct: true },
+          ];
+
+          // ===== Evolução semanal (8 semanas) =====
+          const semanasMap = posts56.reduce((acc: any, post: any) => {
+            const data = new Date(post.data_publicacao);
+            const dia = data.getDay();
+            const diasAteSeg = dia === 0 ? 6 : dia - 1;
+            const seg = new Date(data);
+            seg.setDate(data.getDate() - diasAteSeg);
+            const chave = seg.toISOString().split('T')[0];
+            if (!acc[chave]) acc[chave] = { inicio: chave, posts: 0, alcance: 0, engagement: 0, saves: 0, shares: 0, formatos: {} as any };
+            acc[chave].posts++;
+            acc[chave].alcance += post.reach || 0;
+            acc[chave].engagement += post.engagement || 0;
+            acc[chave].saves += post.saves || 0;
+            acc[chave].shares += post.shares || 0;
+            acc[chave].formatos[post.media_type] = (acc[chave].formatos[post.media_type] || 0) + 1;
+            return acc;
+          }, {});
+          const semanas = Object.values(semanasMap).sort((a: any, b: any) => a.inicio.localeCompare(b.inicio)) as any[];
+          const hoje = new Date();
+          const dSem = hoje.getDay() === 0 ? 6 : hoje.getDay() - 1;
+          const segAtual = new Date(hoje); segAtual.setDate(hoje.getDate() - dSem);
+          const chaveAtual = segAtual.toISOString().split('T')[0];
+
+          const fmtDate = (s: string) => {
+            const [y, m, d] = s.split('-');
+            return `${d}/${m}`;
+          };
+
+          return (
+            <div className="space-y-6">
+              {/* Seção 1: Cards Resumo */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <KpiCard icon={<TrendingUp size={20} />} label="Total Posts (60d)" value={total} accent={C.text} />
+                <div className="rounded-lg p-5" style={{ background: C.card, borderLeft: `3px solid #7C3AED`, boxShadow: '0 1px 3px rgba(0,0,0,0.08)' }}>
+                  <span className="text-[10px] px-2 py-0.5 rounded font-semibold uppercase tracking-wider" style={{ background: '#7C3AED', color: '#fff' }}>Reels</span>
+                  <p className="text-3xl font-bold mt-2" style={{ color: C.text, fontFamily: 'DM Sans, sans-serif' }}>{reels60.length}</p>
+                  <p className="text-xs" style={{ color: C.textSec }}>{total ? ((reels60.length / total) * 100).toFixed(0) : 0}% do total</p>
+                </div>
+                <div className="rounded-lg p-5" style={{ background: C.card, borderLeft: `3px solid ${C.blue}`, boxShadow: '0 1px 3px rgba(0,0,0,0.08)' }}>
+                  <span className="text-[10px] px-2 py-0.5 rounded font-semibold uppercase tracking-wider" style={{ background: C.blue, color: '#fff' }}>Carrosséis</span>
+                  <p className="text-3xl font-bold mt-2" style={{ color: C.text, fontFamily: 'DM Sans, sans-serif' }}>{carr60.length}</p>
+                  <p className="text-xs" style={{ color: C.textSec }}>{total ? ((carr60.length / total) * 100).toFixed(0) : 0}% do total</p>
+                </div>
+                <div className="rounded-lg p-5" style={{ background: C.card, borderLeft: `3px solid ${C.gold}`, boxShadow: '0 1px 3px rgba(0,0,0,0.08)' }}>
+                  <span className="text-[10px] px-2 py-0.5 rounded font-semibold uppercase tracking-wider" style={{ background: C.gold, color: C.text }}>⭐ Melhor formato</span>
+                  <p className="text-2xl font-bold mt-2" style={{ color: C.text, fontFamily: 'DM Sans, sans-serif' }}>{melhor.icon} {melhor.label}</p>
+                  <p className="text-xs" style={{ color: C.textSec }}>Engaj. médio {Math.round(avgEngBy(melhor.arr)).toLocaleString('pt-BR')}</p>
+                </div>
+              </div>
+
+              {/* Seção 2: Performance por Formato */}
+              <Card>
+                <SectionTitle subtitle="Médias dos últimos 60 dias">Performance por Formato</SectionTitle>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  {formatList.map(f => {
+                    const isBest = f.type === melhor.type;
+                    const n = f.arr.length || 1;
+                    const alc = f.arr.reduce((s, p) => s + (p.reach || 0), 0) / n;
+                    const eng = f.arr.reduce((s, p) => s + (p.engagement || 0), 0) / n;
+                    const sav = f.arr.reduce((s, p) => s + (p.saves || 0), 0) / n;
+                    const sh = f.arr.reduce((s, p) => s + (p.shares || 0), 0) / n;
+                    const taxa = alc ? (eng / alc) * 100 : 0;
+                    return (
+                      <div key={f.type} className="rounded-lg p-5" style={{ background: C.card, border: `${isBest ? 2 : 1}px solid ${isBest ? C.gold : C.border}`, boxShadow: '0 1px 3px rgba(0,0,0,0.06)' }}>
+                        <div className="flex items-center justify-between mb-3">
+                          <h3 className="text-lg font-semibold" style={{ color: C.text }}>{f.icon} {f.label}</h3>
+                          {isBest && (<span className="text-[10px] px-2 py-0.5 rounded font-medium" style={{ background: C.gold, color: C.text }}>⭐ Melhor</span>)}
+                        </div>
+                        <div className="space-y-2 text-sm">
+                          {[
+                            ['Posts', f.arr.length.toLocaleString('pt-BR')],
+                            ['Alcance médio', Math.round(alc).toLocaleString('pt-BR')],
+                            ['Engaj. médio', Math.round(eng).toLocaleString('pt-BR')],
+                            ['Taxa de engaj.', `${taxa.toFixed(2)}%`],
+                            ['Salvamentos médios', sav.toFixed(1)],
+                            ['Compart. médios', sh.toFixed(1)],
+                          ].map(([k, v]) => (
+                            <div key={k as string} className="flex justify-between" style={{ borderBottom: `1px solid ${C.border}`, paddingBottom: 6 }}>
+                              <span style={{ color: C.textSec }}>{k}</span>
+                              <span className="font-semibold" style={{ color: C.text }}>{v}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </Card>
+
+              {/* Seção 3: Mix de Conteúdo */}
+              <Card>
+                <div className="flex items-start justify-between mb-5 flex-wrap gap-3">
+                  <div>
+                    <h2 className="text-xl md:text-2xl" style={{ color: C.text, fontFamily: 'Cormorant Garamond, serif', fontWeight: 600 }}>
+                      Mix de Conteúdo (70/20/10)
+                    </h2>
+                    <p className="text-sm mt-1" style={{ color: C.textSec }}>Meta: 70% lifestyle · 20% educacional · 10% produto</p>
+                  </div>
+                  <button onClick={handleGerarNovaAnalise} disabled={loadingNovaAnalise} className="flex items-center gap-2 px-4 py-2 text-sm rounded-lg transition disabled:opacity-50" style={{ background: C.text, color: C.gold, fontFamily: 'DM Sans, sans-serif' }}>
+                    <RefreshCw size={14} className={loadingNovaAnalise ? 'animate-spin' : ''} />
+                    Gerar Nova Análise
+                  </button>
+                </div>
+
+                {!analiseConteudo ? (
+                  <div className="text-center py-8 rounded-lg" style={{ background: C.tabBg, border: `1px dashed ${C.border}` }}>
+                    <p className="text-sm" style={{ color: C.textSec }}>Nenhuma análise disponível. Clique em "Gerar Nova Análise".</p>
+                  </div>
+                ) : (
+                  <>
+                    <div className="space-y-5 mb-5">
+                      {mixBars.map(b => {
+                        const pct = b.data?.percentual ?? 0;
+                        const badge = statusBadge(b.data?.status);
+                        return (
+                          <div key={b.key}>
+                            <div className="flex justify-between items-center mb-2">
+                              <span className="text-sm font-semibold" style={{ color: C.text }}>{b.label}</span>
+                              <div className="flex items-center gap-2">
+                                <span className="text-xs" style={{ color: C.textSec }}>{pct}% / {b.meta}%</span>
+                                <span className="text-[11px] px-2 py-0.5 rounded font-medium" style={{ background: badge.bg, color: badge.color }}>{badge.label}</span>
+                              </div>
+                            </div>
+                            <div className="w-full rounded-full h-3" style={{ background: C.tabBg }}>
+                              <div className="h-3 rounded-full transition-all" style={{ width: `${Math.min((pct / b.meta) * 100, 100)}%`, background: b.cor }} />
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                    {mix.diagnostico && (
+                      <div className="flex items-start gap-3 p-4 rounded-lg" style={{ background: C.tabBg }}>
+                        <span>💡</span>
+                        <p className="text-sm italic" style={{ color: C.textSec }}>{mix.diagnostico}</p>
+                      </div>
+                    )}
+                  </>
+                )}
+              </Card>
+
+              {/* Seção 4: Comparativo Semanal */}
+              <Card>
+                <SectionTitle subtitle={comp.semana_anterior && comp.semana_atual ? `${comp.semana_anterior.periodo || ''} vs ${comp.semana_atual.periodo || ''}` : 'Comparação entre semanas'}>
+                  Comparativo Semanal Detalhado
+                </SectionTitle>
+                {!comp.semana_atual ? (
+                  <div className="text-center py-8 rounded-lg" style={{ background: C.tabBg, border: `1px dashed ${C.border}` }}>
+                    <p className="text-sm" style={{ color: C.textSec }}>Comparativo aparecerá após gerar análise.</p>
+                  </div>
+                ) : (
+                  <>
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-sm">
+                        <thead>
+                          <tr style={{ borderBottom: `1px solid ${C.border}` }}>
+                            <th className="text-left py-3 px-2 font-semibold" style={{ color: C.textSec }}>Métrica</th>
+                            <th className="text-right py-3 px-2 font-semibold" style={{ color: C.textSec }}>Semana Anterior</th>
+                            <th className="text-right py-3 px-2 font-semibold" style={{ color: C.textSec }}>Semana Atual</th>
+                            <th className="text-right py-3 px-2 font-semibold" style={{ color: C.textSec }}>Variação</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {compMetrics.map(m => {
+                            const ant = comp.semana_anterior?.[m.key] ?? 0;
+                            const atu = comp.semana_atual?.[m.key] ?? 0;
+                            const v = pctVar(atu, ant);
+                            const pos = v >= 0;
+                            const fmt = (x: number) => m.isPct ? `${Number(x).toFixed(2)}%` : Math.round(x).toLocaleString('pt-BR');
+                            return (
+                              <tr key={m.key} style={{ borderBottom: `1px solid ${C.border}` }}>
+                                <td className="py-3 px-2" style={{ color: C.text }}>{m.label}</td>
+                                <td className="text-right py-3 px-2" style={{ color: C.textSec }}>{fmt(ant)}</td>
+                                <td className="text-right py-3 px-2 font-semibold" style={{ color: C.text }}>{fmt(atu)}</td>
+                                <td className="text-right py-3 px-2 font-semibold" style={{ color: pos ? C.green : C.red }}>
+                                  {pos ? '↑' : '↓'} {Math.abs(v).toFixed(1)}%
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                    {comp.insight_semana && (
+                      <div className="flex items-start gap-3 p-4 rounded-lg mt-4" style={{ background: C.tabBg }}>
+                        <span>📊</span>
+                        <p className="text-sm italic" style={{ color: C.textSec }}>{comp.insight_semana}</p>
+                      </div>
+                    )}
+                  </>
+                )}
+              </Card>
+
+              {/* Seção 5: Evolução Semanal */}
+              <Card>
+                <SectionTitle subtitle="Últimas 8 semanas (segunda a domingo)">Evolução Semanal</SectionTitle>
+                {semanas.length === 0 ? (
+                  <div className="text-center py-8 rounded-lg" style={{ background: C.tabBg, border: `1px dashed ${C.border}` }}>
+                    <p className="text-sm" style={{ color: C.textSec }}>Sem dados nas últimas 8 semanas.</p>
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr style={{ borderBottom: `1px solid ${C.border}` }}>
+                          <th className="text-left py-3 px-2 font-semibold" style={{ color: C.textSec }}>Período</th>
+                          <th className="text-right py-3 px-2 font-semibold" style={{ color: C.textSec }}>Posts</th>
+                          <th className="text-right py-3 px-2 font-semibold" style={{ color: C.textSec }}>Alcance</th>
+                          <th className="text-right py-3 px-2 font-semibold" style={{ color: C.textSec }}>Engajamento</th>
+                          <th className="text-right py-3 px-2 font-semibold" style={{ color: C.textSec }}>Taxa eng.</th>
+                          <th className="text-right py-3 px-2 font-semibold" style={{ color: C.textSec }}>Melhor formato</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {semanas.slice(-8).map((s: any) => {
+                          const isAtual = s.inicio === chaveAtual;
+                          const taxa = s.alcance ? (s.engagement / s.alcance) * 100 : 0;
+                          const fimDt = new Date(s.inicio); fimDt.setDate(fimDt.getDate() + 6);
+                          const fim = fimDt.toISOString().split('T')[0];
+                          const melhorFmt = Object.entries(s.formatos).sort((a: any, b: any) => b[1] - a[1])[0]?.[0] || '—';
+                          const labelFmt: any = { REELS: '▶ Reels', CAROUSEL_ALBUM: '⊞ Carrossel', IMAGE: '🖼 Post' };
+                          return (
+                            <tr key={s.inicio} style={{ borderBottom: `1px solid ${C.border}`, background: isAtual ? C.bg : 'transparent', borderLeft: isAtual ? `3px solid ${C.bronze}` : 'none' }}>
+                              <td className="py-3 px-2" style={{ color: C.text }}>{fmtDate(s.inicio)} – {fmtDate(fim)}{isAtual && <span className="ml-2 text-[10px] px-2 py-0.5 rounded" style={{ background: C.gold, color: C.text }}>atual</span>}</td>
+                              <td className="text-right py-3 px-2" style={{ color: C.text }}>{s.posts}</td>
+                              <td className="text-right py-3 px-2" style={{ color: C.text }}>{s.alcance.toLocaleString('pt-BR')}</td>
+                              <td className="text-right py-3 px-2" style={{ color: C.text }}>{Math.round(s.engagement).toLocaleString('pt-BR')}</td>
+                              <td className="text-right py-3 px-2" style={{ color: C.text }}>{taxa.toFixed(2)}%</td>
+                              <td className="text-right py-3 px-2" style={{ color: C.textSec }}>{labelFmt[melhorFmt] || melhorFmt}</td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </Card>
+            </div>
+          );
+        })()}
+
         {/* Tab: Insights IA */}
         {selectedTab === 'insights' && (
           <Card>
