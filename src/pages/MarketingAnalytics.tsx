@@ -71,6 +71,10 @@ export default function MarketingAnalytics() {
   const [enviados, setEnviados] = useState<Set<string>>(new Set());
   const [openCaption, setOpenCaption] = useState<Record<string, boolean>>({});
   const [loadingAnalise, setLoadingAnalise] = useState(false);
+  const [posts60, setPosts60] = useState<any[]>([]);
+  const [posts56, setPosts56] = useState<any[]>([]);
+  const [analiseConteudo, setAnaliseConteudo] = useState<any>(null);
+  const [loadingNovaAnalise, setLoadingNovaAnalise] = useState(false);
 
   useEffect(() => {
     fetchData();
