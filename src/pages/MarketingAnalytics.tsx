@@ -247,6 +247,26 @@ Gere análise estratégica em 4 seções: O QUE ESTÁ FUNCIONANDO, O QUE NÃO ES
     },
   ];
 
+  // ===== Performance por formato (mesmos períodos) =====
+  const FORMATO_META: Record<string, { label: string; icon: string; cor: string }> = {
+    REELS: { label: 'Reels', icon: '▶', cor: '#7C3AED' },
+    CAROUSEL_ALBUM: { label: 'Carrossel', icon: '⊞', cor: '#4A90D9' },
+    IMAGE: { label: 'Post Fixo', icon: '🖼', cor: '#8B6914' },
+  };
+  const aggByFormato = (list: Post[], type: string) => {
+    const arr = list.filter(p => p.media_type === type);
+    return {
+      alcance: arr.reduce((s, p) => s + (p.reach || 0), 0),
+      engajamento: arr.reduce((s, p) => s + (p.engagement || 0), 0),
+    };
+  };
+  const formatos = ['REELS', 'CAROUSEL_ALBUM', 'IMAGE'].map(t => ({
+    type: t,
+    ...FORMATO_META[t],
+    ant: aggByFormato(postsAnteriores, t),
+    atual: aggByFormato(posts, t),
+  }));
+
   const tabs = [
     { id: 'overview', label: 'Visão Geral' },
     { id: 'performance', label: 'Performance' },
