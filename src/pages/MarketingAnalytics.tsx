@@ -899,14 +899,16 @@ Gere análise estratégica em 4 seções: O QUE ESTÁ FUNCIONANDO, O QUE NÃO ES
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {sugestoes.map((s: any) => {
-                    const cat = s.categoria || 'lifestyle';
-                    const corCat: any = { lifestyle: C.green, educacional: C.blue, produto: C.bronze };
-                    const cor = corCat[cat] || C.bronze;
                     const enviado = enviados.has(s.id);
                     const meta = (() => {
                       try { return typeof s.metadados === 'string' ? JSON.parse(s.metadados) : (s.metadados || {}); }
                       catch { return {}; }
                     })();
+                    const cat = meta.categoria || s.categoria || 'lifestyle';
+                    const corCat: any = { lifestyle: '#2D7A4F', educacional: '#4A90D9', produto: '#8B6914' };
+                    const cor = corCat[cat] || C.bronze;
+                    const canalColors: any = { instagram_reels: '#7C3AED', instagram_feed: C.gold };
+                    const canalBg = canalColors[s.canal] || C.textSec;
                     return (
                       <div
                         key={s.id}
@@ -919,19 +921,22 @@ Gere análise estratégica em 4 seções: O QUE ESTÁ FUNCIONANDO, O QUE NÃO ES
                         }}
                       >
                         <div className="p-4">
-                          <div className="flex justify-between items-start mb-2">
+                          <div className="flex justify-between items-start mb-2 gap-2">
                             <h3 className="font-semibold text-base flex-1" style={{ color: C.text }}>
                               {s.copy_principal}
                             </h3>
                             <span
-                              className="text-[10px] px-2 py-0.5 rounded uppercase tracking-wide font-medium ml-2"
-                              style={{ background: `${cor}22`, color: cor }}
+                              className="text-[10px] px-2 py-0.5 rounded uppercase tracking-wide font-medium whitespace-nowrap"
+                              style={{ background: canalBg, color: '#fff' }}
                             >
-                              {cat}
+                              {s.canal === 'instagram_reels' ? 'Reels' : s.canal === 'instagram_feed' ? 'Feed' : s.canal}
                             </span>
                           </div>
                           <div className="flex flex-wrap gap-1 mb-3">
-                            {[meta.tipo_conteudo, meta.persona, meta.etapa_funil].filter(Boolean).map((t: string, i: number) => (
+                            <span className="text-[10px] px-2 py-0.5 rounded font-medium" style={{ background: `${cor}22`, color: cor }}>
+                              {cat}
+                            </span>
+                            {[meta.persona, meta.angulo, meta.etapa_funil].filter(Boolean).map((t: string, i: number) => (
                               <span
                                 key={i}
                                 className="text-[10px] px-2 py-0.5 rounded"
