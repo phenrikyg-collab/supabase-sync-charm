@@ -423,65 +423,77 @@ export default function PlanejamentoMensal() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* COLUNA ESQUERDA — FORM */}
         <div className="space-y-4">
-          <Card style={{ borderColor: "#F5E9B8" }}>
-            <CardHeader><CardTitle className="font-serif text-lg">Receita</CardTitle></CardHeader>
-            <CardContent className="space-y-3">
-              <NumInput label="Receita Captada" suffix="R$" value={form.receita_captada} onChange={(v) => setField("receita_captada", v)} disabled={isSaving} />
-              <NumInput label="Taxa de Aprovação" suffix="%" value={form.taxa_aprovacao} onChange={(v) => setField("taxa_aprovacao", v)} disabled={isSaving} />
-              <CalcField label="Receita Faturada = Captada × Aprovação%" value={preview.receita_faturada} format="brl" />
-              <CalcField label="Receita Cancelada = Captada − Faturada" value={preview.receita_cancelada} format="brl" />
-            </CardContent>
-          </Card>
+          {tipo === "realizado" ? (
+            <>
+              <Card style={{ borderColor: "#F5E9B8" }}>
+                <CardHeader><CardTitle className="font-serif text-lg">Receita</CardTitle></CardHeader>
+                <CardContent className="space-y-3">
+                  <NumInput label="Receita Captada" suffix="R$" value={form.receita_captada} onChange={(v) => setField("receita_captada", v)} disabled={isSaving} />
+                  <NumInput label="Taxa de Aprovação" suffix="%" value={form.taxa_aprovacao} onChange={(v) => setField("taxa_aprovacao", v)} disabled={isSaving} />
+                  <CalcField label="Receita Faturada = Captada × Aprovação%" value={preview.receita_faturada} format="brl" />
+                  <CalcField label="Receita Cancelada = Captada − Faturada" value={preview.receita_cancelada} format="brl" />
+                </CardContent>
+              </Card>
 
-          <Card style={{ borderColor: "#F5E9B8" }}>
-            <CardHeader><CardTitle className="font-serif text-lg">Pedidos</CardTitle></CardHeader>
-            <CardContent className="space-y-3">
-              <NumInput label="Pedidos Captados" value={form.pedidos_captados} onChange={(v) => setField("pedidos_captados", v)} disabled={isSaving} />
-              <CalcField label="Pedidos Faturados = Captados × Aprovação%" value={preview.pedidos_faturados} />
-            </CardContent>
-          </Card>
+              <Card style={{ borderColor: "#F5E9B8" }}>
+                <CardHeader><CardTitle className="font-serif text-lg">Pedidos</CardTitle></CardHeader>
+                <CardContent className="space-y-3">
+                  <NumInput label="Pedidos Captados" value={form.pedidos_captados} onChange={(v) => setField("pedidos_captados", v)} disabled={isSaving} />
+                  <CalcField label="Pedidos Faturados = Captados × Aprovação%" value={preview.pedidos_faturados} />
+                </CardContent>
+              </Card>
 
-          <Card style={{ borderColor: "#F5E9B8" }}>
-            <CardHeader><CardTitle className="font-serif text-lg">Aquisição vs Retenção</CardTitle></CardHeader>
-            <CardContent className="space-y-3">
-              <NumInput label="Taxa de Aquisição" suffix="%" value={form.taxa_aquisicao} onChange={(v) => setField("taxa_aquisicao", v)} disabled={isSaving} />
-              <CalcField label="Taxa de Retenção = 100 − Aquisição" value={preview.taxa_retencao} format="pct" />
-              <div className="text-xs uppercase tracking-wider text-muted-foreground mt-2">Aquisição</div>
-              <div className="grid grid-cols-2 gap-2">
-                <CalcField label="Pedidos Aquisição" value={preview.pedidos_aquisicao} />
-                <CalcField label="Receita Aquisição" value={preview.receita_aquisicao} format="brl" />
-              </div>
-              <CalcField label="Ticket Médio Aquisição" value={preview.ticket_medio_aquisicao} format="brl" />
-              <div className="text-xs uppercase tracking-wider text-muted-foreground mt-2">Retenção</div>
-              <div className="grid grid-cols-2 gap-2">
-                <CalcField label="Pedidos Retenção" value={preview.pedidos_retencao} />
-                <CalcField label="Receita Retenção" value={preview.receita_retencao} format="brl" />
-              </div>
-              <CalcField label="Ticket Médio Retenção" value={preview.ticket_medio_retencao} format="brl" />
-            </CardContent>
-          </Card>
+              <Card style={{ borderColor: "#F5E9B8" }}>
+                <CardHeader><CardTitle className="font-serif text-lg">Aquisição vs Retenção</CardTitle></CardHeader>
+                <CardContent className="space-y-3">
+                  <NumInput label="Taxa de Aquisição" suffix="%" value={form.taxa_aquisicao} onChange={(v) => setField("taxa_aquisicao", v)} disabled={isSaving} />
+                  <CalcField label="Taxa de Retenção = 100 − Aquisição" value={preview.taxa_retencao} format="pct" />
+                  <div className="text-xs uppercase tracking-wider text-muted-foreground mt-2">Aquisição</div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <CalcField label="Pedidos Aquisição" value={preview.pedidos_aquisicao} />
+                    <CalcField label="Receita Aquisição" value={preview.receita_aquisicao} format="brl" />
+                  </div>
+                  <CalcField label="Ticket Médio Aquisição" value={preview.ticket_medio_aquisicao} format="brl" />
+                  <div className="text-xs uppercase tracking-wider text-muted-foreground mt-2">Retenção</div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <CalcField label="Pedidos Retenção" value={preview.pedidos_retencao} />
+                    <CalcField label="Receita Retenção" value={preview.receita_retencao} format="brl" />
+                  </div>
+                  <CalcField label="Ticket Médio Retenção" value={preview.ticket_medio_retencao} format="brl" />
+                </CardContent>
+              </Card>
 
-          <Card style={{ borderColor: "#F5E9B8" }}>
-            <CardHeader><CardTitle className="font-serif text-lg">Tráfego & Investimento</CardTitle></CardHeader>
-            <CardContent className="space-y-3">
-              <NumInput label="Sessões Totais" value={form.sessoes_totais} onChange={(v) => setField("sessoes_totais", v)} disabled={isSaving} />
-              <NumInput label="Sessões Mídia" value={form.sessoes_midia} onChange={(v) => setField("sessoes_midia", v)} disabled={isSaving} />
-              <CalcField label="Taxa de Conversão = Pedidos Captados / Sessões × 100" value={preview.taxa_conversao} format="pct" />
-              <NumInput label="Investimento Total" suffix="R$" value={form.investimento_total} onChange={(v) => setField("investimento_total", v)} disabled={isSaving} />
-              <div className="grid grid-cols-2 gap-2">
-                <CalcField label="CPS Geral" value={preview.cps_geral} format="brl" />
-                <CalcField label="CPS Mídia" value={preview.cps_midia} format="brl" />
-              </div>
-            </CardContent>
-          </Card>
+              <Card style={{ borderColor: "#F5E9B8" }}>
+                <CardHeader><CardTitle className="font-serif text-lg">Tráfego & Investimento</CardTitle></CardHeader>
+                <CardContent className="space-y-3">
+                  <NumInput label="Sessões Totais" value={form.sessoes_totais} onChange={(v) => setField("sessoes_totais", v)} disabled={isSaving} />
+                  <NumInput label="Sessões Mídia" value={form.sessoes_midia} onChange={(v) => setField("sessoes_midia", v)} disabled={isSaving} />
+                  <CalcField label="Taxa de Conversão = Pedidos Captados / Sessões × 100" value={preview.taxa_conversao} format="pct" />
+                  <NumInput label="Investimento Total" suffix="R$" value={form.investimento_total} onChange={(v) => setField("investimento_total", v)} disabled={isSaving} />
+                  <div className="grid grid-cols-2 gap-2">
+                    <CalcField label="CPS Geral" value={preview.cps_geral} format="brl" />
+                    <CalcField label="CPS Mídia" value={preview.cps_midia} format="brl" />
+                  </div>
+                </CardContent>
+              </Card>
+            </>
+          ) : (
+            <PlanejadoForm
+              form={form}
+              setField={setField}
+              isSaving={isSaving}
+              mediaHist={mediaHist}
+            />
+          )}
 
           <div className="sticky bottom-2 pt-2">
             <Button onClick={salvar} disabled={!dirty || isSaving}
               className="w-full" style={{ background: "#1D1D1B", color: "#E8CD7E" }}>
-              {isSaving ? "Salvando..." : "Salvar"}
+              {isSaving ? "Salvando..." : tipo === "planejado" ? "Salvar Premissas e Recalcular" : "Salvar"}
             </Button>
           </div>
         </div>
+
 
         {/* COLUNA DIREITA — RESULTADOS */}
         <div className="space-y-4">
