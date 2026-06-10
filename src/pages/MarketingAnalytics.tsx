@@ -75,6 +75,7 @@ export default function MarketingAnalytics() {
   const [posts56, setPosts56] = useState<any[]>([]);
   const [analiseConteudo, setAnaliseConteudo] = useState<any>(null);
   const [loadingNovaAnalise, setLoadingNovaAnalise] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   useEffect(() => {
     fetchData();
