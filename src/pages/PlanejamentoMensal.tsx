@@ -3,16 +3,23 @@ import { useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import {
   usePlanejamentoMensal, PlanejamentoMensal as PM,
-  MESES, fmtBRL, fmtNum, fmtPct, CAMPOS_MANUAIS,
+  MESES, fmtBRL, fmtNum, fmtPct,
+  buscarMediaHistorica, MediaHistorica,
 } from "@/hooks/usePlanejamentoMensal";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { ChevronLeft, ChevronRight, AlertTriangle, CheckCircle2, ArrowUp, ArrowDown, Minus } from "lucide-react";
+import { ChevronLeft, ChevronRight, AlertTriangle, CheckCircle2, ArrowUp, ArrowDown, Minus, RefreshCw } from "lucide-react";
 
-type Manual = Partial<Record<typeof CAMPOS_MANUAIS[number], number | null>>;
+type Manual = Partial<Record<
+  | "receita_captada" | "taxa_aprovacao" | "pedidos_captados" | "taxa_aquisicao"
+  | "sessoes_totais" | "sessoes_midia" | "investimento_total"
+  | "sessoes_organicas" | "premissa_taxa_conversao" | "premissa_ticket_medio"
+  | "premissa_taxa_aprovacao" | "premissa_taxa_aquisicao" | "premissa_cps_midia",
+  number | null
+>>;
 
 const calcBadge = (className = "") => (
   <span className={`ml-2 text-[10px] uppercase tracking-wider text-muted-foreground ${className}`}>calc</span>
