@@ -305,15 +305,12 @@ Gere análise estratégica em 4 seções: O QUE ESTÁ FUNCIONANDO, O QUE NÃO ES
   const handleGerarNovaAnalise = async () => {
     setLoadingNovaAnalise(true);
     try {
-      const SUPABASE_URL = 'https://ezdtulcrqzmgocamjwwl.supabase.co';
-      const ANON = (supabase as any).supabaseKey || (supabase as any).rest?.headers?.apikey;
-      const res = await fetch(`${SUPABASE_URL}/functions/v1/marketing-content-suggestions`, {
+      const { error } = await supabase.functions.invoke('marketing-content-suggestions', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${ANON}`, apikey: ANON },
-        body: JSON.stringify({}),
+        body: {},
       });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      toast({ title: '✓ Nova análise gerada' });
+      if (error) throw error;
+      toast({ title: '✓ Análise gerada com sucesso!' });
       await fetchAnaliseConteudo();
     } catch (err: any) {
       toast({ title: 'Erro ao gerar análise', description: err.message });
@@ -321,6 +318,7 @@ Gere análise estratégica em 4 seções: O QUE ESTÁ FUNCIONANDO, O QUE NÃO ES
       setLoadingNovaAnalise(false);
     }
   };
+
 
 
   // ===== Componentes auxiliares =====
