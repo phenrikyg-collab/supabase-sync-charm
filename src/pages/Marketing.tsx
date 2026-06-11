@@ -6,7 +6,9 @@ import { StatCard } from "@/components/StatCard";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Users, UserPlus, MousePointerClick, ShoppingCart, DollarSign, ShoppingBag, Loader2, Megaphone } from "lucide-react";
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, ScatterChart, Scatter, ZAxis, ReferenceLine, Cell } from "recharts";
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, ScatterChart, Scatter, ZAxis, ReferenceLine, Cell, LineChart, Line } from "recharts";
+import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
 
 const fmtBRL = (n: number) =>
   (n || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 2 });
@@ -72,6 +74,8 @@ export default function Marketing() {
   const [paginas, setPaginas] = useState<any[]>([]);
   const [windsorProdutos, setWindsorProdutos] = useState<any[]>([]);
   const [windsorCanais, setWindsorCanais] = useState<any[]>([]);
+  const [metaAds, setMetaAds] = useState<any[]>([]);
+  const [loadingMeta, setLoadingMeta] = useState(false);
 
   useEffect(() => {
     const { inicio, fim } = getDateRange(periodo);
@@ -116,6 +120,115 @@ export default function Marketing() {
       })
       .finally(() => setLoading(false));
   }, [periodo]);
+
+  // ===== Meta Ads =====
+  useEffect(() => {
+    const { inicio, fim } = getDateRange(periodo);
+    const inicioDash = toDashDate(inicio);
+    const fimDash = toDashDate(fim);
+    setLoadingMeta(true);
+
+    const fetchAll = async () => {
+      const pageSize = 1000;
+      let from = 0;
+      const all: any[] = [];
+      while (true) {
+        const { data, error } = await (supabase.from("windsor_meta_ads" as any) as any)
+          .select("date, campaign, spend, clicks, cpc, cpm, ctr, purchase_roas, actions_add_to_cart, actions_initiate_checkout, actions_video_view")
+          .gte("date", inicioDash)
+          .lte("date", fimDash)
+          .order("date", { ascending: false })
+          .range(from, from + pageSize - 1);
+        if (error || !data || data.length === 0) break;
+        all.push(...data);
+        if (data.length < pageSize) break;
+        from += pageSize;
+      }
+      return all;
+    };
+
+    fetchAll()
+      .then((rows) => setMetaAds(rows))
+      .catch(() => setMetaAds([]))
+      .finally(() => setLoadingMeta(false));
+  }, [periodo]);
+
+  const metaAdsTotais = useMemo(() => {
+    const t = metaAds.reduce(
+      (a, r) => {
+        const sp = num(r.spend);
+        const cl = num(r.clicks);
+        const ro = num(r.purchase_roas);
+        a.spend += sp;
+        a.clicks += cl;
+        a.spendRoas += sp * ro;
+        return a;
+      },
+      { spend: 0, clicks: 0, spendRoas: 0 }
+    );
+    return {
+      spend: t.spend,
+      clicks: t.clicks,
+      cpc: t.clicks > 0 ? t.spend / t.clicks : 0,
+      roas: t.spend > 0 ? t.spendRoas / t.spend : 0,
+    };
+  }, [metaAds]);
+
+  const metaAdsDaily = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const r of metaAds) {
+      const d = r.date;
+      map.set(d, (map.get(d) || 0) + num(r.spend));
+    }
+    return [...map.entries()]
+      .map(([date, spend]) => ({ date, spend }))
+      .sort((a, b) => a.date.localeCompare(b.date));
+  }, [metaAds]);
+
+  const metaAdsCampanhas = useMemo(() => {
+    const map = new Map<string, any>();
+    // Iterate from newest first so first occurrence keeps "most recent" rate values
+    for (const r of metaAds) {
+      const key = r.campaign || "—";
+      const cur =
+        map.get(key) || {
+          campaign: key,
+          spend: 0,
+          clicks: 0,
+          add_to_cart: 0,
+          checkout: 0,
+          video_view: 0,
+          cpc_latest: null as number | null,
+          ctr_latest: null as number | null,
+          roas_latest: null as number | null,
+        };
+      cur.spend += num(r.spend);
+      cur.clicks += num(r.clicks);
+      cur.add_to_cart += num(r.actions_add_to_cart);
+      cur.checkout += num(r.actions_initiate_checkout);
+      cur.video_view += num(r.actions_video_view);
+      if (cur.cpc_latest === null && r.cpc != null) cur.cpc_latest = num(r.cpc);
+      if (cur.ctr_latest === null && r.ctr != null) cur.ctr_latest = num(r.ctr);
+      if (cur.roas_latest === null && r.purchase_roas != null) cur.roas_latest = num(r.purchase_roas);
+      map.set(key, cur);
+    }
+    return [...map.values()]
+      .map((r) => ({
+        ...r,
+        cpc: r.clicks > 0 ? r.spend / r.clicks : r.cpc_latest || 0,
+        ctr: r.ctr_latest ?? 0,
+        roas: r.roas_latest ?? 0,
+      }))
+      .sort((a, b) => b.spend - a.spend);
+  }, [metaAds]);
+
+  const roasBadgeVariant = (roas: number): "default" | "secondary" | "destructive" => {
+    if (roas >= 4) return "default";
+    if (roas >= 2) return "secondary";
+    return "destructive";
+  };
+
+
 
 
   // ===== Aquisição =====
@@ -457,6 +570,7 @@ export default function Marketing() {
           <TabsTrigger value="paginas">Páginas</TabsTrigger>
           <TabsTrigger value="windsor-produtos">Produtos - Mariana Cardoso</TabsTrigger>
           <TabsTrigger value="windsor-canais">Sessões por Canal - Mariana Cardoso</TabsTrigger>
+          <TabsTrigger value="meta-ads">Meta Ads</TabsTrigger>
         </TabsList>
 
 
@@ -717,6 +831,84 @@ export default function Marketing() {
               </Table>
             </CardContent>
           </Card>
+        </TabsContent>
+        {/* ===== META ADS ===== */}
+        <TabsContent value="meta-ads" className="space-y-6">
+          {loadingMeta ? (
+            <>
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                {[0, 1, 2, 3].map((i) => <Skeleton key={i} className="h-28" />)}
+              </div>
+              <Skeleton className="h-[320px]" />
+              <Skeleton className="h-[400px]" />
+            </>
+          ) : metaAds.length === 0 ? (
+            <Card>
+              <CardContent className="py-10 text-center text-muted-foreground">
+                Nenhum dado de Meta Ads encontrado para o período selecionado.
+              </CardContent>
+            </Card>
+          ) : (
+            <>
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <StatCard title="Investimento Total" value={fmtBRL(metaAdsTotais.spend)} icon={DollarSign} variant="primary" />
+                <StatCard title="Cliques" value={fmtInt(metaAdsTotais.clicks)} icon={MousePointerClick} />
+                <StatCard title="CPC Médio" value={fmtBRL(metaAdsTotais.cpc)} icon={DollarSign} />
+                <StatCard title="ROAS Médio" value={`${(metaAdsTotais.roas || 0).toFixed(1)}x`} icon={ShoppingBag} variant="success" />
+              </div>
+
+              <Card>
+                <CardHeader><CardTitle className="text-lg">Investimento diário</CardTitle></CardHeader>
+                <CardContent>
+                  <ResponsiveContainer width="100%" height={320}>
+                    <LineChart data={metaAdsDaily} margin={{ left: 10, right: 20, top: 10, bottom: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="date" tick={{ fontSize: 11 }} />
+                      <YAxis tickFormatter={(v) => fmtBRL(v)} tick={{ fontSize: 11 }} width={90} />
+                      <Tooltip formatter={(v: any) => fmtBRL(Number(v))} />
+                      <Line type="monotone" dataKey="spend" stroke="hsl(var(--primary))" strokeWidth={2} dot={false} />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader><CardTitle className="text-lg">Performance por campanha</CardTitle></CardHeader>
+                <CardContent>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Campanha</TableHead>
+                        <TableHead className="text-right">Investimento</TableHead>
+                        <TableHead className="text-right">Cliques</TableHead>
+                        <TableHead className="text-right">CPC</TableHead>
+                        <TableHead className="text-right">CTR</TableHead>
+                        <TableHead className="text-right">ROAS</TableHead>
+                        <TableHead className="text-right">Add to Cart</TableHead>
+                        <TableHead className="text-right">Checkout</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {metaAdsCampanhas.map((r) => (
+                        <TableRow key={r.campaign}>
+                          <TableCell className="font-medium max-w-[320px] truncate">{r.campaign}</TableCell>
+                          <TableCell className="text-right">{fmtBRL(r.spend)}</TableCell>
+                          <TableCell className="text-right">{fmtInt(r.clicks)}</TableCell>
+                          <TableCell className="text-right">{fmtBRL(r.cpc)}</TableCell>
+                          <TableCell className="text-right">{(r.ctr || 0).toFixed(2)}%</TableCell>
+                          <TableCell className="text-right">
+                            <Badge variant={roasBadgeVariant(r.roas)}>{(r.roas || 0).toFixed(1)}x</Badge>
+                          </TableCell>
+                          <TableCell className="text-right">{fmtInt(r.add_to_cart)}</TableCell>
+                          <TableCell className="text-right">{fmtInt(r.checkout)}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </CardContent>
+              </Card>
+            </>
+          )}
         </TabsContent>
       </Tabs>
 
