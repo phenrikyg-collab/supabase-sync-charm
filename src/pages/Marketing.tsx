@@ -832,6 +832,84 @@ export default function Marketing() {
             </CardContent>
           </Card>
         </TabsContent>
+        {/* ===== META ADS ===== */}
+        <TabsContent value="meta-ads" className="space-y-6">
+          {loadingMeta ? (
+            <>
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                {[0, 1, 2, 3].map((i) => <Skeleton key={i} className="h-28" />)}
+              </div>
+              <Skeleton className="h-[320px]" />
+              <Skeleton className="h-[400px]" />
+            </>
+          ) : metaAds.length === 0 ? (
+            <Card>
+              <CardContent className="py-10 text-center text-muted-foreground">
+                Nenhum dado de Meta Ads encontrado para o período selecionado.
+              </CardContent>
+            </Card>
+          ) : (
+            <>
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <StatCard title="Investimento Total" value={fmtBRL(metaAdsTotais.spend)} icon={DollarSign} variant="primary" />
+                <StatCard title="Cliques" value={fmtInt(metaAdsTotais.clicks)} icon={MousePointerClick} />
+                <StatCard title="CPC Médio" value={fmtBRL(metaAdsTotais.cpc)} icon={DollarSign} />
+                <StatCard title="ROAS Médio" value={`${(metaAdsTotais.roas || 0).toFixed(1)}x`} icon={ShoppingBag} variant="success" />
+              </div>
+
+              <Card>
+                <CardHeader><CardTitle className="text-lg">Investimento diário</CardTitle></CardHeader>
+                <CardContent>
+                  <ResponsiveContainer width="100%" height={320}>
+                    <LineChart data={metaAdsDaily} margin={{ left: 10, right: 20, top: 10, bottom: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="date" tick={{ fontSize: 11 }} />
+                      <YAxis tickFormatter={(v) => fmtBRL(v)} tick={{ fontSize: 11 }} width={90} />
+                      <Tooltip formatter={(v: any) => fmtBRL(Number(v))} />
+                      <Line type="monotone" dataKey="spend" stroke="hsl(var(--primary))" strokeWidth={2} dot={false} />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader><CardTitle className="text-lg">Performance por campanha</CardTitle></CardHeader>
+                <CardContent>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Campanha</TableHead>
+                        <TableHead className="text-right">Investimento</TableHead>
+                        <TableHead className="text-right">Cliques</TableHead>
+                        <TableHead className="text-right">CPC</TableHead>
+                        <TableHead className="text-right">CTR</TableHead>
+                        <TableHead className="text-right">ROAS</TableHead>
+                        <TableHead className="text-right">Add to Cart</TableHead>
+                        <TableHead className="text-right">Checkout</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {metaAdsCampanhas.map((r) => (
+                        <TableRow key={r.campaign}>
+                          <TableCell className="font-medium max-w-[320px] truncate">{r.campaign}</TableCell>
+                          <TableCell className="text-right">{fmtBRL(r.spend)}</TableCell>
+                          <TableCell className="text-right">{fmtInt(r.clicks)}</TableCell>
+                          <TableCell className="text-right">{fmtBRL(r.cpc)}</TableCell>
+                          <TableCell className="text-right">{(r.ctr || 0).toFixed(2)}%</TableCell>
+                          <TableCell className="text-right">
+                            <Badge variant={roasBadgeVariant(r.roas)}>{(r.roas || 0).toFixed(1)}x</Badge>
+                          </TableCell>
+                          <TableCell className="text-right">{fmtInt(r.add_to_cart)}</TableCell>
+                          <TableCell className="text-right">{fmtInt(r.checkout)}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </CardContent>
+              </Card>
+            </>
+          )}
+        </TabsContent>
       </Tabs>
 
     </div>
