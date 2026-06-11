@@ -197,12 +197,13 @@ function NovePilaresCard({
 }
 
 function PlanejadoForm({
-  form, setField, isSaving, mediaHist,
+  form, setField, isSaving, mediaHist, mediaOrganicas2m,
 }: {
   form: Manual;
   setField: (k: keyof Manual, v: number | null) => void;
   isSaving: boolean;
   mediaHist: MediaHistorica | null;
+  mediaOrganicas2m: number | null;
 }) {
   const st = form.sessoes_totais ?? 0;
   const so = form.sessoes_organicas ?? 0;
@@ -238,7 +239,27 @@ function PlanejadoForm({
         <CardHeader><CardTitle className="font-serif text-lg">Meta de Sessões</CardTitle></CardHeader>
         <CardContent className="space-y-3">
           <NumInput label="Meta de Sessões Totais" value={form.sessoes_totais} onChange={(v) => setField("sessoes_totais", v)} disabled={isSaving} />
-          <NumInput label="Sessões Orgânicas Esperadas" value={form.sessoes_organicas} onChange={(v) => setField("sessoes_organicas", v)} disabled={isSaving} />
+          <div>
+            <div className="flex items-end justify-between gap-2">
+              <div className="flex-1">
+                <NumInput label="Sessões Orgânicas Esperadas" value={form.sessoes_organicas} onChange={(v) => setField("sessoes_organicas", v)} disabled={isSaving} />
+              </div>
+              {mediaOrganicas2m != null && (
+                <Button
+                  type="button" variant="outline" size="sm"
+                  onClick={() => setField("sessoes_organicas", Math.round(mediaOrganicas2m))}
+                  disabled={isSaving}
+                  className="gap-1 whitespace-nowrap"
+                  title="Usar média dos últimos 2 meses realizados"
+                >
+                  <RefreshCw className="h-3 w-3" /> Usar média
+                </Button>
+              )}
+            </div>
+            <p className="text-[11px] text-muted-foreground mt-0.5">
+              Média últimos 2 meses (realizado): {mediaOrganicas2m == null ? "—" : `${fmtNum(Math.round(mediaOrganicas2m))} sessões`}
+            </p>
+          </div>
           <CalcField label="Sessões Mídia = Total − Orgânicas" value={sm} />
         </CardContent>
       </Card>
@@ -328,10 +349,29 @@ export default function PlanejamentoMensal() {
 
   // Média histórica via RPC (para premissas e meta dos 9 pilares quando planejado)
   const [mediaHist, setMediaHist] = useState<MediaHistorica | null>(null);
+  const [mediaOrganicas2m, setMediaOrganicas2m] = useState<number | null>(null);
   useEffect(() => {
     (async () => {
       const m = await buscarMediaHistorica(ano, mes);
       setMediaHist(m);
+    })();
+  }, [ano, mes]);
+
+  // Média de sessões orgânicas dos últimos 2 meses realizados (parâmetro para planejado)
+  useEffect(() => {
+    (async () => {
+      const { data: rows } = await (supabase as any)
+        .from("planejamento_mensal")
+        .select("sessoes_totais, sessoes_midia")
+        .eq("tipo", "realizado")
+        .or(`ano.lt.${ano},and(ano.eq.${ano},mes.lt.${mes})`)
+        .order("ano", { ascending: false })
+        .order("mes", { ascending: false })
+        .limit(2);
+      if (!rows || rows.length === 0) { setMediaOrganicas2m(null); return; }
+      const organicas = rows.map((r: any) => Math.max((r.sessoes_totais ?? 0) - (r.sessoes_midia ?? 0), 0));
+      const avg = organicas.reduce((a: number, b: number) => a + b, 0) / organicas.length;
+      setMediaOrganicas2m(isFinite(avg) ? avg : null);
     })();
   }, [ano, mes]);
 
@@ -583,6 +623,7 @@ export default function PlanejamentoMensal() {
               setField={setField}
               isSaving={isSaving}
               mediaHist={mediaHist}
+              mediaOrganicas2m={mediaOrganicas2m}
             />
           )}
 
