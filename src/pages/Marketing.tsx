@@ -74,6 +74,8 @@ export default function Marketing() {
   const [paginas, setPaginas] = useState<any[]>([]);
   const [windsorProdutos, setWindsorProdutos] = useState<any[]>([]);
   const [windsorCanais, setWindsorCanais] = useState<any[]>([]);
+  const [metaAds, setMetaAds] = useState<any[]>([]);
+  const [loadingMeta, setLoadingMeta] = useState(false);
 
   useEffect(() => {
     const { inicio, fim } = getDateRange(periodo);
