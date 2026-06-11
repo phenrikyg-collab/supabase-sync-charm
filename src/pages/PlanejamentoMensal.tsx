@@ -604,6 +604,7 @@ export default function PlanejamentoMensal() {
               setField={setField}
               isSaving={isSaving}
               mediaHist={mediaHist}
+              mediaOrganicas2m={mediaOrganicas2m}
             />
           )}
 
