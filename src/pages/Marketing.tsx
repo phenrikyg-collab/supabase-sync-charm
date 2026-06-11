@@ -121,6 +121,115 @@ export default function Marketing() {
       .finally(() => setLoading(false));
   }, [periodo]);
 
+  // ===== Meta Ads =====
+  useEffect(() => {
+    const { inicio, fim } = getDateRange(periodo);
+    const inicioDash = toDashDate(inicio);
+    const fimDash = toDashDate(fim);
+    setLoadingMeta(true);
+
+    const fetchAll = async () => {
+      const pageSize = 1000;
+      let from = 0;
+      const all: any[] = [];
+      while (true) {
+        const { data, error } = await (supabase.from("windsor_meta_ads" as any) as any)
+          .select("date, campaign, spend, clicks, cpc, cpm, ctr, purchase_roas, actions_add_to_cart, actions_initiate_checkout, actions_video_view")
+          .gte("date", inicioDash)
+          .lte("date", fimDash)
+          .order("date", { ascending: false })
+          .range(from, from + pageSize - 1);
+        if (error || !data || data.length === 0) break;
+        all.push(...data);
+        if (data.length < pageSize) break;
+        from += pageSize;
+      }
+      return all;
+    };
+
+    fetchAll()
+      .then((rows) => setMetaAds(rows))
+      .catch(() => setMetaAds([]))
+      .finally(() => setLoadingMeta(false));
+  }, [periodo]);
+
+  const metaAdsTotais = useMemo(() => {
+    const t = metaAds.reduce(
+      (a, r) => {
+        const sp = num(r.spend);
+        const cl = num(r.clicks);
+        const ro = num(r.purchase_roas);
+        a.spend += sp;
+        a.clicks += cl;
+        a.spendRoas += sp * ro;
+        return a;
+      },
+      { spend: 0, clicks: 0, spendRoas: 0 }
+    );
+    return {
+      spend: t.spend,
+      clicks: t.clicks,
+      cpc: t.clicks > 0 ? t.spend / t.clicks : 0,
+      roas: t.spend > 0 ? t.spendRoas / t.spend : 0,
+    };
+  }, [metaAds]);
+
+  const metaAdsDaily = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const r of metaAds) {
+      const d = r.date;
+      map.set(d, (map.get(d) || 0) + num(r.spend));
+    }
+    return [...map.entries()]
+      .map(([date, spend]) => ({ date, spend }))
+      .sort((a, b) => a.date.localeCompare(b.date));
+  }, [metaAds]);
+
+  const metaAdsCampanhas = useMemo(() => {
+    const map = new Map<string, any>();
+    // Iterate from newest first so first occurrence keeps "most recent" rate values
+    for (const r of metaAds) {
+      const key = r.campaign || "—";
+      const cur =
+        map.get(key) || {
+          campaign: key,
+          spend: 0,
+          clicks: 0,
+          add_to_cart: 0,
+          checkout: 0,
+          video_view: 0,
+          cpc_latest: null as number | null,
+          ctr_latest: null as number | null,
+          roas_latest: null as number | null,
+        };
+      cur.spend += num(r.spend);
+      cur.clicks += num(r.clicks);
+      cur.add_to_cart += num(r.actions_add_to_cart);
+      cur.checkout += num(r.actions_initiate_checkout);
+      cur.video_view += num(r.actions_video_view);
+      if (cur.cpc_latest === null && r.cpc != null) cur.cpc_latest = num(r.cpc);
+      if (cur.ctr_latest === null && r.ctr != null) cur.ctr_latest = num(r.ctr);
+      if (cur.roas_latest === null && r.purchase_roas != null) cur.roas_latest = num(r.purchase_roas);
+      map.set(key, cur);
+    }
+    return [...map.values()]
+      .map((r) => ({
+        ...r,
+        cpc: r.clicks > 0 ? r.spend / r.clicks : r.cpc_latest || 0,
+        ctr: r.ctr_latest ?? 0,
+        roas: r.roas_latest ?? 0,
+      }))
+      .sort((a, b) => b.spend - a.spend);
+  }, [metaAds]);
+
+  const roasBadgeVariant = (roas: number): "default" | "secondary" | "destructive" => {
+    if (roas >= 4) return "default";
+    if (roas >= 2) return "secondary";
+    return "destructive";
+  };
+
+
+
 
   // ===== Aquisição =====
   const aquisicaoAgg = useMemo(() => {
