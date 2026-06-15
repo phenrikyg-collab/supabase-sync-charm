@@ -125,29 +125,22 @@ function buildDreData(
   movs.forEach((m) => {
     if (m.impacta_dre === false) return;
 
-    // Receita de vendas é alimentada exclusivamente por tray_orders
-    // (mesma fonte do Dashboard Comercial). Ignoramos movimentações de origem bling
-    // para evitar duplicidade — exceto em março, onde os valores já foram importados
-    // anteriormente via Bling e o tray_orders é ignorado para evitar duplicidade reversa.
-    const mesMov = (m.data ?? "").substring(5, 7);
-    if (m.origem === "bling" && mesMov !== "03") return;
-
     const cat = m.categoria_id ? catMap[m.categoria_id] : null;
     const faixa = cat?.grupoDre || "";
     const categoria = cat?.nomeCategoria || "Sem categoria";
     const plano = cat?.descricaoCategoria || m.descricao || "Outros";
     const isReceita = m.tipo === "entrada";
 
-    // For receita entries
     if (isReceita && faixa) {
       addEntry(faixa, categoria, plano, Math.abs(m.valor ?? 0), m);
       return;
     }
 
-    // Despesas / saídas
-    if (!faixa) return; // skip uncategorized for DRE
+    if (!faixa) return;
     addEntry(faixa, categoria, plano, Math.abs(m.valor ?? 0), m);
   });
+
+
 
   // ===== Receita de vendas (tray_orders, mesma base do Dashboard Comercial) =====
   trayOrders.forEach((o) => {
