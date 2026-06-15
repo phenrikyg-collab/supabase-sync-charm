@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { useMovimentacoesFinanceiras, useCategorias } from "@/hooks/useSupabase";
+import { useMovimentacoesDRE, useCategorias } from "@/hooks/useSupabase";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -202,7 +202,7 @@ function buildDreData(
 }
 
 export default function DRE() {
-  const { data: movs, isLoading } = useMovimentacoesFinanceiras();
+  const { data: movs, isLoading } = useMovimentacoesDRE();
   const { data: categorias } = useCategorias();
 
   const [anoSelecionado, setAnoSelecionado] = useState(new Date().getFullYear().toString());

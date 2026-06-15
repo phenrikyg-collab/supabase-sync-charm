@@ -321,6 +321,15 @@ export const useOrdensProducao = () =>
 export const useMovimentacoesFinanceiras = () =>
   useQuery({ queryKey: ["movimentacoes"], queryFn: () => fetchTable<MovimentacaoFinanceira>("movimentacoes_financeiras", { orderBy: "data" }) });
 
+export const useMovimentacoesDRE = () =>
+  useQuery({
+    queryKey: ["movimentacoes", "dre"],
+    queryFn: () => fetchTable<MovimentacaoFinanceira>("movimentacoes_financeiras", {
+      orderBy: "data",
+      filters: { impacta_dre: true },
+    }),
+  });
+
 export const useCreateMovimentacao = () => {
   const qc = useQueryClient();
   return useMutation({
