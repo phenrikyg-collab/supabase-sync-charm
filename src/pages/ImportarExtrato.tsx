@@ -941,6 +941,67 @@ export default function ImportarExtrato() {
     }
   };
 
+  const categorizarPorHistorico = async () => {
+    if (rows.length === 0) return;
+    setIsCategorizandoHistorico(true);
+    try {
+      const { data: historico } = await supabase
+        .from('movimentacoes_financeiras')
+        .select('descricao, categoria_id, categorias_financeiras(nome_categoria)')
+        .not('categoria_id', 'is', null)
+        .in('origem', ['extrato_safra', 'extrato_cartao', 'importacao', 'manual']);
+
+      if (!historico || historico.length === 0) {
+        toast.info("Nenhum histórico de categorização encontrado.");
+        return;
+      }
+
+      let categorizados = 0;
+      let semCorrespondencia = 0;
+
+      const updatedRows = rows.map((linha) => {
+        if (linha.categoria_id) return linha;
+
+        const palavras = linha.descricao
+          .toLowerCase()
+          .split(/[\s—\-]+/)
+          .filter((p) => p.length > 3);
+
+        const matches = historico.filter((h: any) =>
+          palavras.some((p) => h.descricao?.toLowerCase().includes(p))
+        );
+
+        if (matches.length > 0) {
+          const freq: Record<string, number> = {};
+          matches.forEach((m: any) => {
+            freq[m.categoria_id] = (freq[m.categoria_id] || 0) + 1;
+          });
+          const categoriaId = Object.entries(freq)
+            .sort((a, b) => b[1] - a[1])[0][0];
+          const categoriaNome = matches.find((m: any) => m.categoria_id === categoriaId)
+            ?.categorias_financeiras?.nome_categoria;
+
+          categorizados++;
+          return {
+            ...linha,
+            categoria_id: categoriaId,
+            categoria_sugerida: categoriaNome || "Auto (histórico)",
+          };
+        }
+
+        semCorrespondencia++;
+        return linha;
+      });
+
+      setRows(updatedRows);
+      toast.success(`✅ ${categorizados} lançamentos categorizados por histórico · ${semCorrespondencia} sem correspondência`);
+    } catch (err: any) {
+      toast.error("Erro na categorização por histórico: " + (err.message || "erro desconhecido"));
+    } finally {
+      setIsCategorizandoHistorico(false);
+    }
+  };
+
   const salvarMovimentacoes = async (skipDuplicateCheck = false) => {
     const selecionados = rows.filter((r) => r.selecionado);
     if (selecionados.length === 0) {
