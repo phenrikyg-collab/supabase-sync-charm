@@ -1033,16 +1033,28 @@ export default function ImportarExtrato() {
             frequencia_meses: r.frequencia_meses || null,
             impacta_dre: true,
             impacta_fluxo: true,
+            tipo_origem: "extrato",
+            fingerprint_hash: fingerprintExtrato(data, valor, r.descricao),
           };
-        }).filter(Boolean);
+        }).filter(Boolean) as any[];
 
         if (inserts.length === 0) {
           throw new Error("Nenhum lançamento válido para salvar.");
         }
-        const { error } = await supabase.from("movimentacoes_financeiras").insert(inserts);
+        const { data: inseridos, error } = await supabase
+          .from("movimentacoes_financeiras")
+          .upsert(inserts, { onConflict: "fingerprint_hash", ignoreDuplicates: true })
+          .select("id");
         if (error) throw error;
-        toast.success(`${selecionados.length} lançamentos salvos!`);
+        const qtdInseridos = inseridos?.length ?? 0;
+        const qtdIgnorados = inserts.length - qtdInseridos;
+        if (qtdIgnorados === 0) {
+          toast.success(`✅ ${qtdInseridos} lançamentos importados com sucesso.`);
+        } else {
+          toast.warning(`✅ ${qtdInseridos} lançamentos importados · ⚠️ ${qtdIgnorados} já existiam e foram ignorados.`);
+        }
       }
+
 
       queryClient.invalidateQueries({ queryKey: ["movimentacoes"] });
       queryClient.invalidateQueries({ queryKey: ["cartoes_faturas"] });
