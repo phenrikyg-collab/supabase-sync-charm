@@ -1,6 +1,4 @@
 import { useState, useMemo } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
 import { useMovimentacoesFinanceiras, useCategorias } from "@/hooks/useSupabase";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -9,30 +7,6 @@ import { TrendingUp, TrendingDown, AlertTriangle, ChevronDown, ChevronRight, Inf
 import { format, parseISO } from "date-fns";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
-// fetch all rows respecting Supabase 1000-row pagination
-async function fetchAllTray<T = any>(table: string, build: (q: any) => any): Promise<T[]> {
-  const acc: T[] = [];
-  let from = 0;
-  const size = 1000;
-  while (true) {
-    const { data, error } = await build((supabase as any).from(table).select("*").range(from, from + size - 1));
-    if (error) throw error;
-    const rows = (data ?? []) as T[];
-    acc.push(...rows);
-    if (rows.length < size) break;
-    from += size;
-  }
-  return acc;
-}
-
-interface TrayOrderDre {
-  id: number;
-  date: string | null;
-  total: number | null;
-  discount: number | null;
-  orderstatus_type: string | null;
-  orderstatus_status: string | null;
-}
 
 
 
