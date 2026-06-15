@@ -8,7 +8,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
-import { Upload, Loader2, ChevronsUpDown, ArrowUpDown, ArrowUp, ArrowDown, Sparkles } from "lucide-react";
+import { Upload, Loader2, ChevronsUpDown, ArrowUpDown, ArrowUp, ArrowDown, Sparkles, Plus } from "lucide-react";
+import { NovaCategoriaDialog } from "@/components/NovaCategoriaDialog";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
 import { formatarData } from "@/utils/formatters";
@@ -239,8 +240,10 @@ function CategoryPicker({
   onChange: (v: string | null) => void;
 }) {
   const [open, setOpen] = useState(false);
+  const [novaOpen, setNovaOpen] = useState(false);
   const displayLabel = value ? (catMap[value] || "Selecionar") : (sugerida || "Sem categoria");
   return (
+    <>
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <Button variant="outline" size="sm" className="h-8 w-[200px] justify-between text-xs font-normal truncate">
@@ -270,10 +273,25 @@ function CategoryPicker({
                 ))}
               </CommandGroup>
             ))}
+            <CommandGroup>
+              <CommandItem
+                value="__nova_categoria__"
+                onSelect={() => { setOpen(false); setNovaOpen(true); }}
+                className="text-xs text-primary font-medium"
+              >
+                <Plus className="h-3 w-3 mr-1" /> Criar nova categoria
+              </CommandItem>
+            </CommandGroup>
           </CommandList>
         </Command>
       </PopoverContent>
     </Popover>
+    <NovaCategoriaDialog
+      open={novaOpen}
+      onOpenChange={setNovaOpen}
+      onCreated={(id) => onChange(id)}
+    />
+    </>
   );
 }
 
@@ -287,6 +305,7 @@ export default function BoletosDDAImporter() {
   const [isCategorizando, setIsCategorizando] = useState(false);
   const [isCategorizandoHistorico, setIsCategorizandoHistorico] = useState(false);
   const [bulkCategoryOpen, setBulkCategoryOpen] = useState(false);
+  const [bulkNovaCategoriaOpen, setBulkNovaCategoriaOpen] = useState(false);
   const [sortField, setSortField] = useState<SortField | null>(null);
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
   const queryClient = useQueryClient();
@@ -636,10 +655,24 @@ export default function BoletosDDAImporter() {
                           ))}
                         </CommandGroup>
                       ))}
+                      <CommandGroup>
+                        <CommandItem
+                          value="__nova_categoria__"
+                          onSelect={() => { setBulkCategoryOpen(false); setBulkNovaCategoriaOpen(true); }}
+                          className="text-xs text-primary font-medium"
+                        >
+                          <Plus className="h-3 w-3 mr-1" /> Criar nova categoria
+                        </CommandItem>
+                      </CommandGroup>
                     </CommandList>
                   </Command>
                 </PopoverContent>
               </Popover>
+              <NovaCategoriaDialog
+                open={bulkNovaCategoriaOpen}
+                onOpenChange={setBulkNovaCategoriaOpen}
+                onCreated={(id) => aplicarCategoriaEmMassa(id)}
+              />
               <Button onClick={categorizarComIA} disabled={isCategorizando} className="gap-2" size="sm">
                 {isCategorizando ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
                 Categorizar com IA

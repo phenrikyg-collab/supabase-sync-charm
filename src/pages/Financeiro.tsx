@@ -13,7 +13,8 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { formatDateBR } from "@/lib/printUtils";
-import { Pencil, Trash2, Loader2, Check, ChevronsUpDown, CircleCheck, Clock, ArrowUp, ArrowDown, ArrowUpDown, ChevronLeft, ChevronRight, CreditCard, Tags, Search, X } from "lucide-react";
+import { Pencil, Trash2, Loader2, Check, ChevronsUpDown, CircleCheck, Clock, ArrowUp, ArrowDown, ArrowUpDown, ChevronLeft, ChevronRight, CreditCard, Tags, Search, X, Plus } from "lucide-react";
+import { NovaCategoriaDialog } from "@/components/NovaCategoriaDialog";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
@@ -48,6 +49,7 @@ export default function Financeiro() {
   const [filtroPeriodo, setFiltroPeriodo] = useState(() => format(new Date(), "yyyy-MM"));
   const [editingMov, setEditingMov] = useState<any | null>(null);
   const [catComboOpen, setCatComboOpen] = useState(false);
+  const [novaCategoriaOpen, setNovaCategoriaOpen] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkUpdating, setBulkUpdating] = useState(false);
@@ -722,10 +724,24 @@ export default function Financeiro() {
                             </CommandItem>
                           ))}
                         </CommandGroup>
+                        <CommandGroup>
+                          <CommandItem
+                            value="__nova_categoria__"
+                            onSelect={() => { setCatComboOpen(false); setNovaCategoriaOpen(true); }}
+                            className="text-primary font-medium"
+                          >
+                            <Plus className="mr-2 h-4 w-4" /> Criar nova categoria
+                          </CommandItem>
+                        </CommandGroup>
                       </CommandList>
                     </Command>
                   </PopoverContent>
                 </Popover>
+                <NovaCategoriaDialog
+                  open={novaCategoriaOpen}
+                  onOpenChange={setNovaCategoriaOpen}
+                  onCreated={(id) => setEditingMov((prev) => prev ? { ...prev, categoria_id: id } : prev)}
+                />
               </div>
             </div>
           )}
