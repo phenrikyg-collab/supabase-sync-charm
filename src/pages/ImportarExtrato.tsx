@@ -502,6 +502,7 @@ export default function ImportarExtrato() {
   const { data: cartoes = [] } = useCartoesCredito();
   const { data: movsExistentes } = useMovimentacoesFinanceiras();
   const queryClient = useQueryClient();
+  const [importTab, setImportTab] = useState<string>("extrato");
   const [rows, setRows] = useState<ParsedRow[]>([]);
   const [isCategorizando, setIsCategorizando] = useState(false);
   const [isSalvando, setIsSalvando] = useState(false);
