@@ -328,6 +328,8 @@ export const useMovimentacoesDRE = () =>
       orderBy: "data",
       filters: { impacta_dre: true },
     }),
+    refetchOnMount: true,
+    staleTime: 0,
   });
 
 export const useCreateMovimentacao = () => {
