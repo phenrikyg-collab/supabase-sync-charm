@@ -964,9 +964,19 @@ export default function ImportarExtrato() {
               .trim();
 
             const parcelaInfo = `${p}/${parcelaTotal}`;
-            const { data: ins, error } = await supabase
+            const fingerprint = fingerprintCartao(vencParcela, valorParcela, row.descricao, parcelaInfo);
+            const { data: jaExiste } = await supabase
               .from("movimentacoes_financeiras")
-              .upsert({
+              .select("fingerprint_hash")
+              .eq("fingerprint_hash", fingerprint)
+              .maybeSingle();
+            if (jaExiste) {
+              qtdIgnoradosCartao += 1;
+              continue;
+            }
+            const { error } = await supabase
+              .from("movimentacoes_financeiras")
+              .insert({
                 data,
                 data_vencimento: vencParcela,
                 descricao: `${descClean} ${parcelaInfo}`,
@@ -981,16 +991,11 @@ export default function ImportarExtrato() {
                 impacta_dre: true,
                 impacta_fluxo: false,
                 tipo_origem: "cartao",
-                fingerprint_hash: fingerprintCartao(vencParcela, valorParcela, row.descricao, parcelaInfo),
-              }, { onConflict: "fingerprint_hash", ignoreDuplicates: true })
-              .select("id");
+                fingerprint_hash: fingerprint,
+              });
             if (error) throw error;
-            if (ins && ins.length > 0) {
-              qtdInseridosCartao += 1;
-              await updateFaturaTotal(faturaId, valorParcela);
-            } else {
-              qtdIgnoradosCartao += 1;
-            }
+            qtdInseridosCartao += 1;
+            await updateFaturaTotal(faturaId, valorParcela);
           }
 
         }
