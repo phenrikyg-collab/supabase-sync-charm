@@ -101,8 +101,8 @@ interface FaixaGroup {
 function buildDreData(
   movs: any[],
   catMap: Record<string, CatInfo>,
-  trayOrders: TrayOrderDre[] = [],
 ) {
+
   // Accumulate: faixa → categoria → plano → { valor, count, transactions }
   const acc: Record<string, Record<string, Record<string, { valor: number; count: number; transactions: PlanoTransaction[] }>>> = {};
 
