@@ -655,10 +655,24 @@ export default function BoletosDDAImporter() {
                           ))}
                         </CommandGroup>
                       ))}
+                      <CommandGroup>
+                        <CommandItem
+                          value="__nova_categoria__"
+                          onSelect={() => { setBulkCategoryOpen(false); setBulkNovaCategoriaOpen(true); }}
+                          className="text-xs text-primary font-medium"
+                        >
+                          <Plus className="h-3 w-3 mr-1" /> Criar nova categoria
+                        </CommandItem>
+                      </CommandGroup>
                     </CommandList>
                   </Command>
                 </PopoverContent>
               </Popover>
+              <NovaCategoriaDialog
+                open={bulkNovaCategoriaOpen}
+                onOpenChange={setBulkNovaCategoriaOpen}
+                onCreated={(id) => aplicarCategoriaEmMassa(id)}
+              />
               <Button onClick={categorizarComIA} disabled={isCategorizando} className="gap-2" size="sm">
                 {isCategorizando ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
                 Categorizar com IA
