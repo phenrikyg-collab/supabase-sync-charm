@@ -906,15 +906,27 @@ export default function ImportarExtrato() {
           }).filter(Boolean) as any[];
 
           if (inserts.length > 0) {
-            const { data: inseridos, error } = await supabase
+            const fingerprints = inserts.map((l: any) => l.fingerprint_hash);
+            const { data: existentes } = await supabase
               .from("movimentacoes_financeiras")
-              .upsert(inserts, { onConflict: "fingerprint_hash", ignoreDuplicates: true })
-              .select("id, valor");
-            if (error) throw error;
-            const qtdInseridos = inseridos?.length ?? 0;
-            const totalInserido = (inseridos ?? []).reduce((s: number, x: any) => s + Number(x.valor ?? 0), 0);
+              .select("fingerprint_hash")
+              .in("fingerprint_hash", fingerprints);
+            const hashsExistentes = new Set((existentes ?? []).map((e: any) => e.fingerprint_hash));
+            const linhasNovas = inserts.filter((l: any) => !hashsExistentes.has(l.fingerprint_hash));
+            const qtdIgnoradosLocal = inserts.length - linhasNovas.length;
+            let qtdInseridos = 0;
+            let totalInserido = 0;
+            if (linhasNovas.length > 0) {
+              const { data: inseridos, error } = await supabase
+                .from("movimentacoes_financeiras")
+                .insert(linhasNovas)
+                .select("id, valor");
+              if (error) throw error;
+              qtdInseridos = inseridos?.length ?? 0;
+              totalInserido = (inseridos ?? []).reduce((s: number, x: any) => s + Number(x.valor ?? 0), 0);
+            }
             qtdInseridosCartao += qtdInseridos;
-            qtdIgnoradosCartao += inserts.length - qtdInseridos;
+            qtdIgnoradosCartao += qtdIgnoradosLocal;
             if (totalInserido > 0) await updateFaturaTotal(faturaId, totalInserido);
           }
         }
