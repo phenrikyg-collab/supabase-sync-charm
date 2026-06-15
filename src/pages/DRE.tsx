@@ -1,4 +1,6 @@
 import { useState, useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 import { useMovimentacoesFinanceiras, useCategorias } from "@/hooks/useSupabase";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -6,6 +8,31 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TrendingUp, TrendingDown, AlertTriangle, ChevronDown, ChevronRight, Info, Eye } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+
+// fetch all rows respecting Supabase 1000-row pagination
+async function fetchAllTray<T = any>(table: string, build: (q: any) => any): Promise<T[]> {
+  const acc: T[] = [];
+  let from = 0;
+  const size = 1000;
+  while (true) {
+    const { data, error } = await build((supabase as any).from(table).select("*").range(from, from + size - 1));
+    if (error) throw error;
+    const rows = (data ?? []) as T[];
+    acc.push(...rows);
+    if (rows.length < size) break;
+    from += size;
+  }
+  return acc;
+}
+
+interface TrayOrderDre {
+  id: number;
+  date: string | null;
+  total: number | null;
+  discount: number | null;
+  orderstatus_type: string | null;
+  orderstatus_status: string | null;
+}
 
 
 
@@ -101,6 +128,7 @@ interface FaixaGroup {
 function buildDreData(
   movs: any[],
   catMap: Record<string, CatInfo>,
+  trayOrders: TrayOrderDre[] = [],
 ) {
 
   // Accumulate: faixa → categoria → plano → { valor, count, transactions }
@@ -139,6 +167,40 @@ function buildDreData(
     if (!faixa) return;
     addEntry(faixa, categoria, plano, Math.abs(m.valor ?? 0), m);
   });
+
+  // ===== Tray orders → DRE =====
+  trayOrders.forEach((p) => {
+    const type = (p.orderstatus_type || "").toLowerCase();
+    const status = (p.orderstatus_status || "").toUpperCase();
+    if (type === "canceled") return; // pedidos cancelados não entram
+
+    const total = Number(p.total ?? 0);
+    const discount = Number(p.discount ?? 0);
+    const pseudo = {
+      id: `tray-${p.id}`,
+      descricao: `Pedido Tray #${p.id}`,
+      data: p.date,
+      data_vencimento: null,
+      parcela_info: null,
+    };
+
+    if (status === "ESTORNADO") {
+      // Estornos: saída em Deduções → Estornos com valor total
+      addEntry("DEDUÇÕES SOBRE VENDAS", "Estornos", "Estornos de Pedidos", Math.abs(total), pseudo);
+      return;
+    }
+
+    if (type === "closed" || type === "open") {
+      // Receita bruta = total + discount
+      const receitaBruta = total + discount;
+      addEntry("RECEITAS", "Vendas Tray", "Vendas E-commerce", receitaBruta, pseudo);
+      // Desconto comercial
+      if (discount > 0) {
+        addEntry("DEDUÇÕES SOBRE VENDAS", "Descontos Comerciais", "Descontos Comerciais", discount, pseudo);
+      }
+    }
+  });
+
 
 
 
@@ -286,7 +348,23 @@ export default function DRE() {
     });
   }, [movs, anoSelecionado, mesSelecionado]);
 
-  const dreData = useMemo(() => buildDreData(filtered, catMap), [filtered, catMap]);
+  // ===== Tray orders for DRE (regime de competência: data = date) =====
+  const { data: trayOrders = [] } = useQuery({
+    queryKey: ["dre-tray-orders", anoSelecionado, mesSelecionado],
+    queryFn: async () => {
+      const inicio = mesSelecionado !== "todos" ? `${mesSelecionado}-01` : `${anoSelecionado}-01-01`;
+      const fim = mesSelecionado !== "todos" ? `${mesSelecionado}-31` : `${anoSelecionado}-12-31`;
+      return await fetchAllTray<TrayOrderDre>("tray_orders", (q) =>
+        q.gte("date", inicio).lte("date", fim)
+      );
+    },
+  });
+
+  const dreData = useMemo(
+    () => buildDreData(filtered, catMap, trayOrders),
+    [filtered, catMap, trayOrders]
+  );
+
 
 
   const insights = useMemo(() => {
