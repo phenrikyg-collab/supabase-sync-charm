@@ -265,7 +265,12 @@ function parseSafraExtrato(buffer: ArrayBuffer): ParsedRow[] | null {
     // Drop placeholder values and avoid duplicating Lançamento
     if (compl && ["nan", "null", "-", "--", "0"].includes(compl.toLowerCase())) compl = "";
     if (compl && compl.toLowerCase() === lanc.toLowerCase()) compl = "";
-    const descricao = (compl ? `${lanc} — ${compl}` : lanc).trim() || "Sem descrição";
+    // Never include generic "Débito" or "Crédito" as the Lançamento prefix
+    const lancLower = lanc.toLowerCase();
+    const isGenericLanc = lancLower === "débito" || lancLower === "debito" || lancLower === "crédito" || lancLower === "credito";
+    let descricao = (compl && !isGenericLanc ? `${lanc} — ${compl}` : (isGenericLanc ? compl : lanc)).trim() || "Sem descrição";
+    // Safety: strip any accidental "Débito — " or "Crédito — " prefix
+    descricao = descricao.replace(/^d[eé]bito\s*[—-]\s*/i, "").replace(/^cr[eé]dito\s*[—-]\s*/i, "");
 
     const numDoc = iNumDoc >= 0 ? String(cols[iNumDoc] ?? "").trim() : "";
     const descSlug = descricao.substring(0, 20).toLowerCase().replace(/\s+/g, "_");
@@ -606,6 +611,7 @@ export default function ImportarExtrato() {
   const [validacao, setValidacao] = useState<{ tipo: "ok" | "divergente"; qtd: number; total: number; divergencia?: number; valorInformado?: number } | null>(null);
   const [duplicatasAlert, setDuplicatasAlert] = useState<{ count: number; items: string[] } | null>(null);
   const [salvarAposDuplicata, setSalvarAposDuplicata] = useState(false);
+  const [isCategorizandoHistorico, setIsCategorizandoHistorico] = useState(false);
 
   // Build a map of description -> categoria_id from historical transactions
   const historicoCategoria = useMemo(() => {
@@ -932,6 +938,67 @@ export default function ImportarExtrato() {
       toast.error("Erro na categorização: " + (err.message || "erro desconhecido"));
     } finally {
       setIsCategorizando(false);
+    }
+  };
+
+  const categorizarPorHistorico = async () => {
+    if (rows.length === 0) return;
+    setIsCategorizandoHistorico(true);
+    try {
+      const { data: historico } = await supabase
+        .from('movimentacoes_financeiras')
+        .select('descricao, categoria_id, categorias_financeiras(nome_categoria)')
+        .not('categoria_id', 'is', null)
+        .in('origem', ['extrato_safra', 'extrato_cartao', 'importacao', 'manual']);
+
+      if (!historico || historico.length === 0) {
+        toast.info("Nenhum histórico de categorização encontrado.");
+        return;
+      }
+
+      let categorizados = 0;
+      let semCorrespondencia = 0;
+
+      const updatedRows = rows.map((linha) => {
+        if (linha.categoria_id) return linha;
+
+        const palavras = linha.descricao
+          .toLowerCase()
+          .split(/[\s—\-]+/)
+          .filter((p) => p.length > 3);
+
+        const matches = historico.filter((h: any) =>
+          palavras.some((p) => h.descricao?.toLowerCase().includes(p))
+        );
+
+        if (matches.length > 0) {
+          const freq: Record<string, number> = {};
+          matches.forEach((m: any) => {
+            freq[m.categoria_id] = (freq[m.categoria_id] || 0) + 1;
+          });
+          const categoriaId = Object.entries(freq)
+            .sort((a, b) => b[1] - a[1])[0][0];
+          const categoriaNome = matches.find((m: any) => m.categoria_id === categoriaId)
+            ?.categorias_financeiras?.[0]?.nome_categoria;
+
+          categorizados++;
+          return {
+            ...linha,
+            categoria_id: categoriaId,
+            categoria_sugerida: categoriaNome || "Auto (histórico)",
+          };
+        }
+
+        semCorrespondencia++;
+        return linha;
+      });
+
+      setRows(updatedRows);
+      toast.success(`✅ ${categorizados} lançamentos categorizados por histórico · ${semCorrespondencia} sem correspondência`);
+    } catch (err: any) {
+      toast.error("Erro na categorização por histórico: " + (err.message || "erro desconhecido"));
+    } finally {
+      setIsCategorizandoHistorico(false);
     }
   };
 
@@ -1523,6 +1590,10 @@ export default function ImportarExtrato() {
               <Button onClick={categorizarComIA} disabled={isCategorizando} className="gap-2">
                 {isCategorizando ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
                 Categorizar com IA
+              </Button>
+              <Button onClick={categorizarPorHistorico} disabled={isCategorizandoHistorico} variant="outline" className="gap-2">
+                {isCategorizandoHistorico ? <Loader2 className="h-4 w-4 animate-spin" /> : "📂"}
+                Categorizar por Histórico
               </Button>
               <Button onClick={() => salvarMovimentacoes()} disabled={isSalvando} variant="default" className="gap-2">
                 {isSalvando ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
