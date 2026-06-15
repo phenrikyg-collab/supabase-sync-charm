@@ -955,7 +955,7 @@ export default function ImportarExtrato() {
             valorTotalFatura: Number.isFinite(valorFaturaNum) ? valorFaturaNum : undefined,
           });
           if (data?.rows?.length > 0) {
-            setRows(autoCategorizeFromHistory(data.rows.map((r: any) => {
+            await processarLinhas(data.rows.map((r: any) => {
               const parcela = detectParcela(r.descricao || "");
               return {
                 data: r.data,
@@ -972,7 +972,7 @@ export default function ImportarExtrato() {
                 parcela_total: parcela?.total ?? null,
                 selecionado: true,
               };
-            })));
+            }));
 
             // Validation
             if (Number.isFinite(valorFaturaNum) && valorFaturaNum! > 0) {
