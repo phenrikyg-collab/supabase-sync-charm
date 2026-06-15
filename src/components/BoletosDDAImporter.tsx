@@ -14,8 +14,8 @@ import { formatarData } from "@/utils/formatters";
 type Situacao = "PAGO" | "ABERTO" | "VENCIDO" | "BAIXADO" | string;
 
 interface BoletoLinha {
-  data: string;
-  data_vencimento: string;
+  data: string;                 // competência → DRE
+  data_vencimento: string;        // vencimento → fluxo de caixa / contas a pagar
   descricao: string;
   valor: number;
   tipo: "saida";
@@ -28,6 +28,7 @@ interface BoletoLinha {
   status_pagamento: "pago" | "pendente";
   situacao_original: Situacao;
   // ui-only
+  competenciaBr: string;
   vencimentoBr: string;
   doc_key: string;
 }
@@ -124,6 +125,7 @@ function parseBoletosDDA(buffer: ArrayBuffer): { linhas: BoletoLinha[] } {
   };
 
   const iVenc = findIdx("Vencimento");
+  const iCompetencia = findIdx("Data de competencia", "Data competencia");
   const iNumDoc = findIdx("N documento", "Nº documento", "numero documento");
   const iNosso = findIdx("Nosso numero", "Nosso número");
   const iBenef = findIdx("Beneficiario", "Beneficiário");
@@ -140,8 +142,22 @@ function parseBoletosDDA(buffer: ArrayBuffer): { linhas: BoletoLinha[] } {
     const situacao = String(row[iSit] ?? "").trim().toUpperCase();
     if (!situacao) continue;
 
-    const { iso, br } = parseDataBR(row[iVenc]);
-    if (!iso) continue;
+    const { iso: isoVenc, br: brVenc } = parseDataBR(row[iVenc]);
+    if (!isoVenc) continue;
+
+    // Data de competência — usar quando disponível, fallback para vencimento
+    let isoCompetencia = isoVenc;
+    let brCompetencia = brVenc;
+    if (iCompetencia >= 0) {
+      const compRaw = row[iCompetencia];
+      if (compRaw !== undefined && compRaw !== "" && compRaw !== null) {
+        const parsedComp = parseDataBR(compRaw);
+        if (parsedComp.iso) {
+          isoCompetencia = parsedComp.iso;
+          brCompetencia = parsedComp.br;
+        }
+      }
+    }
 
     const numDocRaw = String(row[iNumDoc] ?? "").trim();
     const nossoNum = String(row[iNosso] ?? "").trim();
@@ -160,8 +176,8 @@ function parseBoletosDDA(buffer: ArrayBuffer): { linhas: BoletoLinha[] } {
     const fingerprint_hash = `boleto_${docKey}_${beneKey}`;
 
     linhas.push({
-      data: iso,
-      data_vencimento: iso,
+      data: isoCompetencia,          // competência → DRE
+      data_vencimento: isoVenc,      // vencimento → fluxo de caixa / contas a pagar
       descricao: `${beneficiario} - ${docKey}`,
       valor,
       tipo: "saida",
@@ -173,7 +189,8 @@ function parseBoletosDDA(buffer: ArrayBuffer): { linhas: BoletoLinha[] } {
       cliente: beneficiario,
       status_pagamento,
       situacao_original: situacao,
-      vencimentoBr: br,
+      competenciaBr: brCompetencia,
+      vencimentoBr: brVenc,
       doc_key: docKey,
     });
   }
@@ -380,6 +397,7 @@ export default function BoletosDDAImporter() {
               <Table>
                 <TableHeader>
                   <TableRow>
+                    <TableHead>Competência</TableHead>
                     <TableHead>Vencimento</TableHead>
                     <TableHead>Beneficiário</TableHead>
                     <TableHead>Nº Doc</TableHead>
@@ -392,6 +410,7 @@ export default function BoletosDDAImporter() {
                   {linhas.map((l, idx) => (
                     <TableRow key={`${l.fingerprint_hash}_${idx}`}>
                       <TableCell>{formatarData(l.data)}</TableCell>
+                      <TableCell>{l.vencimentoBr}</TableCell>
                       <TableCell className="max-w-[280px] truncate" title={l.cliente}>{l.cliente}</TableCell>
                       <TableCell className="font-mono text-xs">{l.doc_key}</TableCell>
                       <TableCell className="text-right">{formatCurrency(l.valor)}</TableCell>
