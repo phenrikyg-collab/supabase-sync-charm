@@ -102,7 +102,6 @@ interface FaixaGroup {
 function buildDreData(
   movs: any[],
   catMap: Record<string, CatInfo>,
-  trayOrders: TrayOrderDre[] = [],
 ) {
 
   // Accumulate: faixa → categoria → plano → { valor, count, transactions }
@@ -142,38 +141,6 @@ function buildDreData(
     addEntry(faixa, categoria, plano, Math.abs(m.valor ?? 0), m);
   });
 
-  // ===== Tray orders → DRE =====
-  trayOrders.forEach((p) => {
-    const type = (p.orderstatus_type || "").toLowerCase();
-    const status = (p.orderstatus_status || "").toUpperCase();
-    if (type === "canceled") return; // pedidos cancelados não entram
-
-    const total = Number(p.total ?? 0);
-    const discount = Number(p.discount ?? 0);
-    const pseudo = {
-      id: `tray-${p.id}`,
-      descricao: `Pedido Tray #${p.id}`,
-      data: p.date,
-      data_vencimento: null,
-      parcela_info: null,
-    };
-
-    if (status === "ESTORNADO") {
-      // Estornos: saída em Deduções → Estornos com valor total
-      addEntry("DEDUÇÕES SOBRE VENDAS", "Estornos", "Estornos de Pedidos", Math.abs(total), pseudo);
-      return;
-    }
-
-    if (type === "closed" || type === "open") {
-      // Receita bruta = total + discount
-      const receitaBruta = total + discount;
-      addEntry("RECEITAS", "Vendas Tray", "Vendas E-commerce", receitaBruta, pseudo);
-      // Desconto comercial
-      if (discount > 0) {
-        addEntry("DEDUÇÕES SOBRE VENDAS", "Descontos Comerciais", "Descontos Comerciais", discount, pseudo);
-      }
-    }
-  });
 
 
 
