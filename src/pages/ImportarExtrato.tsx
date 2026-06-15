@@ -611,6 +611,7 @@ export default function ImportarExtrato() {
   const [validacao, setValidacao] = useState<{ tipo: "ok" | "divergente"; qtd: number; total: number; divergencia?: number; valorInformado?: number } | null>(null);
   const [duplicatasAlert, setDuplicatasAlert] = useState<{ count: number; items: string[] } | null>(null);
   const [salvarAposDuplicata, setSalvarAposDuplicata] = useState(false);
+  const [isCategorizandoHistorico, setIsCategorizandoHistorico] = useState(false);
 
   // Build a map of description -> categoria_id from historical transactions
   const historicoCategoria = useMemo(() => {
