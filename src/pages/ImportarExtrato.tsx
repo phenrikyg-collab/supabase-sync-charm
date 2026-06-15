@@ -999,7 +999,7 @@ export default function ImportarExtrato() {
     } else {
       toast.error("Formato não suportado. Use CSV, Excel (.xlsx) ou PDF.");
     }
-  }, [categorias, banco, bancoCartao, valorTotalFatura]);
+  }, [categorias, banco, bancoCartao, valorTotalFatura, processarLinhas]);
 
   const categorizarComIA = async () => {
     if (rows.length === 0) return;
