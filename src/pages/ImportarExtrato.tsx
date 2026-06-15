@@ -60,6 +60,7 @@ interface ParsedRow {
   selecionado: boolean;
   fingerprint_hash?: string;
   origem_override?: string;
+  possivel_duplicata?: boolean;
 }
 
 // Detect installment info from description: "2/12", "PARCELA 2 DE 12", "2 DE 12", etc.
