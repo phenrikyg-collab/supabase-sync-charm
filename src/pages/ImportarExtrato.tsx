@@ -948,24 +948,36 @@ export default function ImportarExtrato() {
               .replace(/\s*parc(?:ela)?\s*\d{1,2}\s*(?:de|\/)\s*\d{1,2}/i, "")
               .trim();
 
-            const { error } = await supabase.from("movimentacoes_financeiras").insert({
-              data,
-              data_vencimento: vencParcela,
-              descricao: `${descClean} ${p}/${parcelaTotal}`,
-              valor: valorParcela,
-              tipo: "saida",
-              categoria_id: row.categoria_id || categoriaPadrao,
-              origem: "extrato_cartao",
-              status_pagamento: "em_aberto",
-              parcela_info: `${p}/${parcelaTotal}`,
-              conta_tipo: "cartao_fatura",
-              fatura_id: faturaId,
-              impacta_dre: true,
-              impacta_fluxo: false,
-            });
+            const parcelaInfo = `${p}/${parcelaTotal}`;
+            const { data: ins, error } = await supabase
+              .from("movimentacoes_financeiras")
+              .upsert({
+                data,
+                data_vencimento: vencParcela,
+                descricao: `${descClean} ${parcelaInfo}`,
+                valor: valorParcela,
+                tipo: "saida",
+                categoria_id: row.categoria_id || categoriaPadrao,
+                origem: "extrato_cartao",
+                status_pagamento: "em_aberto",
+                parcela_info: parcelaInfo,
+                conta_tipo: "cartao_fatura",
+                fatura_id: faturaId,
+                impacta_dre: true,
+                impacta_fluxo: false,
+                tipo_origem: "cartao",
+                fingerprint_hash: fingerprintCartao(vencParcela, valorParcela, row.descricao, parcelaInfo),
+              }, { onConflict: "fingerprint_hash", ignoreDuplicates: true })
+              .select("id");
             if (error) throw error;
-            await updateFaturaTotal(faturaId, valorParcela);
+            if (ins && ins.length > 0) {
+              qtdInseridosCartao += 1;
+              await updateFaturaTotal(faturaId, valorParcela);
+            } else {
+              qtdIgnoradosCartao += 1;
+            }
           }
+
         }
 
         const totalParcelamentos = parcelados.length;
