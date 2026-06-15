@@ -927,7 +927,7 @@ export default function ImportarExtrato() {
         toast.error("Nenhum lançamento encontrado na planilha. Verifique o formato.");
         return;
       }
-      setRows(autoCategorizeFromHistory(parsed));
+      await processarLinhas(parsed);
       const parcelados = parsed.filter((r) => r.parcela_total);
       if (safraExtrato) {
         toast.success(`${parsed.length} lançamentos do Extrato Safra detectados`);
