@@ -1129,8 +1129,20 @@ export default function ImportarExtrato() {
     <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-serif font-bold text-foreground">Importar Extrato</h1>
-        <p className="text-sm text-muted-foreground mt-1">Importe extratos bancários CSV ou faturas PDF</p>
+        <p className="text-sm text-muted-foreground mt-1">Importe extratos bancários CSV, faturas PDF ou CSV da Vindi</p>
       </div>
+
+      <Tabs value={importTab} onValueChange={setImportTab}>
+        <TabsList>
+          <TabsTrigger value="extrato">Extrato / Fatura</TabsTrigger>
+          <TabsTrigger value="vindi">Vindi</TabsTrigger>
+        </TabsList>
+        <TabsContent value="vindi" className="mt-6">
+          <VindiImporter />
+        </TabsContent>
+        <TabsContent value="extrato" className="mt-6 space-y-6">
+
+
 
       <Card>
         <CardHeader>
