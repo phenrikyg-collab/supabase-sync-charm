@@ -49,6 +49,7 @@ export default function Financeiro() {
   const [filtroPeriodo, setFiltroPeriodo] = useState(() => format(new Date(), "yyyy-MM"));
   const [editingMov, setEditingMov] = useState<any | null>(null);
   const [catComboOpen, setCatComboOpen] = useState(false);
+  const [novaCategoriaOpen, setNovaCategoriaOpen] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkUpdating, setBulkUpdating] = useState(false);
