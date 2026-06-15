@@ -266,21 +266,17 @@ export default function DRE() {
   const anos = useMemo(() => {
     const set = new Set<string>();
     (movs ?? []).forEach((m) => { if (m.data) set.add(m.data.substring(0, 4)); });
-    (trayOrders ?? []).forEach((o) => { if (o.date) set.add(o.date.substring(0, 4)); });
     if (set.size === 0) set.add(new Date().getFullYear().toString());
     return [...set].sort().reverse();
-  }, [movs, trayOrders]);
+  }, [movs]);
 
   const mesesDisponiveis = useMemo(() => {
     const set = new Set<string>();
     (movs ?? []).forEach((m) => {
       if (m.data && m.data.startsWith(anoSelecionado)) set.add(m.data.substring(0, 7));
     });
-    (trayOrders ?? []).forEach((o) => {
-      if (o.date && o.date.startsWith(anoSelecionado)) set.add(o.date.substring(0, 7));
-    });
     return [...set].sort();
-  }, [movs, trayOrders, anoSelecionado]);
+  }, [movs, anoSelecionado]);
 
   const filtered = useMemo(() => {
     return (movs ?? []).filter((m) => {
@@ -290,18 +286,8 @@ export default function DRE() {
     });
   }, [movs, anoSelecionado, mesSelecionado]);
 
-  const filteredTray = useMemo(() => {
-    return (trayOrders ?? []).filter((o) => {
-      if (!o.date) return false;
-      if (!o.date.startsWith(anoSelecionado)) return false;
-      if (mesSelecionado !== "todos" && !o.date.startsWith(mesSelecionado)) return false;
-      // Março: dados já importados via Bling anteriormente. Ignorar tray_orders para evitar duplicidade.
-      if (o.date.substring(5, 7) === "03") return false;
-      return true;
-    });
-  }, [trayOrders, anoSelecionado, mesSelecionado]);
+  const dreData = useMemo(() => buildDreData(filtered, catMap), [filtered, catMap]);
 
-  const dreData = useMemo(() => buildDreData(filtered, catMap, filteredTray), [filtered, catMap, filteredTray]);
 
   const insights = useMemo(() => {
     const tips: { icon: React.ReactNode; text: string; type: "success" | "warning" | "danger" }[] = [];
