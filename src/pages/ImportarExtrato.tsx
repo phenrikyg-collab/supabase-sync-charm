@@ -830,6 +830,9 @@ export default function ImportarExtrato() {
         // Group rows: parcelados need future faturas, non-parcelados go to current fatura
         const parcelados = selecionados.filter((r) => r.parcela_total && r.parcela_total >= 2);
         const naoParcelados = selecionados.filter((r) => !r.parcela_total || r.parcela_total < 2);
+        let qtdInseridosCartao = 0;
+        let qtdIgnoradosCartao = 0;
+
 
         // Helper: get or create fatura for a given vencimento
         const getOrCreateFatura = async (vencimento: string, mesRef: string): Promise<string> => {
