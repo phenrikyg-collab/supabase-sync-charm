@@ -1129,6 +1129,8 @@ export default function ImportarExtrato() {
           const data = normalizeDateForDb(r.data);
           const dataVencimento = normalizeDateForDb(r.data_vencimento);
           if (!Number.isFinite(valor) || !data) return null;
+          const origem = r.origem_override
+            ?? (isVindi ? (banco === "vindi_transacoes" ? "vindi_transacoes" : "vindi_taxas") : `extrato_${banco}`);
           return {
             data,
             data_vencimento: dataVencimento,
@@ -1136,15 +1138,15 @@ export default function ImportarExtrato() {
             valor,
             tipo: r.tipo,
             categoria_id: r.categoria_id || vindiCategoriaId || null,
-            origem: isVindi ? (banco === "vindi_transacoes" ? "vindi_transacoes" : "vindi_taxas") : `extrato_${banco}`,
-            status_pagamento: "pago",
+            origem,
+            status_pagamento: r.tipo === "entrada" ? "recebido" : "pago",
             frequencia: r.frequencia === "mensal_indeterminada" || r.frequencia === "mensal_por_periodo" ? "Mensal" : r.frequencia || null,
             frequencia_tipo: r.frequencia_tipo || null,
             frequencia_meses: r.frequencia_meses || null,
             impacta_dre: true,
             impacta_fluxo: true,
             tipo_origem: "extrato",
-            fingerprint_hash: fingerprintExtrato(data, valor, r.descricao),
+            fingerprint_hash: r.fingerprint_hash || fingerprintExtrato(data, valor, r.descricao),
           };
         }).filter(Boolean) as any[];
 
@@ -1160,6 +1162,7 @@ export default function ImportarExtrato() {
         const linhasNovas = inserts.filter((l: any) => !hashsExistentes.has(l.fingerprint_hash));
         const qtdIgnorados = inserts.length - linhasNovas.length;
         let qtdInseridos = 0;
+        let totalInserido = 0;
         if (linhasNovas.length > 0) {
           const { data: inseridos, error } = await supabase
             .from("movimentacoes_financeiras")
@@ -1167,11 +1170,17 @@ export default function ImportarExtrato() {
             .select("id");
           if (error) throw error;
           qtdInseridos = inseridos?.length ?? 0;
+          totalInserido = linhasNovas.reduce((s: number, l: any) => s + Number(l.valor || 0), 0);
         }
+        const isSafraExtrato = inserts.some((l: any) => l.origem === "extrato_safra");
         if (qtdIgnorados === 0) {
-          toast.success(`✅ ${qtdInseridos} lançamentos importados com sucesso.`);
+          toast.success(
+            isSafraExtrato
+              ? `✅ ${qtdInseridos} lançamentos importados (${formatCurrency(totalInserido)})`
+              : `✅ ${qtdInseridos} lançamentos importados com sucesso.`
+          );
         } else {
-          toast.warning(`✅ ${qtdInseridos} lançamentos importados · ⚠️ ${qtdIgnorados} já existiam e foram ignorados.`);
+          toast.warning(`✅ ${qtdInseridos} importados · ⚠️ ${qtdIgnorados} já existiam e foram ignorados.`);
         }
       }
 
