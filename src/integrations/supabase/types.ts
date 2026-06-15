@@ -853,6 +853,7 @@ export type Database = {
           descricao: string | null
           entrada_tecido_id: string | null
           fatura_id: string | null
+          fingerprint_hash: string | null
           frequencia: string | null
           frequencia_meses: number | null
           frequencia_tipo: string | null
@@ -865,6 +866,7 @@ export type Database = {
           status_bling: string | null
           status_pagamento: string | null
           tipo: string | null
+          tipo_origem: string | null
           valor: number
           valor_bruto: number | null
           valor_desconto: number | null
@@ -887,6 +889,7 @@ export type Database = {
           descricao?: string | null
           entrada_tecido_id?: string | null
           fatura_id?: string | null
+          fingerprint_hash?: string | null
           frequencia?: string | null
           frequencia_meses?: number | null
           frequencia_tipo?: string | null
@@ -899,6 +902,7 @@ export type Database = {
           status_bling?: string | null
           status_pagamento?: string | null
           tipo?: string | null
+          tipo_origem?: string | null
           valor?: number
           valor_bruto?: number | null
           valor_desconto?: number | null
@@ -921,6 +925,7 @@ export type Database = {
           descricao?: string | null
           entrada_tecido_id?: string | null
           fatura_id?: string | null
+          fingerprint_hash?: string | null
           frequencia?: string | null
           frequencia_meses?: number | null
           frequencia_tipo?: string | null
@@ -933,6 +938,7 @@ export type Database = {
           status_bling?: string | null
           status_pagamento?: string | null
           tipo?: string | null
+          tipo_origem?: string | null
           valor?: number
           valor_bruto?: number | null
           valor_desconto?: number | null
