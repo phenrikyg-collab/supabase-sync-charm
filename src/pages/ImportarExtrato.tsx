@@ -261,8 +261,11 @@ function parseSafraExtrato(buffer: ArrayBuffer): ParsedRow[] | null {
     const valorAbs = Math.abs(valorNum);
 
     const lanc = String(cols[iLanc] ?? "").trim();
-    const compl = iCompl >= 0 ? String(cols[iCompl] ?? "").trim() : "";
-    const descricao = [lanc, compl].filter(Boolean).join(" — ").trim() || "Sem descrição";
+    let compl = iCompl >= 0 ? String(cols[iCompl] ?? "").trim() : "";
+    // Drop placeholder values and avoid duplicating Lançamento
+    if (compl && ["nan", "null", "-", "--", "0"].includes(compl.toLowerCase())) compl = "";
+    if (compl && compl.toLowerCase() === lanc.toLowerCase()) compl = "";
+    const descricao = (compl ? `${lanc} — ${compl}` : lanc).trim() || "Sem descrição";
 
     const numDoc = iNumDoc >= 0 ? String(cols[iNumDoc] ?? "").trim() : "";
     const descSlug = descricao.substring(0, 20).toLowerCase().replace(/\s+/g, "_");
