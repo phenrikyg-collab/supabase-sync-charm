@@ -1061,13 +1061,23 @@ export default function ImportarExtrato() {
         if (inserts.length === 0) {
           throw new Error("Nenhum lançamento válido para salvar.");
         }
-        const { data: inseridos, error } = await supabase
+        const fingerprints = inserts.map((l: any) => l.fingerprint_hash);
+        const { data: existentes } = await supabase
           .from("movimentacoes_financeiras")
-          .upsert(inserts, { onConflict: "fingerprint_hash", ignoreDuplicates: true })
-          .select("id");
-        if (error) throw error;
-        const qtdInseridos = inseridos?.length ?? 0;
-        const qtdIgnorados = inserts.length - qtdInseridos;
+          .select("fingerprint_hash")
+          .in("fingerprint_hash", fingerprints);
+        const hashsExistentes = new Set((existentes ?? []).map((e: any) => e.fingerprint_hash));
+        const linhasNovas = inserts.filter((l: any) => !hashsExistentes.has(l.fingerprint_hash));
+        const qtdIgnorados = inserts.length - linhasNovas.length;
+        let qtdInseridos = 0;
+        if (linhasNovas.length > 0) {
+          const { data: inseridos, error } = await supabase
+            .from("movimentacoes_financeiras")
+            .insert(linhasNovas)
+            .select("id");
+          if (error) throw error;
+          qtdInseridos = inseridos?.length ?? 0;
+        }
         if (qtdIgnorados === 0) {
           toast.success(`✅ ${qtdInseridos} lançamentos importados com sucesso.`);
         } else {
