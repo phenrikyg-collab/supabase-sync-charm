@@ -725,6 +725,90 @@ export default function ImportarExtrato() {
     return result;
   }, [historicoCategoria]);
 
+  // Verify if there's a registered "frequencia" matching the row description.
+  // - If matched and the same month already has an entry → mark as possivel_duplicata (unchecked).
+  // - If matched but no entry this month → pre-fill frequencia + categoria_id from history.
+  const verificarFrequenciasCadastradas = useCallback(async (parsedRows: ParsedRow[]): Promise<ParsedRow[]> => {
+    try {
+      const { data: comFrequencia } = await supabase
+        .from("movimentacoes_financeiras")
+        .select("descricao, frequencia, frequencia_meses, frequencia_tipo, categoria_id")
+        .not("frequencia", "is", null)
+        .neq("frequencia", "unica");
+
+      if (!comFrequencia || comFrequencia.length === 0) return parsedRows;
+
+      const result: ParsedRow[] = [];
+      let duplicadasCount = 0;
+      let freqPreenchidasCount = 0;
+
+      for (const linha of parsedRows) {
+        const palavras = (linha.descricao || "")
+          .toLowerCase()
+          .split(/[\s—\-]+/)
+          .filter((p) => p.length > 4);
+
+        const match = comFrequencia.find((h: any) => {
+          const hDesc = (h.descricao || "").toLowerCase();
+          return palavras.some((p) => hDesc.includes(p));
+        });
+
+        if (!match) {
+          result.push(linha);
+          continue;
+        }
+
+        const mesAno = (linha.data || "").substring(0, 7); // "YYYY-MM"
+        const primeiraPalavra = (match.descricao || "").split(" ")[0] || "";
+
+        let jaExisteNoMes = false;
+        if (mesAno && primeiraPalavra) {
+          const { data: jaExiste } = await supabase
+            .from("movimentacoes_financeiras")
+            .select("id")
+            .ilike("descricao", `%${primeiraPalavra}%`)
+            .gte("data", `${mesAno}-01`)
+            .lte("data", `${mesAno}-31`)
+            .limit(1);
+          jaExisteNoMes = !!(jaExiste && jaExiste.length > 0);
+        }
+
+        if (jaExisteNoMes) {
+          duplicadasCount++;
+          result.push({ ...linha, possivel_duplicata: true, selecionado: false });
+        } else {
+          freqPreenchidasCount++;
+          result.push({
+            ...linha,
+            frequencia: match.frequencia ?? linha.frequencia,
+            frequencia_tipo: match.frequencia_tipo ?? linha.frequencia_tipo,
+            frequencia_meses: match.frequencia_meses ?? linha.frequencia_meses,
+            categoria_id: linha.categoria_id || match.categoria_id || null,
+          });
+        }
+      }
+
+      if (duplicadasCount > 0) {
+        toast.warning(`⚠️ ${duplicadasCount} possível(is) duplicata(s) de lançamento recorrente — desmarcadas automaticamente`);
+      }
+      if (freqPreenchidasCount > 0) {
+        toast.info(`🔁 ${freqPreenchidasCount} lançamento(s) com frequência pré-preenchida pelo histórico`);
+      }
+      return result;
+    } catch (err) {
+      console.error("Erro ao verificar frequências cadastradas:", err);
+      return parsedRows;
+    }
+  }, []);
+
+  // Wrapper: auto-categorize + verify frequencies, then set rows
+  const processarLinhas = useCallback(async (parsed: ParsedRow[]) => {
+    const categorizadas = autoCategorizeFromHistory(parsed);
+    const finais = await verificarFrequenciasCadastradas(categorizadas);
+    setRows(finais);
+  }, [autoCategorizeFromHistory, verificarFrequenciasCadastradas]);
+
+
   // Check for duplicates
   const checkDuplicates = useCallback((parsedRows: ParsedRow[]): { count: number; items: string[] } => {
     const dupes: string[] = [];
