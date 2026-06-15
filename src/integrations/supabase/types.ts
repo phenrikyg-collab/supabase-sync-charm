@@ -1909,6 +1909,69 @@ export type Database = {
         }
         Relationships: []
       }
+      vindi_transacoes: {
+        Row: {
+          cliente: string | null
+          codigo_rastreio: string | null
+          created_at: string
+          data_credito: string | null
+          data_transacao: string | null
+          email_cliente: string | null
+          id: string
+          meio_pagamento: string | null
+          nsu: string | null
+          numero_pedido: string | null
+          parcelas: number | null
+          status: string | null
+          taxa: number | null
+          taxa_percentual: number | null
+          updated_at: string
+          valor_frete: number | null
+          valor_loja: number | null
+          valor_pago: number | null
+        }
+        Insert: {
+          cliente?: string | null
+          codigo_rastreio?: string | null
+          created_at?: string
+          data_credito?: string | null
+          data_transacao?: string | null
+          email_cliente?: string | null
+          id: string
+          meio_pagamento?: string | null
+          nsu?: string | null
+          numero_pedido?: string | null
+          parcelas?: number | null
+          status?: string | null
+          taxa?: number | null
+          taxa_percentual?: number | null
+          updated_at?: string
+          valor_frete?: number | null
+          valor_loja?: number | null
+          valor_pago?: number | null
+        }
+        Update: {
+          cliente?: string | null
+          codigo_rastreio?: string | null
+          created_at?: string
+          data_credito?: string | null
+          data_transacao?: string | null
+          email_cliente?: string | null
+          id?: string
+          meio_pagamento?: string | null
+          nsu?: string | null
+          numero_pedido?: string | null
+          parcelas?: number | null
+          status?: string | null
+          taxa?: number | null
+          taxa_percentual?: number | null
+          updated_at?: string
+          valor_frete?: number | null
+          valor_loja?: number | null
+          valor_pago?: number | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       v_tray_orders: {

@@ -12,6 +12,8 @@ import { toast } from "sonner";
 import { Upload, Sparkles, Check, Loader2, FileText, ChevronsUpDown, ArrowUpDown, AlertTriangle } from "lucide-react";
 import * as XLSX from "xlsx";
 import { supabase } from "@/integrations/supabase/client";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import VindiImporter from "@/components/VindiImporter";
 import { useCategorias, useCartoesCredito, useMovimentacoesFinanceiras } from "@/hooks/useSupabase";
 import { invokeEdgeFunction } from "@/lib/edgeFunctions";
 import { useQueryClient } from "@tanstack/react-query";
@@ -500,6 +502,7 @@ export default function ImportarExtrato() {
   const { data: cartoes = [] } = useCartoesCredito();
   const { data: movsExistentes } = useMovimentacoesFinanceiras();
   const queryClient = useQueryClient();
+  const [importTab, setImportTab] = useState<string>("extrato");
   const [rows, setRows] = useState<ParsedRow[]>([]);
   const [isCategorizando, setIsCategorizando] = useState(false);
   const [isSalvando, setIsSalvando] = useState(false);
@@ -1129,8 +1132,20 @@ export default function ImportarExtrato() {
     <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-serif font-bold text-foreground">Importar Extrato</h1>
-        <p className="text-sm text-muted-foreground mt-1">Importe extratos bancários CSV ou faturas PDF</p>
+        <p className="text-sm text-muted-foreground mt-1">Importe extratos bancários CSV, faturas PDF ou CSV da Vindi</p>
       </div>
+
+      <Tabs value={importTab} onValueChange={setImportTab}>
+        <TabsList>
+          <TabsTrigger value="extrato">Extrato / Fatura</TabsTrigger>
+          <TabsTrigger value="vindi">Vindi</TabsTrigger>
+        </TabsList>
+        <TabsContent value="vindi" className="mt-6">
+          <VindiImporter />
+        </TabsContent>
+        <TabsContent value="extrato" className="mt-6 space-y-6">
+
+
 
       <Card>
         <CardHeader>
@@ -1436,7 +1451,10 @@ export default function ImportarExtrato() {
           </Card>
         </>
       )}
+        </TabsContent>
+      </Tabs>
       {/* Duplicate detection alert */}
+
       <AlertDialog open={!!duplicatasAlert} onOpenChange={(open) => !open && setDuplicatasAlert(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
