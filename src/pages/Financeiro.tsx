@@ -724,10 +724,24 @@ export default function Financeiro() {
                             </CommandItem>
                           ))}
                         </CommandGroup>
+                        <CommandGroup>
+                          <CommandItem
+                            value="__nova_categoria__"
+                            onSelect={() => { setCatComboOpen(false); setNovaCategoriaOpen(true); }}
+                            className="text-primary font-medium"
+                          >
+                            <Plus className="mr-2 h-4 w-4" /> Criar nova categoria
+                          </CommandItem>
+                        </CommandGroup>
                       </CommandList>
                     </Command>
                   </PopoverContent>
                 </Popover>
+                <NovaCategoriaDialog
+                  open={novaCategoriaOpen}
+                  onOpenChange={setNovaCategoriaOpen}
+                  onCreated={(id) => setEditingMov((prev) => prev ? { ...prev, categoria_id: id } : prev)}
+                />
               </div>
             </div>
           )}
