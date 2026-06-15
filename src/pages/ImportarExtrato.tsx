@@ -18,6 +18,27 @@ import { useQueryClient } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
 import { formatarData } from "@/utils/formatters";
 
+function gerarFingerprint(str: string): string {
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    hash = ((hash << 5) - hash) + str.charCodeAt(i);
+    hash = hash & hash;
+  }
+  return Math.abs(hash).toString(36) + '_' + str.length;
+}
+
+function fingerprintExtrato(data: string, valor: number, descricao: string): string {
+  return 'ext_' + gerarFingerprint(`${data}|${valor.toFixed(2)}|${descricao.trim().toLowerCase()}`);
+}
+
+function fingerprintCartao(vencimento: string, valor: number, estabelecimento: string, parcela: string | null): string {
+  const mes = (vencimento || '').slice(0, 7);
+  const numParcela = parcela?.split('/')[0] ?? '1';
+  return 'cc_' + gerarFingerprint(`${mes}|${valor.toFixed(2)}|${estabelecimento.trim().toLowerCase()}|${numParcela}`);
+}
+
+
+
 interface ParsedRow {
   data: string;
   data_vencimento: string | null;
@@ -809,6 +830,9 @@ export default function ImportarExtrato() {
         // Group rows: parcelados need future faturas, non-parcelados go to current fatura
         const parcelados = selecionados.filter((r) => r.parcela_total && r.parcela_total >= 2);
         const naoParcelados = selecionados.filter((r) => !r.parcela_total || r.parcela_total < 2);
+        let qtdInseridosCartao = 0;
+        let qtdIgnoradosCartao = 0;
+
 
         // Helper: get or create fatura for a given vencimento
         const getOrCreateFatura = async (vencimento: string, mesRef: string): Promise<string> => {
@@ -873,15 +897,25 @@ export default function ImportarExtrato() {
               fatura_id: faturaId,
               impacta_dre: true,
               impacta_fluxo: false,
+              tipo_origem: "cartao",
+              fingerprint_hash: fingerprintCartao(faturaVencimento, valor, r.descricao, null),
             };
-          }).filter(Boolean);
+          }).filter(Boolean) as any[];
 
           if (inserts.length > 0) {
-            const { error } = await supabase.from("movimentacoes_financeiras").insert(inserts);
+            const { data: inseridos, error } = await supabase
+              .from("movimentacoes_financeiras")
+              .upsert(inserts, { onConflict: "fingerprint_hash", ignoreDuplicates: true })
+              .select("id, valor");
             if (error) throw error;
-            await updateFaturaTotal(faturaId, totalNaoParcelados);
+            const qtdInseridos = inseridos?.length ?? 0;
+            const totalInserido = (inseridos ?? []).reduce((s: number, x: any) => s + Number(x.valor ?? 0), 0);
+            qtdInseridosCartao += qtdInseridos;
+            qtdIgnoradosCartao += inserts.length - qtdInseridos;
+            if (totalInserido > 0) await updateFaturaTotal(faturaId, totalInserido);
           }
         }
+
 
         // Process installment items → distribute across future faturas
         for (const row of parcelados) {
@@ -914,31 +948,50 @@ export default function ImportarExtrato() {
               .replace(/\s*parc(?:ela)?\s*\d{1,2}\s*(?:de|\/)\s*\d{1,2}/i, "")
               .trim();
 
-            const { error } = await supabase.from("movimentacoes_financeiras").insert({
-              data,
-              data_vencimento: vencParcela,
-              descricao: `${descClean} ${p}/${parcelaTotal}`,
-              valor: valorParcela,
-              tipo: "saida",
-              categoria_id: row.categoria_id || categoriaPadrao,
-              origem: "extrato_cartao",
-              status_pagamento: "em_aberto",
-              parcela_info: `${p}/${parcelaTotal}`,
-              conta_tipo: "cartao_fatura",
-              fatura_id: faturaId,
-              impacta_dre: true,
-              impacta_fluxo: false,
-            });
+            const parcelaInfo = `${p}/${parcelaTotal}`;
+            const { data: ins, error } = await supabase
+              .from("movimentacoes_financeiras")
+              .upsert({
+                data,
+                data_vencimento: vencParcela,
+                descricao: `${descClean} ${parcelaInfo}`,
+                valor: valorParcela,
+                tipo: "saida",
+                categoria_id: row.categoria_id || categoriaPadrao,
+                origem: "extrato_cartao",
+                status_pagamento: "em_aberto",
+                parcela_info: parcelaInfo,
+                conta_tipo: "cartao_fatura",
+                fatura_id: faturaId,
+                impacta_dre: true,
+                impacta_fluxo: false,
+                tipo_origem: "cartao",
+                fingerprint_hash: fingerprintCartao(vencParcela, valorParcela, row.descricao, parcelaInfo),
+              }, { onConflict: "fingerprint_hash", ignoreDuplicates: true })
+              .select("id");
             if (error) throw error;
-            await updateFaturaTotal(faturaId, valorParcela);
+            if (ins && ins.length > 0) {
+              qtdInseridosCartao += 1;
+              await updateFaturaTotal(faturaId, valorParcela);
+            } else {
+              qtdIgnoradosCartao += 1;
+            }
           }
+
         }
 
         const totalParcelamentos = parcelados.length;
-        toast.success(
-          `${selecionados.length} lançamentos salvos! Fatura: ${cartaoNomeFinal}` +
-          (totalParcelamentos > 0 ? ` · ${totalParcelamentos} parcelamentos distribuídos nas próximas faturas` : "")
-        );
+        const msgBase =
+          `Fatura: ${cartaoNomeFinal}` +
+          (totalParcelamentos > 0 ? ` · ${totalParcelamentos} parcelamentos distribuídos nas próximas faturas` : "");
+        if (qtdIgnoradosCartao === 0) {
+          toast.success(`✅ ${qtdInseridosCartao} lançamentos importados com sucesso. ${msgBase}`);
+        } else {
+          toast.warning(
+            `✅ ${qtdInseridosCartao} lançamentos importados · ⚠️ ${qtdIgnoradosCartao} já existiam e foram ignorados. ${msgBase}`
+          );
+        }
+
       } else {
         // Non-card: normal flow
         // For Vindi, lookup fixed categories
@@ -980,16 +1033,28 @@ export default function ImportarExtrato() {
             frequencia_meses: r.frequencia_meses || null,
             impacta_dre: true,
             impacta_fluxo: true,
+            tipo_origem: "extrato",
+            fingerprint_hash: fingerprintExtrato(data, valor, r.descricao),
           };
-        }).filter(Boolean);
+        }).filter(Boolean) as any[];
 
         if (inserts.length === 0) {
           throw new Error("Nenhum lançamento válido para salvar.");
         }
-        const { error } = await supabase.from("movimentacoes_financeiras").insert(inserts);
+        const { data: inseridos, error } = await supabase
+          .from("movimentacoes_financeiras")
+          .upsert(inserts, { onConflict: "fingerprint_hash", ignoreDuplicates: true })
+          .select("id");
         if (error) throw error;
-        toast.success(`${selecionados.length} lançamentos salvos!`);
+        const qtdInseridos = inseridos?.length ?? 0;
+        const qtdIgnorados = inserts.length - qtdInseridos;
+        if (qtdIgnorados === 0) {
+          toast.success(`✅ ${qtdInseridos} lançamentos importados com sucesso.`);
+        } else {
+          toast.warning(`✅ ${qtdInseridos} lançamentos importados · ⚠️ ${qtdIgnorados} já existiam e foram ignorados.`);
+        }
       }
+
 
       queryClient.invalidateQueries({ queryKey: ["movimentacoes"] });
       queryClient.invalidateQueries({ queryKey: ["cartoes_faturas"] });

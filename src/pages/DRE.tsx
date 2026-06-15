@@ -1,6 +1,4 @@
 import { useState, useMemo } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
 import { useMovimentacoesFinanceiras, useCategorias } from "@/hooks/useSupabase";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -9,41 +7,7 @@ import { TrendingUp, TrendingDown, AlertTriangle, ChevronDown, ChevronRight, Inf
 import { format, parseISO } from "date-fns";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
-// extrai o valor de desconto do cupom no formato "NOME/24.90"
-function parseCupomValor(s: string | null | undefined): number {
-  if (!s) return 0;
-  const parts = String(s).split("/");
-  if (parts.length < 2) return 0;
-  const n = parseFloat(parts[parts.length - 1].replace(",", "."));
-  return isNaN(n) ? 0 : n;
-}
 
-// busca paginada (bypass do limite de 1000 do PostgREST)
-async function fetchAllTray<T = any>(build: (q: any) => any): Promise<T[]> {
-  const acc: T[] = [];
-  let from = 0;
-  const size = 1000;
-  while (true) {
-    const { data, error } = await build(
-      (supabase.from("tray_orders" as any).select("*") as any).range(from, from + size - 1)
-    );
-    if (error) throw error;
-    const rows = (data ?? []) as T[];
-    acc.push(...rows);
-    if (rows.length < size) break;
-    from += size;
-  }
-  return acc;
-}
-
-interface TrayOrderDre {
-  id: number;
-  date: string | null;
-  total: number | null;
-  discount: number | null;
-  discount_coupon: string | null;
-  orderstatus_type: string | null;
-}
 
 
 function formatCurrency(v: number | null | undefined) {
@@ -137,8 +101,8 @@ interface FaixaGroup {
 function buildDreData(
   movs: any[],
   catMap: Record<string, CatInfo>,
-  trayOrders: TrayOrderDre[] = [],
 ) {
+
   // Accumulate: faixa → categoria → plano → { valor, count, transactions }
   const acc: Record<string, Record<string, Record<string, { valor: number; count: number; transactions: PlanoTransaction[] }>>> = {};
 
@@ -161,67 +125,22 @@ function buildDreData(
   movs.forEach((m) => {
     if (m.impacta_dre === false) return;
 
-    // Receita de vendas é alimentada exclusivamente por tray_orders
-    // (mesma fonte do Dashboard Comercial). Ignoramos movimentações de origem bling
-    // para evitar duplicidade — exceto em março, onde os valores já foram importados
-    // anteriormente via Bling e o tray_orders é ignorado para evitar duplicidade reversa.
-    const mesMov = (m.data ?? "").substring(5, 7);
-    if (m.origem === "bling" && mesMov !== "03") return;
-
     const cat = m.categoria_id ? catMap[m.categoria_id] : null;
     const faixa = cat?.grupoDre || "";
     const categoria = cat?.nomeCategoria || "Sem categoria";
     const plano = cat?.descricaoCategoria || m.descricao || "Outros";
     const isReceita = m.tipo === "entrada";
 
-    // For receita entries
     if (isReceita && faixa) {
       addEntry(faixa, categoria, plano, Math.abs(m.valor ?? 0), m);
       return;
     }
 
-    // Despesas / saídas
-    if (!faixa) return; // skip uncategorized for DRE
+    if (!faixa) return;
     addEntry(faixa, categoria, plano, Math.abs(m.valor ?? 0), m);
   });
 
-  // ===== Receita de vendas (tray_orders, mesma base do Dashboard Comercial) =====
-  trayOrders.forEach((o) => {
-    if (!o.date) return;
-    if ((o.orderstatus_type ?? "").toLowerCase() === "canceled") return;
-    const total = Number(o.total ?? 0);
-    if (total > 0) {
-      addEntry(
-        "RECEITAS",
-        "Receita com Vendas",
-        "Venda de produtos",
-        total,
-        {
-          id: `tray-${o.id}`,
-          descricao: `Pedido #${o.id}`,
-          data: o.date,
-          data_vencimento: null,
-          parcela_info: null,
-        }
-      );
-    }
-    const desconto = Number(o.discount ?? 0) + parseCupomValor(o.discount_coupon);
-    if (desconto > 0) {
-      addEntry(
-        "DEDUÇÕES SOBRE VENDAS",
-        "Estornos",
-        "Descontos em vendas",
-        desconto,
-        {
-          id: `tray-desc-${o.id}`,
-          descricao: `Desconto pedido #${o.id}`,
-          data: o.date,
-          data_vencimento: null,
-          parcela_info: null,
-        }
-      );
-    }
-  });
+
 
   // Build structured groups
   const faixas: FaixaGroup[] = FAIXA_ORDER.map((faixa) => {
@@ -281,12 +200,8 @@ function buildDreData(
 
 export default function DRE() {
   const { data: movs, isLoading } = useMovimentacoesFinanceiras();
-  const { data: trayOrders = [] } = useQuery({
-    queryKey: ["dre-tray-orders"],
-    queryFn: async () =>
-      fetchAllTray<TrayOrderDre>((q) => q.neq("orderstatus_type", "canceled")),
-  });
   const { data: categorias } = useCategorias();
+
   const [anoSelecionado, setAnoSelecionado] = useState(new Date().getFullYear().toString());
   const [mesSelecionado, setMesSelecionado] = useState("todos");
   const [expandedFaixas, setExpandedFaixas] = useState<Set<string>>(new Set());
@@ -351,21 +266,17 @@ export default function DRE() {
   const anos = useMemo(() => {
     const set = new Set<string>();
     (movs ?? []).forEach((m) => { if (m.data) set.add(m.data.substring(0, 4)); });
-    (trayOrders ?? []).forEach((o) => { if (o.date) set.add(o.date.substring(0, 4)); });
     if (set.size === 0) set.add(new Date().getFullYear().toString());
     return [...set].sort().reverse();
-  }, [movs, trayOrders]);
+  }, [movs]);
 
   const mesesDisponiveis = useMemo(() => {
     const set = new Set<string>();
     (movs ?? []).forEach((m) => {
       if (m.data && m.data.startsWith(anoSelecionado)) set.add(m.data.substring(0, 7));
     });
-    (trayOrders ?? []).forEach((o) => {
-      if (o.date && o.date.startsWith(anoSelecionado)) set.add(o.date.substring(0, 7));
-    });
     return [...set].sort();
-  }, [movs, trayOrders, anoSelecionado]);
+  }, [movs, anoSelecionado]);
 
   const filtered = useMemo(() => {
     return (movs ?? []).filter((m) => {
@@ -375,18 +286,8 @@ export default function DRE() {
     });
   }, [movs, anoSelecionado, mesSelecionado]);
 
-  const filteredTray = useMemo(() => {
-    return (trayOrders ?? []).filter((o) => {
-      if (!o.date) return false;
-      if (!o.date.startsWith(anoSelecionado)) return false;
-      if (mesSelecionado !== "todos" && !o.date.startsWith(mesSelecionado)) return false;
-      // Março: dados já importados via Bling anteriormente. Ignorar tray_orders para evitar duplicidade.
-      if (o.date.substring(5, 7) === "03") return false;
-      return true;
-    });
-  }, [trayOrders, anoSelecionado, mesSelecionado]);
+  const dreData = useMemo(() => buildDreData(filtered, catMap), [filtered, catMap]);
 
-  const dreData = useMemo(() => buildDreData(filtered, catMap, filteredTray), [filtered, catMap, filteredTray]);
 
   const insights = useMemo(() => {
     const tips: { icon: React.ReactNode; text: string; type: "success" | "warning" | "danger" }[] = [];
