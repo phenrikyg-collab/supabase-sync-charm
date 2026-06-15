@@ -981,10 +981,17 @@ export default function ImportarExtrato() {
         }
 
         const totalParcelamentos = parcelados.length;
-        toast.success(
-          `${selecionados.length} lançamentos salvos! Fatura: ${cartaoNomeFinal}` +
-          (totalParcelamentos > 0 ? ` · ${totalParcelamentos} parcelamentos distribuídos nas próximas faturas` : "")
-        );
+        const msgBase =
+          `Fatura: ${cartaoNomeFinal}` +
+          (totalParcelamentos > 0 ? ` · ${totalParcelamentos} parcelamentos distribuídos nas próximas faturas` : "");
+        if (qtdIgnoradosCartao === 0) {
+          toast.success(`✅ ${qtdInseridosCartao} lançamentos importados com sucesso. ${msgBase}`);
+        } else {
+          toast.warning(
+            `✅ ${qtdInseridosCartao} lançamentos importados · ⚠️ ${qtdIgnoradosCartao} já existiam e foram ignorados. ${msgBase}`
+          );
+        }
+
       } else {
         // Non-card: normal flow
         // For Vindi, lookup fixed categories
