@@ -14,21 +14,25 @@ import { formatarData } from "@/utils/formatters";
 type Situacao = "PAGO" | "ABERTO" | "VENCIDO" | "BAIXADO" | string;
 
 interface BoletoLinha {
-  vencimento: string; // YYYY-MM-DD
-  vencimentoBr: string; // DD/MM/YYYY
-  num_documento: string;
-  nosso_numero: string;
-  doc_key: string;
-  cliente: string;
-  valor_nominal: number;
-  valor_total: number;
+  data: string;
+  data_vencimento: string;
+  descricao: string;
   valor: number;
-  situacao: Situacao;
-  status_pagamento: "pago" | "pendente";
+  tipo: "saida";
+  origem: "boleto_dda";
   fingerprint_hash: string;
+  tipo_origem: "boleto";
+  impacta_dre: true;
+  impacta_fluxo: true;
+  cliente: string;
+  status_pagamento: "pago" | "pendente";
+  situacao_original: Situacao;
+  // ui-only
+  vencimentoBr: string;
+  doc_key: string;
 }
 
-function normalizeHeader(value: string): string {
+function normalizeHeader(value: any): string {
   return String(value ?? "")
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
@@ -52,13 +56,18 @@ function parseDataBR(val: any): { iso: string; br: string } {
     return { iso: `${yy}-${mm}-${dd}`, br: `${dd}/${mm}/${yy}` };
   }
   const s = String(val ?? "").trim();
-  const m = s.match(/^(\d{2})\/(\d{2})\/(\d{2,4})$/);
+  const m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/);
   if (m) {
     const yy = m[3].length === 2 ? "20" + m[3] : m[3];
-    return { iso: `${yy}-${m[2]}-${m[1]}`, br: `${m[1]}/${m[2]}/${yy}` };
+    const dd = m[1].padStart(2, "0");
+    const mm = m[2].padStart(2, "0");
+    return { iso: `${yy}-${mm}-${dd}`, br: `${dd}/${mm}/${yy}` };
   }
   const iso = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
   if (iso) return { iso: `${iso[1]}-${iso[2]}-${iso[3]}`, br: `${iso[3]}/${iso[2]}/${iso[1]}` };
+  if (/^\d{8}$/.test(s)) {
+    return { iso: `${s.slice(0, 4)}-${s.slice(4, 6)}-${s.slice(6, 8)}`, br: `${s.slice(6, 8)}/${s.slice(4, 6)}/${s.slice(0, 4)}` };
+  }
   return { iso: "", br: s };
 }
 
@@ -74,31 +83,34 @@ function parseValor(val: any): number {
   return Number.isFinite(n) ? n : 0;
 }
 
-function buildFingerprint(docKey: string, cliente: string): string {
-  const slug = (cliente || "").substring(0, 25).toLowerCase().replace(/ /g, "_");
-  return `boleto_${docKey}_${slug}`;
-}
-
 function formatCurrency(v: number) {
   return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v);
 }
 
-function parseBoletosDDA(buffer: ArrayBuffer): { linhas: BoletoLinha[]; ignoradosBaixado: number } {
-  const wb = XLSX.read(buffer, { type: "array", cellDates: true });
-  const ws = wb.Sheets[wb.SheetNames[0]];
-  const jsonRows = XLSX.utils.sheet_to_json<any[]>(ws, { header: 1, defval: "" }) as any[][];
-
-  let headerIdx = -1;
-  let headerMap: Record<string, number> = {};
-  for (let i = 0; i < Math.min(jsonRows.length, 20); i++) {
-    const cols = (jsonRows[i] ?? []).map((c) => normalizeHeader(String(c ?? "")));
-    if (cols.includes("vencimento") && cols.some((c) => c.includes("situacao"))) {
-      headerIdx = i;
-      headerMap = Object.fromEntries(cols.map((c, idx) => [c, idx]));
-      break;
+function findSheetWithHeaders(wb: XLSX.WorkBook): { rows: any[][]; headerIdx: number; headerMap: Record<string, number> } | null {
+  for (const name of wb.SheetNames) {
+    const ws = wb.Sheets[name];
+    const rows = XLSX.utils.sheet_to_json<any[]>(ws, { header: 1, defval: "" }) as any[][];
+    for (let i = 0; i < Math.min(rows.length, 25); i++) {
+      const cols = (rows[i] ?? []).map((c) => normalizeHeader(c));
+      const hasVenc = cols.includes("vencimento");
+      const hasSit = cols.some((c) => c.includes("situacao"));
+      const hasBenef = cols.some((c) => c.includes("beneficiario"));
+      if (hasVenc && hasSit && hasBenef) {
+        const map: Record<string, number> = {};
+        cols.forEach((c, idx) => { if (c && map[c] === undefined) map[c] = idx; });
+        return { rows, headerIdx: i, headerMap: map };
+      }
     }
   }
-  if (headerIdx < 0) return { linhas: [], ignoradosBaixado: 0 };
+  return null;
+}
+
+function parseBoletosDDA(buffer: ArrayBuffer): { linhas: BoletoLinha[] } {
+  const wb = XLSX.read(buffer, { type: "array", cellDates: true });
+  const found = findSheetWithHeaders(wb);
+  if (!found) return { linhas: [] };
+  const { rows, headerIdx, headerMap } = found;
 
   const findIdx = (...keys: string[]): number => {
     for (const k of keys) {
@@ -112,76 +124,88 @@ function parseBoletosDDA(buffer: ArrayBuffer): { linhas: BoletoLinha[]; ignorado
   };
 
   const iVenc = findIdx("Vencimento");
-  const iNumDoc = findIdx("N documento", "Nº documento", "No documento", "numero documento", "n documento");
+  const iNumDoc = findIdx("N documento", "Nº documento", "numero documento");
   const iNosso = findIdx("Nosso numero", "Nosso número");
   const iBenef = findIdx("Beneficiario", "Beneficiário");
-  const iNominal = findIdx("Nominal R", "Nominal", "Nominal (R$)");
-  const iTotal = findIdx("Valor Total R", "Valor Total", "Valor Total (R$)");
+  const iNominal = findIdx("Nominal R", "Nominal");
+  const iTotal = findIdx("Valor Total R", "Valor Total");
   const iSit = findIdx("Situacao", "Situação");
 
   const linhas: BoletoLinha[] = [];
-  let ignoradosBaixado = 0;
 
-  for (let i = headerIdx + 1; i < jsonRows.length; i++) {
-    const row = jsonRows[i] ?? [];
+  for (let i = headerIdx + 1; i < rows.length; i++) {
+    const row = rows[i] ?? [];
     if (!row.some((c) => String(c ?? "").trim() !== "")) continue;
 
     const situacao = String(row[iSit] ?? "").trim().toUpperCase();
     if (!situacao) continue;
-    if (situacao === "BAIXADO") {
-      ignoradosBaixado++;
-      continue;
-    }
 
     const { iso, br } = parseDataBR(row[iVenc]);
     if (!iso) continue;
 
-    const num_documento = String(row[iNumDoc] ?? "").trim();
-    const nosso_numero = String(row[iNosso] ?? "").trim();
-    const doc_key = num_documento || nosso_numero;
-    if (!doc_key) continue;
+    const numDocRaw = String(row[iNumDoc] ?? "").trim();
+    const nossoNum = String(row[iNosso] ?? "").trim();
+    const numDoc = numDocRaw && numDocRaw.toLowerCase() !== "nan" ? numDocRaw : "";
+    const docKey = numDoc || nossoNum;
+    if (!docKey) continue;
 
-    const cliente = String(row[iBenef] ?? "").trim() || "Sem beneficiário";
-    const valor_nominal = parseValor(row[iNominal]);
-    const valor_total = parseValor(row[iTotal]);
-    const valor = situacao === "VENCIDO" && valor_total > 0 ? valor_total : valor_nominal;
+    const beneficiario = String(row[iBenef] ?? "").trim() || "Sem beneficiário";
+    const nominal = parseValor(row[iNominal]);
+    const valorTotal = parseValor(row[iTotal]);
+    const valor = situacao === "VENCIDO" && valorTotal > 0 ? valorTotal : nominal;
     if (!(valor > 0)) continue;
 
-    const status_pagamento: "pago" | "pendente" = situacao === "PAGO" ? "pago" : "pendente";
+    const status_pagamento: "pago" | "pendente" = ["PAGO", "BAIXADO"].includes(situacao) ? "pago" : "pendente";
+    const beneKey = beneficiario.substring(0, 25).toLowerCase().replace(/\s+/g, "_");
+    const fingerprint_hash = `boleto_${docKey}_${beneKey}`;
 
     linhas.push({
-      vencimento: iso,
-      vencimentoBr: br,
-      num_documento,
-      nosso_numero,
-      doc_key,
-      cliente,
-      valor_nominal,
-      valor_total,
+      data: iso,
+      data_vencimento: iso,
+      descricao: `${beneficiario} - ${docKey}`,
       valor,
-      situacao,
+      tipo: "saida",
+      origem: "boleto_dda",
+      fingerprint_hash,
+      tipo_origem: "boleto",
+      impacta_dre: true,
+      impacta_fluxo: true,
+      cliente: beneficiario,
       status_pagamento,
-      fingerprint_hash: buildFingerprint(doc_key, cliente),
+      situacao_original: situacao,
+      vencimentoBr: br,
+      doc_key: docKey,
     });
   }
 
-  return { linhas, ignoradosBaixado };
+  return { linhas };
+}
+
+function situacaoBadgeVariant(s: string): "default" | "secondary" | "destructive" | "outline" {
+  if (s === "PAGO" || s === "BAIXADO") return "default";
+  if (s === "VENCIDO") return "destructive";
+  return "secondary";
+}
+
+function situacaoBadgeClass(s: string): string {
+  if (s === "PAGO" || s === "BAIXADO") return "bg-green-600 hover:bg-green-700 text-white";
+  if (s === "ABERTO") return "bg-blue-600 hover:bg-blue-700 text-white";
+  if (s === "VENCIDO") return "bg-red-600 hover:bg-red-700 text-white";
+  return "";
 }
 
 export default function BoletosDDAImporter() {
   const fileRef = useRef<HTMLInputElement>(null);
   const [linhas, setLinhas] = useState<BoletoLinha[]>([]);
-  const [ignoradosBaixado, setIgnoradosBaixado] = useState(0);
   const [fileName, setFileName] = useState<string>("");
   const [importing, setImporting] = useState(false);
   const queryClient = useQueryClient();
 
-  const onFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const onFile = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     setFileName(file.name);
     setLinhas([]);
-    setIgnoradosBaixado(0);
   };
 
   const preview = async () => {
@@ -192,9 +216,8 @@ export default function BoletosDDAImporter() {
     }
     try {
       const buffer = await file.arrayBuffer();
-      const { linhas: ls, ignoradosBaixado: ig } = parseBoletosDDA(buffer);
+      const { linhas: ls } = parseBoletosDDA(buffer);
       setLinhas(ls);
-      setIgnoradosBaixado(ig);
       if (!ls.length) {
         toast.warning("Nenhum boleto encontrado na planilha.");
       } else {
@@ -209,9 +232,9 @@ export default function BoletosDDAImporter() {
     if (!linhas.length) return;
     setImporting(true);
     try {
+      // 1. Checagem de duplicatas
       const fingerprints = linhas.map((l) => l.fingerprint_hash);
       const hashsExistentes = new Set<string>();
-      // chunk para evitar URLs grandes
       const CHUNK = 200;
       for (let i = 0; i < fingerprints.length; i += CHUNK) {
         const slice = fingerprints.slice(i, i + CHUNK);
@@ -223,26 +246,65 @@ export default function BoletosDDAImporter() {
         (data || []).forEach((d: any) => d.fingerprint_hash && hashsExistentes.add(d.fingerprint_hash));
       }
 
-      const novas = linhas.filter((l) => !hashsExistentes.has(l.fingerprint_hash));
-      const qtdIgnorados = linhas.length - novas.length;
+      const linhasNovas = linhas.filter((l) => !hashsExistentes.has(l.fingerprint_hash));
+      const qtdIgnorados = linhas.length - linhasNovas.length;
 
-      if (novas.length > 0) {
-        const payload = novas.map((l) => ({
-          data: l.vencimento,
-          data_vencimento: l.vencimento,
-          descricao: `${l.cliente} - ${l.doc_key}`,
+      // 2. Conciliação com extrato Safra para boletos pendentes
+      const pendentes = linhasNovas.filter((l) => l.status_pagamento === "pendente");
+      // Agrupar por mês para reduzir queries
+      const mesesValores = new Map<string, Set<number>>();
+      for (const b of pendentes) {
+        const mes = b.data.substring(0, 7);
+        if (!mesesValores.has(mes)) mesesValores.set(mes, new Set());
+        mesesValores.get(mes)!.add(b.valor);
+      }
+      // Cache de pagamentos por mês: Map<mes, Set<valor>>
+      const pagamentosPorMes = new Map<string, Set<number>>();
+      for (const mes of mesesValores.keys()) {
+        const inicio = `${mes}-01`;
+        // fim do mês
+        const [y, m] = mes.split("-").map(Number);
+        const fimDate = new Date(y, m, 0);
+        const fim = `${mes}-${String(fimDate.getDate()).padStart(2, "0")}`;
+        const { data, error } = await supabase
+          .from("movimentacoes_financeiras")
+          .select("valor")
+          .eq("origem", "extrato_safra")
+          .gte("data", inicio)
+          .lte("data", fim);
+        if (error) throw error;
+        const set = new Set<number>();
+        (data || []).forEach((d: any) => {
+          const v = Math.abs(Number(d.valor) || 0);
+          set.add(Number(v.toFixed(2)));
+        });
+        pagamentosPorMes.set(mes, set);
+      }
+      for (const b of pendentes) {
+        const mes = b.data.substring(0, 7);
+        const set = pagamentosPorMes.get(mes);
+        if (set && set.has(Number(b.valor.toFixed(2)))) {
+          b.status_pagamento = "pago";
+        }
+      }
+
+      // 3. Insert
+      if (linhasNovas.length > 0) {
+        const payload = linhasNovas.map((l) => ({
+          data: l.data,
+          data_vencimento: l.data_vencimento,
+          descricao: l.descricao,
           valor: l.valor,
-          tipo: "saida" as const,
-          origem: "boleto_dda",
+          tipo: l.tipo,
+          origem: l.origem,
           fingerprint_hash: l.fingerprint_hash,
-          tipo_origem: "boleto",
-          impacta_dre: true,
-          impacta_fluxo: true,
+          tipo_origem: l.tipo_origem,
+          impacta_dre: l.impacta_dre,
+          impacta_fluxo: l.impacta_fluxo,
           cliente: l.cliente,
           status_pagamento: l.status_pagamento,
         }));
 
-        // insert in chunks
         for (let i = 0; i < payload.length; i += 500) {
           const slice = payload.slice(i, i + 500);
           const { error } = await supabase.from("movimentacoes_financeiras").insert(slice);
@@ -252,14 +314,15 @@ export default function BoletosDDAImporter() {
 
       queryClient.invalidateQueries({ queryKey: ["movimentacoes_financeiras"] });
 
-      if (qtdIgnorados === 0) {
-        toast.success(`✅ ${novas.length} boletos importados com sucesso.`);
-      } else {
-        toast.warning(`✅ ${novas.length} importados · ⚠️ ${qtdIgnorados} já existiam e foram ignorados.`);
+      const qtdPagos = linhasNovas.filter((l) => l.status_pagamento === "pago").length;
+      const qtdAbertos = linhasNovas.length - qtdPagos;
+
+      toast.success(`✅ ${linhasNovas.length} boletos importados · ${qtdPagos} pagos · ${qtdAbertos} em aberto`);
+      if (qtdIgnorados > 0) {
+        toast.warning(`⚠️ ${qtdIgnorados} já existiam e foram ignorados`);
       }
 
       setLinhas([]);
-      setIgnoradosBaixado(0);
       setFileName("");
       if (fileRef.current) fileRef.current.value = "";
     } catch (err: any) {
@@ -270,9 +333,11 @@ export default function BoletosDDAImporter() {
   };
 
   const totalCount = linhas.length;
-  const pagos = linhas.filter((l) => l.situacao === "PAGO");
-  const abertos = linhas.filter((l) => l.situacao === "ABERTO");
-  const vencidos = linhas.filter((l) => l.situacao === "VENCIDO");
+  const grupo = (s: string) => linhas.filter((l) => l.situacao_original === s);
+  const pagos = grupo("PAGO");
+  const abertos = grupo("ABERTO");
+  const vencidos = grupo("VENCIDO");
+  const baixados = grupo("BAIXADO");
   const sum = (arr: BoletoLinha[]) => arr.reduce((s, l) => s + l.valor, 0);
 
   return (
@@ -287,12 +352,7 @@ export default function BoletosDDAImporter() {
         <div className="flex flex-col sm:flex-row gap-3 sm:items-end">
           <div className="flex-1">
             <label className="text-sm font-medium mb-1 block">Arquivo Excel (.xlsx)</label>
-            <Input
-              ref={fileRef}
-              type="file"
-              accept=".xlsx,.xls"
-              onChange={onFile}
-            />
+            <Input ref={fileRef} type="file" accept=".xlsx,.xls" onChange={onFile} />
             {fileName && <p className="text-xs text-muted-foreground mt-1">{fileName}</p>}
           </div>
           <Button onClick={preview} variant="outline" disabled={importing}>
@@ -309,11 +369,11 @@ export default function BoletosDDAImporter() {
         {linhas.length > 0 && (
           <>
             <div className="rounded-md border bg-muted/40 p-3 text-sm flex flex-wrap gap-x-6 gap-y-1">
-              <span><strong>Total:</strong> {totalCount} boletos</span>
+              <span><strong>Total:</strong> {totalCount}</span>
               <span><strong>Pagos:</strong> {pagos.length} ({formatCurrency(sum(pagos))})</span>
               <span><strong>Em aberto:</strong> {abertos.length} ({formatCurrency(sum(abertos))})</span>
               <span><strong>Vencidos:</strong> {vencidos.length} ({formatCurrency(sum(vencidos))})</span>
-              <span><strong>Ignorados (BAIXADO):</strong> {ignoradosBaixado}</span>
+              <span><strong>Baixados:</strong> {baixados.length} ({formatCurrency(sum(baixados))})</span>
             </div>
 
             <div className="rounded-md border overflow-x-auto">
@@ -331,19 +391,16 @@ export default function BoletosDDAImporter() {
                 <TableBody>
                   {linhas.map((l, idx) => (
                     <TableRow key={`${l.fingerprint_hash}_${idx}`}>
-                      <TableCell>{formatarData(l.vencimento)}</TableCell>
+                      <TableCell>{formatarData(l.data)}</TableCell>
                       <TableCell className="max-w-[280px] truncate" title={l.cliente}>{l.cliente}</TableCell>
                       <TableCell className="font-mono text-xs">{l.doc_key}</TableCell>
                       <TableCell className="text-right">{formatCurrency(l.valor)}</TableCell>
                       <TableCell>
                         <Badge
-                          variant={
-                            l.situacao === "PAGO" ? "default" :
-                            l.situacao === "VENCIDO" ? "destructive" :
-                            "secondary"
-                          }
+                          variant={situacaoBadgeVariant(l.situacao_original)}
+                          className={situacaoBadgeClass(l.situacao_original)}
                         >
-                          {l.situacao}
+                          {l.situacao_original}
                         </Badge>
                       </TableCell>
                       <TableCell>
