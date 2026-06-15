@@ -142,44 +142,6 @@ function buildDreData(
 
 
 
-  // ===== Receita de vendas (tray_orders, mesma base do Dashboard Comercial) =====
-  trayOrders.forEach((o) => {
-    if (!o.date) return;
-    if ((o.orderstatus_type ?? "").toLowerCase() === "canceled") return;
-    const total = Number(o.total ?? 0);
-    if (total > 0) {
-      addEntry(
-        "RECEITAS",
-        "Receita com Vendas",
-        "Venda de produtos",
-        total,
-        {
-          id: `tray-${o.id}`,
-          descricao: `Pedido #${o.id}`,
-          data: o.date,
-          data_vencimento: null,
-          parcela_info: null,
-        }
-      );
-    }
-    const desconto = Number(o.discount ?? 0) + parseCupomValor(o.discount_coupon);
-    if (desconto > 0) {
-      addEntry(
-        "DEDUÇÕES SOBRE VENDAS",
-        "Estornos",
-        "Descontos em vendas",
-        desconto,
-        {
-          id: `tray-desc-${o.id}`,
-          descricao: `Desconto pedido #${o.id}`,
-          data: o.date,
-          data_vencimento: null,
-          parcela_info: null,
-        }
-      );
-    }
-  });
-
   // Build structured groups
   const faixas: FaixaGroup[] = FAIXA_ORDER.map((faixa) => {
     const catAcc = acc[faixa] || {};
