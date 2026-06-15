@@ -906,15 +906,27 @@ export default function ImportarExtrato() {
           }).filter(Boolean) as any[];
 
           if (inserts.length > 0) {
-            const { data: inseridos, error } = await supabase
+            const fingerprints = inserts.map((l: any) => l.fingerprint_hash);
+            const { data: existentes } = await supabase
               .from("movimentacoes_financeiras")
-              .upsert(inserts, { onConflict: "fingerprint_hash", ignoreDuplicates: true })
-              .select("id, valor");
-            if (error) throw error;
-            const qtdInseridos = inseridos?.length ?? 0;
-            const totalInserido = (inseridos ?? []).reduce((s: number, x: any) => s + Number(x.valor ?? 0), 0);
+              .select("fingerprint_hash")
+              .in("fingerprint_hash", fingerprints);
+            const hashsExistentes = new Set((existentes ?? []).map((e: any) => e.fingerprint_hash));
+            const linhasNovas = inserts.filter((l: any) => !hashsExistentes.has(l.fingerprint_hash));
+            const qtdIgnoradosLocal = inserts.length - linhasNovas.length;
+            let qtdInseridos = 0;
+            let totalInserido = 0;
+            if (linhasNovas.length > 0) {
+              const { data: inseridos, error } = await supabase
+                .from("movimentacoes_financeiras")
+                .insert(linhasNovas)
+                .select("id, valor");
+              if (error) throw error;
+              qtdInseridos = inseridos?.length ?? 0;
+              totalInserido = (inseridos ?? []).reduce((s: number, x: any) => s + Number(x.valor ?? 0), 0);
+            }
             qtdInseridosCartao += qtdInseridos;
-            qtdIgnoradosCartao += inserts.length - qtdInseridos;
+            qtdIgnoradosCartao += qtdIgnoradosLocal;
             if (totalInserido > 0) await updateFaturaTotal(faturaId, totalInserido);
           }
         }
@@ -952,9 +964,19 @@ export default function ImportarExtrato() {
               .trim();
 
             const parcelaInfo = `${p}/${parcelaTotal}`;
-            const { data: ins, error } = await supabase
+            const fingerprint = fingerprintCartao(vencParcela, valorParcela, row.descricao, parcelaInfo);
+            const { data: jaExiste } = await supabase
               .from("movimentacoes_financeiras")
-              .upsert({
+              .select("fingerprint_hash")
+              .eq("fingerprint_hash", fingerprint)
+              .maybeSingle();
+            if (jaExiste) {
+              qtdIgnoradosCartao += 1;
+              continue;
+            }
+            const { error } = await supabase
+              .from("movimentacoes_financeiras")
+              .insert({
                 data,
                 data_vencimento: vencParcela,
                 descricao: `${descClean} ${parcelaInfo}`,
@@ -969,16 +991,11 @@ export default function ImportarExtrato() {
                 impacta_dre: true,
                 impacta_fluxo: false,
                 tipo_origem: "cartao",
-                fingerprint_hash: fingerprintCartao(vencParcela, valorParcela, row.descricao, parcelaInfo),
-              }, { onConflict: "fingerprint_hash", ignoreDuplicates: true })
-              .select("id");
+                fingerprint_hash: fingerprint,
+              });
             if (error) throw error;
-            if (ins && ins.length > 0) {
-              qtdInseridosCartao += 1;
-              await updateFaturaTotal(faturaId, valorParcela);
-            } else {
-              qtdIgnoradosCartao += 1;
-            }
+            qtdInseridosCartao += 1;
+            await updateFaturaTotal(faturaId, valorParcela);
           }
 
         }
@@ -1044,13 +1061,23 @@ export default function ImportarExtrato() {
         if (inserts.length === 0) {
           throw new Error("Nenhum lançamento válido para salvar.");
         }
-        const { data: inseridos, error } = await supabase
+        const fingerprints = inserts.map((l: any) => l.fingerprint_hash);
+        const { data: existentes } = await supabase
           .from("movimentacoes_financeiras")
-          .upsert(inserts, { onConflict: "fingerprint_hash", ignoreDuplicates: true })
-          .select("id");
-        if (error) throw error;
-        const qtdInseridos = inseridos?.length ?? 0;
-        const qtdIgnorados = inserts.length - qtdInseridos;
+          .select("fingerprint_hash")
+          .in("fingerprint_hash", fingerprints);
+        const hashsExistentes = new Set((existentes ?? []).map((e: any) => e.fingerprint_hash));
+        const linhasNovas = inserts.filter((l: any) => !hashsExistentes.has(l.fingerprint_hash));
+        const qtdIgnorados = inserts.length - linhasNovas.length;
+        let qtdInseridos = 0;
+        if (linhasNovas.length > 0) {
+          const { data: inseridos, error } = await supabase
+            .from("movimentacoes_financeiras")
+            .insert(linhasNovas)
+            .select("id");
+          if (error) throw error;
+          qtdInseridos = inseridos?.length ?? 0;
+        }
         if (qtdIgnorados === 0) {
           toast.success(`✅ ${qtdInseridos} lançamentos importados com sucesso.`);
         } else {
