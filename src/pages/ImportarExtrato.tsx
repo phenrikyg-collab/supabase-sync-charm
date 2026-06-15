@@ -979,7 +979,7 @@ export default function ImportarExtrato() {
           const categoriaId = Object.entries(freq)
             .sort((a, b) => b[1] - a[1])[0][0];
           const categoriaNome = matches.find((m: any) => m.categoria_id === categoriaId)
-            ?.categorias_financeiras?.nome_categoria;
+            ?.categorias_financeiras?.[0]?.nome_categoria;
 
           categorizados++;
           return {
