@@ -56,6 +56,8 @@ interface ParsedRow {
   parcela_atual: number | null;
   parcela_total: number | null;
   selecionado: boolean;
+  fingerprint_hash?: string;
+  origem_override?: string;
 }
 
 // Detect installment info from description: "2/12", "PARCELA 2 DE 12", "2 DE 12", etc.
@@ -204,6 +206,88 @@ function parseCSVSafra(text: string): ParsedRow[] {
     });
   }
   return rows;
+}
+
+// Safra "Extrato" sheet: Data | Situação | Tipo do Lançamento | Lançamento | Complemento | Nº Documento | Valor
+function parseSafraExtrato(buffer: ArrayBuffer): ParsedRow[] | null {
+  const wb = XLSX.read(buffer, { type: "array", cellDates: true });
+  // Prefer sheet literally named "Extrato"
+  const sheetName = wb.SheetNames.find((n) => normalizeHeader(n) === "extrato") ?? wb.SheetNames[0];
+  const ws = wb.Sheets[sheetName];
+  if (!ws) return null;
+  const grid = XLSX.utils.sheet_to_json<any[]>(ws, { header: 1, defval: "" }) as any[][];
+
+  // Locate header row containing the Safra Extrato columns
+  let headerIndex = -1;
+  let headerMap: Record<string, number> = {};
+  const required = ["data", "situacao", "tipo do lancamento", "lancamento", "valor"];
+  for (let i = 0; i < Math.min(grid.length, 15); i++) {
+    const cols = (grid[i] ?? []).map((c) => normalizeHeader(String(c ?? "")));
+    if (required.every((r) => cols.some((c) => c === r || c.includes(r)))) {
+      headerIndex = i;
+      headerMap = Object.fromEntries(cols.map((c, idx) => [c, idx]));
+      break;
+    }
+  }
+  if (headerIndex < 0) return null;
+
+  const findIdx = (...keys: string[]): number => {
+    for (const k of keys) {
+      const nk = normalizeHeader(k);
+      for (const headerKey of Object.keys(headerMap)) {
+        if (headerKey === nk || headerKey.includes(nk)) return headerMap[headerKey];
+      }
+    }
+    return -1;
+  };
+  const iData = findIdx("data");
+  const iLanc = findIdx("lancamento");
+  const iCompl = findIdx("complemento");
+  const iNumDoc = findIdx("n documento", "no documento", "numero documento", "n° documento", "nº documento", "documento");
+  const iValor = findIdx("valor");
+
+  const rows: ParsedRow[] = [];
+  for (let i = headerIndex + 1; i < grid.length; i++) {
+    const cols = grid[i] ?? [];
+    if (!cols.some((c) => String(c ?? "").trim() !== "")) continue;
+
+    const rawData = cols[iData];
+    const dataIso = excelDateToString(rawData);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(dataIso)) continue;
+
+    const valorNum = converterValorExcel(cols[iValor]);
+    if (!Number.isFinite(valorNum) || valorNum === 0) continue;
+    const tipo: "entrada" | "saida" = valorNum < 0 ? "saida" : "entrada";
+    const valorAbs = Math.abs(valorNum);
+
+    const lanc = String(cols[iLanc] ?? "").trim();
+    const compl = iCompl >= 0 ? String(cols[iCompl] ?? "").trim() : "";
+    const descricao = [lanc, compl].filter(Boolean).join(" — ").trim() || "Sem descrição";
+
+    const numDoc = iNumDoc >= 0 ? String(cols[iNumDoc] ?? "").trim() : "";
+    const descSlug = descricao.substring(0, 20).toLowerCase().replace(/\s+/g, "_");
+    const fp = `safra_${dataIso}_${numDoc || valorAbs.toFixed(2)}_${descSlug}`;
+
+    rows.push({
+      data: dataIso,
+      data_vencimento: dataIso,
+      descricao,
+      valor: valorAbs,
+      tipo,
+      categoria_id: null,
+      categoria_sugerida: null,
+      frequencia: null,
+      frequencia_tipo: null,
+      frequencia_meses: null,
+      parcela_atual: null,
+      parcela_total: null,
+      selecionado: true,
+      fingerprint_hash: fp,
+      origem_override: "extrato_safra",
+    });
+  }
+
+  return rows.length > 0 ? rows : null;
 }
 
 function parseExcelFile(buffer: ArrayBuffer): ParsedRow[] {
@@ -688,14 +772,19 @@ export default function ImportarExtrato() {
       toast.success(`${parsed.length} lançamentos importados${parcelados.length > 0 ? ` (${parcelados.length} parcelados detectados)` : ""}`);
     } else if (file.name.endsWith(".xlsx") || file.name.endsWith(".xls")) {
       const buffer = await file.arrayBuffer();
-      const parsed = banco === "safra" ? parseExcelSafra(buffer) : parseExcelFile(buffer);
+      const safraExtrato = parseSafraExtrato(buffer);
+      const parsed = safraExtrato ?? (banco === "safra" ? parseExcelSafra(buffer) : parseExcelFile(buffer));
       if (parsed.length === 0) {
         toast.error("Nenhum lançamento encontrado na planilha. Verifique o formato.");
         return;
       }
       setRows(autoCategorizeFromHistory(parsed));
       const parcelados = parsed.filter((r) => r.parcela_total);
-      toast.success(`${parsed.length} lançamentos importados${parcelados.length > 0 ? ` (${parcelados.length} parcelados detectados)` : ""}`);
+      if (safraExtrato) {
+        toast.success(`${parsed.length} lançamentos do Extrato Safra detectados`);
+      } else {
+        toast.success(`${parsed.length} lançamentos importados${parcelados.length > 0 ? ` (${parcelados.length} parcelados detectados)` : ""}`);
+      }
     } else if (file.name.endsWith(".pdf")) {
       toast.info("Processando PDF... A IA irá extrair os lançamentos.");
       const reader = new FileReader();
@@ -1040,6 +1129,8 @@ export default function ImportarExtrato() {
           const data = normalizeDateForDb(r.data);
           const dataVencimento = normalizeDateForDb(r.data_vencimento);
           if (!Number.isFinite(valor) || !data) return null;
+          const origem = r.origem_override
+            ?? (isVindi ? (banco === "vindi_transacoes" ? "vindi_transacoes" : "vindi_taxas") : `extrato_${banco}`);
           return {
             data,
             data_vencimento: dataVencimento,
@@ -1047,15 +1138,15 @@ export default function ImportarExtrato() {
             valor,
             tipo: r.tipo,
             categoria_id: r.categoria_id || vindiCategoriaId || null,
-            origem: isVindi ? (banco === "vindi_transacoes" ? "vindi_transacoes" : "vindi_taxas") : `extrato_${banco}`,
-            status_pagamento: "pago",
+            origem,
+            status_pagamento: r.tipo === "entrada" ? "recebido" : "pago",
             frequencia: r.frequencia === "mensal_indeterminada" || r.frequencia === "mensal_por_periodo" ? "Mensal" : r.frequencia || null,
             frequencia_tipo: r.frequencia_tipo || null,
             frequencia_meses: r.frequencia_meses || null,
             impacta_dre: true,
             impacta_fluxo: true,
             tipo_origem: "extrato",
-            fingerprint_hash: fingerprintExtrato(data, valor, r.descricao),
+            fingerprint_hash: r.fingerprint_hash || fingerprintExtrato(data, valor, r.descricao),
           };
         }).filter(Boolean) as any[];
 
@@ -1071,6 +1162,7 @@ export default function ImportarExtrato() {
         const linhasNovas = inserts.filter((l: any) => !hashsExistentes.has(l.fingerprint_hash));
         const qtdIgnorados = inserts.length - linhasNovas.length;
         let qtdInseridos = 0;
+        let totalInserido = 0;
         if (linhasNovas.length > 0) {
           const { data: inseridos, error } = await supabase
             .from("movimentacoes_financeiras")
@@ -1078,11 +1170,17 @@ export default function ImportarExtrato() {
             .select("id");
           if (error) throw error;
           qtdInseridos = inseridos?.length ?? 0;
+          totalInserido = linhasNovas.reduce((s: number, l: any) => s + Number(l.valor || 0), 0);
         }
+        const isSafraExtrato = inserts.some((l: any) => l.origem === "extrato_safra");
         if (qtdIgnorados === 0) {
-          toast.success(`✅ ${qtdInseridos} lançamentos importados com sucesso.`);
+          toast.success(
+            isSafraExtrato
+              ? `✅ ${qtdInseridos} lançamentos importados (${formatCurrency(totalInserido)})`
+              : `✅ ${qtdInseridos} lançamentos importados com sucesso.`
+          );
         } else {
-          toast.warning(`✅ ${qtdInseridos} lançamentos importados · ⚠️ ${qtdIgnorados} já existiam e foram ignorados.`);
+          toast.warning(`✅ ${qtdInseridos} importados · ⚠️ ${qtdIgnorados} já existiam e foram ignorados.`);
         }
       }
 
