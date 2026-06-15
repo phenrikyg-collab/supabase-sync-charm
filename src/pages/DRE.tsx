@@ -200,12 +200,8 @@ function buildDreData(
 
 export default function DRE() {
   const { data: movs, isLoading } = useMovimentacoesFinanceiras();
-  const { data: trayOrders = [] } = useQuery({
-    queryKey: ["dre-tray-orders"],
-    queryFn: async () =>
-      fetchAllTray<TrayOrderDre>((q) => q.neq("orderstatus_type", "canceled")),
-  });
   const { data: categorias } = useCategorias();
+
   const [anoSelecionado, setAnoSelecionado] = useState(new Date().getFullYear().toString());
   const [mesSelecionado, setMesSelecionado] = useState("todos");
   const [expandedFaixas, setExpandedFaixas] = useState<Set<string>>(new Set());
