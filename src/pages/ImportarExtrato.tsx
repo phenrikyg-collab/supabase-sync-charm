@@ -772,14 +772,19 @@ export default function ImportarExtrato() {
       toast.success(`${parsed.length} lançamentos importados${parcelados.length > 0 ? ` (${parcelados.length} parcelados detectados)` : ""}`);
     } else if (file.name.endsWith(".xlsx") || file.name.endsWith(".xls")) {
       const buffer = await file.arrayBuffer();
-      const parsed = banco === "safra" ? parseExcelSafra(buffer) : parseExcelFile(buffer);
+      const safraExtrato = parseSafraExtrato(buffer);
+      const parsed = safraExtrato ?? (banco === "safra" ? parseExcelSafra(buffer) : parseExcelFile(buffer));
       if (parsed.length === 0) {
         toast.error("Nenhum lançamento encontrado na planilha. Verifique o formato.");
         return;
       }
       setRows(autoCategorizeFromHistory(parsed));
       const parcelados = parsed.filter((r) => r.parcela_total);
-      toast.success(`${parsed.length} lançamentos importados${parcelados.length > 0 ? ` (${parcelados.length} parcelados detectados)` : ""}`);
+      if (safraExtrato) {
+        toast.success(`${parsed.length} lançamentos do Extrato Safra detectados`);
+      } else {
+        toast.success(`${parsed.length} lançamentos importados${parcelados.length > 0 ? ` (${parcelados.length} parcelados detectados)` : ""}`);
+      }
     } else if (file.name.endsWith(".pdf")) {
       toast.info("Processando PDF... A IA irá extrair os lançamentos.");
       const reader = new FileReader();
