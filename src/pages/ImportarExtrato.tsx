@@ -14,6 +14,7 @@ import * as XLSX from "xlsx";
 import { supabase } from "@/integrations/supabase/client";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import VindiImporter from "@/components/VindiImporter";
+import BoletosDDAImporter from "@/components/BoletosDDAImporter";
 import { useCategorias, useCartoesCredito, useMovimentacoesFinanceiras } from "@/hooks/useSupabase";
 import { invokeEdgeFunction } from "@/lib/edgeFunctions";
 import { useQueryClient } from "@tanstack/react-query";
@@ -1166,9 +1167,13 @@ export default function ImportarExtrato() {
         <TabsList>
           <TabsTrigger value="extrato">Extrato / Fatura</TabsTrigger>
           <TabsTrigger value="vindi">Vindi</TabsTrigger>
+          <TabsTrigger value="boletos">Boletos DDA</TabsTrigger>
         </TabsList>
         <TabsContent value="vindi" className="mt-6">
           <VindiImporter />
+        </TabsContent>
+        <TabsContent value="boletos" className="mt-6">
+          <BoletosDDAImporter />
         </TabsContent>
         <TabsContent value="extrato" className="mt-6 space-y-6">
 
