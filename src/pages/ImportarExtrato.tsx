@@ -8,8 +8,10 @@ import { Badge } from "@/components/ui/badge";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Calendar } from "@/components/ui/calendar";
 import { toast } from "sonner";
-import { Upload, Sparkles, Check, Loader2, FileText, ChevronsUpDown, ArrowUpDown, AlertTriangle } from "lucide-react";
+import { Upload, Sparkles, Check, Loader2, FileText, ChevronsUpDown, ArrowUpDown, AlertTriangle, CalendarIcon } from "lucide-react";
 import * as XLSX from "xlsx";
 import { supabase } from "@/integrations/supabase/client";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -58,6 +60,7 @@ interface ParsedRow {
   selecionado: boolean;
   fingerprint_hash?: string;
   origem_override?: string;
+  possivel_duplicata?: boolean;
 }
 
 // Detect installment info from description: "2/12", "PARCELA 2 DE 12", "2 DE 12", etc.
@@ -722,6 +725,90 @@ export default function ImportarExtrato() {
     return result;
   }, [historicoCategoria]);
 
+  // Verify if there's a registered "frequencia" matching the row description.
+  // - If matched and the same month already has an entry → mark as possivel_duplicata (unchecked).
+  // - If matched but no entry this month → pre-fill frequencia + categoria_id from history.
+  const verificarFrequenciasCadastradas = useCallback(async (parsedRows: ParsedRow[]): Promise<ParsedRow[]> => {
+    try {
+      const { data: comFrequencia } = await supabase
+        .from("movimentacoes_financeiras")
+        .select("descricao, frequencia, frequencia_meses, frequencia_tipo, categoria_id")
+        .not("frequencia", "is", null)
+        .neq("frequencia", "unica");
+
+      if (!comFrequencia || comFrequencia.length === 0) return parsedRows;
+
+      const result: ParsedRow[] = [];
+      let duplicadasCount = 0;
+      let freqPreenchidasCount = 0;
+
+      for (const linha of parsedRows) {
+        const palavras = (linha.descricao || "")
+          .toLowerCase()
+          .split(/[\s—\-]+/)
+          .filter((p) => p.length > 4);
+
+        const match = comFrequencia.find((h: any) => {
+          const hDesc = (h.descricao || "").toLowerCase();
+          return palavras.some((p) => hDesc.includes(p));
+        });
+
+        if (!match) {
+          result.push(linha);
+          continue;
+        }
+
+        const mesAno = (linha.data || "").substring(0, 7); // "YYYY-MM"
+        const primeiraPalavra = (match.descricao || "").split(" ")[0] || "";
+
+        let jaExisteNoMes = false;
+        if (mesAno && primeiraPalavra) {
+          const { data: jaExiste } = await supabase
+            .from("movimentacoes_financeiras")
+            .select("id")
+            .ilike("descricao", `%${primeiraPalavra}%`)
+            .gte("data", `${mesAno}-01`)
+            .lte("data", `${mesAno}-31`)
+            .limit(1);
+          jaExisteNoMes = !!(jaExiste && jaExiste.length > 0);
+        }
+
+        if (jaExisteNoMes) {
+          duplicadasCount++;
+          result.push({ ...linha, possivel_duplicata: true, selecionado: false });
+        } else {
+          freqPreenchidasCount++;
+          result.push({
+            ...linha,
+            frequencia: match.frequencia ?? linha.frequencia,
+            frequencia_tipo: match.frequencia_tipo ?? linha.frequencia_tipo,
+            frequencia_meses: match.frequencia_meses ?? linha.frequencia_meses,
+            categoria_id: linha.categoria_id || match.categoria_id || null,
+          });
+        }
+      }
+
+      if (duplicadasCount > 0) {
+        toast.warning(`⚠️ ${duplicadasCount} possível(is) duplicata(s) de lançamento recorrente — desmarcadas automaticamente`);
+      }
+      if (freqPreenchidasCount > 0) {
+        toast.info(`🔁 ${freqPreenchidasCount} lançamento(s) com frequência pré-preenchida pelo histórico`);
+      }
+      return result;
+    } catch (err) {
+      console.error("Erro ao verificar frequências cadastradas:", err);
+      return parsedRows;
+    }
+  }, []);
+
+  // Wrapper: auto-categorize + verify frequencies, then set rows
+  const processarLinhas = useCallback(async (parsed: ParsedRow[]) => {
+    const categorizadas = autoCategorizeFromHistory(parsed);
+    const finais = await verificarFrequenciasCadastradas(categorizadas);
+    setRows(finais);
+  }, [autoCategorizeFromHistory, verificarFrequenciasCadastradas]);
+
+
   // Check for duplicates
   const checkDuplicates = useCallback((parsedRows: ParsedRow[]): { count: number; items: string[] } => {
     const dupes: string[] = [];
@@ -829,7 +916,7 @@ export default function ImportarExtrato() {
       if (vindiPreCategoriaId) {
         parsed = parsed.map((r) => ({ ...r, categoria_id: vindiPreCategoriaId }));
       }
-      setRows(autoCategorizeFromHistory(parsed));
+      await processarLinhas(parsed);
       const parcelados = parsed.filter((r) => r.parcela_total);
       toast.success(`${parsed.length} lançamentos importados${parcelados.length > 0 ? ` (${parcelados.length} parcelados detectados)` : ""}`);
     } else if (file.name.endsWith(".xlsx") || file.name.endsWith(".xls")) {
@@ -840,7 +927,7 @@ export default function ImportarExtrato() {
         toast.error("Nenhum lançamento encontrado na planilha. Verifique o formato.");
         return;
       }
-      setRows(autoCategorizeFromHistory(parsed));
+      await processarLinhas(parsed);
       const parcelados = parsed.filter((r) => r.parcela_total);
       if (safraExtrato) {
         toast.success(`${parsed.length} lançamentos do Extrato Safra detectados`);
@@ -868,7 +955,7 @@ export default function ImportarExtrato() {
             valorTotalFatura: Number.isFinite(valorFaturaNum) ? valorFaturaNum : undefined,
           });
           if (data?.rows?.length > 0) {
-            setRows(autoCategorizeFromHistory(data.rows.map((r: any) => {
+            await processarLinhas(data.rows.map((r: any) => {
               const parcela = detectParcela(r.descricao || "");
               return {
                 data: r.data,
@@ -885,7 +972,7 @@ export default function ImportarExtrato() {
                 parcela_total: parcela?.total ?? null,
                 selecionado: true,
               };
-            })));
+            }));
 
             // Validation
             if (Number.isFinite(valorFaturaNum) && valorFaturaNum! > 0) {
@@ -912,7 +999,7 @@ export default function ImportarExtrato() {
     } else {
       toast.error("Formato não suportado. Use CSV, Excel (.xlsx) ou PDF.");
     }
-  }, [categorias, banco, bancoCartao, valorTotalFatura]);
+  }, [categorias, banco, bancoCartao, valorTotalFatura, processarLinhas]);
 
   const categorizarComIA = async () => {
     if (rows.length === 0) return;
@@ -1630,15 +1717,58 @@ export default function ImportarExtrato() {
                   {sortedRows.map((r) => {
                     const idx = r._idx;
                     return (
-                    <TableRow key={idx} className={r.selecionado ? "" : "opacity-40"}>
+                    <TableRow key={idx} className={cn(
+                      r.selecionado ? "" : "opacity-40",
+                      r.possivel_duplicata && "bg-yellow-50 dark:bg-yellow-950/30"
+                    )}>
                       <TableCell>
-                        <input
-                          type="checkbox"
-                          checked={r.selecionado}
-                          onChange={(e) => setRows((prev) => prev.map((row, j) => j === idx ? { ...row, selecionado: e.target.checked } : row))}
-                        />
+                        <div className="flex items-center gap-1">
+                          <input
+                            type="checkbox"
+                            checked={r.selecionado}
+                            onChange={(e) => setRows((prev) => prev.map((row, j) => j === idx ? { ...row, selecionado: e.target.checked } : row))}
+                          />
+                          {r.possivel_duplicata && (
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <AlertTriangle className="h-4 w-4 text-yellow-600 cursor-help" />
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  Possível duplicata — já existe lançamento recorrente neste mês
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                          )}
+                        </div>
                       </TableCell>
-                      <TableCell className="text-muted-foreground whitespace-nowrap">{formatarData(r.data)}</TableCell>
+                      <TableCell className="text-muted-foreground whitespace-nowrap">
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-7 px-2 font-normal gap-1 text-muted-foreground hover:text-foreground"
+                            >
+                              <CalendarIcon className="h-3 w-3" />
+                              {formatarData(r.data)}
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-auto p-0" align="start">
+                            <Calendar
+                              mode="single"
+                              selected={r.data ? new Date(r.data + "T00:00:00") : undefined}
+                              onSelect={(d) => {
+                                if (!d) return;
+                                const iso = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+                                setRows((prev) => prev.map((row, j) => j === idx ? { ...row, data: iso } : row));
+                              }}
+                              initialFocus
+                              className={cn("p-3 pointer-events-auto")}
+                            />
+                          </PopoverContent>
+                        </Popover>
+                      </TableCell>
                       <TableCell className="text-muted-foreground whitespace-nowrap">{formatarData(r.data_vencimento)}</TableCell>
                       <TableCell className="max-w-xs truncate">{r.descricao}</TableCell>
                       <TableCell>
