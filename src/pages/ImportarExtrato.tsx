@@ -610,12 +610,31 @@ export default function ImportarExtrato() {
   // Build a map of description -> categoria_id from historical transactions
   const historicoCategoria = useMemo(() => {
     const map: Record<string, string> = {};
-    if (!movsExistentes) return map;
+    const keywordIndex: Array<{ tokens: string[]; categoria_id: string }> = [];
+    if (!movsExistentes) return { map, keywordIndex };
+    const STOPWORDS = new Set([
+      "pix", "ted", "doc", "enviado", "enviada", "recebido", "recebida",
+      "pagamento", "boleto", "transferencia", "transferência", "debito", "débito",
+      "credito", "crédito", "compra", "saque", "deposito", "depósito",
+      "de", "da", "do", "dos", "das", "em", "para", "por", "com", "sem",
+      "a", "o", "e", "ao", "as", "os", "no", "na", "um", "uma",
+      "ltda", "sa", "s.a", "cia", "me", "eireli", "epp",
+      "conta", "corrente", "cnpj", "cpf", "ref", "parc", "parcela",
+      "fatura", "cartao", "cartão", "extrato", "safra", "documento",
+    ]);
+    const extractTokens = (desc: string): string[] => {
+      const norm = desc
+        .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+        .toLowerCase()
+        .replace(/[^a-z0-9\s]/g, " ");
+      return Array.from(new Set(
+        norm.split(/\s+/).filter((t) => t.length >= 4 && !STOPWORDS.has(t))
+      ));
+    };
     // Process most recent first so latest categorization wins
     const sorted = [...movsExistentes].sort((a, b) => (b.created_at || "").localeCompare(a.created_at || ""));
-    sorted.forEach(m => {
+    sorted.forEach((m) => {
       if (m.categoria_id && m.descricao) {
-        // Normalize description: remove parcela info, trim, lowercase
         const descNorm = m.descricao
           .replace(/\s*\(\d+\/[∞\d]+\)\s*$/, "")
           .replace(/\s*\d+\/\d+\s*$/, "")
@@ -624,9 +643,13 @@ export default function ImportarExtrato() {
         if (descNorm && !map[descNorm]) {
           map[descNorm] = m.categoria_id;
         }
+        const tokens = extractTokens(m.descricao);
+        if (tokens.length > 0) {
+          keywordIndex.push({ tokens, categoria_id: m.categoria_id });
+        }
       }
     });
-    return map;
+    return { map, keywordIndex };
   }, [movsExistentes]);
 
   // Build a set of existing transaction keys for duplicate detection
@@ -640,20 +663,50 @@ export default function ImportarExtrato() {
     return keys;
   }, [movsExistentes]);
 
-  // Auto-categorize parsed rows from history
+  // Auto-categorize parsed rows from history (exact match → keyword match)
   const autoCategorizeFromHistory = useCallback((parsedRows: ParsedRow[]): ParsedRow[] => {
+    const { map, keywordIndex } = historicoCategoria;
+    const STOPWORDS = new Set([
+      "pix", "ted", "doc", "enviado", "enviada", "recebido", "recebida",
+      "pagamento", "boleto", "transferencia", "transferência", "debito", "débito",
+      "credito", "crédito", "compra", "saque", "deposito", "depósito",
+      "de", "da", "do", "dos", "das", "em", "para", "por", "com", "sem",
+      "a", "o", "e", "ao", "as", "os", "no", "na", "um", "uma",
+      "ltda", "sa", "s.a", "cia", "me", "eireli", "epp",
+      "conta", "corrente", "cnpj", "cpf", "ref", "parc", "parcela",
+      "fatura", "cartao", "cartão", "extrato", "safra", "documento",
+    ]);
+    const tokensOf = (desc: string): string[] => {
+      const norm = desc
+        .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+        .toLowerCase()
+        .replace(/[^a-z0-9\s]/g, " ");
+      return Array.from(new Set(
+        norm.split(/\s+/).filter((t) => t.length >= 4 && !STOPWORDS.has(t))
+      ));
+    };
     let autoCount = 0;
-    const result = parsedRows.map(r => {
-      if (r.categoria_id) return r; // Already has category
+    const result = parsedRows.map((r) => {
+      if (r.categoria_id) return r;
       const descNorm = r.descricao
         .replace(/\s*\(\d+\/[∞\d]+\)\s*$/, "")
         .replace(/\s*\d+\/\d+\s*$/, "")
         .replace(/💳\s*/, "")
         .trim().toLowerCase();
-      const catId = historicoCategoria[descNorm];
-      if (catId) {
+      // 1) Exact match
+      const exact = map[descNorm];
+      if (exact) {
         autoCount++;
-        return { ...r, categoria_id: catId, categoria_sugerida: "Auto (histórico)" };
+        return { ...r, categoria_id: exact, categoria_sugerida: "Auto (histórico)" };
+      }
+      // 2) Keyword match — pick history entry sharing any significant token
+      const rowTokens = tokensOf(r.descricao);
+      if (rowTokens.length === 0) return r;
+      for (const entry of keywordIndex) {
+        if (entry.tokens.some((t) => rowTokens.includes(t))) {
+          autoCount++;
+          return { ...r, categoria_id: entry.categoria_id, categoria_sugerida: "Auto (histórico)" };
+        }
       }
       return r;
     });
