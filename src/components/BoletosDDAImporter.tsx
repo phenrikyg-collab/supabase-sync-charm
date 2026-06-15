@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import * as XLSX from "xlsx";
 import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -6,16 +6,21 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Upload, Loader2 } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { Upload, Loader2, ChevronsUpDown, ArrowUpDown, ArrowUp, ArrowDown, Sparkles } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
 import { formatarData } from "@/utils/formatters";
+import { useCategorias } from "@/hooks/useSupabase";
+import { invokeEdgeFunction } from "@/lib/edgeFunctions";
+import { cn } from "@/lib/utils";
 
 type Situacao = "PAGO" | "ABERTO" | "VENCIDO" | "BAIXADO" | string;
 
 interface BoletoLinha {
-  data: string;                 // competência → DRE
-  data_vencimento: string;        // vencimento → fluxo de caixa / contas a pagar
+  data: string;
+  data_vencimento: string;
   descricao: string;
   valor: number;
   tipo: "saida";
@@ -31,6 +36,9 @@ interface BoletoLinha {
   competenciaBr: string;
   vencimentoBr: string;
   doc_key: string;
+  selecionado: boolean;
+  categoria_id: string | null;
+  categoria_sugerida: string | null;
 }
 
 function normalizeHeader(value: any): string {
@@ -145,7 +153,6 @@ function parseBoletosDDA(buffer: ArrayBuffer): { linhas: BoletoLinha[] } {
     const { iso: isoVenc, br: brVenc } = parseDataBR(row[iVenc]);
     if (!isoVenc) continue;
 
-    // Data de competência — usar quando disponível, fallback para vencimento
     let isoCompetencia = isoVenc;
     let brCompetencia = brVenc;
     if (iCompetencia >= 0) {
@@ -166,7 +173,6 @@ function parseBoletosDDA(buffer: ArrayBuffer): { linhas: BoletoLinha[] } {
       ? nossoNumRaw
       : "";
 
-    // Fingerprint: priorizar Nosso Número (único por parcela), fallback para Nº Doc
     const docKey = nossoNum || numDoc;
     if (!docKey) continue;
 
@@ -181,8 +187,8 @@ function parseBoletosDDA(buffer: ArrayBuffer): { linhas: BoletoLinha[] } {
     const fingerprint_hash = `boleto_${docKey}_${beneKey}`.substring(0, 100);
 
     linhas.push({
-      data: isoCompetencia,          // competência → DRE
-      data_vencimento: isoVenc,      // vencimento → fluxo de caixa / contas a pagar
+      data: isoCompetencia,
+      data_vencimento: isoVenc,
       descricao: `${beneficiario} - ${docKey}`,
       valor,
       tipo: "saida",
@@ -197,6 +203,9 @@ function parseBoletosDDA(buffer: ArrayBuffer): { linhas: BoletoLinha[] } {
       competenciaBr: brCompetencia,
       vencimentoBr: brVenc,
       doc_key: docKey,
+      selecionado: true,
+      categoria_id: null,
+      categoria_sugerida: null,
     });
   }
 
@@ -216,12 +225,93 @@ function situacaoBadgeClass(s: string): string {
   return "";
 }
 
+function CategoryPicker({
+  categorias,
+  catMap,
+  value,
+  sugerida,
+  onChange,
+}: {
+  categorias: { grupo: string; itens: { id: string; label: string }[] }[];
+  catMap: Record<string, string>;
+  value: string | null;
+  sugerida: string | null;
+  onChange: (v: string | null) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const displayLabel = value ? (catMap[value] || "Selecionar") : (sugerida || "Sem categoria");
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button variant="outline" size="sm" className="h-8 w-[200px] justify-between text-xs font-normal truncate">
+          <span className="truncate">{displayLabel}</span>
+          <ChevronsUpDown className="ml-1 h-3 w-3 shrink-0 opacity-50" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-[260px] p-0" align="start">
+        <Command>
+          <CommandInput placeholder="Buscar categoria..." className="h-9" />
+          <CommandList>
+            <CommandEmpty>Nenhuma categoria encontrada.</CommandEmpty>
+            <CommandItem onSelect={() => { onChange(null); setOpen(false); }}>
+              Sem categoria
+            </CommandItem>
+            {categorias.map(({ grupo, itens }) => (
+              <CommandGroup key={grupo} heading={grupo}>
+                {itens.map((item) => (
+                  <CommandItem
+                    key={item.id}
+                    value={`${grupo} ${item.label}`}
+                    onSelect={() => { onChange(item.id); setOpen(false); }}
+                    className={cn("text-xs", value === item.id && "font-semibold")}
+                  >
+                    {item.label}
+                  </CommandItem>
+                ))}
+              </CommandGroup>
+            ))}
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
+type SortField = "data" | "data_vencimento" | "cliente" | "valor" | "situacao_original" | "status_pagamento";
+
 export default function BoletosDDAImporter() {
   const fileRef = useRef<HTMLInputElement>(null);
   const [linhas, setLinhas] = useState<BoletoLinha[]>([]);
   const [fileName, setFileName] = useState<string>("");
   const [importing, setImporting] = useState(false);
+  const [isCategorizando, setIsCategorizando] = useState(false);
+  const [isCategorizandoHistorico, setIsCategorizandoHistorico] = useState(false);
+  const [bulkCategoryOpen, setBulkCategoryOpen] = useState(false);
+  const [sortField, setSortField] = useState<SortField | null>(null);
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
   const queryClient = useQueryClient();
+  const { data: categorias } = useCategorias();
+
+  const categoriasDropdown = useMemo(() => {
+    const agrupadas = new Map<string, { id: string; label: string }[]>();
+    const vistos = new Set<string>();
+    for (const categoria of categorias ?? []) {
+      const label = (categoria.descricao_categoria || categoria.nome_categoria || "").trim();
+      const grupo = (categoria.grupo_dre || "Outros").trim();
+      if (!label || vistos.has(label.toLowerCase())) continue;
+      vistos.add(label.toLowerCase());
+      const itens = agrupadas.get(grupo) ?? [];
+      itens.push({ id: categoria.id, label });
+      agrupadas.set(grupo, itens);
+    }
+    return Array.from(agrupadas.entries())
+      .map(([grupo, itens]) => ({ grupo, itens: itens.sort((a, b) => a.label.localeCompare(b.label)) }))
+      .sort((a, b) => a.grupo.localeCompare(b.grupo));
+  }, [categorias]);
+
+  const catMap = useMemo(() => Object.fromEntries(
+    (categorias ?? []).map((c) => [c.id, (c.descricao_categoria || c.nome_categoria || "")])
+  ), [categorias]);
 
   const onFile = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -250,12 +340,135 @@ export default function BoletosDDAImporter() {
     }
   };
 
+  const toggleAll = (v: boolean) => setLinhas((prev) => prev.map((l) => ({ ...l, selecionado: v })));
+  const allSelected = linhas.length > 0 && linhas.every((l) => l.selecionado);
+
+  const aplicarCategoriaEmMassa = (catId: string | null) => {
+    setLinhas((prev) => prev.map((l) => (l.selecionado ? { ...l, categoria_id: catId } : l)));
+    setBulkCategoryOpen(false);
+    toast.success("Categoria aplicada aos selecionados!");
+  };
+
+  const categorizarComIA = async () => {
+    const alvos = linhas.filter((l) => l.selecionado && !l.categoria_id);
+    if (alvos.length === 0) {
+      toast.info("Nenhum lançamento selecionado sem categoria.");
+      return;
+    }
+    setIsCategorizando(true);
+    try {
+      const data = await invokeEdgeFunction("categorizar-despesa", {
+        action: "categorize",
+        items: alvos.map((l) => ({ descricao: l.cliente, valor: l.valor, tipo: l.tipo })),
+        categorias: categorias?.map((c) => ({ id: c.id, nome: c.nome_categoria, grupo_dre: c.grupo_dre })),
+      });
+      if (data?.categorized) {
+        const byFp = new Map<string, { categoria_id?: string; categoria_nome?: string }>();
+        alvos.forEach((l, i) => byFp.set(l.fingerprint_hash, data.categorized[i] || {}));
+        setLinhas((prev) => prev.map((l) => {
+          const m = byFp.get(l.fingerprint_hash);
+          if (!m) return l;
+          return {
+            ...l,
+            categoria_id: m.categoria_id ?? l.categoria_id,
+            categoria_sugerida: m.categoria_nome ?? l.categoria_sugerida,
+          };
+        }));
+        toast.success("Categorização automática concluída!");
+      }
+    } catch (err: any) {
+      toast.error("Erro na categorização: " + (err.message || "erro desconhecido"));
+    } finally {
+      setIsCategorizando(false);
+    }
+  };
+
+  const categorizarPorHistorico = async () => {
+    if (linhas.length === 0) return;
+    setIsCategorizandoHistorico(true);
+    try {
+      const { data: historico } = await supabase
+        .from("movimentacoes_financeiras")
+        .select("descricao, categoria_id, categorias_financeiras(nome_categoria)")
+        .not("categoria_id", "is", null)
+        .in("origem", ["extrato_safra", "extrato_cartao", "importacao", "manual", "boleto_dda"]);
+
+      if (!historico || historico.length === 0) {
+        toast.info("Nenhum histórico de categorização encontrado.");
+        return;
+      }
+
+      let categorizados = 0;
+      let semCorrespondencia = 0;
+      const updated = linhas.map((linha) => {
+        if (linha.categoria_id) return linha;
+        const palavras = linha.cliente
+          .toLowerCase()
+          .split(/[\s—\-]+/)
+          .filter((p) => p.length > 3);
+        const matches = historico.filter((h: any) =>
+          palavras.some((p) => h.descricao?.toLowerCase().includes(p))
+        );
+        if (matches.length > 0) {
+          const freq: Record<string, number> = {};
+          matches.forEach((m: any) => { freq[m.categoria_id] = (freq[m.categoria_id] || 0) + 1; });
+          const categoriaId = Object.entries(freq).sort((a, b) => b[1] - a[1])[0][0];
+          const categoriaNome = matches.find((m: any) => m.categoria_id === categoriaId)
+            ?.categorias_financeiras?.[0]?.nome_categoria;
+          categorizados++;
+          return { ...linha, categoria_id: categoriaId, categoria_sugerida: categoriaNome || "Auto (histórico)" };
+        }
+        semCorrespondencia++;
+        return linha;
+      });
+      setLinhas(updated);
+      toast.success(`✅ ${categorizados} lançamentos categorizados por histórico · ${semCorrespondencia} sem correspondência`);
+    } catch (err: any) {
+      toast.error("Erro na categorização por histórico: " + (err.message || "erro desconhecido"));
+    } finally {
+      setIsCategorizandoHistorico(false);
+    }
+  };
+
+  const handleSort = (field: SortField) => {
+    if (sortField === field) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    else { setSortField(field); setSortDir("asc"); }
+  };
+
+  const sortedLinhas = useMemo(() => {
+    const indexed = linhas.map((l, i) => ({ l, i }));
+    if (!sortField) return indexed;
+    return [...indexed].sort((a, b) => {
+      const va: any = (a.l as any)[sortField];
+      const vb: any = (b.l as any)[sortField];
+      if (va == null && vb == null) return 0;
+      if (va == null) return 1;
+      if (vb == null) return -1;
+      if (typeof va === "number" && typeof vb === "number") {
+        return sortDir === "asc" ? va - vb : vb - va;
+      }
+      const sa = String(va).toLowerCase();
+      const sb = String(vb).toLowerCase();
+      if (sa < sb) return sortDir === "asc" ? -1 : 1;
+      if (sa > sb) return sortDir === "asc" ? 1 : -1;
+      return 0;
+    });
+  }, [linhas, sortField, sortDir]);
+
+  const sortIcon = (field: SortField) => {
+    if (sortField !== field) return <ArrowUpDown className="h-3 w-3" />;
+    return sortDir === "asc" ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />;
+  };
+
   const importar = async () => {
-    if (!linhas.length) return;
+    const alvos = linhas.filter((l) => l.selecionado);
+    if (!alvos.length) {
+      toast.error("Selecione ao menos um boleto.");
+      return;
+    }
     setImporting(true);
     try {
-      // 1. Checagem de duplicatas
-      const fingerprints = linhas.map((l) => l.fingerprint_hash);
+      const fingerprints = alvos.map((l) => l.fingerprint_hash);
       const hashsExistentes = new Set<string>();
       const CHUNK = 200;
       for (let i = 0; i < fingerprints.length; i += CHUNK) {
@@ -268,23 +481,19 @@ export default function BoletosDDAImporter() {
         (data || []).forEach((d: any) => d.fingerprint_hash && hashsExistentes.add(d.fingerprint_hash));
       }
 
-      const linhasNovas = linhas.filter((l) => !hashsExistentes.has(l.fingerprint_hash));
-      const qtdIgnorados = linhas.length - linhasNovas.length;
+      const linhasNovas = alvos.filter((l) => !hashsExistentes.has(l.fingerprint_hash));
+      const qtdIgnorados = alvos.length - linhasNovas.length;
 
-      // 2. Conciliação com extrato Safra para boletos pendentes
       const pendentes = linhasNovas.filter((l) => l.status_pagamento === "pendente");
-      // Agrupar por mês para reduzir queries
       const mesesValores = new Map<string, Set<number>>();
       for (const b of pendentes) {
         const mes = b.data.substring(0, 7);
         if (!mesesValores.has(mes)) mesesValores.set(mes, new Set());
         mesesValores.get(mes)!.add(b.valor);
       }
-      // Cache de pagamentos por mês: Map<mes, Set<valor>>
       const pagamentosPorMes = new Map<string, Set<number>>();
       for (const mes of mesesValores.keys()) {
         const inicio = `${mes}-01`;
-        // fim do mês
         const [y, m] = mes.split("-").map(Number);
         const fimDate = new Date(y, m, 0);
         const fim = `${mes}-${String(fimDate.getDate()).padStart(2, "0")}`;
@@ -310,7 +519,6 @@ export default function BoletosDDAImporter() {
         }
       }
 
-      // 3. Insert
       if (linhasNovas.length > 0) {
         const payload = linhasNovas.map((l) => ({
           data: l.data,
@@ -325,6 +533,7 @@ export default function BoletosDDAImporter() {
           impacta_fluxo: l.impacta_fluxo,
           cliente: l.cliente,
           status_pagamento: l.status_pagamento,
+          categoria_id: l.categoria_id,
         }));
 
         for (let i = 0; i < payload.length; i += 500) {
@@ -361,6 +570,7 @@ export default function BoletosDDAImporter() {
   const vencidos = grupo("VENCIDO");
   const baixados = grupo("BAIXADO");
   const sum = (arr: BoletoLinha[]) => arr.reduce((s, l) => s + l.valor, 0);
+  const qtdSelecionados = linhas.filter((l) => l.selecionado).length;
 
   return (
     <Card>
@@ -380,12 +590,6 @@ export default function BoletosDDAImporter() {
           <Button onClick={preview} variant="outline" disabled={importing}>
             Pré-visualizar
           </Button>
-          {linhas.length > 0 && (
-            <Button onClick={importar} disabled={importing}>
-              {importing && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-              Importar
-            </Button>
-          )}
         </div>
 
         {linhas.length > 0 && (
@@ -396,29 +600,129 @@ export default function BoletosDDAImporter() {
               <span><strong>Em aberto:</strong> {abertos.length} ({formatCurrency(sum(abertos))})</span>
               <span><strong>Vencidos:</strong> {vencidos.length} ({formatCurrency(sum(vencidos))})</span>
               <span><strong>Baixados:</strong> {baixados.length} ({formatCurrency(sum(baixados))})</span>
+              <span><strong>Selecionados:</strong> {qtdSelecionados}</span>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2">
+              <Button variant="outline" size="sm" onClick={() => toggleAll(!allSelected)}>
+                {allSelected ? "Desmarcar Todos" : "Selecionar Todos"}
+              </Button>
+              <Popover open={bulkCategoryOpen} onOpenChange={setBulkCategoryOpen}>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" size="sm" className="gap-1" disabled={qtdSelecionados === 0}>
+                    <ChevronsUpDown className="h-3 w-3" />
+                    Categoria em massa
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-[260px] p-0" align="end">
+                  <Command>
+                    <CommandInput placeholder="Buscar categoria..." className="h-9" />
+                    <CommandList>
+                      <CommandEmpty>Nenhuma categoria encontrada.</CommandEmpty>
+                      <CommandItem onSelect={() => aplicarCategoriaEmMassa(null)}>
+                        Sem categoria
+                      </CommandItem>
+                      {categoriasDropdown.map(({ grupo, itens }) => (
+                        <CommandGroup key={grupo} heading={grupo}>
+                          {itens.map((item) => (
+                            <CommandItem
+                              key={item.id}
+                              value={`${grupo} ${item.label}`}
+                              onSelect={() => aplicarCategoriaEmMassa(item.id)}
+                              className="text-xs"
+                            >
+                              {item.label}
+                            </CommandItem>
+                          ))}
+                        </CommandGroup>
+                      ))}
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
+              <Button onClick={categorizarComIA} disabled={isCategorizando} className="gap-2" size="sm">
+                {isCategorizando ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+                Categorizar com IA
+              </Button>
+              <Button onClick={categorizarPorHistorico} disabled={isCategorizandoHistorico} variant="outline" className="gap-2" size="sm">
+                {isCategorizandoHistorico ? <Loader2 className="h-4 w-4 animate-spin" /> : "📂"}
+                Categorizar por Histórico
+              </Button>
+              <Button onClick={importar} disabled={importing} className="gap-2" size="sm">
+                {importing && <Loader2 className="h-4 w-4 animate-spin" />}
+                Importar
+              </Button>
             </div>
 
             <div className="rounded-md border overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Competência</TableHead>
-                    <TableHead>Vencimento</TableHead>
-                    <TableHead>Beneficiário</TableHead>
+                    <TableHead className="w-10">
+                      <input
+                        type="checkbox"
+                        checked={allSelected}
+                        onChange={(e) => toggleAll(e.target.checked)}
+                      />
+                    </TableHead>
+                    <TableHead>
+                      <Button variant="ghost" size="sm" className="h-auto p-0 font-medium gap-1" onClick={() => handleSort("data")}>
+                        Competência {sortIcon("data")}
+                      </Button>
+                    </TableHead>
+                    <TableHead>
+                      <Button variant="ghost" size="sm" className="h-auto p-0 font-medium gap-1" onClick={() => handleSort("data_vencimento")}>
+                        Vencimento {sortIcon("data_vencimento")}
+                      </Button>
+                    </TableHead>
+                    <TableHead>
+                      <Button variant="ghost" size="sm" className="h-auto p-0 font-medium gap-1" onClick={() => handleSort("cliente")}>
+                        Beneficiário {sortIcon("cliente")}
+                      </Button>
+                    </TableHead>
                     <TableHead>Nº Doc</TableHead>
-                    <TableHead className="text-right">Valor</TableHead>
-                    <TableHead>Situação</TableHead>
-                    <TableHead>Status</TableHead>
+                    <TableHead className="text-right">
+                      <Button variant="ghost" size="sm" className="h-auto p-0 font-medium gap-1" onClick={() => handleSort("valor")}>
+                        Valor {sortIcon("valor")}
+                      </Button>
+                    </TableHead>
+                    <TableHead>Categoria</TableHead>
+                    <TableHead>
+                      <Button variant="ghost" size="sm" className="h-auto p-0 font-medium gap-1" onClick={() => handleSort("situacao_original")}>
+                        Situação {sortIcon("situacao_original")}
+                      </Button>
+                    </TableHead>
+                    <TableHead>
+                      <Button variant="ghost" size="sm" className="h-auto p-0 font-medium gap-1" onClick={() => handleSort("status_pagamento")}>
+                        Status {sortIcon("status_pagamento")}
+                      </Button>
+                    </TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {linhas.map((l, idx) => (
-                    <TableRow key={`${l.fingerprint_hash}_${idx}`}>
+                  {sortedLinhas.map(({ l, i }) => (
+                    <TableRow key={`${l.fingerprint_hash}_${i}`} className={l.selecionado ? "" : "opacity-40"}>
+                      <TableCell>
+                        <input
+                          type="checkbox"
+                          checked={l.selecionado}
+                          onChange={(e) => setLinhas((prev) => prev.map((row, j) => j === i ? { ...row, selecionado: e.target.checked } : row))}
+                        />
+                      </TableCell>
                       <TableCell>{formatarData(l.data)}</TableCell>
                       <TableCell>{l.vencimentoBr}</TableCell>
                       <TableCell className="max-w-[280px] truncate" title={l.cliente}>{l.cliente}</TableCell>
                       <TableCell className="font-mono text-xs">{l.doc_key}</TableCell>
                       <TableCell className="text-right">{formatCurrency(l.valor)}</TableCell>
+                      <TableCell>
+                        <CategoryPicker
+                          categorias={categoriasDropdown}
+                          catMap={catMap}
+                          value={l.categoria_id}
+                          sugerida={l.categoria_sugerida}
+                          onChange={(v) => setLinhas((prev) => prev.map((row, j) => j === i ? { ...row, categoria_id: v } : row))}
+                        />
+                      </TableCell>
                       <TableCell>
                         <Badge
                           variant={situacaoBadgeVariant(l.situacao_original)}
