@@ -56,6 +56,8 @@ interface ParsedRow {
   parcela_atual: number | null;
   parcela_total: number | null;
   selecionado: boolean;
+  fingerprint_hash?: string;
+  origem_override?: string;
 }
 
 // Detect installment info from description: "2/12", "PARCELA 2 DE 12", "2 DE 12", etc.
