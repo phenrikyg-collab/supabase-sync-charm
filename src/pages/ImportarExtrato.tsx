@@ -1717,15 +1717,58 @@ export default function ImportarExtrato() {
                   {sortedRows.map((r) => {
                     const idx = r._idx;
                     return (
-                    <TableRow key={idx} className={r.selecionado ? "" : "opacity-40"}>
+                    <TableRow key={idx} className={cn(
+                      r.selecionado ? "" : "opacity-40",
+                      r.possivel_duplicata && "bg-yellow-50 dark:bg-yellow-950/30"
+                    )}>
                       <TableCell>
-                        <input
-                          type="checkbox"
-                          checked={r.selecionado}
-                          onChange={(e) => setRows((prev) => prev.map((row, j) => j === idx ? { ...row, selecionado: e.target.checked } : row))}
-                        />
+                        <div className="flex items-center gap-1">
+                          <input
+                            type="checkbox"
+                            checked={r.selecionado}
+                            onChange={(e) => setRows((prev) => prev.map((row, j) => j === idx ? { ...row, selecionado: e.target.checked } : row))}
+                          />
+                          {r.possivel_duplicata && (
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <AlertTriangle className="h-4 w-4 text-yellow-600 cursor-help" />
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  Possível duplicata — já existe lançamento recorrente neste mês
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                          )}
+                        </div>
                       </TableCell>
-                      <TableCell className="text-muted-foreground whitespace-nowrap">{formatarData(r.data)}</TableCell>
+                      <TableCell className="text-muted-foreground whitespace-nowrap">
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-7 px-2 font-normal gap-1 text-muted-foreground hover:text-foreground"
+                            >
+                              <CalendarIcon className="h-3 w-3" />
+                              {formatarData(r.data)}
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-auto p-0" align="start">
+                            <Calendar
+                              mode="single"
+                              selected={r.data ? new Date(r.data + "T00:00:00") : undefined}
+                              onSelect={(d) => {
+                                if (!d) return;
+                                const iso = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+                                setRows((prev) => prev.map((row, j) => j === idx ? { ...row, data: iso } : row));
+                              }}
+                              initialFocus
+                              className={cn("p-3 pointer-events-auto")}
+                            />
+                          </PopoverContent>
+                        </Popover>
+                      </TableCell>
                       <TableCell className="text-muted-foreground whitespace-nowrap">{formatarData(r.data_vencimento)}</TableCell>
                       <TableCell className="max-w-xs truncate">{r.descricao}</TableCell>
                       <TableCell>
