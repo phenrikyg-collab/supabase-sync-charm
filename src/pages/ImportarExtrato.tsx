@@ -265,7 +265,12 @@ function parseSafraExtrato(buffer: ArrayBuffer): ParsedRow[] | null {
     // Drop placeholder values and avoid duplicating Lançamento
     if (compl && ["nan", "null", "-", "--", "0"].includes(compl.toLowerCase())) compl = "";
     if (compl && compl.toLowerCase() === lanc.toLowerCase()) compl = "";
-    const descricao = (compl ? `${lanc} — ${compl}` : lanc).trim() || "Sem descrição";
+    // Never include generic "Débito" or "Crédito" as the Lançamento prefix
+    const lancLower = lanc.toLowerCase();
+    const isGenericLanc = lancLower === "débito" || lancLower === "debito" || lancLower === "crédito" || lancLower === "credito";
+    let descricao = (compl && !isGenericLanc ? `${lanc} — ${compl}` : (isGenericLanc ? compl : lanc)).trim() || "Sem descrição";
+    // Safety: strip any accidental "Débito — " or "Crédito — " prefix
+    descricao = descricao.replace(/^d[eé]bito\s*[—-]\s*/i, "").replace(/^cr[eé]dito\s*[—-]\s*/i, "");
 
     const numDoc = iNumDoc >= 0 ? String(cols[iNumDoc] ?? "").trim() : "";
     const descSlug = descricao.substring(0, 20).toLowerCase().replace(/\s+/g, "_");
