@@ -8,7 +8,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
-import { Upload, Loader2, ChevronsUpDown, ArrowUpDown, ArrowUp, ArrowDown, Sparkles } from "lucide-react";
+import { Upload, Loader2, ChevronsUpDown, ArrowUpDown, ArrowUp, ArrowDown, Sparkles, Plus } from "lucide-react";
+import { NovaCategoriaDialog } from "@/components/NovaCategoriaDialog";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
 import { formatarData } from "@/utils/formatters";
