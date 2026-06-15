@@ -894,15 +894,25 @@ export default function ImportarExtrato() {
               fatura_id: faturaId,
               impacta_dre: true,
               impacta_fluxo: false,
+              tipo_origem: "cartao",
+              fingerprint_hash: fingerprintCartao(faturaVencimento, valor, r.descricao, null),
             };
-          }).filter(Boolean);
+          }).filter(Boolean) as any[];
 
           if (inserts.length > 0) {
-            const { error } = await supabase.from("movimentacoes_financeiras").insert(inserts);
+            const { data: inseridos, error } = await supabase
+              .from("movimentacoes_financeiras")
+              .upsert(inserts, { onConflict: "fingerprint_hash", ignoreDuplicates: true })
+              .select("id, valor");
             if (error) throw error;
-            await updateFaturaTotal(faturaId, totalNaoParcelados);
+            const qtdInseridos = inseridos?.length ?? 0;
+            const totalInserido = (inseridos ?? []).reduce((s: number, x: any) => s + Number(x.valor ?? 0), 0);
+            qtdInseridosCartao += qtdInseridos;
+            qtdIgnoradosCartao += inserts.length - qtdInseridos;
+            if (totalInserido > 0) await updateFaturaTotal(faturaId, totalInserido);
           }
         }
+
 
         // Process installment items → distribute across future faturas
         for (const row of parcelados) {
