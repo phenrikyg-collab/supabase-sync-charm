@@ -1448,7 +1448,10 @@ export default function ImportarExtrato() {
           </Card>
         </>
       )}
+        </TabsContent>
+      </Tabs>
       {/* Duplicate detection alert */}
+
       <AlertDialog open={!!duplicatasAlert} onOpenChange={(open) => !open && setDuplicatasAlert(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
