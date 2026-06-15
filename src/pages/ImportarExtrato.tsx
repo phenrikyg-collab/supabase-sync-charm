@@ -916,7 +916,7 @@ export default function ImportarExtrato() {
       if (vindiPreCategoriaId) {
         parsed = parsed.map((r) => ({ ...r, categoria_id: vindiPreCategoriaId }));
       }
-      setRows(autoCategorizeFromHistory(parsed));
+      await processarLinhas(parsed);
       const parcelados = parsed.filter((r) => r.parcela_total);
       toast.success(`${parsed.length} lançamentos importados${parcelados.length > 0 ? ` (${parcelados.length} parcelados detectados)` : ""}`);
     } else if (file.name.endsWith(".xlsx") || file.name.endsWith(".xls")) {
