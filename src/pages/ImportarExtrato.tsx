@@ -208,6 +208,88 @@ function parseCSVSafra(text: string): ParsedRow[] {
   return rows;
 }
 
+// Safra "Extrato" sheet: Data | Situação | Tipo do Lançamento | Lançamento | Complemento | Nº Documento | Valor
+function parseSafraExtrato(buffer: ArrayBuffer): ParsedRow[] | null {
+  const wb = XLSX.read(buffer, { type: "array", cellDates: true });
+  // Prefer sheet literally named "Extrato"
+  const sheetName = wb.SheetNames.find((n) => normalizeHeader(n) === "extrato") ?? wb.SheetNames[0];
+  const ws = wb.Sheets[sheetName];
+  if (!ws) return null;
+  const grid = XLSX.utils.sheet_to_json<any[]>(ws, { header: 1, defval: "" }) as any[][];
+
+  // Locate header row containing the Safra Extrato columns
+  let headerIndex = -1;
+  let headerMap: Record<string, number> = {};
+  const required = ["data", "situacao", "tipo do lancamento", "lancamento", "valor"];
+  for (let i = 0; i < Math.min(grid.length, 15); i++) {
+    const cols = (grid[i] ?? []).map((c) => normalizeHeader(String(c ?? "")));
+    if (required.every((r) => cols.some((c) => c === r || c.includes(r)))) {
+      headerIndex = i;
+      headerMap = Object.fromEntries(cols.map((c, idx) => [c, idx]));
+      break;
+    }
+  }
+  if (headerIndex < 0) return null;
+
+  const findIdx = (...keys: string[]): number => {
+    for (const k of keys) {
+      const nk = normalizeHeader(k);
+      for (const headerKey of Object.keys(headerMap)) {
+        if (headerKey === nk || headerKey.includes(nk)) return headerMap[headerKey];
+      }
+    }
+    return -1;
+  };
+  const iData = findIdx("data");
+  const iLanc = findIdx("lancamento");
+  const iCompl = findIdx("complemento");
+  const iNumDoc = findIdx("n documento", "no documento", "numero documento", "n° documento", "nº documento", "documento");
+  const iValor = findIdx("valor");
+
+  const rows: ParsedRow[] = [];
+  for (let i = headerIndex + 1; i < grid.length; i++) {
+    const cols = grid[i] ?? [];
+    if (!cols.some((c) => String(c ?? "").trim() !== "")) continue;
+
+    const rawData = cols[iData];
+    const dataIso = excelDateToString(rawData);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(dataIso)) continue;
+
+    const valorNum = converterValorExcel(cols[iValor]);
+    if (!Number.isFinite(valorNum) || valorNum === 0) continue;
+    const tipo: "entrada" | "saida" = valorNum < 0 ? "saida" : "entrada";
+    const valorAbs = Math.abs(valorNum);
+
+    const lanc = String(cols[iLanc] ?? "").trim();
+    const compl = iCompl >= 0 ? String(cols[iCompl] ?? "").trim() : "";
+    const descricao = [lanc, compl].filter(Boolean).join(" — ").trim() || "Sem descrição";
+
+    const numDoc = iNumDoc >= 0 ? String(cols[iNumDoc] ?? "").trim() : "";
+    const descSlug = descricao.substring(0, 20).toLowerCase().replace(/\s+/g, "_");
+    const fp = `safra_${dataIso}_${numDoc || valorAbs.toFixed(2)}_${descSlug}`;
+
+    rows.push({
+      data: dataIso,
+      data_vencimento: dataIso,
+      descricao,
+      valor: valorAbs,
+      tipo,
+      categoria_id: null,
+      categoria_sugerida: null,
+      frequencia: null,
+      frequencia_tipo: null,
+      frequencia_meses: null,
+      parcela_atual: null,
+      parcela_total: null,
+      selecionado: true,
+      fingerprint_hash: fp,
+      origem_override: "extrato_safra",
+    });
+  }
+
+  return rows.length > 0 ? rows : null;
+}
+
 function parseExcelFile(buffer: ArrayBuffer): ParsedRow[] {
   const wb = XLSX.read(buffer, { type: "array", cellDates: true });
   const ws = wb.Sheets[wb.SheetNames[0]];
