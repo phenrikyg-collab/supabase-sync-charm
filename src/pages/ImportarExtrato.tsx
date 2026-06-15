@@ -18,6 +18,27 @@ import { useQueryClient } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
 import { formatarData } from "@/utils/formatters";
 
+function gerarFingerprint(str: string): string {
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    hash = ((hash << 5) - hash) + str.charCodeAt(i);
+    hash = hash & hash;
+  }
+  return Math.abs(hash).toString(36) + '_' + str.length;
+}
+
+function fingerprintExtrato(data: string, valor: number, descricao: string): string {
+  return 'ext_' + gerarFingerprint(`${data}|${valor.toFixed(2)}|${descricao.trim().toLowerCase()}`);
+}
+
+function fingerprintCartao(vencimento: string, valor: number, estabelecimento: string, parcela: string | null): string {
+  const mes = (vencimento || '').slice(0, 7);
+  const numParcela = parcela?.split('/')[0] ?? '1';
+  return 'cc_' + gerarFingerprint(`${mes}|${valor.toFixed(2)}|${estabelecimento.trim().toLowerCase()}|${numParcela}`);
+}
+
+
+
 interface ParsedRow {
   data: string;
   data_vencimento: string | null;
