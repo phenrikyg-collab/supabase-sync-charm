@@ -556,9 +556,11 @@ function SearchableCategory({
   onChange: (v: string | null) => void;
 }) {
   const [open, setOpen] = useState(false);
+  const [novaOpen, setNovaOpen] = useState(false);
   const displayLabel = value ? (catMap[value] || "Selecionar") : (sugerida || "Sem categoria");
 
   return (
+    <>
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <Button variant="outline" size="sm" className="h-8 w-[200px] justify-between text-xs font-normal truncate">
@@ -588,10 +590,25 @@ function SearchableCategory({
                 ))}
               </CommandGroup>
             ))}
+            <CommandGroup>
+              <CommandItem
+                value="__nova_categoria__"
+                onSelect={() => { setOpen(false); setNovaOpen(true); }}
+                className="text-xs text-primary font-medium"
+              >
+                <Plus className="h-3 w-3 mr-1" /> Criar nova categoria
+              </CommandItem>
+            </CommandGroup>
           </CommandList>
         </Command>
       </PopoverContent>
     </Popover>
+    <NovaCategoriaDialog
+      open={novaOpen}
+      onOpenChange={setNovaOpen}
+      onCreated={(id) => onChange(id)}
+    />
+    </>
   );
 }
 
