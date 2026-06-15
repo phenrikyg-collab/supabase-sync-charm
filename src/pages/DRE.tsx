@@ -289,22 +289,8 @@ export default function DRE() {
     });
   }, [movs, anoSelecionado, mesSelecionado]);
 
-  // ===== Tray orders for DRE (regime de competência: data = date) =====
-  const { data: trayOrders = [] } = useQuery({
-    queryKey: ["dre-tray-orders", anoSelecionado, mesSelecionado],
-    queryFn: async () => {
-      const inicio = mesSelecionado !== "todos" ? `${mesSelecionado}-01` : `${anoSelecionado}-01-01`;
-      const fim = mesSelecionado !== "todos" ? `${mesSelecionado}-31` : `${anoSelecionado}-12-31`;
-      return await fetchAllTray<TrayOrderDre>("tray_orders", (q) =>
-        q.gte("date", inicio).lte("date", fim)
-      );
-    },
-  });
+  const dreData = useMemo(() => buildDreData(filtered, catMap), [filtered, catMap]);
 
-  const dreData = useMemo(
-    () => buildDreData(filtered, catMap, trayOrders),
-    [filtered, catMap, trayOrders]
-  );
 
 
 
