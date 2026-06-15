@@ -45,21 +45,23 @@ const FAIXA_SIGN: Record<string, "+" | "-" | "±"> = {
   "IMPOSTOS DIRETOS": "-",
 };
 
-// Normalize DB grupo_dre values to standard FAIXA_ORDER names
+// Normalize DB grupo_dre values to standard FAIXA_ORDER names (case + accent insensitive)
+function stripAccents(s: string) {
+  return s.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+}
 function normalizeFaixa(grupoDre: string): string {
-  const upper = grupoDre.toUpperCase().trim();
-  // Direct match
-  if (FAIXA_ORDER.includes(upper)) return upper;
-  // Map known DB variants
+  if (!grupoDre) return "";
+  const key = stripAccents(grupoDre).toUpperCase().trim();
+  const indexed: Record<string, string> = {};
+  FAIXA_ORDER.forEach((f) => { indexed[stripAccents(f).toUpperCase()] = f; });
+  if (indexed[key]) return indexed[key];
   const FAIXA_MAP: Record<string, string> = {
     "CUSTOS FIXOS": "DESPESAS",
-    "CUSTOS VARIÁVEIS": "CUSTOS VARIÁVEIS",
-    "DEDUÇÕES SOBRE VENDAS": "DEDUÇÕES SOBRE VENDAS",
-    "RECEITAS": "RECEITAS",
-    "RESULTADO NÃO OPERACIONAL": "RESULTADO NÃO OPERACIONAL",
-    "IMPOSTOS DIRETOS": "IMPOSTOS DIRETOS",
+    "DEDUCOES SOBRE VENDAS": "DEDUÇÕES SOBRE VENDAS",
+    "IMPOSTOS SOBRE VENDAS": "DEDUÇÕES SOBRE VENDAS",
+    "RESULTADO NAO OPERACIONAL": "RESULTADO NÃO OPERACIONAL",
   };
-  return FAIXA_MAP[upper] || "";
+  return FAIXA_MAP[key] || "";
 }
 
 interface CatInfo {
