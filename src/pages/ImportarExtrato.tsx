@@ -17,6 +17,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import VindiImporter from "@/components/VindiImporter";
 import BoletosDDAImporter from "@/components/BoletosDDAImporter";
+import { NovaCategoriaDialog } from "@/components/NovaCategoriaDialog";
+import { Plus } from "lucide-react";
 import { useCategorias, useCartoesCredito, useMovimentacoesFinanceiras } from "@/hooks/useSupabase";
 import { invokeEdgeFunction } from "@/lib/edgeFunctions";
 import { useQueryClient } from "@tanstack/react-query";
