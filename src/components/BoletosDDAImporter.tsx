@@ -159,10 +159,15 @@ function parseBoletosDDA(buffer: ArrayBuffer): { linhas: BoletoLinha[] } {
       }
     }
 
+    const nossoNumRaw = String(row[iNosso] ?? "").trim().replace(/\s+/g, "");
     const numDocRaw = String(row[iNumDoc] ?? "").trim();
-    const nossoNum = String(row[iNosso] ?? "").trim();
     const numDoc = numDocRaw && numDocRaw.toLowerCase() !== "nan" ? numDocRaw : "";
-    const docKey = numDoc || nossoNum;
+    const nossoNum = nossoNumRaw && nossoNumRaw.toLowerCase() !== "nan" && nossoNumRaw.length > 3
+      ? nossoNumRaw
+      : "";
+
+    // Fingerprint: priorizar Nosso Número (único por parcela), fallback para Nº Doc
+    const docKey = nossoNum || numDoc;
     if (!docKey) continue;
 
     const beneficiario = String(row[iBenef] ?? "").trim() || "Sem beneficiário";
@@ -172,8 +177,8 @@ function parseBoletosDDA(buffer: ArrayBuffer): { linhas: BoletoLinha[] } {
     if (!(valor > 0)) continue;
 
     const status_pagamento: "pago" | "pendente" = ["PAGO", "BAIXADO"].includes(situacao) ? "pago" : "pendente";
-    const beneKey = beneficiario.substring(0, 25).toLowerCase().replace(/\s+/g, "_");
-    const fingerprint_hash = `boleto_${docKey}_${beneKey}`;
+    const beneKey = beneficiario.substring(0, 20).toLowerCase().replace(/\s+/g, "_");
+    const fingerprint_hash = `boleto_${docKey}_${beneKey}`.substring(0, 100);
 
     linhas.push({
       data: isoCompetencia,          // competência → DRE
