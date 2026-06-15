@@ -305,6 +305,7 @@ export default function BoletosDDAImporter() {
   const [isCategorizando, setIsCategorizando] = useState(false);
   const [isCategorizandoHistorico, setIsCategorizandoHistorico] = useState(false);
   const [bulkCategoryOpen, setBulkCategoryOpen] = useState(false);
+  const [bulkNovaCategoriaOpen, setBulkNovaCategoriaOpen] = useState(false);
   const [sortField, setSortField] = useState<SortField | null>(null);
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
   const queryClient = useQueryClient();
