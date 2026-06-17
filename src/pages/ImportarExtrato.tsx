@@ -998,16 +998,19 @@ export default function ImportarExtrato() {
           }
           if (ultimoErro) throw ultimoErro;
           if (data?.rows?.length > 0) {
+            const ESTORNO_CAT_ID = "437bcbe9-ed5d-4792-b340-a8a6a2998799";
+            const ESTORNO_RE = /(cr[ée]dito de|estorno|devolu[çc][ãa]o|cancelamento|\bcanc\b|\bdev\b|\bcred\b)/i;
             await processarLinhas(data.rows.map((r: any) => {
               const parcela = detectParcela(r.descricao || "");
+              const isEstorno = r.valor > 0 || ESTORNO_RE.test(r.descricao || "");
               return {
                 data: r.data,
                 data_vencimento: r.data_vencimento || null,
                 descricao: r.descricao,
                 valor: Math.abs(r.valor),
-                tipo: r.valor < 0 ? "saida" as const : (r.tipo || "saida") as any,
-                categoria_id: r.categoria_id || null,
-                categoria_sugerida: r.categoria_sugerida || null,
+                tipo: isEstorno ? "entrada" as const : (r.valor < 0 ? "saida" as const : (r.tipo || "saida") as any),
+                categoria_id: isEstorno ? ESTORNO_CAT_ID : (r.categoria_id || null),
+                categoria_sugerida: isEstorno ? "Estorno de compra - Cartão de Crédito" : (r.categoria_sugerida || null),
                 frequencia: null,
                 frequencia_tipo: null,
                 frequencia_meses: null,
@@ -1016,6 +1019,7 @@ export default function ImportarExtrato() {
                 selecionado: true,
               };
             }));
+
 
             // Validation
             if (Number.isFinite(valorFaturaNum) && valorFaturaNum! > 0) {
