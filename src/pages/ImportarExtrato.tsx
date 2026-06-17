@@ -1163,24 +1163,29 @@ export default function ImportarExtrato() {
                     selecionado: true,
                   };
                 })
-                .filter(Boolean) as ParsedRow[]
-            );
+                .filter(Boolean) as ParsedRow[];
 
+            await processarLinhas(linhasProcessadas);
 
-            // Validation
+            // Validation — total extraído baseado nos lançamentos processados (apenas saídas)
+            const totalExtraido = linhasProcessadas
+              .filter((l) => l.tipo === "saida")
+              .reduce((s, l) => s + Math.abs(Number(l.valor) || 0), 0);
+
             if (Number.isFinite(valorFaturaNum) && valorFaturaNum! > 0) {
-              const totalExtraido = data.rows.reduce((s: number, r: any) => s + Math.abs(r.valor), 0);
               const divergencia = Math.abs(totalExtraido - valorFaturaNum!);
-              if (divergencia < 0.01) {
-                setValidacao({ tipo: "ok", qtd: data.rows.length, total: totalExtraido });
+              const tolerancia = valorFaturaNum! * 0.02;
+              setForcarImportacao(false);
+              if (divergencia <= tolerancia) {
+                setValidacao({ tipo: "ok", qtd: linhasProcessadas.length, total: totalExtraido });
               } else {
-                setValidacao({ tipo: "divergente", qtd: data.rows.length, total: totalExtraido, divergencia, valorInformado: valorFaturaNum! });
+                setValidacao({ tipo: "divergente", qtd: linhasProcessadas.length, total: totalExtraido, divergencia, valorInformado: valorFaturaNum! });
               }
             } else {
               setValidacao(null);
             }
 
-            toast.success(`${data.rows.length} lançamentos extraídos do PDF`);
+            toast.success(`${linhasProcessadas.length} lançamentos extraídos do PDF`);
           } else {
             toast.error("Não foi possível extrair lançamentos do PDF.");
           }
