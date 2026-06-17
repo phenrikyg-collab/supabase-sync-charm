@@ -1903,11 +1903,26 @@ export default function ImportarExtrato() {
                 {isCategorizandoHistorico ? <Loader2 className="h-4 w-4 animate-spin" /> : "📂"}
                 Categorizar por Histórico
               </Button>
-              <Button onClick={() => salvarMovimentacoes()} disabled={isSalvando} variant="default" className="gap-2">
-                {isSalvando ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
-                Salvar Selecionados
-              </Button>
-            </div>
+              {(() => {
+                const bloqueadoPorDivergencia = validacao?.tipo === "divergente" && !forcarImportacao;
+                const btn = (
+                  <Button onClick={() => salvarMovimentacoes()} disabled={isSalvando || bloqueadoPorDivergencia} variant="default" className="gap-2">
+                    {isSalvando ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
+                    Salvar Selecionados
+                  </Button>
+                );
+                if (bloqueadoPorDivergencia) {
+                  return (
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild><span tabIndex={0}>{btn}</span></TooltipTrigger>
+                        <TooltipContent>Corrija a diferença de valores antes de importar</TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  );
+                }
+                return btn;
+              })()}
           </div>
 
           <Card>
