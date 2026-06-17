@@ -633,6 +633,7 @@ export default function ImportarExtrato() {
   const [bulkCategoryOpen, setBulkCategoryOpen] = useState(false);
   const [bulkNovaCategoriaOpen, setBulkNovaCategoriaOpen] = useState(false);
   const [validacao, setValidacao] = useState<{ tipo: "ok" | "divergente"; qtd: number; total: number; divergencia?: number; valorInformado?: number } | null>(null);
+  const [forcarImportacao, setForcarImportacao] = useState(false);
   const [duplicatasAlert, setDuplicatasAlert] = useState<{ count: number; items: string[] } | null>(null);
   const [salvarAposDuplicata, setSalvarAposDuplicata] = useState(false);
   const [isCategorizandoHistorico, setIsCategorizandoHistorico] = useState(false);
