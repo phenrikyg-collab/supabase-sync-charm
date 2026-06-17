@@ -967,13 +967,36 @@ export default function ImportarExtrato() {
           };
           const valorFaturaNum = valorTotalFatura ? parseSafeNum(valorTotalFatura) : null;
 
-          const data = await invokeEdgeFunction("categorizar-despesa", {
-            action: "parse_pdf",
-            pdf_base64: base64,
-            categorias: categorias?.map((c) => ({ id: c.id, nome: c.nome_categoria, grupo_dre: c.grupo_dre })),
-            banco: bancoCartao || undefined,
-            valorTotalFatura: Number.isFinite(valorFaturaNum) ? valorFaturaNum : undefined,
-          });
+          const MAX_TENTATIVAS = 3;
+          let data: any = null;
+          let ultimoErro: any = null;
+          for (let tentativa = 1; tentativa <= MAX_TENTATIVAS; tentativa++) {
+            try {
+              if (tentativa > 1) {
+                toast.info(`Tentativa ${tentativa}/${MAX_TENTATIVAS}... O PDF está demorando para processar.`);
+              }
+              data = await invokeEdgeFunction(
+                "categorizar-despesa",
+                {
+                  action: "parse_pdf",
+                  pdf_base64: base64,
+                  categorias: categorias?.map((c) => ({ id: c.id, nome: c.nome_categoria, grupo_dre: c.grupo_dre })),
+                  banco: bancoCartao || undefined,
+                  valorTotalFatura: Number.isFinite(valorFaturaNum) ? valorFaturaNum : undefined,
+                },
+                { timeoutMs: 120_000 },
+              );
+              ultimoErro = null;
+              break;
+            } catch (e: any) {
+              ultimoErro = e;
+              console.warn(`[PDF] Tentativa ${tentativa} falhou:`, e?.message || e);
+              if (tentativa < MAX_TENTATIVAS) {
+                await new Promise((r) => setTimeout(r, 1500 * tentativa));
+              }
+            }
+          }
+          if (ultimoErro) throw ultimoErro;
           if (data?.rows?.length > 0) {
             await processarLinhas(data.rows.map((r: any) => {
               const parcela = detectParcela(r.descricao || "");
