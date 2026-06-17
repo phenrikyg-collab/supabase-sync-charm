@@ -148,6 +148,8 @@ async function gerarDia(apiKey: string, dia: string, data: string, angulo: strin
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
+  const auth = await requireUser(req, corsHeaders)
+  if (!auth.ok) return auth.response
   try {
     const body = await req.json()
     const mes_referencia = body.mes_referencia ?? '2026-06'
