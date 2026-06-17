@@ -135,7 +135,7 @@ Retorne SOMENTE JSON válido:
                     </div>
                   </div>
                 ) : (
-                  <div className="mt-2 bg-white rounded-lg border p-4 prose prose-sm max-w-none" style={{ borderColor: 'rgba(232,205,126,0.2)' }} dangerouslySetInnerHTML={{ __html: currentStep.body }} />
+                  <div className="mt-2 bg-white rounded-lg border p-4 prose prose-sm max-w-none" style={{ borderColor: 'rgba(232,205,126,0.2)' }} dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(currentStep.body || '') }} />
                 )}
               </div>
 
