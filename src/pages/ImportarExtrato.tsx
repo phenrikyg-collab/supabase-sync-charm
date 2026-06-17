@@ -63,6 +63,7 @@ interface ParsedRow {
   fingerprint_hash?: string;
   origem_override?: string;
   possivel_duplicata?: boolean;
+  status_pagamento?: string;
 }
 
 // Detect installment info from description: "2/12", "PARCELA 2 DE 12", "2 DE 12", etc.
@@ -999,26 +1000,79 @@ export default function ImportarExtrato() {
           if (ultimoErro) throw ultimoErro;
           if (data?.rows?.length > 0) {
             const ESTORNO_CAT_ID = "437bcbe9-ed5d-4792-b340-a8a6a2998799";
-            const ESTORNO_RE = /(cr[ée]dito de|estorno|devolu[çc][ãa]o|cancelamento|\bcanc\b|\bdev\b|\bcred\b)/i;
-            await processarLinhas(data.rows.map((r: any) => {
-              const parcela = detectParcela(r.descricao || "");
-              const isEstorno = r.valor > 0 || ESTORNO_RE.test(r.descricao || "");
-              return {
-                data: r.data,
-                data_vencimento: r.data_vencimento || null,
-                descricao: r.descricao,
-                valor: Math.abs(r.valor),
-                tipo: isEstorno ? "entrada" as const : (r.valor < 0 ? "saida" as const : (r.tipo || "saida") as any),
-                categoria_id: isEstorno ? ESTORNO_CAT_ID : (r.categoria_id || null),
-                categoria_sugerida: isEstorno ? "Estorno de compra - Cartão de Crédito" : (r.categoria_sugerida || null),
-                frequencia: null,
-                frequencia_tipo: null,
-                frequencia_meses: null,
-                parcela_atual: parcela?.atual ?? null,
-                parcela_total: parcela?.total ?? null,
-                selecionado: true,
-              };
-            }));
+            const JUROS_EMPRESTIMOS_CAT_ID = "c176ca89-665d-44c5-be2e-dda286420a07";
+            const ROTATIVO_RE = /(cr[eé]dito rotativo|cr[eé]dito de rotativo|saldo rotativo|iof de rotativo|juros de rotativo|encargos rotativos|rotativo)/i;
+            const EMPRESTIMOS_RE = /(saldo financiado|valor remanescente|fatura anterior|total financiado|saldo devedor anterior|pagamento efetuado)/i;
+            const JUROS_ENCARGOS_RE = /(juros de mora|multa por atraso|iof de financiamento|encargos|juros de atraso|anuidade)/i;
+            const ESTORNO_RE = /(cr[eé]dito de|estorno|devolu[çc][ãa]o|cancelamento|\bcanc\b|\bdev\b|\bcred\b)/i;
+            await processarLinhas(
+              data.rows
+                .map((r: any) => {
+                  const desc = String(r.descricao || "").toLowerCase();
+                  const parcela = detectParcela(r.descricao || "");
+
+                  // 1. Ignorar lançamentos de rotativo
+                  if (ROTATIVO_RE.test(desc)) return null;
+
+                  // 2. Empréstimos e Financiamentos
+                  if (EMPRESTIMOS_RE.test(desc)) {
+                    return {
+                      data: r.data,
+                      data_vencimento: r.data_vencimento || null,
+                      descricao: r.descricao,
+                      valor: Math.abs(r.valor),
+                      tipo: "saida" as const,
+                      categoria_id: JUROS_EMPRESTIMOS_CAT_ID,
+                      categoria_sugerida: "Empréstimos e Financiamentos",
+                      status_pagamento: "pendente",
+                      frequencia: null,
+                      frequencia_tipo: null,
+                      frequencia_meses: null,
+                      parcela_atual: parcela?.atual ?? null,
+                      parcela_total: parcela?.total ?? null,
+                      selecionado: true,
+                    };
+                  }
+
+                  // 3. Juros e Encargos
+                  if (JUROS_ENCARGOS_RE.test(desc)) {
+                    return {
+                      data: r.data,
+                      data_vencimento: r.data_vencimento || null,
+                      descricao: r.descricao,
+                      valor: Math.abs(r.valor),
+                      tipo: "saida" as const,
+                      categoria_id: JUROS_EMPRESTIMOS_CAT_ID,
+                      categoria_sugerida: "Juros e Encargos",
+                      frequencia: null,
+                      frequencia_tipo: null,
+                      frequencia_meses: null,
+                      parcela_atual: parcela?.atual ?? null,
+                      parcela_total: parcela?.total ?? null,
+                      selecionado: true,
+                    };
+                  }
+
+                  // 4. Estorno de compra
+                  const isEstorno = r.valor > 0 || ESTORNO_RE.test(desc);
+                  return {
+                    data: r.data,
+                    data_vencimento: r.data_vencimento || null,
+                    descricao: r.descricao,
+                    valor: Math.abs(r.valor),
+                    tipo: isEstorno ? ("entrada" as const) : (r.valor < 0 ? ("saida" as const) : (r.tipo || "saida") as any),
+                    categoria_id: isEstorno ? ESTORNO_CAT_ID : (r.categoria_id || null),
+                    categoria_sugerida: isEstorno ? "Estorno de compra - Cartão de Crédito" : (r.categoria_sugerida || null),
+                    frequencia: null,
+                    frequencia_tipo: null,
+                    frequencia_meses: null,
+                    parcela_atual: parcela?.atual ?? null,
+                    parcela_total: parcela?.total ?? null,
+                    selecionado: true,
+                  };
+                })
+                .filter(Boolean) as ParsedRow[]
+            );
 
 
             // Validation
@@ -1241,7 +1295,7 @@ export default function ImportarExtrato() {
               tipo: "saida",
               categoria_id: r.categoria_id || categoriaPadrao,
               origem: "extrato_cartao",
-              status_pagamento: "em_aberto",
+              status_pagamento: r.status_pagamento || "em_aberto",
               frequencia: r.frequencia || null,
               conta_tipo: "cartao_fatura",
               fatura_id: faturaId,
@@ -1331,7 +1385,7 @@ export default function ImportarExtrato() {
                 tipo: "saida",
                 categoria_id: row.categoria_id || categoriaPadrao,
                 origem: "extrato_cartao",
-                status_pagamento: "em_aberto",
+                status_pagamento: row.status_pagamento || "em_aberto",
                 parcela_info: parcelaInfo,
                 conta_tipo: "cartao_fatura",
                 fatura_id: faturaId,
