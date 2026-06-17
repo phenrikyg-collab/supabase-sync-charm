@@ -58,6 +58,9 @@ Regras:
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
+  const auth = await requireUser(req, corsHeaders);
+  if (!auth.ok) return auth.response;
+
   try {
     const { mes_referencia } = await req.json();
     if (!mes_referencia || !/^\d{4}-\d{2}$/.test(mes_referencia)) {
