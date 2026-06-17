@@ -1803,15 +1803,23 @@ export default function ImportarExtrato() {
 
           {validacao?.tipo === "ok" && (
             <div className="bg-green-50 border border-green-300 rounded-lg p-3 text-sm text-green-800 dark:bg-green-950/30 dark:border-green-700 dark:text-green-300">
-              ✅ Fatura validada! {validacao.qtd} transações encontradas, total R$ {validacao.total.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}.
+              ✅ Valor conferido: R$ {validacao.total.toLocaleString("pt-BR", { minimumFractionDigits: 2 })} ({validacao.qtd} lançamentos)
             </div>
           )}
 
           {validacao?.tipo === "divergente" && (
-            <div className="bg-yellow-50 border border-yellow-300 rounded-lg p-3 text-sm text-yellow-800 dark:bg-yellow-950/30 dark:border-yellow-700 dark:text-yellow-300">
-              ⚠️ Atenção: foram encontradas {validacao.qtd} transações somando R$ {validacao.total.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}.
-              Divergência de R$ {validacao.divergencia!.toLocaleString("pt-BR", { minimumFractionDigits: 2 })} em relação ao valor informado (R$ {validacao.valorInformado!.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}).
-              Revise os lançamentos antes de salvar.
+            <div className="bg-yellow-50 border border-yellow-300 rounded-lg p-3 text-sm text-yellow-800 dark:bg-yellow-950/30 dark:border-yellow-700 dark:text-yellow-300 flex flex-wrap items-center justify-between gap-3">
+              <div>
+                ⚠️ Diferença de R$ {validacao.divergencia!.toLocaleString("pt-BR", { minimumFractionDigits: 2 })} entre o PDF (R$ {validacao.total.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}) e o valor informado (R$ {validacao.valorInformado!.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}). Verifique antes de importar.
+              </div>
+              {!forcarImportacao && (
+                <Button size="sm" variant="outline" onClick={() => setForcarImportacao(true)}>
+                  Importar mesmo assim
+                </Button>
+              )}
+              {forcarImportacao && (
+                <span className="text-xs font-medium">Importação liberada manualmente</span>
+              )}
             </div>
           )}
         </CardContent>
