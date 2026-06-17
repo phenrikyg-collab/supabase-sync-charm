@@ -999,6 +999,7 @@ export default function ImportarExtrato() {
           }
           if (ultimoErro) throw ultimoErro;
           if (data?.rows?.length > 0) {
+            console.log('LANÇAMENTOS EXTRAÍDOS DO PDF:', JSON.stringify(data.rows, null, 2));
             const ESTORNO_CAT_ID = "437bcbe9-ed5d-4792-b340-a8a6a2998799";
             const JUROS_EMPRESTIMOS_CAT_ID = "c176ca89-665d-44c5-be2e-dda286420a07";
             const DESPESAS_ADMIN_CAT_ID = "923665d1-41d7-44e2-8f12-f9f151ea8d2c";
