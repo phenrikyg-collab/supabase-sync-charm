@@ -1,43 +1,15 @@
-import { useState, useEffect } from 'react';
-import { KeyRound, CheckCircle, AlertTriangle, Info, Palette } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { useState } from 'react';
+import { Info, Palette } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { loadBrandSettings, saveBrandSettings, BrandSettings, buildSystemPrompt } from '@/lib/brandContext';
 
 export function ConfiguracoesView() {
-  const [apiKey, setApiKey] = useState('');
-  const [hasKey, setHasKey] = useState(false);
-
   // Brand settings
   const [brandSettings, setBrandSettings] = useState<BrandSettings>(loadBrandSettings());
-
-  useEffect(() => {
-    const stored = localStorage.getItem('anthropic_api_key');
-    if (stored) {
-      setHasKey(true);
-      setApiKey(stored);
-    }
-  }, []);
-
-  const handleSave = () => {
-    if (!apiKey.trim()) {
-      toast.error('Insira uma chave válida');
-      return;
-    }
-    localStorage.setItem('anthropic_api_key', apiKey.trim());
-    setHasKey(true);
-    toast.success('Chave salva com sucesso!');
-  };
-
-  const handleClear = () => {
-    localStorage.removeItem('anthropic_api_key');
-    setApiKey('');
-    setHasKey(false);
-    toast.success('Chave removida');
-  };
 
   const updateBrandField = <K extends keyof BrandSettings>(key: K, value: BrandSettings[K]) => {
     const updated = { ...brandSettings, [key]: value };
@@ -49,6 +21,7 @@ export function ConfiguracoesView() {
     saveBrandSettings(brandSettings);
     toast.success('Configurações da marca salvas!');
   };
+
 
   return (
     <div className="flex-1 overflow-y-auto p-8" style={{ backgroundColor: '#F5F5F5' }}>
@@ -143,57 +116,9 @@ export function ConfiguracoesView() {
           </details>
         </div>
 
-        {/* API Key section */}
-        <div className="bg-white rounded-xl border p-6 space-y-4" style={{ borderColor: 'rgba(232,205,126,0.3)' }}>
-          <div className="flex items-center gap-2">
-            <KeyRound className="h-5 w-5" style={{ color: '#8B6914' }} />
-            <h3 className="text-lg font-semibold" style={{ fontFamily: "'Cormorant Garamond', serif", color: '#1D1D1B' }}>
-              Integração com IA
-            </h3>
-          </div>
+        {/* API Key section removed — the Anthropic key lives only in backend secrets.
+            Storing it in localStorage exposed it to XSS and browser extensions. */}
 
-          <div className="flex items-center gap-2 text-sm">
-            {hasKey ? (
-              <>
-                <CheckCircle className="h-4 w-4 text-green-600" />
-                <span className="text-green-700 font-medium">API Key configurada</span>
-              </>
-            ) : (
-              <>
-                <AlertTriangle className="h-4 w-4 text-amber-500" />
-                <span className="text-amber-700 font-medium">API Key não configurada</span>
-              </>
-            )}
-          </div>
-
-          <div>
-            <Label className="text-xs font-medium text-muted-foreground">Anthropic API Key</Label>
-            <Input
-              type="password"
-              value={apiKey}
-              onChange={e => setApiKey(e.target.value)}
-              placeholder="sk-ant-..."
-              className="mt-1"
-            />
-            <p className="text-xs text-muted-foreground mt-1">
-              Sua chave da API do Claude (Anthropic). Encontre em{' '}
-              <a href="https://console.anthropic.com" target="_blank" rel="noopener noreferrer" className="underline" style={{ color: '#8B6914' }}>
-                console.anthropic.com
-              </a>
-            </p>
-          </div>
-
-          <div className="flex gap-2">
-            <Button onClick={handleSave} className="text-white" style={{ backgroundColor: '#8B6914' }}>
-              Salvar Chave
-            </Button>
-            {hasKey && (
-              <Button variant="outline" onClick={handleClear} className="border-red-200 text-red-600 hover:bg-red-50">
-                Remover Chave
-              </Button>
-            )}
-          </div>
-        </div>
 
         {/* Edge Function info */}
         <div className="bg-white rounded-xl border p-6 space-y-4" style={{ borderColor: 'rgba(232,205,126,0.3)' }}>
