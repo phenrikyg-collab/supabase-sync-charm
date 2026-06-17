@@ -1006,7 +1006,7 @@ export default function ImportarExtrato() {
             const DESPESAS_ADMIN_CAT_ID = "923665d1-41d7-44e2-8f12-f9f151ea8d2c";
 
             // Resumo da Fatura — regras específicas (não afetam compras individuais)
-            const IGNORAR_RE = /(fatura anterior|pagamento recebido|total de compras|cr[eé]dito de rotativo|cr[eé]dito rotativo|pagamento em)/i;
+            const IGNORAR_RE = /(fatura anterior|pagamento recebido|total de compras|cr[eé]dito de rotativo|cr[eé]dito rotativo|pagamento em|estorno de juros de rotativo)/i;
             const ROTATIVO_EMPRESTIMO_RE = /(saldo em rotativo|saldo rotativo|juros de rotativo|iof de rotativo|encargos rotativos)/i;
             const EMPRESTIMOS_RE = /(saldo financiado|juros de financiamento|iof de financiamento|encargos de financiamento|juros de mora|multa por atraso)/i;
             const IOF_COMPRAS_RE = /(iof de compras internacionais|iof sobre compras)/i;
@@ -1168,10 +1168,16 @@ export default function ImportarExtrato() {
 
             await processarLinhas(linhasProcessadas);
 
-            // Validation — total extraído baseado nos lançamentos processados (apenas saídas)
-            const totalExtraido = linhasProcessadas
+            // Validation — total extraído = saídas - entradas (exceto pagamento em)
+            const totalSaidas = linhasProcessadas
               .filter((l) => l.tipo === "saida")
               .reduce((s, l) => s + Math.abs(Number(l.valor) || 0), 0);
+
+            const totalEntradas = linhasProcessadas
+              .filter((l) => l.tipo === "entrada" && !l.descricao.toLowerCase().includes("pagamento em"))
+              .reduce((s, l) => s + Math.abs(Number(l.valor) || 0), 0);
+
+            const totalExtraido = totalSaidas - totalEntradas;
 
             if (Number.isFinite(valorFaturaNum) && valorFaturaNum! > 0) {
               const divergencia = Math.abs(totalExtraido - valorFaturaNum!);
