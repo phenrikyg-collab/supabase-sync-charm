@@ -1,43 +1,15 @@
-import { useState, useEffect } from 'react';
-import { KeyRound, CheckCircle, AlertTriangle, Info, Palette } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { useState } from 'react';
+import { Info, Palette } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { loadBrandSettings, saveBrandSettings, BrandSettings, buildSystemPrompt } from '@/lib/brandContext';
 
 export function ConfiguracoesView() {
-  const [apiKey, setApiKey] = useState('');
-  const [hasKey, setHasKey] = useState(false);
-
   // Brand settings
   const [brandSettings, setBrandSettings] = useState<BrandSettings>(loadBrandSettings());
-
-  useEffect(() => {
-    const stored = localStorage.getItem('anthropic_api_key');
-    if (stored) {
-      setHasKey(true);
-      setApiKey(stored);
-    }
-  }, []);
-
-  const handleSave = () => {
-    if (!apiKey.trim()) {
-      toast.error('Insira uma chave válida');
-      return;
-    }
-    localStorage.setItem('anthropic_api_key', apiKey.trim());
-    setHasKey(true);
-    toast.success('Chave salva com sucesso!');
-  };
-
-  const handleClear = () => {
-    localStorage.removeItem('anthropic_api_key');
-    setApiKey('');
-    setHasKey(false);
-    toast.success('Chave removida');
-  };
 
   const updateBrandField = <K extends keyof BrandSettings>(key: K, value: BrandSettings[K]) => {
     const updated = { ...brandSettings, [key]: value };
@@ -49,6 +21,7 @@ export function ConfiguracoesView() {
     saveBrandSettings(brandSettings);
     toast.success('Configurações da marca salvas!');
   };
+
 
   return (
     <div className="flex-1 overflow-y-auto p-8" style={{ backgroundColor: '#F5F5F5' }}>
