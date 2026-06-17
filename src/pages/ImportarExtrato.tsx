@@ -1024,26 +1024,6 @@ export default function ImportarExtrato() {
                   // Ignorar lançamentos com valor exatamente zero
                   if (Math.abs(valor) < 0.01) return [];
 
-                  // Crédito de rotativo com valor positivo → saldo financiado como saída
-                  if (/cr[eé]dito de rotativo/i.test(desc) && valor > 0) {
-                    return [{
-                      data: r.data,
-                      data_vencimento: r.data_vencimento || null,
-                      descricao: "Saldo Financiado - Rotativo",
-                      valor: Math.abs(valor),
-                      tipo: "saida" as const,
-                      categoria_id: JUROS_EMPRESTIMOS_CAT_ID,
-                      categoria_sugerida: "Empréstimos e Financiamentos",
-                      status_pagamento: "pendente",
-                      frequencia: null,
-                      frequencia_tipo: null,
-                      frequencia_meses: null,
-                      parcela_atual: null,
-                      parcela_total: null,
-                      selecionado: true,
-                    }];
-                  }
-
                   // 1. Ignorar completamente
                   if (IGNORAR_RE.test(desc)) return [];
 
@@ -1189,14 +1169,23 @@ export default function ImportarExtrato() {
 
             await processarLinhas(linhasProcessadas);
 
-            // Validation — total extraído = saídas - entradas (exceto pagamento em)
-            const totalSaidas = linhasProcessadas
-              .filter((l) => l.tipo === "saida")
-              .reduce((s, l) => s + Math.abs(Number(l.valor) || 0), 0);
+            // Validation — total extraído = saídas - entradas (lançamentos ignorados não entram)
+            const ignorados = ['crédito de rotativo', 'pagamento em', 'estorno de juros de rotativo'];
 
-            const totalEntradas = linhasProcessadas
-              .filter((l) => l.tipo === "entrada" && !l.descricao.toLowerCase().includes("pagamento em"))
-              .reduce((s, l) => s + Math.abs(Number(l.valor) || 0), 0);
+            const lancamentosValidos = linhasProcessadas.filter(l => {
+              const d = l.descricao.toLowerCase();
+              const isIgnorado = ignorados.some(i => d.includes(i));
+              const isZero = Math.abs(Number(l.valor) || 0) < 0.01;
+              return !isIgnorado && !isZero;
+            });
+
+            const totalSaidas = lancamentosValidos
+              .filter(l => l.tipo === 'saida')
+              .reduce((sum, l) => sum + Math.abs(Number(l.valor) || 0), 0);
+
+            const totalEntradas = lancamentosValidos
+              .filter(l => l.tipo === 'entrada')
+              .reduce((sum, l) => sum + Math.abs(Number(l.valor) || 0), 0);
 
             const totalExtraido = totalSaidas - totalEntradas;
 
