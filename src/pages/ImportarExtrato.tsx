@@ -633,6 +633,7 @@ export default function ImportarExtrato() {
   const [bulkCategoryOpen, setBulkCategoryOpen] = useState(false);
   const [bulkNovaCategoriaOpen, setBulkNovaCategoriaOpen] = useState(false);
   const [validacao, setValidacao] = useState<{ tipo: "ok" | "divergente"; qtd: number; total: number; divergencia?: number; valorInformado?: number } | null>(null);
+  const [forcarImportacao, setForcarImportacao] = useState(false);
   const [duplicatasAlert, setDuplicatasAlert] = useState<{ count: number; items: string[] } | null>(null);
   const [salvarAposDuplicata, setSalvarAposDuplicata] = useState(false);
   const [isCategorizandoHistorico, setIsCategorizandoHistorico] = useState(false);
@@ -1005,7 +1006,8 @@ export default function ImportarExtrato() {
             const DESPESAS_ADMIN_CAT_ID = "923665d1-41d7-44e2-8f12-f9f151ea8d2c";
 
             // Resumo da Fatura — regras específicas (não afetam compras individuais)
-            const IGNORAR_RE = /(fatura anterior|pagamento recebido|total de compras|cr[eé]dito rotativo|cr[eé]dito de rotativo|saldo rotativo|iof de rotativo|juros de rotativo|encargos rotativos|rotativo)/i;
+            const IGNORAR_RE = /(fatura anterior|pagamento recebido|total de compras|cr[eé]dito de rotativo|cr[eé]dito rotativo|pagamento em)/i;
+            const ROTATIVO_EMPRESTIMO_RE = /(saldo em rotativo|saldo rotativo|juros de rotativo|iof de rotativo|encargos rotativos)/i;
             const EMPRESTIMOS_RE = /(saldo financiado|juros de financiamento|iof de financiamento|encargos de financiamento|juros de mora|multa por atraso)/i;
             const IOF_COMPRAS_RE = /(iof de compras internacionais|iof sobre compras)/i;
             const OUTROS_LANCAMENTOS_RE = /outros lan[çc]amentos/i;
@@ -1013,15 +1015,35 @@ export default function ImportarExtrato() {
             const ESTORNO_RE = /(cr[eé]dito de|estorno|devolu[çc][ãa]o|cancelamento|\bcanc\b|\bdev\b|\bcred\b)/i;
             const RESUMO_RE = /(fatura anterior|pagamento recebido|total de compras|saldo financiado|juros de financiamento|iof de financiamento|encargos de financiamento|juros de mora|multa por atraso|outros lan[çc]amentos|iof de compras internacionais|iof sobre compras|cr[eé]dito rotativo)/i;
 
-            await processarLinhas(
-              data.rows
-                .map((r: any) => {
+            const linhasProcessadas = data.rows
+              .map((r: any) => {
                   const desc = String(r.descricao || "").toLowerCase();
                   const parcela = detectParcela(r.descricao || "");
                   const valor = Number(r.valor) || 0;
 
                   // 1. Ignorar completamente
                   if (IGNORAR_RE.test(desc)) return null;
+
+                  // 1b. Rotativo (saldo/juros/iof/encargos) — ignora valor zero, lança como empréstimo
+                  if (ROTATIVO_EMPRESTIMO_RE.test(desc)) {
+                    if (Math.abs(valor) < 0.01) return null;
+                    return {
+                      data: r.data,
+                      data_vencimento: r.data_vencimento || null,
+                      descricao: r.descricao,
+                      valor: Math.abs(valor),
+                      tipo: "saida" as const,
+                      categoria_id: JUROS_EMPRESTIMOS_CAT_ID,
+                      categoria_sugerida: "Empréstimos e Financiamentos",
+                      status_pagamento: "pendente",
+                      frequencia: null,
+                      frequencia_tipo: null,
+                      frequencia_meses: null,
+                      parcela_atual: parcela?.atual ?? null,
+                      parcela_total: parcela?.total ?? null,
+                      selecionado: true,
+                    };
+                  }
 
                   // 2. IOF de compras -> Despesas administrativas
                   if (IOF_COMPRAS_RE.test(desc)) {
@@ -1142,24 +1164,29 @@ export default function ImportarExtrato() {
                     selecionado: true,
                   };
                 })
-                .filter(Boolean) as ParsedRow[]
-            );
+                .filter(Boolean) as ParsedRow[];
 
+            await processarLinhas(linhasProcessadas);
 
-            // Validation
+            // Validation — total extraído baseado nos lançamentos processados (apenas saídas)
+            const totalExtraido = linhasProcessadas
+              .filter((l) => l.tipo === "saida")
+              .reduce((s, l) => s + Math.abs(Number(l.valor) || 0), 0);
+
             if (Number.isFinite(valorFaturaNum) && valorFaturaNum! > 0) {
-              const totalExtraido = data.rows.reduce((s: number, r: any) => s + Math.abs(r.valor), 0);
               const divergencia = Math.abs(totalExtraido - valorFaturaNum!);
-              if (divergencia < 0.01) {
-                setValidacao({ tipo: "ok", qtd: data.rows.length, total: totalExtraido });
+              const tolerancia = valorFaturaNum! * 0.02;
+              setForcarImportacao(false);
+              if (divergencia <= tolerancia) {
+                setValidacao({ tipo: "ok", qtd: linhasProcessadas.length, total: totalExtraido });
               } else {
-                setValidacao({ tipo: "divergente", qtd: data.rows.length, total: totalExtraido, divergencia, valorInformado: valorFaturaNum! });
+                setValidacao({ tipo: "divergente", qtd: linhasProcessadas.length, total: totalExtraido, divergencia, valorInformado: valorFaturaNum! });
               }
             } else {
               setValidacao(null);
             }
 
-            toast.success(`${data.rows.length} lançamentos extraídos do PDF`);
+            toast.success(`${linhasProcessadas.length} lançamentos extraídos do PDF`);
           } else {
             toast.error("Não foi possível extrair lançamentos do PDF.");
           }
@@ -1776,15 +1803,23 @@ export default function ImportarExtrato() {
 
           {validacao?.tipo === "ok" && (
             <div className="bg-green-50 border border-green-300 rounded-lg p-3 text-sm text-green-800 dark:bg-green-950/30 dark:border-green-700 dark:text-green-300">
-              ✅ Fatura validada! {validacao.qtd} transações encontradas, total R$ {validacao.total.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}.
+              ✅ Valor conferido: R$ {validacao.total.toLocaleString("pt-BR", { minimumFractionDigits: 2 })} ({validacao.qtd} lançamentos)
             </div>
           )}
 
           {validacao?.tipo === "divergente" && (
-            <div className="bg-yellow-50 border border-yellow-300 rounded-lg p-3 text-sm text-yellow-800 dark:bg-yellow-950/30 dark:border-yellow-700 dark:text-yellow-300">
-              ⚠️ Atenção: foram encontradas {validacao.qtd} transações somando R$ {validacao.total.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}.
-              Divergência de R$ {validacao.divergencia!.toLocaleString("pt-BR", { minimumFractionDigits: 2 })} em relação ao valor informado (R$ {validacao.valorInformado!.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}).
-              Revise os lançamentos antes de salvar.
+            <div className="bg-yellow-50 border border-yellow-300 rounded-lg p-3 text-sm text-yellow-800 dark:bg-yellow-950/30 dark:border-yellow-700 dark:text-yellow-300 flex flex-wrap items-center justify-between gap-3">
+              <div>
+                ⚠️ Diferença de R$ {validacao.divergencia!.toLocaleString("pt-BR", { minimumFractionDigits: 2 })} entre o PDF (R$ {validacao.total.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}) e o valor informado (R$ {validacao.valorInformado!.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}). Verifique antes de importar.
+              </div>
+              {!forcarImportacao && (
+                <Button size="sm" variant="outline" onClick={() => setForcarImportacao(true)}>
+                  Importar mesmo assim
+                </Button>
+              )}
+              {forcarImportacao && (
+                <span className="text-xs font-medium">Importação liberada manualmente</span>
+              )}
             </div>
           )}
         </CardContent>
@@ -1868,10 +1903,26 @@ export default function ImportarExtrato() {
                 {isCategorizandoHistorico ? <Loader2 className="h-4 w-4 animate-spin" /> : "📂"}
                 Categorizar por Histórico
               </Button>
-              <Button onClick={() => salvarMovimentacoes()} disabled={isSalvando} variant="default" className="gap-2">
-                {isSalvando ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
-                Salvar Selecionados
-              </Button>
+              {(() => {
+                const bloqueadoPorDivergencia = validacao?.tipo === "divergente" && !forcarImportacao;
+                const btn = (
+                  <Button onClick={() => salvarMovimentacoes()} disabled={isSalvando || bloqueadoPorDivergencia} variant="default" className="gap-2">
+                    {isSalvando ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
+                    Salvar Selecionados
+                  </Button>
+                );
+                if (bloqueadoPorDivergencia) {
+                  return (
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild><span tabIndex={0}>{btn}</span></TooltipTrigger>
+                        <TooltipContent>Corrija a diferença de valores antes de importar</TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  );
+                }
+                return btn;
+              })()}
             </div>
           </div>
 
