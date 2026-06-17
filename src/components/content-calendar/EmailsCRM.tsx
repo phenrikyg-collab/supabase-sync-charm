@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { RefreshCw, Edit, Copy, Loader2 } from 'lucide-react';
+import DOMPurify from 'dompurify';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
