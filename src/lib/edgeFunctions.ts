@@ -22,13 +22,23 @@ export async function invokeEdgeFunction(
   const timeoutId = window.setTimeout(() => controller.abort(), timeoutMs);
   const url = `${baseUrl}/functions/v1/${functionName}`;
 
+  // Always forward the current user's session JWT when present so edge functions
+  // can authenticate the caller. Falls back to the anon key for public functions.
+  let authToken = anonKey;
+  try {
+    const { data } = await supabase.auth.getSession();
+    if (data?.session?.access_token) authToken = data.session.access_token;
+  } catch {
+    // ignore — fall back to anon key
+  }
+
   let response: Response;
   try {
     response = await fetch(url, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "Authorization": `Bearer ${anonKey}`,
+        "Authorization": `Bearer ${authToken}`,
         "apikey": anonKey,
       },
       body: JSON.stringify(body),
