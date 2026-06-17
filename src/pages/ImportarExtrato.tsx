@@ -1005,7 +1005,8 @@ export default function ImportarExtrato() {
             const DESPESAS_ADMIN_CAT_ID = "923665d1-41d7-44e2-8f12-f9f151ea8d2c";
 
             // Resumo da Fatura — regras específicas (não afetam compras individuais)
-            const IGNORAR_RE = /(fatura anterior|pagamento recebido|total de compras|cr[eé]dito rotativo|cr[eé]dito de rotativo|saldo rotativo|iof de rotativo|juros de rotativo|encargos rotativos|rotativo)/i;
+            const IGNORAR_RE = /(fatura anterior|pagamento recebido|total de compras|cr[eé]dito de rotativo|cr[eé]dito rotativo|pagamento em)/i;
+            const ROTATIVO_EMPRESTIMO_RE = /(saldo em rotativo|saldo rotativo|juros de rotativo|iof de rotativo|encargos rotativos)/i;
             const EMPRESTIMOS_RE = /(saldo financiado|juros de financiamento|iof de financiamento|encargos de financiamento|juros de mora|multa por atraso)/i;
             const IOF_COMPRAS_RE = /(iof de compras internacionais|iof sobre compras)/i;
             const OUTROS_LANCAMENTOS_RE = /outros lan[çc]amentos/i;
@@ -1013,15 +1014,35 @@ export default function ImportarExtrato() {
             const ESTORNO_RE = /(cr[eé]dito de|estorno|devolu[çc][ãa]o|cancelamento|\bcanc\b|\bdev\b|\bcred\b)/i;
             const RESUMO_RE = /(fatura anterior|pagamento recebido|total de compras|saldo financiado|juros de financiamento|iof de financiamento|encargos de financiamento|juros de mora|multa por atraso|outros lan[çc]amentos|iof de compras internacionais|iof sobre compras|cr[eé]dito rotativo)/i;
 
-            await processarLinhas(
-              data.rows
-                .map((r: any) => {
+            const linhasProcessadas = data.rows
+              .map((r: any) => {
                   const desc = String(r.descricao || "").toLowerCase();
                   const parcela = detectParcela(r.descricao || "");
                   const valor = Number(r.valor) || 0;
 
                   // 1. Ignorar completamente
                   if (IGNORAR_RE.test(desc)) return null;
+
+                  // 1b. Rotativo (saldo/juros/iof/encargos) — ignora valor zero, lança como empréstimo
+                  if (ROTATIVO_EMPRESTIMO_RE.test(desc)) {
+                    if (Math.abs(valor) < 0.01) return null;
+                    return {
+                      data: r.data,
+                      data_vencimento: r.data_vencimento || null,
+                      descricao: r.descricao,
+                      valor: Math.abs(valor),
+                      tipo: "saida" as const,
+                      categoria_id: JUROS_EMPRESTIMOS_CAT_ID,
+                      categoria_sugerida: "Empréstimos e Financiamentos",
+                      status_pagamento: "pendente",
+                      frequencia: null,
+                      frequencia_tipo: null,
+                      frequencia_meses: null,
+                      parcela_atual: parcela?.atual ?? null,
+                      parcela_total: parcela?.total ?? null,
+                      selecionado: true,
+                    };
+                  }
 
                   // 2. IOF de compras -> Despesas administrativas
                   if (IOF_COMPRAS_RE.test(desc)) {
