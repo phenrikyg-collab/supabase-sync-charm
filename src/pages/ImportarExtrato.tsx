@@ -38,11 +38,26 @@ function fingerprintExtrato(data: string, valor: number, descricao: string): str
   return 'ext_' + gerarFingerprint(`${data}|${valor.toFixed(2)}|${descricao.trim().toLowerCase()}`);
 }
 
-function fingerprintCartao(vencimento: string, valor: number, estabelecimento: string, parcela: string | null): string {
-  const mes = (vencimento || '').slice(0, 7);
+function fingerprintCartao(
+  vencimento: string,    // data de vencimento da FATURA ex: "2026-05-06"
+  valor: number,
+  estabelecimento: string,
+  parcela: string        // ex: "3/4"
+): string {
+  // Usar mês do vencimento da fatura (não da compra)
+  // Isso garante que a mesma parcela em faturas diferentes gera fingerprints diferentes
+  const mesFatura = vencimento.slice(0, 7); // "2026-05"
   const numParcela = parcela?.split('/')[0] ?? '1';
-  return 'cc_' + gerarFingerprint(`${mes}|${valor.toFixed(2)}|${estabelecimento.trim().toLowerCase()}|${numParcela}`);
+  const str = `${mesFatura}|${valor.toFixed(2)}|${estabelecimento.trim().toLowerCase()}|${numParcela}`;
+
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    hash = ((hash << 5) - hash) + str.charCodeAt(i);
+    hash = hash & hash;
+  }
+  return 'cc_' + Math.abs(hash).toString(36) + '_' + str.length;
 }
+
 
 
 
