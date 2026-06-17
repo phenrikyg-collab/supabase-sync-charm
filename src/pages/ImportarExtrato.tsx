@@ -1001,26 +1001,54 @@ export default function ImportarExtrato() {
           if (data?.rows?.length > 0) {
             const ESTORNO_CAT_ID = "437bcbe9-ed5d-4792-b340-a8a6a2998799";
             const JUROS_EMPRESTIMOS_CAT_ID = "c176ca89-665d-44c5-be2e-dda286420a07";
-            const ROTATIVO_RE = /(cr[eé]dito rotativo|cr[eé]dito de rotativo|saldo rotativo|iof de rotativo|juros de rotativo|encargos rotativos|rotativo)/i;
-            const EMPRESTIMOS_RE = /(saldo financiado|valor remanescente|fatura anterior|total financiado|saldo devedor anterior|pagamento efetuado)/i;
-            const JUROS_ENCARGOS_RE = /(juros de mora|multa por atraso|iof de financiamento|encargos|juros de atraso|anuidade)/i;
+            const DESPESAS_ADMIN_CAT_ID = "923665d1-41d7-44e2-8f12-f9f151ea8d2c";
+
+            // Resumo da Fatura — regras específicas (não afetam compras individuais)
+            const IGNORAR_RE = /(fatura anterior|pagamento recebido|total de compras|cr[eé]dito rotativo|cr[eé]dito de rotativo|saldo rotativo|iof de rotativo|juros de rotativo|encargos rotativos|rotativo)/i;
+            const EMPRESTIMOS_RE = /(saldo financiado|juros de financiamento|iof de financiamento|encargos de financiamento|juros de mora|multa por atraso)/i;
+            const IOF_COMPRAS_RE = /(iof de compras internacionais|iof sobre compras)/i;
+            const OUTROS_LANCAMENTOS_RE = /outros lan[çc]amentos/i;
+            const JUROS_ENCARGOS_RE = /(juros de atraso|anuidade)/i;
             const ESTORNO_RE = /(cr[eé]dito de|estorno|devolu[çc][ãa]o|cancelamento|\bcanc\b|\bdev\b|\bcred\b)/i;
+            const RESUMO_RE = /(fatura anterior|pagamento recebido|total de compras|saldo financiado|juros de financiamento|iof de financiamento|encargos de financiamento|juros de mora|multa por atraso|outros lan[çc]amentos|iof de compras internacionais|iof sobre compras|cr[eé]dito rotativo)/i;
+
             await processarLinhas(
               data.rows
                 .map((r: any) => {
                   const desc = String(r.descricao || "").toLowerCase();
                   const parcela = detectParcela(r.descricao || "");
+                  const valor = Number(r.valor) || 0;
 
-                  // 1. Ignorar lançamentos de rotativo
-                  if (ROTATIVO_RE.test(desc)) return null;
+                  // 1. Ignorar completamente
+                  if (IGNORAR_RE.test(desc)) return null;
 
-                  // 2. Empréstimos e Financiamentos
+                  // 2. IOF de compras -> Despesas administrativas
+                  if (IOF_COMPRAS_RE.test(desc)) {
+                    return {
+                      data: r.data,
+                      data_vencimento: r.data_vencimento || null,
+                      descricao: r.descricao,
+                      valor: Math.abs(valor),
+                      tipo: "saida" as const,
+                      categoria_id: DESPESAS_ADMIN_CAT_ID,
+                      categoria_sugerida: "Despesas administrativas",
+                      status_pagamento: "em_aberto",
+                      frequencia: null,
+                      frequencia_tipo: null,
+                      frequencia_meses: null,
+                      parcela_atual: parcela?.atual ?? null,
+                      parcela_total: parcela?.total ?? null,
+                      selecionado: true,
+                    };
+                  }
+
+                  // 3. Empréstimos e Financiamentos
                   if (EMPRESTIMOS_RE.test(desc)) {
                     return {
                       data: r.data,
                       data_vencimento: r.data_vencimento || null,
                       descricao: r.descricao,
-                      valor: Math.abs(r.valor),
+                      valor: Math.abs(valor),
                       tipo: "saida" as const,
                       categoria_id: JUROS_EMPRESTIMOS_CAT_ID,
                       categoria_sugerida: "Empréstimos e Financiamentos",
@@ -1034,16 +1062,17 @@ export default function ImportarExtrato() {
                     };
                   }
 
-                  // 3. Juros e Encargos
+                  // 4. Juros e Encargos (restantes)
                   if (JUROS_ENCARGOS_RE.test(desc)) {
                     return {
                       data: r.data,
                       data_vencimento: r.data_vencimento || null,
                       descricao: r.descricao,
-                      valor: Math.abs(r.valor),
+                      valor: Math.abs(valor),
                       tipo: "saida" as const,
                       categoria_id: JUROS_EMPRESTIMOS_CAT_ID,
                       categoria_sugerida: "Juros e Encargos",
+                      status_pagamento: "em_aberto",
                       frequencia: null,
                       frequencia_tipo: null,
                       frequencia_meses: null,
@@ -1053,16 +1082,57 @@ export default function ImportarExtrato() {
                     };
                   }
 
-                  // 4. Estorno de compra
-                  const isEstorno = r.valor > 0 || ESTORNO_RE.test(desc);
+                  // 5. Outros lançamentos do resumo com valor negativo (crédito) -> Estorno
+                  if (OUTROS_LANCAMENTOS_RE.test(desc) && valor < 0) {
+                    return {
+                      data: r.data,
+                      data_vencimento: r.data_vencimento || null,
+                      descricao: r.descricao,
+                      valor: Math.abs(valor),
+                      tipo: "entrada" as const,
+                      categoria_id: ESTORNO_CAT_ID,
+                      categoria_sugerida: "Estorno de compra - Cartão de Crédito",
+                      status_pagamento: "em_aberto",
+                      frequencia: null,
+                      frequencia_tipo: null,
+                      frequencia_meses: null,
+                      parcela_atual: parcela?.atual ?? null,
+                      parcela_total: parcela?.total ?? null,
+                      selecionado: true,
+                    };
+                  }
+
+                  // 6. Qualquer linha do resumo com valor negativo (crédito) -> Estorno
+                  if (RESUMO_RE.test(desc) && valor < 0) {
+                    return {
+                      data: r.data,
+                      data_vencimento: r.data_vencimento || null,
+                      descricao: r.descricao,
+                      valor: Math.abs(valor),
+                      tipo: "entrada" as const,
+                      categoria_id: ESTORNO_CAT_ID,
+                      categoria_sugerida: "Estorno de compra - Cartão de Crédito",
+                      status_pagamento: "em_aberto",
+                      frequencia: null,
+                      frequencia_tipo: null,
+                      frequencia_meses: null,
+                      parcela_atual: parcela?.atual ?? null,
+                      parcela_total: parcela?.total ?? null,
+                      selecionado: true,
+                    };
+                  }
+
+                  // 7. Estorno de compra (compras individuais)
+                  const isEstorno = valor > 0 || ESTORNO_RE.test(desc);
                   return {
                     data: r.data,
                     data_vencimento: r.data_vencimento || null,
                     descricao: r.descricao,
-                    valor: Math.abs(r.valor),
-                    tipo: isEstorno ? ("entrada" as const) : (r.valor < 0 ? ("saida" as const) : (r.tipo || "saida") as any),
+                    valor: Math.abs(valor),
+                    tipo: isEstorno ? ("entrada" as const) : (valor < 0 ? ("saida" as const) : (r.tipo || "saida") as any),
                     categoria_id: isEstorno ? ESTORNO_CAT_ID : (r.categoria_id || null),
                     categoria_sugerida: isEstorno ? "Estorno de compra - Cartão de Crédito" : (r.categoria_sugerida || null),
+                    status_pagamento: "em_aberto",
                     frequencia: null,
                     frequencia_tipo: null,
                     frequencia_meses: null,
