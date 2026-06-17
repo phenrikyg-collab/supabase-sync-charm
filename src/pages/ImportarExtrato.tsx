@@ -1016,18 +1016,40 @@ export default function ImportarExtrato() {
             const RESUMO_RE = /(fatura anterior|pagamento recebido|total de compras|saldo financiado|juros de financiamento|iof de financiamento|encargos de financiamento|juros de mora|multa por atraso|outros lan[çc]amentos|iof de compras internacionais|iof sobre compras|cr[eé]dito rotativo)/i;
 
             const linhasProcessadas = data.rows
-              .map((r: any) => {
+              .flatMap((r: any) => {
                   const desc = String(r.descricao || "").toLowerCase();
                   const parcela = detectParcela(r.descricao || "");
                   const valor = Number(r.valor) || 0;
 
-                  // 1. Ignorar completamente
-                  if (IGNORAR_RE.test(desc)) return null;
+                  // Ignorar lançamentos com valor exatamente zero
+                  if (Math.abs(valor) < 0.01) return [];
 
-                  // 1b. Rotativo (saldo/juros/iof/encargos) — ignora valor zero, lança como empréstimo
+                  // Crédito de rotativo com valor positivo → saldo financiado como saída
+                  if (/cr[eé]dito de rotativo/i.test(desc) && valor > 0) {
+                    return [{
+                      data: r.data,
+                      data_vencimento: r.data_vencimento || null,
+                      descricao: "Saldo Financiado - Rotativo",
+                      valor: Math.abs(valor),
+                      tipo: "saida" as const,
+                      categoria_id: JUROS_EMPRESTIMOS_CAT_ID,
+                      categoria_sugerida: "Empréstimos e Financiamentos",
+                      status_pagamento: "pendente",
+                      frequencia: null,
+                      frequencia_tipo: null,
+                      frequencia_meses: null,
+                      parcela_atual: null,
+                      parcela_total: null,
+                      selecionado: true,
+                    }];
+                  }
+
+                  // 1. Ignorar completamente
+                  if (IGNORAR_RE.test(desc)) return [];
+
+                  // 1b. Rotativo (saldo/juros/iof/encargos) — lança como empréstimo
                   if (ROTATIVO_EMPRESTIMO_RE.test(desc)) {
-                    if (Math.abs(valor) < 0.01) return null;
-                    return {
+                    return [{
                       data: r.data,
                       data_vencimento: r.data_vencimento || null,
                       descricao: r.descricao,
@@ -1042,12 +1064,12 @@ export default function ImportarExtrato() {
                       parcela_atual: parcela?.atual ?? null,
                       parcela_total: parcela?.total ?? null,
                       selecionado: true,
-                    };
+                    }];
                   }
 
                   // 2. IOF de compras -> Despesas administrativas
                   if (IOF_COMPRAS_RE.test(desc)) {
-                    return {
+                    return [{
                       data: r.data,
                       data_vencimento: r.data_vencimento || null,
                       descricao: r.descricao,
@@ -1062,12 +1084,12 @@ export default function ImportarExtrato() {
                       parcela_atual: parcela?.atual ?? null,
                       parcela_total: parcela?.total ?? null,
                       selecionado: true,
-                    };
+                    }];
                   }
 
                   // 3. Empréstimos e Financiamentos
                   if (EMPRESTIMOS_RE.test(desc)) {
-                    return {
+                    return [{
                       data: r.data,
                       data_vencimento: r.data_vencimento || null,
                       descricao: r.descricao,
@@ -1082,12 +1104,12 @@ export default function ImportarExtrato() {
                       parcela_atual: parcela?.atual ?? null,
                       parcela_total: parcela?.total ?? null,
                       selecionado: true,
-                    };
+                    }];
                   }
 
                   // 4. Juros e Encargos (restantes)
                   if (JUROS_ENCARGOS_RE.test(desc)) {
-                    return {
+                    return [{
                       data: r.data,
                       data_vencimento: r.data_vencimento || null,
                       descricao: r.descricao,
@@ -1102,12 +1124,12 @@ export default function ImportarExtrato() {
                       parcela_atual: parcela?.atual ?? null,
                       parcela_total: parcela?.total ?? null,
                       selecionado: true,
-                    };
+                    }];
                   }
 
                   // 5. Outros lançamentos do resumo com valor negativo (crédito) -> Estorno
                   if (OUTROS_LANCAMENTOS_RE.test(desc) && valor < 0) {
-                    return {
+                    return [{
                       data: r.data,
                       data_vencimento: r.data_vencimento || null,
                       descricao: r.descricao,
@@ -1122,12 +1144,12 @@ export default function ImportarExtrato() {
                       parcela_atual: parcela?.atual ?? null,
                       parcela_total: parcela?.total ?? null,
                       selecionado: true,
-                    };
+                    }];
                   }
 
                   // 6. Qualquer linha do resumo com valor negativo (crédito) -> Estorno
                   if (RESUMO_RE.test(desc) && valor < 0) {
-                    return {
+                    return [{
                       data: r.data,
                       data_vencimento: r.data_vencimento || null,
                       descricao: r.descricao,
@@ -1142,12 +1164,12 @@ export default function ImportarExtrato() {
                       parcela_atual: parcela?.atual ?? null,
                       parcela_total: parcela?.total ?? null,
                       selecionado: true,
-                    };
+                    }];
                   }
 
                   // 7. Estorno de compra (compras individuais)
                   const isEstorno = valor > 0 || ESTORNO_RE.test(desc);
-                  return {
+                  return [{
                     data: r.data,
                     data_vencimento: r.data_vencimento || null,
                     descricao: r.descricao,
@@ -1162,9 +1184,8 @@ export default function ImportarExtrato() {
                     parcela_atual: parcela?.atual ?? null,
                     parcela_total: parcela?.total ?? null,
                     selecionado: true,
-                  };
-                })
-                .filter(Boolean) as ParsedRow[];
+                  }];
+                }) as ParsedRow[];
 
             await processarLinhas(linhasProcessadas);
 
