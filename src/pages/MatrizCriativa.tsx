@@ -65,7 +65,7 @@ const pilarColor = (p: string) =>
 const pilarLabel = (p: string) =>
   PILARES.find((x) => x.id === p)?.label ?? p;
 
-const FORMATOS = ["Reels", "Vídeo", "Imagem / Banner", "Story", "Carrossel"];
+const FORMATOS = ["Reels", "Vídeo", "Imagem", "Story", "Carrossel"];
 const ETAPAS = ["Inconsciente", "Problema", "Solução", "Produto", "Compra"];
 
 const TIPOS_CONTEUDO = [
@@ -139,9 +139,7 @@ function AbaGerar() {
   const [usarManual, setUsarManual] = useState(false);
   const [personaId, setPersonaId] = useState<string>("");
   const [tipoConteudo, setTipoConteudo] = useState<string>("");
-  const [pilares, setPilares] = useState<string[]>([]);
   const [formatos, setFormatos] = useState<string[]>([]);
-  const [etapaFunil, setEtapaFunil] = useState<string>("");
 
   const [gerando, setGerando] = useState(false);
   const [resultado, setResultado] = useState<any[] | null>(null);
@@ -170,9 +168,6 @@ function AbaGerar() {
   const tipo = useMemo(() => TIPOS_CONTEUDO.find((t) => t.id === tipoConteudo), [tipoConteudo]);
   const produtoObrigatorio = tipo?.requireProduto ?? true;
 
-  function togglePilar(id: string) {
-    setPilares((p) => (p.includes(id) ? p.filter((x) => x !== id) : [...p, id]));
-  }
   function toggleFormato(f: string) {
     setFormatos((p) => (p.includes(f) ? p.filter((x) => x !== f) : [...p, f]));
   }
