@@ -1237,7 +1237,7 @@ function imprimirCriativo(c: any) {
 function CriativoModal({
   criativo, onClose,
   onAprovar, onEmProducao, onRegenerar, onExcluir,
-  regenerando,
+  regenerando, onBriefingUpdated,
 }: any) {
   const [confirmRegen, setConfirmRegen] = useState(false);
   const [confirmDel, setConfirmDel] = useState(false);
@@ -1255,17 +1255,13 @@ function CriativoModal({
             {criativo.status && <Badge className={STATUS_COLORS[criativo.status] ?? ""}>{criativo.status}</Badge>}
           </div>
           <div className="flex flex-wrap items-center gap-2 pt-2">
-            {criativo.html_briefing_url && (
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button size="sm" className="bg-[#8B6914] hover:bg-[#6d520f] text-white" onClick={() => window.open(criativo.html_briefing_url, "_blank")}>
-                      <FileText className="h-4 w-4 mr-1" /> 📄 Abrir Briefing Completo
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>Abre o guia completo para o time de produção</TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
+            {criativo.id && (
+              <BriefingButton
+                criativo={criativo}
+                onUpdated={onBriefingUpdated}
+                className="bg-[#8B6914] hover:bg-[#6d520f] text-white border-transparent"
+                tooltip="Abre o guia completo para o time de produção"
+              />
             )}
             {criativo.html_briefing_gerado_em && (
               <Badge variant="outline" className="text-[10px]">
@@ -1274,6 +1270,7 @@ function CriativoModal({
             )}
           </div>
         </DialogHeader>
+
         <Tabs defaultValue="conteudo">
           <TabsList>
             <TabsTrigger value="conteudo">Conteúdo</TabsTrigger>
