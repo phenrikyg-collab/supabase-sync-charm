@@ -275,45 +275,113 @@ function AbaGerar() {
 
   async function gerar() {
     if (!personaId) return toast({ title: "Selecione a Persona", variant: "destructive" });
-    if (!tipoConteudo) return toast({ title: "Selecione o Tipo de Conteúdo", variant: "destructive" });
     if (!tipoGeracao) return toast({ title: "Escolha o que você quer gerar", variant: "destructive" });
+
+    const needsTipoConteudo = tipoGeracao === "video" || tipoGeracao === "imagens" || tipoGeracao === "bateria";
+    if (needsTipoConteudo && !tipoConteudo) return toast({ title: "Selecione o Tipo de Conteúdo", variant: "destructive" });
+    if (tipoGeracao === "video" && !estruturaNarrativa) return toast({ title: "Selecione a Estrutura Narrativa", variant: "destructive" });
+    if (tipoGeracao === "remarketing" && !pilarRemarketing) return toast({ title: "Selecione o Pilar de Remarketing", variant: "destructive" });
+    if (tipoGeracao === "remarketing" && !formatoRemarketing) return toast({ title: "Selecione o Formato", variant: "destructive" });
+    if (tipoGeracao === "bateria" && !formatoBateria) return toast({ title: "Selecione o Formato", variant: "destructive" });
+
     const produtoNome = usarManual
       ? produtoManual.trim()
       : produtoSelecionado?.nome_produto ?? "";
+    const tray_product_id = usarManual ? null : (produtoSelecionado?.product_id ?? null);
+    const base = {
+      produto_nome: produtoNome || null,
+      produto_id: null,
+      tray_product_id,
+      persona_id: personaId,
+    };
 
     setGerando(true);
     setResultado(null);
+    setProgresso(null);
     try {
-      const isVideo = tipoGeracao === "video";
-      const endpoint = isVideo
-        ? "https://ezdtulcrqzmgocamjwwl.supabase.co/functions/v1/gerar-criativo-video"
-        : "https://ezdtulcrqzmgocamjwwl.supabase.co/functions/v1/gerar-criativos-imagem";
-
-      const basePayload: any = {
-        produto_nome: produtoNome || null,
-        produto_id: null,
-        tray_product_id: usarManual ? null : (produtoSelecionado?.product_id ?? null),
-        persona_id: personaId,
-        tipo_conteudo: tipoConteudo,
-      };
-      if (!isVideo) basePayload.formato = "imagem";
-
-      const r = await fetch(endpoint, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(basePayload),
-      });
-      if (!r.ok) throw new Error(await r.text());
-      const data = await r.json();
-      const lista = isVideo
-        ? (data.criativo ? [data.criativo] : [])
-        : (data.criativos || []);
-      setResultado(lista);
-      toast({ title: isVideo ? "Roteiro gerado 💛" : `${lista.length} imagens geradas 💛` });
+      if (tipoGeracao === "video") {
+        const r = await fetch("https://ezdtulcrqzmgocamjwwl.supabase.co/functions/v1/gerar-criativo-video", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ...base, tipo_conteudo: tipoConteudo, estrutura_narrativa: estruturaNarrativa, angulo: angulo || null }),
+        });
+        if (!r.ok) throw new Error(await r.text());
+        const data = await r.json();
+        setResultado(data.criativo ? [data.criativo] : []);
+        toast({ title: "Roteiro gerado 💛" });
+      } else if (tipoGeracao === "imagens") {
+        const r = await fetch("https://ezdtulcrqzmgocamjwwl.supabase.co/functions/v1/gerar-criativos-imagem", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ...base, tipo_conteudo: tipoConteudo, formato: "imagem" }),
+        });
+        if (!r.ok) throw new Error(await r.text());
+        const data = await r.json();
+        const lista = data.criativos || [];
+        setResultado(lista);
+        toast({ title: `${lista.length} imagens geradas 💛` });
+      } else if (tipoGeracao === "remarketing") {
+        const r = await fetch("https://ezdtulcrqzmgocamjwwl.supabase.co/functions/v1/gerar-criativo-remarketing", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ...base, pilar_remarketing: pilarRemarketing, formato: formatoRemarketing }),
+        });
+        if (!r.ok) throw new Error(await r.text());
+        const data = await r.json();
+        const lista = data.criativo ? [data.criativo] : (data.criativos || []);
+        setResultado(lista);
+        toast({ title: "Remarketing gerado 💛" });
+      } else if (tipoGeracao === "bateria") {
+        const bateria_id = (crypto as any).randomUUID ? crypto.randomUUID() : String(Date.now());
+        const coletados: any[] = [];
+        const anguloCobertos: string[] = [];
+        for (let i = 0; i < ANGULOS_IDS.length; i++) {
+          const ang = ANGULOS_IDS[i];
+          setProgresso({ atual: i + 1, total: ANGULOS_IDS.length, label: anguloLabel(ang) });
+          const r = await fetch("https://ezdtulcrqzmgocamjwwl.supabase.co/functions/v1/gerar-bateria-angulo", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              ...base,
+              tipo_conteudo: tipoConteudo,
+              angulo: ang,
+              formato: formatoBateria,
+              bateria_id,
+            }),
+          });
+          if (!r.ok) {
+            console.error("Erro ângulo", ang, await r.text());
+            continue;
+          }
+          const data = await r.json();
+          const c = data.criativo || (Array.isArray(data.criativos) ? data.criativos[0] : null);
+          if (c) {
+            coletados.push({ ...c, angulo: c.angulo || ang });
+            anguloCobertos.push(ang);
+            setResultado([...coletados]);
+          }
+        }
+        try {
+          await sb.from("mc_baterias").insert({
+            id: bateria_id,
+            persona_id: personaId,
+            produto_nome: produtoNome || null,
+            tray_product_id,
+            tipo_conteudo: tipoConteudo,
+            formato: formatoBateria,
+            total: coletados.length,
+            angulos_cobertos: anguloCobertos,
+          });
+        } catch (e) {
+          console.warn("Falha ao registrar bateria", e);
+        }
+        toast({ title: `Bateria gerada: ${coletados.length}/${ANGULOS_IDS.length} ângulos 💛` });
+      }
     } catch (e: any) {
       toast({ title: "Erro ao gerar", description: e.message, variant: "destructive" });
     } finally {
       setGerando(false);
+      setProgresso(null);
     }
   }
 
