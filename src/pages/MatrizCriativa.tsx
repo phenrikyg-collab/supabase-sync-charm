@@ -434,8 +434,33 @@ function AbaGerar() {
             )}
           </div>
 
+          {/* Tipo de Conteúdo */}
+          <div className="space-y-2">
+            <Label>Tipo de Conteúdo *</Label>
+            <Select value={tipoConteudo} onValueChange={setTipoConteudo}>
+              <SelectTrigger><SelectValue placeholder="Selecione o tipo" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="produto_direto">📦 Produto Direto</SelectItem>
+                <SelectItem value="cotidiano">🌸 Cotidiano da Persona</SelectItem>
+                <SelectItem value="universo_valores">💜 Universo & Valores</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* O que você quer gerar */}
+          <div className="space-y-2">
+            <Label>O que você quer gerar? *</Label>
+            <Select value={tipoGeracao} onValueChange={(v) => setTipoGeracao(v as any)}>
+              <SelectTrigger><SelectValue placeholder="Escolha um formato" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="video">🎬 Roteiro de Vídeo/Reels (1 roteiro completo e detalhado)</SelectItem>
+                <SelectItem value="imagens">🖼️ Pacote de 4 Imagens (4 variações com ângulos diferentes)</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
           <Button onClick={gerar} disabled={gerando} size="lg" className="w-full">
-            {gerando ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Gerando...</> : <><Sparkles className="h-4 w-4 mr-2" /> Gerar Criativos com IA</>}
+            {gerando ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Gerando...</> : <><Sparkles className="h-4 w-4 mr-2" /> Gerar com IA</>}
           </Button>
         </CardContent>
       </Card>
