@@ -492,7 +492,7 @@ function AbaGerar() {
   );
 }
 
-function CriativoCard({ c, onOpen, onAprovar, onRegenerar, onExcluir, regenerando }: any) {
+function CriativoCard({ c, onOpen, onAprovar, onRegenerar, onExcluir, regenerando, onBriefingUpdated }: any) {
   const preview = (c.roteiro_hook || c.headline_principal || "").split("\n").slice(0, 2).join(" ");
   const [confirmDel, setConfirmDel] = useState(false);
   return (
@@ -510,11 +510,8 @@ function CriativoCard({ c, onOpen, onAprovar, onRegenerar, onExcluir, regenerand
         {preview && <p className="text-sm line-clamp-2 text-foreground/80">{preview}</p>}
         <div className="flex flex-wrap gap-2 pt-2">
           <Button size="sm" variant="outline" onClick={onOpen}>Ver Completo</Button>
-          {c.html_briefing_url && (
-            <Button size="sm" variant="outline" onClick={() => window.open(c.html_briefing_url, "_blank")}>
-              <FileText className="h-3 w-3 mr-1" /> 📄 Ver Briefing
-            </Button>
-          )}
+          {c.id && <BriefingButton criativo={c} onUpdated={onBriefingUpdated} />}
+
           <Button size="sm" onClick={onAprovar} disabled={regenerando}>
             <Check className="h-3 w-3" /> Aprovar
           </Button>
