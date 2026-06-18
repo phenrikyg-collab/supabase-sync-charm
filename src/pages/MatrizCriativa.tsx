@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Select, SelectContent, SelectGroup, SelectLabel, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -151,7 +151,9 @@ function AbaGerar() {
     (async () => {
       try {
         const [p, ps] = await Promise.all([
-          sb.from("mc_produtos_marca").select("*").eq("ativo", true).order("nome"),
+          sb.from("vw_produtos_matriz")
+            .select("product_id, nome_produto, preco, categoria_display, categoria_nome, imagem_url")
+            .order("categoria_display", { ascending: true }),
           sb.from("mc_personas").select("*").eq("ativa", true).order("nome"),
         ]);
         setProdutos(p.data || []);
@@ -175,11 +177,46 @@ function AbaGerar() {
     setFormatos((p) => (p.includes(f) ? p.filter((x) => x !== f) : [...p, f]));
   }
 
+  const produtoSelecionado = useMemo(
+    () => produtos.find((p) => String(p.product_id) === produtoId),
+    [produtos, produtoId]
+  );
+
+  const produtosAgrupados = useMemo(() => {
+    const ORDEM = [
+      "✨ Lançamentos",
+      "⭐ Best Sellers",
+      "👖 Calças — Skinny",
+      "👖 Calças — Flare",
+      "👖 Calças — Reta",
+      "👖 Calças — Pantalona",
+      "👚 Blusas",
+      "🩱 Body",
+      "🩳 Cropped",
+      "👗 Vestidos",
+      "🩲 Saia/Shorts",
+      "👔 Conjuntos",
+      "🦺 Macacões",
+      "🧥 Jaquetas",
+      "🛍️ Leve Mais Pague Menos",
+    ];
+    const map = new Map<string, any[]>();
+    for (const p of produtos) {
+      const k = p.categoria_display || p.categoria_nome || "Outros";
+      if (!map.has(k)) map.set(k, []);
+      map.get(k)!.push(p);
+    }
+    const ordered: { categoria: string; items: any[] }[] = [];
+    for (const c of ORDEM) if (map.has(c)) { ordered.push({ categoria: c, items: map.get(c)! }); map.delete(c); }
+    for (const [c, items] of map) ordered.push({ categoria: c, items });
+    return ordered;
+  }, [produtos]);
+
   async function gerar() {
     if (!personaId) return toast({ title: "Selecione a Persona", variant: "destructive" });
     const produtoNome = usarManual
       ? produtoManual.trim()
-      : produtos.find((p) => p.id === produtoId)?.nome ?? "";
+      : produtoSelecionado?.nome_produto ?? "";
     if (produtoObrigatorio && !produtoNome) {
       return toast({ title: "Selecione ou digite o Produto", variant: "destructive" });
     }
@@ -196,7 +233,8 @@ function AbaGerar() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             produto_nome: produtoNome || null,
-            produto_id: usarManual ? null : produtoId || null,
+            produto_id: null,
+            tray_product_id: usarManual ? null : (produtoSelecionado?.product_id ?? null),
             persona_id: personaId,
             pilares,
             formatos,
@@ -282,26 +320,49 @@ function AbaGerar() {
           <div className="space-y-2">
             <Label>Produto / Categoria {!produtoObrigatorio && <span className="text-xs text-muted-foreground">(opcional)</span>}</Label>
             {!usarManual ? (
-              <Select value={produtoId} onValueChange={(v) => {
-                if (v === "__manual__") { setUsarManual(true); setProdutoId(""); }
-                else setProdutoId(v);
-              }}>
-                <SelectTrigger>
-                  <SelectValue placeholder={produtoObrigatorio ? "Selecione um produto" : "Opcional — a IA vai usar o contexto da marca"} />
-                </SelectTrigger>
-                <SelectContent>
-                  {produtos.map((p) => (
-                    <SelectItem key={p.id} value={p.id}>
-                      <span className="flex items-center gap-2">
-                        {p.nome}
-                        {p.eh_bestseller && <Badge className="bg-amber-500 text-white text-[10px]">Best Seller</Badge>}
-                        {p.eh_lancamento && <Badge className="bg-pink-500 text-white text-[10px]">Lançamento</Badge>}
-                      </span>
-                    </SelectItem>
-                  ))}
-                  <SelectItem value="__manual__">✍️ Digitar produto manualmente</SelectItem>
-                </SelectContent>
-              </Select>
+              <div className="flex items-start gap-2">
+                {produtoSelecionado?.imagem_url && (
+                  <img
+                    src={produtoSelecionado.imagem_url}
+                    alt={produtoSelecionado.nome_produto}
+                    className="rounded border border-border object-cover flex-shrink-0"
+                    style={{ width: 40, height: 50 }}
+                  />
+                )}
+                <div className="flex-1 min-w-0 space-y-1">
+                  <Select value={produtoId} onValueChange={(v) => {
+                    if (v === "__manual__") { setUsarManual(true); setProdutoId(""); }
+                    else if (v === "__none__") { setProdutoId(""); }
+                    else setProdutoId(v);
+                  }}>
+                    <SelectTrigger>
+                      <SelectValue placeholder={produtoObrigatorio ? "Selecione um produto" : "Opcional — a IA vai usar o contexto da marca"} />
+                    </SelectTrigger>
+                    <SelectContent className="max-h-[400px]">
+                      {!produtoObrigatorio && (
+                        <SelectItem value="__none__">— Sem produto específico —</SelectItem>
+                      )}
+                      {produtosAgrupados.map((grupo) => (
+                        <SelectGroup key={grupo.categoria}>
+                          <SelectLabel className="text-xs font-semibold text-muted-foreground">{grupo.categoria}</SelectLabel>
+                          {grupo.items.map((p) => (
+                            <SelectItem key={p.product_id} value={String(p.product_id)}>
+                              {p.nome_produto}
+                              {p.preco != null && ` — R$ ${Number(p.preco).toFixed(2).replace(".", ",")}`}
+                            </SelectItem>
+                          ))}
+                        </SelectGroup>
+                      ))}
+                      <SelectItem value="__manual__">✍️ Digitar produto manualmente</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  {produtoSelecionado?.preco != null && (
+                    <Badge className="bg-emerald-600 text-white text-[10px]">
+                      R$ {Number(produtoSelecionado.preco).toFixed(2).replace(".", ",")}
+                    </Badge>
+                  )}
+                </div>
+              </div>
             ) : (
               <div className="flex gap-2">
                 <Input
@@ -418,7 +479,7 @@ function AbaGerar() {
           <div className="space-y-4">
             <h2 className="font-serif text-xl">
               {resultado.length} criativos gerados
-              {(produtoId || produtoManual) && <> · {usarManual ? produtoManual : produtos.find((p) => p.id === produtoId)?.nome}</>}
+              {(produtoId || produtoManual) && <> · {usarManual ? produtoManual : produtoSelecionado?.nome_produto}</>}
               {persona && <> · {persona.nome}</>}
             </h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
