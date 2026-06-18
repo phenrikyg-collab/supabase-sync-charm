@@ -182,6 +182,8 @@ function AbaGerar() {
   const [produtoManual, setProdutoManual] = useState("");
   const [usarManual, setUsarManual] = useState(false);
   const [personaId, setPersonaId] = useState<string>("");
+  const [tipoConteudo, setTipoConteudo] = useState<string>("");
+  const [tipoGeracao, setTipoGeracao] = useState<"video" | "imagens" | "">("");
 
   const [gerando, setGerando] = useState(false);
   const [resultado, setResultado] = useState<any[] | null>(null);
@@ -245,6 +247,8 @@ function AbaGerar() {
 
   async function gerar() {
     if (!personaId) return toast({ title: "Selecione a Persona", variant: "destructive" });
+    if (!tipoConteudo) return toast({ title: "Selecione o Tipo de Conteúdo", variant: "destructive" });
+    if (!tipoGeracao) return toast({ title: "Escolha o que você quer gerar", variant: "destructive" });
     const produtoNome = usarManual
       ? produtoManual.trim()
       : produtoSelecionado?.nome_produto ?? "";
@@ -252,29 +256,34 @@ function AbaGerar() {
     setGerando(true);
     setResultado(null);
     try {
-      const r = await fetch(
-        "https://ezdtulcrqzmgocamjwwl.supabase.co/functions/v1/gerar-criativos",
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            produto_nome: produtoNome || null,
-            produto_id: null,
-            tray_product_id: usarManual ? null : (produtoSelecionado?.product_id ?? null),
-            persona_id: personaId,
-            pilares: [],
-            formatos: [],
-            etapa_funil: null,
-            tipo_conteudo: null,
-          }),
-        }
-      );
+      const isVideo = tipoGeracao === "video";
+      const endpoint = isVideo
+        ? "https://ezdtulcrqzmgocamjwwl.supabase.co/functions/v1/gerar-criativo-video"
+        : "https://ezdtulcrqzmgocamjwwl.supabase.co/functions/v1/gerar-criativos-imagem";
+
+      const basePayload: any = {
+        produto_nome: produtoNome || null,
+        produto_id: null,
+        tray_product_id: usarManual ? null : (produtoSelecionado?.product_id ?? null),
+        persona_id: personaId,
+        tipo_conteudo: tipoConteudo,
+      };
+      if (!isVideo) basePayload.formato = "imagem";
+
+      const r = await fetch(endpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(basePayload),
+      });
       if (!r.ok) throw new Error(await r.text());
       const data = await r.json();
-      setResultado(data.criativos || data || []);
-      toast({ title: "Criativos gerados 💛" });
+      const lista = isVideo
+        ? (data.criativo ? [data.criativo] : [])
+        : (data.criativos || []);
+      setResultado(lista);
+      toast({ title: isVideo ? "Roteiro gerado 💛" : `${lista.length} imagens geradas 💛` });
     } catch (e: any) {
-      toast({ title: "Erro ao gerar criativos", description: e.message, variant: "destructive" });
+      toast({ title: "Erro ao gerar", description: e.message, variant: "destructive" });
     } finally {
       setGerando(false);
     }
@@ -425,8 +434,33 @@ function AbaGerar() {
             )}
           </div>
 
+          {/* Tipo de Conteúdo */}
+          <div className="space-y-2">
+            <Label>Tipo de Conteúdo *</Label>
+            <Select value={tipoConteudo} onValueChange={setTipoConteudo}>
+              <SelectTrigger><SelectValue placeholder="Selecione o tipo" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="produto_direto">📦 Produto Direto</SelectItem>
+                <SelectItem value="cotidiano">🌸 Cotidiano da Persona</SelectItem>
+                <SelectItem value="universo_valores">💜 Universo & Valores</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* O que você quer gerar */}
+          <div className="space-y-2">
+            <Label>O que você quer gerar? *</Label>
+            <Select value={tipoGeracao} onValueChange={(v) => setTipoGeracao(v as any)}>
+              <SelectTrigger><SelectValue placeholder="Escolha um formato" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="video">🎬 Roteiro de Vídeo/Reels (1 roteiro completo e detalhado)</SelectItem>
+                <SelectItem value="imagens">🖼️ Pacote de 4 Imagens (4 variações com ângulos diferentes)</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
           <Button onClick={gerar} disabled={gerando} size="lg" className="w-full">
-            {gerando ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Gerando...</> : <><Sparkles className="h-4 w-4 mr-2" /> Gerar Criativos com IA</>}
+            {gerando ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Gerando...</> : <><Sparkles className="h-4 w-4 mr-2" /> Gerar com IA</>}
           </Button>
         </CardContent>
       </Card>
@@ -437,23 +471,25 @@ function AbaGerar() {
           <Card><CardContent className="p-10 text-center space-y-3">
             <Loader2 className="h-8 w-8 animate-spin mx-auto text-primary" />
             <p className="text-sm text-muted-foreground">
-              A IA está lendo o contexto do seu e-commerce e gerando os criativos...
+              {tipoGeracao === "video"
+                ? "Criando seu roteiro completo... (~20s)"
+                : "Gerando 4 variações de imagem... (~30s)"}
             </p>
           </CardContent></Card>
         )}
         {!gerando && !resultado && (
           <Card><CardContent className="p-10 text-center text-muted-foreground text-sm">
-            Configure ao lado e clique em <strong>Gerar Criativos com IA</strong>.
+            Configure ao lado e clique em <strong>Gerar com IA</strong>.
           </CardContent></Card>
         )}
         {!gerando && resultado && (
           <div className="space-y-4">
             <h2 className="font-serif text-xl">
-              {resultado.length} criativos gerados
+              {tipoGeracao === "video" ? "Roteiro gerado" : `${resultado.length} imagens geradas`}
               {(produtoId || produtoManual) && <> · {usarManual ? produtoManual : produtoSelecionado?.nome_produto}</>}
               {persona && <> · {persona.nome}</>}
             </h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className={tipoGeracao === "video" ? "grid grid-cols-1 gap-4" : "grid grid-cols-1 md:grid-cols-2 gap-4"}>
               {resultado.map((c, i) => (
                 <CriativoCard
                   key={c.id ?? i}
