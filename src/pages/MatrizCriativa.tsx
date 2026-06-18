@@ -151,7 +151,9 @@ function AbaGerar() {
     (async () => {
       try {
         const [p, ps] = await Promise.all([
-          sb.from("mc_produtos_marca").select("*").eq("ativo", true).order("nome"),
+          sb.from("vw_produtos_matriz")
+            .select("product_id, nome_produto, preco, categoria_display, categoria_nome, imagem_url")
+            .order("categoria_display", { ascending: true }),
           sb.from("mc_personas").select("*").eq("ativa", true).order("nome"),
         ]);
         setProdutos(p.data || []);
