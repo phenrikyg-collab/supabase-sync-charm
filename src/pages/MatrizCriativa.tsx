@@ -78,6 +78,72 @@ const STATUS_COLORS: Record<string, string> = {
 };
 const STATUS_LIST = Object.keys(STATUS_COLORS);
 
+const EDGE_GERAR_BRIEFING =
+  "https://ezdtulcrqzmgocamjwwl.supabase.co/functions/v1/gerar-briefing-html";
+
+function BriefingButton({
+  criativo,
+  onUpdated,
+  className,
+  label = "📄 Ver Briefing",
+  labelOpen = "📄 Abrir Briefing Completo",
+  tooltip,
+}: {
+  criativo: any;
+  onUpdated?: (id: string, updates: { html_briefing_url: string; html_briefing_gerado_em?: string }) => void;
+  className?: string;
+  label?: string;
+  labelOpen?: string;
+  tooltip?: string;
+}) {
+  const { toast } = useToast();
+  const [loading, setLoading] = useState(false);
+  const handleClick = async () => {
+    if (criativo.html_briefing_url) {
+      window.open(criativo.html_briefing_url, "_blank");
+      return;
+    }
+    setLoading(true);
+    try {
+      const r = await fetch(EDGE_GERAR_BRIEFING, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ criativo_id: criativo.id }),
+      });
+      const data = await r.json();
+      if (!r.ok || !data?.html_briefing_url) throw new Error(data?.error || "erro");
+      window.open(data.html_briefing_url, "_blank");
+      onUpdated?.(criativo.id, {
+        html_briefing_url: data.html_briefing_url,
+        html_briefing_gerado_em: data.html_briefing_gerado_em ?? new Date().toISOString(),
+      });
+    } catch {
+      toast({ title: "Erro ao gerar briefing, tente novamente", variant: "destructive" });
+    } finally {
+      setLoading(false);
+    }
+  };
+  const btn = (
+    <Button size="sm" variant="outline" className={className} onClick={handleClick} disabled={loading}>
+      {loading ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <FileText className="h-3 w-3 mr-1" />}
+      {loading ? "Gerando briefing..." : (criativo.html_briefing_url ? labelOpen : label)}
+    </Button>
+  );
+  if (tooltip) {
+    return (
+      <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger asChild>{btn}</TooltipTrigger>
+          <TooltipContent>{tooltip}</TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
+    );
+  }
+  return btn;
+}
+
+
+
 export default function MatrizCriativa() {
   return (
     <div className="p-6 space-y-6">
