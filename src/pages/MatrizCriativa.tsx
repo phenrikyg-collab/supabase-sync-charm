@@ -463,6 +463,10 @@ function AbaGerar() {
                   onAprovar={() => aprovar(c.id)}
                   onRegenerar={() => regenerar(c)}
                   onExcluir={() => excluir(c.id)}
+                  onBriefingUpdated={(id, updates) => {
+                    setResultado((r) => r?.map((x) => (x.id === id ? { ...x, ...updates } : x)) ?? null);
+                    setModal((m: any) => (m && m.id === id ? { ...m, ...updates } : m));
+                  }}
                 />
               ))}
             </div>
@@ -478,7 +482,12 @@ function AbaGerar() {
         onEmProducao={async () => { if (modal?.id) await atualizarStatus(modal.id, "em_producao"); }}
         onRegenerar={async () => { if (modal) await regenerar(modal); }}
         onExcluir={async () => { if (modal?.id) { await excluir(modal.id); setModal(null); } }}
+        onBriefingUpdated={(id: string, updates: any) => {
+          setResultado((r) => r?.map((x) => (x.id === id ? { ...x, ...updates } : x)) ?? null);
+          setModal((m: any) => (m && m.id === id ? { ...m, ...updates } : m));
+        }}
       />
+
     </div>
   );
 }
