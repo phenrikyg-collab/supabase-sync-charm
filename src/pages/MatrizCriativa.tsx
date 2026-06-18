@@ -320,26 +320,49 @@ function AbaGerar() {
           <div className="space-y-2">
             <Label>Produto / Categoria {!produtoObrigatorio && <span className="text-xs text-muted-foreground">(opcional)</span>}</Label>
             {!usarManual ? (
-              <Select value={produtoId} onValueChange={(v) => {
-                if (v === "__manual__") { setUsarManual(true); setProdutoId(""); }
-                else setProdutoId(v);
-              }}>
-                <SelectTrigger>
-                  <SelectValue placeholder={produtoObrigatorio ? "Selecione um produto" : "Opcional — a IA vai usar o contexto da marca"} />
-                </SelectTrigger>
-                <SelectContent>
-                  {produtos.map((p) => (
-                    <SelectItem key={p.id} value={p.id}>
-                      <span className="flex items-center gap-2">
-                        {p.nome}
-                        {p.eh_bestseller && <Badge className="bg-amber-500 text-white text-[10px]">Best Seller</Badge>}
-                        {p.eh_lancamento && <Badge className="bg-pink-500 text-white text-[10px]">Lançamento</Badge>}
-                      </span>
-                    </SelectItem>
-                  ))}
-                  <SelectItem value="__manual__">✍️ Digitar produto manualmente</SelectItem>
-                </SelectContent>
-              </Select>
+              <div className="flex items-start gap-2">
+                {produtoSelecionado?.imagem_url && (
+                  <img
+                    src={produtoSelecionado.imagem_url}
+                    alt={produtoSelecionado.nome_produto}
+                    className="rounded border border-border object-cover flex-shrink-0"
+                    style={{ width: 40, height: 50 }}
+                  />
+                )}
+                <div className="flex-1 min-w-0 space-y-1">
+                  <Select value={produtoId} onValueChange={(v) => {
+                    if (v === "__manual__") { setUsarManual(true); setProdutoId(""); }
+                    else if (v === "__none__") { setProdutoId(""); }
+                    else setProdutoId(v);
+                  }}>
+                    <SelectTrigger>
+                      <SelectValue placeholder={produtoObrigatorio ? "Selecione um produto" : "Opcional — a IA vai usar o contexto da marca"} />
+                    </SelectTrigger>
+                    <SelectContent className="max-h-[400px]">
+                      {!produtoObrigatorio && (
+                        <SelectItem value="__none__">— Sem produto específico —</SelectItem>
+                      )}
+                      {produtosAgrupados.map((grupo) => (
+                        <SelectGroup key={grupo.categoria}>
+                          <SelectLabel className="text-xs font-semibold text-muted-foreground">{grupo.categoria}</SelectLabel>
+                          {grupo.items.map((p) => (
+                            <SelectItem key={p.product_id} value={String(p.product_id)}>
+                              {p.nome_produto}
+                              {p.preco != null && ` — R$ ${Number(p.preco).toFixed(2).replace(".", ",")}`}
+                            </SelectItem>
+                          ))}
+                        </SelectGroup>
+                      ))}
+                      <SelectItem value="__manual__">✍️ Digitar produto manualmente</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  {produtoSelecionado?.preco != null && (
+                    <Badge className="bg-emerald-600 text-white text-[10px]">
+                      R$ {Number(produtoSelecionado.preco).toFixed(2).replace(".", ",")}
+                    </Badge>
+                  )}
+                </div>
+              </div>
             ) : (
               <div className="flex gap-2">
                 <Input
