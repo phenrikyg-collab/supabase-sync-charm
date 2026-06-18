@@ -479,7 +479,7 @@ function AbaGerar() {
           <div className="space-y-4">
             <h2 className="font-serif text-xl">
               {resultado.length} criativos gerados
-              {(produtoId || produtoManual) && <> · {usarManual ? produtoManual : produtos.find((p) => p.id === produtoId)?.nome}</>}
+              {(produtoId || produtoManual) && <> · {usarManual ? produtoManual : produtoSelecionado?.nome_produto}</>}
               {persona && <> · {persona.nome}</>}
             </h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
