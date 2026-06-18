@@ -1606,11 +1606,13 @@ function AbaBiblioteca() {
                   </p>
                   <div className="flex gap-2 pt-1">
                     <Button size="sm" variant="outline" onClick={() => setModal(c)}>Ver</Button>
-                    {c.html_briefing_url && (
-                      <Button size="sm" variant="outline" onClick={() => window.open(c.html_briefing_url, "_blank")}>
-                        <FileText className="h-3 w-3 mr-1" /> 📄 Ver Briefing
-                      </Button>
-                    )}
+                    <BriefingButton
+                      criativo={c}
+                      onUpdated={(id, updates) => {
+                        setList((l) => l.map((x) => (x.id === id ? { ...x, ...updates } : x)));
+                        setModal((m: any) => (m && m.id === id ? { ...m, ...updates } : m));
+                      }}
+                    />
                     <Select value={c.status} onValueChange={(v) => setStatus(c.id, v)}>
                       <SelectTrigger className="h-8 flex-1"><SelectValue /></SelectTrigger>
                       <SelectContent>
@@ -1633,7 +1635,12 @@ function AbaBiblioteca() {
         onEmProducao={async () => { if (modal?.id) await setStatus(modal.id, "em_producao"); }}
         onRegenerar={async () => { if (modal) await regenerar(modal); }}
         onExcluir={async () => { if (modal?.id) { await excluir(modal.id); setModal(null); } }}
+        onBriefingUpdated={(id: string, updates: any) => {
+          setList((l) => l.map((x) => (x.id === id ? { ...x, ...updates } : x)));
+          setModal((m: any) => (m && m.id === id ? { ...m, ...updates } : m));
+        }}
       />
+
     </div>
   );
 }
