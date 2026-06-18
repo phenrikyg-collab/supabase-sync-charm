@@ -471,23 +471,25 @@ function AbaGerar() {
           <Card><CardContent className="p-10 text-center space-y-3">
             <Loader2 className="h-8 w-8 animate-spin mx-auto text-primary" />
             <p className="text-sm text-muted-foreground">
-              A IA está lendo o contexto do seu e-commerce e gerando os criativos...
+              {tipoGeracao === "video"
+                ? "Criando seu roteiro completo... (~20s)"
+                : "Gerando 4 variações de imagem... (~30s)"}
             </p>
           </CardContent></Card>
         )}
         {!gerando && !resultado && (
           <Card><CardContent className="p-10 text-center text-muted-foreground text-sm">
-            Configure ao lado e clique em <strong>Gerar Criativos com IA</strong>.
+            Configure ao lado e clique em <strong>Gerar com IA</strong>.
           </CardContent></Card>
         )}
         {!gerando && resultado && (
           <div className="space-y-4">
             <h2 className="font-serif text-xl">
-              {resultado.length} criativos gerados
+              {tipoGeracao === "video" ? "Roteiro gerado" : `${resultado.length} imagens geradas`}
               {(produtoId || produtoManual) && <> · {usarManual ? produtoManual : produtoSelecionado?.nome_produto}</>}
               {persona && <> · {persona.nome}</>}
             </h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className={tipoGeracao === "video" ? "grid grid-cols-1 gap-4" : "grid grid-cols-1 md:grid-cols-2 gap-4"}>
               {resultado.map((c, i) => (
                 <CriativoCard
                   key={c.id ?? i}
