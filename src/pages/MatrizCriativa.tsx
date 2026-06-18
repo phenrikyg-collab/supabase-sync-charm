@@ -215,7 +215,6 @@ function AbaGerar() {
     if (produtoObrigatorio && !produtoNome) {
       return toast({ title: "Selecione ou digite o Produto", variant: "destructive" });
     }
-    if (pilares.length === 0) return toast({ title: "Escolha ao menos 1 pilar", variant: "destructive" });
     if (formatos.length === 0) return toast({ title: "Escolha ao menos 1 formato", variant: "destructive" });
 
     setGerando(true);
@@ -231,9 +230,9 @@ function AbaGerar() {
             produto_id: null,
             tray_product_id: usarManual ? null : (produtoSelecionado?.product_id ?? null),
             persona_id: personaId,
-            pilares,
+            pilares: [],
             formatos,
-            etapa_funil: etapaFunil || null,
+            etapa_funil: null,
             tipo_conteudo: tipoConteudo || null,
           }),
         }
@@ -412,18 +411,6 @@ function AbaGerar() {
             )}
           </div>
 
-          {/* Pilares */}
-          <div className="space-y-2">
-            <Label>Pilares Criativos *</Label>
-            <div className="space-y-1.5">
-              {PILARES.map((p) => (
-                <label key={p.id} className="flex items-center gap-2 cursor-pointer text-sm">
-                  <Checkbox checked={pilares.includes(p.id)} onCheckedChange={() => togglePilar(p.id)} />
-                  <Badge className={p.color}>{p.label}</Badge>
-                </label>
-              ))}
-            </div>
-          </div>
 
           {/* Formatos */}
           <div className="space-y-2">
@@ -438,16 +425,6 @@ function AbaGerar() {
             </div>
           </div>
 
-          {/* Funil */}
-          <div className="space-y-2">
-            <Label>Etapa do Funil</Label>
-            <Select value={etapaFunil} onValueChange={setEtapaFunil}>
-              <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
-              <SelectContent>
-                {ETAPAS.map((e) => <SelectItem key={e} value={e}>{e}</SelectItem>)}
-              </SelectContent>
-            </Select>
-          </div>
 
           <Button onClick={gerar} disabled={gerando} size="lg" className="w-full">
             {gerando ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Gerando...</> : <><Sparkles className="h-4 w-4 mr-2" /> Gerar Criativos com IA</>}
