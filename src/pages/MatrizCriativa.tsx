@@ -65,7 +65,7 @@ const pilarColor = (p: string) =>
 const pilarLabel = (p: string) =>
   PILARES.find((x) => x.id === p)?.label ?? p;
 
-const FORMATOS = ["Reels", "Vídeo", "Imagem / Banner", "Story", "Carrossel"];
+const FORMATOS = ["Reels", "Vídeo", "Imagem", "Story", "Carrossel"];
 const ETAPAS = ["Inconsciente", "Problema", "Solução", "Produto", "Compra"];
 
 const TIPOS_CONTEUDO = [
@@ -139,9 +139,7 @@ function AbaGerar() {
   const [usarManual, setUsarManual] = useState(false);
   const [personaId, setPersonaId] = useState<string>("");
   const [tipoConteudo, setTipoConteudo] = useState<string>("");
-  const [pilares, setPilares] = useState<string[]>([]);
   const [formatos, setFormatos] = useState<string[]>([]);
-  const [etapaFunil, setEtapaFunil] = useState<string>("");
 
   const [gerando, setGerando] = useState(false);
   const [resultado, setResultado] = useState<any[] | null>(null);
@@ -170,9 +168,6 @@ function AbaGerar() {
   const tipo = useMemo(() => TIPOS_CONTEUDO.find((t) => t.id === tipoConteudo), [tipoConteudo]);
   const produtoObrigatorio = tipo?.requireProduto ?? true;
 
-  function togglePilar(id: string) {
-    setPilares((p) => (p.includes(id) ? p.filter((x) => x !== id) : [...p, id]));
-  }
   function toggleFormato(f: string) {
     setFormatos((p) => (p.includes(f) ? p.filter((x) => x !== f) : [...p, f]));
   }
@@ -220,7 +215,6 @@ function AbaGerar() {
     if (produtoObrigatorio && !produtoNome) {
       return toast({ title: "Selecione ou digite o Produto", variant: "destructive" });
     }
-    if (pilares.length === 0) return toast({ title: "Escolha ao menos 1 pilar", variant: "destructive" });
     if (formatos.length === 0) return toast({ title: "Escolha ao menos 1 formato", variant: "destructive" });
 
     setGerando(true);
@@ -236,9 +230,9 @@ function AbaGerar() {
             produto_id: null,
             tray_product_id: usarManual ? null : (produtoSelecionado?.product_id ?? null),
             persona_id: personaId,
-            pilares,
+            pilares: [],
             formatos,
-            etapa_funil: etapaFunil || null,
+            etapa_funil: null,
             tipo_conteudo: tipoConteudo || null,
           }),
         }
@@ -417,18 +411,6 @@ function AbaGerar() {
             )}
           </div>
 
-          {/* Pilares */}
-          <div className="space-y-2">
-            <Label>Pilares Criativos *</Label>
-            <div className="space-y-1.5">
-              {PILARES.map((p) => (
-                <label key={p.id} className="flex items-center gap-2 cursor-pointer text-sm">
-                  <Checkbox checked={pilares.includes(p.id)} onCheckedChange={() => togglePilar(p.id)} />
-                  <Badge className={p.color}>{p.label}</Badge>
-                </label>
-              ))}
-            </div>
-          </div>
 
           {/* Formatos */}
           <div className="space-y-2">
@@ -443,16 +425,6 @@ function AbaGerar() {
             </div>
           </div>
 
-          {/* Funil */}
-          <div className="space-y-2">
-            <Label>Etapa do Funil</Label>
-            <Select value={etapaFunil} onValueChange={setEtapaFunil}>
-              <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
-              <SelectContent>
-                {ETAPAS.map((e) => <SelectItem key={e} value={e}>{e}</SelectItem>)}
-              </SelectContent>
-            </Select>
-          </div>
 
           <Button onClick={gerar} disabled={gerando} size="lg" className="w-full">
             {gerando ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Gerando...</> : <><Sparkles className="h-4 w-4 mr-2" /> Gerar Criativos com IA</>}
