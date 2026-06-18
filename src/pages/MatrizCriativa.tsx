@@ -530,33 +530,140 @@ function AbaGerar() {
             )}
           </div>
 
-          {/* Tipo de Conteúdo */}
-          <div className="space-y-2">
-            <Label>Tipo de Conteúdo *</Label>
-            <Select value={tipoConteudo} onValueChange={setTipoConteudo}>
-              <SelectTrigger><SelectValue placeholder="Selecione o tipo" /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="produto_direto">📦 Produto Direto</SelectItem>
-                <SelectItem value="cotidiano">🌸 Cotidiano da Persona</SelectItem>
-                <SelectItem value="universo_valores">💜 Universo & Valores</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
           {/* O que você quer gerar */}
           <div className="space-y-2">
             <Label>O que você quer gerar? *</Label>
-            <Select value={tipoGeracao} onValueChange={(v) => setTipoGeracao(v as any)}>
-              <SelectTrigger><SelectValue placeholder="Escolha um formato" /></SelectTrigger>
+            <Select
+              value={tipoGeracao}
+              onValueChange={(v) => {
+                setTipoGeracao(v as any);
+                setTipoConteudo("");
+                setEstruturaNarrativa("");
+                setAngulo("");
+                setPilarRemarketing("");
+                setFormatoRemarketing("");
+                setFormatoBateria("");
+              }}
+            >
+              <SelectTrigger><SelectValue placeholder="Escolha o que gerar" /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="video">🎬 Roteiro de Vídeo/Reels (1 roteiro completo e detalhado)</SelectItem>
-                <SelectItem value="imagens">🖼️ Pacote de 4 Imagens (4 variações com ângulos diferentes)</SelectItem>
+                <SelectItem value="video">🎬 Roteiro de Vídeo/Reels</SelectItem>
+                <SelectItem value="imagens">🖼️ Pacote de 4 Imagens</SelectItem>
+                <SelectItem value="remarketing">🔄 Remarketing</SelectItem>
+                <SelectItem value="bateria">🎯 Bateria Completa (9 ângulos)</SelectItem>
               </SelectContent>
             </Select>
           </div>
 
+          {/* Tipo de Conteúdo — condicional */}
+          {(tipoGeracao === "video" || tipoGeracao === "imagens" || tipoGeracao === "bateria") && (
+            <div className="space-y-2">
+              <Label>Tipo de Conteúdo *</Label>
+              <Select value={tipoConteudo} onValueChange={setTipoConteudo}>
+                <SelectTrigger><SelectValue placeholder="Selecione o tipo" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="produto_direto">📦 Produto Direto</SelectItem>
+                  <SelectItem value="cotidiano">🌸 Cotidiano da Persona</SelectItem>
+                  <SelectItem value="universo_valores">💜 Universo & Valores</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
+          {/* Vídeo: Estrutura Narrativa + Ângulo */}
+          {tipoGeracao === "video" && (
+            <>
+              <div className="space-y-2">
+                <Label>Estrutura Narrativa *</Label>
+                <Select value={estruturaNarrativa} onValueChange={setEstruturaNarrativa}>
+                  <SelectTrigger><SelectValue placeholder="Selecione a estrutura" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="dsb">DSB (Dor → Solução → Benefício) — padrão de conversão</SelectItem>
+                    <SelectItem value="full_funnel">Full Funnel — um criativo que percorre o funil completo</SelectItem>
+                    <SelectItem value="creator_ugc">Creator/UGC — linguagem de pessoa real</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Ângulo <span className="text-xs text-muted-foreground">(opcional)</span></Label>
+                <Select value={angulo || "__auto__"} onValueChange={(v) => setAngulo(v === "__auto__" ? "" : v)}>
+                  <SelectTrigger><SelectValue placeholder="A IA escolhe o melhor ângulo" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__auto__">— A IA escolhe —</SelectItem>
+                    {ANGULOS_OPCOES.map((a) => (
+                      <SelectItem key={a.id} value={a.id}>{a.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">Deixe em branco para a IA escolher o melhor ângulo</p>
+              </div>
+            </>
+          )}
+
+          {/* Remarketing: Pilar + Formato */}
+          {tipoGeracao === "remarketing" && (
+            <>
+              <div className="space-y-2">
+                <Label>Pilar de Remarketing *</Label>
+                <Select value={pilarRemarketing} onValueChange={setPilarRemarketing}>
+                  <SelectTrigger><SelectValue placeholder="Selecione o pilar" /></SelectTrigger>
+                  <SelectContent>
+                    {PILARES_REMARKETING.map((p) => (
+                      <SelectItem key={p.id} value={p.id}>{p.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {pilarRemarketing && (
+                  <p className="text-xs text-muted-foreground italic">
+                    Objeção: "{PILARES_REMARKETING.find((p) => p.id === pilarRemarketing)?.objecao}"
+                  </p>
+                )}
+              </div>
+              <div className="space-y-2">
+                <Label>Formato *</Label>
+                <Select value={formatoRemarketing} onValueChange={setFormatoRemarketing}>
+                  <SelectTrigger><SelectValue placeholder="Selecione o formato" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="video">Vídeo</SelectItem>
+                    <SelectItem value="imagem">Imagem</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </>
+          )}
+
+          {/* Bateria: Formato + aviso */}
+          {tipoGeracao === "bateria" && (
+            <>
+              <div className="space-y-2">
+                <Label>Formato *</Label>
+                <Select value={formatoBateria} onValueChange={setFormatoBateria}>
+                  <SelectTrigger><SelectValue placeholder="Selecione o formato" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="reels">Reels</SelectItem>
+                    <SelectItem value="imagem">Imagem</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="text-xs p-3 rounded-md bg-amber-50 text-amber-900 border border-amber-200">
+                ⚠️ Isso vai gerar 9 criativos, um para cada ângulo. Pode levar 2-3 minutos no total.
+              </div>
+            </>
+          )}
+
           <Button onClick={gerar} disabled={gerando} size="lg" className="w-full">
-            {gerando ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Gerando...</> : <><Sparkles className="h-4 w-4 mr-2" /> Gerar com IA</>}
+            {gerando ? (
+              <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Gerando...</>
+            ) : (
+              <>
+                <Sparkles className="h-4 w-4 mr-2" />
+                {tipoGeracao === "video" && "Gerar Roteiro com IA"}
+                {tipoGeracao === "imagens" && "Gerar 4 Imagens com IA"}
+                {tipoGeracao === "remarketing" && "Gerar Remarketing com IA"}
+                {tipoGeracao === "bateria" && "Gerar Bateria Completa"}
+                {!tipoGeracao && "Gerar com IA"}
+              </>
+            )}
           </Button>
         </CardContent>
       </Card>
@@ -567,9 +674,13 @@ function AbaGerar() {
           <Card><CardContent className="p-10 text-center space-y-3">
             <Loader2 className="h-8 w-8 animate-spin mx-auto text-primary" />
             <p className="text-sm text-muted-foreground">
-              {tipoGeracao === "video"
-                ? "Criando seu roteiro completo... (~20s)"
-                : "Gerando 4 variações de imagem... (~30s)"}
+              {tipoGeracao === "video" && "Criando seu roteiro completo... (~20s)"}
+              {tipoGeracao === "imagens" && "Gerando 4 variações de imagem... (~30s)"}
+              {tipoGeracao === "remarketing" && "Gerando criativo de remarketing... (~20s)"}
+              {tipoGeracao === "bateria" && progresso && (
+                <>Gerando ângulo {progresso.atual} de {progresso.total}: <strong>{progresso.label}</strong>...</>
+              )}
+              {tipoGeracao === "bateria" && !progresso && "Iniciando bateria completa..."}
             </p>
           </CardContent></Card>
         )}
@@ -581,11 +692,20 @@ function AbaGerar() {
         {!gerando && resultado && (
           <div className="space-y-4">
             <h2 className="font-serif text-xl">
-              {tipoGeracao === "video" ? "Roteiro gerado" : `${resultado.length} imagens geradas`}
+              {tipoGeracao === "video" && "Roteiro gerado"}
+              {tipoGeracao === "imagens" && `${resultado.length} imagens geradas`}
+              {tipoGeracao === "remarketing" && "Remarketing gerado"}
+              {tipoGeracao === "bateria" && `Bateria: ${resultado.length} ângulos`}
               {(produtoId || produtoManual) && <> · {usarManual ? produtoManual : produtoSelecionado?.nome_produto}</>}
               {persona && <> · {persona.nome}</>}
             </h2>
-            <div className={tipoGeracao === "video" ? "grid grid-cols-1 gap-4" : "grid grid-cols-1 md:grid-cols-2 gap-4"}>
+            <div className={
+              tipoGeracao === "video" || tipoGeracao === "remarketing"
+                ? "grid grid-cols-1 gap-4"
+                : tipoGeracao === "bateria"
+                  ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"
+                  : "grid grid-cols-1 md:grid-cols-2 gap-4"
+            }>
               {resultado.map((c, i) => (
                 <CriativoCard
                   key={c.id ?? i}
