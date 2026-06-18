@@ -182,6 +182,8 @@ function AbaGerar() {
   const [produtoManual, setProdutoManual] = useState("");
   const [usarManual, setUsarManual] = useState(false);
   const [personaId, setPersonaId] = useState<string>("");
+  const [tipoConteudo, setTipoConteudo] = useState<string>("");
+  const [tipoGeracao, setTipoGeracao] = useState<"video" | "imagens" | "">("");
 
   const [gerando, setGerando] = useState(false);
   const [resultado, setResultado] = useState<any[] | null>(null);
