@@ -78,6 +78,72 @@ const STATUS_COLORS: Record<string, string> = {
 };
 const STATUS_LIST = Object.keys(STATUS_COLORS);
 
+const EDGE_GERAR_BRIEFING =
+  "https://ezdtulcrqzmgocamjwwl.supabase.co/functions/v1/gerar-briefing-html";
+
+function BriefingButton({
+  criativo,
+  onUpdated,
+  className,
+  label = "📄 Ver Briefing",
+  labelOpen = "📄 Abrir Briefing Completo",
+  tooltip,
+}: {
+  criativo: any;
+  onUpdated?: (id: string, updates: { html_briefing_url: string; html_briefing_gerado_em?: string }) => void;
+  className?: string;
+  label?: string;
+  labelOpen?: string;
+  tooltip?: string;
+}) {
+  const { toast } = useToast();
+  const [loading, setLoading] = useState(false);
+  const handleClick = async () => {
+    if (criativo.html_briefing_url) {
+      window.open(criativo.html_briefing_url, "_blank");
+      return;
+    }
+    setLoading(true);
+    try {
+      const r = await fetch(EDGE_GERAR_BRIEFING, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ criativo_id: criativo.id }),
+      });
+      const data = await r.json();
+      if (!r.ok || !data?.html_briefing_url) throw new Error(data?.error || "erro");
+      window.open(data.html_briefing_url, "_blank");
+      onUpdated?.(criativo.id, {
+        html_briefing_url: data.html_briefing_url,
+        html_briefing_gerado_em: data.html_briefing_gerado_em ?? new Date().toISOString(),
+      });
+    } catch {
+      toast({ title: "Erro ao gerar briefing, tente novamente", variant: "destructive" });
+    } finally {
+      setLoading(false);
+    }
+  };
+  const btn = (
+    <Button size="sm" variant="outline" className={className} onClick={handleClick} disabled={loading}>
+      {loading ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <FileText className="h-3 w-3 mr-1" />}
+      {loading ? "Gerando briefing..." : (criativo.html_briefing_url ? labelOpen : label)}
+    </Button>
+  );
+  if (tooltip) {
+    return (
+      <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger asChild>{btn}</TooltipTrigger>
+          <TooltipContent>{tooltip}</TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
+    );
+  }
+  return btn;
+}
+
+
+
 export default function MatrizCriativa() {
   return (
     <div className="p-6 space-y-6">
@@ -397,6 +463,10 @@ function AbaGerar() {
                   onAprovar={() => aprovar(c.id)}
                   onRegenerar={() => regenerar(c)}
                   onExcluir={() => excluir(c.id)}
+                  onBriefingUpdated={(id, updates) => {
+                    setResultado((r) => r?.map((x) => (x.id === id ? { ...x, ...updates } : x)) ?? null);
+                    setModal((m: any) => (m && m.id === id ? { ...m, ...updates } : m));
+                  }}
                 />
               ))}
             </div>
@@ -412,12 +482,17 @@ function AbaGerar() {
         onEmProducao={async () => { if (modal?.id) await atualizarStatus(modal.id, "em_producao"); }}
         onRegenerar={async () => { if (modal) await regenerar(modal); }}
         onExcluir={async () => { if (modal?.id) { await excluir(modal.id); setModal(null); } }}
+        onBriefingUpdated={(id: string, updates: any) => {
+          setResultado((r) => r?.map((x) => (x.id === id ? { ...x, ...updates } : x)) ?? null);
+          setModal((m: any) => (m && m.id === id ? { ...m, ...updates } : m));
+        }}
       />
+
     </div>
   );
 }
 
-function CriativoCard({ c, onOpen, onAprovar, onRegenerar, onExcluir, regenerando }: any) {
+function CriativoCard({ c, onOpen, onAprovar, onRegenerar, onExcluir, regenerando, onBriefingUpdated }: any) {
   const preview = (c.roteiro_hook || c.headline_principal || "").split("\n").slice(0, 2).join(" ");
   const [confirmDel, setConfirmDel] = useState(false);
   return (
@@ -435,11 +510,8 @@ function CriativoCard({ c, onOpen, onAprovar, onRegenerar, onExcluir, regenerand
         {preview && <p className="text-sm line-clamp-2 text-foreground/80">{preview}</p>}
         <div className="flex flex-wrap gap-2 pt-2">
           <Button size="sm" variant="outline" onClick={onOpen}>Ver Completo</Button>
-          {c.html_briefing_url && (
-            <Button size="sm" variant="outline" onClick={() => window.open(c.html_briefing_url, "_blank")}>
-              <FileText className="h-3 w-3 mr-1" /> 📄 Ver Briefing
-            </Button>
-          )}
+          {c.id && <BriefingButton criativo={c} onUpdated={onBriefingUpdated} />}
+
           <Button size="sm" onClick={onAprovar} disabled={regenerando}>
             <Check className="h-3 w-3" /> Aprovar
           </Button>
@@ -1165,7 +1237,7 @@ function imprimirCriativo(c: any) {
 function CriativoModal({
   criativo, onClose,
   onAprovar, onEmProducao, onRegenerar, onExcluir,
-  regenerando,
+  regenerando, onBriefingUpdated,
 }: any) {
   const [confirmRegen, setConfirmRegen] = useState(false);
   const [confirmDel, setConfirmDel] = useState(false);
@@ -1183,17 +1255,13 @@ function CriativoModal({
             {criativo.status && <Badge className={STATUS_COLORS[criativo.status] ?? ""}>{criativo.status}</Badge>}
           </div>
           <div className="flex flex-wrap items-center gap-2 pt-2">
-            {criativo.html_briefing_url && (
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button size="sm" className="bg-[#8B6914] hover:bg-[#6d520f] text-white" onClick={() => window.open(criativo.html_briefing_url, "_blank")}>
-                      <FileText className="h-4 w-4 mr-1" /> 📄 Abrir Briefing Completo
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>Abre o guia completo para o time de produção</TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
+            {criativo.id && (
+              <BriefingButton
+                criativo={criativo}
+                onUpdated={onBriefingUpdated}
+                className="bg-[#8B6914] hover:bg-[#6d520f] text-white border-transparent"
+                tooltip="Abre o guia completo para o time de produção"
+              />
             )}
             {criativo.html_briefing_gerado_em && (
               <Badge variant="outline" className="text-[10px]">
@@ -1202,6 +1270,7 @@ function CriativoModal({
             )}
           </div>
         </DialogHeader>
+
         <Tabs defaultValue="conteudo">
           <TabsList>
             <TabsTrigger value="conteudo">Conteúdo</TabsTrigger>
@@ -1537,11 +1606,13 @@ function AbaBiblioteca() {
                   </p>
                   <div className="flex gap-2 pt-1">
                     <Button size="sm" variant="outline" onClick={() => setModal(c)}>Ver</Button>
-                    {c.html_briefing_url && (
-                      <Button size="sm" variant="outline" onClick={() => window.open(c.html_briefing_url, "_blank")}>
-                        <FileText className="h-3 w-3 mr-1" /> 📄 Ver Briefing
-                      </Button>
-                    )}
+                    <BriefingButton
+                      criativo={c}
+                      onUpdated={(id, updates) => {
+                        setList((l) => l.map((x) => (x.id === id ? { ...x, ...updates } : x)));
+                        setModal((m: any) => (m && m.id === id ? { ...m, ...updates } : m));
+                      }}
+                    />
                     <Select value={c.status} onValueChange={(v) => setStatus(c.id, v)}>
                       <SelectTrigger className="h-8 flex-1"><SelectValue /></SelectTrigger>
                       <SelectContent>
@@ -1564,7 +1635,12 @@ function AbaBiblioteca() {
         onEmProducao={async () => { if (modal?.id) await setStatus(modal.id, "em_producao"); }}
         onRegenerar={async () => { if (modal) await regenerar(modal); }}
         onExcluir={async () => { if (modal?.id) { await excluir(modal.id); setModal(null); } }}
+        onBriefingUpdated={(id: string, updates: any) => {
+          setList((l) => l.map((x) => (x.id === id ? { ...x, ...updates } : x)));
+          setModal((m: any) => (m && m.id === id ? { ...m, ...updates } : m));
+        }}
       />
+
     </div>
   );
 }
