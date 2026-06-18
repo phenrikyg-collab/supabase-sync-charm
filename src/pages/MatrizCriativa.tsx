@@ -247,6 +247,8 @@ function AbaGerar() {
 
   async function gerar() {
     if (!personaId) return toast({ title: "Selecione a Persona", variant: "destructive" });
+    if (!tipoConteudo) return toast({ title: "Selecione o Tipo de Conteúdo", variant: "destructive" });
+    if (!tipoGeracao) return toast({ title: "Escolha o que você quer gerar", variant: "destructive" });
     const produtoNome = usarManual
       ? produtoManual.trim()
       : produtoSelecionado?.nome_produto ?? "";
@@ -254,29 +256,34 @@ function AbaGerar() {
     setGerando(true);
     setResultado(null);
     try {
-      const r = await fetch(
-        "https://ezdtulcrqzmgocamjwwl.supabase.co/functions/v1/gerar-criativos",
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            produto_nome: produtoNome || null,
-            produto_id: null,
-            tray_product_id: usarManual ? null : (produtoSelecionado?.product_id ?? null),
-            persona_id: personaId,
-            pilares: [],
-            formatos: [],
-            etapa_funil: null,
-            tipo_conteudo: null,
-          }),
-        }
-      );
+      const isVideo = tipoGeracao === "video";
+      const endpoint = isVideo
+        ? "https://ezdtulcrqzmgocamjwwl.supabase.co/functions/v1/gerar-criativo-video"
+        : "https://ezdtulcrqzmgocamjwwl.supabase.co/functions/v1/gerar-criativos-imagem";
+
+      const basePayload: any = {
+        produto_nome: produtoNome || null,
+        produto_id: null,
+        tray_product_id: usarManual ? null : (produtoSelecionado?.product_id ?? null),
+        persona_id: personaId,
+        tipo_conteudo: tipoConteudo,
+      };
+      if (!isVideo) basePayload.formato = "imagem";
+
+      const r = await fetch(endpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(basePayload),
+      });
       if (!r.ok) throw new Error(await r.text());
       const data = await r.json();
-      setResultado(data.criativos || data || []);
-      toast({ title: "Criativos gerados 💛" });
+      const lista = isVideo
+        ? (data.criativo ? [data.criativo] : [])
+        : (data.criativos || []);
+      setResultado(lista);
+      toast({ title: isVideo ? "Roteiro gerado 💛" : `${lista.length} imagens geradas 💛` });
     } catch (e: any) {
-      toast({ title: "Erro ao gerar criativos", description: e.message, variant: "destructive" });
+      toast({ title: "Erro ao gerar", description: e.message, variant: "destructive" });
     } finally {
       setGerando(false);
     }
