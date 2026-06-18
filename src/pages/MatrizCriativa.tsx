@@ -67,6 +67,28 @@ const pilarLabel = (p: string) =>
 
 const FORMATOS = ["Reels", "Vídeo", "Imagem", "Story", "Carrossel"];
 
+const ANGULOS_OPCOES: { id: string; label: string }[] = [
+  { id: "dor", label: "Dor" },
+  { id: "beneficio", label: "Benefício" },
+  { id: "transformacao", label: "Transformação" },
+  { id: "prova", label: "Prova" },
+  { id: "comparacao", label: "Comparação" },
+  { id: "curiosidade", label: "Curiosidade" },
+  { id: "autoridade", label: "Autoridade" },
+  { id: "rotina", label: "Rotina" },
+  { id: "quebra_crenca", label: "Quebra de Crença" },
+];
+const ANGULOS_IDS = ANGULOS_OPCOES.map((a) => a.id);
+const anguloLabel = (id: string) => ANGULOS_OPCOES.find((a) => a.id === id)?.label ?? id;
+
+const PILARES_REMARKETING: { id: string; label: string; objecao: string }[] = [
+  { id: "prova_social", label: "🗣️ Prova Social (UGC)", objecao: "Não sei se funciona para mim" },
+  { id: "unboxing", label: "📦 Unboxing", objecao: "Não sei o que vou receber" },
+  { id: "bastidores", label: "🎬 Bastidores", objecao: "Não conheço essa marca" },
+  { id: "prova_tecnica", label: "🔬 Prova Técnica", objecao: "Não entendo como funciona" },
+  { id: "objecao_preco", label: "💰 Objeção Direta (Preço)", objecao: "É caro demais" },
+];
+
 const STATUS_COLORS: Record<string, string> = {
   rascunho: "bg-muted text-foreground",
   aprovado: "bg-blue-500 text-white",
