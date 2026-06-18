@@ -182,10 +182,16 @@ function AbaGerar() {
   const [produtoManual, setProdutoManual] = useState("");
   const [usarManual, setUsarManual] = useState(false);
   const [personaId, setPersonaId] = useState<string>("");
+  const [tipoGeracao, setTipoGeracao] = useState<"video" | "imagens" | "remarketing" | "bateria" | "">("");
   const [tipoConteudo, setTipoConteudo] = useState<string>("");
-  const [tipoGeracao, setTipoGeracao] = useState<"video" | "imagens" | "">("");
+  const [estruturaNarrativa, setEstruturaNarrativa] = useState<string>("");
+  const [angulo, setAngulo] = useState<string>("");
+  const [pilarRemarketing, setPilarRemarketing] = useState<string>("");
+  const [formatoRemarketing, setFormatoRemarketing] = useState<string>("");
+  const [formatoBateria, setFormatoBateria] = useState<string>("");
 
   const [gerando, setGerando] = useState(false);
+  const [progresso, setProgresso] = useState<{ atual: number; total: number; label: string } | null>(null);
   const [resultado, setResultado] = useState<any[] | null>(null);
   const [modal, setModal] = useState<any | null>(null);
 
