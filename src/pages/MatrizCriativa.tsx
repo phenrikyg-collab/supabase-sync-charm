@@ -16,11 +16,12 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Loader2, Heart, AlertTriangle, Sparkles, RotateCw, Trash2, Check, Play, Printer, Upload, Bot } from "lucide-react";
+import { Loader2, Heart, AlertTriangle, Sparkles, RotateCw, Trash2, Check, Play, Printer, Upload, Bot, FileText } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 const EDGE_GERAR_CRIATIVOS =
   "https://ezdtulcrqzmgocamjwwl.supabase.co/functions/v1/gerar-criativos";
@@ -468,6 +469,11 @@ function CriativoCard({ c, onOpen, onAprovar, onRegenerar, onExcluir, regenerand
         {preview && <p className="text-sm line-clamp-2 text-foreground/80">{preview}</p>}
         <div className="flex flex-wrap gap-2 pt-2">
           <Button size="sm" variant="outline" onClick={onOpen}>Ver Completo</Button>
+          {c.html_briefing_url && (
+            <Button size="sm" variant="outline" onClick={() => window.open(c.html_briefing_url, "_blank")}>
+              <FileText className="h-3 w-3 mr-1" /> 📄 Ver Briefing
+            </Button>
+          )}
           <Button size="sm" onClick={onAprovar} disabled={regenerando}>
             <Check className="h-3 w-3" /> Aprovar
           </Button>
@@ -1210,6 +1216,25 @@ function CriativoModal({
             {criativo.etapa_funil && <Badge variant="secondary">{criativo.etapa_funil}</Badge>}
             {criativo.status && <Badge className={STATUS_COLORS[criativo.status] ?? ""}>{criativo.status}</Badge>}
           </div>
+          <div className="flex flex-wrap items-center gap-2 pt-2">
+            {criativo.html_briefing_url && (
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button size="sm" className="bg-[#8B6914] hover:bg-[#6d520f] text-white" onClick={() => window.open(criativo.html_briefing_url, "_blank")}>
+                      <FileText className="h-4 w-4 mr-1" /> 📄 Abrir Briefing Completo
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>Abre o guia completo para o time de produção</TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            )}
+            {criativo.html_briefing_gerado_em && (
+              <Badge variant="outline" className="text-[10px]">
+                Briefing gerado · {new Date(criativo.html_briefing_gerado_em).toLocaleDateString("pt-BR")}
+              </Badge>
+            )}
+          </div>
         </DialogHeader>
         <Tabs defaultValue="conteudo">
           <TabsList>
@@ -1546,6 +1571,11 @@ function AbaBiblioteca() {
                   </p>
                   <div className="flex gap-2 pt-1">
                     <Button size="sm" variant="outline" onClick={() => setModal(c)}>Ver</Button>
+                    {c.html_briefing_url && (
+                      <Button size="sm" variant="outline" onClick={() => window.open(c.html_briefing_url, "_blank")}>
+                        <FileText className="h-3 w-3 mr-1" /> 📄 Ver Briefing
+                      </Button>
+                    )}
                     <Select value={c.status} onValueChange={(v) => setStatus(c.id, v)}>
                       <SelectTrigger className="h-8 flex-1"><SelectValue /></SelectTrigger>
                       <SelectContent>
