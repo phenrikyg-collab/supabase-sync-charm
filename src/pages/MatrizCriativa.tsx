@@ -67,6 +67,28 @@ const pilarLabel = (p: string) =>
 
 const FORMATOS = ["Reels", "Vídeo", "Imagem", "Story", "Carrossel"];
 
+const ANGULOS_OPCOES: { id: string; label: string }[] = [
+  { id: "dor", label: "Dor" },
+  { id: "beneficio", label: "Benefício" },
+  { id: "transformacao", label: "Transformação" },
+  { id: "prova", label: "Prova" },
+  { id: "comparacao", label: "Comparação" },
+  { id: "curiosidade", label: "Curiosidade" },
+  { id: "autoridade", label: "Autoridade" },
+  { id: "rotina", label: "Rotina" },
+  { id: "quebra_crenca", label: "Quebra de Crença" },
+];
+const ANGULOS_IDS = ANGULOS_OPCOES.map((a) => a.id);
+const anguloLabel = (id: string) => ANGULOS_OPCOES.find((a) => a.id === id)?.label ?? id;
+
+const PILARES_REMARKETING: { id: string; label: string; objecao: string }[] = [
+  { id: "prova_social", label: "🗣️ Prova Social (UGC)", objecao: "Não sei se funciona para mim" },
+  { id: "unboxing", label: "📦 Unboxing", objecao: "Não sei o que vou receber" },
+  { id: "bastidores", label: "🎬 Bastidores", objecao: "Não conheço essa marca" },
+  { id: "prova_tecnica", label: "🔬 Prova Técnica", objecao: "Não entendo como funciona" },
+  { id: "objecao_preco", label: "💰 Objeção Direta (Preço)", objecao: "É caro demais" },
+];
+
 const STATUS_COLORS: Record<string, string> = {
   rascunho: "bg-muted text-foreground",
   aprovado: "bg-blue-500 text-white",
@@ -182,10 +204,16 @@ function AbaGerar() {
   const [produtoManual, setProdutoManual] = useState("");
   const [usarManual, setUsarManual] = useState(false);
   const [personaId, setPersonaId] = useState<string>("");
+  const [tipoGeracao, setTipoGeracao] = useState<"video" | "imagens" | "remarketing" | "bateria" | "">("");
   const [tipoConteudo, setTipoConteudo] = useState<string>("");
-  const [tipoGeracao, setTipoGeracao] = useState<"video" | "imagens" | "">("");
+  const [estruturaNarrativa, setEstruturaNarrativa] = useState<string>("");
+  const [angulo, setAngulo] = useState<string>("");
+  const [pilarRemarketing, setPilarRemarketing] = useState<string>("");
+  const [formatoRemarketing, setFormatoRemarketing] = useState<string>("");
+  const [formatoBateria, setFormatoBateria] = useState<string>("");
 
   const [gerando, setGerando] = useState(false);
+  const [progresso, setProgresso] = useState<{ atual: number; total: number; label: string } | null>(null);
   const [resultado, setResultado] = useState<any[] | null>(null);
   const [modal, setModal] = useState<any | null>(null);
 
@@ -247,45 +275,113 @@ function AbaGerar() {
 
   async function gerar() {
     if (!personaId) return toast({ title: "Selecione a Persona", variant: "destructive" });
-    if (!tipoConteudo) return toast({ title: "Selecione o Tipo de Conteúdo", variant: "destructive" });
     if (!tipoGeracao) return toast({ title: "Escolha o que você quer gerar", variant: "destructive" });
+
+    const needsTipoConteudo = tipoGeracao === "video" || tipoGeracao === "imagens" || tipoGeracao === "bateria";
+    if (needsTipoConteudo && !tipoConteudo) return toast({ title: "Selecione o Tipo de Conteúdo", variant: "destructive" });
+    if (tipoGeracao === "video" && !estruturaNarrativa) return toast({ title: "Selecione a Estrutura Narrativa", variant: "destructive" });
+    if (tipoGeracao === "remarketing" && !pilarRemarketing) return toast({ title: "Selecione o Pilar de Remarketing", variant: "destructive" });
+    if (tipoGeracao === "remarketing" && !formatoRemarketing) return toast({ title: "Selecione o Formato", variant: "destructive" });
+    if (tipoGeracao === "bateria" && !formatoBateria) return toast({ title: "Selecione o Formato", variant: "destructive" });
+
     const produtoNome = usarManual
       ? produtoManual.trim()
       : produtoSelecionado?.nome_produto ?? "";
+    const tray_product_id = usarManual ? null : (produtoSelecionado?.product_id ?? null);
+    const base = {
+      produto_nome: produtoNome || null,
+      produto_id: null,
+      tray_product_id,
+      persona_id: personaId,
+    };
 
     setGerando(true);
     setResultado(null);
+    setProgresso(null);
     try {
-      const isVideo = tipoGeracao === "video";
-      const endpoint = isVideo
-        ? "https://ezdtulcrqzmgocamjwwl.supabase.co/functions/v1/gerar-criativo-video"
-        : "https://ezdtulcrqzmgocamjwwl.supabase.co/functions/v1/gerar-criativos-imagem";
-
-      const basePayload: any = {
-        produto_nome: produtoNome || null,
-        produto_id: null,
-        tray_product_id: usarManual ? null : (produtoSelecionado?.product_id ?? null),
-        persona_id: personaId,
-        tipo_conteudo: tipoConteudo,
-      };
-      if (!isVideo) basePayload.formato = "imagem";
-
-      const r = await fetch(endpoint, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(basePayload),
-      });
-      if (!r.ok) throw new Error(await r.text());
-      const data = await r.json();
-      const lista = isVideo
-        ? (data.criativo ? [data.criativo] : [])
-        : (data.criativos || []);
-      setResultado(lista);
-      toast({ title: isVideo ? "Roteiro gerado 💛" : `${lista.length} imagens geradas 💛` });
+      if (tipoGeracao === "video") {
+        const r = await fetch("https://ezdtulcrqzmgocamjwwl.supabase.co/functions/v1/gerar-criativo-video", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ...base, tipo_conteudo: tipoConteudo, estrutura_narrativa: estruturaNarrativa, angulo: angulo || null }),
+        });
+        if (!r.ok) throw new Error(await r.text());
+        const data = await r.json();
+        setResultado(data.criativo ? [data.criativo] : []);
+        toast({ title: "Roteiro gerado 💛" });
+      } else if (tipoGeracao === "imagens") {
+        const r = await fetch("https://ezdtulcrqzmgocamjwwl.supabase.co/functions/v1/gerar-criativos-imagem", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ...base, tipo_conteudo: tipoConteudo, formato: "imagem" }),
+        });
+        if (!r.ok) throw new Error(await r.text());
+        const data = await r.json();
+        const lista = data.criativos || [];
+        setResultado(lista);
+        toast({ title: `${lista.length} imagens geradas 💛` });
+      } else if (tipoGeracao === "remarketing") {
+        const r = await fetch("https://ezdtulcrqzmgocamjwwl.supabase.co/functions/v1/gerar-criativo-remarketing", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ...base, pilar_remarketing: pilarRemarketing, formato: formatoRemarketing }),
+        });
+        if (!r.ok) throw new Error(await r.text());
+        const data = await r.json();
+        const lista = data.criativo ? [data.criativo] : (data.criativos || []);
+        setResultado(lista);
+        toast({ title: "Remarketing gerado 💛" });
+      } else if (tipoGeracao === "bateria") {
+        const bateria_id = (crypto as any).randomUUID ? crypto.randomUUID() : String(Date.now());
+        const coletados: any[] = [];
+        const anguloCobertos: string[] = [];
+        for (let i = 0; i < ANGULOS_IDS.length; i++) {
+          const ang = ANGULOS_IDS[i];
+          setProgresso({ atual: i + 1, total: ANGULOS_IDS.length, label: anguloLabel(ang) });
+          const r = await fetch("https://ezdtulcrqzmgocamjwwl.supabase.co/functions/v1/gerar-bateria-angulo", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              ...base,
+              tipo_conteudo: tipoConteudo,
+              angulo: ang,
+              formato: formatoBateria,
+              bateria_id,
+            }),
+          });
+          if (!r.ok) {
+            console.error("Erro ângulo", ang, await r.text());
+            continue;
+          }
+          const data = await r.json();
+          const c = data.criativo || (Array.isArray(data.criativos) ? data.criativos[0] : null);
+          if (c) {
+            coletados.push({ ...c, angulo: c.angulo || ang });
+            anguloCobertos.push(ang);
+            setResultado([...coletados]);
+          }
+        }
+        try {
+          await sb.from("mc_baterias").insert({
+            id: bateria_id,
+            persona_id: personaId,
+            produto_nome: produtoNome || null,
+            tray_product_id,
+            tipo_conteudo: tipoConteudo,
+            formato: formatoBateria,
+            total: coletados.length,
+            angulos_cobertos: anguloCobertos,
+          });
+        } catch (e) {
+          console.warn("Falha ao registrar bateria", e);
+        }
+        toast({ title: `Bateria gerada: ${coletados.length}/${ANGULOS_IDS.length} ângulos 💛` });
+      }
     } catch (e: any) {
       toast({ title: "Erro ao gerar", description: e.message, variant: "destructive" });
     } finally {
       setGerando(false);
+      setProgresso(null);
     }
   }
 
@@ -434,33 +530,140 @@ function AbaGerar() {
             )}
           </div>
 
-          {/* Tipo de Conteúdo */}
-          <div className="space-y-2">
-            <Label>Tipo de Conteúdo *</Label>
-            <Select value={tipoConteudo} onValueChange={setTipoConteudo}>
-              <SelectTrigger><SelectValue placeholder="Selecione o tipo" /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="produto_direto">📦 Produto Direto</SelectItem>
-                <SelectItem value="cotidiano">🌸 Cotidiano da Persona</SelectItem>
-                <SelectItem value="universo_valores">💜 Universo & Valores</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
           {/* O que você quer gerar */}
           <div className="space-y-2">
             <Label>O que você quer gerar? *</Label>
-            <Select value={tipoGeracao} onValueChange={(v) => setTipoGeracao(v as any)}>
-              <SelectTrigger><SelectValue placeholder="Escolha um formato" /></SelectTrigger>
+            <Select
+              value={tipoGeracao}
+              onValueChange={(v) => {
+                setTipoGeracao(v as any);
+                setTipoConteudo("");
+                setEstruturaNarrativa("");
+                setAngulo("");
+                setPilarRemarketing("");
+                setFormatoRemarketing("");
+                setFormatoBateria("");
+              }}
+            >
+              <SelectTrigger><SelectValue placeholder="Escolha o que gerar" /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="video">🎬 Roteiro de Vídeo/Reels (1 roteiro completo e detalhado)</SelectItem>
-                <SelectItem value="imagens">🖼️ Pacote de 4 Imagens (4 variações com ângulos diferentes)</SelectItem>
+                <SelectItem value="video">🎬 Roteiro de Vídeo/Reels</SelectItem>
+                <SelectItem value="imagens">🖼️ Pacote de 4 Imagens</SelectItem>
+                <SelectItem value="remarketing">🔄 Remarketing</SelectItem>
+                <SelectItem value="bateria">🎯 Bateria Completa (9 ângulos)</SelectItem>
               </SelectContent>
             </Select>
           </div>
 
+          {/* Tipo de Conteúdo — condicional */}
+          {(tipoGeracao === "video" || tipoGeracao === "imagens" || tipoGeracao === "bateria") && (
+            <div className="space-y-2">
+              <Label>Tipo de Conteúdo *</Label>
+              <Select value={tipoConteudo} onValueChange={setTipoConteudo}>
+                <SelectTrigger><SelectValue placeholder="Selecione o tipo" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="produto_direto">📦 Produto Direto</SelectItem>
+                  <SelectItem value="cotidiano">🌸 Cotidiano da Persona</SelectItem>
+                  <SelectItem value="universo_valores">💜 Universo & Valores</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
+          {/* Vídeo: Estrutura Narrativa + Ângulo */}
+          {tipoGeracao === "video" && (
+            <>
+              <div className="space-y-2">
+                <Label>Estrutura Narrativa *</Label>
+                <Select value={estruturaNarrativa} onValueChange={setEstruturaNarrativa}>
+                  <SelectTrigger><SelectValue placeholder="Selecione a estrutura" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="dsb">DSB (Dor → Solução → Benefício) — padrão de conversão</SelectItem>
+                    <SelectItem value="full_funnel">Full Funnel — um criativo que percorre o funil completo</SelectItem>
+                    <SelectItem value="creator_ugc">Creator/UGC — linguagem de pessoa real</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Ângulo <span className="text-xs text-muted-foreground">(opcional)</span></Label>
+                <Select value={angulo || "__auto__"} onValueChange={(v) => setAngulo(v === "__auto__" ? "" : v)}>
+                  <SelectTrigger><SelectValue placeholder="A IA escolhe o melhor ângulo" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__auto__">— A IA escolhe —</SelectItem>
+                    {ANGULOS_OPCOES.map((a) => (
+                      <SelectItem key={a.id} value={a.id}>{a.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">Deixe em branco para a IA escolher o melhor ângulo</p>
+              </div>
+            </>
+          )}
+
+          {/* Remarketing: Pilar + Formato */}
+          {tipoGeracao === "remarketing" && (
+            <>
+              <div className="space-y-2">
+                <Label>Pilar de Remarketing *</Label>
+                <Select value={pilarRemarketing} onValueChange={setPilarRemarketing}>
+                  <SelectTrigger><SelectValue placeholder="Selecione o pilar" /></SelectTrigger>
+                  <SelectContent>
+                    {PILARES_REMARKETING.map((p) => (
+                      <SelectItem key={p.id} value={p.id}>{p.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {pilarRemarketing && (
+                  <p className="text-xs text-muted-foreground italic">
+                    Objeção: "{PILARES_REMARKETING.find((p) => p.id === pilarRemarketing)?.objecao}"
+                  </p>
+                )}
+              </div>
+              <div className="space-y-2">
+                <Label>Formato *</Label>
+                <Select value={formatoRemarketing} onValueChange={setFormatoRemarketing}>
+                  <SelectTrigger><SelectValue placeholder="Selecione o formato" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="video">Vídeo</SelectItem>
+                    <SelectItem value="imagem">Imagem</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </>
+          )}
+
+          {/* Bateria: Formato + aviso */}
+          {tipoGeracao === "bateria" && (
+            <>
+              <div className="space-y-2">
+                <Label>Formato *</Label>
+                <Select value={formatoBateria} onValueChange={setFormatoBateria}>
+                  <SelectTrigger><SelectValue placeholder="Selecione o formato" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="reels">Reels</SelectItem>
+                    <SelectItem value="imagem">Imagem</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="text-xs p-3 rounded-md bg-amber-50 text-amber-900 border border-amber-200">
+                ⚠️ Isso vai gerar 9 criativos, um para cada ângulo. Pode levar 2-3 minutos no total.
+              </div>
+            </>
+          )}
+
           <Button onClick={gerar} disabled={gerando} size="lg" className="w-full">
-            {gerando ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Gerando...</> : <><Sparkles className="h-4 w-4 mr-2" /> Gerar com IA</>}
+            {gerando ? (
+              <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Gerando...</>
+            ) : (
+              <>
+                <Sparkles className="h-4 w-4 mr-2" />
+                {tipoGeracao === "video" && "Gerar Roteiro com IA"}
+                {tipoGeracao === "imagens" && "Gerar 4 Imagens com IA"}
+                {tipoGeracao === "remarketing" && "Gerar Remarketing com IA"}
+                {tipoGeracao === "bateria" && "Gerar Bateria Completa"}
+                {!tipoGeracao && "Gerar com IA"}
+              </>
+            )}
           </Button>
         </CardContent>
       </Card>
@@ -471,9 +674,13 @@ function AbaGerar() {
           <Card><CardContent className="p-10 text-center space-y-3">
             <Loader2 className="h-8 w-8 animate-spin mx-auto text-primary" />
             <p className="text-sm text-muted-foreground">
-              {tipoGeracao === "video"
-                ? "Criando seu roteiro completo... (~20s)"
-                : "Gerando 4 variações de imagem... (~30s)"}
+              {tipoGeracao === "video" && "Criando seu roteiro completo... (~20s)"}
+              {tipoGeracao === "imagens" && "Gerando 4 variações de imagem... (~30s)"}
+              {tipoGeracao === "remarketing" && "Gerando criativo de remarketing... (~20s)"}
+              {tipoGeracao === "bateria" && progresso && (
+                <>Gerando ângulo {progresso.atual} de {progresso.total}: <strong>{progresso.label}</strong>...</>
+              )}
+              {tipoGeracao === "bateria" && !progresso && "Iniciando bateria completa..."}
             </p>
           </CardContent></Card>
         )}
@@ -485,11 +692,20 @@ function AbaGerar() {
         {!gerando && resultado && (
           <div className="space-y-4">
             <h2 className="font-serif text-xl">
-              {tipoGeracao === "video" ? "Roteiro gerado" : `${resultado.length} imagens geradas`}
+              {tipoGeracao === "video" && "Roteiro gerado"}
+              {tipoGeracao === "imagens" && `${resultado.length} imagens geradas`}
+              {tipoGeracao === "remarketing" && "Remarketing gerado"}
+              {tipoGeracao === "bateria" && `Bateria: ${resultado.length} ângulos`}
               {(produtoId || produtoManual) && <> · {usarManual ? produtoManual : produtoSelecionado?.nome_produto}</>}
               {persona && <> · {persona.nome}</>}
             </h2>
-            <div className={tipoGeracao === "video" ? "grid grid-cols-1 gap-4" : "grid grid-cols-1 md:grid-cols-2 gap-4"}>
+            <div className={
+              tipoGeracao === "video" || tipoGeracao === "remarketing"
+                ? "grid grid-cols-1 gap-4"
+                : tipoGeracao === "bateria"
+                  ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"
+                  : "grid grid-cols-1 md:grid-cols-2 gap-4"
+            }>
               {resultado.map((c, i) => (
                 <CriativoCard
                   key={c.id ?? i}
