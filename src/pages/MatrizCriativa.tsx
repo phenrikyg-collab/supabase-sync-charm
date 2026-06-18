@@ -177,11 +177,46 @@ function AbaGerar() {
     setFormatos((p) => (p.includes(f) ? p.filter((x) => x !== f) : [...p, f]));
   }
 
+  const produtoSelecionado = useMemo(
+    () => produtos.find((p) => String(p.product_id) === produtoId),
+    [produtos, produtoId]
+  );
+
+  const produtosAgrupados = useMemo(() => {
+    const ORDEM = [
+      "✨ Lançamentos",
+      "⭐ Best Sellers",
+      "👖 Calças — Skinny",
+      "👖 Calças — Flare",
+      "👖 Calças — Reta",
+      "👖 Calças — Pantalona",
+      "👚 Blusas",
+      "🩱 Body",
+      "🩳 Cropped",
+      "👗 Vestidos",
+      "🩲 Saia/Shorts",
+      "👔 Conjuntos",
+      "🦺 Macacões",
+      "🧥 Jaquetas",
+      "🛍️ Leve Mais Pague Menos",
+    ];
+    const map = new Map<string, any[]>();
+    for (const p of produtos) {
+      const k = p.categoria_display || p.categoria_nome || "Outros";
+      if (!map.has(k)) map.set(k, []);
+      map.get(k)!.push(p);
+    }
+    const ordered: { categoria: string; items: any[] }[] = [];
+    for (const c of ORDEM) if (map.has(c)) { ordered.push({ categoria: c, items: map.get(c)! }); map.delete(c); }
+    for (const [c, items] of map) ordered.push({ categoria: c, items });
+    return ordered;
+  }, [produtos]);
+
   async function gerar() {
     if (!personaId) return toast({ title: "Selecione a Persona", variant: "destructive" });
     const produtoNome = usarManual
       ? produtoManual.trim()
-      : produtos.find((p) => p.id === produtoId)?.nome ?? "";
+      : produtoSelecionado?.nome_produto ?? "";
     if (produtoObrigatorio && !produtoNome) {
       return toast({ title: "Selecione ou digite o Produto", variant: "destructive" });
     }
@@ -198,7 +233,8 @@ function AbaGerar() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             produto_nome: produtoNome || null,
-            produto_id: usarManual ? null : produtoId || null,
+            produto_id: null,
+            tray_product_id: usarManual ? null : (produtoSelecionado?.product_id ?? null),
             persona_id: personaId,
             pilares,
             formatos,
