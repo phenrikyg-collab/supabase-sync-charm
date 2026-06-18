@@ -66,28 +66,6 @@ const pilarLabel = (p: string) =>
   PILARES.find((x) => x.id === p)?.label ?? p;
 
 const FORMATOS = ["Reels", "Vídeo", "Imagem", "Story", "Carrossel"];
-const ETAPAS = ["Inconsciente", "Problema", "Solução", "Produto", "Compra"];
-
-const TIPOS_CONTEUDO = [
-  {
-    id: "produto_direto",
-    label: "📦 Produto Direto",
-    desc: "Ideal para conversão — quem já está considerando comprar",
-    requireProduto: true,
-  },
-  {
-    id: "cotidiano_persona",
-    label: "🌸 Cotidiano da Persona",
-    desc: "Ideal para descoberta — para quem ainda não conhece a marca",
-    requireProduto: false,
-  },
-  {
-    id: "universo_valores",
-    label: "💜 Universo & Valores",
-    desc: "Ideal para viralização — constrói identificação e pertencimento",
-    requireProduto: false,
-  },
-];
 
 const STATUS_COLORS: Record<string, string> = {
   rascunho: "bg-muted text-foreground",
@@ -138,8 +116,6 @@ function AbaGerar() {
   const [produtoManual, setProdutoManual] = useState("");
   const [usarManual, setUsarManual] = useState(false);
   const [personaId, setPersonaId] = useState<string>("");
-  const [tipoConteudo, setTipoConteudo] = useState<string>("");
-  const [formatos, setFormatos] = useState<string[]>([]);
 
   const [gerando, setGerando] = useState(false);
   const [resultado, setResultado] = useState<any[] | null>(null);
@@ -165,12 +141,6 @@ function AbaGerar() {
   }, []);
 
   const persona = useMemo(() => personas.find((x) => x.id === personaId), [personas, personaId]);
-  const tipo = useMemo(() => TIPOS_CONTEUDO.find((t) => t.id === tipoConteudo), [tipoConteudo]);
-  const produtoObrigatorio = tipo?.requireProduto ?? true;
-
-  function toggleFormato(f: string) {
-    setFormatos((p) => (p.includes(f) ? p.filter((x) => x !== f) : [...p, f]));
-  }
 
   const produtoSelecionado = useMemo(
     () => produtos.find((p) => String(p.product_id) === produtoId),
@@ -212,10 +182,6 @@ function AbaGerar() {
     const produtoNome = usarManual
       ? produtoManual.trim()
       : produtoSelecionado?.nome_produto ?? "";
-    if (produtoObrigatorio && !produtoNome) {
-      return toast({ title: "Selecione ou digite o Produto", variant: "destructive" });
-    }
-    if (formatos.length === 0) return toast({ title: "Escolha ao menos 1 formato", variant: "destructive" });
 
     setGerando(true);
     setResultado(null);
@@ -231,9 +197,9 @@ function AbaGerar() {
             tray_product_id: usarManual ? null : (produtoSelecionado?.product_id ?? null),
             persona_id: personaId,
             pilares: [],
-            formatos,
+            formatos: [],
             etapa_funil: null,
-            tipo_conteudo: tipoConteudo || null,
+            tipo_conteudo: null,
           }),
         }
       );
@@ -312,7 +278,7 @@ function AbaGerar() {
         <CardContent className="space-y-5">
           {/* Produto */}
           <div className="space-y-2">
-            <Label>Produto / Categoria {!produtoObrigatorio && <span className="text-xs text-muted-foreground">(opcional)</span>}</Label>
+            <Label>Produto / Categoria <span className="text-xs text-muted-foreground">(opcional)</span></Label>
             {!usarManual ? (
               <div className="flex items-start gap-2">
                 {produtoSelecionado?.imagem_url && (
@@ -329,13 +295,11 @@ function AbaGerar() {
                     else if (v === "__none__") { setProdutoId(""); }
                     else setProdutoId(v);
                   }}>
-                    <SelectTrigger>
-                      <SelectValue placeholder={produtoObrigatorio ? "Selecione um produto" : "Opcional — a IA vai usar o contexto da marca"} />
+                  <SelectTrigger>
+                      <SelectValue placeholder="Opcional — a IA vai usar o contexto da marca" />
                     </SelectTrigger>
                     <SelectContent className="max-h-[400px]">
-                      {!produtoObrigatorio && (
-                        <SelectItem value="__none__">— Sem produto específico —</SelectItem>
-                      )}
+                      <SelectItem value="__none__">— Sem produto específico —</SelectItem>
                       {produtosAgrupados.map((grupo) => (
                         <SelectGroup key={grupo.categoria}>
                           <SelectLabel className="text-xs font-semibold text-muted-foreground">{grupo.categoria}</SelectLabel>
@@ -360,7 +324,7 @@ function AbaGerar() {
             ) : (
               <div className="flex gap-2">
                 <Input
-                  placeholder={produtoObrigatorio ? "Nome do produto" : "Opcional"}
+                  placeholder="Opcional"
                   value={produtoManual}
                   onChange={(e) => setProdutoManual(e.target.value)}
                 />
@@ -394,37 +358,6 @@ function AbaGerar() {
               </Card>
             )}
           </div>
-
-          {/* Tipo de Conteúdo */}
-          <div className="space-y-2">
-            <Label>Tipo de Conteúdo</Label>
-            <Select value={tipoConteudo} onValueChange={setTipoConteudo}>
-              <SelectTrigger><SelectValue placeholder="Selecione o tipo" /></SelectTrigger>
-              <SelectContent>
-                {TIPOS_CONTEUDO.map((t) => (
-                  <SelectItem key={t.id} value={t.id}>{t.label}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            {tipo && (
-              <p className="text-xs text-muted-foreground italic">{tipo.desc}</p>
-            )}
-          </div>
-
-
-          {/* Formatos */}
-          <div className="space-y-2">
-            <Label>Formatos *</Label>
-            <div className="grid grid-cols-2 gap-1.5">
-              {FORMATOS.map((f) => (
-                <label key={f} className="flex items-center gap-2 cursor-pointer text-sm">
-                  <Checkbox checked={formatos.includes(f)} onCheckedChange={() => toggleFormato(f)} />
-                  <span>{f}</span>
-                </label>
-              ))}
-            </div>
-          </div>
-
 
           <Button onClick={gerar} disabled={gerando} size="lg" className="w-full">
             {gerando ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Gerando...</> : <><Sparkles className="h-4 w-4 mr-2" /> Gerar Criativos com IA</>}
