@@ -176,13 +176,17 @@ export default function MatrizCriativa() {
         </p>
       </div>
       <Tabs defaultValue="gerar">
-        <TabsList>
+        <TabsList className="flex-wrap h-auto">
           <TabsTrigger value="gerar">Gerar Criativos</TabsTrigger>
+          <TabsTrigger value="gerar-imagens">Gerar Imagens</TabsTrigger>
+          <TabsTrigger value="hospedagem">Hospedagem de Imagens</TabsTrigger>
           <TabsTrigger value="biblioteca">Biblioteca</TabsTrigger>
           <TabsTrigger value="personas">Personas</TabsTrigger>
           <TabsTrigger value="modelos">Modelos</TabsTrigger>
         </TabsList>
         <TabsContent value="gerar"><AbaGerar /></TabsContent>
+        <TabsContent value="gerar-imagens"><AbaGerarImagens /></TabsContent>
+        <TabsContent value="hospedagem"><AbaHospedagem /></TabsContent>
         <TabsContent value="biblioteca"><AbaBiblioteca /></TabsContent>
         <TabsContent value="personas"><AbaPersonas /></TabsContent>
         <TabsContent value="modelos"><AbaModelos /></TabsContent>
