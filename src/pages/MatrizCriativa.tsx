@@ -2228,3 +2228,476 @@ function AbaModelos() {
     </div>
   );
 }
+
+// ─────────────────────────────────────────────────────────────
+// ABA GERAR IMAGENS (pacote de 4 variações)
+// ─────────────────────────────────────────────────────────────
+function AbaGerarImagens() {
+  const { toast } = useToast();
+  const [produtos, setProdutos] = useState<any[]>([]);
+  const [personas, setPersonas] = useState<any[]>([]);
+  const [loadingDados, setLoadingDados] = useState(true);
+
+  const [produtoId, setProdutoId] = useState<string>("");
+  const [produtoManual, setProdutoManual] = useState("");
+  const [usarManual, setUsarManual] = useState(false);
+  const [personaId, setPersonaId] = useState<string>("");
+  const [tipoConteudo, setTipoConteudo] = useState<string>("");
+
+  const [gerando, setGerando] = useState(false);
+  const [resultado, setResultado] = useState<any[] | null>(null);
+  const [modal, setModal] = useState<any | null>(null);
+  const [regenerandoId, setRegenerandoId] = useState<string | null>(null);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const [p, ps] = await Promise.all([
+          sb.from("vw_produtos_matriz")
+            .select("product_id, nome_produto, preco, categoria_display, categoria_nome, imagem_url")
+            .order("categoria_display", { ascending: true }),
+          sb.from("mc_personas").select("*").eq("ativa", true).order("nome"),
+        ]);
+        setProdutos(p.data || []);
+        setPersonas(ps.data || []);
+      } catch {
+        toast({ title: "Erro ao carregar dados", variant: "destructive" });
+      } finally {
+        setLoadingDados(false);
+      }
+    })();
+  }, []);
+
+  const persona = useMemo(() => personas.find((x) => x.id === personaId), [personas, personaId]);
+  const produtoSelecionado = useMemo(
+    () => produtos.find((p) => String(p.product_id) === produtoId),
+    [produtos, produtoId]
+  );
+
+  const produtosAgrupados = useMemo(() => {
+    const map = new Map<string, any[]>();
+    for (const p of produtos) {
+      const k = p.categoria_display || p.categoria_nome || "Outros";
+      if (!map.has(k)) map.set(k, []);
+      map.get(k)!.push(p);
+    }
+    return Array.from(map.entries()).map(([categoria, items]) => ({ categoria, items }));
+  }, [produtos]);
+
+  async function gerar() {
+    if (!personaId) return toast({ title: "Selecione a Persona", variant: "destructive" });
+    if (!tipoConteudo) return toast({ title: "Selecione o Tipo de Conteúdo", variant: "destructive" });
+
+    const produtoNome = usarManual ? produtoManual.trim() : produtoSelecionado?.nome_produto ?? "";
+    const tray_product_id = usarManual ? null : (produtoSelecionado?.product_id ?? null);
+
+    setGerando(true);
+    setResultado(null);
+    try {
+      const r = await fetch("https://ezdtulcrqzmgocamjwwl.supabase.co/functions/v1/gerar-criativos-imagem", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          produto_nome: produtoNome || null,
+          produto_id: null,
+          tray_product_id,
+          persona_id: personaId,
+          tipo_conteudo: tipoConteudo,
+          formato: "imagem",
+        }),
+      });
+      if (!r.ok) throw new Error(await r.text());
+      const data = await r.json();
+      const lista = data.criativos || [];
+      setResultado(lista);
+      toast({ title: `${lista.length} imagens geradas 💛` });
+    } catch (e: any) {
+      toast({ title: "Erro ao gerar", description: e.message, variant: "destructive" });
+    } finally {
+      setGerando(false);
+    }
+  }
+
+  async function aprovar(id: string) {
+    const { error } = await sb.from("mc_criativos").update({ status: "aprovado" }).eq("id", id);
+    if (error) return toast({ title: "Erro ao aprovar", description: error.message, variant: "destructive" });
+    toast({ title: "Criativo aprovado!" });
+    setResultado((r) => r?.map((c) => (c.id === id ? { ...c, status: "aprovado" } : c)) ?? null);
+    setModal((m: any) => (m && m.id === id ? { ...m, status: "aprovado" } : m));
+  }
+  async function atualizarStatus(id: string, status: string) {
+    const { error } = await sb.from("mc_criativos").update({ status }).eq("id", id);
+    if (error) return toast({ title: "Erro", description: error.message, variant: "destructive" });
+    setResultado((r) => r?.map((c) => (c.id === id ? { ...c, status } : c)) ?? null);
+    setModal((m: any) => (m && m.id === id ? { ...m, status } : m));
+  }
+  async function excluir(id: string) {
+    const { error } = await sb.from("mc_criativos").delete().eq("id", id);
+    if (error) return toast({ title: "Erro", description: error.message, variant: "destructive" });
+    setResultado((r) => r?.filter((c) => c.id !== id) ?? null);
+    setModal((m: any) => (m && m.id === id ? null : m));
+  }
+  async function regenerar(c: any) {
+    if (!c?.id) return;
+    setRegenerandoId(c.id);
+    try {
+      const novo = await regerarCriativo(c);
+      if (!novo) throw new Error("Nada retornado");
+      setResultado((r) => r?.map((x) => (x.id === c.id ? novo : x)) ?? null);
+      setModal((m: any) => (m && m.id === c.id ? novo : m));
+      toast({ title: "Criativo regenerado" });
+    } catch (e: any) {
+      toast({ title: "Erro ao regenerar", description: e.message, variant: "destructive" });
+    } finally {
+      setRegenerandoId(null);
+    }
+  }
+
+  if (loadingDados) {
+    return (
+      <div className="grid grid-cols-1 lg:grid-cols-[380px_1fr] gap-6 mt-4">
+        <Skeleton className="h-[500px]" />
+        <Skeleton className="h-[500px]" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="grid grid-cols-1 lg:grid-cols-[380px_1fr] gap-6 mt-4">
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg">Configuração — Pacote de 4 Imagens</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-5">
+          <div className="space-y-2">
+            <Label>Produto / Categoria <span className="text-xs text-muted-foreground">(opcional)</span></Label>
+            {!usarManual ? (
+              <Select value={produtoId} onValueChange={(v) => {
+                if (v === "__manual__") { setUsarManual(true); setProdutoId(""); }
+                else if (v === "__none__") { setProdutoId(""); }
+                else setProdutoId(v);
+              }}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Opcional — a IA vai usar o contexto da marca" />
+                </SelectTrigger>
+                <SelectContent className="max-h-[400px]">
+                  <SelectItem value="__none__">— Sem produto específico —</SelectItem>
+                  {produtosAgrupados.map((grupo) => (
+                    <SelectGroup key={grupo.categoria}>
+                      <SelectLabel className="text-xs font-semibold text-muted-foreground">{grupo.categoria}</SelectLabel>
+                      {grupo.items.map((p) => (
+                        <SelectItem key={p.product_id} value={String(p.product_id)}>
+                          {p.nome_produto}
+                          {p.preco != null && ` — R$ ${Number(p.preco).toFixed(2).replace(".", ",")}`}
+                        </SelectItem>
+                      ))}
+                    </SelectGroup>
+                  ))}
+                  <SelectItem value="__manual__">✍️ Digitar produto manualmente</SelectItem>
+                </SelectContent>
+              </Select>
+            ) : (
+              <div className="flex gap-2">
+                <Input placeholder="Opcional" value={produtoManual} onChange={(e) => setProdutoManual(e.target.value)} />
+                <Button variant="outline" size="sm" onClick={() => { setUsarManual(false); setProdutoManual(""); }}>Voltar</Button>
+              </div>
+            )}
+          </div>
+
+          <div className="space-y-2">
+            <Label>Persona Alvo *</Label>
+            <Select value={personaId} onValueChange={setPersonaId}>
+              <SelectTrigger><SelectValue placeholder="Selecione a persona" /></SelectTrigger>
+              <SelectContent>
+                {personas.map((p) => (
+                  <SelectItem key={p.id} value={p.id}>{p.emoji} {p.nome} · {p.faixa_etaria}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {persona && (
+              <Card className="bg-muted/40 border-border/60">
+                <CardContent className="p-3 text-xs space-y-1.5">
+                  <p><span className="font-semibold">Motivação:</span> {persona.motivacao}</p>
+                  <p><span className="font-semibold">Objeção:</span> {persona.objecao}</p>
+                  <p className="italic text-primary">"{persona.mensagem_principal}"</p>
+                </CardContent>
+              </Card>
+            )}
+          </div>
+
+          <div className="space-y-2">
+            <Label>Tipo de Conteúdo *</Label>
+            <Select value={tipoConteudo} onValueChange={setTipoConteudo}>
+              <SelectTrigger><SelectValue placeholder="Selecione o tipo" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="produto_direto">📦 Produto Direto</SelectItem>
+                <SelectItem value="cotidiano">🌸 Cotidiano da Persona</SelectItem>
+                <SelectItem value="universo_valores">💜 Universo & Valores</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <Button onClick={gerar} disabled={gerando} size="lg" className="w-full">
+            {gerando ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Gerando...</> : <><Sparkles className="h-4 w-4 mr-2" /> Gerar 4 Imagens com IA</>}
+          </Button>
+        </CardContent>
+      </Card>
+
+      <div>
+        {gerando && (
+          <Card><CardContent className="p-10 text-center space-y-3">
+            <Loader2 className="h-8 w-8 animate-spin mx-auto text-primary" />
+            <p className="text-sm text-muted-foreground">Gerando 4 variações de imagem... (~30s)</p>
+          </CardContent></Card>
+        )}
+        {!gerando && !resultado && (
+          <Card><CardContent className="p-10 text-center text-muted-foreground text-sm">
+            Configure ao lado e clique em <strong>Gerar 4 Imagens com IA</strong>.
+          </CardContent></Card>
+        )}
+        {!gerando && resultado && (
+          <div className="space-y-4">
+            <h2 className="font-serif text-xl">
+              {resultado.length} imagens geradas
+              {persona && <> · {persona.nome}</>}
+            </h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {resultado.map((c, i) => (
+                <CriativoCard
+                  key={c.id ?? i}
+                  c={c}
+                  regenerando={regenerandoId === c.id}
+                  onOpen={() => setModal(c)}
+                  onAprovar={() => aprovar(c.id)}
+                  onRegenerar={() => regenerar(c)}
+                  onExcluir={() => excluir(c.id)}
+                  onBriefingUpdated={(id: string, updates: any) => {
+                    setResultado((r) => r?.map((x) => (x.id === id ? { ...x, ...updates } : x)) ?? null);
+                    setModal((m: any) => (m && m.id === id ? { ...m, ...updates } : m));
+                  }}
+                />
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+
+      <CriativoModal
+        criativo={modal}
+        onClose={() => setModal(null)}
+        regenerando={modal && regenerandoId === modal.id}
+        onAprovar={async () => { if (modal?.id) { await aprovar(modal.id); setModal(null); } }}
+        onEmProducao={async () => { if (modal?.id) await atualizarStatus(modal.id, "em_producao"); }}
+        onRegenerar={async () => { if (modal) await regenerar(modal); }}
+        onExcluir={async () => { if (modal?.id) { await excluir(modal.id); setModal(null); } }}
+        onBriefingUpdated={(id: string, updates: any) => {
+          setResultado((r) => r?.map((x) => (x.id === id ? { ...x, ...updates } : x)) ?? null);
+          setModal((m: any) => (m && m.id === id ? { ...m, ...updates } : m));
+        }}
+      />
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────
+// ABA HOSPEDAGEM DE IMAGENS
+// ─────────────────────────────────────────────────────────────
+const HOSPEDAGEM_BUCKET = "mc-imagens";
+
+function AbaHospedagem() {
+  const { toast } = useToast();
+  const [uploads, setUploads] = useState<{ name: string; url: string; created_at?: string; size?: number }[]>([]);
+  const [iaImagens, setIaImagens] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [uploading, setUploading] = useState(false);
+  const [tab, setTab] = useState<"uploads" | "ia">("uploads");
+
+  async function carregar() {
+    setLoading(true);
+    try {
+      const { data: files, error } = await sb.storage.from(HOSPEDAGEM_BUCKET).list("", {
+        limit: 500,
+        sortBy: { column: "created_at", order: "desc" },
+      });
+      if (error) throw error;
+      const items: { name: string; url: string; created_at?: string; size?: number }[] = [];
+      for (const f of (files || []) as any[]) {
+        if (!f.name || f.name.startsWith(".")) continue;
+        const { data: signed } = await sb.storage.from(HOSPEDAGEM_BUCKET).createSignedUrl(f.name, 60 * 60 * 24 * 7);
+        items.push({
+          name: f.name,
+          url: signed?.signedUrl || "",
+          created_at: f.created_at,
+          size: f.metadata?.size,
+        });
+      }
+      setUploads(items);
+
+      const { data: cs } = await sb
+        .from("mc_criativos")
+        .select("id, titulo, imagem_gerada_url, imagem_gerada_status, created_at, persona_id, produto_nome")
+        .not("imagem_gerada_url", "is", null)
+        .order("created_at", { ascending: false });
+      setIaImagens(cs || []);
+    } catch (e: any) {
+      toast({ title: "Erro ao carregar imagens", description: e.message, variant: "destructive" });
+    } finally {
+      setLoading(false);
+    }
+  }
+  useEffect(() => { carregar(); }, []);
+
+  async function handleUpload(files: FileList | null) {
+    if (!files || files.length === 0) return;
+    setUploading(true);
+    try {
+      for (const file of Array.from(files)) {
+        const ext = file.name.split(".").pop() || "jpg";
+        const safe = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
+        const path = `${Date.now()}_${Math.random().toString(36).slice(2, 8)}_${safe}`;
+        const { error } = await sb.storage.from(HOSPEDAGEM_BUCKET).upload(path, file, {
+          contentType: file.type || `image/${ext}`,
+          upsert: false,
+        });
+        if (error) throw error;
+      }
+      toast({ title: `${files.length} imagem(ns) enviada(s) 💛` });
+      await carregar();
+    } catch (e: any) {
+      toast({ title: "Erro no upload", description: e.message, variant: "destructive" });
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  async function copiarUrl(url: string) {
+    try {
+      await navigator.clipboard.writeText(url);
+      toast({ title: "URL copiada!" });
+    } catch {
+      toast({ title: "Não foi possível copiar", variant: "destructive" });
+    }
+  }
+
+  async function excluirUpload(name: string) {
+    const { error } = await sb.storage.from(HOSPEDAGEM_BUCKET).remove([name]);
+    if (error) return toast({ title: "Erro ao excluir", description: error.message, variant: "destructive" });
+    toast({ title: "Imagem removida" });
+    setUploads((u) => u.filter((x) => x.name !== name));
+  }
+
+  return (
+    <div className="space-y-4 mt-4">
+      <Card>
+        <CardContent className="p-4 flex flex-wrap items-center gap-3">
+          <Label
+            htmlFor="hospedagem-upload"
+            className="inline-flex items-center gap-2 cursor-pointer bg-primary text-primary-foreground hover:opacity-90 px-4 py-2 rounded-md text-sm font-medium"
+          >
+            {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+            {uploading ? "Enviando..." : "Enviar imagens"}
+          </Label>
+          <input
+            id="hospedagem-upload"
+            type="file"
+            accept="image/*"
+            multiple
+            className="hidden"
+            disabled={uploading}
+            onChange={(e) => { handleUpload(e.target.files); e.target.value = ""; }}
+          />
+          <p className="text-xs text-muted-foreground">
+            Hospede imagens de referência, fotos brutas ou imagens prontas para anúncios. URLs assinadas válidas por 7 dias.
+          </p>
+        </CardContent>
+      </Card>
+
+      <Tabs value={tab} onValueChange={(v) => setTab(v as any)}>
+        <TabsList>
+          <TabsTrigger value="uploads">📤 Uploads manuais ({uploads.length})</TabsTrigger>
+          <TabsTrigger value="ia">🤖 Geradas pela IA ({iaImagens.length})</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="uploads" className="mt-4">
+          {loading ? (
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              {[1, 2, 3, 4].map((i) => <Skeleton key={i} className="h-48" />)}
+            </div>
+          ) : uploads.length === 0 ? (
+            <Card><CardContent className="p-10 text-center text-sm text-muted-foreground">
+              Nenhuma imagem enviada ainda. Use o botão acima.
+            </CardContent></Card>
+          ) : (
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+              {uploads.map((img) => (
+                <Card key={img.name} className="overflow-hidden">
+                  <div className="aspect-square bg-muted overflow-hidden">
+                    <img src={img.url} alt={img.name} className="w-full h-full object-cover" loading="lazy" />
+                  </div>
+                  <CardContent className="p-3 space-y-2">
+                    <p className="text-[11px] text-muted-foreground truncate" title={img.name}>{img.name}</p>
+                    {img.created_at && (
+                      <p className="text-[10px] text-muted-foreground">
+                        {new Date(img.created_at).toLocaleDateString("pt-BR")}
+                      </p>
+                    )}
+                    <div className="flex flex-wrap gap-1">
+                      <Button size="sm" variant="outline" className="h-7 text-xs flex-1" onClick={() => copiarUrl(img.url)}>
+                        Copiar URL
+                      </Button>
+                      <Button size="sm" variant="outline" className="h-7 text-xs" asChild>
+                        <a href={img.url} target="_blank" rel="noreferrer">Abrir</a>
+                      </Button>
+                      <Button size="sm" variant="destructive" className="h-7 px-2" onClick={() => excluirUpload(img.name)}>
+                        <Trash2 className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+        </TabsContent>
+
+        <TabsContent value="ia" className="mt-4">
+          {loading ? (
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              {[1, 2, 3, 4].map((i) => <Skeleton key={i} className="h-48" />)}
+            </div>
+          ) : iaImagens.length === 0 ? (
+            <Card><CardContent className="p-10 text-center text-sm text-muted-foreground">
+              Nenhuma imagem gerada pela IA ainda. Gere imagens nos criativos da Biblioteca.
+            </CardContent></Card>
+          ) : (
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+              {iaImagens.map((c) => (
+                <Card key={c.id} className="overflow-hidden">
+                  <div className="aspect-square bg-muted overflow-hidden">
+                    <img src={c.imagem_gerada_url} alt={c.titulo} className="w-full h-full object-cover" loading="lazy" />
+                  </div>
+                  <CardContent className="p-3 space-y-2">
+                    <p className="text-xs font-medium line-clamp-1" title={c.titulo}>{c.titulo}</p>
+                    {c.produto_nome && <p className="text-[10px] text-muted-foreground line-clamp-1">{c.produto_nome}</p>}
+                    {c.created_at && (
+                      <p className="text-[10px] text-muted-foreground">
+                        {new Date(c.created_at).toLocaleDateString("pt-BR")}
+                      </p>
+                    )}
+                    <div className="flex flex-wrap gap-1">
+                      <Button size="sm" variant="outline" className="h-7 text-xs flex-1" onClick={() => copiarUrl(c.imagem_gerada_url)}>
+                        Copiar URL
+                      </Button>
+                      <Button size="sm" variant="outline" className="h-7 text-xs" asChild>
+                        <a href={c.imagem_gerada_url} target="_blank" rel="noreferrer">Abrir</a>
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+        </TabsContent>
+      </Tabs>
+    </div>
+  );
+}
