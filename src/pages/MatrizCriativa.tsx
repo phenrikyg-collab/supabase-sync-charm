@@ -552,7 +552,6 @@ function AbaGerar() {
               <SelectTrigger><SelectValue placeholder="Escolha o que gerar" /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="video">🎬 Roteiro de Vídeo/Reels</SelectItem>
-                <SelectItem value="imagens">🖼️ Pacote de 4 Imagens</SelectItem>
                 <SelectItem value="remarketing">🔄 Remarketing</SelectItem>
                 <SelectItem value="bateria">🎯 Bateria Completa (9 ângulos)</SelectItem>
               </SelectContent>
