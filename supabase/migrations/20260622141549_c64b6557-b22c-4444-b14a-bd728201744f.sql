@@ -1,0 +1,1 @@
+CREATE POLICY "mc_imagens_authenticated_all" ON storage.objects FOR ALL TO authenticated USING (bucket_id = 'mc-imagens') WITH CHECK (bucket_id = 'mc-imagens');
