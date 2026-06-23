@@ -185,9 +185,14 @@ export default function Marketing() {
       .sort((a, b) => a.date.localeCompare(b.date));
   }, [metaAds]);
 
+  // ===== Constantes de eficiência =====
+  const MARGEM_BRUTA = 0.5;
+  const ROAS_EQUILIBRIO = 2.0;
+  const ROAS_SAUDAVEL = 4.0;
+  const TICKET_MEDIO = 320;
+
   const metaAdsCampanhas = useMemo(() => {
     const map = new Map<string, any>();
-    // Iterate from newest first so first occurrence keeps "most recent" rate values
     for (const r of metaAds) {
       const key = r.campaign || "—";
       const cur =
@@ -198,18 +203,20 @@ export default function Marketing() {
           add_to_cart: 0,
           checkout: 0,
           video_view: 0,
+          receita_atribuida: 0,
           cpc_latest: null as number | null,
           ctr_latest: null as number | null,
-          roas_latest: null as number | null,
         };
-      cur.spend += num(r.spend);
+      const sp = num(r.spend);
+      const ro = num(r.purchase_roas);
+      cur.spend += sp;
       cur.clicks += num(r.clicks);
       cur.add_to_cart += num(r.actions_add_to_cart);
       cur.checkout += num(r.actions_initiate_checkout);
       cur.video_view += num(r.actions_video_view);
+      cur.receita_atribuida += sp * ro;
       if (cur.cpc_latest === null && r.cpc != null) cur.cpc_latest = num(r.cpc);
       if (cur.ctr_latest === null && r.ctr != null) cur.ctr_latest = num(r.ctr);
-      if (cur.roas_latest === null && r.purchase_roas != null) cur.roas_latest = num(r.purchase_roas);
       map.set(key, cur);
     }
     return [...map.values()]
@@ -217,40 +224,32 @@ export default function Marketing() {
         ...r,
         cpc: r.clicks > 0 ? r.spend / r.clicks : r.cpc_latest || 0,
         ctr: r.ctr_latest ?? 0,
-        roas: r.roas_latest ?? 0,
+        roas: r.spend > 0 ? r.receita_atribuida / r.spend : 0,
+        compras_estimadas: Math.round(r.receita_atribuida / TICKET_MEDIO),
       }))
       .sort((a, b) => b.spend - a.spend);
   }, [metaAds]);
 
   // ===== Matriz de Eficiência de Campanhas =====
-  const MARGEM_BRUTA = 0.5;
-  const ROAS_EQUILIBRIO = 100 / (MARGEM_BRUTA * 100); // 2.0
-  const ROAS_SAUDAVEL = ROAS_EQUILIBRIO * 2; // 4.0
-
   const matrizCampanhas = useMemo(() => {
-    const map = new Map<string, { campaign: string; spend: number; clicks: number; spendRoas: number }>();
-    for (const r of metaAds) {
-      const key = r.campaign || "—";
-      const sp = num(r.spend);
-      const cl = num(r.clicks);
-      const ro = num(r.purchase_roas);
-      const cur = map.get(key) || { campaign: key, spend: 0, clicks: 0, spendRoas: 0 };
-      cur.spend += sp;
-      cur.clicks += cl;
-      cur.spendRoas += sp * ro;
-      map.set(key, cur);
-    }
-    const arr = [...map.values()].map((r) => ({
-      campaign: r.campaign,
-      spend: r.spend,
-      clicks: r.clicks,
-      roas: r.spend > 0 ? r.spendRoas / r.spend : 0,
+    const todas = metaAdsCampanhas.map((c) => ({
+      campaign: c.campaign,
+      spend: c.spend,
+      clicks: c.clicks,
+      roas: c.roas,
+      receita_atribuida: c.receita_atribuida,
     }));
-    const clicksOrdenados = [...arr.map((a) => a.clicks)].sort((a, b) => a - b);
+    const semAtribuicao = todas.filter((c) => c.roas === 0);
+    const comAtribuicao = todas.filter((c) => c.roas > 0);
+
+    const clicksOrdenados = [...comAtribuicao.map((a) => a.clicks)].sort((a, b) => a - b);
     let mediana = 0;
     if (clicksOrdenados.length) {
       const m = Math.floor(clicksOrdenados.length / 2);
-      mediana = clicksOrdenados.length % 2 === 0 ? (clicksOrdenados[m - 1] + clicksOrdenados[m]) / 2 : clicksOrdenados[m];
+      mediana =
+        clicksOrdenados.length % 2 === 0
+          ? (clicksOrdenados[m - 1] + clicksOrdenados[m]) / 2
+          : clicksOrdenados[m];
     }
     const classify = (roas: number, clicks: number) => {
       if (roas >= ROAS_SAUDAVEL && clicks >= mediana) return "estrelas";
@@ -258,14 +257,15 @@ export default function Marketing() {
       if (roas < ROAS_SAUDAVEL && clicks >= mediana) return "corrigir";
       return "observar";
     };
-    const spendMax = Math.max(...arr.map((a) => a.spend), 1);
-    const dados = arr.map((a) => ({
+    const spendMax = Math.max(...comAtribuicao.map((a) => a.spend), 1);
+    const dados = comAtribuicao.map((a) => ({
       ...a,
       classificacao: classify(a.roas, a.clicks),
       tamanho: 8 + (a.spend / spendMax) * 16,
     }));
-    return { dados, mediana };
-  }, [metaAds]);
+    return { dados, mediana, semAtribuicao };
+  }, [metaAdsCampanhas]);
+
 
   const QUADRANTES: Record<string, { label: string; emoji: string; color: string; acao: string }> = {
     estrelas: { label: "Estrelas", emoji: "⭐", color: "#22c55e", acao: "🟢 Manter e escalar com segurança" },
