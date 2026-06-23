@@ -961,7 +961,162 @@ export default function Marketing() {
                   </Table>
                 </CardContent>
               </Card>
+
+              {/* Matriz de Eficiência de Campanhas */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Matriz de Eficiência de Campanhas</CardTitle>
+                  <p className="text-sm text-muted-foreground">
+                    ROAS de Equilíbrio: 2,0x · ROAS Saudável: 4,0x · Margem Bruta: 50%
+                  </p>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  {/* Cards de resumo */}
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    {(["estrelas", "escalar", "corrigir", "observar"] as const).map((k) => {
+                      const q = QUADRANTES[k];
+                      const n = matrizCampanhas.dados.filter((d) => d.classificacao === k).length;
+                      return (
+                        <div
+                          key={k}
+                          className="rounded-lg border p-4"
+                          style={{ borderColor: q.color, backgroundColor: `${q.color}10` }}
+                        >
+                          <div className="text-sm font-medium" style={{ color: q.color }}>
+                            {q.emoji} {q.label}
+                          </div>
+                          <div className="text-2xl font-bold mt-1">{n}</div>
+                          <div className="text-xs text-muted-foreground">campanhas</div>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {/* Scatter Chart */}
+                  <div className="h-[480px] relative">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <ScatterChart margin={{ top: 30, right: 40, bottom: 50, left: 50 }}>
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis
+                          type="number"
+                          dataKey="clicks"
+                          name="Cliques"
+                          label={{ value: "Volume (Cliques)", position: "insideBottom", offset: -10 }}
+                        />
+                        <YAxis
+                          type="number"
+                          dataKey="roas"
+                          name="ROAS"
+                          label={{ value: "ROAS", angle: -90, position: "insideLeft" }}
+                        />
+                        <ZAxis type="number" dataKey="tamanho" range={[64, 576]} />
+                        <Tooltip
+                          cursor={{ strokeDasharray: "3 3" }}
+                          content={({ active, payload }) => {
+                            if (!active || !payload?.length) return null;
+                            const d: any = payload[0].payload;
+                            const q = QUADRANTES[d.classificacao];
+                            return (
+                              <div className="rounded-md border bg-background p-3 shadow-md text-xs space-y-1">
+                                <div className="font-medium max-w-[280px] truncate">{d.campaign}</div>
+                                <div>ROAS: <span className="font-medium">{d.roas.toFixed(2)}x</span></div>
+                                <div>Cliques: <span className="font-medium">{fmtInt(d.clicks)}</span></div>
+                                <div>Investimento: <span className="font-medium">{fmtBRL(d.spend)}</span></div>
+                                <div style={{ color: q.color }}>{q.emoji} {q.label}</div>
+                              </div>
+                            );
+                          }}
+                        />
+                        <ReferenceLine
+                          y={ROAS_SAUDAVEL}
+                          stroke="#22c55e"
+                          strokeDasharray="5 5"
+                          label={{ value: "ROAS Saudável 4x", position: "insideTopRight", fill: "#22c55e", fontSize: 11 }}
+                        />
+                        <ReferenceLine
+                          y={ROAS_EQUILIBRIO}
+                          stroke="#ef4444"
+                          strokeDasharray="5 5"
+                          label={{ value: "Equilíbrio 2x", position: "insideTopRight", fill: "#ef4444", fontSize: 11 }}
+                        />
+                        <ReferenceLine
+                          x={matrizCampanhas.mediana}
+                          stroke="#6b7280"
+                          strokeDasharray="5 5"
+                          label={{ value: "Volume médio", position: "top", fill: "#6b7280", fontSize: 11 }}
+                        />
+                        <Scatter data={matrizCampanhas.dados}>
+                          {matrizCampanhas.dados.map((d, i) => (
+                            <Cell key={i} fill={QUADRANTES[d.classificacao].color} />
+                          ))}
+                        </Scatter>
+                      </ScatterChart>
+                    </ResponsiveContainer>
+                    {/* Labels dos quadrantes */}
+                    <div className="pointer-events-none absolute top-2 right-4 text-xs font-medium" style={{ color: "#22c55e" }}>⭐ Estrelas</div>
+                    <div className="pointer-events-none absolute top-2 left-16 text-xs font-medium" style={{ color: "#3b82f6" }}>📈 Escalar</div>
+                    <div className="pointer-events-none absolute bottom-12 right-4 text-xs font-medium" style={{ color: "#ef4444" }}>❗ Corrigir</div>
+                    <div className="pointer-events-none absolute bottom-12 left-16 text-xs font-medium" style={{ color: "#6b7280" }}>👁 Observar</div>
+                  </div>
+
+                  {/* Tabela de Ação */}
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Campanha</TableHead>
+                          <TableHead>Classificação</TableHead>
+                          <TableHead className="text-right">Investimento</TableHead>
+                          <TableHead className="text-right">Cliques</TableHead>
+                          <TableHead className="text-right">ROAS</TableHead>
+                          <TableHead>Ação Recomendada</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {[...matrizCampanhas.dados].sort((a, b) => b.roas - a.roas).map((d) => {
+                          const q = QUADRANTES[d.classificacao];
+                          return (
+                            <TableRow key={d.campaign}>
+                              <TableCell className="font-medium max-w-[280px] truncate">{d.campaign}</TableCell>
+                              <TableCell>
+                                <span
+                                  className="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium"
+                                  style={{ backgroundColor: `${q.color}20`, color: q.color }}
+                                >
+                                  {q.emoji} {q.label}
+                                </span>
+                              </TableCell>
+                              <TableCell className="text-right">{fmtBRL(d.spend)}</TableCell>
+                              <TableCell className="text-right">{fmtInt(d.clicks)}</TableCell>
+                              <TableCell className="text-right">{d.roas.toFixed(2)}x</TableCell>
+                              <TableCell className="text-sm">{q.acao}</TableCell>
+                            </TableRow>
+                          );
+                        })}
+                        {matrizCampanhas.dados.length > 0 && (() => {
+                          const totSpend = matrizCampanhas.dados.reduce((a, d) => a + d.spend, 0);
+                          const totClicks = matrizCampanhas.dados.reduce((a, d) => a + d.clicks, 0);
+                          const totRoas = totSpend > 0
+                            ? matrizCampanhas.dados.reduce((a, d) => a + d.spend * d.roas, 0) / totSpend
+                            : 0;
+                          return (
+                            <TableRow className="font-semibold bg-muted/50">
+                              <TableCell>Total</TableCell>
+                              <TableCell></TableCell>
+                              <TableCell className="text-right">{fmtBRL(totSpend)}</TableCell>
+                              <TableCell className="text-right">{fmtInt(totClicks)}</TableCell>
+                              <TableCell className="text-right">{totRoas.toFixed(2)}x</TableCell>
+                              <TableCell></TableCell>
+                            </TableRow>
+                          );
+                        })()}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </CardContent>
+              </Card>
             </>
+
           )}
         </TabsContent>
       </Tabs>
