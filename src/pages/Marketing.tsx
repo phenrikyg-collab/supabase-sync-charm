@@ -222,6 +222,60 @@ export default function Marketing() {
       .sort((a, b) => b.spend - a.spend);
   }, [metaAds]);
 
+  // ===== Matriz de Eficiência de Campanhas =====
+  const MARGEM_BRUTA = 0.5;
+  const ROAS_EQUILIBRIO = 100 / (MARGEM_BRUTA * 100); // 2.0
+  const ROAS_SAUDAVEL = ROAS_EQUILIBRIO * 2; // 4.0
+
+  const matrizCampanhas = useMemo(() => {
+    const map = new Map<string, { campaign: string; spend: number; clicks: number; spendRoas: number }>();
+    for (const r of metaAds) {
+      const key = r.campaign || "—";
+      const sp = num(r.spend);
+      const cl = num(r.clicks);
+      const ro = num(r.purchase_roas);
+      const cur = map.get(key) || { campaign: key, spend: 0, clicks: 0, spendRoas: 0 };
+      cur.spend += sp;
+      cur.clicks += cl;
+      cur.spendRoas += sp * ro;
+      map.set(key, cur);
+    }
+    const arr = [...map.values()].map((r) => ({
+      campaign: r.campaign,
+      spend: r.spend,
+      clicks: r.clicks,
+      roas: r.spend > 0 ? r.spendRoas / r.spend : 0,
+    }));
+    const clicksOrdenados = [...arr.map((a) => a.clicks)].sort((a, b) => a - b);
+    let mediana = 0;
+    if (clicksOrdenados.length) {
+      const m = Math.floor(clicksOrdenados.length / 2);
+      mediana = clicksOrdenados.length % 2 === 0 ? (clicksOrdenados[m - 1] + clicksOrdenados[m]) / 2 : clicksOrdenados[m];
+    }
+    const classify = (roas: number, clicks: number) => {
+      if (roas >= ROAS_SAUDAVEL && clicks >= mediana) return "estrelas";
+      if (roas >= ROAS_SAUDAVEL && clicks < mediana) return "escalar";
+      if (roas < ROAS_SAUDAVEL && clicks >= mediana) return "corrigir";
+      return "observar";
+    };
+    const spendMax = Math.max(...arr.map((a) => a.spend), 1);
+    const dados = arr.map((a) => ({
+      ...a,
+      classificacao: classify(a.roas, a.clicks),
+      tamanho: 8 + (a.spend / spendMax) * 16,
+    }));
+    return { dados, mediana };
+  }, [metaAds]);
+
+  const QUADRANTES: Record<string, { label: string; emoji: string; color: string; acao: string }> = {
+    estrelas: { label: "Estrelas", emoji: "⭐", color: "#22c55e", acao: "🟢 Manter e escalar com segurança" },
+    escalar: { label: "Escalar", emoji: "📈", color: "#3b82f6", acao: "🟢 Aumentar verba — alta eficiência subexposta" },
+    corrigir: { label: "Corrigir", emoji: "❗", color: "#ef4444", acao: "🔴 Revisar criativos ou página antes de escalar" },
+    observar: { label: "Observar", emoji: "👁", color: "#6b7280", acao: "⚫ Aguardar mais dados ou pausar" },
+  };
+
+
+
   const roasBadgeVariant = (roas: number): "default" | "secondary" | "destructive" => {
     if (roas >= 4) return "default";
     if (roas >= 2) return "secondary";
