@@ -77,6 +77,15 @@ export default function CadastroTecidos() {
 
     try {
       if (editingId) {
+        console.log('Editando tecido:', {
+          id: editingId,
+          payload: {
+            nome_tecido: form.nome_tecido,
+            custo_por_metro: Number(form.custo_por_metro),
+            fornecedor: form.fornecedor,
+            rendimento_metro_por_kg: Number(form.rendimento_metro_por_kg)
+          }
+        });
         await updateMut.mutateAsync({ id: editingId, ...payload });
         toast.success("Tecido atualizado!");
       } else {
