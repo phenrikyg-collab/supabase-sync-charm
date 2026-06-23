@@ -1079,6 +1079,12 @@ export default function Marketing() {
                     <div className="pointer-events-none absolute bottom-12 left-16 text-xs font-medium" style={{ color: "#6b7280" }}>👁 Observar</div>
                   </div>
 
+                  {matrizCampanhas.semAtribuicao.length > 0 && (
+                    <p className="text-xs text-muted-foreground italic">
+                      * {matrizCampanhas.semAtribuicao.length} campanha{matrizCampanhas.semAtribuicao.length > 1 ? "s" : ""} sem atribuição de conversão (Leads/Engajamento) foram excluídas da matriz.
+                    </p>
+                  )}
+
                   {/* Tabela de Ação */}
                   <div className="overflow-x-auto">
                     <Table>
@@ -1121,7 +1127,7 @@ export default function Marketing() {
                             : 0;
                           return (
                             <TableRow className="font-semibold bg-muted/50">
-                              <TableCell>Total</TableCell>
+                              <TableCell>Subtotal (com atribuição)</TableCell>
                               <TableCell></TableCell>
                               <TableCell className="text-right">{fmtBRL(totSpend)}</TableCell>
                               <TableCell className="text-right">{fmtInt(totClicks)}</TableCell>
@@ -1130,9 +1136,37 @@ export default function Marketing() {
                             </TableRow>
                           );
                         })()}
+
+                        {matrizCampanhas.semAtribuicao.length > 0 && (
+                          <>
+                            <TableRow className="bg-muted/30">
+                              <TableCell colSpan={6} className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                                Campanhas sem atribuição de conversão
+                              </TableCell>
+                            </TableRow>
+                            {[...matrizCampanhas.semAtribuicao].sort((a, b) => b.spend - a.spend).map((d) => (
+                              <TableRow key={`sem-${d.campaign}`}>
+                                <TableCell className="font-medium max-w-[280px] truncate">{d.campaign}</TableCell>
+                                <TableCell>
+                                  <span
+                                    className="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium"
+                                    style={{ backgroundColor: "#6b728020", color: "#6b7280" }}
+                                  >
+                                    Sem atrib.
+                                  </span>
+                                </TableCell>
+                                <TableCell className="text-right">{fmtBRL(d.spend)}</TableCell>
+                                <TableCell className="text-right">{fmtInt(d.clicks)}</TableCell>
+                                <TableCell className="text-right">—</TableCell>
+                                <TableCell className="text-sm">⚪ Objetivo de topo de funil — avaliar custo por lead/engajamento separadamente</TableCell>
+                              </TableRow>
+                            ))}
+                          </>
+                        )}
                       </TableBody>
                     </Table>
                   </div>
+
                 </CardContent>
               </Card>
             </>
