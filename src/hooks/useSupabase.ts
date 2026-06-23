@@ -159,9 +159,8 @@ export const useUpdateTecido = () => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ id, ...updates }: Partial<Tecido> & { id: string }) => {
-      const { data, error } = await supabase.from("tecidos").update(updates).eq("id", id).select().single();
+      const { error } = await supabase.from("tecidos").update(updates).eq("id", id);
       if (error) throw error;
-      return data as Tecido;
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["tecidos"] }),
   });
