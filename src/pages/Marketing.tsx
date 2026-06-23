@@ -185,9 +185,14 @@ export default function Marketing() {
       .sort((a, b) => a.date.localeCompare(b.date));
   }, [metaAds]);
 
+  // ===== Constantes de eficiência =====
+  const MARGEM_BRUTA = 0.5;
+  const ROAS_EQUILIBRIO = 2.0;
+  const ROAS_SAUDAVEL = 4.0;
+  const TICKET_MEDIO = 320;
+
   const metaAdsCampanhas = useMemo(() => {
     const map = new Map<string, any>();
-    // Iterate from newest first so first occurrence keeps "most recent" rate values
     for (const r of metaAds) {
       const key = r.campaign || "—";
       const cur =
@@ -198,18 +203,20 @@ export default function Marketing() {
           add_to_cart: 0,
           checkout: 0,
           video_view: 0,
+          receita_atribuida: 0,
           cpc_latest: null as number | null,
           ctr_latest: null as number | null,
-          roas_latest: null as number | null,
         };
-      cur.spend += num(r.spend);
+      const sp = num(r.spend);
+      const ro = num(r.purchase_roas);
+      cur.spend += sp;
       cur.clicks += num(r.clicks);
       cur.add_to_cart += num(r.actions_add_to_cart);
       cur.checkout += num(r.actions_initiate_checkout);
       cur.video_view += num(r.actions_video_view);
+      cur.receita_atribuida += sp * ro;
       if (cur.cpc_latest === null && r.cpc != null) cur.cpc_latest = num(r.cpc);
       if (cur.ctr_latest === null && r.ctr != null) cur.ctr_latest = num(r.ctr);
-      if (cur.roas_latest === null && r.purchase_roas != null) cur.roas_latest = num(r.purchase_roas);
       map.set(key, cur);
     }
     return [...map.values()]
@@ -217,40 +224,32 @@ export default function Marketing() {
         ...r,
         cpc: r.clicks > 0 ? r.spend / r.clicks : r.cpc_latest || 0,
         ctr: r.ctr_latest ?? 0,
-        roas: r.roas_latest ?? 0,
+        roas: r.spend > 0 ? r.receita_atribuida / r.spend : 0,
+        compras_estimadas: Math.round(r.receita_atribuida / TICKET_MEDIO),
       }))
       .sort((a, b) => b.spend - a.spend);
   }, [metaAds]);
 
   // ===== Matriz de Eficiência de Campanhas =====
-  const MARGEM_BRUTA = 0.5;
-  const ROAS_EQUILIBRIO = 100 / (MARGEM_BRUTA * 100); // 2.0
-  const ROAS_SAUDAVEL = ROAS_EQUILIBRIO * 2; // 4.0
-
   const matrizCampanhas = useMemo(() => {
-    const map = new Map<string, { campaign: string; spend: number; clicks: number; spendRoas: number }>();
-    for (const r of metaAds) {
-      const key = r.campaign || "—";
-      const sp = num(r.spend);
-      const cl = num(r.clicks);
-      const ro = num(r.purchase_roas);
-      const cur = map.get(key) || { campaign: key, spend: 0, clicks: 0, spendRoas: 0 };
-      cur.spend += sp;
-      cur.clicks += cl;
-      cur.spendRoas += sp * ro;
-      map.set(key, cur);
-    }
-    const arr = [...map.values()].map((r) => ({
-      campaign: r.campaign,
-      spend: r.spend,
-      clicks: r.clicks,
-      roas: r.spend > 0 ? r.spendRoas / r.spend : 0,
+    const todas = metaAdsCampanhas.map((c) => ({
+      campaign: c.campaign,
+      spend: c.spend,
+      clicks: c.clicks,
+      roas: c.roas,
+      receita_atribuida: c.receita_atribuida,
     }));
-    const clicksOrdenados = [...arr.map((a) => a.clicks)].sort((a, b) => a - b);
+    const semAtribuicao = todas.filter((c) => c.roas === 0);
+    const comAtribuicao = todas.filter((c) => c.roas > 0);
+
+    const clicksOrdenados = [...comAtribuicao.map((a) => a.clicks)].sort((a, b) => a - b);
     let mediana = 0;
     if (clicksOrdenados.length) {
       const m = Math.floor(clicksOrdenados.length / 2);
-      mediana = clicksOrdenados.length % 2 === 0 ? (clicksOrdenados[m - 1] + clicksOrdenados[m]) / 2 : clicksOrdenados[m];
+      mediana =
+        clicksOrdenados.length % 2 === 0
+          ? (clicksOrdenados[m - 1] + clicksOrdenados[m]) / 2
+          : clicksOrdenados[m];
     }
     const classify = (roas: number, clicks: number) => {
       if (roas >= ROAS_SAUDAVEL && clicks >= mediana) return "estrelas";
@@ -258,14 +257,15 @@ export default function Marketing() {
       if (roas < ROAS_SAUDAVEL && clicks >= mediana) return "corrigir";
       return "observar";
     };
-    const spendMax = Math.max(...arr.map((a) => a.spend), 1);
-    const dados = arr.map((a) => ({
+    const spendMax = Math.max(...comAtribuicao.map((a) => a.spend), 1);
+    const dados = comAtribuicao.map((a) => ({
       ...a,
       classificacao: classify(a.roas, a.clicks),
       tamanho: 8 + (a.spend / spendMax) * 16,
     }));
-    return { dados, mediana };
-  }, [metaAds]);
+    return { dados, mediana, semAtribuicao };
+  }, [metaAdsCampanhas]);
+
 
   const QUADRANTES: Record<string, { label: string; emoji: string; color: string; acao: string }> = {
     estrelas: { label: "Estrelas", emoji: "⭐", color: "#22c55e", acao: "🟢 Manter e escalar com segurança" },
@@ -940,23 +940,43 @@ export default function Marketing() {
                         <TableHead className="text-right">ROAS</TableHead>
                         <TableHead className="text-right">Add to Cart</TableHead>
                         <TableHead className="text-right">Checkout</TableHead>
+                        <TableHead className="text-right">Valor de Compras</TableHead>
+                        <TableHead className="text-right">Compras Est.</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {metaAdsCampanhas.map((r) => (
-                        <TableRow key={r.campaign}>
-                          <TableCell className="font-medium max-w-[320px] truncate">{r.campaign}</TableCell>
-                          <TableCell className="text-right">{fmtBRL(r.spend)}</TableCell>
-                          <TableCell className="text-right">{fmtInt(r.clicks)}</TableCell>
-                          <TableCell className="text-right">{fmtBRL(r.cpc)}</TableCell>
-                          <TableCell className="text-right">{(r.ctr || 0).toFixed(2)}%</TableCell>
-                          <TableCell className="text-right">
-                            <Badge variant={roasBadgeVariant(r.roas)}>{(r.roas || 0).toFixed(1)}x</Badge>
-                          </TableCell>
-                          <TableCell className="text-right">{fmtInt(r.add_to_cart)}</TableCell>
-                          <TableCell className="text-right">{fmtInt(r.checkout)}</TableCell>
-                        </TableRow>
-                      ))}
+                      {metaAdsCampanhas.map((r) => {
+                        const roasColor =
+                          r.roas === 0
+                            ? { bg: "#6b728020", fg: "#6b7280", label: "Sem atrib." }
+                            : r.roas >= 4
+                            ? { bg: "#22c55e20", fg: "#16a34a", label: `${r.roas.toFixed(1)}x` }
+                            : r.roas >= 2
+                            ? { bg: "#eab30820", fg: "#a16207", label: `${r.roas.toFixed(1)}x` }
+                            : { bg: "#ef444420", fg: "#dc2626", label: `${r.roas.toFixed(1)}x` };
+                        return (
+                          <TableRow key={r.campaign}>
+                            <TableCell className="font-medium max-w-[320px] truncate">{r.campaign}</TableCell>
+                            <TableCell className="text-right">{fmtBRL(r.spend)}</TableCell>
+                            <TableCell className="text-right">{fmtInt(r.clicks)}</TableCell>
+                            <TableCell className="text-right">{fmtBRL(r.cpc)}</TableCell>
+                            <TableCell className="text-right">{(r.ctr || 0).toFixed(2)}%</TableCell>
+                            <TableCell className="text-right">
+                              <span
+                                className="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium"
+                                style={{ backgroundColor: roasColor.bg, color: roasColor.fg }}
+                              >
+                                {roasColor.label}
+                              </span>
+                            </TableCell>
+                            <TableCell className="text-right">{fmtInt(r.add_to_cart)}</TableCell>
+                            <TableCell className="text-right">{fmtInt(r.checkout)}</TableCell>
+                            <TableCell className="text-right">{fmtBRL(r.receita_atribuida)}</TableCell>
+                            <TableCell className="text-right">{fmtInt(r.compras_estimadas)}</TableCell>
+                          </TableRow>
+                        );
+                      })}
+
                     </TableBody>
                   </Table>
                 </CardContent>
@@ -1059,6 +1079,12 @@ export default function Marketing() {
                     <div className="pointer-events-none absolute bottom-12 left-16 text-xs font-medium" style={{ color: "#6b7280" }}>👁 Observar</div>
                   </div>
 
+                  {matrizCampanhas.semAtribuicao.length > 0 && (
+                    <p className="text-xs text-muted-foreground italic">
+                      * {matrizCampanhas.semAtribuicao.length} campanha{matrizCampanhas.semAtribuicao.length > 1 ? "s" : ""} sem atribuição de conversão (Leads/Engajamento) foram excluídas da matriz.
+                    </p>
+                  )}
+
                   {/* Tabela de Ação */}
                   <div className="overflow-x-auto">
                     <Table>
@@ -1101,7 +1127,7 @@ export default function Marketing() {
                             : 0;
                           return (
                             <TableRow className="font-semibold bg-muted/50">
-                              <TableCell>Total</TableCell>
+                              <TableCell>Subtotal (com atribuição)</TableCell>
                               <TableCell></TableCell>
                               <TableCell className="text-right">{fmtBRL(totSpend)}</TableCell>
                               <TableCell className="text-right">{fmtInt(totClicks)}</TableCell>
@@ -1110,9 +1136,37 @@ export default function Marketing() {
                             </TableRow>
                           );
                         })()}
+
+                        {matrizCampanhas.semAtribuicao.length > 0 && (
+                          <>
+                            <TableRow className="bg-muted/30">
+                              <TableCell colSpan={6} className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                                Campanhas sem atribuição de conversão
+                              </TableCell>
+                            </TableRow>
+                            {[...matrizCampanhas.semAtribuicao].sort((a, b) => b.spend - a.spend).map((d) => (
+                              <TableRow key={`sem-${d.campaign}`}>
+                                <TableCell className="font-medium max-w-[280px] truncate">{d.campaign}</TableCell>
+                                <TableCell>
+                                  <span
+                                    className="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium"
+                                    style={{ backgroundColor: "#6b728020", color: "#6b7280" }}
+                                  >
+                                    Sem atrib.
+                                  </span>
+                                </TableCell>
+                                <TableCell className="text-right">{fmtBRL(d.spend)}</TableCell>
+                                <TableCell className="text-right">{fmtInt(d.clicks)}</TableCell>
+                                <TableCell className="text-right">—</TableCell>
+                                <TableCell className="text-sm">⚪ Objetivo de topo de funil — avaliar custo por lead/engajamento separadamente</TableCell>
+                              </TableRow>
+                            ))}
+                          </>
+                        )}
                       </TableBody>
                     </Table>
                   </div>
+
                 </CardContent>
               </Card>
             </>
