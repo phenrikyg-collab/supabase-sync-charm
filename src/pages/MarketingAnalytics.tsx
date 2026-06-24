@@ -4,6 +4,7 @@ import { TrendingUp, AlertCircle, Zap, Target, ArrowUp, ArrowDown, Sparkles, Ref
 import { supabase } from '@/integrations/supabase/client';
 import { invokeEdgeFunction } from '@/lib/edgeFunctions';
 import { useToast } from '@/hooks/use-toast';
+import InsightsIATab from '@/components/marketing/InsightsIATab';
 
 interface Post {
   id: string;
@@ -1039,14 +1040,7 @@ Gere análise estratégica em 4 seções: O QUE ESTÁ FUNCIONANDO, O QUE NÃO ES
         })()}
 
         {/* Tab: Insights IA */}
-        {selectedTab === 'insights' && (
-          <Card>
-            <SectionTitle>🤖 Insights Estratégicos — IA</SectionTitle>
-            <div className="whitespace-pre-line leading-relaxed text-sm" style={{ color: C.text }}>
-              {insights || 'Gerando insights...'}
-            </div>
-          </Card>
-        )}
+        {selectedTab === 'insights' && <InsightsIATab />}
 
         {/* Tab: Recomendações */}
         {selectedTab === 'recommendations' && (
