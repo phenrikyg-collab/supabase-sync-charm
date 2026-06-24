@@ -280,6 +280,7 @@ Gere análise estratégica em 4 seções: O QUE ESTÁ FUNCIONANDO, O QUE NÃO ES
     { id: 'performance', label: 'Performance' },
     { id: 'content-analysis', label: 'Análise de Conteúdo' },
     { id: 'insights', label: 'Insights IA' },
+    { id: 'relatorios-mensais', label: 'Relatórios Mensais' },
     { id: 'recommendations', label: 'Recomendações' },
   ];
 
