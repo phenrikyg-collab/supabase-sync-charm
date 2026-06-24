@@ -5,6 +5,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { invokeEdgeFunction } from '@/lib/edgeFunctions';
 import { useToast } from '@/hooks/use-toast';
 import InsightsIATab from '@/components/marketing/InsightsIATab';
+import RelatoriosMensaisTab from '@/components/marketing/RelatoriosMensaisTab';
 
 interface Post {
   id: string;
