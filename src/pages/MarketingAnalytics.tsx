@@ -12,7 +12,7 @@ interface Post {
   caption: string;
   data_publicacao: string;
   reach: number;
-  saved: number;
+  saves: number;
   shares: number;
   engagement: number;
   video_views: number;
