@@ -4,6 +4,7 @@ import { TrendingUp, AlertCircle, Zap, Target, ArrowUp, ArrowDown, Sparkles, Ref
 import { supabase } from '@/integrations/supabase/client';
 import { invokeEdgeFunction } from '@/lib/edgeFunctions';
 import { useToast } from '@/hooks/use-toast';
+import InsightsIATab from '@/components/marketing/InsightsIATab';
 
 interface Post {
   id: string;
