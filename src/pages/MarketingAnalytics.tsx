@@ -1044,6 +1044,8 @@ Gere análise estratégica em 4 seções: O QUE ESTÁ FUNCIONANDO, O QUE NÃO ES
         {/* Tab: Insights IA */}
         {selectedTab === 'insights' && <InsightsIATab />}
 
+        {selectedTab === 'relatorios-mensais' && <RelatoriosMensaisTab />}
+
         {/* Tab: Recomendações */}
         {selectedTab === 'recommendations' && (
           <div className="space-y-6">
