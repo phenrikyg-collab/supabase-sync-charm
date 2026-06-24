@@ -5,6 +5,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { invokeEdgeFunction } from '@/lib/edgeFunctions';
 import { useToast } from '@/hooks/use-toast';
 import InsightsIATab from '@/components/marketing/InsightsIATab';
+import RelatoriosMensaisTab from '@/components/marketing/RelatoriosMensaisTab';
 
 interface Post {
   id: string;
@@ -279,6 +280,7 @@ Gere análise estratégica em 4 seções: O QUE ESTÁ FUNCIONANDO, O QUE NÃO ES
     { id: 'performance', label: 'Performance' },
     { id: 'content-analysis', label: 'Análise de Conteúdo' },
     { id: 'insights', label: 'Insights IA' },
+    { id: 'relatorios-mensais', label: 'Relatórios Mensais' },
     { id: 'recommendations', label: 'Recomendações' },
   ];
 
@@ -1041,6 +1043,8 @@ Gere análise estratégica em 4 seções: O QUE ESTÁ FUNCIONANDO, O QUE NÃO ES
 
         {/* Tab: Insights IA */}
         {selectedTab === 'insights' && <InsightsIATab />}
+
+        {selectedTab === 'relatorios-mensais' && <RelatoriosMensaisTab />}
 
         {/* Tab: Recomendações */}
         {selectedTab === 'recommendations' && (
