@@ -207,12 +207,12 @@ Gere análise estratégica em 4 seções: O QUE ESTÁ FUNCIONANDO, O QUE NÃO ES
 
   const totalReach = posts.reduce((s, p) => s + (p.reach || 0), 0);
   const totalEngagement = posts.reduce((s, p) => s + (p.engagement || 0), 0);
-  const totalSaved = posts.reduce((s, p) => s + (p.saved || 0), 0);
+  const totalSaved = posts.reduce((s, p) => s + (p.saves || 0), 0);
   const totalShares = posts.reduce((s, p) => s + (p.shares || 0), 0);
 
   const prevReach = postsAnteriores.reduce((s, p) => s + (p.reach || 0), 0);
   const prevEng = postsAnteriores.reduce((s, p) => s + (p.engagement || 0), 0);
-  const prevSaved = postsAnteriores.reduce((s, p) => s + (p.saved || 0), 0);
+  const prevSaved = postsAnteriores.reduce((s, p) => s + (p.saves || 0), 0);
   const prevShares = postsAnteriores.reduce((s, p) => s + (p.shares || 0), 0);
 
   const chartData = [
@@ -470,7 +470,7 @@ Gere análise estratégica em 4 seções: O QUE ESTÁ FUNCIONANDO, O QUE NÃO ES
             <p className="text-xs" style={{ color: C.textSec }}>engaj.</p>
           </div>
           <div>
-            <p className="font-bold text-sm" style={{ color: C.bronze }}>{post.saved || 0}</p>
+            <p className="font-bold text-sm" style={{ color: C.bronze }}>{post.saves || 0}</p>
             <p className="text-xs" style={{ color: C.textSec }}>salvos</p>
           </div>
         </div>
