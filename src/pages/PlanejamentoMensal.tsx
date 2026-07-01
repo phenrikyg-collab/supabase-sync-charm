@@ -682,11 +682,27 @@ export default function PlanejamentoMensal() {
         <div className="space-y-4">
           {tipo === "realizado" ? (
             <>
+              <Card style={{ borderColor: "#E8CD7E", background: "#FAF6EE" }}>
+                <CardContent className="p-3 flex items-center justify-between gap-3 flex-wrap">
+                  <div className="text-xs text-muted-foreground">
+                    Auto-preenchimento usa dados reais de GA4, Meta Ads e vendas do sistema.
+                  </div>
+                  <Button
+                    type="button" variant="outline" size="sm"
+                    onClick={aplicarDadosReais}
+                    disabled={realizadoReal.isLoading || realizadoReal.isRefreshing}
+                    className="gap-1 whitespace-nowrap"
+                  >
+                    <RefreshCw className={`h-3 w-3 ${realizadoReal.isRefreshing ? "animate-spin" : ""}`} />
+                    Atualizar com dados reais
+                  </Button>
+                </CardContent>
+              </Card>
               <Card style={{ borderColor: "#F5E9B8" }}>
                 <CardHeader><CardTitle className="font-serif text-lg">Receita</CardTitle></CardHeader>
                 <CardContent className="space-y-3">
-                  <NumInput label="Receita Captada" suffix="R$" value={form.receita_captada} onChange={(v) => setField("receita_captada", v)} disabled={isSaving} />
-                  <NumInput label="Taxa de Aprovação" suffix="%" value={form.taxa_aprovacao} onChange={(v) => setField("taxa_aprovacao", v)} disabled={isSaving} />
+                  <NumInput label="Receita Captada" suffix="R$" value={form.receita_captada} onChange={(v) => setField("receita_captada", v)} disabled={isSaving} badge={badgeOf("receita_captada")} />
+                  <NumInput label="Taxa de Aprovação" suffix="%" value={form.taxa_aprovacao} onChange={(v) => setField("taxa_aprovacao", v)} disabled={isSaving} badge={badgeOf("taxa_aprovacao")} />
                   <CalcField label="Receita Faturada = Captada × Aprovação%" value={preview.receita_faturada} format="brl" />
                   <CalcField label="Receita Cancelada = Captada − Faturada" value={preview.receita_cancelada} format="brl" />
                 </CardContent>
@@ -695,7 +711,7 @@ export default function PlanejamentoMensal() {
               <Card style={{ borderColor: "#F5E9B8" }}>
                 <CardHeader><CardTitle className="font-serif text-lg">Pedidos</CardTitle></CardHeader>
                 <CardContent className="space-y-3">
-                  <NumInput label="Pedidos Captados" value={form.pedidos_captados} onChange={(v) => setField("pedidos_captados", v)} disabled={isSaving} />
+                  <NumInput label="Pedidos Captados" value={form.pedidos_captados} onChange={(v) => setField("pedidos_captados", v)} disabled={isSaving} badge={badgeOf("pedidos_captados")} />
                   <CalcField label="Pedidos Faturados = Captados × Aprovação%" value={preview.pedidos_faturados} />
                 </CardContent>
               </Card>
@@ -703,7 +719,7 @@ export default function PlanejamentoMensal() {
               <Card style={{ borderColor: "#F5E9B8" }}>
                 <CardHeader><CardTitle className="font-serif text-lg">Aquisição vs Retenção</CardTitle></CardHeader>
                 <CardContent className="space-y-3">
-                  <NumInput label="Taxa de Aquisição" suffix="%" value={form.taxa_aquisicao} onChange={(v) => setField("taxa_aquisicao", v)} disabled={isSaving} />
+                  <NumInput label="Taxa de Aquisição" suffix="%" value={form.taxa_aquisicao} onChange={(v) => setField("taxa_aquisicao", v)} disabled={isSaving} badge={badgeOf("taxa_aquisicao")} />
                   <CalcField label="Taxa de Retenção = 100 − Aquisição" value={preview.taxa_retencao} format="pct" />
                   <div className="text-xs uppercase tracking-wider text-muted-foreground mt-2">Aquisição</div>
                   <div className="grid grid-cols-2 gap-2">
@@ -723,10 +739,10 @@ export default function PlanejamentoMensal() {
               <Card style={{ borderColor: "#F5E9B8" }}>
                 <CardHeader><CardTitle className="font-serif text-lg">Tráfego & Investimento</CardTitle></CardHeader>
                 <CardContent className="space-y-3">
-                  <NumInput label="Sessões Totais" value={form.sessoes_totais} onChange={(v) => setField("sessoes_totais", v)} disabled={isSaving} />
-                  <NumInput label="Sessões Mídia" value={form.sessoes_midia} onChange={(v) => setField("sessoes_midia", v)} disabled={isSaving} />
+                  <NumInput label="Sessões Totais" value={form.sessoes_totais} onChange={(v) => setField("sessoes_totais", v)} disabled={isSaving} badge={badgeOf("sessoes_totais")} />
+                  <NumInput label="Sessões Mídia" value={form.sessoes_midia} onChange={(v) => setField("sessoes_midia", v)} disabled={isSaving} badge={badgeOf("sessoes_midia")} />
                   <CalcField label="Taxa de Conversão = Pedidos Captados / Sessões × 100" value={preview.taxa_conversao} format="pct" />
-                  <NumInput label="Investimento Total" suffix="R$" value={form.investimento_total} onChange={(v) => setField("investimento_total", v)} disabled={isSaving} />
+                  <NumInput label="Investimento Total" suffix="R$" value={form.investimento_total} onChange={(v) => setField("investimento_total", v)} disabled={isSaving} badge={badgeOf("investimento_total")} />
                   <div className="grid grid-cols-2 gap-2">
                     <CalcField label="CPS Geral" value={preview.cps_geral} format="brl" />
                     <CalcField label="CPS Mídia" value={preview.cps_midia} format="brl" />
