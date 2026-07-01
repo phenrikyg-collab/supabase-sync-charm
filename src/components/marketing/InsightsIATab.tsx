@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Sparkles, RefreshCw, ArrowUp, ArrowDown, CheckCircle2, AlertTriangle } from 'lucide-react';
-import { invokeEdgeFunction } from '@/lib/edgeFunctions';
+import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
 const C = {
