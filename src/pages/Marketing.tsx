@@ -9,6 +9,8 @@ import { Users, UserPlus, MousePointerClick, ShoppingCart, DollarSign, ShoppingB
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, ScatterChart, Scatter, ZAxis, ReferenceLine, Cell, LineChart, Line } from "recharts";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { AcompanhamentoMeta, DiagnosticoMes } from "@/components/marketing/AcompanhamentoMeta";
+import { MESES } from "@/hooks/usePlanejamentoMensal";
 
 const fmtBRL = (n: number) =>
   (n || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 2 });
