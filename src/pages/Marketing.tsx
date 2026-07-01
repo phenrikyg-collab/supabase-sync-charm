@@ -69,6 +69,9 @@ const num = (v: any) => (typeof v === "number" ? v : Number(v) || 0);
 
 export default function Marketing() {
   const [periodo, setPeriodo] = useState("30dias");
+  const hoje = new Date();
+  const [metaAno, setMetaAno] = useState(hoje.getFullYear());
+  const [metaMes, setMetaMes] = useState(hoje.getMonth() + 1);
   const [loading, setLoading] = useState(false);
   const [aquisicao, setAquisicao] = useState<any[]>([]);
   const [produtos, setProdutos] = useState<any[]>([]);
