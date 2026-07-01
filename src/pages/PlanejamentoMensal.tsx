@@ -6,12 +6,14 @@ import {
   MESES, fmtBRL, fmtNum, fmtPct,
   buscarMediaHistorica, MediaHistorica,
 } from "@/hooks/usePlanejamentoMensal";
+import { useRealizadoMes } from "@/hooks/useRealizadoMes";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { ChevronLeft, ChevronRight, AlertTriangle, CheckCircle2, ArrowUp, ArrowDown, Minus, RefreshCw } from "lucide-react";
+import { ChevronLeft, ChevronRight, AlertTriangle, CheckCircle2, ArrowUp, ArrowDown, Minus, RefreshCw, Sparkles, Pencil } from "lucide-react";
+import { toast } from "sonner";
 
 type Manual = Partial<Record<
   | "receita_captada" | "taxa_aprovacao" | "pedidos_captados" | "taxa_aquisicao"
