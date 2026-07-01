@@ -106,7 +106,8 @@ export default function RelatoriosMensaisTab() {
   const gerarRelatorio = async () => {
     setGenerating(true);
     try {
-      await invokeEdgeFunction('gerar-relatorio-mensal', { mes: mesSel, ano: anoSel }, { timeoutMs: 180_000 });
+      const { error: fnError } = await supabase.functions.invoke('gerar-relatorio-mensal', { body: { mes: mesSel, ano: anoSel } });
+      if (fnError) throw fnError;
       toast({ title: '✓ Relatório gerado', description: `${MESES_FULL[mesSel - 1]}/${anoSel} criado com sucesso!` });
       setModalOpen(false);
       // recarregar e selecionar o recém-criado
