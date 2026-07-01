@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Sparkles, RefreshCw, ArrowUp, ArrowDown, CheckCircle2, AlertTriangle } from 'lucide-react';
-import { invokeEdgeFunction } from '@/lib/edgeFunctions';
+import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
 const C = {
@@ -77,7 +77,8 @@ export default function InsightsIATab() {
   const gerarRelatorio = async () => {
     setLoading(true);
     try {
-      const data = await invokeEdgeFunction('gerar-insights-semanal', {}, { timeoutMs: 180_000 });
+      const { data, error } = await supabase.functions.invoke('gerar-insights-semanal', { body: {} });
+      if (error) throw error;
       const rel: Relatorio = data?.relatorio || data;
       if (!rel || !rel.metricas) throw new Error('Resposta inválida da função');
       setRelatorio(rel);
