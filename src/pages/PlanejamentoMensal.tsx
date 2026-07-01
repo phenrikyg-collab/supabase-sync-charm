@@ -437,6 +437,99 @@ export default function PlanejamentoMensal() {
   const setField = (k: keyof Manual, v: number | null) => {
     setForm((f) => ({ ...f, [k]: v }));
     setDirty(true);
+    setManualOverrides((s) => {
+      const next = new Set(s);
+      next.add(k as string);
+      return next;
+    });
+    setAutoFilled((s) => {
+      if (!s.has(k as string)) return s;
+      const next = new Set(s);
+      next.delete(k as string);
+      return next;
+    });
+  };
+
+  // Aplica dados reais do sistema aos campos manuais do REALIZADO,
+  // respeitando campos editados manualmente (pede confirmação antes de sobrescrever).
+  const aplicarDadosReais = () => {
+    const mapping: [keyof Manual, number | null | undefined][] = [
+      ["receita_captada", realizadoReal.realizado.receita_captada ?? null],
+      ["taxa_aprovacao", realizadoReal.realizado.taxa_aprovacao ?? null],
+      ["pedidos_captados", realizadoReal.realizado.pedidos_captados ?? null],
+      ["taxa_aquisicao", realizadoReal.realizado.taxa_aquisicao ?? null],
+      ["sessoes_totais", realizadoReal.realizado.sessoes_totais ?? null],
+      ["sessoes_midia", realizadoReal.realizado.sessoes_midia ?? null],
+      ["investimento_total", realizadoReal.realizado.investimento_total ?? null],
+    ];
+    const conflitos = mapping.filter(
+      ([k, v]) => v != null && manualOverrides.has(k as string) && form[k] != null && form[k] !== v,
+    );
+    if (conflitos.length > 0) {
+      const nomes = conflitos.map(([k]) => String(k)).join(", ");
+      const ok = window.confirm(
+        `Os seguintes campos foram editados manualmente e serão sobrescritos: ${nomes}. Continuar?`,
+      );
+      if (!ok) return;
+    }
+    const nextAuto = new Set<string>();
+    const nextManual = new Set(manualOverrides);
+    const nextForm = { ...form };
+    for (const [k, v] of mapping) {
+      if (v == null) continue;
+      const val = Number(Number(v).toFixed(2));
+      nextForm[k] = val;
+      nextAuto.add(k as string);
+      nextManual.delete(k as string);
+    }
+    setForm(nextForm);
+    setAutoFilled(nextAuto);
+    setManualOverrides(nextManual);
+    setDirty(true);
+    toast.success("Campos preenchidos com dados reais do sistema. Clique em Salvar para persistir.");
+  };
+
+  // Auto-fill inicial ao abrir a aba REALIZADO se o registro ainda estiver vazio
+  useEffect(() => {
+    if (tipo !== "realizado") return;
+    if (realizadoReal.isLoading) return;
+    // Só sugere valores em campos vazios; nunca sobrescreve o que já existe no banco
+    const cur = form;
+    const jaTemAlgo =
+      cur.receita_captada != null ||
+      cur.pedidos_captados != null ||
+      cur.sessoes_totais != null ||
+      cur.investimento_total != null;
+    if (jaTemAlgo) return;
+    const nextForm = { ...cur };
+    const nextAuto = new Set<string>();
+    const m: [keyof Manual, number | null | undefined][] = [
+      ["receita_captada", realizadoReal.realizado.receita_captada],
+      ["taxa_aprovacao", realizadoReal.realizado.taxa_aprovacao],
+      ["pedidos_captados", realizadoReal.realizado.pedidos_captados],
+      ["taxa_aquisicao", realizadoReal.realizado.taxa_aquisicao],
+      ["sessoes_totais", realizadoReal.realizado.sessoes_totais],
+      ["sessoes_midia", realizadoReal.realizado.sessoes_midia],
+      ["investimento_total", realizadoReal.realizado.investimento_total],
+    ];
+    let mudou = false;
+    for (const [k, v] of m) {
+      if (v == null) continue;
+      nextForm[k] = Number(Number(v).toFixed(2));
+      nextAuto.add(k as string);
+      mudou = true;
+    }
+    if (mudou) {
+      setForm(nextForm);
+      setAutoFilled(nextAuto);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tipo, realizadoReal.isLoading, data?.id]);
+
+  const badgeOf = (k: string): "auto" | "manual" | null => {
+    if (autoFilled.has(k)) return "auto";
+    if (manualOverrides.has(k)) return "manual";
+    return null;
   };
 
   const navMes = (delta: number) => {
