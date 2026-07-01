@@ -1,80 +1,100 @@
-## Módulo de Bonificação — Consultoras WhatsApp
+## Objetivo
 
-Novo módulo dentro do ERP para calcular e acompanhar bônus mensais das consultoras de vendas via WhatsApp, com regras configuráveis e dashboard premium.
+Conectar `Planejamento Mensal` (metas) ao `Dashboard GA4` (dados reais) — cruzando meta, realizado, projeção e diagnóstico automático — e ainda alimentar automaticamente a aba REALIZADO do Planejamento com os dados que já existem no sistema.
 
----
+## Arquitetura resumida
 
-### 1. Backend (Supabase — instância externa `ezdtulcrqzmgocamjwwl`)
-
-Novas tabelas:
-
-- **`consultoras_whatsapp`** — cadastro das consultoras
-  - `nome`, `apelido_canal` (identificador usado nas vendas para reconciliar pedidos), `telefone`, `ativa`, `meta_individual` (numeric, opcional)
-
-- **`metas_whatsapp`** — meta mensal do canal
-  - `mes_referencia` (text "YYYY-MM"), `meta_total` (numeric), `modo_distribuicao` ('individual' | 'proporcional'), `created_at`
-
-- **`metas_whatsapp_consultoras`** — meta individual por consultora/mês (quando modo = individual)
-  - `mes_referencia`, `consultora_id`, `meta_valor`
-
-- **`config_bonificacao_whatsapp`** — regras configuráveis (uma linha "ativa" + histórico)
-  - `faixas_meta` (jsonb): `[{min_pct, max_pct, bonus_base, label}]`
-  - `regras_desconto` (jsonb): `[{max_pct, multiplicador}]`
-  - `faixas_ticket` (jsonb): `[{min_valor, acelerador}]`
-  - `ativo` (bool), `vigencia_inicio` (date)
-
-- **`bonus_whatsapp_apurados`** — snapshot mensal calculado e congelado para histórico de pagamento
-  - `mes_referencia`, `consultora_id`, `faturamento_liquido`, `meta`, `pct_atingimento`, `ticket_medio`, `desconto_medio_pct`, `qtd_pedidos`, `bonus_base`, `multiplicador_desconto`, `acelerador_ticket`, `bonus_final`, `status` ('projetado'|'aprovado'|'pago'), `data_pagamento`
-
-Seed inicial em `config_bonificacao_whatsapp` com as faixas do briefing.
-
-Reconciliação de pedidos → consultora: usa `tray_orders` filtrando canal WhatsApp (campo de canal/origem existente) + um identificador da consultora (provavelmente um campo de vendedor/observação). **Ponto a confirmar com o usuário** — ver perguntas abaixo.
-
----
-
-### 2. Frontend
-
-Nova rota **`/bonificacao-whatsapp`** com 4 abas:
-
-1. **Dashboard** — cards (Faturamento canal, Meta, % Atingimento, Ticket médio, Desconto médio, Bônus projetado total), ranking de consultoras (tabela com barra de progresso colorida: vermelho <95%, amarelo 95-109%, verde 110-119%, roxo/dourado ≥120%), gráfico mensal de evolução, comparativo entre consultoras.
-2. **Apuração mensal** — seletor de mês, tabela detalhada por consultora com todos os componentes do cálculo (meta, realizado, %, ticket, desconto, bônus base, multiplicador, acelerador, total), botões "Aprovar" / "Marcar como pago", export Excel/PDF.
-3. **Histórico** — pagamentos anteriores (`bonus_whatsapp_apurados` com status pago).
-4. **Configurações** — CRUD de consultoras, meta mensal (com toggle individual/proporcional), faixas de bônus, regras de desconto, faixas de ticket.
-
-Componentes/arquivos novos:
-- `src/pages/BonificacaoWhatsAppPage.tsx`
-- `src/components/bonificacao-whatsapp/{Dashboard,Apuracao,Historico,Config}Tab.tsx`
-- `src/lib/bonificacaoWhatsApp.ts` — função pura `calcularBonus(faturamento, meta, ticket, descontoMedio, config)` aplicando exatamente a fórmula: `(bonus_base × multiplicador_desconto) + acelerador_ticket`, considerando apenas a maior faixa de ticket.
-- Hook `useBonificacaoWhatsApp(mes)` — busca pedidos faturados/pagos do canal WhatsApp do mês (excluindo cancelados/devolvidos/estornados), agrupa por consultora, calcula em tempo real.
-
-Estilo: usa o design system existente (Cormorant Garamond + DM Sans, dourado/bronze), mesmos padrões visuais do `DashboardComercialPage`.
-
-Menu lateral: adicionar item "Bonificação WhatsApp" próximo ao Dashboard Comercial.
-
----
-
-### 3. Cálculo (resumo da lógica)
-
-```
-pedidos_validos = tray_orders WHERE canal = 'whatsapp'
-                                AND status IN ('faturado','pago')
-                                AND mes = mes_ref
-                                AND consultora_id = X
-faturamento_liquido = SUM(valor_liquido dos pedidos válidos)
-qtd_pedidos        = COUNT(pedidos válidos)
-ticket_medio       = faturamento_liquido / qtd_pedidos
-desconto_medio_pct = SUM(desconto) / SUM(valor_bruto) × 100
-pct_atingimento    = faturamento_liquido / meta × 100
-bonus_base         = faixa correspondente em config.faixas_meta
-multiplicador      = faixa correspondente em config.regras_desconto
-acelerador         = MAIOR faixa de ticket atingida
-bonus_final        = (bonus_base × multiplicador) + acelerador
+```text
+┌──────────────────────────────────────────────────────────────────────┐
+│  useRealizadoMes(ano, mes)  ← novo hook central                       │
+│    - GA4:      windsor_canais (sessions, orgânico vs mídia)          │
+│    - Meta Ads: windsor_meta_ads (spend, cpc, roas, receita)          │
+│    - Vendas:   movimentacoes_financeiras (receita, pedidos, aprov.)  │
+│    - Meta:     planejamento_mensal tipo=planejado                    │
+│  → retorna { meta, realizado, projecao, statusPorPilar, ritmoMes }   │
+└──────────────────────────────────────────────────────────────────────┘
+        │                                             │
+        ▼                                             ▼
+┌────────────────────────────┐          ┌──────────────────────────────┐
+│  Marketing (Dashboard GA4) │          │  PlanejamentoMensal          │
+│  + <AcompanhamentoMeta />  │          │  aba REALIZADO:              │
+│  + <DiagnosticoMes />      │          │  + botão "Atualizar com      │
+│                            │          │     dados reais"             │
+│                            │          │  + auto-fill ao abrir mês    │
+│                            │          │  + flag manual_override      │
+└────────────────────────────┘          └──────────────────────────────┘
 ```
 
----
+## 1. Hook central `useRealizadoMes(ano, mes)`
 
-### 4. Perguntas que preciso responder antes de codar
+Novo arquivo `src/hooks/useRealizadoMes.ts`. Consolida em um único ponto o cálculo do "realizado até hoje" para o mês, para ser reutilizado pelo Dashboard e pelo Planejamento.
 
-1. **Como identificar a consultora em cada pedido do canal WhatsApp?** Existe um campo em `tray_orders` (vendedor, observação, tag) que liga o pedido à consultora, ou precisamos criar uma tabela de mapeamento manual / regra por código de cupom?
-2. **Qual é exatamente o filtro de canal "WhatsApp"** nos pedidos hoje (campo + valor)?
-3. Quer que eu já crie o item de menu na sidebar e considere acesso liberado para todos os usuários autenticados, ou amarrado a `user_modules` específico?
+Fontes:
+- **Sessões totais / mídia / orgânicas** → `windsor_canais` no intervalo `[YYYY-MM-01, hoje]`. Paid = grupos contendo "Paid", "Cross-network", "Display", "Video"; resto = orgânico/direto.
+- **Investimento, CPC médio, ROAS, receita atribuída, cliques** → `windsor_meta_ads` no intervalo.
+- **Pedidos captados, receita captada, receita faturada, taxa de aprovação, taxa de aquisição** → `movimentacoes_financeiras` (tipo=entrada, origem vendas) no mesmo período. **Necessária confirmação da fonte** (ver Perguntas abertas).
+- **Meta do mês** → `planejamento_mensal` `.eq('ano', ano).eq('mes', mes).eq('tipo', 'planejado')`.
+
+Retorna:
+```ts
+{
+  meta, realizado, projecao,            // objetos com os 10 pilares
+  ritmoMes: { pctDecorrido, pctReceita, pctSessoes },
+  statusPorPilar: Record<Pilar, 'verde'|'amarelo'|'vermelho'>,
+  isLoading, refetch
+}
+```
+
+Projeção = `realizado × (diasTotaisMes / diasDecorridos)` para métricas de volume; métricas de taxa (%) usam o valor realizado direto.
+
+## 2. Dashboard GA4 — novos blocos
+
+Editar `src/pages/Marketing.tsx`:
+
+- **Filtro**: adicionar seletor de "Mês de referência" (default = mês corrente); os blocos novos usam esse mês independente do `periodo` das tabs existentes.
+- **Novo componente** `src/components/marketing/AcompanhamentoMeta.tsx` renderizado acima das tabs. Tabela de 10 linhas × 4 colunas (Pilar | Meta | Realizado | Projeção) com badge de status colorido (verde/amarelo/vermelho) reutilizando `StatusBadge`. Regras de status idênticas ao `NovePilaresCard` já existente.
+- **Cards de ritmo do mês**: 3 mini-cards mostrando `% do mês decorrido`, `% da meta de receita atingida`, `% da meta de sessões atingida`. Cor: verde se `% atingida ≥ % decorrido`, vermelho caso contrário.
+- **Novo componente** `src/components/marketing/DiagnosticoMes.tsx` — logo abaixo. Regras determinísticas (sem IA):
+  - Se `sessoes.realizado/meta < mesDecorrido`: comparar participação atual de cada `session_custom_channel_group` vs média histórica (últimos 3 meses de `windsor_canais`); apontar canal com maior queda absoluta e sugerir ação ("Escalar campanha X", "CPC subiu Y%, revisar criativos").
+  - Se `taxa_conversao` < meta: sinalizar produtos com maior drop no funil (`ga4_funil_compra`).
+  - Se `roas < ROAS_EQUILIBRIO`: listar top 3 campanhas com pior ROAS de `windsor_meta_ads` e sugerir pausa.
+  - Se `cac_novos > meta × 1.2`: sugerir revisão de mix de canais.
+  Cada diagnóstico vira um card com título, métrica evidência, e ação sugerida.
+
+## 3. Planejamento Mensal — auto-fill do REALIZADO
+
+Editar `src/pages/PlanejamentoMensal.tsx` e `src/hooks/usePlanejamentoMensal.ts`:
+
+- Ao abrir a aba REALIZADO, chamar `useRealizadoMes(ano, mes)` e, para os `CAMPOS_MANUAIS_REALIZADO` que **não** estejam marcados como `manual_override`, exibir o valor auto-calculado como sugestão (com badge "auto"). Nada é persistido automaticamente até o usuário clicar no botão.
+- **Botão "Atualizar com dados reais"** (novo, mesmo estilo do "Recalcular com média histórica"): grava no `planejamento_mensal` os valores vindos do `useRealizadoMes`, respeitando campos com override manual (mostra confirmação antes de sobrescrever).
+- **Override manual**: quando o usuário edita um `<NumInput>` manualmente, marcamos o campo em memória (`manualOverrides: Set<string>`) e mostramos ícone ✎ ao lado; próxima atualização automática pula esses campos.
+- Persistência de override: adicionar coluna `campos_editados_manualmente text[]` em `planejamento_mensal` (migration). Sem essa coluna, o override é apenas em memória da sessão.
+
+## 4. Migration
+
+```sql
+ALTER TABLE public.planejamento_mensal
+  ADD COLUMN IF NOT EXISTS campos_editados_manualmente text[] DEFAULT '{}';
+```
+
+Nenhuma nova tabela, nenhuma mudança em RLS.
+
+## 5. Arquivos a criar/editar
+
+Criar:
+- `src/hooks/useRealizadoMes.ts`
+- `src/components/marketing/AcompanhamentoMeta.tsx`
+- `src/components/marketing/DiagnosticoMes.tsx`
+
+Editar:
+- `src/pages/Marketing.tsx` — montar novos componentes + seletor de mês.
+- `src/pages/PlanejamentoMensal.tsx` — botão "Atualizar com dados reais", badges auto/manual.
+- `src/hooks/usePlanejamentoMensal.ts` — suportar `campos_editados_manualmente`, expor `salvarRealizadoAutomatico()`.
+
+## Perguntas abertas — preciso confirmar antes de codar
+
+1. **Fonte de receita/pedidos**: nem o Dashboard nem o Planejamento consultam hoje uma tabela de vendas. Confirmo usar `movimentacoes_financeiras` (filtro `tipo=entrada` + `origem` de vendas), ou existe outra tabela (ex.: `vindi_transacoes`, integração Bling) que devo priorizar para `receita_captada`, `pedidos_captados`, `taxa_aprovacao`, `taxa_aquisicao`?
+2. **Classificação orgânico × mídia** em `windsor_canais.session_custom_channel_group`: uso a regra "qualquer grupo contendo Paid/Display/Video/Cross-network = mídia", ou você tem uma lista canônica dos grupos considerados pagos?
+3. **CAC Novos** requer separar pedidos de clientes novos vs recorrentes. Existe esse flag na fonte de vendas escolhida, ou aproximo por `pedidos_captados × taxa_aquisicao/100`?
+
+Se preferir, posso assumir defaults (1: `movimentacoes_financeiras`; 2: heurística por substring; 3: aproximação via taxa_aquisicao) e seguir — me diga se topa ou ajuste.
