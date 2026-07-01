@@ -41,13 +41,26 @@ function CalcField({ label, value, format = "num" }: { label: string; value: num
   );
 }
 
-function NumInput({ label, value, onChange, suffix, disabled }: {
+function NumInput({ label, value, onChange, suffix, disabled, badge }: {
   label: string; value: number | null | undefined; onChange: (v: number | null) => void; suffix?: string; disabled?: boolean;
+  badge?: "auto" | "manual" | null;
 }) {
   const isNeg = typeof value === "number" && value < 0;
   return (
     <div className="space-y-1">
-      <label className="text-xs font-medium text-foreground/80">{label}{suffix ? ` (${suffix})` : ""}</label>
+      <label className="text-xs font-medium text-foreground/80 flex items-center gap-2">
+        {label}{suffix ? ` (${suffix})` : ""}
+        {badge === "auto" && (
+          <span className="inline-flex items-center gap-1 text-[9px] uppercase tracking-wider text-emerald-700 bg-emerald-50 border border-emerald-200 rounded px-1.5 py-0.5">
+            <Sparkles className="h-2.5 w-2.5" /> auto
+          </span>
+        )}
+        {badge === "manual" && (
+          <span className="inline-flex items-center gap-1 text-[9px] uppercase tracking-wider text-amber-700 bg-amber-50 border border-amber-200 rounded px-1.5 py-0.5">
+            <Pencil className="h-2.5 w-2.5" /> manual
+          </span>
+        )}
+      </label>
       <Input
         type="number" step="0.01" disabled={disabled}
         value={value ?? ""}
