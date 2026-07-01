@@ -77,7 +77,8 @@ export default function InsightsIATab() {
   const gerarRelatorio = async () => {
     setLoading(true);
     try {
-      const data = await invokeEdgeFunction('gerar-insights-semanal', {}, { timeoutMs: 180_000 });
+      const { data, error } = await supabase.functions.invoke('gerar-insights-semanal', { body: {} });
+      if (error) throw error;
       const rel: Relatorio = data?.relatorio || data;
       if (!rel || !rel.metricas) throw new Error('Resposta inválida da função');
       setRelatorio(rel);
