@@ -155,8 +155,9 @@ ${lowPosts.map((p,i) => `${i+1}. [${p.media_type}] Alcance: ${p.reach?.toLocaleS
 
 Gere análise estratégica em 4 seções: O QUE ESTÁ FUNCIONANDO, O QUE NÃO ESTÁ PERFORMANDO, OPORTUNIDADES ESTRATÉGICAS, RECOMENDAÇÕES DE PARADA. Máximo 600 palavras.`;
 
-      const data = await invokeEdgeFunction('marketing-insights', { prompt });
-      setInsights(data.insights || 'Erro ao gerar insights.');
+      const { data, error } = await supabase.functions.invoke('marketing-insights', { body: { prompt } });
+      if (error) throw error;
+      setInsights(data?.insights || 'Erro ao gerar insights.');
     } catch (err: any) {
       console.error('Erro insights:', err);
       setInsights('Erro ao conectar com IA. Tente recarregar a página.');
