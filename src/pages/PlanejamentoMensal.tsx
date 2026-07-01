@@ -6,12 +6,14 @@ import {
   MESES, fmtBRL, fmtNum, fmtPct,
   buscarMediaHistorica, MediaHistorica,
 } from "@/hooks/usePlanejamentoMensal";
+import { useRealizadoMes } from "@/hooks/useRealizadoMes";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { ChevronLeft, ChevronRight, AlertTriangle, CheckCircle2, ArrowUp, ArrowDown, Minus, RefreshCw } from "lucide-react";
+import { ChevronLeft, ChevronRight, AlertTriangle, CheckCircle2, ArrowUp, ArrowDown, Minus, RefreshCw, Sparkles, Pencil } from "lucide-react";
+import { toast } from "sonner";
 
 type Manual = Partial<Record<
   | "receita_captada" | "taxa_aprovacao" | "pedidos_captados" | "taxa_aquisicao"
@@ -39,13 +41,26 @@ function CalcField({ label, value, format = "num" }: { label: string; value: num
   );
 }
 
-function NumInput({ label, value, onChange, suffix, disabled }: {
+function NumInput({ label, value, onChange, suffix, disabled, badge }: {
   label: string; value: number | null | undefined; onChange: (v: number | null) => void; suffix?: string; disabled?: boolean;
+  badge?: "auto" | "manual" | null;
 }) {
   const isNeg = typeof value === "number" && value < 0;
   return (
     <div className="space-y-1">
-      <label className="text-xs font-medium text-foreground/80">{label}{suffix ? ` (${suffix})` : ""}</label>
+      <label className="text-xs font-medium text-foreground/80 flex items-center gap-2">
+        {label}{suffix ? ` (${suffix})` : ""}
+        {badge === "auto" && (
+          <span className="inline-flex items-center gap-1 text-[9px] uppercase tracking-wider text-emerald-700 bg-emerald-50 border border-emerald-200 rounded px-1.5 py-0.5">
+            <Sparkles className="h-2.5 w-2.5" /> auto
+          </span>
+        )}
+        {badge === "manual" && (
+          <span className="inline-flex items-center gap-1 text-[9px] uppercase tracking-wider text-amber-700 bg-amber-50 border border-amber-200 rounded px-1.5 py-0.5">
+            <Pencil className="h-2.5 w-2.5" /> manual
+          </span>
+        )}
+      </label>
       <Input
         type="number" step="0.01" disabled={disabled}
         value={value ?? ""}
@@ -327,6 +342,13 @@ export default function PlanejamentoMensal() {
   const { data, isLoading, isSaving, salvarCamposManuais, aprovarMes } = usePlanejamentoMensal(ano, mes, tipo);
   const [form, setForm] = useState<Manual>({});
   const [dirty, setDirty] = useState(false);
+  // Rastreio de campos editados manualmente na sessão (para não sobrescrever no auto-fill)
+  const [manualOverrides, setManualOverrides] = useState<Set<string>>(new Set());
+  // Campos que foram preenchidos pelo auto-fill (apenas visualização)
+  const [autoFilled, setAutoFilled] = useState<Set<string>>(new Set());
+
+  // Dados reais do mês (usado apenas na aba REALIZADO)
+  const realizadoReal = useRealizadoMes(ano, mes);
 
   useEffect(() => {
     setForm({
@@ -345,6 +367,8 @@ export default function PlanejamentoMensal() {
       premissa_cps_midia: data?.premissa_cps_midia ?? null,
     });
     setDirty(false);
+    setManualOverrides(new Set());
+    setAutoFilled(new Set());
   }, [data]);
 
   // Média histórica via RPC (para premissas e meta dos 9 pilares quando planejado)
@@ -413,6 +437,99 @@ export default function PlanejamentoMensal() {
   const setField = (k: keyof Manual, v: number | null) => {
     setForm((f) => ({ ...f, [k]: v }));
     setDirty(true);
+    setManualOverrides((s) => {
+      const next = new Set(s);
+      next.add(k as string);
+      return next;
+    });
+    setAutoFilled((s) => {
+      if (!s.has(k as string)) return s;
+      const next = new Set(s);
+      next.delete(k as string);
+      return next;
+    });
+  };
+
+  // Aplica dados reais do sistema aos campos manuais do REALIZADO,
+  // respeitando campos editados manualmente (pede confirmação antes de sobrescrever).
+  const aplicarDadosReais = () => {
+    const mapping: [keyof Manual, number | null | undefined][] = [
+      ["receita_captada", realizadoReal.realizado.receita_captada ?? null],
+      ["taxa_aprovacao", realizadoReal.realizado.taxa_aprovacao ?? null],
+      ["pedidos_captados", realizadoReal.realizado.pedidos_captados ?? null],
+      ["taxa_aquisicao", realizadoReal.realizado.taxa_aquisicao ?? null],
+      ["sessoes_totais", realizadoReal.realizado.sessoes_totais ?? null],
+      ["sessoes_midia", realizadoReal.realizado.sessoes_midia ?? null],
+      ["investimento_total", realizadoReal.realizado.investimento_total ?? null],
+    ];
+    const conflitos = mapping.filter(
+      ([k, v]) => v != null && manualOverrides.has(k as string) && form[k] != null && form[k] !== v,
+    );
+    if (conflitos.length > 0) {
+      const nomes = conflitos.map(([k]) => String(k)).join(", ");
+      const ok = window.confirm(
+        `Os seguintes campos foram editados manualmente e serão sobrescritos: ${nomes}. Continuar?`,
+      );
+      if (!ok) return;
+    }
+    const nextAuto = new Set<string>();
+    const nextManual = new Set(manualOverrides);
+    const nextForm = { ...form };
+    for (const [k, v] of mapping) {
+      if (v == null) continue;
+      const val = Number(Number(v).toFixed(2));
+      nextForm[k] = val;
+      nextAuto.add(k as string);
+      nextManual.delete(k as string);
+    }
+    setForm(nextForm);
+    setAutoFilled(nextAuto);
+    setManualOverrides(nextManual);
+    setDirty(true);
+    toast.success("Campos preenchidos com dados reais do sistema. Clique em Salvar para persistir.");
+  };
+
+  // Auto-fill inicial ao abrir a aba REALIZADO se o registro ainda estiver vazio
+  useEffect(() => {
+    if (tipo !== "realizado") return;
+    if (realizadoReal.isLoading) return;
+    // Só sugere valores em campos vazios; nunca sobrescreve o que já existe no banco
+    const cur = form;
+    const jaTemAlgo =
+      cur.receita_captada != null ||
+      cur.pedidos_captados != null ||
+      cur.sessoes_totais != null ||
+      cur.investimento_total != null;
+    if (jaTemAlgo) return;
+    const nextForm = { ...cur };
+    const nextAuto = new Set<string>();
+    const m: [keyof Manual, number | null | undefined][] = [
+      ["receita_captada", realizadoReal.realizado.receita_captada],
+      ["taxa_aprovacao", realizadoReal.realizado.taxa_aprovacao],
+      ["pedidos_captados", realizadoReal.realizado.pedidos_captados],
+      ["taxa_aquisicao", realizadoReal.realizado.taxa_aquisicao],
+      ["sessoes_totais", realizadoReal.realizado.sessoes_totais],
+      ["sessoes_midia", realizadoReal.realizado.sessoes_midia],
+      ["investimento_total", realizadoReal.realizado.investimento_total],
+    ];
+    let mudou = false;
+    for (const [k, v] of m) {
+      if (v == null) continue;
+      nextForm[k] = Number(Number(v).toFixed(2));
+      nextAuto.add(k as string);
+      mudou = true;
+    }
+    if (mudou) {
+      setForm(nextForm);
+      setAutoFilled(nextAuto);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tipo, realizadoReal.isLoading, data?.id]);
+
+  const badgeOf = (k: string): "auto" | "manual" | null => {
+    if (autoFilled.has(k)) return "auto";
+    if (manualOverrides.has(k)) return "manual";
+    return null;
   };
 
   const navMes = (delta: number) => {
@@ -565,11 +682,27 @@ export default function PlanejamentoMensal() {
         <div className="space-y-4">
           {tipo === "realizado" ? (
             <>
+              <Card style={{ borderColor: "#E8CD7E", background: "#FAF6EE" }}>
+                <CardContent className="p-3 flex items-center justify-between gap-3 flex-wrap">
+                  <div className="text-xs text-muted-foreground">
+                    Auto-preenchimento usa dados reais de GA4, Meta Ads e vendas do sistema.
+                  </div>
+                  <Button
+                    type="button" variant="outline" size="sm"
+                    onClick={aplicarDadosReais}
+                    disabled={realizadoReal.isLoading || realizadoReal.isRefreshing}
+                    className="gap-1 whitespace-nowrap"
+                  >
+                    <RefreshCw className={`h-3 w-3 ${realizadoReal.isRefreshing ? "animate-spin" : ""}`} />
+                    Atualizar com dados reais
+                  </Button>
+                </CardContent>
+              </Card>
               <Card style={{ borderColor: "#F5E9B8" }}>
                 <CardHeader><CardTitle className="font-serif text-lg">Receita</CardTitle></CardHeader>
                 <CardContent className="space-y-3">
-                  <NumInput label="Receita Captada" suffix="R$" value={form.receita_captada} onChange={(v) => setField("receita_captada", v)} disabled={isSaving} />
-                  <NumInput label="Taxa de Aprovação" suffix="%" value={form.taxa_aprovacao} onChange={(v) => setField("taxa_aprovacao", v)} disabled={isSaving} />
+                  <NumInput label="Receita Captada" suffix="R$" value={form.receita_captada} onChange={(v) => setField("receita_captada", v)} disabled={isSaving} badge={badgeOf("receita_captada")} />
+                  <NumInput label="Taxa de Aprovação" suffix="%" value={form.taxa_aprovacao} onChange={(v) => setField("taxa_aprovacao", v)} disabled={isSaving} badge={badgeOf("taxa_aprovacao")} />
                   <CalcField label="Receita Faturada = Captada × Aprovação%" value={preview.receita_faturada} format="brl" />
                   <CalcField label="Receita Cancelada = Captada − Faturada" value={preview.receita_cancelada} format="brl" />
                 </CardContent>
@@ -578,7 +711,7 @@ export default function PlanejamentoMensal() {
               <Card style={{ borderColor: "#F5E9B8" }}>
                 <CardHeader><CardTitle className="font-serif text-lg">Pedidos</CardTitle></CardHeader>
                 <CardContent className="space-y-3">
-                  <NumInput label="Pedidos Captados" value={form.pedidos_captados} onChange={(v) => setField("pedidos_captados", v)} disabled={isSaving} />
+                  <NumInput label="Pedidos Captados" value={form.pedidos_captados} onChange={(v) => setField("pedidos_captados", v)} disabled={isSaving} badge={badgeOf("pedidos_captados")} />
                   <CalcField label="Pedidos Faturados = Captados × Aprovação%" value={preview.pedidos_faturados} />
                 </CardContent>
               </Card>
@@ -586,7 +719,7 @@ export default function PlanejamentoMensal() {
               <Card style={{ borderColor: "#F5E9B8" }}>
                 <CardHeader><CardTitle className="font-serif text-lg">Aquisição vs Retenção</CardTitle></CardHeader>
                 <CardContent className="space-y-3">
-                  <NumInput label="Taxa de Aquisição" suffix="%" value={form.taxa_aquisicao} onChange={(v) => setField("taxa_aquisicao", v)} disabled={isSaving} />
+                  <NumInput label="Taxa de Aquisição" suffix="%" value={form.taxa_aquisicao} onChange={(v) => setField("taxa_aquisicao", v)} disabled={isSaving} badge={badgeOf("taxa_aquisicao")} />
                   <CalcField label="Taxa de Retenção = 100 − Aquisição" value={preview.taxa_retencao} format="pct" />
                   <div className="text-xs uppercase tracking-wider text-muted-foreground mt-2">Aquisição</div>
                   <div className="grid grid-cols-2 gap-2">
@@ -606,10 +739,10 @@ export default function PlanejamentoMensal() {
               <Card style={{ borderColor: "#F5E9B8" }}>
                 <CardHeader><CardTitle className="font-serif text-lg">Tráfego & Investimento</CardTitle></CardHeader>
                 <CardContent className="space-y-3">
-                  <NumInput label="Sessões Totais" value={form.sessoes_totais} onChange={(v) => setField("sessoes_totais", v)} disabled={isSaving} />
-                  <NumInput label="Sessões Mídia" value={form.sessoes_midia} onChange={(v) => setField("sessoes_midia", v)} disabled={isSaving} />
+                  <NumInput label="Sessões Totais" value={form.sessoes_totais} onChange={(v) => setField("sessoes_totais", v)} disabled={isSaving} badge={badgeOf("sessoes_totais")} />
+                  <NumInput label="Sessões Mídia" value={form.sessoes_midia} onChange={(v) => setField("sessoes_midia", v)} disabled={isSaving} badge={badgeOf("sessoes_midia")} />
                   <CalcField label="Taxa de Conversão = Pedidos Captados / Sessões × 100" value={preview.taxa_conversao} format="pct" />
-                  <NumInput label="Investimento Total" suffix="R$" value={form.investimento_total} onChange={(v) => setField("investimento_total", v)} disabled={isSaving} />
+                  <NumInput label="Investimento Total" suffix="R$" value={form.investimento_total} onChange={(v) => setField("investimento_total", v)} disabled={isSaving} badge={badgeOf("investimento_total")} />
                   <div className="grid grid-cols-2 gap-2">
                     <CalcField label="CPS Geral" value={preview.cps_geral} format="brl" />
                     <CalcField label="CPS Mídia" value={preview.cps_midia} format="brl" />

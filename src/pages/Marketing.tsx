@@ -9,6 +9,8 @@ import { Users, UserPlus, MousePointerClick, ShoppingCart, DollarSign, ShoppingB
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, ScatterChart, Scatter, ZAxis, ReferenceLine, Cell, LineChart, Line } from "recharts";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { AcompanhamentoMeta, DiagnosticoMes } from "@/components/marketing/AcompanhamentoMeta";
+import { MESES } from "@/hooks/usePlanejamentoMensal";
 
 const fmtBRL = (n: number) =>
   (n || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 2 });
@@ -67,6 +69,9 @@ const num = (v: any) => (typeof v === "number" ? v : Number(v) || 0);
 
 export default function Marketing() {
   const [periodo, setPeriodo] = useState("30dias");
+  const hoje = new Date();
+  const [metaAno, setMetaAno] = useState(hoje.getFullYear());
+  const [metaMes, setMetaMes] = useState(hoje.getMonth() + 1);
   const [loading, setLoading] = useState(false);
   const [aquisicao, setAquisicao] = useState<any[]>([]);
   const [produtos, setProdutos] = useState<any[]>([]);
@@ -613,11 +618,35 @@ export default function Marketing() {
         </Select>
       </div>
 
+      {/* ===== Acompanhamento da Meta (Planejamento Mensal × Realizado) ===== */}
+      <div className="flex items-center gap-3 flex-wrap">
+        <span className="text-xs uppercase tracking-wider text-muted-foreground">Mês de referência da meta:</span>
+        <Select value={String(metaMes)} onValueChange={(v) => setMetaMes(Number(v))}>
+          <SelectTrigger className="w-[140px]"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            {MESES.map((n, i) => (
+              <SelectItem key={i} value={String(i + 1)}>{n}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Select value={String(metaAno)} onValueChange={(v) => setMetaAno(Number(v))}>
+          <SelectTrigger className="w-[110px]"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            {[hoje.getFullYear() - 1, hoje.getFullYear(), hoje.getFullYear() + 1].map((a) => (
+              <SelectItem key={a} value={String(a)}>{a}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+      <AcompanhamentoMeta ano={metaAno} mes={metaMes} />
+      <DiagnosticoMes ano={metaAno} mes={metaMes} />
+
       {loading && (
         <div className="flex items-center gap-2 text-muted-foreground text-sm">
           <Loader2 className="h-4 w-4 animate-spin" /> Carregando dados do GA4...
         </div>
       )}
+
 
       <Tabs defaultValue="paginas">
         <TabsList className="flex-wrap h-auto">
