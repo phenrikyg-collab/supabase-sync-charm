@@ -342,6 +342,13 @@ export default function PlanejamentoMensal() {
   const { data, isLoading, isSaving, salvarCamposManuais, aprovarMes } = usePlanejamentoMensal(ano, mes, tipo);
   const [form, setForm] = useState<Manual>({});
   const [dirty, setDirty] = useState(false);
+  // Rastreio de campos editados manualmente na sessão (para não sobrescrever no auto-fill)
+  const [manualOverrides, setManualOverrides] = useState<Set<string>>(new Set());
+  // Campos que foram preenchidos pelo auto-fill (apenas visualização)
+  const [autoFilled, setAutoFilled] = useState<Set<string>>(new Set());
+
+  // Dados reais do mês (usado apenas na aba REALIZADO)
+  const realizadoReal = useRealizadoMes(ano, mes);
 
   useEffect(() => {
     setForm({
@@ -360,6 +367,8 @@ export default function PlanejamentoMensal() {
       premissa_cps_midia: data?.premissa_cps_midia ?? null,
     });
     setDirty(false);
+    setManualOverrides(new Set());
+    setAutoFilled(new Set());
   }, [data]);
 
   // Média histórica via RPC (para premissas e meta dos 9 pilares quando planejado)
