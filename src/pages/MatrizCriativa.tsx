@@ -2557,7 +2557,8 @@ function AbaHospedagem() {
         const path = `${Date.now()}_${Math.random().toString(36).slice(2, 8)}_${safe}`;
         const { error } = await sb.storage.from(HOSPEDAGEM_BUCKET).upload(path, file, {
           contentType: file.type || `image/${ext}`,
-          upsert: false,
+          cacheControl: "31536000",
+          upsert: true,
         });
         if (error) throw error;
       }
