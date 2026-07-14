@@ -2523,10 +2523,10 @@ function AbaHospedagem() {
       const items: { name: string; url: string; created_at?: string; size?: number }[] = [];
       for (const f of (files || []) as any[]) {
         if (!f.name || f.name.startsWith(".")) continue;
-        const { data: signed } = await sb.storage.from(HOSPEDAGEM_BUCKET).createSignedUrl(f.name, 60 * 60 * 24 * 7);
+        const { data: pub } = sb.storage.from(HOSPEDAGEM_BUCKET).getPublicUrl(f.name);
         items.push({
           name: f.name,
-          url: signed?.signedUrl || "",
+          url: pub?.publicUrl || "",
           created_at: f.created_at,
           size: f.metadata?.size,
         });
