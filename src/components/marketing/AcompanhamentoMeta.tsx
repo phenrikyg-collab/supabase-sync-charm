@@ -840,3 +840,298 @@ export function DiagnosticoMes({ ano, mes }: { ano: number; mes: number }) {
   );
 }
 
+// ─── Como Fechar a Meta ─────────────────────────────────────
+interface FecharState {
+  metaReceita: number;
+  receitaFaturada: number;
+  pedidos: number;
+  sessoesMes: number;
+  taxaConversao: number;
+  investimentoTotal: number;
+}
+
+export function ComoFecharMeta({ ano, mes }: { ano: number; mes: number }) {
+  const [s, setS] = useState<FecharState | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      setLoading(true);
+      const mesStr = `${ano}-${pad(mes)}`;
+      const diasNoMes = new Date(ano, mes, 0).getDate();
+      const dataInicio = `${mesStr}-01`;
+      const dataFim = `${mesStr}-${pad(diasNoMes)}`;
+
+      const [metaRes, taxaRes, adsRes, trayRes] = await Promise.all([
+        (supabase as any)
+          .from("planejamento_mensal")
+          .select("*")
+          .eq("ano", ano)
+          .eq("mes", mes)
+          .maybeSingle(),
+        (supabase as any)
+          .from("vw_taxa_conversao_mensal")
+          .select("*")
+          .eq("mes", mesStr)
+          .maybeSingle(),
+        fetchAll("windsor_meta_ads", "spend", (q) =>
+          q.gte("date", dataInicio).lte("date", dataFim),
+        ).catch(() => [] as any[]),
+        fetchAll("tray_orders", "total, orderstatus_type", (q) =>
+          q.gte("date", dataInicio).lte("date", dataFim + "T23:59:59"),
+        ).catch(() => [] as any[]),
+      ]);
+
+      const metaData = metaRes?.data ?? null;
+      const taxaData = taxaRes?.data ?? null;
+
+      const investimentoTotal = adsRes.reduce((acc: number, r: any) => acc + num(r.spend), 0);
+      const receitaFaturada = trayRes
+        .filter((o: any) => o.orderstatus_type !== "canceled")
+        .reduce((acc: number, o: any) => acc + num(o.total), 0);
+
+      if (!cancelled) {
+        setS({
+          metaReceita: num(metaData?.receita_faturada),
+          receitaFaturada,
+          pedidos: num(taxaData?.pedidos),
+          sessoesMes: num(taxaData?.sessoes),
+          taxaConversao: num(taxaData?.taxa_conversao),
+          investimentoTotal,
+        });
+        setLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [ano, mes]);
+
+  if (loading || !s) {
+    return (
+      <Card style={{ borderColor: "#F5E9B8" }}>
+        <CardHeader>
+          <CardTitle className="font-serif text-lg">Como Fechar a Meta</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="text-sm text-muted-foreground py-4 text-center">
+            <Loader2 className="inline h-4 w-4 animate-spin mr-2" /> Calculando…
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  const { metaReceita, receitaFaturada, pedidos, sessoesMes, taxaConversao, investimentoTotal } = s;
+
+  if (metaReceita <= 0) {
+    return (
+      <Card style={{ borderColor: "#F5E9B8" }}>
+        <CardHeader>
+          <CardTitle className="font-serif text-lg">Como Fechar a Meta</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-sm text-muted-foreground">
+            Nenhuma meta planejada encontrada para {MESES[mes - 1]}/{ano}.
+          </p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  const gapReceita = metaReceita - receitaFaturada;
+  const gapPct = metaReceita > 0 ? (gapReceita / metaReceita) * 100 : 0;
+
+  const hoje = new Date();
+  const diasNoMes = new Date(ano, mes, 0).getDate();
+  const diaAtual =
+    ano === hoje.getFullYear() && mes === hoje.getMonth() + 1 ? hoje.getDate() : diasNoMes;
+  const ritmoPct = (diaAtual / diasNoMes) * 100;
+  const receitaEsperadaAteHoje = metaReceita * (diaAtual / diasNoMes);
+  const estaNaFrente = receitaFaturada >= receitaEsperadaAteHoje;
+
+  const ticketAtual = pedidos > 0 ? receitaFaturada / pedidos : 0;
+  const ticketNecessario = pedidos > 0 ? metaReceita / pedidos : 0;
+  const deltaTicket = ticketNecessario - ticketAtual;
+  const deltaTicketPct = ticketAtual > 0 ? (deltaTicket / ticketAtual) * 100 : 0;
+
+  const conversaoNecessaria =
+    sessoesMes > 0 && ticketAtual > 0 ? (metaReceita / ticketAtual / sessoesMes) * 100 : 0;
+  const deltaConversao = conversaoNecessaria - taxaConversao;
+
+  const pedidosNecessarios = ticketAtual > 0 ? metaReceita / ticketAtual : 0;
+  const sessoesNecessarias = taxaConversao > 0 ? pedidosNecessarios / (taxaConversao / 100) : 0;
+  const deltaSessoes = sessoesNecessarias - sessoesMes;
+  const deltaSessoesPct = sessoesMes > 0 ? (deltaSessoes / sessoesMes) * 100 : 0;
+  const cpsNecessario =
+    deltaSessoes > 0 && investimentoTotal > 0 ? investimentoTotal / deltaSessoes : null;
+
+  const viabTicket = deltaTicketPct <= 2 ? "verde" : deltaTicketPct > 5 ? "vermelho" : "amarelo";
+  const viabConversao = deltaConversao <= 0.25 ? "verde" : deltaConversao > 0.5 ? "vermelho" : "amarelo";
+  const viabSessoes = deltaSessoesPct <= 15 ? "verde" : deltaSessoesPct > 30 ? "vermelho" : "amarelo";
+
+  const viabCls = (v: string) =>
+    v === "verde"
+      ? "bg-emerald-100 text-emerald-800 border-emerald-200"
+      : v === "vermelho"
+      ? "bg-rose-100 text-rose-800 border-rose-200"
+      : "bg-amber-100 text-amber-800 border-amber-200";
+  const viabIcon = (v: string) => (v === "verde" ? "✅" : v === "vermelho" ? "❌" : "⚠️");
+
+  const recomendacoes: { tipo: "verde" | "vermelho" | "amarelo"; texto: string }[] = [];
+  if (deltaTicketPct <= 2)
+    recomendacoes.push({
+      tipo: "verde",
+      texto: "🎯 Ticket Médio: variação dentro do teto de 2%/mês. Ativar combo/upsell ou frete grátis progressivo.",
+    });
+  else
+    recomendacoes.push({
+      tipo: "vermelho",
+      texto: "❌ Ticket Médio sozinho não fecha — variação necessária acima do teto saudável de 2%.",
+    });
+
+  if (deltaConversao <= 0.25)
+    recomendacoes.push({
+      tipo: "verde",
+      texto: "🎯 Conversão: variação dentro do teto de 0,25pp/mês. Otimizar checkout, adicionar urgência e prova social.",
+    });
+  else
+    recomendacoes.push({
+      tipo: "vermelho",
+      texto: "❌ Conversão sozinha não fecha — variação necessária acima do teto de 0,25pp/mês.",
+    });
+
+  if (deltaSessoesPct <= 15 && deltaSessoes > 0)
+    recomendacoes.push({
+      tipo: "verde",
+      texto: `🎯 Sessões: aumentar ${fmtInt(deltaSessoes)} sessões (${deltaSessoesPct.toFixed(1)}%). Escalar mídia paga ou ativar base de WhatsApp VIP.`,
+    });
+  else if (cpsNecessario != null)
+    recomendacoes.push({
+      tipo: "amarelo",
+      texto: `⚠️ Sessões: precisaria de ${fmtInt(deltaSessoes)} sessões extras. Com o investimento atual, CPS precisaria cair para ${fmtBRL2(cpsNecessario)}.`,
+    });
+
+  recomendacoes.push({
+    tipo: "amarelo",
+    texto: "💡 Combinação recomendada: mover 2 drivers simultaneamente reduz a pressão individual em cada um.",
+  });
+
+  const recCls = (t: string) =>
+    t === "verde"
+      ? "border-emerald-300 bg-emerald-50"
+      : t === "vermelho"
+      ? "border-rose-300 bg-rose-50"
+      : "border-amber-300 bg-amber-50";
+
+  return (
+    <Card style={{ borderColor: "#F5E9B8" }}>
+      <CardHeader>
+        <CardTitle className="font-serif text-lg">Como Fechar a Meta</CardTitle>
+        <p className="text-xs text-muted-foreground">
+          Simulação por driver para atingir a meta planejada de {MESES[mes - 1]}/{ano}.
+        </p>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {/* Status do ritmo */}
+        <div
+          className={`rounded-md border p-4 ${
+            estaNaFrente ? "border-emerald-300 bg-emerald-50" : "border-rose-300 bg-rose-50"
+          }`}
+        >
+          {estaNaFrente ? (
+            <div className="text-sm">
+              <strong className="text-emerald-800">✅ Acima do ritmo esperado</strong>
+              <div className="text-xs text-muted-foreground mt-1">
+                {fmtBRL0(receitaFaturada)} realizado vs {fmtBRL0(receitaEsperadaAteHoje)} esperado até
+                hoje (dia {diaAtual}/{diasNoMes} — {ritmoPct.toFixed(1)}% do mês).
+              </div>
+            </div>
+          ) : (
+            <div className="text-sm">
+              <strong className="text-rose-800">⚠️ Abaixo do ritmo</strong>
+              <div className="text-xs text-muted-foreground mt-1">
+                Gap de {fmtBRL0(gapReceita)} ({gapPct.toFixed(1)}% da meta). Realizado{" "}
+                {fmtBRL0(receitaFaturada)} de {fmtBRL0(metaReceita)} — dia {diaAtual}/{diasNoMes} (
+                {ritmoPct.toFixed(1)}% do mês).
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Tabela de simulações */}
+        <div>
+          <p className="text-sm font-medium mb-2">O que precisaria mudar para fechar sozinho?</p>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Alavanca</TableHead>
+                <TableHead className="text-right">Atual</TableHead>
+                <TableHead className="text-right">Necessário</TableHead>
+                <TableHead className="text-right">Variação</TableHead>
+                <TableHead className="text-center">Viável?</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              <TableRow>
+                <TableCell>Ticket Médio</TableCell>
+                <TableCell className="text-right">{fmtBRL2(ticketAtual)}</TableCell>
+                <TableCell className="text-right">{fmtBRL2(ticketNecessario)}</TableCell>
+                <TableCell className="text-right">
+                  {deltaTicket >= 0 ? "+" : ""}
+                  {fmtBRL2(deltaTicket)} ({deltaTicketPct >= 0 ? "+" : ""}
+                  {deltaTicketPct.toFixed(1)}%)
+                </TableCell>
+                <TableCell className="text-center">
+                  <Badge variant="outline" className={viabCls(viabTicket)}>
+                    {viabIcon(viabTicket)}
+                  </Badge>
+                </TableCell>
+              </TableRow>
+              <TableRow>
+                <TableCell>Taxa de Conversão</TableCell>
+                <TableCell className="text-right">{taxaConversao.toFixed(2)}%</TableCell>
+                <TableCell className="text-right">{conversaoNecessaria.toFixed(2)}%</TableCell>
+                <TableCell className="text-right">
+                  {deltaConversao >= 0 ? "+" : ""}
+                  {deltaConversao.toFixed(2)} pp
+                </TableCell>
+                <TableCell className="text-center">
+                  <Badge variant="outline" className={viabCls(viabConversao)}>
+                    {viabIcon(viabConversao)}
+                  </Badge>
+                </TableCell>
+              </TableRow>
+              <TableRow>
+                <TableCell>Sessões</TableCell>
+                <TableCell className="text-right">{fmtInt(sessoesMes)}</TableCell>
+                <TableCell className="text-right">{fmtInt(sessoesNecessarias)}</TableCell>
+                <TableCell className="text-right">
+                  {deltaSessoes >= 0 ? "+" : ""}
+                  {fmtInt(deltaSessoes)} ({deltaSessoesPct >= 0 ? "+" : ""}
+                  {deltaSessoesPct.toFixed(1)}%)
+                </TableCell>
+                <TableCell className="text-center">
+                  <Badge variant="outline" className={viabCls(viabSessoes)}>
+                    {viabIcon(viabSessoes)}
+                  </Badge>
+                </TableCell>
+              </TableRow>
+            </TableBody>
+          </Table>
+        </div>
+
+        {/* Recomendações */}
+        <div className="space-y-2">
+          {recomendacoes.map((r, i) => (
+            <div key={i} className={`rounded-md border p-3 text-sm ${recCls(r.tipo)}`}>
+              {r.texto}
+            </div>
+          ))}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
