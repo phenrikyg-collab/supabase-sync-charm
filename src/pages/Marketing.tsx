@@ -678,6 +678,8 @@ export default function Marketing() {
           </div>
           <AcompanhamentoMeta ano={metaAno} mes={metaMes} />
           <DiagnosticoMes ano={metaAno} mes={metaMes} />
+          <ComoFecharMeta ano={metaAno} mes={metaMes} />
+
         </TabsContent>
 
         {/* ===== PÁGINAS ===== */}
