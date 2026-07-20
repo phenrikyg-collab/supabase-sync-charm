@@ -152,9 +152,7 @@ export default function Marketing() {
 
   // ===== Meta Ads =====
   useEffect(() => {
-    const { inicio, fim } = getDateRange(periodo);
-    const inicioDash = toDashDate(inicio);
-    const fimDash = toDashDate(fim);
+    const { inicio: inicioDash, fim: fimDash } = getDateRangeWindsor(periodo);
     setLoadingMeta(true);
 
     const fetchAll = async () => {
