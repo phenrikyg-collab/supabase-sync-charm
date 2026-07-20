@@ -17,11 +17,10 @@ const fmtBRL = (n: number) =>
 const fmtInt = (n: number) => Math.round(n || 0).toLocaleString("pt-BR");
 const fmtPct = (n: number) => `${(n || 0).toFixed(1)}%`;
 
-const getDateRange = (periodo: string) => {
+const getDateRangeGA4 = (periodo: string) => {
   const pad = (n: number) => String(n).padStart(2, "0");
   const toYMD = (d: Date) =>
     `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}`;
-
   const hoje = new Date();
 
   if (periodo === "7dias") {
@@ -36,12 +35,10 @@ const getDateRange = (periodo: string) => {
     const ini = new Date(); ini.setDate(hoje.getDate() - 90);
     return { inicio: toYMD(ini), fim: toYMD(hoje) };
   }
-
   const meses: Record<string, { inicio: string; fim: string }> = {
-    mar2026: { inicio: "20260301", fim: "20260331" },
-    abr2026: { inicio: "20260401", fim: "20260430" },
     mai2026: { inicio: "20260501", fim: "20260531" },
     jun2026: { inicio: "20260601", fim: "20260630" },
+    jul2026: { inicio: "20260701", fim: "20260731" },
   };
   return (
     meses[periodo] ?? {
@@ -51,18 +48,46 @@ const getDateRange = (periodo: string) => {
   );
 };
 
-const toDashDate = (ymd: string) =>
-  ymd.length === 8 ? `${ymd.slice(0, 4)}-${ymd.slice(4, 6)}-${ymd.slice(6, 8)}` : ymd;
+const getDateRangeWindsor = (periodo: string) => {
+  const pad = (n: number) => String(n).padStart(2, "0");
+  const toISO = (d: Date) =>
+    `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  const hoje = new Date();
 
+  if (periodo === "7dias") {
+    const ini = new Date(); ini.setDate(hoje.getDate() - 7);
+    return { inicio: toISO(ini), fim: toISO(hoje) };
+  }
+  if (periodo === "30dias") {
+    const ini = new Date(); ini.setDate(hoje.getDate() - 30);
+    return { inicio: toISO(ini), fim: toISO(hoje) };
+  }
+  if (periodo === "90dias") {
+    const ini = new Date(); ini.setDate(hoje.getDate() - 90);
+    return { inicio: toISO(ini), fim: toISO(hoje) };
+  }
+  const meses: Record<string, { inicio: string; fim: string }> = {
+    mar2026: { inicio: "2026-03-01", fim: "2026-03-31" },
+    abr2026: { inicio: "2026-04-01", fim: "2026-04-30" },
+    mai2026: { inicio: "2026-05-01", fim: "2026-05-31" },
+    jun2026: { inicio: "2026-06-01", fim: "2026-06-30" },
+    jul2026: { inicio: "2026-07-01", fim: "2026-07-31" },
+  };
+  return (
+    meses[periodo] ?? {
+      inicio: toISO(new Date(new Date().setDate(hoje.getDate() - 30))),
+      fim: toISO(hoje),
+    }
+  );
+};
 
 const PERIODOS = [
   { value: "7dias", label: "Últimos 7 dias" },
   { value: "30dias", label: "Últimos 30 dias" },
   { value: "90dias", label: "Últimos 90 dias" },
-  { value: "mar2026", label: "Março 2026" },
-  { value: "abr2026", label: "Abril 2026" },
   { value: "mai2026", label: "Maio 2026" },
   { value: "jun2026", label: "Junho 2026" },
+  { value: "jul2026", label: "Julho 2026" },
 ];
 
 const num = (v: any) => (typeof v === "number" ? v : Number(v) || 0);
