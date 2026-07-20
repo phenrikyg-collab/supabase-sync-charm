@@ -629,6 +629,17 @@ export function AcompanhamentoMeta({ ano, mes }: { ano: number; mes: number }) {
                   </div>
                 </div>
               </div>
+              {/* Barra de proporção Novos vs Recorrentes */}
+              <div className="mt-4">
+                <div className="flex h-3 rounded-full overflow-hidden border">
+                  <div style={{ width: `${pn}%`, background: "#2563eb" }} title={`Novos ${pn.toFixed(1)}%`} />
+                  <div style={{ width: `${pr}%`, background: "#16a34a" }} title={`Recorrentes ${pr.toFixed(1)}%`} />
+                </div>
+                <div className="flex justify-between text-xs mt-1">
+                  <span style={{ color: "#2563eb" }}>Novos {pn.toFixed(1)}%</span>
+                  <span style={{ color: "#16a34a" }}>Recorrentes {pr.toFixed(1)}%</span>
+                </div>
+              </div>
             </CardContent>
           </Card>
         );
