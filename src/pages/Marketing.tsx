@@ -954,6 +954,10 @@ export default function Marketing() {
         </TabsContent>
         {/* ===== META ADS ===== */}
         <TabsContent value="meta-ads" className="space-y-6">
+          <div className="flex justify-end">
+            {renderPeriodo(periodoMeta, setPeriodoMeta, PERIODOS_EXT)}
+          </div>
+
           {loadingMeta ? (
             <>
               <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
