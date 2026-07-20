@@ -628,67 +628,69 @@ export default function Marketing() {
   }, [windsorCanaisAgg]);
 
 
+  const renderPeriodo = (value: string, onChange: (v: string) => void, options: { value: string; label: string }[]) => (
+    <Select value={value} onValueChange={onChange}>
+      <SelectTrigger className="w-[220px]"><SelectValue /></SelectTrigger>
+      <SelectContent>
+        {options.map((p) => (
+          <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  );
+
   return (
     <div className="p-6 space-y-6">
-      <div className="flex items-center justify-between flex-wrap gap-4">
-        <div className="flex items-center gap-3">
-          <Megaphone className="h-7 w-7 text-primary" />
-          <h1 className="text-3xl font-serif font-bold">Marketing</h1>
-        </div>
-        <Select value={periodo} onValueChange={setPeriodo}>
-          <SelectTrigger className="w-[220px]"><SelectValue /></SelectTrigger>
-          <SelectContent>
-            {PERIODOS.map((p) => (
-              <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+      <div className="flex items-center gap-3">
+        <Megaphone className="h-7 w-7 text-primary" />
+        <h1 className="text-3xl font-serif font-bold">Marketing</h1>
       </div>
 
-      {/* ===== Acompanhamento da Meta (Planejamento Mensal × Realizado) ===== */}
-      <div className="flex items-center gap-3 flex-wrap">
-        <span className="text-xs uppercase tracking-wider text-muted-foreground">Mês de referência da meta:</span>
-        <Select value={String(metaMes)} onValueChange={(v) => setMetaMes(Number(v))}>
-          <SelectTrigger className="w-[140px]"><SelectValue /></SelectTrigger>
-          <SelectContent>
-            {MESES.map((n, i) => (
-              <SelectItem key={i} value={String(i + 1)}>{n}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <Select value={String(metaAno)} onValueChange={(v) => setMetaAno(Number(v))}>
-          <SelectTrigger className="w-[110px]"><SelectValue /></SelectTrigger>
-          <SelectContent>
-            {[hoje.getFullYear() - 1, hoje.getFullYear(), hoje.getFullYear() + 1].map((a) => (
-              <SelectItem key={a} value={String(a)}>{a}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
-      <AcompanhamentoMeta ano={metaAno} mes={metaMes} />
-      <DiagnosticoMes ano={metaAno} mes={metaMes} />
-
-      {loading && (
-        <div className="flex items-center gap-2 text-muted-foreground text-sm">
-          <Loader2 className="h-4 w-4 animate-spin" /> Carregando dados do GA4...
-        </div>
-      )}
-
-
-      <Tabs defaultValue="paginas">
+      <Tabs defaultValue="acompanhamento">
         <TabsList className="flex-wrap h-auto">
+          <TabsTrigger value="acompanhamento">Acompanhamento da Meta</TabsTrigger>
           <TabsTrigger value="paginas">Páginas</TabsTrigger>
           <TabsTrigger value="windsor-produtos">Produtos - Mariana Cardoso</TabsTrigger>
           <TabsTrigger value="windsor-canais">Sessões por Canal - Mariana Cardoso</TabsTrigger>
           <TabsTrigger value="meta-ads">Meta Ads</TabsTrigger>
         </TabsList>
 
-
-
-
+        {/* ===== ACOMPANHAMENTO DA META ===== */}
+        <TabsContent value="acompanhamento" className="space-y-6">
+          <div className="flex items-center justify-end gap-3 flex-wrap">
+            <span className="text-xs uppercase tracking-wider text-muted-foreground">Mês de referência da meta:</span>
+            <Select value={String(metaMes)} onValueChange={(v) => setMetaMes(Number(v))}>
+              <SelectTrigger className="w-[140px]"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {MESES.map((n, i) => (
+                  <SelectItem key={i} value={String(i + 1)}>{n}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={String(metaAno)} onValueChange={(v) => setMetaAno(Number(v))}>
+              <SelectTrigger className="w-[110px]"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {[hoje.getFullYear() - 1, hoje.getFullYear(), hoje.getFullYear() + 1].map((a) => (
+                  <SelectItem key={a} value={String(a)}>{a}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <AcompanhamentoMeta ano={metaAno} mes={metaMes} />
+          <DiagnosticoMes ano={metaAno} mes={metaMes} />
+        </TabsContent>
 
         {/* ===== PÁGINAS ===== */}
         <TabsContent value="paginas" className="space-y-6">
+          <div className="flex justify-end">
+            {renderPeriodo(periodoPaginas, setPeriodoPaginas, PERIODOS_BASE)}
+          </div>
+          {loading && (
+            <div className="flex items-center gap-2 text-muted-foreground text-sm">
+              <Loader2 className="h-4 w-4 animate-spin" /> Carregando dados do GA4...
+            </div>
+          )}
+
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <StatCard title="Total de Sessões" value={fmtInt(paginasTotalSessoes)} icon={MousePointerClick} variant="primary" />
             <StatCard title="Páginas únicas" value={fmtInt(paginasAgg.length)} icon={Megaphone} />
