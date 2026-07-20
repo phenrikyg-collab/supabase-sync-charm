@@ -268,7 +268,7 @@ export default function Marketing() {
       spend: c.spend,
       clicks: c.clicks,
       roas: c.roas,
-      receita_atribuida: c.receita_atribuida,
+      receita_atribuida: c.receita,
     }));
     const semAtribuicao = todas.filter((c) => c.roas === 0);
     const comAtribuicao = todas.filter((c) => c.roas > 0);
