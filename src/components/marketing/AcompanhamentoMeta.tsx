@@ -87,6 +87,7 @@ interface Fetched {
   sessoesMidia: number;
   sessoesOrganicas: number;
   taxaConversao: number | null;
+  taxaAprovacaoView: number | null;
   pedidosCaptadosView: number | null;
   sessoesMesView: number | null;
   investimentoTotal: number;
