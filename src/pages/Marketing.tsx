@@ -179,7 +179,7 @@ export default function Marketing() {
   useEffect(() => {
     const { inicio: ini, fim } = getDateRangeWindsor(periodoMeta);
     setLoadingMeta(true);
-    fetchAll("windsor_meta_ads", "date", ini, fim, "date, campaign, spend, clicks, cpc, cpm, ctr, purchase_roas, actions_add_to_cart, actions_initiate_checkout, actions_video_view")
+    fetchAll("windsor_meta_ads", "date", ini, fim, "date, campaign, spend, clicks, cpc, cpm, ctr, purchase_roas, actions_add_to_cart, actions_initiate_checkout, actions_video_view, actions_purchase, action_values_purchase")
       .then((rows) => setMetaAds(rows))
       .catch(() => setMetaAds([]))
       .finally(() => setLoadingMeta(false));
@@ -188,32 +188,35 @@ export default function Marketing() {
   const metaAdsTotais = useMemo(() => {
     const t = metaAds.reduce(
       (a, r) => {
-        const sp = num(r.spend);
-        const cl = num(r.clicks);
-        const ro = num(r.purchase_roas);
-        a.spend += sp;
-        a.clicks += cl;
-        a.spendRoas += sp * ro;
+        a.spend += num(r.spend);
+        a.clicks += num(r.clicks);
+        a.compras += num(r.actions_purchase);
+        a.receita += num(r.action_values_purchase);
         return a;
       },
-      { spend: 0, clicks: 0, spendRoas: 0 }
+      { spend: 0, clicks: 0, compras: 0, receita: 0 }
     );
     return {
       spend: t.spend,
       clicks: t.clicks,
+      compras: t.compras,
+      receita: t.receita,
       cpc: t.clicks > 0 ? t.spend / t.clicks : 0,
-      roas: t.spend > 0 ? t.spendRoas / t.spend : 0,
+      roas: t.spend > 0 ? t.receita / t.spend : 0,
     };
   }, [metaAds]);
 
   const metaAdsDaily = useMemo(() => {
-    const map = new Map<string, number>();
+    const map = new Map<string, { spend: number; receita: number }>();
     for (const r of metaAds) {
       const d = r.date;
-      map.set(d, (map.get(d) || 0) + num(r.spend));
+      const cur = map.get(d) || { spend: 0, receita: 0 };
+      cur.spend += num(r.spend);
+      cur.receita += num(r.action_values_purchase);
+      map.set(d, cur);
     }
     return [...map.entries()]
-      .map(([date, spend]) => ({ date, spend }))
+      .map(([date, v]) => ({ date, spend: v.spend, receita: v.receita }))
       .sort((a, b) => a.date.localeCompare(b.date));
   }, [metaAds]);
 
