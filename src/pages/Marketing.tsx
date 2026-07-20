@@ -104,7 +104,10 @@ const PERIODOS_EXT = [
 const num = (v: any) => (typeof v === "number" ? v : Number(v) || 0);
 
 export default function Marketing() {
-  const [periodo, setPeriodo] = useState("30dias");
+  const [periodoPaginas, setPeriodoPaginas] = useState("30dias");
+  const [periodoProdutos, setPeriodoProdutos] = useState("30dias");
+  const [periodoCanais, setPeriodoCanais] = useState("30dias");
+  const [periodoMeta, setPeriodoMeta] = useState("30dias");
   const hoje = new Date();
   const [metaAno, setMetaAno] = useState(hoje.getFullYear());
   const [metaMes, setMetaMes] = useState(hoje.getMonth() + 1);
@@ -117,6 +120,25 @@ export default function Marketing() {
   const [windsorCanais, setWindsorCanais] = useState<any[]>([]);
   const [metaAds, setMetaAds] = useState<any[]>([]);
   const [loadingMeta, setLoadingMeta] = useState(false);
+
+  // Recursive fetch to bypass PostgREST 1000-row default limit
+  const fetchAll = async (table: string, dateCol: string, ini: string, end: string, columns = "*") => {
+    const pageSize = 1000;
+    let from = 0;
+    const all: any[] = [];
+    while (true) {
+      const { data, error } = await (supabase.from(table as any) as any)
+        .select(columns)
+        .gte(dateCol, ini)
+        .lte(dateCol, end)
+        .range(from, from + pageSize - 1);
+      if (error || !data || data.length === 0) break;
+      all.push(...data);
+      if (data.length < pageSize) break;
+      from += pageSize;
+    }
+    return all;
+  };
 
   useEffect(() => {
     const { inicio, fim } = getDateRangeGA4(periodo);
