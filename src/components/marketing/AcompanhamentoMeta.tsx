@@ -87,13 +87,15 @@ interface Fetched {
   sessoesMidia: number;
   sessoesOrganicas: number;
   taxaConversao: number | null;
+  pedidosCaptadosView: number | null;
+  sessoesMesView: number | null;
   investimentoTotal: number;
   clicksTotal: number;
   receitaAtribuida: number;
   roasMedio: number;
   cpcMedio: number;
   atualizadoEm: string | null;
-  errors: { meta?: boolean; tray?: boolean; canais?: boolean; metaAds?: boolean };
+  errors: { meta?: boolean; tray?: boolean; canais?: boolean; metaAds?: boolean; taxa?: boolean };
 }
 
 export function AcompanhamentoMeta({ ano, mes }: { ano: number; mes: number }) {
@@ -120,8 +122,9 @@ export function AcompanhamentoMeta({ ano, mes }: { ano: number; mes: number }) {
     setRefreshing(true);
     const errs: Fetched["errors"] = {};
 
-    // 4 queries em paralelo
-    const [metaRes, canaisRows, metaAdsRows, traySummary] = await Promise.all([
+    // queries em paralelo
+    const mesKey = `${ano}-${pad(mes)}`;
+    const [metaRes, canaisRows, metaAdsRows, traySummary, taxaRow] = await Promise.all([
       // 1. Meta do mês
       (supabase as any)
         .from("planejamento_mensal")
@@ -188,6 +191,16 @@ export function AcompanhamentoMeta({ ano, mes }: { ano: number; mes: number }) {
           return null;
         }
       })(),
+      // 5. Taxa de conversão da view
+      (supabase as any)
+        .from("vw_taxa_conversao_mensal")
+        .select("mes, pedidos, sessoes, taxa_conversao")
+        .eq("mes", mesKey)
+        .maybeSingle()
+        .then((r: any) => {
+          if (r.error) errs.taxa = true;
+          return r.data;
+        }),
     ]);
 
     // ── sessões ──
@@ -200,7 +213,14 @@ export function AcompanhamentoMeta({ ano, mes }: { ano: number; mes: number }) {
       (s: number, r: any) => s + num(r.items_purchased),
       0,
     );
-    const taxaConversao = sessoesTotais > 0 ? (comprasAtribuidas / sessoesTotais) * 100 : null;
+    const taxaConversao =
+      taxaRow?.taxa_conversao != null
+        ? num(taxaRow.taxa_conversao)
+        : sessoesTotais > 0
+        ? (comprasAtribuidas / sessoesTotais) * 100
+        : null;
+    const pedidosCaptadosView = taxaRow?.pedidos != null ? num(taxaRow.pedidos) : null;
+    const sessoesMesView = taxaRow?.sessoes != null ? num(taxaRow.sessoes) : null;
 
     // ── meta ads ──
     const investimentoTotal = metaAdsRows.reduce((s: number, r: any) => s + num(r.spend), 0);
@@ -225,6 +245,8 @@ export function AcompanhamentoMeta({ ano, mes }: { ano: number; mes: number }) {
       sessoesMidia,
       sessoesOrganicas,
       taxaConversao,
+      pedidosCaptadosView,
+      sessoesMesView,
       investimentoTotal,
       clicksTotal,
       receitaAtribuida,
@@ -293,9 +315,10 @@ export function AcompanhamentoMeta({ ano, mes }: { ano: number; mes: number }) {
         label: "Sessões Totais",
         fmt: fmtInt,
         meta: m.sessoes_totais ?? null,
-        realizado: data.sessoesTotais,
-        projecao: data.sessoesTotais * fatorProjecao,
-        status: statusVsMeta(data.sessoesTotais * fatorProjecao, m.sessoes_totais ?? null),
+        realizado: data.sessoesMesView ?? data.sessoesTotais,
+        projecao: (data.sessoesMesView ?? data.sessoesTotais) * fatorProjecao,
+        status: statusVsMeta((data.sessoesMesView ?? data.sessoesTotais) * fatorProjecao, m.sessoes_totais ?? null),
+        tooltip: data.sessoesMesView != null ? "Fonte: vw_taxa_conversao_mensal" : undefined,
       },
       {
         label: "Sessões Orgânicas",
@@ -320,7 +343,7 @@ export function AcompanhamentoMeta({ ano, mes }: { ano: number; mes: number }) {
         realizado: data.taxaConversao,
         projecao: data.taxaConversao,
         status: statusVsMeta(data.taxaConversao, m.premissa_taxa_conversao ?? null),
-        tooltip: "Calculado via GA4 (compras atribuídas por sessão)",
+        tooltip: "Fonte: vw_taxa_conversao_mensal (pedidos / sessões × 100)",
       },
       {
         label: "Taxa de Aprovação",
@@ -346,9 +369,10 @@ export function AcompanhamentoMeta({ ano, mes }: { ano: number; mes: number }) {
         label: "Pedidos Captados",
         fmt: fmtInt,
         meta: m.pedidos_captados ?? null,
-        realizado: trayP,
-        projecao: proj(trayP),
-        status: statusVsMeta(proj(trayP), m.pedidos_captados ?? null),
+        realizado: data.pedidosCaptadosView ?? trayP,
+        projecao: proj(data.pedidosCaptadosView ?? trayP),
+        status: statusVsMeta(proj(data.pedidosCaptadosView ?? trayP), m.pedidos_captados ?? null),
+        tooltip: data.pedidosCaptadosView != null ? "Fonte: vw_taxa_conversao_mensal" : undefined,
       },
       {
         label: "Investimento Total",
