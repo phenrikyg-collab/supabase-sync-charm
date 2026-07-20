@@ -194,7 +194,7 @@ export function AcompanhamentoMeta({ ano, mes }: { ano: number; mes: number }) {
       // 5. Taxa de conversão da view
       (supabase as any)
         .from("vw_taxa_conversao_mensal")
-        .select("mes, pedidos, sessoes, taxa_conversao")
+        .select("mes, total_pedidos, pedidos, cancelados_reais, taxa_aprovacao, sessoes, taxa_conversao")
         .eq("mes", mesKey)
         .maybeSingle()
         .then((r: any) => {
