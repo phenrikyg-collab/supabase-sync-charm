@@ -108,9 +108,8 @@ export default function Marketing() {
   const [loadingMeta, setLoadingMeta] = useState(false);
 
   useEffect(() => {
-    const { inicio, fim } = getDateRange(periodo);
-    const inicioDash = toDashDate(inicio);
-    const fimDash = toDashDate(fim);
+    const { inicio, fim } = getDateRangeGA4(periodo);
+    const { inicio: inicioDash, fim: fimDash } = getDateRangeWindsor(periodo);
     setLoading(true);
 
     // Recursive fetch to bypass PostgREST 1000-row default limit
