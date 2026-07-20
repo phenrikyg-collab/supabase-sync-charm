@@ -745,6 +745,10 @@ export default function Marketing() {
 
         {/* ===== WINDSOR PRODUTOS ===== */}
         <TabsContent value="windsor-produtos" className="space-y-6">
+          <div className="flex justify-end">
+            {renderPeriodo(periodoProdutos, setPeriodoProdutos, PERIODOS_EXT)}
+          </div>
+
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <StatCard title="VISUALIZAÇÕES" value={fmtInt(windsorProdutosTotais.items_viewed)} icon={MousePointerClick} />
             <StatCard title="Add. Carrinho" value={fmtInt(windsorProdutosTotais.items_added_to_cart)} icon={ShoppingCart} variant="warning" />
