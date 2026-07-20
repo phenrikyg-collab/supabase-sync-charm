@@ -418,12 +418,14 @@ export function AcompanhamentoMeta({ ano, mes }: { ano: number; mes: number }) {
       {
         label: "CAC Novos",
         fmt: fmtBRL0,
-        meta: 65,
-        realizado: null,
-        projecao: null,
-        status: "neutro",
-        tooltip: "Meta hardcoded temporariamente (R$ 65)",
-        noProject: true,
+        meta: m.cac_novos ?? 65,
+        realizado: data.clientesNovos > 0 ? data.investimentoTotal / data.clientesNovos : null,
+        projecao: data.clientesNovos > 0 ? data.investimentoTotal / data.clientesNovos : null,
+        status: statusMenorMelhor(
+          data.clientesNovos > 0 ? data.investimentoTotal / data.clientesNovos : null,
+          m.cac_novos ?? 65,
+        ),
+        tooltip: "investimentoTotal / clientes_novos (vw_taxa_conversao_mensal)",
       },
     ];
   }, [data, fatorProjecao]);
