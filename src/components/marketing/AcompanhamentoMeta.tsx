@@ -343,7 +343,7 @@ export function AcompanhamentoMeta({ ano, mes }: { ano: number; mes: number }) {
         realizado: data.taxaConversao,
         projecao: data.taxaConversao,
         status: statusVsMeta(data.taxaConversao, m.premissa_taxa_conversao ?? null),
-        tooltip: "Calculado via GA4 (compras atribuídas por sessão)",
+        tooltip: "Fonte: vw_taxa_conversao_mensal (pedidos / sessões × 100)",
       },
       {
         label: "Taxa de Aprovação",
