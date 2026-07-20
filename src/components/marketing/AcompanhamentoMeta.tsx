@@ -315,9 +315,10 @@ export function AcompanhamentoMeta({ ano, mes }: { ano: number; mes: number }) {
         label: "Sessões Totais",
         fmt: fmtInt,
         meta: m.sessoes_totais ?? null,
-        realizado: data.sessoesTotais,
-        projecao: data.sessoesTotais * fatorProjecao,
-        status: statusVsMeta(data.sessoesTotais * fatorProjecao, m.sessoes_totais ?? null),
+        realizado: data.sessoesMesView ?? data.sessoesTotais,
+        projecao: (data.sessoesMesView ?? data.sessoesTotais) * fatorProjecao,
+        status: statusVsMeta((data.sessoesMesView ?? data.sessoesTotais) * fatorProjecao, m.sessoes_totais ?? null),
+        tooltip: data.sessoesMesView != null ? "Fonte: vw_taxa_conversao_mensal" : undefined,
       },
       {
         label: "Sessões Orgânicas",
