@@ -204,6 +204,43 @@ export default function DashboardComercialPage() {
     },
   });
 
+  // ===== Mix de clientes + CAC (mês do período) =====
+  const mesRefStr = format(dataInicio, "yyyy-MM");
+  const { data: mixClientes } = useQuery({
+    queryKey: ["dash-mix-clientes", mesRefStr],
+    queryFn: async () => {
+      const [taxaRes, adsRes] = await Promise.all([
+        (supabase as any)
+          .from("vw_taxa_conversao_mensal")
+          .select("clientes_novos, clientes_recorrentes")
+          .eq("mes", mesRefStr)
+          .maybeSingle(),
+        supabase
+          .from("windsor_meta_ads")
+          .select("spend")
+          .gte("date", `${mesRefStr}-01`)
+          .lte("date", `${mesRefStr}-31`),
+      ]);
+      const t = taxaRes.data as any;
+      const investimentoTotal = (adsRes.data ?? []).reduce(
+        (acc: number, r: any) => acc + (Number(r.spend) || 0),
+        0,
+      );
+      const novos = Number(t?.clientes_novos ?? 0);
+      const recorrentes = Number(t?.clientes_recorrentes ?? 0);
+      const unicos = novos + recorrentes;
+      return {
+        novos,
+        recorrentes,
+        unicos,
+        percNovos: unicos > 0 ? (novos / unicos) * 100 : 0,
+        percRecorrentes: unicos > 0 ? (recorrentes / unicos) * 100 : 0,
+        cacNovos: novos > 0 ? investimentoTotal / novos : 0,
+        investimentoTotal,
+      };
+    },
+  });
+
   const novoRecorrente = useMemo(() => {
     const acc = { novo: { pedidos: 0, receita: 0 }, recorrente: { pedidos: 0, receita: 0 } };
     for (const v of vendasTipo) {
