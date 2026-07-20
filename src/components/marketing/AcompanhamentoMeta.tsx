@@ -653,109 +653,190 @@ export function AcompanhamentoMeta({ ano, mes }: { ano: number; mes: number }) {
   );
 }
 
-// ─── Diagnóstico do mês (mantém uso do hook useRealizadoMes) ─────
+// ─── Diagnóstico por Driver (9 drivers do planejamento) ─────
+type DiagTipo = "danger" | "warning" | "info" | "success";
+interface Diag {
+  tipo: DiagTipo;
+  driver: string;
+  mensagem: string;
+}
+
 export function DiagnosticoMes({ ano, mes }: { ano: number; mes: number }) {
-  const r = useRealizadoMes(ano, mes);
-  const diagnosticos: { titulo: string; evidencia: string; acao: string; cor: string }[] = [];
-  const pctDec = r.ritmoMes.pctDecorrido;
+  const [diagnosticos, setDiagnosticos] = useState<Diag[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const sT = r.realizado.sessoes_totais ?? 0;
-  const sMeta = r.meta.sessoes_totais ?? 0;
-  if (sMeta > 0 && (sT / sMeta) * 100 < pctDec * 0.95) {
-    const quedas = r.canaisAtual
-      .map((c) => ({
-        grupo: c.grupo,
-        atual: c.participacao,
-        hist: r.canaisHistoricos[c.grupo] ?? 0,
-        queda: (r.canaisHistoricos[c.grupo] ?? 0) - c.participacao,
-      }))
-      .filter((q) => q.hist > 5)
-      .sort((a, b) => b.queda - a.queda);
-    const pior = quedas[0];
-    diagnosticos.push({
-      titulo: "Sessões abaixo do ritmo da meta",
-      evidencia: pior
-        ? `Canal com maior queda de participação: ${pior.grupo} (${pior.atual.toFixed(1)}% atual vs ${pior.hist.toFixed(1)}% histórico).`
-        : `Volume acumulado ${((sT / sMeta) * 100).toFixed(0)}% da meta com ${pctDec.toFixed(0)}% do mês decorrido.`,
-      acao: pior
-        ? `Escalar campanhas ou revisar SEO/criativos em ${pior.grupo}.`
-        : "Aumentar investimento em mídia paga ou intensificar publicações orgânicas.",
-      cor: "border-rose-200 bg-rose-50",
-    });
-  }
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      setLoading(true);
+      const mesStr = `${ano}-${pad(mes)}`;
+      const diasNoMes = new Date(ano, mes, 0).getDate();
+      const dataInicio = `${mesStr}-01`;
+      const dataFim = `${mesStr}-${pad(diasNoMes)}`;
 
-  const tc = r.realizado.taxa_conversao ?? null;
-  const tcMeta = r.meta.taxa_conversao ?? null;
-  if (tc != null && tcMeta != null && tc < tcMeta * 0.9) {
-    diagnosticos.push({
-      titulo: "Taxa de conversão abaixo da meta",
-      evidencia: `Conversão atual ${tc.toFixed(2)}% vs meta ${tcMeta.toFixed(2)}%.`,
-      acao: "Revisar funil de checkout, testar novos CTAs, revisar preço/frete e provas sociais.",
-      cor: "border-amber-200 bg-amber-50",
-    });
-  }
+      const [taxaRes, histRes, adsRes, canaisRes, trayRes] = await Promise.all([
+        (supabase as any)
+          .from("vw_taxa_conversao_mensal")
+          .select("*")
+          .eq("mes", mesStr)
+          .maybeSingle(),
+        (supabase as any)
+          .from("vw_taxa_conversao_mensal")
+          .select("*")
+          .lt("mes", mesStr)
+          .order("mes", { ascending: false })
+          .limit(3),
+        fetchAll("windsor_meta_ads", "spend", (q) =>
+          q.gte("date", dataInicio).lte("date", dataFim),
+        ).catch(() => [] as any[]),
+        fetchAll(
+          "windsor_canais",
+          "sessions, session_custom_channel_group",
+          (q) => q.gte("date", dataInicio).lte("date", dataFim),
+        ).catch(() => [] as any[]),
+        fetchAll("tray_orders", "total, orderstatus_type", (q) =>
+          q.gte("date", dataInicio).lte("date", dataFim + "T23:59:59"),
+        ).catch(() => [] as any[]),
+      ]);
 
-  const roas = r.realizado.roas_faturado ?? 0;
-  if (roas > 0 && roas < 2 && r.campanhasBaixoRoas.length > 0) {
-    diagnosticos.push({
-      titulo: "ROAS abaixo do ponto de equilíbrio",
-      evidencia: `Top campanhas com pior ROAS: ${r.campanhasBaixoRoas.map((c) => `${c.campaign} (${c.roas.toFixed(2)}x)`).join(", ")}.`,
-      acao: "Pausar ou reduzir orçamento dessas campanhas; realocar para as com melhor performance.",
-      cor: "border-rose-200 bg-rose-50",
-    });
-  }
+      const taxaData = taxaRes?.data ?? null;
+      const historico = histRes?.data ?? [];
+      const mesAnterior = historico[0] ?? null;
 
-  const cac = r.realizado.cac_novos ?? null;
-  const cacMeta = r.meta.cac_novos ?? null;
-  if (cac != null && cacMeta != null && cac > cacMeta * 1.2) {
-    diagnosticos.push({
-      titulo: "CAC de novos acima da meta",
-      evidencia: `CAC atual R$ ${cac.toFixed(0)} vs meta R$ ${cacMeta.toFixed(0)}.`,
-      acao: "Revisar mix de canais: reduzir gasto em canais caros, escalar canais eficientes.",
-      cor: "border-amber-200 bg-amber-50",
-    });
-  }
+      const investimentoTotal = adsRes.reduce((s: number, r: any) => s + num(r.spend), 0);
+      const sessoesMidia = canaisRes
+        .filter((r: any) => MIDIA_GROUPS.has(r.session_custom_channel_group))
+        .reduce((s: number, r: any) => s + num(r.sessions), 0);
+      const receitaFaturada = trayRes
+        .filter((o: any) => o.orderstatus_type !== "canceled")
+        .reduce((s: number, o: any) => s + num(o.total), 0);
+      const pedidos = num(taxaData?.pedidos);
 
-  const inv = r.projecao.investimento_total ?? null;
-  const invMeta = r.meta.investimento_total ?? null;
-  if (inv != null && invMeta != null && invMeta > 0 && inv > invMeta * 1.15) {
-    diagnosticos.push({
-      titulo: "Projeção de investimento acima do orçado",
-      evidencia: `Projeção R$ ${inv.toFixed(0)} vs meta R$ ${invMeta.toFixed(0)}.`,
-      acao: "Ajustar ritmo diário de gasto ou revisar campanhas com maior consumo.",
-      cor: "border-rose-200 bg-rose-50",
-    });
-  }
+      const cpsMidia = sessoesMidia > 0 ? investimentoTotal / sessoesMidia : 0;
+      const ticketMedio = pedidos > 0 ? receitaFaturada / pedidos : 0;
+
+      const cn = num(taxaData?.clientes_novos);
+      const cr = num(taxaData?.clientes_recorrentes);
+      const cu = cn + cr;
+      const retencaoAtual = cu > 0 ? (cr / cu) * 100 : 0;
+
+      const cnA = num(mesAnterior?.clientes_novos);
+      const crA = num(mesAnterior?.clientes_recorrentes);
+      const cuA = cnA + crA;
+      const retencaoAnterior = cuA > 0 ? (crA / cuA) * 100 : null;
+
+      const diags: Diag[] = [];
+
+      // 01. Retenção
+      if (cu > 0) {
+        if (retencaoAtual < 10)
+          diags.push({ tipo: "danger", driver: "01. Retenção", mensagem: `Retenção em ${retencaoAtual.toFixed(1)}% — abaixo do mínimo saudável de 10%. Ativar estratégia de recompra: WhatsApp VIP, e-mail e cashback.` });
+        else if (retencaoAtual > 38)
+          diags.push({ tipo: "warning", driver: "01. Retenção", mensagem: `Retenção em ${retencaoAtual.toFixed(1)}% — acima de 38% sinaliza aquisição parada. Aumentar investimento em novos clientes.` });
+        else if (retencaoAnterior != null && Math.abs(retencaoAtual - retencaoAnterior) > 2)
+          diags.push({ tipo: "warning", driver: "01. Retenção", mensagem: `Variação de ${(retencaoAtual - retencaoAnterior).toFixed(1)}pp vs mês anterior — acima do teto de ±2pp/mês.` });
+      }
+
+      // 02. Aprovação
+      const aprovacao = num(taxaData?.taxa_aprovacao);
+      const aprovacaoAnterior = mesAnterior?.taxa_aprovacao != null ? num(mesAnterior.taxa_aprovacao) : null;
+      if (taxaData?.taxa_aprovacao != null) {
+        if (aprovacao < 70)
+          diags.push({ tipo: "danger", driver: "02. Aprovação", mensagem: `Taxa de aprovação em ${aprovacao.toFixed(2)}% — crítico, abaixo de 70%. Revisar gateway de pagamento e ofertas de parcelamento.` });
+        else if (aprovacao < 85)
+          diags.push({ tipo: "warning", driver: "02. Aprovação", mensagem: `Taxa de aprovação em ${aprovacao.toFixed(2)}% — abaixo do alvo de 90%. Revisar opções de pagamento e follow-up de boletos.` });
+        else if (aprovacaoAnterior != null && Math.abs(aprovacao - aprovacaoAnterior) > 1)
+          diags.push({ tipo: "warning", driver: "02. Aprovação", mensagem: `Variação de ${(aprovacao - aprovacaoAnterior).toFixed(1)}pp vs mês anterior — acima do teto de ±1pp/mês.` });
+      }
+
+      // 03. Ticket Médio
+      if (ticketMedio > 0 && ticketMedio < 150)
+        diags.push({ tipo: "warning", driver: "03. Ticket Médio", mensagem: `Ticket médio em R$ ${ticketMedio.toFixed(0)} — verificar mix de produtos e ofertas de combo/upsell.` });
+
+      // 04. Conversão
+      const conversao = num(taxaData?.taxa_conversao);
+      const conversaoAnterior = mesAnterior?.taxa_conversao != null ? num(mesAnterior.taxa_conversao) : null;
+      if (taxaData?.taxa_conversao != null) {
+        if (conversao < 0.3)
+          diags.push({ tipo: "danger", driver: "04. Conversão", mensagem: `Taxa de conversão em ${conversao.toFixed(2)}% — abaixo do mínimo de 0,3%. Revisar funil completo: landing pages, checkout e provas sociais.` });
+        else if (conversao < 1.5)
+          diags.push({ tipo: "warning", driver: "04. Conversão", mensagem: `Taxa de conversão em ${conversao.toFixed(2)}% — abaixo de 1,5%. Testar novos CTAs, urgência e frete grátis progressivo.` });
+        else if (conversaoAnterior != null && Math.abs(conversao - conversaoAnterior) > 0.25)
+          diags.push({ tipo: "warning", driver: "04. Conversão", mensagem: `Variação de ${(conversao - conversaoAnterior).toFixed(2)}pp vs mês anterior — acima do teto de ±0,25pp/mês.` });
+      }
+
+      // 05. Mídia
+      if (investimentoTotal === 0)
+        diags.push({ tipo: "danger", driver: "05. Mídia", mensagem: `Sem investimento em mídia registrado. Verificar sincronização do Meta Ads.` });
+
+      // 09. CPS Mídia
+      if (cpsMidia > 5)
+        diags.push({ tipo: "danger", driver: "09. CPS Mídia", mensagem: `CPS em R$ ${cpsMidia.toFixed(2)} — acima do teto de R$ 5,00. Revisar segmentação e criativos urgentemente.` });
+      else if (cpsMidia > 1.2)
+        diags.push({ tipo: "warning", driver: "09. CPS Mídia", mensagem: `CPS em R$ ${cpsMidia.toFixed(2)} — acima do ideal de R$ 1,20. Otimizar audiências e testar novos criativos.` });
+      else if (cpsMidia > 0 && cpsMidia < 0.1)
+        diags.push({ tipo: "info", driver: "09. CPS Mídia", mensagem: `CPS em R$ ${cpsMidia.toFixed(2)} — abaixo de R$ 0,10, verificar se o tráfego é qualificado.` });
+
+      if (diags.length === 0)
+        diags.push({ tipo: "success", driver: "Geral", mensagem: "Todos os drivers dentro das faixas saudáveis. Manter ritmo e monitorar variações." });
+
+      const ordem: Record<DiagTipo, number> = { danger: 0, warning: 1, info: 2, success: 3 };
+      diags.sort((a, b) => ordem[a.tipo] - ordem[b.tipo]);
+
+      if (!cancelled) {
+        setDiagnosticos(diags);
+        setLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [ano, mes]);
+
+  const estilo = (t: DiagTipo) => {
+    switch (t) {
+      case "danger":
+        return { icone: "🔴", cls: "border-rose-200 bg-rose-50" };
+      case "warning":
+        return { icone: "🟡", cls: "border-amber-200 bg-amber-50" };
+      case "info":
+        return { icone: "🔵", cls: "border-sky-200 bg-sky-50" };
+      case "success":
+        return { icone: "🟢", cls: "border-emerald-200 bg-emerald-50" };
+    }
+  };
 
   return (
     <Card style={{ borderColor: "#F5E9B8" }}>
       <CardHeader>
-        <CardTitle className="font-serif text-lg">Diagnóstico do Mês</CardTitle>
+        <CardTitle className="font-serif text-lg">Diagnóstico por Driver</CardTitle>
         <p className="text-xs text-muted-foreground">
-          Regras determinísticas baseadas nos dados reais do sistema.
+          Baseado nos 9 drivers do planejamento — faixas saudáveis e variações mensais.
         </p>
       </CardHeader>
       <CardContent className="space-y-3">
-        {r.isLoading ? (
+        {loading ? (
           <div className="text-sm text-muted-foreground py-4 text-center">
             <Loader2 className="inline h-4 w-4 animate-spin mr-2" /> Analisando…
           </div>
-        ) : diagnosticos.length === 0 ? (
-          <div className="rounded-md border border-emerald-200 bg-emerald-50 p-4 text-sm">
-            ✅ Todos os pilares estão dentro do esperado para o ritmo do mês.
-          </div>
         ) : (
-          diagnosticos.map((d, i) => (
-            <div key={i} className={`rounded-md border p-4 ${d.cor}`}>
-              <div className="font-semibold text-sm">{d.titulo}</div>
-              <div className="text-xs text-muted-foreground mt-1">{d.evidencia}</div>
-              <div className="text-xs mt-2">
-                <strong>Ação sugerida:</strong> {d.acao}
+          diagnosticos.map((d, i) => {
+            const s = estilo(d.tipo);
+            return (
+              <div key={i} className={`rounded-md border p-4 ${s.cls}`}>
+                <div className="text-sm flex items-start gap-2">
+                  <span>{s.icone}</span>
+                  <div>
+                    <strong>{d.driver}</strong>
+                    <div className="text-xs text-muted-foreground mt-1">{d.mensagem}</div>
+                  </div>
+                </div>
               </div>
-            </div>
-          ))
+            );
+          })
         )}
       </CardContent>
     </Card>
   );
 }
+
