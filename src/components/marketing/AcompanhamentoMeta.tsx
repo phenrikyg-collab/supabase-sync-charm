@@ -405,18 +405,23 @@ export function AcompanhamentoMeta({ ano, mes }: { ano: number; mes: number }) {
       {
         label: "CPC Médio",
         fmt: fmtBRL2,
-        meta: null,
+        meta: m.premissa_cps_midia ?? null,
         realizado: data.cpcMedio || null,
         projecao: data.cpcMedio || null,
-        status: "neutro",
+        status: statusMenorMelhor(data.cpcMedio || null, m.premissa_cps_midia ?? null),
+        tooltip: "Meta: premissa_cps_midia (planejamento_mensal)",
       },
       {
         label: "ROAS Faturado",
         fmt: fmtRoas,
         meta: m.roas_faturado ?? null,
-        realizado: data.roasMedio || null,
-        projecao: data.roasMedio || null,
-        status: statusVsMeta(data.roasMedio || null, m.roas_faturado ?? null),
+        realizado: data.investimentoTotal > 0 && trayR != null ? trayR / data.investimentoTotal : null,
+        projecao: data.investimentoTotal > 0 && trayR != null ? trayR / data.investimentoTotal : null,
+        status: statusVsMeta(
+          data.investimentoTotal > 0 && trayR != null ? trayR / data.investimentoTotal : null,
+          m.roas_faturado ?? null,
+        ),
+        tooltip: "receita_faturada (tray_orders) / investimento (windsor_meta_ads)",
       },
       {
         label: "CAC Novos",
