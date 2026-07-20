@@ -191,6 +191,16 @@ export function AcompanhamentoMeta({ ano, mes }: { ano: number; mes: number }) {
           return null;
         }
       })(),
+      // 5. Taxa de conversão da view
+      (supabase as any)
+        .from("vw_taxa_conversao_mensal")
+        .select("mes, pedidos, sessoes, taxa_conversao")
+        .eq("mes", mesKey)
+        .maybeSingle()
+        .then((r: any) => {
+          if (r.error) errs.taxa = true;
+          return r.data;
+        }),
     ]);
 
     // ── sessões ──
