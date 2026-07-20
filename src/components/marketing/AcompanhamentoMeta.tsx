@@ -90,6 +90,8 @@ interface Fetched {
   taxaAprovacaoView: number | null;
   pedidosCaptadosView: number | null;
   sessoesMesView: number | null;
+  clientesNovos: number;
+  clientesRecorrentes: number;
   investimentoTotal: number;
   clicksTotal: number;
   receitaAtribuida: number;
