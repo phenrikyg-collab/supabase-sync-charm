@@ -213,7 +213,14 @@ export function AcompanhamentoMeta({ ano, mes }: { ano: number; mes: number }) {
       (s: number, r: any) => s + num(r.items_purchased),
       0,
     );
-    const taxaConversao = sessoesTotais > 0 ? (comprasAtribuidas / sessoesTotais) * 100 : null;
+    const taxaConversao =
+      taxaRow?.taxa_conversao != null
+        ? num(taxaRow.taxa_conversao)
+        : sessoesTotais > 0
+        ? (comprasAtribuidas / sessoesTotais) * 100
+        : null;
+    const pedidosCaptadosView = taxaRow?.pedidos != null ? num(taxaRow.pedidos) : null;
+    const sessoesMesView = taxaRow?.sessoes != null ? num(taxaRow.sessoes) : null;
 
     // ── meta ads ──
     const investimentoTotal = metaAdsRows.reduce((s: number, r: any) => s + num(r.spend), 0);
