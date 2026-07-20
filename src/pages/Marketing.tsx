@@ -81,10 +81,21 @@ const getDateRangeWindsor = (periodo: string) => {
   );
 };
 
-const PERIODOS = [
+const PERIODOS_BASE = [
   { value: "7dias", label: "Últimos 7 dias" },
   { value: "30dias", label: "Últimos 30 dias" },
   { value: "90dias", label: "Últimos 90 dias" },
+  { value: "mai2026", label: "Maio 2026" },
+  { value: "jun2026", label: "Junho 2026" },
+  { value: "jul2026", label: "Julho 2026" },
+];
+
+const PERIODOS_EXT = [
+  { value: "7dias", label: "Últimos 7 dias" },
+  { value: "30dias", label: "Últimos 30 dias" },
+  { value: "90dias", label: "Últimos 90 dias" },
+  { value: "mar2026", label: "Março 2026" },
+  { value: "abr2026", label: "Abril 2026" },
   { value: "mai2026", label: "Maio 2026" },
   { value: "jun2026", label: "Junho 2026" },
   { value: "jul2026", label: "Julho 2026" },
