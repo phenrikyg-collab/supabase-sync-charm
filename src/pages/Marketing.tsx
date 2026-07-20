@@ -6,7 +6,7 @@ import { StatCard } from "@/components/StatCard";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Users, UserPlus, MousePointerClick, ShoppingCart, DollarSign, ShoppingBag, Loader2, Megaphone } from "lucide-react";
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, ScatterChart, Scatter, ZAxis, ReferenceLine, Cell, LineChart, Line } from "recharts";
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, ScatterChart, Scatter, ZAxis, ReferenceLine, Cell, LineChart, Line, Legend } from "recharts";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AcompanhamentoMeta, DiagnosticoMes, ComoFecharMeta } from "@/components/marketing/AcompanhamentoMeta";
@@ -179,7 +179,7 @@ export default function Marketing() {
   useEffect(() => {
     const { inicio: ini, fim } = getDateRangeWindsor(periodoMeta);
     setLoadingMeta(true);
-    fetchAll("windsor_meta_ads", "date", ini, fim, "date, campaign, spend, clicks, cpc, cpm, ctr, purchase_roas, actions_add_to_cart, actions_initiate_checkout, actions_video_view")
+    fetchAll("windsor_meta_ads", "date", ini, fim, "date, campaign, spend, clicks, cpc, cpm, ctr, purchase_roas, actions_add_to_cart, actions_initiate_checkout, actions_video_view, actions_purchase, action_values_purchase")
       .then((rows) => setMetaAds(rows))
       .catch(() => setMetaAds([]))
       .finally(() => setLoadingMeta(false));
@@ -188,32 +188,35 @@ export default function Marketing() {
   const metaAdsTotais = useMemo(() => {
     const t = metaAds.reduce(
       (a, r) => {
-        const sp = num(r.spend);
-        const cl = num(r.clicks);
-        const ro = num(r.purchase_roas);
-        a.spend += sp;
-        a.clicks += cl;
-        a.spendRoas += sp * ro;
+        a.spend += num(r.spend);
+        a.clicks += num(r.clicks);
+        a.compras += num(r.actions_purchase);
+        a.receita += num(r.action_values_purchase);
         return a;
       },
-      { spend: 0, clicks: 0, spendRoas: 0 }
+      { spend: 0, clicks: 0, compras: 0, receita: 0 }
     );
     return {
       spend: t.spend,
       clicks: t.clicks,
+      compras: t.compras,
+      receita: t.receita,
       cpc: t.clicks > 0 ? t.spend / t.clicks : 0,
-      roas: t.spend > 0 ? t.spendRoas / t.spend : 0,
+      roas: t.spend > 0 ? t.receita / t.spend : 0,
     };
   }, [metaAds]);
 
   const metaAdsDaily = useMemo(() => {
-    const map = new Map<string, number>();
+    const map = new Map<string, { spend: number; receita: number }>();
     for (const r of metaAds) {
       const d = r.date;
-      map.set(d, (map.get(d) || 0) + num(r.spend));
+      const cur = map.get(d) || { spend: 0, receita: 0 };
+      cur.spend += num(r.spend);
+      cur.receita += num(r.action_values_purchase);
+      map.set(d, cur);
     }
     return [...map.entries()]
-      .map(([date, spend]) => ({ date, spend }))
+      .map(([date, v]) => ({ date, spend: v.spend, receita: v.receita }))
       .sort((a, b) => a.date.localeCompare(b.date));
   }, [metaAds]);
 
@@ -234,30 +237,26 @@ export default function Marketing() {
           clicks: 0,
           add_to_cart: 0,
           checkout: 0,
-          video_view: 0,
-          receita_atribuida: 0,
-          cpc_latest: null as number | null,
+          compras: 0,
+          receita: 0,
           ctr_latest: null as number | null,
         };
-      const sp = num(r.spend);
-      const ro = num(r.purchase_roas);
-      cur.spend += sp;
+      cur.spend += num(r.spend);
       cur.clicks += num(r.clicks);
       cur.add_to_cart += num(r.actions_add_to_cart);
       cur.checkout += num(r.actions_initiate_checkout);
-      cur.video_view += num(r.actions_video_view);
-      cur.receita_atribuida += sp * ro;
-      if (cur.cpc_latest === null && r.cpc != null) cur.cpc_latest = num(r.cpc);
+      cur.compras += num(r.actions_purchase);
+      cur.receita += num(r.action_values_purchase);
       if (cur.ctr_latest === null && r.ctr != null) cur.ctr_latest = num(r.ctr);
       map.set(key, cur);
     }
     return [...map.values()]
       .map((r) => ({
         ...r,
-        cpc: r.clicks > 0 ? r.spend / r.clicks : r.cpc_latest || 0,
+        cpc: r.clicks > 0 ? r.spend / r.clicks : 0,
         ctr: r.ctr_latest ?? 0,
-        roas: r.spend > 0 ? r.receita_atribuida / r.spend : 0,
-        compras_estimadas: Math.round(r.receita_atribuida / TICKET_MEDIO),
+        roas: r.spend > 0 ? r.receita / r.spend : 0,
+        cpa: r.compras > 0 ? r.spend / r.compras : 0,
       }))
       .sort((a, b) => b.spend - a.spend);
   }, [metaAds]);
@@ -269,7 +268,7 @@ export default function Marketing() {
       spend: c.spend,
       clicks: c.clicks,
       roas: c.roas,
-      receita_atribuida: c.receita_atribuida,
+      receita_atribuida: c.receita,
     }));
     const semAtribuicao = todas.filter((c) => c.roas === 0);
     const comAtribuicao = todas.filter((c) => c.roas > 0);
@@ -976,15 +975,17 @@ export default function Marketing() {
             </Card>
           ) : (
             <>
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
                 <StatCard title="Investimento Total" value={fmtBRL(metaAdsTotais.spend)} icon={DollarSign} variant="primary" />
                 <StatCard title="Cliques" value={fmtInt(metaAdsTotais.clicks)} icon={MousePointerClick} />
                 <StatCard title="CPC Médio" value={fmtBRL(metaAdsTotais.cpc)} icon={DollarSign} />
-                <StatCard title="ROAS Médio" value={`${(metaAdsTotais.roas || 0).toFixed(1)}x`} icon={ShoppingBag} variant="success" />
+                <StatCard title="Compras (pixel)" value={fmtInt(metaAdsTotais.compras)} icon={ShoppingBag} />
+                <StatCard title="Receita (pixel)" value={fmtBRL(metaAdsTotais.receita)} icon={DollarSign} variant="success" />
+                <StatCard title="ROAS" value={`${(metaAdsTotais.roas || 0).toFixed(2)}x`} icon={ShoppingBag} variant={metaAdsTotais.roas >= 4 ? "success" : metaAdsTotais.roas >= 2 ? "warning" : "danger"} />
               </div>
 
               <Card>
-                <CardHeader><CardTitle className="text-lg">Investimento diário</CardTitle></CardHeader>
+                <CardHeader><CardTitle className="text-lg">Investimento vs Receita (diário)</CardTitle></CardHeader>
                 <CardContent>
                   <ResponsiveContainer width="100%" height={320}>
                     <LineChart data={metaAdsDaily} margin={{ left: 10, right: 20, top: 10, bottom: 0 }}>
@@ -992,7 +993,9 @@ export default function Marketing() {
                       <XAxis dataKey="date" tick={{ fontSize: 11 }} />
                       <YAxis tickFormatter={(v) => fmtBRL(v)} tick={{ fontSize: 11 }} width={90} />
                       <Tooltip formatter={(v: any) => fmtBRL(Number(v))} />
-                      <Line type="monotone" dataKey="spend" stroke="hsl(var(--primary))" strokeWidth={2} dot={false} />
+                      <Legend />
+                      <Line type="monotone" dataKey="spend" name="Investimento" stroke="hsl(var(--primary))" strokeWidth={2} dot={false} />
+                      <Line type="monotone" dataKey="receita" name="Receita (pixel)" stroke="#16a34a" strokeWidth={2} dot={false} />
                     </LineChart>
                   </ResponsiveContainer>
                 </CardContent>
@@ -1008,31 +1011,34 @@ export default function Marketing() {
                         <TableHead className="text-right">Investimento</TableHead>
                         <TableHead className="text-right">Cliques</TableHead>
                         <TableHead className="text-right">CPC</TableHead>
-                        <TableHead className="text-right">CTR</TableHead>
-                        <TableHead className="text-right">ROAS</TableHead>
-                        <TableHead className="text-right">Add to Cart</TableHead>
+                        <TableHead className="text-right">Add Carrinho</TableHead>
                         <TableHead className="text-right">Checkout</TableHead>
-                        <TableHead className="text-right">Valor de Compras</TableHead>
-                        <TableHead className="text-right">Compras Est.</TableHead>
+                        <TableHead className="text-right">Compras</TableHead>
+                        <TableHead className="text-right">Receita</TableHead>
+                        <TableHead className="text-right">ROAS</TableHead>
+                        <TableHead className="text-right">CPA</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {metaAdsCampanhas.map((r) => {
                         const roasColor =
-                          r.roas === 0
-                            ? { bg: "#6b728020", fg: "#6b7280", label: "Sem atrib." }
+                          r.spend === 0
+                            ? { bg: "#6b728020", fg: "#6b7280", label: "—" }
                             : r.roas >= 4
-                            ? { bg: "#22c55e20", fg: "#16a34a", label: `${r.roas.toFixed(1)}x` }
+                            ? { bg: "#22c55e20", fg: "#16a34a", label: `${r.roas.toFixed(2)}x` }
                             : r.roas >= 2
-                            ? { bg: "#eab30820", fg: "#a16207", label: `${r.roas.toFixed(1)}x` }
-                            : { bg: "#ef444420", fg: "#dc2626", label: `${r.roas.toFixed(1)}x` };
+                            ? { bg: "#eab30820", fg: "#a16207", label: `${r.roas.toFixed(2)}x` }
+                            : { bg: "#ef444420", fg: "#dc2626", label: `${r.roas.toFixed(2)}x` };
                         return (
                           <TableRow key={r.campaign}>
                             <TableCell className="font-medium max-w-[320px] truncate">{r.campaign}</TableCell>
                             <TableCell className="text-right">{fmtBRL(r.spend)}</TableCell>
                             <TableCell className="text-right">{fmtInt(r.clicks)}</TableCell>
                             <TableCell className="text-right">{fmtBRL(r.cpc)}</TableCell>
-                            <TableCell className="text-right">{(r.ctr || 0).toFixed(2)}%</TableCell>
+                            <TableCell className="text-right">{fmtInt(r.add_to_cart)}</TableCell>
+                            <TableCell className="text-right">{fmtInt(r.checkout)}</TableCell>
+                            <TableCell className="text-right">{fmtInt(r.compras)}</TableCell>
+                            <TableCell className="text-right">{fmtBRL(r.receita)}</TableCell>
                             <TableCell className="text-right">
                               <span
                                 className="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium"
@@ -1041,10 +1047,7 @@ export default function Marketing() {
                                 {roasColor.label}
                               </span>
                             </TableCell>
-                            <TableCell className="text-right">{fmtInt(r.add_to_cart)}</TableCell>
-                            <TableCell className="text-right">{fmtInt(r.checkout)}</TableCell>
-                            <TableCell className="text-right">{fmtBRL(r.receita_atribuida)}</TableCell>
-                            <TableCell className="text-right">{fmtInt(r.compras_estimadas)}</TableCell>
+                            <TableCell className="text-right">{r.compras > 0 ? fmtBRL(r.cpa) : "—"}</TableCell>
                           </TableRow>
                         );
                       })}
