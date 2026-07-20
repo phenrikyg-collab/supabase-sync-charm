@@ -122,8 +122,9 @@ export function AcompanhamentoMeta({ ano, mes }: { ano: number; mes: number }) {
     setRefreshing(true);
     const errs: Fetched["errors"] = {};
 
-    // 4 queries em paralelo
-    const [metaRes, canaisRows, metaAdsRows, traySummary] = await Promise.all([
+    // queries em paralelo
+    const mesKey = `${ano}-${pad(mes)}`;
+    const [metaRes, canaisRows, metaAdsRows, traySummary, taxaRow] = await Promise.all([
       // 1. Meta do mês
       (supabase as any)
         .from("planejamento_mensal")
