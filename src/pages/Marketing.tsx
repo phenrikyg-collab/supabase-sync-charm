@@ -81,7 +81,7 @@ const getDateRangeWindsor = (periodo: string) => {
   );
 };
 
-const PERIODOS = [
+const PERIODOS_BASE = [
   { value: "7dias", label: "Últimos 7 dias" },
   { value: "30dias", label: "Últimos 30 dias" },
   { value: "90dias", label: "Últimos 90 dias" },
@@ -90,10 +90,24 @@ const PERIODOS = [
   { value: "jul2026", label: "Julho 2026" },
 ];
 
+const PERIODOS_EXT = [
+  { value: "7dias", label: "Últimos 7 dias" },
+  { value: "30dias", label: "Últimos 30 dias" },
+  { value: "90dias", label: "Últimos 90 dias" },
+  { value: "mar2026", label: "Março 2026" },
+  { value: "abr2026", label: "Abril 2026" },
+  { value: "mai2026", label: "Maio 2026" },
+  { value: "jun2026", label: "Junho 2026" },
+  { value: "jul2026", label: "Julho 2026" },
+];
+
 const num = (v: any) => (typeof v === "number" ? v : Number(v) || 0);
 
 export default function Marketing() {
-  const [periodo, setPeriodo] = useState("30dias");
+  const [periodoPaginas, setPeriodoPaginas] = useState("30dias");
+  const [periodoProdutos, setPeriodoProdutos] = useState("30dias");
+  const [periodoCanais, setPeriodoCanais] = useState("30dias");
+  const [periodoMeta, setPeriodoMeta] = useState("30dias");
   const hoje = new Date();
   const [metaAno, setMetaAno] = useState(hoje.getFullYear());
   const [metaMes, setMetaMes] = useState(hoje.getMonth() + 1);
@@ -107,78 +121,69 @@ export default function Marketing() {
   const [metaAds, setMetaAds] = useState<any[]>([]);
   const [loadingMeta, setLoadingMeta] = useState(false);
 
+  // Recursive fetch to bypass PostgREST 1000-row default limit
+  const fetchAll = async (table: string, dateCol: string, ini: string, end: string, columns = "*") => {
+    const pageSize = 1000;
+    let from = 0;
+    const all: any[] = [];
+    while (true) {
+      const { data, error } = await (supabase.from(table as any) as any)
+        .select(columns)
+        .gte(dateCol, ini)
+        .lte(dateCol, end)
+        .range(from, from + pageSize - 1);
+      if (error || !data || data.length === 0) break;
+      all.push(...data);
+      if (data.length < pageSize) break;
+      from += pageSize;
+    }
+    return all;
+  };
+
+  // ===== Páginas (GA4) =====
   useEffect(() => {
-    const { inicio, fim } = getDateRangeGA4(periodo);
-    const { inicio: inicioDash, fim: fimDash } = getDateRangeWindsor(periodo);
+    const { inicio, fim } = getDateRangeGA4(periodoPaginas);
     setLoading(true);
-
-    // Recursive fetch to bypass PostgREST 1000-row default limit
-    const fetchAll = async (table: string, dateCol: string, ini: string, end: string, columns = "*") => {
-      const pageSize = 1000;
-      let from = 0;
-      const all: any[] = [];
-      while (true) {
-        const { data, error } = await (supabase.from(table as any) as any)
-          .select(columns)
-          .gte(dateCol, ini)
-          .lte(dateCol, end)
-          .range(from, from + pageSize - 1);
-        if (error || !data || data.length === 0) break;
-        all.push(...data);
-        if (data.length < pageSize) break;
-        from += pageSize;
-      }
-      return all;
-    };
-
     Promise.all([
       supabase.from("ga4_aquisicao_canais").select("*").gte("event_date", inicio).lte("event_date", fim),
       supabase.from("ga4_produtos_ecommerce").select("*").gte("event_date", inicio).lte("event_date", fim),
       supabase.from("ga4_funil_compra").select("*").gte("event_date", inicio).lte("event_date", fim),
       supabase.from("ga4_sessoes_paginas").select("pagina, titulo, sessoes").gte("event_date", inicio).lte("event_date", fim),
-      fetchAll("windsor_produtos", "date", inicioDash, fimDash, "date, item_name, sessions, items_viewed, items_added_to_cart, items_purchased, item_revenue"),
-      fetchAll("windsor_canais", "date", inicioDash, fimDash, "date, session_custom_channel_group, sessions, add_to_carts, checkouts, items_purchased, purchase_revenue"),
     ])
-      .then(([a, p, f, pg, wp, wc]: any[]) => {
+      .then(([a, p, f, pg]: any[]) => {
         setAquisicao(a.data || []);
         setProdutos(p.data || []);
         setFunil(f.data || []);
         setPaginas(pg.data || []);
-        setWindsorProdutos(wp || []);
-        setWindsorCanais(wc || []);
       })
       .finally(() => setLoading(false));
-  }, [periodo]);
+  }, [periodoPaginas]);
+
+  // ===== Windsor Produtos =====
+  useEffect(() => {
+    const { inicio: ini, fim } = getDateRangeWindsor(periodoProdutos);
+    fetchAll("windsor_produtos", "date", ini, fim, "date, item_name, sessions, items_viewed, items_added_to_cart, items_purchased, item_revenue")
+      .then((rows) => setWindsorProdutos(rows))
+      .catch(() => setWindsorProdutos([]));
+  }, [periodoProdutos]);
+
+  // ===== Windsor Canais =====
+  useEffect(() => {
+    const { inicio: ini, fim } = getDateRangeWindsor(periodoCanais);
+    fetchAll("windsor_canais", "date", ini, fim, "date, session_custom_channel_group, sessions, add_to_carts, checkouts, items_purchased, purchase_revenue")
+      .then((rows) => setWindsorCanais(rows))
+      .catch(() => setWindsorCanais([]));
+  }, [periodoCanais]);
 
   // ===== Meta Ads =====
   useEffect(() => {
-    const { inicio: inicioDash, fim: fimDash } = getDateRangeWindsor(periodo);
+    const { inicio: ini, fim } = getDateRangeWindsor(periodoMeta);
     setLoadingMeta(true);
-
-    const fetchAll = async () => {
-      const pageSize = 1000;
-      let from = 0;
-      const all: any[] = [];
-      while (true) {
-        const { data, error } = await (supabase.from("windsor_meta_ads" as any) as any)
-          .select("date, campaign, spend, clicks, cpc, cpm, ctr, purchase_roas, actions_add_to_cart, actions_initiate_checkout, actions_video_view")
-          .gte("date", inicioDash)
-          .lte("date", fimDash)
-          .order("date", { ascending: false })
-          .range(from, from + pageSize - 1);
-        if (error || !data || data.length === 0) break;
-        all.push(...data);
-        if (data.length < pageSize) break;
-        from += pageSize;
-      }
-      return all;
-    };
-
-    fetchAll()
+    fetchAll("windsor_meta_ads", "date", ini, fim, "date, campaign, spend, clicks, cpc, cpm, ctr, purchase_roas, actions_add_to_cart, actions_initiate_checkout, actions_video_view")
       .then((rows) => setMetaAds(rows))
       .catch(() => setMetaAds([]))
       .finally(() => setLoadingMeta(false));
-  }, [periodo]);
+  }, [periodoMeta]);
 
   const metaAdsTotais = useMemo(() => {
     const t = metaAds.reduce(
@@ -623,67 +628,69 @@ export default function Marketing() {
   }, [windsorCanaisAgg]);
 
 
+  const renderPeriodo = (value: string, onChange: (v: string) => void, options: { value: string; label: string }[]) => (
+    <Select value={value} onValueChange={onChange}>
+      <SelectTrigger className="w-[220px]"><SelectValue /></SelectTrigger>
+      <SelectContent>
+        {options.map((p) => (
+          <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  );
+
   return (
     <div className="p-6 space-y-6">
-      <div className="flex items-center justify-between flex-wrap gap-4">
-        <div className="flex items-center gap-3">
-          <Megaphone className="h-7 w-7 text-primary" />
-          <h1 className="text-3xl font-serif font-bold">Marketing</h1>
-        </div>
-        <Select value={periodo} onValueChange={setPeriodo}>
-          <SelectTrigger className="w-[220px]"><SelectValue /></SelectTrigger>
-          <SelectContent>
-            {PERIODOS.map((p) => (
-              <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+      <div className="flex items-center gap-3">
+        <Megaphone className="h-7 w-7 text-primary" />
+        <h1 className="text-3xl font-serif font-bold">Marketing</h1>
       </div>
 
-      {/* ===== Acompanhamento da Meta (Planejamento Mensal × Realizado) ===== */}
-      <div className="flex items-center gap-3 flex-wrap">
-        <span className="text-xs uppercase tracking-wider text-muted-foreground">Mês de referência da meta:</span>
-        <Select value={String(metaMes)} onValueChange={(v) => setMetaMes(Number(v))}>
-          <SelectTrigger className="w-[140px]"><SelectValue /></SelectTrigger>
-          <SelectContent>
-            {MESES.map((n, i) => (
-              <SelectItem key={i} value={String(i + 1)}>{n}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <Select value={String(metaAno)} onValueChange={(v) => setMetaAno(Number(v))}>
-          <SelectTrigger className="w-[110px]"><SelectValue /></SelectTrigger>
-          <SelectContent>
-            {[hoje.getFullYear() - 1, hoje.getFullYear(), hoje.getFullYear() + 1].map((a) => (
-              <SelectItem key={a} value={String(a)}>{a}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
-      <AcompanhamentoMeta ano={metaAno} mes={metaMes} />
-      <DiagnosticoMes ano={metaAno} mes={metaMes} />
-
-      {loading && (
-        <div className="flex items-center gap-2 text-muted-foreground text-sm">
-          <Loader2 className="h-4 w-4 animate-spin" /> Carregando dados do GA4...
-        </div>
-      )}
-
-
-      <Tabs defaultValue="paginas">
+      <Tabs defaultValue="acompanhamento">
         <TabsList className="flex-wrap h-auto">
+          <TabsTrigger value="acompanhamento">Acompanhamento da Meta</TabsTrigger>
           <TabsTrigger value="paginas">Páginas</TabsTrigger>
           <TabsTrigger value="windsor-produtos">Produtos - Mariana Cardoso</TabsTrigger>
           <TabsTrigger value="windsor-canais">Sessões por Canal - Mariana Cardoso</TabsTrigger>
           <TabsTrigger value="meta-ads">Meta Ads</TabsTrigger>
         </TabsList>
 
-
-
-
+        {/* ===== ACOMPANHAMENTO DA META ===== */}
+        <TabsContent value="acompanhamento" className="space-y-6">
+          <div className="flex items-center justify-end gap-3 flex-wrap">
+            <span className="text-xs uppercase tracking-wider text-muted-foreground">Mês de referência da meta:</span>
+            <Select value={String(metaMes)} onValueChange={(v) => setMetaMes(Number(v))}>
+              <SelectTrigger className="w-[140px]"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {MESES.map((n, i) => (
+                  <SelectItem key={i} value={String(i + 1)}>{n}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={String(metaAno)} onValueChange={(v) => setMetaAno(Number(v))}>
+              <SelectTrigger className="w-[110px]"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {[hoje.getFullYear() - 1, hoje.getFullYear(), hoje.getFullYear() + 1].map((a) => (
+                  <SelectItem key={a} value={String(a)}>{a}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <AcompanhamentoMeta ano={metaAno} mes={metaMes} />
+          <DiagnosticoMes ano={metaAno} mes={metaMes} />
+        </TabsContent>
 
         {/* ===== PÁGINAS ===== */}
         <TabsContent value="paginas" className="space-y-6">
+          <div className="flex justify-end">
+            {renderPeriodo(periodoPaginas, setPeriodoPaginas, PERIODOS_BASE)}
+          </div>
+          {loading && (
+            <div className="flex items-center gap-2 text-muted-foreground text-sm">
+              <Loader2 className="h-4 w-4 animate-spin" /> Carregando dados do GA4...
+            </div>
+          )}
+
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <StatCard title="Total de Sessões" value={fmtInt(paginasTotalSessoes)} icon={MousePointerClick} variant="primary" />
             <StatCard title="Páginas únicas" value={fmtInt(paginasAgg.length)} icon={Megaphone} />
@@ -738,6 +745,10 @@ export default function Marketing() {
 
         {/* ===== WINDSOR PRODUTOS ===== */}
         <TabsContent value="windsor-produtos" className="space-y-6">
+          <div className="flex justify-end">
+            {renderPeriodo(periodoProdutos, setPeriodoProdutos, PERIODOS_EXT)}
+          </div>
+
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <StatCard title="VISUALIZAÇÕES" value={fmtInt(windsorProdutosTotais.items_viewed)} icon={MousePointerClick} />
             <StatCard title="Add. Carrinho" value={fmtInt(windsorProdutosTotais.items_added_to_cart)} icon={ShoppingCart} variant="warning" />
@@ -870,6 +881,10 @@ export default function Marketing() {
 
         {/* ===== WINDSOR CANAIS ===== */}
         <TabsContent value="windsor-canais" className="space-y-6">
+          <div className="flex justify-end">
+            {renderPeriodo(periodoCanais, setPeriodoCanais, PERIODOS_EXT)}
+          </div>
+
           <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
             <StatCard title="Sessões" value={fmtInt(windsorCanaisTotais.sessions)} icon={MousePointerClick} />
             <StatCard title="Add. Carrinho" value={fmtInt(windsorCanaisTotais.add_to_carts)} icon={ShoppingCart} variant="warning" />
@@ -939,6 +954,10 @@ export default function Marketing() {
         </TabsContent>
         {/* ===== META ADS ===== */}
         <TabsContent value="meta-ads" className="space-y-6">
+          <div className="flex justify-end">
+            {renderPeriodo(periodoMeta, setPeriodoMeta, PERIODOS_EXT)}
+          </div>
+
           {loadingMeta ? (
             <>
               <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
