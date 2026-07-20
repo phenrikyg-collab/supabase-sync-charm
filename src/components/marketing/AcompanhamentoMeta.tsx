@@ -88,6 +88,7 @@ interface Fetched {
   sessoesOrganicas: number;
   taxaConversao: number | null;
   taxaAprovacaoView: number | null;
+  taxaAquisicaoView: number | null;
   pedidosCaptadosView: number | null;
   sessoesMesView: number | null;
   clientesNovos: number;
@@ -197,7 +198,7 @@ export function AcompanhamentoMeta({ ano, mes }: { ano: number; mes: number }) {
       // 5. Taxa de conversão da view
       (supabase as any)
         .from("vw_taxa_conversao_mensal")
-        .select("mes, total_pedidos, pedidos, cancelados_reais, taxa_aprovacao, sessoes, taxa_conversao, clientes_novos, clientes_recorrentes")
+        .select("mes, total_pedidos, pedidos, cancelados_reais, taxa_aprovacao, taxa_aquisicao, sessoes, taxa_conversao, clientes_novos, clientes_recorrentes")
         .eq("mes", mesKey)
         .maybeSingle()
         .then((r: any) => {
@@ -225,6 +226,7 @@ export function AcompanhamentoMeta({ ano, mes }: { ano: number; mes: number }) {
     const pedidosCaptadosView = taxaRow?.pedidos != null ? num(taxaRow.pedidos) : null;
     const sessoesMesView = taxaRow?.sessoes != null ? num(taxaRow.sessoes) : null;
     const taxaAprovacaoView = taxaRow?.taxa_aprovacao != null ? num(taxaRow.taxa_aprovacao) : null;
+    const taxaAquisicaoView = taxaRow?.taxa_aquisicao != null ? num(taxaRow.taxa_aquisicao) : null;
     const clientesNovos = taxaRow?.clientes_novos != null ? num(taxaRow.clientes_novos) : 0;
     const clientesRecorrentes = taxaRow?.clientes_recorrentes != null ? num(taxaRow.clientes_recorrentes) : 0;
 
@@ -252,6 +254,7 @@ export function AcompanhamentoMeta({ ano, mes }: { ano: number; mes: number }) {
       sessoesOrganicas,
       taxaConversao,
       taxaAprovacaoView,
+      taxaAquisicaoView,
       pedidosCaptadosView,
       sessoesMesView,
       clientesNovos,
@@ -368,10 +371,10 @@ export function AcompanhamentoMeta({ ano, mes }: { ano: number; mes: number }) {
         label: "Taxa de Aquisição",
         fmt: (v) => fmtPct(v),
         meta: m.premissa_taxa_aquisicao ?? null,
-        realizado: null,
-        projecao: null,
-        status: "neutro",
-        tooltip: "Sem dado automático ainda",
+        realizado: data.taxaAquisicaoView,
+        projecao: data.taxaAquisicaoView,
+        status: statusVsMeta(data.taxaAquisicaoView, m.premissa_taxa_aquisicao ?? null),
+        tooltip: "Fonte: vw_taxa_conversao_mensal",
         noProject: true,
       },
       {
@@ -624,6 +627,17 @@ export function AcompanhamentoMeta({ ano, mes }: { ano: number; mes: number }) {
                   <div className="mt-2 h-1.5 rounded-full bg-gray-100 overflow-hidden">
                     <div className="h-full" style={{ width: `${Math.min(pr, 100)}%`, background: recCor }} />
                   </div>
+                </div>
+              </div>
+              {/* Barra de proporção Novos vs Recorrentes */}
+              <div className="mt-4">
+                <div className="flex h-3 rounded-full overflow-hidden border">
+                  <div style={{ width: `${pn}%`, background: "#2563eb" }} title={`Novos ${pn.toFixed(1)}%`} />
+                  <div style={{ width: `${pr}%`, background: "#16a34a" }} title={`Recorrentes ${pr.toFixed(1)}%`} />
+                </div>
+                <div className="flex justify-between text-xs mt-1">
+                  <span style={{ color: "#2563eb" }}>Novos {pn.toFixed(1)}%</span>
+                  <span style={{ color: "#16a34a" }}>Recorrentes {pr.toFixed(1)}%</span>
                 </div>
               </div>
             </CardContent>
