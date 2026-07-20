@@ -766,6 +766,83 @@ Seja direto e específico. Use valores reais dos dados. Responda em português.`
         <KpiCard icon={Zap} label="Meta Diária" value={fmtBRL(metaDiariaHoje)} delta={<span className="text-xs text-muted-foreground">{diasUteisRestantes} dias úteis</span>} sub="necessário hoje" />
       </div>
 
+      {/* SEÇÃO 2.5 — Mix de Clientes + CAC */}
+      {mixClientes && (
+        <Card style={{ borderColor: "#E8CD7E" }}>
+          <CardHeader>
+            <CardTitle className="text-lg font-serif">
+              Mix de Clientes — {format(dataInicio, "MMMM yyyy", { locale: ptBR })}
+            </CardTitle>
+            <p className="text-xs text-muted-foreground">Fonte: vw_taxa_conversao_mensal + windsor_meta_ads</p>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+              <div className="rounded-lg border p-4 bg-card">
+                <p className="text-xs text-muted-foreground">Clientes Únicos</p>
+                <p className="text-2xl font-serif mt-1">{fmtNum(mixClientes.unicos)}</p>
+              </div>
+              <div className="rounded-lg border p-4 bg-card">
+                <div className="flex items-center justify-between">
+                  <p className="text-xs text-muted-foreground">Clientes Novos</p>
+                  <span className="text-xs px-2 py-0.5 rounded-full text-white" style={{ background: "#2563eb" }}>
+                    {mixClientes.percNovos.toFixed(1)}%
+                  </span>
+                </div>
+                <p className="text-2xl font-serif mt-1">{fmtNum(mixClientes.novos)}</p>
+              </div>
+              <div className="rounded-lg border p-4 bg-card">
+                <div className="flex items-center justify-between">
+                  <p className="text-xs text-muted-foreground">Clientes Recorrentes</p>
+                  <span className="text-xs px-2 py-0.5 rounded-full text-white" style={{ background: "#16a34a" }}>
+                    {mixClientes.percRecorrentes.toFixed(1)}%
+                  </span>
+                </div>
+                <p className="text-2xl font-serif mt-1">{fmtNum(mixClientes.recorrentes)}</p>
+              </div>
+              <div className="rounded-lg border p-4 bg-card">
+                <p className="text-xs text-muted-foreground">Taxa de Recorrência</p>
+                <p
+                  className="text-2xl font-serif mt-1"
+                  style={{
+                    color:
+                      mixClientes.percRecorrentes >= 60
+                        ? "#16a34a"
+                        : mixClientes.percRecorrentes >= 40
+                        ? "#ca8a04"
+                        : "#dc2626",
+                  }}
+                >
+                  {mixClientes.percRecorrentes.toFixed(1)}%
+                </p>
+              </div>
+              <div className="rounded-lg border p-4 bg-card">
+                <p className="text-xs text-muted-foreground">CAC Novos</p>
+                <p className="text-2xl font-serif mt-1">{fmtBRL(mixClientes.cacNovos)}</p>
+                <p className="text-[10px] text-muted-foreground mt-1">
+                  {fmtBRL(mixClientes.investimentoTotal)} / {fmtNum(mixClientes.novos)}
+                </p>
+              </div>
+            </div>
+
+            {/* Barra proporção Novos vs Recorrentes */}
+            <div>
+              <div className="flex items-center justify-between text-xs mb-1.5">
+                <span style={{ color: "#2563eb" }}>
+                  Novos {mixClientes.percNovos.toFixed(1)}%
+                </span>
+                <span style={{ color: "#16a34a" }}>
+                  Recorrentes {mixClientes.percRecorrentes.toFixed(1)}%
+                </span>
+              </div>
+              <div className="flex h-3 rounded-full overflow-hidden bg-muted">
+                <div style={{ width: `${mixClientes.percNovos}%`, background: "#2563eb" }} />
+                <div style={{ width: `${mixClientes.percRecorrentes}%`, background: "#16a34a" }} />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* SEÇÃO 3 — gráficos */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <Card className="lg:col-span-2">
