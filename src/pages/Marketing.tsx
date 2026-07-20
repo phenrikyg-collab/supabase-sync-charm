@@ -975,15 +975,17 @@ export default function Marketing() {
             </Card>
           ) : (
             <>
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
                 <StatCard title="Investimento Total" value={fmtBRL(metaAdsTotais.spend)} icon={DollarSign} variant="primary" />
                 <StatCard title="Cliques" value={fmtInt(metaAdsTotais.clicks)} icon={MousePointerClick} />
                 <StatCard title="CPC Médio" value={fmtBRL(metaAdsTotais.cpc)} icon={DollarSign} />
-                <StatCard title="ROAS Médio" value={`${(metaAdsTotais.roas || 0).toFixed(1)}x`} icon={ShoppingBag} variant="success" />
+                <StatCard title="Compras (pixel)" value={fmtInt(metaAdsTotais.compras)} icon={ShoppingBag} />
+                <StatCard title="Receita (pixel)" value={fmtBRL(metaAdsTotais.receita)} icon={DollarSign} variant="success" />
+                <StatCard title="ROAS" value={`${(metaAdsTotais.roas || 0).toFixed(2)}x`} icon={ShoppingBag} variant={metaAdsTotais.roas >= 4 ? "success" : metaAdsTotais.roas >= 2 ? "warning" : "danger"} />
               </div>
 
               <Card>
-                <CardHeader><CardTitle className="text-lg">Investimento diário</CardTitle></CardHeader>
+                <CardHeader><CardTitle className="text-lg">Investimento vs Receita (diário)</CardTitle></CardHeader>
                 <CardContent>
                   <ResponsiveContainer width="100%" height={320}>
                     <LineChart data={metaAdsDaily} margin={{ left: 10, right: 20, top: 10, bottom: 0 }}>
@@ -991,7 +993,9 @@ export default function Marketing() {
                       <XAxis dataKey="date" tick={{ fontSize: 11 }} />
                       <YAxis tickFormatter={(v) => fmtBRL(v)} tick={{ fontSize: 11 }} width={90} />
                       <Tooltip formatter={(v: any) => fmtBRL(Number(v))} />
-                      <Line type="monotone" dataKey="spend" stroke="hsl(var(--primary))" strokeWidth={2} dot={false} />
+                      <Legend />
+                      <Line type="monotone" dataKey="spend" name="Investimento" stroke="hsl(var(--primary))" strokeWidth={2} dot={false} />
+                      <Line type="monotone" dataKey="receita" name="Receita (pixel)" stroke="#16a34a" strokeWidth={2} dot={false} />
                     </LineChart>
                   </ResponsiveContainer>
                 </CardContent>
