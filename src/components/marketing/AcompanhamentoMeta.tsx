@@ -90,6 +90,8 @@ interface Fetched {
   taxaAprovacaoView: number | null;
   pedidosCaptadosView: number | null;
   sessoesMesView: number | null;
+  clientesNovos: number;
+  clientesRecorrentes: number;
   investimentoTotal: number;
   clicksTotal: number;
   receitaAtribuida: number;
@@ -195,7 +197,7 @@ export function AcompanhamentoMeta({ ano, mes }: { ano: number; mes: number }) {
       // 5. Taxa de conversão da view
       (supabase as any)
         .from("vw_taxa_conversao_mensal")
-        .select("mes, total_pedidos, pedidos, cancelados_reais, taxa_aprovacao, sessoes, taxa_conversao")
+        .select("mes, total_pedidos, pedidos, cancelados_reais, taxa_aprovacao, sessoes, taxa_conversao, clientes_novos, clientes_recorrentes")
         .eq("mes", mesKey)
         .maybeSingle()
         .then((r: any) => {
@@ -223,6 +225,8 @@ export function AcompanhamentoMeta({ ano, mes }: { ano: number; mes: number }) {
     const pedidosCaptadosView = taxaRow?.pedidos != null ? num(taxaRow.pedidos) : null;
     const sessoesMesView = taxaRow?.sessoes != null ? num(taxaRow.sessoes) : null;
     const taxaAprovacaoView = taxaRow?.taxa_aprovacao != null ? num(taxaRow.taxa_aprovacao) : null;
+    const clientesNovos = taxaRow?.clientes_novos != null ? num(taxaRow.clientes_novos) : 0;
+    const clientesRecorrentes = taxaRow?.clientes_recorrentes != null ? num(taxaRow.clientes_recorrentes) : 0;
 
     // ── meta ads ──
     const investimentoTotal = metaAdsRows.reduce((s: number, r: any) => s + num(r.spend), 0);
@@ -250,6 +254,8 @@ export function AcompanhamentoMeta({ ano, mes }: { ano: number; mes: number }) {
       taxaAprovacaoView,
       pedidosCaptadosView,
       sessoesMesView,
+      clientesNovos,
+      clientesRecorrentes,
       investimentoTotal,
       clicksTotal,
       receitaAtribuida,
@@ -566,6 +572,62 @@ export function AcompanhamentoMeta({ ano, mes }: { ano: number; mes: number }) {
           </div>
         </CardContent>
       </Card>
+
+      {/* Mix de Clientes */}
+      {(() => {
+        const cn = data.clientesNovos;
+        const cr = data.clientesRecorrentes;
+        const cu = cn + cr;
+        const pn = cu > 0 ? (cn / cu) * 100 : 0;
+        const pr = cu > 0 ? (cr / cu) * 100 : 0;
+        const recCor = pr >= 60 ? "#16a34a" : pr >= 40 ? "#ca8a04" : "#dc2626";
+        return (
+          <Card style={{ borderColor: "#E8CD7E" }}>
+            <CardHeader>
+              <CardTitle className="font-serif text-lg">Mix de Clientes</CardTitle>
+              <p className="text-xs text-muted-foreground">Fonte: vw_taxa_conversao_mensal</p>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                <div className="rounded-lg border p-4 bg-white">
+                  <p className="text-xs text-muted-foreground">Clientes Únicos</p>
+                  <p className="text-2xl font-serif mt-1">{cu.toLocaleString("pt-BR")}</p>
+                </div>
+                <div className="rounded-lg border p-4 bg-white">
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs text-muted-foreground">Clientes Novos</p>
+                    <span className="text-xs px-2 py-0.5 rounded-full text-white" style={{ background: "#2563eb" }}>
+                      {pn.toFixed(1)}%
+                    </span>
+                  </div>
+                  <p className="text-2xl font-serif mt-1">{cn.toLocaleString("pt-BR")}</p>
+                </div>
+                <div className="rounded-lg border p-4 bg-white">
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs text-muted-foreground">Clientes Recorrentes</p>
+                    <span className="text-xs px-2 py-0.5 rounded-full text-white" style={{ background: "#16a34a" }}>
+                      {pr.toFixed(1)}%
+                    </span>
+                  </div>
+                  <p className="text-2xl font-serif mt-1">{cr.toLocaleString("pt-BR")}</p>
+                </div>
+                <div className="rounded-lg border p-4 bg-white">
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs text-muted-foreground">Taxa de Recorrência</p>
+                    <span className="text-xs" style={{ color: recCor }}>
+                      {pr >= 60 ? "▲ ótimo" : pr >= 40 ? "◆ ok" : "▼ baixo"}
+                    </span>
+                  </div>
+                  <p className="text-2xl font-serif mt-1" style={{ color: recCor }}>{pr.toFixed(1)}%</p>
+                  <div className="mt-2 h-1.5 rounded-full bg-gray-100 overflow-hidden">
+                    <div className="h-full" style={{ width: `${Math.min(pr, 100)}%`, background: recCor }} />
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        );
+      })()}
     </TooltipProvider>
   );
 }
