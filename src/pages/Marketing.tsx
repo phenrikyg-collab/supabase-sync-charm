@@ -140,78 +140,50 @@ export default function Marketing() {
     return all;
   };
 
+  // ===== Páginas (GA4) =====
   useEffect(() => {
-    const { inicio, fim } = getDateRangeGA4(periodo);
-    const { inicio: inicioDash, fim: fimDash } = getDateRangeWindsor(periodo);
+    const { inicio, fim } = getDateRangeGA4(periodoPaginas);
     setLoading(true);
-
-    // Recursive fetch to bypass PostgREST 1000-row default limit
-    const fetchAll = async (table: string, dateCol: string, ini: string, end: string, columns = "*") => {
-      const pageSize = 1000;
-      let from = 0;
-      const all: any[] = [];
-      while (true) {
-        const { data, error } = await (supabase.from(table as any) as any)
-          .select(columns)
-          .gte(dateCol, ini)
-          .lte(dateCol, end)
-          .range(from, from + pageSize - 1);
-        if (error || !data || data.length === 0) break;
-        all.push(...data);
-        if (data.length < pageSize) break;
-        from += pageSize;
-      }
-      return all;
-    };
-
     Promise.all([
       supabase.from("ga4_aquisicao_canais").select("*").gte("event_date", inicio).lte("event_date", fim),
       supabase.from("ga4_produtos_ecommerce").select("*").gte("event_date", inicio).lte("event_date", fim),
       supabase.from("ga4_funil_compra").select("*").gte("event_date", inicio).lte("event_date", fim),
       supabase.from("ga4_sessoes_paginas").select("pagina, titulo, sessoes").gte("event_date", inicio).lte("event_date", fim),
-      fetchAll("windsor_produtos", "date", inicioDash, fimDash, "date, item_name, sessions, items_viewed, items_added_to_cart, items_purchased, item_revenue"),
-      fetchAll("windsor_canais", "date", inicioDash, fimDash, "date, session_custom_channel_group, sessions, add_to_carts, checkouts, items_purchased, purchase_revenue"),
     ])
-      .then(([a, p, f, pg, wp, wc]: any[]) => {
+      .then(([a, p, f, pg]: any[]) => {
         setAquisicao(a.data || []);
         setProdutos(p.data || []);
         setFunil(f.data || []);
         setPaginas(pg.data || []);
-        setWindsorProdutos(wp || []);
-        setWindsorCanais(wc || []);
       })
       .finally(() => setLoading(false));
-  }, [periodo]);
+  }, [periodoPaginas]);
+
+  // ===== Windsor Produtos =====
+  useEffect(() => {
+    const { inicio: ini, fim } = getDateRangeWindsor(periodoProdutos);
+    fetchAll("windsor_produtos", "date", ini, fim, "date, item_name, sessions, items_viewed, items_added_to_cart, items_purchased, item_revenue")
+      .then((rows) => setWindsorProdutos(rows))
+      .catch(() => setWindsorProdutos([]));
+  }, [periodoProdutos]);
+
+  // ===== Windsor Canais =====
+  useEffect(() => {
+    const { inicio: ini, fim } = getDateRangeWindsor(periodoCanais);
+    fetchAll("windsor_canais", "date", ini, fim, "date, session_custom_channel_group, sessions, add_to_carts, checkouts, items_purchased, purchase_revenue")
+      .then((rows) => setWindsorCanais(rows))
+      .catch(() => setWindsorCanais([]));
+  }, [periodoCanais]);
 
   // ===== Meta Ads =====
   useEffect(() => {
-    const { inicio: inicioDash, fim: fimDash } = getDateRangeWindsor(periodo);
+    const { inicio: ini, fim } = getDateRangeWindsor(periodoMeta);
     setLoadingMeta(true);
-
-    const fetchAll = async () => {
-      const pageSize = 1000;
-      let from = 0;
-      const all: any[] = [];
-      while (true) {
-        const { data, error } = await (supabase.from("windsor_meta_ads" as any) as any)
-          .select("date, campaign, spend, clicks, cpc, cpm, ctr, purchase_roas, actions_add_to_cart, actions_initiate_checkout, actions_video_view")
-          .gte("date", inicioDash)
-          .lte("date", fimDash)
-          .order("date", { ascending: false })
-          .range(from, from + pageSize - 1);
-        if (error || !data || data.length === 0) break;
-        all.push(...data);
-        if (data.length < pageSize) break;
-        from += pageSize;
-      }
-      return all;
-    };
-
-    fetchAll()
+    fetchAll("windsor_meta_ads", "date", ini, fim, "date, campaign, spend, clicks, cpc, cpm, ctr, purchase_roas, actions_add_to_cart, actions_initiate_checkout, actions_video_view")
       .then((rows) => setMetaAds(rows))
       .catch(() => setMetaAds([]))
       .finally(() => setLoadingMeta(false));
-  }, [periodo]);
+  }, [periodoMeta]);
 
   const metaAdsTotais = useMemo(() => {
     const t = metaAds.reduce(
