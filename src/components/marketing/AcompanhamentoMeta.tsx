@@ -576,7 +576,7 @@ export function AcompanhamentoMeta({ ano, mes }: { ano: number; mes: number }) {
       </Card>
 
       {/* Mix de Clientes */}
-      {(() => {
+      {data && (() => {
         const cn = data.clientesNovos;
         const cr = data.clientesRecorrentes;
         const cu = cn + cr;
