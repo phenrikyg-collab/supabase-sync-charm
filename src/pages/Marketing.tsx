@@ -1011,31 +1011,34 @@ export default function Marketing() {
                         <TableHead className="text-right">Investimento</TableHead>
                         <TableHead className="text-right">Cliques</TableHead>
                         <TableHead className="text-right">CPC</TableHead>
-                        <TableHead className="text-right">CTR</TableHead>
-                        <TableHead className="text-right">ROAS</TableHead>
-                        <TableHead className="text-right">Add to Cart</TableHead>
+                        <TableHead className="text-right">Add Carrinho</TableHead>
                         <TableHead className="text-right">Checkout</TableHead>
-                        <TableHead className="text-right">Valor de Compras</TableHead>
-                        <TableHead className="text-right">Compras Est.</TableHead>
+                        <TableHead className="text-right">Compras</TableHead>
+                        <TableHead className="text-right">Receita</TableHead>
+                        <TableHead className="text-right">ROAS</TableHead>
+                        <TableHead className="text-right">CPA</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {metaAdsCampanhas.map((r) => {
                         const roasColor =
-                          r.roas === 0
-                            ? { bg: "#6b728020", fg: "#6b7280", label: "Sem atrib." }
+                          r.spend === 0
+                            ? { bg: "#6b728020", fg: "#6b7280", label: "—" }
                             : r.roas >= 4
-                            ? { bg: "#22c55e20", fg: "#16a34a", label: `${r.roas.toFixed(1)}x` }
+                            ? { bg: "#22c55e20", fg: "#16a34a", label: `${r.roas.toFixed(2)}x` }
                             : r.roas >= 2
-                            ? { bg: "#eab30820", fg: "#a16207", label: `${r.roas.toFixed(1)}x` }
-                            : { bg: "#ef444420", fg: "#dc2626", label: `${r.roas.toFixed(1)}x` };
+                            ? { bg: "#eab30820", fg: "#a16207", label: `${r.roas.toFixed(2)}x` }
+                            : { bg: "#ef444420", fg: "#dc2626", label: `${r.roas.toFixed(2)}x` };
                         return (
                           <TableRow key={r.campaign}>
                             <TableCell className="font-medium max-w-[320px] truncate">{r.campaign}</TableCell>
                             <TableCell className="text-right">{fmtBRL(r.spend)}</TableCell>
                             <TableCell className="text-right">{fmtInt(r.clicks)}</TableCell>
                             <TableCell className="text-right">{fmtBRL(r.cpc)}</TableCell>
-                            <TableCell className="text-right">{(r.ctr || 0).toFixed(2)}%</TableCell>
+                            <TableCell className="text-right">{fmtInt(r.add_to_cart)}</TableCell>
+                            <TableCell className="text-right">{fmtInt(r.checkout)}</TableCell>
+                            <TableCell className="text-right">{fmtInt(r.compras)}</TableCell>
+                            <TableCell className="text-right">{fmtBRL(r.receita)}</TableCell>
                             <TableCell className="text-right">
                               <span
                                 className="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium"
@@ -1044,10 +1047,7 @@ export default function Marketing() {
                                 {roasColor.label}
                               </span>
                             </TableCell>
-                            <TableCell className="text-right">{fmtInt(r.add_to_cart)}</TableCell>
-                            <TableCell className="text-right">{fmtInt(r.checkout)}</TableCell>
-                            <TableCell className="text-right">{fmtBRL(r.receita_atribuida)}</TableCell>
-                            <TableCell className="text-right">{fmtInt(r.compras_estimadas)}</TableCell>
+                            <TableCell className="text-right">{r.compras > 0 ? fmtBRL(r.cpa) : "—"}</TableCell>
                           </TableRow>
                         );
                       })}
