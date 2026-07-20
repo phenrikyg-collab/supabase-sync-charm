@@ -369,9 +369,10 @@ export function AcompanhamentoMeta({ ano, mes }: { ano: number; mes: number }) {
         label: "Pedidos Captados",
         fmt: fmtInt,
         meta: m.pedidos_captados ?? null,
-        realizado: trayP,
-        projecao: proj(trayP),
-        status: statusVsMeta(proj(trayP), m.pedidos_captados ?? null),
+        realizado: data.pedidosCaptadosView ?? trayP,
+        projecao: proj(data.pedidosCaptadosView ?? trayP),
+        status: statusVsMeta(proj(data.pedidosCaptadosView ?? trayP), m.pedidos_captados ?? null),
+        tooltip: data.pedidosCaptadosView != null ? "Fonte: vw_taxa_conversao_mensal" : undefined,
       },
       {
         label: "Investimento Total",
