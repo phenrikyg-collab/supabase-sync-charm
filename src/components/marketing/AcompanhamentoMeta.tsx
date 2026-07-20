@@ -223,6 +223,8 @@ export function AcompanhamentoMeta({ ano, mes }: { ano: number; mes: number }) {
     const pedidosCaptadosView = taxaRow?.pedidos != null ? num(taxaRow.pedidos) : null;
     const sessoesMesView = taxaRow?.sessoes != null ? num(taxaRow.sessoes) : null;
     const taxaAprovacaoView = taxaRow?.taxa_aprovacao != null ? num(taxaRow.taxa_aprovacao) : null;
+    const clientesNovos = taxaRow?.clientes_novos != null ? num(taxaRow.clientes_novos) : 0;
+    const clientesRecorrentes = taxaRow?.clientes_recorrentes != null ? num(taxaRow.clientes_recorrentes) : 0;
 
     // ── meta ads ──
     const investimentoTotal = metaAdsRows.reduce((s: number, r: any) => s + num(r.spend), 0);
