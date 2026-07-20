@@ -222,6 +222,7 @@ export function AcompanhamentoMeta({ ano, mes }: { ano: number; mes: number }) {
         : null;
     const pedidosCaptadosView = taxaRow?.pedidos != null ? num(taxaRow.pedidos) : null;
     const sessoesMesView = taxaRow?.sessoes != null ? num(taxaRow.sessoes) : null;
+    const taxaAprovacaoView = taxaRow?.taxa_aprovacao != null ? num(taxaRow.taxa_aprovacao) : null;
 
     // ── meta ads ──
     const investimentoTotal = metaAdsRows.reduce((s: number, r: any) => s + num(r.spend), 0);
