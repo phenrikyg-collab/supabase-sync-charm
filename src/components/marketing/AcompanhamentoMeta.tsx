@@ -87,13 +87,15 @@ interface Fetched {
   sessoesMidia: number;
   sessoesOrganicas: number;
   taxaConversao: number | null;
+  pedidosCaptadosView: number | null;
+  sessoesMesView: number | null;
   investimentoTotal: number;
   clicksTotal: number;
   receitaAtribuida: number;
   roasMedio: number;
   cpcMedio: number;
   atualizadoEm: string | null;
-  errors: { meta?: boolean; tray?: boolean; canais?: boolean; metaAds?: boolean };
+  errors: { meta?: boolean; tray?: boolean; canais?: boolean; metaAds?: boolean; taxa?: boolean };
 }
 
 export function AcompanhamentoMeta({ ano, mes }: { ano: number; mes: number }) {
