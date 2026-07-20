@@ -237,30 +237,26 @@ export default function Marketing() {
           clicks: 0,
           add_to_cart: 0,
           checkout: 0,
-          video_view: 0,
-          receita_atribuida: 0,
-          cpc_latest: null as number | null,
+          compras: 0,
+          receita: 0,
           ctr_latest: null as number | null,
         };
-      const sp = num(r.spend);
-      const ro = num(r.purchase_roas);
-      cur.spend += sp;
+      cur.spend += num(r.spend);
       cur.clicks += num(r.clicks);
       cur.add_to_cart += num(r.actions_add_to_cart);
       cur.checkout += num(r.actions_initiate_checkout);
-      cur.video_view += num(r.actions_video_view);
-      cur.receita_atribuida += sp * ro;
-      if (cur.cpc_latest === null && r.cpc != null) cur.cpc_latest = num(r.cpc);
+      cur.compras += num(r.actions_purchase);
+      cur.receita += num(r.action_values_purchase);
       if (cur.ctr_latest === null && r.ctr != null) cur.ctr_latest = num(r.ctr);
       map.set(key, cur);
     }
     return [...map.values()]
       .map((r) => ({
         ...r,
-        cpc: r.clicks > 0 ? r.spend / r.clicks : r.cpc_latest || 0,
+        cpc: r.clicks > 0 ? r.spend / r.clicks : 0,
         ctr: r.ctr_latest ?? 0,
-        roas: r.spend > 0 ? r.receita_atribuida / r.spend : 0,
-        compras_estimadas: Math.round(r.receita_atribuida / TICKET_MEDIO),
+        roas: r.spend > 0 ? r.receita / r.spend : 0,
+        cpa: r.compras > 0 ? r.spend / r.compras : 0,
       }))
       .sort((a, b) => b.spend - a.spend);
   }, [metaAds]);
