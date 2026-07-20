@@ -87,6 +87,7 @@ interface Fetched {
   sessoesMidia: number;
   sessoesOrganicas: number;
   taxaConversao: number | null;
+  taxaAprovacaoView: number | null;
   pedidosCaptadosView: number | null;
   sessoesMesView: number | null;
   investimentoTotal: number;
@@ -194,7 +195,7 @@ export function AcompanhamentoMeta({ ano, mes }: { ano: number; mes: number }) {
       // 5. Taxa de conversão da view
       (supabase as any)
         .from("vw_taxa_conversao_mensal")
-        .select("mes, pedidos, sessoes, taxa_conversao")
+        .select("mes, total_pedidos, pedidos, cancelados_reais, taxa_aprovacao, sessoes, taxa_conversao")
         .eq("mes", mesKey)
         .maybeSingle()
         .then((r: any) => {
@@ -221,6 +222,7 @@ export function AcompanhamentoMeta({ ano, mes }: { ano: number; mes: number }) {
         : null;
     const pedidosCaptadosView = taxaRow?.pedidos != null ? num(taxaRow.pedidos) : null;
     const sessoesMesView = taxaRow?.sessoes != null ? num(taxaRow.sessoes) : null;
+    const taxaAprovacaoView = taxaRow?.taxa_aprovacao != null ? num(taxaRow.taxa_aprovacao) : null;
 
     // ── meta ads ──
     const investimentoTotal = metaAdsRows.reduce((s: number, r: any) => s + num(r.spend), 0);
@@ -245,6 +247,7 @@ export function AcompanhamentoMeta({ ano, mes }: { ano: number; mes: number }) {
       sessoesMidia,
       sessoesOrganicas,
       taxaConversao,
+      taxaAprovacaoView,
       pedidosCaptadosView,
       sessoesMesView,
       investimentoTotal,
@@ -349,10 +352,10 @@ export function AcompanhamentoMeta({ ano, mes }: { ano: number; mes: number }) {
         label: "Taxa de Aprovação",
         fmt: (v) => fmtPct(v),
         meta: m.premissa_taxa_aprovacao ?? null,
-        realizado: null,
-        projecao: null,
-        status: "neutro",
-        tooltip: "Sem dado automático ainda",
+        realizado: data.taxaAprovacaoView,
+        projecao: data.taxaAprovacaoView,
+        status: statusVsMeta(data.taxaAprovacaoView, m.premissa_taxa_aprovacao ?? null),
+        tooltip: "Fonte: vw_taxa_conversao_mensal",
         noProject: true,
       },
       {
