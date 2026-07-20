@@ -254,6 +254,7 @@ export function AcompanhamentoMeta({ ano, mes }: { ano: number; mes: number }) {
       sessoesOrganicas,
       taxaConversao,
       taxaAprovacaoView,
+      taxaAquisicaoView,
       pedidosCaptadosView,
       sessoesMesView,
       clientesNovos,
