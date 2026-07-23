@@ -79,6 +79,7 @@ const moduleGroups: ModuleGroup[] = [
       { title: "Ordem Produção", url: "/ordens-producao", icon: Factory },
       { title: "Plano de Produção", url: "/plano-producao", icon: ClipboardList },
       { title: "Pgto Oficinas", url: "/pagamento-oficinas", icon: DollarSign },
+      { title: "Aviamentos", url: "/aviamentos", icon: Scissors },
     ],
   },
   {

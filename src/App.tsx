@@ -170,6 +170,7 @@ const AppRoutes = () => {
               <Route path="/planejamento/mensal" element={<PlanejamentoMensal />} />
               <Route path="/planejamento/simulador" element={<PlanejamentoSimulador />} />
               <Route path="/marketing/matriz-criativa" element={<MatrizCriativa />} />
+              <Route path="/aviamentos" element={<Aviamentos />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </AppLayout>
