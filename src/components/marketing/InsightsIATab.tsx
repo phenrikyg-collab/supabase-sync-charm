@@ -308,7 +308,7 @@ export default function InsightsIATab() {
               </tr>
             </thead>
             <tbody>
-              {relatorio.metricas.map((m, i) => {
+              {(relatorio.metricas ?? []).map((m, i) => {
                 const v = String(m.variacao);
                 const isNeg = v.startsWith('-') || v.startsWith('↓');
                 const varColor = isNeg ? C.red : C.green;
@@ -350,7 +350,7 @@ export default function InsightsIATab() {
             ✓ O que Funcionou
           </h3>
           <div className="space-y-3">
-            {relatorio.o_que_funcionou.map((item, i) => (
+            {(relatorio.o_que_funcionou ?? []).map((item, i) => (
               <div key={i} className="rounded-md p-3" style={{ background: '#fff', borderLeft: `3px solid ${C.green}` }}>
                 <p className="font-bold text-sm mb-1" style={{ color: C.text }}>{item.titulo}</p>
                 <p className="text-sm mb-2" style={{ color: C.text }}><strong>Dado:</strong> {item.dado}</p>
@@ -368,7 +368,7 @@ export default function InsightsIATab() {
             ⚠ O que Melhorar
           </h3>
           <div className="space-y-3">
-            {relatorio.o_que_melhorar.map((item, i) => (
+            {(relatorio.o_que_melhorar ?? []).map((item, i) => (
               <div key={i} className="rounded-md p-3" style={{ background: '#fff', borderLeft: `3px solid ${C.gold}` }}>
                 <p className="font-bold text-sm mb-1" style={{ color: C.text }}>{item.titulo}</p>
                 <p className="text-sm mb-2" style={{ color: C.text }}><strong>Dado:</strong> {item.dado}</p>
@@ -399,7 +399,7 @@ export default function InsightsIATab() {
               </tr>
             </thead>
             <tbody>
-              {relatorio.recomendacoes.map((r, i) => {
+              {(relatorio.recomendacoes ?? []).map((r, i) => {
                 const pb = prioBadge(r.prioridade);
                 const ib = impactoBadge(r.impacto);
                 const eb = esforcoBadge(r.esforco);
@@ -430,7 +430,7 @@ export default function InsightsIATab() {
           Foco da Próxima Semana
         </h3>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {relatorio.foco_proxima_semana.map((foco, i) => (
+          {(relatorio.foco_proxima_semana ?? []).map((foco, i) => (
             <div
               key={i}
               className="rounded-xl p-5"
