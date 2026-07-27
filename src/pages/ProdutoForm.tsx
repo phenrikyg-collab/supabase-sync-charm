@@ -80,6 +80,20 @@ export default function ProdutoForm() {
   const createMut = useCreateProduto();
   const updateMut = useUpdateProduto();
   const saveAviamentosMut = useSaveProdutoAviamentos();
+  const deleteMut = useDeleteProduto();
+
+  const handleDelete = async () => {
+    if (!id) return;
+    try {
+      await deleteMut.mutateAsync(id);
+      toast.success("Produto excluído!");
+      navigate("/produtos");
+    } catch (e: any) {
+      toast.error(e.message);
+    }
+  };
+
+
 
   const { register, handleSubmit, watch, reset, setValue } = useForm<ProdutoFormData>({
     defaultValues: {
