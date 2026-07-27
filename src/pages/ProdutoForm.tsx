@@ -334,14 +334,18 @@ export default function ProdutoForm() {
               </div>
               <div className="space-y-2">
                 <Label>Tecido do Produto</Label>
+                <input type="hidden" {...register("tecido_do_produto")} />
                 <Select
-                  value={tecidoSelecionado || ""}
+                  value={tecidoSelecionado || undefined}
                   onValueChange={(v) => {
                     setValue("tecido_do_produto", v, { shouldDirty: true });
                   }}
                 >
                   <SelectTrigger><SelectValue placeholder="Selecione o tecido" /></SelectTrigger>
                   <SelectContent>
+                    {tecidoForaDaLista && (
+                      <SelectItem value={tecidoSelecionado}>{tecidoSelecionado}</SelectItem>
+                    )}
                     {tecidos?.map((t) => (
                       <SelectItem key={t.id} value={t.nome_tecido ?? t.id}>{t.nome_tecido}</SelectItem>
                     ))}
@@ -350,6 +354,8 @@ export default function ProdutoForm() {
                 {custoPorMetro > 0 && (
                   <p className="text-xs text-muted-foreground">Custo/metro: {fmt(custoPorMetro)}</p>
                 )}
+              </div>
+
               </div>
               <div className="space-y-2">
                 <Label>Consumo de Tecido (m)</Label>
