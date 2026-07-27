@@ -106,6 +106,44 @@ const fmtDateTime = (iso?: string | null) => {
   });
 };
 
+const limparJson = (value: any): any => {
+  if (value === undefined || typeof value === 'function' || typeof value === 'symbol') return null;
+  if (typeof value === 'number') return Number.isFinite(value) ? value : null;
+  if (typeof value === 'bigint') return value.toString();
+  if (typeof value === 'string') return value.replace(/\u0000/g, '');
+  if (value === null || typeof value !== 'object') return value;
+  if (value instanceof Date) return value.toISOString();
+  if (Array.isArray(value)) return value.map(limparJson);
+
+  return Object.fromEntries(
+    Object.entries(value).map(([key, item]) => [key, limparJson(item)])
+  );
+};
+
+const normalizarRelatorio = (value: any): Relatorio | null => {
+  if (!value) return null;
+  const parsed = typeof value === 'string' ? JSON.parse(value) : value;
+  if (!parsed || typeof parsed !== 'object') return null;
+
+  return {
+    ...parsed,
+    metricas: Array.isArray(parsed.metricas) ? parsed.metricas : [],
+    o_que_funcionou: Array.isArray(parsed.o_que_funcionou) ? parsed.o_que_funcionou : [],
+    o_que_melhorar: Array.isArray(parsed.o_que_melhorar) ? parsed.o_que_melhorar : [],
+    recomendacoes: Array.isArray(parsed.recomendacoes) ? parsed.recomendacoes : [],
+    foco_proxima_semana: Array.isArray(parsed.foco_proxima_semana) ? parsed.foco_proxima_semana : [],
+  } as Relatorio;
+};
+
+const periodoDoRelatorio = (rel: Relatorio, payload: any) => {
+  const inicioPayload = payload?.periodo_inicio ?? payload?.inicio ?? null;
+  const fimPayload = payload?.periodo_fim ?? payload?.fim ?? null;
+  if (inicioPayload || fimPayload) return { inicio: inicioPayload, fim: fimPayload };
+
+  const datas = String(rel?.periodo ?? '').match(/\d{4}-\d{2}-\d{2}/g) ?? [];
+  return { inicio: datas[0] ?? null, fim: datas[1] ?? null };
+};
+
 export default function InsightsIATab() {
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
@@ -113,39 +151,41 @@ export default function InsightsIATab() {
   const [relatorio, setRelatorio] = useState<Relatorio | null>(null);
   const [geradoEm, setGeradoEm] = useState<string>('');
 
-  // Carrega o relatório salvo mais recente (prioriza mês/ano atual)
+  // Carrega o relatório salvo mais recente do mês atual; se não houver, usa o último gerado.
   useEffect(() => {
     const carregar = async () => {
       const hoje = new Date();
       const mes = hoje.getMonth() + 1;
       const ano = hoje.getFullYear();
       const aplicar = (row: any) => {
-        if (!row?.relatorio_ia) return false;
-        const rel = typeof row.relatorio_ia === 'string' ? JSON.parse(row.relatorio_ia) : row.relatorio_ia;
-        if (!rel?.metricas) return false;
+        const rel = normalizarRelatorio(row?.relatorio_ia);
+        if (!rel) return false;
         setRelatorio(rel);
-        setGeradoEm(fmtDateTime(row.gerado_em));
+        setGeradoEm(fmtDateTime(row.gerado_em ?? row.created_at));
         return true;
       };
       try {
+        const colunas = 'id, mes, ano, created_at, gerado_em, relatorio_ia';
         const { data: atual } = await (supabase as any)
           .from('instagram_relatorios_mensais')
-          .select('*')
+          .select(colunas)
           .eq('mes', mes)
           .eq('ano', ano)
-          .order('gerado_em', { ascending: false })
-          .limit(1);
-        if (aplicar(atual?.[0])) return;
+          .order('gerado_em', { ascending: false, nullsFirst: false })
+          .order('created_at', { ascending: false, nullsFirst: false })
+          .limit(1)
+          .maybeSingle();
+        if (aplicar(atual)) return;
 
         // Fallback: relatório salvo mais recente de qualquer período
         const { data: ultimo } = await (supabase as any)
           .from('instagram_relatorios_mensais')
-          .select('*')
-          .order('ano', { ascending: false })
-          .order('mes', { ascending: false })
-          .order('gerado_em', { ascending: false })
-          .limit(1);
-        aplicar(ultimo?.[0]);
+          .select(colunas)
+          .order('gerado_em', { ascending: false, nullsFirst: false })
+          .order('created_at', { ascending: false, nullsFirst: false })
+          .limit(1)
+          .maybeSingle();
+        aplicar(ultimo);
       } catch {
         // sem relatório salvo — mostra o botão
       } finally {
@@ -160,30 +200,54 @@ export default function InsightsIATab() {
     const hoje = new Date();
     const mes = hoje.getMonth() + 1;
     const ano = hoje.getFullYear();
+    const geradoEmISO = new Date().toISOString();
+    const periodo = periodoDoRelatorio(rel, payload);
     const registro: any = {
       mes,
       ano,
-      periodo_inicio: payload?.periodo_inicio ?? null,
-      periodo_fim: payload?.periodo_fim ?? null,
-      relatorio_ia: rel,
-      dados_raw: payload?.dados_raw ?? payload?.dados ?? null,
+      periodo_inicio: periodo.inicio,
+      periodo_fim: periodo.fim,
+      relatorio_ia: limparJson(rel),
+      dados_raw: limparJson(payload?.dados_raw ?? payload?.dados ?? null),
       total_posts: payload?.total_posts ?? null,
       alcance_total: payload?.alcance_total ?? null,
       engajamento_total: payload?.engajamento_total ?? null,
       salvamentos: payload?.salvamentos ?? null,
       compartilhamentos: payload?.compartilhamentos ?? null,
       taxa_engajamento: payload?.taxa_engajamento ?? null,
-      gerado_em: new Date().toISOString(),
+      gerado_em: geradoEmISO,
     };
     Object.keys(registro).forEach((k) => registro[k] === null && delete registro[k]);
 
-    const { error } = await (supabase as any)
+    const { data, error } = await (supabase as any)
       .from('instagram_relatorios_mensais')
-      .upsert(registro, { onConflict: 'mes,ano' });
-    if (error) {
-      // fallback: sem constraint única (mes,ano)
-      await (supabase as any).from('instagram_relatorios_mensais').insert(registro);
-    }
+      .insert(registro)
+      .select('id, mes, ano, created_at, gerado_em, relatorio_ia')
+      .single();
+
+    if (!error) return data;
+
+    const { data: existente } = await (supabase as any)
+      .from('instagram_relatorios_mensais')
+      .select('id')
+      .eq('mes', mes)
+      .eq('ano', ano)
+      .order('gerado_em', { ascending: false, nullsFirst: false })
+      .order('created_at', { ascending: false, nullsFirst: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (!existente?.id) throw error;
+
+    const { data: atualizado, error: updateError } = await (supabase as any)
+      .from('instagram_relatorios_mensais')
+      .update(registro)
+      .eq('id', existente.id)
+      .select('id, mes, ano, created_at, gerado_em, relatorio_ia')
+      .single();
+
+    if (updateError) throw updateError;
+    return atualizado;
   };
 
   const gerarRelatorio = async () => {
@@ -196,7 +260,8 @@ export default function InsightsIATab() {
       setRelatorio(rel);
       setGeradoEm(new Date().toLocaleString('pt-BR'));
       try {
-        await salvarRelatorio(rel, data);
+        const salvo = await salvarRelatorio(rel, data);
+        setGeradoEm(fmtDateTime(salvo?.gerado_em ?? salvo?.created_at) || new Date().toLocaleString('pt-BR'));
       } catch (e: any) {
         toast({ title: 'Relatório gerado, mas não foi salvo', description: e.message, variant: 'destructive' });
       }
