@@ -161,18 +161,17 @@ export default function InsightsIATab() {
         const rel = normalizarRelatorio(row?.relatorio_ia);
         if (!rel) return false;
         setRelatorio(rel);
-        setGeradoEm(fmtDateTime(row.gerado_em ?? row.created_at));
+        setGeradoEm(fmtDateTime(row.gerado_em));
         return true;
       };
       try {
-        const colunas = 'id, mes, ano, created_at, gerado_em, relatorio_ia';
+        const colunas = 'id, mes, ano, gerado_em, relatorio_ia';
         const { data: atual } = await (supabase as any)
           .from('instagram_relatorios_mensais')
           .select(colunas)
           .eq('mes', mes)
           .eq('ano', ano)
           .order('gerado_em', { ascending: false, nullsFirst: false })
-          .order('created_at', { ascending: false, nullsFirst: false })
           .limit(1)
           .maybeSingle();
         if (aplicar(atual)) return;
@@ -182,7 +181,6 @@ export default function InsightsIATab() {
           .from('instagram_relatorios_mensais')
           .select(colunas)
           .order('gerado_em', { ascending: false, nullsFirst: false })
-          .order('created_at', { ascending: false, nullsFirst: false })
           .limit(1)
           .maybeSingle();
         aplicar(ultimo);
@@ -222,7 +220,7 @@ export default function InsightsIATab() {
     const { data, error } = await (supabase as any)
       .from('instagram_relatorios_mensais')
       .insert(registro)
-      .select('id, mes, ano, created_at, gerado_em, relatorio_ia')
+      .select('id, mes, ano, gerado_em, relatorio_ia')
       .single();
 
     if (!error) return data;
@@ -233,7 +231,6 @@ export default function InsightsIATab() {
       .eq('mes', mes)
       .eq('ano', ano)
       .order('gerado_em', { ascending: false, nullsFirst: false })
-      .order('created_at', { ascending: false, nullsFirst: false })
       .limit(1)
       .maybeSingle();
 
@@ -243,7 +240,7 @@ export default function InsightsIATab() {
       .from('instagram_relatorios_mensais')
       .update(registro)
       .eq('id', existente.id)
-      .select('id, mes, ano, created_at, gerado_em, relatorio_ia')
+      .select('id, mes, ano, gerado_em, relatorio_ia')
       .single();
 
     if (updateError) throw updateError;
@@ -261,7 +258,7 @@ export default function InsightsIATab() {
       setGeradoEm(new Date().toLocaleString('pt-BR'));
       try {
         const salvo = await salvarRelatorio(rel, data);
-        setGeradoEm(fmtDateTime(salvo?.gerado_em ?? salvo?.created_at) || new Date().toLocaleString('pt-BR'));
+        setGeradoEm(fmtDateTime(salvo?.gerado_em) || new Date().toLocaleString('pt-BR'));
       } catch (e: any) {
         toast({ title: 'Relatório gerado, mas não foi salvo', description: e.message, variant: 'destructive' });
       }
