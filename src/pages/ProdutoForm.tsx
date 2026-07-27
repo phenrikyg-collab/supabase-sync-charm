@@ -356,7 +356,6 @@ export default function ProdutoForm() {
                 )}
               </div>
 
-              </div>
               <div className="space-y-2">
                 <Label>Consumo de Tecido (m)</Label>
                 <Input type="number" step="0.01" {...register("consumo_de_tecido", { valueAsNumber: true })} />
