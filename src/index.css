@@ -124,7 +124,7 @@
 @media print {
   nav, header, aside, button, .no-print { display: none !important; }
   body { background: #fff !important; }
-  .relatorio-content {
+  .relatorio-content, .relatorio-print {
     width: 100% !important;
     font-size: 12px;
     color: #000;

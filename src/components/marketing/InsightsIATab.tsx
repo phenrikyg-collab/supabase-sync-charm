@@ -26,6 +26,33 @@ interface Metric {
   status: 'on_track' | 'at_risk' | 'off_track';
 }
 
+interface MudancaItem {
+  item: string;
+  dado?: string;
+  hipotese?: string;
+}
+
+interface OQueMudou {
+  melhorou?: MudancaItem[];
+  piorou?: MudancaItem[];
+  ausencias_impactantes?: string | string[];
+  recomendacao?: string;
+}
+
+interface FormatoInfo {
+  quantidade?: number | string;
+  performance?: string;
+  top_gancho?: string;
+  melhor_tema?: string;
+}
+
+interface AnaliseFormatos {
+  reels?: FormatoInfo;
+  carrossel?: FormatoInfo;
+  imagem?: FormatoInfo;
+  recomendacao_mix?: string;
+}
+
 interface Relatorio {
   periodo?: string;
   resumo_executivo: string;
@@ -33,6 +60,8 @@ interface Relatorio {
   grande_vitoria: string;
   ponto_atencao: string;
   metricas: Metric[];
+  o_que_mudou_essa_semana?: OQueMudou;
+  analise_formatos?: AnaliseFormatos;
   o_que_funcionou: { titulo: string; dado: string; como_replicar: string }[];
   o_que_melhorar: { titulo: string; dado: string; correcao: string }[];
   recomendacoes: { acao: string; motivo: string; impacto: string; esforco: string; prioridade: string }[];
