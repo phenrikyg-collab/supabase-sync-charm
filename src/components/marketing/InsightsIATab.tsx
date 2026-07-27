@@ -84,26 +84,39 @@ export default function InsightsIATab() {
   const [relatorio, setRelatorio] = useState<Relatorio | null>(null);
   const [geradoEm, setGeradoEm] = useState<string>('');
 
-  // Carrega relatório salvo do mês/ano atual
+  // Carrega o relatório salvo mais recente (prioriza mês/ano atual)
   useEffect(() => {
     const carregar = async () => {
       const hoje = new Date();
+      const mes = hoje.getMonth() + 1;
+      const ano = hoje.getFullYear();
+      const aplicar = (row: any) => {
+        if (!row?.relatorio_ia) return false;
+        const rel = typeof row.relatorio_ia === 'string' ? JSON.parse(row.relatorio_ia) : row.relatorio_ia;
+        if (!rel?.metricas) return false;
+        setRelatorio(rel);
+        setGeradoEm(fmtDateTime(row.gerado_em));
+        return true;
+      };
       try {
-        const { data } = await (supabase as any)
+        const { data: atual } = await (supabase as any)
           .from('instagram_relatorios_mensais')
           .select('*')
-          .eq('mes', hoje.getMonth() + 1)
-          .eq('ano', hoje.getFullYear())
+          .eq('mes', mes)
+          .eq('ano', ano)
           .order('gerado_em', { ascending: false })
           .limit(1);
-        const row = data?.[0];
-        if (row?.relatorio_ia) {
-          const rel = typeof row.relatorio_ia === 'string' ? JSON.parse(row.relatorio_ia) : row.relatorio_ia;
-          if (rel?.metricas) {
-            setRelatorio(rel);
-            setGeradoEm(fmtDateTime(row.gerado_em) || fmtDateTime(row.created_at));
-          }
-        }
+        if (aplicar(atual?.[0])) return;
+
+        // Fallback: relatório salvo mais recente de qualquer período
+        const { data: ultimo } = await (supabase as any)
+          .from('instagram_relatorios_mensais')
+          .select('*')
+          .order('ano', { ascending: false })
+          .order('mes', { ascending: false })
+          .order('gerado_em', { ascending: false })
+          .limit(1);
+        aplicar(ultimo?.[0]);
       } catch {
         // sem relatório salvo — mostra o botão
       } finally {
@@ -112,6 +125,7 @@ export default function InsightsIATab() {
     };
     carregar();
   }, []);
+
 
   const salvarRelatorio = async (rel: Relatorio, payload: any) => {
     const hoje = new Date();
