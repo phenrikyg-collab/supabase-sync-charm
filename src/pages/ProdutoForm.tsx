@@ -667,12 +667,39 @@ export default function ProdutoForm() {
               )}
             </div>
 
-            <div className="flex gap-3 justify-end">
-              <Button type="button" variant="outline" onClick={() => navigate("/produtos")}>Cancelar</Button>
-              <Button type="submit" disabled={createMut.isPending || updateMut.isPending}>
-                {isEdit ? "Salvar Alterações" : "Criar Produto"}
-              </Button>
+            <div className="flex gap-3 justify-between flex-wrap">
+              <div>
+                {isEdit && (
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button type="button" variant="destructive" disabled={deleteMut.isPending}>
+                        <Trash2 className="h-4 w-4 mr-1" />
+                        Excluir produto
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Tem certeza?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          Essa ação não pode ser desfeita. O produto "{produto?.nome_do_produto}" será excluído permanentemente.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                        <AlertDialogAction onClick={handleDelete}>Excluir</AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                )}
+              </div>
+              <div className="flex gap-3">
+                <Button type="button" variant="outline" onClick={() => navigate("/produtos")}>Cancelar</Button>
+                <Button type="submit" disabled={createMut.isPending || updateMut.isPending}>
+                  {isEdit ? "Salvar Alterações" : "Criar Produto"}
+                </Button>
+              </div>
             </div>
+
           </form>
         </CardContent>
       </Card>
