@@ -186,9 +186,30 @@ export default function Produtos() {
                     </TableCell>
                     <TableCell className="text-right">
                       {r.kind === "produto" ? (
-                        <Button variant="ghost" size="icon" onClick={() => navigate(`/produtos/${r.id}/editar`)}>
-                          <Edit className="h-4 w-4" />
-                        </Button>
+                        <div className="flex items-center justify-end gap-1">
+                          <Button variant="ghost" size="icon" onClick={() => navigate(`/produtos/${r.id}/editar`)}>
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button variant="ghost" size="icon" aria-label="Excluir produto">
+                                <Trash2 className="h-4 w-4 text-destructive" />
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>Tem certeza?</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  Essa ação não pode ser desfeita. O produto "{r.nome}" será excluído permanentemente.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                <AlertDialogAction onClick={() => excluirProduto(r.id, r.nome)}>Excluir</AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        </div>
                       ) : (
                         <Button variant="outline" size="sm" onClick={() => importarTray(r.tray)}>
                           <Download className="h-4 w-4 mr-1" />
@@ -196,6 +217,7 @@ export default function Produtos() {
                         </Button>
                       )}
                     </TableCell>
+
                   </TableRow>
                 ))}
                 {filtered.length === 0 && (
