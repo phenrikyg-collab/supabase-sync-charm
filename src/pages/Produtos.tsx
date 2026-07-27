@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { useProdutos } from "@/hooks/useSupabase";
+import { useProdutos, useDeleteProduto } from "@/hooks/useSupabase";
 import { useTrayProdutos, type TrayProd } from "@/hooks/useTrayProdutos";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -7,7 +7,18 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Search, Edit, Package, Download } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import { Search, Edit, Package, Download, Trash2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 
@@ -72,7 +83,19 @@ export default function Produtos() {
     navigate("/produtos/novo", { state: { tray: t } });
   };
 
+  const deleteMut = useDeleteProduto();
+
+  const excluirProduto = async (id: string, nome: string) => {
+    try {
+      await deleteMut.mutateAsync(id);
+      toast.success("Produto excluído", { description: nome });
+    } catch (e: any) {
+      toast.error(e.message);
+    }
+  };
+
   const totalTrayNovos = (tray || []).filter((t) => !t.jaCadastrado).length;
+
 
   return (
     <div className="space-y-6">
@@ -163,9 +186,30 @@ export default function Produtos() {
                     </TableCell>
                     <TableCell className="text-right">
                       {r.kind === "produto" ? (
-                        <Button variant="ghost" size="icon" onClick={() => navigate(`/produtos/${r.id}/editar`)}>
-                          <Edit className="h-4 w-4" />
-                        </Button>
+                        <div className="flex items-center justify-end gap-1">
+                          <Button variant="ghost" size="icon" onClick={() => navigate(`/produtos/${r.id}/editar`)}>
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button variant="ghost" size="icon" aria-label="Excluir produto">
+                                <Trash2 className="h-4 w-4 text-destructive" />
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>Tem certeza?</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  Essa ação não pode ser desfeita. O produto "{r.nome}" será excluído permanentemente.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                <AlertDialogAction onClick={() => excluirProduto(r.id, r.nome)}>Excluir</AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        </div>
                       ) : (
                         <Button variant="outline" size="sm" onClick={() => importarTray(r.tray)}>
                           <Download className="h-4 w-4 mr-1" />
@@ -173,6 +217,7 @@ export default function Produtos() {
                         </Button>
                       )}
                     </TableCell>
+
                   </TableRow>
                 ))}
                 {filtered.length === 0 && (

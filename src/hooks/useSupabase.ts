@@ -103,6 +103,23 @@ export const useUpdateProduto = () => {
   });
 };
 
+export const useDeleteProduto = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      await supabase.from("produto_aviamentos").delete().eq("produto_id", id);
+      const { error } = await supabase.from("produtos").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["produtos"] });
+      qc.invalidateQueries({ queryKey: ["produto"] });
+    },
+  });
+};
+
+
+
 // Cores
 export const useCores = () =>
   useQuery({ queryKey: ["cores"], queryFn: () => fetchTable<Cor>("cores", { orderBy: "nome_cor", ascending: true }) });
@@ -240,19 +257,61 @@ export const useSaveProdutoAviamentos = () => {
   return useMutation({
     mutationFn: async ({ produtoId, aviamentos }: {
       produtoId: string;
-      aviamentos: { aviamento_id: string; quantidade_por_peca: number; custo_unitario: number }[];
+      aviamentos: { id?: string; aviamento_id: string; quantidade_por_peca: number; custo_unitario: number }[];
     }) => {
-      await supabase.from("produto_aviamentos").delete().eq("produto_id", produtoId);
-      if (aviamentos.length > 0) {
-        const { error } = await supabase.from("produto_aviamentos").insert(
-          aviamentos.map((a) => ({ ...a, produto_id: produtoId }))
-        );
+      // Estado atual no banco
+      const { data: existentes, error: fetchError } = await supabase
+        .from("produto_aviamentos")
+        .select("*")
+        .eq("produto_id", produtoId);
+      if (fetchError) throw fetchError;
+
+      const atuais = (existentes ?? []) as ProdutoAviamento[];
+      const mantidos = new Set<string>();
+
+      for (const item of aviamentos) {
+        const existente =
+          (item.id && atuais.find((a) => a.id === item.id)) ||
+          atuais.find((a) => a.aviamento_id === item.aviamento_id && !mantidos.has(a.id));
+        if (existente) {
+          mantidos.add(existente.id);
+          const mudouQtd = Number(existente.quantidade_por_peca ?? 0) !== Number(item.quantidade_por_peca ?? 0);
+          const mudouAvi = existente.aviamento_id !== item.aviamento_id;
+          // Preserva custo_unitario salvo quando o usuário não alterou o aviamento
+          const custo = mudouAvi ? item.custo_unitario : existente.custo_unitario ?? item.custo_unitario;
+          const mudouCusto = Number(existente.custo_unitario ?? 0) !== Number(custo ?? 0);
+          if (mudouQtd || mudouAvi || mudouCusto) {
+            const { error } = await supabase
+              .from("produto_aviamentos")
+              .update({
+                aviamento_id: item.aviamento_id,
+                quantidade_por_peca: item.quantidade_por_peca,
+                custo_unitario: custo,
+              })
+              .eq("id", existente.id);
+            if (error) throw error;
+          }
+        } else {
+          const { error } = await supabase.from("produto_aviamentos").insert({
+            produto_id: produtoId,
+            aviamento_id: item.aviamento_id,
+            quantidade_por_peca: item.quantidade_por_peca,
+            custo_unitario: item.custo_unitario,
+          });
+          if (error) throw error;
+        }
+      }
+
+      const remover = atuais.filter((a) => !mantidos.has(a.id)).map((a) => a.id);
+      if (remover.length > 0) {
+        const { error } = await supabase.from("produto_aviamentos").delete().in("id", remover);
         if (error) throw error;
       }
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["produto-aviamentos"] }),
   });
 };
+
 
 // Oficinas
 export const useOficinas = () =>

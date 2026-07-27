@@ -1,7 +1,18 @@
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import type { TrayProd } from "@/hooks/useTrayProdutos";
 import { useForm } from "react-hook-form";
-import { useProduto, useCreateProduto, useUpdateProduto, useAviamentos, useProdutoAviamentos, useSaveProdutoAviamentos, useTecidos, useCreateAviamento } from "@/hooks/useSupabase";
+import { useProduto, useCreateProduto, useUpdateProduto, useDeleteProduto, useAviamentos, useProdutoAviamentos, useSaveProdutoAviamentos, useTecidos, useCreateAviamento } from "@/hooks/useSupabase";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -38,6 +49,7 @@ interface ProdutoFormData {
 }
 
 interface AviamentoItem {
+  id?: string;
   aviamento_id: string;
   quantidade_por_peca: number;
   custo_unitario: number;
@@ -68,6 +80,20 @@ export default function ProdutoForm() {
   const createMut = useCreateProduto();
   const updateMut = useUpdateProduto();
   const saveAviamentosMut = useSaveProdutoAviamentos();
+  const deleteMut = useDeleteProduto();
+
+  const handleDelete = async () => {
+    if (!id) return;
+    try {
+      await deleteMut.mutateAsync(id);
+      toast.success("Produto excluído!");
+      navigate("/produtos");
+    } catch (e: any) {
+      toast.error(e.message);
+    }
+  };
+
+
 
   const { register, handleSubmit, watch, reset, setValue } = useForm<ProdutoFormData>({
     defaultValues: {
@@ -140,14 +166,16 @@ export default function ProdutoForm() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   useEffect(() => {
-    if (produtoAviamentos?.length) {
+    if (produtoAviamentos) {
       setAviItems(produtoAviamentos.map((pa) => ({
+        id: pa.id,
         aviamento_id: pa.aviamento_id ?? "",
         quantidade_por_peca: pa.quantidade_por_peca ?? 0,
         custo_unitario: pa.custo_unitario ?? 0,
       })));
     }
   }, [produtoAviamentos]);
+
 
   // Watch all cost fields
   const precoVenda = toNumber(watch("preco_venda"));
@@ -169,9 +197,13 @@ export default function ProdutoForm() {
   const conteudoPerc = toNumber(watch("conteudo_percentual"));
 
   // Tecido selecionado e custo por metro
-  const tecidoSelecionado = watch("tecido_do_produto");
-  const tecidoObj = tecidos?.find((t) => t.nome_tecido === tecidoSelecionado);
+  const tecidoSelecionado = watch("tecido_do_produto") ?? "";
+  const norm = (s?: string | null) => (s ?? "").trim().toLowerCase();
+  const tecidoObj = tecidos?.find((t) => norm(t.nome_tecido) === norm(tecidoSelecionado));
   const custoPorMetro = tecidoObj?.custo_por_metro ?? 0;
+  // Valor salvo que não existe mais na lista de tecidos (mantém o combobox preenchido)
+  const tecidoForaDaLista = !!tecidoSelecionado && !tecidoObj;
+
 
   const custoAviamentos = aviItems.reduce((a, item) => a + (item.quantidade_por_peca * item.custo_unitario), 0);
 
@@ -327,14 +359,18 @@ export default function ProdutoForm() {
               </div>
               <div className="space-y-2">
                 <Label>Tecido do Produto</Label>
+                <input type="hidden" {...register("tecido_do_produto")} />
                 <Select
-                  value={tecidoSelecionado || ""}
+                  value={tecidoSelecionado || undefined}
                   onValueChange={(v) => {
                     setValue("tecido_do_produto", v, { shouldDirty: true });
                   }}
                 >
                   <SelectTrigger><SelectValue placeholder="Selecione o tecido" /></SelectTrigger>
                   <SelectContent>
+                    {tecidoForaDaLista && (
+                      <SelectItem value={tecidoSelecionado}>{tecidoSelecionado}</SelectItem>
+                    )}
                     {tecidos?.map((t) => (
                       <SelectItem key={t.id} value={t.nome_tecido ?? t.id}>{t.nome_tecido}</SelectItem>
                     ))}
@@ -344,6 +380,7 @@ export default function ProdutoForm() {
                   <p className="text-xs text-muted-foreground">Custo/metro: {fmt(custoPorMetro)}</p>
                 )}
               </div>
+
               <div className="space-y-2">
                 <Label>Consumo de Tecido (m)</Label>
                 <Input type="number" step="0.01" {...register("consumo_de_tecido", { valueAsNumber: true })} />
@@ -655,12 +692,39 @@ export default function ProdutoForm() {
               )}
             </div>
 
-            <div className="flex gap-3 justify-end">
-              <Button type="button" variant="outline" onClick={() => navigate("/produtos")}>Cancelar</Button>
-              <Button type="submit" disabled={createMut.isPending || updateMut.isPending}>
-                {isEdit ? "Salvar Alterações" : "Criar Produto"}
-              </Button>
+            <div className="flex gap-3 justify-between flex-wrap">
+              <div>
+                {isEdit && (
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button type="button" variant="destructive" disabled={deleteMut.isPending}>
+                        <Trash2 className="h-4 w-4 mr-1" />
+                        Excluir produto
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Tem certeza?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          Essa ação não pode ser desfeita. O produto "{produto?.nome_do_produto}" será excluído permanentemente.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                        <AlertDialogAction onClick={handleDelete}>Excluir</AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                )}
+              </div>
+              <div className="flex gap-3">
+                <Button type="button" variant="outline" onClick={() => navigate("/produtos")}>Cancelar</Button>
+                <Button type="submit" disabled={createMut.isPending || updateMut.isPending}>
+                  {isEdit ? "Salvar Alterações" : "Criar Produto"}
+                </Button>
+              </div>
             </div>
+
           </form>
         </CardContent>
       </Card>
