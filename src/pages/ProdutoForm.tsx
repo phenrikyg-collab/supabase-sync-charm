@@ -172,9 +172,13 @@ export default function ProdutoForm() {
   const conteudoPerc = toNumber(watch("conteudo_percentual"));
 
   // Tecido selecionado e custo por metro
-  const tecidoSelecionado = watch("tecido_do_produto");
-  const tecidoObj = tecidos?.find((t) => t.nome_tecido === tecidoSelecionado);
+  const tecidoSelecionado = watch("tecido_do_produto") ?? "";
+  const norm = (s?: string | null) => (s ?? "").trim().toLowerCase();
+  const tecidoObj = tecidos?.find((t) => norm(t.nome_tecido) === norm(tecidoSelecionado));
   const custoPorMetro = tecidoObj?.custo_por_metro ?? 0;
+  // Valor salvo que não existe mais na lista de tecidos (mantém o combobox preenchido)
+  const tecidoForaDaLista = !!tecidoSelecionado && !tecidoObj;
+
 
   const custoAviamentos = aviItems.reduce((a, item) => a + (item.quantidade_por_peca * item.custo_unitario), 0);
 
