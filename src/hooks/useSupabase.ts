@@ -103,6 +103,23 @@ export const useUpdateProduto = () => {
   });
 };
 
+export const useDeleteProduto = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      await supabase.from("produto_aviamentos").delete().eq("produto_id", id);
+      const { error } = await supabase.from("produtos").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["produtos"] });
+      qc.invalidateQueries({ queryKey: ["produto"] });
+    },
+  });
+};
+
+
+
 // Cores
 export const useCores = () =>
   useQuery({ queryKey: ["cores"], queryFn: () => fetchTable<Cor>("cores", { orderBy: "nome_cor", ascending: true }) });
