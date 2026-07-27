@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Sparkles, RefreshCw, ArrowUp, ArrowDown, CheckCircle2, AlertTriangle } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { Sparkles, RefreshCw, ArrowUp, ArrowDown, CheckCircle2, AlertTriangle, Printer } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
@@ -68,11 +68,80 @@ const esforcoBadge = (e: string) => {
   return { bg: C.gray, color: '#fff' };
 };
 
+const fmtDateTime = (iso?: string | null) => {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return '';
+  return d.toLocaleString('pt-BR', {
+    day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit',
+  });
+};
+
 export default function InsightsIATab() {
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
+  const [carregando, setCarregando] = useState(true);
   const [relatorio, setRelatorio] = useState<Relatorio | null>(null);
   const [geradoEm, setGeradoEm] = useState<string>('');
+
+  // Carrega relatório salvo do mês/ano atual
+  useEffect(() => {
+    const carregar = async () => {
+      const hoje = new Date();
+      try {
+        const { data } = await (supabase as any)
+          .from('instagram_relatorios_mensais')
+          .select('*')
+          .eq('mes', hoje.getMonth() + 1)
+          .eq('ano', hoje.getFullYear())
+          .order('gerado_em', { ascending: false })
+          .limit(1);
+        const row = data?.[0];
+        if (row?.relatorio_ia) {
+          const rel = typeof row.relatorio_ia === 'string' ? JSON.parse(row.relatorio_ia) : row.relatorio_ia;
+          if (rel?.metricas) {
+            setRelatorio(rel);
+            setGeradoEm(fmtDateTime(row.gerado_em) || fmtDateTime(row.created_at));
+          }
+        }
+      } catch {
+        // sem relatório salvo — mostra o botão
+      } finally {
+        setCarregando(false);
+      }
+    };
+    carregar();
+  }, []);
+
+  const salvarRelatorio = async (rel: Relatorio, payload: any) => {
+    const hoje = new Date();
+    const mes = hoje.getMonth() + 1;
+    const ano = hoje.getFullYear();
+    const registro: any = {
+      mes,
+      ano,
+      periodo_inicio: payload?.periodo_inicio ?? null,
+      periodo_fim: payload?.periodo_fim ?? null,
+      relatorio_ia: rel,
+      dados_raw: payload?.dados_raw ?? payload?.dados ?? null,
+      total_posts: payload?.total_posts ?? null,
+      alcance_total: payload?.alcance_total ?? null,
+      engajamento_total: payload?.engajamento_total ?? null,
+      salvamentos: payload?.salvamentos ?? null,
+      compartilhamentos: payload?.compartilhamentos ?? null,
+      taxa_engajamento: payload?.taxa_engajamento ?? null,
+      gerado_em: new Date().toISOString(),
+    };
+    Object.keys(registro).forEach((k) => registro[k] === null && delete registro[k]);
+
+    const { error } = await (supabase as any)
+      .from('instagram_relatorios_mensais')
+      .upsert(registro, { onConflict: 'mes,ano' });
+    if (error) {
+      // fallback: sem constraint única (mes,ano)
+      await (supabase as any).from('instagram_relatorios_mensais').insert(registro);
+    }
+  };
 
   const gerarRelatorio = async () => {
     setLoading(true);
@@ -83,12 +152,25 @@ export default function InsightsIATab() {
       if (!rel || !rel.metricas) throw new Error('Resposta inválida da função');
       setRelatorio(rel);
       setGeradoEm(new Date().toLocaleString('pt-BR'));
+      try {
+        await salvarRelatorio(rel, data);
+      } catch (e: any) {
+        toast({ title: 'Relatório gerado, mas não foi salvo', description: e.message, variant: 'destructive' });
+      }
     } catch (err: any) {
       toast({ title: 'Erro ao gerar relatório', description: err.message, variant: 'destructive' });
     } finally {
       setLoading(false);
     }
   };
+
+  if (carregando) {
+    return (
+      <div className="rounded-xl p-12 text-center" style={{ background: C.bg, border: `1px solid ${C.border}` }}>
+        <RefreshCw size={20} className="animate-spin inline-block" style={{ color: C.bronze }} />
+      </div>
+    );
+  }
 
   if (!relatorio) {
     return (
@@ -125,22 +207,43 @@ export default function InsightsIATab() {
   }
 
   return (
-    <div className="space-y-6" style={{ fontFamily: 'DM Sans, sans-serif' }}>
-      {/* Header */}
-      <div className="flex items-center justify-between flex-wrap gap-3">
-        <p className="text-xs" style={{ color: C.textSec }}>
-          Gerado em <strong>{geradoEm}</strong>
-        </p>
-        <button
-          onClick={gerarRelatorio}
-          disabled={loading}
-          className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm transition disabled:opacity-60"
-          style={{ background: C.text, color: C.gold }}
-        >
-          <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
-          {loading ? 'Atualizando…' : '↺ Atualizar Relatório'}
-        </button>
+    <div className="space-y-6 relatorio-content" style={{ fontFamily: 'DM Sans, sans-serif' }}>
+      {/* Cabeçalho apenas para impressão */}
+      <div className="print-header" style={{ display: 'none' }}>
+        <h1 style={{ fontFamily: 'Cormorant Garamond, serif', fontSize: 22, fontWeight: 600 }}>
+          Mariana Cardoso — Relatório Semanal de Performance
+        </h1>
+        <p style={{ fontSize: 12 }}>Gerado em {geradoEm}</p>
       </div>
+
+      {/* Header */}
+      <div className="flex items-center justify-between flex-wrap gap-3 no-print">
+        <span
+          className="text-xs px-3 py-1.5 rounded-full"
+          style={{ background: C.gold + '33', color: C.bronze, fontWeight: 600 }}
+        >
+          Gerado em {geradoEm}
+        </span>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => window.print()}
+            className="inline-flex items-center gap-2 px-3 py-2 rounded-lg text-xs transition"
+            style={{ background: 'transparent', color: C.text, border: `1px solid ${C.border}` }}
+          >
+            <Printer size={14} /> Imprimir
+          </button>
+          <button
+            onClick={gerarRelatorio}
+            disabled={loading}
+            className="inline-flex items-center gap-2 px-3 py-2 rounded-lg text-xs transition disabled:opacity-60"
+            style={{ background: 'transparent', color: C.bronze, border: `1px solid ${C.bronze}` }}
+          >
+            <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
+            {loading ? 'Atualizando…' : 'Regenerar'}
+          </button>
+        </div>
+      </div>
+
 
       {/* 1. Resumo Executivo */}
       <div className="rounded-xl p-6 md:p-8" style={{ background: C.text, color: '#fff' }}>
