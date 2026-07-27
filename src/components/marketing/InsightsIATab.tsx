@@ -110,7 +110,12 @@ const limparJson = (value: any): any => {
   if (value === undefined || typeof value === 'function' || typeof value === 'symbol') return null;
   if (typeof value === 'number') return Number.isFinite(value) ? value : null;
   if (typeof value === 'bigint') return value.toString();
-  if (typeof value === 'string') return value.replace(/\u0000/g, '');
+  if (typeof value === 'string') {
+    return value
+      .replace(/\u0000/g, '')
+      .replace(/[\uD800-\uDBFF](?![\uDC00-\uDFFF])/g, '')
+      .replace(/(^|[^\uD800-\uDBFF])[\uDC00-\uDFFF]/g, '$1');
+  }
   if (value === null || typeof value !== 'object') return value;
   if (value instanceof Date) return value.toISOString();
   if (Array.isArray(value)) return value.map(limparJson);
