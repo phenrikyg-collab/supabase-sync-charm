@@ -38,6 +38,7 @@ interface ProdutoFormData {
 }
 
 interface AviamentoItem {
+  id?: string;
   aviamento_id: string;
   quantidade_por_peca: number;
   custo_unitario: number;
@@ -140,14 +141,16 @@ export default function ProdutoForm() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   useEffect(() => {
-    if (produtoAviamentos?.length) {
+    if (produtoAviamentos) {
       setAviItems(produtoAviamentos.map((pa) => ({
+        id: pa.id,
         aviamento_id: pa.aviamento_id ?? "",
         quantidade_por_peca: pa.quantidade_por_peca ?? 0,
         custo_unitario: pa.custo_unitario ?? 0,
       })));
     }
   }, [produtoAviamentos]);
+
 
   // Watch all cost fields
   const precoVenda = toNumber(watch("preco_venda"));
