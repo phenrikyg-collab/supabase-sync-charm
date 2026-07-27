@@ -83,7 +83,19 @@ export default function Produtos() {
     navigate("/produtos/novo", { state: { tray: t } });
   };
 
+  const deleteMut = useDeleteProduto();
+
+  const excluirProduto = async (id: string, nome: string) => {
+    try {
+      await deleteMut.mutateAsync(id);
+      toast.success("Produto excluído", { description: nome });
+    } catch (e: any) {
+      toast.error(e.message);
+    }
+  };
+
   const totalTrayNovos = (tray || []).filter((t) => !t.jaCadastrado).length;
+
 
   return (
     <div className="space-y-6">
