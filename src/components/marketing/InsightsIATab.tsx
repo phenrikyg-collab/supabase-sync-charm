@@ -250,7 +250,7 @@ export default function InsightsIATab() {
   }
 
   return (
-    <div className="space-y-6 relatorio-content" style={{ fontFamily: 'DM Sans, sans-serif' }}>
+    <div className="space-y-6 relatorio-content relatorio-print" style={{ fontFamily: 'DM Sans, sans-serif' }}>
       {/* Cabeçalho apenas para impressão */}
       <div className="print-header" style={{ display: 'none' }}>
         <h1 style={{ fontFamily: 'Cormorant Garamond, serif', fontSize: 22, fontWeight: 600 }}>
@@ -368,6 +368,95 @@ export default function InsightsIATab() {
           </table>
         </div>
       </div>
+
+      {/* 2.1 O que mudou essa semana */}
+      {relatorio.o_que_mudou_essa_semana && (
+        <div
+          className="rounded-xl p-5 md:p-6"
+          style={{ background: C.card, border: `1px solid ${C.border}`, boxShadow: '0 1px 3px rgba(0,0,0,0.08)' }}
+        >
+          <h3 className="text-xl mb-4" style={{ color: C.text, fontFamily: 'Cormorant Garamond, serif', fontWeight: 600 }}>
+            O que mudou essa semana?
+          </h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {(relatorio.o_que_mudou_essa_semana.melhorou ?? []).map((m, i) => (
+              <div key={`up-${i}`} className="rounded-lg p-4" style={{ background: C.green + '14', borderLeft: `3px solid ${C.green}` }}>
+                <p className="text-sm font-bold mb-1 flex items-center gap-1" style={{ color: C.green }}>
+                  <ArrowUp size={14} /> {m.item}
+                </p>
+                {m.dado && <p className="text-sm mb-1" style={{ color: C.text }}><strong>Dado:</strong> {m.dado}</p>}
+                {m.hipotese && <p className="text-xs italic" style={{ color: C.textSec }}>Hipótese: {m.hipotese}</p>}
+              </div>
+            ))}
+            {(relatorio.o_que_mudou_essa_semana.piorou ?? []).map((m, i) => (
+              <div key={`down-${i}`} className="rounded-lg p-4" style={{ background: C.red + '14', borderLeft: `3px solid ${C.red}` }}>
+                <p className="text-sm font-bold mb-1 flex items-center gap-1" style={{ color: C.red }}>
+                  <ArrowDown size={14} /> {m.item}
+                </p>
+                {m.dado && <p className="text-sm mb-1" style={{ color: C.text }}><strong>Dado:</strong> {m.dado}</p>}
+                {m.hipotese && <p className="text-xs italic" style={{ color: C.textSec }}>Hipótese: {m.hipotese}</p>}
+              </div>
+            ))}
+          </div>
+          {relatorio.o_que_mudou_essa_semana.ausencias_impactantes && (
+            <div className="rounded-lg p-4 mt-4" style={{ background: C.yellow + '18', borderLeft: `3px solid ${C.yellow}` }}>
+              <p className="text-sm font-bold mb-1" style={{ color: C.bronze }}>⚠ Ausências impactantes</p>
+              <p className="text-sm" style={{ color: C.text }}>
+                {Array.isArray(relatorio.o_que_mudou_essa_semana.ausencias_impactantes)
+                  ? relatorio.o_que_mudou_essa_semana.ausencias_impactantes.join(' · ')
+                  : relatorio.o_que_mudou_essa_semana.ausencias_impactantes}
+              </p>
+            </div>
+          )}
+          {relatorio.o_que_mudou_essa_semana.recomendacao && (
+            <div className="rounded-lg p-4 mt-3" style={{ background: C.blue + '14', borderLeft: `3px solid ${C.blue}` }}>
+              <p className="text-sm font-bold mb-1" style={{ color: C.blue }}>💡 Recomendação</p>
+              <p className="text-sm" style={{ color: C.text }}>{relatorio.o_que_mudou_essa_semana.recomendacao}</p>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* 2.2 Análise por Formato */}
+      {relatorio.analise_formatos && (
+        <div
+          className="rounded-xl p-5 md:p-6"
+          style={{ background: C.card, border: `1px solid ${C.border}`, boxShadow: '0 1px 3px rgba(0,0,0,0.08)' }}
+        >
+          <h3 className="text-xl mb-4" style={{ color: C.text, fontFamily: 'Cormorant Garamond, serif', fontWeight: 600 }}>
+            Análise por Formato
+          </h3>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {([
+              { key: 'reels', label: 'REELS', extraLabel: 'Top gancho', extraKey: 'top_gancho' },
+              { key: 'carrossel', label: 'CARROSSEL', extraLabel: 'Melhor tema', extraKey: 'melhor_tema' },
+              { key: 'imagem', label: 'IMAGEM', extraLabel: '', extraKey: '' },
+            ] as const).map(({ key, label, extraLabel, extraKey }) => {
+              const f = (relatorio.analise_formatos as any)?.[key] as FormatoInfo | undefined;
+              if (!f) return null;
+              const extra = extraKey ? (f as any)[extraKey] : null;
+              return (
+                <div key={key} className="rounded-lg p-4" style={{ background: '#fff', borderTop: `3px solid ${C.gold}`, border: `1px solid ${C.border}` }}>
+                  <p className="text-xs uppercase tracking-widest mb-2 font-bold" style={{ color: C.bronze }}>{label}</p>
+                  <p className="font-bold mb-1" style={{ color: C.text, fontSize: 26, fontFamily: 'Cormorant Garamond, serif', lineHeight: 1 }}>
+                    {f.quantidade ?? '—'}
+                  </p>
+                  <p className="text-xs mb-2" style={{ color: C.textSec }}>posts publicados</p>
+                  {f.performance && <p className="text-sm mb-2" style={{ color: C.text }}>{f.performance}</p>}
+                  {extra && <p className="text-xs italic" style={{ color: C.textSec }}>{extraLabel}: {extra}</p>}
+                </div>
+              );
+            })}
+          </div>
+          {relatorio.analise_formatos.recomendacao_mix && (
+            <div className="rounded-lg p-4 mt-4" style={{ background: C.blue + '14', borderLeft: `3px solid ${C.blue}` }}>
+              <p className="text-sm font-bold mb-1" style={{ color: C.blue }}>Mix recomendado para a próxima semana</p>
+              <p className="text-sm" style={{ color: C.text }}>{relatorio.analise_formatos.recomendacao_mix}</p>
+            </div>
+          )}
+        </div>
+      )}
+
 
       {/* 3 + 4 */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
