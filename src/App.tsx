@@ -172,6 +172,8 @@ const AppRoutes = () => {
               <Route path="/planejamento/simulador" element={<PlanejamentoSimulador />} />
               <Route path="/marketing/matriz-criativa" element={<MatrizCriativa />} />
               <Route path="/aviamentos" element={<Aviamentos />} />
+              <Route path="/planejamento-conteudo-mensal" element={<PlanejamentoConteudoMensal />} />
+              <Route path="/planejamento" element={<Navigate to="/planejamento-conteudo-mensal" replace />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </AppLayout>
