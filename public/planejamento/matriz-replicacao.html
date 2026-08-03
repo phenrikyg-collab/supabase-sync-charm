@@ -1,0 +1,210 @@
+<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,ital,wght@9..144,0,400;9..144,0,500;9..144,1,500&family=Mulish:wght@400;600;700;800&display=swap" rel="stylesheet">
+<title>Matriz de Replicação · Mariana Cardoso</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  :root{
+    --ink:#23271f; --ink-soft:#6b6f63; --bg:#FBFAF6; --paper2:#F3EFE2;
+    --line:#e3e0d4; --green900:#241a16; --accent:#B5734A;
+    --accent-soft:rgba(181,115,74,.16);
+    --gold:#CDA869; --gold-soft:rgba(205,168,105,.2); --clay:#C25B45;
+  }
+  body{background:var(--bg);color:var(--ink);
+    font-family:'Mulish',-apple-system,'Segoe UI',Roboto,sans-serif;
+    -webkit-print-color-adjust:exact;print-color-adjust:exact;
+    padding:0 0 60px}
+  .wrap{max-width:1320px;margin:0 auto;padding:34px 40px}
+  .tbar{display:flex;justify-content:space-between;align-items:baseline;
+    border-bottom:1px solid var(--line);padding-bottom:9px}
+  .brand{font-weight:800;letter-spacing:.22em;font-size:15px;color:var(--green900)}
+  .brand small{font-weight:700;letter-spacing:.14em;font-size:8px;color:var(--ink-soft);margin-left:8px}
+  .sec{font-size:10px;letter-spacing:.16em;text-transform:uppercase;font-weight:800;color:var(--accent)}
+  h1{font-family:'Fraunces',Georgia,serif;font-weight:500;font-size:34px;margin:16px 0 2px}
+  h1 em{color:var(--accent);font-style:italic}
+  .sub{font-size:11.5px;color:var(--ink-soft);max-width:760px;line-height:1.5;margin-bottom:16px}
+  .briefbar{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:22px}
+  .chip-stat{background:var(--paper2);border:1px solid var(--line);border-radius:8px;
+    padding:8px 13px;font-size:10.5px;color:var(--ink-soft)}
+  .chip-stat b{display:block;font-family:'Fraunces',Georgia,serif;font-size:15px;color:var(--green900);font-weight:500}
+  table{width:100%;border-collapse:separate;border-spacing:0;table-layout:fixed;margin-bottom:10px}
+  col.c0{width:16.5%}
+  th,td{padding:9px 10px;vertical-align:top;border:1px solid var(--line)}
+  thead th{background:var(--green900);color:#F3EFE2;font-size:9.5px;letter-spacing:.07em;
+    text-transform:uppercase;font-weight:800;text-align:center}
+  thead th.c0h{background:transparent;border:none;text-align:left;color:var(--ink-soft);padding-left:10px}
+  td.dor{background:var(--paper2)}
+  td.dor.anchor{border-left:5px solid var(--accent)}
+  .dn{font-family:'Fraunces',Georgia,serif;font-size:16px;font-weight:500;color:var(--green900);line-height:1.15}
+  .du{font-size:9px;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.05em;font-weight:700;margin-top:3px}
+  .cell{font-size:10.5px;line-height:1.35;color:var(--ink)}
+  .cell ol{margin:0;padding-left:14px;list-style:decimal}
+  .cell li{margin-bottom:5px}
+  .cell li::marker{color:var(--accent);font-weight:800;font-size:9px}
+  .st{display:inline-block;font-size:8px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;
+    padding:2px 7px;border-radius:20px;margin-top:6px}
+  .st.run{background:var(--accent-soft);color:var(--accent)}
+  .st.test{background:var(--gold-soft);color:#8a6a26}
+  .flag{display:inline-block;font-size:8px;font-weight:800;letter-spacing:.04em;
+    padding:2px 7px;border-radius:20px;margin-top:5px;margin-left:5px;background:rgba(194,91,69,.14);color:var(--clay)}
+  .leg{display:flex;gap:22px;margin-top:16px;font-size:10.5px;color:var(--ink-soft);align-items:center;flex-wrap:wrap}
+  .leg .st{margin-top:0}
+  .leg .manifesto{margin-left:auto;font-style:italic}
+  .section-title{font-family:'Fraunces',Georgia,serif;font-size:20px;font-weight:500;color:var(--green900);
+    margin:36px 0 4px;border-bottom:2px solid var(--accent);padding-bottom:6px;display:inline-block}
+  .priobox{display:flex;gap:14px;margin-top:16px;flex-wrap:wrap}
+  .priocard{flex:1;min-width:220px;background:var(--paper2);border:1px solid var(--line);border-radius:10px;padding:14px 16px}
+  .priocard .rank{font-family:'Fraunces',Georgia,serif;font-size:26px;color:var(--accent);font-weight:500}
+  .priocard h4{font-size:13px;margin:4px 0 6px;color:var(--green900)}
+  .priocard p{font-size:10.5px;color:var(--ink-soft);line-height:1.4}
+  .compbox{background:rgba(194,91,69,.08);border:1px solid rgba(194,91,69,.3);border-radius:10px;padding:16px 18px;margin-top:14px}
+  .compbox h4{color:var(--clay);font-size:12px;letter-spacing:.04em;text-transform:uppercase;margin-bottom:8px}
+  .compbox p{font-size:11px;line-height:1.55;color:var(--ink)}
+  .footnote{margin-top:30px;padding-top:14px;border-top:1px solid var(--line);font-size:9.5px;color:var(--ink-soft);
+    display:flex;justify-content:space-between}
+</style></head><body><div class="wrap">
+  <div class="tbar">
+    <div class="brand">MARIANA CARDOSO<small>MODA FEMININA · MODELADORAS</small></div>
+    <div class="sec">Matriz de Replicação · Calças Best-Seller</div>
+  </div>
+
+  <h1>Matriz de Replicação · <em>Calças Modeladoras</em></h1>
+  <div class="sub">Um produto, seis mercados: a mesma engenharia de tecido (PRD Power + LYCRA®) resolve dores diferentes — visual, física, emocional, financeira e de jornada. Cada linha é um público; cada coluna, uma forma de contar a mesma verdade.</div>
+
+  <div class="briefbar">
+    <div class="chip-stat"><b>+15.000</b>unidades vendidas (Juliana)</div>
+    <div class="chip-stat"><b>100%</b>avaliações 5 estrelas</div>
+    <div class="chip-stat"><b>R$209–309</b>faixa de preço best-sellers</div>
+    <div class="chip-stat"><b>LYCRA®</b>certificação oficial do tecido</div>
+    <div class="chip-stat"><b>6</b>dores mapeadas · 2 âncoras</div>
+  </div>
+
+  <table>
+    <colgroup><col class="c0"><col><col><col><col><col></colgroup>
+    <thead><tr>
+      <th class="c0h">Dor que a calça resolve</th>
+      <th>Ângulo</th><th>Conceito</th><th>DSB</th><th>Full Funnel</th><th>UGC</th>
+    </tr></thead>
+    <tbody>
+
+      <tr>
+        <td class="dor anchor">
+          <div class="dn">Não marca, não transparece</div>
+          <div class="du">Segurança visual · Tecido</div>
+          <span class="st run">Âncora</span>
+        </td>
+        <td><div class="cell"><ol><li>Tecnologia PRD Power</li><li>Prova em movimento (agachar/sentar)</li><li>Comparação com legging comum</li></ol></div></td>
+        <td><div class="cell"><ol><li>"A calça que você esquece que está usando"</li><li>"Perfeita em qualquer ângulo"</li><li>"Opaca por dentro e por fora"</li></ol></div></td>
+        <td><div class="cell"><ol><li>"Zero transparência, mesmo agachada"</li><li>"Não marca, não aperta, nunca"</li><li>"Testada e aprovada por 15 mil"</li></ol></div></td>
+        <td><div class="cell"><ol><li>"O teste que ela fez sentada"</li><li>"Por que ninguém percebe a diferença"</li><li>"O erro que toda calça comete"</li></ol></div></td>
+        <td><div class="cell"><ol><li>Teste de transparência com luz forte</li><li>Prova sentada 8h no escritório</li><li>Comparação lado a lado com legging comum</li></ol></div></td>
+      </tr>
+
+      <tr>
+        <td class="dor">
+          <div class="dn">Conforto sem apertar</div>
+          <div class="du">Conforto · Uso prolongado</div>
+          <span class="st test">Testar</span>
+        </td>
+        <td><div class="cell"><ol><li>Elasticidade multidirecional</li><li>Quebra de objeção (cinta incomoda)</li><li>Rotina real (sentada 8h)</li></ol></div></td>
+        <td><div class="cell"><ol><li>"Você se move, ela acompanha"</li><li>"Firmeza que não vira sacrifício"</li><li>"Segunda pele, não segunda pressão"</li></ol></div></td>
+        <td><div class="cell"><ol><li>"Modela sem prender o corpo"</li><li>"Firme na cintura, livre pra viver"</li><li>"Senta, levanta, agacha — ela acompanha"</li></ol></div></td>
+        <td><div class="cell"><ol><li>"Troquei a cinta e não voltei mais"</li><li>"O que ninguém conta sobre cintas"</li><li>"8 horas sentada e sem marca nenhuma"</li></ol></div></td>
+        <td><div class="cell"><ol><li>Rotina de trabalho das 9h às 18h</li><li>Depoimento de quem trocou a cinta</li><li>Vlog: dia inteiro com a mesma calça</li></ol></div></td>
+      </tr>
+
+      <tr>
+        <td class="dor anchor">
+          <div class="dn">Autoestima & curvas reais</div>
+          <div class="du">Empoderamento · Biotipos</div>
+          <span class="st run">Âncora</span>
+          <span class="flag">⚑ validar tom</span>
+        </td>
+        <td><div class="cell"><ol><li>Empoderamento feminino</li><li>Diversidade de biotipos</li><li>Quebra de crença (roupa que "não veste bem")</li></ol></div></td>
+        <td><div class="cell"><ol><li>"Autoestima elevada de verdade"</li><li>"Vestida para se sentir você mesma"</li><li>"Curvas que merecem ser celebradas"</li></ol></div></td>
+        <td><div class="cell"><ol><li>"Valoriza cada curva do seu jeito"</li><li>"Feita para todos os biotipos"</li><li>"Cintura alta que abraça, não aperta"</li></ol></div></td>
+        <td><div class="cell"><ol><li>"A calça que mudou como me vejo"</li><li>"Nunca me senti tão bem numa calça"</li><li>"O dia que parei de evitar o espelho"</li></ol></div></td>
+        <td><div class="cell"><ol><li>Depoimento emocional de autoestima</li><li>Biotipos diferentes provando a mesma peça</li><li>Relato de autoconfiança (sem números, sem peso)</li></ol></div></td>
+      </tr>
+
+      <tr>
+        <td class="dor">
+          <div class="dn">Durabilidade do investimento</div>
+          <div class="du">Custo-benefício</div>
+          <span class="st test">Testar</span>
+        </td>
+        <td><div class="cell"><ol><li>Selo LYCRA® certificada</li><li>Comparação de durabilidade</li><li>Custo por uso ao longo do tempo</li></ol></div></td>
+        <td><div class="cell"><ol><li>"Compra uma vez, usa por anos"</li><li>"Qualidade que não desbota, não estica"</li><li>"Guarda-roupa que não te decepciona"</li></ol></div></td>
+        <td><div class="cell"><ol><li>"Mesma peça, mesmo caimento, 2 anos depois"</li><li>"Não estica, não desbota, não afrouxa"</li><li>"LYCRA® certificada, durabilidade comprovada"</li></ol></div></td>
+        <td><div class="cell"><ol><li>"Quantas calças você já jogou fora esse ano"</li><li>"A calça que eu nunca mais troquei"</li><li>"O tecido que resiste ao que promete"</li></ol></div></td>
+        <td><div class="cell"><ol><li>Unboxing de peça com 2 anos de uso</li><li>Comparação de tecido novo x usado</li><li>Depoimento de recompra (cliente antiga)</li></ol></div></td>
+      </tr>
+
+      <tr>
+        <td class="dor">
+          <div class="dn">Versatilidade multiuso</div>
+          <div class="du">Praticidade · Rotina corrida</div>
+          <span class="st test">Testar</span>
+        </td>
+        <td><div class="cell"><ol><li>Multifuncionalidade (dia a noite)</li><li>Cápsula wardrobe (menos peças)</li><li>Praticidade para rotina corrida</li></ol></div></td>
+        <td><div class="cell"><ol><li>"Uma calça, todos os seus dias"</li><li>"Do escritório ao happy hour, sem trocar"</li><li>"Menos roupa, mais estilo"</li></ol></div></td>
+        <td><div class="cell"><ol><li>"Do trabalho ao jantar, sem trocar"</li><li>"Um look, cinco ocasiões"</li><li>"Elegante de dia, chique à noite"</li></ol></div></td>
+        <td><div class="cell"><ol><li>"Uma calça pra 5 compromissos diferentes"</li><li>"Como resolvi a mala em uma peça"</li><li>"O look que nunca falha comigo"</li></ol></div></td>
+        <td><div class="cell"><ol><li>Get ready with me: 3 looks, 1 calça</li><li>Mala de viagem com poucas peças</li><li>Semana de looks com a mesma calça</li></ol></div></td>
+      </tr>
+
+      <tr>
+        <td class="dor">
+          <div class="dn">Acompanha o corpo em transformação</div>
+          <div class="du">Jornada · Corpo em mudança</div>
+          <span class="st test">Testar</span>
+          <span class="flag">⚑ validar</span>
+        </td>
+        <td><div class="cell"><ol><li>Acompanha as mudanças do corpo</li><li>Elasticidade que se adapta a você</li><li>Conforto em qualquer fase da jornada</li></ol></div></td>
+        <td><div class="cell"><ol><li>"Uma calça que evolui com você"</li><li>"Compressão que acompanha, não define"</li><li>"Confortável em cada fase sua"</li></ol></div></td>
+        <td><div class="cell"><ol><li>"Acompanha seu corpo, mudança após mudança"</li><li>"Se adapta a você, sem te prender"</li><li>"Conforto em cada etapa da jornada"</li></ol></div></td>
+        <td><div class="cell"><ol><li>"Minha calça favorita em toda a jornada"</li><li>"A peça que não larguei nesse processo"</li><li>"O que ninguém me contou sobre mudar de corpo"</li></ol></div></td>
+        <td><div class="cell"><ol><li>Relato de jornada pessoal (sem números/peso)</li><li>Depoimento de conforto em fases diferentes</li><li>Rotina de quem está em transformação</li></ol></div></td>
+      </tr>
+
+    </tbody>
+  </table>
+
+  <div class="leg">
+    <span><span class="st run">Âncora</span> proposta central — por onde a comunicação começa</span>
+    <span><span class="st test">Testar</span> território em branco — onde está a escala</span>
+    <span><span class="flag">⚑ validar</span> exige checagem de tom antes de virar anúncio</span>
+    <span class="manifesto">A escala está no que ainda não foi testado — preencher o álbum, não só melhorar o que já funciona.</span>
+  </div>
+
+  <div class="section-title">Priorização — o que testar primeiro</div>
+  <div class="priobox">
+    <div class="priocard">
+      <div class="rank">01</div>
+      <h4>Conforto sem apertar</h4>
+      <p>Score 16 — maior TAM e prova mais fácil (reviews já citam "modela sem apertar"). CAC esperado baixo por falar direto com quem usa cinta hoje.</p>
+    </div>
+    <div class="priocard">
+      <div class="rank">02</div>
+      <h4>Durabilidade do investimento</h4>
+      <p>Score 16 — maior alavanca de LTV (puxa recompra e defende o ticket médio de R$260 frente a concorrentes mais baratos e descartáveis).</p>
+    </div>
+    <div class="priocard">
+      <div class="rank">03</div>
+      <h4>Jornada / corpo em transformação</h4>
+      <p>Score 14 — TAM relevante e alto potencial emocional, mas prova ainda indireta. Testar com linguagem validada antes de escalar verba.</p>
+    </div>
+  </div>
+
+  <div class="compbox">
+    <h4>⚑ Observações de compliance</h4>
+    <p><b>Dor "Autoestima & curvas reais":</b> nunca comparar corpos, nunca usar linguagem de "esconder" ou "disfarçar" — manter tom de valorização e acolhimento. Evitar antes/depois com números ou peso.<br><br>
+    <b>Dor "Acompanha o corpo em transformação":</b> não prometer emagrecimento, não citar quilos, não usar métricas de perda de peso. Focar em conforto e adaptabilidade do tecido, não em resultado corporal. Validar cada peça de criativo com o time antes de publicar — é a dor com maior sensibilidade de todas as seis.</p>
+  </div>
+
+  <div class="footnote">
+    <span>Fonte: usemarianacardoso.com.br/maisvendidas · PDP Calça Skinny Juliana (reviews, FAQ, especificações) · memória do projeto</span>
+    <span>Matriz de Replicação · v1.0</span>
+  </div>
+</div></body></html>

@@ -1,0 +1,1441 @@
+<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,ital,wght@9..144,0,400;9..144,0,500;9..144,1,500&family=Mulish:wght@400;600;700;800&display=swap" rel="stylesheet">
+<title>Calendário Social · Roteiros · Mariana Cardoso</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  :root{
+    --ink:#23271f; --ink-soft:#6b6f63; --bg:#FBFAF6; --paper2:#F3EFE2;
+    --line:#e3e0d4; --green900:#241a16; --accent:#B5734A;
+    --accent-soft:rgba(181,115,74,.16);
+    --gold:#CDA869; --gold-soft:rgba(205,168,105,.2); --clay:#C25B45;
+    --alcance:#7B8F6B; --alcance-soft:rgba(123,143,107,.15);
+    --relac:#8A7CA8; --relac-soft:rgba(138,124,168,.15);
+    --conv:#C25B45; --conv-soft:rgba(194,91,69,.14);
+  }
+  body{background:var(--bg);color:var(--ink);
+    font-family:'Mulish',-apple-system,'Segoe UI',Roboto,sans-serif;
+    -webkit-print-color-adjust:exact;print-color-adjust:exact;padding:0 0 60px}
+  .wrap{max-width:1400px;margin:0 auto;padding:34px 40px}
+  .tbar{display:flex;justify-content:space-between;align-items:baseline;
+    border-bottom:1px solid var(--line);padding-bottom:9px}
+  .brand{font-weight:800;letter-spacing:.22em;font-size:15px;color:var(--green900)}
+  .brand small{font-weight:700;letter-spacing:.14em;font-size:8px;color:var(--ink-soft);margin-left:8px}
+  .sec{font-size:10px;letter-spacing:.16em;text-transform:uppercase;font-weight:800;color:var(--accent)}
+  h1{font-family:'Fraunces',Georgia,serif;font-weight:500;font-size:32px;margin:16px 0 2px}
+  h1 em{color:var(--accent);font-style:italic}
+  .sub{font-size:11.5px;color:var(--ink-soft);max-width:900px;line-height:1.5;margin-bottom:14px}
+  .legend{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:10px}
+  .lg{display:flex;align-items:center;gap:6px;background:var(--paper2);border:1px solid var(--line);
+    border-radius:8px;padding:6px 11px;font-size:9.5px;color:var(--ink-soft)}
+  .dot{width:8px;height:8px;border-radius:50%;display:inline-block}
+  .dot.alcance{background:var(--alcance)} .dot.relac{background:var(--relac)} .dot.conv{background:var(--conv)}
+
+  .section-title{font-family:'Fraunces',Georgia,serif;font-size:22px;font-weight:500;color:var(--green900);
+    margin:44px 0 4px;border-bottom:2px solid var(--accent);padding-bottom:6px;display:inline-block}
+
+  .week-head{display:flex;align-items:baseline;gap:12px;margin:40px 0 2px}
+  .week-tag{font-family:'Fraunces',Georgia,serif;font-size:24px;color:var(--green900);font-weight:500}
+  .week-range{font-size:11px;color:var(--ink-soft);font-weight:700;letter-spacing:.03em}
+  .launch-badge{background:var(--conv-soft);color:var(--clay);font-size:9px;font-weight:800;
+    letter-spacing:.05em;text-transform:uppercase;padding:4px 10px;border-radius:20px}
+  .week-focus-line{font-size:11px;color:var(--ink-soft);margin-bottom:10px}
+  .totals{display:flex;gap:12px;margin-bottom:16px;flex-wrap:wrap}
+  .tchip{background:var(--paper2);border:1px solid var(--line);border-radius:8px;padding:7px 13px;font-size:10px;color:var(--ink-soft)}
+  .tchip b{font-family:'Fraunces',Georgia,serif;font-size:15px;color:var(--green900);font-weight:500;display:block}
+
+  .cards-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(420px,1fr));gap:16px;margin-bottom:8px}
+  .script-card{background:#fff;border:1px solid var(--line);border-radius:12px;padding:16px 18px}
+  .script-card.extra{border:1.5px solid var(--clay);background:rgba(194,91,69,.03)}
+  .script-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
+  .script-date{font-family:'Fraunces',Georgia,serif;font-size:13px;color:var(--green900);font-weight:500}
+  .script-badges{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+  .fmt{font-size:8.3px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;
+    padding:3px 8px;border-radius:20px}
+  .fmt.reels{background:var(--accent-soft);color:var(--accent)}
+  .fmt.carrossel{background:var(--gold-soft);color:#8a6a26}
+  .func{font-size:8.3px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;
+    padding:3px 8px;border-radius:20px}
+  .func.alcance{background:var(--alcance-soft);color:var(--alcance)}
+  .func.relac{background:var(--relac-soft);color:var(--relac)}
+  .func.conv{background:var(--conv-soft);color:var(--conv)}
+  .extra-tag{font-size:7.5px;font-weight:800;color:var(--clay);letter-spacing:.04em;text-transform:uppercase;
+    background:rgba(194,91,69,.12);padding:2px 7px;border-radius:10px}
+  .flag{font-size:7.5px;font-weight:800;color:var(--clay);letter-spacing:.02em;
+    background:rgba(194,91,69,.12);padding:2px 7px;border-radius:10px}
+  .script-card h3{font-family:'Fraunces',Georgia,serif;font-size:16px;font-weight:500;color:var(--green900);margin:2px 0 8px}
+  .meta-row{display:flex;gap:12px;flex-wrap:wrap;font-size:9.3px;color:var(--ink-soft);margin-bottom:10px;
+    border-bottom:1px dashed var(--line);padding-bottom:8px}
+  .meta-row b{color:var(--ink)}
+  .block{margin-bottom:9px}
+  .block-label{font-size:8.6px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--accent);margin-bottom:3px}
+  .block-label span{color:var(--ink-soft);font-weight:700;text-transform:none;letter-spacing:0;margin-left:4px}
+  .block-body{font-size:10.6px;line-height:1.45;color:var(--ink)}
+  .block-body.quote{font-style:italic;background:var(--paper2);padding:7px 10px;border-radius:6px;border-left:3px solid var(--accent)}
+  .chip{display:inline-block;background:var(--paper2);border:1px solid var(--line);border-radius:5px;
+    padding:2px 7px;font-size:9.5px;margin:0 5px 5px 0}
+  .legenda-block .legenda{background:var(--green900);color:#F3EFE2;padding:9px 11px;border-radius:6px;font-size:9.8px;line-height:1.5}
+  .kpi-row{font-size:9.5px;color:var(--ink-soft);margin-top:10px;padding-top:8px;border-top:1px solid var(--line)}
+  .kpi-row b{color:var(--green900)}
+  .slide-list{margin:0;padding-left:16px;font-size:10.3px;line-height:1.6;color:var(--ink)}
+  .slide-list li{margin-bottom:2px}
+
+  table.rast{width:100%;border-collapse:collapse;table-layout:fixed;margin-top:12px}
+  table.rast col.c1{width:11%} table.rast col.c2{width:8%} table.rast col.c3{width:22%}
+  table.rast col.c4{width:15%} table.rast col.c5{width:13%} table.rast col.c6{width:11%} table.rast col.c7{width:20%}
+  table.rast th,table.rast td{padding:8px 9px;font-size:10px;border-bottom:1px solid var(--line);vertical-align:top}
+  table.rast thead th{background:var(--green900);color:#F3EFE2;font-size:8.5px;letter-spacing:.06em;
+    text-transform:uppercase;font-weight:800;text-align:left}
+  table.rast tbody tr:nth-child(even){background:var(--paper2)}
+  table.rast td.dia{font-family:'Fraunces',Georgia,serif;font-size:12px;color:var(--green900)}
+
+  .rulesbox{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-top:16px}
+  .rulecard{background:var(--paper2);border:1px solid var(--line);border-radius:10px;padding:14px 15px}
+  .rulecard h4{font-size:9.5px;letter-spacing:.05em;text-transform:uppercase;color:var(--accent);margin-bottom:8px}
+  .rulecard ul{padding-left:15px;margin:0}
+  .rulecard li{font-size:10px;color:var(--ink);line-height:1.55;margin-bottom:5px}
+
+  .compbox{background:rgba(194,91,69,.08);border:1px solid rgba(194,91,69,.3);border-radius:10px;padding:16px 18px;margin-top:18px}
+  .compbox h4{color:var(--clay);font-size:12px;letter-spacing:.04em;text-transform:uppercase;margin-bottom:8px}
+  .compbox p{font-size:11px;line-height:1.55;color:var(--ink)}
+
+  .footnote{margin-top:36px;padding-top:14px;border-top:1px solid var(--line);font-size:9.5px;color:var(--ink-soft);
+    display:flex;justify-content:space-between}
+  @media(max-width:900px){.cards-grid{grid-template-columns:1fr}.rulesbox{grid-template-columns:1fr 1fr}}
+</style></head><body><div class="wrap">
+
+  <div class="tbar">
+    <div class="brand">MARIANA CARDOSO<small>MODA FEMININA · MODELADORAS</small></div>
+    <div class="sec">Calendário Social · Roteiros de Gravação · Agosto/2026</div>
+  </div>
+
+  <h1>Calendário & Roteiros · <em>Agosto 2026</em></h1>
+  <div class="sub">Reels para crescer · Carrossel para educar e converter. Formato 9:16, 15–20 segundos, legenda queimada obrigatória (a maioria assiste sem som). Gancho = só a fala, sem direção de cena, sem entregar a solução. Conteúdo central em DSB. CTA único e natural. ⚑ = trava de compliance a respeitar na tela.</div>
+
+  <div class="legend">
+    <span class="lg"><span class="dot alcance"></span>Alcance — abre demanda</span>
+    <span class="lg"><span class="dot relac"></span>Relacionamento — confiança</span>
+    <span class="lg"><span class="dot conv"></span>Conversão — quem já tem intenção</span>
+    <span class="lg"><span class="extra-tag" style="margin:0">EXTRA</span>Peça adicional da semana de lançamento</span>
+    <span class="lg"><span class="flag" style="margin:0">⚑</span>Exige validação de tom</span>
+  </div>
+
+  
+  <div class="week-head">
+    <div class="week-tag">Semana 1</div>
+    <div class="week-range">03/08 – 08/08</div>
+    
+  </div>
+  <div class="week-focus-line">Foco: Não marca/transparece (âncora funcional) + Autoestima &amp; curvas (âncora emocional)</div>
+  <div class="totals">
+    <div class="tchip"><b>3</b>Reels</div>
+    <div class="tchip"><b>3</b>Carrosséis</div>
+  </div>
+  <div class="cards-grid">
+  <div class="script-card ">
+    <div class="script-top">
+      <div class="script-date">SEG · 03/08</div>
+      <div class="script-badges">
+        <span class="fmt reels">Reels 01</span>
+        <span class="func alcance">Alcance</span>
+        
+      </div>
+    </div>
+    <h3>O teste que ela fez sentada</h3>
+    <div class="meta-row">
+      <span><b>Dor:</b> Não marca / não transparece</span>
+      <span><b>Pilar:</b> Full Funnel</span>
+      <span><b>Ângulo:</b> Curiosidade</span>
+      <span><b>Persona:</b> Curioso</span>
+    </div>
+    <div class="block">
+      <div class="block-label">Gancho <span>0–3s (fala)</span></div>
+      <div class="block-body quote">“Ela sentou 8 horas com essa calça e resolveu filmar o resultado.”</div>
+    </div>
+    <div class="block">
+      <div class="block-label">Conteúdo central <span>3–13s (DSB)</span></div>
+      <div class="block-body">A dúvida de todo mundo é a mesma: será que essa calça marca ou fica transparente depois de um tempo sentada? A Juliana é feita com PRD Power e LYCRA® certificada — tecido encorpado, sem nenhuma transparência, mesmo com luz forte de frente. Ela senta, levanta, agacha, e o tecido continua no mesmo lugar.</div>
+    </div>
+    <div class="block">
+      <div class="block-label">CTA <span>13–17s (fala)</span></div>
+      <div class="block-body quote">“Link na bio pra você testar com os próprios olhos.”</div>
+    </div>
+    <div class="block">
+      <div class="block-label">Texto na tela</div>
+      <div class="block-body"><span class="chip">8 horas sentada</span><span class="chip">Luz forte de frente</span><span class="chip">Zero transparência</span><span class="chip">PRD Power + LYCRA®</span></div>
+    </div>
+    <div class="block">
+      <div class="block-label">Cenas / B-roll</div>
+      <div class="block-body">Escritório real, modelo sentada em cadeira giratória, luz de janela de frente. Cortes em close no tecido esticado (sentada, de pé, agachando). Final: modelo de costas caminhando. Ritmo ágil, sem trilha animada — som ambiente de escritório.</div>
+    </div>
+    <div class="block legenda-block">
+      <div class="block-label">Legenda</div>
+      <div class="block-body legenda">Ela sentou o dia inteiro e resolveu provar. PRD Power com LYCRA® certificada: não marca, não transparece, não sai do lugar. +15 mil mulheres já confirmaram. Link na bio.<br>#calçamodeladora #naomarca #lycra #modacurvy #usemarianacardoso</div>
+    </div>
+    <div class="kpi-row">KPI principal de leitura: <b>Retenção aos 3s e alcance de não seguidores</b></div>
+  </div>
+  <div class="script-card ">
+    <div class="script-top">
+      <div class="script-date">QUA · 05/08</div>
+      <div class="script-badges">
+        <span class="fmt reels">Reels 02</span>
+        <span class="func conv">Conversão</span>
+        
+      </div>
+    </div>
+    <h3>Zero transparência, mesmo agachada</h3>
+    <div class="meta-row">
+      <span><b>Dor:</b> Não marca / não transparece</span>
+      <span><b>Pilar:</b> DSB</span>
+      <span><b>Ângulo:</b> Benefício</span>
+      <span><b>Persona:</b> Urgente</span>
+    </div>
+    <div class="block">
+      <div class="block-label">Gancho <span>0–3s (fala)</span></div>
+      <div class="block-body quote">“Você já ficou com medo de agachar de calça clara?”</div>
+    </div>
+    <div class="block">
+      <div class="block-label">Conteúdo central <span>3–13s (DSB)</span></div>
+      <div class="block-body">É a dúvida número um de quem procura calça modeladora: será que vai transparecer? A Juliana usa tecido PRD Power, encorpado e 100% opaco, com LYCRA® certificada que sustenta a modelagem sem apertar. Você agacha, senta, sobe escada — o tecido não deixa passar nada.</div>
+    </div>
+    <div class="block">
+      <div class="block-label">CTA <span>13–17s (fala)</span></div>
+      <div class="block-body quote">“Escolha sua cor e garanta a sua ainda hoje, no link da bio.”</div>
+    </div>
+    <div class="block">
+      <div class="block-label">Texto na tela</div>
+      <div class="block-body"><span class="chip">Medo de agachar?</span><span class="chip">PRD Power = 100% opaco</span><span class="chip">Modela sem apertar</span><span class="chip">5x sem juros</span></div>
+    </div>
+    <div class="block">
+      <div class="block-label">Cenas / B-roll</div>
+      <div class="block-body">Still de produto, corte seco pra modelo agachando em ambiente claro (fundo neutro). Close no tecido esticado na altura do quadril. Encerra com still de produto e cores disponíveis.</div>
+    </div>
+    <div class="block legenda-block">
+      <div class="block-label">Legenda</div>
+      <div class="block-body legenda">Zero transparência, testado e aprovado. A Juliana modela sem apertar e sem revelar nada, do trabalho ao fim de semana. R$259 em até 5x sem juros. Link na bio.<br>#calçaskinny #modeladora #naotransparece #usemarianacardoso</div>
+    </div>
+    <div class="kpi-row">KPI principal de leitura: <b>Cliques no link da bio ÷ visitas ao perfil (meta &gt; 10%)</b></div>
+  </div>
+  <div class="script-card ">
+    <div class="script-top">
+      <div class="script-date">SEX · 07/08</div>
+      <div class="script-badges">
+        <span class="fmt reels">Reels 03</span>
+        <span class="func relac">Relacionamento</span>
+        
+      </div>
+    </div>
+    <h3>É autoestima elevada de verdade</h3>
+    <div class="meta-row">
+      <span><b>Dor:</b> Autoestima &amp; curvas reais</span>
+      <span><b>Pilar:</b> UGC/Creator</span>
+      <span><b>Ângulo:</b> Prova</span>
+      <span><b>Persona:</b> Avançado</span>
+    </div>
+    <div class="block">
+      <div class="block-label">Gancho <span>0–3s (fala)</span></div>
+      <div class="block-body quote">“Recebi uma mensagem que me fez parar tudo pra ler de novo.”</div>
+    </div>
+    <div class="block">
+      <div class="block-label">Conteúdo central <span>3–13s (DSB)</span></div>
+      <div class="block-body">Uma cliente escreveu: &#x27;é autoestima elevada de verdade&#x27;. E é exatamente pra isso que a gente trabalha — peças que vestem bem em biotipos diferentes, sem prometer nada que o tecido não entrega. Cada calça é pensada pra valorizar, nunca pra esconder.</div>
+    </div>
+    <div class="block">
+      <div class="block-label">CTA <span>13–17s (fala)</span></div>
+      <div class="block-body quote">“Manda pra uma amiga que precisa ouvir isso hoje.”</div>
+    </div>
+    <div class="block">
+      <div class="block-label">Texto na tela</div>
+      <div class="block-body"><span class="chip">“É autoestima elevada de verdade”</span><span class="chip">— cliente real</span><span class="chip">Feita pra todos os biotipos</span></div>
+    </div>
+    <div class="block">
+      <div class="block-label">Cenas / B-roll</div>
+      <div class="block-body">Print real do depoimento em tela cheia (2s) → modelo real vestindo a peça, sorrindo espontaneamente, movimento natural → close no rosto, sem filtro pesado. Luz natural, ambiente doméstico.</div>
+    </div>
+    <div class="block legenda-block">
+      <div class="block-label">Legenda</div>
+      <div class="block-body legenda">Isso aqui não é sobre a calça. É sobre como você se sente usando ela. Obrigada por confiar na gente. 💛<br>#autoestima #modacurvy #usemarianacardoso #curvasreais</div>
+    </div>
+    <div class="kpi-row">KPI principal de leitura: <b>Salvamentos e novos seguidores ÷ visitas (meta &gt; 15%)</b></div>
+  </div>
+  <div class="script-card carrossel-card ">
+    <div class="script-top">
+      <div class="script-date">TER · 04/08</div>
+      <div class="script-badges">
+        <span class="fmt carrossel">Carrossel 01</span>
+        <span class="func relac">Relacionamento</span>
+        
+      </div>
+    </div>
+    <h3>Por dentro do tecido que não deixa passar luz</h3>
+    <div class="meta-row">
+      <span><b>Dor:</b> Não marca / não transparece</span>
+      <span><b>Pilar:</b> Bastidores</span>
+      <span><b>Persona:</b> Curioso</span>
+    </div>
+    <div class="block">
+      <div class="block-label">Estrutura · 7 slides</div>
+      <ol class="slide-list"><li><b>Slide 1.</b> Capa: “O que tem por trás da calça que não transparece?”</li><li><b>Slide 2.</b> Tudo começa na escolha do fio: LYCRA® certificada, não qualquer elastano</li><li><b>Slide 3.</b> PRD Power é tecido encorpado — mais denso que legging comum</li><li><b>Slide 4.</b> Foto do teste de opacidade com luz forte</li><li><b>Slide 5.</b> Comparação lado a lado: tecido comum x PRD Power</li><li><b>Slide 6.</b> O resultado: zero transparência, em qualquer luz, em qualquer posição</li><li><b>Slide 7.</b> CTA: “Quer sentir na pele? Link na bio”</li></ol>
+    </div>
+    <div class="block legenda-block">
+      <div class="block-label">Legenda</div>
+      <div class="block-body legenda">Por trás de cada calça que não transparece tem escolha de fio, densidade de tecido e muito teste. Desliza pra ver o processo. Link na bio.<br>#bastidores #lycra #usemarianacardoso</div>
+    </div>
+  </div>
+  <div class="script-card carrossel-card ">
+    <div class="script-top">
+      <div class="script-date">QUI · 06/08</div>
+      <div class="script-badges">
+        <span class="fmt carrossel">Carrossel 02</span>
+        <span class="func alcance">Alcance</span>
+        
+      </div>
+    </div>
+    <h3>Curvas que merecem ser celebradas</h3>
+    <div class="meta-row">
+      <span><b>Dor:</b> Autoestima &amp; curvas reais</span>
+      <span><b>Pilar:</b> Conceito</span>
+      <span><b>Persona:</b> Iniciante</span>
+    </div>
+    <div class="block">
+      <div class="block-label">Estrutura · 7 slides</div>
+      <ol class="slide-list"><li><b>Slide 1.</b> Capa: “Curvas que merecem ser celebradas”</li><li><b>Slide 2.</b> Cada corpo é único — e merece roupa que valorize, não que padronize</li><li><b>Slide 3.</b> Nossa modelagem nasce pensando em biotipos diferentes</li><li><b>Slide 4.</b> Cintura alta que abraça, nunca aperta</li><li><b>Slide 5.</b> Não é sobre esconder. É sobre valorizar o que já é seu</li><li><b>Slide 6.</b> Biotipos variados vestindo a mesma peça</li><li><b>Slide 7.</b> CTA: “Encontre o seu tamanho. Link na bio”</li></ol>
+    </div>
+    <div class="block legenda-block">
+      <div class="block-label">Legenda</div>
+      <div class="block-body legenda">Curvas que merecem ser celebradas, do jeito que são. Modelagem pensada pra valorizar cada biotipo. Link na bio.<br>#curvasreais #autoestima #usemarianacardoso</div>
+    </div>
+  </div>
+  <div class="script-card carrossel-card ">
+    <div class="script-top">
+      <div class="script-date">SÁB · 08/08</div>
+      <div class="script-badges">
+        <span class="fmt carrossel">Carrossel 03</span>
+        <span class="func conv">Conversão</span>
+        
+      </div>
+    </div>
+    <h3>15.000 mulheres já confirmaram</h3>
+    <div class="meta-row">
+      <span><b>Dor:</b> Não marca/transparece + Autoestima</span>
+      <span><b>Pilar:</b> Prova Social</span>
+      <span><b>Persona:</b> Econômico</span>
+    </div>
+    <div class="block">
+      <div class="block-label">Estrutura · 7 slides</div>
+      <ol class="slide-list"><li><b>Slide 1.</b> Capa: “15.000 mulheres já confirmaram”</li><li><b>Slide 2.</b> Print de avaliação real 1 (5★)</li><li><b>Slide 3.</b> Print de avaliação real 2 (5★)</li><li><b>Slide 4.</b> Print de avaliação real 3 (5★)</li><li><b>Slide 5.</b> 100% das avaliações são 5 estrelas</li><li><b>Slide 6.</b> LYCRA® certificada + PRD Power = a fórmula por trás disso tudo</li><li><b>Slide 7.</b> CTA: “Garanta a sua. Link na bio, 5x sem juros”</li></ol>
+    </div>
+    <div class="block legenda-block">
+      <div class="block-label">Legenda</div>
+      <div class="block-body legenda">Mais de 15 mil mulheres já confirmaram: não marca, não transparece, modela sem apertar. Confira as avaliações reais e garanta a sua. Link na bio.<br>#provasocial #usemarianacardoso #avaliações</div>
+    </div>
+  </div>
+  </div>
+
+  <div class="week-head">
+    <div class="week-tag">Semana 2</div>
+    <div class="week-range">10/08 – 15/08</div>
+    <span class="launch-badge">Semana de Lançamento</span>
+  </div>
+  <div class="week-focus-line">Foco: Lançamento de peça nova (2ª terça-feira do mês: 11/08) + reforço da âncora funcional</div>
+  <div class="totals">
+    <div class="tchip"><b>6</b>Reels</div>
+    <div class="tchip"><b>5</b>Carrosséis</div>
+  </div>
+  <div class="cards-grid">
+  <div class="script-card ">
+    <div class="script-top">
+      <div class="script-date">SEG · 10/08</div>
+      <div class="script-badges">
+        <span class="fmt reels">Reels 04</span>
+        <span class="func alcance">Alcance</span>
+        
+      </div>
+    </div>
+    <h3>Tem coisa nova chegando amanhã</h3>
+    <div class="meta-row">
+      <span><b>Dor:</b> Teaser de lançamento</span>
+      <span><b>Pilar:</b> Ângulo (Curiosidade)</span>
+      <span><b>Ângulo:</b> Curiosidade</span>
+      <span><b>Persona:</b> Curioso</span>
+    </div>
+    <div class="block">
+      <div class="block-label">Gancho <span>0–3s (fala)</span></div>
+      <div class="block-body quote">“Amanhã às 19h a gente solta uma peça que só vocês pediram.”</div>
+    </div>
+    <div class="block">
+      <div class="block-label">Conteúdo central <span>3–13s (DSB)</span></div>
+      <div class="block-body">Faz meses que chega mensagem pedindo uma cor nova, um corte diferente. A gente ouviu. Amanhã (terça) a peça sai do papel e vai direto pro site — e quem estiver online primeiro vê antes de todo mundo.</div>
+    </div>
+    <div class="block">
+      <div class="block-label">CTA <span>13–17s (fala)</span></div>
+      <div class="block-body quote">“Ativa o sininho e fica de olho amanhã às 19h.”</div>
+    </div>
+    <div class="block">
+      <div class="block-label">Texto na tela</div>
+      <div class="block-body"><span class="chip">AMANHÃ · 19H</span><span class="chip">Vocês pediram.</span><span class="chip">A gente ouviu.</span></div>
+    </div>
+    <div class="block">
+      <div class="block-label">Cenas / B-roll</div>
+      <div class="block-body">Still escuro/desfocado da peça nova (silhueta, sem revelar cor/modelo), mãos mexendo em tecido fora de foco, texto grande sobre fundo escuro. Sem revelar o produto.</div>
+    </div>
+    <div class="block legenda-block">
+      <div class="block-label">Legenda</div>
+      <div class="block-body legenda">Tem novidade chegando amanhã às 19h. Vocês pediram, a gente ouviu. Ativa o sininho. 👀<br>#lançamento #usemarianacardoso #emconstrução</div>
+    </div>
+    <div class="kpi-row">KPI principal de leitura: <b>Alcance total e retenção aos 3s (candidato a puxar tráfego pro reveal)</b></div>
+  </div>
+  <div class="script-card extra">
+    <div class="script-top">
+      <div class="script-date">TER · 11/08</div>
+      <div class="script-badges">
+        <span class="fmt reels">Reels 05</span>
+        <span class="func conv">Conversão</span>
+         <span class="extra-tag">EXTRA · LANÇAMENTO</span>
+      </div>
+    </div>
+    <h3>A peça nova já está na loja</h3>
+    <div class="meta-row">
+      <span><b>Dor:</b> Reveal da peça nova</span>
+      <span><b>Pilar:</b> DSB</span>
+      <span><b>Ângulo:</b> Transformação</span>
+      <span><b>Persona:</b> Urgente</span>
+    </div>
+    <div class="block">
+      <div class="block-label">Gancho <span>0–3s (fala)</span></div>
+      <div class="block-body quote">“Ela chegou. E já está no site.”</div>
+    </div>
+    <div class="block">
+      <div class="block-label">Conteúdo central <span>3–13s (DSB)</span></div>
+      <div class="block-body">Vocês pediram uma calça que resolvesse cintura alta com mais elasticidade — a peça nova nasceu disso. Mesmo tecido PRD Power com LYCRA® certificada, mesma promessa de não marcar e não transparecer, num corte novo que a gente testou por meses antes de soltar.</div>
+    </div>
+    <div class="block">
+      <div class="block-label">CTA <span>13–17s (fala)</span></div>
+      <div class="block-body quote">“Primeiras unidades já no site, link na bio.”</div>
+    </div>
+    <div class="block">
+      <div class="block-label">Texto na tela</div>
+      <div class="block-body"><span class="chip">LANÇOU AGORA</span><span class="chip">Mesmo tecido. Corte novo.</span><span class="chip">Primeiras unidades</span></div>
+    </div>
+    <div class="block">
+      <div class="block-label">Cenas / B-roll</div>
+      <div class="block-body">Reveal em still de produto (giro 360° rápido), depois modelo vestindo caminhando em direção à câmera, luz de estúdio. Close final no tecido e no acabamento da cintura.</div>
+    </div>
+    <div class="block legenda-block">
+      <div class="block-label">Legenda</div>
+      <div class="block-body legenda">Chegou a peça que vocês pediram. Mesmo tecido PRD Power + LYCRA® certificada que vocês já confiam, num corte novo. Primeiras unidades no site. Link na bio.<br>#lançamento #usemarianacardoso #novidade</div>
+    </div>
+    <div class="kpi-row">KPI principal de leitura: <b>Cliques no link da bio nas primeiras 2h (meta &gt; 12%)</b></div>
+  </div>
+  <div class="script-card extra">
+    <div class="script-top">
+      <div class="script-date">TER · 11/08</div>
+      <div class="script-badges">
+        <span class="fmt reels">Reels 06</span>
+        <span class="func alcance">Alcance</span>
+         <span class="extra-tag">EXTRA · LANÇAMENTO</span>
+      </div>
+    </div>
+    <h3>Por que criamos essa peça</h3>
+    <div class="meta-row">
+      <span><b>Dor:</b> Storytelling de criação</span>
+      <span><b>Pilar:</b> Full Funnel</span>
+      <span><b>Ângulo:</b> Autoridade</span>
+      <span><b>Persona:</b> Curioso</span>
+    </div>
+    <div class="block">
+      <div class="block-label">Gancho <span>0–3s (fala)</span></div>
+      <div class="block-body quote">“A gente demorou 4 meses pra soltar essa calça. Deixa eu te contar por quê.”</div>
+    </div>
+    <div class="block">
+      <div class="block-label">Conteúdo central <span>3–13s (DSB)</span></div>
+      <div class="block-body">Toda semana chegava a mesma mensagem: &#x27;vocês têm nesse corte?&#x27;. Testamos 6 versões de tecido até chegar numa elasticidade que sustentasse sem perder o caimento depois de lavar várias vezes. Não lançamos por lançar — só quando ficou do jeito que a gente promete.</div>
+    </div>
+    <div class="block">
+      <div class="block-label">CTA <span>13–17s (fala)</span></div>
+      <div class="block-body quote">“Já está no site. Vem ver de perto.”</div>
+    </div>
+    <div class="block">
+      <div class="block-label">Texto na tela</div>
+      <div class="block-body"><span class="chip">4 meses de teste</span><span class="chip">6 versões de tecido</span><span class="chip">Só lança o que aprova</span></div>
+    </div>
+    <div class="block">
+      <div class="block-label">Cenas / B-roll</div>
+      <div class="block-body">Bastidor real: rolos de tecido, prova de peça no ateliê, anotações em prancheta, mão testando elasticidade. Tom documental, câmera na mão, luz natural do ateliê.</div>
+    </div>
+    <div class="block legenda-block">
+      <div class="block-label">Legenda</div>
+      <div class="block-body legenda">4 meses, 6 versões de tecido, até chegar na peça que a gente aprovaria pra própria gente usar. Ela já está no site.<br>#bastidores #usemarianacardoso #lançamento</div>
+    </div>
+    <div class="kpi-row">KPI principal de leitura: <b>Alcance ÷ visitas ao perfil (meta &gt; 12%)</b></div>
+  </div>
+  <div class="script-card ">
+    <div class="script-top">
+      <div class="script-date">QUA · 12/08</div>
+      <div class="script-badges">
+        <span class="fmt reels">Reels 07</span>
+        <span class="func conv">Conversão</span>
+        
+      </div>
+    </div>
+    <h3>Zero transparência também na coleção nova</h3>
+    <div class="meta-row">
+      <span><b>Dor:</b> Não marca / não transparece (na peça nova)</span>
+      <span><b>Pilar:</b> DSB</span>
+      <span><b>Ângulo:</b> Benefício</span>
+      <span><b>Persona:</b> Urgente</span>
+    </div>
+    <div class="block">
+      <div class="block-label">Gancho <span>0–3s (fala)</span></div>
+      <div class="block-body quote">“A pergunta que mais chegou sobre a peça nova: e a transparência?”</div>
+    </div>
+    <div class="block">
+      <div class="block-label">Conteúdo central <span>3–13s (DSB)</span></div>
+      <div class="block-body">Mesma resposta de sempre: zero. A peça nova usa o mesmo PRD Power das nossas best-sellers, testado sob luz forte, agachando, sentando. A única coisa que muda é o corte — a segurança do tecido é a mesma de sempre.</div>
+    </div>
+    <div class="block">
+      <div class="block-label">CTA <span>13–17s (fala)</span></div>
+      <div class="block-body quote">“As primeiras cores já estão quase esgotando. Link na bio.”</div>
+    </div>
+    <div class="block">
+      <div class="block-label">Texto na tela</div>
+      <div class="block-body"><span class="chip">Mesma pergunta de sempre</span><span class="chip">Mesma resposta: zero</span><span class="chip">PRD Power em todas as peças</span></div>
+    </div>
+    <div class="block">
+      <div class="block-label">Cenas / B-roll</div>
+      <div class="block-body">Teste de transparência com luz forte na peça nova (mesmo enquadramento do Reel 01, pra criar consistência visual). Fechamento com still de produto e cores disponíveis.</div>
+    </div>
+    <div class="block legenda-block">
+      <div class="block-label">Legenda</div>
+      <div class="block-body legenda">A pergunta mais comum sobre a peça nova: transparece? Resposta de sempre: zero. Mesmo PRD Power das nossas best-sellers. Link na bio.<br>#lançamento #naotransparece #usemarianacardoso</div>
+    </div>
+    <div class="kpi-row">KPI principal de leitura: <b>Comentários com dúvida de tamanho/cor e DMs abertas</b></div>
+  </div>
+  <div class="script-card ">
+    <div class="script-top">
+      <div class="script-date">SEX · 14/08</div>
+      <div class="script-badges">
+        <span class="fmt reels">Reels 08</span>
+        <span class="func relac">Relacionamento</span>
+        
+      </div>
+    </div>
+    <h3>O que as clientes VIP acharam</h3>
+    <div class="meta-row">
+      <span><b>Dor:</b> Opinião de clientes VIP</span>
+      <span><b>Pilar:</b> UGC/Creator</span>
+      <span><b>Ângulo:</b> Prova</span>
+      <span><b>Persona:</b> Avançado</span>
+    </div>
+    <div class="block">
+      <div class="block-label">Gancho <span>0–3s (fala)</span></div>
+      <div class="block-body quote">“Mandamos a peça nova pra 5 clientes antes de todo mundo. Foi assim que elas reagiram.”</div>
+    </div>
+    <div class="block">
+      <div class="block-label">Conteúdo central <span>3–13s (DSB)</span></div>
+      <div class="block-body">Compilado de reações reais e espontâneas ao experimentar a peça pela primeira vez — sem roteiro, sem ensaio. É a prova mais honesta que a gente pode mostrar.</div>
+    </div>
+    <div class="block">
+      <div class="block-label">CTA <span>13–17s (fala)</span></div>
+      <div class="block-body quote">“Comenta aqui se você quer ser a próxima a testar antes de todo mundo.”</div>
+    </div>
+    <div class="block">
+      <div class="block-label">Texto na tela</div>
+      <div class="block-body"><span class="chip">Reação real</span><span class="chip">Sem ensaio</span><span class="chip">5 clientes testaram antes</span></div>
+    </div>
+    <div class="block">
+      <div class="block-label">Cenas / B-roll</div>
+      <div class="block-body">Compilado de clipes verticais curtos (2-3s) de clientes reais reagindo — variedade de biotipos e idades dentro do público 30-50. Corte dinâmico, legendas com nome/depoimento curto.</div>
+    </div>
+    <div class="block legenda-block">
+      <div class="block-label">Legenda</div>
+      <div class="block-body legenda">Mandamos a peça nova pra 5 clientes antes do lançamento oficial. Essa foi a reação delas. 🥹 Quer ser a próxima? Comenta aqui.<br>#usemarianacardoso #provareal #lançamento</div>
+    </div>
+    <div class="kpi-row">KPI principal de leitura: <b>Salvamentos e comentários (meta &gt; 3% do alcance)</b></div>
+  </div>
+  <div class="script-card extra">
+    <div class="script-top">
+      <div class="script-date">SEX · 14/08</div>
+      <div class="script-badges">
+        <span class="fmt reels">Reels 09</span>
+        <span class="func conv">Conversão</span>
+         <span class="extra-tag">EXTRA · LANÇAMENTO</span>
+      </div>
+    </div>
+    <h3>Como foi a primeira semana da novidade</h3>
+    <div class="meta-row">
+      <span><b>Dor:</b> Primeira semana de vendas</span>
+      <span><b>Pilar:</b> Prova (número)</span>
+      <span><b>Ângulo:</b> Prova</span>
+      <span><b>Persona:</b> Econômico</span>
+    </div>
+    <div class="block">
+      <div class="block-label">Gancho <span>0–3s (fala)</span></div>
+      <div class="block-body quote">“Uma semana depois do lançamento, os números chegaram.”</div>
+    </div>
+    <div class="block">
+      <div class="block-label">Conteúdo central <span>3–13s (DSB)</span></div>
+      <div class="block-body">Em 3 dias, duas cores da peça nova já passaram de 100 unidades vendidas. As avaliações que já chegaram são 5 estrelas. É a confirmação de que valeu esperar os 4 meses de teste.</div>
+    </div>
+    <div class="block">
+      <div class="block-label">CTA <span>13–17s (fala)</span></div>
+      <div class="block-body quote">“Ainda tem nas outras cores. Link na bio antes que esgote de vez.”</div>
+    </div>
+    <div class="block">
+      <div class="block-label">Texto na tela</div>
+      <div class="block-body"><span class="chip">+100 unidades em 3 dias</span><span class="chip">5★ nas primeiras avaliações</span><span class="chip">Ainda dá tempo</span></div>
+    </div>
+    <div class="block">
+      <div class="block-label">Cenas / B-roll</div>
+      <div class="block-body">Motion gráfico simples com o número em destaque sobre still de produto. Print real de avaliações (borrando sobrenome). Fechamento em still das cores restantes em estoque.</div>
+    </div>
+    <div class="block legenda-block">
+      <div class="block-label">Legenda</div>
+      <div class="block-body legenda">Uma semana de lançamento, duas cores já passando de 100 vendidas e nota máxima nas primeiras avaliações. Obrigada por confiarem antes mesmo de ver todo mundo usando. Ainda tem nas outras cores — link na bio.<br>#usemarianacardoso #lançamento #esgotando</div>
+    </div>
+    <div class="kpi-row">KPI principal de leitura: <b>Vendas atribuídas ao social (UTM) e cálculo de frete na PDP</b></div>
+  </div>
+  <div class="script-card carrossel-card ">
+    <div class="script-top">
+      <div class="script-date">TER · 11/08</div>
+      <div class="script-badges">
+        <span class="fmt carrossel">Carrossel 04</span>
+        <span class="func relac">Relacionamento</span>
+        
+      </div>
+    </div>
+    <h3>Bastidores da peça que você vai amar</h3>
+    <div class="meta-row">
+      <span><b>Dor:</b> Bastidores da criação</span>
+      <span><b>Pilar:</b> Bastidores</span>
+      <span><b>Persona:</b> Curioso</span>
+    </div>
+    <div class="block">
+      <div class="block-label">Estrutura · 7 slides</div>
+      <ol class="slide-list"><li><b>Slide 1.</b> Capa: “Bastidores da peça nova”</li><li><b>Slide 2.</b> Tudo começou com uma pergunta que vocês repetiam nos comentários</li><li><b>Slide 3.</b> Rolos de tecido sendo testados</li><li><b>Slide 4.</b> Prova de peça no ateliê</li><li><b>Slide 5.</b> 6 versões de tecido testadas até aprovar</li><li><b>Slide 6.</b> 4 meses do rascunho até a prateleira</li><li><b>Slide 7.</b> CTA: “Ela já está no site. Vem ver de perto”</li></ol>
+    </div>
+    <div class="block legenda-block">
+      <div class="block-label">Legenda</div>
+      <div class="block-body legenda">4 meses, 6 versões de tecido, até a peça ficar do jeito que a gente aprovaria pra própria gente usar. Ela já está no site.<br>#bastidores #lançamento #usemarianacardoso</div>
+    </div>
+  </div>
+  <div class="script-card carrossel-card extra">
+    <div class="script-top">
+      <div class="script-date">TER · 11/08</div>
+      <div class="script-badges">
+        <span class="fmt carrossel">Carrossel 05</span>
+        <span class="func conv">Conversão</span>
+         <span class="extra-tag">EXTRA · LANÇAMENTO</span>
+      </div>
+    </div>
+    <h3>Tudo sobre a peça nova, em detalhes</h3>
+    <div class="meta-row">
+      <span><b>Dor:</b> Ficha técnica da peça nova</span>
+      <span><b>Pilar:</b> Prova / Specs</span>
+      <span><b>Persona:</b> Premium</span>
+    </div>
+    <div class="block">
+      <div class="block-label">Estrutura · 7 slides</div>
+      <ol class="slide-list"><li><b>Slide 1.</b> Capa: “A peça nova, em detalhes”</li><li><b>Slide 2.</b> Tecido: PRD Power com LYCRA® certificada</li><li><b>Slide 3.</b> Modelagem: cintura alta, efeito modelador</li><li><b>Slide 4.</b> Tamanhos disponíveis: P ao EG</li><li><b>Slide 5.</b> Cores de lançamento</li><li><b>Slide 6.</b> Cuidados: lavar à mão ou ciclo delicado, água até 30°C</li><li><b>Slide 7.</b> CTA: “Primeiras unidades no site. Link na bio”</li></ol>
+    </div>
+    <div class="block legenda-block">
+      <div class="block-label">Legenda</div>
+      <div class="block-body legenda">Ficha técnica completa da peça nova: tecido, modelagem, tamanhos e cores. Tudo o que você precisa saber antes de garantir a sua. Link na bio.<br>#lançamento #usemarianacardoso #fichatecnica</div>
+    </div>
+  </div>
+  <div class="script-card carrossel-card ">
+    <div class="script-top">
+      <div class="script-date">QUI · 13/08</div>
+      <div class="script-badges">
+        <span class="fmt carrossel">Carrossel 06</span>
+        <span class="func alcance">Alcance</span>
+        
+      </div>
+    </div>
+    <h3>3 looks pra estrear a peça nova</h3>
+    <div class="meta-row">
+      <span><b>Dor:</b> Versatilidade da peça nova</span>
+      <span><b>Pilar:</b> Conceito</span>
+      <span><b>Persona:</b> Iniciante</span>
+    </div>
+    <div class="block">
+      <div class="block-label">Estrutura · 7 slides</div>
+      <ol class="slide-list"><li><b>Slide 1.</b> Capa: “3 looks pra estrear a peça nova”</li><li><b>Slide 2.</b> Look 1: trabalho, com blazer</li><li><b>Slide 3.</b> Look 2: casual, com camiseta e tênis</li><li><b>Slide 4.</b> Look 3: noite, com body e salto</li><li><b>Slide 5.</b> A mesma peça, três ocasiões resolvidas</li><li><b>Slide 6.</b> Qual desses você usaria primeiro?</li><li><b>Slide 7.</b> CTA: “Garanta a sua e monta o seu look. Link na bio”</li></ol>
+    </div>
+    <div class="block legenda-block">
+      <div class="block-label">Legenda</div>
+      <div class="block-body legenda">3 jeitos de estrear a peça nova — do trabalho ao fim de noite. Qual look combina mais com você? Link na bio.<br>#lookdodia #lançamento #usemarianacardoso</div>
+    </div>
+  </div>
+  <div class="script-card carrossel-card extra">
+    <div class="script-top">
+      <div class="script-date">QUI · 13/08</div>
+      <div class="script-badges">
+        <span class="fmt carrossel">Carrossel 07</span>
+        <span class="func relac">Relacionamento</span>
+         <span class="extra-tag">EXTRA · LANÇAMENTO</span>
+      </div>
+    </div>
+    <h3>Primeiras clientes provando a novidade</h3>
+    <div class="meta-row">
+      <span><b>Dor:</b> Primeiras impressões</span>
+      <span><b>Pilar:</b> UGC/Creator</span>
+      <span><b>Persona:</b> Avançado</span>
+    </div>
+    <div class="block">
+      <div class="block-label">Estrutura · 7 slides</div>
+      <ol class="slide-list"><li><b>Slide 1.</b> Capa: “Primeiras clientes provando a novidade”</li><li><b>Slide 2.</b> Depoimento 1 (print/citação)</li><li><b>Slide 3.</b> Depoimento 2 (print/citação)</li><li><b>Slide 4.</b> Foto real de cliente vestindo (com permissão)</li><li><b>Slide 5.</b> A reação mais comum: surpresa com o caimento</li><li><b>Slide 6.</b> Ainda dá tempo de ser uma das primeiras</li><li><b>Slide 7.</b> CTA: “Link na bio pra garantir a sua”</li></ol>
+    </div>
+    <div class="block legenda-block">
+      <div class="block-label">Legenda</div>
+      <div class="block-body legenda">As primeiras clientes já testaram a novidade — e a reação foi unânime. Ainda dá tempo de ser uma das primeiras. Link na bio.<br>#usemarianacardoso #provareal #lançamento</div>
+    </div>
+  </div>
+  <div class="script-card carrossel-card ">
+    <div class="script-top">
+      <div class="script-date">SÁB · 15/08</div>
+      <div class="script-badges">
+        <span class="fmt carrossel">Carrossel 08</span>
+        <span class="func conv">Conversão</span>
+        
+      </div>
+    </div>
+    <h3>O que rolou essa semana na Mariana Cardoso</h3>
+    <div class="meta-row">
+      <span><b>Dor:</b> Fechamento da semana de lançamento</span>
+      <span><b>Pilar:</b> Prova Social</span>
+      <span><b>Persona:</b> Econômico</span>
+    </div>
+    <div class="block">
+      <div class="block-label">Estrutura · 7 slides</div>
+      <ol class="slide-list"><li><b>Slide 1.</b> Capa: “O que rolou essa semana”</li><li><b>Slide 2.</b> Lançamos a peça mais pedida dos comentários</li><li><b>Slide 3.</b> Print de avaliação da peça nova</li><li><b>Slide 4.</b> Print de avaliação de best-seller</li><li><b>Slide 5.</b> Mais de 100 unidades da novidade já saíram</li><li><b>Slide 6.</b> Ainda tem nas outras cores</li><li><b>Slide 7.</b> CTA: “Vem ver a coleção completa. Link na bio”</li></ol>
+    </div>
+    <div class="block legenda-block">
+      <div class="block-label">Legenda</div>
+      <div class="block-body legenda">Semana de lançamento fechando com nota máxima nas avaliações. Ainda tem peças disponíveis nas outras cores. Link na bio.<br>#usemarianacardoso #resumodasemana #lançamento</div>
+    </div>
+  </div>
+  </div>
+
+  <div class="week-head">
+    <div class="week-tag">Semana 3</div>
+    <div class="week-range">17/08 – 22/08</div>
+    
+  </div>
+  <div class="week-focus-line">Foco: Conforto sem apertar + Durabilidade do investimento (dores prioritárias do scorecard)</div>
+  <div class="totals">
+    <div class="tchip"><b>3</b>Reels</div>
+    <div class="tchip"><b>3</b>Carrosséis</div>
+  </div>
+  <div class="cards-grid">
+  <div class="script-card ">
+    <div class="script-top">
+      <div class="script-date">SEG · 17/08</div>
+      <div class="script-badges">
+        <span class="fmt reels">Reels 10</span>
+        <span class="func alcance">Alcance</span>
+        
+      </div>
+    </div>
+    <h3>O que ninguém conta sobre cintas</h3>
+    <div class="meta-row">
+      <span><b>Dor:</b> Conforto sem apertar</span>
+      <span><b>Pilar:</b> Full Funnel</span>
+      <span><b>Ângulo:</b> Dor</span>
+      <span><b>Persona:</b> Curioso</span>
+    </div>
+    <div class="block">
+      <div class="block-label">Gancho <span>0–3s (fala)</span></div>
+      <div class="block-body quote">“Ninguém fala o quanto dói tirar a cinta modeladora no fim do dia.”</div>
+    </div>
+    <div class="block">
+      <div class="block-label">Conteúdo central <span>3–13s (DSB)</span></div>
+      <div class="block-body">A marca vermelha na pele, a sensação de finalmente respirar — isso não deveria ser normal. A calça Juliana usa elasticidade multidirecional: modela a cintura e o quadril com firmeza real, mas acompanha o corpo em qualquer posição, sem aquela pressão da cinta tradicional.</div>
+    </div>
+    <div class="block">
+      <div class="block-label">CTA <span>13–17s (fala)</span></div>
+      <div class="block-body quote">“Testa por um dia e sente a diferença. Link na bio.”</div>
+    </div>
+    <div class="block">
+      <div class="block-label">Texto na tela</div>
+      <div class="block-body"><span class="chip">A marca que a cinta deixa</span><span class="chip">Elasticidade multidirecional</span><span class="chip">Firme, sem apertar</span></div>
+    </div>
+    <div class="block">
+      <div class="block-label">Cenas / B-roll</div>
+      <div class="block-body">Cena de fim de dia genérica (sugerir alivio ao tirar sapato/jaqueta, sem mostrar pele marcada de forma gráfica), corte pra modelo vestindo a calça, se movendo livremente (sentando, girando).</div>
+    </div>
+    <div class="block legenda-block">
+      <div class="block-label">Legenda</div>
+      <div class="block-body legenda">Ninguém deveria sentir alívio só de tirar uma peça de roupa. A Juliana modela com a mesma firmeza — mas acompanha o corpo o dia inteiro, sem marcar. Link na bio.<br>#modeladora #semcinta #usemarianacardoso</div>
+    </div>
+    <div class="kpi-row">KPI principal de leitura: <b>Retenção aos 3s e alcance de não seguidores</b></div>
+  </div>
+  <div class="script-card ">
+    <div class="script-top">
+      <div class="script-date">QUA · 19/08</div>
+      <div class="script-badges">
+        <span class="fmt reels">Reels 11</span>
+        <span class="func conv">Conversão</span>
+        
+      </div>
+    </div>
+    <h3>Modela sem prender o corpo</h3>
+    <div class="meta-row">
+      <span><b>Dor:</b> Conforto sem apertar</span>
+      <span><b>Pilar:</b> DSB</span>
+      <span><b>Ângulo:</b> Quebra de Crença</span>
+      <span><b>Persona:</b> Urgente</span>
+    </div>
+    <div class="block">
+      <div class="block-label">Gancho <span>0–3s (fala)</span></div>
+      <div class="block-body quote">“&#x27;Calça modeladora é sempre apertada&#x27; — isso não é verdade.”</div>
+    </div>
+    <div class="block">
+      <div class="block-label">Conteúdo central <span>3–13s (DSB)</span></div>
+      <div class="block-body">Modelar não devia ser sinônimo de sofrer. A Juliana usa LYCRA® com elasticidade multidirecional: sustenta a cintura e o quadril com firmeza real, mas acompanha cada movimento — senta, agacha, sobe escada, sem cortar a circulação nem marcar a pele.</div>
+    </div>
+    <div class="block">
+      <div class="block-label">CTA <span>13–17s (fala)</span></div>
+      <div class="block-body quote">“Experimenta e comprova. Troca grátis se não for a sua cara.”</div>
+    </div>
+    <div class="block">
+      <div class="block-label">Texto na tela</div>
+      <div class="block-body"><span class="chip">“Modeladora = apertada”</span><span class="chip">MITO</span><span class="chip">Firme, mas livre</span></div>
+    </div>
+    <div class="block">
+      <div class="block-label">Cenas / B-roll</div>
+      <div class="block-body">Texto de crença cruzado com X grande na tela, seguido de modelo se movendo livremente com a calça (alongamento, sentar/levantar). Ritmo ágil.</div>
+    </div>
+    <div class="block legenda-block">
+      <div class="block-label">Legenda</div>
+      <div class="block-body legenda">Modeladora não precisa doer. A Juliana modela com firmeza real, sem prender o corpo. Se não for a sua cara, a primeira troca é por nossa conta. Link na bio.<br>#modeladora #confortoreal #usemarianacardoso</div>
+    </div>
+    <div class="kpi-row">KPI principal de leitura: <b>Cliques no link da bio ÷ visitas (meta &gt; 10%)</b></div>
+  </div>
+  <div class="script-card ">
+    <div class="script-top">
+      <div class="script-date">SEX · 21/08</div>
+      <div class="script-badges">
+        <span class="fmt reels">Reels 12</span>
+        <span class="func relac">Relacionamento</span>
+        
+      </div>
+    </div>
+    <h3>Troquei a cinta e não voltei mais</h3>
+    <div class="meta-row">
+      <span><b>Dor:</b> Conforto sem apertar</span>
+      <span><b>Pilar:</b> UGC/Creator</span>
+      <span><b>Ângulo:</b> Prova</span>
+      <span><b>Persona:</b> Avançado</span>
+    </div>
+    <div class="block">
+      <div class="block-label">Gancho <span>0–3s (fala)</span></div>
+      <div class="block-body quote">“Cliente escreveu: &#x27;troquei a cinta pela calça e nunca mais voltei&#x27;.”</div>
+    </div>
+    <div class="block">
+      <div class="block-label">Conteúdo central <span>3–13s (DSB)</span></div>
+      <div class="block-body">É um dos comentários que mais se repete nas nossas avaliações — mulheres que usavam cinta modeladora por baixo da roupa e passaram a usar só a calça. Menos peça, mesmo resultado, muito mais conforto.</div>
+    </div>
+    <div class="block">
+      <div class="block-label">CTA <span>13–17s (fala)</span></div>
+      <div class="block-body quote">“Se você também usa cinta, conta pra gente nos comentários.”</div>
+    </div>
+    <div class="block">
+      <div class="block-label">Texto na tela</div>
+      <div class="block-body"><span class="chip">“Nunca mais voltei”</span><span class="chip">— avaliação real</span><span class="chip">Menos peça, mesmo resultado</span></div>
+    </div>
+    <div class="block">
+      <div class="block-label">Cenas / B-roll</div>
+      <div class="block-body">Print real de avaliação em tela cheia, depois modelo real vestindo só a calça (sem camadas extras por baixo), se movendo à vontade em ambiente de trabalho/casa. Luz natural.</div>
+    </div>
+    <div class="block legenda-block">
+      <div class="block-label">Legenda</div>
+      <div class="block-body legenda">“Troquei a cinta pela calça e nunca mais voltei” — um dos comentários que mais recebemos. Você já trocou? Conta aqui embaixo.<br>#usemarianacardoso #semcinta #modeladora</div>
+    </div>
+    <div class="kpi-row">KPI principal de leitura: <b>Comentários e taxa de resposta (meta &gt; 2% do alcance)</b></div>
+  </div>
+  <div class="script-card carrossel-card ">
+    <div class="script-top">
+      <div class="script-date">TER · 18/08</div>
+      <div class="script-badges">
+        <span class="fmt carrossel">Carrossel 09</span>
+        <span class="func relac">Relacionamento</span>
+        
+      </div>
+    </div>
+    <h3>Por que nosso tecido não estica</h3>
+    <div class="meta-row">
+      <span><b>Dor:</b> Durabilidade do investimento</span>
+      <span><b>Pilar:</b> Bastidores</span>
+      <span><b>Persona:</b> Curioso</span>
+    </div>
+    <div class="block">
+      <div class="block-label">Estrutura · 7 slides</div>
+      <ol class="slide-list"><li><b>Slide 1.</b> Capa: “Por que nosso tecido não estica”</li><li><b>Slide 2.</b> A diferença está na LYCRA® certificada — não é elastano genérico</li><li><b>Slide 3.</b> Testamos resistência a mais de 100 lavagens em laboratório</li><li><b>Slide 4.</b> Comparação: peça nova x peça com 2 anos de uso</li><li><b>Slide 5.</b> O caimento se mantém, a compressão também</li><li><b>Slide 6.</b> Isso significa menos trocas de guarda-roupa por ano</li><li><b>Slide 7.</b> CTA: “Invista uma vez. Link na bio”</li></ol>
+    </div>
+    <div class="block legenda-block">
+      <div class="block-label">Legenda</div>
+      <div class="block-body legenda">Por dentro do teste que garante que nossa calça não perde o caimento com o tempo. Invista uma vez, use por anos. Link na bio.<br>#durabilidade #lycra #usemarianacardoso</div>
+    </div>
+  </div>
+  <div class="script-card carrossel-card ">
+    <div class="script-top">
+      <div class="script-date">QUI · 20/08</div>
+      <div class="script-badges">
+        <span class="fmt carrossel">Carrossel 10</span>
+        <span class="func alcance">Alcance</span>
+        
+      </div>
+    </div>
+    <h3>Quantas calças você já jogou fora esse ano?</h3>
+    <div class="meta-row">
+      <span><b>Dor:</b> Durabilidade do investimento</span>
+      <span><b>Pilar:</b> Conceito</span>
+      <span><b>Persona:</b> Econômico</span>
+    </div>
+    <div class="block">
+      <div class="block-label">Estrutura · 7 slides</div>
+      <ol class="slide-list"><li><b>Slide 1.</b> Capa: “Quantas calças você já jogou fora esse ano?”</li><li><b>Slide 2.</b> Tecido que estica, desbota, perde a forma em poucos meses</li><li><b>Slide 3.</b> O custo real não é o preço da etiqueta — é quantas vezes você recompra</li><li><b>Slide 4.</b> Nossas clientes usam a mesma peça por mais de 2 anos</li><li><b>Slide 5.</b> Fazendo as contas, sai mais barato investir uma vez</li><li><b>Slide 6.</b> LYCRA® certificada é a diferença</li><li><b>Slide 7.</b> CTA: “Faça o teste de durabilidade você mesma. Link na bio”</li></ol>
+    </div>
+    <div class="block legenda-block">
+      <div class="block-label">Legenda</div>
+      <div class="block-body legenda">Quantas calças você já trocou esse ano por perderem a forma? Faça as contas — investir uma vez pode sair mais barato. Link na bio.<br>#custobeneficio #usemarianacardoso #durabilidade</div>
+    </div>
+  </div>
+  <div class="script-card carrossel-card ">
+    <div class="script-top">
+      <div class="script-date">SÁB · 22/08</div>
+      <div class="script-badges">
+        <span class="fmt carrossel">Carrossel 11</span>
+        <span class="func conv">Conversão</span>
+        
+      </div>
+    </div>
+    <h3>Clientes que usam a mesma peça há 2 anos</h3>
+    <div class="meta-row">
+      <span><b>Dor:</b> Durabilidade do investimento</span>
+      <span><b>Pilar:</b> Prova Social</span>
+      <span><b>Persona:</b> Premium</span>
+    </div>
+    <div class="block">
+      <div class="block-label">Estrutura · 7 slides</div>
+      <ol class="slide-list"><li><b>Slide 1.</b> Capa: “Clientes que usam a mesma peça há 2 anos”</li><li><b>Slide 2.</b> Depoimento 1: “comprei em 2024 e uso até hoje”</li><li><b>Slide 3.</b> Depoimento 2: “não estica, não desbota”</li><li><b>Slide 4.</b> Foto de peça com 2 anos de uso ao lado de peça nova</li><li><b>Slide 5.</b> Mesmo caimento, mesma compressão</li><li><b>Slide 6.</b> Esse é o motivo do nosso selo LYCRA®</li><li><b>Slide 7.</b> CTA: “Invista na sua. Link na bio”</li></ol>
+    </div>
+    <div class="block legenda-block">
+      <div class="block-label">Legenda</div>
+      <div class="block-body legenda">Depoimentos reais de clientes que usam a mesma peça há mais de 2 anos — sem perder o caimento. Invista na sua. Link na bio.<br>#provasocial #usemarianacardoso #durabilidade</div>
+    </div>
+  </div>
+  </div>
+
+  <div class="week-head">
+    <div class="week-tag">Semana 4</div>
+    <div class="week-range">24/08 – 29/08</div>
+    
+  </div>
+  <div class="week-focus-line">Foco: Versatilidade multiuso + Jornada/corpo em transformação ⚑</div>
+  <div class="totals">
+    <div class="tchip"><b>3</b>Reels</div>
+    <div class="tchip"><b>3</b>Carrosséis</div>
+  </div>
+  <div class="cards-grid">
+  <div class="script-card ">
+    <div class="script-top">
+      <div class="script-date">SEG · 24/08</div>
+      <div class="script-badges">
+        <span class="fmt reels">Reels 13</span>
+        <span class="func alcance">Alcance</span>
+        
+      </div>
+    </div>
+    <h3>Uma calça pra 5 compromissos diferentes</h3>
+    <div class="meta-row">
+      <span><b>Dor:</b> Versatilidade multiuso</span>
+      <span><b>Pilar:</b> Full Funnel</span>
+      <span><b>Ângulo:</b> Rotina</span>
+      <span><b>Persona:</b> Curioso</span>
+    </div>
+    <div class="block">
+      <div class="block-label">Gancho <span>0–3s (fala)</span></div>
+      <div class="block-body quote">“Separei os looks da minha semana com uma calça só. Olha só.”</div>
+    </div>
+    <div class="block">
+      <div class="block-label">Conteúdo central <span>3–13s (DSB)</span></div>
+      <div class="block-body">Segunda de reunião, quarta de aula, sexta de happy hour, sábado de brunch — a mesma calça Juliana em cada um, só trocando o que vem por cima. Corte skinny de cintura alta combina com blazer, com body, com cropped, sem perder a elegância.</div>
+    </div>
+    <div class="block">
+      <div class="block-label">CTA <span>13–17s (fala)</span></div>
+      <div class="block-body quote">“Qual desses looks você faria primeiro? Comenta o número.”</div>
+    </div>
+    <div class="block">
+      <div class="block-label">Texto na tela</div>
+      <div class="block-body"><span class="chip">SEG · reunião</span><span class="chip">QUA · aula</span><span class="chip">SEX · happy hour</span><span class="chip">SÁB · brunch</span></div>
+    </div>
+    <div class="block">
+      <div class="block-label">Cenas / B-roll</div>
+      <div class="block-body">Transições rápidas (jump cuts) trocando só a peça de cima sobre a mesma calça, em cenários diferentes (escritório, rua, bar, café). Ritmo acelerado, trilha animada.</div>
+    </div>
+    <div class="block legenda-block">
+      <div class="block-label">Legenda</div>
+      <div class="block-body legenda">Uma calça, quatro compromissos, zero trocas de peça principal. Qual desses looks você faria primeiro? Comenta o número.<br>#lookdodia #usemarianacardoso #versatilidade</div>
+    </div>
+    <div class="kpi-row">KPI principal de leitura: <b>Retenção aos 3s e alcance de não seguidores</b></div>
+  </div>
+  <div class="script-card ">
+    <div class="script-top">
+      <div class="script-date">QUA · 26/08</div>
+      <div class="script-badges">
+        <span class="fmt reels">Reels 14</span>
+        <span class="func conv">Conversão</span>
+        
+      </div>
+    </div>
+    <h3>Do trabalho ao jantar, sem trocar</h3>
+    <div class="meta-row">
+      <span><b>Dor:</b> Versatilidade multiuso</span>
+      <span><b>Pilar:</b> DSB</span>
+      <span><b>Ângulo:</b> Benefício</span>
+      <span><b>Persona:</b> Urgente</span>
+    </div>
+    <div class="block">
+      <div class="block-label">Gancho <span>0–3s (fala)</span></div>
+      <div class="block-body quote">“Você sai direto do trabalho pro jantar. E a roupa?”</div>
+    </div>
+    <div class="block">
+      <div class="block-label">Conteúdo central <span>3–13s (DSB)</span></div>
+      <div class="block-body">Rotina corrida não combina com mala de roupa extra. A Juliana resolve isso: com blazer é profissional, tira o blazer e troca por um brinco maior e ela já está pronta pro jantar. Um investimento, várias ocasiões resolvidas.</div>
+    </div>
+    <div class="block">
+      <div class="block-label">CTA <span>13–17s (fala)</span></div>
+      <div class="block-body quote">“Garanta a sua antes da correria da semana. Link na bio.”</div>
+    </div>
+    <div class="block">
+      <div class="block-label">Texto na tela</div>
+      <div class="block-body"><span class="chip">Do trabalho...</span><span class="chip">...direto pro jantar</span><span class="chip">Sem trocar de calça</span></div>
+    </div>
+    <div class="block">
+      <div class="block-label">Cenas / B-roll</div>
+      <div class="block-body">Transição única (whip pan ou corte seco) de look de trabalho pra look de jantar na mesma cena/mesma calça. Iluminação muda de escritório pra ambiente noturno.</div>
+    </div>
+    <div class="block legenda-block">
+      <div class="block-label">Legenda</div>
+      <div class="block-body legenda">Do trabalho direto pro jantar, sem passar em casa pra trocar de calça. A Juliana resolve. Link na bio.<br>#usemarianacardoso #lookversatil #modeladora</div>
+    </div>
+    <div class="kpi-row">KPI principal de leitura: <b>Cliques no link da bio ÷ visitas (meta &gt; 10%)</b></div>
+  </div>
+  <div class="script-card ">
+    <div class="script-top">
+      <div class="script-date">SEX · 28/08</div>
+      <div class="script-badges">
+        <span class="fmt reels">Reels 15</span>
+        <span class="func relac">Relacionamento</span>
+        
+      </div>
+    </div>
+    <h3>Get ready with me: 3 looks, 1 calça</h3>
+    <div class="meta-row">
+      <span><b>Dor:</b> Versatilidade multiuso</span>
+      <span><b>Pilar:</b> UGC/Creator</span>
+      <span><b>Ângulo:</b> Rotina</span>
+      <span><b>Persona:</b> Avançado</span>
+    </div>
+    <div class="block">
+      <div class="block-label">Gancho <span>0–3s (fala)</span></div>
+      <div class="block-body quote">“Só levei uma calça nessa viagem. Foi assim que resolvi 3 looks.”</div>
+    </div>
+    <div class="block">
+      <div class="block-label">Conteúdo central <span>3–13s (DSB)</span></div>
+      <div class="block-body">GRWM real mostrando a mesma calça Juliana virando 3 produções diferentes ao longo de um fim de semana de viagem — economia de mala e de decisão, sem abrir mão de estar bem vestida em cada ocasião.</div>
+    </div>
+    <div class="block">
+      <div class="block-label">CTA <span>13–17s (fala)</span></div>
+      <div class="block-body quote">“Salva esse vídeo pra sua próxima viagem.”</div>
+    </div>
+    <div class="block">
+      <div class="block-label">Texto na tela</div>
+      <div class="block-body"><span class="chip">1 calça</span><span class="chip">3 looks</span><span class="chip">1 mala pequena</span></div>
+    </div>
+    <div class="block">
+      <div class="block-label">Cenas / B-roll</div>
+      <div class="block-body">GRWM em quarto de hotel/pousada, modelo trocando acessórios/peça de cima sobre a mesma calça, mala pequena aberta ao lado. Tom autêntico, câmera na mão, luz natural.</div>
+    </div>
+    <div class="block legenda-block">
+      <div class="block-label">Legenda</div>
+      <div class="block-body legenda">Levei uma calça só nessa viagem e resolvi três looks diferentes. Salva esse vídeo pra sua próxima mala pequena. ✈️<br>#usemarianacardoso #grwm #malapequena</div>
+    </div>
+    <div class="kpi-row">KPI principal de leitura: <b>Salvamentos (meta = maior do mês, candidato a Reel de salvar)</b></div>
+  </div>
+  <div class="script-card carrossel-card ">
+    <div class="script-top">
+      <div class="script-date">TER · 25/08</div>
+      <div class="script-badges">
+        <span class="fmt carrossel">Carrossel 12</span>
+        <span class="func relac">Relacionamento</span>
+         <span class="flag">⚑ validar tom</span>
+      </div>
+    </div>
+    <h3>Relatos de conforto em cada fase</h3>
+    <div class="meta-row">
+      <span><b>Dor:</b> Jornada / corpo em transformação ⚑</span>
+      <span><b>Pilar:</b> UGC / Bastidores</span>
+      <span><b>Persona:</b> Curioso</span>
+    </div>
+    <div class="block">
+      <div class="block-label">Estrutura · 7 slides</div>
+      <ol class="slide-list"><li><b>Slide 1.</b> Capa: “Relatos de conforto em cada fase da sua jornada”</li><li><b>Slide 2.</b> Corpo muda. Conforto não devia mudar junto</li><li><b>Slide 3.</b> Depoimento (sem números/peso): “acompanhou minha rotina em fases bem diferentes”</li><li><b>Slide 4.</b> Elasticidade multidirecional se adapta ao seu dia</li><li><b>Slide 5.</b> Isso não é sobre resultado. É sobre estar confortável em cada etapa</li><li><b>Slide 6.</b> Feita pra acompanhar, não pra definir</li><li><b>Slide 7.</b> CTA: “Compartilhe sua fase com a gente. Link na bio”</li></ol>
+    </div>
+    <div class="block legenda-block">
+      <div class="block-label">Legenda</div>
+      <div class="block-body legenda">Relatos reais de clientes sobre como a calça acompanhou fases diferentes da rotina — sempre com conforto. Compartilhe sua fase com a gente. 💛<br>#usemarianacardoso #conforto</div>
+    </div>
+  </div>
+  <div class="script-card carrossel-card ">
+    <div class="script-top">
+      <div class="script-date">QUI · 27/08</div>
+      <div class="script-badges">
+        <span class="fmt carrossel">Carrossel 13</span>
+        <span class="func alcance">Alcance</span>
+         <span class="flag">⚑ validar tom</span>
+      </div>
+    </div>
+    <h3>Uma calça que evolui com você</h3>
+    <div class="meta-row">
+      <span><b>Dor:</b> Jornada / corpo em transformação ⚑</span>
+      <span><b>Pilar:</b> Conceito</span>
+      <span><b>Persona:</b> Iniciante</span>
+    </div>
+    <div class="block">
+      <div class="block-label">Estrutura · 7 slides</div>
+      <ol class="slide-list"><li><b>Slide 1.</b> Capa: “Uma calça que evolui com você”</li><li><b>Slide 2.</b> Elasticidade multidirecional acompanha o seu corpo, dia após dia</li><li><b>Slide 3.</b> Compressão que sustenta, sem travar o movimento</li><li><b>Slide 4.</b> Feita pra te acompanhar, não pra te definir</li><li><b>Slide 5.</b> Conforto em cada fase, sem exceção</li><li><b>Slide 6.</b> Isso é o que realmente importa pra gente</li><li><b>Slide 7.</b> CTA: “Conheça a linha completa. Link na bio”</li></ol>
+    </div>
+    <div class="block legenda-block">
+      <div class="block-label">Legenda</div>
+      <div class="block-body legenda">Uma calça pensada pra acompanhar você em cada fase, sempre com conforto. Conheça a linha completa. Link na bio.<br>#usemarianacardoso #conforto #jornada</div>
+    </div>
+  </div>
+  <div class="script-card carrossel-card ">
+    <div class="script-top">
+      <div class="script-date">SÁB · 29/08</div>
+      <div class="script-badges">
+        <span class="fmt carrossel">Carrossel 14</span>
+        <span class="func conv">Conversão</span>
+        
+      </div>
+    </div>
+    <h3>15 mil motivos para confiar na Mariana Cardoso</h3>
+    <div class="meta-row">
+      <span><b>Dor:</b> Fechamento do mês (geral)</span>
+      <span><b>Pilar:</b> Prova Social</span>
+      <span><b>Persona:</b> Econômico</span>
+    </div>
+    <div class="block">
+      <div class="block-label">Estrutura · 7 slides</div>
+      <ol class="slide-list"><li><b>Slide 1.</b> Capa: “15 mil motivos para confiar”</li><li><b>Slide 2.</b> Print de avaliação real 1</li><li><b>Slide 3.</b> Print de avaliação real 2</li><li><b>Slide 4.</b> Print de avaliação real 3</li><li><b>Slide 5.</b> 100% das avaliações são 5 estrelas</li><li><b>Slide 6.</b> Um mês inteiro de novidade, prova e conforto</li><li><b>Slide 7.</b> CTA: “Feche o mês com a gente. Link na bio”</li></ol>
+    </div>
+    <div class="block legenda-block">
+      <div class="block-label">Legenda</div>
+      <div class="block-body legenda">Fechando agosto com 15 mil motivos pra confiar: avaliações reais, uma novidade nova no guarda-roupa e muito conforto. Link na bio.<br>#usemarianacardoso #resumodomes</div>
+    </div>
+  </div>
+  </div>
+
+
+  <div class="section-title">Rastreabilidade — de qual célula da Matriz cada Reel nasceu</div>
+  <table class="rast">
+    <colgroup><col class="c1"><col class="c2"><col class="c3"><col class="c4"><col class="c5"><col class="c6"><col class="c7"></colgroup>
+    <thead><tr><th>Reel</th><th>Data</th><th>Dor (linha da matriz)</th><th>Pilar (coluna)</th><th>Ângulo (dos 9)</th><th>Função</th><th>KPI principal de leitura</th></tr></thead>
+    <tbody><tr>
+      <td class="dia">Reel 01</td>
+      <td>03/08</td>
+      <td>Não marca / não transparece</td>
+      <td>Full Funnel</td>
+      <td>Curiosidade</td>
+      <td><span class="func alcance">Alcance</span></td>
+      <td>Retenção aos 3s e alcance de não seguidores</td>
+    </tr><tr>
+      <td class="dia">Reel 02</td>
+      <td>05/08</td>
+      <td>Não marca / não transparece</td>
+      <td>DSB</td>
+      <td>Benefício</td>
+      <td><span class="func conv">Conversão</span></td>
+      <td>Cliques no link da bio ÷ visitas ao perfil (meta &gt; 10%)</td>
+    </tr><tr>
+      <td class="dia">Reel 03</td>
+      <td>07/08</td>
+      <td>Autoestima &amp; curvas reais</td>
+      <td>UGC/Creator</td>
+      <td>Prova</td>
+      <td><span class="func relac">Relacionamento</span></td>
+      <td>Salvamentos e novos seguidores ÷ visitas (meta &gt; 15%)</td>
+    </tr><tr>
+      <td class="dia">Reel 04</td>
+      <td>10/08</td>
+      <td>Teaser de lançamento</td>
+      <td>Ângulo (Curiosidade)</td>
+      <td>Curiosidade</td>
+      <td><span class="func alcance">Alcance</span></td>
+      <td>Alcance total e retenção aos 3s (candidato a puxar tráfego pro reveal)</td>
+    </tr><tr>
+      <td class="dia">Reel 05 <span class="extra-tag">EXTRA</span></td>
+      <td>11/08</td>
+      <td>Reveal da peça nova</td>
+      <td>DSB</td>
+      <td>Transformação</td>
+      <td><span class="func conv">Conversão</span></td>
+      <td>Cliques no link da bio nas primeiras 2h (meta &gt; 12%)</td>
+    </tr><tr>
+      <td class="dia">Reel 06 <span class="extra-tag">EXTRA</span></td>
+      <td>11/08</td>
+      <td>Storytelling de criação</td>
+      <td>Full Funnel</td>
+      <td>Autoridade</td>
+      <td><span class="func alcance">Alcance</span></td>
+      <td>Alcance ÷ visitas ao perfil (meta &gt; 12%)</td>
+    </tr><tr>
+      <td class="dia">Reel 07</td>
+      <td>12/08</td>
+      <td>Não marca / não transparece (na peça nova)</td>
+      <td>DSB</td>
+      <td>Benefício</td>
+      <td><span class="func conv">Conversão</span></td>
+      <td>Comentários com dúvida de tamanho/cor e DMs abertas</td>
+    </tr><tr>
+      <td class="dia">Reel 08</td>
+      <td>14/08</td>
+      <td>Opinião de clientes VIP</td>
+      <td>UGC/Creator</td>
+      <td>Prova</td>
+      <td><span class="func relac">Relacionamento</span></td>
+      <td>Salvamentos e comentários (meta &gt; 3% do alcance)</td>
+    </tr><tr>
+      <td class="dia">Reel 09 <span class="extra-tag">EXTRA</span></td>
+      <td>14/08</td>
+      <td>Primeira semana de vendas</td>
+      <td>Prova (número)</td>
+      <td>Prova</td>
+      <td><span class="func conv">Conversão</span></td>
+      <td>Vendas atribuídas ao social (UTM) e cálculo de frete na PDP</td>
+    </tr><tr>
+      <td class="dia">Reel 10</td>
+      <td>17/08</td>
+      <td>Conforto sem apertar</td>
+      <td>Full Funnel</td>
+      <td>Dor</td>
+      <td><span class="func alcance">Alcance</span></td>
+      <td>Retenção aos 3s e alcance de não seguidores</td>
+    </tr><tr>
+      <td class="dia">Reel 11</td>
+      <td>19/08</td>
+      <td>Conforto sem apertar</td>
+      <td>DSB</td>
+      <td>Quebra de Crença</td>
+      <td><span class="func conv">Conversão</span></td>
+      <td>Cliques no link da bio ÷ visitas (meta &gt; 10%)</td>
+    </tr><tr>
+      <td class="dia">Reel 12</td>
+      <td>21/08</td>
+      <td>Conforto sem apertar</td>
+      <td>UGC/Creator</td>
+      <td>Prova</td>
+      <td><span class="func relac">Relacionamento</span></td>
+      <td>Comentários e taxa de resposta (meta &gt; 2% do alcance)</td>
+    </tr><tr>
+      <td class="dia">Reel 13</td>
+      <td>24/08</td>
+      <td>Versatilidade multiuso</td>
+      <td>Full Funnel</td>
+      <td>Rotina</td>
+      <td><span class="func alcance">Alcance</span></td>
+      <td>Retenção aos 3s e alcance de não seguidores</td>
+    </tr><tr>
+      <td class="dia">Reel 14</td>
+      <td>26/08</td>
+      <td>Versatilidade multiuso</td>
+      <td>DSB</td>
+      <td>Benefício</td>
+      <td><span class="func conv">Conversão</span></td>
+      <td>Cliques no link da bio ÷ visitas (meta &gt; 10%)</td>
+    </tr><tr>
+      <td class="dia">Reel 15</td>
+      <td>28/08</td>
+      <td>Versatilidade multiuso</td>
+      <td>UGC/Creator</td>
+      <td>Rotina</td>
+      <td><span class="func relac">Relacionamento</span></td>
+      <td>Salvamentos (meta = maior do mês, candidato a Reel de salvar)</td>
+    </tr></tbody>
+  </table>
+
+  <div class="section-title">Rastreabilidade — de qual célula da Matriz cada Carrossel nasceu</div>
+  <table class="rast">
+    <colgroup><col class="c1"><col class="c2"><col class="c3"><col class="c4"><col class="c5"><col class="c6"><col class="c7"></colgroup>
+    <thead><tr><th>Carrossel</th><th>Data</th><th>Dor (linha da matriz)</th><th>Pilar (coluna)</th><th>Ângulo</th><th>Função</th><th>KPI</th></tr></thead>
+    <tbody><tr>
+      <td class="dia">Carrossel 01</td>
+      <td>04/08</td>
+      <td>Não marca / não transparece</td>
+      <td>Bastidores</td>
+      <td>—</td>
+      <td><span class="func relac">Relacionamento</span></td>
+      <td>—</td>
+    </tr><tr>
+      <td class="dia">Carrossel 02</td>
+      <td>06/08</td>
+      <td>Autoestima &amp; curvas reais</td>
+      <td>Conceito</td>
+      <td>—</td>
+      <td><span class="func alcance">Alcance</span></td>
+      <td>—</td>
+    </tr><tr>
+      <td class="dia">Carrossel 03</td>
+      <td>08/08</td>
+      <td>Não marca/transparece + Autoestima</td>
+      <td>Prova Social</td>
+      <td>—</td>
+      <td><span class="func conv">Conversão</span></td>
+      <td>—</td>
+    </tr><tr>
+      <td class="dia">Carrossel 04</td>
+      <td>11/08</td>
+      <td>Bastidores da criação</td>
+      <td>Bastidores</td>
+      <td>—</td>
+      <td><span class="func relac">Relacionamento</span></td>
+      <td>—</td>
+    </tr><tr>
+      <td class="dia">Carrossel 05 <span class="extra-tag">EXTRA</span></td>
+      <td>11/08</td>
+      <td>Ficha técnica da peça nova</td>
+      <td>Prova / Specs</td>
+      <td>—</td>
+      <td><span class="func conv">Conversão</span></td>
+      <td>—</td>
+    </tr><tr>
+      <td class="dia">Carrossel 06</td>
+      <td>13/08</td>
+      <td>Versatilidade da peça nova</td>
+      <td>Conceito</td>
+      <td>—</td>
+      <td><span class="func alcance">Alcance</span></td>
+      <td>—</td>
+    </tr><tr>
+      <td class="dia">Carrossel 07 <span class="extra-tag">EXTRA</span></td>
+      <td>13/08</td>
+      <td>Primeiras impressões</td>
+      <td>UGC/Creator</td>
+      <td>—</td>
+      <td><span class="func relac">Relacionamento</span></td>
+      <td>—</td>
+    </tr><tr>
+      <td class="dia">Carrossel 08</td>
+      <td>15/08</td>
+      <td>Fechamento da semana de lançamento</td>
+      <td>Prova Social</td>
+      <td>—</td>
+      <td><span class="func conv">Conversão</span></td>
+      <td>—</td>
+    </tr><tr>
+      <td class="dia">Carrossel 09</td>
+      <td>18/08</td>
+      <td>Durabilidade do investimento</td>
+      <td>Bastidores</td>
+      <td>—</td>
+      <td><span class="func relac">Relacionamento</span></td>
+      <td>—</td>
+    </tr><tr>
+      <td class="dia">Carrossel 10</td>
+      <td>20/08</td>
+      <td>Durabilidade do investimento</td>
+      <td>Conceito</td>
+      <td>—</td>
+      <td><span class="func alcance">Alcance</span></td>
+      <td>—</td>
+    </tr><tr>
+      <td class="dia">Carrossel 11</td>
+      <td>22/08</td>
+      <td>Durabilidade do investimento</td>
+      <td>Prova Social</td>
+      <td>—</td>
+      <td><span class="func conv">Conversão</span></td>
+      <td>—</td>
+    </tr><tr>
+      <td class="dia">Carrossel 12</td>
+      <td>25/08</td>
+      <td>Jornada / corpo em transformação ⚑</td>
+      <td>UGC / Bastidores</td>
+      <td>—</td>
+      <td><span class="func relac">Relacionamento</span></td>
+      <td>—</td>
+    </tr><tr>
+      <td class="dia">Carrossel 13</td>
+      <td>27/08</td>
+      <td>Jornada / corpo em transformação ⚑</td>
+      <td>Conceito</td>
+      <td>—</td>
+      <td><span class="func alcance">Alcance</span></td>
+      <td>—</td>
+    </tr><tr>
+      <td class="dia">Carrossel 14</td>
+      <td>29/08</td>
+      <td>Fechamento do mês (geral)</td>
+      <td>Prova Social</td>
+      <td>—</td>
+      <td><span class="func conv">Conversão</span></td>
+      <td>—</td>
+    </tr></tbody>
+  </table>
+
+  <div class="section-title">Regras de produção, leitura e refresh</div>
+  <div class="rulesbox">
+    <div class="rulecard">
+      <h4>Regras invioláveis</h4>
+      <ul>
+        <li>Gancho = só a fala, sem entregar a solução, sem direção de cena</li>
+        <li>Nenhum gancho repetido entre os 15 Reels do mês</li>
+        <li>Nenhum CTA repetido entre os 15 Reels do mês</li>
+        <li>Legenda queimada em todos (com hashtags)</li>
+        <li>Zero urgência artificial ("só hoje", contagem regressiva falsa)</li>
+        <li>Nunca citar peso, kg ou promessa de emagrecimento (dores ⚑)</li>
+      </ul>
+    </div>
+    <div class="rulecard">
+      <h4>Stories que sustentam</h4>
+      <ul>
+        <li>Mínimo 6 stories por dia (10 em semana de lançamento)</li>
+        <li>Todo Reels vira 3 stories no dia seguinte: bastidor · enquete · link</li>
+        <li>Enquete no dia de cada Reels de Conversão: "já viu o Reels de hoje?"</li>
+        <li>Prova social diária: print de pedido/avaliação</li>
+      </ul>
+    </div>
+    <div class="rulecard">
+      <h4>Leitura semanal (toda segunda)</h4>
+      <ul>
+        <li>Retenção aos 3s, alcance de não seguidores</li>
+        <li>Salvamentos, cliques na bio</li>
+        <li>O que viralizar vira o molde dos 3 Reels seguintes</li>
+        <li>Não muda direção quando algo funciona — só ajusta o CTA</li>
+      </ul>
+    </div>
+    <div class="rulecard">
+      <h4>Ponte com a mídia paga</h4>
+      <ul>
+        <li>Reel orgânico com retenção 3s acima de 55%...</li>
+        <li>...ou salvamento acima da média sobe como criativo de tráfego</li>
+        <li>Entra no mês seguinte sem refazer nada — só ajusta o CTA</li>
+        <li>Alimenta o backlog de mídia paga automaticamente</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="compbox">
+    <h4>⚑ Observações de compliance</h4>
+    <p>Os posts da dor <b>"Jornada / corpo em transformação"</b> (25/08 e 27/08) precisam de validação de tom antes de publicar: nunca citar quilos, nunca prometer emagrecimento, nunca comparar corpos antes/depois com números. Manter o foco em conforto e adaptabilidade do tecido — nunca em resultado corporal.</p>
+  </div>
+
+  <div class="footnote">
+    <span>Base: Matriz de Replicação (Calças Best-Seller) · Matriz Criativa com IA (7 Pilares · 9 Ângulos · 3 Estruturas) · Social Commerce (5 Formatos · Distribuição 40/30/30)</span>
+    <span>Calendário & Roteiros · v2.0 · Agosto/2026</span>
+  </div>
+</div></body></html>
