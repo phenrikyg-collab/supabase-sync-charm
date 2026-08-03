@@ -12,11 +12,15 @@ const MOODBOARD = "/tendencias/moodboard-prd-rosset.html";
 export default function Tendencias() {
   const [enviados, setEnviados] = useState<RelatorioArquivo[]>([]);
   const [semanalId, setSemanalId] = useState("");
+  const [aba, setAba] = useState("trimestral");
 
-  const carregar = async () => {
+  const carregar = async (selecionar?: string) => {
     const lista = await listarRelatorios("tendencias");
     setEnviados(lista);
-    setSemanalId((atual) => (atual && lista.some((r) => r.path === atual) ? atual : lista[0]?.path ?? ""));
+    setSemanalId((atual) => {
+      if (selecionar) return selecionar;
+      return atual && lista.some((r) => r.path === atual) ? atual : lista[0]?.path ?? "";
+    });
   };
 
   useEffect(() => {
@@ -40,11 +44,15 @@ export default function Tendencias() {
           pasta="tendencias"
           titulo="Enviar novo relatório de tendências"
           labelPlaceholder="Ex.: Monitoramento Semanal — 04/08/2026"
-          onUploaded={carregar}
+          onUploaded={(arquivo) => {
+            setAba("semanal");
+            void carregar(arquivo.path);
+          }}
         />
       </div>
 
-      <Tabs defaultValue="trimestral" className="w-full">
+      <Tabs value={aba} onValueChange={setAba} className="w-full">
+
         <div className="px-4 sm:px-0 overflow-x-auto">
           <TabsList className="w-full sm:w-auto grid grid-cols-3 sm:inline-flex h-auto">
             <TabsTrigger value="trimestral" className="gap-2 text-xs sm:text-sm whitespace-normal py-2">

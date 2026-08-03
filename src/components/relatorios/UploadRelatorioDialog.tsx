@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/dialog";
 import { Upload, Loader2 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
-import { uploadRelatorio } from "@/lib/relatoriosStorage";
+import { uploadRelatorio, type RelatorioArquivo } from "@/lib/relatoriosStorage";
 
 interface UploadRelatorioDialogProps {
   /** pasta no storage: "tendencias" | "planejamento" */
@@ -21,7 +21,7 @@ interface UploadRelatorioDialogProps {
   titulo?: string;
   descricao?: string;
   labelPlaceholder?: string;
-  onUploaded?: () => void;
+  onUploaded?: (arquivo: RelatorioArquivo) => void;
 }
 
 export function UploadRelatorioDialog({
@@ -83,13 +83,13 @@ export function UploadRelatorioDialog({
     }
     setEnviando(true);
     try {
-      await uploadRelatorio(pasta, file, label || file.name);
+      const criado = await uploadRelatorio(pasta, file, label || file.name);
       toast({ title: "Arquivo enviado", description: "O relatório já está disponível." });
       setOpen(false);
       setFile(null);
       setErro(null);
       setLabel("");
-      onUploaded?.();
+      onUploaded?.(criado);
     } catch (e) {
       toast({
         title: "Erro ao enviar",
