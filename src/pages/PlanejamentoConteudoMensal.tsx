@@ -38,10 +38,10 @@ export default function PlanejamentoConteudoMensal() {
   };
 
   return (
-    <div className="space-y-4">
-      <div className="flex flex-wrap items-end justify-between gap-4">
+    <div className="space-y-4 -mx-4 sm:mx-0">
+      <div className="px-4 sm:px-0 flex flex-col sm:flex-row sm:flex-wrap sm:items-end sm:justify-between gap-3 sm:gap-4">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-serif font-bold text-foreground">
+          <h1 className="text-xl sm:text-3xl font-serif font-bold text-foreground">
             Planejamento de <span className="text-primary">Conteúdo Mensal</span>
           </h1>
           <p className="text-xs sm:text-sm text-muted-foreground mt-1">
@@ -49,7 +49,7 @@ export default function PlanejamentoConteudoMensal() {
           </p>
         </div>
         <Select value={mesId} onValueChange={setMesId}>
-          <SelectTrigger className="w-[200px]">
+          <SelectTrigger className="w-full sm:w-[200px]">
             <SelectValue placeholder="Selecione o mês" />
           </SelectTrigger>
           <SelectContent>
@@ -63,17 +63,21 @@ export default function PlanejamentoConteudoMensal() {
       </div>
 
       <Tabs defaultValue="matriz" className="w-full">
-        <TabsList>
-          <TabsTrigger value="matriz" className="gap-2">
-            <LayoutGrid className="h-4 w-4" /> Matriz de Replicação
-          </TabsTrigger>
-          <TabsTrigger value="calendario" className="gap-2">
-            <CalendarDays className="h-4 w-4" /> Calendário &amp; Roteiros — {mes.label}
-          </TabsTrigger>
-        </TabsList>
+        <div className="px-4 sm:px-0 overflow-x-auto">
+          <TabsList className="w-full sm:w-auto grid grid-cols-2 sm:inline-flex h-auto">
+            <TabsTrigger value="matriz" className="gap-2 text-xs sm:text-sm whitespace-normal py-2">
+              <LayoutGrid className="h-4 w-4 shrink-0" /> Matriz de Replicação
+            </TabsTrigger>
+            <TabsTrigger value="calendario" className="gap-2 text-xs sm:text-sm whitespace-normal py-2">
+              <CalendarDays className="h-4 w-4 shrink-0" />
+              <span className="hidden sm:inline">Calendário &amp; Roteiros — {mes.label}</span>
+              <span className="sm:hidden">Calendário &amp; Roteiros</span>
+            </TabsTrigger>
+          </TabsList>
+        </div>
 
         <TabsContent value="matriz" className="mt-4 space-y-3">
-          <div className="flex justify-end gap-2">
+          <div className="px-4 sm:px-0 flex flex-wrap justify-end gap-2">
             <Button variant="outline" size="sm" onClick={() => window.open(mes.matriz, "_blank", "noopener")}>
               <ExternalLink className="h-4 w-4 mr-2" /> Abrir em nova aba
             </Button>
@@ -86,12 +90,12 @@ export default function PlanejamentoConteudoMensal() {
             key={`matriz-${mes.id}`}
             src={mes.matriz}
             title={`Matriz de Replicação — ${mes.label}`}
-            className="w-full h-[calc(100vh-170px)] border-0"
+            className="w-full h-[70vh] sm:h-[calc(100vh-190px)] min-h-[520px] border-0 bg-background"
           />
         </TabsContent>
 
         <TabsContent value="calendario" className="mt-4 space-y-3">
-          <div className="flex justify-end gap-2">
+          <div className="px-4 sm:px-0 flex flex-wrap justify-end gap-2">
             <Button variant="outline" size="sm" onClick={() => window.open(mes.calendario, "_blank", "noopener")}>
               <ExternalLink className="h-4 w-4 mr-2" /> Abrir em nova aba
             </Button>
@@ -104,7 +108,7 @@ export default function PlanejamentoConteudoMensal() {
             key={`cal-${mes.id}`}
             src={mes.calendario}
             title={`Calendário e Roteiros — ${mes.label}`}
-            className="w-full h-[calc(100vh-170px)] border-0"
+            className="w-full h-[70vh] sm:h-[calc(100vh-190px)] min-h-[520px] border-0 bg-background"
           />
         </TabsContent>
       </Tabs>
