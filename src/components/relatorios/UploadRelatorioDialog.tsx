@@ -33,17 +33,61 @@ export function UploadRelatorioDialog({
 }: UploadRelatorioDialogProps) {
   const [open, setOpen] = useState(false);
   const [file, setFile] = useState<File | null>(null);
+  const [erro, setErro] = useState<string | null>(null);
   const [label, setLabel] = useState("");
   const [enviando, setEnviando] = useState(false);
 
+  const MAX_BYTES = 5 * 1024 * 1024; // 5 MB
+
+  const validarArquivo = (f: File): string | null => {
+    const nome = f.name.toLowerCase();
+    if (!nome.endsWith(".html") && !nome.endsWith(".htm")) {
+      return "Formato inválido: envie um arquivo .html.";
+    }
+    if (f.type && !["text/html", "application/xhtml+xml", ""].includes(f.type)) {
+      return "Formato inválido: o arquivo não parece ser HTML.";
+    }
+    if (f.size === 0) {
+      return "O arquivo está vazio.";
+    }
+    if (f.size > MAX_BYTES) {
+      return `Arquivo muito grande (${(f.size / 1024 / 1024).toFixed(1)} MB). O limite é 5 MB.`;
+    }
+    return null;
+  };
+
+  const selecionar = (f: File | null) => {
+    if (!f) {
+      setFile(null);
+      setErro(null);
+      return;
+    }
+    const msg = validarArquivo(f);
+    if (msg) {
+      setFile(null);
+      setErro(msg);
+      toast({ title: "Arquivo inválido", description: msg, variant: "destructive" });
+      return;
+    }
+    setErro(null);
+    setFile(f);
+  };
+
   const enviar = async () => {
     if (!file) return;
+    const msg = validarArquivo(file);
+    if (msg) {
+      setErro(msg);
+      toast({ title: "Arquivo inválido", description: msg, variant: "destructive" });
+      return;
+    }
     setEnviando(true);
     try {
       await uploadRelatorio(pasta, file, label || file.name);
       toast({ title: "Arquivo enviado", description: "O relatório já está disponível." });
       setOpen(false);
       setFile(null);
+      setErro(null);
       setLabel("");
       onUploaded?.();
     } catch (e) {
@@ -56,6 +100,7 @@ export function UploadRelatorioDialog({
       setEnviando(false);
     }
   };
+
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
