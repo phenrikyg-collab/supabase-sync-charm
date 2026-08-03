@@ -57,6 +57,7 @@ import PlanejamentoMensal from "./pages/PlanejamentoMensal";
 import PlanejamentoSimulador from "./pages/PlanejamentoSimulador";
 import MatrizCriativa from "./pages/MatrizCriativa";
 import Aviamentos from "./pages/Aviamentos";
+import PlanejamentoConteudoMensal from "./pages/PlanejamentoConteudoMensal";
 import { Loader2 } from "lucide-react";
 import { useUserModules } from "@/hooks/useUserModules";
 
