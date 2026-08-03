@@ -1,107 +1,363 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Tendências de Moda — Agosto a Outubro 2026</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tendências de Moda · Ago–Out 2026 · Use Mariana Cardoso</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@600;700&family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;0,9..144,500;0,9..144,600;1,9..144,400;1,9..144,500&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
-  :root{--gold:#E8CD7E;--bronze:#8B6914;--dark:#1D1D1B;--off:#F5F5F5}
-  *{box-sizing:border-box}
-  body{margin:0;background:var(--off);color:var(--dark);font-family:'DM Sans',sans-serif;line-height:1.6}
-  .wrap{max-width:960px;margin:0 auto;padding:32px 24px 64px}
-  h1,h2,h3{font-family:'Cormorant Garamond',serif;margin:0 0 8px}
-  h1{font-size:40px}
-  .sub{color:var(--bronze);text-transform:uppercase;letter-spacing:.2em;font-size:11px;font-weight:700}
-  section{background:#fff;border:1px solid #e6e2d8;border-radius:12px;padding:24px;margin-top:24px}
-  h2{font-size:26px;border-bottom:2px solid var(--gold);display:inline-block;padding-bottom:4px}
-  .grid{display:grid;gap:16px;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));margin-top:16px}
-  .card{border:1px solid #eee;border-left:4px solid var(--gold);border-radius:8px;padding:16px;background:#fffdf8}
-  .card h3{font-size:20px}
-  ul{padding-left:18px;margin:8px 0}
-  table{width:100%;border-collapse:collapse;margin-top:16px;font-size:14px}
-  th,td{border:1px solid #e6e2d8;padding:10px;text-align:left;vertical-align:top}
-  th{background:var(--dark);color:var(--gold);font-size:12px;text-transform:uppercase;letter-spacing:.08em}
-  .tag{display:inline-block;background:var(--gold);color:var(--dark);border-radius:999px;padding:2px 10px;font-size:11px;font-weight:700;margin:2px 4px 2px 0}
-  .scroll{overflow-x:auto}
-  @media (max-width:640px){.wrap{padding:20px 14px 48px}h1{font-size:28px}h2{font-size:21px}table{min-width:620px}}
-  @media print{body{background:#fff}section{break-inside:avoid;border:none;padding:0 0 12px}}
+  :root{
+    --paper:#FAF6F0;
+    --paper-2:#F1E9DE;
+    --ink:#2A211D;
+    --wine:#7A2E2E;
+    --wine-deep:#54181C;
+    --gold:#B8925A;
+    --taupe:#8C8172;
+    --line:#DED2C0;
+    --white:#FFFEFC;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{
+    background:var(--paper);
+    color:var(--ink);
+    font-family:'Inter',sans-serif;
+    line-height:1.55;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:1040px;margin:0 auto;padding:0 28px;}
+
+  /* ---------- HERO ---------- */
+  header.hero{
+    background:linear-gradient(180deg,var(--wine-deep) 0%, var(--wine) 100%);
+    color:var(--paper);
+    padding:72px 0 56px;
+    position:relative;
+    overflow:hidden;
+  }
+  header.hero::after{
+    content:"";
+    position:absolute; right:-120px; top:-120px;
+    width:420px;height:420px;border-radius:50%;
+    background:radial-gradient(circle at 30% 30%, rgba(184,146,90,0.35), transparent 70%);
+  }
+  .eyebrow{
+    font-size:12.5px; letter-spacing:.18em; text-transform:uppercase;
+    color:var(--gold); font-weight:600; margin-bottom:18px;
+  }
+  h1.title{
+    font-family:'Fraunces',serif;
+    font-weight:500;
+    font-size:clamp(34px,5vw,54px);
+    line-height:1.08;
+    max-width:760px;
+    letter-spacing:-.01em;
+  }
+  h1.title em{ font-style:italic; font-weight:400; color:#E9C9A9;}
+  .hero-sub{
+    margin-top:20px; max-width:600px; font-size:16px; color:#EADFCF; font-weight:400;
+  }
+  .hero-meta{
+    display:flex; gap:34px; margin-top:44px; flex-wrap:wrap;
+  }
+  .hero-meta div{border-top:1px solid rgba(255,255,255,.28); padding-top:10px; min-width:130px;}
+  .hero-meta .k{font-size:11px; letter-spacing:.1em; text-transform:uppercase; color:#CBB08C;}
+  .hero-meta .v{font-family:'Fraunces',serif; font-size:19px; margin-top:4px;}
+
+  /* ---------- SECTIONS ---------- */
+  section{padding:56px 0;}
+  section.alt{background:var(--paper-2);}
+  h2.section-title{
+    font-family:'Fraunces',serif; font-weight:500; font-size:28px;
+    color:var(--wine-deep); margin-bottom:6px;
+  }
+  .section-kicker{
+    font-size:12px; letter-spacing:.14em; text-transform:uppercase; color:var(--taupe); font-weight:600; margin-bottom:10px;
+  }
+  .section-lede{max-width:660px; color:#4A423B; font-size:15px; margin-bottom:36px;}
+
+  /* macro trend cards */
+  .trend-grid{display:grid; grid-template-columns:repeat(3,1fr); gap:22px;}
+  .trend-card{
+    background:var(--white); border:1px solid var(--line); border-radius:2px;
+    padding:26px 24px; position:relative;
+  }
+  .trend-card .tag{
+    font-size:11px; letter-spacing:.1em; text-transform:uppercase; color:var(--gold); font-weight:700; margin-bottom:14px; display:block;
+  }
+  .trend-card h3{font-family:'Fraunces',serif; font-weight:500; font-size:19px; margin-bottom:10px; color:var(--ink);}
+  .trend-card p{font-size:13.8px; color:#5A5148;}
+  .trend-card .apply{
+    margin-top:16px; padding-top:14px; border-top:1px dashed var(--line);
+    font-size:12.8px; color:var(--wine); font-weight:600;
+  }
+
+  /* color swatches */
+  .palette{display:flex; gap:10px; margin-top:28px; flex-wrap:wrap;}
+  .swatch{width:74px;}
+  .swatch .chip{height:52px; border-radius:2px; border:1px solid rgba(0,0,0,.06);}
+  .swatch .name{font-size:11px; margin-top:6px; color:var(--taupe); text-align:center;}
+
+  /* ---------- MONTH BLOCKS ---------- */
+  .month-block{margin-bottom:52px;}
+  .month-head{
+    display:flex; align-items:baseline; gap:16px; border-bottom:2px solid var(--wine); padding-bottom:14px; margin-bottom:24px;
+    flex-wrap:wrap;
+  }
+  .month-num{font-family:'Fraunces',serif; font-style:italic; font-size:15px; color:var(--gold);}
+  .month-name{font-family:'Fraunces',serif; font-weight:500; font-size:30px; color:var(--wine-deep);}
+  .month-context{font-size:13px; color:var(--taupe); margin-left:auto;}
+
+  .month-grid{display:grid; grid-template-columns:1.1fr .9fr; gap:28px;}
+  @media(max-width:760px){ .month-grid{grid-template-columns:1fr;} .trend-grid{grid-template-columns:1fr;} }
+
+  .focus-col h4, .support-col h4{
+    font-size:11.5px; letter-spacing:.12em; text-transform:uppercase; color:var(--wine); font-weight:700; margin-bottom:14px;
+  }
+  .piece-card{
+    background:var(--white); border:1px solid var(--line); padding:18px 20px; margin-bottom:14px; border-radius:2px;
+    border-left:3px solid var(--wine);
+  }
+  .piece-card .piece-name{font-family:'Fraunces',serif; font-size:16.5px; font-weight:500; margin-bottom:6px;}
+  .piece-card .piece-detail{font-size:13.3px; color:#5A5148;}
+  .piece-card .piece-why{font-size:12.3px; color:var(--gold); margin-top:8px; font-weight:600;}
+
+  .support-list{list-style:none;}
+  .support-list li{
+    padding:12px 0; border-bottom:1px solid var(--line); font-size:13.6px; color:#4A423B;
+  }
+  .support-list li b{color:var(--wine-deep); font-weight:600; display:block; font-size:14.2px; margin-bottom:3px; font-family:'Fraunces',serif;}
+
+  .databox{
+    background:var(--paper-2); border:1px solid var(--line); padding:16px 18px; margin-top:18px; font-size:12.8px; color:var(--taupe);
+    border-radius:2px;
+  }
+  .databox b{color:var(--wine-deep);}
+
+  /* ---------- COMMERCIAL BRIDGE ---------- */
+  .bridge-grid{display:grid; grid-template-columns:repeat(4,1fr); gap:18px;}
+  @media(max-width:760px){.bridge-grid{grid-template-columns:1fr 1fr;}}
+  .bridge-card{background:var(--white); border:1px solid var(--line); padding:20px; text-align:center;}
+  .bridge-card .icon-label{font-size:11px; text-transform:uppercase; letter-spacing:.1em; color:var(--gold); font-weight:700; margin-bottom:8px;}
+  .bridge-card .val{font-family:'Fraunces',serif; font-size:15px; color:var(--wine-deep);}
+
+  /* ---------- FOOTER / NOTES ---------- */
+  footer{background:var(--wine-deep); color:#EADFCF; padding:40px 0; font-size:13px;}
+  footer .wrap{display:flex; justify-content:space-between; flex-wrap:wrap; gap:14px;}
+  footer b{color:var(--paper); font-family:'Fraunces',serif; font-weight:500;}
+
+  .source-note{font-size:11.5px; color:var(--taupe); margin-top:40px; border-top:1px solid var(--line); padding-top:16px;}
 </style>
 </head>
 <body>
-<div class="wrap">
-  <p class="sub">Mariana Cardoso — Inteligência de Moda</p>
-  <h1>Tendências de Moda · Agosto a Outubro 2026</h1>
-  <p>Panorama de macrotendências do trimestre e desdobramento em sugestões de peça mês a mês, alinhado ao posicionamento da marca (feminino, confortável e atemporal).</p>
 
-  <section>
-    <h2>Macrotendências do Trimestre</h2>
-    <div class="grid">
-      <div class="card">
-        <h3>Alfaiataria Fluida</h3>
-        <p>Volumes soltos, ombro relaxado e caimento líquido. Substitui o rígido pelo confortável sem perder formalidade.</p>
-        <span class="tag">Off-white</span><span class="tag">Areia</span><span class="tag">Chumbo</span>
+<header class="hero">
+  <div class="wrap">
+    <div class="eyebrow">Inteligência de Tendências · Use Mariana Cardoso</div>
+    <h1 class="title">O que vestir <em>agosto, setembro e outubro</em> vão pedir — e o que lançar antes que peça.</h1>
+    <p class="hero-sub">Leitura de tendências de passarela e varejo cruzada com o que já performa na marca, traduzida em sugestões concretas de calças e blusas para os próximos 3 lançamentos — com dicas de vestidos, macacões e bodies.</p>
+    <div class="hero-meta">
+      <div><div class="k">Horizonte</div><div class="v">Trimestre Ago–Out 2026</div></div>
+      <div><div class="k">Foco de peça</div><div class="v">Calças & Blusas</div></div>
+      <div><div class="k">Público</div><div class="v">Mulheres 30–50</div></div>
+      <div><div class="k">Ticket-alvo</div><div class="v">~R$ 260</div></div>
+    </div>
+  </div>
+</header>
+
+<section>
+  <div class="wrap">
+    <div class="section-kicker">Panorama macro</div>
+    <h2 class="section-title">Três movimentos que atravessam o trimestre inteiro</h2>
+    <p class="section-lede">Antes de mês a mês: estas são as correntes que aparecem em todas as semanas de moda e no varejo brasileiro para a virada inverno→primavera 2026, e que sustentam as escolhas de peça abaixo.</p>
+
+    <div class="trend-grid">
+      <div class="trend-card">
+        <span class="tag">Modelagem</span>
+        <h3>Conforto estruturado</h3>
+        <p>Calças wide-leg, pantalonas fluidas e alfaiataria com caimento solto dominam — sem perder cintura marcada. É o "power dressing" suavizado: estrutura no ombro/cintura, folga no corpo.</p>
+        <div class="apply">→ Modeladora com cós alto + perna ampla é o ponto de encontro perfeito com a essência da marca.</div>
       </div>
-      <div class="card">
-        <h3>Canelados Estruturados</h3>
-        <p>Malhas canaladas de gramatura média, valorizando o corpo com sustentação e boa recuperação.</p>
-        <span class="tag">Preto</span><span class="tag">Caramelo</span><span class="tag">Verde musgo</span>
+      <div class="trend-card">
+        <span class="tag">Tecido</span>
+        <h3>Fluidez respirável</h3>
+        <p>Viscose, linho misto, crepe leve e tricô fino ganham espaço sobre tecidos pesados. Camadas leves (transparência estratégica em organza/tule) aparecem como acabamento, não como peça inteira.</p>
+        <div class="apply">→ Blusas em canelado (viscose/elastano) com um detalhe de transparência pontual (manga, barra) — não a peça toda.</div>
       </div>
-      <div class="card">
-        <h3>Neutros Quentes</h3>
-        <p>Paleta terrosa suave — manteiga, caramelo, chocolate leite — fácil de combinar e alta rotatividade.</p>
-      </div>
-      <div class="card">
-        <h3>Conjuntos Coordenados</h3>
-        <p>Peças que vendem em dupla: aumento direto de ticket médio com o mesmo esforço de produção.</p>
+      <div class="trend-card">
+        <span class="tag">Cor</span>
+        <h3>Terrosos + um acento vivo</h3>
+        <p>Base neutra (marrom, marsala, off-white, bege) ancora o guarda-roupa; um tom vibrante por look (verde-azulado, azul Marina, amarelo esverdeado) entra como destaque, nunca como base.</p>
+        <div class="apply">→ Coleção-cápsula: 70% neutros vendáveis o ano todo + 30% em 1 cor de impacto por mês.</div>
       </div>
     </div>
-  </section>
 
-  <section>
-    <h2>Sugestões de Peça por Mês</h2>
-    <div class="scroll">
-      <table>
-        <thead>
-          <tr><th>Mês</th><th>Tendência foco</th><th>Peças sugeridas</th><th>Tecido base</th><th>Racional comercial</th></tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td><strong>Agosto</strong></td>
-            <td>Canelados Estruturados</td>
-            <td>Conjunto canelado (blusa manga longa + calça flare); vestido midi canelado</td>
-            <td>Canelado PV médio</td>
-            <td>Transição de estação: peça de meia-estação com alto giro e boa margem.</td>
-          </tr>
-          <tr>
-            <td><strong>Setembro</strong></td>
-            <td>Alfaiataria Fluida</td>
-            <td>Calça pantalona de caimento; blazer sem forro; colete alongado</td>
-            <td>PRD Rosset / crepe</td>
-            <td>Primavera: entrada de peças versáteis dia-noite, ticket médio maior.</td>
-          </tr>
-          <tr>
-            <td><strong>Outubro</strong></td>
-            <td>Neutros Quentes + Coordenados</td>
-            <td>Regata canelada + saia lápis; vestido slip; camisa fluida</td>
-            <td>PRD Rosset leve / canelado fino</td>
-            <td>Calor: peças leves em cores neutras que combinam com o estoque existente.</td>
-          </tr>
-        </tbody>
-      </table>
+    <div class="palette">
+      <div class="swatch"><div class="chip" style="background:#8B5E3C"></div><div class="name">Marrom terroso</div></div>
+      <div class="swatch"><div class="chip" style="background:#EFE6D8"></div><div class="name">Off-white</div></div>
+      <div class="swatch"><div class="chip" style="background:#7A2E2E"></div><div class="name">Marsala</div></div>
+      <div class="swatch"><div class="chip" style="background:#5C7A6E"></div><div class="name">Verde-azulado</div></div>
+      <div class="swatch"><div class="chip" style="background:#7A93A8"></div><div class="name">Azul suave</div></div>
+      <div class="swatch"><div class="chip" style="background:#D8B48C"></div><div class="name">Amarelo esverdeado</div></div>
     </div>
-  </section>
+  </div>
+</section>
 
-  <section>
-    <h2>Como aplicar</h2>
-    <ul>
-      <li>Lançar 1 peça-âncora por mês e 1 reposição de best-seller na cor da tendência.</li>
-      <li>Priorizar coordenados: comunicar sempre o "look completo" para elevar ticket médio.</li>
-      <li>Testar cores novas em tiragens curtas antes de escalar a compra de tecido.</li>
-      <li>Conteúdo: 1 semana de aquecimento (tendência) antes de cada lançamento.</li>
-    </ul>
-  </section>
-</div>
+<section class="alt">
+  <div class="wrap">
+    <div class="section-kicker">Onde a marca já está</div>
+    <h2 class="section-title">Ponto de partida: o que já vende</h2>
+    <p class="section-lede">Antes de sugerir peça nova, o que a base ativa de produtos já mostra sobre onde a marca tem força de preço e variedade.</p>
+    <div class="bridge-grid">
+      <div class="bridge-card"><div class="icon-label">Calça</div><div class="val">Ticket médio R$ 247</div></div>
+      <div class="bridge-card"><div class="icon-label">Blusa</div><div class="val">Ticket médio R$ 150</div></div>
+      <div class="bridge-card"><div class="icon-label">Ticket-alvo geral</div><div class="val">~R$ 260</div></div>
+      <div class="bridge-card"><div class="icon-label">Leitura</div><div class="val">Calça puxa o ticket; blusa entra como complemento/entrada</div></div>
+    </div>
+    <p class="source-note">Base: catálogo ativo de produtos (Supabase · <b>public.produtos</b>). Isso reforça a estratégia abaixo: <b>calça carrega o lançamento do mês</b> (peça-âncora, ticket alto), <b>blusa entra como peça de combo/upsell</b> (ticket menor, gira mais rápido).</p>
+
+    <div class="section-kicker" style="margin-top:36px;">Tecidos confirmados da coleção</div>
+    <h2 class="section-title" style="font-size:22px;">A dupla PRD + Canelado</h2>
+    <div class="bridge-grid" style="margin-top:16px;">
+      <div class="bridge-card" style="text-align:left;">
+        <img src="assets/tecido-canelado-rosset.png" alt="Canelado Terracota Rosset" style="width:100%;border:1px solid var(--line); margin-bottom:10px;">
+        <div class="icon-label">Calça</div><div class="val" style="font-size:13px;">PRD Rosset — Poliamida + Elastano, wide-leg modeladora</div>
+      </div>
+      <div class="bridge-card" style="text-align:left;">
+        <img src="assets/tecido-canelado-bene-premium.png" alt="Canelado Bene Premium" style="width:100%;border:1px solid var(--line); margin-bottom:10px;">
+        <div class="icon-label">Blusa</div><div class="val" style="font-size:13px;">Canelado Rosset / Bene Premium — Viscose + Elastano</div>
+      </div>
+      <div class="bridge-card"><div class="icon-label">Proporção</div><div class="val">Top justo + perna larga</div></div>
+      <div class="bridge-card"><div class="icon-label">Moodboard completo</div><div class="val">Ver arquivo em anexo</div></div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+
+    <div class="section-kicker">Calendário de lançamentos · 1x/mês, sempre na 2ª semana</div>
+    <h2 class="section-title" style="margin-bottom:36px;">Mês a mês: tendência → peça → contexto comercial</h2>
+
+    <!-- AGOSTO -->
+    <div class="month-block">
+      <div class="month-head">
+        <span class="month-num">01 —</span>
+        <span class="month-name">Agosto</span>
+        <span class="month-context">Fim de inverno · Dia dos Pais (08/08) · pré-aquecimento primavera</span>
+      </div>
+      <div class="month-grid">
+        <div class="focus-col">
+          <h4>Foco — Calças & Blusas</h4>
+          <div class="piece-card">
+            <div class="piece-name">Calça wide-leg modeladora, PRD Rosset, cós alto</div>
+            <div class="piece-detail">Compressão no quadril/coxa + alargamento a partir do joelho. Cintura alta marcada — a modelagem que mais aparece nas apostas de passarela para a virada de estação, agora confirmada como viável no tecido de compressão da marca.</div>
+            <div class="piece-why">Por quê: entra “quente” em agosto e já posiciona a marca antes da primavera bater com força em setembro — sem abrir mão do apelo modelador.</div>
+          </div>
+          <div class="piece-card">
+            <div class="piece-name">Regata/blusa canelada justa, Canelado Rosset ou Bene Premium</div>
+            <div class="piece-detail">Tom terracota ou marrom escuro como base neutra do mês. Textura canelada é peça-chave apontada nas tendências 2026, e faz par ideal com a calça wide-leg em compressão.</div>
+            <div class="piece-why">Por quê: proporção "top justo + perna larga" é leitura clássica de moda — peça curinga de combo com a wide-leg.</div>
+          </div>
+        </div>
+        <div class="support-col">
+          <h4>Dicas — Vestidos, Macacões, Bodies</h4>
+          <ul class="support-list">
+            <li><b>Vestido chemise midi</b>Em tecido acetinado leve — funciona como peça de vitrine para o combo do Dia dos Pais (presente cruzado/autopresente).</li>
+            <li><b>Body de alcinha, decote reto</b>Base para compor sob blazer ou blusa transparente — peça de apoio, não de capa.</li>
+          </ul>
+          <div class="databox"><b>Canal sugerido:</b> giro de estoque parado (outlet) roda em paralelo via WhatsApp/RFM enquanto o lançamento novo puxa Instagram + Anúncios.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SETEMBRO -->
+    <div class="month-block">
+      <div class="month-head">
+        <span class="month-num">02 —</span>
+        <span class="month-name">Setembro</span>
+        <span class="month-context">Primavera (23/09) · Dia do Cliente (15/09) · pico de tendência P/V</span>
+      </div>
+      <div class="month-grid">
+        <div class="focus-col">
+          <h4>Foco — Calças & Blusas</h4>
+          <div class="piece-card">
+            <div class="piece-name">Calça wide-leg modeladora, PRD Rosset, cor terrosa</div>
+            <div class="piece-detail">Mesma base do lançamento de agosto, em nova cor — mês de maior volume de tendência nova nas redes, melhor momento para a peça “statement” do trimestre.</div>
+            <div class="piece-why">Por quê: consolida o wide-leg como assinatura da coleção e testa uma segunda cor de giro rápido.</div>
+          </div>
+          <div class="piece-card">
+            <div class="piece-name">Blusa canelada em tom acento (verde-azulado ou azul suave)</div>
+            <div class="piece-detail">Corte justo, decote clássico ou canoa — cor de impacto do mês, para contrastar com a base terrosa de agosto.</div>
+            <div class="piece-why">Por quê: cor viva funciona como gancho de conteúdo (Reels de "cor do mês") e de campanha do Dia do Cliente.</div>
+          </div>
+        </div>
+        <div class="support-col">
+          <h4>Dicas — Vestidos, Macacões, Bodies</h4>
+          <ul class="support-list">
+            <li><b>Macacão utilitário refinado</b>Silhueta esportiva reinterpretada com corte limpo — peça de destaque para campanha de primavera.</li>
+            <li><b>Vestido boneca repaginado</b>Cintura alta, volume sutil, tecido fluido — reforça a narrativa de "leveza" do lançamento.</li>
+            <li><b>Body recortado</b>Para usar sob blusa com transparência pontual, sem expor o corpo todo — approach "estratégico", não sensualizado.</li>
+          </ul>
+          <div class="databox"><b>Ação comercial:</b> Dia do Cliente (15/09) é data Tier 2 — planejar com 30 dias de antecedência, cruzando com o lançamento da 2ª semana.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- OUTUBRO -->
+    <div class="month-block">
+      <div class="month-head">
+        <span class="month-num">03 —</span>
+        <span class="month-name">Outubro</span>
+        <span class="month-context">Plena primavera · pré-Black Friday começa a aquecer</span>
+      </div>
+      <div class="month-grid">
+        <div class="focus-col">
+          <h4>Foco — Calças & Blusas</h4>
+          <div class="piece-card">
+            <div class="piece-name">Calça flare modeladora, PRD Rosset, cós alto marcado</div>
+            <div class="piece-detail">Versão mais contida do wide-leg — alargamento discreto a partir da panturrilha, mesma tecnologia de compressão. Boa peça-ponte entre primavera e verão.</div>
+            <div class="piece-why">Por quê: consolida a temporada e oferece uma segunda silhueta (mais "executiva") dentro da mesma tecnologia de tecido.</div>
+          </div>
+          <div class="piece-card">
+            <div class="piece-name">Blusa peplum ou frente única (halter), canelado ou linho/seda</div>
+            <div class="piece-detail">Cintura marcada, um detalhe romântico (babado sutil ou amarração) — combina com a calça flare para um look de dia-a-noite.</div>
+            <div class="piece-why">Por quê: peça mais "evento" para aquecer conteúdo antes da Black Friday sem ainda entrar em promoção.</div>
+          </div>
+        </div>
+        <div class="support-col">
+          <h4>Dicas — Vestidos, Macacões, Bodies</h4>
+          <ul class="support-list">
+            <li><b>Vestido midi acetinado</b>Monocromático, para reforçar a paleta terrosa/acento do trimestre inteiro.</li>
+            <li><b>Macacão pantalona</b>Perna ampla, mesma lógica da calça wide-leg — extensão natural do lançamento de setembro.</li>
+          </ul>
+          <div class="databox"><b>Atenção:</b> outubro já entra no aquecimento pré-BF — conteúdo deste mês pode plantar prova social (looks, feedback de clientes) para reaproveitar em novembro.</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<section class="alt">
+  <div class="wrap">
+    <div class="section-kicker">Próximo passo</div>
+    <h2 class="section-title">Como isso vira ação</h2>
+    <p class="section-lede" style="margin-bottom:0;">
+      Este relatório entra como insumo do próximo <b>plano comercial mensal</b> (4 ações/mês, pesos 20/25/25/30) e do
+      <b>calendário de conteúdo</b> gerado via matriz criativa — as peças sugeridas aqui viram o produto-âncora de cada lançamento,
+      com o giro de estoque parado do outlet rodando em paralelo, o mês inteiro, via Grupo VIP e disparo RFM.
+    </p>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <div><b>Use Mariana Cardoso</b> · Inteligência de Tendências · Trimestre Ago–Out 2026</div>
+    <div>Fontes: leitura de tendências de mercado (passarelas, varejo BR, Pantone 2026) cruzada com catálogo ativo de produtos da marca.</div>
+  </div>
+</footer>
+
 </body>
 </html>

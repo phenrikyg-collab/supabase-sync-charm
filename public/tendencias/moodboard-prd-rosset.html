@@ -1,88 +1,215 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Moodboard de Tecidos — PRD Rosset + Canelados</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Moodboard · Tecidos PRD, Canelado Rosset & Bene Premium · Use Mariana Cardoso</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@600;700&family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;0,9..144,500;0,9..144,600;1,9..144,400&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
-  :root{--gold:#E8CD7E;--bronze:#8B6914;--dark:#1D1D1B;--off:#F5F5F5}
-  *{box-sizing:border-box}
-  body{margin:0;background:var(--off);color:var(--dark);font-family:'DM Sans',sans-serif;line-height:1.6}
-  .wrap{max-width:960px;margin:0 auto;padding:32px 24px 64px}
-  h1,h2,h3{font-family:'Cormorant Garamond',serif;margin:0 0 8px}
-  h1{font-size:40px}
-  .sub{color:var(--bronze);text-transform:uppercase;letter-spacing:.2em;font-size:11px;font-weight:700}
-  section{background:#fff;border:1px solid #e6e2d8;border-radius:12px;padding:24px;margin-top:24px}
-  h2{font-size:26px;border-bottom:2px solid var(--gold);display:inline-block;padding-bottom:4px}
-  .swatches{display:flex;flex-wrap:wrap;gap:10px;margin:12px 0}
-  .sw{width:64px;height:64px;border-radius:8px;border:1px solid #ddd}
-  .sw span{display:block;margin-top:70px;font-size:10px;text-align:center;color:#666}
-  table{width:100%;border-collapse:collapse;margin-top:16px;font-size:14px}
-  th,td{border:1px solid #e6e2d8;padding:10px;text-align:left;vertical-align:top}
-  th{background:var(--dark);color:var(--gold);font-size:12px;text-transform:uppercase;letter-spacing:.08em}
-  .scroll{overflow-x:auto}
-  .card{border:1px solid #eee;border-left:4px solid var(--gold);border-radius:8px;padding:16px;background:#fffdf8;margin-top:16px}
-  @media (max-width:640px){.wrap{padding:20px 14px 48px}h1{font-size:28px}h2{font-size:21px}table{min-width:640px}}
-  @media print{body{background:#fff}section{break-inside:avoid;border:none;padding:0 0 12px}}
+  :root{
+    --paper:#FAF6F0; --paper-2:#F1E9DE; --ink:#2A211D;
+    --wine:#7A2E2E; --wine-deep:#54181C; --gold:#B8925A;
+    --taupe:#8C8172; --line:#DED2C0; --white:#FFFEFC;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{background:var(--paper);color:var(--ink);font-family:'Inter',sans-serif;line-height:1.55;-webkit-font-smoothing:antialiased;}
+  .wrap{max-width:1080px;margin:0 auto;padding:0 28px;}
+
+  header.hero{background:linear-gradient(180deg,var(--wine-deep) 0%, var(--wine) 100%);color:var(--paper);padding:60px 0 46px;}
+  .eyebrow{font-size:12px;letter-spacing:.18em;text-transform:uppercase;color:var(--gold);font-weight:600;margin-bottom:16px;}
+  h1{font-family:'Fraunces',serif;font-weight:500;font-size:clamp(30px,4.4vw,44px);line-height:1.1;max-width:760px;}
+  h1 em{font-style:italic;font-weight:400;color:#E9C9A9;}
+  .hero-sub{margin-top:16px;max-width:600px;font-size:15px;color:#EADFCF;}
+
+  section{padding:48px 0;}
+  section.alt{background:var(--paper-2);}
+  h2.section-title{font-family:'Fraunces',serif;font-weight:500;font-size:25px;color:var(--wine-deep);margin-bottom:6px;}
+  .section-kicker{font-size:11.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--taupe);font-weight:600;margin-bottom:10px;}
+  .section-lede{max-width:680px;color:#4A423B;font-size:14.5px;margin-bottom:32px;}
+
+  /* --- Ficha técnica --- */
+  .spec-grid{display:grid;grid-template-columns:1.1fr 1fr;gap:26px;align-items:stretch;}
+  @media(max-width:760px){.spec-grid{grid-template-columns:1fr;}}
+  .spec-card{background:var(--white);border:1px solid var(--line);padding:24px;}
+  .spec-card h3{font-family:'Fraunces',serif;font-size:17px;margin-bottom:14px;color:var(--wine-deep);}
+  .spec-row{display:flex;justify-content:space-between;padding:9px 0;border-bottom:1px solid var(--line);font-size:13.3px;}
+  .spec-row .k{color:var(--taupe);}
+  .spec-row .v{font-weight:600;text-align:right;}
+
+  /* --- Texture swatch (CSS-generated, no copyrighted imagery) --- */
+  .texture-panel{
+    height:100%;min-height:220px;border-radius:2px;position:relative;overflow:hidden;
+    background:
+      repeating-linear-gradient(115deg, rgba(255,255,255,.10) 0px, rgba(255,255,255,.10) 2px, transparent 2px, transparent 7px),
+      repeating-linear-gradient(25deg, rgba(0,0,0,.05) 0px, rgba(0,0,0,.05) 1px, transparent 1px, transparent 6px),
+      linear-gradient(160deg,#3A3A3C 0%, #57585B 45%, #2E2E30 100%);
+    border:1px solid var(--line);
+  }
+  .texture-panel .label{
+    position:absolute;bottom:0;left:0;right:0;background:rgba(0,0,0,.55);color:#EADFCF;
+    padding:12px 16px;font-size:11.5px;letter-spacing:.06em;
+  }
+
+  /* --- Silhouette translation cards --- */
+  .trans-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px;}
+  @media(max-width:760px){.trans-grid{grid-template-columns:1fr;}}
+  .trans-card{background:var(--white);border:1px solid var(--line);padding:22px;position:relative;}
+  .trans-card .arrow{font-size:11px;text-transform:uppercase;letter-spacing:.1em;color:var(--gold);font-weight:700;margin-bottom:10px;}
+  .trans-card h4{font-family:'Fraunces',serif;font-size:17px;margin-bottom:8px;}
+  .trans-card p{font-size:13.4px;color:#5A5148;}
+  .trans-card.no{border-left:3px solid #B7736B;}
+  .trans-card.yes{border-left:3px solid var(--wine);}
+
+  /* --- Palette --- */
+  .palette-row{display:flex;gap:14px;flex-wrap:wrap;margin-top:10px;}
+  .swatch{width:120px;}
+  .swatch .chip{height:88px;border-radius:2px;border:1px solid rgba(0,0,0,.08);position:relative;}
+  .swatch .chip .hex{position:absolute;bottom:6px;left:8px;font-size:10.5px;color:rgba(255,255,255,.85);font-family:monospace;}
+  .swatch .chip.light .hex{color:rgba(0,0,0,.55);}
+  .swatch .name{font-size:12px;margin-top:8px;color:var(--ink);font-weight:600;}
+  .swatch .use{font-size:11px;color:var(--taupe);}
+
+  /* --- Pairing --- */
+  .pair-strip{display:flex;border:1px solid var(--line);background:var(--white);}
+  .pair-half{flex:1;padding:24px;}
+  .pair-half:first-child{border-right:1px dashed var(--line);}
+  .pair-half .role{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--gold);font-weight:700;margin-bottom:8px;}
+  .pair-half h4{font-family:'Fraunces',serif;font-size:18px;margin-bottom:8px;}
+  .pair-half p{font-size:13.3px;color:#5A5148;}
+  .pair-plus{display:flex;align-items:center;justify-content:center;padding:0 4px;font-family:'Fraunces',serif;font-style:italic;color:var(--gold);font-size:20px;}
+
+  footer{background:var(--wine-deep);color:#EADFCF;padding:32px 0;font-size:12.5px;}
+  .source-note{font-size:11.5px;color:var(--taupe);margin-top:24px;}
 </style>
 </head>
 <body>
-<div class="wrap">
-  <p class="sub">Mariana Cardoso — Coleção Ago/Out 2026</p>
-  <h1>Moodboard de Tecidos</h1>
-  <p>Ficha técnica dos tecidos da coleção (PRD Rosset e Canelados) com a tradução de tendência aplicada a cada base.</p>
 
-  <section>
-    <h2>Paleta da Coleção</h2>
-    <div class="swatches">
-      <div class="sw" style="background:#F2E8DA"></div>
-      <div class="sw" style="background:#D9B48F"></div>
-      <div class="sw" style="background:#A9713F"></div>
-      <div class="sw" style="background:#4F5A43"></div>
-      <div class="sw" style="background:#1D1D1B"></div>
-      <div class="sw" style="background:#8A8A85"></div>
-    </div>
-    <p style="font-size:12px;color:#666">Manteiga · Areia · Caramelo · Verde musgo · Preto · Chumbo</p>
-  </section>
+<header class="hero">
+  <div class="wrap">
+    <div class="eyebrow">Moodboard de Tecido · Ref. 5306 PRD (Rosset)</div>
+    <h1>Como a <em>tendência do trimestre</em> se traduz num tecido de compressão.</h1>
+    <p class="hero-sub">O PRD é uma malha de urdume em poliamida + elastano, estruturada, com aparência que lembra neoprene — desenvolvida para shapewear e moda fitness, mas com uso comprovado em moda. Isso muda a leitura das calças do relatório de tendências: a peça não é fluida, é modeladora. O moodboard abaixo traduz cor, silhueta e combinação para essa realidade de tecido.</p>
+  </div>
+</header>
 
-  <section>
-    <h2>Ficha Técnica</h2>
-    <div class="scroll">
-      <table>
-        <thead>
-          <tr><th>Tecido</th><th>Composição</th><th>Gramatura</th><th>Elasticidade</th><th>Caimento</th><th>Indicação</th></tr>
-        </thead>
-        <tbody>
-          <tr><td><strong>PRD Rosset</strong></td><td>Poliéster / Elastano</td><td>~180 g/m²</td><td>Bidirecional leve</td><td>Fluido, com peso</td><td>Calça pantalona, blazer sem forro, vestido slip</td></tr>
-          <tr><td><strong>PRD Rosset Leve</strong></td><td>Poliéster / Elastano</td><td>~140 g/m²</td><td>Leve</td><td>Muito fluido</td><td>Camisa fluida, saia midi, blusa amarração</td></tr>
-          <tr><td><strong>Canelado Médio</strong></td><td>Viscose / Poliamida / Elastano</td><td>~260 g/m²</td><td>Alta, boa recuperação</td><td>Estruturado, marca o corpo</td><td>Conjunto manga longa + flare, vestido midi</td></tr>
-          <tr><td><strong>Canelado Fino</strong></td><td>Viscose / Elastano</td><td>~200 g/m²</td><td>Alta</td><td>Segunda pele</td><td>Regata, cropped, saia lápis</td></tr>
-        </tbody>
-      </table>
+<section>
+  <div class="wrap">
+    <div class="section-kicker">Ficha técnica</div>
+    <h2 class="section-title">O tecido em números e sensação</h2>
+    <p class="section-lede">Base para toda decisão de modelagem abaixo — antes de aplicar tendência de passarela, o tecido dita o que é fisicamente possível.</p>
+    <div class="spec-grid">
+      <div class="spec-card">
+        <h3>PRD (PRADA) · Ref. 5306 · Rosset</h3>
+        <div class="spec-row"><span class="k">Composição</span><span class="v">Poliamida + Elastano</span></div>
+        <div class="spec-row"><span class="k">Construção</span><span class="v">Malharia de urdume (estruturada)</span></div>
+        <div class="spec-row"><span class="k">Aparência</span><span class="v">Efeito neoprene, superfície lisa e densa</span></div>
+        <div class="spec-row"><span class="k">Comportamento</span><span class="v">Alta compressão, ajuste perfeito ao corpo, remodela silhueta</span></div>
+        <div class="spec-row"><span class="k">Segmento de origem</span><span class="v">Fitness / Shapewear</span></div>
+        <div class="spec-row" style="border-bottom:none;"><span class="k">Uso comprovado</span><span class="v">Moda — inclusive calça wide-leg modeladora</span></div>
+      </div>
+      <div class="texture-panel"><div class="label">Sensação de superfície — densa, elástica, sem transparência, ajuste perfeito ao corpo</div></div>
     </div>
-  </section>
+  </div>
+</section>
 
-  <section>
-    <h2>Tradução de Tendência por Tecido</h2>
-    <div class="card">
-      <h3>PRD Rosset → Alfaiataria Fluida</h3>
-      <p>Usar em modelagens amplas com cintura marcada. O peso do tecido garante o caimento reto sem engomar. Cores: areia, chumbo, preto.</p>
+<section class="alt">
+  <div class="wrap">
+    <div class="section-kicker">Tradução de tendência · atualizado</div>
+    <h2 class="section-title">Wide-leg é possível no PRD — correção de rota</h2>
+    <p class="section-lede">Confirmado pela produção: o PRD sustenta calça wide-leg modeladora. O tecido não perde a função de compressão/modelagem no quadril e coxa, e ganha volume controlado a partir do joelho — o melhor dos dois mundos: a silhueta poderosa que a tendência pede, com o ajuste que já é a assinatura da marca.</p>
+    <div class="trans-grid">
+      <div class="trans-card yes">
+        <div class="arrow">Confirmado</div>
+        <h4>Wide-leg modeladora, cós alto</h4>
+        <p>Compressão no quadril/coxa (onde a modeladora entrega valor) + alargamento progressivo da perna a partir do joelho. Consegue capturar a tendência de passarela sem abrir mão do apelo funcional da marca.</p>
+      </div>
+      <div class="trans-card yes">
+        <div class="arrow">Confirmado</div>
+        <h4>Flare modeladora, cós alto marcado</h4>
+        <p>Variante mais contida do wide-leg — alargamento discreto a partir da panturrilha. Boa opção de entrada antes do wide-leg completo.</p>
+      </div>
+      <div class="trans-card no">
+        <div class="arrow">Não force</div>
+        <h4>Transparência / sobreposição em organza</h4>
+        <p>Segue fora do território do tecido — PRD é opaco e denso por natureza.</p>
+      </div>
+      <div class="trans-card yes">
+        <div class="arrow">Traduza para</div>
+        <h4>Recorte e costura estrutural como "detalhe de moda"</h4>
+        <p>Onde a tendência pede camada/transparência, o PRD responde com recortes princesa e costuras aparentes que desenham o corpo — mesmo efeito de movimento, via construção.</p>
+      </div>
     </div>
-    <div class="card">
-      <h3>PRD Rosset Leve → Neutros Quentes</h3>
-      <p>Peças arejadas para outubro; ideal para camisaria e saias com movimento. Cores: manteiga, caramelo.</p>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <div class="section-kicker">Novos tecidos · para as blusas</div>
+    <h2 class="section-title">Canelados — o par perfeito da calça wide-leg</h2>
+    <p class="section-lede">A pesquisa de tendências deste trimestre aponta a <b>regata/blusa canelada</b> como um dos modelos em alta para 2026. Os dois canelados abaixo entram exatamente nesse território — e a proporção "top canelado justo + calça wide-leg" é uma leitura clássica de moda que casa perfeitamente com a nova capacidade do PRD.</p>
+    <div class="spec-grid">
+      <div class="spec-card">
+        <img src="assets/tecido-canelado-rosset.png" alt="Tecido canelado terracota, 99% viscose 1% elastano" style="width:100%;border:1px solid var(--line);margin-bottom:16px;">
+        <h3>Canelado Terracota · Rosset</h3>
+        <div class="spec-row"><span class="k">Composição</span><span class="v">99% Viscose · 1% Elastano</span></div>
+        <div class="spec-row"><span class="k">Largura</span><span class="v">1,30 m</span></div>
+        <div class="spec-row"><span class="k">Gramatura</span><span class="v">360 g/m²</span></div>
+        <div class="spec-row" style="border-bottom:none;"><span class="k">Rendimento</span><span class="v">2,14</span></div>
+      </div>
+      <div class="spec-card">
+        <img src="assets/tecido-canelado-bene-premium.png" alt="Canelado Bene Premium, viscose poliéster e elastano" style="width:100%;border:1px solid var(--line);margin-bottom:16px;">
+        <h3>Canelado Bene Premium</h3>
+        <div class="spec-row"><span class="k">Composição</span><span class="v">Viscose, Poliéster e Elastano</span></div>
+        <div class="spec-row"><span class="k">Gramatura</span><span class="v">365 g/m²</span></div>
+        <div class="spec-row" style="border-bottom:none;"><span class="k">Status</span><span class="v">Novidade no fornecedor</span></div>
+      </div>
     </div>
-    <div class="card">
-      <h3>Canelado Médio → Canelados Estruturados</h3>
-      <p>Base do conjunto coordenado de agosto. Sustentação e conforto — argumento central de venda.</p>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <div class="section-kicker">Paleta aplicada</div>
+    <h2 class="section-title">Cor do trimestre no PRD</h2>
+    <p class="section-lede">Malha densa segura cor sólida muito bem — é o ambiente ideal para os terrosos e o acento vivo do relatório de tendências.</p>
+    <div class="palette-row">
+      <div class="swatch"><div class="chip" style="background:#3A2A22"><span class="hex">#3A2A22</span></div><div class="name">Marrom café</div><div class="use">Base — o mais vendável em compressão</div></div>
+      <div class="swatch"><div class="chip" style="background:#54181C"><span class="hex">#54181C</span></div><div class="name">Marsala</div><div class="use">Peça-âncora de setembro</div></div>
+      <div class="swatch"><div class="chip light" style="background:#D9CDBC"><span class="hex">#D9CDBC</span></div><div class="name">Areia</div><div class="use">Neutro de transição</div></div>
+      <div class="swatch"><div class="chip" style="background:#1F1E1D"><span class="hex">#1F1E1D</span></div><div class="name">Preto fosco</div><div class="use">Best-seller de base modeladora</div></div>
+      <div class="swatch"><div class="chip" style="background:#3F5A50"><span class="hex">#3F5A50</span></div><div class="name">Verde-azulado</div><div class="use">Cor de impacto do trimestre</div></div>
     </div>
-    <div class="card">
-      <h3>Canelado Fino → Coordenados</h3>
-      <p>Peças de composição para vender junto com as âncoras, elevando ticket médio sem novo desenvolvimento.</p>
+  </div>
+</section>
+
+<section class="alt">
+  <div class="wrap">
+    <div class="section-kicker">Composição do look</div>
+    <h2 class="section-title">A dupla da coleção: PRD + Canelado</h2>
+    <p class="section-lede">Com o wide-leg confirmado no PRD, a proporção ideal muda: top canelado justo (marca a silhueta em cima) + calça wide-leg modeladora (dá volume controlado embaixo). É a leitura de tendência "regata canelada" que a pesquisa apontou, aplicada aos tecidos que a marca já tem em mãos.</p>
+    <div class="pair-strip">
+      <div class="pair-half">
+        <div class="role">Base — PRD Rosset</div>
+        <h4>Calça wide-leg modeladora, cós alto, marsala ou marrom café</h4>
+        <p>Compressão no quadril/coxa, alargamento a partir do joelho — a peça-âncora do trimestre.</p>
+      </div>
+      <div class="pair-plus">+</div>
+      <div class="pair-half">
+        <div class="role">Topo — Canelado Rosset / Bene Premium</div>
+        <h4>Regata ou blusa canelada justa, terracota ou marrom escuro</h4>
+        <p>Textura acanelada é tendência de blusa 2026 — em tom próximo ao da calça (tonal) ou em contraste com a paleta terrosa do trimestre.</p>
+      </div>
     </div>
-  </section>
-</div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <div><b>Use Mariana Cardoso</b> · Moodboard de Tecidos · PRD (Ref. 5306) + Canelado Rosset + Canelado Bene Premium</div>
+    <div class="source-note">Fichas técnicas: material fornecido pela marca (fornecedores Rosset). Paleta e leitura de silhueta: cruzamento com o relatório de tendências Ago–Out 2026. Fotos dos canelados são as amostras reais enviadas pela marca; painel do PRD é ilustrativo (textura gerada internamente, sem imagem de terceiros).</div>
+  </div>
+</footer>
+
 </body>
 </html>
