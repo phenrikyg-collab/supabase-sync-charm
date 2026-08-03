@@ -58,6 +58,7 @@ import PlanejamentoSimulador from "./pages/PlanejamentoSimulador";
 import MatrizCriativa from "./pages/MatrizCriativa";
 import Aviamentos from "./pages/Aviamentos";
 import PlanejamentoConteudoMensal from "./pages/PlanejamentoConteudoMensal";
+import Tendencias from "./pages/Tendencias";
 import { Loader2 } from "lucide-react";
 import { useUserModules } from "@/hooks/useUserModules";
 
@@ -174,6 +175,7 @@ const AppRoutes = () => {
               <Route path="/aviamentos" element={<Aviamentos />} />
               <Route path="/planejamento-conteudo-mensal" element={<PlanejamentoConteudoMensal />} />
               <Route path="/planejamento" element={<Navigate to="/planejamento-conteudo-mensal" replace />} />
+              <Route path="/tendencias" element={<Tendencias />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </AppLayout>

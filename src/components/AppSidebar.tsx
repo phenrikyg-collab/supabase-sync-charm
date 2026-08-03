@@ -117,6 +117,7 @@ const moduleGroups: ModuleGroup[] = [
       { title: "Analytics Instagram", url: "/marketing-analytics", icon: Sparkles },
       { title: "Embaixadoras", url: "/embaixadoras", icon: Heart },
       { title: "Planejamento de Conteúdo", url: "/planejamento-conteudo-mensal", icon: CalendarDays },
+      { title: "Tendências", url: "/tendencias", icon: TrendingUp },
       { title: "Conteúdo & CRM", url: "/conteudo", icon: CalendarDays },
       { title: "Matriz Criativa", url: "/marketing/matriz-criativa", icon: Sparkles },
     ],

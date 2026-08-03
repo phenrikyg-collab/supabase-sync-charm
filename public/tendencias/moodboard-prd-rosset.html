@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Moodboard de Tecidos — PRD Rosset + Canelados</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@600;700&family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root{--gold:#E8CD7E;--bronze:#8B6914;--dark:#1D1D1B;--off:#F5F5F5}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--off);color:var(--dark);font-family:'DM Sans',sans-serif;line-height:1.6}
+  .wrap{max-width:960px;margin:0 auto;padding:32px 24px 64px}
+  h1,h2,h3{font-family:'Cormorant Garamond',serif;margin:0 0 8px}
+  h1{font-size:40px}
+  .sub{color:var(--bronze);text-transform:uppercase;letter-spacing:.2em;font-size:11px;font-weight:700}
+  section{background:#fff;border:1px solid #e6e2d8;border-radius:12px;padding:24px;margin-top:24px}
+  h2{font-size:26px;border-bottom:2px solid var(--gold);display:inline-block;padding-bottom:4px}
+  .swatches{display:flex;flex-wrap:wrap;gap:10px;margin:12px 0}
+  .sw{width:64px;height:64px;border-radius:8px;border:1px solid #ddd}
+  .sw span{display:block;margin-top:70px;font-size:10px;text-align:center;color:#666}
+  table{width:100%;border-collapse:collapse;margin-top:16px;font-size:14px}
+  th,td{border:1px solid #e6e2d8;padding:10px;text-align:left;vertical-align:top}
+  th{background:var(--dark);color:var(--gold);font-size:12px;text-transform:uppercase;letter-spacing:.08em}
+  .scroll{overflow-x:auto}
+  .card{border:1px solid #eee;border-left:4px solid var(--gold);border-radius:8px;padding:16px;background:#fffdf8;margin-top:16px}
+  @media (max-width:640px){.wrap{padding:20px 14px 48px}h1{font-size:28px}h2{font-size:21px}table{min-width:640px}}
+  @media print{body{background:#fff}section{break-inside:avoid;border:none;padding:0 0 12px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <p class="sub">Mariana Cardoso — Coleção Ago/Out 2026</p>
+  <h1>Moodboard de Tecidos</h1>
+  <p>Ficha técnica dos tecidos da coleção (PRD Rosset e Canelados) com a tradução de tendência aplicada a cada base.</p>
+
+  <section>
+    <h2>Paleta da Coleção</h2>
+    <div class="swatches">
+      <div class="sw" style="background:#F2E8DA"></div>
+      <div class="sw" style="background:#D9B48F"></div>
+      <div class="sw" style="background:#A9713F"></div>
+      <div class="sw" style="background:#4F5A43"></div>
+      <div class="sw" style="background:#1D1D1B"></div>
+      <div class="sw" style="background:#8A8A85"></div>
+    </div>
+    <p style="font-size:12px;color:#666">Manteiga · Areia · Caramelo · Verde musgo · Preto · Chumbo</p>
+  </section>
+
+  <section>
+    <h2>Ficha Técnica</h2>
+    <div class="scroll">
+      <table>
+        <thead>
+          <tr><th>Tecido</th><th>Composição</th><th>Gramatura</th><th>Elasticidade</th><th>Caimento</th><th>Indicação</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><strong>PRD Rosset</strong></td><td>Poliéster / Elastano</td><td>~180 g/m²</td><td>Bidirecional leve</td><td>Fluido, com peso</td><td>Calça pantalona, blazer sem forro, vestido slip</td></tr>
+          <tr><td><strong>PRD Rosset Leve</strong></td><td>Poliéster / Elastano</td><td>~140 g/m²</td><td>Leve</td><td>Muito fluido</td><td>Camisa fluida, saia midi, blusa amarração</td></tr>
+          <tr><td><strong>Canelado Médio</strong></td><td>Viscose / Poliamida / Elastano</td><td>~260 g/m²</td><td>Alta, boa recuperação</td><td>Estruturado, marca o corpo</td><td>Conjunto manga longa + flare, vestido midi</td></tr>
+          <tr><td><strong>Canelado Fino</strong></td><td>Viscose / Elastano</td><td>~200 g/m²</td><td>Alta</td><td>Segunda pele</td><td>Regata, cropped, saia lápis</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <h2>Tradução de Tendência por Tecido</h2>
+    <div class="card">
+      <h3>PRD Rosset → Alfaiataria Fluida</h3>
+      <p>Usar em modelagens amplas com cintura marcada. O peso do tecido garante o caimento reto sem engomar. Cores: areia, chumbo, preto.</p>
+    </div>
+    <div class="card">
+      <h3>PRD Rosset Leve → Neutros Quentes</h3>
+      <p>Peças arejadas para outubro; ideal para camisaria e saias com movimento. Cores: manteiga, caramelo.</p>
+    </div>
+    <div class="card">
+      <h3>Canelado Médio → Canelados Estruturados</h3>
+      <p>Base do conjunto coordenado de agosto. Sustentação e conforto — argumento central de venda.</p>
+    </div>
+    <div class="card">
+      <h3>Canelado Fino → Coordenados</h3>
+      <p>Peças de composição para vender junto com as âncoras, elevando ticket médio sem novo desenvolvimento.</p>
+    </div>
+  </section>
+</div>
+</body>
+</html>
