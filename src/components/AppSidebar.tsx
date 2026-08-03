@@ -47,7 +47,7 @@ const moduleGroups: ModuleGroup[] = [
       { title: "Visão Anual", url: "/planejamento/anual", icon: BarChart3 },
       { title: "Planejamento Mensal", url: "/planejamento/mensal", icon: CalendarDays },
       { title: "Simulador", url: "/planejamento/simulador", icon: Target },
-      { title: "Planejamento", url: "/planejamento-conteudo-mensal", icon: CalendarDays },
+      
     ],
   },
   {
