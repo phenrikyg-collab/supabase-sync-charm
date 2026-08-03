@@ -129,10 +129,19 @@ export function UploadRelatorioDialog({
             <Input
               id="rel-file"
               type="file"
-              accept=".html,text/html"
-              onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+              accept=".html,.htm,text/html"
+              aria-invalid={!!erro}
+              onChange={(e) => selecionar(e.target.files?.[0] ?? null)}
             />
+            {erro ? (
+              <p className="text-sm text-destructive">{erro}</p>
+            ) : (
+              <p className="text-xs text-muted-foreground">
+                Apenas arquivos .html, até 5 MB.
+              </p>
+            )}
           </div>
+
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => setOpen(false)} disabled={enviando}>
