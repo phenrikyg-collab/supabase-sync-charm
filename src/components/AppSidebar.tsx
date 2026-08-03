@@ -47,7 +47,7 @@ const moduleGroups: ModuleGroup[] = [
       { title: "Visão Anual", url: "/planejamento/anual", icon: BarChart3 },
       { title: "Planejamento Mensal", url: "/planejamento/mensal", icon: CalendarDays },
       { title: "Simulador", url: "/planejamento/simulador", icon: Target },
-      { title: "Planejamento", url: "/planejamento-conteudo-mensal", icon: CalendarDays },
+      
     ],
   },
   {
@@ -116,6 +116,7 @@ const moduleGroups: ModuleGroup[] = [
       { title: "Dashboard GA4", url: "/marketing", icon: BarChart3 },
       { title: "Analytics Instagram", url: "/marketing-analytics", icon: Sparkles },
       { title: "Embaixadoras", url: "/embaixadoras", icon: Heart },
+      { title: "Planejamento de Conteúdo", url: "/planejamento-conteudo-mensal", icon: CalendarDays },
       { title: "Conteúdo & CRM", url: "/conteudo", icon: CalendarDays },
       { title: "Matriz Criativa", url: "/marketing/matriz-criativa", icon: Sparkles },
     ],
