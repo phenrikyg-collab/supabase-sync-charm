@@ -21,7 +21,7 @@ interface UploadRelatorioDialogProps {
   titulo?: string;
   descricao?: string;
   labelPlaceholder?: string;
-  onUploaded?: () => void;
+  onUploaded?: (arquivo: RelatorioArquivo) => void;
 }
 
 export function UploadRelatorioDialog({
