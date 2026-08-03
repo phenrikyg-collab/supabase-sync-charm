@@ -103,7 +103,29 @@
   .footnote{margin-top:36px;padding-top:14px;border-top:1px solid var(--line);font-size:9.5px;color:var(--ink-soft);
     display:flex;justify-content:space-between}
   @media(max-width:900px){.cards-grid{grid-template-columns:1fr}.rulesbox{grid-template-columns:1fr 1fr}}
-</style></head><body><div class="wrap">
+</style>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style id="responsive-patch">
+  html{-webkit-text-size-adjust:100%}
+  @media (max-width:1024px){
+    .wrap{padding:20px 18px}
+  }
+  @media (max-width:760px){
+    .wrap{padding:16px 12px}
+    h1{font-size:24px}
+    .section-title{font-size:18px}
+    .sub{font-size:12.5px}
+    body{font-size:13px}
+    table{display:block;overflow-x:auto;-webkit-overflow-scrolling:touch}
+    table thead th,table td{white-space:normal}
+    .legend,.briefbar{gap:8px}
+  }
+  @media print{
+    body{padding:0}
+    .wrap{max-width:100%;padding:12px}
+  }
+</style>
+</head><body><div class="wrap">
 
   <div class="tbar">
     <div class="brand">MARIANA CARDOSO<small>MODA FEMININA · MODELADORAS</small></div>
