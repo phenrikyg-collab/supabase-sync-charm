@@ -113,7 +113,5 @@ export default function PlanejamentoConteudoMensal() {
         </TabsContent>
       </Tabs>
     </div>
-
-    </div>
   );
 }
