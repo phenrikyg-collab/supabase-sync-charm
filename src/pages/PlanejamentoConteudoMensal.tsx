@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { LayoutGrid, CalendarDays } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { LayoutGrid, CalendarDays, Printer, ExternalLink } from "lucide-react";
 
 interface MesPlanejamento {
   id: string;
@@ -22,6 +23,19 @@ const MESES: MesPlanejamento[] = [
 export default function PlanejamentoConteudoMensal() {
   const [mesId, setMesId] = useState(MESES[0].id);
   const mes = MESES.find((m) => m.id === mesId) ?? MESES[0];
+
+  const matrizRef = useRef<HTMLIFrameElement>(null);
+  const calendarioRef = useRef<HTMLIFrameElement>(null);
+
+  const imprimir = (ref: React.RefObject<HTMLIFrameElement>, src: string) => {
+    const win = ref.current?.contentWindow;
+    if (win) {
+      win.focus();
+      win.print();
+    } else {
+      window.open(src, "_blank", "noopener");
+    }
+  };
 
   return (
     <div className="space-y-4">
@@ -58,21 +72,39 @@ export default function PlanejamentoConteudoMensal() {
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="matriz" className="mt-4">
+        <TabsContent value="matriz" className="mt-4 space-y-3">
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" size="sm" onClick={() => window.open(mes.matriz, "_blank", "noopener")}>
+              <ExternalLink className="h-4 w-4 mr-2" /> Abrir em nova aba
+            </Button>
+            <Button size="sm" onClick={() => imprimir(matrizRef, mes.matriz)}>
+              <Printer className="h-4 w-4 mr-2" /> Imprimir
+            </Button>
+          </div>
           <iframe
+            ref={matrizRef}
             key={`matriz-${mes.id}`}
             src={mes.matriz}
             title={`Matriz de Replicação — ${mes.label}`}
-            className="w-full h-[calc(100vh-120px)] border-0"
+            className="w-full h-[calc(100vh-170px)] border-0"
           />
         </TabsContent>
 
-        <TabsContent value="calendario" className="mt-4">
+        <TabsContent value="calendario" className="mt-4 space-y-3">
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" size="sm" onClick={() => window.open(mes.calendario, "_blank", "noopener")}>
+              <ExternalLink className="h-4 w-4 mr-2" /> Abrir em nova aba
+            </Button>
+            <Button size="sm" onClick={() => imprimir(calendarioRef, mes.calendario)}>
+              <Printer className="h-4 w-4 mr-2" /> Imprimir
+            </Button>
+          </div>
           <iframe
+            ref={calendarioRef}
             key={`cal-${mes.id}`}
             src={mes.calendario}
             title={`Calendário e Roteiros — ${mes.label}`}
-            className="w-full h-[calc(100vh-120px)] border-0"
+            className="w-full h-[calc(100vh-170px)] border-0"
           />
         </TabsContent>
       </Tabs>
