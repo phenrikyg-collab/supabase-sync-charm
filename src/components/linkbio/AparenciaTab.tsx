@@ -1,0 +1,172 @@
+import { useEffect, useRef, useState } from "react";
+import { toast } from "sonner";
+import { GripVertical, ImagePlus, Loader2, Save } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  BLOCOS_DISPONIVEIS,
+  PERFIL_PADRAO,
+  PerfilLinkBio,
+  carregarPerfil,
+  salvarPerfil,
+  uploadLogo,
+} from "@/lib/linkbioPerfil";
+
+export function AparenciaTab() {
+  const [perfil, setPerfil] = useState<PerfilLinkBio>(PERFIL_PADRAO);
+  const [carregando, setCarregando] = useState(true);
+  const [salvando, setSalvando] = useState(false);
+  const [enviando, setEnviando] = useState(false);
+  const [dragIdx, setDragIdx] = useState<number | null>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    carregarPerfil()
+      .then(setPerfil)
+      .finally(() => setCarregando(false));
+  }, []);
+
+  const set = (patch: Partial<PerfilLinkBio>) => setPerfil((p) => ({ ...p, ...patch }));
+
+  const onDrop = (destino: number) => {
+    if (dragIdx === null || dragIdx === destino) return;
+    setPerfil((p) => {
+      const copia = [...p.ordem_blocos];
+      const [mov] = copia.splice(dragIdx, 1);
+      copia.splice(destino, 0, mov);
+      return { ...p, ordem_blocos: copia };
+    });
+    setDragIdx(null);
+  };
+
+  const handleLogo = async (file: File | null) => {
+    if (!file) return;
+    setEnviando(true);
+    try {
+      set({ logo_url: await uploadLogo(file) });
+      toast.success("Logo enviada. Clique em Salvar para publicar.");
+    } catch (e: any) {
+      toast.error(e.message ?? "Erro ao enviar a logo.");
+    } finally {
+      setEnviando(false);
+    }
+  };
+
+  const salvar = async () => {
+    setSalvando(true);
+    try {
+      await salvarPerfil(perfil);
+      toast.success("Aparência salva. A página pública já reflete a alteração.");
+    } catch (e: any) {
+      toast.error(e.message ?? "Erro ao salvar.");
+    } finally {
+      setSalvando(false);
+    }
+  };
+
+  if (carregando) {
+    return (
+      <div className="flex justify-center py-16">
+        <Loader2 className="h-6 w-6 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex justify-end">
+        <Button onClick={salvar} disabled={salvando}>
+          {salvando ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
+          Salvar
+        </Button>
+      </div>
+
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base">Identidade da página</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
+            <div className="flex h-24 w-24 shrink-0 items-center justify-center overflow-hidden rounded-full border bg-muted">
+              {perfil.logo_url ? (
+                <img src={perfil.logo_url} alt="Logo da página link na bio" className="h-full w-full object-cover" />
+              ) : (
+                <ImagePlus className="h-6 w-6 text-muted-foreground" />
+              )}
+            </div>
+            <div className="space-y-2">
+              <input
+                ref={fileRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={(e) => handleLogo(e.target.files?.[0] ?? null)}
+              />
+              <Button variant="outline" onClick={() => fileRef.current?.click()} disabled={enviando}>
+                {enviando ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <ImagePlus className="h-4 w-4 mr-2" />}
+                Trocar logo
+              </Button>
+              {perfil.logo_url && (
+                <Button variant="ghost" size="sm" className="ml-2" onClick={() => set({ logo_url: "" })}>
+                  Remover
+                </Button>
+              )}
+              <p className="text-xs text-muted-foreground">PNG ou JPG quadrado, mínimo 300x300px.</p>
+            </div>
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="space-y-1.5">
+              <Label>Nome exibido</Label>
+              <Input value={perfil.nome} onChange={(e) => set({ nome: e.target.value })} placeholder="Use Mariana Cardoso" />
+            </div>
+            <div className="space-y-1.5 md:col-span-2">
+              <Label>Descrição</Label>
+              <Textarea
+                value={perfil.descricao}
+                onChange={(e) => set({ descricao: e.target.value })}
+                rows={3}
+                placeholder="Moda feminina que veste bem de verdade."
+              />
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base">Ordem dos blocos na página</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-2">
+          <p className="text-sm text-muted-foreground">Arraste pelo ícone para definir a sequência exibida na bio.</p>
+          {perfil.ordem_blocos.map((id, idx) => {
+            const bloco = BLOCOS_DISPONIVEIS.find((b) => b.id === id);
+            return (
+              <div
+                key={id}
+                onDragOver={(e) => e.preventDefault()}
+                onDrop={() => onDrop(idx)}
+                className={`flex items-center gap-3 rounded-md border bg-card px-3 py-2.5 ${dragIdx === idx ? "opacity-60" : ""}`}
+              >
+                <div
+                  draggable
+                  onDragStart={() => setDragIdx(idx)}
+                  onDragEnd={() => setDragIdx(null)}
+                  className="cursor-grab text-muted-foreground"
+                  aria-label="Reordenar bloco"
+                >
+                  <GripVertical className="h-4 w-4" />
+                </div>
+                <span className="text-sm font-medium text-muted-foreground">{idx + 1}.</span>
+                <span className="text-sm">{bloco?.nome ?? id}</span>
+              </div>
+            );
+          })}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
