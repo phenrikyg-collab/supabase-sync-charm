@@ -59,6 +59,7 @@ import MatrizCriativa from "./pages/MatrizCriativa";
 import Aviamentos from "./pages/Aviamentos";
 import PlanejamentoConteudoMensal from "./pages/PlanejamentoConteudoMensal";
 import Tendencias from "./pages/Tendencias";
+import LinkNaBio from "./pages/LinkNaBio";
 import { Loader2 } from "lucide-react";
 import { useUserModules } from "@/hooks/useUserModules";
 
@@ -176,6 +177,7 @@ const AppRoutes = () => {
               <Route path="/planejamento-conteudo-mensal" element={<PlanejamentoConteudoMensal />} />
               <Route path="/planejamento" element={<Navigate to="/planejamento-conteudo-mensal" replace />} />
               <Route path="/tendencias" element={<Tendencias />} />
+              <Route path="/link-na-bio" element={<LinkNaBio />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </AppLayout>
