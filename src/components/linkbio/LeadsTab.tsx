@@ -45,7 +45,33 @@ type Lead = {
 
 export function LeadsTab() {
   const [dias, setDias] = useState("30");
+  const [semanas, setSemanas] = useState("8");
   const [pagina, setPagina] = useState(0);
+
+  const { data: comparativo, isLoading: loadingComparativo } = useQuery({
+    queryKey: ["linkbio-comparativo-semanal", semanas],
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc("linkbio_admin_comparativo_semanal" as any, {
+        p_semanas: Number(semanas),
+      });
+      if (error) throw error;
+      return (Array.isArray(data) ? data[0] : data) as any;
+    },
+  });
+
+  const comp = comparativo?.semana_atual_vs_anterior ?? null;
+  const variacao = comp?.variacao_pct === null || comp?.variacao_pct === undefined ? null : Number(comp.variacao_pct);
+  const serieSemanas = useMemo(() => {
+    const raw = comparativo?.semanas;
+    if (!Array.isArray(raw)) return [];
+    return raw.map((s: any) => ({
+      semana: formatarDiaMes(s.semana_inicio),
+      sessoes: Number(s.total_sessoes ?? 0),
+      leads: Number(s.total_leads ?? 0),
+    }));
+  }, [comparativo]);
+
+
 
   const { data: metricas, isLoading: loadingMetricas } = useQuery({
     queryKey: ["linkbio-metricas", dias],
