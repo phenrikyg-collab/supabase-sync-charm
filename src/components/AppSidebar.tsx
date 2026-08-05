@@ -132,6 +132,14 @@ const moduleGroups: ModuleGroup[] = [
     ],
   },
   {
+    key: "marketing",
+    label: "E-mail Marketing",
+    icon: Mail,
+    items: [
+      { title: "Listas, Templates e Campanhas", url: "/email-marketing", icon: Mail },
+    ],
+  },
+  {
     key: "automacoes",
     label: "Automações",
     icon: Workflow,
