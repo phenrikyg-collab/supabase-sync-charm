@@ -219,13 +219,27 @@ export default function Atendimento() {
 
   const enviarProduto = async (p: ProdutoCatalogo) => {
     try {
-      await enviarImagem(p.imagem ?? "", `${p.nome} — ${formatarPreco(p.preco)}`);
+      await enviarImagem(p.imagem ?? "", legendaProduto(p));
       setCatalogoAberto(false);
       toast({ title: "Produto enviado" });
     } catch (e: any) {
       toast({ title: "Erro ao enviar produto", description: e.message, variant: "destructive" });
     }
   };
+
+  const assumir = useMutation({
+    mutationFn: async () => {
+      const { error } = await supabase.rpc("whatsapp_assumir_conversa" as any, {
+        p_conversa_id: Number.isNaN(Number(selecionada)) ? selecionada : Number(selecionada),
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast({ title: "Conversa assumida" });
+      queryClient.invalidateQueries({ queryKey: ["whatsapp-conversas"] });
+    },
+    onError: (e: any) => toast({ title: "Erro ao assumir conversa", description: e.message, variant: "destructive" }),
+  });
 
   const reativarBot = useMutation({
     mutationFn: async () => {
