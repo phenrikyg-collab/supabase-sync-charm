@@ -61,6 +61,8 @@ import PlanejamentoConteudoMensal from "./pages/PlanejamentoConteudoMensal";
 import Tendencias from "./pages/Tendencias";
 import LinkNaBio from "./pages/LinkNaBio";
 import Atendimento from "./pages/Atendimento";
+import Automacoes from "./pages/Automacoes";
+import AutomacaoFluxo from "./pages/AutomacaoFluxo";
 import { Loader2 } from "lucide-react";
 import { useUserModules } from "@/hooks/useUserModules";
 
@@ -180,6 +182,8 @@ const AppRoutes = () => {
               <Route path="/tendencias" element={<Tendencias />} />
               <Route path="/link-na-bio" element={<LinkNaBio />} />
               <Route path="/atendimento" element={<Atendimento />} />
+              <Route path="/automacoes" element={<Automacoes />} />
+              <Route path="/automacoes/:id" element={<AutomacaoFluxo />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </AppLayout>
