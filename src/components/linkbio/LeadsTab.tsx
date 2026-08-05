@@ -2,7 +2,10 @@ import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Download, Loader2, MousePointerClick, TrendingUp, Users } from "lucide-react";
+import { ArrowDownRight, ArrowRight, ArrowUpRight, Download, Loader2, MousePointerClick, TrendingUp, Users } from "lucide-react";
+import {
+  Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis,
+} from "recharts";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
