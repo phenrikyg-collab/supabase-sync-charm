@@ -177,8 +177,21 @@ export function AparenciaTab() {
           <CardTitle className="text-base">Formulário de Cupom</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
+          <div className="flex items-center gap-2 rounded-md border bg-muted/30 p-3">
+            <Switch
+              id="lead-ativo"
+              checked={cfg.lead_ativo}
+              onCheckedChange={(v) => set({ lead_ativo: v })}
+            />
+            <Label htmlFor="lead-ativo" className="cursor-pointer">
+              Exibir formulário de cupom na página pública
+            </Label>
+          </div>
+
+          <fieldset disabled={!cfg.lead_ativo} className={cfg.lead_ativo ? "space-y-4" : "space-y-4 opacity-50"}>
           <div className="grid gap-4 md:grid-cols-2">
             <div className="space-y-1.5">
+
               <Label>Título do card</Label>
               <Input
                 value={cfg.lead_titulo}
@@ -307,6 +320,8 @@ export function AparenciaTab() {
               </div>
             </div>
           </div>
+          </fieldset>
+
         </CardContent>
       </Card>
     </div>

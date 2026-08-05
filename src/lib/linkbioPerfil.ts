@@ -13,6 +13,7 @@ export type ConfigGeral = {
   titulo: string;
   descricao: string;
   ordem_blocos: string[];
+  lead_ativo: boolean;
   lead_titulo: string;
   lead_descricao: string;
   lead_cta_texto: string;
@@ -32,6 +33,7 @@ export const CONFIG_PADRAO: ConfigGeral = {
   titulo: "",
   descricao: "",
   ordem_blocos: [...BLOCOS_IDS],
+  lead_ativo: true,
   lead_titulo: "",
   lead_descricao: "",
   lead_cta_texto: "",
@@ -64,6 +66,7 @@ export async function carregarConfigGeral(): Promise<ConfigGeral> {
     titulo: cfg.titulo ?? "",
     descricao: cfg.descricao ?? "",
     ordem_blocos: normalizarOrdem(cfg.ordem_blocos),
+    lead_ativo: cfg.lead_ativo ?? true,
     lead_titulo: cfg.lead_titulo ?? "",
     lead_descricao: cfg.lead_descricao ?? "",
     lead_cta_texto: cfg.lead_cta_texto ?? "",
@@ -85,6 +88,7 @@ export async function salvarConfigGeral(cfg: ConfigGeral) {
     p_titulo: cfg.titulo || null,
     p_descricao: cfg.descricao || null,
     p_ordem_blocos: normalizarOrdem(cfg.ordem_blocos),
+    p_lead_ativo: cfg.lead_ativo,
     p_lead_titulo: cfg.lead_titulo.trim() || null,
     p_lead_descricao: cfg.lead_descricao.trim() || null,
     p_lead_cta_texto: cfg.lead_cta_texto.trim() || null,
