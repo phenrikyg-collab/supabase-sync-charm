@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -11,7 +12,12 @@ import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { Bot, CheckCircle2, MessageCircle, RotateCcw, Search, Send, User } from "lucide-react";
+import {
+  Bot, CheckCircle2, ImagePlus, LayoutGrid, MessageCircle, RotateCcw, Search, Send, User, X,
+} from "lucide-react";
+import { TagsConversa, TagChip, type Tag } from "@/components/atendimento/TagsConversa";
+import { CatalogoDialog, formatarPreco, type ProdutoCatalogo } from "@/components/atendimento/CatalogoDialog";
+import { PerfilCliente } from "@/components/atendimento/PerfilCliente";
 
 type Conversa = {
   id: number | string;
@@ -23,6 +29,8 @@ type Conversa = {
   ultima_mensagem_em?: string | null;
   atualizado_em?: string | null;
   status: string;
+  prioridade?: string | null;
+  tags?: Tag[] | null;
 };
 
 type Mensagem = {
@@ -30,12 +38,15 @@ type Mensagem = {
   conteudo: string;
   direcao: "entrada" | "saida";
   origem?: string | null;
+  tipo?: string | null;
+  media_url?: string | null;
   criado_em?: string | null;
   enviado_em?: string | null;
 };
 
 const STATUS_META: Record<string, { label: string; className: string }> = {
   escalado: { label: "Aguardando atendimento", className: "bg-danger/10 text-danger border-danger/20" },
+  em_atendimento: { label: "Em atendimento", className: "bg-warning/10 text-warning border-warning/20" },
   bot_ativo: { label: "Bot ativo", className: "bg-muted text-muted-foreground border-border" },
   resolvido: { label: "Resolvido", className: "bg-success/10 text-success border-success/20" },
 };
@@ -74,10 +85,19 @@ function horaCurta(valor?: string | null) {
 
 export default function Atendimento() {
   const queryClient = useQueryClient();
+  const { user } = useAuth();
   const [selecionada, setSelecionada] = useState<string | null>(null);
   const [busca, setBusca] = useState("");
   const [texto, setTexto] = useState("");
+  const [catalogoAberto, setCatalogoAberto] = useState(false);
+  const [arquivo, setArquivo] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [legenda, setLegenda] = useState("");
+  const [enviandoImagem, setEnviandoImagem] = useState(false);
   const fimRef = useRef<HTMLDivElement>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  const autor = user?.email ?? "Atendente";
 
   const { data: conversas = [], isLoading: carregandoConversas } = useQuery({
     queryKey: ["whatsapp-conversas"],
@@ -111,6 +131,17 @@ export default function Atendimento() {
     fimRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [mensagens.length, selecionada]);
 
+  useEffect(() => {
+    return () => {
+      if (previewUrl) URL.revokeObjectURL(previewUrl);
+    };
+  }, [previewUrl]);
+
+  const invalidarThread = () => {
+    queryClient.invalidateQueries({ queryKey: ["whatsapp-mensagens", selecionada] });
+    queryClient.invalidateQueries({ queryKey: ["whatsapp-conversas"] });
+  };
+
   const enviar = useMutation({
     mutationFn: async (conteudo: string) => {
       if (!conversaAtual) throw new Error("Nenhuma conversa selecionada");
@@ -126,11 +157,75 @@ export default function Atendimento() {
     },
     onSuccess: () => {
       setTexto("");
-      queryClient.invalidateQueries({ queryKey: ["whatsapp-mensagens", selecionada] });
-      queryClient.invalidateQueries({ queryKey: ["whatsapp-conversas"] });
+      invalidarThread();
     },
     onError: (e: any) => toast({ title: "Erro ao enviar", description: e.message, variant: "destructive" }),
   });
+
+  const enviarImagem = async (mediaUrl: string, conteudo: string) => {
+    if (!conversaAtual) throw new Error("Nenhuma conversa selecionada");
+    const { error } = await supabase.functions.invoke("whatsapp-enviar-mensagem-humano", {
+      body: {
+        conversa_id: conversaAtual.id,
+        telefone: conversaAtual.telefone,
+        conteudo,
+        tipo: "imagem",
+        media_url: mediaUrl,
+      },
+    });
+    if (error) throw error;
+    invalidarThread();
+  };
+
+  const selecionarArquivo = (f: File | null) => {
+    if (!f) return;
+    if (!f.type.startsWith("image/")) {
+      toast({ title: "Selecione uma imagem", variant: "destructive" });
+      return;
+    }
+    if (previewUrl) URL.revokeObjectURL(previewUrl);
+    setArquivo(f);
+    setPreviewUrl(URL.createObjectURL(f));
+    setLegenda("");
+  };
+
+  const limparPreview = () => {
+    if (previewUrl) URL.revokeObjectURL(previewUrl);
+    setArquivo(null);
+    setPreviewUrl(null);
+    setLegenda("");
+    if (fileRef.current) fileRef.current.value = "";
+  };
+
+  const confirmarEnvioImagem = async () => {
+    if (!arquivo) return;
+    setEnviandoImagem(true);
+    try {
+      const nome = arquivo.name.replace(/[^\w.\-]/g, "_");
+      const path = `enviadas/${Date.now()}-${nome}`;
+      const { error: upErr } = await supabase.storage
+        .from("whatsapp-media")
+        .upload(path, arquivo, { cacheControl: "31536000", upsert: false });
+      if (upErr) throw upErr;
+      const { data: pub } = supabase.storage.from("whatsapp-media").getPublicUrl(path);
+      await enviarImagem(pub.publicUrl, legenda.trim());
+      limparPreview();
+    } catch (e: any) {
+      toast({ title: "Erro ao enviar imagem", description: e.message, variant: "destructive" });
+    } finally {
+      setEnviandoImagem(false);
+    }
+  };
+
+  const enviarProduto = async (p: ProdutoCatalogo) => {
+    try {
+      await enviarImagem(p.imagem ?? "", `${p.nome} — ${formatarPreco(p.preco)}`);
+      setCatalogoAberto(false);
+      toast({ title: "Produto enviado" });
+    } catch (e: any) {
+      toast({ title: "Erro ao enviar produto", description: e.message, variant: "destructive" });
+    }
+  };
 
   const reativarBot = useMutation({
     mutationFn: async () => {
@@ -175,10 +270,10 @@ export default function Atendimento() {
   });
 
   const status = conversaAtual?.status ?? "";
-  const podeResponder = status === "escalado";
+  const podeResponder = status === "escalado" || status === "em_atendimento";
 
   return (
-    <div className="p-6 max-w-[1600px] mx-auto space-y-4">
+    <div className="p-6 max-w-[1700px] mx-auto space-y-4">
       <div>
         <h1 className="font-serif text-4xl text-foreground">Atendimento</h1>
         <p className="text-muted-foreground text-sm mt-1">
@@ -186,7 +281,7 @@ export default function Atendimento() {
         </p>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-[360px_1fr] gap-4 h-[calc(100vh-220px)] min-h-[520px]">
+      <div className="grid grid-cols-1 lg:grid-cols-[340px_1fr] xl:grid-cols-[340px_1fr_340px] gap-4 h-[calc(100vh-220px)] min-h-[520px]">
         {/* Lista de conversas */}
         <Card className="flex flex-col overflow-hidden">
           <div className="p-3 border-b border-border">
@@ -210,19 +305,25 @@ export default function Atendimento() {
             {filtradas.map((c) => {
               const nome = c.cliente_nome ?? c.nome_cliente ?? "Desconhecido";
               const ativa = String(c.id) === selecionada;
+              const prio = (c.prioridade ?? "").toLowerCase();
               return (
                 <button
                   key={String(c.id)}
                   onClick={() => setSelecionada(String(c.id))}
                   className={cn(
-                    "w-full text-left px-4 py-3 border-b border-border/60 transition-colors hover:bg-accent/60",
+                    "w-full text-left px-4 py-3 border-b border-border/60 border-l-4 transition-colors hover:bg-accent/60",
+                    prio === "alta" ? "border-l-danger" : prio === "media" ? "border-l-warning" : "border-l-transparent",
                     ativa && "bg-accent",
                   )}
                 >
                   <div className="flex items-start justify-between gap-2">
-                    <div className="min-w-0">
-                      <p className="font-medium text-sm truncate">{nome}</p>
-                      <p className="text-xs text-muted-foreground">{c.telefone}</p>
+                    <div className="min-w-0 flex items-center gap-1.5">
+                      {prio === "alta" && <span className="h-2 w-2 rounded-full bg-danger shrink-0" />}
+                      {prio === "media" && <span className="h-2 w-2 rounded-full bg-warning shrink-0" />}
+                      <div className="min-w-0">
+                        <p className="font-medium text-sm truncate">{nome}</p>
+                        <p className="text-xs text-muted-foreground">{c.telefone}</p>
+                      </div>
                     </div>
                     <span className="text-[10px] text-muted-foreground whitespace-nowrap">
                       {tempoRelativo(c.ultima_mensagem_em ?? c.atualizado_em)}
@@ -231,8 +332,11 @@ export default function Atendimento() {
                   <p className="text-xs text-muted-foreground mt-1 line-clamp-1">
                     {c.ultima_mensagem ?? "—"}
                   </p>
-                  <div className="mt-2">
+                  <div className="mt-2 flex items-center gap-1.5 flex-wrap">
                     <StatusPill status={c.status} />
+                    {(c.tags ?? []).map((t) => (
+                      <TagChip key={String(t.id)} tag={t} />
+                    ))}
                   </div>
                 </button>
               );
@@ -249,18 +353,19 @@ export default function Atendimento() {
             </div>
           ) : (
             <>
-              <div className="p-4 flex items-center justify-between gap-4 border-b border-border">
-                <div className="min-w-0">
-                  <div className="flex items-center gap-2">
+              <div className="p-4 flex items-start justify-between gap-4 border-b border-border">
+                <div className="min-w-0 space-y-1.5">
+                  <div className="flex items-center gap-2 flex-wrap">
                     <h2 className="font-medium truncate">
                       {conversaAtual.cliente_nome ?? conversaAtual.nome_cliente ?? "Desconhecido"}
                     </h2>
                     <StatusPill status={conversaAtual.status} />
                   </div>
                   <p className="text-xs text-muted-foreground">{conversaAtual.telefone}</p>
+                  <TagsConversa conversaId={conversaAtual.id} aplicadas={conversaAtual.tags ?? []} />
                 </div>
                 <div className="flex items-center gap-2">
-                  {status === "escalado" && (
+                  {(status === "escalado" || status === "em_atendimento") && (
                     <Button
                       size="sm"
                       variant="outline"
@@ -271,7 +376,7 @@ export default function Atendimento() {
                       Marcar como resolvido
                     </Button>
                   )}
-                  {(status === "escalado" || status === "resolvido") && (
+                  {status !== "bot_ativo" && (
                     <Button
                       size="sm"
                       variant="secondary"
@@ -291,6 +396,7 @@ export default function Atendimento() {
                   {mensagens.map((m) => {
                     const saida = m.direcao === "saida";
                     const bot = saida && m.origem === "bot";
+                    const imagem = m.tipo === "imagem" && !!m.media_url;
                     return (
                       <div key={String(m.id)} className={cn("flex", saida ? "justify-end" : "justify-start")}>
                         <div
@@ -307,7 +413,17 @@ export default function Atendimento() {
                               {bot ? "Bot" : "Atendente"}
                             </div>
                           )}
-                          <p className="whitespace-pre-wrap break-words">{m.conteudo}</p>
+                          {imagem && (
+                            <a href={m.media_url!} target="_blank" rel="noreferrer">
+                              <img
+                                src={m.media_url!}
+                                alt={m.conteudo || "Imagem"}
+                                className="rounded-md max-h-64 w-auto object-cover mb-1"
+                                loading="lazy"
+                              />
+                            </a>
+                          )}
+                          {!!m.conteudo && <p className="whitespace-pre-wrap break-words">{m.conteudo}</p>}
                           <p className="text-[10px] text-muted-foreground mt-1 text-right">
                             {horaCurta(m.criado_em ?? m.enviado_em)}
                           </p>
@@ -322,27 +438,65 @@ export default function Atendimento() {
               <Separator />
 
               {podeResponder ? (
-                <div className="p-3 flex items-end gap-2">
-                  <Textarea
-                    value={texto}
-                    onChange={(e) => setTexto(e.target.value)}
-                    placeholder="Escreva sua resposta…"
-                    rows={2}
-                    className="resize-none"
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" && !e.shiftKey) {
-                        e.preventDefault();
-                        if (texto.trim()) enviar.mutate(texto.trim());
-                      }
-                    }}
-                  />
-                  <Button
-                    onClick={() => texto.trim() && enviar.mutate(texto.trim())}
-                    disabled={!texto.trim() || enviar.isPending}
-                  >
-                    <Send className="h-4 w-4 mr-2" />
-                    Enviar
-                  </Button>
+                <div className="p-3 space-y-2">
+                  {previewUrl && (
+                    <div className="flex items-start gap-3 rounded-md border border-border p-2">
+                      <img src={previewUrl} alt="Prévia" className="h-20 w-20 rounded object-cover" />
+                      <div className="flex-1 space-y-2">
+                        <Input
+                          value={legenda}
+                          onChange={(e) => setLegenda(e.target.value)}
+                          placeholder="Legenda (opcional)"
+                          className="h-8 text-xs"
+                        />
+                        <div className="flex gap-2">
+                          <Button size="sm" onClick={confirmarEnvioImagem} disabled={enviandoImagem}>
+                            {enviandoImagem ? "Enviando…" : "Enviar imagem"}
+                          </Button>
+                          <Button size="sm" variant="ghost" onClick={limparPreview} disabled={enviandoImagem}>
+                            <X className="h-4 w-4 mr-1" />
+                            Cancelar
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                  <div className="flex items-end gap-2">
+                    <input
+                      ref={fileRef}
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(e) => selecionarArquivo(e.target.files?.[0] ?? null)}
+                    />
+                    <Button size="icon" variant="outline" onClick={() => fileRef.current?.click()} title="Enviar imagem">
+                      <ImagePlus className="h-4 w-4" />
+                    </Button>
+                    <Button size="sm" variant="outline" onClick={() => setCatalogoAberto(true)}>
+                      <LayoutGrid className="h-4 w-4 mr-2" />
+                      Catálogo
+                    </Button>
+                    <Textarea
+                      value={texto}
+                      onChange={(e) => setTexto(e.target.value)}
+                      placeholder="Escreva sua resposta…"
+                      rows={2}
+                      className="resize-none"
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" && !e.shiftKey) {
+                          e.preventDefault();
+                          if (texto.trim()) enviar.mutate(texto.trim());
+                        }
+                      }}
+                    />
+                    <Button
+                      onClick={() => texto.trim() && enviar.mutate(texto.trim())}
+                      disabled={!texto.trim() || enviar.isPending}
+                    >
+                      <Send className="h-4 w-4 mr-2" />
+                      Enviar
+                    </Button>
+                  </div>
                 </div>
               ) : (
                 <div className="p-4 text-sm text-muted-foreground text-center">
@@ -354,7 +508,20 @@ export default function Atendimento() {
             </>
           )}
         </Card>
+
+        {/* Painel lateral direito */}
+        <div className="hidden xl:flex flex-col overflow-hidden">
+          {conversaAtual ? (
+            <PerfilCliente conversaId={conversaAtual.id} autor={autor} />
+          ) : (
+            <Card className="flex-1 flex items-center justify-center text-sm text-muted-foreground">
+              Nenhuma conversa selecionada
+            </Card>
+          )}
+        </div>
       </div>
+
+      <CatalogoDialog open={catalogoAberto} onOpenChange={setCatalogoAberto} onSelecionar={enviarProduto} />
     </div>
   );
 }
