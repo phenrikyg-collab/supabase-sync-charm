@@ -341,6 +341,19 @@ export function AparenciaTab() {
                 placeholder="Parabéns! Você ganhou 10% OFF."
               />
             </div>
+            <div className="space-y-1.5 md:col-span-2">
+              <Label>Cupom do jogo</Label>
+              <Input
+                value={cfg.lead_jogo_cupom_codigo}
+                maxLength={40}
+                onChange={(e) => set({ lead_jogo_cupom_codigo: e.target.value.toUpperCase() })}
+                placeholder="SORTE10"
+              />
+              <p className="flex items-start gap-1.5 text-xs text-muted-foreground">
+                <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-500" />
+                Esse código precisa existir e estar ativo no Tray/Vindi antes de salvar aqui.
+              </p>
+            </div>
           </fieldset>
         </CardContent>
       </Card>
