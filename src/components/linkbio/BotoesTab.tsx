@@ -21,6 +21,7 @@ export type Botao = {
   utm_medium: string;
   utm_campaign: string;
   icone: string;
+  cor_destaque: string;
   destaque: boolean;
   ativo: boolean;
   ordem: number;
@@ -33,6 +34,7 @@ const vazio = (ordem: number): Botao => ({
   utm_medium: "",
   utm_campaign: "",
   icone: "",
+  cor_destaque: "",
   destaque: false,
   ativo: true,
   ordem,
@@ -68,6 +70,7 @@ export function BotoesTab() {
         utm_medium: b.utm_medium ?? "",
         utm_campaign: b.utm_campaign ?? "",
         icone: b.icone ?? "",
+        cor_destaque: b.cor_destaque ?? "",
         destaque: !!b.destaque,
         ativo: b.ativo ?? true,
         ordem: b.ordem ?? i + 1,
@@ -123,6 +126,7 @@ export function BotoesTab() {
           p_utm_medium: b.utm_medium || null,
           p_utm_campaign: b.utm_campaign || null,
           p_icone: b.icone || null,
+          p_cor_destaque: b.cor_destaque || null,
           p_destaque: b.destaque,
           p_ativo: b.ativo,
           p_ordem: i + 1,
@@ -230,6 +234,28 @@ export function BotoesTab() {
                 <div className="space-y-1.5">
                   <Label>Ícone (opcional)</Label>
                   <Input value={b.icone} onChange={(e) => upd(idx, { icone: e.target.value })} placeholder="Ex: shopping-bag" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Cor do botão (opcional)</Label>
+                  <div className="flex items-center gap-2">
+                    <Input
+                      type="color"
+                      className="h-10 w-14 p-1"
+                      value={b.cor_destaque || "#000000"}
+                      onChange={(e) => upd(idx, { cor_destaque: e.target.value })}
+                      aria-label="Selecionar cor do botão"
+                    />
+                    <Input
+                      value={b.cor_destaque}
+                      onChange={(e) => upd(idx, { cor_destaque: e.target.value })}
+                      placeholder="#25D366"
+                    />
+                    {b.cor_destaque && (
+                      <Button variant="ghost" size="sm" onClick={() => upd(idx, { cor_destaque: "" })}>
+                        Limpar
+                      </Button>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
