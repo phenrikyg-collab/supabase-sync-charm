@@ -13,6 +13,14 @@ export type ConfigGeral = {
   titulo: string;
   descricao: string;
   ordem_blocos: string[];
+  lead_titulo: string;
+  lead_descricao: string;
+  lead_cta_texto: string;
+  lead_cupom_codigo: string;
+  lead_microcopy: string;
+  lead_campo_nome_obrigatorio: boolean;
+  lead_campo_whatsapp_obrigatorio: boolean;
+  lead_campo_email_obrigatorio: boolean;
 };
 
 export const CONFIG_PADRAO: ConfigGeral = {
@@ -20,6 +28,14 @@ export const CONFIG_PADRAO: ConfigGeral = {
   titulo: "",
   descricao: "",
   ordem_blocos: [...BLOCOS_IDS],
+  lead_titulo: "",
+  lead_descricao: "",
+  lead_cta_texto: "",
+  lead_cupom_codigo: "",
+  lead_microcopy: "",
+  lead_campo_nome_obrigatorio: true,
+  lead_campo_whatsapp_obrigatorio: true,
+  lead_campo_email_obrigatorio: false,
 };
 
 const BUCKET = "linkbio";
@@ -40,6 +56,14 @@ export async function carregarConfigGeral(): Promise<ConfigGeral> {
     titulo: cfg.titulo ?? "",
     descricao: cfg.descricao ?? "",
     ordem_blocos: normalizarOrdem(cfg.ordem_blocos),
+    lead_titulo: cfg.lead_titulo ?? "",
+    lead_descricao: cfg.lead_descricao ?? "",
+    lead_cta_texto: cfg.lead_cta_texto ?? "",
+    lead_cupom_codigo: cfg.lead_cupom_codigo ?? "",
+    lead_microcopy: cfg.lead_microcopy ?? "",
+    lead_campo_nome_obrigatorio: cfg.lead_campo_nome_obrigatorio ?? true,
+    lead_campo_whatsapp_obrigatorio: cfg.lead_campo_whatsapp_obrigatorio ?? true,
+    lead_campo_email_obrigatorio: cfg.lead_campo_email_obrigatorio ?? false,
   };
 }
 
@@ -49,6 +73,14 @@ export async function salvarConfigGeral(cfg: ConfigGeral) {
     p_titulo: cfg.titulo || null,
     p_descricao: cfg.descricao || null,
     p_ordem_blocos: normalizarOrdem(cfg.ordem_blocos),
+    p_lead_titulo: cfg.lead_titulo.trim() || null,
+    p_lead_descricao: cfg.lead_descricao.trim() || null,
+    p_lead_cta_texto: cfg.lead_cta_texto.trim() || null,
+    p_lead_cupom_codigo: cfg.lead_cupom_codigo.trim().toUpperCase() || null,
+    p_lead_microcopy: cfg.lead_microcopy.trim() || null,
+    p_lead_campo_nome_obrigatorio: cfg.lead_campo_nome_obrigatorio,
+    p_lead_campo_whatsapp_obrigatorio: cfg.lead_campo_whatsapp_obrigatorio,
+    p_lead_campo_email_obrigatorio: cfg.lead_campo_email_obrigatorio,
   });
   if (error) throw error;
 }
