@@ -14,7 +14,7 @@ import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import {
   Bot, CheckCircle2, ImagePlus, LayoutGrid, MessageCircle, RotateCcw, Search, Send, User, X,
-  Hand,
+  UserCheck,
 } from "lucide-react";
 import { TagsConversa, TagChip, type Tag } from "@/components/atendimento/TagsConversa";
 import { CatalogoDialog, formatarPreco, legendaProduto, type ProdutoCatalogo } from "@/components/atendimento/CatalogoDialog";
@@ -381,7 +381,7 @@ export default function Atendimento() {
                 </div>
                 <div className="flex items-center gap-2">
                   <Button size="sm" variant="default" onClick={() => assumir.mutate()} disabled={assumir.isPending}>
-                    <Hand className="h-4 w-4 mr-2" />
+                    <UserCheck className="h-4 w-4 mr-2" />
                     Assumir conversa
                   </Button>
                   {(status === "escalado" || status === "em_atendimento") && (
