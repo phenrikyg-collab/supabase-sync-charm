@@ -196,7 +196,7 @@ export function AparenciaTab() {
             <Switch
               id="lead-ativo"
               checked={cfg.lead_ativo}
-              onCheckedChange={(v) => set({ lead_ativo: v })}
+              onCheckedChange={(v) => alternar("lead_ativo", v)}
             />
             <Label htmlFor="lead-ativo" className="cursor-pointer">
               Exibir formulário de cupom na página pública
