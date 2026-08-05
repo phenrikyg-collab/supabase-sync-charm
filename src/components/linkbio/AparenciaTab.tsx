@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { GripVertical, ImagePlus, Loader2, Save } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -8,15 +9,16 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   BLOCOS_DISPONIVEIS,
-  PERFIL_PADRAO,
-  PerfilLinkBio,
-  carregarPerfil,
-  salvarPerfil,
+  CONFIG_PADRAO,
+  ConfigGeral,
+  carregarConfigGeral,
+  salvarConfigGeral,
   uploadLogo,
 } from "@/lib/linkbioPerfil";
 
 export function AparenciaTab() {
-  const [perfil, setPerfil] = useState<PerfilLinkBio>(PERFIL_PADRAO);
+  const qc = useQueryClient();
+  const [cfg, setCfg] = useState<ConfigGeral>(CONFIG_PADRAO);
   const [carregando, setCarregando] = useState(true);
   const [salvando, setSalvando] = useState(false);
   const [enviando, setEnviando] = useState(false);
@@ -24,16 +26,17 @@ export function AparenciaTab() {
   const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    carregarPerfil()
-      .then(setPerfil)
+    carregarConfigGeral()
+      .then(setCfg)
+      .catch((e: any) => toast.error(e.message ?? "Erro ao carregar a configuração."))
       .finally(() => setCarregando(false));
   }, []);
 
-  const set = (patch: Partial<PerfilLinkBio>) => setPerfil((p) => ({ ...p, ...patch }));
+  const set = (patch: Partial<ConfigGeral>) => setCfg((p) => ({ ...p, ...patch }));
 
   const onDrop = (destino: number) => {
     if (dragIdx === null || dragIdx === destino) return;
-    setPerfil((p) => {
+    setCfg((p) => {
       const copia = [...p.ordem_blocos];
       const [mov] = copia.splice(dragIdx, 1);
       copia.splice(destino, 0, mov);
@@ -58,7 +61,8 @@ export function AparenciaTab() {
   const salvar = async () => {
     setSalvando(true);
     try {
-      await salvarPerfil(perfil);
+      await salvarConfigGeral(cfg);
+      qc.invalidateQueries({ queryKey: ["linkbio-config"] });
       toast.success("Aparência salva. A página pública já reflete a alteração.");
     } catch (e: any) {
       toast.error(e.message ?? "Erro ao salvar.");
@@ -91,8 +95,8 @@ export function AparenciaTab() {
         <CardContent className="space-y-4">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
             <div className="flex h-24 w-24 shrink-0 items-center justify-center overflow-hidden rounded-full border bg-muted">
-              {perfil.logo_url ? (
-                <img src={perfil.logo_url} alt="Logo da página link na bio" className="h-full w-full object-cover" />
+              {cfg.logo_url ? (
+                <img src={cfg.logo_url} alt="Logo da página link na bio" className="h-full w-full object-cover" />
               ) : (
                 <ImagePlus className="h-6 w-6 text-muted-foreground" />
               )}
@@ -109,7 +113,7 @@ export function AparenciaTab() {
                 {enviando ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <ImagePlus className="h-4 w-4 mr-2" />}
                 Trocar logo
               </Button>
-              {perfil.logo_url && (
+              {cfg.logo_url && (
                 <Button variant="ghost" size="sm" className="ml-2" onClick={() => set({ logo_url: "" })}>
                   Remover
                 </Button>
@@ -120,13 +124,13 @@ export function AparenciaTab() {
 
           <div className="grid gap-4 md:grid-cols-2">
             <div className="space-y-1.5">
-              <Label>Nome exibido</Label>
-              <Input value={perfil.nome} onChange={(e) => set({ nome: e.target.value })} placeholder="Use Mariana Cardoso" />
+              <Label>Título</Label>
+              <Input value={cfg.titulo} onChange={(e) => set({ titulo: e.target.value })} placeholder="Use Mariana Cardoso" />
             </div>
             <div className="space-y-1.5 md:col-span-2">
-              <Label>Descrição</Label>
+              <Label>Descrição (bio curta)</Label>
               <Textarea
-                value={perfil.descricao}
+                value={cfg.descricao}
                 onChange={(e) => set({ descricao: e.target.value })}
                 rows={3}
                 placeholder="Moda feminina que veste bem de verdade."
@@ -142,7 +146,7 @@ export function AparenciaTab() {
         </CardHeader>
         <CardContent className="space-y-2">
           <p className="text-sm text-muted-foreground">Arraste pelo ícone para definir a sequência exibida na bio.</p>
-          {perfil.ordem_blocos.map((id, idx) => {
+          {cfg.ordem_blocos.map((id, idx) => {
             const bloco = BLOCOS_DISPONIVEIS.find((b) => b.id === id);
             return (
               <div
