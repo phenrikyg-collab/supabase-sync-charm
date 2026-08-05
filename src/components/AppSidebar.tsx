@@ -123,6 +123,14 @@ const moduleGroups: ModuleGroup[] = [
       { title: "Link na Bio", url: "/link-na-bio", icon: LinkIcon },
     ],
   },
+  {
+    key: "comercial",
+    label: "Atendimento",
+    icon: MessageCircle,
+    items: [
+      { title: "WhatsApp", url: "/atendimento", icon: MessageCircle },
+    ],
+  },
 ];
 
 export function AppSidebar() {
