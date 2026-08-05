@@ -63,6 +63,8 @@ import LinkNaBio from "./pages/LinkNaBio";
 import Atendimento from "./pages/Atendimento";
 import Automacoes from "./pages/Automacoes";
 import AutomacaoFluxo from "./pages/AutomacaoFluxo";
+import EmailMarketing from "./pages/EmailMarketing";
+import EmailTemplateEditor from "./pages/EmailTemplateEditor";
 import { Loader2 } from "lucide-react";
 import { useUserModules } from "@/hooks/useUserModules";
 
