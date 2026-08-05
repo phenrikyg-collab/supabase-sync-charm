@@ -6,17 +6,33 @@ import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Search } from "lucide-react";
 
+export type TamanhoDisponivel = { tamanho: string; estoque: number };
+
 export type ProdutoCatalogo = {
   id?: number | string;
+  produto_id?: number | string;
   nome: string;
   preco?: number | null;
+  preco_cheio?: number | null;
+  preco_parcelado_5x?: number | null;
+  preco_pix?: number | null;
   imagem?: string | null;
   disponivel?: boolean | null;
+  tamanhos_disponiveis?: TamanhoDisponivel[] | null;
 };
 
 export function formatarPreco(v?: number | null) {
   if (v == null) return "—";
   return v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+}
+
+/** Legenda de 3 informações usada ao enviar o produto na conversa. */
+export function legendaProduto(p: ProdutoCatalogo) {
+  const cheio = p.preco_cheio ?? p.preco;
+  const partes = [formatarPreco(cheio)];
+  if (p.preco_parcelado_5x != null) partes.push(`5x de ${formatarPreco(p.preco_parcelado_5x)} sem juros`);
+  if (p.preco_pix != null) partes.push(`${formatarPreco(p.preco_pix)} no Pix (5% OFF)`);
+  return `${p.nome}\n${partes.join(" | ")}`;
 }
 
 export function CatalogoDialog({
@@ -63,7 +79,7 @@ export function CatalogoDialog({
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
             {produtos.map((p, i) => (
               <button
-                key={String(p.id ?? i)}
+                key={String(p.produto_id ?? p.id ?? i)}
                 onClick={() => onSelecionar(p)}
                 className="text-left border border-border rounded-lg overflow-hidden hover:border-primary transition-colors"
               >
@@ -74,7 +90,34 @@ export function CatalogoDialog({
                 </div>
                 <div className="p-2 space-y-1">
                   <p className="text-xs font-medium line-clamp-2">{p.nome}</p>
-                  <p className="text-xs text-muted-foreground">{formatarPreco(p.preco)}</p>
+                  <p className="text-sm font-bold">{formatarPreco(p.preco_cheio ?? p.preco)}</p>
+                  {p.preco_parcelado_5x != null && (
+                    <p className="text-[11px] text-muted-foreground">
+                      ou 5x de {formatarPreco(p.preco_parcelado_5x)} sem juros
+                    </p>
+                  )}
+                  {p.preco_pix != null && (
+                    <p className="text-[11px] font-semibold text-success">
+                      💚 {formatarPreco(p.preco_pix)} no Pix (5% OFF)
+                    </p>
+                  )}
+                  {!!p.tamanhos_disponiveis?.length && (
+                    <div className="flex flex-wrap gap-1 pt-0.5">
+                      {p.tamanhos_disponiveis.map((t) => (
+                        <span
+                          key={t.tamanho}
+                          title={`${t.estoque} em estoque`}
+                          className={
+                            t.estoque > 0
+                              ? "inline-flex rounded bg-muted text-foreground px-1.5 py-0.5 text-[10px] font-medium"
+                              : "inline-flex rounded bg-muted/50 text-muted-foreground line-through opacity-60 px-1.5 py-0.5 text-[10px]"
+                          }
+                        >
+                          {t.tamanho}
+                        </span>
+                      ))}
+                    </div>
+                  )}
                   {p.disponivel === false && (
                     <span className="inline-flex rounded-full border border-danger/20 bg-danger/10 text-danger px-2 py-0.5 text-[10px] font-semibold">
                       indisponível

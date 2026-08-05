@@ -14,9 +14,10 @@ import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import {
   Bot, CheckCircle2, ImagePlus, LayoutGrid, MessageCircle, RotateCcw, Search, Send, User, X,
+  Hand,
 } from "lucide-react";
 import { TagsConversa, TagChip, type Tag } from "@/components/atendimento/TagsConversa";
-import { CatalogoDialog, formatarPreco, type ProdutoCatalogo } from "@/components/atendimento/CatalogoDialog";
+import { CatalogoDialog, formatarPreco, legendaProduto, type ProdutoCatalogo } from "@/components/atendimento/CatalogoDialog";
 import { PerfilCliente } from "@/components/atendimento/PerfilCliente";
 
 type Conversa = {
@@ -219,13 +220,27 @@ export default function Atendimento() {
 
   const enviarProduto = async (p: ProdutoCatalogo) => {
     try {
-      await enviarImagem(p.imagem ?? "", `${p.nome} — ${formatarPreco(p.preco)}`);
+      await enviarImagem(p.imagem ?? "", legendaProduto(p));
       setCatalogoAberto(false);
       toast({ title: "Produto enviado" });
     } catch (e: any) {
       toast({ title: "Erro ao enviar produto", description: e.message, variant: "destructive" });
     }
   };
+
+  const assumir = useMutation({
+    mutationFn: async () => {
+      const { error } = await supabase.rpc("whatsapp_assumir_conversa" as any, {
+        p_conversa_id: Number.isNaN(Number(selecionada)) ? selecionada : Number(selecionada),
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast({ title: "Conversa assumida" });
+      queryClient.invalidateQueries({ queryKey: ["whatsapp-conversas"] });
+    },
+    onError: (e: any) => toast({ title: "Erro ao assumir conversa", description: e.message, variant: "destructive" }),
+  });
 
   const reativarBot = useMutation({
     mutationFn: async () => {
@@ -365,6 +380,10 @@ export default function Atendimento() {
                   <TagsConversa conversaId={conversaAtual.id} aplicadas={conversaAtual.tags ?? []} />
                 </div>
                 <div className="flex items-center gap-2">
+                  <Button size="sm" variant="default" onClick={() => assumir.mutate()} disabled={assumir.isPending}>
+                    <Hand className="h-4 w-4 mr-2" />
+                    Assumir conversa
+                  </Button>
                   {(status === "escalado" || status === "em_atendimento") && (
                     <Button
                       size="sm"
