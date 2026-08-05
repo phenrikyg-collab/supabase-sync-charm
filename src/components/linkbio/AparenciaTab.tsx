@@ -1,12 +1,13 @@
 import { useEffect, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { GripVertical, ImagePlus, Loader2, Save } from "lucide-react";
+import { AlertTriangle, GripVertical, ImagePlus, Loader2, Save } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Switch } from "@/components/ui/switch";
 import {
   BLOCOS_DISPONIVEIS,
   CONFIG_PADRAO,
@@ -169,6 +170,95 @@ export function AparenciaTab() {
               </div>
             );
           })}
+        </CardContent>
+      </Card>
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base">Formulário de Cupom</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="space-y-1.5">
+              <Label>Título do card</Label>
+              <Input
+                value={cfg.lead_titulo}
+                maxLength={120}
+                onChange={(e) => set({ lead_titulo: e.target.value })}
+                placeholder="Ganhe 10% OFF na primeira compra"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Texto do botão (CTA)</Label>
+              <Input
+                value={cfg.lead_cta_texto}
+                maxLength={60}
+                onChange={(e) => set({ lead_cta_texto: e.target.value })}
+                placeholder="Quero meu desconto"
+              />
+            </div>
+            <div className="space-y-1.5 md:col-span-2">
+              <Label>Descrição do card</Label>
+              <Textarea
+                value={cfg.lead_descricao}
+                maxLength={300}
+                rows={2}
+                onChange={(e) => set({ lead_descricao: e.target.value })}
+                placeholder="Cupom na hora, direto no seu WhatsApp."
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Código do cupom</Label>
+              <Input
+                value={cfg.lead_cupom_codigo}
+                maxLength={40}
+                onChange={(e) => set({ lead_cupom_codigo: e.target.value.toUpperCase() })}
+                placeholder="BEMVINDA"
+              />
+              <p className="flex items-start gap-1.5 text-xs text-muted-foreground">
+                <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-500" />
+                Esse código precisa existir e estar ativo no Tray/Vindi antes de salvar aqui.
+              </p>
+            </div>
+            <div className="space-y-1.5">
+              <Label>Microcopy abaixo do botão</Label>
+              <Input
+                value={cfg.lead_microcopy}
+                maxLength={160}
+                onChange={(e) => set({ lead_microcopy: e.target.value })}
+                placeholder="Cupom liberado na hora. Sem spam."
+              />
+            </div>
+          </div>
+
+          <div className="space-y-2 rounded-md border bg-muted/30 p-3">
+            <p className="text-sm font-medium">Campos obrigatórios no formulário</p>
+            <div className="flex flex-wrap gap-6">
+              <div className="flex items-center gap-2">
+                <Switch
+                  id="lead-nome"
+                  checked={cfg.lead_campo_nome_obrigatorio}
+                  onCheckedChange={(v) => set({ lead_campo_nome_obrigatorio: v })}
+                />
+                <Label htmlFor="lead-nome" className="cursor-pointer">Nome obrigatório</Label>
+              </div>
+              <div className="flex items-center gap-2">
+                <Switch
+                  id="lead-whatsapp"
+                  checked={cfg.lead_campo_whatsapp_obrigatorio}
+                  onCheckedChange={(v) => set({ lead_campo_whatsapp_obrigatorio: v })}
+                />
+                <Label htmlFor="lead-whatsapp" className="cursor-pointer">WhatsApp obrigatório</Label>
+              </div>
+              <div className="flex items-center gap-2">
+                <Switch
+                  id="lead-email"
+                  checked={cfg.lead_campo_email_obrigatorio}
+                  onCheckedChange={(v) => set({ lead_campo_email_obrigatorio: v })}
+                />
+                <Label htmlFor="lead-email" className="cursor-pointer">Email obrigatório</Label>
+              </div>
+            </div>
+          </div>
         </CardContent>
       </Card>
     </div>
