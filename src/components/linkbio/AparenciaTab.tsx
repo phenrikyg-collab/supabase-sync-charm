@@ -59,6 +59,21 @@ export function AparenciaTab() {
     }
   };
 
+  // Cada toggle é independente: atualiza só a sua chave e persiste sozinho.
+  const alternar = async (chave: "lead_ativo" | "lead_jogo_ativo", valor: boolean) => {
+    const anterior = cfg[chave];
+    const proximo = { ...cfg, [chave]: valor };
+    setCfg(proximo);
+    try {
+      await salvarConfigGeral(proximo);
+      qc.invalidateQueries({ queryKey: ["linkbio-config"] });
+      toast.success(valor ? "Ativado." : "Desativado.");
+    } catch (e: any) {
+      setCfg((p) => ({ ...p, [chave]: anterior }));
+      toast.error(e.message ?? "Erro ao salvar.");
+    }
+  };
+
   const salvar = async () => {
     setSalvando(true);
     try {
