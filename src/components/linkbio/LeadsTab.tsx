@@ -165,6 +165,77 @@ export function LeadsTab() {
         ))}
       </div>
 
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0">
+          <CardTitle className="text-base">Comparativo Semanal</CardTitle>
+          <Select value={semanas} onValueChange={setSemanas}>
+            <SelectTrigger className="w-36"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="4">4 semanas</SelectItem>
+              <SelectItem value="8">8 semanas</SelectItem>
+              <SelectItem value="12">12 semanas</SelectItem>
+            </SelectContent>
+          </Select>
+        </CardHeader>
+        <CardContent className="space-y-5">
+          {loadingComparativo ? (
+            <div className="flex justify-center py-10"><Loader2 className="h-5 w-5 animate-spin text-primary" /></div>
+          ) : (
+            <>
+              <div className="rounded-lg border bg-muted/30 p-4">
+                <p className="text-sm text-muted-foreground">Sessões nesta semana</p>
+                <div className="mt-1 flex flex-wrap items-center gap-3">
+                  <span className="text-3xl font-semibold">
+                    {Number(comp?.sessoes_atual ?? comp?.total_sessoes ?? 0).toLocaleString("pt-BR")}
+                  </span>
+                  {variacao === null ? (
+                    <span className="flex items-center gap-1 text-sm text-muted-foreground">
+                      <ArrowRight className="h-4 w-4" /> Sem dado suficiente para comparar
+                    </span>
+                  ) : (
+                    <span
+                      className={`flex items-center gap-1 text-sm font-medium ${
+                        variacao > 0 ? "text-emerald-600" : variacao < 0 ? "text-destructive" : "text-muted-foreground"
+                      }`}
+                    >
+                      {variacao > 0 ? <ArrowUpRight className="h-4 w-4" /> : variacao < 0 ? <ArrowDownRight className="h-4 w-4" /> : <ArrowRight className="h-4 w-4" />}
+                      {Math.abs(variacao).toFixed(1)}% {variacao >= 0 ? "mais" : "menos"} acessos que a semana passada
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {serieSemanas.length === 0 ? (
+                <p className="py-6 text-center text-sm text-muted-foreground">Sem dados no período.</p>
+              ) : (
+                <div className="h-72 w-full">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={serieSemanas} margin={{ top: 8, right: 8, left: -12, bottom: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                      <XAxis dataKey="semana" tick={{ fontSize: 12 }} stroke="hsl(var(--muted-foreground))" />
+                      <YAxis tick={{ fontSize: 12 }} stroke="hsl(var(--muted-foreground))" />
+                      <Tooltip
+                        contentStyle={{
+                          background: "hsl(var(--card))",
+                          border: "1px solid hsl(var(--border))",
+                          borderRadius: 8,
+                          color: "hsl(var(--foreground))",
+                        }}
+                      />
+                      <Legend />
+                      <Bar dataKey="sessoes" name="Sessões" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+                      <Bar dataKey="leads" name="Leads" fill="hsl(var(--muted-foreground))" radius={[4, 4, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              )}
+            </>
+          )}
+        </CardContent>
+      </Card>
+
+
+
       <div className="grid gap-4 lg:grid-cols-2">
         <Card>
           <CardHeader><CardTitle className="text-base">Botões mais clicados</CardTitle></CardHeader>
