@@ -16,7 +16,7 @@ import {
   Bot, CheckCircle2, ImagePlus, LayoutGrid, MessageCircle, RotateCcw, Search, Send, User, X,
 } from "lucide-react";
 import { TagsConversa, TagChip, type Tag } from "@/components/atendimento/TagsConversa";
-import { CatalogoDialog, formatarPreco, type ProdutoCatalogo } from "@/components/atendimento/CatalogoDialog";
+import { CatalogoDialog, formatarPreco, legendaProduto, type ProdutoCatalogo } from "@/components/atendimento/CatalogoDialog";
 import { PerfilCliente } from "@/components/atendimento/PerfilCliente";
 
 type Conversa = {
