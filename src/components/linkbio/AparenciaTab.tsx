@@ -320,6 +320,8 @@ export function AparenciaTab() {
               </div>
             </div>
           </div>
+          </fieldset>
+
         </CardContent>
       </Card>
     </div>
