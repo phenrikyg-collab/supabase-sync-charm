@@ -131,6 +131,14 @@ const moduleGroups: ModuleGroup[] = [
       { title: "WhatsApp", url: "/atendimento", icon: MessageCircle },
     ],
   },
+  {
+    key: "automacoes",
+    label: "Automações",
+    icon: Workflow,
+    items: [
+      { title: "Fluxos", url: "/automacoes", icon: Workflow },
+    ],
+  },
 ];
 
 export function AppSidebar() {
