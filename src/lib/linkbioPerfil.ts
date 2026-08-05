@@ -28,6 +28,7 @@ export type ConfigGeral = {
   lead_jogo_qtd_caixas: number;
   lead_jogo_texto_vitoria: string;
   lead_jogo_cupom_codigo: string;
+  lead_jogo_texto_ja_jogou: string;
 };
 
 export const CONFIG_PADRAO: ConfigGeral = {
@@ -49,6 +50,7 @@ export const CONFIG_PADRAO: ConfigGeral = {
   lead_jogo_qtd_caixas: 3,
   lead_jogo_texto_vitoria: "",
   lead_jogo_cupom_codigo: "",
+  lead_jogo_texto_ja_jogou: "",
 };
 
 const BUCKET = "linkbio";
@@ -83,6 +85,7 @@ export async function carregarConfigGeral(): Promise<ConfigGeral> {
     lead_jogo_qtd_caixas: Math.min(8, Math.max(3, Number(cfg.lead_jogo_qtd_caixas) || 3)),
     lead_jogo_texto_vitoria: cfg.lead_jogo_texto_vitoria ?? "",
     lead_jogo_cupom_codigo: cfg.lead_jogo_cupom_codigo ?? "",
+    lead_jogo_texto_ja_jogou: cfg.lead_jogo_texto_ja_jogou ?? "",
   };
 }
 
@@ -106,6 +109,7 @@ export async function salvarConfigGeral(cfg: ConfigGeral) {
     p_lead_jogo_qtd_caixas: Math.min(8, Math.max(3, Number(cfg.lead_jogo_qtd_caixas) || 3)),
     p_lead_jogo_texto_vitoria: cfg.lead_jogo_texto_vitoria.trim() || null,
     p_lead_jogo_cupom_codigo: cfg.lead_jogo_cupom_codigo.trim().toUpperCase() || null,
+    p_lead_jogo_texto_ja_jogou: cfg.lead_jogo_texto_ja_jogou.trim() || null,
   });
   if (error) throw error;
 }
