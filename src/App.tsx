@@ -63,6 +63,8 @@ import LinkNaBio from "./pages/LinkNaBio";
 import Atendimento from "./pages/Atendimento";
 import Automacoes from "./pages/Automacoes";
 import AutomacaoFluxo from "./pages/AutomacaoFluxo";
+import EmailMarketing from "./pages/EmailMarketing";
+import EmailTemplateEditor from "./pages/EmailTemplateEditor";
 import { Loader2 } from "lucide-react";
 import { useUserModules } from "@/hooks/useUserModules";
 
@@ -183,6 +185,8 @@ const AppRoutes = () => {
               <Route path="/link-na-bio" element={<LinkNaBio />} />
               <Route path="/atendimento" element={<Atendimento />} />
               <Route path="/automacoes" element={<Automacoes />} />
+              <Route path="/email-marketing" element={<EmailMarketing />} />
+              <Route path="/email-marketing/templates/:id" element={<EmailTemplateEditor />} />
               <Route path="/automacoes/:id" element={<AutomacaoFluxo />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
