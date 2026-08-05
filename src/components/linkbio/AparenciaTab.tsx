@@ -59,6 +59,21 @@ export function AparenciaTab() {
     }
   };
 
+  // Cada toggle é independente: atualiza só a sua chave e persiste sozinho.
+  const alternar = async (chave: "lead_ativo" | "lead_jogo_ativo", valor: boolean) => {
+    const anterior = cfg[chave];
+    const proximo = { ...cfg, [chave]: valor };
+    setCfg(proximo);
+    try {
+      await salvarConfigGeral(proximo);
+      qc.invalidateQueries({ queryKey: ["linkbio-config"] });
+      toast.success(valor ? "Ativado." : "Desativado.");
+    } catch (e: any) {
+      setCfg((p) => ({ ...p, [chave]: anterior }));
+      toast.error(e.message ?? "Erro ao salvar.");
+    }
+  };
+
   const salvar = async () => {
     setSalvando(true);
     try {
@@ -181,7 +196,7 @@ export function AparenciaTab() {
             <Switch
               id="lead-ativo"
               checked={cfg.lead_ativo}
-              onCheckedChange={(v) => set({ lead_ativo: v })}
+              onCheckedChange={(v) => alternar("lead_ativo", v)}
             />
             <Label htmlFor="lead-ativo" className="cursor-pointer">
               Exibir formulário de cupom na página pública
@@ -273,55 +288,60 @@ export function AparenciaTab() {
             </div>
           </div>
 
-          <div className="space-y-4 rounded-md border bg-muted/30 p-3">
-            <div className="flex items-center gap-2">
-              <Switch
-                id="lead-jogo"
-                checked={cfg.lead_jogo_ativo}
-                onCheckedChange={(v) => set({ lead_jogo_ativo: v })}
-              />
-              <Label htmlFor="lead-jogo" className="cursor-pointer">Ativar jogo de caixas</Label>
-            </div>
-
-            <div className="grid gap-4 md:grid-cols-2">
-              <div className="space-y-1.5">
-                <Label>Título do jogo</Label>
-                <Input
-                  value={cfg.lead_jogo_titulo}
-                  maxLength={120}
-                  disabled={!cfg.lead_jogo_ativo}
-                  onChange={(e) => set({ lead_jogo_titulo: e.target.value })}
-                  placeholder="Escolha uma caixa e ganhe seu prêmio"
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label>Quantidade de caixas</Label>
-                <Input
-                  type="number"
-                  min={3}
-                  max={8}
-                  value={cfg.lead_jogo_qtd_caixas}
-                  disabled={!cfg.lead_jogo_ativo}
-                  onChange={(e) =>
-                    set({ lead_jogo_qtd_caixas: Math.min(8, Math.max(3, Number(e.target.value) || 3)) })
-                  }
-                />
-                <p className="text-xs text-muted-foreground">Entre 3 e 8 caixas.</p>
-              </div>
-              <div className="space-y-1.5 md:col-span-2">
-                <Label>Texto de vitória</Label>
-                <Input
-                  value={cfg.lead_jogo_texto_vitoria}
-                  maxLength={160}
-                  disabled={!cfg.lead_jogo_ativo}
-                  onChange={(e) => set({ lead_jogo_texto_vitoria: e.target.value })}
-                  placeholder="Parabéns! Você ganhou 10% OFF."
-                />
-              </div>
-            </div>
-          </div>
           </fieldset>
+        </CardContent>
+      </Card>
 
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base">Jogo de Caixas</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex items-center gap-2 rounded-md border bg-muted/30 p-3">
+            <Switch
+              id="lead-jogo"
+              checked={cfg.lead_jogo_ativo}
+              onCheckedChange={(v) => alternar("lead_jogo_ativo", v)}
+            />
+            <Label htmlFor="lead-jogo" className="cursor-pointer">Ativar jogo de caixas</Label>
+          </div>
+
+          <fieldset
+            disabled={!cfg.lead_jogo_ativo}
+            className={cfg.lead_jogo_ativo ? "grid gap-4 md:grid-cols-2" : "grid gap-4 md:grid-cols-2 opacity-50"}
+          >
+            <div className="space-y-1.5">
+              <Label>Título do jogo</Label>
+              <Input
+                value={cfg.lead_jogo_titulo}
+                maxLength={120}
+                onChange={(e) => set({ lead_jogo_titulo: e.target.value })}
+                placeholder="Escolha uma caixa e ganhe seu prêmio"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Quantidade de caixas</Label>
+              <Input
+                type="number"
+                min={3}
+                max={8}
+                value={cfg.lead_jogo_qtd_caixas}
+                onChange={(e) =>
+                  set({ lead_jogo_qtd_caixas: Math.min(8, Math.max(3, Number(e.target.value) || 3)) })
+                }
+              />
+              <p className="text-xs text-muted-foreground">Entre 3 e 8 caixas.</p>
+            </div>
+            <div className="space-y-1.5 md:col-span-2">
+              <Label>Texto de vitória</Label>
+              <Input
+                value={cfg.lead_jogo_texto_vitoria}
+                maxLength={160}
+                onChange={(e) => set({ lead_jogo_texto_vitoria: e.target.value })}
+                placeholder="Parabéns! Você ganhou 10% OFF."
+              />
+            </div>
+          </fieldset>
         </CardContent>
       </Card>
     </div>
