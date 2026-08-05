@@ -4,6 +4,7 @@ export const BLOCOS_DISPONIVEIS = [
   { id: "produto_destaque", nome: "Produto em Destaque" },
   { id: "botoes", nome: "Botões" },
   { id: "lead_capture", nome: "Captura de Lead" },
+  { id: "jogo_caixas", nome: "Jogo de Caixas" },
 ] as const;
 
 export const BLOCOS_IDS = BLOCOS_DISPONIVEIS.map((b) => b.id) as string[];
