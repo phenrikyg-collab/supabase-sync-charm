@@ -1,0 +1,360 @@
+import { useEffect, useRef, useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Separator } from "@/components/ui/separator";
+import { toast } from "@/hooks/use-toast";
+import { cn } from "@/lib/utils";
+import { formatDistanceToNow } from "date-fns";
+import { ptBR } from "date-fns/locale";
+import { Bot, CheckCircle2, MessageCircle, RotateCcw, Search, Send, User } from "lucide-react";
+
+type Conversa = {
+  id: number | string;
+  conversa_id?: number | string;
+  cliente_nome?: string | null;
+  nome_cliente?: string | null;
+  telefone: string;
+  ultima_mensagem?: string | null;
+  ultima_mensagem_em?: string | null;
+  atualizado_em?: string | null;
+  status: string;
+};
+
+type Mensagem = {
+  id: number | string;
+  conteudo: string;
+  direcao: "entrada" | "saida";
+  origem?: string | null;
+  criado_em?: string | null;
+  enviado_em?: string | null;
+};
+
+const STATUS_META: Record<string, { label: string; className: string }> = {
+  escalado: { label: "Aguardando atendimento", className: "bg-danger/10 text-danger border-danger/20" },
+  bot_ativo: { label: "Bot ativo", className: "bg-muted text-muted-foreground border-border" },
+  resolvido: { label: "Resolvido", className: "bg-success/10 text-success border-success/20" },
+};
+
+function StatusPill({ status, className }: { status: string; className?: string }) {
+  const meta = STATUS_META[status] ?? {
+    label: status,
+    className: "bg-muted text-muted-foreground border-border",
+  };
+  return (
+    <span
+      className={cn(
+        "inline-flex items-center rounded-full border px-2.5 py-0.5 text-[11px] font-semibold whitespace-nowrap",
+        meta.className,
+        className,
+      )}
+    >
+      {meta.label}
+    </span>
+  );
+}
+
+function tempoRelativo(valor?: string | null) {
+  if (!valor) return "";
+  const d = new Date(valor);
+  if (Number.isNaN(d.getTime())) return "";
+  return formatDistanceToNow(d, { addSuffix: true, locale: ptBR });
+}
+
+function horaCurta(valor?: string | null) {
+  if (!valor) return "";
+  const d = new Date(valor);
+  if (Number.isNaN(d.getTime())) return "";
+  return d.toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
+}
+
+export default function Atendimento() {
+  const queryClient = useQueryClient();
+  const [selecionada, setSelecionada] = useState<string | null>(null);
+  const [busca, setBusca] = useState("");
+  const [texto, setTexto] = useState("");
+  const fimRef = useRef<HTMLDivElement>(null);
+
+  const { data: conversas = [], isLoading: carregandoConversas } = useQuery({
+    queryKey: ["whatsapp-conversas"],
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc("whatsapp_listar_conversas" as any);
+      if (error) throw error;
+      return ((data ?? []) as any[]).map((c) => ({
+        ...c,
+        id: c.id ?? c.conversa_id,
+      })) as Conversa[];
+    },
+    refetchInterval: 15000,
+  });
+
+  const conversaAtual = conversas.find((c) => String(c.id) === selecionada) ?? null;
+
+  const { data: mensagens = [], isLoading: carregandoMensagens } = useQuery({
+    queryKey: ["whatsapp-mensagens", selecionada],
+    enabled: !!selecionada,
+    refetchInterval: 15000,
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc("whatsapp_get_mensagens_conversa" as any, {
+        p_conversa_id: Number.isNaN(Number(selecionada)) ? selecionada : Number(selecionada),
+      });
+      if (error) throw error;
+      return (data ?? []) as Mensagem[];
+    },
+  });
+
+  useEffect(() => {
+    fimRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [mensagens.length, selecionada]);
+
+  const enviar = useMutation({
+    mutationFn: async (conteudo: string) => {
+      if (!conversaAtual) throw new Error("Nenhuma conversa selecionada");
+      const { data, error } = await supabase.functions.invoke("whatsapp-enviar-mensagem-humano", {
+        body: {
+          conversa_id: conversaAtual.id,
+          telefone: conversaAtual.telefone,
+          conteudo,
+        },
+      });
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      setTexto("");
+      queryClient.invalidateQueries({ queryKey: ["whatsapp-mensagens", selecionada] });
+      queryClient.invalidateQueries({ queryKey: ["whatsapp-conversas"] });
+    },
+    onError: (e: any) => toast({ title: "Erro ao enviar", description: e.message, variant: "destructive" }),
+  });
+
+  const reativarBot = useMutation({
+    mutationFn: async () => {
+      const { error } = await supabase.rpc("whatsapp_reativar_bot" as any, {
+        p_conversa_id: Number.isNaN(Number(selecionada)) ? selecionada : Number(selecionada),
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast({ title: "Bot reativado" });
+      queryClient.invalidateQueries({ queryKey: ["whatsapp-conversas"] });
+    },
+    onError: (e: any) => toast({ title: "Erro ao reativar bot", description: e.message, variant: "destructive" }),
+  });
+
+  const resolver = useMutation({
+    mutationFn: async () => {
+      const { error } = await supabase.rpc("whatsapp_marcar_resolvido" as any, {
+        p_conversa_id: Number.isNaN(Number(selecionada)) ? selecionada : Number(selecionada),
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast({ title: "Conversa marcada como resolvida" });
+      queryClient.invalidateQueries({ queryKey: ["whatsapp-conversas"] });
+    },
+    onError: (e: any) =>
+      toast({
+        title: "Não foi possível resolver",
+        description: e.message?.includes("does not exist")
+          ? "A função whatsapp_marcar_resolvido ainda não existe no banco."
+          : e.message,
+        variant: "destructive",
+      }),
+  });
+
+  const filtradas = conversas.filter((c) => {
+    if (!busca.trim()) return true;
+    const t = busca.toLowerCase();
+    const nome = (c.cliente_nome ?? c.nome_cliente ?? "").toLowerCase();
+    return nome.includes(t) || (c.telefone ?? "").toLowerCase().includes(t);
+  });
+
+  const status = conversaAtual?.status ?? "";
+  const podeResponder = status === "escalado";
+
+  return (
+    <div className="p-6 max-w-[1600px] mx-auto space-y-4">
+      <div>
+        <h1 className="font-serif text-4xl text-foreground">Atendimento</h1>
+        <p className="text-muted-foreground text-sm mt-1">
+          Conversas de WhatsApp — assuma o atendimento quando o bot escalar.
+        </p>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-[360px_1fr] gap-4 h-[calc(100vh-220px)] min-h-[520px]">
+        {/* Lista de conversas */}
+        <Card className="flex flex-col overflow-hidden">
+          <div className="p-3 border-b border-border">
+            <div className="relative">
+              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Input
+                value={busca}
+                onChange={(e) => setBusca(e.target.value)}
+                placeholder="Buscar por nome ou telefone"
+                className="pl-8"
+              />
+            </div>
+          </div>
+          <ScrollArea className="flex-1">
+            {carregandoConversas && (
+              <p className="p-4 text-sm text-muted-foreground">Carregando conversas…</p>
+            )}
+            {!carregandoConversas && filtradas.length === 0 && (
+              <p className="p-4 text-sm text-muted-foreground">Nenhuma conversa encontrada.</p>
+            )}
+            {filtradas.map((c) => {
+              const nome = c.cliente_nome ?? c.nome_cliente ?? "Desconhecido";
+              const ativa = String(c.id) === selecionada;
+              return (
+                <button
+                  key={String(c.id)}
+                  onClick={() => setSelecionada(String(c.id))}
+                  className={cn(
+                    "w-full text-left px-4 py-3 border-b border-border/60 transition-colors hover:bg-accent/60",
+                    ativa && "bg-accent",
+                  )}
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className="font-medium text-sm truncate">{nome}</p>
+                      <p className="text-xs text-muted-foreground">{c.telefone}</p>
+                    </div>
+                    <span className="text-[10px] text-muted-foreground whitespace-nowrap">
+                      {tempoRelativo(c.ultima_mensagem_em ?? c.atualizado_em)}
+                    </span>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1 line-clamp-1">
+                    {c.ultima_mensagem ?? "—"}
+                  </p>
+                  <div className="mt-2">
+                    <StatusPill status={c.status} />
+                  </div>
+                </button>
+              );
+            })}
+          </ScrollArea>
+        </Card>
+
+        {/* Thread */}
+        <Card className="flex flex-col overflow-hidden">
+          {!conversaAtual ? (
+            <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground gap-2">
+              <MessageCircle className="h-10 w-10 opacity-40" />
+              <p className="text-sm">Selecione uma conversa para começar.</p>
+            </div>
+          ) : (
+            <>
+              <div className="p-4 flex items-center justify-between gap-4 border-b border-border">
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2">
+                    <h2 className="font-medium truncate">
+                      {conversaAtual.cliente_nome ?? conversaAtual.nome_cliente ?? "Desconhecido"}
+                    </h2>
+                    <StatusPill status={conversaAtual.status} />
+                  </div>
+                  <p className="text-xs text-muted-foreground">{conversaAtual.telefone}</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  {status === "escalado" && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => resolver.mutate()}
+                      disabled={resolver.isPending}
+                    >
+                      <CheckCircle2 className="h-4 w-4 mr-2" />
+                      Marcar como resolvido
+                    </Button>
+                  )}
+                  {(status === "escalado" || status === "resolvido") && (
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      onClick={() => reativarBot.mutate()}
+                      disabled={reativarBot.isPending}
+                    >
+                      <RotateCcw className="h-4 w-4 mr-2" />
+                      Reativar bot
+                    </Button>
+                  )}
+                </div>
+              </div>
+
+              <ScrollArea className="flex-1 p-4">
+                {carregandoMensagens && <p className="text-sm text-muted-foreground">Carregando mensagens…</p>}
+                <div className="space-y-3">
+                  {mensagens.map((m) => {
+                    const saida = m.direcao === "saida";
+                    const bot = saida && m.origem === "bot";
+                    return (
+                      <div key={String(m.id)} className={cn("flex", saida ? "justify-end" : "justify-start")}>
+                        <div
+                          className={cn(
+                            "max-w-[70%] rounded-lg px-3 py-2 text-sm border",
+                            !saida && "bg-muted text-foreground border-border",
+                            saida && bot && "bg-info/10 text-foreground border-info/30",
+                            saida && !bot && "bg-primary/10 text-foreground border-primary/30",
+                          )}
+                        >
+                          {saida && (
+                            <div className="flex items-center gap-1 text-[10px] uppercase tracking-wider text-muted-foreground mb-1">
+                              {bot ? <Bot className="h-3 w-3" /> : <User className="h-3 w-3" />}
+                              {bot ? "Bot" : "Atendente"}
+                            </div>
+                          )}
+                          <p className="whitespace-pre-wrap break-words">{m.conteudo}</p>
+                          <p className="text-[10px] text-muted-foreground mt-1 text-right">
+                            {horaCurta(m.criado_em ?? m.enviado_em)}
+                          </p>
+                        </div>
+                      </div>
+                    );
+                  })}
+                  <div ref={fimRef} />
+                </div>
+              </ScrollArea>
+
+              <Separator />
+
+              {podeResponder ? (
+                <div className="p-3 flex items-end gap-2">
+                  <Textarea
+                    value={texto}
+                    onChange={(e) => setTexto(e.target.value)}
+                    placeholder="Escreva sua resposta…"
+                    rows={2}
+                    className="resize-none"
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && !e.shiftKey) {
+                        e.preventDefault();
+                        if (texto.trim()) enviar.mutate(texto.trim());
+                      }
+                    }}
+                  />
+                  <Button
+                    onClick={() => texto.trim() && enviar.mutate(texto.trim())}
+                    disabled={!texto.trim() || enviar.isPending}
+                  >
+                    <Send className="h-4 w-4 mr-2" />
+                    Enviar
+                  </Button>
+                </div>
+              ) : (
+                <div className="p-4 text-sm text-muted-foreground text-center">
+                  {status === "resolvido"
+                    ? "Conversa resolvida."
+                    : "O bot está respondendo esta conversa."}
+                </div>
+              )}
+            </>
+          )}
+        </Card>
+      </div>
+    </div>
+  );
+}
