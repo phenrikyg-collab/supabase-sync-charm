@@ -2,7 +2,7 @@ import {
   LayoutDashboard, Package, Plus, Palette, Scissors, Factory,
   Truck, DollarSign, Target, FileText, Building2, LogOut, Users, Home, BarChart3, Upload, Layers,
   ShoppingBag, Banknote, Wrench, CreditCard, PieChart, Monitor, Settings, Trophy, CalendarDays, TrendingUp, ClipboardList, Megaphone, Tag, Sparkles, Heart, LayoutGrid,
-  Compass, Link as LinkIcon,
+  Compass, Link as LinkIcon, MessageCircle,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useAuth } from "@/contexts/AuthContext";
@@ -178,7 +178,7 @@ export function AppSidebar() {
             );
 
             return (
-              <Collapsible key={group.key} defaultOpen>
+              <Collapsible key={group.label} defaultOpen>
                 <SidebarGroup>
                   <CollapsibleTrigger className="w-full">
                     <SidebarGroupLabel className="text-sidebar-foreground/40 uppercase tracking-widest text-[10px] cursor-pointer hover:text-sidebar-foreground/60 transition-colors flex items-center justify-between w-full">
