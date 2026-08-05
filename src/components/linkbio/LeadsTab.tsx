@@ -24,6 +24,15 @@ const formatarData = (v?: string | null) => {
   return d.toLocaleDateString("pt-BR") + " " + d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
 };
 
+const formatarDiaMes = (v?: string | null) => {
+  if (!v) return "—";
+  const d = new Date(v);
+  if (isNaN(d.getTime())) return "—";
+  return d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", timeZone: "UTC" });
+};
+
+
+
 type Lead = {
   id?: string;
   nome?: string | null;
