@@ -219,22 +219,7 @@ export function PerfilCliente({ conversaId, autor }: { conversaId: number | stri
                 </section>
               )}
 
-              {!!perfil.pedidos?.length && (
-                <section className="space-y-1.5">
-                  <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Pedidos</p>
-                  {[...perfil.pedidos]
-                    .sort((a, b) => new Date(b.data ?? 0).getTime() - new Date(a.data ?? 0).getTime())
-                    .map((p) => (
-                      <div key={String(p.id)} className="flex items-center justify-between gap-2 text-xs border border-border rounded-md p-2">
-                        <div className="min-w-0">
-                          <p className="font-medium truncate">#{p.id}</p>
-                          <p className="text-[10px] text-muted-foreground">{dataCurta(p.data)} · {p.status ?? "—"}</p>
-                        </div>
-                        <span className="font-semibold whitespace-nowrap">{formatarPreco(p.total)}</span>
-                      </div>
-                    ))}
-                </section>
-              )}
+              {!!perfil.pedidos?.length && <SecaoPedidos pedidos={perfil.pedidos} />}
 
               {!!perfil.produtos_comprados?.length && (
                 <section className="space-y-1.5">
