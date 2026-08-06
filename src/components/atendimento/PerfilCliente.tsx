@@ -139,6 +139,85 @@ function NotasInternas({ conversaId, autor }: { conversaId: number | string; aut
   );
 }
 
+type Pedido = NonNullable<Perfil["pedidos"]>[number];
+
+function CupomBadge({ cupom }: { cupom?: string | null }) {
+  if (!cupom) return null;
+  return (
+    <span className="inline-flex items-center gap-1 rounded-full border border-border bg-muted px-1.5 py-0.5 text-[10px] font-medium">
+      <Tag className="h-2.5 w-2.5" />
+      {cupom}
+    </span>
+  );
+}
+
+function ListaProdutos({ produtos }: { produtos?: Pedido["produtos"] }) {
+  if (!produtos?.length) return null;
+  return (
+    <ul className="mt-1.5 space-y-0.5">
+      {produtos.map((pr, i) => (
+        <li key={i} className="text-[10px] text-muted-foreground">
+          • {(pr.quantidade ?? 1) > 1 ? `${pr.quantidade}x ` : ""}
+          {pr.nome}
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function SecaoPedidos({ pedidos }: { pedidos: Pedido[] }) {
+  const [expandido, setExpandido] = useState(false);
+  const [ultimo, ...demais] = pedidos;
+
+  return (
+    <section className="space-y-1.5">
+      <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Pedidos</p>
+
+      <div className="rounded-md border border-border p-2">
+        <div className="flex items-start justify-between gap-2">
+          <div className="min-w-0">
+            <p className="text-xs font-medium truncate">#{ultimo.id}</p>
+            <p className="text-[10px] text-muted-foreground">
+              {dataCurta(ultimo.data)} · {ultimo.status ?? "—"}
+            </p>
+          </div>
+          <span className="text-xs font-semibold whitespace-nowrap">{formatarPreco(ultimo.total)}</span>
+        </div>
+        {ultimo.cupom && <div className="mt-1.5"><CupomBadge cupom={ultimo.cupom} /></div>}
+        <ListaProdutos produtos={ultimo.produtos} />
+      </div>
+
+      {demais.length > 0 && (
+        <>
+          {expandido && (
+            <div className="space-y-1">
+              {demais.map((p) => (
+                <div key={String(p.id)} className="flex items-center justify-between gap-2 rounded-md border border-border px-2 py-1.5">
+                  <div className="min-w-0">
+                    <p className="text-[11px] font-medium truncate">
+                      #{p.id} · {dataCurta(p.data)}
+                    </p>
+                    <p className="text-[10px] text-muted-foreground truncate">{p.status ?? "—"}</p>
+                    {p.cupom && <div className="mt-1"><CupomBadge cupom={p.cupom} /></div>}
+                  </div>
+                  <span className="text-[11px] font-semibold whitespace-nowrap">{formatarPreco(p.total)}</span>
+                </div>
+              ))}
+            </div>
+          )}
+          <button
+            type="button"
+            onClick={() => setExpandido((v) => !v)}
+            className="w-full text-[11px] font-medium text-primary hover:underline"
+          >
+            {expandido ? "Ver menos" : `Ver todos os pedidos (${pedidos.length})`}
+          </button>
+        </>
+      )}
+    </section>
+  );
+}
+
 export function PerfilCliente({ conversaId, autor }: { conversaId: number | string; autor: string }) {
   const pId = Number.isNaN(Number(conversaId)) ? conversaId : Number(conversaId);
 
