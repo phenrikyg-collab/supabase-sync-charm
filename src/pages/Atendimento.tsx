@@ -115,6 +115,15 @@ export default function Atendimento() {
 
   const conversaAtual = conversas.find((c) => String(c.id) === selecionada) ?? null;
 
+  // Deep link: /atendimento?telefone=5511...
+  useEffect(() => {
+    const alvo = new URLSearchParams(window.location.search).get("telefone");
+    if (!alvo || selecionada || conversas.length === 0) return;
+    const digitos = alvo.replace(/\D/g, "");
+    const achou = conversas.find((c) => (c.telefone ?? "").replace(/\D/g, "").endsWith(digitos.slice(-8)));
+    if (achou) setSelecionada(String(achou.id));
+  }, [conversas, selecionada]);
+
   const { data: mensagens = [], isLoading: carregandoMensagens } = useQuery({
     queryKey: ["whatsapp-mensagens", selecionada],
     enabled: !!selecionada,
