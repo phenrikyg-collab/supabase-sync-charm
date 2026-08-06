@@ -57,6 +57,8 @@ import PlanejamentoMensal from "./pages/PlanejamentoMensal";
 import PlanejamentoSimulador from "./pages/PlanejamentoSimulador";
 import MatrizCriativa from "./pages/MatrizCriativa";
 import Aviamentos from "./pages/Aviamentos";
+import DashboardRFM from "./pages/DashboardRFM";
+import DashboardProdutos from "./pages/DashboardProdutos";
 import PlanejamentoConteudoMensal from "./pages/PlanejamentoConteudoMensal";
 import Tendencias from "./pages/Tendencias";
 import LinkNaBio from "./pages/LinkNaBio";
@@ -179,6 +181,8 @@ const AppRoutes = () => {
               <Route path="/planejamento/simulador" element={<PlanejamentoSimulador />} />
               <Route path="/marketing/matriz-criativa" element={<MatrizCriativa />} />
               <Route path="/aviamentos" element={<Aviamentos />} />
+              <Route path="/dashboard-rfm" element={<DashboardRFM />} />
+              <Route path="/dashboard-produtos" element={<DashboardProdutos />} />
               <Route path="/planejamento-conteudo-mensal" element={<PlanejamentoConteudoMensal />} />
               <Route path="/planejamento" element={<Navigate to="/planejamento-conteudo-mensal" replace />} />
               <Route path="/tendencias" element={<Tendencias />} />

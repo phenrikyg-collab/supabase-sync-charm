@@ -13,7 +13,6 @@ import { Loader2, Users, Send, Workflow, Search } from "lucide-react";
 import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, Cell,
 } from "recharts";
-import { formatarData } from "@/utils/formatters";
 
 type ResumoRFM = {
   segmento_rfm: string;
