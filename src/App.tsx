@@ -192,6 +192,7 @@ const AppRoutes = () => {
               <Route path="/automacoes" element={<Automacoes />} />
               <Route path="/email-marketing" element={<EmailMarketing />} />
               <Route path="/email-marketing/templates/:id" element={<EmailTemplateEditor />} />
+              <Route path="/marketing-whatsapp" element={<MarketingWhatsApp />} />
               <Route path="/automacoes/:id" element={<AutomacaoFluxo />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
