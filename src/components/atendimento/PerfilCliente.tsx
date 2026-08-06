@@ -21,8 +21,16 @@ type Perfil = {
     segmento?: string; frequencia?: number; valor_total?: number; ticket_medio?: number;
     dias_desde_ultima_compra?: number;
   } | null;
-  pedidos?: { id: number | string; status?: string; total?: number; data?: string }[] | null;
+  pedidos?: {
+    id: number | string;
+    status?: string;
+    total?: number;
+    data?: string;
+    cupom?: string | null;
+    produtos?: { nome?: string; quantidade?: number }[] | null;
+  }[] | null;
   produtos_comprados?: { imagem?: string; nome?: string; data_compra?: string }[] | null;
+  tamanho_favorito?: string | null;
 };
 
 type Nota = { id: number | string; autor?: string; conteudo: string; criado_em?: string };
