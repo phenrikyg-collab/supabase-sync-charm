@@ -142,6 +142,14 @@ const moduleGroups: ModuleGroup[] = [
     ],
   },
   {
+    key: "marketing",
+    label: "Marketing WhatsApp",
+    icon: MessageCircle,
+    items: [
+      { title: "Templates, Segmentos e Campanhas", url: "/marketing-whatsapp", icon: MessageCircle },
+    ],
+  },
+  {
     key: "automacoes",
     label: "Automações",
     icon: Workflow,
