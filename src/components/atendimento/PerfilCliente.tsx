@@ -8,7 +8,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
-import { ChevronDown, Scissors, StickyNote, Tag, UserX } from "lucide-react";
+import { ChevronDown, CreditCard, Scissors, Sparkles, StickyNote, Tag, UserX } from "lucide-react";
 import { formatarPreco } from "./CatalogoDialog";
 
 type Perfil = {
@@ -31,6 +31,8 @@ type Perfil = {
   }[] | null;
   produtos_comprados?: { imagem?: string; nome?: string; data_compra?: string }[] | null;
   tamanho_favorito?: string | null;
+  forma_pagamento_preferida?: { forma?: string | null; quantidade?: number | null } | null;
+  sugestoes_estoque?: { produto_id?: string | number; nome?: string; preco?: number; imagem?: string }[] | null;
 };
 
 type Nota = { id: number | string; autor?: string; conteudo: string; criado_em?: string };
@@ -218,8 +220,39 @@ function SecaoPedidos({ pedidos }: { pedidos: Pedido[] }) {
   );
 }
 
-export function PerfilCliente({ conversaId, autor }: { conversaId: number | string; autor: string }) {
+export function PerfilCliente({
+  conversaId,
+  autor,
+  telefone,
+}: {
+  conversaId: number | string;
+  autor: string;
+  telefone?: string;
+}) {
   const pId = Number.isNaN(Number(conversaId)) ? conversaId : Number(conversaId);
+  const [enviandoId, setEnviandoId] = useState<string | null>(null);
+
+  const enviarSugestao = async (pr: { produto_id?: string | number; nome?: string; preco?: number; imagem?: string }) => {
+    const chave = String(pr.produto_id ?? pr.nome ?? "");
+    setEnviandoId(chave);
+    try {
+      const { error } = await supabase.functions.invoke("whatsapp-enviar-mensagem-humano", {
+        body: {
+          conversa_id: conversaId,
+          telefone,
+          conteudo: `${pr.nome ?? "Produto"} — ${formatarPreco(pr.preco)}`,
+          tipo: "imagem",
+          media_url: pr.imagem ?? "",
+        },
+      });
+      if (error) throw error;
+      toast({ title: "Produto enviado" });
+    } catch (e: any) {
+      toast({ title: "Erro ao enviar produto", description: e.message, variant: "destructive" });
+    } finally {
+      setEnviandoId(null);
+    }
+  };
 
   const { data: perfil, isLoading } = useQuery({
     queryKey: ["whatsapp-perfil", String(conversaId)],
@@ -264,6 +297,17 @@ export function PerfilCliente({ conversaId, autor }: { conversaId: number | stri
                     <Scissors className="h-3.5 w-3.5 text-primary" />
                     <span className="text-xs text-muted-foreground">Tamanho favorito</span>
                     <span className="ml-auto text-xs font-semibold">{perfil.tamanho_favorito}</span>
+                  </div>
+                )}
+                {perfil.forma_pagamento_preferida?.forma && (
+                  <div className="mt-1.5 flex items-center gap-2 rounded-md border border-border bg-muted/50 px-2 py-1.5">
+                    <CreditCard className="h-3.5 w-3.5 text-muted-foreground" />
+                    <span className="text-xs">
+                      Paga geralmente no <strong>{perfil.forma_pagamento_preferida.forma}</strong>
+                      {perfil.forma_pagamento_preferida.quantidade
+                        ? ` (${perfil.forma_pagamento_preferida.quantidade} pedidos)`
+                        : ""}
+                    </span>
                   </div>
                 )}
               </section>
@@ -321,6 +365,37 @@ export function PerfilCliente({ conversaId, autor }: { conversaId: number | stri
                           <p className="text-[9px] text-muted-foreground">{dataCurta(pr.data_compra)}</p>
                         </div>
                       </div>
+                    ))}
+                  </div>
+                </section>
+              )}
+
+              {!!perfil.sugestoes_estoque?.length && (
+                <section className="space-y-1.5">
+                  <p className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                    <Sparkles className="h-3.5 w-3.5" />
+                    Sugestões pra ela
+                  </p>
+                  <div className="grid grid-cols-3 gap-2">
+                    {perfil.sugestoes_estoque.map((pr, i) => (
+                      <button
+                        key={String(pr.produto_id ?? i)}
+                        type="button"
+                        onClick={() => enviarSugestao(pr)}
+                        disabled={enviandoId === String(pr.produto_id ?? pr.nome ?? "")}
+                        title="Enviar para a cliente no WhatsApp"
+                        className="text-left border border-border rounded-md overflow-hidden transition-colors hover:border-primary disabled:opacity-60"
+                      >
+                        <div className="aspect-square bg-muted">
+                          {pr.imagem && (
+                            <img src={pr.imagem} alt={pr.nome ?? "Produto"} className="w-full h-full object-cover" loading="lazy" />
+                          )}
+                        </div>
+                        <div className="p-1">
+                          <p className="text-[10px] line-clamp-2">{pr.nome}</p>
+                          <p className="text-[10px] font-semibold">{formatarPreco(pr.preco)}</p>
+                        </div>
+                      </button>
                     ))}
                   </div>
                 </section>
