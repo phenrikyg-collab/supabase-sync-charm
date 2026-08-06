@@ -10,8 +10,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
-import { Loader2, Search, AlertTriangle, PauseCircle, Info } from "lucide-react";
+import { Loader2, Search, AlertTriangle, PauseCircle, Info, Circle } from "lucide-react";
 import { formatarData } from "@/utils/formatters";
+import { SortableHead, useSortable, useOrdenado } from "@/components/SortableHead";
 
 type CurvaABC = {
   produto_id: string;
@@ -27,14 +28,24 @@ type CurvaABC = {
   classe_abc: "A" | "B" | "C";
 };
 
-type SugestaoProducao = {
+type SugestaoCor = {
   produto_id: string;
   nome: string;
-  classe_abc: string;
-  mes: string;
-  estoque_atual: number;
-  quantidade_necessaria_mes: number;
-  sugestao_produzir: number;
+  cor: string | null;
+  percentual_vendas_cor: number | null;
+  estoque_cor: number | null;
+  sugestao_produzir_cor: number | null;
+  eh_preto: boolean | null;
+};
+
+type ItemEstrategico = {
+  produto_id: string;
+  nome: string;
+  receita_total: number | null;
+  unidades_vendidas: number | null;
+  preco_medio: number | null;
+  margem_contribuicao_pct: number | null;
+  estoque_atual: number | null;
 };
 
 type EstoqueEstrategico = {
@@ -54,22 +65,22 @@ const fmtInt = (n: number | null | undefined) =>
   new Intl.NumberFormat("pt-BR").format(Math.round(Number(n ?? 0)));
 const fmtPct = (n: number | null | undefined) => `${Number(n ?? 0).toFixed(2)}%`;
 
-const MESES = [
-  "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
-  "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro",
-];
-const fmtMes = (mes: string | null) => {
-  if (!mes) return "—";
-  const [ano, m] = mes.split("-");
-  const idx = Number(m) - 1;
-  return MESES[idx] ? `${MESES[idx]}/${ano}` : mes;
-};
-
 const badgeClasse = (classe: string) => {
   if (classe === "A") return "bg-[hsl(142_60%_40%)] text-white hover:bg-[hsl(142_60%_40%)]";
   if (classe === "B") return "bg-[hsl(38_92%_50%)] text-black hover:bg-[hsl(38_92%_50%)]";
   return "bg-muted text-muted-foreground hover:bg-muted";
 };
+
+const corMargem = (pct: number | null | undefined) => {
+  const v = Number(pct ?? 0);
+  if (v >= 60) return "text-[hsl(142_60%_35%)] font-semibold";
+  if (v >= 40) return "text-[hsl(38_92%_40%)] font-semibold";
+  return "text-destructive font-semibold";
+};
+
+type ChaveABC = "nome" | "classe_abc" | "receita_total" | "percentual_receita" | "unidades_vendidas" | "estoque_atual" | "ultima_venda";
+type ChaveCor = "nome" | "cor" | "percentual_vendas_cor" | "estoque_cor" | "sugestao_produzir_cor";
+type ChaveEstrat = "nome" | "receita_total" | "unidades_vendidas" | "preco_medio" | "margem_contribuicao_pct" | "estoque_atual";
 
 export default function DashboardProdutos() {
   const [filtroClasse, setFiltroClasse] = useState<"todas" | "A" | "B" | "C">("todas");
@@ -91,16 +102,30 @@ export default function DashboardProdutos() {
   });
 
   const { data: sugestoes = [], isLoading: loadingSug } = useQuery({
-    queryKey: ["vw_sugestao_producao"],
+    queryKey: ["vw_sugestao_producao_por_cor"],
     staleTime: 5 * 60 * 1000,
     refetchInterval: false,
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("vw_sugestao_producao" as any)
+        .from("vw_sugestao_producao_por_cor" as any)
         .select("*")
-        .order("sugestao_produzir", { ascending: false });
+        .order("sugestao_produzir_cor", { ascending: false });
       if (error) throw error;
-      return (data ?? []) as unknown as SugestaoProducao[];
+      return (data ?? []) as unknown as SugestaoCor[];
+    },
+  });
+
+  const { data: itensEstrategicos = [], isLoading: loadingItens } = useQuery({
+    queryKey: ["vw_itens_estrategicos"],
+    staleTime: 5 * 60 * 1000,
+    refetchInterval: false,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("vw_itens_estrategicos" as any)
+        .select("*")
+        .order("receita_total", { ascending: false });
+      if (error) throw error;
+      return (data ?? []) as unknown as ItemEstrategico[];
     },
   });
 
@@ -142,16 +167,47 @@ export default function DashboardProdutos() {
     );
   }, [abc, filtroClasse, buscaTabela]);
 
+  const sortAbc = useSortable<ChaveABC>({ key: "receita_total", dir: "desc" });
+  const abcOrdenada = useOrdenado<CurvaABC, ChaveABC>(abcFiltrada, sortAbc.sort, {
+    nome: (p) => p.nome,
+    classe_abc: (p) => p.classe_abc,
+    receita_total: (p) => Number(p.receita_total ?? 0),
+    percentual_receita: (p) => Number(p.percentual_receita ?? 0),
+    unidades_vendidas: (p) => Number(p.unidades_vendidas ?? 0),
+    estoque_atual: (p) => Number(p.estoque_atual ?? 0),
+    ultima_venda: (p) => p.ultima_venda ?? "",
+  });
+
+  const sortCor = useSortable<ChaveCor>({ key: "sugestao_produzir_cor", dir: "desc" });
+  const sugestoesOrdenadas = useOrdenado<SugestaoCor, ChaveCor>(
+    sugestoes,
+    sortCor.sort,
+    {
+      nome: (s) => s.nome,
+      cor: (s) => s.cor ?? "",
+      percentual_vendas_cor: (s) => Number(s.percentual_vendas_cor ?? 0),
+      estoque_cor: (s) => Number(s.estoque_cor ?? 0),
+      sugestao_produzir_cor: (s) => Number(s.sugestao_produzir_cor ?? 0),
+    },
+    // preto sempre no topo
+    (a, b) => Number(!!b.eh_preto) - Number(!!a.eh_preto)
+  );
+
+  const sortEstrat = useSortable<ChaveEstrat>({ key: "receita_total", dir: "desc" });
+  const itensOrdenados = useOrdenado<ItemEstrategico, ChaveEstrat>(itensEstrategicos, sortEstrat.sort, {
+    nome: (p) => p.nome,
+    receita_total: (p) => Number(p.receita_total ?? 0),
+    unidades_vendidas: (p) => Number(p.unidades_vendidas ?? 0),
+    preco_medio: (p) => Number(p.preco_medio ?? 0),
+    margem_contribuicao_pct: (p) => Number(p.margem_contribuicao_pct ?? 0),
+    estoque_atual: (p) => Number(p.estoque_atual ?? 0),
+  });
+
   const consultaEstoque = useMemo(() => {
     const q = buscaEstoque.trim().toLowerCase();
     if (!q) return [];
     return abc.filter((p) => (p.nome ?? "").toLowerCase().includes(q)).slice(0, 20);
   }, [abc, buscaEstoque]);
-
-  const mesesSugestao = useMemo(
-    () => Array.from(new Set(sugestoes.map((s) => s.mes))).sort(),
-    [sugestoes]
-  );
 
   const ruptura = useMemo(
     () =>
@@ -172,7 +228,7 @@ export default function DashboardProdutos() {
           Dashboard de <span className="text-primary">Produtos</span>
         </h1>
         <p className="text-xs sm:text-sm text-muted-foreground mt-1">
-          Curva ABC, sugestão de produção e itens estratégicos de estoque
+          Curva ABC, sugestão de produção por cor e itens estratégicos
         </p>
       </div>
 
@@ -232,17 +288,17 @@ export default function DashboardProdutos() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Produto</TableHead>
-                    <TableHead>Classe</TableHead>
-                    <TableHead className="text-right">Receita</TableHead>
-                    <TableHead className="text-right">% Receita</TableHead>
-                    <TableHead className="text-right">Unidades</TableHead>
-                    <TableHead className="text-right">Estoque</TableHead>
-                    <TableHead>Última venda</TableHead>
+                    <SortableHead campo="nome" sort={sortAbc.sort} onSort={sortAbc.alternar}>Produto</SortableHead>
+                    <SortableHead campo="classe_abc" sort={sortAbc.sort} onSort={sortAbc.alternar}>Classe</SortableHead>
+                    <SortableHead campo="receita_total" sort={sortAbc.sort} onSort={sortAbc.alternar} className="text-right">Receita</SortableHead>
+                    <SortableHead campo="percentual_receita" sort={sortAbc.sort} onSort={sortAbc.alternar} className="text-right">% Receita</SortableHead>
+                    <SortableHead campo="unidades_vendidas" sort={sortAbc.sort} onSort={sortAbc.alternar} className="text-right">Unidades</SortableHead>
+                    <SortableHead campo="estoque_atual" sort={sortAbc.sort} onSort={sortAbc.alternar} className="text-right">Estoque</SortableHead>
+                    <SortableHead campo="ultima_venda" sort={sortAbc.sort} onSort={sortAbc.alternar}>Última venda</SortableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {abcFiltrada.map((p) => (
+                  {abcOrdenada.map((p) => (
                     <TableRow key={p.produto_id}>
                       <TableCell className="font-medium">{p.nome}</TableCell>
                       <TableCell>
@@ -255,7 +311,7 @@ export default function DashboardProdutos() {
                       <TableCell>{formatarData(p.ultima_venda)}</TableCell>
                     </TableRow>
                   ))}
-                  {abcFiltrada.length === 0 && (
+                  {abcOrdenada.length === 0 && (
                     <TableRow>
                       <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
                         Nenhum produto encontrado
@@ -269,12 +325,12 @@ export default function DashboardProdutos() {
         </CardContent>
       </Card>
 
-      {/* Sugestão de Produção */}
+      {/* Sugestão de Produção por cor */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Sugestão de Produção</CardTitle>
+          <CardTitle className="text-base">Sugestão de Produção por Cor</CardTitle>
           <p className="text-xs text-muted-foreground">
-            Produtos classe A/B disponíveis, cruzados com a meta financeira do mês
+            Distribuição histórica de vendas por cor — o preto aparece sempre no topo
           </p>
         </CardHeader>
         <CardContent className="space-y-3">
@@ -282,49 +338,52 @@ export default function DashboardProdutos() {
             <div className="flex justify-center py-12">
               <Loader2 className="h-6 w-6 animate-spin text-primary" />
             </div>
-          ) : sugestoes.length === 0 ? (
+          ) : sugestoesOrdenadas.length === 0 ? (
             <div className="flex items-start gap-2 rounded-md border border-dashed p-4 text-sm text-muted-foreground">
               <Info className="h-4 w-4 mt-0.5" />
               Cadastre a meta do mês para ver sugestões de produção.
             </div>
           ) : (
-            <>
-              <p className="text-xs text-muted-foreground">
-                Meses com meta cadastrada: {mesesSugestao.map(fmtMes).join(", ")}
-              </p>
-              <div className="overflow-x-auto max-h-[520px]">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Produto</TableHead>
-                      <TableHead>Mês</TableHead>
-                      <TableHead className="text-right">Estoque atual</TableHead>
-                      <TableHead className="text-right">Necessário no mês</TableHead>
-                      <TableHead className="text-right">Produzir</TableHead>
+            <div className="overflow-x-auto max-h-[520px]">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <SortableHead campo="nome" sort={sortCor.sort} onSort={sortCor.alternar}>Produto</SortableHead>
+                    <SortableHead campo="cor" sort={sortCor.sort} onSort={sortCor.alternar}>Cor</SortableHead>
+                    <SortableHead campo="percentual_vendas_cor" sort={sortCor.sort} onSort={sortCor.alternar} className="text-right">% vendas da cor</SortableHead>
+                    <SortableHead campo="estoque_cor" sort={sortCor.sort} onSort={sortCor.alternar} className="text-right">Estoque da cor</SortableHead>
+                    <SortableHead campo="sugestao_produzir_cor" sort={sortCor.sort} onSort={sortCor.alternar} className="text-right">Produzir</SortableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {sugestoesOrdenadas.map((s, i) => (
+                    <TableRow
+                      key={`${s.produto_id}-${s.cor}-${i}`}
+                      className={s.eh_preto ? "bg-muted/60" : undefined}
+                    >
+                      <TableCell className="font-medium">{s.nome}</TableCell>
+                      <TableCell>
+                        <span className="inline-flex items-center gap-1.5">
+                          {s.eh_preto && <Circle className="h-3 w-3 fill-foreground text-foreground" />}
+                          <span className={s.eh_preto ? "font-semibold" : undefined}>{s.cor ?? "—"}</span>
+                        </span>
+                      </TableCell>
+                      <TableCell className="text-right">{fmtPct(s.percentual_vendas_cor)}</TableCell>
+                      <TableCell className="text-right">{fmtInt(s.estoque_cor)}</TableCell>
+                      <TableCell
+                        className={`text-right ${
+                          Number(s.sugestao_produzir_cor) > 0
+                            ? "font-bold text-[hsl(25_90%_45%)]"
+                            : "text-muted-foreground"
+                        }`}
+                      >
+                        {fmtInt(s.sugestao_produzir_cor)}
+                      </TableCell>
                     </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {sugestoes.map((s, i) => (
-                      <TableRow key={`${s.produto_id}-${s.mes}-${i}`}>
-                        <TableCell className="font-medium">{s.nome}</TableCell>
-                        <TableCell>{fmtMes(s.mes)}</TableCell>
-                        <TableCell className="text-right">{fmtInt(s.estoque_atual)}</TableCell>
-                        <TableCell className="text-right">{fmtInt(s.quantidade_necessaria_mes)}</TableCell>
-                        <TableCell
-                          className={`text-right ${
-                            Number(s.sugestao_produzir) > 0
-                              ? "font-bold text-[hsl(25_90%_45%)]"
-                              : "text-muted-foreground"
-                          }`}
-                        >
-                          {fmtInt(s.sugestao_produzir)}
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            </>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
           )}
         </CardContent>
       </Card>
@@ -387,6 +446,59 @@ export default function DashboardProdutos() {
       <Card>
         <CardHeader>
           <CardTitle className="text-base">Itens Estratégicos</CardTitle>
+          <p className="text-xs text-muted-foreground">
+            Produtos que mais pesam no resultado, com margem de contribuição
+          </p>
+        </CardHeader>
+        <CardContent>
+          {loadingItens ? (
+            <div className="flex justify-center py-12">
+              <Loader2 className="h-6 w-6 animate-spin text-primary" />
+            </div>
+          ) : (
+            <div className="overflow-x-auto max-h-[520px]">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <SortableHead campo="nome" sort={sortEstrat.sort} onSort={sortEstrat.alternar}>Produto</SortableHead>
+                    <SortableHead campo="receita_total" sort={sortEstrat.sort} onSort={sortEstrat.alternar} className="text-right">Receita</SortableHead>
+                    <SortableHead campo="unidades_vendidas" sort={sortEstrat.sort} onSort={sortEstrat.alternar} className="text-right">Unidades</SortableHead>
+                    <SortableHead campo="preco_medio" sort={sortEstrat.sort} onSort={sortEstrat.alternar} className="text-right">Preço médio</SortableHead>
+                    <SortableHead campo="margem_contribuicao_pct" sort={sortEstrat.sort} onSort={sortEstrat.alternar} className="text-right">Margem contrib.</SortableHead>
+                    <SortableHead campo="estoque_atual" sort={sortEstrat.sort} onSort={sortEstrat.alternar} className="text-right">Estoque</SortableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {itensOrdenados.map((p) => (
+                    <TableRow key={p.produto_id}>
+                      <TableCell className="font-medium">{p.nome}</TableCell>
+                      <TableCell className="text-right">{fmtMoney(p.receita_total)}</TableCell>
+                      <TableCell className="text-right">{fmtInt(p.unidades_vendidas)}</TableCell>
+                      <TableCell className="text-right">{fmtMoney(p.preco_medio)}</TableCell>
+                      <TableCell className={`text-right ${corMargem(p.margem_contribuicao_pct)}`}>
+                        {fmtPct(p.margem_contribuicao_pct)}
+                      </TableCell>
+                      <TableCell className="text-right">{fmtInt(p.estoque_atual)}</TableCell>
+                    </TableRow>
+                  ))}
+                  {itensOrdenados.length === 0 && (
+                    <TableRow>
+                      <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
+                        Nenhum item estratégico encontrado
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Alertas de Estoque */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Alertas de Estoque</CardTitle>
         </CardHeader>
         <CardContent>
           {loadingEstrat ? (
