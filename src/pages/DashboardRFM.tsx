@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -6,6 +6,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
@@ -13,14 +15,20 @@ import { Loader2, Users, Send, Workflow, Search } from "lucide-react";
 import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, Cell,
 } from "recharts";
+import { ConfiguracaoRFM } from "@/components/rfm/ConfiguracaoRFM";
+import {
+  ConfigRFM, carregarConfigRFM, scoreRecencia, scoreFrequencia, scoreMonetario,
+  segmentarRFM, SEGMENTOS_RECUPERACAO,
+} from "@/lib/rfm";
 
-type ResumoRFM = {
-  segmento_rfm: string;
-  total_clientes: number;
-  receita_total: number;
-  ticket_medio_segmento: number;
-  frequencia_media: number | null;
-  dias_media_ultima_compra: number;
+type ClienteRFM = {
+  tray_customer_id: string;
+  nome: string | null;
+  phone: string | null;
+  dias_desde_ultima_compra: number;
+  frequencia: number;
+  valor_total: number;
+  ticket_medio: number | null;
 };
 
 type AcaoReativacao = {
@@ -57,20 +65,37 @@ const CORES_SEGMENTO: Record<string, { bar: string; classe: string }> = {
 const corSegmento = (s: string) =>
   CORES_SEGMENTO[s] ?? { bar: "hsl(var(--primary))", classe: "border-l-4 border-l-primary" };
 
+async function buscarClientes(): Promise<ClienteRFM[]> {
+  const pagina = 1000;
+  let inicio = 0;
+  const todos: ClienteRFM[] = [];
+  // paginação recursiva para ultrapassar o limite de 1000 linhas
+  for (;;) {
+    const { data, error } = await supabase
+      .from("vw_rfm_clientes" as any)
+      .select("tray_customer_id,nome,phone,dias_desde_ultima_compra,frequencia,valor_total,ticket_medio")
+      .range(inicio, inicio + pagina - 1);
+    if (error) throw error;
+    const lote = (data ?? []) as unknown as ClienteRFM[];
+    todos.push(...lote);
+    if (lote.length < pagina) break;
+    inicio += pagina;
+  }
+  return todos;
+}
+
 export default function DashboardRFM() {
   const navigate = useNavigate();
   const [busca, setBusca] = useState("");
+  const [config, setConfig] = useState<ConfigRFM>(() => carregarConfigRFM());
+  const [soPrioritarios, setSoPrioritarios] = useState(true);
 
-  const { data: resumo = [], isLoading } = useQuery({
-    queryKey: ["vw_rfm_dashboard_resumo"],
+  useEffect(() => setConfig(carregarConfigRFM()), []);
+
+  const { data: clientes = [], isLoading } = useQuery({
+    queryKey: ["vw_rfm_clientes_full"],
     staleTime: 5 * 60 * 1000,
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("vw_rfm_dashboard_resumo" as any)
-        .select("*");
-      if (error) throw error;
-      return (data ?? []) as unknown as ResumoRFM[];
-    },
+    queryFn: buscarClientes,
   });
 
   const { data: acoes = [], isLoading: loadingAcoes } = useQuery({
@@ -81,42 +106,104 @@ export default function DashboardRFM() {
         .from("vw_acao_reativacao_por_tamanho" as any)
         .select("*")
         .order("dias_desde_ultima_compra", { ascending: false })
-        .limit(500);
+        .limit(1000);
       if (error) throw error;
       return (data ?? []) as unknown as AcaoReativacao[];
     },
   });
 
-  const segmentosOrdenados = useMemo(
-    () => [...resumo].sort((a, b) => Number(b.receita_total) - Number(a.receita_total)),
-    [resumo]
+  // Recalcula scores e segmento de cada cliente com a configuração atual
+  const clientesScored = useMemo(
+    () =>
+      clientes.map((c) => {
+        const r = scoreRecencia(Number(c.dias_desde_ultima_compra ?? 9999), config);
+        const f = scoreFrequencia(Number(c.frequencia ?? 0), config);
+        const m = scoreMonetario(Number(c.valor_total ?? 0), config);
+        return { ...c, r, f, m, segmento: segmentarRFM(r, f, m) };
+      }),
+    [clientes, config]
   );
 
-  const totalClientes = useMemo(
-    () => resumo.reduce((acc, r) => acc + Number(r.total_clientes ?? 0), 0),
-    [resumo]
-  );
+  const mapaClientes = useMemo(() => {
+    const m = new Map<string, (typeof clientesScored)[number]>();
+    clientesScored.forEach((c) => m.set(String(c.tray_customer_id), c));
+    return m;
+  }, [clientesScored]);
+
+  const segmentosOrdenados = useMemo(() => {
+    const acc = new Map<string, { total: number; receita: number; freq: number; dias: number }>();
+    clientesScored.forEach((c) => {
+      const cur = acc.get(c.segmento) ?? { total: 0, receita: 0, freq: 0, dias: 0 };
+      cur.total += 1;
+      cur.receita += Number(c.valor_total ?? 0);
+      cur.freq += Number(c.frequencia ?? 0);
+      cur.dias += Number(c.dias_desde_ultima_compra ?? 0);
+      acc.set(c.segmento, cur);
+    });
+    return [...acc.entries()]
+      .map(([segmento, v]) => ({
+        segmento_rfm: segmento,
+        total_clientes: v.total,
+        receita_total: v.receita,
+        ticket_medio_segmento: v.total ? v.receita / Math.max(v.freq, 1) : 0,
+        dias_media_ultima_compra: v.total ? v.dias / v.total : 0,
+      }))
+      .sort((a, b) => b.receita_total - a.receita_total);
+  }, [clientesScored]);
+
+  const totalClientes = clientesScored.length;
+
+  // Ações de recuperação: prioriza clientes de maior valor que estão inativos ou quase
+  const acoesPriorizadas = useMemo(() => {
+    return acoes
+      .map((a) => {
+        const c = mapaClientes.get(String(a.tray_customer_id));
+        const r = c?.r ?? scoreRecencia(Number(a.dias_desde_ultima_compra ?? 9999), config);
+        const f = c?.f ?? 1;
+        const m = c?.m ?? 1;
+        const segmento = c ? c.segmento : a.segmento_rfm;
+        // valor do cliente (F+M) ponderado pelo risco de inatividade (5 - R)
+        const prioridade = (f + m) * (5 - r);
+        return {
+          ...a,
+          segmento,
+          valor_total: c?.valor_total ?? null,
+          frequencia: c?.frequencia ?? null,
+          prioridade,
+          emRisco: SEGMENTOS_RECUPERACAO.includes(segmento as never) || r <= 3,
+        };
+      })
+      .filter((a) => (soPrioritarios ? a.emRisco && a.prioridade >= 6 : true))
+      .sort((a, b) => b.prioridade - a.prioridade || b.dias_desde_ultima_compra - a.dias_desde_ultima_compra);
+  }, [acoes, mapaClientes, config, soPrioritarios]);
 
   const acoesFiltradas = useMemo(() => {
     const q = busca.trim().toLowerCase();
-    if (!q) return acoes;
-    return acoes.filter(
+    if (!q) return acoesPriorizadas;
+    return acoesPriorizadas.filter(
       (a) =>
         (a.nome ?? "").toLowerCase().includes(q) ||
         (a.phone ?? "").includes(q) ||
         (a.nome_produto ?? "").toLowerCase().includes(q)
     );
-  }, [acoes, busca]);
+  }, [acoesPriorizadas, busca]);
 
   const dadosGrafico = useMemo(
     () =>
       segmentosOrdenados.map((s) => ({
         segmento: s.segmento_rfm,
-        clientes: Number(s.total_clientes ?? 0),
+        clientes: s.total_clientes,
         cor: corSegmento(s.segmento_rfm).bar,
       })),
     [segmentosOrdenados]
   );
+
+  const badgePrioridade = (p: number) =>
+    p >= 16
+      ? { label: "Alta", classe: "bg-danger/10 text-danger border-danger/20" }
+      : p >= 10
+      ? { label: "Média", classe: "bg-warning/10 text-warning border-warning/20" }
+      : { label: "Baixa", classe: "bg-muted text-muted-foreground border-border" };
 
   return (
     <div className="space-y-6">
@@ -128,6 +215,8 @@ export default function DashboardRFM() {
           Segmentação de clientes por recência, frequência e valor — {fmtInt(totalClientes)} clientes
         </p>
       </div>
+
+      <ConfiguracaoRFM config={config} onChange={setConfig} />
 
       {isLoading ? (
         <div className="flex justify-center py-12">
@@ -193,17 +282,24 @@ export default function DashboardRFM() {
           <div>
             <CardTitle className="text-base">Ações de Recuperação</CardTitle>
             <p className="text-xs text-muted-foreground mt-1">
-              Clientes em risco cruzados com o tamanho preferido e produtos disponíveis em estoque
+              Ordenadas por prioridade: clientes de maior valor (frequência + monetário) que estão
+              inativos ou próximos da inatividade
             </p>
           </div>
-          <div className="relative w-full sm:w-64">
-            <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Buscar cliente, telefone ou produto"
-              value={busca}
-              onChange={(e) => setBusca(e.target.value)}
-              className="pl-8"
-            />
+          <div className="flex flex-col sm:flex-row gap-3 sm:items-center">
+            <div className="flex items-center gap-2">
+              <Switch id="prioritarios" checked={soPrioritarios} onCheckedChange={setSoPrioritarios} />
+              <Label htmlFor="prioritarios" className="text-xs">Somente prioritários</Label>
+            </div>
+            <div className="relative w-full sm:w-64">
+              <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Buscar cliente, telefone ou produto"
+                value={busca}
+                onChange={(e) => setBusca(e.target.value)}
+                className="pl-8"
+              />
+            </div>
           </div>
         </CardHeader>
         <CardContent>
@@ -216,9 +312,11 @@ export default function DashboardRFM() {
               <Table>
                 <TableHeader>
                   <TableRow>
+                    <TableHead>Prioridade</TableHead>
                     <TableHead>Cliente</TableHead>
                     <TableHead>Telefone</TableHead>
                     <TableHead>Segmento</TableHead>
+                    <TableHead className="text-right">Valor gasto</TableHead>
                     <TableHead className="text-right">Dias sem comprar</TableHead>
                     <TableHead>Tamanho</TableHead>
                     <TableHead>Sugestão</TableHead>
@@ -229,41 +327,52 @@ export default function DashboardRFM() {
                 <TableBody>
                   {acoesFiltradas.length === 0 && (
                     <TableRow>
-                      <TableCell colSpan={8} className="text-center text-muted-foreground py-8">
+                      <TableCell colSpan={10} className="text-center text-muted-foreground py-8">
                         Nenhum cliente encontrado
                       </TableCell>
                     </TableRow>
                   )}
-                  {acoesFiltradas.map((a, i) => (
-                    <TableRow key={`${a.tray_customer_id}-${i}`}>
-                      <TableCell className="font-medium">{a.nome}</TableCell>
-                      <TableCell className="text-muted-foreground">{a.phone ?? "—"}</TableCell>
-                      <TableCell>
-                        <Badge variant="outline">{a.segmento_rfm}</Badge>
-                      </TableCell>
-                      <TableCell className="text-right">{fmtInt(a.dias_desde_ultima_compra)}</TableCell>
-                      <TableCell>{a.tamanho_preferido ?? "—"}</TableCell>
-                      <TableCell>{a.nome_produto ?? "—"}</TableCell>
-                      <TableCell className="text-right">{fmtInt(a.stock)}</TableCell>
-                      <TableCell className="text-right">
-                        {a.phone ? (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => navigate(`/atendimento?telefone=${encodeURIComponent(a.phone!)}`)}
-                          >
-                            <Send className="h-3.5 w-3.5 mr-1" />
-                            Enviar sugestão
-                          </Button>
-                        ) : (
-                          <Button size="sm" variant="ghost" onClick={() => navigate("/automacoes")}>
-                            <Workflow className="h-3.5 w-3.5 mr-1" />
-                            Criar automação
-                          </Button>
-                        )}
-                      </TableCell>
-                    </TableRow>
-                  ))}
+                  {acoesFiltradas.slice(0, 300).map((a, i) => {
+                    const bp = badgePrioridade(a.prioridade);
+                    return (
+                      <TableRow key={`${a.tray_customer_id}-${i}`}>
+                        <TableCell>
+                          <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold ${bp.classe}`}>
+                            {bp.label}
+                          </span>
+                        </TableCell>
+                        <TableCell className="font-medium">{a.nome}</TableCell>
+                        <TableCell className="text-muted-foreground">{a.phone ?? "—"}</TableCell>
+                        <TableCell>
+                          <Badge variant="outline">{a.segmento}</Badge>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          {a.valor_total != null ? fmtMoney(a.valor_total) : "—"}
+                        </TableCell>
+                        <TableCell className="text-right">{fmtInt(a.dias_desde_ultima_compra)}</TableCell>
+                        <TableCell>{a.tamanho_preferido ?? "—"}</TableCell>
+                        <TableCell>{a.nome_produto ?? "—"}</TableCell>
+                        <TableCell className="text-right">{fmtInt(a.stock)}</TableCell>
+                        <TableCell className="text-right">
+                          {a.phone ? (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => navigate(`/atendimento?telefone=${encodeURIComponent(a.phone!)}`)}
+                            >
+                              <Send className="h-3.5 w-3.5 mr-1" />
+                              Enviar sugestão
+                            </Button>
+                          ) : (
+                            <Button size="sm" variant="ghost" onClick={() => navigate("/automacoes")}>
+                              <Workflow className="h-3.5 w-3.5 mr-1" />
+                              Criar automação
+                            </Button>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
                 </TableBody>
               </Table>
             </div>
