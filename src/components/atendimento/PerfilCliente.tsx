@@ -382,7 +382,7 @@ export function PerfilCliente({
                         key={String(pr.produto_id ?? i)}
                         type="button"
                         onClick={() => enviarSugestao(pr)}
-                        disabled={enviandoId === String(pr.produto_id ?? i)}
+                        disabled={enviandoId === String(pr.produto_id ?? pr.nome ?? "")}
                         title="Enviar para a cliente no WhatsApp"
                         className="text-left border border-border rounded-md overflow-hidden transition-colors hover:border-primary disabled:opacity-60"
                       >

@@ -531,7 +531,7 @@ export default function Atendimento() {
         {/* Painel lateral direito */}
         <div className="hidden xl:flex flex-col overflow-hidden">
           {conversaAtual ? (
-            <PerfilCliente conversaId={conversaAtual.id} autor={autor} />
+            <PerfilCliente conversaId={conversaAtual.id} autor={autor} telefone={conversaAtual.telefone} />
           ) : (
             <Card className="flex-1 flex items-center justify-center text-sm text-muted-foreground">
               Nenhuma conversa selecionada
