@@ -268,6 +268,17 @@ export function PerfilCliente({ conversaId, autor }: { conversaId: number | stri
                     <span className="ml-auto text-xs font-semibold">{perfil.tamanho_favorito}</span>
                   </div>
                 )}
+                {perfil.forma_pagamento_preferida?.forma && (
+                  <div className="mt-1.5 flex items-center gap-2 rounded-md border border-border bg-muted/50 px-2 py-1.5">
+                    <CreditCard className="h-3.5 w-3.5 text-muted-foreground" />
+                    <span className="text-xs">
+                      Paga geralmente no <strong>{perfil.forma_pagamento_preferida.forma}</strong>
+                      {perfil.forma_pagamento_preferida.quantidade
+                        ? ` (${perfil.forma_pagamento_preferida.quantidade} pedidos)`
+                        : ""}
+                    </span>
+                  </div>
+                )}
               </section>
 
               {end && (
