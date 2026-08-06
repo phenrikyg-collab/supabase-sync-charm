@@ -31,6 +31,8 @@ type Perfil = {
   }[] | null;
   produtos_comprados?: { imagem?: string; nome?: string; data_compra?: string }[] | null;
   tamanho_favorito?: string | null;
+  forma_pagamento_preferida?: { forma?: string | null; quantidade?: number | null } | null;
+  sugestoes_estoque?: { produto_id?: string | number; nome?: string; preco?: number; imagem?: string }[] | null;
 };
 
 type Nota = { id: number | string; autor?: string; conteudo: string; criado_em?: string };
