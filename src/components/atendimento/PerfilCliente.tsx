@@ -327,6 +327,37 @@ export function PerfilCliente({ conversaId, autor }: { conversaId: number | stri
                   </div>
                 </section>
               )}
+
+              {!!perfil.sugestoes_estoque?.length && (
+                <section className="space-y-1.5">
+                  <p className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                    <Sparkles className="h-3.5 w-3.5" />
+                    Sugestões pra ela
+                  </p>
+                  <div className="grid grid-cols-3 gap-2">
+                    {perfil.sugestoes_estoque.map((pr, i) => (
+                      <button
+                        key={String(pr.produto_id ?? i)}
+                        type="button"
+                        onClick={() => enviarSugestao(pr)}
+                        disabled={enviandoId === String(pr.produto_id ?? i)}
+                        title="Enviar para a cliente no WhatsApp"
+                        className="text-left border border-border rounded-md overflow-hidden transition-colors hover:border-primary disabled:opacity-60"
+                      >
+                        <div className="aspect-square bg-muted">
+                          {pr.imagem && (
+                            <img src={pr.imagem} alt={pr.nome ?? "Produto"} className="w-full h-full object-cover" loading="lazy" />
+                          )}
+                        </div>
+                        <div className="p-1">
+                          <p className="text-[10px] line-clamp-2">{pr.nome}</p>
+                          <p className="text-[10px] font-semibold">{formatarPreco(pr.preco)}</p>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                </section>
+              )}
             </>
           )}
 
