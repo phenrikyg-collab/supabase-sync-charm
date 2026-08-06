@@ -11,11 +11,16 @@ import { Label } from "@/components/ui/label";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
-import { Loader2, Users, Send, Workflow, Search } from "lucide-react";
+import { Loader2, Users, Workflow, Search } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, Cell,
 } from "recharts";
 import { ConfiguracaoRFM } from "@/components/rfm/ConfiguracaoRFM";
+import { ClientesSegmentoSheet } from "@/components/rfm/ClientesSegmentoSheet";
+import { EnviarWhatsAppInline, AVISO_JANELA_24H } from "@/components/rfm/EnviarWhatsAppInline";
+import { RegrasMatrizTab } from "@/components/rfm/RegrasMatrizTab";
+import { EvolucaoTab } from "@/components/rfm/EvolucaoTab";
 import {
   ConfigRFM, carregarConfigRFM, scoreRecencia, scoreFrequencia, scoreMonetario,
   segmentarRFM, SEGMENTOS_RECUPERACAO,
@@ -89,6 +94,7 @@ export default function DashboardRFM() {
   const [busca, setBusca] = useState("");
   const [config, setConfig] = useState<ConfigRFM>(() => carregarConfigRFM());
   const [soPrioritarios, setSoPrioritarios] = useState(true);
+  const [segmentoAberto, setSegmentoAberto] = useState<string | null>(null);
 
   useEffect(() => setConfig(carregarConfigRFM()), []);
 
@@ -216,6 +222,15 @@ export default function DashboardRFM() {
         </p>
       </div>
 
+      <Tabs defaultValue="visao-geral" className="space-y-6">
+        <TabsList className="flex-wrap h-auto">
+          <TabsTrigger value="visao-geral">Visão Geral</TabsTrigger>
+          <TabsTrigger value="acoes">Ações de Recuperação</TabsTrigger>
+          <TabsTrigger value="config-matriz">Configuração da Matriz</TabsTrigger>
+          <TabsTrigger value="evolucao">Evolução</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="visao-geral" className="space-y-6 mt-0">
       <ConfiguracaoRFM config={config} onChange={setConfig} />
 
       {isLoading ? (
@@ -225,7 +240,14 @@ export default function DashboardRFM() {
       ) : (
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           {segmentosOrdenados.map((s) => (
-            <Card key={s.segmento_rfm} className={corSegmento(s.segmento_rfm).classe}>
+            <Card
+              key={s.segmento_rfm}
+              role="button"
+              tabIndex={0}
+              onClick={() => setSegmentoAberto(s.segmento_rfm)}
+              onKeyDown={(e) => e.key === "Enter" && setSegmentoAberto(s.segmento_rfm)}
+              className={`${corSegmento(s.segmento_rfm).classe} cursor-pointer transition-shadow hover:shadow-md`}
+            >
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm font-medium flex items-center justify-between">
                   <span>{s.segmento_rfm}</span>
@@ -243,6 +265,7 @@ export default function DashboardRFM() {
                 <p className="text-xs text-muted-foreground">
                   Última compra: {fmtInt(s.dias_media_ultima_compra)} dias (média)
                 </p>
+                <p className="text-[10px] text-primary pt-1">Ver clientes →</p>
               </CardContent>
             </Card>
           ))}
@@ -276,7 +299,9 @@ export default function DashboardRFM() {
           </ResponsiveContainer>
         </CardContent>
       </Card>
+        </TabsContent>
 
+        <TabsContent value="acoes" className="space-y-6 mt-0">
       <Card>
         <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div>
@@ -285,6 +310,7 @@ export default function DashboardRFM() {
               Ordenadas por prioridade: clientes de maior valor (frequência + monetário) que estão
               inativos ou próximos da inatividade
             </p>
+            <p className="text-[11px] text-warning mt-2">{AVISO_JANELA_24H}</p>
           </div>
           <div className="flex flex-col sm:flex-row gap-3 sm:items-center">
             <div className="flex items-center gap-2">
@@ -321,13 +347,14 @@ export default function DashboardRFM() {
                     <TableHead>Tamanho</TableHead>
                     <TableHead>Sugestão</TableHead>
                     <TableHead className="text-right">Estoque</TableHead>
+                    <TableHead>Enviar WhatsApp</TableHead>
                     <TableHead className="text-right">Ação</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {acoesFiltradas.length === 0 && (
                     <TableRow>
-                      <TableCell colSpan={10} className="text-center text-muted-foreground py-8">
+                      <TableCell colSpan={11} className="text-center text-muted-foreground py-8">
                         Nenhum cliente encontrado
                       </TableCell>
                     </TableRow>
@@ -353,6 +380,9 @@ export default function DashboardRFM() {
                         <TableCell>{a.tamanho_preferido ?? "—"}</TableCell>
                         <TableCell>{a.nome_produto ?? "—"}</TableCell>
                         <TableCell className="text-right">{fmtInt(a.stock)}</TableCell>
+                        <TableCell>
+                          <EnviarWhatsAppInline telefone={a.phone} />
+                        </TableCell>
                         <TableCell className="text-right">
                           {a.phone ? (
                             <Button
@@ -360,8 +390,7 @@ export default function DashboardRFM() {
                               variant="outline"
                               onClick={() => navigate(`/atendimento?telefone=${encodeURIComponent(a.phone!)}`)}
                             >
-                              <Send className="h-3.5 w-3.5 mr-1" />
-                              Enviar sugestão
+                              Abrir atendimento
                             </Button>
                           ) : (
                             <Button size="sm" variant="ghost" onClick={() => navigate("/automacoes")}>
@@ -379,6 +408,21 @@ export default function DashboardRFM() {
           )}
         </CardContent>
       </Card>
+        </TabsContent>
+
+        <TabsContent value="config-matriz" className="mt-0">
+          <RegrasMatrizTab />
+        </TabsContent>
+
+        <TabsContent value="evolucao" className="mt-0">
+          <EvolucaoTab />
+        </TabsContent>
+      </Tabs>
+
+      <ClientesSegmentoSheet
+        segmento={segmentoAberto}
+        onOpenChange={(aberto) => !aberto && setSegmentoAberto(null)}
+      />
     </div>
   );
 }
