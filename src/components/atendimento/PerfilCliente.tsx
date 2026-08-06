@@ -8,7 +8,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
-import { ChevronDown, CreditCard, Scissors, Sparkles, StickyNote, Tag, UserX } from "lucide-react";
+import { ChevronDown, Clock, CreditCard, Package, Scissors, Sparkles, StickyNote, Tag, UserX } from "lucide-react";
 import { formatarPreco } from "./CatalogoDialog";
 
 type Perfil = {
@@ -28,6 +28,10 @@ type Perfil = {
     data?: string;
     cupom?: string | null;
     produtos?: { nome?: string; quantidade?: number }[] | null;
+    transportadora?: string | null;
+    codigo_rastreio?: string | null;
+    url_rastreio?: string | null;
+    previsao_entrega?: string | null;
   }[] | null;
   produtos_comprados?: { imagem?: string; nome?: string; data_compra?: string }[] | null;
   tamanho_favorito?: string | null;
@@ -167,6 +171,43 @@ function ListaProdutos({ produtos }: { produtos?: Pedido["produtos"] }) {
   );
 }
 
+function LinhaRastreio({ pedido }: { pedido: Pedido }) {
+  if (pedido.codigo_rastreio) {
+    const label = `${pedido.transportadora ? `${pedido.transportadora} — ` : ""}${pedido.codigo_rastreio}`;
+    const conteudo = (
+      <span className="inline-flex items-center gap-1">
+        <Package className="h-2.5 w-2.5 shrink-0" />
+        <span className="truncate">{label}</span>
+      </span>
+    );
+    return (
+      <div className="mt-1 text-[10px]">
+        {pedido.url_rastreio ? (
+          <a
+            href={pedido.url_rastreio}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-primary hover:underline"
+          >
+            {conteudo}
+          </a>
+        ) : (
+          <span className="text-muted-foreground">{conteudo}</span>
+        )}
+      </div>
+    );
+  }
+  if (pedido.previsao_entrega) {
+    return (
+      <div className="mt-1 inline-flex items-center gap-1 text-[10px] text-muted-foreground">
+        <Clock className="h-2.5 w-2.5 shrink-0" />
+        Previsão de entrega: {dataCurta(pedido.previsao_entrega)}
+      </div>
+    );
+  }
+  return null;
+}
+
 function SecaoPedidos({ pedidos }: { pedidos: Pedido[] }) {
   const [expandido, setExpandido] = useState(false);
   const [ultimo, ...demais] = pedidos;
@@ -186,6 +227,7 @@ function SecaoPedidos({ pedidos }: { pedidos: Pedido[] }) {
           <span className="text-xs font-semibold whitespace-nowrap">{formatarPreco(ultimo.total)}</span>
         </div>
         {ultimo.cupom && <div className="mt-1.5"><CupomBadge cupom={ultimo.cupom} /></div>}
+        <LinhaRastreio pedido={ultimo} />
         <ListaProdutos produtos={ultimo.produtos} />
       </div>
 
@@ -201,6 +243,7 @@ function SecaoPedidos({ pedidos }: { pedidos: Pedido[] }) {
                     </p>
                     <p className="text-[10px] text-muted-foreground truncate">{p.status ?? "—"}</p>
                     {p.cupom && <div className="mt-1"><CupomBadge cupom={p.cupom} /></div>}
+                    <LinhaRastreio pedido={p} />
                   </div>
                   <span className="text-[11px] font-semibold whitespace-nowrap">{formatarPreco(p.total)}</span>
                 </div>
