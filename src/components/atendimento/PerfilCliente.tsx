@@ -8,7 +8,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
-import { ChevronDown, Ruler, StickyNote, Tag, UserX } from "lucide-react";
+import { ChevronDown, Scissors, StickyNote, Tag, UserX } from "lucide-react";
 import { formatarPreco } from "./CatalogoDialog";
 
 type Perfil = {
@@ -261,7 +261,7 @@ export function PerfilCliente({ conversaId, autor }: { conversaId: number | stri
                 <Linha label="CPF" valor={perfil.cliente?.cpf} />
                 {perfil.tamanho_favorito && (
                   <div className="mt-2 flex items-center gap-2 rounded-md border border-primary/30 bg-primary/10 px-2 py-1.5">
-                    <Ruler className="h-3.5 w-3.5 text-primary" />
+                    <Scissors className="h-3.5 w-3.5 text-primary" />
                     <span className="text-xs text-muted-foreground">Tamanho favorito</span>
                     <span className="ml-auto text-xs font-semibold">{perfil.tamanho_favorito}</span>
                   </div>
