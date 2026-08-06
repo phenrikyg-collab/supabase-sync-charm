@@ -8,7 +8,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
-import { ChevronDown, Ruler, StickyNote, Tag, UserX } from "lucide-react";
+import { ChevronDown, Scissors, StickyNote, Tag, UserX } from "lucide-react";
 import { formatarPreco } from "./CatalogoDialog";
 
 type Perfil = {
