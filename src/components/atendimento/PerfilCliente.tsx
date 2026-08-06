@@ -345,6 +345,16 @@ export function PerfilCliente({
                           {pr.imagem && (
                             <img src={pr.imagem} alt={pr.nome ?? "Produto"} className="w-full h-full object-cover" loading="lazy" />
                           )}
+                        </div>
+                        <div className="p-1">
+                          <p className="text-[10px] line-clamp-2">{pr.nome}</p>
+                          <p className="text-[10px] font-semibold">{formatarPreco(pr.preco)}</p>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                </section>
+              )}
 
               {rfm && (
                 <section className="space-y-2">
@@ -386,16 +396,6 @@ export function PerfilCliente({
                           <p className="text-[9px] text-muted-foreground">{dataCurta(pr.data_compra)}</p>
                         </div>
                       </div>
-                    ))}
-                  </div>
-                </section>
-              )}
-                        </div>
-                        <div className="p-1">
-                          <p className="text-[10px] line-clamp-2">{pr.nome}</p>
-                          <p className="text-[10px] font-semibold">{formatarPreco(pr.preco)}</p>
-                        </div>
-                      </button>
                     ))}
                   </div>
                 </section>
