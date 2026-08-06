@@ -8,7 +8,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
-import { ChevronDown, StickyNote, UserX } from "lucide-react";
+import { ChevronDown, Ruler, StickyNote, Tag, UserX } from "lucide-react";
 import { formatarPreco } from "./CatalogoDialog";
 
 type Perfil = {
@@ -21,8 +21,16 @@ type Perfil = {
     segmento?: string; frequencia?: number; valor_total?: number; ticket_medio?: number;
     dias_desde_ultima_compra?: number;
   } | null;
-  pedidos?: { id: number | string; status?: string; total?: number; data?: string }[] | null;
+  pedidos?: {
+    id: number | string;
+    status?: string;
+    total?: number;
+    data?: string;
+    cupom?: string | null;
+    produtos?: { nome?: string; quantidade?: number }[] | null;
+  }[] | null;
   produtos_comprados?: { imagem?: string; nome?: string; data_compra?: string }[] | null;
+  tamanho_favorito?: string | null;
 };
 
 type Nota = { id: number | string; autor?: string; conteudo: string; criado_em?: string };
@@ -131,6 +139,85 @@ function NotasInternas({ conversaId, autor }: { conversaId: number | string; aut
   );
 }
 
+type Pedido = NonNullable<Perfil["pedidos"]>[number];
+
+function CupomBadge({ cupom }: { cupom?: string | null }) {
+  if (!cupom) return null;
+  return (
+    <span className="inline-flex items-center gap-1 rounded-full border border-border bg-muted px-1.5 py-0.5 text-[10px] font-medium">
+      <Tag className="h-2.5 w-2.5" />
+      {cupom}
+    </span>
+  );
+}
+
+function ListaProdutos({ produtos }: { produtos?: Pedido["produtos"] }) {
+  if (!produtos?.length) return null;
+  return (
+    <ul className="mt-1.5 space-y-0.5">
+      {produtos.map((pr, i) => (
+        <li key={i} className="text-[10px] text-muted-foreground">
+          • {(pr.quantidade ?? 1) > 1 ? `${pr.quantidade}x ` : ""}
+          {pr.nome}
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function SecaoPedidos({ pedidos }: { pedidos: Pedido[] }) {
+  const [expandido, setExpandido] = useState(false);
+  const [ultimo, ...demais] = pedidos;
+
+  return (
+    <section className="space-y-1.5">
+      <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Pedidos</p>
+
+      <div className="rounded-md border border-border p-2">
+        <div className="flex items-start justify-between gap-2">
+          <div className="min-w-0">
+            <p className="text-xs font-medium truncate">#{ultimo.id}</p>
+            <p className="text-[10px] text-muted-foreground">
+              {dataCurta(ultimo.data)} · {ultimo.status ?? "—"}
+            </p>
+          </div>
+          <span className="text-xs font-semibold whitespace-nowrap">{formatarPreco(ultimo.total)}</span>
+        </div>
+        {ultimo.cupom && <div className="mt-1.5"><CupomBadge cupom={ultimo.cupom} /></div>}
+        <ListaProdutos produtos={ultimo.produtos} />
+      </div>
+
+      {demais.length > 0 && (
+        <>
+          {expandido && (
+            <div className="space-y-1">
+              {demais.map((p) => (
+                <div key={String(p.id)} className="flex items-center justify-between gap-2 rounded-md border border-border px-2 py-1.5">
+                  <div className="min-w-0">
+                    <p className="text-[11px] font-medium truncate">
+                      #{p.id} · {dataCurta(p.data)}
+                    </p>
+                    <p className="text-[10px] text-muted-foreground truncate">{p.status ?? "—"}</p>
+                    {p.cupom && <div className="mt-1"><CupomBadge cupom={p.cupom} /></div>}
+                  </div>
+                  <span className="text-[11px] font-semibold whitespace-nowrap">{formatarPreco(p.total)}</span>
+                </div>
+              ))}
+            </div>
+          )}
+          <button
+            type="button"
+            onClick={() => setExpandido((v) => !v)}
+            className="w-full text-[11px] font-medium text-primary hover:underline"
+          >
+            {expandido ? "Ver menos" : `Ver todos os pedidos (${pedidos.length})`}
+          </button>
+        </>
+      )}
+    </section>
+  );
+}
+
 export function PerfilCliente({ conversaId, autor }: { conversaId: number | string; autor: string }) {
   const pId = Number.isNaN(Number(conversaId)) ? conversaId : Number(conversaId);
 
@@ -172,6 +259,13 @@ export function PerfilCliente({ conversaId, autor }: { conversaId: number | stri
                 <Linha label="E-mail" valor={perfil.cliente?.email} />
                 <Linha label="Telefone" valor={perfil.cliente?.telefone} />
                 <Linha label="CPF" valor={perfil.cliente?.cpf} />
+                {perfil.tamanho_favorito && (
+                  <div className="mt-2 flex items-center gap-2 rounded-md border border-primary/30 bg-primary/10 px-2 py-1.5">
+                    <Ruler className="h-3.5 w-3.5 text-primary" />
+                    <span className="text-xs text-muted-foreground">Tamanho favorito</span>
+                    <span className="ml-auto text-xs font-semibold">{perfil.tamanho_favorito}</span>
+                  </div>
+                )}
               </section>
 
               {end && (
@@ -211,22 +305,7 @@ export function PerfilCliente({ conversaId, autor }: { conversaId: number | stri
                 </section>
               )}
 
-              {!!perfil.pedidos?.length && (
-                <section className="space-y-1.5">
-                  <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Pedidos</p>
-                  {[...perfil.pedidos]
-                    .sort((a, b) => new Date(b.data ?? 0).getTime() - new Date(a.data ?? 0).getTime())
-                    .map((p) => (
-                      <div key={String(p.id)} className="flex items-center justify-between gap-2 text-xs border border-border rounded-md p-2">
-                        <div className="min-w-0">
-                          <p className="font-medium truncate">#{p.id}</p>
-                          <p className="text-[10px] text-muted-foreground">{dataCurta(p.data)} · {p.status ?? "—"}</p>
-                        </div>
-                        <span className="font-semibold whitespace-nowrap">{formatarPreco(p.total)}</span>
-                      </div>
-                    ))}
-                </section>
-              )}
+              {!!perfil.pedidos?.length && <SecaoPedidos pedidos={perfil.pedidos} />}
 
               {!!perfil.produtos_comprados?.length && (
                 <section className="space-y-1.5">
