@@ -220,8 +220,39 @@ function SecaoPedidos({ pedidos }: { pedidos: Pedido[] }) {
   );
 }
 
-export function PerfilCliente({ conversaId, autor }: { conversaId: number | string; autor: string }) {
+export function PerfilCliente({
+  conversaId,
+  autor,
+  telefone,
+}: {
+  conversaId: number | string;
+  autor: string;
+  telefone?: string;
+}) {
   const pId = Number.isNaN(Number(conversaId)) ? conversaId : Number(conversaId);
+  const [enviandoId, setEnviandoId] = useState<string | null>(null);
+
+  const enviarSugestao = async (pr: { produto_id?: string | number; nome?: string; preco?: number; imagem?: string }) => {
+    const chave = String(pr.produto_id ?? pr.nome ?? "");
+    setEnviandoId(chave);
+    try {
+      const { error } = await supabase.functions.invoke("whatsapp-enviar-mensagem-humano", {
+        body: {
+          conversa_id: conversaId,
+          telefone,
+          conteudo: `${pr.nome ?? "Produto"} — ${formatarPreco(pr.preco)}`,
+          tipo: "imagem",
+          media_url: pr.imagem ?? "",
+        },
+      });
+      if (error) throw error;
+      toast({ title: "Produto enviado" });
+    } catch (e: any) {
+      toast({ title: "Erro ao enviar produto", description: e.message, variant: "destructive" });
+    } finally {
+      setEnviandoId(null);
+    }
+  };
 
   const { data: perfil, isLoading } = useQuery({
     queryKey: ["whatsapp-perfil", String(conversaId)],
