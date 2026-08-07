@@ -64,6 +64,9 @@ import Tendencias from "./pages/Tendencias";
 import LinkNaBio from "./pages/LinkNaBio";
 import Atendimento from "./pages/Atendimento";
 import Audiencia from "./pages/Audiencia";
+import CarrinhoAbandonado from "./pages/CarrinhoAbandonado";
+import PedidosCancelados from "./pages/PedidosCancelados";
+
 import Automacoes from "./pages/Automacoes";
 import AutomacaoFluxo from "./pages/AutomacaoFluxo";
 import EmailMarketing from "./pages/EmailMarketing";
@@ -191,6 +194,9 @@ const AppRoutes = () => {
               <Route path="/link-na-bio" element={<LinkNaBio />} />
               <Route path="/atendimento" element={<Atendimento />} />
               <Route path="/audiencia" element={<Audiencia />} />
+              <Route path="/carrinho-abandonado" element={<CarrinhoAbandonado />} />
+              <Route path="/pedidos-cancelados" element={<PedidosCancelados />} />
+
               <Route path="/automacoes" element={<Automacoes />} />
               <Route path="/email-marketing" element={<EmailMarketing />} />
               <Route path="/email-marketing/templates/:id" element={<EmailTemplateEditor />} />
