@@ -132,6 +132,9 @@ const moduleGroups: ModuleGroup[] = [
     items: [
       { title: "WhatsApp", url: "/atendimento", icon: MessageCircle },
       { title: "Audiência", url: "/audiencia", icon: UserSquare2 },
+      { title: "Carrinho Abandonado", url: "/carrinho-abandonado", icon: ShoppingCart },
+      { title: "Pedidos Cancelados", url: "/pedidos-cancelados", icon: PackageX },
+
     ],
   },
   {
