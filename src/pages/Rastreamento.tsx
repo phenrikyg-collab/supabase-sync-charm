@@ -15,6 +15,7 @@ type Visitante = {
   ultima_pagina?: string | null;
   ultimo_evento?: string | null;
   tipo_evento?: string | null;
+  tipo_ultimo_evento?: string | null;
   origem?: string | null;
   ultima_atividade: string;
   segmento_rfm?: string | null;
