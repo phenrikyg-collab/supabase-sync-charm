@@ -389,11 +389,19 @@ export default function Atendimento() {
   });
 
   const filtradas = conversas.filter((c) => {
+    if (filtroLeitura === "nao_lidas" && !c.nao_lida) return false;
+    if (filtroLeitura === "lidas" && c.nao_lida) return false;
+    if (tagsFiltro.length > 0) {
+      const ids = (c.tags ?? []).map((t) => String(t.id));
+      if (!tagsFiltro.some((t) => ids.includes(t))) return false;
+    }
     if (!busca.trim()) return true;
     const t = busca.toLowerCase();
     const nome = (c.cliente_nome ?? c.nome_cliente ?? "").toLowerCase();
     return nome.includes(t) || (c.telefone ?? "").toLowerCase().includes(t);
   });
+
+  const totalNaoLidas = conversas.filter((c) => c.nao_lida).length;
 
   const status = conversaAtual?.status ?? "";
   const podeResponder = status === "escalado" || status === "em_atendimento";
