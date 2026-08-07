@@ -179,6 +179,39 @@ export default function Atendimento() {
     },
   });
 
+  const { data: todasTags = [] } = useQuery({
+    queryKey: ["whatsapp-tags"],
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc("whatsapp_listar_tags" as any);
+      if (error) throw error;
+      return (data ?? []) as Tag[];
+    },
+  });
+
+  const { data: dentroJanela } = useQuery({
+    queryKey: ["whatsapp-janela-24h", selecionada],
+    enabled: !!selecionada,
+    refetchInterval: 60000,
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc("whatsapp_dentro_janela_24h" as any, {
+        p_conversa_id: Number.isNaN(Number(selecionada)) ? selecionada : Number(selecionada),
+      });
+      if (error) throw error;
+      return data as unknown as boolean;
+    },
+  });
+
+  const abrirConversa = async (c: Conversa) => {
+    setSelecionada(String(c.id));
+    setErroJanela(null);
+    if (!c.nao_lida) return;
+    const { error } = await supabase.rpc("whatsapp_marcar_lida" as any, {
+      p_conversa_id: Number.isNaN(Number(c.id)) ? c.id : Number(c.id),
+    });
+    if (!error) queryClient.invalidateQueries({ queryKey: ["whatsapp-conversas"] });
+  };
+
+
   useEffect(() => {
     fimRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [mensagens.length, selecionada]);
