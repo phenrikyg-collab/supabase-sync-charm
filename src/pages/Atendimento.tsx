@@ -635,8 +635,21 @@ export default function Atendimento() {
 
               <Separator />
 
-              {podeResponder ? (
+              {podeResponder && dentroJanela === false ? (
+                <div className="p-4 flex items-start gap-3 border-t-2 border-warning bg-warning/10">
+                  <Lock className="h-4 w-4 text-warning mt-0.5 shrink-0" />
+                  <p className="text-sm text-foreground">
+                    Fora da janela de 24h — use um template aprovado (tela de Campanhas) pra reabrir contato.
+                  </p>
+                </div>
+              ) : podeResponder ? (
                 <div className="p-3 space-y-2">
+                  {erroJanela && (
+                    <div className="flex items-start gap-2 rounded-md border border-danger/40 bg-danger/10 p-3">
+                      <AlertTriangle className="h-4 w-4 text-danger mt-0.5 shrink-0" />
+                      <p className="text-sm text-danger">{erroJanela}</p>
+                    </div>
+                  )}
                   {previewUrl && (
                     <div className="flex items-start gap-3 rounded-md border border-border p-2">
                       <img src={previewUrl} alt="Prévia" className="h-20 w-20 rounded object-cover" />
