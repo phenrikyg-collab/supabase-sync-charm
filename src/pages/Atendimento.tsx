@@ -416,8 +416,9 @@ export default function Atendimento() {
     }
     if (!busca.trim()) return true;
     const t = busca.toLowerCase();
-    const nome = (c.cliente_nome ?? c.nome_cliente ?? "").toLowerCase();
-    return nome.includes(t) || (c.telefone ?? "").toLowerCase().includes(t);
+    const nome = nomeConversa(c).toLowerCase();
+    const tel = ehSite(c) ? (c.telefone_real ?? "") : (c.telefone ?? "");
+    return nome.includes(t) || tel.toLowerCase().includes(t);
   });
 
   const totalNaoLidas = conversas.filter((c) => c.nao_lida).length;
