@@ -66,6 +66,7 @@ import Atendimento from "./pages/Atendimento";
 import Audiencia from "./pages/Audiencia";
 import CarrinhoAbandonado from "./pages/CarrinhoAbandonado";
 import PedidosCancelados from "./pages/PedidosCancelados";
+import Rastreamento from "./pages/Rastreamento";
 
 import Automacoes from "./pages/Automacoes";
 import AutomacaoFluxo from "./pages/AutomacaoFluxo";
