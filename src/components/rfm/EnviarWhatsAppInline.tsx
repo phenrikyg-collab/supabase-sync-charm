@@ -29,9 +29,23 @@ export async function enviarWhatsApp(telefone: string, conteudo: string) {
     } catch {
       /* ignora */
     }
+    if (detalhe.includes("janela_24h_fechada")) {
+      throw new Error(
+        "Fora da janela de 24h: a cliente não fala com vocês há mais de 24h. Só um template aprovado reabre o contato — use a tela de Campanhas (Marketing WhatsApp)."
+      );
+    }
     throw new Error(detalhe);
   }
-  if (data && (data as any).error) throw new Error(String((data as any).error));
+  if (data && (data as any).error) {
+    const msg = String((data as any).error);
+    if (msg.includes("janela_24h_fechada")) {
+      throw new Error(
+        "Fora da janela de 24h: a cliente não fala com vocês há mais de 24h. Só um template aprovado reabre o contato — use a tela de Campanhas (Marketing WhatsApp)."
+      );
+    }
+    throw new Error(msg);
+  }
+
   return data;
 }
 
