@@ -619,9 +619,12 @@ export default function Atendimento() {
                             </a>
                           )}
                           {!!m.conteudo && <p className="whitespace-pre-wrap break-words">{m.conteudo}</p>}
-                          <p className="text-[10px] text-muted-foreground mt-1 text-right">
-                            {horaCurta(m.criado_em ?? m.enviado_em)}
-                          </p>
+                          <div className="flex items-center justify-end gap-1 mt-1">
+                            <span className="text-[10px] text-muted-foreground">
+                              {horaCurta(m.criado_em ?? m.enviado_em)}
+                            </span>
+                            {saida && <StatusEntrega status={m.status_entrega} erro={m.erro_entrega} />}
+                          </div>
                         </div>
                       </div>
                     );
