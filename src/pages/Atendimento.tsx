@@ -227,6 +227,24 @@ export default function Atendimento() {
     queryClient.invalidateQueries({ queryKey: ["whatsapp-conversas"] });
   };
 
+  const extrairErroJanela = async (error: any): Promise<string | null> => {
+    try {
+      const resp = error?.context;
+      if (resp && typeof resp.json === "function") {
+        const corpo = await resp.clone().json();
+        if (corpo?.error === "janela_24h_fechada") {
+          return corpo.mensagem || "Fora da janela de 24h — use um template aprovado para reabrir o contato.";
+        }
+      }
+    } catch {
+      /* ignora */
+    }
+    if (typeof error?.message === "string" && error.message.includes("janela_24h_fechada")) {
+      return "Fora da janela de 24h — use um template aprovado para reabrir o contato.";
+    }
+    return null;
+  };
+
   const enviar = useMutation({
     mutationFn: async (conteudo: string) => {
       if (!conversaAtual) throw new Error("Nenhuma conversa selecionada");
@@ -242,9 +260,18 @@ export default function Atendimento() {
     },
     onSuccess: () => {
       setTexto("");
+      setErroJanela(null);
       invalidarThread();
     },
-    onError: (e: any) => toast({ title: "Erro ao enviar", description: e.message, variant: "destructive" }),
+    onError: async (e: any) => {
+      const janela = await extrairErroJanela(e);
+      if (janela) {
+        setErroJanela(janela);
+        queryClient.invalidateQueries({ queryKey: ["whatsapp-janela-24h", selecionada] });
+        return;
+      }
+      toast({ title: "Erro ao enviar", description: e.message, variant: "destructive" });
+    },
   });
 
   const enviarImagem = async (mediaUrl: string, conteudo: string) => {
