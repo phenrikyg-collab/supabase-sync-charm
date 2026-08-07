@@ -581,12 +581,22 @@ export default function Atendimento() {
               <div className="p-4 flex items-start justify-between gap-4 border-b border-border">
                 <div className="min-w-0 space-y-1.5">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <h2 className="font-medium truncate">
-                      {conversaAtual.cliente_nome ?? conversaAtual.nome_cliente ?? "Desconhecido"}
-                    </h2>
+                    {ehSite(conversaAtual) ? (
+                      <Globe className="h-4 w-4 text-primary shrink-0" aria-label="Chat do site" />
+                    ) : (
+                      <MessageCircle className="h-4 w-4 text-success shrink-0" aria-label="WhatsApp" />
+                    )}
+                    <h2 className="font-medium truncate">{nomeConversa(conversaAtual)}</h2>
                     <StatusPill status={conversaAtual.status} />
+                    {ehSite(conversaAtual) && conversaAtual.telefone_real && (
+                      <span className="inline-flex items-center gap-1 rounded-full border border-success/20 bg-success/10 px-2 py-0.5 text-[10px] text-success">
+                        <Phone className="h-3 w-3" />
+                        {conversaAtual.telefone_real}
+                      </span>
+                    )}
                   </div>
-                  <p className="text-xs text-muted-foreground">{conversaAtual.telefone}</p>
+                  <p className="text-xs text-muted-foreground">{identificadorConversa(conversaAtual)}</p>
+
                   <TagsConversa conversaId={conversaAtual.id} aplicadas={conversaAtual.tags ?? []} />
                 </div>
                 <div className="flex items-center gap-2">
