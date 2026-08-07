@@ -259,6 +259,14 @@ export default function Atendimento() {
   const enviar = useMutation({
     mutationFn: async (conteudo: string) => {
       if (!conversaAtual) throw new Error("Nenhuma conversa selecionada");
+      if (ehSite(conversaAtual)) {
+        const { data, error } = await supabase.rpc("whatsapp_registrar_mensagem_humana" as any, {
+          p_conversa_id: conversaAtual.id,
+          p_conteudo: conteudo,
+        });
+        if (error) throw error;
+        return data;
+      }
       const { data, error } = await supabase.functions.invoke("whatsapp-enviar-mensagem-humano", {
         body: {
           conversa_id: conversaAtual.id,
