@@ -89,11 +89,48 @@ function horaCurta(valor?: string | null) {
   return d.toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
 }
 
+function StatusEntrega({ status, erro }: { status?: string | null; erro?: string | null }) {
+  if (!status) return null;
+  if (status === "falhou") {
+    return (
+      <span
+        title={erro || "Falha no envio"}
+        className="inline-flex items-center text-danger cursor-help"
+        aria-label="Falha no envio"
+      >
+        <AlertTriangle className="h-3 w-3" />
+      </span>
+    );
+  }
+  if (status === "lido") {
+    return (
+      <span title="Lido" className="inline-flex items-center text-info">
+        <CheckCheck className="h-3.5 w-3.5" />
+      </span>
+    );
+  }
+  if (status === "entregue") {
+    return (
+      <span title="Entregue" className="inline-flex items-center text-muted-foreground">
+        <CheckCheck className="h-3.5 w-3.5" />
+      </span>
+    );
+  }
+  return (
+    <span title="Enviado" className="inline-flex items-center text-muted-foreground">
+      <Check className="h-3.5 w-3.5" />
+    </span>
+  );
+}
+
 export default function Atendimento() {
   const queryClient = useQueryClient();
   const { user } = useAuth();
   const [selecionada, setSelecionada] = useState<string | null>(null);
   const [busca, setBusca] = useState("");
+  const [filtroLeitura, setFiltroLeitura] = useState<"todas" | "nao_lidas" | "lidas">("todas");
+  const [tagsFiltro, setTagsFiltro] = useState<string[]>([]);
+  const [erroJanela, setErroJanela] = useState<string | null>(null);
   const [texto, setTexto] = useState("");
   const [catalogoAberto, setCatalogoAberto] = useState(false);
   const [arquivo, setArquivo] = useState<File | null>(null);
