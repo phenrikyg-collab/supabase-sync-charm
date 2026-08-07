@@ -13,8 +13,8 @@ import { cn } from "@/lib/utils";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import {
-  AlertTriangle, Bot, Check, CheckCheck, CheckCircle2, ImagePlus, LayoutGrid, Lock, MessageCircle,
-  RotateCcw, Search, Send, User, X, UserCheck,
+  AlertTriangle, Bot, Check, CheckCheck, CheckCircle2, Globe, ImagePlus, LayoutGrid, Lock, MessageCircle,
+  RotateCcw, Search, Send, User, X, UserCheck, Phone,
 } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Checkbox } from "@/components/ui/checkbox";
