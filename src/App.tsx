@@ -194,6 +194,9 @@ const AppRoutes = () => {
               <Route path="/link-na-bio" element={<LinkNaBio />} />
               <Route path="/atendimento" element={<Atendimento />} />
               <Route path="/audiencia" element={<Audiencia />} />
+              <Route path="/carrinho-abandonado" element={<CarrinhoAbandonado />} />
+              <Route path="/pedidos-cancelados" element={<PedidosCancelados />} />
+
               <Route path="/automacoes" element={<Automacoes />} />
               <Route path="/email-marketing" element={<EmailMarketing />} />
               <Route path="/email-marketing/templates/:id" element={<EmailTemplateEditor />} />
