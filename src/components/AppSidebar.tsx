@@ -2,7 +2,7 @@ import {
   LayoutDashboard, Package, Plus, Palette, Scissors, Factory,
   Truck, DollarSign, Target, FileText, Building2, LogOut, Users, Home, BarChart3, Upload, Layers,
   ShoppingBag, Banknote, Wrench, CreditCard, PieChart, Monitor, Settings, Trophy, CalendarDays, TrendingUp, ClipboardList, Megaphone, Tag, Sparkles, Heart, LayoutGrid,
-  Compass, Boxes, UserSquare2, Link as LinkIcon, MessageCircle, Workflow, Mail, ShoppingCart, PackageX,
+  Compass, Boxes, UserSquare2, Link as LinkIcon, MessageCircle, Workflow, Mail, ShoppingCart, PackageX, Radar,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useAuth } from "@/contexts/AuthContext";
@@ -134,6 +134,7 @@ const moduleGroups: ModuleGroup[] = [
       { title: "Audiência", url: "/audiencia", icon: UserSquare2 },
       { title: "Carrinho Abandonado", url: "/carrinho-abandonado", icon: ShoppingCart },
       { title: "Pedidos Cancelados", url: "/pedidos-cancelados", icon: PackageX },
+      { title: "Visitantes ao Vivo", url: "/rastreamento", icon: Radar },
 
     ],
   },

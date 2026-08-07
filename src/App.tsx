@@ -66,6 +66,7 @@ import Atendimento from "./pages/Atendimento";
 import Audiencia from "./pages/Audiencia";
 import CarrinhoAbandonado from "./pages/CarrinhoAbandonado";
 import PedidosCancelados from "./pages/PedidosCancelados";
+import Rastreamento from "./pages/Rastreamento";
 
 import Automacoes from "./pages/Automacoes";
 import AutomacaoFluxo from "./pages/AutomacaoFluxo";
@@ -196,6 +197,7 @@ const AppRoutes = () => {
               <Route path="/audiencia" element={<Audiencia />} />
               <Route path="/carrinho-abandonado" element={<CarrinhoAbandonado />} />
               <Route path="/pedidos-cancelados" element={<PedidosCancelados />} />
+              <Route path="/rastreamento" element={<Rastreamento />} />
 
               <Route path="/automacoes" element={<Automacoes />} />
               <Route path="/email-marketing" element={<EmailMarketing />} />
