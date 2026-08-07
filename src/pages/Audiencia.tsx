@@ -6,7 +6,7 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { SortableHead } from "@/components/SortableHead";
+import { SortableHead, useSortable, useOrdenado } from "@/components/SortableHead";
 import { MessageCircle, Search, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -61,8 +61,8 @@ function formatarData(v?: string | null) {
 export default function Audiencia() {
   const navigate = useNavigate();
   const [busca, setBusca] = useState("");
-  const [ordem, setOrdem] = useState<{ campo: keyof LinhaAudiencia; dir: "asc" | "desc" }>({
-    campo: "total_gasto",
+  const { sort, alternar } = useSortable<"nome" | "perfil" | "compras" | "total_gasto" | "ultima_compra">({
+    key: "total_gasto",
     dir: "desc",
   });
 
