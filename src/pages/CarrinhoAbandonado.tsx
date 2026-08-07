@@ -8,7 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { SortableHead, useSortable, useOrdenado } from "@/components/SortableHead";
 import { EnviarWhatsAppInline } from "@/components/rfm/EnviarWhatsAppInline";
-import { FiltroPeriodo, Periodo } from "@/components/recuperacao/FiltroPeriodo";
+import { FiltroPeriodo, Periodo, limiteInicio, limiteFim } from "@/components/recuperacao/FiltroPeriodo";
 import { SegmentoBadge, CelulaItens, moeda } from "@/components/recuperacao/comum";
 import { formatarData } from "@/utils/formatters";
 import { Loader2, ShoppingCart, Wallet, Receipt } from "lucide-react";
@@ -40,8 +40,8 @@ export default function CarrinhoAbandonado() {
     queryKey: ["vw_carrinhos_abandonados", periodo.inicio, periodo.fim],
     queryFn: async () => {
       let q = supabase.from("vw_carrinhos_abandonados" as any).select("*").limit(5000);
-      if (periodo.inicio) q = q.gte("data_criacao", periodo.inicio);
-      if (periodo.fim) q = q.lte("data_criacao", periodo.fim);
+      if (periodo.inicio) q = q.gte("data_criacao", limiteInicio(periodo.inicio)!);
+      if (periodo.fim) q = q.lte("data_criacao", limiteFim(periodo.fim)!);
       const { data, error } = await q;
       if (error) throw error;
       return (data ?? []) as unknown as Carrinho[];
@@ -75,7 +75,7 @@ export default function CarrinhoAbandonado() {
     total: (l) => Number(l.total ?? 0),
     dias_desde_abandono: (l) => Number(l.dias_desde_abandono ?? 0),
     segmento_rfm: (l) => l.segmento_rfm ?? "",
-    data_criacao: (l) => l.data_criacao ?? "",
+    data_criacao: (l) => `${l.data_criacao ?? ""}T${String(l.hora_criacao ?? "00:00:00")}`,
   });
 
   const totalValor = filtradas.reduce((s, l) => s + Number(l.total ?? 0), 0);

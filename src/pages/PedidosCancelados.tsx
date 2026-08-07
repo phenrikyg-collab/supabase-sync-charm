@@ -8,7 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { SortableHead, useSortable, useOrdenado } from "@/components/SortableHead";
 import { EnviarWhatsAppInline } from "@/components/rfm/EnviarWhatsAppInline";
-import { FiltroPeriodo, Periodo } from "@/components/recuperacao/FiltroPeriodo";
+import { FiltroPeriodo, Periodo, limiteInicio, limiteFim } from "@/components/recuperacao/FiltroPeriodo";
 import { SegmentoBadge, CelulaItens, moeda } from "@/components/recuperacao/comum";
 import { formatarData } from "@/utils/formatters";
 import { Loader2, PackageX, TrendingDown } from "lucide-react";
@@ -41,8 +41,8 @@ export default function PedidosCancelados() {
     queryKey: ["vw_pedidos_cancelados_recuperacao", periodo.inicio, periodo.fim],
     queryFn: async () => {
       let q = supabase.from("vw_pedidos_cancelados_recuperacao" as any).select("*").limit(5000);
-      if (periodo.inicio) q = q.gte("date_purchase", periodo.inicio);
-      if (periodo.fim) q = q.lte("date_purchase", periodo.fim);
+      if (periodo.inicio) q = q.gte("date_purchase", limiteInicio(periodo.inicio)!);
+      if (periodo.fim) q = q.lte("date_purchase", limiteFim(periodo.fim)!);
       const { data, error } = await q;
       if (error) throw error;
       return (data ?? []) as unknown as PedidoCancelado[];
