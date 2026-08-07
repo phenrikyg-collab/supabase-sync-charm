@@ -238,6 +238,17 @@ export default function DashboardProdutos() {
         </p>
       </div>
 
+      <Card>
+        <CardContent className="pt-6 space-y-2">
+          <FiltroPeriodo periodo={periodo} onChange={setPeriodo} />
+          <p className="text-[11px] text-muted-foreground">
+            A Curva ABC é recalculada para o período selecionado. Sugestão de Produção e Itens Estratégicos usam o histórico completo.
+          </p>
+        </CardContent>
+      </Card>
+
+
+
       {/* Cards resumo ABC */}
       <div className="grid gap-3 sm:grid-cols-3">
         {(["A", "B", "C"] as const).map((c) => (
