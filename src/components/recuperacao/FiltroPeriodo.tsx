@@ -18,6 +18,14 @@ export function periodoUltimosDias(dias: number): Periodo {
   return { inicio: isoDiasAtras(dias), fim: hojeIso() };
 }
 
+/** Limites com hora para não cortar registros do próprio dia em colunas timestamp. */
+export function limiteInicio(inicio: string | null) {
+  return inicio ? `${inicio}T00:00:00` : null;
+}
+export function limiteFim(fim: string | null) {
+  return fim ? `${fim}T23:59:59.999` : null;
+}
+
 type Props = {
   periodo: Periodo;
   onChange: (p: Periodo) => void;
