@@ -190,6 +190,7 @@ const AppRoutes = () => {
               <Route path="/tendencias" element={<Tendencias />} />
               <Route path="/link-na-bio" element={<LinkNaBio />} />
               <Route path="/atendimento" element={<Atendimento />} />
+              <Route path="/audiencia" element={<Audiencia />} />
               <Route path="/automacoes" element={<Automacoes />} />
               <Route path="/email-marketing" element={<EmailMarketing />} />
               <Route path="/email-marketing/templates/:id" element={<EmailTemplateEditor />} />
