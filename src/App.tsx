@@ -64,6 +64,9 @@ import Tendencias from "./pages/Tendencias";
 import LinkNaBio from "./pages/LinkNaBio";
 import Atendimento from "./pages/Atendimento";
 import Audiencia from "./pages/Audiencia";
+import CarrinhoAbandonado from "./pages/CarrinhoAbandonado";
+import PedidosCancelados from "./pages/PedidosCancelados";
+
 import Automacoes from "./pages/Automacoes";
 import AutomacaoFluxo from "./pages/AutomacaoFluxo";
 import EmailMarketing from "./pages/EmailMarketing";
