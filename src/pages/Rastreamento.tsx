@@ -190,7 +190,7 @@ export default function Rastreamento() {
   }, [ordenados]);
 
   const CardVisitante = ({ v }: { v: Visitante }) => {
-    const meta = metaEvento(v.tipo_evento || v.ultimo_evento);
+    const meta = metaEvento(v.tipo_ultimo_evento || v.tipo_evento || v.ultimo_evento);
     const Icone = meta.icon;
     const novo = novosRef.current.has(v.visitante_id);
     const ativo = selecionado?.visitante_id === v.visitante_id;
