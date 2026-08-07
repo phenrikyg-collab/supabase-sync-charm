@@ -134,6 +134,7 @@ const moduleGroups: ModuleGroup[] = [
       { title: "Audiência", url: "/audiencia", icon: UserSquare2 },
       { title: "Carrinho Abandonado", url: "/carrinho-abandonado", icon: ShoppingCart },
       { title: "Pedidos Cancelados", url: "/pedidos-cancelados", icon: PackageX },
+      { title: "Visitantes ao Vivo", url: "/rastreamento", icon: Radar },
 
     ],
   },
