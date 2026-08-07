@@ -131,6 +131,7 @@ const moduleGroups: ModuleGroup[] = [
     icon: MessageCircle,
     items: [
       { title: "WhatsApp", url: "/atendimento", icon: MessageCircle },
+      { title: "Audiência", url: "/audiencia", icon: UserSquare2 },
     ],
   },
   {
