@@ -418,7 +418,7 @@ export default function Atendimento() {
       <div className="grid grid-cols-1 lg:grid-cols-[340px_1fr] xl:grid-cols-[340px_1fr_340px] gap-4 h-[calc(100vh-220px)] min-h-[520px]">
         {/* Lista de conversas */}
         <Card className="flex flex-col overflow-hidden">
-          <div className="p-3 border-b border-border">
+          <div className="p-3 border-b border-border space-y-2">
             <div className="relative">
               <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
               <Input
@@ -427,6 +427,59 @@ export default function Atendimento() {
                 placeholder="Buscar por nome ou telefone"
                 className="pl-8"
               />
+            </div>
+            <div className="flex items-center gap-1.5 flex-wrap">
+              {([
+                { v: "todas", label: "Todas" },
+                { v: "nao_lidas", label: `Não lidas${totalNaoLidas ? ` (${totalNaoLidas})` : ""}` },
+                { v: "lidas", label: "Lidas" },
+              ] as const).map((f) => (
+                <Button
+                  key={f.v}
+                  size="sm"
+                  variant={filtroLeitura === f.v ? "default" : "outline"}
+                  className="h-7 px-2.5 text-[11px]"
+                  onClick={() => setFiltroLeitura(f.v)}
+                >
+                  {f.label}
+                </Button>
+              ))}
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    size="sm"
+                    variant={tagsFiltro.length ? "secondary" : "outline"}
+                    className="h-7 px-2.5 text-[11px]"
+                  >
+                    Tags{tagsFiltro.length ? ` (${tagsFiltro.length})` : ""}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-56 p-3 space-y-2" align="start">
+                  {todasTags.length === 0 && (
+                    <p className="text-xs text-muted-foreground">Nenhuma tag cadastrada.</p>
+                  )}
+                  <div className="max-h-52 overflow-auto space-y-2">
+                    {todasTags.map((t) => (
+                      <label key={String(t.id)} className="flex items-center gap-2 cursor-pointer">
+                        <Checkbox
+                          checked={tagsFiltro.includes(String(t.id))}
+                          onCheckedChange={(v) =>
+                            setTagsFiltro((prev) =>
+                              v ? [...prev, String(t.id)] : prev.filter((x) => x !== String(t.id)),
+                            )
+                          }
+                        />
+                        <TagChip tag={t} />
+                      </label>
+                    ))}
+                  </div>
+                  {tagsFiltro.length > 0 && (
+                    <Button size="sm" variant="ghost" className="w-full h-7 text-[11px]" onClick={() => setTagsFiltro([])}>
+                      Limpar filtro
+                    </Button>
+                  )}
+                </PopoverContent>
+              </Popover>
             </div>
           </div>
           <ScrollArea className="flex-1">
@@ -440,22 +493,25 @@ export default function Atendimento() {
               const nome = c.cliente_nome ?? c.nome_cliente ?? "Desconhecido";
               const ativa = String(c.id) === selecionada;
               const prio = (c.prioridade ?? "").toLowerCase();
+              const naoLida = !!c.nao_lida;
               return (
                 <button
                   key={String(c.id)}
-                  onClick={() => setSelecionada(String(c.id))}
+                  onClick={() => abrirConversa(c)}
                   className={cn(
                     "w-full text-left px-4 py-3 border-b border-border/60 border-l-4 transition-colors hover:bg-accent/60",
                     prio === "alta" ? "border-l-danger" : prio === "media" ? "border-l-warning" : "border-l-transparent",
                     ativa && "bg-accent",
+                    naoLida && !ativa && "bg-primary/5",
                   )}
                 >
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0 flex items-center gap-1.5">
+                      {naoLida && <span className="h-2.5 w-2.5 rounded-full bg-success shrink-0" />}
                       {prio === "alta" && <span className="h-2 w-2 rounded-full bg-danger shrink-0" />}
                       {prio === "media" && <span className="h-2 w-2 rounded-full bg-warning shrink-0" />}
                       <div className="min-w-0">
-                        <p className="font-medium text-sm truncate">{nome}</p>
+                        <p className={cn("text-sm truncate", naoLida ? "font-bold" : "font-medium")}>{nome}</p>
                         <p className="text-xs text-muted-foreground">{c.telefone}</p>
                       </div>
                     </div>
@@ -463,7 +519,7 @@ export default function Atendimento() {
                       {tempoRelativo(c.ultima_mensagem_em ?? c.atualizado_em)}
                     </span>
                   </div>
-                  <p className="text-xs text-muted-foreground mt-1 line-clamp-1">
+                  <p className={cn("text-xs mt-1 line-clamp-1", naoLida ? "text-foreground font-medium" : "text-muted-foreground")}>
                     {c.ultima_mensagem ?? "—"}
                   </p>
                   <div className="mt-2 flex items-center gap-1.5 flex-wrap">
@@ -485,6 +541,7 @@ export default function Atendimento() {
               <MessageCircle className="h-10 w-10 opacity-40" />
               <p className="text-sm">Selecione uma conversa para começar.</p>
             </div>
+
           ) : (
             <>
               <div className="p-4 flex items-start justify-between gap-4 border-b border-border">
