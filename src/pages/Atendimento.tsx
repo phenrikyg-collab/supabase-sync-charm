@@ -28,6 +28,8 @@ type Conversa = {
   cliente_nome?: string | null;
   nome_cliente?: string | null;
   telefone: string;
+  canal?: "whatsapp" | "site" | string | null;
+  telefone_real?: string | null;
   ultima_mensagem?: string | null;
   ultima_mensagem_em?: string | null;
   atualizado_em?: string | null;
@@ -36,6 +38,15 @@ type Conversa = {
   tags?: Tag[] | null;
   nao_lida?: boolean | null;
 };
+
+const ehSite = (c?: Conversa | null) =>
+  (c?.canal ?? "").toLowerCase() === "site" || String(c?.telefone ?? "").startsWith("site:");
+
+const nomeConversa = (c: Conversa) =>
+  c.cliente_nome ?? c.nome_cliente ?? (ehSite(c) ? "Visitante do site" : "Desconhecido");
+
+const identificadorConversa = (c: Conversa) => (ehSite(c) ? "Chat do site" : c.telefone);
+
 
 type Mensagem = {
   id: number | string;
