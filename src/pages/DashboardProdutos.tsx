@@ -13,6 +13,8 @@ import {
 import { Loader2, Search, AlertTriangle, PauseCircle, Info, Circle } from "lucide-react";
 import { formatarData } from "@/utils/formatters";
 import { SortableHead, useSortable, useOrdenado } from "@/components/SortableHead";
+import { FiltroPeriodo, Periodo } from "@/components/recuperacao/FiltroPeriodo";
+
 
 type CurvaABC = {
   produto_id: string;
