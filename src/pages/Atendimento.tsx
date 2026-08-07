@@ -201,7 +201,7 @@ export default function Atendimento() {
 
   const { data: dentroJanela } = useQuery({
     queryKey: ["whatsapp-janela-24h", selecionada],
-    enabled: !!selecionada,
+    enabled: !!selecionada && !ehSite(conversaAtual),
     refetchInterval: 60000,
     queryFn: async () => {
       const { data, error } = await supabase.rpc("whatsapp_dentro_janela_24h" as any, {
