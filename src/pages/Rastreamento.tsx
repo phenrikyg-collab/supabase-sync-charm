@@ -159,6 +159,77 @@ export default function Rastreamento() {
     [visitantes],
   );
 
+  const etapas = useMemo(() => {
+    const def = [
+      { chave: "page_view", titulo: "Navegando", icon: Eye, cor: "text-muted-foreground", borda: "border-border" },
+      { chave: "product_view", titulo: "Viu produto", icon: Shirt, cor: "text-primary", borda: "border-primary/40" },
+      { chave: "add_to_cart", titulo: "Carrinho", icon: ShoppingBag, cor: "text-warning", borda: "border-warning/40" },
+      { chave: "checkout", titulo: "Checkout", icon: CreditCard, cor: "text-success", borda: "border-success/40" },
+    ] as const;
+
+    const etapaDe = (v: Visitante) => {
+      const t = (v.tipo_evento || v.ultimo_evento || "").toLowerCase();
+      if (t.includes("purchase") || t.includes("checkout")) return "checkout";
+      if (t.includes("cart")) return "add_to_cart";
+      if (t.includes("product")) return "product_view";
+      return "page_view";
+    };
+
+    return def.map((e) => ({
+      ...e,
+      visitantes: ordenados.filter((v) => etapaDe(v) === e.chave),
+    }));
+  }, [ordenados]);
+
+  const CardVisitante = ({ v }: { v: Visitante }) => {
+    const meta = metaEvento(v.tipo_evento || v.ultimo_evento);
+    const Icone = meta.icon;
+    const novo = novosRef.current.has(v.visitante_id);
+    const ativo = selecionado?.visitante_id === v.visitante_id;
+    return (
+      <li>
+        <button
+          type="button"
+          onClick={() => abrirTimeline(v)}
+          className={cn(
+            "w-full rounded-lg border bg-card p-3 text-left transition-all duration-300 hover:border-primary/50",
+            "animate-in fade-in slide-in-from-left-4",
+            novo ? "border-primary shadow-[0_0_0_2px_hsl(var(--primary)/0.25)]" : "border-border",
+            ativo && "border-primary bg-primary/5",
+          )}
+        >
+          <div className="flex items-center gap-2">
+            <span
+              aria-label="ao vivo"
+              role="img"
+              className="inline-flex h-2 w-2 shrink-0 animate-pulse rounded-full bg-success"
+            />
+            <span
+              className={cn(
+                "truncate text-sm font-medium",
+                v.nome_cliente ? "text-foreground" : "text-muted-foreground",
+              )}
+            >
+              {v.nome_cliente || "Visitante anônimo"}
+            </span>
+          </div>
+          <p className="mt-1 truncate text-xs text-muted-foreground">{v.ultima_pagina || "—"}</p>
+          <div className="mt-2 flex flex-wrap items-center justify-between gap-2 text-[11px] text-muted-foreground">
+            <span className={cn("inline-flex items-center gap-1", meta.className)}>
+              <Icone className="h-3 w-3" />
+              {meta.label}
+            </span>
+            <span className="inline-flex items-center gap-1">
+              <IconeOrigem origem={v.origem} />
+              {v.origem || "direto"}
+            </span>
+          </div>
+          <p className="mt-1 text-[11px] text-muted-foreground">{tempoRelativo(v.ultima_atividade)}</p>
+        </button>
+      </li>
+    );
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-3">
@@ -171,86 +242,44 @@ export default function Rastreamento() {
         </div>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-5">
-        {/* Lista */}
-        <div className="lg:col-span-3">
-          <Card className="rounded-xl p-4">
-            {carregando ? (
-              <div className="flex h-40 items-center justify-center">
-                <Loader2 className="h-6 w-6 animate-spin text-primary" />
-              </div>
-            ) : ordenados.length === 0 ? (
-              <div className="flex flex-col items-center justify-center gap-3 py-16 text-center">
-                <div className="flex h-16 w-16 items-center justify-center rounded-full bg-muted">
-                  <Radar className="h-8 w-8 text-muted-foreground" />
+      {carregando ? (
+        <Card className="flex h-40 items-center justify-center rounded-xl">
+          <Loader2 className="h-6 w-6 animate-spin text-primary" />
+        </Card>
+      ) : (
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          {etapas.map((e) => {
+            const IconeEtapa = e.icon;
+            return (
+              <Card key={e.chave} className={cn("rounded-xl border-t-4 p-4", e.borda)}>
+                <div className="mb-3 flex items-center justify-between gap-2">
+                  <span className={cn("inline-flex items-center gap-2 text-sm font-medium", e.cor)}>
+                    <IconeEtapa className="h-4 w-4" />
+                    {e.titulo}
+                  </span>
+                  <Badge variant="outline">{e.visitantes.length}</Badge>
                 </div>
-                <p className="text-sm text-muted-foreground">Nenhuma visitante no site agora 👀</p>
-              </div>
-            ) : (
-              <ul aria-live="polite" className="space-y-3">
-                {ordenados.map((v) => {
-                  const meta = metaEvento(v.tipo_evento || v.ultimo_evento);
-                  const Icone = meta.icon;
-                  const novo = novosRef.current.has(v.visitante_id);
-                  const ativo = selecionado?.visitante_id === v.visitante_id;
-                  return (
-                    <li key={v.visitante_id}>
-                      <button
-                        type="button"
-                        onClick={() => abrirTimeline(v)}
-                        className={cn(
-                          "w-full rounded-xl border bg-card p-4 text-left transition-all duration-300 hover:border-primary/50",
-                          "animate-in fade-in slide-in-from-left-4",
-                          novo ? "border-primary shadow-[0_0_0_2px_hsl(var(--primary)/0.25)]" : "border-border",
-                          ativo && "border-primary bg-primary/5",
-                        )}
-                      >
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="min-w-0">
-                            <div className="flex items-center gap-2">
-                              <span
-                                aria-label="ao vivo"
-                                role="img"
-                                className="inline-flex h-2.5 w-2.5 animate-pulse rounded-full bg-success"
-                              />
-                              <span
-                                className={cn(
-                                  "truncate font-medium",
-                                  v.nome_cliente ? "text-foreground" : "text-muted-foreground",
-                                )}
-                              >
-                                {v.nome_cliente || "Visitante anônimo"}
-                              </span>
-                            </div>
-                            <p className="mt-1 truncate text-sm text-muted-foreground">
-                              {v.ultima_pagina || "—"}
-                            </p>
-                            <div className="mt-2 flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
-                              <span className={cn("inline-flex items-center gap-1", meta.className)}>
-                                <Icone className="h-3.5 w-3.5" />
-                                {meta.label}
-                              </span>
-                              <span className="inline-flex items-center gap-1">
-                                <IconeOrigem origem={v.origem} />
-                                {v.origem || "direto"}
-                              </span>
-                            </div>
-                          </div>
-                          <span className="shrink-0 text-xs text-muted-foreground">
-                            {tempoRelativo(v.ultima_atividade)}
-                          </span>
-                        </div>
-                      </button>
-                    </li>
-                  );
-                })}
-              </ul>
-            )}
-          </Card>
+                {e.visitantes.length === 0 ? (
+                  <p className="py-8 text-center text-xs text-muted-foreground">Ninguém nesta etapa</p>
+                ) : (
+                  <ScrollArea className="h-[420px] pr-2">
+                    <ul aria-live="polite" className="space-y-2">
+                      {e.visitantes.map((v) => (
+                        <CardVisitante key={v.visitante_id} v={v} />
+                      ))}
+                    </ul>
+                  </ScrollArea>
+                )}
+              </Card>
+            );
+          })}
         </div>
+      )}
 
+      <div className="grid gap-6">
         {/* Timeline */}
-        <div className="lg:col-span-2">
+        <div>
+
           <Card className="rounded-xl p-4">
             {!selecionado ? (
               <p className="py-16 text-center text-sm text-muted-foreground">
