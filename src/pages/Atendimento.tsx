@@ -13,8 +13,8 @@ import { cn } from "@/lib/utils";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import {
-  AlertTriangle, Bot, Check, CheckCheck, CheckCircle2, ImagePlus, LayoutGrid, Lock, MessageCircle,
-  RotateCcw, Search, Send, User, X, UserCheck,
+  AlertTriangle, Bot, Check, CheckCheck, CheckCircle2, Globe, ImagePlus, LayoutGrid, Lock, MessageCircle,
+  RotateCcw, Search, Send, User, X, UserCheck, Phone,
 } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -28,6 +28,8 @@ type Conversa = {
   cliente_nome?: string | null;
   nome_cliente?: string | null;
   telefone: string;
+  canal?: "whatsapp" | "site" | string | null;
+  telefone_real?: string | null;
   ultima_mensagem?: string | null;
   ultima_mensagem_em?: string | null;
   atualizado_em?: string | null;
@@ -36,6 +38,15 @@ type Conversa = {
   tags?: Tag[] | null;
   nao_lida?: boolean | null;
 };
+
+const ehSite = (c?: Conversa | null) =>
+  (c?.canal ?? "").toLowerCase() === "site" || String(c?.telefone ?? "").startsWith("site:");
+
+const nomeConversa = (c: Conversa) =>
+  c.cliente_nome ?? c.nome_cliente ?? (ehSite(c) ? "Visitante do site" : "Desconhecido");
+
+const identificadorConversa = (c: Conversa) => (ehSite(c) ? "Chat do site" : c.telefone);
+
 
 type Mensagem = {
   id: number | string;
@@ -190,7 +201,7 @@ export default function Atendimento() {
 
   const { data: dentroJanela } = useQuery({
     queryKey: ["whatsapp-janela-24h", selecionada],
-    enabled: !!selecionada,
+    enabled: !!selecionada && !ehSite(conversaAtual),
     refetchInterval: 60000,
     queryFn: async () => {
       const { data, error } = await supabase.rpc("whatsapp_dentro_janela_24h" as any, {
@@ -248,6 +259,14 @@ export default function Atendimento() {
   const enviar = useMutation({
     mutationFn: async (conteudo: string) => {
       if (!conversaAtual) throw new Error("Nenhuma conversa selecionada");
+      if (ehSite(conversaAtual)) {
+        const { data, error } = await supabase.rpc("whatsapp_registrar_mensagem_humana" as any, {
+          p_conversa_id: conversaAtual.id,
+          p_conteudo: conteudo,
+        });
+        if (error) throw error;
+        return data;
+      }
       const { data, error } = await supabase.functions.invoke("whatsapp-enviar-mensagem-humano", {
         body: {
           conversa_id: conversaAtual.id,
@@ -397,8 +416,9 @@ export default function Atendimento() {
     }
     if (!busca.trim()) return true;
     const t = busca.toLowerCase();
-    const nome = (c.cliente_nome ?? c.nome_cliente ?? "").toLowerCase();
-    return nome.includes(t) || (c.telefone ?? "").toLowerCase().includes(t);
+    const nome = nomeConversa(c).toLowerCase();
+    const tel = ehSite(c) ? (c.telefone_real ?? "") : (c.telefone ?? "");
+    return nome.includes(t) || tel.toLowerCase().includes(t);
   });
 
   const totalNaoLidas = conversas.filter((c) => c.nao_lida).length;
@@ -490,7 +510,8 @@ export default function Atendimento() {
               <p className="p-4 text-sm text-muted-foreground">Nenhuma conversa encontrada.</p>
             )}
             {filtradas.map((c) => {
-              const nome = c.cliente_nome ?? c.nome_cliente ?? "Desconhecido";
+              const nome = nomeConversa(c);
+              const site = ehSite(c);
               const ativa = String(c.id) === selecionada;
               const prio = (c.prioridade ?? "").toLowerCase();
               const naoLida = !!c.nao_lida;
@@ -511,10 +532,24 @@ export default function Atendimento() {
                       {prio === "alta" && <span className="h-2 w-2 rounded-full bg-danger shrink-0" />}
                       {prio === "media" && <span className="h-2 w-2 rounded-full bg-warning shrink-0" />}
                       <div className="min-w-0">
-                        <p className={cn("text-sm truncate", naoLida ? "font-bold" : "font-medium")}>{nome}</p>
-                        <p className="text-xs text-muted-foreground">{c.telefone}</p>
+                        <p className={cn("text-sm truncate flex items-center gap-1.5", naoLida ? "font-bold" : "font-medium")}>
+                          {site ? (
+                            <Globe className="h-3.5 w-3.5 shrink-0 text-primary" aria-label="Chat do site" />
+                          ) : (
+                            <MessageCircle className="h-3.5 w-3.5 shrink-0 text-success" aria-label="WhatsApp" />
+                          )}
+                          <span className="truncate">{nome}</span>
+                        </p>
+                        <p className="text-xs text-muted-foreground">{identificadorConversa(c)}</p>
+                        {site && c.telefone_real && (
+                          <span className="mt-1 inline-flex items-center gap-1 rounded-full border border-success/20 bg-success/10 px-2 py-0.5 text-[10px] text-success">
+                            <Phone className="h-3 w-3" />
+                            {c.telefone_real}
+                          </span>
+                        )}
                       </div>
                     </div>
+
                     <span className="text-[10px] text-muted-foreground whitespace-nowrap">
                       {tempoRelativo(c.ultima_mensagem_em ?? c.atualizado_em)}
                     </span>
@@ -547,12 +582,22 @@ export default function Atendimento() {
               <div className="p-4 flex items-start justify-between gap-4 border-b border-border">
                 <div className="min-w-0 space-y-1.5">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <h2 className="font-medium truncate">
-                      {conversaAtual.cliente_nome ?? conversaAtual.nome_cliente ?? "Desconhecido"}
-                    </h2>
+                    {ehSite(conversaAtual) ? (
+                      <Globe className="h-4 w-4 text-primary shrink-0" aria-label="Chat do site" />
+                    ) : (
+                      <MessageCircle className="h-4 w-4 text-success shrink-0" aria-label="WhatsApp" />
+                    )}
+                    <h2 className="font-medium truncate">{nomeConversa(conversaAtual)}</h2>
                     <StatusPill status={conversaAtual.status} />
+                    {ehSite(conversaAtual) && conversaAtual.telefone_real && (
+                      <span className="inline-flex items-center gap-1 rounded-full border border-success/20 bg-success/10 px-2 py-0.5 text-[10px] text-success">
+                        <Phone className="h-3 w-3" />
+                        {conversaAtual.telefone_real}
+                      </span>
+                    )}
                   </div>
-                  <p className="text-xs text-muted-foreground">{conversaAtual.telefone}</p>
+                  <p className="text-xs text-muted-foreground">{identificadorConversa(conversaAtual)}</p>
+
                   <TagsConversa conversaId={conversaAtual.id} aplicadas={conversaAtual.tags ?? []} />
                 </div>
                 <div className="flex items-center gap-2">
@@ -635,7 +680,7 @@ export default function Atendimento() {
 
               <Separator />
 
-              {podeResponder && dentroJanela === false ? (
+              {podeResponder && !ehSite(conversaAtual) && dentroJanela === false ? (
                 <div className="p-4 flex items-start gap-3 border-t-2 border-warning bg-warning/10">
                   <Lock className="h-4 w-4 text-warning mt-0.5 shrink-0" />
                   <p className="text-sm text-foreground">
