@@ -75,31 +75,21 @@ export default function Audiencia() {
     },
   });
 
-  const filtradas = useMemo(() => {
+  const buscadas = useMemo(() => {
     const t = busca.trim().toLowerCase();
-    const base = !t
-      ? linhas
-      : linhas.filter((l) =>
-          [l.nome, l.email, l.telefone].some((v) => (v ?? "").toLowerCase().includes(t)),
-        );
-    const arr = [...base];
-    arr.sort((a, b) => {
-      const va = a[ordem.campo];
-      const vb = b[ordem.campo];
-      if (va == null && vb == null) return 0;
-      if (va == null) return 1;
-      if (vb == null) return -1;
-      if (typeof va === "number" && typeof vb === "number") {
-        return ordem.dir === "asc" ? va - vb : vb - va;
-      }
-      const cmp = String(va).localeCompare(String(vb), "pt-BR");
-      return ordem.dir === "asc" ? cmp : -cmp;
-    });
-    return arr;
-  }, [linhas, busca, ordem]);
+    if (!t) return linhas;
+    return linhas.filter((l) =>
+      [l.nome, l.email, l.telefone].some((v) => (v ?? "").toLowerCase().includes(t)),
+    );
+  }, [linhas, busca]);
 
-  const alternar = (campo: keyof LinhaAudiencia) =>
-    setOrdem((o) => (o.campo === campo ? { campo, dir: o.dir === "asc" ? "desc" : "asc" } : { campo, dir: "desc" }));
+  const filtradas = useOrdenado(buscadas, sort, {
+    nome: (l) => l.nome,
+    perfil: (l) => l.perfil,
+    compras: (l) => l.compras,
+    total_gasto: (l) => l.total_gasto,
+    ultima_compra: (l) => l.ultima_compra,
+  });
 
   return (
     <div className="p-6 max-w-[1500px] mx-auto space-y-4">
@@ -131,48 +121,23 @@ export default function Audiencia() {
           <Table>
             <TableHeader className="sticky top-0 bg-card z-10">
               <TableRow>
-                <SortableHead
-                  active={ordem.campo === "nome"}
-                  direction={ordem.dir}
-                  onClick={() => alternar("nome")}
-                >
-                  Nome
-                </SortableHead>
+                <SortableHead campo="nome" sort={sort} onSort={alternar}>Nome</SortableHead>
                 <TableHead>E-mail</TableHead>
                 <TableHead>Telefone</TableHead>
-                <SortableHead
-                  active={ordem.campo === "perfil"}
-                  direction={ordem.dir}
-                  onClick={() => alternar("perfil")}
-                >
-                  Perfil
-                </SortableHead>
-                <SortableHead
-                  active={ordem.campo === "compras"}
-                  direction={ordem.dir}
-                  onClick={() => alternar("compras")}
-                  className="text-right"
-                >
+                <SortableHead campo="perfil" sort={sort} onSort={alternar}>Perfil</SortableHead>
+                <SortableHead campo="compras" sort={sort} onSort={alternar} className="text-right">
                   Compras
                 </SortableHead>
-                <SortableHead
-                  active={ordem.campo === "total_gasto"}
-                  direction={ordem.dir}
-                  onClick={() => alternar("total_gasto")}
-                  className="text-right"
-                >
+                <SortableHead campo="total_gasto" sort={sort} onSort={alternar} className="text-right">
                   Total gasto
                 </SortableHead>
-                <SortableHead
-                  active={ordem.campo === "ultima_compra"}
-                  direction={ordem.dir}
-                  onClick={() => alternar("ultima_compra")}
-                >
+                <SortableHead campo="ultima_compra" sort={sort} onSort={alternar}>
                   Última compra
                 </SortableHead>
                 <TableHead className="text-center">WhatsApp</TableHead>
               </TableRow>
             </TableHeader>
+
             <TableBody>
               {isLoading && (
                 <TableRow>
