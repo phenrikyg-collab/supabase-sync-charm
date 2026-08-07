@@ -169,10 +169,17 @@ export default function Rastreamento() {
     ] as const;
 
     const etapaDe = (v: Visitante) => {
-      const t = (v.tipo_evento || v.ultimo_evento || "").toLowerCase();
+      const t = (v.tipo_ultimo_evento || v.tipo_evento || v.ultimo_evento || "").toLowerCase();
       if (t.includes("purchase") || t.includes("checkout")) return "checkout";
       if (t.includes("cart")) return "add_to_cart";
       if (t.includes("product")) return "product_view";
+
+      // Fallback: inferir pela URL quando o evento é apenas page_view
+      const url = (v.ultima_pagina || "").split("?")[0].toLowerCase();
+      if (/(checkout|finalizar|pagamento|pedido)/.test(url)) return "checkout";
+      if (/(carrinho|cart|sacola)/.test(url)) return "add_to_cart";
+      const segs = url.split("/").filter(Boolean);
+      if (segs.length >= 2) return "product_view";
       return "page_view";
     };
 
