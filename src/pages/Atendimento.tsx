@@ -509,7 +509,8 @@ export default function Atendimento() {
               <p className="p-4 text-sm text-muted-foreground">Nenhuma conversa encontrada.</p>
             )}
             {filtradas.map((c) => {
-              const nome = c.cliente_nome ?? c.nome_cliente ?? "Desconhecido";
+              const nome = nomeConversa(c);
+              const site = ehSite(c);
               const ativa = String(c.id) === selecionada;
               const prio = (c.prioridade ?? "").toLowerCase();
               const naoLida = !!c.nao_lida;
@@ -530,10 +531,24 @@ export default function Atendimento() {
                       {prio === "alta" && <span className="h-2 w-2 rounded-full bg-danger shrink-0" />}
                       {prio === "media" && <span className="h-2 w-2 rounded-full bg-warning shrink-0" />}
                       <div className="min-w-0">
-                        <p className={cn("text-sm truncate", naoLida ? "font-bold" : "font-medium")}>{nome}</p>
-                        <p className="text-xs text-muted-foreground">{c.telefone}</p>
+                        <p className={cn("text-sm truncate flex items-center gap-1.5", naoLida ? "font-bold" : "font-medium")}>
+                          {site ? (
+                            <Globe className="h-3.5 w-3.5 shrink-0 text-primary" aria-label="Chat do site" />
+                          ) : (
+                            <MessageCircle className="h-3.5 w-3.5 shrink-0 text-success" aria-label="WhatsApp" />
+                          )}
+                          <span className="truncate">{nome}</span>
+                        </p>
+                        <p className="text-xs text-muted-foreground">{identificadorConversa(c)}</p>
+                        {site && c.telefone_real && (
+                          <span className="mt-1 inline-flex items-center gap-1 rounded-full border border-success/20 bg-success/10 px-2 py-0.5 text-[10px] text-success">
+                            <Phone className="h-3 w-3" />
+                            {c.telefone_real}
+                          </span>
+                        )}
                       </div>
                     </div>
+
                     <span className="text-[10px] text-muted-foreground whitespace-nowrap">
                       {tempoRelativo(c.ultima_mensagem_em ?? c.atualizado_em)}
                     </span>
