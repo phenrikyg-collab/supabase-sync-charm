@@ -680,7 +680,7 @@ export default function Atendimento() {
 
               <Separator />
 
-              {podeResponder && dentroJanela === false ? (
+              {podeResponder && !ehSite(conversaAtual) && dentroJanela === false ? (
                 <div className="p-4 flex items-start gap-3 border-t-2 border-warning bg-warning/10">
                   <Lock className="h-4 w-4 text-warning mt-0.5 shrink-0" />
                   <p className="text-sm text-foreground">
