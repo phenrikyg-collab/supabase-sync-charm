@@ -13,9 +13,11 @@ import { cn } from "@/lib/utils";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import {
-  Bot, CheckCircle2, ImagePlus, LayoutGrid, MessageCircle, RotateCcw, Search, Send, User, X,
-  UserCheck,
+  AlertTriangle, Bot, Check, CheckCheck, CheckCircle2, ImagePlus, LayoutGrid, Lock, MessageCircle,
+  RotateCcw, Search, Send, User, X, UserCheck,
 } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Checkbox } from "@/components/ui/checkbox";
 import { TagsConversa, TagChip, type Tag } from "@/components/atendimento/TagsConversa";
 import { CatalogoDialog, formatarPreco, legendaProduto, type ProdutoCatalogo } from "@/components/atendimento/CatalogoDialog";
 import { PerfilCliente } from "@/components/atendimento/PerfilCliente";
@@ -32,6 +34,7 @@ type Conversa = {
   status: string;
   prioridade?: string | null;
   tags?: Tag[] | null;
+  nao_lida?: boolean | null;
 };
 
 type Mensagem = {
@@ -43,6 +46,8 @@ type Mensagem = {
   media_url?: string | null;
   criado_em?: string | null;
   enviado_em?: string | null;
+  status_entrega?: "enviado" | "entregue" | "lido" | "falhou" | string | null;
+  erro_entrega?: string | null;
 };
 
 const STATUS_META: Record<string, { label: string; className: string }> = {
@@ -84,11 +89,48 @@ function horaCurta(valor?: string | null) {
   return d.toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
 }
 
+function StatusEntrega({ status, erro }: { status?: string | null; erro?: string | null }) {
+  if (!status) return null;
+  if (status === "falhou") {
+    return (
+      <span
+        title={erro || "Falha no envio"}
+        className="inline-flex items-center text-danger cursor-help"
+        aria-label="Falha no envio"
+      >
+        <AlertTriangle className="h-3 w-3" />
+      </span>
+    );
+  }
+  if (status === "lido") {
+    return (
+      <span title="Lido" className="inline-flex items-center text-info">
+        <CheckCheck className="h-3.5 w-3.5" />
+      </span>
+    );
+  }
+  if (status === "entregue") {
+    return (
+      <span title="Entregue" className="inline-flex items-center text-muted-foreground">
+        <CheckCheck className="h-3.5 w-3.5" />
+      </span>
+    );
+  }
+  return (
+    <span title="Enviado" className="inline-flex items-center text-muted-foreground">
+      <Check className="h-3.5 w-3.5" />
+    </span>
+  );
+}
+
 export default function Atendimento() {
   const queryClient = useQueryClient();
   const { user } = useAuth();
   const [selecionada, setSelecionada] = useState<string | null>(null);
   const [busca, setBusca] = useState("");
+  const [filtroLeitura, setFiltroLeitura] = useState<"todas" | "nao_lidas" | "lidas">("todas");
+  const [tagsFiltro, setTagsFiltro] = useState<string[]>([]);
+  const [erroJanela, setErroJanela] = useState<string | null>(null);
   const [texto, setTexto] = useState("");
   const [catalogoAberto, setCatalogoAberto] = useState(false);
   const [arquivo, setArquivo] = useState<File | null>(null);
@@ -137,6 +179,39 @@ export default function Atendimento() {
     },
   });
 
+  const { data: todasTags = [] } = useQuery({
+    queryKey: ["whatsapp-tags"],
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc("whatsapp_listar_tags" as any);
+      if (error) throw error;
+      return (data ?? []) as Tag[];
+    },
+  });
+
+  const { data: dentroJanela } = useQuery({
+    queryKey: ["whatsapp-janela-24h", selecionada],
+    enabled: !!selecionada,
+    refetchInterval: 60000,
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc("whatsapp_dentro_janela_24h" as any, {
+        p_conversa_id: Number.isNaN(Number(selecionada)) ? selecionada : Number(selecionada),
+      });
+      if (error) throw error;
+      return data as unknown as boolean;
+    },
+  });
+
+  const abrirConversa = async (c: Conversa) => {
+    setSelecionada(String(c.id));
+    setErroJanela(null);
+    if (!c.nao_lida) return;
+    const { error } = await supabase.rpc("whatsapp_marcar_lida" as any, {
+      p_conversa_id: Number.isNaN(Number(c.id)) ? c.id : Number(c.id),
+    });
+    if (!error) queryClient.invalidateQueries({ queryKey: ["whatsapp-conversas"] });
+  };
+
+
   useEffect(() => {
     fimRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [mensagens.length, selecionada]);
@@ -150,6 +225,24 @@ export default function Atendimento() {
   const invalidarThread = () => {
     queryClient.invalidateQueries({ queryKey: ["whatsapp-mensagens", selecionada] });
     queryClient.invalidateQueries({ queryKey: ["whatsapp-conversas"] });
+  };
+
+  const extrairErroJanela = async (error: any): Promise<string | null> => {
+    try {
+      const resp = error?.context;
+      if (resp && typeof resp.json === "function") {
+        const corpo = await resp.clone().json();
+        if (corpo?.error === "janela_24h_fechada") {
+          return corpo.mensagem || "Fora da janela de 24h — use um template aprovado para reabrir o contato.";
+        }
+      }
+    } catch {
+      /* ignora */
+    }
+    if (typeof error?.message === "string" && error.message.includes("janela_24h_fechada")) {
+      return "Fora da janela de 24h — use um template aprovado para reabrir o contato.";
+    }
+    return null;
   };
 
   const enviar = useMutation({
@@ -167,9 +260,18 @@ export default function Atendimento() {
     },
     onSuccess: () => {
       setTexto("");
+      setErroJanela(null);
       invalidarThread();
     },
-    onError: (e: any) => toast({ title: "Erro ao enviar", description: e.message, variant: "destructive" }),
+    onError: async (e: any) => {
+      const janela = await extrairErroJanela(e);
+      if (janela) {
+        setErroJanela(janela);
+        queryClient.invalidateQueries({ queryKey: ["whatsapp-janela-24h", selecionada] });
+        return;
+      }
+      toast({ title: "Erro ao enviar", description: e.message, variant: "destructive" });
+    },
   });
 
   const enviarImagem = async (mediaUrl: string, conteudo: string) => {
@@ -287,11 +389,19 @@ export default function Atendimento() {
   });
 
   const filtradas = conversas.filter((c) => {
+    if (filtroLeitura === "nao_lidas" && !c.nao_lida) return false;
+    if (filtroLeitura === "lidas" && c.nao_lida) return false;
+    if (tagsFiltro.length > 0) {
+      const ids = (c.tags ?? []).map((t) => String(t.id));
+      if (!tagsFiltro.some((t) => ids.includes(t))) return false;
+    }
     if (!busca.trim()) return true;
     const t = busca.toLowerCase();
     const nome = (c.cliente_nome ?? c.nome_cliente ?? "").toLowerCase();
     return nome.includes(t) || (c.telefone ?? "").toLowerCase().includes(t);
   });
+
+  const totalNaoLidas = conversas.filter((c) => c.nao_lida).length;
 
   const status = conversaAtual?.status ?? "";
   const podeResponder = status === "escalado" || status === "em_atendimento";
@@ -308,7 +418,7 @@ export default function Atendimento() {
       <div className="grid grid-cols-1 lg:grid-cols-[340px_1fr] xl:grid-cols-[340px_1fr_340px] gap-4 h-[calc(100vh-220px)] min-h-[520px]">
         {/* Lista de conversas */}
         <Card className="flex flex-col overflow-hidden">
-          <div className="p-3 border-b border-border">
+          <div className="p-3 border-b border-border space-y-2">
             <div className="relative">
               <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
               <Input
@@ -317,6 +427,59 @@ export default function Atendimento() {
                 placeholder="Buscar por nome ou telefone"
                 className="pl-8"
               />
+            </div>
+            <div className="flex items-center gap-1.5 flex-wrap">
+              {([
+                { v: "todas", label: "Todas" },
+                { v: "nao_lidas", label: `Não lidas${totalNaoLidas ? ` (${totalNaoLidas})` : ""}` },
+                { v: "lidas", label: "Lidas" },
+              ] as const).map((f) => (
+                <Button
+                  key={f.v}
+                  size="sm"
+                  variant={filtroLeitura === f.v ? "default" : "outline"}
+                  className="h-7 px-2.5 text-[11px]"
+                  onClick={() => setFiltroLeitura(f.v)}
+                >
+                  {f.label}
+                </Button>
+              ))}
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    size="sm"
+                    variant={tagsFiltro.length ? "secondary" : "outline"}
+                    className="h-7 px-2.5 text-[11px]"
+                  >
+                    Tags{tagsFiltro.length ? ` (${tagsFiltro.length})` : ""}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-56 p-3 space-y-2" align="start">
+                  {todasTags.length === 0 && (
+                    <p className="text-xs text-muted-foreground">Nenhuma tag cadastrada.</p>
+                  )}
+                  <div className="max-h-52 overflow-auto space-y-2">
+                    {todasTags.map((t) => (
+                      <label key={String(t.id)} className="flex items-center gap-2 cursor-pointer">
+                        <Checkbox
+                          checked={tagsFiltro.includes(String(t.id))}
+                          onCheckedChange={(v) =>
+                            setTagsFiltro((prev) =>
+                              v ? [...prev, String(t.id)] : prev.filter((x) => x !== String(t.id)),
+                            )
+                          }
+                        />
+                        <TagChip tag={t} />
+                      </label>
+                    ))}
+                  </div>
+                  {tagsFiltro.length > 0 && (
+                    <Button size="sm" variant="ghost" className="w-full h-7 text-[11px]" onClick={() => setTagsFiltro([])}>
+                      Limpar filtro
+                    </Button>
+                  )}
+                </PopoverContent>
+              </Popover>
             </div>
           </div>
           <ScrollArea className="flex-1">
@@ -330,22 +493,25 @@ export default function Atendimento() {
               const nome = c.cliente_nome ?? c.nome_cliente ?? "Desconhecido";
               const ativa = String(c.id) === selecionada;
               const prio = (c.prioridade ?? "").toLowerCase();
+              const naoLida = !!c.nao_lida;
               return (
                 <button
                   key={String(c.id)}
-                  onClick={() => setSelecionada(String(c.id))}
+                  onClick={() => abrirConversa(c)}
                   className={cn(
                     "w-full text-left px-4 py-3 border-b border-border/60 border-l-4 transition-colors hover:bg-accent/60",
                     prio === "alta" ? "border-l-danger" : prio === "media" ? "border-l-warning" : "border-l-transparent",
                     ativa && "bg-accent",
+                    naoLida && !ativa && "bg-primary/5",
                   )}
                 >
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0 flex items-center gap-1.5">
+                      {naoLida && <span className="h-2.5 w-2.5 rounded-full bg-success shrink-0" />}
                       {prio === "alta" && <span className="h-2 w-2 rounded-full bg-danger shrink-0" />}
                       {prio === "media" && <span className="h-2 w-2 rounded-full bg-warning shrink-0" />}
                       <div className="min-w-0">
-                        <p className="font-medium text-sm truncate">{nome}</p>
+                        <p className={cn("text-sm truncate", naoLida ? "font-bold" : "font-medium")}>{nome}</p>
                         <p className="text-xs text-muted-foreground">{c.telefone}</p>
                       </div>
                     </div>
@@ -353,7 +519,7 @@ export default function Atendimento() {
                       {tempoRelativo(c.ultima_mensagem_em ?? c.atualizado_em)}
                     </span>
                   </div>
-                  <p className="text-xs text-muted-foreground mt-1 line-clamp-1">
+                  <p className={cn("text-xs mt-1 line-clamp-1", naoLida ? "text-foreground font-medium" : "text-muted-foreground")}>
                     {c.ultima_mensagem ?? "—"}
                   </p>
                   <div className="mt-2 flex items-center gap-1.5 flex-wrap">
@@ -375,6 +541,7 @@ export default function Atendimento() {
               <MessageCircle className="h-10 w-10 opacity-40" />
               <p className="text-sm">Selecione uma conversa para começar.</p>
             </div>
+
           ) : (
             <>
               <div className="p-4 flex items-start justify-between gap-4 border-b border-border">
@@ -452,9 +619,12 @@ export default function Atendimento() {
                             </a>
                           )}
                           {!!m.conteudo && <p className="whitespace-pre-wrap break-words">{m.conteudo}</p>}
-                          <p className="text-[10px] text-muted-foreground mt-1 text-right">
-                            {horaCurta(m.criado_em ?? m.enviado_em)}
-                          </p>
+                          <div className="flex items-center justify-end gap-1 mt-1">
+                            <span className="text-[10px] text-muted-foreground">
+                              {horaCurta(m.criado_em ?? m.enviado_em)}
+                            </span>
+                            {saida && <StatusEntrega status={m.status_entrega} erro={m.erro_entrega} />}
+                          </div>
                         </div>
                       </div>
                     );
@@ -465,8 +635,21 @@ export default function Atendimento() {
 
               <Separator />
 
-              {podeResponder ? (
+              {podeResponder && dentroJanela === false ? (
+                <div className="p-4 flex items-start gap-3 border-t-2 border-warning bg-warning/10">
+                  <Lock className="h-4 w-4 text-warning mt-0.5 shrink-0" />
+                  <p className="text-sm text-foreground">
+                    Fora da janela de 24h — use um template aprovado (tela de Campanhas) pra reabrir contato.
+                  </p>
+                </div>
+              ) : podeResponder ? (
                 <div className="p-3 space-y-2">
+                  {erroJanela && (
+                    <div className="flex items-start gap-2 rounded-md border border-danger/40 bg-danger/10 p-3">
+                      <AlertTriangle className="h-4 w-4 text-danger mt-0.5 shrink-0" />
+                      <p className="text-sm text-danger">{erroJanela}</p>
+                    </div>
+                  )}
                   {previewUrl && (
                     <div className="flex items-start gap-3 rounded-md border border-border p-2">
                       <img src={previewUrl} alt="Prévia" className="h-20 w-20 rounded object-cover" />

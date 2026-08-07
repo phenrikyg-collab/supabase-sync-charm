@@ -63,6 +63,7 @@ import PlanejamentoConteudoMensal from "./pages/PlanejamentoConteudoMensal";
 import Tendencias from "./pages/Tendencias";
 import LinkNaBio from "./pages/LinkNaBio";
 import Atendimento from "./pages/Atendimento";
+import Audiencia from "./pages/Audiencia";
 import Automacoes from "./pages/Automacoes";
 import AutomacaoFluxo from "./pages/AutomacaoFluxo";
 import EmailMarketing from "./pages/EmailMarketing";
@@ -189,6 +190,7 @@ const AppRoutes = () => {
               <Route path="/tendencias" element={<Tendencias />} />
               <Route path="/link-na-bio" element={<LinkNaBio />} />
               <Route path="/atendimento" element={<Atendimento />} />
+              <Route path="/audiencia" element={<Audiencia />} />
               <Route path="/automacoes" element={<Automacoes />} />
               <Route path="/email-marketing" element={<EmailMarketing />} />
               <Route path="/email-marketing/templates/:id" element={<EmailTemplateEditor />} />
