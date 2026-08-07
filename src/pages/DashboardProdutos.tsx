@@ -86,20 +86,24 @@ export default function DashboardProdutos() {
   const [filtroClasse, setFiltroClasse] = useState<"todas" | "A" | "B" | "C">("todas");
   const [buscaTabela, setBuscaTabela] = useState("");
   const [buscaEstoque, setBuscaEstoque] = useState("");
+  const [periodo, setPeriodo] = useState<Periodo>({ inicio: null, fim: null });
 
   const { data: abc = [], isLoading } = useQuery({
-    queryKey: ["vw_curva_abc_produtos"],
+    queryKey: ["fn_curva_abc_produtos", periodo.inicio, periodo.fim],
     staleTime: 5 * 60 * 1000,
     refetchInterval: false,
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("vw_curva_abc_produtos" as any)
-        .select("*")
-        .order("receita_total", { ascending: false });
+      const { data, error } = await supabase.rpc("fn_curva_abc_produtos" as any, {
+        p_data_inicio: periodo.inicio,
+        p_data_fim: periodo.fim,
+      });
       if (error) throw error;
-      return (data ?? []) as unknown as CurvaABC[];
+      const linhas = ((data ?? []) as unknown as CurvaABC[]).slice();
+      linhas.sort((a, b) => Number(b.receita_total ?? 0) - Number(a.receita_total ?? 0));
+      return linhas;
     },
   });
+
 
   const { data: sugestoes = [], isLoading: loadingSug } = useQuery({
     queryKey: ["vw_sugestao_producao_por_cor"],
