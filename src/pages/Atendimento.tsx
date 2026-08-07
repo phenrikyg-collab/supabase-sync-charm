@@ -13,9 +13,11 @@ import { cn } from "@/lib/utils";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import {
-  Bot, CheckCircle2, ImagePlus, LayoutGrid, MessageCircle, RotateCcw, Search, Send, User, X,
-  UserCheck,
+  AlertTriangle, Bot, Check, CheckCheck, CheckCircle2, ImagePlus, LayoutGrid, Lock, MessageCircle,
+  RotateCcw, Search, Send, User, X, UserCheck,
 } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Checkbox } from "@/components/ui/checkbox";
 import { TagsConversa, TagChip, type Tag } from "@/components/atendimento/TagsConversa";
 import { CatalogoDialog, formatarPreco, legendaProduto, type ProdutoCatalogo } from "@/components/atendimento/CatalogoDialog";
 import { PerfilCliente } from "@/components/atendimento/PerfilCliente";
@@ -32,6 +34,7 @@ type Conversa = {
   status: string;
   prioridade?: string | null;
   tags?: Tag[] | null;
+  nao_lida?: boolean | null;
 };
 
 type Mensagem = {
@@ -43,6 +46,8 @@ type Mensagem = {
   media_url?: string | null;
   criado_em?: string | null;
   enviado_em?: string | null;
+  status_entrega?: "enviado" | "entregue" | "lido" | "falhou" | string | null;
+  erro_entrega?: string | null;
 };
 
 const STATUS_META: Record<string, { label: string; className: string }> = {
