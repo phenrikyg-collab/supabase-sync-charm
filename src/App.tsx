@@ -67,6 +67,7 @@ import Audiencia from "./pages/Audiencia";
 import CarrinhoAbandonado from "./pages/CarrinhoAbandonado";
 import PedidosCancelados from "./pages/PedidosCancelados";
 import Rastreamento from "./pages/Rastreamento";
+import KpisConversao from "./pages/KpisConversao";
 
 import Automacoes from "./pages/Automacoes";
 import AutomacaoFluxo from "./pages/AutomacaoFluxo";
