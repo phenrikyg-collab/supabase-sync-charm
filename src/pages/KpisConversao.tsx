@@ -142,7 +142,7 @@ export default function KpisConversao() {
         titulo: String(r.titulo ?? r.titulo_pagina ?? r.page_title ?? ""),
         sessoes: 0,
       };
-      atual.sessoes += pega(r, ["sessoes", "sessions", "views", "visualizacoes"]);
+      atual.sessoes += pega(r, ["total_sessoes", "sessoes", "sessions", "views", "visualizacoes"]);
       mapa.set(pagina, atual);
     });
     return [...mapa.values()].sort((a, b) => b.sessoes - a.sessoes).slice(0, 50);
