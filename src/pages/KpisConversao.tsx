@@ -32,9 +32,7 @@ function pega(row: Row | undefined, candidatos: string[]) {
 }
 
 const ETAPAS: { label: string; keys: string[] }[] = [
-  { label: "Impressões", keys: ["impressoes", "impressions", "impressoes_meta"] },
-  { label: "Cliques", keys: ["cliques", "clicks", "cliques_meta"] },
-  { label: "Sessões", keys: ["sessoes", "sessions", "sessoes_totais"] },
+  { label: "Sessões", keys: ["sessoes", "sessions", "total_sessoes", "sessoes_totais"] },
   { label: "Visualização de Produto", keys: ["visualizacao_produto", "view_item", "product_view", "visualizacoes_produto"] },
   { label: "Carrinho", keys: ["carrinho", "add_to_cart", "adicionou_carrinho"] },
   { label: "Checkout", keys: ["checkout", "begin_checkout", "checkout_start", "checkouts"] },
