@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription,
 } from "@/components/ui/dialog";
@@ -12,8 +13,11 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import {
   Eye, Shirt, ShoppingBag, CreditCard, CheckCircle2, Globe, Instagram,
-  Search, Radar, MousePointerClick, Loader2, Send,
+  Search, Radar, MousePointerClick, Loader2, Send, Flame,
 } from "lucide-react";
+
+type Classificacao = "quente" | "morno" | "frio";
+type EtapaFunil = "navegando" | "produto" | "carrinho" | "checkout";
 
 type Visitante = {
   visitante_id: string;
@@ -24,6 +28,9 @@ type Visitante = {
   origem?: string | null;
   ultima_atividade: string;
   segmento_rfm?: string | null;
+  etapa_funil?: EtapaFunil | string | null;
+  total_eventos?: number | null;
+  classificacao?: Classificacao | string | null;
 };
 
 type EventoTimeline = {
@@ -79,21 +86,38 @@ function metaEvento(tipo?: string | null) {
   };
 }
 
-/** Etapas do funil, da menos avançada pra mais avançada. */
-const ETAPAS_FUNIL: { tipos: string[]; label: string; className: string }[] = [
-  { tipos: ["page_view", "session_start"], label: "👀 Navegando", className: "bg-muted text-muted-foreground border-border" },
-  { tipos: ["product_view", "view_item"], label: "🛍️ Vendo produto", className: "bg-primary/10 text-primary border-primary/20" },
-  { tipos: ["cart_view", "add_to_cart"], label: "🛒 No carrinho", className: "bg-warning/10 text-warning border-warning/20" },
-  { tipos: ["checkout_start", "begin_checkout"], label: "💳 No checkout", className: "bg-warning/10 text-warning border-warning/30" },
-  { tipos: ["purchase"], label: "✅ Comprou", className: "bg-success/10 text-success border-success/20" },
+const COLUNAS: { etapa: EtapaFunil; label: string; icon: typeof Eye }[] = [
+  { etapa: "navegando", label: "Navegando", icon: Eye },
+  { etapa: "produto", label: "Vendo Produto", icon: Shirt },
+  { etapa: "carrinho", label: "Carrinho", icon: ShoppingBag },
+  { etapa: "checkout", label: "Checkout", icon: CreditCard },
 ];
 
-function indiceEtapa(tipo?: string | null) {
-  const t = (tipo || "").toLowerCase();
-  for (let i = ETAPAS_FUNIL.length - 1; i >= 0; i--) {
-    if (ETAPAS_FUNIL[i].tipos.includes(t)) return i;
-  }
-  return -1;
+function etapaDoVisitante(v: Visitante): EtapaFunil {
+  const e = (v.etapa_funil || "").toLowerCase();
+  if (e === "produto" || e === "carrinho" || e === "checkout") return e as EtapaFunil;
+  return "navegando";
+}
+
+const TEMPERATURA: Record<Classificacao, { peso: number; borda: string; selo?: string; seloClass: string }> = {
+  quente: {
+    peso: 3,
+    borda: "border-danger shadow-[0_0_0_2px_hsl(var(--danger)/0.2)]",
+    selo: "🔥 Quente",
+    seloClass: "bg-danger/10 text-danger border-danger/30",
+  },
+  morno: {
+    peso: 2,
+    borda: "border-warning",
+    selo: "Morno",
+    seloClass: "bg-warning/10 text-warning border-warning/30",
+  },
+  frio: { peso: 1, borda: "border-border", seloClass: "" },
+};
+
+function classificacaoDe(v: Visitante): Classificacao {
+  const c = (v.classificacao || "").toLowerCase();
+  return c === "quente" || c === "morno" ? (c as Classificacao) : "frio";
 }
 
 function IconeOrigem({ origem }: { origem?: string | null }) {
@@ -120,10 +144,10 @@ export default function Rastreamento() {
   const [selecionado, setSelecionado] = useState<Visitante | null>(null);
   const [timeline, setTimeline] = useState<EventoTimeline[]>([]);
   const [carregandoTimeline, setCarregandoTimeline] = useState(false);
-  const [etapas, setEtapas] = useState<Record<string, number>>({});
   const [alvoMensagem, setAlvoMensagem] = useState<Visitante | null>(null);
   const [texto, setTexto] = useState("");
   const [enviando, setEnviando] = useState(false);
+  const [somenteQuentes, setSomenteQuentes] = useState(false);
   const [, forceTick] = useState(0);
   const novosRef = useRef<Set<string>>(new Set());
   const conhecidosRef = useRef<Set<string>>(new Set());
@@ -145,19 +169,6 @@ export default function Rastreamento() {
         }
       });
       setVisitantes(lista);
-
-      // Etapa mais avançada alcançada na sessão atual (via timeline)
-      const resultados = await Promise.all(
-        lista.slice(0, 25).map(async (v) => {
-          const { data: eventos } = await supabase.rpc("rastreamento_timeline_visitante", {
-            p_visitante_id: v.visitante_id,
-          });
-          const lista2 = Array.isArray(eventos) ? (eventos as EventoTimeline[]) : [];
-          const max = lista2.reduce((acc, e) => Math.max(acc, indiceEtapa(tipoEvento(e))), -1);
-          return [v.visitante_id, Math.max(max, indiceEtapa(v.tipo_evento || v.ultimo_evento))] as const;
-        }),
-      );
-      setEtapas(Object.fromEntries(resultados));
     }
     setCarregando(false);
   }, []);
@@ -225,197 +236,229 @@ export default function Rastreamento() {
     }
   }, [alvoMensagem, texto]);
 
-  const ordenados = useMemo(
-    () =>
-      [...visitantes].sort(
-        (a, b) => new Date(b.ultima_atividade).getTime() - new Date(a.ultima_atividade).getTime(),
-      ),
+  const visiveis = useMemo(
+    () => (somenteQuentes ? visitantes.filter((v) => classificacaoDe(v) === "quente") : visitantes),
+    [visitantes, somenteQuentes],
+  );
+
+  const porEtapa = useMemo(() => {
+    const mapa: Record<EtapaFunil, Visitante[]> = {
+      navegando: [], produto: [], carrinho: [], checkout: [],
+    };
+    visiveis.forEach((v) => mapa[etapaDoVisitante(v)].push(v));
+    (Object.keys(mapa) as EtapaFunil[]).forEach((k) => {
+      mapa[k].sort((a, b) => {
+        const dif = TEMPERATURA[classificacaoDe(b)].peso - TEMPERATURA[classificacaoDe(a)].peso;
+        if (dif !== 0) return dif;
+        return new Date(b.ultima_atividade).getTime() - new Date(a.ultima_atividade).getTime();
+      });
+    });
+    return mapa;
+  }, [visiveis]);
+
+  const totalQuentes = useMemo(
+    () => visitantes.filter((v) => classificacaoDe(v) === "quente").length,
     [visitantes],
   );
 
+  const renderCard = (v: Visitante) => {
+    const meta = metaEvento(v.tipo_evento || v.ultimo_evento);
+    const Icone = meta.icon;
+    const novo = novosRef.current.has(v.visitante_id);
+    const ativo = selecionado?.visitante_id === v.visitante_id;
+    const temp = classificacaoDe(v);
+    const tempMeta = TEMPERATURA[temp];
+    return (
+      <li key={v.visitante_id}>
+        <div
+          className={cn(
+            "w-full rounded-xl border bg-card p-3 transition-all duration-300 hover:border-primary/50",
+            "animate-in fade-in slide-in-from-left-4",
+            tempMeta.borda,
+            novo && "shadow-[0_0_0_2px_hsl(var(--primary)/0.25)]",
+            ativo && "ring-1 ring-primary",
+          )}
+        >
+          <button type="button" onClick={() => abrirTimeline(v)} className="w-full text-left">
+            <div className="flex items-start justify-between gap-2">
+              <div className="min-w-0">
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <span
+                    aria-label="ao vivo"
+                    role="img"
+                    className="inline-flex h-2.5 w-2.5 animate-pulse rounded-full bg-success"
+                  />
+                  <span
+                    className={cn(
+                      "truncate text-sm font-medium",
+                      v.nome_cliente ? "text-foreground" : "text-muted-foreground",
+                    )}
+                  >
+                    {v.nome_cliente || "Visitante anônimo"}
+                  </span>
+                  {tempMeta.selo && (
+                    <Badge variant="outline" className={cn("text-[10px]", tempMeta.seloClass)}>
+                      {tempMeta.selo}
+                    </Badge>
+                  )}
+                </div>
+                <p className="mt-1 truncate text-xs text-muted-foreground">{v.ultima_pagina || "—"}</p>
+                <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
+                  <span className={cn("inline-flex items-center gap-1", meta.className)}>
+                    <Icone className="h-3.5 w-3.5" />
+                    {meta.label}
+                  </span>
+                  <span className="inline-flex items-center gap-1">
+                    <IconeOrigem origem={v.origem} />
+                    {v.origem || "direto"}
+                  </span>
+                  {typeof v.total_eventos === "number" && (
+                    <span className="inline-flex items-center gap-1">
+                      <MousePointerClick className="h-3.5 w-3.5" />
+                      {v.total_eventos} eventos
+                    </span>
+                  )}
+                  <span>{tempoRelativo(v.ultima_atividade)}</span>
+                </div>
+              </div>
+            </div>
+          </button>
+          <div className="mt-2 flex justify-end">
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => {
+                setAlvoMensagem(v);
+                setTexto("");
+              }}
+            >
+              <Send className="mr-2 h-3.5 w-3.5" />
+              Enviar mensagem
+            </Button>
+          </div>
+        </div>
+      </li>
+    );
+  };
+
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-3">
-        <Radar className="h-6 w-6 text-primary" />
-        <div>
-          <h1 className="text-2xl font-semibold">Visitantes ao Vivo</h1>
-          <p className="text-sm text-muted-foreground">
-            {ordenados.length} {ordenados.length === 1 ? "visitante ativa" : "visitantes ativas"} agora
-          </p>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <Radar className="h-6 w-6 text-primary" />
+          <div>
+            <h1 className="text-2xl font-semibold">Visitantes ao Vivo</h1>
+            <p className="text-sm text-muted-foreground">
+              {visitantes.length} {visitantes.length === 1 ? "visitante ativa" : "visitantes ativas"} agora
+            </p>
+          </div>
         </div>
+        <Button
+          variant={somenteQuentes ? "default" : "outline"}
+          onClick={() => setSomenteQuentes((s) => !s)}
+          className={cn(!somenteQuentes && totalQuentes > 0 && "border-danger/40 text-danger")}
+        >
+          <Flame className="mr-2 h-4 w-4" />
+          {totalQuentes} {totalQuentes === 1 ? "visitante quente" : "visitantes quentes"} agora
+          {somenteQuentes ? " · mostrando só elas" : ""}
+        </Button>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-5">
-        {/* Lista */}
-        <div className="lg:col-span-3">
-          <Card className="rounded-xl p-4">
-            {carregando ? (
-              <div className="flex h-40 items-center justify-center">
-                <Loader2 className="h-6 w-6 animate-spin text-primary" />
-              </div>
-            ) : ordenados.length === 0 ? (
-              <div className="flex flex-col items-center justify-center gap-3 py-16 text-center">
-                <div className="flex h-16 w-16 items-center justify-center rounded-full bg-muted">
-                  <Radar className="h-8 w-8 text-muted-foreground" />
+      {carregando ? (
+        <Card className="flex h-40 items-center justify-center rounded-xl">
+          <Loader2 className="h-6 w-6 animate-spin text-primary" />
+        </Card>
+      ) : visitantes.length === 0 ? (
+        <Card className="flex flex-col items-center justify-center gap-3 rounded-xl py-16 text-center">
+          <div className="flex h-16 w-16 items-center justify-center rounded-full bg-muted">
+            <Radar className="h-8 w-8 text-muted-foreground" />
+          </div>
+          <p className="text-sm text-muted-foreground">Nenhuma visitante no site agora 👀</p>
+        </Card>
+      ) : (
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          {COLUNAS.map(({ etapa, label, icon: IconeEtapa }) => {
+            const itens = porEtapa[etapa];
+            return (
+              <Card key={etapa} className="rounded-xl p-3">
+                <div className="mb-3 flex items-center gap-2 border-b border-border pb-2">
+                  <IconeEtapa className="h-4 w-4 text-primary" />
+                  <h2 className="text-sm font-semibold">
+                    {label} ({itens.length})
+                  </h2>
                 </div>
-                <p className="text-sm text-muted-foreground">Nenhuma visitante no site agora 👀</p>
-              </div>
-            ) : (
-              <ul aria-live="polite" className="space-y-3">
-                {ordenados.map((v) => {
-                  const meta = metaEvento(v.tipo_evento || v.ultimo_evento);
+                {itens.length === 0 ? (
+                  <p className="py-6 text-center text-xs text-muted-foreground">Ninguém aqui agora</p>
+                ) : (
+                  <ul aria-live="polite" className="space-y-3">
+                    {itens.map(renderCard)}
+                  </ul>
+                )}
+              </Card>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Timeline */}
+      <Sheet open={!!selecionado} onOpenChange={(o) => !o && setSelecionado(null)}>
+        <SheetContent className="w-full sm:max-w-md">
+          <SheetHeader>
+            <SheetTitle className="flex items-center gap-2">
+              <span
+                aria-label="ao vivo"
+                role="img"
+                className="inline-flex h-2.5 w-2.5 animate-pulse rounded-full bg-success"
+              />
+              {selecionado?.nome_cliente || "Visitante anônimo"}
+            </SheetTitle>
+          </SheetHeader>
+
+          <div className="mt-3 flex flex-wrap items-center gap-2 border-b border-border pb-4">
+            {selecionado?.segmento_rfm && (
+              <Badge variant="outline" className={corSegmento(selecionado.segmento_rfm)}>
+                {selecionado.segmento_rfm}
+              </Badge>
+            )}
+            <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+              <IconeOrigem origem={selecionado?.origem} />
+              {selecionado?.origem || "direto"}
+            </span>
+          </div>
+
+          {carregandoTimeline ? (
+            <div className="flex h-40 items-center justify-center">
+              <Loader2 className="h-5 w-5 animate-spin text-primary" />
+            </div>
+          ) : timeline.length === 0 ? (
+            <p className="py-8 text-center text-sm text-muted-foreground">Sem eventos recentes.</p>
+          ) : (
+            <ScrollArea className="mt-4 h-[70vh] pr-3">
+              <ol className="relative space-y-4 pl-6">
+                <span className="absolute left-[9px] top-2 bottom-2 w-px bg-border" aria-hidden />
+                {timeline.map((e, i) => {
+                  const meta = metaEvento(tipoEvento(e));
                   const Icone = meta.icon;
-                  const novo = novosRef.current.has(v.visitante_id);
-                  const ativo = selecionado?.visitante_id === v.visitante_id;
-                  const idxEtapa = etapas[v.visitante_id] ?? indiceEtapa(v.tipo_evento || v.ultimo_evento);
-                  const etapa = idxEtapa >= 0 ? ETAPAS_FUNIL[idxEtapa] : null;
                   return (
-                    <li key={v.visitante_id}>
-                      <div
-                        className={cn(
-                          "w-full rounded-xl border bg-card p-4 transition-all duration-300 hover:border-primary/50",
-                          "animate-in fade-in slide-in-from-left-4",
-                          novo ? "border-primary shadow-[0_0_0_2px_hsl(var(--primary)/0.25)]" : "border-border",
-                          ativo && "border-primary bg-primary/5",
-                        )}
-                      >
-                        <button
-                          type="button"
-                          onClick={() => abrirTimeline(v)}
-                          className="w-full text-left"
-                        >
-                          <div className="flex items-start justify-between gap-3">
-                            <div className="min-w-0">
-                              <div className="flex flex-wrap items-center gap-2">
-                                <span
-                                  aria-label="ao vivo"
-                                  role="img"
-                                  className="inline-flex h-2.5 w-2.5 animate-pulse rounded-full bg-success"
-                                />
-                                <span
-                                  className={cn(
-                                    "truncate font-medium",
-                                    v.nome_cliente ? "text-foreground" : "text-muted-foreground",
-                                  )}
-                                >
-                                  {v.nome_cliente || "Visitante anônimo"}
-                                </span>
-                                {etapa && (
-                                  <Badge variant="outline" className={etapa.className}>
-                                    {etapa.label}
-                                  </Badge>
-                                )}
-                              </div>
-                              <p className="mt-1 truncate text-sm text-muted-foreground">
-                                {v.ultima_pagina || "—"}
-                              </p>
-                              <div className="mt-2 flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
-                                <span className={cn("inline-flex items-center gap-1", meta.className)}>
-                                  <Icone className="h-3.5 w-3.5" />
-                                  {meta.label}
-                                </span>
-                                <span className="inline-flex items-center gap-1">
-                                  <IconeOrigem origem={v.origem} />
-                                  {v.origem || "direto"}
-                                </span>
-                              </div>
-                            </div>
-                            <span className="shrink-0 text-xs text-muted-foreground">
-                              {tempoRelativo(v.ultima_atividade)}
-                            </span>
-                          </div>
-                        </button>
-                        <div className="mt-3 flex justify-end">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => {
-                              setAlvoMensagem(v);
-                              setTexto("");
-                            }}
-                          >
-                            <Send className="mr-2 h-3.5 w-3.5" />
-                            Enviar mensagem
-                          </Button>
-                        </div>
+                    <li key={e.id ?? i} className="relative">
+                      <span className="absolute -left-6 top-1 flex h-[19px] w-[19px] items-center justify-center rounded-full border border-border bg-card">
+                        <Icone className={cn("h-3 w-3", meta.className)} />
+                      </span>
+                      <div className="flex items-baseline justify-between gap-2">
+                        <p className="text-sm font-medium">{meta.label}</p>
+                        <span className="shrink-0 text-xs text-muted-foreground">
+                          {horaCurta(quandoEvento(e))}
+                        </span>
                       </div>
+                      <p className="truncate text-xs text-muted-foreground">{descricaoEvento(e)}</p>
                     </li>
                   );
                 })}
-              </ul>
-            )}
-          </Card>
-        </div>
-
-        {/* Timeline */}
-        <div className="lg:col-span-2">
-          <Card className="rounded-xl p-4">
-            {!selecionado ? (
-              <p className="py-16 text-center text-sm text-muted-foreground">
-                Selecione uma visitante para ver a jornada.
-              </p>
-            ) : (
-              <>
-                <div className="mb-4 border-b border-border pb-4">
-                  <div className="flex items-center gap-2">
-                    <span
-                      aria-label="ao vivo"
-                      role="img"
-                      className="inline-flex h-2.5 w-2.5 animate-pulse rounded-full bg-success"
-                    />
-                    <h2 className="font-semibold">
-                      {selecionado.nome_cliente || "Visitante anônimo"}
-                    </h2>
-                  </div>
-                  <div className="mt-2 flex flex-wrap items-center gap-2">
-                    {selecionado.segmento_rfm && (
-                      <Badge variant="outline" className={corSegmento(selecionado.segmento_rfm)}>
-                        {selecionado.segmento_rfm}
-                      </Badge>
-                    )}
-                    <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
-                      <IconeOrigem origem={selecionado.origem} />
-                      {selecionado.origem || "direto"}
-                    </span>
-                  </div>
-                </div>
-
-                {carregandoTimeline ? (
-                  <div className="flex h-40 items-center justify-center">
-                    <Loader2 className="h-5 w-5 animate-spin text-primary" />
-                  </div>
-                ) : timeline.length === 0 ? (
-                  <p className="py-8 text-center text-sm text-muted-foreground">Sem eventos recentes.</p>
-                ) : (
-                  <ScrollArea className="h-[520px] pr-3">
-                    <ol className="relative space-y-4 pl-6">
-                      <span className="absolute left-[9px] top-2 bottom-2 w-px bg-border" aria-hidden />
-                      {timeline.map((e, i) => {
-                        const meta = metaEvento(tipoEvento(e));
-                        const Icone = meta.icon;
-                        return (
-                          <li key={e.id ?? i} className="relative">
-                            <span className="absolute -left-6 top-1 flex h-[19px] w-[19px] items-center justify-center rounded-full border border-border bg-card">
-                              <Icone className={cn("h-3 w-3", meta.className)} />
-                            </span>
-                            <div className="flex items-baseline justify-between gap-2">
-                              <p className="text-sm font-medium">{meta.label}</p>
-                              <span className="shrink-0 text-xs text-muted-foreground">
-                                {horaCurta(quandoEvento(e))}
-                              </span>
-                            </div>
-                            <p className="truncate text-xs text-muted-foreground">{descricaoEvento(e)}</p>
-                          </li>
-                        );
-                      })}
-                    </ol>
-                  </ScrollArea>
-                )}
-              </>
-            )}
-          </Card>
-        </div>
-      </div>
+              </ol>
+            </ScrollArea>
+          )}
+        </SheetContent>
+      </Sheet>
 
       <Dialog open={!!alvoMensagem} onOpenChange={(o) => !o && setAlvoMensagem(null)}>
         <DialogContent>
