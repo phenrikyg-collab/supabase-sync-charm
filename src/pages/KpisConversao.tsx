@@ -216,7 +216,7 @@ export default function KpisConversao() {
       <Card className="rounded-xl p-5">
         <h2 className="font-semibold">Régua de conversão</h2>
         <p className="mb-4 text-xs text-muted-foreground">
-          Impressões → Cliques → Sessões → Produto → Carrinho → Checkout → Compra
+          Sessão → Produto → Carrinho → Checkout → Compra
         </p>
         {regua.isLoading ? (
           <div className="flex h-40 items-center justify-center">
