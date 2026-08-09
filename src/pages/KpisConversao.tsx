@@ -376,13 +376,51 @@ export default function KpisConversao() {
         </div>
       </div>
 
+      {/* Páginas de saída */}
+      <Card className="rounded-xl p-5">
+        <h2 className="flex items-center gap-2 font-semibold">
+          <LogOut className="h-4 w-4 text-danger" /> Páginas onde mais perdemos visitantes
+        </h2>
+        <p className="mb-4 text-xs text-muted-foreground">
+          Última página vista antes da sessão ficar inativa — rastreamento próprio, últimos 30 dias.
+        </p>
+        <div className="max-h-[420px] overflow-auto">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Página</TableHead>
+                <TableHead className="text-right">Saídas</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {(saidas.data ?? []).map((r, i) => (
+                <TableRow key={`${r.pagina ?? i}`}>
+                  <TableCell className="max-w-[420px] truncate font-medium">
+                    {String(r.pagina ?? "—")}
+                  </TableCell>
+                  <TableCell className="text-right font-semibold text-danger">
+                    {fmt(pega(r, ["total_saidas"]))}
+                  </TableCell>
+                </TableRow>
+              ))}
+              {!saidas.isLoading && (saidas.data ?? []).length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={2} className="text-center text-sm text-muted-foreground">
+                    Sem dados de saída ainda.
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </div>
+      </Card>
+
       <Card className="rounded-xl border-dashed p-5">
         <h2 className="mb-2 font-semibold">Limitações atuais</h2>
         <ul className="list-disc space-y-1 pl-5 text-sm text-muted-foreground">
-          <li>Impressões/cliques só existem em dias com investimento ativo no Meta Ads.</li>
           <li>Funil por canal ainda não disponível — o GA4 sincroniza por data/dispositivo, sem dimensão de canal.</li>
           <li>Heatmap de cliques/scroll não existe: exige uma camada de rastreamento adicional (projeto à parte).</li>
-          <li>Página de saída exata não está na sincronização atual do GA4 — só "páginas mais acessadas".</li>
+          <li>Páginas de saída vêm do rastreamento próprio (30 dias fixos), não do GA4.</li>
         </ul>
       </Card>
     </div>
