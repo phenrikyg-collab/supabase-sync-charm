@@ -17,9 +17,11 @@ const num = (v: any) => (typeof v === "number" ? v : Number(v ?? 0) || 0);
 const fmt = (v: number) => new Intl.NumberFormat("pt-BR").format(Math.round(v));
 const pct = (v: number) => `${(Math.round(v * 10) / 10).toLocaleString("pt-BR")}%`;
 
-/** Converte "YYYY-MM-DD" para "YYYYMMDD" usado nas views GA4. */
-function paraGa4(data: string | null) {
-  return data ? data.replace(/-/g, "") : null;
+/** Converte "YYYY-MM-DD" (ou Date) para "YYYYMMDD" usado nas views GA4. */
+function paraGa4(data: string | Date | null) {
+  if (!data) return null;
+  const iso = typeof data === "string" ? data : data.toISOString();
+  return iso.slice(0, 10).replace(/-/g, "");
 }
 
 /** Escolhe a primeira chave existente na linha entre os candidatos. */
