@@ -106,6 +106,15 @@ export default function KpisConversao() {
     },
   });
 
+  const saidas = useQuery({
+    queryKey: ["vw_paginas_de_saida"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("vw_paginas_de_saida" as any).select("*");
+      if (error) throw error;
+      return (data ?? []) as Row[];
+    },
+  });
+
   const funil = useMemo(() => {
     const linhas = regua.data ?? [];
     const totais = ETAPAS.map((e) => linhas.reduce((s, r) => s + pega(r, e.keys), 0));
