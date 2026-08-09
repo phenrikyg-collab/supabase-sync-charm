@@ -9,7 +9,7 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
-import { Target, Loader2, TrendingDown, MousePointerClick } from "lucide-react";
+import { Target, Loader2, TrendingDown, MousePointerClick, LogOut } from "lucide-react";
 
 type Row = Record<string, any>;
 
