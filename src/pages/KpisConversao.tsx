@@ -243,7 +243,7 @@ export default function KpisConversao() {
           </div>
         )}
         <p className="mt-4 text-xs text-muted-foreground">
-          Impressões e cliques vêm do Meta Ads — dias sem investimento ativo não aparecem nessas duas etapas.
+          Dados do GA4 no período selecionado — o funil começa na sessão do site.
         </p>
       </Card>
 
