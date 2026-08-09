@@ -9,7 +9,7 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
-import { Target, Loader2, TrendingDown, MousePointerClick } from "lucide-react";
+import { Target, Loader2, TrendingDown, MousePointerClick, LogOut } from "lucide-react";
 
 type Row = Record<string, any>;
 
@@ -17,9 +17,11 @@ const num = (v: any) => (typeof v === "number" ? v : Number(v ?? 0) || 0);
 const fmt = (v: number) => new Intl.NumberFormat("pt-BR").format(Math.round(v));
 const pct = (v: number) => `${(Math.round(v * 10) / 10).toLocaleString("pt-BR")}%`;
 
-/** Converte "YYYY-MM-DD" para "YYYYMMDD" usado nas views GA4. */
-function paraGa4(data: string | null) {
-  return data ? data.replace(/-/g, "") : null;
+/** Converte "YYYY-MM-DD" (ou Date) para "YYYYMMDD" usado nas views GA4. */
+function paraGa4(data: string | Date | null) {
+  if (!data) return null;
+  const iso = typeof data === "string" ? data : data.toISOString();
+  return iso.slice(0, 10).replace(/-/g, "");
 }
 
 /** Escolhe a primeira chave existente na linha entre os candidatos. */
@@ -32,9 +34,7 @@ function pega(row: Row | undefined, candidatos: string[]) {
 }
 
 const ETAPAS: { label: string; keys: string[] }[] = [
-  { label: "Impressões", keys: ["impressoes", "impressions", "impressoes_meta"] },
-  { label: "Cliques", keys: ["cliques", "clicks", "cliques_meta"] },
-  { label: "Sessões", keys: ["sessoes", "sessions", "sessoes_totais"] },
+  { label: "Sessões", keys: ["sessoes", "sessions", "total_sessoes", "sessoes_totais"] },
   { label: "Visualização de Produto", keys: ["visualizacao_produto", "view_item", "product_view", "visualizacoes_produto"] },
   { label: "Carrinho", keys: ["carrinho", "add_to_cart", "adicionou_carrinho"] },
   { label: "Checkout", keys: ["checkout", "begin_checkout", "checkout_start", "checkouts"] },
@@ -106,6 +106,15 @@ export default function KpisConversao() {
     },
   });
 
+  const saidas = useQuery({
+    queryKey: ["vw_paginas_de_saida"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("vw_paginas_de_saida" as any).select("*");
+      if (error) throw error;
+      return (data ?? []) as Row[];
+    },
+  });
+
   const funil = useMemo(() => {
     const linhas = regua.data ?? [];
     const totais = ETAPAS.map((e) => linhas.reduce((s, r) => s + pega(r, e.keys), 0));
@@ -142,7 +151,7 @@ export default function KpisConversao() {
         titulo: String(r.titulo ?? r.titulo_pagina ?? r.page_title ?? ""),
         sessoes: 0,
       };
-      atual.sessoes += pega(r, ["sessoes", "sessions", "views", "visualizacoes"]);
+      atual.sessoes += pega(r, ["total_sessoes", "sessoes", "sessions", "views", "visualizacoes"]);
       mapa.set(pagina, atual);
     });
     return [...mapa.values()].sort((a, b) => b.sessoes - a.sessoes).slice(0, 50);
@@ -207,7 +216,7 @@ export default function KpisConversao() {
       <Card className="rounded-xl p-5">
         <h2 className="font-semibold">Régua de conversão</h2>
         <p className="mb-4 text-xs text-muted-foreground">
-          Impressões → Cliques → Sessões → Produto → Carrinho → Checkout → Compra
+          Sessão → Produto → Carrinho → Checkout → Compra
         </p>
         {regua.isLoading ? (
           <div className="flex h-40 items-center justify-center">
@@ -234,7 +243,7 @@ export default function KpisConversao() {
           </div>
         )}
         <p className="mt-4 text-xs text-muted-foreground">
-          Impressões e cliques vêm do Meta Ads — dias sem investimento ativo não aparecem nessas duas etapas.
+          Dados do GA4 no período selecionado — o funil começa na sessão do site.
         </p>
       </Card>
 
@@ -367,13 +376,51 @@ export default function KpisConversao() {
         </div>
       </div>
 
+      {/* Páginas de saída */}
+      <Card className="rounded-xl p-5">
+        <h2 className="flex items-center gap-2 font-semibold">
+          <LogOut className="h-4 w-4 text-danger" /> Páginas onde mais perdemos visitantes
+        </h2>
+        <p className="mb-4 text-xs text-muted-foreground">
+          Última página vista antes da sessão ficar inativa — rastreamento próprio, últimos 30 dias.
+        </p>
+        <div className="max-h-[420px] overflow-auto">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Página</TableHead>
+                <TableHead className="text-right">Saídas</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {(saidas.data ?? []).map((r, i) => (
+                <TableRow key={`${r.pagina ?? i}`}>
+                  <TableCell className="max-w-[420px] truncate font-medium">
+                    {String(r.pagina ?? "—")}
+                  </TableCell>
+                  <TableCell className="text-right font-semibold text-danger">
+                    {fmt(pega(r, ["total_saidas"]))}
+                  </TableCell>
+                </TableRow>
+              ))}
+              {!saidas.isLoading && (saidas.data ?? []).length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={2} className="text-center text-sm text-muted-foreground">
+                    Sem dados de saída ainda.
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </div>
+      </Card>
+
       <Card className="rounded-xl border-dashed p-5">
         <h2 className="mb-2 font-semibold">Limitações atuais</h2>
         <ul className="list-disc space-y-1 pl-5 text-sm text-muted-foreground">
-          <li>Impressões/cliques só existem em dias com investimento ativo no Meta Ads.</li>
           <li>Funil por canal ainda não disponível — o GA4 sincroniza por data/dispositivo, sem dimensão de canal.</li>
           <li>Heatmap de cliques/scroll não existe: exige uma camada de rastreamento adicional (projeto à parte).</li>
-          <li>Página de saída exata não está na sincronização atual do GA4 — só "páginas mais acessadas".</li>
+          <li>Páginas de saída vêm do rastreamento próprio (30 dias fixos), não do GA4.</li>
         </ul>
       </Card>
     </div>
