@@ -106,6 +106,7 @@ const corMargem = (pct: number | null | undefined) => {
 };
 
 type ChaveABC = "nome" | "classe_abc" | "receita_total" | "percentual_receita" | "unidades_vendidas" | "estoque_atual" | "ultima_venda";
+type ChaveBaixaRot = "nome" | "unidades_em_estoque" | "custo_unitario" | "preco_venda_unitario" | "custo_total_estoque" | "margem_pct" | "unidades_vendidas_90d" | "meses_de_cobertura_estoque" | "ultima_venda";
 type ChaveCor = "nome" | "cor" | "percentual_vendas_cor" | "estoque_cor" | "sugestao_produzir_cor";
 type ChaveEstrat = "nome" | "receita_total" | "unidades_vendidas" | "preco_medio" | "margem_contribuicao_pct" | "estoque_atual";
 
