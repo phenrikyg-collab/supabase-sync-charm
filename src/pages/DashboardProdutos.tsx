@@ -611,7 +611,65 @@ export default function DashboardProdutos() {
                   <PauseCircle className="h-3.5 w-3.5 mr-1 text-[hsl(38_92%_45%)]" />
                   Estoque Parado ({parado.length})
                 </TabsTrigger>
+                <TabsTrigger value="parado180">
+                  <PauseCircle className="h-3.5 w-3.5 mr-1 text-[hsl(38_92%_45%)]" />
+                  180+ dias ({paradoItens.length})
+                </TabsTrigger>
               </TabsList>
+
+              <TabsContent value="parado180" className="mt-4">
+                {loadingParado180 ? (
+                  <div className="flex justify-center py-12">
+                    <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto max-h-[420px]">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Produto</TableHead>
+                          <TableHead className="text-right">Unid. estoque</TableHead>
+                          <TableHead className="text-right">Custo parado</TableHead>
+                          <TableHead className="text-right">Valor potencial</TableHead>
+                          <TableHead>Última venda</TableHead>
+                          <TableHead className="text-right">Dias sem giro</TableHead>
+                          <TableHead className="text-right">Vendas 30d</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {paradoItens.map((p) => (
+                          <TableRow key={p.produto_id}>
+                            <TableCell className="font-medium">{p.nome}</TableCell>
+                            <TableCell className="text-right">{fmtInt(p.unidades_em_estoque)}</TableCell>
+                            <TableCell className="text-right font-semibold">{fmtMoney(p.custo_total_parado)}</TableCell>
+                            <TableCell className="text-right">{fmtMoney(p.valor_total_vendas_potencial)}</TableCell>
+                            <TableCell className="text-xs">
+                              {p.ultima_venda ? (
+                                formatarData(p.ultima_venda)
+                              ) : (
+                                <span className="text-muted-foreground">
+                                  nunca vendeu{p.data_cadastro ? ` · cadastro ${formatarData(p.data_cadastro)}` : ""}
+                                </span>
+                              )}
+                            </TableCell>
+                            <TableCell className="text-right">{fmtInt(p.dias_sem_rotatividade)}</TableCell>
+                            <TableCell className="text-right">{fmtInt(p.unidades_vendidas_30d)}</TableCell>
+                          </TableRow>
+                        ))}
+                        {paradoItens.length === 0 && (
+                          <TableRow>
+                            <TableCell colSpan={7} className="text-center text-muted-foreground py-6">
+                              Nenhum produto parado há mais de 180 dias
+                            </TableCell>
+                          </TableRow>
+                        )}
+                      </TableBody>
+                    </Table>
+                  </div>
+                )}
+              </TabsContent>
+
+
 
               <TabsContent value="ruptura" className="mt-4">
                 <div className="overflow-x-auto max-h-[420px]">
