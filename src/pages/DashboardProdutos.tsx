@@ -173,31 +173,31 @@ export default function DashboardProdutos() {
     },
   });
 
-  const { data: paradoResumo } = useQuery({
-    queryKey: ["vw_estoque_parado_resumo"],
+  const { data: baixaRotResumo } = useQuery({
+    queryKey: ["vw_produtos_baixa_rotatividade_resumo"],
     staleTime: 5 * 60 * 1000,
     refetchInterval: false,
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("vw_estoque_parado_resumo" as any)
+        .from("vw_produtos_baixa_rotatividade_resumo" as any)
         .select("*")
         .maybeSingle();
       if (error) throw error;
-      return (data ?? null) as unknown as EstoqueParadoResumo | null;
+      return (data ?? null) as unknown as BaixaRotatividadeResumo | null;
     },
   });
 
-  const { data: paradoItens = [], isLoading: loadingParado180 } = useQuery({
-    queryKey: ["vw_estoque_parado_180_dias"],
+  const { data: baixaRotItens = [], isLoading: loadingBaixaRot } = useQuery({
+    queryKey: ["vw_produtos_baixa_rotatividade"],
     staleTime: 5 * 60 * 1000,
     refetchInterval: false,
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("vw_estoque_parado_180_dias" as any)
+        .from("vw_produtos_baixa_rotatividade" as any)
         .select("*")
-        .order("custo_total_parado", { ascending: false });
+        .order("custo_total_estoque", { ascending: false });
       if (error) throw error;
-      return (data ?? []) as unknown as EstoqueParado180[];
+      return (data ?? []) as unknown as BaixaRotatividadeItem[];
     },
   });
 
