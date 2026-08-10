@@ -68,6 +68,7 @@ import CarrinhoAbandonado from "./pages/CarrinhoAbandonado";
 import PedidosCancelados from "./pages/PedidosCancelados";
 import Rastreamento from "./pages/Rastreamento";
 import KpisConversao from "./pages/KpisConversao";
+import ProvadorVirtual from "./pages/ProvadorVirtual";
 
 import Automacoes from "./pages/Automacoes";
 import AutomacaoFluxo from "./pages/AutomacaoFluxo";
