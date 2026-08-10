@@ -60,26 +60,28 @@ type EstoqueEstrategico = {
   risco_ruptura: boolean;
   estoque_parado: boolean;
 };
-type EstoqueParadoResumo = {
+type BaixaRotatividadeResumo = {
   total_produtos: number | null;
   total_unidades: number | null;
-  custo_total_parado: number | null;
-  valor_total_vendas_potencial: number | null;
-  total_vendido_ultimos_30d: number | null;
+  custo_total_estoque: number | null;
+  valor_total_venda_potencial: number | null;
+  margem_total_potencial: number | null;
 };
 
-type EstoqueParado180 = {
+type BaixaRotatividadeItem = {
   produto_id: string;
   nome: string;
   unidades_em_estoque: number | null;
-  cost_price: number | null;
-  price: number | null;
-  data_cadastro: string | null;
-  custo_total_parado: number | null;
-  valor_total_vendas_potencial: number | null;
+  custo_unitario: number | null;
+  preco_venda_unitario: number | null;
+  custo_total_estoque: number | null;
+  valor_total_venda_potencial: number | null;
+  margem_pct: number | null;
+  margem_total_potencial: number | null;
+  unidades_vendidas_90d: number | null;
   ultima_venda: string | null;
-  unidades_vendidas_30d: number | null;
-  dias_sem_rotatividade: number | null;
+  data_cadastro: string | null;
+  meses_de_cobertura_estoque: number | null;
   classe_abc: string | null;
 };
 
