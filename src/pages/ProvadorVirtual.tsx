@@ -232,6 +232,7 @@ function GerarProva({
   const [gerando, setGerando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
   const [resultado, setResultado] = useState<string | null>(null);
+  const [consentimento, setConsentimento] = useState(false);
   const inputFile = useRef<HTMLInputElement>(null);
 
   useEffect(() => { setNome(nomeInicial); }, [nomeInicial]);
@@ -316,7 +317,7 @@ function GerarProva({
           conversa_id: conversaId || null,
           produto_id: produto.produto_id,
           foto_cliente_url: fotoUrl,
-          consentimento: true,
+          consentimento,
           nome: nome || null,
           telefone: telefone || null,
         },
@@ -429,7 +430,7 @@ function GerarProva({
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="space-y-2">
               <Label>Nome (opcional)</Label>
-              <Input value={nome} onChange={(e) => setNome(e.target.value)} />
+              <Input value={nome} onChange={(e) => setNome(e.target.value)} placeholder="Deixe em branco para gerar sem lead" />
             </div>
             <div className="space-y-2">
               <Label>Telefone (opcional)</Label>
@@ -437,9 +438,28 @@ function GerarProva({
             </div>
           </div>
 
-          <Button className="w-full" onClick={gerar} disabled={gerando}>
+          <label className="flex items-start gap-2.5 rounded-md border bg-muted/30 p-3 text-sm">
+            <input
+              type="checkbox"
+              checked={consentimento}
+              onChange={(e) => setConsentimento(e.target.checked)}
+              className="mt-0.5 h-4 w-4 rounded border-input accent-primary"
+            />
+            <span className="text-muted-foreground">
+              Confirmo que tenho o consentimento da cliente para usar a foto nesta prova virtual.
+            </span>
+          </label>
+
+          <Button
+            className="w-full"
+            onClick={gerar}
+            disabled={gerando || !produto || (!arquivo && !urlColada.trim()) || !consentimento}
+          >
             {gerando ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Gerando… (até 30s)</> : <><Sparkles className="mr-2 h-4 w-4" /> Gerar prova</>}
           </Button>
+          {!consentimento && (
+            <p className="text-center text-xs text-muted-foreground">Marque o consentimento acima para liberar a geração.</p>
+          )}
         </CardContent>
       </Card>
 
