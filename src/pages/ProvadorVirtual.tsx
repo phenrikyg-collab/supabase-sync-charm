@@ -201,7 +201,15 @@ function FunilLeads() {
 
 /* ---------------- Tela 2 — Gerar Prova Manualmente ---------------- */
 
-type Produto = { produto_id: string; nome?: string; produto_nome?: string; imagem_url?: string | null };
+type Produto = {
+  produto_id: string;
+  nome?: string;
+  imagem?: string | null;
+  disponivel?: boolean | null;
+  preco_cheio?: number | null;
+  preco_promocional?: number | null;
+  tamanhos_disponiveis?: string[] | null;
+};
 
 function GerarProva({
   conversaId,
