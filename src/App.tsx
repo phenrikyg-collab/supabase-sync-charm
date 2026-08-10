@@ -200,6 +200,7 @@ const AppRoutes = () => {
               <Route path="/carrinho-abandonado" element={<CarrinhoAbandonado />} />
               <Route path="/pedidos-cancelados" element={<PedidosCancelados />} />
               <Route path="/rastreamento" element={<Rastreamento />} />
+              <Route path="/kpis-conversao" element={<KpisConversao />} />
               <Route path="/provador-virtual" element={<ProvadorVirtual />} />
 
 
