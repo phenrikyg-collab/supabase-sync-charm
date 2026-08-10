@@ -148,6 +148,34 @@ export default function DashboardProdutos() {
     },
   });
 
+  const { data: paradoResumo } = useQuery({
+    queryKey: ["vw_estoque_parado_resumo"],
+    staleTime: 5 * 60 * 1000,
+    refetchInterval: false,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("vw_estoque_parado_resumo" as any)
+        .select("*")
+        .maybeSingle();
+      if (error) throw error;
+      return (data ?? null) as unknown as EstoqueParadoResumo | null;
+    },
+  });
+
+  const { data: paradoItens = [], isLoading: loadingParado180 } = useQuery({
+    queryKey: ["vw_estoque_parado_180_dias"],
+    staleTime: 5 * 60 * 1000,
+    refetchInterval: false,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("vw_estoque_parado_180_dias" as any)
+        .select("*")
+        .order("custo_total_parado", { ascending: false });
+      if (error) throw error;
+      return (data ?? []) as unknown as EstoqueParado180[];
+    },
+  });
+
   const resumoClasses = useMemo(() => {
     const base: Record<string, { produtos: number; receita: number; pct: number }> = {
       A: { produtos: 0, receita: 0, pct: 0 },
