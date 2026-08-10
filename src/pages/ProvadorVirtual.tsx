@@ -237,16 +237,20 @@ function GerarProva({
   useEffect(() => { setNome(nomeInicial); }, [nomeInicial]);
   useEffect(() => { setTelefone(telefoneInicial); }, [telefoneInicial]);
 
-  async function buscar() {
-    if (!termo.trim()) return;
+  async function buscar(termoBusca?: string) {
+    const q = (termoBusca ?? termo).trim();
+    if (q.length < 2) { setResultados([]); return; }
     setBuscando(true);
     try {
       const res = await fetch(
-        `${SUPABASE_URL}/functions/v1/provador-buscar-produto?q=${encodeURIComponent(termo.trim())}`,
-        { headers: ANON_KEY ? { apikey: ANON_KEY, Authorization: `Bearer ${ANON_KEY}` } : undefined }
+        `${SUPABASE_URL}/functions/v1/provador-buscar-produto?q=${encodeURIComponent(q)}`,
+        { headers: { apikey: ANON_KEY, Authorization: `Bearer ${ANON_KEY}` } }
       );
+      if (!res.ok) throw new Error(`Erro ${res.status} ao buscar produtos`);
       const json = await res.json();
-      const lista: Produto[] = Array.isArray(json) ? json : json.produtos || json.data || [];
+      const lista: Produto[] = Array.isArray(json)
+        ? json
+        : json?.produtos ?? json?.data ?? [];
       setResultados(lista);
       if (lista.length === 0) toast.info("Nenhum produto encontrado");
     } catch (e: any) {
@@ -256,18 +260,44 @@ function GerarProva({
     }
   }
 
+  // Debounce: busca automaticamente enquanto digita (a partir de 2 caracteres)
+  useEffect(() => {
+    const q = termo.trim();
+    if (q.length < 2) { setResultados([]); return; }
+    const t = window.setTimeout(() => { buscar(q); }, 450);
+    return () => window.clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [termo]);
+
   function selecionarArquivo(f: File | null) {
     setArquivo(f);
     setPrevia(f ? URL.createObjectURL(f) : null);
     if (f) setUrlColada("");
   }
 
-  async function fileParaBase64(f: File): Promise<string> {
-    const buf = await f.arrayBuffer();
-    let bin = "";
-    const bytes = new Uint8Array(buf);
-    for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
-    return btoa(bin);
+  function fileParaBase64(f: File): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result)); // data:image/...;base64,XXXX
+      reader.onerror = reject;
+      reader.readAsDataURL(f);
+    });
+  }
+
+  async function uploadFoto(f: File): Promise<string> {
+    const base64 = await fileParaBase64(f);
+    const res = await fetch(`${SUPABASE_URL}/functions/v1/provador-upload-foto`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        apikey: ANON_KEY,
+        Authorization: `Bearer ${ANON_KEY}`,
+      },
+      body: JSON.stringify({ imagem_base64: base64, tipo_mime: f.type }),
+    });
+    const json = await res.json().catch(() => null);
+    if (!res.ok || !json?.url) throw new Error(json?.error || "Falha ao enviar a foto");
+    return json.url as string;
   }
 
   async function gerar() {
@@ -278,15 +308,7 @@ function GerarProva({
     setResultado(null);
     try {
       let fotoUrl = urlColada.trim();
-      if (arquivo) {
-        const base64 = await fileParaBase64(arquivo);
-        const up = await invokeEdgeFunction("provador-upload-foto", {
-          imagem_base64: base64,
-          tipo_mime: arquivo.type,
-        });
-        fotoUrl = up?.url;
-        if (!fotoUrl) throw new Error("Falha ao enviar a foto");
-      }
+      if (arquivo) fotoUrl = await uploadFoto(arquivo);
       const json = await invokeEdgeFunction(
         "provador-virtual-gerar",
         {
