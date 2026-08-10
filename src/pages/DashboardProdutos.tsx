@@ -60,6 +60,29 @@ type EstoqueEstrategico = {
   risco_ruptura: boolean;
   estoque_parado: boolean;
 };
+type EstoqueParadoResumo = {
+  total_produtos: number | null;
+  total_unidades: number | null;
+  custo_total_parado: number | null;
+  valor_total_vendas_potencial: number | null;
+  total_vendido_ultimos_30d: number | null;
+};
+
+type EstoqueParado180 = {
+  produto_id: string;
+  nome: string;
+  unidades_em_estoque: number | null;
+  cost_price: number | null;
+  price: number | null;
+  data_cadastro: string | null;
+  custo_total_parado: number | null;
+  valor_total_vendas_potencial: number | null;
+  ultima_venda: string | null;
+  unidades_vendidas_30d: number | null;
+  dias_sem_rotatividade: number | null;
+  classe_abc: string | null;
+};
+
 
 const fmtMoney = (n: number | null | undefined) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Number(n ?? 0));
