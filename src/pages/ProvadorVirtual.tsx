@@ -244,8 +244,7 @@ function GerarProva({
     setBuscando(true);
     try {
       const res = await fetch(
-        `${SUPABASE_URL}/functions/v1/provador-buscar-produto?q=${encodeURIComponent(q)}`,
-        { headers: { apikey: ANON_KEY, Authorization: `Bearer ${ANON_KEY}` } }
+        `${SUPABASE_URL}/functions/v1/provador-buscar-produto?q=${encodeURIComponent(q)}`
       );
       if (!res.ok) throw new Error(`Erro ${res.status} ao buscar produtos`);
       const json = await res.json();
