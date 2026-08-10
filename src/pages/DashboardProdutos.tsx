@@ -322,6 +322,33 @@ export default function DashboardProdutos() {
         ))}
       </div>
 
+      {/* Estoque Parado (180+ dias) */}
+      <Card className="border-[hsl(38_92%_50%)]/40">
+        <CardHeader className="pb-2 flex flex-row items-center justify-between gap-2">
+          <CardTitle className="text-sm font-medium flex items-center gap-2">
+            <PauseCircle className="h-4 w-4 text-[hsl(38_92%_45%)]" />
+            Estoque Parado (180+ dias)
+          </CardTitle>
+          {Number(paradoResumo?.total_vendido_ultimos_30d ?? 0) === 0 && (
+            <Badge variant="destructive" className="text-[10px]">
+              Nenhuma venda nos últimos 30 dias
+            </Badge>
+          )}
+        </CardHeader>
+        <CardContent className="space-y-1">
+          <p className="text-2xl font-bold">{fmtMoney(paradoResumo?.custo_total_parado)}</p>
+          <p className="text-xs text-muted-foreground">Capital parado em estoque</p>
+          <p className="text-xs text-muted-foreground">
+            {fmtInt(paradoResumo?.total_produtos)} produtos · {fmtInt(paradoResumo?.total_unidades)} unidades
+          </p>
+          <p className="text-xs text-muted-foreground">
+            {fmtMoney(paradoResumo?.valor_total_vendas_potencial)} · Se vendido a preço cheio
+          </p>
+        </CardContent>
+      </Card>
+
+
+
       {/* Curva ABC */}
       <Card>
         <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
