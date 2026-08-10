@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { invokeEdgeFunction } from "@/lib/edgeFunctions";
+
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -288,11 +288,7 @@ function GerarProva({
     const base64 = await fileParaBase64(f);
     const res = await fetch(`${SUPABASE_URL}/functions/v1/provador-upload-foto`, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        apikey: ANON_KEY,
-        Authorization: `Bearer ${ANON_KEY}`,
-      },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ imagem_base64: base64, tipo_mime: f.type }),
     });
     const json = await res.json().catch(() => null);
@@ -309,20 +305,33 @@ function GerarProva({
     try {
       let fotoUrl = urlColada.trim();
       if (arquivo) fotoUrl = await uploadFoto(arquivo);
-      const json = await invokeEdgeFunction(
-        "provador-virtual-gerar",
-        {
-          canal: "manual",
-          conversa_id: conversaId || null,
-          produto_id: produto.produto_id,
-          foto_cliente_url: fotoUrl,
-          consentimento,
-          nome: nome || null,
-          telefone: telefone || null,
-        },
-        { timeoutMs: 120_000, baseUrl: SUPABASE_URL, anonKey: ANON_KEY }
-      );
-      if (json?.error) throw new Error(json.detalhe || json.error);
+      const controller = new AbortController();
+      const timeoutId = window.setTimeout(() => controller.abort(), 120_000);
+      let res: Response;
+      try {
+        res = await fetch(`${SUPABASE_URL}/functions/v1/provador-virtual-gerar`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            canal: "manual",
+            conversa_id: conversaId || null,
+            produto_id: produto.produto_id,
+            foto_cliente_url: fotoUrl,
+            consentimento,
+            nome: nome || null,
+            telefone: telefone || null,
+          }),
+          signal: controller.signal,
+        });
+      } catch (err: any) {
+        window.clearTimeout(timeoutId);
+        if (err?.name === "AbortError")
+          throw new Error("A geração demorou mais que o esperado. Tente novamente em instantes.");
+        throw err;
+      }
+      window.clearTimeout(timeoutId);
+      const json = await res.json().catch(() => null);
+      if (!res.ok || json?.error) throw new Error(json?.detalhe || json?.error || `Erro ${res.status}`);
       const img = json?.imagem_url || json?.url;
       if (!img) throw new Error("A geração não retornou uma imagem");
       setResultado(img);
