@@ -349,7 +349,7 @@ export default function DashboardProdutos() {
             {fmtInt(baixaRotItens.filter((p) => p.meses_de_cobertura_estoque == null || Number(p.meses_de_cobertura_estoque) > 12).length)} casos urgentes
           </Badge>
         </CardHeader>
-        <CardContent className="space-y-1">
+        <CardContent className="space-y-2">
           <p className="text-2xl font-bold">{fmtMoney(baixaRotResumo?.custo_total_estoque)}</p>
           <p className="text-xs text-muted-foreground">Capital parado em estoque</p>
           <p className="text-xs text-muted-foreground">
@@ -361,6 +361,43 @@ export default function DashboardProdutos() {
           <p className="text-[11px] text-muted-foreground/80">
             {fmtMoney(baixaRotResumo?.valor_total_venda_potencial)} · valor de venda total se tudo vendesse
           </p>
+
+          {baixaRotItens.length > 0 && (
+            <div className="mt-3 space-y-1">
+              <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">
+                Produtos com baixa rotatividade
+              </p>
+              <ul className="space-y-1">
+                {baixaRotItens.slice(0, 8).map((p) => {
+                  const urgente = p.meses_de_cobertura_estoque == null || Number(p.meses_de_cobertura_estoque) > 12;
+                  return (
+                    <li key={p.produto_id} className="flex items-center justify-between gap-2 rounded-md border border-border/60 px-2 py-1.5 text-xs">
+                      <div className="min-w-0 flex-1">
+                        <p className="font-medium truncate">{p.nome}</p>
+                        <p className="text-[10px] text-muted-foreground">
+                          {fmtInt(p.unidades_em_estoque)} unid. · {fmtMoney(p.custo_total_estoque)}
+                        </p>
+                      </div>
+                      {urgente ? (
+                        <Badge variant="destructive" className="text-[9px] shrink-0">
+                          {p.meses_de_cobertura_estoque == null ? "Sem venda" : `${Number(p.meses_de_cobertura_estoque).toFixed(0)}m`}
+                        </Badge>
+                      ) : (
+                        <Badge variant="secondary" className="text-[9px] shrink-0">
+                          {Number(p.meses_de_cobertura_estoque).toFixed(0)}m
+                        </Badge>
+                      )}
+                    </li>
+                  );
+                })}
+              </ul>
+              {baixaRotItens.length > 8 && (
+                <p className="text-[10px] text-muted-foreground/70 pl-1">
+                  +{baixaRotItens.length - 8} outros — ver aba "Baixa Rotatividade" nos Alertas de Estoque
+                </p>
+              )}
+            </div>
+          )}
         </CardContent>
       </Card>
 
