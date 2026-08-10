@@ -324,27 +324,28 @@ export default function DashboardProdutos() {
         ))}
       </div>
 
-      {/* Estoque Parado (180+ dias) */}
+      {/* Produtos com Baixa Rotatividade */}
       <Card className="border-[hsl(38_92%_50%)]/40">
         <CardHeader className="pb-2 flex flex-row items-center justify-between gap-2">
           <CardTitle className="text-sm font-medium flex items-center gap-2">
             <PauseCircle className="h-4 w-4 text-[hsl(38_92%_45%)]" />
-            Estoque Parado (180+ dias)
+            Produtos com Baixa Rotatividade
           </CardTitle>
-          {Number(paradoResumo?.total_vendido_ultimos_30d ?? 0) === 0 && (
-            <Badge variant="destructive" className="text-[10px]">
-              Nenhuma venda nos últimos 30 dias
-            </Badge>
-          )}
+          <Badge variant="destructive" className="text-[10px]">
+            {fmtInt(baixaRotItens.filter((p) => p.meses_de_cobertura_estoque == null || Number(p.meses_de_cobertura_estoque) > 12).length)} casos urgentes
+          </Badge>
         </CardHeader>
         <CardContent className="space-y-1">
-          <p className="text-2xl font-bold">{fmtMoney(paradoResumo?.custo_total_parado)}</p>
+          <p className="text-2xl font-bold">{fmtMoney(baixaRotResumo?.custo_total_estoque)}</p>
           <p className="text-xs text-muted-foreground">Capital parado em estoque</p>
           <p className="text-xs text-muted-foreground">
-            {fmtInt(paradoResumo?.total_produtos)} produtos · {fmtInt(paradoResumo?.total_unidades)} unidades
+            {fmtInt(baixaRotResumo?.total_produtos)} produtos · {fmtInt(baixaRotResumo?.total_unidades)} unidades
           </p>
           <p className="text-xs text-muted-foreground">
-            {fmtMoney(paradoResumo?.valor_total_vendas_potencial)} · Se vendido a preço cheio
+            {fmtMoney(baixaRotResumo?.margem_total_potencial)} · Margem recuperada se vendido a preço cheio
+          </p>
+          <p className="text-[11px] text-muted-foreground/80">
+            {fmtMoney(baixaRotResumo?.valor_total_venda_potencial)} · valor de venda total se tudo vendesse
           </p>
         </CardContent>
       </Card>
