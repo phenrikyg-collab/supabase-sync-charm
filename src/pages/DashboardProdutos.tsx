@@ -263,6 +263,19 @@ export default function DashboardProdutos() {
     estoque_atual: (p) => Number(p.estoque_atual ?? 0),
   });
 
+  const sortBaixaRot = useSortable<ChaveBaixaRot>({ key: "custo_total_estoque", dir: "desc" });
+  const baixaRotOrdenada = useOrdenado<BaixaRotatividadeItem, ChaveBaixaRot>(baixaRotItens, sortBaixaRot.sort, {
+    nome: (p) => p.nome,
+    unidades_em_estoque: (p) => Number(p.unidades_em_estoque ?? 0),
+    custo_unitario: (p) => Number(p.custo_unitario ?? 0),
+    preco_venda_unitario: (p) => Number(p.preco_venda_unitario ?? 0),
+    custo_total_estoque: (p) => Number(p.custo_total_estoque ?? 0),
+    margem_pct: (p) => Number(p.margem_pct ?? 0),
+    unidades_vendidas_90d: (p) => Number(p.unidades_vendidas_90d ?? 0),
+    meses_de_cobertura_estoque: (p) => p.meses_de_cobertura_estoque,
+    ultima_venda: (p) => p.ultima_venda,
+  });
+
   const consultaEstoque = useMemo(() => {
     const q = buscaEstoque.trim().toLowerCase();
     if (!q) return [];
