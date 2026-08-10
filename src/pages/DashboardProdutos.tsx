@@ -630,12 +630,12 @@ export default function DashboardProdutos() {
                 </TabsTrigger>
                 <TabsTrigger value="parado180">
                   <PauseCircle className="h-3.5 w-3.5 mr-1 text-[hsl(38_92%_45%)]" />
-                  180+ dias ({paradoItens.length})
+                  Baixa Rotatividade ({baixaRotItens.length})
                 </TabsTrigger>
               </TabsList>
 
               <TabsContent value="parado180" className="mt-4">
-                {loadingParado180 ? (
+                {loadingBaixaRot ? (
                   <div className="flex justify-center py-12">
                     <Loader2 className="h-6 w-6 animate-spin text-primary" />
                   </div>
@@ -644,39 +644,57 @@ export default function DashboardProdutos() {
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead>Produto</TableHead>
-                          <TableHead className="text-right">Unid. estoque</TableHead>
-                          <TableHead className="text-right">Custo parado</TableHead>
-                          <TableHead className="text-right">Valor potencial</TableHead>
-                          <TableHead>Última venda</TableHead>
-                          <TableHead className="text-right">Dias sem giro</TableHead>
-                          <TableHead className="text-right">Vendas 30d</TableHead>
+                          <SortableHead campo="nome" sort={sortBaixaRot.sort} onSort={sortBaixaRot.alternar}>Produto</SortableHead>
+                          <SortableHead campo="unidades_em_estoque" sort={sortBaixaRot.sort} onSort={sortBaixaRot.alternar} className="text-right">Unid. estoque</SortableHead>
+                          <SortableHead campo="custo_unitario" sort={sortBaixaRot.sort} onSort={sortBaixaRot.alternar} className="text-right">Custo unit.</SortableHead>
+                          <SortableHead campo="preco_venda_unitario" sort={sortBaixaRot.sort} onSort={sortBaixaRot.alternar} className="text-right">Preço venda</SortableHead>
+                          <SortableHead campo="margem_pct" sort={sortBaixaRot.sort} onSort={sortBaixaRot.alternar} className="text-right">Margem %</SortableHead>
+                          <SortableHead campo="unidades_vendidas_90d" sort={sortBaixaRot.sort} onSort={sortBaixaRot.alternar} className="text-right">Vendas 90d</SortableHead>
+                          <SortableHead campo="meses_de_cobertura_estoque" sort={sortBaixaRot.sort} onSort={sortBaixaRot.alternar} className="text-right">Meses cobertura</SortableHead>
+                          <SortableHead campo="ultima_venda" sort={sortBaixaRot.sort} onSort={sortBaixaRot.alternar}>Última venda</SortableHead>
+                          <SortableHead campo="custo_total_estoque" sort={sortBaixaRot.sort} onSort={sortBaixaRot.alternar} className="text-right">Capital parado</SortableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {paradoItens.map((p) => (
-                          <TableRow key={p.produto_id}>
-                            <TableCell className="font-medium">{p.nome}</TableCell>
-                            <TableCell className="text-right">{fmtInt(p.unidades_em_estoque)}</TableCell>
-                            <TableCell className="text-right font-semibold">{fmtMoney(p.custo_total_parado)}</TableCell>
-                            <TableCell className="text-right">{fmtMoney(p.valor_total_vendas_potencial)}</TableCell>
-                            <TableCell className="text-xs">
-                              {p.ultima_venda ? (
-                                formatarData(p.ultima_venda)
-                              ) : (
-                                <span className="text-muted-foreground">
-                                  nunca vendeu{p.data_cadastro ? ` · cadastro ${formatarData(p.data_cadastro)}` : ""}
-                                </span>
-                              )}
-                            </TableCell>
-                            <TableCell className="text-right">{fmtInt(p.dias_sem_rotatividade)}</TableCell>
-                            <TableCell className="text-right">{fmtInt(p.unidades_vendidas_30d)}</TableCell>
-                          </TableRow>
-                        ))}
-                        {paradoItens.length === 0 && (
+                        {baixaRotOrdenada.map((p) => {
+                          const urgente = p.meses_de_cobertura_estoque == null || Number(p.meses_de_cobertura_estoque) > 12;
+                          return (
+                            <TableRow key={p.produto_id} className={urgente ? "bg-destructive/5" : undefined}>
+                              <TableCell className="font-medium">{p.nome}</TableCell>
+                              <TableCell className="text-right">{fmtInt(p.unidades_em_estoque)}</TableCell>
+                              <TableCell className="text-right">{fmtMoney(p.custo_unitario)}</TableCell>
+                              <TableCell className="text-right">{fmtMoney(p.preco_venda_unitario)}</TableCell>
+                              <TableCell className={`text-right ${corMargem(p.margem_pct)}`}>{fmtPct(p.margem_pct)}</TableCell>
+                              <TableCell className="text-right">{fmtInt(p.unidades_vendidas_90d)}</TableCell>
+                              <TableCell className="text-right">
+                                {p.meses_de_cobertura_estoque == null ? (
+                                  <Badge variant="destructive" className="text-[10px]">Sem venda no período</Badge>
+                                ) : (
+                                  <Badge
+                                    variant={Number(p.meses_de_cobertura_estoque) > 12 ? "destructive" : "secondary"}
+                                    className="text-[10px]"
+                                  >
+                                    {Number(p.meses_de_cobertura_estoque).toFixed(1)} meses
+                                  </Badge>
+                                )}
+                              </TableCell>
+                              <TableCell className="text-xs">
+                                {p.ultima_venda ? (
+                                  formatarData(p.ultima_venda)
+                                ) : (
+                                  <span className="text-muted-foreground">
+                                    nunca vendeu{p.data_cadastro ? ` · cadastro ${formatarData(p.data_cadastro)}` : ""}
+                                  </span>
+                                )}
+                              </TableCell>
+                              <TableCell className="text-right font-semibold">{fmtMoney(p.custo_total_estoque)}</TableCell>
+                            </TableRow>
+                          );
+                        })}
+                        {baixaRotOrdenada.length === 0 && (
                           <TableRow>
-                            <TableCell colSpan={7} className="text-center text-muted-foreground py-6">
-                              Nenhum produto parado há mais de 180 dias
+                            <TableCell colSpan={9} className="text-center text-muted-foreground py-6">
+                              Nenhum produto com baixa rotatividade
                             </TableCell>
                           </TableRow>
                         )}
