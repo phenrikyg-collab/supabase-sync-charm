@@ -60,26 +60,28 @@ type EstoqueEstrategico = {
   risco_ruptura: boolean;
   estoque_parado: boolean;
 };
-type EstoqueParadoResumo = {
+type BaixaRotatividadeResumo = {
   total_produtos: number | null;
   total_unidades: number | null;
-  custo_total_parado: number | null;
-  valor_total_vendas_potencial: number | null;
-  total_vendido_ultimos_30d: number | null;
+  custo_total_estoque: number | null;
+  valor_total_venda_potencial: number | null;
+  margem_total_potencial: number | null;
 };
 
-type EstoqueParado180 = {
+type BaixaRotatividadeItem = {
   produto_id: string;
   nome: string;
   unidades_em_estoque: number | null;
-  cost_price: number | null;
-  price: number | null;
-  data_cadastro: string | null;
-  custo_total_parado: number | null;
-  valor_total_vendas_potencial: number | null;
+  custo_unitario: number | null;
+  preco_venda_unitario: number | null;
+  custo_total_estoque: number | null;
+  valor_total_venda_potencial: number | null;
+  margem_pct: number | null;
+  margem_total_potencial: number | null;
+  unidades_vendidas_90d: number | null;
   ultima_venda: string | null;
-  unidades_vendidas_30d: number | null;
-  dias_sem_rotatividade: number | null;
+  data_cadastro: string | null;
+  meses_de_cobertura_estoque: number | null;
   classe_abc: string | null;
 };
 
@@ -104,6 +106,7 @@ const corMargem = (pct: number | null | undefined) => {
 };
 
 type ChaveABC = "nome" | "classe_abc" | "receita_total" | "percentual_receita" | "unidades_vendidas" | "estoque_atual" | "ultima_venda";
+type ChaveBaixaRot = "nome" | "unidades_em_estoque" | "custo_unitario" | "preco_venda_unitario" | "custo_total_estoque" | "margem_pct" | "unidades_vendidas_90d" | "meses_de_cobertura_estoque" | "ultima_venda";
 type ChaveCor = "nome" | "cor" | "percentual_vendas_cor" | "estoque_cor" | "sugestao_produzir_cor";
 type ChaveEstrat = "nome" | "receita_total" | "unidades_vendidas" | "preco_medio" | "margem_contribuicao_pct" | "estoque_atual";
 
@@ -171,31 +174,31 @@ export default function DashboardProdutos() {
     },
   });
 
-  const { data: paradoResumo } = useQuery({
-    queryKey: ["vw_estoque_parado_resumo"],
+  const { data: baixaRotResumo } = useQuery({
+    queryKey: ["vw_produtos_baixa_rotatividade_resumo"],
     staleTime: 5 * 60 * 1000,
     refetchInterval: false,
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("vw_estoque_parado_resumo" as any)
+        .from("vw_produtos_baixa_rotatividade_resumo" as any)
         .select("*")
         .maybeSingle();
       if (error) throw error;
-      return (data ?? null) as unknown as EstoqueParadoResumo | null;
+      return (data ?? null) as unknown as BaixaRotatividadeResumo | null;
     },
   });
 
-  const { data: paradoItens = [], isLoading: loadingParado180 } = useQuery({
-    queryKey: ["vw_estoque_parado_180_dias"],
+  const { data: baixaRotItens = [], isLoading: loadingBaixaRot } = useQuery({
+    queryKey: ["vw_produtos_baixa_rotatividade"],
     staleTime: 5 * 60 * 1000,
     refetchInterval: false,
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("vw_estoque_parado_180_dias" as any)
+        .from("vw_produtos_baixa_rotatividade" as any)
         .select("*")
-        .order("custo_total_parado", { ascending: false });
+        .order("custo_total_estoque", { ascending: false });
       if (error) throw error;
-      return (data ?? []) as unknown as EstoqueParado180[];
+      return (data ?? []) as unknown as BaixaRotatividadeItem[];
     },
   });
 
@@ -260,6 +263,19 @@ export default function DashboardProdutos() {
     estoque_atual: (p) => Number(p.estoque_atual ?? 0),
   });
 
+  const sortBaixaRot = useSortable<ChaveBaixaRot>({ key: "custo_total_estoque", dir: "desc" });
+  const baixaRotOrdenada = useOrdenado<BaixaRotatividadeItem, ChaveBaixaRot>(baixaRotItens, sortBaixaRot.sort, {
+    nome: (p) => p.nome,
+    unidades_em_estoque: (p) => Number(p.unidades_em_estoque ?? 0),
+    custo_unitario: (p) => Number(p.custo_unitario ?? 0),
+    preco_venda_unitario: (p) => Number(p.preco_venda_unitario ?? 0),
+    custo_total_estoque: (p) => Number(p.custo_total_estoque ?? 0),
+    margem_pct: (p) => Number(p.margem_pct ?? 0),
+    unidades_vendidas_90d: (p) => Number(p.unidades_vendidas_90d ?? 0),
+    meses_de_cobertura_estoque: (p) => p.meses_de_cobertura_estoque,
+    ultima_venda: (p) => p.ultima_venda,
+  });
+
   const consultaEstoque = useMemo(() => {
     const q = buscaEstoque.trim().toLowerCase();
     if (!q) return [];
@@ -322,27 +338,28 @@ export default function DashboardProdutos() {
         ))}
       </div>
 
-      {/* Estoque Parado (180+ dias) */}
+      {/* Produtos com Baixa Rotatividade */}
       <Card className="border-[hsl(38_92%_50%)]/40">
         <CardHeader className="pb-2 flex flex-row items-center justify-between gap-2">
           <CardTitle className="text-sm font-medium flex items-center gap-2">
             <PauseCircle className="h-4 w-4 text-[hsl(38_92%_45%)]" />
-            Estoque Parado (180+ dias)
+            Produtos com Baixa Rotatividade
           </CardTitle>
-          {Number(paradoResumo?.total_vendido_ultimos_30d ?? 0) === 0 && (
-            <Badge variant="destructive" className="text-[10px]">
-              Nenhuma venda nos últimos 30 dias
-            </Badge>
-          )}
+          <Badge variant="destructive" className="text-[10px]">
+            {fmtInt(baixaRotItens.filter((p) => p.meses_de_cobertura_estoque == null || Number(p.meses_de_cobertura_estoque) > 12).length)} casos urgentes
+          </Badge>
         </CardHeader>
         <CardContent className="space-y-1">
-          <p className="text-2xl font-bold">{fmtMoney(paradoResumo?.custo_total_parado)}</p>
+          <p className="text-2xl font-bold">{fmtMoney(baixaRotResumo?.custo_total_estoque)}</p>
           <p className="text-xs text-muted-foreground">Capital parado em estoque</p>
           <p className="text-xs text-muted-foreground">
-            {fmtInt(paradoResumo?.total_produtos)} produtos · {fmtInt(paradoResumo?.total_unidades)} unidades
+            {fmtInt(baixaRotResumo?.total_produtos)} produtos · {fmtInt(baixaRotResumo?.total_unidades)} unidades
           </p>
           <p className="text-xs text-muted-foreground">
-            {fmtMoney(paradoResumo?.valor_total_vendas_potencial)} · Se vendido a preço cheio
+            {fmtMoney(baixaRotResumo?.margem_total_potencial)} · Margem recuperada se vendido a preço cheio
+          </p>
+          <p className="text-[11px] text-muted-foreground/80">
+            {fmtMoney(baixaRotResumo?.valor_total_venda_potencial)} · valor de venda total se tudo vendesse
           </p>
         </CardContent>
       </Card>
@@ -613,12 +630,12 @@ export default function DashboardProdutos() {
                 </TabsTrigger>
                 <TabsTrigger value="parado180">
                   <PauseCircle className="h-3.5 w-3.5 mr-1 text-[hsl(38_92%_45%)]" />
-                  180+ dias ({paradoItens.length})
+                  Baixa Rotatividade ({baixaRotItens.length})
                 </TabsTrigger>
               </TabsList>
 
               <TabsContent value="parado180" className="mt-4">
-                {loadingParado180 ? (
+                {loadingBaixaRot ? (
                   <div className="flex justify-center py-12">
                     <Loader2 className="h-6 w-6 animate-spin text-primary" />
                   </div>
@@ -627,39 +644,57 @@ export default function DashboardProdutos() {
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead>Produto</TableHead>
-                          <TableHead className="text-right">Unid. estoque</TableHead>
-                          <TableHead className="text-right">Custo parado</TableHead>
-                          <TableHead className="text-right">Valor potencial</TableHead>
-                          <TableHead>Última venda</TableHead>
-                          <TableHead className="text-right">Dias sem giro</TableHead>
-                          <TableHead className="text-right">Vendas 30d</TableHead>
+                          <SortableHead campo="nome" sort={sortBaixaRot.sort} onSort={sortBaixaRot.alternar}>Produto</SortableHead>
+                          <SortableHead campo="unidades_em_estoque" sort={sortBaixaRot.sort} onSort={sortBaixaRot.alternar} className="text-right">Unid. estoque</SortableHead>
+                          <SortableHead campo="custo_unitario" sort={sortBaixaRot.sort} onSort={sortBaixaRot.alternar} className="text-right">Custo unit.</SortableHead>
+                          <SortableHead campo="preco_venda_unitario" sort={sortBaixaRot.sort} onSort={sortBaixaRot.alternar} className="text-right">Preço venda</SortableHead>
+                          <SortableHead campo="margem_pct" sort={sortBaixaRot.sort} onSort={sortBaixaRot.alternar} className="text-right">Margem %</SortableHead>
+                          <SortableHead campo="unidades_vendidas_90d" sort={sortBaixaRot.sort} onSort={sortBaixaRot.alternar} className="text-right">Vendas 90d</SortableHead>
+                          <SortableHead campo="meses_de_cobertura_estoque" sort={sortBaixaRot.sort} onSort={sortBaixaRot.alternar} className="text-right">Meses cobertura</SortableHead>
+                          <SortableHead campo="ultima_venda" sort={sortBaixaRot.sort} onSort={sortBaixaRot.alternar}>Última venda</SortableHead>
+                          <SortableHead campo="custo_total_estoque" sort={sortBaixaRot.sort} onSort={sortBaixaRot.alternar} className="text-right">Capital parado</SortableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {paradoItens.map((p) => (
-                          <TableRow key={p.produto_id}>
-                            <TableCell className="font-medium">{p.nome}</TableCell>
-                            <TableCell className="text-right">{fmtInt(p.unidades_em_estoque)}</TableCell>
-                            <TableCell className="text-right font-semibold">{fmtMoney(p.custo_total_parado)}</TableCell>
-                            <TableCell className="text-right">{fmtMoney(p.valor_total_vendas_potencial)}</TableCell>
-                            <TableCell className="text-xs">
-                              {p.ultima_venda ? (
-                                formatarData(p.ultima_venda)
-                              ) : (
-                                <span className="text-muted-foreground">
-                                  nunca vendeu{p.data_cadastro ? ` · cadastro ${formatarData(p.data_cadastro)}` : ""}
-                                </span>
-                              )}
-                            </TableCell>
-                            <TableCell className="text-right">{fmtInt(p.dias_sem_rotatividade)}</TableCell>
-                            <TableCell className="text-right">{fmtInt(p.unidades_vendidas_30d)}</TableCell>
-                          </TableRow>
-                        ))}
-                        {paradoItens.length === 0 && (
+                        {baixaRotOrdenada.map((p) => {
+                          const urgente = p.meses_de_cobertura_estoque == null || Number(p.meses_de_cobertura_estoque) > 12;
+                          return (
+                            <TableRow key={p.produto_id} className={urgente ? "bg-destructive/5" : undefined}>
+                              <TableCell className="font-medium">{p.nome}</TableCell>
+                              <TableCell className="text-right">{fmtInt(p.unidades_em_estoque)}</TableCell>
+                              <TableCell className="text-right">{fmtMoney(p.custo_unitario)}</TableCell>
+                              <TableCell className="text-right">{fmtMoney(p.preco_venda_unitario)}</TableCell>
+                              <TableCell className={`text-right ${corMargem(p.margem_pct)}`}>{fmtPct(p.margem_pct)}</TableCell>
+                              <TableCell className="text-right">{fmtInt(p.unidades_vendidas_90d)}</TableCell>
+                              <TableCell className="text-right">
+                                {p.meses_de_cobertura_estoque == null ? (
+                                  <Badge variant="destructive" className="text-[10px]">Sem venda no período</Badge>
+                                ) : (
+                                  <Badge
+                                    variant={Number(p.meses_de_cobertura_estoque) > 12 ? "destructive" : "secondary"}
+                                    className="text-[10px]"
+                                  >
+                                    {Number(p.meses_de_cobertura_estoque).toFixed(1)} meses
+                                  </Badge>
+                                )}
+                              </TableCell>
+                              <TableCell className="text-xs">
+                                {p.ultima_venda ? (
+                                  formatarData(p.ultima_venda)
+                                ) : (
+                                  <span className="text-muted-foreground">
+                                    nunca vendeu{p.data_cadastro ? ` · cadastro ${formatarData(p.data_cadastro)}` : ""}
+                                  </span>
+                                )}
+                              </TableCell>
+                              <TableCell className="text-right font-semibold">{fmtMoney(p.custo_total_estoque)}</TableCell>
+                            </TableRow>
+                          );
+                        })}
+                        {baixaRotOrdenada.length === 0 && (
                           <TableRow>
-                            <TableCell colSpan={7} className="text-center text-muted-foreground py-6">
-                              Nenhum produto parado há mais de 180 dias
+                            <TableCell colSpan={9} className="text-center text-muted-foreground py-6">
+                              Nenhum produto com baixa rotatividade
                             </TableCell>
                           </TableRow>
                         )}
