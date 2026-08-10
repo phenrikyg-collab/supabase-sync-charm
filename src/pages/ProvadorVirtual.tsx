@@ -16,7 +16,8 @@ import {
 } from "lucide-react";
 
 const SUPABASE_URL = "https://ezdtulcrqzmgocamjwwl.supabase.co";
-const ANON_KEY = (import.meta as any).env?.VITE_SUPABASE_PUBLISHABLE_KEY as string | undefined;
+const ANON_KEY =
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV6ZHR1bGNycXptZ29jYW1qd3dsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE2MjIwMzAsImV4cCI6MjA4NzE5ODAzMH0.7CyKzK3cs-Cd-Wrh69oUAEtxW95l8iZLMCXi_3nAIPU";
 
 type Lead = {
   id: string;
@@ -200,7 +201,15 @@ function FunilLeads() {
 
 /* ---------------- Tela 2 — Gerar Prova Manualmente ---------------- */
 
-type Produto = { produto_id: string; nome?: string; produto_nome?: string; imagem_url?: string | null };
+type Produto = {
+  produto_id: string;
+  nome?: string;
+  imagem?: string | null;
+  disponivel?: boolean | null;
+  preco_cheio?: number | null;
+  preco_promocional?: number | null;
+  tamanhos_disponiveis?: string[] | null;
+};
 
 function GerarProva({
   conversaId,
@@ -228,16 +237,20 @@ function GerarProva({
   useEffect(() => { setNome(nomeInicial); }, [nomeInicial]);
   useEffect(() => { setTelefone(telefoneInicial); }, [telefoneInicial]);
 
-  async function buscar() {
-    if (!termo.trim()) return;
+  async function buscar(termoBusca?: string) {
+    const q = (termoBusca ?? termo).trim();
+    if (q.length < 2) { setResultados([]); return; }
     setBuscando(true);
     try {
       const res = await fetch(
-        `${SUPABASE_URL}/functions/v1/provador-buscar-produto?q=${encodeURIComponent(termo.trim())}`,
-        { headers: ANON_KEY ? { apikey: ANON_KEY, Authorization: `Bearer ${ANON_KEY}` } : undefined }
+        `${SUPABASE_URL}/functions/v1/provador-buscar-produto?q=${encodeURIComponent(q)}`,
+        { headers: { apikey: ANON_KEY, Authorization: `Bearer ${ANON_KEY}` } }
       );
+      if (!res.ok) throw new Error(`Erro ${res.status} ao buscar produtos`);
       const json = await res.json();
-      const lista: Produto[] = Array.isArray(json) ? json : json.produtos || json.data || [];
+      const lista: Produto[] = Array.isArray(json)
+        ? json
+        : json?.produtos ?? json?.data ?? [];
       setResultados(lista);
       if (lista.length === 0) toast.info("Nenhum produto encontrado");
     } catch (e: any) {
@@ -247,18 +260,44 @@ function GerarProva({
     }
   }
 
+  // Debounce: busca automaticamente enquanto digita (a partir de 2 caracteres)
+  useEffect(() => {
+    const q = termo.trim();
+    if (q.length < 2) { setResultados([]); return; }
+    const t = window.setTimeout(() => { buscar(q); }, 450);
+    return () => window.clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [termo]);
+
   function selecionarArquivo(f: File | null) {
     setArquivo(f);
     setPrevia(f ? URL.createObjectURL(f) : null);
     if (f) setUrlColada("");
   }
 
-  async function fileParaBase64(f: File): Promise<string> {
-    const buf = await f.arrayBuffer();
-    let bin = "";
-    const bytes = new Uint8Array(buf);
-    for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
-    return btoa(bin);
+  function fileParaBase64(f: File): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result)); // data:image/...;base64,XXXX
+      reader.onerror = reject;
+      reader.readAsDataURL(f);
+    });
+  }
+
+  async function uploadFoto(f: File): Promise<string> {
+    const base64 = await fileParaBase64(f);
+    const res = await fetch(`${SUPABASE_URL}/functions/v1/provador-upload-foto`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        apikey: ANON_KEY,
+        Authorization: `Bearer ${ANON_KEY}`,
+      },
+      body: JSON.stringify({ imagem_base64: base64, tipo_mime: f.type }),
+    });
+    const json = await res.json().catch(() => null);
+    if (!res.ok || !json?.url) throw new Error(json?.error || "Falha ao enviar a foto");
+    return json.url as string;
   }
 
   async function gerar() {
@@ -269,15 +308,7 @@ function GerarProva({
     setResultado(null);
     try {
       let fotoUrl = urlColada.trim();
-      if (arquivo) {
-        const base64 = await fileParaBase64(arquivo);
-        const up = await invokeEdgeFunction("provador-upload-foto", {
-          imagem_base64: base64,
-          tipo_mime: arquivo.type,
-        });
-        fotoUrl = up?.url;
-        if (!fotoUrl) throw new Error("Falha ao enviar a foto");
-      }
+      if (arquivo) fotoUrl = await uploadFoto(arquivo);
       const json = await invokeEdgeFunction(
         "provador-virtual-gerar",
         {
@@ -289,7 +320,7 @@ function GerarProva({
           nome: nome || null,
           telefone: telefone || null,
         },
-        { timeoutMs: 120_000 }
+        { timeoutMs: 120_000, baseUrl: SUPABASE_URL, anonKey: ANON_KEY }
       );
       if (json?.error) throw new Error(json.detalhe || json.error);
       const img = json?.imagem_url || json?.url;
@@ -341,9 +372,9 @@ function GerarProva({
                 value={termo}
                 onChange={(e) => setTermo(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && buscar()}
-                placeholder="Buscar produto…"
+                placeholder="Buscar produto… (ex: calça)"
               />
-              <Button variant="outline" onClick={buscar} disabled={buscando}>
+              <Button variant="outline" onClick={() => buscar()} disabled={buscando}>
                 {buscando ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
               </Button>
             </div>
@@ -356,15 +387,18 @@ function GerarProva({
                     onClick={() => { setProduto(p); setResultados([]); }}
                     className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-sm hover:bg-muted"
                   >
-                    {p.imagem_url && <img src={p.imagem_url} alt="" className="h-8 w-8 rounded object-cover" />}
-                    <span className="truncate">{p.produto_nome || p.nome}</span>
+                    {p.imagem && <img src={p.imagem} alt="" className="h-8 w-8 rounded object-cover" />}
+                    <span className="truncate">{p.nome}</span>
+                    {p.disponivel === false && (
+                      <span className="ml-auto text-[10px] text-muted-foreground">indisponível</span>
+                    )}
                   </button>
                 ))}
               </div>
             )}
             {produto && (
               <p className="text-sm text-muted-foreground">
-                Selecionado: <span className="font-medium text-foreground">{produto.produto_nome || produto.nome}</span>
+                Selecionado: <span className="font-medium text-foreground">{produto.nome}</span>
               </p>
             )}
           </div>
