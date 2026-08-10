@@ -136,6 +136,7 @@ const moduleGroups: ModuleGroup[] = [
       { title: "Pedidos Cancelados", url: "/pedidos-cancelados", icon: PackageX },
       { title: "Visitantes ao Vivo", url: "/rastreamento", icon: Radar },
       { title: "KPIs de Conversão", url: "/kpis-conversao", icon: TrendingUp },
+      { title: "Provador Virtual", url: "/provador-virtual", icon: Sparkles },
 
 
     ],

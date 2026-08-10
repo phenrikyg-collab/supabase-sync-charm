@@ -68,6 +68,7 @@ import CarrinhoAbandonado from "./pages/CarrinhoAbandonado";
 import PedidosCancelados from "./pages/PedidosCancelados";
 import Rastreamento from "./pages/Rastreamento";
 import KpisConversao from "./pages/KpisConversao";
+import ProvadorVirtual from "./pages/ProvadorVirtual";
 
 import Automacoes from "./pages/Automacoes";
 import AutomacaoFluxo from "./pages/AutomacaoFluxo";
@@ -200,6 +201,7 @@ const AppRoutes = () => {
               <Route path="/pedidos-cancelados" element={<PedidosCancelados />} />
               <Route path="/rastreamento" element={<Rastreamento />} />
               <Route path="/kpis-conversao" element={<KpisConversao />} />
+              <Route path="/provador-virtual" element={<ProvadorVirtual />} />
 
 
               <Route path="/automacoes" element={<Automacoes />} />
