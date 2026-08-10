@@ -372,9 +372,9 @@ function GerarProva({
                 value={termo}
                 onChange={(e) => setTermo(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && buscar()}
-                placeholder="Buscar produto…"
+                placeholder="Buscar produto… (ex: calça)"
               />
-              <Button variant="outline" onClick={buscar} disabled={buscando}>
+              <Button variant="outline" onClick={() => buscar()} disabled={buscando}>
                 {buscando ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
               </Button>
             </div>
@@ -387,15 +387,18 @@ function GerarProva({
                     onClick={() => { setProduto(p); setResultados([]); }}
                     className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-sm hover:bg-muted"
                   >
-                    {p.imagem_url && <img src={p.imagem_url} alt="" className="h-8 w-8 rounded object-cover" />}
-                    <span className="truncate">{p.produto_nome || p.nome}</span>
+                    {p.imagem && <img src={p.imagem} alt="" className="h-8 w-8 rounded object-cover" />}
+                    <span className="truncate">{p.nome}</span>
+                    {p.disponivel === false && (
+                      <span className="ml-auto text-[10px] text-muted-foreground">indisponível</span>
+                    )}
                   </button>
                 ))}
               </div>
             )}
             {produto && (
               <p className="text-sm text-muted-foreground">
-                Selecionado: <span className="font-medium text-foreground">{produto.produto_nome || produto.nome}</span>
+                Selecionado: <span className="font-medium text-foreground">{produto.nome}</span>
               </p>
             )}
           </div>
