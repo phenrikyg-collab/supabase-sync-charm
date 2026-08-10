@@ -320,7 +320,7 @@ function GerarProva({
           nome: nome || null,
           telefone: telefone || null,
         },
-        { timeoutMs: 120_000 }
+        { timeoutMs: 120_000, baseUrl: SUPABASE_URL, anonKey: ANON_KEY }
       );
       if (json?.error) throw new Error(json.detalhe || json.error);
       const img = json?.imagem_url || json?.url;
