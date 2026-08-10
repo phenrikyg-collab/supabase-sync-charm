@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { invokeEdgeFunction } from "@/lib/edgeFunctions";
+
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -16,8 +16,6 @@ import {
 } from "lucide-react";
 
 const SUPABASE_URL = "https://ezdtulcrqzmgocamjwwl.supabase.co";
-const ANON_KEY =
-  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV6ZHR1bGNycXptZ29jYW1qd3dsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE2MjIwMzAsImV4cCI6MjA4NzE5ODAzMH0.7CyKzK3cs-Cd-Wrh69oUAEtxW95l8iZLMCXi_3nAIPU";
 
 type Lead = {
   id: string;
@@ -244,8 +242,7 @@ function GerarProva({
     setBuscando(true);
     try {
       const res = await fetch(
-        `${SUPABASE_URL}/functions/v1/provador-buscar-produto?q=${encodeURIComponent(q)}`,
-        { headers: { apikey: ANON_KEY, Authorization: `Bearer ${ANON_KEY}` } }
+        `${SUPABASE_URL}/functions/v1/provador-buscar-produto?q=${encodeURIComponent(q)}`
       );
       if (!res.ok) throw new Error(`Erro ${res.status} ao buscar produtos`);
       const json = await res.json();
@@ -289,11 +286,7 @@ function GerarProva({
     const base64 = await fileParaBase64(f);
     const res = await fetch(`${SUPABASE_URL}/functions/v1/provador-upload-foto`, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        apikey: ANON_KEY,
-        Authorization: `Bearer ${ANON_KEY}`,
-      },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ imagem_base64: base64, tipo_mime: f.type }),
     });
     const json = await res.json().catch(() => null);
@@ -310,20 +303,33 @@ function GerarProva({
     try {
       let fotoUrl = urlColada.trim();
       if (arquivo) fotoUrl = await uploadFoto(arquivo);
-      const json = await invokeEdgeFunction(
-        "provador-virtual-gerar",
-        {
-          canal: "manual",
-          conversa_id: conversaId || null,
-          produto_id: produto.produto_id,
-          foto_cliente_url: fotoUrl,
-          consentimento,
-          nome: nome || null,
-          telefone: telefone || null,
-        },
-        { timeoutMs: 120_000, baseUrl: SUPABASE_URL, anonKey: ANON_KEY }
-      );
-      if (json?.error) throw new Error(json.detalhe || json.error);
+      const controller = new AbortController();
+      const timeoutId = window.setTimeout(() => controller.abort(), 120_000);
+      let res: Response;
+      try {
+        res = await fetch(`${SUPABASE_URL}/functions/v1/provador-virtual-gerar`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            canal: "manual",
+            conversa_id: conversaId || null,
+            produto_id: produto.produto_id,
+            foto_cliente_url: fotoUrl,
+            consentimento,
+            nome: nome || null,
+            telefone: telefone || null,
+          }),
+          signal: controller.signal,
+        });
+      } catch (err: any) {
+        window.clearTimeout(timeoutId);
+        if (err?.name === "AbortError")
+          throw new Error("A geração demorou mais que o esperado. Tente novamente em instantes.");
+        throw err;
+      }
+      window.clearTimeout(timeoutId);
+      const json = await res.json().catch(() => null);
+      if (!res.ok || json?.error) throw new Error(json?.detalhe || json?.error || `Erro ${res.status}`);
       const img = json?.imagem_url || json?.url;
       if (!img) throw new Error("A geração não retornou uma imagem");
       setResultado(img);
