@@ -21,6 +21,8 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { TagsConversa, TagChip, type Tag } from "@/components/atendimento/TagsConversa";
 import { CatalogoDialog, formatarPreco, legendaProduto, type ProdutoCatalogo } from "@/components/atendimento/CatalogoDialog";
 import { PerfilCliente } from "@/components/atendimento/PerfilCliente";
+import { AtividadesRecentes } from "@/components/atendimento/AtividadesRecentes";
+
 
 type Conversa = {
   id: number | string;
@@ -97,8 +99,17 @@ function horaCurta(valor?: string | null) {
   if (!valor) return "";
   const d = new Date(valor);
   if (Number.isNaN(d.getTime())) return "";
-  return d.toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
+  const hora = d.toLocaleTimeString("pt-BR", {
+    hour: "2-digit",
+    minute: "2-digit",
+    timeZone: "America/Sao_Paulo",
+  });
+  const fmtDia = (x: Date) =>
+    x.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", timeZone: "America/Sao_Paulo" });
+  if (fmtDia(d) === fmtDia(new Date())) return hora;
+  return `${fmtDia(d)} ${hora}`;
 }
+
 
 function StatusEntrega({ status, erro }: { status?: string | null; erro?: string | null }) {
   if (!status) return null;
@@ -139,6 +150,8 @@ export default function Atendimento() {
   const { user } = useAuth();
   const [selecionada, setSelecionada] = useState<string | null>(null);
   const [busca, setBusca] = useState("");
+  const [aba, setAba] = useState<"whatsapp" | "site">("whatsapp");
+
   const [filtroLeitura, setFiltroLeitura] = useState<"todas" | "nao_lidas" | "lidas">("todas");
   const [tagsFiltro, setTagsFiltro] = useState<string[]>([]);
   const [erroJanela, setErroJanela] = useState<string | null>(null);
@@ -407,7 +420,10 @@ export default function Atendimento() {
       }),
   });
 
+  const daAba = (c: Conversa) => (ehSite(c) ? "site" : "whatsapp") === aba;
+
   const filtradas = conversas.filter((c) => {
+    if (!daAba(c)) return false;
     if (filtroLeitura === "nao_lidas" && !c.nao_lida) return false;
     if (filtroLeitura === "lidas" && c.nao_lida) return false;
     if (tagsFiltro.length > 0) {
@@ -421,7 +437,14 @@ export default function Atendimento() {
     return nome.includes(t) || tel.toLowerCase().includes(t);
   });
 
-  const totalNaoLidas = conversas.filter((c) => c.nao_lida).length;
+  const naoLidasWhatsapp = conversas.filter((c) => c.nao_lida && !ehSite(c)).length;
+  const naoLidasSite = conversas.filter((c) => c.nao_lida && ehSite(c)).length;
+  const totalNaoLidas = aba === "site" ? naoLidasSite : naoLidasWhatsapp;
+
+  const telefoneIdentificado = conversaAtual
+    ? (ehSite(conversaAtual) ? conversaAtual.telefone_real : conversaAtual.telefone) || null
+    : null;
+
 
   const status = conversaAtual?.status ?? "";
   const podeResponder = status === "escalado" || status === "em_atendimento";
@@ -439,7 +462,34 @@ export default function Atendimento() {
         {/* Lista de conversas */}
         <Card className="flex flex-col overflow-hidden">
           <div className="p-3 border-b border-border space-y-2">
+            <div className="grid grid-cols-2 gap-1 rounded-md bg-muted p-1">
+              {([
+                { v: "whatsapp", label: "WhatsApp", icon: MessageCircle, nao: naoLidasWhatsapp },
+                { v: "site", label: "Chat do Site", icon: Globe, nao: naoLidasSite },
+              ] as const).map((t) => {
+                const Icone = t.icon;
+                return (
+                  <button
+                    key={t.v}
+                    onClick={() => setAba(t.v)}
+                    className={cn(
+                      "inline-flex items-center justify-center gap-1.5 rounded-sm px-2 py-1.5 text-xs font-medium transition-colors",
+                      aba === t.v ? "bg-card shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground",
+                    )}
+                  >
+                    <Icone className="h-3.5 w-3.5" />
+                    {t.label}
+                    {t.nao > 0 && (
+                      <span className="rounded-full bg-primary px-1.5 text-[10px] font-bold text-primary-foreground">
+                        {t.nao}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
             <div className="relative">
+
               <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
               <Input
                 value={busca}
@@ -766,15 +816,19 @@ export default function Atendimento() {
         </Card>
 
         {/* Painel lateral direito */}
-        <div className="hidden xl:flex flex-col overflow-hidden">
+        <div className="hidden xl:flex flex-col gap-4 overflow-y-auto">
           {conversaAtual ? (
-            <PerfilCliente conversaId={conversaAtual.id} autor={autor} telefone={conversaAtual.telefone} />
+            <>
+              <PerfilCliente conversaId={conversaAtual.id} autor={autor} telefone={conversaAtual.telefone} />
+              {telefoneIdentificado && <AtividadesRecentes telefone={telefoneIdentificado} />}
+            </>
           ) : (
             <Card className="flex-1 flex items-center justify-center text-sm text-muted-foreground">
               Nenhuma conversa selecionada
             </Card>
           )}
         </div>
+
       </div>
 
       <CatalogoDialog open={catalogoAberto} onOpenChange={setCatalogoAberto} onSelecionar={enviarProduto} />
