@@ -1,9 +1,10 @@
 import { useMemo } from 'react';
 import { CartesianGrid, ReferenceLine, ResponsiveContainer, Scatter, ScatterChart, Tooltip, XAxis, YAxis, ZAxis } from 'recharts';
+import { ComparativoFormato } from '@/components/marketing-analytics/Comparativo';
 import { DriversBlock } from '@/components/marketing-analytics/DriversBlock';
 import { GradeConteudo, useConteudo } from '@/components/marketing-analytics/GradeConteudo';
 import {
-  Aviso, BlocoLoading, C, Card, KpiCard, MALayout, SectionTitle, SemDado,
+  Aviso, BlocoLoading, C, Card, KpiCard, MALayout, SANS, SectionTitle, SemDado,
   fmtCompact, fmtInt, fmtNum, media, mediana, useDias,
 } from '@/components/marketing-analytics/shared';
 
@@ -17,6 +18,7 @@ export default function MAReels() {
     views: posts.reduce((s, p) => s + (p.views || 0), 0),
     skipMed: mediana(posts.map(p => p.skip_rate)),
     watchMed: media(posts.map(p => p.watch_medio_s)),
+    retencaoMed: media(posts.map(p => p.retencao_inicial)),
     horas: posts.reduce((s, p) => s + (p.watch_total_h || 0), 0),
     saveRate: media(posts.map(p => p.save_rate)),
   }), [posts]);
@@ -30,18 +32,36 @@ export default function MAReels() {
   const medSkip = mediana(scatter.map(s => s.x));
   const medWatch = mediana(scatter.map(s => s.y));
 
+  const quadrantes = useMemo(() => {
+    if (medSkip === null || medWatch === null) return null;
+    const q = { bom: 0, ganchoOk: 0, conteudoOk: 0, refazer: 0 };
+    scatter.forEach(s => {
+      const skipBaixo = s.x <= medSkip;
+      const watchAlto = s.y >= medWatch;
+      if (skipBaixo && watchAlto) q.bom++;
+      else if (skipBaixo && !watchAlto) q.ganchoOk++;
+      else if (!skipBaixo && watchAlto) q.conteudoOk++;
+      else q.refazer++;
+    });
+    return q;
+  }, [scatter, medSkip, medWatch]);
+
   return (
     <MALayout titulo="Reels" subtitulo="Performance do formato que mais distribui">
-      <div className="grid grid-cols-2 lg:grid-cols-6 gap-3">
+      <div className="grid grid-cols-2 lg:grid-cols-7 gap-3">
         <KpiCard label="Alcance médio" value={fmtCompact(kpis.alcanceMed)} accent={C.bronze} />
         <KpiCard label="Views" value={fmtCompact(kpis.views)} accent={C.gold} />
         <KpiCard label="Skip rate mediano" value={kpis.skipMed === null ? '—' : `${fmtNum(kpis.skipMed)}%`} accent={C.red} />
         <KpiCard label="Watch médio" value={kpis.watchMed === null ? '—' : `${fmtNum(kpis.watchMed)}s`} accent={C.blue} />
+        <KpiCard label="Retenção inicial" value={kpis.retencaoMed === null ? '—' : `${fmtNum(kpis.retencaoMed)}%`} accent={C.green} />
         <KpiCard label="Horas assistidas" value={fmtNum(kpis.horas)} accent={C.green} />
         <KpiCard label="Save rate" value={kpis.saveRate === null ? '—' : `${fmtNum(kpis.saveRate, 2)}%`} accent={C.bronze} />
       </div>
 
+      <ComparativoFormato dias={dias} formato="REELS" />
+
       <DriversBlock dias={dias} formato="REELS" mostrarSkip />
+
 
       <Card accent={C.blue}>
         <SectionTitle subtitle="Tamanho do ponto = alcance. Linhas de referência nas medianas da conta.">
