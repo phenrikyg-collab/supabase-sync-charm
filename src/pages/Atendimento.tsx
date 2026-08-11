@@ -32,6 +32,8 @@ type Conversa = {
   conversa_id?: number | string;
   cliente_nome?: string | null;
   nome_cliente?: string | null;
+  nome_cliente_tray?: string | null;
+  nome_whatsapp?: string | null;
   telefone: string;
   canal?: "whatsapp" | "site" | string | null;
   telefone_real?: string | null;
@@ -47,10 +49,26 @@ type Conversa = {
 const ehSite = (c?: Conversa | null) =>
   (c?.canal ?? "").toLowerCase() === "site" || String(c?.telefone ?? "").startsWith("site:");
 
+const limpo = (v?: string | null) => (v && v.trim() ? v.trim() : null);
+
+const nomeTray = (c: Conversa) => limpo(c.nome_cliente_tray) ?? limpo(c.cliente_nome) ?? limpo(c.nome_cliente);
+
 const nomeConversa = (c: Conversa) =>
-  c.cliente_nome ?? c.nome_cliente ?? (ehSite(c) ? "Visitante do site" : "Desconhecido");
+  nomeTray(c) ?? limpo(c.nome_whatsapp) ?? (ehSite(c) ? "Visitante do site" : "Desconhecido");
+
+/** true quando o nome exibido veio só do perfil do WhatsApp (cliente ainda não identificada na Tray) */
+const nomeSoDoWhatsApp = (c: Conversa) => !nomeTray(c) && !!limpo(c.nome_whatsapp);
+
+function BadgeViaWhatsApp() {
+  return (
+    <span className="inline-flex items-center rounded-full border border-success/20 bg-success/10 px-1.5 py-0.5 text-[10px] font-medium text-success whitespace-nowrap">
+      via WhatsApp
+    </span>
+  );
+}
 
 const identificadorConversa = (c: Conversa) => (ehSite(c) ? "Chat do site" : c.telefone);
+
 
 
 type Mensagem = {
