@@ -162,7 +162,7 @@ export function DriversBlock({ dias, formato, mostrarSkip = false }: { dias: num
         </>
       )}
 
-      <AnaliseEscrita formato={formato} />
     </Card>
+
   );
 }
