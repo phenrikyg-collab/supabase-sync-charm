@@ -465,6 +465,36 @@ export const useDeleteMeta = () => {
 export const useExpedicao = () =>
   useQuery({ queryKey: ["expedicao"], queryFn: () => fetchTable<ExpedicaoStatus>("vw_expedicao_status") });
 
+export const useExpedicaoHigienizacao = () =>
+  useQuery({
+    queryKey: ["expedicao-higienizacao"],
+    queryFn: () => fetchTable<ExpedicaoHigienizacao>("vw_expedicao_higienizacao"),
+  });
+
+export const useAlterarPrazoExpedicao = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (payload: {
+      pedido_id: string;
+      prazo_anterior: string | null;
+      prazo_novo: string;
+      justificativa: string;
+    }) => {
+      const { data: userData } = await supabase.auth.getUser();
+      const { error } = await supabase.from("expedicao_alteracoes_prazo").insert({
+        pedido_id: payload.pedido_id,
+        prazo_anterior: payload.prazo_anterior,
+        prazo_novo: payload.prazo_novo,
+        justificativa: payload.justificativa,
+        alterado_por: userData?.user?.id ?? null,
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["expedicao"] }),
+  });
+};
+
+
 // Categorias e Centros de Custo
 export const useCategorias = () =>
   useQuery({ queryKey: ["categorias"], queryFn: () => fetchTable<CategoriaFinanceira>("categorias_financeiras") });
