@@ -21,6 +21,8 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { TagsConversa, TagChip, type Tag } from "@/components/atendimento/TagsConversa";
 import { CatalogoDialog, formatarPreco, legendaProduto, type ProdutoCatalogo } from "@/components/atendimento/CatalogoDialog";
 import { PerfilCliente } from "@/components/atendimento/PerfilCliente";
+import { AtividadesRecentes } from "@/components/atendimento/AtividadesRecentes";
+
 
 type Conversa = {
   id: number | string;
