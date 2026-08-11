@@ -35,13 +35,15 @@ export default function CarrinhoAbandonado() {
   const [segmento, setSegmento] = useState("todos");
   const [valorMin, setValorMin] = useState("");
   const [valorMax, setValorMax] = useState("");
+  const [somenteIdentificados, setSomenteIdentificados] = useState(false);
 
   const { data: linhas = [], isLoading } = useQuery({
-    queryKey: ["vw_carrinhos_abandonados", periodo.inicio, periodo.fim],
+    queryKey: ["vw_carrinhos_abandonados", periodo.inicio, periodo.fim, somenteIdentificados],
     queryFn: async () => {
       let q = supabase.from("vw_carrinhos_abandonados" as any).select("*").limit(5000);
       if (periodo.inicio) q = q.gte("data_criacao", limiteInicio(periodo.inicio)!);
       if (periodo.fim) q = q.lte("data_criacao", limiteFim(periodo.fim)!);
+      if (somenteIdentificados) q = q.neq("nome", "Desconhecido");
       const { data, error } = await q;
       if (error) throw error;
       return (data ?? []) as unknown as Carrinho[];
