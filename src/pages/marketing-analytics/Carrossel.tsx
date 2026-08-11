@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import { ComparativoFormato } from '@/components/marketing-analytics/Comparativo';
 import { DriversBlock } from '@/components/marketing-analytics/DriversBlock';
 import { GradeConteudo, useConteudo } from '@/components/marketing-analytics/GradeConteudo';
 import { C, KpiCard, MALayout, fmtCompact, fmtNum, media, useDias } from '@/components/marketing-analytics/shared';
@@ -27,6 +28,8 @@ export default function MACarrossel() {
         <KpiCard label="Taxa de engajamento" value={kpis.eng === null ? '—' : `${fmtNum(kpis.eng, 2)}%`} accent={C.bronze} />
         <KpiCard label="Comentários médios" value={kpis.comentarios === null ? '—' : fmtNum(kpis.comentarios)} accent={C.gold} />
       </div>
+
+      <ComparativoFormato dias={dias} formato="FEED" />
 
       <DriversBlock dias={dias} formato="FEED" />
 
