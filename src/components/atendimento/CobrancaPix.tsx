@@ -198,6 +198,20 @@ export function ResultadoPix({ codigo, txid }: { codigo: string; txid?: string |
         <Copy className="mr-2 h-4 w-4" />
         Copiar código
       </Button>
+      <div className="grid grid-cols-2 gap-2">
+        <Button size="sm" variant="outline" onClick={() => copiarQRCodeComoImagem(codigo)}>
+          <ImageIcon className="mr-2 h-4 w-4" />
+          Copiar QR Code
+        </Button>
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={async () => baixarQRCode(await gerarQRCodeDataUrl(codigo))}
+        >
+          <Download className="mr-2 h-4 w-4" />
+          Baixar QR Code
+        </Button>
+      </div>
     </div>
   );
 }
