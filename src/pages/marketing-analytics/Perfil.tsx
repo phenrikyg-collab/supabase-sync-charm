@@ -3,19 +3,17 @@ import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxi
 import { supabase } from '@/integrations/supabase/client';
 import { CalculadoraValorSeguidor } from '@/components/marketing-analytics/CalculadoraValorSeguidor';
 import { ClarezaComunicacao } from '@/components/marketing-analytics/ClarezaComunicacao';
+import { DiagnosticoCompleto } from '@/components/marketing-analytics/DiagnosticoCompleto';
 import { DriversBlock } from '@/components/marketing-analytics/DriversBlock';
+import { FunilConta, FunilTaxa } from '@/components/marketing-analytics/FunilConta';
+import { FunilDestino } from '@/components/marketing-analytics/FunilDestino';
+import { MelhorHorario } from '@/components/marketing-analytics/MelhorHorario';
 import {
-  Aviso, BlocoLoading, C, Card, KpiCard, MALayout, SANS, SectionTitle, SemDado, Status, StatusChip,
+  Aviso, BlocoLoading, C, Card, KpiCard, MALayout, SANS, SectionTitle, SemDado,
   dataInicioISO, fmtCompact, fmtInt, fmtNum, media, useDias,
 } from '@/components/marketing-analytics/shared';
 
-interface FunilTaxa {
-  etapa: string;
-  valor: number | null;
-  diagnostico: string | null;
-  status_rocket: Status;
-  status_sistema1: Status;
-}
+interface TotalItem { atual: number | null; anterior: number | null; variacao_pct?: number | null }
 interface Funil {
   taxas: FunilTaxa[];
   avisos: string[];
@@ -31,6 +29,8 @@ interface Funil {
   saldo_seguidores: number | null;
   seguidores_perdidos: number | null;
   pct_alcance_nao_seguidor: number | null;
+  legenda_status: Record<string, string> | null;
+  totais: Record<string, TotalItem> | null;
 }
 
 function useFunil(dias: number) {
@@ -48,6 +48,7 @@ function useFunil(dias: number) {
   }, [dias]);
   return { funil: data, loading };
 }
+
 
 function MixFormatos({ dias }: { dias: number }) {
   const [rows, setRows] = useState<any[] | null>(null);
