@@ -187,7 +187,13 @@ const AppRoutes = () => {
               <Route path="/produtos-campanha" element={<ProdutosCampanha />} />
               <Route path="/plano-comercial" element={<PlanoComercial />} />
               <Route path="/lancamentos" element={<Lancamentos />} />
-              <Route path="/marketing-analytics" element={<MarketingAnalytics />} />
+              <Route path="/marketing-analytics" element={<MarketingAnalyticsPerfil />} />
+              <Route path="/marketing-analytics/reels" element={<MAReels />} />
+              <Route path="/marketing-analytics/carrossel" element={<MACarrossel />} />
+              <Route path="/marketing-analytics/stories" element={<MAStories />} />
+              <Route path="/marketing-analytics/insights" element={<MAInsights />} />
+              <Route path="/marketing-analytics/relatorios" element={<MARelatorios />} />
+              <Route path="/marketing-analytics/recomendacoes" element={<MARecomendacoes />} />
               <Route path="/embaixadoras" element={<Embaixadoras />} />
               <Route path="/embaixadoras/nova" element={<EmbaixadoraNova />} />
               <Route path="/embaixadoras/:id" element={<EmbaixadoraPerfil />} />
