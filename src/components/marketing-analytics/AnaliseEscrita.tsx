@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { Aviso, C, SANS, fmtInt } from './shared';
+import { Aviso, C, SANS, fmtInt, fmtNum } from './shared';
 
 export interface PadraoResumo {
   dimensao: string;
@@ -44,46 +44,75 @@ export function useResumoPerformance(formato: string | null, dias = 90) {
   return { resumo: data, loading };
 }
 
-const cita = (p: PadraoResumo) =>
-  `${p.dimensao.toLowerCase()} "${p.categoria}" (índice ${p.indice?.toFixed(2) ?? '—'}, ${p.posts} posts, alcance médio ${fmtInt(p.alcance_med)})`;
+const frase = (p: PadraoResumo, comVolume = false) => {
+  const base = `${p.dimensao} · ${p.categoria}: índice ${p.indice === null ? '—' : fmtNum(p.indice, 2)} em ${p.posts} publicações, alcance médio de ${fmtInt(p.alcance_med)}`;
+  const extra = comVolume && p.pct_volume !== null ? ` — ocupa ${fmtNum(p.pct_volume)}% do volume publicado` : '';
+  return base + extra + '.';
+};
 
-const lista = (arr: PadraoResumo[], n = 3) => arr.slice(0, n).map(cita).join('; ');
+function BlocoLista({ titulo, cor, itens, comVolume, vazio }: {
+  titulo: string; cor: string; itens: PadraoResumo[]; comVolume?: boolean; vazio: string;
+}) {
+  return (
+    <div className="p-4 rounded-lg" style={{ background: C.tabBg, borderLeft: `3px solid ${cor}` }}>
+      <p className="text-sm font-semibold mb-2" style={{ color: C.text, fontFamily: SANS }}>{titulo}</p>
+      {!itens.length ? (
+        <p className="text-xs" style={{ color: C.grey, fontFamily: SANS }}>{vazio}</p>
+      ) : (
+        <ul className="space-y-1.5">
+          {itens.map((p, i) => (
+            <li key={`${p.dimensao}-${p.categoria}-${i}`} className="text-sm leading-relaxed" style={{ color: C.text, fontFamily: SANS }}>
+              {frase(p, comVolume)}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
 
 export function AnaliseEscrita({ formato, dias = 90 }: { formato: string | null; dias?: number }) {
   const { resumo, loading } = useResumoPerformance(formato, dias);
 
-  const texto = useMemo(() => {
-    if (!resumo) return null;
-    const rep = resumo.replicar || [];
-    const evi = resumo.evitar || [];
-    const opo = resumo.oportunidades || [];
-    if (!rep.length && !evi.length && !opo.length) return null;
-
-    const partes: string[] = [
-      `Nos últimos ${resumo.periodo_dias} dias, ${resumo.posts_analisados} publicações${formato ? ` de ${formato === 'REELS' ? 'Reels' : 'feed'}` : ''} entraram na análise.`,
-    ];
-    if (rep.length) {
-      partes.push(`O que está performando acima da média e merece repetição: ${lista(rep)}.`);
-    }
-    if (evi.length) {
-      partes.push(`O que puxa a conta para baixo: ${lista(evi)} — vale reduzir volume ou refazer a abordagem.`);
-    }
-    if (opo.length) {
-      partes.push(`Oportunidades subutilizadas, com índice alto mas pouco volume: ${lista(opo)} — aumentar a frequência aqui é o movimento de maior retorno.`);
-    }
-    return partes.join(' ');
-  }, [resumo, formato]);
-
   if (loading) {
-    return <p className="text-sm mt-4" style={{ color: C.grey, fontFamily: SANS }}>Analisando padrões…</p>;
+    return <p className="text-sm mb-4" style={{ color: C.grey, fontFamily: SANS }}>Analisando padrões…</p>;
   }
-  if (!texto) return null;
+  if (!resumo) return null;
+
+  const rep = resumo.replicar || [];
+  const evi = resumo.evitar || [];
+  const opo = resumo.oportunidades || [];
 
   return (
-    <div className="mt-5 p-4 rounded-lg" style={{ background: C.tabBg }}>
-      <p className="text-[11px] uppercase tracking-wider mb-2" style={{ color: C.textSec, fontFamily: SANS }}>Leitura do período</p>
-      <p className="text-sm leading-relaxed" style={{ color: C.text, fontFamily: SANS }}>{texto}</p>
-      {resumo?.aviso && <Aviso>{resumo.aviso}</Aviso>}
+    <div className="mb-5 space-y-3">
+      {resumo.aviso && <Aviso>{resumo.aviso}</Aviso>}
+      <p className="text-sm" style={{ color: C.textSec, fontFamily: SANS }}>
+        Nos últimos {resumo.periodo_dias} dias, {resumo.posts_analisados} publicações
+        {formato ? ` de ${formato === 'REELS' ? 'Reels' : 'feed'}` : ''} entraram na análise.
+      </p>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+        <BlocoLista titulo="✅ O que replicar" cor={C.green} itens={rep} vazio="Nenhum padrão passou do corte de relevância no período." />
+        <BlocoLista titulo="⛔ O que evitar" cor={C.red} itens={evi} comVolume vazio="Nenhum padrão ficou abaixo do corte no período." />
+      </div>
+
+      <div className="p-4 rounded-lg" style={{ background: '#FFFBEF', borderLeft: `3px solid ${C.gold}` }}>
+        <p className="text-sm font-semibold mb-1" style={{ color: C.text, fontFamily: SANS }}>⭐ Oportunidades subutilizadas</p>
+        <p className="text-xs mb-2" style={{ color: C.textSec, fontFamily: SANS }}>
+          Índice alto com pouco volume — funciona e está sendo pouco usado. É a ação de maior retorno.
+        </p>
+        {!opo.length ? (
+          <p className="text-xs" style={{ color: C.grey, fontFamily: SANS }}>Nenhuma oportunidade subutilizada identificada.</p>
+        ) : (
+          <ul className="space-y-1.5">
+            {opo.map((p, i) => (
+              <li key={`${p.dimensao}-${p.categoria}-${i}`} className="text-sm leading-relaxed" style={{ color: C.text, fontFamily: SANS }}>
+                {frase(p, true)}
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
     </div>
   );
 }
