@@ -154,6 +154,9 @@ export default function Atendimento() {
   const [selecionada, setSelecionada] = useState<string | null>(null);
   const [busca, setBusca] = useState("");
   const [aba, setAba] = useState<"whatsapp" | "site">("whatsapp");
+  const [abaPagina, setAbaPagina] = useState<"conversas" | "cobrancas">("conversas");
+  const [cobrancaAberta, setCobrancaAberta] = useState(false);
+
 
   const [filtroLeitura, setFiltroLeitura] = useState<"todas" | "nao_lidas" | "lidas">("todas");
   const [tagsFiltro, setTagsFiltro] = useState<string[]>([]);
