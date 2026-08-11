@@ -107,11 +107,17 @@ export function moedaBR(v?: number | string | null) {
   return n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 }
 
-function dataHora(v?: string | null) {
+function formatarHora(v?: string | null) {
   if (!v) return "—";
   const d = new Date(v);
   if (Number.isNaN(d.getTime())) return String(v);
-  return d.toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", year: "2-digit", hour: "2-digit", minute: "2-digit" });
+  return d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+}
+
+function calcularExpiracao(criadoEm?: string | null) {
+  const dataCriacao = new Date(criadoEm ?? "");
+  if (Number.isNaN(dataCriacao.getTime())) return null;
+  return new Date(dataCriacao.getTime() + 60 * 60 * 1000);
 }
 
 export async function gerarQRCodeDataUrl(pixCopiaECola: string) {
