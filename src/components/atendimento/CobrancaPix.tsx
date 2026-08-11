@@ -86,6 +86,20 @@ function ErroCobranca({ mensagem }: { mensagem: string }) {
   );
 }
 
+/** Converte valor digitado (BR ou US) para o padrão exigido pela API: \d{1,10}\.\d{2} */
+export function formatarValorParaAPI(valorDigitado: string) {
+  let limpo = valorDigitado.trim().replace(/[^\d.,-]/g, "");
+  if (limpo.includes(",")) {
+    limpo = limpo.replace(/\./g, "").replace(",", ".");
+  } else {
+    const partes = limpo.split(".");
+    if (partes.length > 2) limpo = partes.slice(0, -1).join("") + "." + partes[partes.length - 1];
+  }
+  const numero = parseFloat(limpo);
+  if (Number.isNaN(numero) || numero <= 0) throw new Error("Valor inválido");
+  return numero.toFixed(2);
+}
+
 export function moedaBR(v?: number | string | null) {
   const n = typeof v === "string" ? Number(v) : v;
   if (n == null || Number.isNaN(n)) return "—";
