@@ -814,15 +814,19 @@ export default function Atendimento() {
         </Card>
 
         {/* Painel lateral direito */}
-        <div className="hidden xl:flex flex-col overflow-hidden">
+        <div className="hidden xl:flex flex-col gap-4 overflow-y-auto">
           {conversaAtual ? (
-            <PerfilCliente conversaId={conversaAtual.id} autor={autor} telefone={conversaAtual.telefone} />
+            <>
+              <PerfilCliente conversaId={conversaAtual.id} autor={autor} telefone={conversaAtual.telefone} />
+              {telefoneIdentificado && <AtividadesRecentes telefone={telefoneIdentificado} />}
+            </>
           ) : (
             <Card className="flex-1 flex items-center justify-center text-sm text-muted-foreground">
               Nenhuma conversa selecionada
             </Card>
           )}
         </div>
+
       </div>
 
       <CatalogoDialog open={catalogoAberto} onOpenChange={setCatalogoAberto} onSelecionar={enviarProduto} />
