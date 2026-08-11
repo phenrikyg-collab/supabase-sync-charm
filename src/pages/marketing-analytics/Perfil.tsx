@@ -191,7 +191,7 @@ export default function MarketingAnalytics() {
 
       <FunilVisual />
 
-
+      <Card accent={C.bronze}>
         <SectionTitle subtitle={funil ? `${funil.dias_com_dado} de ${funil.periodo_dias} dias com dado no período` : undefined}>
           Funil da conta
         </SectionTitle>
