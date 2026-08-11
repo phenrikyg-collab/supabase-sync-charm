@@ -2,7 +2,6 @@ import { useState } from "react";
 import { QRCodeSVG } from "qrcode.react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { invokeEdgeFunction } from "@/lib/edgeFunctions";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,12 +12,8 @@ import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { Copy, Loader2, QrCode, RefreshCw } from "lucide-react";
 
-// As Edge Functions vivem no projeto Supabase externo (mesmo do client.ts),
-// não no projeto padrão das variáveis VITE_*.
 const EXTERNAL_SUPABASE_URL = "https://ezdtulcrqzmgocamjwwl.supabase.co";
-const EXTERNAL_SUPABASE_ANON_KEY =
-  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV6ZHR1bGNycXptZ29jYW1qd3dsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE2MjIwMzAsImV4cCI6MjA4NzE5ODAzMH0.7CyKzK3cs-Cd-Wrh69oUAEtxW95l8iZLMCXi_3nAIPU";
-
+const GERAR_PIX_URL = `${EXTERNAL_SUPABASE_URL}/functions/v1/inter-gerar-cobranca-pix`;
 
 export type CobrancaPix = {
   id: string | number;
@@ -50,13 +45,45 @@ export async function gerarCobrancaPix(payload: {
   pedido_id?: string;
   conversa_id?: string | number;
 }): Promise<RespostaGeracao> {
-  const resposta = (await invokeEdgeFunction("inter-gerar-cobranca-pix", payload, {
-    baseUrl: EXTERNAL_SUPABASE_URL,
-    anonKey: EXTERNAL_SUPABASE_ANON_KEY,
-  })) as RespostaGeracao;
+  let response: Response;
+  try {
+    response = await fetch(GERAR_PIX_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+  } catch (error) {
+    const detalhe = error instanceof Error ? `${error.name}: ${error.message}` : String(error);
+    const conectividade = navigator.onLine ? "navegador online" : "navegador offline";
+    throw new Error(`Falha de rede/CORS antes de receber resposta (${detalhe}; ${conectividade}). Endpoint: ${GERAR_PIX_URL}`);
+  }
+
+  const texto = await response.text();
+  let resposta: RespostaGeracao = {};
+  if (texto) {
+    try {
+      resposta = JSON.parse(texto) as RespostaGeracao;
+    } catch {
+      if (!response.ok) throw new Error(`HTTP ${response.status}: ${texto}`);
+      throw new Error(`Resposta inválida do endpoint (HTTP ${response.status}): ${texto}`);
+    }
+  }
+
+  if (!response.ok) {
+    throw new Error(`HTTP ${response.status} ${response.statusText}: ${resposta.erro || resposta.error || texto || "sem detalhes"}`);
+  }
 
   if (resposta?.ok === false) throw new Error(resposta.erro || resposta.error || "Falha ao gerar cobrança");
   return resposta;
+}
+
+function ErroCobranca({ mensagem }: { mensagem: string }) {
+  return (
+    <div role="alert" className="rounded-md border border-destructive/30 bg-destructive/5 p-3">
+      <p className="text-xs font-semibold text-destructive">Detalhes do erro</p>
+      <p className="mt-1 break-words text-xs text-destructive">{mensagem}</p>
+    </div>
+  );
 }
 
 export function moedaBR(v?: number | string | null) {
@@ -129,17 +156,21 @@ export function CobrancaPixDialog({
   const [valor, setValor] = useState("");
   const [gerando, setGerando] = useState(false);
   const [resultado, setResultado] = useState<RespostaGeracao | null>(null);
+  const [erro, setErro] = useState("");
 
   const gerar = async () => {
     if (!valor.trim()) return;
     setGerando(true);
+    setErro("");
     try {
       const r = await gerarCobrancaPix({ valor: valor.replace(",", "."), conversa_id: conversaId });
       setResultado(r);
       queryClient.invalidateQueries({ queryKey: ["inter-cobrancas"] });
       toast({ title: "Cobrança gerada" });
-    } catch (e: any) {
-      toast({ title: "Erro ao gerar cobrança", description: e.message, variant: "destructive" });
+    } catch (e) {
+      const mensagem = e instanceof Error ? e.message : String(e);
+      setErro(mensagem);
+      toast({ title: "Erro ao gerar cobrança", description: mensagem, variant: "destructive" });
     } finally {
       setGerando(false);
     }
@@ -153,6 +184,7 @@ export function CobrancaPixDialog({
         if (!v) {
           setValor("");
           setResultado(null);
+          setErro("");
         }
       }}
     >
@@ -182,6 +214,7 @@ export function CobrancaPixDialog({
           {resultado?.pix_copia_cola && (
             <ResultadoPix codigo={resultado.pix_copia_cola} txid={resultado.txid} />
           )}
+          {erro && <ErroCobranca mensagem={erro} />}
         </div>
       </DialogContent>
     </Dialog>
@@ -197,6 +230,7 @@ export function CobrancasTab() {
   const [pedidoId, setPedidoId] = useState("");
   const [gerando, setGerando] = useState(false);
   const [resultado, setResultado] = useState<RespostaGeracao | null>(null);
+  const [erro, setErro] = useState("");
 
   const { data: cobrancas = [], isLoading } = useQuery({
     queryKey: ["inter-cobrancas"],
@@ -218,6 +252,7 @@ export function CobrancasTab() {
       return;
     }
     setGerando(true);
+    setErro("");
     try {
       const r = await gerarCobrancaPix({
         valor: valor.replace(",", "."),
@@ -228,8 +263,10 @@ export function CobrancasTab() {
       setResultado(r);
       queryClient.invalidateQueries({ queryKey: ["inter-cobrancas"] });
       toast({ title: "Cobrança gerada" });
-    } catch (e: any) {
-      toast({ title: "Erro ao gerar cobrança", description: e.message, variant: "destructive" });
+    } catch (e) {
+      const mensagem = e instanceof Error ? e.message : String(e);
+      setErro(mensagem);
+      toast({ title: "Erro ao gerar cobrança", description: mensagem, variant: "destructive" });
     } finally {
       setGerando(false);
     }
@@ -260,6 +297,7 @@ export function CobrancasTab() {
           Gerar cobrança
         </Button>
         {resultado?.pix_copia_cola && <ResultadoPix codigo={resultado.pix_copia_cola} txid={resultado.txid} />}
+        {erro && <ErroCobranca mensagem={erro} />}
       </Card>
 
       <Card className="overflow-hidden">
