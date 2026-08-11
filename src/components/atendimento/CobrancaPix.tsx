@@ -10,7 +10,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
-import { Copy, Loader2, QrCode, RefreshCw } from "lucide-react";
+import { Copy, Download, Image as ImageIcon, Loader2, QrCode, RefreshCw } from "lucide-react";
+import QRCode from "qrcode";
 
 const EXTERNAL_SUPABASE_URL = "https://ezdtulcrqzmgocamjwwl.supabase.co";
 const GERAR_PIX_URL = `${EXTERNAL_SUPABASE_URL}/functions/v1/inter-gerar-cobranca-pix`;
@@ -113,6 +114,53 @@ function dataHora(v?: string | null) {
   return d.toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", year: "2-digit", hour: "2-digit", minute: "2-digit" });
 }
 
+export async function gerarQRCodeDataUrl(pixCopiaECola: string) {
+  return QRCode.toDataURL(pixCopiaECola, { width: 300, margin: 2 });
+}
+
+export function baixarQRCode(dataUrl: string, nome = "qrcode-pix.png") {
+  const a = document.createElement("a");
+  a.href = dataUrl;
+  a.download = nome;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+}
+
+/** Copia o QR Code como imagem; se o navegador não permitir, baixa o PNG como fallback. */
+export async function copiarQRCodeComoImagem(pixCopiaECola: string) {
+  const dataUrl = await gerarQRCodeDataUrl(pixCopiaECola);
+  try {
+    if (typeof ClipboardItem === "undefined" || !navigator.clipboard?.write) {
+      throw new Error("sem suporte");
+    }
+    const blob = await (await fetch(dataUrl)).blob();
+    await navigator.clipboard.write([new ClipboardItem({ [blob.type]: blob })]);
+    toast({ title: "QR Code copiado!" });
+  } catch {
+    baixarQRCode(dataUrl);
+    toast({
+      title: "Não foi possível copiar a imagem",
+      description: "O QR Code foi baixado como imagem para você anexar.",
+    });
+  }
+}
+
+const CONSULTA_PIX_URL = "https://inter-mtls-bridge.vercel.app/api/consulta-pix";
+
+export async function atualizarStatusCobranca(codigoSolicitacao: string) {
+  const resposta = await fetch(`${CONSULTA_PIX_URL}?txid=${encodeURIComponent(codigoSolicitacao)}`);
+  const data = await resposta.json().catch(() => ({}));
+  if (!resposta.ok || !data?.status) throw new Error("Não foi possível consultar o status agora");
+  const { error } = await supabase.rpc("banco_inter_atualizar_situacao" as any, {
+    p_codigo_solicitacao: codigoSolicitacao,
+    p_situacao: data.status,
+  });
+  if (error) throw error;
+  return String(data.status);
+}
+
+
 export function SituacaoBadge({ situacao }: { situacao?: string | null }) {
   const s = (situacao ?? "").toUpperCase();
   const cls =
@@ -150,6 +198,20 @@ export function ResultadoPix({ codigo, txid }: { codigo: string; txid?: string |
         <Copy className="mr-2 h-4 w-4" />
         Copiar código
       </Button>
+      <div className="grid grid-cols-2 gap-2">
+        <Button size="sm" variant="outline" onClick={() => copiarQRCodeComoImagem(codigo)}>
+          <ImageIcon className="mr-2 h-4 w-4" />
+          Copiar QR Code
+        </Button>
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={async () => baixarQRCode(await gerarQRCodeDataUrl(codigo))}
+        >
+          <Download className="mr-2 h-4 w-4" />
+          Baixar QR Code
+        </Button>
+      </div>
     </div>
   );
 }
@@ -246,6 +308,26 @@ export function CobrancasTab() {
   const [resultado, setResultado] = useState<RespostaGeracao | null>(null);
   const [erro, setErro] = useState("");
   const [filtro, setFiltro] = useState<"todos" | "ativos" | "pagos" | "cancelados">("todos");
+  const [atualizando, setAtualizando] = useState<string | null>(null);
+
+  const atualizar = async (c: CobrancaPix) => {
+    if (!c.codigo_solicitacao) return;
+    setAtualizando(String(c.id));
+    try {
+      const novo = await atualizarStatusCobranca(c.codigo_solicitacao);
+      await queryClient.invalidateQueries({ queryKey: ["inter-cobrancas"] });
+      const igual = (c.situacao ?? "").toUpperCase() === novo.toUpperCase();
+      toast({ title: igual ? "Sem mudança" : `Status atualizado: ${novo}` });
+    } catch (e) {
+      toast({
+        title: "Erro ao consultar status",
+        description: e instanceof Error ? e.message : String(e),
+        variant: "destructive",
+      });
+    } finally {
+      setAtualizando(null);
+    }
+  };
 
   const { data: cobrancas = [], isLoading } = useQuery({
     queryKey: ["inter-cobrancas"],
@@ -399,15 +481,31 @@ export function CobrancasTab() {
                             Copiar
                           </Button>
                         )}
+                        {c.pix_copia_cola && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-7 px-2 text-[11px]"
+                            onClick={() => copiarQRCodeComoImagem(c.pix_copia_cola!)}
+                          >
+                            <ImageIcon className="mr-1 h-3 w-3" />
+                            Copiar QR Code
+                          </Button>
+                        )}
                         <Button
                           size="sm"
                           variant="ghost"
                           className="h-7 px-2 text-[11px]"
-                          disabled
-                          title="Consulta de status em breve"
+                          disabled={!c.codigo_solicitacao || atualizando === String(c.id)}
+                          title={c.codigo_solicitacao ? "Consultar status agora" : "Cobrança sem código de solicitação"}
+                          onClick={() => atualizar(c)}
                         >
-                          <RefreshCw className="mr-1 h-3 w-3" />
-                          Atualizar status (em breve)
+                          {atualizando === String(c.id) ? (
+                            <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+                          ) : (
+                            <RefreshCw className="mr-1 h-3 w-3" />
+                          )}
+                          Atualizar status
                         </Button>
                       </div>
                     </TableCell>
