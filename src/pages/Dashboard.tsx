@@ -255,7 +255,7 @@ export default function Dashboard() {
     const statusCounts: Record<string, number> = {};
     let totalDias = 0, countDias = 0;
     items.forEach((p) => {
-      statusCounts[p.status_bling ?? "Outros"] = (statusCounts[p.status_bling ?? "Outros"] ?? 0) + 1;
+      statusCounts[p.etapa ?? p.status_tray ?? "Outros"] = (statusCounts[p.etapa ?? p.status_tray ?? "Outros"] ?? 0) + 1;
       if (p.dias_corridos != null) { totalDias += p.dias_corridos; countDias++; }
     });
     return {
