@@ -308,6 +308,26 @@ export function CobrancasTab() {
   const [resultado, setResultado] = useState<RespostaGeracao | null>(null);
   const [erro, setErro] = useState("");
   const [filtro, setFiltro] = useState<"todos" | "ativos" | "pagos" | "cancelados">("todos");
+  const [atualizando, setAtualizando] = useState<string | null>(null);
+
+  const atualizar = async (c: CobrancaPix) => {
+    if (!c.codigo_solicitacao) return;
+    setAtualizando(String(c.id));
+    try {
+      const novo = await atualizarStatusCobranca(c.codigo_solicitacao);
+      await queryClient.invalidateQueries({ queryKey: ["inter-cobrancas"] });
+      const igual = (c.situacao ?? "").toUpperCase() === novo.toUpperCase();
+      toast({ title: igual ? "Sem mudança" : `Status atualizado: ${novo}` });
+    } catch (e) {
+      toast({
+        title: "Erro ao consultar status",
+        description: e instanceof Error ? e.message : String(e),
+        variant: "destructive",
+      });
+    } finally {
+      setAtualizando(null);
+    }
+  };
 
   const { data: cobrancas = [], isLoading } = useQuery({
     queryKey: ["inter-cobrancas"],
