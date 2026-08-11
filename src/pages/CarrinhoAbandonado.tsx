@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { SortableHead, useSortable, useOrdenado } from "@/components/SortableHead";
@@ -35,13 +36,15 @@ export default function CarrinhoAbandonado() {
   const [segmento, setSegmento] = useState("todos");
   const [valorMin, setValorMin] = useState("");
   const [valorMax, setValorMax] = useState("");
+  const [somenteIdentificados, setSomenteIdentificados] = useState(false);
 
   const { data: linhas = [], isLoading } = useQuery({
-    queryKey: ["vw_carrinhos_abandonados", periodo.inicio, periodo.fim],
+    queryKey: ["vw_carrinhos_abandonados", periodo.inicio, periodo.fim, somenteIdentificados],
     queryFn: async () => {
       let q = supabase.from("vw_carrinhos_abandonados" as any).select("*").limit(5000);
       if (periodo.inicio) q = q.gte("data_criacao", limiteInicio(periodo.inicio)!);
       if (periodo.fim) q = q.lte("data_criacao", limiteFim(periodo.fim)!);
+      if (somenteIdentificados) q = q.neq("nome", "Desconhecido");
       const { data, error } = await q;
       if (error) throw error;
       return (data ?? []) as unknown as Carrinho[];
@@ -163,6 +166,14 @@ export default function CarrinhoAbandonado() {
                 onChange={(e) => setValorMax(e.target.value)}
                 placeholder="R$ —"
               />
+            </div>
+            <div className="flex items-center gap-2 pb-1">
+              <Checkbox
+                id="somente-identificados"
+                checked={somenteIdentificados}
+                onCheckedChange={(v) => setSomenteIdentificados(v === true)}
+              />
+              <Label htmlFor="somente-identificados" className="text-xs">Mostrar apenas identificados</Label>
             </div>
           </div>
         </CardHeader>
