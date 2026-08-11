@@ -93,7 +93,10 @@ export function DriversBlock({ dias, formato, mostrarSkip = false }: { dias: num
         ))}
       </div>
 
+      <AnaliseEscrita formato={formato} />
+
       {loading ? (
+
         <BlocoLoading altura={200} />
       ) : erro ? (
         <SemDado texto={`Erro ao carregar: ${erro}`} />
@@ -159,7 +162,7 @@ export function DriversBlock({ dias, formato, mostrarSkip = false }: { dias: num
         </>
       )}
 
-      <AnaliseEscrita formato={formato} />
     </Card>
+
   );
 }

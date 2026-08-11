@@ -31,6 +31,9 @@ interface ValorSeguidor {
     ticket_medio: number | null;
     total_pedidos: number | null;
     mes_referencia: string | null;
+    mes_fechado?: boolean;
+    mes_parcial?: boolean;
+    dias_decorridos_no_mes?: number | null;
   } | null;
 }
 
@@ -40,13 +43,14 @@ const brl = (n: number | null | undefined, d = 2) =>
 export function CalculadoraValorSeguidor({ dias }: { dias: number }) {
   const [receitaInput, setReceitaInput] = useState('');
   const [receitaAplicada, setReceitaAplicada] = useState<number | null>(null);
+  const [mesFechado, setMesFechado] = useState(true);
   const [data, setData] = useState<ValorSeguidor | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     let ativo = true;
     setLoading(true);
-    const args: Record<string, unknown> = { p_dias: dias };
+    const args: Record<string, unknown> = { p_dias: dias, p_usar_mes_fechado: mesFechado };
     if (receitaAplicada !== null) args.p_receita_social = receitaAplicada;
     supabase.rpc('fn_ig_valor_seguidor' as any, args).then(({ data }: any) => {
       if (!ativo) return;
@@ -54,7 +58,8 @@ export function CalculadoraValorSeguidor({ dias }: { dias: number }) {
       setLoading(false);
     });
     return () => { ativo = false; };
-  }, [dias, receitaAplicada]);
+  }, [dias, receitaAplicada, mesFechado]);
+
 
   const posicao = data?.valor_por_seguidor?.posicao;
   const corPosicao = posicao === 'abaixo' ? C.red : posicao === 'acima' ? C.green : C.yellow;
@@ -110,6 +115,10 @@ export function CalculadoraValorSeguidor({ dias }: { dias: number }) {
             Voltar para a estimativa automática
           </button>
         )}
+        <label className="flex items-center gap-2 text-xs" style={{ color: C.textSec, fontFamily: SANS }}>
+          <input type="checkbox" checked={mesFechado} onChange={e => setMesFechado(e.target.checked)} />
+          Usar último mês fechado
+        </label>
       </div>
 
       {loading ? <BlocoLoading altura={200} /> : !data ? <SemDado /> : (
@@ -128,7 +137,39 @@ export function CalculadoraValorSeguidor({ dias }: { dias: number }) {
                 {data.receita.share_pct != null && ` · share de sessões ${fmtNum(data.receita.share_pct)}%`}
               </p>
             )}
+            <span className="inline-block mt-2 text-[11px] px-2 py-0.5 rounded"
+              style={{ background: data.receita?.mes_parcial ? '#FBEAE5' : '#E8F5EE', color: data.receita?.mes_parcial ? C.red : C.green, fontFamily: SANS }}>
+              {data.receita?.mes_parcial
+                ? `mês parcial${data.receita?.dias_decorridos_no_mes ? ` · ${data.receita.dias_decorridos_no_mes} dias decorridos` : ''}`
+                : 'mês fechado'}
+            </span>
           </div>
+
+          {data.valor_por_seguidor?.real != null && (
+            <div className="p-4 rounded-lg mb-4" style={{ background: C.card, border: `1px solid ${C.border}` }}>
+              <div className="flex items-baseline justify-between mb-2">
+                <p className="text-[11px] uppercase tracking-wider" style={{ color: C.textSec, fontFamily: SANS }}>Onde a conta está na régua</p>
+                <p className="text-sm font-semibold" style={{ color: corPosicao, fontFamily: SANS }}>
+                  {brl(data.valor_por_seguidor.real)} por seguidor · {posicao === 'abaixo' ? 'abaixo do benchmark' : posicao === 'acima' ? 'acima do benchmark' : 'dentro do benchmark'}
+                </p>
+              </div>
+              <div className="relative h-3 rounded-full" style={{ background: `linear-gradient(90deg, ${C.red} 0%, ${C.yellow} 25%, ${C.green} 100%)` }}>
+                <div
+                  className="absolute -top-1 w-1.5 h-5 rounded"
+                  style={{
+                    left: `${Math.min(100, Math.max(0, ((data.valor_por_seguidor.real || 0) / (data.valor_por_seguidor.benchmark_max || 2)) * 100))}%`,
+                    background: C.text,
+                  }}
+                />
+              </div>
+              <div className="flex justify-between text-[11px] mt-1.5" style={{ color: C.grey, fontFamily: SANS }}>
+                <span>R$ 0,00</span>
+                <span>mínimo {brl(data.valor_por_seguidor.benchmark_min)}</span>
+                <span>{brl(data.valor_por_seguidor.benchmark_max)}</span>
+              </div>
+            </div>
+          )}
+
 
           <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
             {cards.map(c => (
