@@ -316,13 +316,34 @@ export function CobrancasTab() {
       </Card>
 
       <Card className="overflow-hidden">
-        <div className="border-b border-border p-3">
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border p-3">
           <h2 className="text-sm font-semibold">Cobranças recentes</h2>
+          <div className="flex flex-wrap gap-1">
+            {([
+              ["todos", "Todos"],
+              ["ativos", "Ativos"],
+              ["pagos", "Pagos"],
+              ["cancelados", "Cancelados"],
+            ] as const).map(([key, label]) => (
+              <Button
+                key={key}
+                size="sm"
+                variant={filtro === key ? "default" : "outline"}
+                className="h-7 px-2.5 text-[11px]"
+                onClick={() => setFiltro(key)}
+              >
+                {label}
+                <span className="ml-1 opacity-70">({contagem[key]})</span>
+              </Button>
+            ))}
+          </div>
         </div>
         {isLoading ? (
           <p className="p-4 text-sm text-muted-foreground">Carregando cobranças…</p>
-        ) : cobrancas.length === 0 ? (
-          <p className="p-4 text-sm text-muted-foreground">Nenhuma cobrança gerada ainda.</p>
+        ) : cobrancasFiltradas.length === 0 ? (
+          <p className="p-4 text-sm text-muted-foreground">
+            {cobrancas.length === 0 ? "Nenhuma cobrança gerada ainda." : "Nenhuma cobrança neste filtro."}
+          </p>
         ) : (
           <div className="overflow-x-auto">
             <Table>
@@ -336,7 +357,7 @@ export function CobrancasTab() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {cobrancas.map((c) => (
+                {cobrancasFiltradas.map((c) => (
                   <TableRow key={String(c.id)}>
                     <TableCell className="font-medium">{moedaBR(c.valor)}</TableCell>
                     <TableCell className="text-sm text-muted-foreground">{c.nome_pagador || "—"}</TableCell>
