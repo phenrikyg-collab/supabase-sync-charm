@@ -460,7 +460,34 @@ export default function Atendimento() {
         {/* Lista de conversas */}
         <Card className="flex flex-col overflow-hidden">
           <div className="p-3 border-b border-border space-y-2">
+            <div className="grid grid-cols-2 gap-1 rounded-md bg-muted p-1">
+              {([
+                { v: "whatsapp", label: "WhatsApp", icon: MessageCircle, nao: naoLidasWhatsapp },
+                { v: "site", label: "Chat do Site", icon: Globe, nao: naoLidasSite },
+              ] as const).map((t) => {
+                const Icone = t.icon;
+                return (
+                  <button
+                    key={t.v}
+                    onClick={() => setAba(t.v)}
+                    className={cn(
+                      "inline-flex items-center justify-center gap-1.5 rounded-sm px-2 py-1.5 text-xs font-medium transition-colors",
+                      aba === t.v ? "bg-card shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground",
+                    )}
+                  >
+                    <Icone className="h-3.5 w-3.5" />
+                    {t.label}
+                    {t.nao > 0 && (
+                      <span className="rounded-full bg-primary px-1.5 text-[10px] font-bold text-primary-foreground">
+                        {t.nao}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
             <div className="relative">
+
               <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
               <Input
                 value={busca}
