@@ -86,6 +86,20 @@ function ErroCobranca({ mensagem }: { mensagem: string }) {
   );
 }
 
+/** Converte valor digitado (BR ou US) para o padrão exigido pela API: \d{1,10}\.\d{2} */
+export function formatarValorParaAPI(valorDigitado: string) {
+  let limpo = valorDigitado.trim().replace(/[^\d.,-]/g, "");
+  if (limpo.includes(",")) {
+    limpo = limpo.replace(/\./g, "").replace(",", ".");
+  } else {
+    const partes = limpo.split(".");
+    if (partes.length > 2) limpo = partes.slice(0, -1).join("") + "." + partes[partes.length - 1];
+  }
+  const numero = parseFloat(limpo);
+  if (Number.isNaN(numero) || numero <= 0) throw new Error("Valor inválido");
+  return numero.toFixed(2);
+}
+
 export function moedaBR(v?: number | string | null) {
   const n = typeof v === "string" ? Number(v) : v;
   if (n == null || Number.isNaN(n)) return "—";
@@ -163,7 +177,7 @@ export function CobrancaPixDialog({
     setGerando(true);
     setErro("");
     try {
-      const r = await gerarCobrancaPix({ valor: valor.replace(",", "."), conversa_id: conversaId });
+      const r = await gerarCobrancaPix({ valor: formatarValorParaAPI(valor), conversa_id: conversaId });
       setResultado(r);
       queryClient.invalidateQueries({ queryKey: ["inter-cobrancas"] });
       toast({ title: "Cobrança gerada" });
@@ -231,6 +245,7 @@ export function CobrancasTab() {
   const [gerando, setGerando] = useState(false);
   const [resultado, setResultado] = useState<RespostaGeracao | null>(null);
   const [erro, setErro] = useState("");
+  const [filtro, setFiltro] = useState<"todos" | "ativos" | "pagos" | "cancelados">("todos");
 
   const { data: cobrancas = [], isLoading } = useQuery({
     queryKey: ["inter-cobrancas"],
@@ -241,6 +256,22 @@ export function CobrancasTab() {
     },
     refetchInterval: 60000,
   });
+
+  const grupoDe = (c: CobrancaPix): "ativos" | "pagos" | "cancelados" => {
+    const s = (c.situacao ?? "").toUpperCase();
+    if (s === "CONCLUIDA" || s === "PAGA" || s === "PAGO") return "pagos";
+    if (s.startsWith("REMOVIDA") || s.includes("CANCEL") || s === "EXPIRADA") return "cancelados";
+    return "ativos";
+  };
+
+  const cobrancasFiltradas = filtro === "todos" ? cobrancas : cobrancas.filter((c) => grupoDe(c) === filtro);
+  const contagem = {
+    todos: cobrancas.length,
+    ativos: cobrancas.filter((c) => grupoDe(c) === "ativos").length,
+    pagos: cobrancas.filter((c) => grupoDe(c) === "pagos").length,
+    cancelados: cobrancas.filter((c) => grupoDe(c) === "cancelados").length,
+  };
+
 
   const gerar = async () => {
     if (!valor.trim()) {
@@ -255,7 +286,7 @@ export function CobrancasTab() {
     setErro("");
     try {
       const r = await gerarCobrancaPix({
-        valor: valor.replace(",", "."),
+        valor: formatarValorParaAPI(valor),
         ...(nome.trim() ? { nome_devedor: nome.trim() } : {}),
         ...(documento.trim() ? { cpf_cnpj_devedor: documento.replace(/\D/g, "") } : {}),
         ...(pedidoId.trim() ? { pedido_id: pedidoId.trim() } : {}),
@@ -301,13 +332,34 @@ export function CobrancasTab() {
       </Card>
 
       <Card className="overflow-hidden">
-        <div className="border-b border-border p-3">
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border p-3">
           <h2 className="text-sm font-semibold">Cobranças recentes</h2>
+          <div className="flex flex-wrap gap-1">
+            {([
+              ["todos", "Todos"],
+              ["ativos", "Ativos"],
+              ["pagos", "Pagos"],
+              ["cancelados", "Cancelados"],
+            ] as const).map(([key, label]) => (
+              <Button
+                key={key}
+                size="sm"
+                variant={filtro === key ? "default" : "outline"}
+                className="h-7 px-2.5 text-[11px]"
+                onClick={() => setFiltro(key)}
+              >
+                {label}
+                <span className="ml-1 opacity-70">({contagem[key]})</span>
+              </Button>
+            ))}
+          </div>
         </div>
         {isLoading ? (
           <p className="p-4 text-sm text-muted-foreground">Carregando cobranças…</p>
-        ) : cobrancas.length === 0 ? (
-          <p className="p-4 text-sm text-muted-foreground">Nenhuma cobrança gerada ainda.</p>
+        ) : cobrancasFiltradas.length === 0 ? (
+          <p className="p-4 text-sm text-muted-foreground">
+            {cobrancas.length === 0 ? "Nenhuma cobrança gerada ainda." : "Nenhuma cobrança neste filtro."}
+          </p>
         ) : (
           <div className="overflow-x-auto">
             <Table>
@@ -321,7 +373,7 @@ export function CobrancasTab() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {cobrancas.map((c) => (
+                {cobrancasFiltradas.map((c) => (
                   <TableRow key={String(c.id)}>
                     <TableCell className="font-medium">{moedaBR(c.valor)}</TableCell>
                     <TableCell className="text-sm text-muted-foreground">{c.nome_pagador || "—"}</TableCell>
