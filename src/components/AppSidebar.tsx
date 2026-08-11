@@ -123,6 +123,7 @@ const moduleGroups: ModuleGroup[] = [
       { title: "Conteúdo & CRM", url: "/conteudo", icon: CalendarDays },
       { title: "Matriz Criativa", url: "/marketing/matriz-criativa", icon: Sparkles },
       { title: "Link na Bio", url: "/link-na-bio", icon: LinkIcon },
+      { title: "Cupons", url: "/cupons", icon: Ticket },
     ],
   },
   {
