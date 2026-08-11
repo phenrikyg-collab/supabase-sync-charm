@@ -43,7 +43,11 @@ export async function gerarCobrancaPix(payload: {
   pedido_id?: string;
   conversa_id?: string | number;
 }): Promise<RespostaGeracao> {
-  const resposta = (await invokeEdgeFunction("inter-gerar-cobranca-pix", payload)) as RespostaGeracao;
+  const resposta = (await invokeEdgeFunction("inter-gerar-cobranca-pix", payload, {
+    baseUrl: EXTERNAL_SUPABASE_URL,
+    anonKey: EXTERNAL_SUPABASE_ANON_KEY,
+  })) as RespostaGeracao;
+
   if (resposta?.ok === false) throw new Error(resposta.erro || resposta.error || "Falha ao gerar cobrança");
   return resposta;
 }
