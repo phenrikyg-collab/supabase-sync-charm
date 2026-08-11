@@ -213,6 +213,10 @@ export default function MarketingAnalytics() {
 
       <DriversBlock dias={dias} formato={null} />
 
+      <ClarezaComunicacao dias={dias} />
+
+      <CalculadoraValorSeguidor dias={dias} />
+
       <Demografia />
     </MALayout>
   );
