@@ -13,6 +13,13 @@ import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { Copy, Loader2, QrCode, RefreshCw } from "lucide-react";
 
+// As Edge Functions vivem no projeto Supabase externo (mesmo do client.ts),
+// não no projeto padrão das variáveis VITE_*.
+const EXTERNAL_SUPABASE_URL = "https://ezdtulcrqzmgocamjwwl.supabase.co";
+const EXTERNAL_SUPABASE_ANON_KEY =
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV6ZHR1bGNycXptZ29jYW1qd3dsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE2MjIwMzAsImV4cCI6MjA4NzE5ODAzMH0.7CyKzK3cs-Cd-Wrh69oUAEtxW95l8iZLMCXi_3nAIPU";
+
+
 export type CobrancaPix = {
   id: string | number;
   codigo_solicitacao?: string | null;
@@ -43,7 +50,11 @@ export async function gerarCobrancaPix(payload: {
   pedido_id?: string;
   conversa_id?: string | number;
 }): Promise<RespostaGeracao> {
-  const resposta = (await invokeEdgeFunction("inter-gerar-cobranca-pix", payload)) as RespostaGeracao;
+  const resposta = (await invokeEdgeFunction("inter-gerar-cobranca-pix", payload, {
+    baseUrl: EXTERNAL_SUPABASE_URL,
+    anonKey: EXTERNAL_SUPABASE_ANON_KEY,
+  })) as RespostaGeracao;
+
   if (resposta?.ok === false) throw new Error(resposta.erro || resposta.error || "Falha ao gerar cobrança");
   return resposta;
 }
