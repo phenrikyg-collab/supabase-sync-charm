@@ -22,7 +22,7 @@ import { TagsConversa, TagChip, type Tag } from "@/components/atendimento/TagsCo
 import { CatalogoDialog, formatarPreco, legendaProduto, type ProdutoCatalogo } from "@/components/atendimento/CatalogoDialog";
 import { PerfilCliente } from "@/components/atendimento/PerfilCliente";
 import { AtividadesRecentes } from "@/components/atendimento/AtividadesRecentes";
-import { CobrancaPixDialog, CobrancasTab } from "@/components/atendimento/CobrancaPix";
+import { CobrancaPixDialog, CobrancasTab, CobrancasDaConversa } from "@/components/atendimento/CobrancaPix";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 
@@ -625,6 +625,7 @@ export default function Atendimento() {
                             <MessageCircle className="h-3.5 w-3.5 shrink-0 text-success" aria-label="WhatsApp" />
                           )}
                           <span className="truncate">{nome}</span>
+                          {nomeSoDoWhatsApp(c) && <BadgeViaWhatsApp />}
                         </p>
                         <p className="text-xs text-muted-foreground">{identificadorConversa(c)}</p>
                         {site && c.telefone_real && (
@@ -674,6 +675,7 @@ export default function Atendimento() {
                       <MessageCircle className="h-4 w-4 text-success shrink-0" aria-label="WhatsApp" />
                     )}
                     <h2 className="font-medium truncate">{nomeConversa(conversaAtual)}</h2>
+                    {nomeSoDoWhatsApp(conversaAtual) && <BadgeViaWhatsApp />}
                     <StatusPill status={conversaAtual.status} />
                     {ehSite(conversaAtual) && conversaAtual.telefone_real && (
                       <span className="inline-flex items-center gap-1 rounded-full border border-success/20 bg-success/10 px-2 py-0.5 text-[10px] text-success">
@@ -720,6 +722,8 @@ export default function Atendimento() {
                   )}
                 </div>
               </div>
+
+              <CobrancasDaConversa conversaId={conversaAtual.id} />
 
               <ScrollArea className="flex-1 p-4">
                 {carregandoMensagens && <p className="text-sm text-muted-foreground">Carregando mensagens…</p>}
