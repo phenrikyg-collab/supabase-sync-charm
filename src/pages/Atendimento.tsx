@@ -416,7 +416,10 @@ export default function Atendimento() {
       }),
   });
 
+  const daAba = (c: Conversa) => (ehSite(c) ? "site" : "whatsapp") === aba;
+
   const filtradas = conversas.filter((c) => {
+    if (!daAba(c)) return false;
     if (filtroLeitura === "nao_lidas" && !c.nao_lida) return false;
     if (filtroLeitura === "lidas" && c.nao_lida) return false;
     if (tagsFiltro.length > 0) {
@@ -430,7 +433,14 @@ export default function Atendimento() {
     return nome.includes(t) || tel.toLowerCase().includes(t);
   });
 
-  const totalNaoLidas = conversas.filter((c) => c.nao_lida).length;
+  const naoLidasWhatsapp = conversas.filter((c) => c.nao_lida && !ehSite(c)).length;
+  const naoLidasSite = conversas.filter((c) => c.nao_lida && ehSite(c)).length;
+  const totalNaoLidas = aba === "site" ? naoLidasSite : naoLidasWhatsapp;
+
+  const telefoneIdentificado = conversaAtual
+    ? (ehSite(conversaAtual) ? conversaAtual.telefone_real : conversaAtual.telefone) || null
+    : null;
+
 
   const status = conversaAtual?.status ?? "";
   const podeResponder = status === "escalado" || status === "em_atendimento";
