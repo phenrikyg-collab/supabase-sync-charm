@@ -461,15 +461,31 @@ export function CobrancasTab() {
                             Copiar
                           </Button>
                         )}
+                        {c.pix_copia_cola && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-7 px-2 text-[11px]"
+                            onClick={() => copiarQRCodeComoImagem(c.pix_copia_cola!)}
+                          >
+                            <ImageIcon className="mr-1 h-3 w-3" />
+                            Copiar QR Code
+                          </Button>
+                        )}
                         <Button
                           size="sm"
                           variant="ghost"
                           className="h-7 px-2 text-[11px]"
-                          disabled
-                          title="Consulta de status em breve"
+                          disabled={!c.codigo_solicitacao || atualizando === String(c.id)}
+                          title={c.codigo_solicitacao ? "Consultar status agora" : "Cobrança sem código de solicitação"}
+                          onClick={() => atualizar(c)}
                         >
-                          <RefreshCw className="mr-1 h-3 w-3" />
-                          Atualizar status (em breve)
+                          {atualizando === String(c.id) ? (
+                            <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+                          ) : (
+                            <RefreshCw className="mr-1 h-3 w-3" />
+                          )}
+                          Atualizar status
                         </Button>
                       </div>
                     </TableCell>
