@@ -455,8 +455,9 @@ export function CobrancasTab() {
                 <TableRow>
                   <TableHead>Valor</TableHead>
                   <TableHead>Pagador</TableHead>
+                  <TableHead>Pedido</TableHead>
                   <TableHead>Status</TableHead>
-                  <TableHead>Data</TableHead>
+                  <TableHead>Emissão / Expiração</TableHead>
                   <TableHead className="text-right">Ações</TableHead>
                 </TableRow>
               </TableHeader>
@@ -465,11 +466,17 @@ export function CobrancasTab() {
                   <TableRow key={String(c.id)}>
                     <TableCell className="font-medium">{moedaBR(c.valor)}</TableCell>
                     <TableCell className="text-sm text-muted-foreground">{c.nome_pagador || "—"}</TableCell>
+                    <TableCell className="text-sm text-muted-foreground">{c.pedido_id || "—"}</TableCell>
                     <TableCell>
                       <SituacaoBadge situacao={c.situacao} />
                     </TableCell>
                     <TableCell className="whitespace-nowrap text-sm text-muted-foreground">
-                      {dataHora(c.data_emissao ?? c.criado_em)}
+                      <div>{dataHora(c.data_emissao ?? c.criado_em)}</div>
+                      {(c.situacao ?? "").toUpperCase() === "ATIVA" && (
+                        <div className="text-[11px] text-muted-foreground/70">
+                          Expira: {formatarHora(calcularExpiracao(c.criado_em ?? c.data_emissao))}
+                        </div>
+                      )}
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex items-center justify-end gap-1.5">
@@ -563,6 +570,12 @@ export function CobrancasDaConversa({ conversaId }: { conversaId: string | numbe
             <span className="text-sm font-semibold">{moedaBR(c.valor)}</span>
             <SituacaoBadge situacao={c.situacao} />
             <span className="text-[11px] text-muted-foreground">{dataHora(c.data_emissao ?? c.criado_em)}</span>
+            {(c.situacao ?? "").toUpperCase() === "ATIVA" && (
+              <span className="text-[11px] text-muted-foreground/70">
+                Expira: {formatarHora(calcularExpiracao(c.criado_em ?? c.data_emissao))}
+              </span>
+            )}
+            {c.pedido_id && <span className="text-[11px] text-muted-foreground">Pedido: {c.pedido_id}</span>}
             {c.pix_copia_cola && (
               <Button size="sm" variant="outline" className="h-6 px-2 text-[11px]" onClick={() => copiar(c.pix_copia_cola!)}>
                 <Copy className="mr-1 h-3 w-3" />
