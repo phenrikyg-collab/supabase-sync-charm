@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { ComparativoFormato } from '@/components/marketing-analytics/Comparativo';
 import { DriversBlock } from '@/components/marketing-analytics/DriversBlock';
+import { MelhorHorario } from '@/components/marketing-analytics/MelhorHorario';
 import { GradeConteudo, useConteudo } from '@/components/marketing-analytics/GradeConteudo';
 import { C, KpiCard, MALayout, fmtCompact, fmtNum, media, useDias } from '@/components/marketing-analytics/shared';
 
@@ -32,6 +33,8 @@ export default function MACarrossel() {
       <ComparativoFormato dias={dias} formato="FEED" />
 
       <DriversBlock dias={dias} formato="FEED" />
+
+      <MelhorHorario dias={90} formato="FEED" />
 
       <GradeConteudo posts={posts} loading={loading} isReels={false} />
     </MALayout>

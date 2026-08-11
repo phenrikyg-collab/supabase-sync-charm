@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { CartesianGrid, ReferenceLine, ResponsiveContainer, Scatter, ScatterChart, Tooltip, XAxis, YAxis, ZAxis } from 'recharts';
 import { ComparativoFormato } from '@/components/marketing-analytics/Comparativo';
 import { DriversBlock } from '@/components/marketing-analytics/DriversBlock';
+import { MelhorHorario } from '@/components/marketing-analytics/MelhorHorario';
 import { GradeConteudo, useConteudo } from '@/components/marketing-analytics/GradeConteudo';
 import {
   Aviso, BlocoLoading, C, Card, KpiCard, MALayout, SANS, SectionTitle, SemDado,
@@ -137,6 +138,8 @@ export default function MAReels() {
           </>
         )}
       </Card>
+
+      <MelhorHorario dias={90} formato="REELS" />
 
       <GradeConteudo posts={posts} loading={loading} isReels />
     </MALayout>
