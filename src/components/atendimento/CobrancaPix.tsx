@@ -257,6 +257,22 @@ export function CobrancasTab() {
     refetchInterval: 60000,
   });
 
+  const grupoDe = (c: CobrancaPix): "ativos" | "pagos" | "cancelados" => {
+    const s = (c.situacao ?? "").toUpperCase();
+    if (s === "CONCLUIDA" || s === "PAGA" || s === "PAGO") return "pagos";
+    if (s.startsWith("REMOVIDA") || s.includes("CANCEL") || s === "EXPIRADA") return "cancelados";
+    return "ativos";
+  };
+
+  const cobrancasFiltradas = filtro === "todos" ? cobrancas : cobrancas.filter((c) => grupoDe(c) === filtro);
+  const contagem = {
+    todos: cobrancas.length,
+    ativos: cobrancas.filter((c) => grupoDe(c) === "ativos").length,
+    pagos: cobrancas.filter((c) => grupoDe(c) === "pagos").length,
+    cancelados: cobrancas.filter((c) => grupoDe(c) === "cancelados").length,
+  };
+
+
   const gerar = async () => {
     if (!valor.trim()) {
       toast({ title: "Informe o valor", variant: "destructive" });
