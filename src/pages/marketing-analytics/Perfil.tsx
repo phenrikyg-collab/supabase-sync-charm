@@ -189,7 +189,9 @@ export default function MarketingAnalytics() {
 
       <DiagnosticoCompleto dias={dias} />
 
-      <Card accent={C.bronze}>
+      <FunilVisual />
+
+
         <SectionTitle subtitle={funil ? `${funil.dias_com_dado} de ${funil.periodo_dias} dias com dado no período` : undefined}>
           Funil da conta
         </SectionTitle>
