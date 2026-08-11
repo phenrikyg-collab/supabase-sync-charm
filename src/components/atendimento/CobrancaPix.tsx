@@ -107,9 +107,16 @@ export function moedaBR(v?: number | string | null) {
   return n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 }
 
-function formatarHora(v?: string | null) {
+function dataHora(v?: string | null) {
   if (!v) return "—";
   const d = new Date(v);
+  if (Number.isNaN(d.getTime())) return String(v);
+  return d.toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", year: "2-digit", hour: "2-digit", minute: "2-digit" });
+}
+
+function formatarHora(v?: Date | string | null) {
+  if (!v) return "—";
+  const d = typeof v === "string" ? new Date(v) : v;
   if (Number.isNaN(d.getTime())) return String(v);
   return d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
 }
