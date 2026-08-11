@@ -148,6 +148,8 @@ export default function Atendimento() {
   const { user } = useAuth();
   const [selecionada, setSelecionada] = useState<string | null>(null);
   const [busca, setBusca] = useState("");
+  const [aba, setAba] = useState<"whatsapp" | "site">("whatsapp");
+
   const [filtroLeitura, setFiltroLeitura] = useState<"todas" | "nao_lidas" | "lidas">("todas");
   const [tagsFiltro, setTagsFiltro] = useState<string[]>([]);
   const [erroJanela, setErroJanela] = useState<string | null>(null);
