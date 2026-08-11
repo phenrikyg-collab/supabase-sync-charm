@@ -114,6 +114,53 @@ function dataHora(v?: string | null) {
   return d.toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", year: "2-digit", hour: "2-digit", minute: "2-digit" });
 }
 
+export async function gerarQRCodeDataUrl(pixCopiaECola: string) {
+  return QRCode.toDataURL(pixCopiaECola, { width: 300, margin: 2 });
+}
+
+export function baixarQRCode(dataUrl: string, nome = "qrcode-pix.png") {
+  const a = document.createElement("a");
+  a.href = dataUrl;
+  a.download = nome;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+}
+
+/** Copia o QR Code como imagem; se o navegador não permitir, baixa o PNG como fallback. */
+export async function copiarQRCodeComoImagem(pixCopiaECola: string) {
+  const dataUrl = await gerarQRCodeDataUrl(pixCopiaECola);
+  try {
+    if (typeof ClipboardItem === "undefined" || !navigator.clipboard?.write) {
+      throw new Error("sem suporte");
+    }
+    const blob = await (await fetch(dataUrl)).blob();
+    await navigator.clipboard.write([new ClipboardItem({ [blob.type]: blob })]);
+    toast({ title: "QR Code copiado!" });
+  } catch {
+    baixarQRCode(dataUrl);
+    toast({
+      title: "Não foi possível copiar a imagem",
+      description: "O QR Code foi baixado como imagem para você anexar.",
+    });
+  }
+}
+
+const CONSULTA_PIX_URL = "https://inter-mtls-bridge.vercel.app/api/consulta-pix";
+
+export async function atualizarStatusCobranca(codigoSolicitacao: string) {
+  const resposta = await fetch(`${CONSULTA_PIX_URL}?txid=${encodeURIComponent(codigoSolicitacao)}`);
+  const data = await resposta.json().catch(() => ({}));
+  if (!resposta.ok || !data?.status) throw new Error("Não foi possível consultar o status agora");
+  const { error } = await supabase.rpc("banco_inter_atualizar_situacao" as any, {
+    p_codigo_solicitacao: codigoSolicitacao,
+    p_situacao: data.status,
+  });
+  if (error) throw error;
+  return String(data.status);
+}
+
+
 export function SituacaoBadge({ situacao }: { situacao?: string | null }) {
   const s = (situacao ?? "").toUpperCase();
   const cls =
