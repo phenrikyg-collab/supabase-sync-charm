@@ -7,6 +7,7 @@ import { DiagnosticoCompleto } from '@/components/marketing-analytics/Diagnostic
 import { DriversBlock } from '@/components/marketing-analytics/DriversBlock';
 import { FunilConta, FunilTaxa } from '@/components/marketing-analytics/FunilConta';
 import { FunilDestino } from '@/components/marketing-analytics/FunilDestino';
+import { FunilVisual } from '@/components/marketing-analytics/FunilVisual';
 import { MelhorHorario } from '@/components/marketing-analytics/MelhorHorario';
 import {
   Aviso, BlocoLoading, C, Card, KpiCard, MALayout, SANS, SectionTitle, SemDado,
