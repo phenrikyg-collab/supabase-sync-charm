@@ -458,7 +458,19 @@ export default function Atendimento() {
         </p>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-[340px_1fr] xl:grid-cols-[340px_1fr_340px] gap-4 h-[calc(100vh-220px)] min-h-[520px]">
+      <Tabs value={abaPagina} onValueChange={(v) => setAbaPagina(v as "conversas" | "cobrancas")}>
+        <TabsList>
+          <TabsTrigger value="conversas">Conversas</TabsTrigger>
+          <TabsTrigger value="cobrancas">Cobranças</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="cobrancas" className="mt-4">
+          <CobrancasTab />
+        </TabsContent>
+
+        <TabsContent value="conversas" className="mt-4">
+      <div className="grid grid-cols-1 lg:grid-cols-[340px_1fr] xl:grid-cols-[340px_1fr_340px] gap-4 h-[calc(100vh-260px)] min-h-[520px]">
+
         {/* Lista de conversas */}
         <Card className="flex flex-col overflow-hidden">
           <div className="p-3 border-b border-border space-y-2">
