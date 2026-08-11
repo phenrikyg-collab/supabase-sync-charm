@@ -10,7 +10,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
-import { Copy, Loader2, QrCode, RefreshCw } from "lucide-react";
+import { Copy, Download, Image as ImageIcon, Loader2, QrCode, RefreshCw } from "lucide-react";
+import QRCode from "qrcode";
 
 const EXTERNAL_SUPABASE_URL = "https://ezdtulcrqzmgocamjwwl.supabase.co";
 const GERAR_PIX_URL = `${EXTERNAL_SUPABASE_URL}/functions/v1/inter-gerar-cobranca-pix`;
