@@ -207,9 +207,9 @@ export function AtividadesRecentes({ telefone }: { telefone: string }) {
                 </p>
               )}
             </div>
-          ))}
-        </div>
-      )}
+        ))}
+      </div>
+
     </Card>
   );
 }
