@@ -261,7 +261,7 @@ export default function Dashboard() {
     return {
       total: items.length,
       noPrazo: items.filter((p) => p.nivel_risco?.toLowerCase() === "no prazo").length,
-      emAlerta: items.filter((p) => p.nivel_risco?.toLowerCase() === "em alerta").length,
+      emAlerta: items.filter((p) => ["em alerta", "alerta"].includes(p.nivel_risco?.toLowerCase() ?? "")).length,
       critico: items.filter((p) => ["critico", "crítico"].includes(p.nivel_risco?.toLowerCase() ?? "")).length,
       tempoMedioEnvio: countDias > 0 ? (totalDias / countDias).toFixed(1) : "—",
       statusCounts,
