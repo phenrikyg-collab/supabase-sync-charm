@@ -22,7 +22,7 @@ import { TagsConversa, TagChip, type Tag } from "@/components/atendimento/TagsCo
 import { CatalogoDialog, formatarPreco, legendaProduto, type ProdutoCatalogo } from "@/components/atendimento/CatalogoDialog";
 import { PerfilCliente } from "@/components/atendimento/PerfilCliente";
 import { AtividadesRecentes } from "@/components/atendimento/AtividadesRecentes";
-import { CobrancaPixDialog, CobrancasTab } from "@/components/atendimento/CobrancaPix";
+import { CobrancaPixDialog, CobrancasTab, CobrancasDaConversa } from "@/components/atendimento/CobrancaPix";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 
@@ -32,6 +32,8 @@ type Conversa = {
   conversa_id?: number | string;
   cliente_nome?: string | null;
   nome_cliente?: string | null;
+  nome_cliente_tray?: string | null;
+  nome_whatsapp?: string | null;
   telefone: string;
   canal?: "whatsapp" | "site" | string | null;
   telefone_real?: string | null;
@@ -47,10 +49,26 @@ type Conversa = {
 const ehSite = (c?: Conversa | null) =>
   (c?.canal ?? "").toLowerCase() === "site" || String(c?.telefone ?? "").startsWith("site:");
 
+const limpo = (v?: string | null) => (v && v.trim() ? v.trim() : null);
+
+const nomeTray = (c: Conversa) => limpo(c.nome_cliente_tray) ?? limpo(c.cliente_nome) ?? limpo(c.nome_cliente);
+
 const nomeConversa = (c: Conversa) =>
-  c.cliente_nome ?? c.nome_cliente ?? (ehSite(c) ? "Visitante do site" : "Desconhecido");
+  nomeTray(c) ?? limpo(c.nome_whatsapp) ?? (ehSite(c) ? "Visitante do site" : "Desconhecido");
+
+/** true quando o nome exibido veio só do perfil do WhatsApp (cliente ainda não identificada na Tray) */
+const nomeSoDoWhatsApp = (c: Conversa) => !nomeTray(c) && !!limpo(c.nome_whatsapp);
+
+function BadgeViaWhatsApp() {
+  return (
+    <span className="inline-flex items-center rounded-full border border-success/20 bg-success/10 px-1.5 py-0.5 text-[10px] font-medium text-success whitespace-nowrap">
+      via WhatsApp
+    </span>
+  );
+}
 
 const identificadorConversa = (c: Conversa) => (ehSite(c) ? "Chat do site" : c.telefone);
+
 
 
 type Mensagem = {
@@ -607,6 +625,7 @@ export default function Atendimento() {
                             <MessageCircle className="h-3.5 w-3.5 shrink-0 text-success" aria-label="WhatsApp" />
                           )}
                           <span className="truncate">{nome}</span>
+                          {nomeSoDoWhatsApp(c) && <BadgeViaWhatsApp />}
                         </p>
                         <p className="text-xs text-muted-foreground">{identificadorConversa(c)}</p>
                         {site && c.telefone_real && (
@@ -656,6 +675,7 @@ export default function Atendimento() {
                       <MessageCircle className="h-4 w-4 text-success shrink-0" aria-label="WhatsApp" />
                     )}
                     <h2 className="font-medium truncate">{nomeConversa(conversaAtual)}</h2>
+                    {nomeSoDoWhatsApp(conversaAtual) && <BadgeViaWhatsApp />}
                     <StatusPill status={conversaAtual.status} />
                     {ehSite(conversaAtual) && conversaAtual.telefone_real && (
                       <span className="inline-flex items-center gap-1 rounded-full border border-success/20 bg-success/10 px-2 py-0.5 text-[10px] text-success">
@@ -702,6 +722,8 @@ export default function Atendimento() {
                   )}
                 </div>
               </div>
+
+              <CobrancasDaConversa conversaId={conversaAtual.id} />
 
               <ScrollArea className="flex-1 p-4">
                 {carregandoMensagens && <p className="text-sm text-muted-foreground">Carregando mensagens…</p>}
