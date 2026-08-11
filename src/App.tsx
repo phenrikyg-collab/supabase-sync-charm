@@ -48,7 +48,13 @@ import PadroesPedidos from "./pages/PadroesPedidos";
 import ProdutosCampanha from "./pages/ProdutosCampanha";
 import PlanoComercial from "./pages/PlanoComercial";
 import Lancamentos from "./pages/Lancamentos";
-import MarketingAnalytics from "./pages/MarketingAnalytics";
+import MarketingAnalyticsPerfil from "./pages/marketing-analytics/Perfil";
+import MAReels from "./pages/marketing-analytics/Reels";
+import MACarrossel from "./pages/marketing-analytics/Carrossel";
+import MAStories from "./pages/marketing-analytics/Stories";
+import MAInsights from "./pages/marketing-analytics/Insights";
+import MARelatorios from "./pages/marketing-analytics/Relatorios";
+import MARecomendacoes from "./pages/marketing-analytics/Recomendacoes";
 import Embaixadoras from "./pages/Embaixadoras";
 import EmbaixadoraNova from "./pages/EmbaixadoraNova";
 import EmbaixadoraPerfil from "./pages/EmbaixadoraPerfil";
@@ -181,7 +187,13 @@ const AppRoutes = () => {
               <Route path="/produtos-campanha" element={<ProdutosCampanha />} />
               <Route path="/plano-comercial" element={<PlanoComercial />} />
               <Route path="/lancamentos" element={<Lancamentos />} />
-              <Route path="/marketing-analytics" element={<MarketingAnalytics />} />
+              <Route path="/marketing-analytics" element={<MarketingAnalyticsPerfil />} />
+              <Route path="/marketing-analytics/reels" element={<MAReels />} />
+              <Route path="/marketing-analytics/carrossel" element={<MACarrossel />} />
+              <Route path="/marketing-analytics/stories" element={<MAStories />} />
+              <Route path="/marketing-analytics/insights" element={<MAInsights />} />
+              <Route path="/marketing-analytics/relatorios" element={<MARelatorios />} />
+              <Route path="/marketing-analytics/recomendacoes" element={<MARecomendacoes />} />
               <Route path="/embaixadoras" element={<Embaixadoras />} />
               <Route path="/embaixadoras/nova" element={<EmbaixadoraNova />} />
               <Route path="/embaixadoras/:id" element={<EmbaixadoraPerfil />} />
