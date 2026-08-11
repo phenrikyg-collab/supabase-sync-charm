@@ -185,6 +185,12 @@ export function GradeConteudo({ posts, loading, isReels }: { posts: ConteudoRow[
                   <span>Eng.<br /><b style={{ color: C.text }}>{fmtNum(p.taxa_engajamento, 2)}%</b></span>
                   {isReels && <span>Skip<br /><b style={{ color: C.text }}>{fmtNum(p.skip_rate)}%</b></span>}
                   {isReels && <span>Watch<br /><b style={{ color: C.text }}>{fmtNum(p.watch_medio_s)}s</b></span>}
+                  {isReels && (
+                    <span title="Retenção inicial = 100 − skip rate. Percentual de quem não pulou nos primeiros segundos.">
+                      Retenção inicial<br /><b style={{ color: C.text }}>{fmtNum(p.retencao_inicial)}%</b>
+                    </span>
+                  )}
+
                   {!isReels && <span>Shares<br /><b style={{ color: C.text }}>{fmtInt(p.shares)}</b></span>}
                 </div>
                 <div className="flex flex-wrap gap-1 mt-2">
