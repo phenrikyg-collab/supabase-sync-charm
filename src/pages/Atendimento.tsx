@@ -22,6 +22,9 @@ import { TagsConversa, TagChip, type Tag } from "@/components/atendimento/TagsCo
 import { CatalogoDialog, formatarPreco, legendaProduto, type ProdutoCatalogo } from "@/components/atendimento/CatalogoDialog";
 import { PerfilCliente } from "@/components/atendimento/PerfilCliente";
 import { AtividadesRecentes } from "@/components/atendimento/AtividadesRecentes";
+import { CobrancaPixDialog, CobrancasTab } from "@/components/atendimento/CobrancaPix";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+
 
 
 type Conversa = {
