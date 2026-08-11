@@ -668,11 +668,16 @@ export default function Atendimento() {
 
                   <TagsConversa conversaId={conversaAtual.id} aplicadas={conversaAtual.tags ?? []} />
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap justify-end">
+                  <Button size="sm" variant="outline" onClick={() => setCobrancaAberta(true)}>
+                    <QrCode className="h-4 w-4 mr-2" />
+                    Gerar cobrança Pix
+                  </Button>
                   <Button size="sm" variant="default" onClick={() => assumir.mutate()} disabled={assumir.isPending}>
                     <UserCheck className="h-4 w-4 mr-2" />
                     Assumir conversa
                   </Button>
+
                   {(status === "escalado" || status === "em_atendimento") && (
                     <Button
                       size="sm"
