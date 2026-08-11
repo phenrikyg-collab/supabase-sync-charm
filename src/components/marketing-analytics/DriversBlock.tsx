@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { AnaliseEscrita } from './AnaliseEscrita';
 import { BarraDivergente, BlocoLoading, C, Card, SANS, SectionTitle, SemDado, fmtInt, fmtNum } from './shared';
 
 export interface DriverRow {
@@ -157,6 +158,8 @@ export function DriversBlock({ dias, formato, mostrarSkip = false }: { dias: num
           </div>
         </>
       )}
+
+      <AnaliseEscrita formato={formato} />
     </Card>
   );
 }

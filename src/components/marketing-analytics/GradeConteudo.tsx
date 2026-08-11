@@ -36,6 +36,7 @@ export interface ConteudoRow {
   share_rate: number | null;
   watch_medio_s: number | null;
   watch_total_h: number | null;
+  retencao_inicial: number | null;
   quartil_alcance: number | null;
   percentil_alcance: number | null;
   quartil_skip: number | null;

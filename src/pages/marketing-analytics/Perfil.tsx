@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { supabase } from '@/integrations/supabase/client';
+import { CalculadoraValorSeguidor } from '@/components/marketing-analytics/CalculadoraValorSeguidor';
+import { ClarezaComunicacao } from '@/components/marketing-analytics/ClarezaComunicacao';
 import { DriversBlock } from '@/components/marketing-analytics/DriversBlock';
 import {
   Aviso, BlocoLoading, C, Card, KpiCard, MALayout, SANS, SectionTitle, SemDado, Status, StatusChip,
@@ -210,6 +212,10 @@ export default function MarketingAnalytics() {
       <MixFormatos dias={dias} />
 
       <DriversBlock dias={dias} formato={null} />
+
+      <ClarezaComunicacao dias={dias} />
+
+      <CalculadoraValorSeguidor dias={dias} />
 
       <Demografia />
     </MALayout>

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Bar, BarChart, CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { supabase } from '@/integrations/supabase/client';
+import { ComparativoStories } from '@/components/marketing-analytics/Comparativo';
 import {
   BlocoLoading, C, Card, ImgSafe, KpiCard, MALayout, SectionTitle, SemDado,
   dataInicioISO, fmtCompact, fmtInt, fmtNum, media, useDias,
@@ -100,6 +101,8 @@ export default function MAStories() {
         <KpiCard label="Taxa de resposta" value={kpis.resposta === null ? '—' : `${fmtNum(kpis.resposta, 2)}%`} accent={C.green} />
         <KpiCard label="Interações" value={fmtInt(kpis.interacoes)} accent={C.bronze} />
       </div>
+
+      <ComparativoStories dias={dias} />
 
       <Card accent={C.blue}>
         <SectionTitle subtitle="Retenção média por posição na sequência (base = story #1 do dia)">Curva de retenção</SectionTitle>
