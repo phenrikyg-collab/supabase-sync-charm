@@ -31,6 +31,9 @@ interface ValorSeguidor {
     ticket_medio: number | null;
     total_pedidos: number | null;
     mes_referencia: string | null;
+    mes_fechado?: boolean;
+    mes_parcial?: boolean;
+    dias_decorridos_no_mes?: number | null;
   } | null;
 }
 
@@ -40,13 +43,14 @@ const brl = (n: number | null | undefined, d = 2) =>
 export function CalculadoraValorSeguidor({ dias }: { dias: number }) {
   const [receitaInput, setReceitaInput] = useState('');
   const [receitaAplicada, setReceitaAplicada] = useState<number | null>(null);
+  const [mesFechado, setMesFechado] = useState(true);
   const [data, setData] = useState<ValorSeguidor | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     let ativo = true;
     setLoading(true);
-    const args: Record<string, unknown> = { p_dias: dias };
+    const args: Record<string, unknown> = { p_dias: dias, p_usar_mes_fechado: mesFechado };
     if (receitaAplicada !== null) args.p_receita_social = receitaAplicada;
     supabase.rpc('fn_ig_valor_seguidor' as any, args).then(({ data }: any) => {
       if (!ativo) return;
@@ -54,7 +58,8 @@ export function CalculadoraValorSeguidor({ dias }: { dias: number }) {
       setLoading(false);
     });
     return () => { ativo = false; };
-  }, [dias, receitaAplicada]);
+  }, [dias, receitaAplicada, mesFechado]);
+
 
   const posicao = data?.valor_por_seguidor?.posicao;
   const corPosicao = posicao === 'abaixo' ? C.red : posicao === 'acima' ? C.green : C.yellow;
