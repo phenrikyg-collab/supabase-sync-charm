@@ -269,7 +269,7 @@ export function CobrancasTab() {
     setErro("");
     try {
       const r = await gerarCobrancaPix({
-        valor: valor.replace(",", "."),
+        valor: formatarValorParaAPI(valor),
         ...(nome.trim() ? { nome_devedor: nome.trim() } : {}),
         ...(documento.trim() ? { cpf_cnpj_devedor: documento.replace(/\D/g, "") } : {}),
         ...(pedidoId.trim() ? { pedido_id: pedidoId.trim() } : {}),
