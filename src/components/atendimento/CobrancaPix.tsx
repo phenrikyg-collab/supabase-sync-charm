@@ -245,6 +245,7 @@ export function CobrancasTab() {
   const [gerando, setGerando] = useState(false);
   const [resultado, setResultado] = useState<RespostaGeracao | null>(null);
   const [erro, setErro] = useState("");
+  const [filtro, setFiltro] = useState<"todos" | "ativos" | "pagos" | "cancelados">("todos");
 
   const { data: cobrancas = [], isLoading } = useQuery({
     queryKey: ["inter-cobrancas"],
