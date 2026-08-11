@@ -104,17 +104,31 @@ export default function MAReels() {
 
             <div className="grid grid-cols-2 gap-2 mt-4 text-xs">
               {[
-                ['Gancho e conteúdo fortes', 'baixo skip · alto watch', C.green],
-                ['Gancho forte, conteúdo fraco', 'baixo skip · baixo watch', C.yellow],
-                ['Gancho fraco, conteúdo forte', 'alto skip · alto watch', C.blue],
-                ['Refazer', 'alto skip · baixo watch', C.red],
-              ].map(([t, s, cor]) => (
+                ['Gancho e conteúdo fortes', 'baixo skip · alto watch', C.green, quadrantes?.bom],
+                ['Gancho forte, conteúdo fraco', 'baixo skip · baixo watch', C.yellow, quadrantes?.ganchoOk],
+                ['Gancho fraco, conteúdo forte', 'alto skip · alto watch', C.blue, quadrantes?.conteudoOk],
+                ['Refazer', 'alto skip · baixo watch', C.red, quadrantes?.refazer],
+              ].map(([t, s, cor, n]) => (
                 <div key={t as string} className="p-2 rounded" style={{ background: C.tabBg, borderLeft: `3px solid ${cor}` }}>
                   <b style={{ color: C.text }}>{t}</b>
+                  {n !== undefined && <span className="ml-1" style={{ color: C.textSec }}>· {n as number} Reels</span>}
                   <p style={{ color: C.textSec }}>{s}</p>
                 </div>
               ))}
             </div>
+
+            {quadrantes && (
+              <div className="mt-4 p-4 rounded-lg" style={{ background: C.tabBg }}>
+                <p className="text-[11px] uppercase tracking-wider mb-2" style={{ color: C.textSec, fontFamily: SANS }}>Leitura do gráfico</p>
+                <p className="text-sm leading-relaxed" style={{ color: C.text, fontFamily: SANS }}>
+                  Dos {scatter.length} Reels com dado de skip e watch, {quadrantes.bom} têm gancho e conteúdo fortes (skip abaixo de {fmtNum(medSkip)}% e watch acima de {fmtNum(medWatch)}s) — são os modelos a replicar em estrutura, tema e formato de abertura.{' '}
+                  {quadrantes.ganchoOk} prendem no início mas perdem no meio: mantenha o gancho e corte o desenvolvimento, encurtando o vídeo.{' '}
+                  {quadrantes.conteudoOk} têm conteúdo que segura quem fica, mas gancho fraco: vale regravar apenas os 3 primeiros segundos e repostar.{' '}
+                  {quadrantes.refazer} caem no pior quadrante (alto skip e baixo watch) — refazer do zero ou abandonar o tema.
+                </p>
+              </div>
+            )}
+
 
             <Aviso>
               Skip rate e watch time são independentes (correlação −0,02). O skip mede o gancho, o watch mede o conteúdo.
