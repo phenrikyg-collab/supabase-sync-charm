@@ -519,3 +519,53 @@ export function CobrancasTab() {
     </div>
   );
 }
+
+/** Cards das cobranças vinculadas a uma conversa */
+export function CobrancasDaConversa({ conversaId }: { conversaId: string | number }) {
+  const { data: cobrancas = [] } = useQuery({
+    queryKey: ["inter-cobrancas-conversa", String(conversaId)],
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc("banco_inter_cobrancas_da_conversa" as any, {
+        p_conversa_id: conversaId,
+      });
+      if (error) throw error;
+      return (data ?? []) as CobrancaPix[];
+    },
+    refetchInterval: 30000,
+    refetchOnWindowFocus: true,
+  });
+
+  if (cobrancas.length === 0) return null;
+
+  const copiar = async (codigo: string) => {
+    try {
+      await navigator.clipboard.writeText(codigo);
+      toast({ title: "Código copiado" });
+    } catch {
+      toast({ title: "Não foi possível copiar", variant: "destructive" });
+    }
+  };
+
+  return (
+    <div className="border-b border-border bg-muted/30 p-3 space-y-2">
+      <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+        Cobranças Pix desta conversa
+      </p>
+      <div className="flex flex-wrap gap-2">
+        {cobrancas.map((c) => (
+          <div key={String(c.id)} className="flex items-center gap-2 rounded-md border border-border bg-background px-2.5 py-1.5">
+            <span className="text-sm font-semibold">{moedaBR(c.valor)}</span>
+            <SituacaoBadge situacao={c.situacao} />
+            <span className="text-[11px] text-muted-foreground">{dataHora(c.data_emissao ?? c.criado_em)}</span>
+            {c.pix_copia_cola && (
+              <Button size="sm" variant="outline" className="h-6 px-2 text-[11px]" onClick={() => copiar(c.pix_copia_cola!)}>
+                <Copy className="mr-1 h-3 w-3" />
+                Copiar código
+              </Button>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
