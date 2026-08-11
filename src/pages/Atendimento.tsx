@@ -842,8 +842,19 @@ export default function Atendimento() {
         </div>
 
       </div>
+        </TabsContent>
+      </Tabs>
 
       <CatalogoDialog open={catalogoAberto} onOpenChange={setCatalogoAberto} onSelecionar={enviarProduto} />
+      {conversaAtual && (
+        <CobrancaPixDialog
+          open={cobrancaAberta}
+          onOpenChange={setCobrancaAberta}
+          conversaId={conversaAtual.id}
+          nomeCliente={nomeConversa(conversaAtual)}
+        />
+      )}
     </div>
+
   );
 }
