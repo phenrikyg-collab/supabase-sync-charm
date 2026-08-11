@@ -2,21 +2,28 @@ import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Aviso, BlocoLoading, C, Card, SANS, SectionTitle, SemDado, fmtInt, fmtNum } from './shared';
 
-interface Destino {
-  origem: string;
-  sessoes: number | null;
-  leads: number | null;
-  cliques_bio: number | null;
-  taxa_sessao_para_clique: number | null;
-  taxa_lead: number | null;
-  observacao: string | null;
-}
 interface FunilDestinoResp {
   avisos: string[];
+  coleta_desde: string | null;
   periodo_dias: number;
-  destinos: Destino[];
-  total_sessoes: number | null;
-  total_leads: number | null;
+  sessoes_total: number | null;
+  cupons_gerados: number | null;
+  leads_capturados: number | null;
+  cliques_em_botoes: number | null;
+  sessoes_do_instagram: number | null;
+  taxa_sessao_para_lead: number | null;
+  taxa_sessao_para_clique: number | null;
+  pct_trafego_do_instagram: number | null;
+}
+
+function Bloco({ label, valor, sub }: { label: string; valor: string; sub?: string }) {
+  return (
+    <div className="p-3 rounded-lg" style={{ background: C.tabBg }}>
+      <p className="text-[11px] uppercase tracking-wider" style={{ color: C.textSec, fontFamily: SANS }}>{label}</p>
+      <p className="text-xl mt-1" style={{ color: C.text, fontFamily: SANS, fontWeight: 700 }}>{valor}</p>
+      {sub && <p className="text-[11px] mt-0.5" style={{ color: C.grey }}>{sub}</p>}
+    </div>
+  );
 }
 
 export function FunilDestino({ dias }: { dias: number }) {
@@ -34,64 +41,35 @@ export function FunilDestino({ dias }: { dias: number }) {
     return () => { ativo = false; };
   }, [dias]);
 
-  const destinos = data?.destinos || [];
-
   return (
     <Card accent={C.green}>
-      <SectionTitle subtitle="O que acontece depois do clique: sessões e leads gerados por origem no link da bio">
+      <SectionTitle subtitle="O que acontece depois do clique: tráfego, cliques e leads no link da bio">
         Para onde o Instagram manda
       </SectionTitle>
 
-      {loading ? <BlocoLoading altura={200} /> : !destinos.length ? (
-        <SemDado texto="sem dado de destino no período" />
-      ) : (
+      {loading ? <BlocoLoading altura={180} /> : !data ? <SemDado texto="sem dado de destino no período" /> : (
         <>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr style={{ borderBottom: `1px solid ${C.border}` }}>
-                  {['Origem', 'Sessões', 'Cliques na bio', 'Cliques por sessão', 'Leads', 'Taxa de lead'].map(h => (
-                    <th key={h} className="text-left py-2.5 px-2 font-semibold text-xs" style={{ color: C.textSec }}>{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {destinos.map(d => (
-                  <tr key={d.origem} style={{ borderBottom: `1px solid ${C.border}` }}>
-                    <td className="py-2.5 px-2 font-medium" style={{ color: C.text }}>
-                      {d.origem}
-                      {d.observacao && <p className="text-[11px] font-normal" style={{ color: C.grey }}>{d.observacao}</p>}
-                    </td>
-                    <td className="py-2.5 px-2" style={{ color: C.text }}>{fmtInt(d.sessoes)}</td>
-                    <td className="py-2.5 px-2" style={{ color: C.textSec }}>{fmtInt(d.cliques_bio)}</td>
-                    <td className="py-2.5 px-2" style={{ color: C.textSec }}>
-                      {d.taxa_sessao_para_clique === null ? '—' : `${fmtNum(d.taxa_sessao_para_clique, 2)}%`}
-                    </td>
-                    <td className="py-2.5 px-2" style={{ color: C.text }}>{fmtInt(d.leads)}</td>
-                    <td className="py-2.5 px-2" style={{ color: C.textSec }}>
-                      {d.taxa_lead === null ? '—' : `${fmtNum(d.taxa_lead, 2)}%`}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+            <Bloco label="Sessões no link" valor={fmtInt(data.sessoes_total)}
+              sub={data.pct_trafego_do_instagram === null ? undefined : `${fmtNum(data.pct_trafego_do_instagram)}% vindas do Instagram`} />
+            <Bloco label="Sessões do Instagram" valor={fmtInt(data.sessoes_do_instagram)} />
+            <Bloco label="Cliques em botões" valor={fmtInt(data.cliques_em_botoes)}
+              sub={data.taxa_sessao_para_clique === null ? undefined : `${fmtNum(data.taxa_sessao_para_clique)} cliques por 100 sessões`} />
+            <Bloco label="Leads capturados" valor={fmtInt(data.leads_capturados)}
+              sub={data.taxa_sessao_para_lead === null ? undefined : `${fmtNum(data.taxa_sessao_para_lead)}% das sessões viram lead`} />
           </div>
 
-          <div className="grid grid-cols-2 gap-3 mt-4">
-            <div className="p-3 rounded-lg" style={{ background: C.tabBg }}>
-              <p className="text-xs" style={{ color: C.textSec, fontFamily: SANS }}>Sessões no período</p>
-              <p className="text-xl" style={{ color: C.text, fontFamily: SANS, fontWeight: 700 }}>{fmtInt(data?.total_sessoes)}</p>
-            </div>
-            <div className="p-3 rounded-lg" style={{ background: C.tabBg }}>
-              <p className="text-xs" style={{ color: C.textSec, fontFamily: SANS }}>Leads no período</p>
-              <p className="text-xl" style={{ color: C.text, fontFamily: SANS, fontWeight: 700 }}>{fmtInt(data?.total_leads)}</p>
-            </div>
-          </div>
+          {data.cupons_gerados !== null && (
+            <p className="text-sm mt-4" style={{ color: C.textSec, fontFamily: SANS }}>
+              {fmtInt(data.cupons_gerados)} cupons gerados no período.
+            </p>
+          )}
 
           <Aviso>
-            Cliques por sessão pode passar de 100%: a Meta conta cliques no link e o site conta sessões iniciadas — são bases diferentes.
+            Cliques por sessão pode passar de 100: a Meta e o site contam bases diferentes — cada sessão pode gerar vários cliques.
           </Aviso>
-          {(data?.avisos || []).map((a, i) => <Aviso key={i}>{a}</Aviso>)}
+          {data.coleta_desde && <Aviso>Coleta do link da bio começou em {data.coleta_desde.split('-').reverse().join('/')}.</Aviso>}
+          {(data.avisos || []).map((a, i) => <Aviso key={i}>{a}</Aviso>)}
         </>
       )}
     </Card>
