@@ -5,7 +5,7 @@ import type {
   OrdemCorteProduto, OrdemCorteRolo, OrdemProducao, Oficina, Aviamento, ProdutoAviamento,
   MovimentacaoFinanceira, MetaFinanceira, CategoriaFinanceira,
   CentroCusto, DashboardExecutivo, TicketMedioMes, IndicadorRiscoMeta,
-  ResumoProducaoAndamento, ResumoEstoqueTecidos, ExpedicaoStatus, Conserto, CustoFixoOficina,
+  ResumoProducaoAndamento, ResumoEstoqueTecidos, ExpedicaoStatus, ExpedicaoHigienizacao, Conserto, CustoFixoOficina,
 } from "@/types/database";
 
 const DEFAULT_PAGE_SIZE = 1000;
