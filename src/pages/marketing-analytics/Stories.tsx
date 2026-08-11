@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Bar, BarChart, CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { supabase } from '@/integrations/supabase/client';
+import { ComparativoStories } from '@/components/marketing-analytics/Comparativo';
 import {
   BlocoLoading, C, Card, ImgSafe, KpiCard, MALayout, SectionTitle, SemDado,
   dataInicioISO, fmtCompact, fmtInt, fmtNum, media, useDias,
