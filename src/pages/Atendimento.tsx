@@ -14,7 +14,7 @@ import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import {
   AlertTriangle, Bot, Check, CheckCheck, CheckCircle2, Globe, ImagePlus, LayoutGrid, Lock, MessageCircle,
-  RotateCcw, Search, Send, User, X, UserCheck, Phone,
+  RotateCcw, Search, Send, User, X, UserCheck, Phone, QrCode,
 } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -22,6 +22,9 @@ import { TagsConversa, TagChip, type Tag } from "@/components/atendimento/TagsCo
 import { CatalogoDialog, formatarPreco, legendaProduto, type ProdutoCatalogo } from "@/components/atendimento/CatalogoDialog";
 import { PerfilCliente } from "@/components/atendimento/PerfilCliente";
 import { AtividadesRecentes } from "@/components/atendimento/AtividadesRecentes";
+import { CobrancaPixDialog, CobrancasTab } from "@/components/atendimento/CobrancaPix";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+
 
 
 type Conversa = {
@@ -151,6 +154,9 @@ export default function Atendimento() {
   const [selecionada, setSelecionada] = useState<string | null>(null);
   const [busca, setBusca] = useState("");
   const [aba, setAba] = useState<"whatsapp" | "site">("whatsapp");
+  const [abaPagina, setAbaPagina] = useState<"conversas" | "cobrancas">("conversas");
+  const [cobrancaAberta, setCobrancaAberta] = useState(false);
+
 
   const [filtroLeitura, setFiltroLeitura] = useState<"todas" | "nao_lidas" | "lidas">("todas");
   const [tagsFiltro, setTagsFiltro] = useState<string[]>([]);
@@ -458,7 +464,19 @@ export default function Atendimento() {
         </p>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-[340px_1fr] xl:grid-cols-[340px_1fr_340px] gap-4 h-[calc(100vh-220px)] min-h-[520px]">
+      <Tabs value={abaPagina} onValueChange={(v) => setAbaPagina(v as "conversas" | "cobrancas")}>
+        <TabsList>
+          <TabsTrigger value="conversas">Conversas</TabsTrigger>
+          <TabsTrigger value="cobrancas">Cobranças</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="cobrancas" className="mt-4">
+          <CobrancasTab />
+        </TabsContent>
+
+        <TabsContent value="conversas" className="mt-4">
+      <div className="grid grid-cols-1 lg:grid-cols-[340px_1fr] xl:grid-cols-[340px_1fr_340px] gap-4 h-[calc(100vh-260px)] min-h-[520px]">
+
         {/* Lista de conversas */}
         <Card className="flex flex-col overflow-hidden">
           <div className="p-3 border-b border-border space-y-2">
@@ -650,11 +668,16 @@ export default function Atendimento() {
 
                   <TagsConversa conversaId={conversaAtual.id} aplicadas={conversaAtual.tags ?? []} />
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap justify-end">
+                  <Button size="sm" variant="outline" onClick={() => setCobrancaAberta(true)}>
+                    <QrCode className="h-4 w-4 mr-2" />
+                    Gerar cobrança Pix
+                  </Button>
                   <Button size="sm" variant="default" onClick={() => assumir.mutate()} disabled={assumir.isPending}>
                     <UserCheck className="h-4 w-4 mr-2" />
                     Assumir conversa
                   </Button>
+
                   {(status === "escalado" || status === "em_atendimento") && (
                     <Button
                       size="sm"
@@ -830,8 +853,19 @@ export default function Atendimento() {
         </div>
 
       </div>
+        </TabsContent>
+      </Tabs>
 
       <CatalogoDialog open={catalogoAberto} onOpenChange={setCatalogoAberto} onSelecionar={enviarProduto} />
+      {conversaAtual && (
+        <CobrancaPixDialog
+          open={cobrancaAberta}
+          onOpenChange={setCobrancaAberta}
+          conversaId={conversaAtual.id}
+          nomeCliente={nomeConversa(conversaAtual)}
+        />
+      )}
     </div>
+
   );
 }

@@ -147,9 +147,14 @@ export function AtividadesRecentes({ telefone }: { telefone: string }) {
       </div>
 
       <div className="px-3 pb-3">
+        <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+          Navegação no site
+        </p>
         {isLoading && <p className="text-xs text-muted-foreground">Carregando atividades…</p>}
         {!isLoading && filtrados.length === 0 && (
-          <p className="py-3 text-xs text-muted-foreground">Nenhuma atividade nesse filtro.</p>
+          <p className="py-2 text-xs text-muted-foreground">
+            {eventos.length === 0 ? "Nenhuma navegação registrada" : "Nenhuma atividade nesse filtro."}
+          </p>
         )}
         {filtrados.length > 0 && (
           <ol className="relative space-y-3 pl-6">
@@ -176,13 +181,16 @@ export function AtividadesRecentes({ telefone }: { telefone: string }) {
         )}
       </div>
 
-      {cupons.length > 0 && (
-        <div className="space-y-2 border-t border-border p-3">
-          <p className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-            <Ticket className="h-3.5 w-3.5" />
-            Cupons
-          </p>
-          {cupons.map((c, i) => (
+      <div className="space-y-2 border-t border-border p-3">
+        <p className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+          <Ticket className="h-3.5 w-3.5" />
+          Cupons
+        </p>
+        {cupons.length === 0 && !isLoading && (
+          <p className="text-xs text-muted-foreground">Nenhum cupom emitido</p>
+        )}
+        {cupons.map((c, i) => (
+
             <div key={`${c.codigo ?? i}`} className="rounded-md border border-border p-2">
               <div className="flex items-center justify-between gap-2">
                 <span className="font-mono text-xs font-semibold">{c.codigo ?? "—"}</span>
@@ -199,9 +207,9 @@ export function AtividadesRecentes({ telefone }: { telefone: string }) {
                 </p>
               )}
             </div>
-          ))}
-        </div>
-      )}
+        ))}
+      </div>
+
     </Card>
   );
 }
