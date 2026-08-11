@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { Aviso, BlocoLoading, C, Card, SANS, SectionTitle, SemDado, Status, StatusChip, fmtNum } from './shared';
+import { Aviso, BlocoLoading, C, Card, SANS, SectionTitle, SemDado, SERIF, Status, StatusChip, fmtNum } from './shared';
 
 interface HealthDim {
   dimensao: string;
@@ -78,7 +78,7 @@ export function DiagnosticoCompleto({ dias }: { dias: number }) {
           {data.gargalo_principal && (
             <div className="p-4 rounded-lg" style={{ background: '#FBEAE5', border: `1px solid ${C.red}` }}>
               <p className="text-[11px] uppercase tracking-wider" style={{ color: C.red, fontFamily: SANS }}>Gargalo principal</p>
-              <p className="text-lg mt-1" style={{ color: C.text, fontFamily: SERIF_FALLBACK, fontWeight: 700 }}>
+              <p className="text-lg mt-1" style={{ color: C.text, fontFamily: SERIF, fontWeight: 700 }}>
                 {data.gargalo_principal.etapa}
                 {data.gargalo_principal.valor !== null && (
                   <span className="ml-2 text-base" style={{ color: C.red }}>{fmtNum(data.gargalo_principal.valor, 2)}%</span>
@@ -171,4 +171,3 @@ export function DiagnosticoCompleto({ dias }: { dias: number }) {
   );
 }
 
-const SERIF_FALLBACK = 'Cormorant Garamond, serif';
