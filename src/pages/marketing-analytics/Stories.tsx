@@ -102,6 +102,8 @@ export default function MAStories() {
         <KpiCard label="Interações" value={fmtInt(kpis.interacoes)} accent={C.bronze} />
       </div>
 
+      <ComparativoStories dias={dias} />
+
       <Card accent={C.blue}>
         <SectionTitle subtitle="Retenção média por posição na sequência (base = story #1 do dia)">Curva de retenção</SectionTitle>
         {loading ? <BlocoLoading altura={240} /> : curva.length === 0 ? <SemDado /> : (
