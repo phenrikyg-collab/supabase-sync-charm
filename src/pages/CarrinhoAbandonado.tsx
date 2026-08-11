@@ -166,6 +166,14 @@ export default function CarrinhoAbandonado() {
                 placeholder="R$ —"
               />
             </div>
+            <div className="flex items-center gap-2 pb-1">
+              <Checkbox
+                id="somente-identificados"
+                checked={somenteIdentificados}
+                onCheckedChange={(v) => setSomenteIdentificados(v === true)}
+              />
+              <Label htmlFor="somente-identificados" className="text-xs">Mostrar apenas identificados</Label>
+            </div>
           </div>
         </CardHeader>
         <CardContent>
