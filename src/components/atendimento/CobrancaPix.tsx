@@ -177,7 +177,7 @@ export function CobrancaPixDialog({
     setGerando(true);
     setErro("");
     try {
-      const r = await gerarCobrancaPix({ valor: valor.replace(",", "."), conversa_id: conversaId });
+      const r = await gerarCobrancaPix({ valor: formatarValorParaAPI(valor), conversa_id: conversaId });
       setResultado(r);
       queryClient.invalidateQueries({ queryKey: ["inter-cobrancas"] });
       toast({ title: "Cobrança gerada" });
