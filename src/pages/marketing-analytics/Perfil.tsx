@@ -174,43 +174,34 @@ export default function MarketingAnalytics() {
   return (
     <MALayout titulo="Análise do Perfil" subtitulo="Funil da conta, mix de formatos e o que move o alcance">
       <div className="grid grid-cols-2 lg:grid-cols-6 gap-3">
-        <KpiCard label="Alcance somado" value={fmtCompact(funil?.alcance_somado)} accent={C.bronze} />
-        <KpiCard label="Views" value={fmtCompact(funil?.views)} accent={C.gold} />
-        <KpiCard label="Visitas ao perfil" value={fmtCompact(funil?.visitas)} accent={C.blue} />
-        <KpiCard label="Cliques na bio" value={fmtCompact(funil?.cliques_bio)} accent={C.green} />
+        <KpiCard label="Alcance somado" value={fmtCompact(funil?.alcance_somado)} accent={C.bronze}
+          change={funil?.totais?.alcance_somado?.variacao_pct ?? undefined} />
+        <KpiCard label="Views" value={fmtCompact(funil?.views)} accent={C.gold}
+          change={funil?.totais?.views?.variacao_pct ?? undefined} />
+        <KpiCard label="Visitas ao perfil" value={fmtCompact(funil?.visitas)} accent={C.blue}
+          change={funil?.totais?.visitas?.variacao_pct ?? undefined} />
+        <KpiCard label="Cliques na bio" value={fmtCompact(funil?.cliques_bio)} accent={C.green}
+          change={funil?.totais?.cliques_bio?.variacao_pct ?? undefined} />
         <KpiCard label="Novos seguidores" value={fmtCompact(funil?.novos_seguidores)} sub={funil?.saldo_seguidores != null ? `saldo ${fmtInt(funil.saldo_seguidores)}` : undefined} accent={C.bronze} />
         <KpiCard label="% alcance não seguidor" value={funil?.pct_alcance_nao_seguidor == null ? '—' : `${fmtNum(funil.pct_alcance_nao_seguidor)}%`} accent={C.gold} />
       </div>
+
+      <DiagnosticoCompleto dias={dias} />
 
       <Card accent={C.bronze}>
         <SectionTitle subtitle={funil ? `${funil.dias_com_dado} de ${funil.periodo_dias} dias com dado no período` : undefined}>
           Funil da conta
         </SectionTitle>
         {loading ? <BlocoLoading altura={220} /> : !funil?.taxas?.length ? <SemDado /> : (
-          <div className="space-y-3">
-            {funil.taxas.map(t => (
-              <div key={t.etapa} className="p-3 rounded-lg" style={{ background: C.tabBg }}>
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <span className="text-sm font-medium" style={{ color: C.text }}>{t.etapa}</span>
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className="text-sm font-semibold" style={{ color: C.text }}>
-                      {t.valor === null ? '—' : `${fmtNum(t.valor, 2)}%`}
-                    </span>
-                    <StatusChip status={t.status_rocket} prefixo="Rocket:" />
-                    <StatusChip status={t.status_sistema1} prefixo="Sistema 1:" />
-                  </div>
-                </div>
-                {t.valor === null && t.diagnostico && (
-                  <p className="text-xs mt-1" style={{ color: C.textSec }}>{t.diagnostico}</p>
-                )}
-              </div>
-            ))}
-            {funil.avisos?.map((a, i) => <Aviso key={i}>{a}</Aviso>)}
-          </div>
+          <FunilConta taxas={funil.taxas} avisos={funil.avisos} legenda={funil.legenda_status} />
         )}
       </Card>
 
+      <FunilDestino dias={dias} />
+
       <MixFormatos dias={dias} />
+
+      <MelhorHorario dias={90} />
 
       <DriversBlock dias={dias} formato={null} />
 
@@ -219,6 +210,7 @@ export default function MarketingAnalytics() {
       <CalculadoraValorSeguidor dias={dias} />
 
       <Demografia />
+
     </MALayout>
   );
 }
