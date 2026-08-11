@@ -255,13 +255,13 @@ export default function Dashboard() {
     const statusCounts: Record<string, number> = {};
     let totalDias = 0, countDias = 0;
     items.forEach((p) => {
-      statusCounts[p.status_bling ?? "Outros"] = (statusCounts[p.status_bling ?? "Outros"] ?? 0) + 1;
+      statusCounts[p.etapa ?? p.status_tray ?? "Outros"] = (statusCounts[p.etapa ?? p.status_tray ?? "Outros"] ?? 0) + 1;
       if (p.dias_corridos != null) { totalDias += p.dias_corridos; countDias++; }
     });
     return {
       total: items.length,
       noPrazo: items.filter((p) => p.nivel_risco?.toLowerCase() === "no prazo").length,
-      emAlerta: items.filter((p) => p.nivel_risco?.toLowerCase() === "em alerta").length,
+      emAlerta: items.filter((p) => ["em alerta", "alerta"].includes(p.nivel_risco?.toLowerCase() ?? "")).length,
       critico: items.filter((p) => ["critico", "crítico"].includes(p.nivel_risco?.toLowerCase() ?? "")).length,
       tempoMedioEnvio: countDias > 0 ? (totalDias / countDias).toFixed(1) : "—",
       statusCounts,

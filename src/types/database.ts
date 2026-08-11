@@ -308,14 +308,36 @@ export interface ResumoEstoqueTecidos {
 
 export interface ExpedicaoStatus {
   id: string | null;
-  bling_pedido_id: string | null;
+  pedido_id: string;
   cliente: string | null;
   data_pedido: string | null;
-  status_bling: string | null;
+  status_tray: string | null;
+  etapa: string | null;
+  nivel_risco: string | null;
   dias_corridos: number | null;
   prazo_dias: number | null;
-  nivel_risco: string | null;
+  prazo_efetivo: string | null;
+  prazo_alterado: boolean | null;
+  prazo_justificativa: string | null;
+  transportadora: string | null;
+  previsao_entrega: string | null;
+  data_envio: string | null;
+  codigo_rastreio: string | null;
+  tracking_url: string | null;
+  valor_pedido: number | null;
+  tem_nota_fiscal: boolean | null;
 }
+
+export interface ExpedicaoHigienizacao {
+  pedido_id: string;
+  cliente: string | null;
+  data_pedido: string | null;
+  dias_parado: number | null;
+  status_tray: string | null;
+  transportadora: string | null;
+  valor_pedido: number | null;
+}
+
 
 export interface MovimentacaoProducao {
   id: string;
