@@ -97,8 +97,17 @@ function horaCurta(valor?: string | null) {
   if (!valor) return "";
   const d = new Date(valor);
   if (Number.isNaN(d.getTime())) return "";
-  return d.toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
+  const hora = d.toLocaleTimeString("pt-BR", {
+    hour: "2-digit",
+    minute: "2-digit",
+    timeZone: "America/Sao_Paulo",
+  });
+  const fmtDia = (x: Date) =>
+    x.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", timeZone: "America/Sao_Paulo" });
+  if (fmtDia(d) === fmtDia(new Date())) return hora;
+  return `${fmtDia(d)} ${hora}`;
 }
+
 
 function StatusEntrega({ status, erro }: { status?: string | null; erro?: string | null }) {
   if (!status) return null;
