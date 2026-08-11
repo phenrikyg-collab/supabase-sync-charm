@@ -203,6 +203,8 @@ const AppRoutes = () => {
               <Route path="/rastreamento" element={<Rastreamento />} />
               <Route path="/kpis-conversao" element={<KpisConversao />} />
               <Route path="/provador-virtual" element={<ProvadorVirtual />} />
+              <Route path="/cupons" element={<Cupons />} />
+
 
 
               <Route path="/automacoes" element={<Automacoes />} />
