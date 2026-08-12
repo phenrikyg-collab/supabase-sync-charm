@@ -108,6 +108,8 @@ export default function Marketing() {
   const [periodoProdutos, setPeriodoProdutos] = useState("30dias");
   const [periodoCanais, setPeriodoCanais] = useState("30dias");
   const [periodoMeta, setPeriodoMeta] = useState("30dias");
+  const [diasCriativo, setDiasCriativo] = useState(30);
+  const { data: criativosRpc, loading: loadingCriativos } = useMetaCriativos(diasCriativo);
   const hoje = new Date();
   const [metaAno, setMetaAno] = useState(hoje.getFullYear());
   const [metaMes, setMetaMes] = useState(hoje.getMonth() + 1);
