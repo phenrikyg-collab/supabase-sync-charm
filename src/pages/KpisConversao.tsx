@@ -233,14 +233,19 @@ export default function KpisConversao() {
             {funil.map((e) => (
               <div key={e.label} className="flex items-center gap-3">
                 <span className="w-48 shrink-0 text-sm text-muted-foreground">{e.label}</span>
-                <div className="h-9 flex-1 rounded-md bg-muted/50">
-                  <div
-                    className="flex h-9 items-center justify-end rounded-md bg-primary/70 px-3 text-sm font-semibold text-primary-foreground transition-all"
-                    style={{ width: `${e.largura}%` }}
-                  >
-                    {fmt(e.valor)}
-                  </div>
+                <div className="flex h-9 flex-1 items-center rounded-md bg-muted/50">
+                  {e.valor > 0 ? (
+                    <div
+                      className="flex h-9 items-center justify-end rounded-md bg-primary/70 px-3 text-sm font-semibold text-primary-foreground transition-all"
+                      style={{ width: `${e.largura}%` }}
+                    >
+                      {fmt(e.valor)}
+                    </div>
+                  ) : (
+                    <span className="px-3 text-sm text-muted-foreground">0</span>
+                  )}
                 </div>
+
                 <span className="w-24 shrink-0 text-right text-xs text-muted-foreground">
                   {e.passagem === null ? "—" : pct(e.passagem)}
                 </span>
