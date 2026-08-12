@@ -139,19 +139,21 @@ function FormularioLink({
   const [descricao, setDescricao] = useState("");
   const [pedido, setPedido] = useState("");
   const [frete, setFrete] = useState("");
-  const [itens, setItens] = useState<ItemCarrinho[]>([
-    { descricao: "", valor_unitario: "", quantidade: 1 },
-  ]);
+  const [itens, setItens] = useState<ItemCarrinho[]>([]);
   const [gerando, setGerando] = useState(false);
   const [url, setUrl] = useState("");
+  const [resolvidos, setResolvidos] = useState<ItemResolvido[]>([]);
   const [erro, setErro] = useState("");
 
   const emailValido = /\S+@\S+\.\S+/.test(email.trim());
+  const precoItem = (i: ItemCarrinho) =>
+    i.produto_id ? i.preco_catalogo ?? 0 : paraNumero(i.valor_unitario);
   const totalCarrinho =
-    itens.reduce((acc, i) => acc + paraNumero(i.valor_unitario) * (i.quantidade || 0), 0) +
-    paraNumero(frete);
+    itens.reduce((acc, i) => acc + precoItem(i) * (i.quantidade || 0), 0) + paraNumero(frete);
   const itensValidos = itens.filter(
-    (i) => i.descricao.trim() && paraNumero(i.valor_unitario) > 0 && i.quantidade > 0,
+    (i) =>
+      i.quantidade > 0 &&
+      (i.produto_id ? true : i.descricao.trim() && paraNumero(i.valor_unitario) > 0),
   );
 
   const valido =
@@ -161,30 +163,50 @@ function FormularioLink({
   const atualizarItem = (index: number, patch: Partial<ItemCarrinho>) =>
     setItens((prev) => prev.map((it, i) => (i === index ? { ...it, ...patch } : it)));
 
+  const adicionarProduto = (p: ProdutoPagamento) =>
+    setItens((prev) => [
+      ...prev,
+      {
+        produto_id: p.produto_id,
+        nome: p.nome,
+        imagem: p.imagem ?? null,
+        preco_catalogo: precoProduto(p),
+        descricao: p.nome,
+        valor_unitario: String(precoProduto(p)),
+        quantidade: 1,
+      },
+    ]);
+
   const gerar = async () => {
     setGerando(true);
     setErro("");
     setUrl("");
+    setResolvidos([]);
     try {
       const base = {
         customer_email: email.trim(),
         order_number: pedido.trim() || undefined,
         conversa_id: conversaId,
       };
-      const link = await criarLinkPagamento(
+      const resultado = await criarLinkPagamento(
         modo === "unico"
           ? { ...base, valor: formatarValorParaAPI(valor), descricao: descricao.trim() || undefined }
           : {
               ...base,
-              itens: itensValidos.map((i) => ({
-                descricao: i.descricao.trim(),
-                valor_unitario: formatarValorParaAPI(i.valor_unitario),
-                quantidade: i.quantidade,
-              })),
+              itens: itensValidos.map((i) =>
+                i.produto_id
+                  ? { produto_id: i.produto_id, quantidade: i.quantidade }
+                  : {
+                      descricao: i.descricao.trim(),
+                      valor_unitario: formatarValorParaAPI(i.valor_unitario),
+                      quantidade: i.quantidade,
+                    },
+              ),
               valor_frete: formatarValorParaAPI(frete || "0"),
             },
       );
-      setUrl(link);
+      setUrl(resultado.url);
+      setResolvidos(resultado.itens_resolvidos);
       toast({ title: "Link de pagamento gerado" });
     } catch (e) {
       const mensagem = e instanceof Error ? e.message : String(e);
@@ -194,6 +216,7 @@ function FormularioLink({
       setGerando(false);
     }
   };
+
 
   const camposComuns = (
     <div className={compacto ? "space-y-3" : "grid gap-3 sm:grid-cols-2"}>
