@@ -961,9 +961,15 @@ export default function Marketing() {
         </TabsContent>
         {/* ===== META ADS ===== */}
         <TabsContent value="meta-ads" className="space-y-6">
-          <div className="flex justify-end">
+          <div className="flex justify-end gap-3 flex-wrap">
+            {renderPeriodoDias(diasCriativo, setDiasCriativo)}
             {renderPeriodo(periodoMeta, setPeriodoMeta, PERIODOS_EXT)}
           </div>
+
+          <FunilLeitura dias={diasCriativo} />
+          <RedFlags dias={diasCriativo} criativos={criativosRpc} loading={loadingCriativos} />
+
+
 
           {loadingMeta ? (
             <>
