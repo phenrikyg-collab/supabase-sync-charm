@@ -513,46 +513,50 @@ export function CriativosTab({ dias, criativos, loading }: { dias: number; criat
       </div>
 
       <Card>
-        <CardContent className="pt-6 flex flex-wrap gap-3">
-          <Select value={ordem} onValueChange={setOrdem}>
-            <SelectTrigger className="w-[200px]"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="spend">Ordenar: Investimento</SelectItem>
-              <SelectItem value="roas">Ordenar: ROAS</SelectItem>
-              <SelectItem value="cpa">Ordenar: CPA</SelectItem>
-              <SelectItem value="ctr">Ordenar: CTR</SelectItem>
-              <SelectItem value="thumb">Ordenar: Thumb Stop</SelectItem>
-              <SelectItem value="impressions">Ordenar: Impressões</SelectItem>
-            </SelectContent>
-          </Select>
-          <Select value={fFormato} onValueChange={setFFormato}>
-            <SelectTrigger className="w-[170px]"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value={TODOS}>Todos os formatos</SelectItem>
-              {opcoes.formatos.map((f) => <SelectItem key={f} value={f}>{FORMATO_LABEL[f.toLowerCase()] || f}</SelectItem>)}
-            </SelectContent>
-          </Select>
-          <Select value={fTipo} onValueChange={setFTipo}>
-            <SelectTrigger className="w-[190px]"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value={TODOS}>Todos os tipos</SelectItem>
-              {opcoes.tipos.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}
-            </SelectContent>
-          </Select>
-          <Select value={fCampanha} onValueChange={setFCampanha}>
-            <SelectTrigger className="w-[240px]"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value={TODOS}>Todas as campanhas</SelectItem>
-              {opcoes.campanhas.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
-            </SelectContent>
-          </Select>
-          <span className="text-sm text-muted-foreground self-center">{lista.length} criativo(s)</span>
+        <CardHeader className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+          <CardTitle className="text-lg">Criativos ({lista.length})</CardTitle>
+          <div className="flex flex-wrap gap-2">
+            <Select value={ordem} onValueChange={setOrdem}>
+              <SelectTrigger className="w-[190px] h-9"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="spend">Ordenar: Investimento</SelectItem>
+                <SelectItem value="roas">Ordenar: ROAS</SelectItem>
+                <SelectItem value="cpa">Ordenar: CPA</SelectItem>
+                <SelectItem value="ctr">Ordenar: CTR</SelectItem>
+                <SelectItem value="thumb">Ordenar: Thumb Stop</SelectItem>
+                <SelectItem value="impressions">Ordenar: Impressões</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={fFormato} onValueChange={setFFormato}>
+              <SelectTrigger className="w-[160px] h-9"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value={TODOS}>Todos os formatos</SelectItem>
+                {opcoes.formatos.map((f) => <SelectItem key={f} value={f}>{FORMATO_LABEL[f.toLowerCase()] || f}</SelectItem>)}
+              </SelectContent>
+            </Select>
+            <Select value={fTipo} onValueChange={setFTipo}>
+              <SelectTrigger className="w-[180px] h-9"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value={TODOS}>Todos os tipos</SelectItem>
+                {opcoes.tipos.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+              </SelectContent>
+            </Select>
+            <Select value={fCampanha} onValueChange={setFCampanha}>
+              <SelectTrigger className="w-[220px] h-9"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value={TODOS}>Todas as campanhas</SelectItem>
+                {opcoes.campanhas.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+            {lista.map((c) => <CardCriativo key={c.ad_id} c={c} onClick={() => setDetalhe(c)} />)}
+          </div>
         </CardContent>
       </Card>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-        {lista.map((c) => <CardCriativo key={c.ad_id} c={c} onClick={() => setDetalhe(c)} />)}
-      </div>
 
       <Diversidade dias={dias} />
       <Fadiga criativos={base} />
