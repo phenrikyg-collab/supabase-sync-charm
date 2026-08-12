@@ -34,12 +34,13 @@ function pega(row: Row | undefined, candidatos: string[]) {
 }
 
 const ETAPAS: { label: string; keys: string[] }[] = [
-  { label: "Sessões", keys: ["sessoes", "sessions", "total_sessoes", "sessoes_totais"] },
-  { label: "Visualização de Produto", keys: ["visualizacao_produto", "view_item", "product_view", "visualizacoes_produto"] },
-  { label: "Carrinho", keys: ["carrinho", "add_to_cart", "adicionou_carrinho"] },
-  { label: "Checkout", keys: ["checkout", "begin_checkout", "checkout_start", "checkouts"] },
-  { label: "Compra", keys: ["compra", "compras", "purchase", "purchases"] },
+  { label: "Sessões", keys: ["sessoes", "sessions", "total_sessoes", "sessoes_totais", "inicio_sessao"] },
+  { label: "Visualização de Produto", keys: ["visualizou_produto", "visualizacao_produto", "view_item", "product_view", "visualizacoes_produto"] },
+  { label: "Carrinho", keys: ["adicionou_carrinho", "carrinho", "add_to_cart"] },
+  { label: "Checkout", keys: ["iniciou_pagamento", "checkout", "begin_checkout", "checkout_start", "checkouts"] },
+  { label: "Compra", keys: ["comprou", "compra", "compras", "purchase", "purchases"] },
 ];
+
 
 export default function KpisConversao() {
   const [periodo, setPeriodo] = useState<Periodo>(periodoUltimosDias(30));
