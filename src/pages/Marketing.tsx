@@ -11,6 +11,9 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AcompanhamentoMeta, DiagnosticoMes, ComoFecharMeta } from "@/components/marketing/AcompanhamentoMeta";
 import { MESES } from "@/hooks/usePlanejamentoMensal";
+import { useMetaCriativos } from "@/components/marketing/metaCriativos";
+import { FunilLeitura, RedFlags } from "@/components/marketing/FunilLeitura";
+import { CriativosTab } from "@/components/marketing/CriativosTab";
 
 const fmtBRL = (n: number) =>
   (n || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 2 });
