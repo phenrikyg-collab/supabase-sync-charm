@@ -4,8 +4,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { toast } from "@/hooks/use-toast";
-import { Copy, Link2, Loader2 } from "lucide-react";
+import { Copy, Link2, Loader2, Plus, Trash2 } from "lucide-react";
 import { formatarValorParaAPI } from "@/components/atendimento/CobrancaPix";
 
 const EXTERNAL_SUPABASE_URL = "https://ezdtulcrqzmgocamjwwl.supabase.co";
@@ -16,14 +17,24 @@ type RespostaLink = {
   url?: string;
   link?: string;
   payment_url?: string;
+  link_pagamento?: string;
   erro?: string;
   error?: string;
 };
 
+export type ItemCarrinho = {
+  descricao: string;
+  valor_unitario: string;
+  quantidade: number;
+};
+
 export async function criarLinkPagamento(payload: {
-  valor: string;
+  valor?: string;
+  itens?: ItemCarrinho[];
+  valor_frete?: string;
   customer_email: string;
   descricao?: string;
+  order_number?: string;
   conversa_id?: string | number;
 }): Promise<string> {
   let response: Response;
@@ -50,10 +61,18 @@ export async function criarLinkPagamento(payload: {
   if (!response.ok || resposta.ok === false) {
     throw new Error(resposta.erro || resposta.error || `HTTP ${response.status}: ${texto || "sem detalhes"}`);
   }
-  const url = resposta.url || resposta.link || resposta.payment_url;
+  const url = resposta.link_pagamento || resposta.url || resposta.link || resposta.payment_url;
   if (!url) throw new Error("O endpoint não retornou o link de pagamento.");
   return url;
 }
+
+function paraNumero(valor: string) {
+  const n = parseFloat(formatarValorParaAPI(valor || "0"));
+  return Number.isFinite(n) ? n : 0;
+}
+
+const moeda = (v: number) =>
+  v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
 function ResultadoLink({ url }: { url: string }) {
   return (
@@ -91,24 +110,57 @@ function FormularioLink({
   emailInicial?: string | null;
   compacto?: boolean;
 }) {
+  const [modo, setModo] = useState<"unico" | "carrinho">("unico");
   const [valor, setValor] = useState("");
   const [email, setEmail] = useState(emailInicial ?? "");
   const [descricao, setDescricao] = useState("");
+  const [pedido, setPedido] = useState("");
+  const [frete, setFrete] = useState("");
+  const [itens, setItens] = useState<ItemCarrinho[]>([
+    { descricao: "", valor_unitario: "", quantidade: 1 },
+  ]);
   const [gerando, setGerando] = useState(false);
   const [url, setUrl] = useState("");
   const [erro, setErro] = useState("");
+
+  const emailValido = /\S+@\S+\.\S+/.test(email.trim());
+  const totalCarrinho =
+    itens.reduce((acc, i) => acc + paraNumero(i.valor_unitario) * (i.quantidade || 0), 0) +
+    paraNumero(frete);
+  const itensValidos = itens.filter(
+    (i) => i.descricao.trim() && paraNumero(i.valor_unitario) > 0 && i.quantidade > 0,
+  );
+
+  const valido =
+    emailValido &&
+    (modo === "unico" ? valor.trim().length > 0 : itensValidos.length > 0);
+
+  const atualizarItem = (index: number, patch: Partial<ItemCarrinho>) =>
+    setItens((prev) => prev.map((it, i) => (i === index ? { ...it, ...patch } : it)));
 
   const gerar = async () => {
     setGerando(true);
     setErro("");
     setUrl("");
     try {
-      const link = await criarLinkPagamento({
-        valor: formatarValorParaAPI(valor),
+      const base = {
         customer_email: email.trim(),
-        descricao: descricao.trim() || undefined,
+        order_number: pedido.trim() || undefined,
         conversa_id: conversaId,
-      });
+      };
+      const link = await criarLinkPagamento(
+        modo === "unico"
+          ? { ...base, valor: formatarValorParaAPI(valor), descricao: descricao.trim() || undefined }
+          : {
+              ...base,
+              itens: itensValidos.map((i) => ({
+                descricao: i.descricao.trim(),
+                valor_unitario: formatarValorParaAPI(i.valor_unitario),
+                quantidade: i.quantidade,
+              })),
+              valor_frete: formatarValorParaAPI(frete || "0"),
+            },
+      );
       setUrl(link);
       toast({ title: "Link de pagamento gerado" });
     } catch (e) {
@@ -120,41 +172,140 @@ function FormularioLink({
     }
   };
 
-  const valido = valor.trim().length > 0 && /\S+@\S+\.\S+/.test(email.trim());
+  const camposComuns = (
+    <div className={compacto ? "space-y-3" : "grid gap-3 sm:grid-cols-2"}>
+      <div className="space-y-1.5">
+        <Label htmlFor="link-email">E-mail da cliente</Label>
+        <Input
+          id="link-email"
+          type="email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          placeholder="cliente@email.com"
+        />
+      </div>
+      <div className="space-y-1.5">
+        <Label htmlFor="link-pedido">Pedido (opcional)</Label>
+        <Input
+          id="link-pedido"
+          value={pedido}
+          onChange={(e) => setPedido(e.target.value)}
+          placeholder="55332"
+        />
+      </div>
+    </div>
+  );
 
   return (
     <div className="space-y-3">
-      <div className={compacto ? "space-y-3" : "grid gap-3 sm:grid-cols-3"}>
-        <div className="space-y-1.5">
-          <Label htmlFor="link-valor">Valor (R$)</Label>
-          <Input
-            id="link-valor"
-            value={valor}
-            onChange={(e) => setValor(e.target.value)}
-            placeholder="150.00"
-            inputMode="decimal"
-          />
-        </div>
-        <div className="space-y-1.5">
-          <Label htmlFor="link-email">E-mail da cliente</Label>
-          <Input
-            id="link-email"
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder="cliente@email.com"
-          />
-        </div>
-        <div className="space-y-1.5">
-          <Label htmlFor="link-descricao">Descrição (opcional)</Label>
-          <Input
-            id="link-descricao"
-            value={descricao}
-            onChange={(e) => setDescricao(e.target.value)}
-            placeholder="Pedido 12345"
-          />
-        </div>
-      </div>
+      <Tabs value={modo} onValueChange={(v) => setModo(v as "unico" | "carrinho")}>
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="unico">Item único</TabsTrigger>
+          <TabsTrigger value="carrinho">Carrinho (vários itens)</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="unico" className="mt-3 space-y-3">
+          <div className={compacto ? "space-y-3" : "grid gap-3 sm:grid-cols-2"}>
+            <div className="space-y-1.5">
+              <Label htmlFor="link-valor">Valor (R$)</Label>
+              <Input
+                id="link-valor"
+                value={valor}
+                onChange={(e) => setValor(e.target.value)}
+                placeholder="150.00"
+                inputMode="decimal"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="link-descricao">Descrição (opcional)</Label>
+              <Input
+                id="link-descricao"
+                value={descricao}
+                onChange={(e) => setDescricao(e.target.value)}
+                placeholder="Pedido 12345"
+              />
+            </div>
+          </div>
+          {camposComuns}
+        </TabsContent>
+
+        <TabsContent value="carrinho" className="mt-3 space-y-3">
+          <div className="space-y-2">
+            {itens.map((item, index) => (
+              <div key={index} className="grid grid-cols-[1fr_100px_70px_auto] items-end gap-2">
+                <div className="space-y-1.5">
+                  {index === 0 && <Label className="text-xs">Descrição</Label>}
+                  <Input
+                    value={item.descricao}
+                    onChange={(e) => atualizarItem(index, { descricao: e.target.value })}
+                    placeholder="Calça Modeladora Anna"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  {index === 0 && <Label className="text-xs">Valor un.</Label>}
+                  <Input
+                    value={item.valor_unitario}
+                    onChange={(e) => atualizarItem(index, { valor_unitario: e.target.value })}
+                    placeholder="229.00"
+                    inputMode="decimal"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  {index === 0 && <Label className="text-xs">Qtd</Label>}
+                  <Input
+                    type="number"
+                    min={1}
+                    value={item.quantidade}
+                    onChange={(e) =>
+                      atualizarItem(index, { quantidade: Math.max(1, Number(e.target.value) || 1) })
+                    }
+                  />
+                </div>
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  disabled={itens.length === 1}
+                  onClick={() => setItens((prev) => prev.filter((_, i) => i !== index))}
+                  aria-label="Remover item"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </div>
+            ))}
+          </div>
+
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() =>
+              setItens((prev) => [...prev, { descricao: "", valor_unitario: "", quantidade: 1 }])
+            }
+          >
+            <Plus className="mr-2 h-3.5 w-3.5" />
+            Adicionar item
+          </Button>
+
+          <div className={compacto ? "space-y-3" : "grid gap-3 sm:grid-cols-2"}>
+            <div className="space-y-1.5">
+              <Label htmlFor="link-frete">Frete (R$)</Label>
+              <Input
+                id="link-frete"
+                value={frete}
+                onChange={(e) => setFrete(e.target.value)}
+                placeholder="15.00"
+                inputMode="decimal"
+              />
+            </div>
+          </div>
+          {camposComuns}
+
+          <div className="flex items-center justify-between rounded-md border border-border bg-muted/40 px-3 py-2">
+            <span className="text-xs text-muted-foreground">Total do carrinho</span>
+            <span className="text-sm font-semibold text-foreground">{moeda(totalCarrinho)}</span>
+          </div>
+        </TabsContent>
+      </Tabs>
+
       <Button onClick={gerar} disabled={gerando || !valido} className={compacto ? "w-full" : undefined}>
         {gerando ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Link2 className="mr-2 h-4 w-4" />}
         Gerar link de pagamento
@@ -176,7 +327,7 @@ export function LinkPagamentoCard() {
       <div>
         <h3 className="text-sm font-semibold text-foreground">Gerar link de pagamento</h3>
         <p className="text-xs text-muted-foreground">
-          Link de checkout (Vindi) — a cliente pode pagar com cartão ou boleto. O status atualiza sozinho.
+          Link de checkout — item único ou carrinho com vários itens e frete. O status atualiza sozinho.
         </p>
       </div>
       <FormularioLink />
@@ -200,7 +351,7 @@ export function LinkPagamentoDialog({
 }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-sm">
+      <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Gerar link de pagamento</DialogTitle>
           <DialogDescription>
