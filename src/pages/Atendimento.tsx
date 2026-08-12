@@ -177,6 +177,8 @@ export default function Atendimento() {
   const [abaPagina, setAbaPagina] = useState<"conversas" | "cobrancas" | "consulta">("conversas");
   const [cobrancaAberta, setCobrancaAberta] = useState(false);
   const [linkPagamentoAberto, setLinkPagamentoAberto] = useState(false);
+  const [freteAberto, setFreteAberto] = useState(false);
+
 
 
   const [filtroLeitura, setFiltroLeitura] = useState<"todas" | "nao_lidas" | "lidas">("todas");
