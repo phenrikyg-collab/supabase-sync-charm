@@ -1271,6 +1271,14 @@ export default function Marketing() {
 
           )}
         </TabsContent>
+
+        {/* ===== CRIATIVOS ===== */}
+        <TabsContent value="criativos" className="space-y-6">
+          <div className="flex justify-end">
+            {renderPeriodoDias(diasCriativo, setDiasCriativo)}
+          </div>
+          <CriativosTab dias={diasCriativo} criativos={criativosRpc} loading={loadingCriativos} />
+        </TabsContent>
       </Tabs>
 
     </div>
