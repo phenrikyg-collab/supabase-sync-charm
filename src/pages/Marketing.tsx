@@ -11,7 +11,9 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AcompanhamentoMeta, DiagnosticoMes, ComoFecharMeta } from "@/components/marketing/AcompanhamentoMeta";
 import { MESES } from "@/hooks/usePlanejamentoMensal";
-import { useMetaCriativos } from "@/components/marketing/metaCriativos";
+import { useMetaCriativos, useMetaCampanhas } from "@/components/marketing/metaCriativos";
+import { CampanhasSecao, MetricasComplementares, OportunidadesEscala, ResumoProximosPassos } from "@/components/marketing/CampanhasMeta";
+
 import { FunilLeitura, RedFlags } from "@/components/marketing/FunilLeitura";
 import { CriativosTab } from "@/components/marketing/CriativosTab";
 
