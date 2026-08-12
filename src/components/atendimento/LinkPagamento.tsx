@@ -276,60 +276,106 @@ function FormularioLink({
         </TabsContent>
 
         <TabsContent value="carrinho" className="mt-3 space-y-3">
+          <div className="space-y-1.5">
+            <Label className="text-xs">Buscar produto no catálogo</Label>
+            <BuscaProduto onSelecionar={adicionarProduto} />
+          </div>
+
           <div className="space-y-2">
+            {itens.length === 0 && (
+              <p className="rounded-md border border-dashed border-border p-3 text-xs text-muted-foreground">
+                Nenhum item no carrinho. Busque um produto acima ou adicione um item avulso.
+              </p>
+            )}
             {itens.map((item, index) => (
-              <div key={index} className="grid grid-cols-[1fr_100px_70px_auto] items-end gap-2">
-                <div className="space-y-1.5">
-                  {index === 0 && <Label className="text-xs">Descrição</Label>}
-                  <Input
-                    value={item.descricao}
-                    onChange={(e) => atualizarItem(index, { descricao: e.target.value })}
-                    placeholder="Calça Modeladora Anna"
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  {index === 0 && <Label className="text-xs">Valor un.</Label>}
-                  <Input
-                    value={item.valor_unitario}
-                    onChange={(e) => atualizarItem(index, { valor_unitario: e.target.value })}
-                    placeholder="229.00"
-                    inputMode="decimal"
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  {index === 0 && <Label className="text-xs">Qtd</Label>}
-                  <Input
-                    type="number"
-                    min={1}
-                    value={item.quantidade}
-                    onChange={(e) =>
-                      atualizarItem(index, { quantidade: Math.max(1, Number(e.target.value) || 1) })
-                    }
-                  />
-                </div>
-                <Button
-                  size="icon"
-                  variant="ghost"
-                  disabled={itens.length === 1}
-                  onClick={() => setItens((prev) => prev.filter((_, i) => i !== index))}
-                  aria-label="Remover item"
-                >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
+              <div key={index} className="rounded-md border border-border p-2">
+                {item.produto_id ? (
+                  <div className="flex items-center gap-2">
+                    <div className="h-10 w-10 shrink-0 overflow-hidden rounded bg-muted">
+                      {item.imagem ? (
+                        <img src={item.imagem} alt={item.nome} className="h-full w-full object-cover" />
+                      ) : null}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-xs font-medium">{item.nome}</p>
+                      <p className="text-[11px] text-muted-foreground">
+                        catálogo #{String(item.produto_id)} · {moedaBR(item.preco_catalogo)}
+                      </p>
+                    </div>
+                    <Input
+                      type="number"
+                      min={1}
+                      className="w-16"
+                      value={item.quantidade}
+                      onChange={(e) =>
+                        atualizarItem(index, { quantidade: Math.max(1, Number(e.target.value) || 1) })
+                      }
+                      aria-label="Quantidade"
+                    />
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      onClick={() => setItens((prev) => prev.filter((_, i) => i !== index))}
+                      aria-label="Remover item"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-[1fr_100px_70px_auto] items-end gap-2">
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">Descrição (avulso)</Label>
+                      <Input
+                        value={item.descricao}
+                        onChange={(e) => atualizarItem(index, { descricao: e.target.value })}
+                        placeholder="Taxa extra"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">Valor un.</Label>
+                      <Input
+                        value={item.valor_unitario}
+                        onChange={(e) => atualizarItem(index, { valor_unitario: e.target.value })}
+                        placeholder="229.00"
+                        inputMode="decimal"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">Qtd</Label>
+                      <Input
+                        type="number"
+                        min={1}
+                        value={item.quantidade}
+                        onChange={(e) =>
+                          atualizarItem(index, { quantidade: Math.max(1, Number(e.target.value) || 1) })
+                        }
+                      />
+                    </div>
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      onClick={() => setItens((prev) => prev.filter((_, i) => i !== index))}
+                      aria-label="Remover item"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                )}
               </div>
             ))}
           </div>
 
           <Button
             size="sm"
-            variant="outline"
+            variant="ghost"
             onClick={() =>
               setItens((prev) => [...prev, { descricao: "", valor_unitario: "", quantidade: 1 }])
             }
           >
             <Plus className="mr-2 h-3.5 w-3.5" />
-            Adicionar item
+            Adicionar item sem catálogo
           </Button>
+
 
           <div className={compacto ? "space-y-3" : "grid gap-3 sm:grid-cols-2"}>
             <div className="space-y-1.5">
