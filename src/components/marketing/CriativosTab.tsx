@@ -202,6 +202,8 @@ function DetalheCriativo({ c, dias, onClose }: { c: CriativoPeriodo | null; dias
     { label: "CPM", atual: brl(c.cpm), anterior: brl(c.prev_cpm) },
     { label: "CPA", atual: n(c.purchases) > 0 ? brl(c.cpa) : "—", anterior: brl(c.prev_cpa) },
     { label: "ROAS", atual: roasFmt(c.roas), anterior: roasFmt(c.prev_roas) },
+    { label: "Frequência", atual: freqFmt(c.frequency), anterior: "—" },
+
   ];
 
   return (
