@@ -5,7 +5,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Skeleton } from "@/components/ui/skeleton";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { ExternalLink, Film, Image as ImageIcon, LayoutGrid, ShoppingBag } from "lucide-react";
+import { ExternalLink, Film, Image as ImageIcon, LayoutGrid, Play, ShoppingBag } from "lucide-react";
 import { CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { cn } from "@/lib/utils";
 import { Delta, NivelBadge } from "./FunilLeitura";
@@ -43,25 +43,38 @@ function IconeFormato({ formato, className }: { formato: string | null; classNam
 
 function Thumb({ c, alto }: { c: CriativoPeriodo; alto?: boolean }) {
   const [erro, setErro] = useState(false);
-  const altura = alto ? "h-64" : "h-[160px]";
-  const link = c.instagram_permalink || c.thumbnail_url || null;
+  const temOriginal = !!c.image_url;
+  const src = temOriginal ? c.image_url : c.thumbnail_url;
+  const link = c.instagram_permalink || c.image_url || c.thumbnail_url || null;
   const arred = alto ? "rounded-lg" : "rounded-t-lg";
+  const video = isVideo(c.formato);
   return (
-    <div className={cn("relative w-full overflow-hidden bg-muted", altura, arred)}>
-      {!c.thumbnail_url || erro ? (
+    <div
+      className={cn("relative w-full overflow-hidden bg-background", arred)}
+      style={{ aspectRatio: temOriginal ? "4 / 5" : "1 / 1" }}
+    >
+      {!src || erro ? (
         <div className="flex h-full w-full flex-col items-center justify-center gap-1.5 text-muted-foreground">
           <IconeFormato formato={c.formato} className="h-8 w-8" />
           <span className="text-xs">Prévia indisponível</span>
         </div>
       ) : (
         <img
-          src={c.thumbnail_url}
+          src={src}
           alt={c.ad_name || "Criativo"}
           loading="lazy"
           referrerPolicy="no-referrer"
           onError={() => setErro(true)}
-          className="h-full w-full object-cover"
+          className={cn(
+            "h-full w-full",
+            temOriginal ? "object-contain" : "object-cover"
+          )}
         />
+      )}
+      {!temOriginal && video && (
+        <span className="absolute left-2 top-2 inline-flex items-center gap-1 rounded-full bg-background/90 px-2 py-0.5 text-[10px] font-semibold backdrop-blur">
+          <Play className="h-2.5 w-2.5 fill-current" /> vídeo
+        </span>
       )}
       {link && (
         <a
