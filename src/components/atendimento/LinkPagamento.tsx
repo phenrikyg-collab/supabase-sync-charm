@@ -90,8 +90,12 @@ export async function criarLinkPagamento(payload: {
 
 
 function paraNumero(valor: string) {
-  const n = parseFloat(formatarValorParaAPI(valor || "0"));
-  return Number.isFinite(n) ? n : 0;
+  try {
+    const n = parseFloat(formatarValorParaAPI(valor || "0"));
+    return Number.isFinite(n) ? n : 0;
+  } catch {
+    return 0;
+  }
 }
 
 const moeda = (v: number) =>
