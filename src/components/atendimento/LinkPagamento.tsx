@@ -402,7 +402,26 @@ function FormularioLink({
         {gerando ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Link2 className="mr-2 h-4 w-4" />}
         Gerar link de pagamento
       </Button>
+      {resolvidos.length > 0 && (
+        <div className="space-y-1.5 rounded-md border border-border bg-muted/40 p-3">
+          <p className="text-xs font-semibold text-foreground">Itens usados no link (preços reais)</p>
+          {resolvidos.map((it, i) => {
+            const preco = Number(it.valor_unitario ?? it.preco ?? 0);
+            return (
+              <div key={i} className="flex items-center justify-between gap-2 text-xs">
+                <span className="truncate text-muted-foreground">
+                  {it.quantidade ?? 1}× {it.nome || it.descricao || `#${it.produto_id ?? ""}`}
+                </span>
+                <span className="font-medium text-foreground">
+                  {moedaBR(Number(it.total ?? preco * (it.quantidade ?? 1)))}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      )}
       {url && <ResultadoLink url={url} />}
+
       {erro && (
         <div role="alert" className="rounded-md border border-destructive/30 bg-destructive/5 p-3">
           <p className="break-words text-xs text-destructive">{erro}</p>
