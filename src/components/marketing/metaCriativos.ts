@@ -70,6 +70,62 @@ export interface DiversidadeLinha {
   roas: number | null;
 }
 
+export interface CampanhaPeriodo {
+  campaign_id: string;
+  campaign_name: string | null;
+  status: string | null;
+  objetivo: string | null;
+  publico: string | null;
+  targeting_resumo?: string | null;
+  investimento: number | null;
+  impressions: number | null;
+  reach: number | null;
+  frequency: number | null;
+  link_clicks: number | null;
+  cps: number | null;
+  cpm: number | null;
+  ctr_link: number | null;
+  add_to_cart: number | null;
+  initiate_checkout: number | null;
+  purchases: number | null;
+  conversao_rate: number | null;
+  receita: number | null;
+  cpa: number | null;
+  roas: number | null;
+  prev_investimento: number | null;
+  prev_cps: number | null;
+  prev_cpm: number | null;
+  prev_ctr_link: number | null;
+  prev_conversao: number | null;
+  prev_cpa: number | null;
+  prev_roas: number | null;
+}
+
+/** Rótulos e cores da classificação de público. */
+export const PUBLICO_BADGE: Record<string, string> = {
+  "Novo (frio)": "bg-blue-500/10 text-blue-600 border-blue-500/20",
+  "Novo (Lookalike)": "bg-sky-400/10 text-sky-600 border-sky-400/20",
+  Engajado: "bg-orange-500/10 text-orange-600 border-orange-500/20",
+  Clientes: "bg-success/10 text-success border-success/20",
+  Misto: "bg-muted text-muted-foreground border-border",
+  Indefinido: "bg-muted text-muted-foreground border-border",
+};
+
+export const PUBLICOS_FRIOS = ["Novo (frio)", "Novo (Lookalike)"];
+
+/** Campanha pronta para escalar: público frio, CPS bom, CPM saudável, convertendo e ROAS ok. */
+export function ehOportunidadeEscala(c: CampanhaPeriodo) {
+  const frio = PUBLICOS_FRIOS.includes(c.publico || "");
+  const cpsOk = c.cps !== null && n(c.cps) > 0 && n(c.cps) <= 1.5;
+  const cpmOk = c.cpm !== null && n(c.cpm) >= 12 && n(c.cpm) <= 20;
+  const convOk =
+    n(c.conversao_rate) >= 1 ||
+    (n(c.purchases) === 0 && n(c.link_clicks) > 0 && (n(c.add_to_cart) / n(c.link_clicks)) * 100 >= 3);
+  const roasOk = n(c.roas) >= 2 || (n(c.purchases) === 0 && convOk);
+  return frio && cpsOk && cpmOk && convOk && roasOk;
+}
+
+
 // ===== Formatação pt-BR =====
 export const n = (v: unknown) => (v === null || v === undefined || Number.isNaN(Number(v)) ? 0 : Number(v));
 export const brl = (v: number | null | undefined) =>
