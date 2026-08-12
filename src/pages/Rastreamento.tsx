@@ -342,7 +342,17 @@ export default function Rastreamento() {
   };
 
   return (
-    <div className="space-y-6">
+    <Tabs defaultValue="ao-vivo" className="space-y-6">
+      <TabsList>
+        <TabsTrigger value="ao-vivo">Visitantes ao Vivo</TabsTrigger>
+        <TabsTrigger value="oportunidades">Oportunidades</TabsTrigger>
+      </TabsList>
+
+      <TabsContent value="oportunidades">
+        <Oportunidades />
+      </TabsContent>
+
+      <TabsContent value="ao-vivo" className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-3">
           <Radar className="h-6 w-6 text-primary" />
