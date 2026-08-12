@@ -22,6 +22,7 @@ import Producao from "./pages/Producao";
 
 import Financeiro from "./pages/Financeiro";
 import TransacoesSite from "./pages/TransacoesSite";
+import ProvaSocial from "./pages/ProvaSocial";
 import ContasPagar from "./pages/ContasPagar";
 import ContasReceber from "./pages/ContasReceber";
 import DRE from "./pages/DRE";
@@ -177,6 +178,7 @@ const AppRoutes = () => {
               <Route path="/importar-extrato" element={<ImportarExtrato />} />
               <Route path="/faturas" element={<Faturas />} />
               <Route path="/transacoes-site" element={<TransacoesSite />} />
+              <Route path="/prova-social" element={<ProvaSocial />} />
               <Route path="/fluxo-caixa" element={<FluxoCaixa />} />
               <Route path="/importar" element={<ImportarPage />} />
               <Route path="/metas" element={<Metas />} />
