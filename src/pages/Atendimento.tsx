@@ -917,6 +917,14 @@ export default function Atendimento() {
           nomeCliente={nomeConversa(conversaAtual)}
         />
       )}
+      {conversaAtual && (
+        <CalcularFreteDialog
+          open={freteAberto}
+          onOpenChange={setFreteAberto}
+          nomeCliente={nomeConversa(conversaAtual)}
+        />
+      )}
+
     </div>
 
   );
