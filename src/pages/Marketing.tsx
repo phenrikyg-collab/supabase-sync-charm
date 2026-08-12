@@ -11,6 +11,9 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AcompanhamentoMeta, DiagnosticoMes, ComoFecharMeta } from "@/components/marketing/AcompanhamentoMeta";
 import { MESES } from "@/hooks/usePlanejamentoMensal";
+import { useMetaCriativos } from "@/components/marketing/metaCriativos";
+import { FunilLeitura, RedFlags } from "@/components/marketing/FunilLeitura";
+import { CriativosTab } from "@/components/marketing/CriativosTab";
 
 const fmtBRL = (n: number) =>
   (n || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 2 });
@@ -108,6 +111,8 @@ export default function Marketing() {
   const [periodoProdutos, setPeriodoProdutos] = useState("30dias");
   const [periodoCanais, setPeriodoCanais] = useState("30dias");
   const [periodoMeta, setPeriodoMeta] = useState("30dias");
+  const [diasCriativo, setDiasCriativo] = useState(30);
+  const { data: criativosRpc, loading: loadingCriativos } = useMetaCriativos(diasCriativo);
   const hoje = new Date();
   const [metaAno, setMetaAno] = useState(hoje.getFullYear());
   const [metaMes, setMetaMes] = useState(hoje.getMonth() + 1);
@@ -627,6 +632,17 @@ export default function Marketing() {
   }, [windsorCanaisAgg]);
 
 
+  const renderPeriodoDias = (value: number, onChange: (v: number) => void) => (
+    <Select value={String(value)} onValueChange={(v) => onChange(Number(v))}>
+      <SelectTrigger className="w-[200px]"><SelectValue /></SelectTrigger>
+      <SelectContent>
+        {[7, 14, 30, 90].map((d) => (
+          <SelectItem key={d} value={String(d)}>Últimos {d} dias</SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  );
+
   const renderPeriodo = (value: string, onChange: (v: string) => void, options: { value: string; label: string }[]) => (
     <Select value={value} onValueChange={onChange}>
       <SelectTrigger className="w-[220px]"><SelectValue /></SelectTrigger>
@@ -652,6 +668,7 @@ export default function Marketing() {
           <TabsTrigger value="windsor-produtos">Produtos - Mariana Cardoso</TabsTrigger>
           <TabsTrigger value="windsor-canais">Sessões por Canal - Mariana Cardoso</TabsTrigger>
           <TabsTrigger value="meta-ads">Meta Ads</TabsTrigger>
+          <TabsTrigger value="criativos">Criativos</TabsTrigger>
         </TabsList>
 
         {/* ===== ACOMPANHAMENTO DA META ===== */}
@@ -955,9 +972,15 @@ export default function Marketing() {
         </TabsContent>
         {/* ===== META ADS ===== */}
         <TabsContent value="meta-ads" className="space-y-6">
-          <div className="flex justify-end">
+          <div className="flex justify-end gap-3 flex-wrap">
+            {renderPeriodoDias(diasCriativo, setDiasCriativo)}
             {renderPeriodo(periodoMeta, setPeriodoMeta, PERIODOS_EXT)}
           </div>
+
+          <FunilLeitura dias={diasCriativo} />
+          <RedFlags dias={diasCriativo} criativos={criativosRpc} loading={loadingCriativos} />
+
+
 
           {loadingMeta ? (
             <>
@@ -1247,6 +1270,14 @@ export default function Marketing() {
             </>
 
           )}
+        </TabsContent>
+
+        {/* ===== CRIATIVOS ===== */}
+        <TabsContent value="criativos" className="space-y-6">
+          <div className="flex justify-end">
+            {renderPeriodoDias(diasCriativo, setDiasCriativo)}
+          </div>
+          <CriativosTab dias={diasCriativo} criativos={criativosRpc} loading={loadingCriativos} />
         </TabsContent>
       </Tabs>
 
