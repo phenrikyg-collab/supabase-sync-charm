@@ -972,13 +972,18 @@ export default function Marketing() {
         </TabsContent>
         {/* ===== META ADS ===== */}
         <TabsContent value="meta-ads" className="space-y-6">
-          <div className="flex justify-end gap-3 flex-wrap">
+          <div className="flex items-center justify-end gap-3 flex-wrap">
+            <span className="text-sm text-muted-foreground">Período de análise:</span>
             {renderPeriodoDias(diasCriativo, setDiasCriativo)}
             {renderPeriodo(periodoMeta, setPeriodoMeta, PERIODOS_EXT)}
           </div>
 
+          <ResumoProximosPassos campanhas={campanhasRpc} loading={loadingCampanhas} />
+          <MetricasComplementares campanhas={campanhasRpc} loading={loadingCampanhas} />
           <FunilLeitura dias={diasCriativo} />
           <RedFlags dias={diasCriativo} criativos={criativosRpc} loading={loadingCriativos} />
+          <OportunidadesEscala campanhas={campanhasRpc} loading={loadingCampanhas} />
+
 
 
 
