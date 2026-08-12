@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils";
 import { formatarData } from "@/utils/formatters";
 import { ExternalLink, Loader2, Search } from "lucide-react";
 import { statusPagamentoClasses, rotuloStatusPagamento } from "@/lib/statusPagamento";
+import { ListaTransacoesAtendimento } from "@/components/atendimento/ListaTransacoes";
 
 interface ResultadoConsulta {
   pedido_id: string | number;
@@ -51,7 +52,8 @@ export function ConsultarTransacaoTab() {
   };
 
   return (
-    <div className="max-w-3xl space-y-4">
+    <div className="space-y-4">
+      <div className="max-w-3xl space-y-4">
       <Card className="space-y-4 p-4">
         <div>
           <h3 className="text-sm font-semibold text-foreground">Consultar transação</h3>
@@ -127,6 +129,9 @@ export function ConsultarTransacaoTab() {
           </Card>
         );
       })}
+      </div>
+
+      <ListaTransacoesAtendimento />
     </div>
   );
 }
