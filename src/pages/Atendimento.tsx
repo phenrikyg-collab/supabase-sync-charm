@@ -708,6 +708,11 @@ export default function Atendimento() {
                     <Link2 className="h-4 w-4 mr-2" />
                     Gerar link de pagamento
                   </Button>
+                  <Button size="sm" variant="outline" onClick={() => setFreteAberto(true)}>
+                    <Truck className="h-4 w-4 mr-2" />
+                    Calcular frete
+                  </Button>
+
                   <Button size="sm" variant="default" onClick={() => assumir.mutate()} disabled={assumir.isPending}>
                     <UserCheck className="h-4 w-4 mr-2" />
                     Assumir conversa
