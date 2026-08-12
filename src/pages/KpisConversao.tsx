@@ -119,16 +119,21 @@ export default function KpisConversao() {
   const funil = useMemo(() => {
     const linhas = regua.data ?? [];
     const totais = ETAPAS.map((e) => linhas.reduce((s, r) => s + pega(r, e.keys), 0));
-    const max = Math.max(...totais, 1);
+    const base = totais[0] || Math.max(...totais, 1);
     return ETAPAS.map((e, i) => ({
       label: e.label,
       valor: totais[i],
-      largura: Math.max((totais[i] / max) * 100, 2),
+      largura: totais[i] > 0 ? Math.max((totais[i] / base) * 100, 3) : 0,
       passagem: i === 0 ? null : totais[i - 1] > 0 ? (totais[i] / totais[i - 1]) * 100 : 0,
     }));
   }, [regua.data]);
 
-  const prioridade = (perdas.data ?? [])[0];
+  const perdasOrdenadas = useMemo(
+    () => [...(perdas.data ?? [])].sort((a, b) => pega(b, ["perda_relativa_pct", "perda_relativa"]) - pega(a, ["perda_relativa_pct", "perda_relativa"])),
+    [perdas.data],
+  );
+  const prioridade = perdasOrdenadas[0];
+
 
   const canaisAgg = useMemo(() => {
     const mapa = new Map<string, { canal: string; sessoes: number; usuarios: number; novos: number }>();
