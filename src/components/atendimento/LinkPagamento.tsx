@@ -6,21 +6,28 @@ import { Card } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { toast } from "@/hooks/use-toast";
-import { Copy, Link2, Loader2, Plus, Trash2 } from "lucide-react";
+import { Copy, Link2, Loader2, Plus, Trash2, Truck } from "lucide-react";
 import { formatarValorParaAPI } from "@/components/atendimento/CobrancaPix";
 import { BuscaProduto, ProdutoPagamento, moedaBR, precoProduto } from "@/components/atendimento/BuscaProduto";
 
 
 const EXTERNAL_SUPABASE_URL = "https://ezdtulcrqzmgocamjwwl.supabase.co";
 const CRIAR_LINK_URL = `${EXTERNAL_SUPABASE_URL}/functions/v1/criar-link-pagamento`;
+const CALCULAR_FRETE_URL = `${EXTERNAL_SUPABASE_URL}/functions/v1/calcular-frete`;
 
 export type ItemResolvido = {
   nome?: string;
+  name?: string;
+  titulo?: string;
   descricao?: string;
+  description?: string;
   produto_id?: string | number;
+  product_id?: string | number;
   quantidade?: number;
+  quantity?: number;
   valor_unitario?: number | string;
   preco?: number | string;
+  price?: number | string;
   total?: number | string;
 };
 
@@ -33,6 +40,16 @@ type RespostaLink = {
   itens_resolvidos?: ItemResolvido[];
   erro?: string;
   error?: string;
+};
+
+type OpcaoFrete = {
+  id?: string | number;
+  nome?: string;
+  transportadora?: string;
+  valor?: number;
+  prazo_minimo_dias?: number;
+  prazo_maximo_dias?: number;
+  gratis?: boolean;
 };
 
 /** Item enviado ao endpoint: catálogo (produto_id) ou avulso (descricao + valor) */
@@ -54,6 +71,7 @@ export async function criarLinkPagamento(payload: {
   valor?: string;
   itens?: ItemPayload[];
   valor_frete?: string;
+  desconto?: string;
   customer_email: string;
   descricao?: string;
   order_number?: string;
@@ -101,6 +119,19 @@ function paraNumero(valor: string) {
 const moeda = (v: number) =>
   v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
+const nomeResolvido = (it: ItemResolvido) =>
+  it.nome || it.name || it.titulo || it.descricao || it.description || null;
+
+const precoResolvido = (it: ItemResolvido) =>
+  Number(it.valor_unitario ?? it.preco ?? it.price ?? 0);
+
+/** Item de catálogo válido? */
+function itemCompleto(i: ItemCarrinho) {
+  if (i.quantidade <= 0) return false;
+  if (i.produto_id != null && String(i.produto_id).trim() !== "") return true;
+  return i.descricao.trim().length > 0 && paraNumero(i.valor_unitario) > 0;
+}
+
 function ResultadoLink({ url }: { url: string }) {
   return (
     <div className="space-y-2 rounded-md border border-border bg-muted/40 p-3">
@@ -143,6 +174,11 @@ function FormularioLink({
   const [descricao, setDescricao] = useState("");
   const [pedido, setPedido] = useState("");
   const [frete, setFrete] = useState("");
+  const [desconto, setDesconto] = useState("");
+  const [cep, setCep] = useState("");
+  const [opcoesFrete, setOpcoesFrete] = useState<OpcaoFrete[]>([]);
+  const [freteSelecionado, setFreteSelecionado] = useState<number | null>(null);
+  const [calculandoFrete, setCalculandoFrete] = useState(false);
   const [itens, setItens] = useState<ItemCarrinho[]>([]);
   const [gerando, setGerando] = useState(false);
   const [url, setUrl] = useState("");
@@ -152,34 +188,91 @@ function FormularioLink({
   const emailValido = /\S+@\S+\.\S+/.test(email.trim());
   const precoItem = (i: ItemCarrinho) =>
     i.produto_id ? i.preco_catalogo ?? 0 : paraNumero(i.valor_unitario);
-  const totalCarrinho =
-    itens.reduce((acc, i) => acc + precoItem(i) * (i.quantidade || 0), 0) + paraNumero(frete);
-  const itensValidos = itens.filter(
-    (i) =>
-      i.quantidade > 0 &&
-      (i.produto_id ? true : i.descricao.trim() && paraNumero(i.valor_unitario) > 0),
-  );
+  const subtotal = itens.reduce((acc, i) => acc + precoItem(i) * (i.quantidade || 0), 0);
+  const totalCarrinho = Math.max(subtotal + paraNumero(frete) - paraNumero(desconto), 0);
+  const itensIncompletos = itens.filter((i) => !itemCompleto(i));
+  const carrinhoValido = itens.length > 0 && itensIncompletos.length === 0;
 
   const valido =
-    emailValido &&
-    (modo === "unico" ? valor.trim().length > 0 : itensValidos.length > 0);
+    emailValido && (modo === "unico" ? valor.trim().length > 0 : carrinhoValido);
 
   const atualizarItem = (index: number, patch: Partial<ItemCarrinho>) =>
     setItens((prev) => prev.map((it, i) => (i === index ? { ...it, ...patch } : it)));
 
-  const adicionarProduto = (p: ProdutoPagamento) =>
-    setItens((prev) => [
-      ...prev,
-      {
-        produto_id: p.produto_id,
-        nome: p.nome,
-        imagem: p.imagem ?? null,
-        preco_catalogo: precoProduto(p),
-        descricao: p.nome,
-        valor_unitario: String(precoProduto(p)),
-        quantidade: 1,
-      },
-    ]);
+  const adicionarProduto = (p: ProdutoPagamento) => {
+    if (p?.produto_id == null || String(p.produto_id).trim() === "") {
+      toast({
+        title: "Produto sem identificador",
+        description: "Não foi possível adicionar este produto ao carrinho.",
+        variant: "destructive",
+      });
+      return;
+    }
+    const preco = precoProduto(p);
+    setItens((prev) => {
+      const existente = prev.findIndex((i) => String(i.produto_id) === String(p.produto_id));
+      if (existente >= 0) {
+        return prev.map((i, idx) => (idx === existente ? { ...i, quantidade: i.quantidade + 1 } : i));
+      }
+      return [
+        ...prev,
+        {
+          produto_id: p.produto_id,
+          nome: p.nome,
+          imagem: p.imagem ?? null,
+          preco_catalogo: preco,
+          descricao: p.nome ?? "",
+          valor_unitario: String(preco ?? 0),
+          quantidade: 1,
+        },
+      ];
+    });
+  };
+
+  const cepLimpo = cep.replace(/\D/g, "");
+  const itensCatalogo = itens.filter((i) => i.produto_id);
+
+  const calcularFrete = async () => {
+    setCalculandoFrete(true);
+    setErro("");
+    setOpcoesFrete([]);
+    setFreteSelecionado(null);
+    try {
+      const r = await fetch(CALCULAR_FRETE_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          cep: cepLimpo,
+          itens: itensCatalogo.map((i) => ({
+            product_id: i.produto_id,
+            price: precoItem(i),
+            quantity: i.quantidade,
+          })),
+        }),
+      });
+      const texto = await r.text();
+      const json = texto ? JSON.parse(texto) : {};
+      if (!r.ok || json.ok === false) {
+        throw new Error(json.erro || json.error || `HTTP ${r.status}`);
+      }
+      const opcoes: OpcaoFrete[] = json.opcoes ?? [];
+      setOpcoesFrete(opcoes);
+      if (opcoes.length === 0) {
+        toast({ title: "Nenhuma opção de entrega para este CEP" });
+      }
+    } catch (e) {
+      const mensagem = e instanceof Error ? e.message : String(e);
+      setErro(mensagem);
+      toast({ title: "Erro ao calcular frete", description: mensagem, variant: "destructive" });
+    } finally {
+      setCalculandoFrete(false);
+    }
+  };
+
+  const selecionarFrete = (i: number, o: OpcaoFrete) => {
+    setFreteSelecionado(i);
+    setFrete(o.gratis ? "0" : String(o.valor ?? 0));
+  };
 
   const gerar = async () => {
     setGerando(true);
@@ -187,6 +280,11 @@ function FormularioLink({
     setUrl("");
     setResolvidos([]);
     try {
+      if (modo === "carrinho" && !carrinhoValido) {
+        throw new Error(
+          "Há itens incompletos no carrinho. Cada item precisa ter um produto do catálogo OU descrição e valor unitário preenchidos.",
+        );
+      }
       const base = {
         customer_email: email.trim(),
         order_number: pedido.trim() || undefined,
@@ -197,7 +295,7 @@ function FormularioLink({
           ? { ...base, valor: formatarValorParaAPI(valor), descricao: descricao.trim() || undefined }
           : {
               ...base,
-              itens: itensValidos.map((i) =>
+              itens: itens.map((i) =>
                 i.produto_id
                   ? { produto_id: i.produto_id, quantidade: i.quantidade }
                   : {
@@ -207,6 +305,7 @@ function FormularioLink({
                     },
               ),
               valor_frete: paraNumero(frete).toFixed(2),
+              desconto: paraNumero(desconto).toFixed(2),
             },
       );
       setUrl(resultado.url);
@@ -292,7 +391,12 @@ function FormularioLink({
               </p>
             )}
             {itens.map((item, index) => (
-              <div key={index} className="rounded-md border border-border p-2">
+              <div
+                key={index}
+                className={`rounded-md border p-2 ${
+                  itemCompleto(item) ? "border-border" : "border-destructive/50 bg-destructive/5"
+                }`}
+              >
                 {item.produto_id ? (
                   <div className="flex items-center gap-2">
                     <div className="h-10 w-10 shrink-0 overflow-hidden rounded bg-muted">
@@ -369,6 +473,13 @@ function FormularioLink({
             ))}
           </div>
 
+          {itensIncompletos.length > 0 && (
+            <p role="alert" className="text-xs text-destructive">
+              {itensIncompletos.length} item(ns) incompleto(s): preencha descrição e valor unitário, escolha um
+              produto do catálogo ou remova o item.
+            </p>
+          )}
+
           <Button
             size="sm"
             variant="ghost"
@@ -380,6 +491,57 @@ function FormularioLink({
             Adicionar item sem catálogo
           </Button>
 
+          <div className="space-y-2 rounded-md border border-border p-3">
+            <Label className="text-xs">Frete por CEP</Label>
+            <div className="flex gap-2">
+              <Input
+                value={cep}
+                onChange={(e) => setCep(e.target.value)}
+                placeholder="01310-100"
+                inputMode="numeric"
+              />
+              <Button
+                type="button"
+                variant="outline"
+                onClick={calcularFrete}
+                disabled={calculandoFrete || cepLimpo.length !== 8 || itensCatalogo.length === 0}
+              >
+                {calculandoFrete ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Truck className="h-4 w-4" />
+                )}
+                <span className="ml-2">Calcular</span>
+              </Button>
+            </div>
+            {itensCatalogo.length === 0 && (
+              <p className="text-[11px] text-muted-foreground">
+                Adicione ao menos um produto do catálogo para calcular o frete.
+              </p>
+            )}
+            {opcoesFrete.map((o, i) => (
+              <button
+                key={i}
+                type="button"
+                onClick={() => selecionarFrete(i, o)}
+                className={`flex w-full items-center justify-between gap-2 rounded-md border p-2 text-left ${
+                  freteSelecionado === i ? "border-primary bg-primary/5" : "border-border hover:bg-muted"
+                }`}
+              >
+                <div className="min-w-0">
+                  <p className="truncate text-xs font-medium">{o.nome || o.transportadora}</p>
+                  <p className="text-[11px] text-muted-foreground">
+                    {o.prazo_minimo_dias != null || o.prazo_maximo_dias != null
+                      ? `${o.prazo_minimo_dias ?? "?"}–${o.prazo_maximo_dias ?? "?"} dias úteis`
+                      : "prazo não informado"}
+                  </p>
+                </div>
+                <span className="text-xs font-semibold text-foreground">
+                  {o.gratis ? "Grátis" : moedaBR(o.valor)}
+                </span>
+              </button>
+            ))}
+          </div>
 
           <div className={compacto ? "space-y-3" : "grid gap-3 sm:grid-cols-2"}>
             <div className="space-y-1.5">
@@ -392,12 +554,36 @@ function FormularioLink({
                 inputMode="decimal"
               />
             </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="link-desconto">Desconto (R$)</Label>
+              <Input
+                id="link-desconto"
+                value={desconto}
+                onChange={(e) => setDesconto(e.target.value)}
+                placeholder="0.00"
+                inputMode="decimal"
+              />
+            </div>
           </div>
           {camposComuns}
 
-          <div className="flex items-center justify-between rounded-md border border-border bg-muted/40 px-3 py-2">
-            <span className="text-xs text-muted-foreground">Total do carrinho</span>
-            <span className="text-sm font-semibold text-foreground">{moeda(totalCarrinho)}</span>
+          <div className="space-y-1 rounded-md border border-border bg-muted/40 px-3 py-2">
+            <div className="flex items-center justify-between text-xs text-muted-foreground">
+              <span>Subtotal</span>
+              <span>{moeda(subtotal)}</span>
+            </div>
+            <div className="flex items-center justify-between text-xs text-muted-foreground">
+              <span>Frete</span>
+              <span>{moeda(paraNumero(frete))}</span>
+            </div>
+            <div className="flex items-center justify-between text-xs text-muted-foreground">
+              <span>Desconto</span>
+              <span>-{moeda(paraNumero(desconto))}</span>
+            </div>
+            <div className="flex items-center justify-between border-t border-border pt-1">
+              <span className="text-xs text-muted-foreground">Total do carrinho</span>
+              <span className="text-sm font-semibold text-foreground">{moeda(totalCarrinho)}</span>
+            </div>
           </div>
         </TabsContent>
       </Tabs>
@@ -410,14 +596,16 @@ function FormularioLink({
         <div className="space-y-1.5 rounded-md border border-border bg-muted/40 p-3">
           <p className="text-xs font-semibold text-foreground">Itens usados no link (preços reais)</p>
           {resolvidos.map((it, i) => {
-            const preco = Number(it.valor_unitario ?? it.preco ?? 0);
+            const preco = precoResolvido(it);
+            const qtd = Number(it.quantidade ?? it.quantity ?? 1);
+            const id = it.produto_id ?? it.product_id;
             return (
               <div key={i} className="flex items-center justify-between gap-2 text-xs">
                 <span className="truncate text-muted-foreground">
-                  {it.quantidade ?? 1}× {it.nome || it.descricao || `#${it.produto_id ?? ""}`}
+                  {qtd}× {nomeResolvido(it) || (id != null ? `Produto #${id}` : "Item")}
                 </span>
                 <span className="font-medium text-foreground">
-                  {moedaBR(Number(it.total ?? preco * (it.quantidade ?? 1)))}
+                  {moedaBR(Number(it.total ?? preco * qtd))}
                 </span>
               </div>
             );
@@ -442,7 +630,7 @@ export function LinkPagamentoCard() {
       <div>
         <h3 className="text-sm font-semibold text-foreground">Gerar link de pagamento</h3>
         <p className="text-xs text-muted-foreground">
-          Link de checkout — item único ou carrinho com vários itens e frete. O status atualiza sozinho.
+          Link de checkout — item único ou carrinho com vários itens, frete e desconto. O status atualiza sozinho.
         </p>
       </div>
       <FormularioLink />
@@ -466,7 +654,7 @@ export function LinkPagamentoDialog({
 }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Gerar link de pagamento</DialogTitle>
           <DialogDescription>
