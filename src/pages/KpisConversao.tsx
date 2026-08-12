@@ -34,12 +34,13 @@ function pega(row: Row | undefined, candidatos: string[]) {
 }
 
 const ETAPAS: { label: string; keys: string[] }[] = [
-  { label: "Sessões", keys: ["sessoes", "sessions", "total_sessoes", "sessoes_totais"] },
-  { label: "Visualização de Produto", keys: ["visualizacao_produto", "view_item", "product_view", "visualizacoes_produto"] },
-  { label: "Carrinho", keys: ["carrinho", "add_to_cart", "adicionou_carrinho"] },
-  { label: "Checkout", keys: ["checkout", "begin_checkout", "checkout_start", "checkouts"] },
-  { label: "Compra", keys: ["compra", "compras", "purchase", "purchases"] },
+  { label: "Sessões", keys: ["sessoes", "sessions", "total_sessoes", "sessoes_totais", "inicio_sessao"] },
+  { label: "Visualização de Produto", keys: ["visualizou_produto", "visualizacao_produto", "view_item", "product_view", "visualizacoes_produto"] },
+  { label: "Carrinho", keys: ["adicionou_carrinho", "carrinho", "add_to_cart"] },
+  { label: "Checkout", keys: ["iniciou_pagamento", "checkout", "begin_checkout", "checkout_start", "checkouts"] },
+  { label: "Compra", keys: ["comprou", "compra", "compras", "purchase", "purchases"] },
 ];
+
 
 export default function KpisConversao() {
   const [periodo, setPeriodo] = useState<Periodo>(periodoUltimosDias(30));
@@ -118,16 +119,21 @@ export default function KpisConversao() {
   const funil = useMemo(() => {
     const linhas = regua.data ?? [];
     const totais = ETAPAS.map((e) => linhas.reduce((s, r) => s + pega(r, e.keys), 0));
-    const max = Math.max(...totais, 1);
+    const base = totais[0] || Math.max(...totais, 1);
     return ETAPAS.map((e, i) => ({
       label: e.label,
       valor: totais[i],
-      largura: Math.max((totais[i] / max) * 100, 2),
+      largura: totais[i] > 0 ? Math.max((totais[i] / base) * 100, 3) : 0,
       passagem: i === 0 ? null : totais[i - 1] > 0 ? (totais[i] / totais[i - 1]) * 100 : 0,
     }));
   }, [regua.data]);
 
-  const prioridade = (perdas.data ?? [])[0];
+  const perdasOrdenadas = useMemo(
+    () => [...(perdas.data ?? [])].sort((a, b) => pega(b, ["perda_relativa_pct", "perda_relativa"]) - pega(a, ["perda_relativa_pct", "perda_relativa"])),
+    [perdas.data],
+  );
+  const prioridade = perdasOrdenadas[0];
+
 
   const canaisAgg = useMemo(() => {
     const mapa = new Map<string, { canal: string; sessoes: number; usuarios: number; novos: number }>();
@@ -227,14 +233,19 @@ export default function KpisConversao() {
             {funil.map((e) => (
               <div key={e.label} className="flex items-center gap-3">
                 <span className="w-48 shrink-0 text-sm text-muted-foreground">{e.label}</span>
-                <div className="h-9 flex-1 rounded-md bg-muted/50">
-                  <div
-                    className="flex h-9 items-center justify-end rounded-md bg-primary/70 px-3 text-sm font-semibold text-primary-foreground transition-all"
-                    style={{ width: `${e.largura}%` }}
-                  >
-                    {fmt(e.valor)}
-                  </div>
+                <div className="flex h-9 flex-1 items-center rounded-md bg-muted/50">
+                  {e.valor > 0 ? (
+                    <div
+                      className="flex h-9 items-center justify-end rounded-md bg-primary/70 px-3 text-sm font-semibold text-primary-foreground transition-all"
+                      style={{ width: `${e.largura}%` }}
+                    >
+                      {fmt(e.valor)}
+                    </div>
+                  ) : (
+                    <span className="px-3 text-sm text-muted-foreground">0</span>
+                  )}
                 </div>
+
                 <span className="w-24 shrink-0 text-right text-xs text-muted-foreground">
                   {e.passagem === null ? "—" : pct(e.passagem)}
                 </span>
@@ -265,7 +276,7 @@ export default function KpisConversao() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {(perdas.data ?? []).map((r, i) => (
+            {perdasOrdenadas.map((r, i) => (
               <TableRow key={i} className={cn(i === 0 && "bg-danger/5")}>
                 <TableCell className="font-medium">
                   {i === 0 && <Badge variant="outline" className="mr-2 border-danger/30 bg-danger/10 text-danger">#1</Badge>}
