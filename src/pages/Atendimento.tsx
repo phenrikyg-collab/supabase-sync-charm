@@ -23,6 +23,8 @@ import { CatalogoDialog, formatarPreco, legendaProduto, type ProdutoCatalogo } f
 import { PerfilCliente } from "@/components/atendimento/PerfilCliente";
 import { AtividadesRecentes } from "@/components/atendimento/AtividadesRecentes";
 import { CobrancaPixDialog, CobrancasTab, CobrancasDaConversa } from "@/components/atendimento/CobrancaPix";
+import { LinkPagamentoCard, LinkPagamentoDialog } from "@/components/atendimento/LinkPagamento";
+import { ConsultarTransacaoTab } from "@/components/atendimento/ConsultarTransacao";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 
@@ -172,8 +174,9 @@ export default function Atendimento() {
   const [selecionada, setSelecionada] = useState<string | null>(null);
   const [busca, setBusca] = useState("");
   const [aba, setAba] = useState<"whatsapp" | "site">("whatsapp");
-  const [abaPagina, setAbaPagina] = useState<"conversas" | "cobrancas">("conversas");
+  const [abaPagina, setAbaPagina] = useState<"conversas" | "cobrancas" | "consulta">("conversas");
   const [cobrancaAberta, setCobrancaAberta] = useState(false);
+  const [linkPagamentoAberto, setLinkPagamentoAberto] = useState(false);
 
 
   const [filtroLeitura, setFiltroLeitura] = useState<"todas" | "nao_lidas" | "lidas">("todas");
@@ -482,14 +485,20 @@ export default function Atendimento() {
         </p>
       </div>
 
-      <Tabs value={abaPagina} onValueChange={(v) => setAbaPagina(v as "conversas" | "cobrancas")}>
+      <Tabs value={abaPagina} onValueChange={(v) => setAbaPagina(v as "conversas" | "cobrancas" | "consulta")}>
         <TabsList>
           <TabsTrigger value="conversas">Conversas</TabsTrigger>
           <TabsTrigger value="cobrancas">Cobranças</TabsTrigger>
+          <TabsTrigger value="consulta">Consultar Transação</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="cobrancas" className="mt-4">
+        <TabsContent value="cobrancas" className="mt-4 space-y-4">
+          <LinkPagamentoCard />
           <CobrancasTab />
+        </TabsContent>
+
+        <TabsContent value="consulta" className="mt-4">
+          <ConsultarTransacaoTab />
         </TabsContent>
 
         <TabsContent value="conversas" className="mt-4">
@@ -693,6 +702,10 @@ export default function Atendimento() {
                     <QrCode className="h-4 w-4 mr-2" />
                     Gerar cobrança Pix
                   </Button>
+                  <Button size="sm" variant="outline" onClick={() => setLinkPagamentoAberto(true)}>
+                    <Link2 className="h-4 w-4 mr-2" />
+                    Gerar link de pagamento
+                  </Button>
                   <Button size="sm" variant="default" onClick={() => assumir.mutate()} disabled={assumir.isPending}>
                     <UserCheck className="h-4 w-4 mr-2" />
                     Assumir conversa
@@ -884,6 +897,15 @@ export default function Atendimento() {
           open={cobrancaAberta}
           onOpenChange={setCobrancaAberta}
           conversaId={conversaAtual.id}
+          nomeCliente={nomeConversa(conversaAtual)}
+        />
+      )}
+      {conversaAtual && (
+        <LinkPagamentoDialog
+          open={linkPagamentoAberto}
+          onOpenChange={setLinkPagamentoAberto}
+          conversaId={conversaAtual.id}
+          emailCliente={(conversaAtual as any).email ?? (conversaAtual as any).email_cliente ?? null}
           nomeCliente={nomeConversa(conversaAtual)}
         />
       )}
