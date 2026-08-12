@@ -14,17 +14,37 @@ import { BuscaProduto, ProdutoPagamento, moedaBR, precoProduto } from "@/compone
 const EXTERNAL_SUPABASE_URL = "https://ezdtulcrqzmgocamjwwl.supabase.co";
 const CRIAR_LINK_URL = `${EXTERNAL_SUPABASE_URL}/functions/v1/criar-link-pagamento`;
 
+export type ItemResolvido = {
+  nome?: string;
+  descricao?: string;
+  produto_id?: string | number;
+  quantidade?: number;
+  valor_unitario?: number | string;
+  preco?: number | string;
+  total?: number | string;
+};
+
 type RespostaLink = {
   ok?: boolean;
   url?: string;
   link?: string;
   payment_url?: string;
   link_pagamento?: string;
+  itens_resolvidos?: ItemResolvido[];
   erro?: string;
   error?: string;
 };
 
+/** Item enviado ao endpoint: catálogo (produto_id) ou avulso (descricao + valor) */
+export type ItemPayload =
+  | { produto_id: string | number; quantidade: number }
+  | { descricao: string; valor_unitario: string; quantidade: number };
+
 export type ItemCarrinho = {
+  produto_id?: string | number | null;
+  nome?: string;
+  imagem?: string | null;
+  preco_catalogo?: number | null;
   descricao: string;
   valor_unitario: string;
   quantidade: number;
@@ -32,13 +52,13 @@ export type ItemCarrinho = {
 
 export async function criarLinkPagamento(payload: {
   valor?: string;
-  itens?: ItemCarrinho[];
+  itens?: ItemPayload[];
   valor_frete?: string;
   customer_email: string;
   descricao?: string;
   order_number?: string;
   conversa_id?: string | number;
-}): Promise<string> {
+}): Promise<{ url: string; itens_resolvidos: ItemResolvido[] }> {
   let response: Response;
   try {
     response = await fetch(CRIAR_LINK_URL, {
@@ -65,8 +85,9 @@ export async function criarLinkPagamento(payload: {
   }
   const url = resposta.link_pagamento || resposta.url || resposta.link || resposta.payment_url;
   if (!url) throw new Error("O endpoint não retornou o link de pagamento.");
-  return url;
+  return { url, itens_resolvidos: resposta.itens_resolvidos ?? [] };
 }
+
 
 function paraNumero(valor: string) {
   const n = parseFloat(formatarValorParaAPI(valor || "0"));
