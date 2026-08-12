@@ -206,7 +206,7 @@ function FormularioLink({
                       quantidade: i.quantidade,
                     },
               ),
-              valor_frete: formatarValorParaAPI(frete || "0"),
+              valor_frete: paraNumero(frete).toFixed(2),
             },
       );
       setUrl(resultado.url);
