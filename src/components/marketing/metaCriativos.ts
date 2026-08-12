@@ -257,6 +257,19 @@ function useRpc<T>(fn: string, args: Record<string, unknown>) {
 export const useMetaCriativos = (dias: number) => useRpc<CriativoPeriodo>("meta_criativos_periodo", { p_dias: dias });
 export const useMetaFunil = (dias: number) => useRpc<FunilPeriodo>("meta_funil_periodo", { p_dias: dias });
 export const useMetaDiversidade = (dias: number) => useRpc<DiversidadeLinha>("meta_diversidade_periodo", { p_dias: dias });
+export const useMetaCampanhas = (dias: number) => useRpc<CampanhaPeriodo>("meta_campanhas_periodo", { p_dias: dias });
+
+/** Frequência: 🟢 até 3,5 · 🟡 3,5–4 · 🔴 acima de 4. */
+export const corFrequencia = (v: number | null | undefined) => {
+  if (v === null || v === undefined) return "text-muted-foreground";
+  const x = Number(v);
+  if (x > 4) return "text-danger";
+  if (x > 3.5) return "text-warning";
+  return "text-success";
+};
+export const freqFmt = (v: number | null | undefined) =>
+  v === null || v === undefined ? "—" : Number(v).toFixed(2).replace(".", ",");
+
 
 // ===== Classificação de criativo (Matriz de Eficiência) =====
 export type Selo = "estrela" | "escalar" | "observar" | "corrigir";
