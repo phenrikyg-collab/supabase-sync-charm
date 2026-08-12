@@ -16,6 +16,9 @@ import {
   QUALITY_LABEL,
   SELO_META,
   brl,
+  corFrequencia,
+  freqFmt,
+
   delta,
   int,
   isVideo,
