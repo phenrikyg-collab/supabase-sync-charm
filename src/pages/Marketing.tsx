@@ -632,6 +632,17 @@ export default function Marketing() {
   }, [windsorCanaisAgg]);
 
 
+  const renderPeriodoDias = (value: number, onChange: (v: number) => void) => (
+    <Select value={String(value)} onValueChange={(v) => onChange(Number(v))}>
+      <SelectTrigger className="w-[200px]"><SelectValue /></SelectTrigger>
+      <SelectContent>
+        {[7, 14, 30, 90].map((d) => (
+          <SelectItem key={d} value={String(d)}>Últimos {d} dias</SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  );
+
   const renderPeriodo = (value: string, onChange: (v: string) => void, options: { value: string; label: string }[]) => (
     <Select value={value} onValueChange={onChange}>
       <SelectTrigger className="w-[220px]"><SelectValue /></SelectTrigger>
