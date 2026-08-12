@@ -106,6 +106,7 @@ const moduleGroups: ModuleGroup[] = [
       { title: "DRE", url: "/dre", icon: BarChart3 },
       { title: "Importar Extrato", url: "/importar-extrato", icon: Upload },
       { title: "Faturas Cartão", url: "/faturas", icon: CreditCard },
+      { title: "Transações do Site", url: "/transacoes-site", icon: ShoppingCart },
       { title: "Orçamento", url: "/orcamento", icon: Target },
       { title: "Custos Fixos", url: "/custos-fixos", icon: TrendingUp },
     ],
