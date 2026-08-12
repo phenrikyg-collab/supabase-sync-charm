@@ -5,6 +5,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import Oportunidades from "@/components/rastreamento/Oportunidades";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription,
@@ -342,7 +344,17 @@ export default function Rastreamento() {
   };
 
   return (
-    <div className="space-y-6">
+    <Tabs defaultValue="ao-vivo" className="space-y-6">
+      <TabsList>
+        <TabsTrigger value="ao-vivo">Visitantes ao Vivo</TabsTrigger>
+        <TabsTrigger value="oportunidades">Oportunidades</TabsTrigger>
+      </TabsList>
+
+      <TabsContent value="oportunidades">
+        <Oportunidades />
+      </TabsContent>
+
+      <TabsContent value="ao-vivo" className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-3">
           <Radar className="h-6 w-6 text-primary" />
@@ -487,6 +499,7 @@ export default function Rastreamento() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+      </TabsContent>
+    </Tabs>
   );
 }
