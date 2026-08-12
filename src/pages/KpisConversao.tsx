@@ -276,7 +276,7 @@ export default function KpisConversao() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {(perdas.data ?? []).map((r, i) => (
+            {perdasOrdenadas.map((r, i) => (
               <TableRow key={i} className={cn(i === 0 && "bg-danger/5")}>
                 <TableCell className="font-medium">
                   {i === 0 && <Badge variant="outline" className="mr-2 border-danger/30 bg-danger/10 text-danger">#1</Badge>}
