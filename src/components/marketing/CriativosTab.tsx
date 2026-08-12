@@ -131,6 +131,8 @@ function CardCriativo({ c, onClick }: { c: CriativoPeriodo; onClick: () => void 
           <Metrica label="CTR" valor={pct(c.ctr_link, 2)} cor={NIVEL_COR[nivelDe("ctr", c.ctr_link)]} />
           <Metrica label="CPM" valor={brl(c.cpm)} cor={NIVEL_COR[nivelDe("cpm", c.cpm)]} />
           <Metrica label="CPA" valor={n(c.purchases) > 0 ? brl(c.cpa) : "—"} />
+          <Metrica label="Freq." valor={freqFmt(c.frequency)} cor={corFrequencia(c.frequency)} />
+
         </div>
       </div>
     </button>
