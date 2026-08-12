@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import { formatarData } from "@/utils/formatters";
+import { statusPagamentoClasses, rotuloStatusPagamento } from "@/lib/statusPagamento";
 import { Zap, CreditCard, Barcode, ExternalLink, Inbox, ChevronLeft, ChevronRight } from "lucide-react";
 
 const PAGE_SIZE = 25;
@@ -14,7 +15,7 @@ interface TransacaoSite {
   pedido_id: string | number;
   data_pedido: string | null;
   valor: number | null;
-  status_pedido: string | null;
+  status_pagamento: string | null;
   forma_pagamento: string | null;
   tipo_pagamento: string | null;
   tem_pagamento_confirmado: boolean | null;
@@ -64,14 +65,6 @@ function PagamentoIcone({ tipo }: { tipo: Filtro }) {
       <Icon className="h-4 w-4" />
     </div>
   );
-}
-
-function statusClasses(status: string | null) {
-  const s = (status ?? "").toLowerCase();
-  if (/cancel|recusad|estorn|reprovad|expirad/.test(s)) return "bg-danger/10 text-danger border-danger/20";
-  if (/final|envi|entreg|aprovad|pago|conclu|faturad/.test(s)) return "bg-success/10 text-success border-success/20";
-  if (/process|aguard|pendent|analis|abert/.test(s)) return "bg-warning/10 text-warning border-warning/20";
-  return "bg-muted text-muted-foreground border-border";
 }
 
 function ResumoCard({ label, value, loading }: { label: string; value: string; loading: boolean }) {
@@ -167,6 +160,7 @@ export default function TransacoesSite() {
       <div>
         <h1 className="text-2xl font-bold text-foreground">Transações do Site</h1>
         <p className="text-sm text-muted-foreground">Pagamentos processados no checkout da loja (Vindi / Yapay)</p>
+        <p className="mt-1 text-xs text-muted-foreground/80">Sincroniza a cada poucos minutos a partir dos webhooks da loja.</p>
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
@@ -228,10 +222,10 @@ export default function TransacoesSite() {
                   <span
                     className={cn(
                       "hidden shrink-0 rounded-full border px-2.5 py-0.5 text-xs font-medium sm:inline-flex",
-                      statusClasses(t.status_pedido)
+                      statusPagamentoClasses(t.status_pagamento)
                     )}
                   >
-                    {t.status_pedido ?? "—"}
+                    {rotuloStatusPagamento(t.status_pagamento)}
                   </span>
                   {link && (
                     <a
