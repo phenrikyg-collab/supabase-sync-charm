@@ -40,32 +40,41 @@ function IconeFormato({ formato, className }: { formato: string | null; classNam
 
 function Thumb({ c, alto }: { c: CriativoPeriodo; alto?: boolean }) {
   const [erro, setErro] = useState(false);
-  const altura = alto ? "h-64" : "h-44";
-  if (!c.thumbnail_url || erro) {
-    return (
-      <div className={cn("flex items-center justify-center bg-muted w-full rounded-t-lg", altura)}>
-        <IconeFormato formato={c.formato} className="h-8 w-8 text-muted-foreground" />
-      </div>
-    );
-  }
-  const img = (
-    <img
-      src={c.thumbnail_url}
-      alt={c.ad_name || "Criativo"}
-      loading="lazy"
-      onError={() => setErro(true)}
-      className={cn("w-full object-cover", altura, alto ? "rounded-lg" : "rounded-t-lg")}
-    />
+  const altura = alto ? "h-64" : "h-[160px]";
+  const link = c.instagram_permalink || c.thumbnail_url || null;
+  const arred = alto ? "rounded-lg" : "rounded-t-lg";
+  return (
+    <div className={cn("relative w-full overflow-hidden bg-muted", altura, arred)}>
+      {!c.thumbnail_url || erro ? (
+        <div className="flex h-full w-full flex-col items-center justify-center gap-1.5 text-muted-foreground">
+          <IconeFormato formato={c.formato} className="h-8 w-8" />
+          <span className="text-xs">Prévia indisponível</span>
+        </div>
+      ) : (
+        <img
+          src={c.thumbnail_url}
+          alt={c.ad_name || "Criativo"}
+          loading="lazy"
+          referrerPolicy="no-referrer"
+          onError={() => setErro(true)}
+          className="h-full w-full object-cover"
+        />
+      )}
+      {link && (
+        <a
+          href={link}
+          target="_blank"
+          rel="noreferrer"
+          onClick={(e) => e.stopPropagation()}
+          className="absolute bottom-2 right-2 inline-flex items-center gap-1 rounded-full bg-background/80 px-2 py-1 text-[11px] font-medium backdrop-blur hover:bg-background"
+        >
+          Ver criativo <ExternalLink className="h-3 w-3" />
+        </a>
+      )}
+    </div>
   );
-  if (c.instagram_permalink) {
-    return (
-      <a href={c.instagram_permalink} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()}>
-        {img}
-      </a>
-    );
-  }
-  return img;
 }
+
 
 function Metrica({ label, valor, cor }: { label: string; valor: string; cor?: string }) {
   return (
