@@ -16,6 +16,9 @@ import {
   QUALITY_LABEL,
   SELO_META,
   brl,
+  corFrequencia,
+  freqFmt,
+
   delta,
   int,
   isVideo,
@@ -40,32 +43,41 @@ function IconeFormato({ formato, className }: { formato: string | null; classNam
 
 function Thumb({ c, alto }: { c: CriativoPeriodo; alto?: boolean }) {
   const [erro, setErro] = useState(false);
-  const altura = alto ? "h-64" : "h-44";
-  if (!c.thumbnail_url || erro) {
-    return (
-      <div className={cn("flex items-center justify-center bg-muted w-full rounded-t-lg", altura)}>
-        <IconeFormato formato={c.formato} className="h-8 w-8 text-muted-foreground" />
-      </div>
-    );
-  }
-  const img = (
-    <img
-      src={c.thumbnail_url}
-      alt={c.ad_name || "Criativo"}
-      loading="lazy"
-      onError={() => setErro(true)}
-      className={cn("w-full object-cover", altura, alto ? "rounded-lg" : "rounded-t-lg")}
-    />
+  const altura = alto ? "h-64" : "h-[160px]";
+  const link = c.instagram_permalink || c.thumbnail_url || null;
+  const arred = alto ? "rounded-lg" : "rounded-t-lg";
+  return (
+    <div className={cn("relative w-full overflow-hidden bg-muted", altura, arred)}>
+      {!c.thumbnail_url || erro ? (
+        <div className="flex h-full w-full flex-col items-center justify-center gap-1.5 text-muted-foreground">
+          <IconeFormato formato={c.formato} className="h-8 w-8" />
+          <span className="text-xs">Prévia indisponível</span>
+        </div>
+      ) : (
+        <img
+          src={c.thumbnail_url}
+          alt={c.ad_name || "Criativo"}
+          loading="lazy"
+          referrerPolicy="no-referrer"
+          onError={() => setErro(true)}
+          className="h-full w-full object-cover"
+        />
+      )}
+      {link && (
+        <a
+          href={link}
+          target="_blank"
+          rel="noreferrer"
+          onClick={(e) => e.stopPropagation()}
+          className="absolute bottom-2 right-2 inline-flex items-center gap-1 rounded-full bg-background/80 px-2 py-1 text-[11px] font-medium backdrop-blur hover:bg-background"
+        >
+          Ver criativo <ExternalLink className="h-3 w-3" />
+        </a>
+      )}
+    </div>
   );
-  if (c.instagram_permalink) {
-    return (
-      <a href={c.instagram_permalink} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()}>
-        {img}
-      </a>
-    );
-  }
-  return img;
 }
+
 
 function Metrica({ label, valor, cor }: { label: string; valor: string; cor?: string }) {
   return (
@@ -122,6 +134,8 @@ function CardCriativo({ c, onClick }: { c: CriativoPeriodo; onClick: () => void 
           <Metrica label="CTR" valor={pct(c.ctr_link, 2)} cor={NIVEL_COR[nivelDe("ctr", c.ctr_link)]} />
           <Metrica label="CPM" valor={brl(c.cpm)} cor={NIVEL_COR[nivelDe("cpm", c.cpm)]} />
           <Metrica label="CPA" valor={n(c.purchases) > 0 ? brl(c.cpa) : "—"} />
+          <Metrica label="Freq." valor={freqFmt(c.frequency)} cor={corFrequencia(c.frequency)} />
+
         </div>
       </div>
     </button>
@@ -188,6 +202,8 @@ function DetalheCriativo({ c, dias, onClose }: { c: CriativoPeriodo | null; dias
     { label: "CPM", atual: brl(c.cpm), anterior: brl(c.prev_cpm) },
     { label: "CPA", atual: n(c.purchases) > 0 ? brl(c.cpa) : "—", anterior: brl(c.prev_cpa) },
     { label: "ROAS", atual: roasFmt(c.roas), anterior: roasFmt(c.prev_roas) },
+    { label: "Frequência", atual: freqFmt(c.frequency), anterior: "—" },
+
   ];
 
   return (
@@ -497,46 +513,50 @@ export function CriativosTab({ dias, criativos, loading }: { dias: number; criat
       </div>
 
       <Card>
-        <CardContent className="pt-6 flex flex-wrap gap-3">
-          <Select value={ordem} onValueChange={setOrdem}>
-            <SelectTrigger className="w-[200px]"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="spend">Ordenar: Investimento</SelectItem>
-              <SelectItem value="roas">Ordenar: ROAS</SelectItem>
-              <SelectItem value="cpa">Ordenar: CPA</SelectItem>
-              <SelectItem value="ctr">Ordenar: CTR</SelectItem>
-              <SelectItem value="thumb">Ordenar: Thumb Stop</SelectItem>
-              <SelectItem value="impressions">Ordenar: Impressões</SelectItem>
-            </SelectContent>
-          </Select>
-          <Select value={fFormato} onValueChange={setFFormato}>
-            <SelectTrigger className="w-[170px]"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value={TODOS}>Todos os formatos</SelectItem>
-              {opcoes.formatos.map((f) => <SelectItem key={f} value={f}>{FORMATO_LABEL[f.toLowerCase()] || f}</SelectItem>)}
-            </SelectContent>
-          </Select>
-          <Select value={fTipo} onValueChange={setFTipo}>
-            <SelectTrigger className="w-[190px]"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value={TODOS}>Todos os tipos</SelectItem>
-              {opcoes.tipos.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}
-            </SelectContent>
-          </Select>
-          <Select value={fCampanha} onValueChange={setFCampanha}>
-            <SelectTrigger className="w-[240px]"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value={TODOS}>Todas as campanhas</SelectItem>
-              {opcoes.campanhas.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
-            </SelectContent>
-          </Select>
-          <span className="text-sm text-muted-foreground self-center">{lista.length} criativo(s)</span>
+        <CardHeader className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+          <CardTitle className="text-lg">Criativos ({lista.length})</CardTitle>
+          <div className="flex flex-wrap gap-2">
+            <Select value={ordem} onValueChange={setOrdem}>
+              <SelectTrigger className="w-[190px] h-9"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="spend">Ordenar: Investimento</SelectItem>
+                <SelectItem value="roas">Ordenar: ROAS</SelectItem>
+                <SelectItem value="cpa">Ordenar: CPA</SelectItem>
+                <SelectItem value="ctr">Ordenar: CTR</SelectItem>
+                <SelectItem value="thumb">Ordenar: Thumb Stop</SelectItem>
+                <SelectItem value="impressions">Ordenar: Impressões</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={fFormato} onValueChange={setFFormato}>
+              <SelectTrigger className="w-[160px] h-9"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value={TODOS}>Todos os formatos</SelectItem>
+                {opcoes.formatos.map((f) => <SelectItem key={f} value={f}>{FORMATO_LABEL[f.toLowerCase()] || f}</SelectItem>)}
+              </SelectContent>
+            </Select>
+            <Select value={fTipo} onValueChange={setFTipo}>
+              <SelectTrigger className="w-[180px] h-9"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value={TODOS}>Todos os tipos</SelectItem>
+                {opcoes.tipos.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+              </SelectContent>
+            </Select>
+            <Select value={fCampanha} onValueChange={setFCampanha}>
+              <SelectTrigger className="w-[220px] h-9"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value={TODOS}>Todas as campanhas</SelectItem>
+                {opcoes.campanhas.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+            {lista.map((c) => <CardCriativo key={c.ad_id} c={c} onClick={() => setDetalhe(c)} />)}
+          </div>
         </CardContent>
       </Card>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-        {lista.map((c) => <CardCriativo key={c.ad_id} c={c} onClick={() => setDetalhe(c)} />)}
-      </div>
 
       <Diversidade dias={dias} />
       <Fadiga criativos={base} />

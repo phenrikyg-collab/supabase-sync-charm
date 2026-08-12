@@ -11,7 +11,9 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AcompanhamentoMeta, DiagnosticoMes, ComoFecharMeta } from "@/components/marketing/AcompanhamentoMeta";
 import { MESES } from "@/hooks/usePlanejamentoMensal";
-import { useMetaCriativos } from "@/components/marketing/metaCriativos";
+import { useMetaCriativos, useMetaCampanhas } from "@/components/marketing/metaCriativos";
+import { CampanhasSecao, MetricasComplementares, OportunidadesEscala, ResumoProximosPassos } from "@/components/marketing/CampanhasMeta";
+
 import { FunilLeitura, RedFlags } from "@/components/marketing/FunilLeitura";
 import { CriativosTab } from "@/components/marketing/CriativosTab";
 
@@ -113,6 +115,8 @@ export default function Marketing() {
   const [periodoMeta, setPeriodoMeta] = useState("30dias");
   const [diasCriativo, setDiasCriativo] = useState(30);
   const { data: criativosRpc, loading: loadingCriativos } = useMetaCriativos(diasCriativo);
+  const { data: campanhasRpc, loading: loadingCampanhas } = useMetaCampanhas(diasCriativo);
+
   const hoje = new Date();
   const [metaAno, setMetaAno] = useState(hoje.getFullYear());
   const [metaMes, setMetaMes] = useState(hoje.getMonth() + 1);
@@ -972,13 +976,18 @@ export default function Marketing() {
         </TabsContent>
         {/* ===== META ADS ===== */}
         <TabsContent value="meta-ads" className="space-y-6">
-          <div className="flex justify-end gap-3 flex-wrap">
+          <div className="flex items-center justify-end gap-3 flex-wrap">
+            <span className="text-sm text-muted-foreground">Período de análise:</span>
             {renderPeriodoDias(diasCriativo, setDiasCriativo)}
             {renderPeriodo(periodoMeta, setPeriodoMeta, PERIODOS_EXT)}
           </div>
 
+          <ResumoProximosPassos campanhas={campanhasRpc} loading={loadingCampanhas} />
+          <MetricasComplementares campanhas={campanhasRpc} loading={loadingCampanhas} />
           <FunilLeitura dias={diasCriativo} />
           <RedFlags dias={diasCriativo} criativos={criativosRpc} loading={loadingCriativos} />
+          <OportunidadesEscala campanhas={campanhasRpc} loading={loadingCampanhas} />
+
 
 
 
@@ -1024,249 +1033,8 @@ export default function Marketing() {
                 </CardContent>
               </Card>
 
-              <Card>
-                <CardHeader><CardTitle className="text-lg">Performance por campanha</CardTitle></CardHeader>
-                <CardContent>
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Campanha</TableHead>
-                        <TableHead className="text-right">Investimento</TableHead>
-                        <TableHead className="text-right">Cliques</TableHead>
-                        <TableHead className="text-right">CPC</TableHead>
-                        <TableHead className="text-right">Add Carrinho</TableHead>
-                        <TableHead className="text-right">Checkout</TableHead>
-                        <TableHead className="text-right">Compras</TableHead>
-                        <TableHead className="text-right">Receita</TableHead>
-                        <TableHead className="text-right">ROAS</TableHead>
-                        <TableHead className="text-right">CPA</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {metaAdsCampanhas.map((r) => {
-                        const roasColor =
-                          r.spend === 0
-                            ? { bg: "#6b728020", fg: "#6b7280", label: "—" }
-                            : r.roas >= 4
-                            ? { bg: "#22c55e20", fg: "#16a34a", label: `${r.roas.toFixed(2)}x` }
-                            : r.roas >= 2
-                            ? { bg: "#eab30820", fg: "#a16207", label: `${r.roas.toFixed(2)}x` }
-                            : { bg: "#ef444420", fg: "#dc2626", label: `${r.roas.toFixed(2)}x` };
-                        return (
-                          <TableRow key={r.campaign}>
-                            <TableCell className="font-medium max-w-[320px] truncate">{r.campaign}</TableCell>
-                            <TableCell className="text-right">{fmtBRL(r.spend)}</TableCell>
-                            <TableCell className="text-right">{fmtInt(r.clicks)}</TableCell>
-                            <TableCell className="text-right">{fmtBRL(r.cpc)}</TableCell>
-                            <TableCell className="text-right">{fmtInt(r.add_to_cart)}</TableCell>
-                            <TableCell className="text-right">{fmtInt(r.checkout)}</TableCell>
-                            <TableCell className="text-right">{fmtInt(r.compras)}</TableCell>
-                            <TableCell className="text-right">{fmtBRL(r.receita)}</TableCell>
-                            <TableCell className="text-right">
-                              <span
-                                className="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium"
-                                style={{ backgroundColor: roasColor.bg, color: roasColor.fg }}
-                              >
-                                {roasColor.label}
-                              </span>
-                            </TableCell>
-                            <TableCell className="text-right">{r.compras > 0 ? fmtBRL(r.cpa) : "—"}</TableCell>
-                          </TableRow>
-                        );
-                      })}
+              <CampanhasSecao campanhas={campanhasRpc} loading={loadingCampanhas} />
 
-                    </TableBody>
-                  </Table>
-                </CardContent>
-              </Card>
-
-              {/* Matriz de Eficiência de Campanhas */}
-              <Card>
-                <CardHeader>
-                  <CardTitle>Matriz de Eficiência de Campanhas</CardTitle>
-                  <p className="text-sm text-muted-foreground">
-                    ROAS de Equilíbrio: 2,0x · ROAS Saudável: 4,0x · Margem Bruta: 50%
-                  </p>
-                </CardHeader>
-                <CardContent className="space-y-6">
-                  {/* Cards de resumo */}
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                    {(["estrelas", "escalar", "corrigir", "observar"] as const).map((k) => {
-                      const q = QUADRANTES[k];
-                      const n = matrizCampanhas.dados.filter((d) => d.classificacao === k).length;
-                      return (
-                        <div
-                          key={k}
-                          className="rounded-lg border p-4"
-                          style={{ borderColor: q.color, backgroundColor: `${q.color}10` }}
-                        >
-                          <div className="text-sm font-medium" style={{ color: q.color }}>
-                            {q.emoji} {q.label}
-                          </div>
-                          <div className="text-2xl font-bold mt-1">{n}</div>
-                          <div className="text-xs text-muted-foreground">campanhas</div>
-                        </div>
-                      );
-                    })}
-                  </div>
-
-                  {/* Scatter Chart */}
-                  <div className="h-[480px] relative">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <ScatterChart margin={{ top: 30, right: 40, bottom: 50, left: 50 }}>
-                        <CartesianGrid strokeDasharray="3 3" />
-                        <XAxis
-                          type="number"
-                          dataKey="clicks"
-                          name="Cliques"
-                          label={{ value: "Volume (Cliques)", position: "insideBottom", offset: -10 }}
-                        />
-                        <YAxis
-                          type="number"
-                          dataKey="roas"
-                          name="ROAS"
-                          label={{ value: "ROAS", angle: -90, position: "insideLeft" }}
-                        />
-                        <ZAxis type="number" dataKey="tamanho" range={[64, 576]} />
-                        <Tooltip
-                          cursor={{ strokeDasharray: "3 3" }}
-                          content={({ active, payload }) => {
-                            if (!active || !payload?.length) return null;
-                            const d: any = payload[0].payload;
-                            const q = QUADRANTES[d.classificacao];
-                            return (
-                              <div className="rounded-md border bg-background p-3 shadow-md text-xs space-y-1">
-                                <div className="font-medium max-w-[280px] truncate">{d.campaign}</div>
-                                <div>ROAS: <span className="font-medium">{d.roas.toFixed(2)}x</span></div>
-                                <div>Cliques: <span className="font-medium">{fmtInt(d.clicks)}</span></div>
-                                <div>Investimento: <span className="font-medium">{fmtBRL(d.spend)}</span></div>
-                                <div style={{ color: q.color }}>{q.emoji} {q.label}</div>
-                              </div>
-                            );
-                          }}
-                        />
-                        <ReferenceLine
-                          y={ROAS_SAUDAVEL}
-                          stroke="#22c55e"
-                          strokeDasharray="5 5"
-                          label={{ value: "ROAS Saudável 4x", position: "insideTopRight", fill: "#22c55e", fontSize: 11 }}
-                        />
-                        <ReferenceLine
-                          y={ROAS_EQUILIBRIO}
-                          stroke="#ef4444"
-                          strokeDasharray="5 5"
-                          label={{ value: "Equilíbrio 2x", position: "insideTopRight", fill: "#ef4444", fontSize: 11 }}
-                        />
-                        <ReferenceLine
-                          x={matrizCampanhas.mediana}
-                          stroke="#6b7280"
-                          strokeDasharray="5 5"
-                          label={{ value: "Volume médio", position: "top", fill: "#6b7280", fontSize: 11 }}
-                        />
-                        <Scatter data={matrizCampanhas.dados}>
-                          {matrizCampanhas.dados.map((d, i) => (
-                            <Cell key={i} fill={QUADRANTES[d.classificacao].color} />
-                          ))}
-                        </Scatter>
-                      </ScatterChart>
-                    </ResponsiveContainer>
-                    {/* Labels dos quadrantes */}
-                    <div className="pointer-events-none absolute top-2 right-4 text-xs font-medium" style={{ color: "#22c55e" }}>⭐ Estrelas</div>
-                    <div className="pointer-events-none absolute top-2 left-16 text-xs font-medium" style={{ color: "#3b82f6" }}>📈 Escalar</div>
-                    <div className="pointer-events-none absolute bottom-12 right-4 text-xs font-medium" style={{ color: "#ef4444" }}>❗ Corrigir</div>
-                    <div className="pointer-events-none absolute bottom-12 left-16 text-xs font-medium" style={{ color: "#6b7280" }}>👁 Observar</div>
-                  </div>
-
-                  {matrizCampanhas.semAtribuicao.length > 0 && (
-                    <p className="text-xs text-muted-foreground italic">
-                      * {matrizCampanhas.semAtribuicao.length} campanha{matrizCampanhas.semAtribuicao.length > 1 ? "s" : ""} sem atribuição de conversão (Leads/Engajamento) foram excluídas da matriz.
-                    </p>
-                  )}
-
-                  {/* Tabela de Ação */}
-                  <div className="overflow-x-auto">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Campanha</TableHead>
-                          <TableHead>Classificação</TableHead>
-                          <TableHead className="text-right">Investimento</TableHead>
-                          <TableHead className="text-right">Cliques</TableHead>
-                          <TableHead className="text-right">ROAS</TableHead>
-                          <TableHead>Ação Recomendada</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {[...matrizCampanhas.dados].sort((a, b) => b.roas - a.roas).map((d) => {
-                          const q = QUADRANTES[d.classificacao];
-                          return (
-                            <TableRow key={d.campaign}>
-                              <TableCell className="font-medium max-w-[280px] truncate">{d.campaign}</TableCell>
-                              <TableCell>
-                                <span
-                                  className="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium"
-                                  style={{ backgroundColor: `${q.color}20`, color: q.color }}
-                                >
-                                  {q.emoji} {q.label}
-                                </span>
-                              </TableCell>
-                              <TableCell className="text-right">{fmtBRL(d.spend)}</TableCell>
-                              <TableCell className="text-right">{fmtInt(d.clicks)}</TableCell>
-                              <TableCell className="text-right">{d.roas.toFixed(2)}x</TableCell>
-                              <TableCell className="text-sm">{q.acao}</TableCell>
-                            </TableRow>
-                          );
-                        })}
-                        {matrizCampanhas.dados.length > 0 && (() => {
-                          const totSpend = matrizCampanhas.dados.reduce((a, d) => a + d.spend, 0);
-                          const totClicks = matrizCampanhas.dados.reduce((a, d) => a + d.clicks, 0);
-                          const totRoas = totSpend > 0
-                            ? matrizCampanhas.dados.reduce((a, d) => a + d.spend * d.roas, 0) / totSpend
-                            : 0;
-                          return (
-                            <TableRow className="font-semibold bg-muted/50">
-                              <TableCell>Subtotal (com atribuição)</TableCell>
-                              <TableCell></TableCell>
-                              <TableCell className="text-right">{fmtBRL(totSpend)}</TableCell>
-                              <TableCell className="text-right">{fmtInt(totClicks)}</TableCell>
-                              <TableCell className="text-right">{totRoas.toFixed(2)}x</TableCell>
-                              <TableCell></TableCell>
-                            </TableRow>
-                          );
-                        })()}
-
-                        {matrizCampanhas.semAtribuicao.length > 0 && (
-                          <>
-                            <TableRow className="bg-muted/30">
-                              <TableCell colSpan={6} className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                                Campanhas sem atribuição de conversão
-                              </TableCell>
-                            </TableRow>
-                            {[...matrizCampanhas.semAtribuicao].sort((a, b) => b.spend - a.spend).map((d) => (
-                              <TableRow key={`sem-${d.campaign}`}>
-                                <TableCell className="font-medium max-w-[280px] truncate">{d.campaign}</TableCell>
-                                <TableCell>
-                                  <span
-                                    className="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium"
-                                    style={{ backgroundColor: "#6b728020", color: "#6b7280" }}
-                                  >
-                                    Sem atrib.
-                                  </span>
-                                </TableCell>
-                                <TableCell className="text-right">{fmtBRL(d.spend)}</TableCell>
-                                <TableCell className="text-right">{fmtInt(d.clicks)}</TableCell>
-                                <TableCell className="text-right">—</TableCell>
-                                <TableCell className="text-sm">⚪ Objetivo de topo de funil — avaliar custo por lead/engajamento separadamente</TableCell>
-                              </TableRow>
-                            ))}
-                          </>
-                        )}
-                      </TableBody>
-                    </Table>
-                  </div>
-
-                </CardContent>
-              </Card>
             </>
 
           )}
