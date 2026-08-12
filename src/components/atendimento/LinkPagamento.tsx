@@ -8,9 +8,21 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { toast } from "@/hooks/use-toast";
 import { Copy, Link2, Loader2, Plus, Trash2 } from "lucide-react";
 import { formatarValorParaAPI } from "@/components/atendimento/CobrancaPix";
+import { BuscaProduto, ProdutoPagamento, moedaBR, precoProduto } from "@/components/atendimento/BuscaProduto";
+
 
 const EXTERNAL_SUPABASE_URL = "https://ezdtulcrqzmgocamjwwl.supabase.co";
 const CRIAR_LINK_URL = `${EXTERNAL_SUPABASE_URL}/functions/v1/criar-link-pagamento`;
+
+export type ItemResolvido = {
+  nome?: string;
+  descricao?: string;
+  produto_id?: string | number;
+  quantidade?: number;
+  valor_unitario?: number | string;
+  preco?: number | string;
+  total?: number | string;
+};
 
 type RespostaLink = {
   ok?: boolean;
@@ -18,11 +30,21 @@ type RespostaLink = {
   link?: string;
   payment_url?: string;
   link_pagamento?: string;
+  itens_resolvidos?: ItemResolvido[];
   erro?: string;
   error?: string;
 };
 
+/** Item enviado ao endpoint: catálogo (produto_id) ou avulso (descricao + valor) */
+export type ItemPayload =
+  | { produto_id: string | number; quantidade: number }
+  | { descricao: string; valor_unitario: string; quantidade: number };
+
 export type ItemCarrinho = {
+  produto_id?: string | number | null;
+  nome?: string;
+  imagem?: string | null;
+  preco_catalogo?: number | null;
   descricao: string;
   valor_unitario: string;
   quantidade: number;
@@ -30,13 +52,13 @@ export type ItemCarrinho = {
 
 export async function criarLinkPagamento(payload: {
   valor?: string;
-  itens?: ItemCarrinho[];
+  itens?: ItemPayload[];
   valor_frete?: string;
   customer_email: string;
   descricao?: string;
   order_number?: string;
   conversa_id?: string | number;
-}): Promise<string> {
+}): Promise<{ url: string; itens_resolvidos: ItemResolvido[] }> {
   let response: Response;
   try {
     response = await fetch(CRIAR_LINK_URL, {
@@ -63,8 +85,9 @@ export async function criarLinkPagamento(payload: {
   }
   const url = resposta.link_pagamento || resposta.url || resposta.link || resposta.payment_url;
   if (!url) throw new Error("O endpoint não retornou o link de pagamento.");
-  return url;
+  return { url, itens_resolvidos: resposta.itens_resolvidos ?? [] };
 }
+
 
 function paraNumero(valor: string) {
   const n = parseFloat(formatarValorParaAPI(valor || "0"));
@@ -116,19 +139,21 @@ function FormularioLink({
   const [descricao, setDescricao] = useState("");
   const [pedido, setPedido] = useState("");
   const [frete, setFrete] = useState("");
-  const [itens, setItens] = useState<ItemCarrinho[]>([
-    { descricao: "", valor_unitario: "", quantidade: 1 },
-  ]);
+  const [itens, setItens] = useState<ItemCarrinho[]>([]);
   const [gerando, setGerando] = useState(false);
   const [url, setUrl] = useState("");
+  const [resolvidos, setResolvidos] = useState<ItemResolvido[]>([]);
   const [erro, setErro] = useState("");
 
   const emailValido = /\S+@\S+\.\S+/.test(email.trim());
+  const precoItem = (i: ItemCarrinho) =>
+    i.produto_id ? i.preco_catalogo ?? 0 : paraNumero(i.valor_unitario);
   const totalCarrinho =
-    itens.reduce((acc, i) => acc + paraNumero(i.valor_unitario) * (i.quantidade || 0), 0) +
-    paraNumero(frete);
+    itens.reduce((acc, i) => acc + precoItem(i) * (i.quantidade || 0), 0) + paraNumero(frete);
   const itensValidos = itens.filter(
-    (i) => i.descricao.trim() && paraNumero(i.valor_unitario) > 0 && i.quantidade > 0,
+    (i) =>
+      i.quantidade > 0 &&
+      (i.produto_id ? true : i.descricao.trim() && paraNumero(i.valor_unitario) > 0),
   );
 
   const valido =
@@ -138,30 +163,50 @@ function FormularioLink({
   const atualizarItem = (index: number, patch: Partial<ItemCarrinho>) =>
     setItens((prev) => prev.map((it, i) => (i === index ? { ...it, ...patch } : it)));
 
+  const adicionarProduto = (p: ProdutoPagamento) =>
+    setItens((prev) => [
+      ...prev,
+      {
+        produto_id: p.produto_id,
+        nome: p.nome,
+        imagem: p.imagem ?? null,
+        preco_catalogo: precoProduto(p),
+        descricao: p.nome,
+        valor_unitario: String(precoProduto(p)),
+        quantidade: 1,
+      },
+    ]);
+
   const gerar = async () => {
     setGerando(true);
     setErro("");
     setUrl("");
+    setResolvidos([]);
     try {
       const base = {
         customer_email: email.trim(),
         order_number: pedido.trim() || undefined,
         conversa_id: conversaId,
       };
-      const link = await criarLinkPagamento(
+      const resultado = await criarLinkPagamento(
         modo === "unico"
           ? { ...base, valor: formatarValorParaAPI(valor), descricao: descricao.trim() || undefined }
           : {
               ...base,
-              itens: itensValidos.map((i) => ({
-                descricao: i.descricao.trim(),
-                valor_unitario: formatarValorParaAPI(i.valor_unitario),
-                quantidade: i.quantidade,
-              })),
+              itens: itensValidos.map((i) =>
+                i.produto_id
+                  ? { produto_id: i.produto_id, quantidade: i.quantidade }
+                  : {
+                      descricao: i.descricao.trim(),
+                      valor_unitario: formatarValorParaAPI(i.valor_unitario),
+                      quantidade: i.quantidade,
+                    },
+              ),
               valor_frete: formatarValorParaAPI(frete || "0"),
             },
       );
-      setUrl(link);
+      setUrl(resultado.url);
+      setResolvidos(resultado.itens_resolvidos);
       toast({ title: "Link de pagamento gerado" });
     } catch (e) {
       const mensagem = e instanceof Error ? e.message : String(e);
@@ -171,6 +216,7 @@ function FormularioLink({
       setGerando(false);
     }
   };
+
 
   const camposComuns = (
     <div className={compacto ? "space-y-3" : "grid gap-3 sm:grid-cols-2"}>
@@ -230,60 +276,106 @@ function FormularioLink({
         </TabsContent>
 
         <TabsContent value="carrinho" className="mt-3 space-y-3">
+          <div className="space-y-1.5">
+            <Label className="text-xs">Buscar produto no catálogo</Label>
+            <BuscaProduto onSelecionar={adicionarProduto} />
+          </div>
+
           <div className="space-y-2">
+            {itens.length === 0 && (
+              <p className="rounded-md border border-dashed border-border p-3 text-xs text-muted-foreground">
+                Nenhum item no carrinho. Busque um produto acima ou adicione um item avulso.
+              </p>
+            )}
             {itens.map((item, index) => (
-              <div key={index} className="grid grid-cols-[1fr_100px_70px_auto] items-end gap-2">
-                <div className="space-y-1.5">
-                  {index === 0 && <Label className="text-xs">Descrição</Label>}
-                  <Input
-                    value={item.descricao}
-                    onChange={(e) => atualizarItem(index, { descricao: e.target.value })}
-                    placeholder="Calça Modeladora Anna"
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  {index === 0 && <Label className="text-xs">Valor un.</Label>}
-                  <Input
-                    value={item.valor_unitario}
-                    onChange={(e) => atualizarItem(index, { valor_unitario: e.target.value })}
-                    placeholder="229.00"
-                    inputMode="decimal"
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  {index === 0 && <Label className="text-xs">Qtd</Label>}
-                  <Input
-                    type="number"
-                    min={1}
-                    value={item.quantidade}
-                    onChange={(e) =>
-                      atualizarItem(index, { quantidade: Math.max(1, Number(e.target.value) || 1) })
-                    }
-                  />
-                </div>
-                <Button
-                  size="icon"
-                  variant="ghost"
-                  disabled={itens.length === 1}
-                  onClick={() => setItens((prev) => prev.filter((_, i) => i !== index))}
-                  aria-label="Remover item"
-                >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
+              <div key={index} className="rounded-md border border-border p-2">
+                {item.produto_id ? (
+                  <div className="flex items-center gap-2">
+                    <div className="h-10 w-10 shrink-0 overflow-hidden rounded bg-muted">
+                      {item.imagem ? (
+                        <img src={item.imagem} alt={item.nome} className="h-full w-full object-cover" />
+                      ) : null}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-xs font-medium">{item.nome}</p>
+                      <p className="text-[11px] text-muted-foreground">
+                        catálogo #{String(item.produto_id)} · {moedaBR(item.preco_catalogo)}
+                      </p>
+                    </div>
+                    <Input
+                      type="number"
+                      min={1}
+                      className="w-16"
+                      value={item.quantidade}
+                      onChange={(e) =>
+                        atualizarItem(index, { quantidade: Math.max(1, Number(e.target.value) || 1) })
+                      }
+                      aria-label="Quantidade"
+                    />
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      onClick={() => setItens((prev) => prev.filter((_, i) => i !== index))}
+                      aria-label="Remover item"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-[1fr_100px_70px_auto] items-end gap-2">
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">Descrição (avulso)</Label>
+                      <Input
+                        value={item.descricao}
+                        onChange={(e) => atualizarItem(index, { descricao: e.target.value })}
+                        placeholder="Taxa extra"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">Valor un.</Label>
+                      <Input
+                        value={item.valor_unitario}
+                        onChange={(e) => atualizarItem(index, { valor_unitario: e.target.value })}
+                        placeholder="229.00"
+                        inputMode="decimal"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">Qtd</Label>
+                      <Input
+                        type="number"
+                        min={1}
+                        value={item.quantidade}
+                        onChange={(e) =>
+                          atualizarItem(index, { quantidade: Math.max(1, Number(e.target.value) || 1) })
+                        }
+                      />
+                    </div>
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      onClick={() => setItens((prev) => prev.filter((_, i) => i !== index))}
+                      aria-label="Remover item"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                )}
               </div>
             ))}
           </div>
 
           <Button
             size="sm"
-            variant="outline"
+            variant="ghost"
             onClick={() =>
               setItens((prev) => [...prev, { descricao: "", valor_unitario: "", quantidade: 1 }])
             }
           >
             <Plus className="mr-2 h-3.5 w-3.5" />
-            Adicionar item
+            Adicionar item sem catálogo
           </Button>
+
 
           <div className={compacto ? "space-y-3" : "grid gap-3 sm:grid-cols-2"}>
             <div className="space-y-1.5">
@@ -310,7 +402,26 @@ function FormularioLink({
         {gerando ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Link2 className="mr-2 h-4 w-4" />}
         Gerar link de pagamento
       </Button>
+      {resolvidos.length > 0 && (
+        <div className="space-y-1.5 rounded-md border border-border bg-muted/40 p-3">
+          <p className="text-xs font-semibold text-foreground">Itens usados no link (preços reais)</p>
+          {resolvidos.map((it, i) => {
+            const preco = Number(it.valor_unitario ?? it.preco ?? 0);
+            return (
+              <div key={i} className="flex items-center justify-between gap-2 text-xs">
+                <span className="truncate text-muted-foreground">
+                  {it.quantidade ?? 1}× {it.nome || it.descricao || `#${it.produto_id ?? ""}`}
+                </span>
+                <span className="font-medium text-foreground">
+                  {moedaBR(Number(it.total ?? preco * (it.quantidade ?? 1)))}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      )}
       {url && <ResultadoLink url={url} />}
+
       {erro && (
         <div role="alert" className="rounded-md border border-destructive/30 bg-destructive/5 p-3">
           <p className="break-words text-xs text-destructive">{erro}</p>

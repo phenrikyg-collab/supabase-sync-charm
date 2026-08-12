@@ -15,6 +15,7 @@ import { ptBR } from "date-fns/locale";
 import {
   AlertTriangle, Bot, Check, CheckCheck, CheckCircle2, Globe, ImagePlus, LayoutGrid, Lock, MessageCircle,
   RotateCcw, Search, Send, User, X, UserCheck, Phone, QrCode, Link2,
+  Truck,
 } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -24,6 +25,8 @@ import { PerfilCliente } from "@/components/atendimento/PerfilCliente";
 import { AtividadesRecentes } from "@/components/atendimento/AtividadesRecentes";
 import { CobrancaPixDialog, CobrancasTab, CobrancasDaConversa } from "@/components/atendimento/CobrancaPix";
 import { LinkPagamentoCard, LinkPagamentoDialog } from "@/components/atendimento/LinkPagamento";
+import { CalcularFreteDialog } from "@/components/atendimento/CalcularFrete";
+
 import { ConsultarTransacaoTab } from "@/components/atendimento/ConsultarTransacao";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
@@ -177,6 +180,8 @@ export default function Atendimento() {
   const [abaPagina, setAbaPagina] = useState<"conversas" | "cobrancas" | "consulta">("conversas");
   const [cobrancaAberta, setCobrancaAberta] = useState(false);
   const [linkPagamentoAberto, setLinkPagamentoAberto] = useState(false);
+  const [freteAberto, setFreteAberto] = useState(false);
+
 
 
   const [filtroLeitura, setFiltroLeitura] = useState<"todas" | "nao_lidas" | "lidas">("todas");
@@ -706,6 +711,11 @@ export default function Atendimento() {
                     <Link2 className="h-4 w-4 mr-2" />
                     Gerar link de pagamento
                   </Button>
+                  <Button size="sm" variant="outline" onClick={() => setFreteAberto(true)}>
+                    <Truck className="h-4 w-4 mr-2" />
+                    Calcular frete
+                  </Button>
+
                   <Button size="sm" variant="default" onClick={() => assumir.mutate()} disabled={assumir.isPending}>
                     <UserCheck className="h-4 w-4 mr-2" />
                     Assumir conversa
@@ -909,6 +919,14 @@ export default function Atendimento() {
           nomeCliente={nomeConversa(conversaAtual)}
         />
       )}
+      {conversaAtual && (
+        <CalcularFreteDialog
+          open={freteAberto}
+          onOpenChange={setFreteAberto}
+          nomeCliente={nomeConversa(conversaAtual)}
+        />
+      )}
+
     </div>
 
   );
