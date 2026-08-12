@@ -12,6 +12,7 @@ export interface CriativoPeriodo {
   tipo_funil: string | null;
   quality_ranking: string | null;
   thumbnail_url: string | null;
+  image_url: string | null;
   instagram_permalink: string | null;
   impressions: number | null;
   clicks: number | null;
