@@ -187,25 +187,255 @@ export default function KpisConversao() {
         <FiltroPeriodo periodo={periodo} onChange={setPeriodo} />
       </div>
 
-      <Tabs defaultValue="regua" className="w-full">
-        <TabsList className="mb-4">
-          <TabsTrigger value="regua">Régua de Conversão</TabsTrigger>
-          <TabsTrigger value="analise">Análise Diária</TabsTrigger>
-        </TabsList>
+      {/* Maior oportunidade */}
+      <Card className="rounded-xl border-primary/40 bg-primary/5 p-5">
+        {perdas.isLoading ? (
+          <Loader2 className="h-5 w-5 animate-spin text-primary" />
+        ) : !prioridade ? (
+          <p className="text-sm text-muted-foreground">Sem dados de perdas do funil.</p>
+        ) : (
+          <div className="flex flex-wrap items-start gap-4">
+            <div className="rounded-lg bg-primary/10 p-3">
+              <Target className="h-6 w-6 text-primary" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <h2 className="text-lg font-semibold">
+                🎯 Maior oportunidade: {String(prioridade.etapa ?? "—")}
+              </h2>
+              <p className="mt-1 text-sm text-muted-foreground">
+                De cada 100 pessoas nessa etapa, só{" "}
+                <strong className="text-foreground">
+                  {pct(pega(prioridade, ["taxa_passagem_pct", "taxa_passagem"]))}
+                </strong>{" "}
+                avançam — uma pequena melhoria aqui vale mais que aumentar verba de anúncio.
+              </p>
+            </div>
+            <div className="text-right">
+              <p className="text-xs uppercase tracking-wider text-muted-foreground">Perda relativa</p>
+              <p className="font-serif text-3xl font-bold text-danger">
+                {pct(pega(prioridade, ["perda_relativa_pct", "perda_relativa"]))}
+              </p>
+            </div>
+          </div>
+        )}
+      </Card>
 
-        <TabsContent value="regua" className="space-y-6">
-          {/* Maior oportunidade */}
-          <Card className="rounded-xl border-primary/40 bg-primary/5 p-5">
-            {perdas.isLoading ? (
-...
-            </ul>
+      {/* Régua de conversão */}
+      <Card className="rounded-xl p-5">
+        <h2 className="font-semibold">Régua de conversão</h2>
+        <p className="mb-4 text-xs text-muted-foreground">
+          Sessão → Produto → Carrinho → Checkout → Compra
+        </p>
+        {regua.isLoading ? (
+          <div className="flex h-40 items-center justify-center">
+            <Loader2 className="h-6 w-6 animate-spin text-primary" />
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {funil.map((e) => (
+              <div key={e.label} className="flex items-center gap-3">
+                <span className="w-48 shrink-0 text-sm text-muted-foreground">{e.label}</span>
+                <div className="flex h-9 flex-1 items-center rounded-md bg-muted/50">
+                  {e.valor > 0 ? (
+                    <div
+                      className="flex h-9 items-center justify-end rounded-md bg-primary/70 px-3 text-sm font-semibold text-primary-foreground transition-all"
+                      style={{ width: `${e.largura}%` }}
+                    >
+                      {fmt(e.valor)}
+                    </div>
+                  ) : (
+                    <span className="px-3 text-sm text-muted-foreground">0</span>
+                  )}
+                </div>
+
+                <span className="w-24 shrink-0 text-right text-xs text-muted-foreground">
+                  {e.passagem === null ? "—" : pct(e.passagem)}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+        <p className="mt-4 text-xs text-muted-foreground">
+          Dados do GA4 no período selecionado — o funil começa na sessão do site.
+        </p>
+      </Card>
+
+      {/* Tabela de perdas */}
+      <Card className="rounded-xl p-5">
+        <h2 className="font-semibold">Perdas por etapa</h2>
+        <p className="mb-4 text-xs text-muted-foreground">
+          Ordenado pelo que mais importa: % perdido, não quantidade.
+        </p>
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Etapa</TableHead>
+              <TableHead className="text-right">Entrada</TableHead>
+              <TableHead className="text-right">Saída</TableHead>
+              <TableHead className="text-right">Taxa de passagem</TableHead>
+              <TableHead className="text-right">Perda relativa</TableHead>
+              <TableHead className="text-right">Perda absoluta</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {perdasOrdenadas.map((r, i) => (
+              <TableRow key={i} className={cn(i === 0 && "bg-danger/5")}>
+                <TableCell className="font-medium">
+                  {i === 0 && <Badge variant="outline" className="mr-2 border-danger/30 bg-danger/10 text-danger">#1</Badge>}
+                  {String(r.etapa ?? "—")}
+                </TableCell>
+                <TableCell className="text-right">{fmt(pega(r, ["entrada"]))}</TableCell>
+                <TableCell className="text-right">{fmt(pega(r, ["saida", "saída"]))}</TableCell>
+                <TableCell className="text-right">{pct(pega(r, ["taxa_passagem_pct", "taxa_passagem"]))}</TableCell>
+                <TableCell className="text-right font-semibold text-danger">
+                  {pct(pega(r, ["perda_relativa_pct", "perda_relativa"]))}
+                </TableCell>
+                <TableCell className="text-right">{fmt(pega(r, ["perda_absoluta", "perda_absoluta_qtd"]))}</TableCell>
+              </TableRow>
+            ))}
+            {!perdas.isLoading && (perdas.data ?? []).length === 0 && (
+              <TableRow>
+                <TableCell colSpan={6} className="text-center text-sm text-muted-foreground">
+                  Sem dados.
+                </TableCell>
+              </TableRow>
+            )}
+          </TableBody>
+        </Table>
+      </Card>
+
+      <div className="grid gap-6 lg:grid-cols-2">
+        {/* Sessões por canal */}
+        <Card className="rounded-xl p-5">
+          <h2 className="mb-4 font-semibold">Sessões por canal</h2>
+          <div className="h-56">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={canaisAgg.slice(0, 8)}>
+                <CartesianGrid strokeDasharray="3 3" className="stroke-border" vertical={false} />
+                <XAxis dataKey="canal" tick={{ fontSize: 11 }} />
+                <YAxis tick={{ fontSize: 11 }} />
+                <Tooltip formatter={(v: any) => fmt(num(v))} />
+                <Bar dataKey="sessoes" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+          <Table className="mt-4">
+            <TableHeader>
+              <TableRow>
+                <TableHead>Canal</TableHead>
+                <TableHead className="text-right">Sessões</TableHead>
+                <TableHead className="text-right">Usuários</TableHead>
+                <TableHead className="text-right">Novos</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {canaisAgg.map((c) => (
+                <TableRow key={c.canal}>
+                  <TableCell className="font-medium">{c.canal}</TableCell>
+                  <TableCell className="text-right">{fmt(c.sessoes)}</TableCell>
+                  <TableCell className="text-right">{fmt(c.usuarios)}</TableCell>
+                  <TableCell className="text-right">{fmt(c.novos)}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </Card>
+
+        <div className="space-y-6">
+          {/* Sessões sem engajamento */}
+          <Card className="rounded-xl p-5">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                  Sessões sem engajamento (30 dias)
+                </p>
+                <p className="mt-1 font-serif text-3xl font-bold">{fmt(totalSemEngajamento)}</p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Entrou e saiu sem navegar (1 evento só) — proxy de bounce disponível hoje.
+                </p>
+              </div>
+              <div className="rounded-lg bg-warning/10 p-2.5">
+                <TrendingDown className="h-5 w-5 text-warning" />
+              </div>
+            </div>
           </Card>
-        </TabsContent>
 
-        <TabsContent value="analise">
-          <AnaliseDiariaTab />
-        </TabsContent>
-      </Tabs>
+          {/* Páginas mais acessadas */}
+          <Card className="rounded-xl p-5">
+            <h2 className="mb-4 flex items-center gap-2 font-semibold">
+              <MousePointerClick className="h-4 w-4 text-primary" /> Páginas mais acessadas
+            </h2>
+            <div className="max-h-[420px] overflow-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Página</TableHead>
+                    <TableHead>Título</TableHead>
+                    <TableHead className="text-right">Sessões</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {paginasAgg.map((p) => (
+                    <TableRow key={p.pagina}>
+                      <TableCell className="max-w-[220px] truncate font-medium">{p.pagina}</TableCell>
+                      <TableCell className="max-w-[200px] truncate text-muted-foreground">{p.titulo}</TableCell>
+                      <TableCell className="text-right">{fmt(p.sessoes)}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          </Card>
+        </div>
+      </div>
+
+      {/* Páginas de saída */}
+      <Card className="rounded-xl p-5">
+        <h2 className="flex items-center gap-2 font-semibold">
+          <LogOut className="h-4 w-4 text-danger" /> Páginas onde mais perdemos visitantes
+        </h2>
+        <p className="mb-4 text-xs text-muted-foreground">
+          Última página vista antes da sessão ficar inativa — rastreamento próprio, últimos 30 dias.
+        </p>
+        <div className="max-h-[420px] overflow-auto">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Página</TableHead>
+                <TableHead className="text-right">Saídas</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {(saidas.data ?? []).map((r, i) => (
+                <TableRow key={`${r.pagina ?? i}`}>
+                  <TableCell className="max-w-[420px] truncate font-medium">
+                    {String(r.pagina ?? "—")}
+                  </TableCell>
+                  <TableCell className="text-right font-semibold text-danger">
+                    {fmt(pega(r, ["total_saidas"]))}
+                  </TableCell>
+                </TableRow>
+              ))}
+              {!saidas.isLoading && (saidas.data ?? []).length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={2} className="text-center text-sm text-muted-foreground">
+                    Sem dados de saída ainda.
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </div>
+      </Card>
+
+      <Card className="rounded-xl border-dashed p-5">
+        <h2 className="mb-2 font-semibold">Limitações atuais</h2>
+        <ul className="list-disc space-y-1 pl-5 text-sm text-muted-foreground">
+          <li>Funil por canal ainda não disponível — o GA4 sincroniza por data/dispositivo, sem dimensão de canal.</li>
+          <li>Heatmap de cliques/scroll não existe: exige uma camada de rastreamento adicional (projeto à parte).</li>
+          <li>Páginas de saída vêm do rastreamento próprio (30 dias fixos), não do GA4.</li>
+        </ul>
+      </Card>
     </div>
   );
 }
