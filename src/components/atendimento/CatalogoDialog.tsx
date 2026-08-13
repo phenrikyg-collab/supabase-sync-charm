@@ -45,16 +45,58 @@ export function CatalogoDialog({
   onSelecionar: (produto: ProdutoCatalogo) => void;
 }) {
   const [busca, setBusca] = useState("");
+  const [cor, setCor] = useState<string | null>(null);
+  const [tamanho, setTamanho] = useState<string | null>(null);
 
-  const { data: produtos = [], isLoading } = useQuery({
-    queryKey: ["whatsapp-catalogo", busca],
+  const { data: opcoes } = useQuery({
+    queryKey: ["catalogo-opcoes-filtro"],
     enabled: open,
     queryFn: async () => {
-      const { data, error } = await supabase.rpc("whatsapp_buscar_catalogo" as any, { p_busca: busca });
+      const { data, error } = await supabase.rpc("catalogo_opcoes_filtro" as any);
+      if (error) throw error;
+      const raw = (Array.isArray(data) ? data[0] : data) as
+        | { cores?: string[]; tamanhos?: string[] }
+        | null;
+      return { cores: raw?.cores ?? [], tamanhos: raw?.tamanhos ?? [] };
+    },
+  });
+
+  const { data: produtos = [], isLoading } = useQuery({
+    queryKey: ["catalogo-buscar-produtos", busca, cor, tamanho],
+    enabled: open,
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc("catalogo_buscar_produtos" as any, {
+        p_palavra_chave: busca.trim() || null,
+        p_cor: cor,
+        p_tamanho: tamanho,
+        p_limit: 30,
+      });
       if (error) throw error;
       return (data ?? []) as ProdutoCatalogo[];
     },
   });
+
+  const Pill = ({
+    ativo,
+    children,
+    onClick,
+  }: {
+    ativo: boolean;
+    children: React.ReactNode;
+    onClick: () => void;
+  }) => (
+    <button
+      type="button"
+      onClick={onClick}
+      className={
+        ativo
+          ? "rounded-full border border-primary bg-primary/10 px-2.5 py-1 text-[11px] font-medium text-primary"
+          : "rounded-full border border-border px-2.5 py-1 text-[11px] text-muted-foreground hover:bg-muted"
+      }
+    >
+      {children}
+    </button>
+  );
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
