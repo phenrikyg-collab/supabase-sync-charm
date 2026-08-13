@@ -79,13 +79,14 @@ const identificadorConversa = (c: Conversa) => (ehSite(c) ? "Chat do site" : c.t
 
 
 type Mensagem = {
-  id: number | string;
+  id?: number | string;
   conteudo: string;
   direcao: "entrada" | "saida";
   origem?: string | null;
   tipo?: string | null;
   media_url?: string | null;
   criado_em?: string | null;
+  criada_em?: string | null;
   enviado_em?: string | null;
   status_entrega?: "enviado" | "entregue" | "lido" | "falhou" | string | null;
   erro_entrega?: string | null;
@@ -769,12 +770,17 @@ export default function Atendimento() {
               <ScrollArea className="flex-1 p-4">
                 {carregandoMensagens && <p className="text-sm text-muted-foreground">Carregando mensagens…</p>}
                 <div className="space-y-3">
-                  {mensagens.map((m) => {
+                  {mensagens.map((m, idx) => {
                     const saida = m.direcao === "saida";
                     const bot = saida && m.origem === "bot";
-                    const imagem = m.tipo === "imagem" && !!m.media_url;
+                    const tipo = (m.tipo ?? "").toLowerCase();
+                    const sticker = tipo === "sticker" && !!m.media_url;
+                    const imagem = !sticker && !!m.media_url && ["imagem", "image", "photo", "foto"].includes(tipo);
                     return (
-                      <div key={String(m.id)} className={cn("flex", saida ? "justify-end" : "justify-start")}>
+                      <div
+                        key={m.id != null ? String(m.id) : `${m.criada_em ?? m.criado_em ?? ""}-${idx}`}
+                        className={cn("flex", saida ? "justify-end" : "justify-start")}
+                      >
                         <div
                           className={cn(
                             "max-w-[70%] rounded-lg px-3 py-2 text-sm border",
@@ -793,16 +799,24 @@ export default function Atendimento() {
                             <a href={m.media_url!} target="_blank" rel="noreferrer">
                               <img
                                 src={m.media_url!}
-                                alt={m.conteudo || "Imagem"}
-                                className="rounded-md max-h-64 w-auto object-cover mb-1"
+                                alt={m.conteudo || "Imagem enviada"}
+                                className="rounded-md max-h-64 w-auto object-contain mb-1"
                                 loading="lazy"
                               />
                             </a>
                           )}
+                          {sticker && (
+                            <img
+                              src={m.media_url!}
+                              alt="Sticker"
+                              className="mb-1 h-28 w-28 object-contain"
+                              loading="lazy"
+                            />
+                          )}
                           {!!m.conteudo && <p className="whitespace-pre-wrap break-words">{m.conteudo}</p>}
                           <div className="flex items-center justify-end gap-1 mt-1">
                             <span className="text-[10px] text-muted-foreground">
-                              {horaCurta(m.criado_em ?? m.enviado_em)}
+                              {horaCurta(m.criada_em ?? m.criado_em ?? m.enviado_em)}
                             </span>
                             {saida && <StatusEntrega status={m.status_entrega} erro={m.erro_entrega} />}
                           </div>
