@@ -216,7 +216,7 @@ export function AppSidebar() {
             );
 
             return (
-              <Collapsible key={group.label} defaultOpen>
+              <Collapsible key={group.label} defaultOpen={false}>
                 <SidebarGroup>
                   <CollapsibleTrigger className="w-full">
                     <SidebarGroupLabel className="text-sidebar-foreground/40 uppercase tracking-widest text-[10px] cursor-pointer hover:text-sidebar-foreground/60 transition-colors flex items-center justify-between w-full">
