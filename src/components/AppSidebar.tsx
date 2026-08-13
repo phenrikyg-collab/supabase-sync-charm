@@ -139,6 +139,7 @@ const moduleGroups: ModuleGroup[] = [
       { title: "Carrinho Abandonado", url: "/carrinho-abandonado", icon: ShoppingCart },
       { title: "Pedidos Cancelados", url: "/pedidos-cancelados", icon: PackageX },
       { title: "Visitantes ao Vivo", url: "/rastreamento", icon: Radar },
+      { title: "Funil WhatsApp", url: "/funil-whatsapp", icon: Filter },
       { title: "KPIs de Conversão", url: "/kpis-conversao", icon: TrendingUp },
       { title: "Provador Virtual", url: "/provador-virtual", icon: Sparkles },
 
