@@ -9,7 +9,8 @@ import { StatCard } from "@/components/StatCard";
 import { cn } from "@/lib/utils";
 import {
   Loader2, Flame, MessageCircle, Mail, Phone, History, ShoppingBag,
-  Users, Target, DollarSign, Send,
+  Users, Target, DollarSign, Send, Shirt, TicketPercent, ShoppingCart,
+  CreditCard, Megaphone, ChevronDown, ChevronUp,
 } from "lucide-react";
 
 type Oportunidade = {
@@ -50,6 +51,16 @@ type EventoTimeline = {
   created_at?: string | null;
 };
 
+type ResumoVisitante = {
+  produtos_vistos?: string[] | null;
+  total_produtos_vistos?: number | null;
+  cupom_codigo?: string | null;
+  adicionou_carrinho?: boolean | null;
+  iniciou_checkout?: boolean | null;
+  veio_de_anuncio?: boolean | null;
+  total_eventos?: number | null;
+};
+
 const brl = (v?: number | null) =>
   typeof v === "number" && isFinite(v)
     ? v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })
@@ -87,6 +98,155 @@ function horaCurta(iso?: string | null) {
 const quandoEvento = (e: EventoTimeline) => e.criada_em ?? e.criado_em ?? e.created_at ?? null;
 const descricaoEvento = (e: EventoTimeline) =>
   e.produto_nome || e.titulo_pagina || e.url || e.pagina || "—";
+
+function BlocoResumo({
+  icone: Icone,
+  texto,
+  urgente = false,
+}: {
+  icone: React.ElementType;
+  texto: React.ReactNode;
+  urgente?: boolean;
+}) {
+  return (
+    <div className="flex items-start gap-2.5 text-xs">
+      <div
+        className={cn(
+          "flex h-6 w-6 shrink-0 items-center justify-center rounded-full",
+          urgente ? "bg-warning/10 text-warning" : "bg-muted text-muted-foreground"
+        )}
+      >
+        <Icone className="h-3.5 w-3.5" />
+      </div>
+      <span className={cn("pt-0.5 leading-relaxed", urgente && "font-medium text-warning")}>
+        {texto}
+      </span>
+    </div>
+  );
+}
+
+function ResumoVisitanteCard({
+  resumo,
+  telefone,
+  onVerHistorico,
+}: {
+  resumo: ResumoVisitante | null;
+  telefone?: string | null;
+  onVerHistorico: () => void;
+}) {
+  const [cupomHistorico, setCupomHistorico] = useState<string | null>(null);
+  const [carregandoCupom, setCarregandoCupom] = useState(false);
+
+  useEffect(() => {
+    if (resumo?.cupom_codigo || !telefone) return;
+    let cancelado = false;
+    setCarregandoCupom(true);
+    supabase
+      .rpc("whatsapp_get_historico_cliente" as any, { p_telefone: telefone })
+      .then(({ data, error }) => {
+        if (cancelado || error) return;
+        const row: any = Array.isArray(data) ? data[0] : data;
+        const cupons = (row?.cupons ?? []) as { codigo?: string | null; foi_usado?: boolean | null; expirou_sem_uso?: boolean | null }[];
+        const valido = cupons.find((c) => c.codigo && !c.foi_usado && !c.expirou_sem_uso);
+        if (valido?.codigo) setCupomHistorico(valido.codigo);
+      })
+      .finally(() => setCarregandoCupom(false));
+    return () => {
+      cancelado = true;
+    };
+  }, [resumo?.cupom_codigo, telefone]);
+
+  if (!resumo) {
+    return (
+      <div className="flex items-center gap-2 py-2 text-xs text-muted-foreground">
+        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+        Carregando resumo…
+      </div>
+    );
+  }
+
+  const produtos = resumo.produtos_vistos ?? [];
+  const total = typeof resumo.total_produtos_vistos === "number" ? resumo.total_produtos_vistos : produtos.length;
+  const visiveis = produtos.slice(0, 5);
+  const restantes = Math.max(0, total - visiveis.length);
+
+  return (
+    <div className="space-y-2.5 rounded-lg border border-border bg-muted/30 p-3">
+      {total > 0 && (
+        <BlocoResumo
+          icone={Shirt}
+          texto={
+            <span>
+              Viu <strong>{total}</strong> produto{total === 1 ? "" : "s"}
+              {visiveis.length > 0 && ", incluindo:"}
+              {visiveis.length > 0 && (
+                <span className="mt-1 block pl-0">
+                  {visiveis.map((nome, idx) => (
+                    <span key={idx} className="block truncate">
+                      {idx === 0 ? "• " : "• "}
+                      {nome}
+                    </span>
+                  ))}
+                  {restantes > 0 && (
+                    <span className="block text-muted-foreground">+ {restantes} outro{restantes === 1 ? "" : "s"}</span>
+                  )}
+                </span>
+              )}
+            </span>
+          }
+        />
+      )}
+
+      {(resumo.cupom_codigo || cupomHistorico || carregandoCupom) && (
+        <BlocoResumo
+          icone={TicketPercent}
+          texto={
+            resumo.cupom_codigo ? (
+              <span>
+                Cupom aplicado: <strong>{resumo.cupom_codigo}</strong>
+              </span>
+            ) : cupomHistorico ? (
+              <span>
+                Tem cupom disponível: <strong>{cupomHistorico}</strong>
+              </span>
+            ) : (
+              <span className="text-muted-foreground">Verificando cupons…</span>
+            )
+          }
+        />
+      )}
+
+      {resumo.iniciou_checkout ? (
+        <BlocoResumo
+          icone={CreditCard}
+          urgente
+          texto={<span>Chegou a iniciar o checkout (não finalizou)</span>}
+        />
+      ) : resumo.adicionou_carrinho ? (
+        <BlocoResumo
+          icone={ShoppingCart}
+          texto={<span>Adicionou item(ns) ao carrinho</span>}
+        />
+      ) : null}
+
+      {resumo.veio_de_anuncio && (
+        <BlocoResumo
+          icone={Megaphone}
+          texto={<span>Veio de um anúncio</span>}
+        />
+      )}
+
+      <button
+        type="button"
+        onClick={onVerHistorico}
+        className="mt-1 flex items-center gap-1 text-[11px] font-medium text-primary hover:underline"
+      >
+        <History className="h-3 w-3" />
+        Ver histórico completo
+      </button>
+    </div>
+  );
+}
 
 export default function Oportunidades() {
   const [horas, setHoras] = useState(24);
