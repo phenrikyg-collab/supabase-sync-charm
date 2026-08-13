@@ -258,6 +258,7 @@ export default function Oportunidades() {
   const [itens, setItens] = useState<Oportunidade[]>([]);
   const [resumo, setResumo] = useState<Resumo | null>(null);
   const [carregando, setCarregando] = useState(true);
+  const [resumosVisitante, setResumosVisitante] = useState<Record<string, ResumoVisitante | null>>({});
   const [timeline, setTimeline] = useState<EventoTimeline[] | null>(null);
   const [carregandoTimeline, setCarregandoTimeline] = useState(false);
   const [tituloTimeline, setTituloTimeline] = useState("");
