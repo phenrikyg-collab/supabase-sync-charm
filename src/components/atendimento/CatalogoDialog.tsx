@@ -113,6 +113,30 @@ export function CatalogoDialog({
             className="pl-8"
           />
         </div>
+        <div className="space-y-1.5">
+          <div className="flex flex-wrap items-center gap-1.5">
+            <span className="text-[11px] font-medium text-muted-foreground">Cor:</span>
+            <Pill ativo={cor === null} onClick={() => setCor(null)}>
+              Todas
+            </Pill>
+            {(opcoes?.cores ?? []).map((c) => (
+              <Pill key={c} ativo={cor === c} onClick={() => setCor(cor === c ? null : c)}>
+                {c}
+              </Pill>
+            ))}
+          </div>
+          <div className="flex flex-wrap items-center gap-1.5">
+            <span className="text-[11px] font-medium text-muted-foreground">Tamanho:</span>
+            <Pill ativo={tamanho === null} onClick={() => setTamanho(null)}>
+              Todos
+            </Pill>
+            {(opcoes?.tamanhos ?? []).map((t) => (
+              <Pill key={t} ativo={tamanho === t} onClick={() => setTamanho(tamanho === t ? null : t)}>
+                {t}
+              </Pill>
+            ))}
+          </div>
+        </div>
         <ScrollArea className="h-[420px] pr-2">
           {isLoading && <p className="text-sm text-muted-foreground p-2">Carregando…</p>}
           {!isLoading && produtos.length === 0 && (
