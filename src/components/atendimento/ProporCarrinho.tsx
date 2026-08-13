@@ -49,6 +49,9 @@ type OpcaoFrete = {
 
 type ItemCarrinho = {
   produto_id?: string | number | null;
+  variant_id?: string | number | null;
+  cor?: string | null;
+  tamanho?: string | null;
   nome?: string;
   imagem?: string | null;
   preco_catalogo?: number | null;
