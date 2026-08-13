@@ -79,13 +79,14 @@ const identificadorConversa = (c: Conversa) => (ehSite(c) ? "Chat do site" : c.t
 
 
 type Mensagem = {
-  id: number | string;
+  id?: number | string;
   conteudo: string;
   direcao: "entrada" | "saida";
   origem?: string | null;
   tipo?: string | null;
   media_url?: string | null;
   criado_em?: string | null;
+  criada_em?: string | null;
   enviado_em?: string | null;
   status_entrega?: "enviado" | "entregue" | "lido" | "falhou" | string | null;
   erro_entrega?: string | null;
