@@ -210,7 +210,11 @@ function FormularioProposta({
         conversa_id: conversaId,
         itens: itens.map((i) =>
           i.produto_id
-            ? { produto_id: i.produto_id, quantidade: i.quantidade }
+            ? {
+                produto_id: i.produto_id,
+                ...(i.variant_id != null ? { variant_id: i.variant_id } : {}),
+                quantidade: i.quantidade,
+              }
             : {
                 descricao: i.descricao.trim(),
                 valor_unitario: paraNumero(i.valor_unitario).toFixed(2),
