@@ -187,7 +187,14 @@ export default function KpisConversao() {
         <FiltroPeriodo periodo={periodo} onChange={setPeriodo} />
       </div>
 
-      {/* Maior oportunidade */}
+      <Tabs defaultValue="regua" className="w-full">
+        <TabsList className="mb-4">
+          <TabsTrigger value="regua">Régua de Conversão</TabsTrigger>
+          <TabsTrigger value="analise">Análise Diária</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="regua" className="space-y-6">
+          {/* Maior oportunidade */}
       <Card className="rounded-xl border-primary/40 bg-primary/5 p-5">
         {perdas.isLoading ? (
           <Loader2 className="h-5 w-5 animate-spin text-primary" />
