@@ -5,11 +5,13 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { FiltroPeriodo, Periodo, periodoUltimosDias } from "@/components/recuperacao/FiltroPeriodo";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
 import { Target, Loader2, TrendingDown, MousePointerClick, LogOut } from "lucide-react";
+import AnaliseDiariaTab from "@/components/kpis/AnaliseDiariaTab";
 
 type Row = Record<string, any>;
 
