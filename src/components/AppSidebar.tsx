@@ -4,6 +4,7 @@ import {
   ShoppingBag, Banknote, Wrench, CreditCard, PieChart, Monitor, Settings, Trophy, CalendarDays, TrendingUp, ClipboardList, Megaphone, Tag, Sparkles, Heart, LayoutGrid,
   Compass, Boxes, UserSquare2, Link as LinkIcon, MessageCircle, Workflow, Mail, ShoppingCart, PackageX, Radar, Ticket,
   BellRing,
+  Filter,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useAuth } from "@/contexts/AuthContext";
@@ -139,6 +140,7 @@ const moduleGroups: ModuleGroup[] = [
       { title: "Carrinho Abandonado", url: "/carrinho-abandonado", icon: ShoppingCart },
       { title: "Pedidos Cancelados", url: "/pedidos-cancelados", icon: PackageX },
       { title: "Visitantes ao Vivo", url: "/rastreamento", icon: Radar },
+      { title: "Funil WhatsApp", url: "/funil-whatsapp", icon: Filter },
       { title: "KPIs de Conversão", url: "/kpis-conversao", icon: TrendingUp },
       { title: "Provador Virtual", url: "/provador-virtual", icon: Sparkles },
 
