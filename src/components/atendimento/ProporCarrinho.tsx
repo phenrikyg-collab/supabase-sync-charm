@@ -332,36 +332,47 @@ function FormularioProposta({
             }`}
           >
             {item.produto_id ? (
-              <div className="flex items-center gap-2">
-                <div className="h-10 w-10 shrink-0 overflow-hidden rounded bg-muted">
-                  {item.imagem ? (
-                    <img src={item.imagem} alt={item.nome} className="h-full w-full object-cover" />
-                  ) : null}
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <div className="h-10 w-10 shrink-0 overflow-hidden rounded bg-muted">
+                    {item.imagem ? (
+                      <img src={item.imagem} alt={item.nome} className="h-full w-full object-cover" />
+                    ) : null}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-xs font-medium">{item.nome}</p>
+                    <p className="text-[11px] text-muted-foreground">
+                      catálogo #{String(item.produto_id)} · {moedaBR(item.preco_catalogo)}
+                      {item.cor || item.tamanho
+                        ? ` · ${[item.cor, item.tamanho].filter(Boolean).join(" / ")}`
+                        : ""}
+                    </p>
+                  </div>
+                  <Input
+                    type="number"
+                    min={1}
+                    className="w-16"
+                    value={item.quantidade}
+                    onChange={(e) =>
+                      atualizarItem(index, { quantidade: Math.max(1, Number(e.target.value) || 1) })
+                    }
+                    aria-label="Quantidade"
+                  />
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    onClick={() => setItens((prev) => prev.filter((_, i) => i !== index))}
+                    aria-label="Remover item"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
                 </div>
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-xs font-medium">{item.nome}</p>
-                  <p className="text-[11px] text-muted-foreground">
-                    catálogo #{String(item.produto_id)} · {moedaBR(item.preco_catalogo)}
-                  </p>
-                </div>
-                <Input
-                  type="number"
-                  min={1}
-                  className="w-16"
-                  value={item.quantidade}
-                  onChange={(e) =>
-                    atualizarItem(index, { quantidade: Math.max(1, Number(e.target.value) || 1) })
-                  }
-                  aria-label="Quantidade"
+                <SeletorVariante
+                  produtoId={item.produto_id}
+                  cor={item.cor}
+                  tamanho={item.tamanho}
+                  onChange={(v) => atualizarItem(index, v)}
                 />
-                <Button
-                  size="icon"
-                  variant="ghost"
-                  onClick={() => setItens((prev) => prev.filter((_, i) => i !== index))}
-                  aria-label="Remover item"
-                >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
               </div>
             ) : (
               <div className="grid grid-cols-[1fr_100px_70px_auto] items-end gap-2">
