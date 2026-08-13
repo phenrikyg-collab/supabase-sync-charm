@@ -27,6 +27,7 @@ import { CobrancaPixDialog, CobrancasTab, CobrancasDaConversa } from "@/componen
 import { LinkPagamentoCard, LinkPagamentoDialog } from "@/components/atendimento/LinkPagamento";
 import { CalcularFreteDialog } from "@/components/atendimento/CalcularFrete";
 import { ProporCarrinhoDialog, PropostaDaConversa } from "@/components/atendimento/ProporCarrinho";
+import { EnviarTemplateDialog } from "@/components/atendimento/EnviarTemplate";
 
 import { ConsultarTransacaoTab } from "@/components/atendimento/ConsultarTransacao";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -183,6 +184,7 @@ export default function Atendimento() {
   const [linkPagamentoAberto, setLinkPagamentoAberto] = useState(false);
   const [freteAberto, setFreteAberto] = useState(false);
   const [proporCarrinhoAberto, setProporCarrinhoAberto] = useState(false);
+  const [templateAberto, setTemplateAberto] = useState(false);
   const [propostaId, setPropostaId] = useState<string | number | null>(null);
 
 
@@ -343,16 +345,24 @@ export default function Atendimento() {
 
   const enviarImagem = async (mediaUrl: string, conteudo: string) => {
     if (!conversaAtual) throw new Error("Nenhuma conversa selecionada");
-    const { error } = await supabase.functions.invoke("whatsapp-enviar-mensagem-humano", {
-      body: {
-        conversa_id: conversaAtual.id,
-        telefone: conversaAtual.telefone,
-        conteudo,
-        tipo: "imagem",
-        media_url: mediaUrl,
+    const telefoneEnvio = conversaAtual.telefone_real || conversaAtual.telefone;
+    const resposta = await fetch(
+      "https://ezdtulcrqzmgocamjwwl.supabase.co/functions/v1/whatsapp-enviar-imagem-humano",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          telefone: telefoneEnvio,
+          conversa_id: conversaAtual.id,
+          imagem_url: mediaUrl,
+          legenda: conteudo || "",
+        }),
       },
-    });
-    if (error) throw error;
+    );
+    const corpo = await resposta.json().catch(() => ({}));
+    if (!resposta.ok || corpo?.error) {
+      throw new Error(corpo?.error || corpo?.mensagem || `Falha no envio (${resposta.status})`);
+    }
     invalidarThread();
   };
 
@@ -809,9 +819,16 @@ export default function Atendimento() {
               {podeResponder && !ehSite(conversaAtual) && dentroJanela === false ? (
                 <div className="p-4 flex items-start gap-3 border-t-2 border-warning bg-warning/10">
                   <Lock className="h-4 w-4 text-warning mt-0.5 shrink-0" />
-                  <p className="text-sm text-foreground">
-                    Fora da janela de 24h — use um template aprovado (tela de Campanhas) pra reabrir contato.
-                  </p>
+                  <div className="flex-1 space-y-2">
+                    <p className="text-sm text-foreground">
+                      Fora da janela de 24h — mensagem de texto livre é bloqueada pelo WhatsApp. Só um
+                      template aprovado reabre o contato.
+                    </p>
+                    <Button size="sm" onClick={() => setTemplateAberto(true)}>
+                      <Send className="h-4 w-4 mr-2" />
+                      Enviar template
+                    </Button>
+                  </div>
                 </div>
               ) : podeResponder ? (
                 <div className="p-3 space-y-2">
@@ -925,6 +942,18 @@ export default function Atendimento() {
           conversaId={conversaAtual.id}
           emailCliente={(conversaAtual as any).email ?? (conversaAtual as any).email_cliente ?? null}
           nomeCliente={nomeConversa(conversaAtual)}
+        />
+      )}
+      {conversaAtual && (
+        <EnviarTemplateDialog
+          open={templateAberto}
+          onOpenChange={setTemplateAberto}
+          telefone={telefoneIdentificado}
+          conversaId={conversaAtual.id}
+          onEnviado={() => {
+            invalidarThread();
+            queryClient.invalidateQueries({ queryKey: ["whatsapp-janela-24h", selecionada] });
+          }}
         />
       )}
       {conversaAtual && (
