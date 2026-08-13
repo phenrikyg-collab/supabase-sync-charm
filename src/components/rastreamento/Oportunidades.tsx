@@ -290,6 +290,21 @@ export default function Oportunidades() {
     return () => clearInterval(id);
   }, [carregar]);
 
+  const tipos = useMemo(
+    () => Array.from(new Set(itens.map((i) => i.tipo).filter(Boolean) as string[])),
+    [itens],
+  );
+
+  const visiveis = useMemo(
+    () =>
+      itens.filter((i) => {
+        if (tiposSelecionados.length && !tiposSelecionados.includes(i.tipo || "")) return false;
+        if (soContactaveis && !i.telefone && !i.email) return false;
+        return true;
+      }),
+    [itens, tiposSelecionados, soContactaveis],
+  );
+
   useEffect(() => {
     const visitantes = visiveis
       .filter((o) => o.visitante_id && !resumosVisitante[o.visitante_id as string])
@@ -320,21 +335,6 @@ export default function Oportunidades() {
       cancelado = true;
     };
   }, [visiveis, resumosVisitante]);
-
-  const tipos = useMemo(
-    () => Array.from(new Set(itens.map((i) => i.tipo).filter(Boolean) as string[])),
-    [itens],
-  );
-
-  const visiveis = useMemo(
-    () =>
-      itens.filter((i) => {
-        if (tiposSelecionados.length && !tiposSelecionados.includes(i.tipo || "")) return false;
-        if (soContactaveis && !i.telefone && !i.email) return false;
-        return true;
-      }),
-    [itens, tiposSelecionados, soContactaveis],
-  );
 
   const abrirTimeline = useCallback(async (o: Oportunidade) => {
     setTituloTimeline(o.titulo || "Histórico");
