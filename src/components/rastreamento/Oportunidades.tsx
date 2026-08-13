@@ -143,14 +143,17 @@ function ResumoVisitanteCard({
     setCarregandoCupom(true);
     supabase
       .rpc("whatsapp_get_historico_cliente" as any, { p_telefone: telefone })
-      .then(({ data, error }) => {
-        if (cancelado || error) return;
-        const row: any = Array.isArray(data) ? data[0] : data;
-        const cupons = (row?.cupons ?? []) as { codigo?: string | null; foi_usado?: boolean | null; expirou_sem_uso?: boolean | null }[];
-        const valido = cupons.find((c) => c.codigo && !c.foi_usado && !c.expirou_sem_uso);
-        if (valido?.codigo) setCupomHistorico(valido.codigo);
-      })
-      .finally(() => setCarregandoCupom(false));
+      .then(
+        ({ data, error }) => {
+          if (cancelado || error) return;
+          const row: any = Array.isArray(data) ? data[0] : data;
+          const cupons = (row?.cupons ?? []) as { codigo?: string | null; foi_usado?: boolean | null; expirou_sem_uso?: boolean | null }[];
+          const valido = cupons.find((c) => c.codigo && !c.foi_usado && !c.expirou_sem_uso);
+          if (valido?.codigo) setCupomHistorico(valido.codigo);
+        },
+        () => {}
+      )
+      .then(() => setCarregandoCupom(false));
     return () => {
       cancelado = true;
     };
