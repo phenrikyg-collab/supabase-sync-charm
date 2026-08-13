@@ -443,6 +443,12 @@ export default function KpisConversao() {
           <li>Páginas de saída vêm do rastreamento próprio (30 dias fixos), não do GA4.</li>
         </ul>
       </Card>
+        </TabsContent>
+
+        <TabsContent value="analise">
+          <AnaliseDiariaTab />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
