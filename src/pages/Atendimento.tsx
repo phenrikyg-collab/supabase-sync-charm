@@ -781,6 +781,20 @@ export default function Atendimento() {
                         key={m.id != null ? String(m.id) : `${m.criada_em ?? m.criado_em ?? ""}-${idx}`}
                         className={cn("flex", saida ? "justify-end" : "justify-start")}
                       >
+                        <div
+                          className={cn(
+                            "max-w-[70%] rounded-lg px-3 py-2 text-sm border",
+                            !saida && "bg-muted text-foreground border-border",
+                            saida && bot && "bg-info/10 text-foreground border-info/30",
+                            saida && !bot && "bg-primary/10 text-foreground border-primary/30",
+                          )}
+                        >
+                          {saida && (
+                            <div className="flex items-center gap-1 text-[10px] uppercase tracking-wider text-muted-foreground mb-1">
+                              {bot ? <Bot className="h-3 w-3" /> : <User className="h-3 w-3" />}
+                              {bot ? "Bot" : "Atendente"}
+                            </div>
+                          )}
                           {imagem && (
                             <a href={m.media_url!} target="_blank" rel="noreferrer">
                               <img
