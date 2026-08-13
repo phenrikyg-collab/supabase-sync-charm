@@ -429,14 +429,26 @@ export default function Oportunidades() {
                         </span>
                       )}
                     </div>
-                    {o.detalhe && (
-                      <p className="mt-1 text-xs text-muted-foreground">{o.detalhe}</p>
-                    )}
-                    {o.acao_sugerida && (
-                      <div className="mt-3 flex items-start gap-2 rounded-lg border border-primary/20 bg-primary/5 p-3 text-xs">
-                        <IconeCanal canal={o.canal_sugerido} />
-                        <span>{o.acao_sugerida}</span>
+                    {o.visitante_id ? (
+                      <div className="mt-3">
+                        <ResumoVisitanteCard
+                          resumo={resumosVisitante[o.visitante_id] ?? null}
+                          telefone={o.telefone}
+                          onVerHistorico={() => abrirTimeline(o)}
+                        />
                       </div>
+                    ) : (
+                      <>
+                        {o.detalhe && (
+                          <p className="mt-1 text-xs text-muted-foreground">{o.detalhe}</p>
+                        )}
+                        {o.acao_sugerida && (
+                          <div className="mt-3 flex items-start gap-2 rounded-lg border border-primary/20 bg-primary/5 p-3 text-xs">
+                            <IconeCanal canal={o.canal_sugerido} />
+                            <span>{o.acao_sugerida}</span>
+                          </div>
+                        )}
+                      </>
                     )}
                   </div>
                   {o.valor != null && (
@@ -457,10 +469,12 @@ export default function Oportunidades() {
                       </a>
                     </Button>
                   )}
-                  <Button size="sm" variant="outline" onClick={() => abrirTimeline(o)}>
-                    <History className="mr-2 h-3.5 w-3.5" />
-                    Ver histórico
-                  </Button>
+                  {!o.visitante_id && (
+                    <Button size="sm" variant="outline" onClick={() => abrirTimeline(o)}>
+                      <History className="mr-2 h-3.5 w-3.5" />
+                      Ver histórico
+                    </Button>
+                  )}
                   {o.carrinho_id && (
                     <Button size="sm" variant="outline" onClick={() => setCarrinho(o)}>
                       <ShoppingBag className="mr-2 h-3.5 w-3.5" />
