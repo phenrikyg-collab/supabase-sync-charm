@@ -290,6 +290,37 @@ export default function Oportunidades() {
     return () => clearInterval(id);
   }, [carregar]);
 
+  useEffect(() => {
+    const visitantes = visiveis
+      .filter((o) => o.visitante_id && !resumosVisitante[o.visitante_id as string])
+      .map((o) => o.visitante_id as string);
+    if (visitantes.length === 0) return;
+
+    let cancelado = false;
+    Promise.all(
+      visitantes.map(async (id) => {
+        const { data, error } = await supabase.rpc("rastreamento_resumo_visitante" as any, {
+          p_visitante_id: id,
+        });
+        if (error || !data) return { id, resumo: null };
+        const row: any = Array.isArray(data) ? data[0] : data;
+        return { id, resumo: row as ResumoVisitante | null };
+      })
+    ).then((resultados) => {
+      if (cancelado) return;
+      setResumosVisitante((prev) => {
+        const novo = { ...prev };
+        resultados.forEach(({ id, resumo }) => {
+          novo[id] = resumo;
+        });
+        return novo;
+      });
+    });
+    return () => {
+      cancelado = true;
+    };
+  }, [visiveis, resumosVisitante]);
+
   const tipos = useMemo(
     () => Array.from(new Set(itens.map((i) => i.tipo).filter(Boolean) as string[])),
     [itens],
