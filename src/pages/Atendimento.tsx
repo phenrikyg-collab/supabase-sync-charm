@@ -26,6 +26,7 @@ import { AtividadesRecentes } from "@/components/atendimento/AtividadesRecentes"
 import { CobrancaPixDialog, CobrancasTab, CobrancasDaConversa } from "@/components/atendimento/CobrancaPix";
 import { LinkPagamentoCard, LinkPagamentoDialog } from "@/components/atendimento/LinkPagamento";
 import { CalcularFreteDialog } from "@/components/atendimento/CalcularFrete";
+import { ProporCarrinhoDialog, PropostaDaConversa } from "@/components/atendimento/ProporCarrinho";
 
 import { ConsultarTransacaoTab } from "@/components/atendimento/ConsultarTransacao";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -181,6 +182,8 @@ export default function Atendimento() {
   const [cobrancaAberta, setCobrancaAberta] = useState(false);
   const [linkPagamentoAberto, setLinkPagamentoAberto] = useState(false);
   const [freteAberto, setFreteAberto] = useState(false);
+  const [proporCarrinhoAberto, setProporCarrinhoAberto] = useState(false);
+  const [propostaId, setPropostaId] = useState<string | number | null>(null);
 
 
 
@@ -711,6 +714,10 @@ export default function Atendimento() {
                     <Link2 className="h-4 w-4 mr-2" />
                     Gerar link de pagamento
                   </Button>
+                  <Button size="sm" variant="outline" onClick={() => setProporCarrinhoAberto(true)}>
+                    <ShoppingCart className="h-4 w-4 mr-2" />
+                    Propor carrinho
+                  </Button>
                   <Button size="sm" variant="outline" onClick={() => setFreteAberto(true)}>
                     <Truck className="h-4 w-4 mr-2" />
                     Calcular frete
@@ -746,6 +753,7 @@ export default function Atendimento() {
                 </div>
               </div>
 
+              <PropostaDaConversa conversaId={conversaAtual.id} propostaId={propostaId} />
               <CobrancasDaConversa conversaId={conversaAtual.id} />
 
               <ScrollArea className="flex-1 p-4">
@@ -917,6 +925,17 @@ export default function Atendimento() {
           conversaId={conversaAtual.id}
           emailCliente={(conversaAtual as any).email ?? (conversaAtual as any).email_cliente ?? null}
           nomeCliente={nomeConversa(conversaAtual)}
+        />
+      )}
+      {conversaAtual && (
+        <ProporCarrinhoDialog
+          open={proporCarrinhoAberto}
+          onOpenChange={setProporCarrinhoAberto}
+          conversaId={conversaAtual.id}
+          telefone={telefoneIdentificado}
+          emailCliente={(conversaAtual as any).email ?? (conversaAtual as any).email_cliente ?? null}
+          nomeCliente={nomeConversa(conversaAtual)}
+          onEnviada={(id) => setPropostaId(id)}
         />
       )}
       {conversaAtual && (
