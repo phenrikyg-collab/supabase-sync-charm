@@ -10,7 +10,7 @@ import { cn } from "@/lib/utils";
 import {
   Loader2, Flame, MessageCircle, Mail, Phone, History, ShoppingBag,
   Users, Target, DollarSign, Send, Shirt, TicketPercent, ShoppingCart,
-  CreditCard, Megaphone, ChevronDown, ChevronUp,
+  CreditCard, Megaphone,
 } from "lucide-react";
 
 type Oportunidade = {
