@@ -14,6 +14,7 @@ import {
 import { toast } from "@/hooks/use-toast";
 import { CheckCircle2, Clock, Loader2, Plus, ShoppingCart, Trash2, Truck } from "lucide-react";
 import { BuscaProduto, ProdutoPagamento, moedaBR, precoProduto } from "@/components/atendimento/BuscaProduto";
+import { SeletorVariante } from "@/components/atendimento/SeletorVariante";
 
 const EXTERNAL_SUPABASE_URL = "https://ezdtulcrqzmgocamjwwl.supabase.co";
 const PROPOR_CARRINHO_URL = `${EXTERNAL_SUPABASE_URL}/functions/v1/propor-carrinho`;
