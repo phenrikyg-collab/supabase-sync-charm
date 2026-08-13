@@ -20,6 +20,7 @@ import {
 } from "recharts";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { FilaFollowups, ResumoFollowups, TemplatesFollowup } from "@/components/funil/FollowUps";
 import { Loader2, MoreVertical, RefreshCw, MessageCircle, TrendingDown } from "lucide-react";
 
 type Etapa = "atendimento" | "interesse" | "pagamento_enviado" | "pago" | "perdido";
@@ -112,12 +113,20 @@ export default function FunilWhatsApp() {
         <TabsList>
           <TabsTrigger value="funil">Funil do dia</TabsTrigger>
           <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
+          <TabsTrigger value="followups">Follow-ups</TabsTrigger>
+          <TabsTrigger value="templates">Templates</TabsTrigger>
         </TabsList>
         <TabsContent value="funil" className="mt-4">
           <FunilDoDia />
         </TabsContent>
         <TabsContent value="dashboard" className="mt-4">
           <DashboardFunil />
+        </TabsContent>
+        <TabsContent value="followups" className="mt-4">
+          <FilaFollowups />
+        </TabsContent>
+        <TabsContent value="templates" className="mt-4">
+          <TemplatesFollowup />
         </TabsContent>
       </Tabs>
     </div>
@@ -534,6 +543,8 @@ function DashboardFunil() {
               )}
             </CardContent>
           </Card>
+
+          <ResumoFollowups inicio={inicio} fim={fim} />
         </>
       )}
     </div>
