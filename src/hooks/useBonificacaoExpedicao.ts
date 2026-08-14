@@ -75,87 +75,58 @@ export function useFaixas() {
 export function useApurarExpedicao(mesRef: string) {
   // mesRef: "yyyy-MM"
   const { data: faixas = [] } = useFaixas();
+  const qc = useQueryClient();
 
-  const pedidosQuery = useQuery({
-    queryKey: ["pedidos-expedicao", mesRef],
+  const apuracaoQuery = useQuery({
+    queryKey: ["apuracao-expedicao", mesRef],
     queryFn: async () => {
-      const dt = parse(mesRef + "-01", "yyyy-MM-dd", new Date());
-      const di = format(startOfMonth(dt), "yyyy-MM-dd");
-      const df = format(endOfMonth(dt), "yyyy-MM-dd");
-      return await fetchAll<TrayOrderExp>("tray_orders", (q: any) =>
-        q
-          .gte("date", di)
-          .lte("date", df)
-          .not("estimated_delivery_date", "is", null)
-      );
+      const { data, error } = await supabase
+        .from("bonificacao_expedicao" as any)
+        .select("*")
+        .eq("mes", `${mesRef}-01`)
+        .maybeSingle();
+      if (error) throw error;
+      return (data ?? null) as unknown as ApuracaoMes | null;
     },
   });
 
   return useMemo(() => {
-    const todos = pedidosQuery.data ?? [];
-    const HOJE = format(new Date(), "yyyy-MM-dd");
+    const row = apuracaoQuery.data;
 
-    // Excluir do cálculo: cancelados, cancelados automaticamente,
-    // aguardando pagamento e estornados. Demais (em aberto e finalizados) entram.
-    const EXCLUIR = new Set([
-      "canceled", "cancelled", "cancelado",
-      "canceled_auto", "cancelled_auto", "cancelado_auto", "cancelado automatico",
-      "refunded", "estornado",
-      "waiting_payment", "aguardando_pagamento", "aguardando pagamento",
-      "pending_payment",
-    ]);
-    const isExcluido = (p: TrayOrderExp) => {
-      const s = (p.orderstatus_status ?? "").toLowerCase().trim();
-      const t = (p.orderstatus_type ?? "").toLowerCase().trim();
-      return EXCLUIR.has(s) || EXCLUIR.has(t);
-    };
-
-    const pedidos = todos.filter((p) => !isExcluido(p));
-
-    let no_prazo = 0;
-    let atrasados = 0;
-    let pendentes = 0;
-
-    for (const p of pedidos) {
-      const prazo = p.estimated_delivery_date ?? null;
-      if (p.shipment_date) {
-        // Já enviado: avalia contra o prazo
-        if (prazo && p.shipment_date <= prazo) no_prazo += 1;
-        else atrasados += 1;
-      } else {
-        // Ainda não enviado: se o prazo já passou, conta como atrasado
-        if (prazo && prazo < HOJE) atrasados += 1;
-        else pendentes += 1;
-      }
-    }
-
-    const total = pedidos.length;
-    // Base = todos os pedidos válidos do mês (no prazo + atrasados + pendentes ainda dentro do prazo)
-    const percentual_prazo = total > 0 ? (no_prazo / total) * 100 : 0;
+    const kpis = row
+      ? {
+          total_pedidos: Number(row.total_pedidos ?? 0),
+          pedidos_no_prazo: Number(row.pedidos_no_prazo ?? 0),
+          pedidos_atrasados: Number(row.pedidos_atrasados ?? 0),
+          pedidos_pendentes: Number(row.pedidos_pendentes ?? 0),
+          percentual_prazo: Number(row.percentual_prazo ?? 0),
+        }
+      : {
+          total_pedidos: 0,
+          pedidos_no_prazo: 0,
+          pedidos_atrasados: 0,
+          pedidos_pendentes: 0,
+          percentual_prazo: 0,
+        };
 
     const faixa =
       faixas.find(
         (f) =>
-          percentual_prazo >= Number(f.percentual_minimo) &&
-          percentual_prazo <= Number(f.percentual_maximo)
+          kpis.percentual_prazo >= Number(f.percentual_minimo) &&
+          kpis.percentual_prazo <= Number(f.percentual_maximo)
       ) ?? null;
 
     return {
-      isLoading: pedidosQuery.isLoading,
-      pedidos,
-      kpis: {
-        total_pedidos: total,
-        pedidos_no_prazo: no_prazo,
-        pedidos_atrasados: atrasados,
-        pedidos_pendentes: pendentes,
-        percentual_prazo,
-      },
+      isLoading: apuracaoQuery.isLoading,
+      data: row,
+      kpis,
       faixa,
-      valor_bonus: faixa ? Number(faixa.valor_bonus) : 0,
-      faixa_atingida: faixa?.descricao ?? null,
+      valor_bonus: faixa ? Number(faixa.valor_bonus) : Number(row?.valor_bonus ?? 0),
+      faixa_atingida: faixa?.descricao ?? row?.faixa_atingida ?? null,
       faixas,
+      refetch: () => qc.invalidateQueries({ queryKey: ["apuracao-expedicao", mesRef] }),
     };
-  }, [pedidosQuery.data, pedidosQuery.isLoading, faixas]);
+  }, [apuracaoQuery.data, apuracaoQuery.isLoading, faixas, qc, mesRef]);
 }
 
 export function useHistoricoExpedicao() {
@@ -183,6 +154,45 @@ export function useFecharApuracao() {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["historico-expedicao"] });
+      qc.invalidateQueries({ queryKey: ["apuracao-expedicao"] });
+    },
+  });
+}
+
+export interface PedidoAtrasado {
+  pedido_id: string | number;
+  cliente: string | null;
+  data_pedido: string | null;
+  dias_corridos: number;
+  prazo_efetivo: number;
+  dias_atraso: number;
+  etapa: string | null;
+  valor_pedido: number;
+  transportadora: string | null;
+}
+
+export function useTopAtrasados(limit = 15) {
+  return useQuery<PedidoAtrasado[]>({
+    queryKey: ["expedicao-top-atrasados", limit],
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc("expedicao_top_atrasados", { p_limit: limit });
+      if (error) throw error;
+      return (data ?? []) as unknown as PedidoAtrasado[];
+    },
+  });
+}
+
+export function useRecalcularExpedicao() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (mes: string | null) => {
+      const { error } = await supabase.rpc("calcular_bonificacao_expedicao", { p_mes: mes });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["apuracao-expedicao"] });
+      qc.invalidateQueries({ queryKey: ["historico-expedicao"] });
+      qc.invalidateQueries({ queryKey: ["expedicao-top-atrasados"] });
     },
   });
 }
