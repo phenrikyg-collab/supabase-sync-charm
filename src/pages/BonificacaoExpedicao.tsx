@@ -199,132 +199,6 @@ function DashboardTab({ mes }: { mes: string }) {
         </div>
       </Card>
 
-      {/* Resumo dos pedidos em aberto */}
-      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
-        <KPI icon={<Truck className="w-4 h-4" />} label="Total em aberto" value={String(resumoQ.data?.total_pedidos_abertos ?? 0)} />
-        <KPI icon={<AlertTriangle className="w-4 h-4 text-rose-600" />} label="Críticos (atrasados)" value={String(resumoQ.data?.total_criticos ?? 0)} tone="rose" />
-        <KPI icon={<Clock className="w-4 h-4 text-amber-600" />} label="Em alerta (vence hoje)" value={String(resumoQ.data?.total_alerta ?? 0)} tone="amber" />
-        <KPI icon={<CheckCircle2 className="w-4 h-4 text-emerald-600" />} label="No prazo" value={String(resumoQ.data?.total_no_prazo ?? 0)} tone="emerald" />
-        <KPI label="Valor total parado" value={fmtBRL(Number(resumoQ.data?.valor_total_parado ?? 0))} tone="primary" />
-      </div>
-
-      {/* Lista pedidos em aberto (todos, independente do mês) */}
-      <Card className="p-0 overflow-hidden">
-        <div className="px-6 py-4 border-b">
-          <h3 className="font-serif text-lg">
-            Pedidos em aberto a expedir ({resumoQ.data?.total_pedidos_abertos ?? abertosOrdenados.length})
-          </h3>
-
-          <p className="text-xs text-muted-foreground mt-1">
-            Todos os pedidos pendentes de envio, independente do mês de referência. Ordenados do mais crítico (prazo mais antigo) para o mais recente. O prazo de postagem pode ser editado diretamente na lista.
-          </p>
-        </div>
-        <div className="max-h-[620px] overflow-auto">
-          <Table>
-            <TableHeader className="sticky top-0 bg-background z-10 shadow-sm [&_th]:bg-background">
-              <TableRow>
-                <TableHead>Pedido</TableHead>
-                <TableHead>Data</TableHead>
-                <TableHead>Prazo de envio</TableHead>
-                <TableHead>Produtos</TableHead>
-                <TableHead>Status interno</TableHead>
-                <TableHead>Situação</TableHead>
-                <TableHead className="text-right">Ações</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {abertosQ.isLoading && (
-                <TableRow>
-                  <TableCell colSpan={7} className="text-center py-10">
-                    <Loader2 className="w-5 h-5 animate-spin inline text-primary" />
-                  </TableCell>
-                </TableRow>
-              )}
-              {!abertosQ.isLoading && abertosOrdenados.length === 0 && (
-                <TableRow>
-                  <TableCell colSpan={7} className="text-center text-muted-foreground py-10">
-                    Nenhum pedido em aberto.
-                  </TableCell>
-                </TableRow>
-              )}
-              {abertosOrdenados.map((p) => {
-                const pid = String(p.id);
-                const prazo = p.estimated_delivery_date ?? "";
-                const atrasado = prazo && prazo < HOJE;
-                const hoje = prazo === HOJE;
-                const venceEm2 = prazo && prazo > HOJE && prazo <= D2;
-                const editValue = prazoEdit[pid] ?? (prazo ? prazo.slice(0, 10) : "");
-                const rowTone = atrasado
-                  ? "bg-rose-50/70 hover:bg-rose-100/70"
-                  : hoje
-                  ? "bg-amber-50/70 hover:bg-amber-100/70"
-                  : venceEm2
-                  ? "bg-orange-50/60 hover:bg-orange-100/60"
-                  : "";
-                return (
-                  <TableRow key={pid} className={rowTone}>
-                    <TableCell className="font-mono text-xs">{pid}</TableCell>
-                    <TableCell>{fmtData(p.date)}</TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-1">
-                        <Input
-                          type="date"
-                          value={editValue}
-                          disabled={!!savingPrazo[pid]}
-                          onChange={(e) => setPrazoEdit((s) => ({ ...s, [pid]: e.target.value }))}
-                          onBlur={(e) => {
-                            const v = e.target.value;
-                            const anterior = prazo ? prazo.slice(0, 10) : "";
-                            if (v && v !== anterior) requestEditPrazo(pid, anterior, v);
-                          }}
-                          className={`h-8 w-[140px] text-xs ${atrasado ? "text-rose-700 font-medium" : ""}`}
-                        />
-                        {savingPrazo[pid] && <Loader2 className="w-3 h-3 animate-spin text-muted-foreground" />}
-                      </div>
-                    </TableCell>
-                    <TableCell className="max-w-[320px]">
-                      <div className="flex flex-wrap gap-1">
-                        {(produtosPorPedido[pid] ?? []).slice(0, 6).map((nome, idx) => (
-                          <Badge key={idx} variant="outline" className="text-[10px] font-normal max-w-[200px] truncate" title={nome}>
-                            {nome}
-                          </Badge>
-                        ))}
-                        {(produtosPorPedido[pid]?.length ?? 0) > 6 && (
-                          <Badge variant="outline" className="text-[10px]">+{(produtosPorPedido[pid]!.length - 6)}</Badge>
-                        )}
-                        {!produtosPorPedido[pid] && (
-                          <span className="text-[10px] text-muted-foreground">—</span>
-                        )}
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-xs text-muted-foreground">
-                      {p.orderstatus_status ?? "—"}
-                    </TableCell>
-                    <TableCell>
-                      {atrasado ? (
-                        <Badge className="bg-rose-100 text-rose-800 border border-rose-200">Atrasado</Badge>
-                      ) : hoje ? (
-                        <Badge className="bg-amber-100 text-amber-800 border border-amber-200">Vence hoje</Badge>
-                      ) : venceEm2 ? (
-                        <Badge className="bg-orange-100 text-orange-800 border border-orange-200">Vence em 2 dias</Badge>
-                      ) : (
-                        <Badge className="bg-emerald-100 text-emerald-800 border border-emerald-200">No prazo</Badge>
-                      )}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <Button size="sm" variant="outline" onClick={() => setOpDialogPedido(p)}>
-                        <Factory className="w-3.5 h-3.5 mr-1" />
-                        Gerar OP
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
-        </div>
-      </Card>
-
       {/* Pedidos críticos — atraso no envio */}
       <Card className="p-0 overflow-hidden">
         <div className="px-6 py-4 border-b flex items-center justify-between gap-3 flex-wrap">
@@ -383,6 +257,92 @@ function DashboardTab({ mes }: { mes: string }) {
                       <Badge className={badgeTone}>{dias} dias</Badge>
                     </TableCell>
                     <TableCell className="text-right font-medium">{fmtBRL(Number(p.valor_pedido ?? 0))}</TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+        </div>
+      </Card>
+
+      {/* Resumo dos pedidos em aberto */}
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
+        <KPI icon={<Truck className="w-4 h-4" />} label="Total em aberto" value={String(resumoQ.data?.total_pedidos_abertos ?? 0)} />
+        <KPI icon={<AlertTriangle className="w-4 h-4 text-rose-600" />} label="Críticos (atrasados)" value={String(resumoQ.data?.total_criticos ?? 0)} tone="rose" />
+        <KPI icon={<Clock className="w-4 h-4 text-amber-600" />} label="Em alerta (vence hoje)" value={String(resumoQ.data?.total_alerta ?? 0)} tone="amber" />
+        <KPI icon={<CheckCircle2 className="w-4 h-4 text-emerald-600" />} label="No prazo" value={String(resumoQ.data?.total_no_prazo ?? 0)} tone="emerald" />
+        <KPI label="Valor total parado" value={fmtBRL(Number(resumoQ.data?.valor_total_parado ?? 0))} tone="primary" />
+      </div>
+
+      {/* Lista pedidos em aberto (fonte vw_expedicao_status) */}
+      <Card className="p-0 overflow-hidden">
+        <div className="px-6 py-4 border-b">
+          <h3 className="font-serif text-lg">
+            Pedidos em aberto a expedir ({resumoQ.data?.total_pedidos_abertos ?? (pedidosAbertosQ.data ?? []).length})
+          </h3>
+          <p className="text-xs text-muted-foreground mt-1">
+            Todos os pedidos pendentes de envio, ordenados do mais crítico (maior tempo em aberto) para o mais recente.
+          </p>
+        </div>
+        <div className="max-h-[620px] overflow-auto">
+          <Table>
+            <TableHeader className="sticky top-0 bg-background z-10 shadow-sm [&_th]:bg-background">
+              <TableRow>
+                <TableHead>Pedido</TableHead>
+                <TableHead>Cliente</TableHead>
+                <TableHead className="text-right">Dias em aberto</TableHead>
+                <TableHead>Etapa atual</TableHead>
+                <TableHead className="text-right">Valor</TableHead>
+                <TableHead>Risco</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {pedidosAbertosQ.isLoading && (
+                <TableRow>
+                  <TableCell colSpan={6} className="text-center py-10">
+                    <Loader2 className="w-5 h-5 animate-spin inline text-primary" />
+                  </TableCell>
+                </TableRow>
+              )}
+              {!pedidosAbertosQ.isLoading && (pedidosAbertosQ.data ?? []).length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={6} className="text-center text-muted-foreground py-10">
+                    Nenhum pedido em aberto.
+                  </TableCell>
+                </TableRow>
+              )}
+              {(pedidosAbertosQ.data ?? []).map((p: PedidoAbertoExpedicao) => {
+                const risco = (p.nivel_risco ?? "No Prazo").trim();
+                const riscoTone =
+                  risco === "Crítico"
+                    ? "bg-rose-100 text-rose-800 border-rose-200"
+                    : risco === "Alerta"
+                    ? "bg-amber-100 text-amber-800 border-amber-200"
+                    : "bg-emerald-100 text-emerald-800 border-emerald-200";
+                const rowTone =
+                  risco === "Crítico"
+                    ? "bg-rose-50/70 hover:bg-rose-100/70"
+                    : risco === "Alerta"
+                    ? "bg-amber-50/60 hover:bg-amber-100/60"
+                    : "";
+                return (
+                  <TableRow key={String(p.pedido_id)} className={rowTone}>
+                    <TableCell className="font-mono text-xs">
+                      {p.tracking_url ? (
+                        <a href={p.tracking_url} target="_blank" rel="noopener noreferrer" className="underline hover:text-primary">
+                          #{p.pedido_id}
+                        </a>
+                      ) : (
+                        `#${p.pedido_id}`
+                      )}
+                    </TableCell>
+                    <TableCell className="font-medium">{p.cliente ?? "—"}</TableCell>
+                    <TableCell className="text-right">{Number(p.dias_corridos ?? 0)}</TableCell>
+                    <TableCell className="text-xs text-muted-foreground">{p.etapa ?? "—"}</TableCell>
+                    <TableCell className="text-right font-medium">{fmtBRL(Number(p.valor_pedido ?? 0))}</TableCell>
+                    <TableCell>
+                      <Badge className={riscoTone}>{risco}</Badge>
+                    </TableCell>
                   </TableRow>
                 );
               })}
@@ -476,86 +436,6 @@ function DashboardTab({ mes }: { mes: string }) {
           </Table>
         </div>
       </Card>
-
-
-      <GerarOPDialog
-        pedido={opDialogPedido}
-        produtosSugeridos={opDialogPedido ? (produtosPorPedido[String(opDialogPedido.id)] ?? []) : []}
-        onClose={() => setOpDialogPedido(null)}
-      />
-
-      {/* Dialog justificativa alteração de prazo */}
-      <Dialog
-        open={!!justifDialog}
-        onOpenChange={(o) => {
-          if (!o) {
-            // cancelar: reverter input para o valor original
-            if (justifDialog) {
-              setPrazoEdit((s) => ({ ...s, [justifDialog.pid]: justifDialog.prazoAnterior }));
-            }
-            setJustifDialog(null);
-            setJustifText("");
-          }
-        }}
-      >
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Justificar alteração do prazo</DialogTitle>
-          </DialogHeader>
-          {justifDialog && (
-            <div className="space-y-3">
-              <div className="text-xs text-muted-foreground">
-                Pedido <span className="font-mono">{justifDialog.pid}</span>
-              </div>
-              <div className="text-sm">
-                <span className="text-muted-foreground">De </span>
-                <span className="font-medium">{fmtData(justifDialog.prazoAnterior || null)}</span>
-                <span className="text-muted-foreground"> para </span>
-                <span className="font-medium">{fmtData(justifDialog.prazoNovo)}</span>
-              </div>
-              <div>
-                <Label>Motivo da alteração <span className="text-rose-600">*</span></Label>
-                <textarea
-                  value={justifText}
-                  onChange={(e) => setJustifText(e.target.value)}
-                  rows={4}
-                  className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                  placeholder="Descreva o motivo da alteração do prazo..."
-                />
-              </div>
-            </div>
-          )}
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => {
-                if (justifDialog) {
-                  setPrazoEdit((s) => ({ ...s, [justifDialog.pid]: justifDialog.prazoAnterior }));
-                }
-                setJustifDialog(null);
-                setJustifText("");
-              }}
-            >
-              Cancelar
-            </Button>
-            <Button
-              onClick={async () => {
-                if (!justifDialog) return;
-                if (justifText.trim().length < 5) {
-                  toast.error("Informe uma justificativa (mín. 5 caracteres).");
-                  return;
-                }
-                const { pid, prazoAnterior, prazoNovo } = justifDialog;
-                setJustifDialog(null);
-                await savePrazo(pid, prazoNovo, prazoAnterior, justifText.trim());
-                setJustifText("");
-              }}
-            >
-              Confirmar alteração
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }
