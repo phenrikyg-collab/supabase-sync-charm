@@ -806,38 +806,18 @@ export function ProporCarrinhoDialog({
             {nomeCliente
               ? `Monte o carrinho para ${nomeCliente}.`
               : "Monte o carrinho da cliente."}{" "}
-            Envie direto no WhatsApp ou gere um texto pronto para copiar.
+            Envie direto no WhatsApp — a cobrança só é gerada quando ela confirmar.
           </DialogDescription>
         </DialogHeader>
-        <Tabs defaultValue="whatsapp">
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="whatsapp">Enviar no WhatsApp</TabsTrigger>
-            <TabsTrigger value="texto">Propor carrinho (copiar texto)</TabsTrigger>
-          </TabsList>
-          <TabsContent value="whatsapp" className="mt-4">
-            <p className="mb-3 text-xs text-muted-foreground">
-              A cliente recebe o resumo no WhatsApp e a cobrança só é gerada quando ela confirmar.
-            </p>
-            <FormularioProposta
-              conversaId={conversaId}
-              telefone={telefone}
-              emailInicial={emailCliente}
-              onEnviada={onEnviada}
-            />
-          </TabsContent>
-          <TabsContent value="texto" className="mt-4">
-            <p className="mb-3 text-xs text-muted-foreground">
-              Gera o link de pagamento e a cobrança Pix na hora e devolve o texto completo (com QR code) para
-              você copiar e enviar em qualquer canal.
-            </p>
-            <FormularioProposta
-              modo="texto"
-              conversaId={conversaId}
-              telefone={telefone}
-              emailInicial={emailCliente}
-            />
-          </TabsContent>
-        </Tabs>
+        <p className="mb-3 text-xs text-muted-foreground">
+          A cliente recebe o resumo no WhatsApp e a cobrança só é gerada quando ela confirmar.
+        </p>
+        <FormularioProposta
+          conversaId={conversaId}
+          telefone={telefone}
+          emailInicial={emailCliente}
+          onEnviada={onEnviada}
+        />
       </DialogContent>
     </Dialog>
   );
