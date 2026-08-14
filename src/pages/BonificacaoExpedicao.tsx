@@ -102,63 +102,6 @@ export default function BonificacaoExpedicao() {
 
 /* ───────────── Dashboard ───────────── */
 
-type TrayOpen = {
-  id: string | number;
-  date: string | null;
-  estimated_delivery_date: string | null;
-  shipment_date: string | null;
-  orderstatus_type: string | null;
-  orderstatus_status: string | null;
-};
-
-const EXCLUIR_STATUS = new Set([
-  "sent", "shipped", "enviado",
-  "completed", "finished", "finalizado", "concluido", "concluído",
-  "canceled", "cancelled", "cancelado",
-  "refunded", "estornado",
-  "waiting_payment", "aguardando_pagamento", "aguardando pagamento",
-  "pending_payment",
-]);
-
-async function fetchTodosAbertos(): Promise<TrayOpen[]> {
-  const acc: TrayOpen[] = [];
-  let from = 0;
-  const size = 1000;
-  // eslint-disable-next-line no-constant-condition
-  while (true) {
-    const { data, error } = await supabase
-      .from("tray_orders" as any)
-      .select("id,date,estimated_delivery_date,shipment_date,orderstatus_type,orderstatus_status")
-      .is("shipment_date", null)
-      .range(from, from + size - 1);
-    if (error) throw error;
-    const rows = (data ?? []) as TrayOpen[];
-    acc.push(...rows);
-    if (rows.length < size) break;
-    from += size;
-  }
-  return acc.filter((p) => {
-    const s = (p.orderstatus_status ?? "").toLowerCase().trim();
-    const t = (p.orderstatus_type ?? "").toLowerCase().trim();
-    return !EXCLUIR_STATUS.has(s) && !EXCLUIR_STATUS.has(t);
-  });
-}
-
-type ItemPedido = { nome: string; cor: string; tamanho: string; qtd: number; variant_id: string | null };
-
-function decodePy(s: string): string {
-  try { return decodeURIComponent(escape(s)); } catch { return s; }
-}
-function extrairCorTraySku(sku: string | null): string | null {
-  if (!sku) return null;
-  const m = sku.match(/'type':\s*u?'Cor'[^}]*'value':\s*u?'([^']+)'/i);
-  return m ? decodePy(m[1]).trim() : null;
-}
-function extrairTamanhoTraySku(sku: string | null): string | null {
-  if (!sku) return null;
-  const m = sku.match(/'type':\s*u?'Tamanho'[^}]*'value':\s*u?'([^']+)'/i);
-  return m ? decodePy(m[1]).trim() : null;
-}
 
 function DashboardTab({ mes }: { mes: string }) {
   const ap = useApurarExpedicao(mes);
