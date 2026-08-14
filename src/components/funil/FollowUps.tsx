@@ -369,16 +369,34 @@ function CardFollowup({
 
             <div className="flex flex-wrap gap-2">
               {podeWhatsapp ? (
-                <Button asChild size="sm">
-                  <a
-                    href={linkWhatsapp(item.telefone, mensagem)}
-                    target="_blank"
-                    rel="noopener noreferrer"
+                <>
+                  <Button asChild size="sm">
+                    <a
+                      href={linkWhatsapp(item.telefone, mensagem)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      <MessageCircle className="h-4 w-4 mr-2" />
+                      Abrir WhatsApp
+                    </a>
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={async () => {
+                      const num = somenteDigitos(item.telefone);
+                      try {
+                        await navigator.clipboard.writeText(num);
+                        toast.success("WhatsApp copiado: " + num);
+                      } catch {
+                        toast.error("Não foi possível copiar");
+                      }
+                    }}
                   >
-                    <MessageCircle className="h-4 w-4 mr-2" />
-                    Abrir WhatsApp
-                  </a>
-                </Button>
+                    <Copy className="h-4 w-4 mr-2" />
+                    Copiar WhatsApp
+                  </Button>
+                </>
               ) : (
                 <Button size="sm" disabled>
                   <MessageCircle className="h-4 w-4 mr-2" />
