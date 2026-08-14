@@ -505,6 +505,10 @@ function DashboardTab({ mes }: { mes: string }) {
     return da.localeCompare(db_);
   });
 
+  const recalcular = useRecalcularExpedicao();
+  const atrasadosQ = useTopAtrasados(15);
+  const abaixoMeta = ap.kpis.percentual_prazo < 80;
+
   return (
     <div className="space-y-6">
       {/* KPIs */}
@@ -513,8 +517,24 @@ function DashboardTab({ mes }: { mes: string }) {
         <KPI icon={<CheckCircle2 className="w-4 h-4 text-emerald-600" />} label="No prazo" value={String(ap.kpis.pedidos_no_prazo)} tone="emerald" />
         <KPI icon={<AlertTriangle className="w-4 h-4 text-rose-600" />} label="Atrasados" value={String(ap.kpis.pedidos_atrasados)} tone="rose" />
         <KPI icon={<Clock className="w-4 h-4 text-amber-600" />} label="Pendentes (sem envio)" value={String(ap.kpis.pedidos_pendentes)} tone="amber" />
-        <KPI label="% no prazo (s/ pendentes)" value={fmtPct(ap.kpis.percentual_prazo)} tone="primary" />
+        <KPI label="% no prazo (s/ pendentes)" value={fmtPct(ap.kpis.percentual_prazo)} tone={abaixoMeta ? "rose" : "primary"} />
       </div>
+
+      {abaixoMeta && (
+        <Card className="p-4 border-rose-300 bg-rose-50/70 dark:bg-rose-950/20">
+          <div className="flex items-start gap-3">
+            <AlertTriangle className="w-5 h-5 text-rose-600 mt-0.5" />
+            <div>
+              <p className="font-medium text-rose-800 dark:text-rose-200">
+                Abaixo da meta mínima de 80%
+              </p>
+              <p className="text-sm text-rose-700 dark:text-rose-300">
+                O percentual de pedidos no prazo ({fmtPct(ap.kpis.percentual_prazo)}) está abaixo do limite operacional. Revisar processo de expedição.
+              </p>
+            </div>
+          </div>
+        </Card>
+      )}
 
       {/* Faixa + bônus */}
       <Card className="p-6">
@@ -529,10 +549,20 @@ function DashboardTab({ mes }: { mes: string }) {
             <div className="text-xs uppercase tracking-wider text-muted-foreground">Bônus do mês</div>
             <div className="font-serif text-3xl text-primary mt-1">{fmtBRL(ap.valor_bonus)}</div>
           </div>
-          <Button onClick={onFechar} disabled={fechar.isPending}>
-            {fechar.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
-            Salvar / Fechar mês
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              variant="outline"
+              onClick={() => recalcular.mutate(`${mes}-01`)}
+              disabled={recalcular.isPending}
+            >
+              {recalcular.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <RefreshCw className="w-4 h-4 mr-2" />}
+              Recalcular agora
+            </Button>
+            <Button onClick={onFechar} disabled={fechar.isPending}>
+              {fechar.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
+              Salvar / Fechar mês
+            </Button>
+          </div>
         </div>
       </Card>
 
