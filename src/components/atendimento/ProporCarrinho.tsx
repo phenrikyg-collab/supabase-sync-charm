@@ -109,11 +109,14 @@ function FormularioProposta({
   telefone,
   emailInicial,
   onEnviada,
+  modo = "whatsapp",
 }: {
   conversaId?: string | number;
   telefone?: string | null;
   emailInicial?: string | null;
   onEnviada?: (propostaId: string | number) => void;
+  /** "whatsapp": envia a proposta pelo bot. "texto": gera link/Pix e devolve texto pronto pra copiar. */
+  modo?: "whatsapp" | "texto";
 }) {
   const [email, setEmail] = useState(emailInicial ?? "");
   const [itens, setItens] = useState<ItemCarrinho[]>([]);
@@ -126,6 +129,9 @@ function FormularioProposta({
   const [enviando, setEnviando] = useState(false);
   const [erro, setErro] = useState("");
   const [resultado, setResultado] = useState<RespostaProposta | null>(null);
+  const [textoGerado, setTextoGerado] = useState<RespostaTexto | null>(null);
+
+  const modoTexto = modo === "texto";
 
   useEffect(() => {
     setEmail(emailInicial ?? "");
@@ -136,8 +142,13 @@ function FormularioProposta({
   const subtotal = itens.reduce((acc, i) => acc + precoItem(i) * (i.quantidade || 0), 0);
   const total = Math.max(subtotal + paraNumero(frete) - paraNumero(desconto), 0);
   const itensIncompletos = itens.filter((i) => !itemCompleto(i));
-  const emailValido = email.trim() === "" || /\S+@\S+\.\S+/.test(email.trim());
-  const valido = itens.length > 0 && itensIncompletos.length === 0 && emailValido && !!telefone;
+  const emailPreenchido = /\S+@\S+\.\S+/.test(email.trim());
+  const emailValido = modoTexto ? emailPreenchido : email.trim() === "" || emailPreenchido;
+  const valido =
+    itens.length > 0 &&
+    itensIncompletos.length === 0 &&
+    emailValido &&
+    (modoTexto || !!telefone);
 
   const atualizarItem = (index: number, patch: Partial<ItemCarrinho>) =>
     setItens((prev) => prev.map((it, i) => (i === index ? { ...it, ...patch } : it)));
