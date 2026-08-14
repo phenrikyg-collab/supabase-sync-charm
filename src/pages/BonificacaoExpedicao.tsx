@@ -13,7 +13,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Loader2, Save, Trash2, Plus, CheckCircle2, AlertTriangle, Clock, Truck, Factory } from "lucide-react";
+import { Loader2, Save, Trash2, Plus, CheckCircle2, AlertTriangle, Clock, Truck, Factory, RefreshCw } from "lucide-react";
 import {
   useApurarExpedicao,
   useHistoricoExpedicao,
