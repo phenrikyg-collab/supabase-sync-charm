@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { Component, useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -48,11 +48,48 @@ const tipoInfo = (t: string) =>
 export const brl = (v?: number | null) =>
   (Number(v) || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
+const somenteDigitos = (telefone?: string | null) => {
+  if (typeof telefone !== "string") return "";
+  // Ignora identificadores que não são telefone (ex.: "site:uuid")
+  if (/[a-zA-Z]/.test(telefone)) return "";
+  return telefone.replace(/\D/g, "");
+};
+
+export const telefoneValido = (telefone?: string | null) =>
+  /^\d{10,13}$/.test(somenteDigitos(telefone));
+
 const linkWhatsapp = (telefone?: string | null, mensagem?: string) => {
-  const num = (telefone || "").replace(/\D/g, "");
+  const num = somenteDigitos(telefone);
+  if (!/^\d{10,13}$/.test(num)) return "";
   const comDdi = num.startsWith("55") ? num : `55${num}`;
   return `https://wa.me/${comDdi}?text=${encodeURIComponent(mensagem || "")}`;
 };
+
+// Corrige moedas malformadas vindas do backend ("R$ ,50" -> "R$ 0,50")
+const corrigirMoeda = (texto?: string | null) =>
+  (texto || "").replace(/R\$\s*,/g, "R$ 0,");
+
+class CardErrorBoundary extends Component<{ children: ReactNode }, { erro: boolean }> {
+  constructor(props: { children: ReactNode }) {
+    super(props);
+    this.state = { erro: false };
+  }
+  static getDerivedStateFromError() {
+    return { erro: true };
+  }
+  render() {
+    if (this.state.erro) {
+      return (
+        <Card>
+          <CardContent className="p-4 text-sm text-muted-foreground">
+            Não foi possível exibir este follow-up.
+          </CardContent>
+        </Card>
+      );
+    }
+    return this.props.children;
+  }
+}
 
 /* --------------------------------- Fila ---------------------------------- */
 
@@ -78,7 +115,7 @@ export function FilaFollowups() {
     if (error) {
       if (!silencioso) toast.error("Erro ao carregar fila: " + error.message);
     } else {
-      setItens(((data as unknown) as Followup[]) || []);
+      setItens(Array.isArray(data) ? ((data as unknown) as Followup[]) : []);
     }
     setLoading(false);
   }, [tipo]);
@@ -142,15 +179,16 @@ export function FilaFollowups() {
         </p>
       ) : (
         <div className="space-y-2">
-          {itens.map((item) => (
-            <CardFollowup
-              key={item.followup_id}
-              item={item}
-              expandido={aberto === item.followup_id}
-              onToggle={() => setAberto(aberto === item.followup_id ? null : item.followup_id)}
-              atendente={atendente}
-              onFinalizado={() => remover(item.followup_id)}
-            />
+          {itens.map((item, idx) => (
+            <CardErrorBoundary key={item?.followup_id ?? `fu-${idx}`}>
+              <CardFollowup
+                item={item}
+                expandido={aberto === item.followup_id}
+                onToggle={() => setAberto(aberto === item.followup_id ? null : item.followup_id)}
+                atendente={atendente}
+                onFinalizado={() => remover(item.followup_id)}
+              />
+            </CardErrorBoundary>
           ))}
         </div>
       )}
@@ -168,13 +206,14 @@ function CardFollowup({
   onFinalizado: () => void;
 }) {
   const info = tipoInfo(item.tipo);
-  const [mensagem, setMensagem] = useState(item.mensagem_sugerida || "");
+  const [mensagem, setMensagem] = useState(corrigirMoeda(item.mensagem_sugerida));
+  const podeWhatsapp = telefoneValido(item.telefone);
   const [resultado, setResultado] = useState("");
   const [motivo, setMotivo] = useState("");
   const [salvando, setSalvando] = useState(false);
   const atrasado = (Number(item.horas_atraso) || 0) > 24;
 
-  useEffect(() => { setMensagem(item.mensagem_sugerida || ""); }, [item.mensagem_sugerida]);
+  useEffect(() => { setMensagem(corrigirMoeda(item.mensagem_sugerida)); }, [item.mensagem_sugerida]);
 
   const concluir = async () => {
     setSalvando(true);
@@ -255,16 +294,23 @@ function CardFollowup({
             </div>
 
             <div className="flex flex-wrap gap-2">
-              <Button asChild size="sm" disabled={!item.telefone}>
-                <a
-                  href={linkWhatsapp(item.telefone, mensagem)}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
+              {podeWhatsapp ? (
+                <Button asChild size="sm">
+                  <a
+                    href={linkWhatsapp(item.telefone, mensagem)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    <MessageCircle className="h-4 w-4 mr-2" />
+                    Abrir WhatsApp
+                  </a>
+                </Button>
+              ) : (
+                <Button size="sm" disabled>
                   <MessageCircle className="h-4 w-4 mr-2" />
-                  Abrir WhatsApp
-                </a>
-              </Button>
+                  Telefone não disponível
+                </Button>
+              )}
               <Button size="sm" variant="secondary" onClick={concluir} disabled={salvando}>
                 <Check className="h-4 w-4 mr-2" /> Concluir
               </Button>
