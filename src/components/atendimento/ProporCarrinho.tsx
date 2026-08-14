@@ -279,6 +279,76 @@ function FormularioProposta({
     }
   };
 
+  const gerarTexto = async () => {
+    setEnviando(true);
+    setErro("");
+    setTextoGerado(null);
+    try {
+      if (itensIncompletos.length > 0) {
+        throw new Error(
+          "Há itens incompletos: cada item precisa de um produto do catálogo OU descrição e valor unitário.",
+        );
+      }
+      if (!emailPreenchido) throw new Error("Informe o e-mail da cliente para gerar o link de pagamento.");
+      const r = await fetch(GERAR_TEXTO_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          customer_email: email.trim(),
+          itens: itens.map((i) =>
+            i.produto_id
+              ? {
+                  produto_id: i.produto_id,
+                  ...(i.variant_id != null ? { variant_id: i.variant_id } : {}),
+                  quantidade: i.quantidade,
+                }
+              : {
+                  descricao: i.descricao.trim(),
+                  valor_unitario: paraNumero(i.valor_unitario).toFixed(2),
+                  quantidade: i.quantidade,
+                },
+          ),
+          valor_frete: paraNumero(frete).toFixed(2) || "0",
+          desconto: paraNumero(desconto).toFixed(2) || "0",
+        }),
+      });
+      const bruto = await r.text();
+      let json: RespostaTexto = {};
+      if (bruto) {
+        try {
+          json = JSON.parse(bruto) as RespostaTexto;
+        } catch {
+          throw new Error(`Resposta inválida (HTTP ${r.status}): ${bruto}`);
+        }
+      }
+      if (!r.ok || json.ok === false) throw new Error(json.erro || json.error || `HTTP ${r.status}`);
+      setTextoGerado(json);
+      toast({ title: "Texto do carrinho gerado" });
+    } catch (e) {
+      const mensagem = e instanceof Error ? e.message : String(e);
+      setErro(mensagem);
+      toast({ title: "Erro ao gerar texto", description: mensagem, variant: "destructive" });
+    } finally {
+      setEnviando(false);
+    }
+  };
+
+  const limpar = () => {
+    setResultado(null);
+    setTextoGerado(null);
+    setItens([]);
+    setFrete("");
+    setDesconto("");
+    setOpcoesFrete([]);
+    setFreteSelecionado(null);
+  };
+
+  if (textoGerado) {
+    return (
+      <ResultadoTexto dados={textoGerado} onNovo={limpar} />
+    );
+  }
+
   if (resultado) {
     return (
       <div className="space-y-3">
