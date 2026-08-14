@@ -382,18 +382,7 @@ function FormularioProposta({
             necessária — o bot gera a cobrança automaticamente quando ela confirmar a forma de pagamento.
           </p>
         </div>
-        <Button
-          variant="outline"
-          className="w-full"
-          onClick={() => {
-            setResultado(null);
-            setItens([]);
-            setFrete("");
-            setDesconto("");
-            setOpcoesFrete([]);
-            setFreteSelecionado(null);
-          }}
-        >
+        <Button variant="outline" className="w-full" onClick={limpar}>
           Montar outra proposta
         </Button>
       </div>
@@ -402,7 +391,7 @@ function FormularioProposta({
 
   return (
     <div className="space-y-3">
-      {!telefone && (
+      {!telefone && !modoTexto && (
         <p role="alert" className="rounded-md border border-destructive/30 bg-destructive/5 p-3 text-xs text-destructive">
           Esta conversa não tem telefone identificado — não é possível enviar a proposta.
         </p>
