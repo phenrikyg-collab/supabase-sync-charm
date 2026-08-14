@@ -469,6 +469,9 @@ function DashboardTab({ mes }: { mes: string }) {
     }
   };
 
+  const recalcular = useRecalcularExpedicao();
+  const atrasadosQ = useTopAtrasados(15);
+
   if (ap.isLoading) {
     return (
       <div className="flex items-center justify-center py-20">
@@ -476,6 +479,7 @@ function DashboardTab({ mes }: { mes: string }) {
       </div>
     );
   }
+
 
   const onFechar = async () => {
     try {
