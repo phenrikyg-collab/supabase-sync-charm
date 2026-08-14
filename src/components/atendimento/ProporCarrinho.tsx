@@ -74,6 +74,19 @@ type RespostaProposta = {
   error?: string;
 };
 
+type RespostaTexto = {
+  ok?: boolean;
+  texto?: string;
+  link_pagamento?: string | null;
+  pix_copia_cola?: string | null;
+  qr_code_url?: string | null;
+  cashback_cartao?: number | string | null;
+  cashback_pix?: number | string | null;
+  avisos?: string[] | null;
+  erro?: string;
+  error?: string;
+};
+
 const moeda = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
 function paraNumero(valor: string) {
