@@ -154,6 +154,45 @@ export function useFecharApuracao() {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["historico-expedicao"] });
+      qc.invalidateQueries({ queryKey: ["apuracao-expedicao"] });
+    },
+  });
+}
+
+export interface PedidoAtrasado {
+  pedido_id: string | number;
+  cliente: string | null;
+  data_pedido: string | null;
+  dias_corridos: number;
+  prazo_efetivo: number;
+  dias_atraso: number;
+  etapa: string | null;
+  valor_pedido: number;
+  transportadora: string | null;
+}
+
+export function useTopAtrasados(limit = 15) {
+  return useQuery<PedidoAtrasado[]>({
+    queryKey: ["expedicao-top-atrasados", limit],
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc("expedicao_top_atrasados", { p_limit: limit });
+      if (error) throw error;
+      return (data ?? []) as unknown as PedidoAtrasado[];
+    },
+  });
+}
+
+export function useRecalcularExpedicao() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (mes: string | null) => {
+      const { error } = await supabase.rpc("calcular_bonificacao_expedicao", { p_mes: mes });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["apuracao-expedicao"] });
+      qc.invalidateQueries({ queryKey: ["historico-expedicao"] });
+      qc.invalidateQueries({ queryKey: ["expedicao-top-atrasados"] });
     },
   });
 }
