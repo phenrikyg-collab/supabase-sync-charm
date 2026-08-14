@@ -294,16 +294,23 @@ function CardFollowup({
             </div>
 
             <div className="flex flex-wrap gap-2">
-              <Button asChild size="sm" disabled={!item.telefone}>
-                <a
-                  href={linkWhatsapp(item.telefone, mensagem)}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
+              {podeWhatsapp ? (
+                <Button asChild size="sm">
+                  <a
+                    href={linkWhatsapp(item.telefone, mensagem)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    <MessageCircle className="h-4 w-4 mr-2" />
+                    Abrir WhatsApp
+                  </a>
+                </Button>
+              ) : (
+                <Button size="sm" disabled>
                   <MessageCircle className="h-4 w-4 mr-2" />
-                  Abrir WhatsApp
-                </a>
-              </Button>
+                  Telefone não disponível
+                </Button>
+              )}
               <Button size="sm" variant="secondary" onClick={concluir} disabled={salvando}>
                 <Check className="h-4 w-4 mr-2" /> Concluir
               </Button>
