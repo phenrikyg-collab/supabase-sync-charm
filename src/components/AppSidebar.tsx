@@ -63,6 +63,7 @@ const moduleGroups: ModuleGroup[] = [
       { title: "Produtos & Campanha", url: "/produtos-campanha", icon: Tag },
       { title: "Dashboard RFM", url: "/dashboard-rfm", icon: UserSquare2 },
       { title: "Dashboard de Produtos", url: "/dashboard-produtos", icon: Boxes },
+      { title: "Propor Carrinho", url: "/propor-carrinho", icon: ShoppingCart },
     ],
   },
   {
