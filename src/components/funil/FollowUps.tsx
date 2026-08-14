@@ -179,15 +179,16 @@ export function FilaFollowups() {
         </p>
       ) : (
         <div className="space-y-2">
-          {itens.map((item) => (
-            <CardFollowup
-              key={item.followup_id}
-              item={item}
-              expandido={aberto === item.followup_id}
-              onToggle={() => setAberto(aberto === item.followup_id ? null : item.followup_id)}
-              atendente={atendente}
-              onFinalizado={() => remover(item.followup_id)}
-            />
+          {itens.map((item, idx) => (
+            <CardErrorBoundary key={item?.followup_id ?? `fu-${idx}`}>
+              <CardFollowup
+                item={item}
+                expandido={aberto === item.followup_id}
+                onToggle={() => setAberto(aberto === item.followup_id ? null : item.followup_id)}
+                atendente={atendente}
+                onFinalizado={() => remover(item.followup_id)}
+              />
+            </CardErrorBoundary>
           ))}
         </div>
       )}
