@@ -11,8 +11,12 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "@/hooks/use-toast";
-import { CheckCircle2, Clock, Loader2, Plus, ShoppingCart, Trash2, Truck } from "lucide-react";
+import {
+  AlertTriangle, CheckCircle2, Clock, Copy, Download, Loader2, Plus, ShoppingCart, Trash2, Truck,
+} from "lucide-react";
 import { BuscaProduto, ProdutoPagamento, moedaBR, precoProduto } from "@/components/atendimento/BuscaProduto";
 import { SeletorVariante } from "@/components/atendimento/SeletorVariante";
 
