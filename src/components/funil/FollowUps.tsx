@@ -20,6 +20,20 @@ import {
 export type FollowupTipo =
   | "interesse" | "pagamento_pendente" | "carrinho_abandonado" | "pedido_cancelado";
 
+export type Referencia = {
+  itens?: string[] | null;
+  data_carrinho?: string | null;
+  link?: string | null;
+  descricao?: string | null;
+  pedido_id?: string | number | null;
+  vencimento?: string | null;
+  status?: string | null;
+  tray_order_id?: string | number | null;
+  payment_method?: string | null;
+  origem?: string | null;
+  [key: string]: unknown;
+};
+
 export type Followup = {
   followup_id: number;
   tipo: FollowupTipo | string;
@@ -29,7 +43,7 @@ export type Followup = {
   telefone: string | null;
   email: string | null;
   valor: number | null;
-  referencia: string | null;
+  referencia: Referencia | null;
   devido_em: string | null;
   horas_atraso: number | null;
   mensagem_sugerida: string | null;
