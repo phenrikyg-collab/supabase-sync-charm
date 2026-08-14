@@ -79,6 +79,7 @@ import KpisConversao from "./pages/KpisConversao";
 import FunilWhatsApp from "./pages/FunilWhatsApp";
 import ProvadorVirtual from "./pages/ProvadorVirtual";
 import Cupons from "./pages/Cupons";
+import ProporCarrinhoPage from "./pages/ProporCarrinhoPage";
 
 import Automacoes from "./pages/Automacoes";
 import AutomacaoFluxo from "./pages/AutomacaoFluxo";
@@ -222,6 +223,7 @@ const AppRoutes = () => {
               <Route path="/kpis-conversao" element={<KpisConversao />} />
               <Route path="/provador-virtual" element={<ProvadorVirtual />} />
               <Route path="/cupons" element={<Cupons />} />
+              <Route path="/propor-carrinho" element={<ProporCarrinhoPage />} />
 
 
 
