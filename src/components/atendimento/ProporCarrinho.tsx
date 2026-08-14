@@ -653,6 +653,129 @@ function FormularioProposta({
   );
 }
 
+/** Resultado do modo "copiar texto": texto pronto, link, Pix e QR code. */
+function ResultadoTexto({ dados, onNovo }: { dados: RespostaTexto; onNovo: () => void }) {
+  const [copiado, setCopiado] = useState<string | null>(null);
+  const avisos = Array.isArray(dados.avisos) ? dados.avisos.filter(Boolean) : [];
+
+  const copiar = async (valor: string, rotulo: string) => {
+    try {
+      await navigator.clipboard.writeText(valor);
+      setCopiado(rotulo);
+      window.setTimeout(() => setCopiado(null), 2000);
+      toast({ title: `${rotulo} copiado` });
+    } catch {
+      toast({ title: "Não foi possível copiar", variant: "destructive" });
+    }
+  };
+
+  const copiarImagem = async (url: string) => {
+    try {
+      const blob = await (await fetch(url)).blob();
+      await navigator.clipboard.write([new ClipboardItem({ [blob.type]: blob })]);
+      toast({ title: "QR code copiado" });
+    } catch {
+      toast({
+        title: "Não foi possível copiar a imagem",
+        description: "Use o botão de baixar o QR code.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  return (
+    <div className="space-y-3">
+      {avisos.length > 0 && (
+        <div role="alert" className="space-y-1 rounded-md border border-warning/40 bg-warning/10 p-3">
+          <p className="flex items-center gap-2 text-xs font-semibold text-warning">
+            <AlertTriangle className="h-3.5 w-3.5" />
+            O texto pode estar incompleto
+          </p>
+          <ul className="list-disc pl-5 text-xs text-muted-foreground">
+            {avisos.map((a, i) => (
+              <li key={i}>{String(a)}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      <div className="space-y-2">
+        <Label className="text-xs">Texto pronto para enviar</Label>
+        <Textarea readOnly value={dados.texto ?? ""} rows={14} className="text-xs" />
+        <Button className="w-full" onClick={() => copiar(dados.texto ?? "", "Texto")}>
+          {copiado === "Texto" ? (
+            <CheckCircle2 className="mr-2 h-4 w-4" />
+          ) : (
+            <Copy className="mr-2 h-4 w-4" />
+          )}
+          Copiar texto completo
+        </Button>
+      </div>
+
+      {(dados.cashback_cartao != null || dados.cashback_pix != null) && (
+        <div className="flex flex-wrap gap-4 rounded-md border border-border bg-muted/40 px-3 py-2 text-xs">
+          <span>Cashback cartão: {moeda(Number(dados.cashback_cartao ?? 0))}</span>
+          <span className="text-success">Cashback Pix: {moeda(Number(dados.cashback_pix ?? 0))}</span>
+        </div>
+      )}
+
+      {dados.link_pagamento && (
+        <div className="space-y-1.5">
+          <Label className="text-xs">Link de pagamento</Label>
+          <div className="flex gap-2">
+            <Input readOnly value={dados.link_pagamento} className="text-xs" />
+            <Button variant="outline" size="icon" onClick={() => copiar(dados.link_pagamento!, "Link")}>
+              <Copy className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {dados.pix_copia_cola && (
+        <div className="space-y-1.5">
+          <Label className="text-xs">Pix copia e cola</Label>
+          <Textarea readOnly value={dados.pix_copia_cola} rows={3} className="text-[11px]" />
+          <Button
+            variant="outline"
+            className="w-full"
+            onClick={() => copiar(dados.pix_copia_cola!, "Código Pix")}
+          >
+            <Copy className="mr-2 h-4 w-4" />
+            Copiar código Pix
+          </Button>
+        </div>
+      )}
+
+      {dados.qr_code_url && (
+        <div className="space-y-2">
+          <Label className="text-xs">QR code do Pix</Label>
+          <img
+            src={dados.qr_code_url}
+            alt="QR code do Pix"
+            className="mx-auto h-44 w-44 rounded-md border border-border bg-background object-contain p-2"
+          />
+          <div className="flex gap-2">
+            <Button variant="outline" className="flex-1" onClick={() => copiarImagem(dados.qr_code_url!)}>
+              <Copy className="mr-2 h-4 w-4" />
+              Copiar imagem
+            </Button>
+            <Button variant="outline" className="flex-1" asChild>
+              <a href={dados.qr_code_url} download="qrcode-pix.png" target="_blank" rel="noreferrer">
+                <Download className="mr-2 h-4 w-4" />
+                Baixar QR code
+              </a>
+            </Button>
+          </div>
+        </div>
+      )}
+
+      <Button variant="ghost" className="w-full" onClick={onNovo}>
+        Montar outro carrinho
+      </Button>
+    </div>
+  );
+}
+
 export function ProporCarrinhoDialog({
   open,
   onOpenChange,
@@ -677,21 +800,45 @@ export function ProporCarrinhoDialog({
           <DialogTitle>Propor carrinho</DialogTitle>
           <DialogDescription>
             {nomeCliente
-              ? `Monta o resumo do carrinho e envia para ${nomeCliente} confirmar no WhatsApp.`
-              : "Monta o resumo do carrinho e envia para a cliente confirmar no WhatsApp."}{" "}
-            Nenhuma cobrança é criada agora.
+              ? `Monte o carrinho para ${nomeCliente}.`
+              : "Monte o carrinho da cliente."}{" "}
+            Envie direto no WhatsApp ou gere um texto pronto para copiar.
           </DialogDescription>
         </DialogHeader>
-        <FormularioProposta
-          conversaId={conversaId}
-          telefone={telefone}
-          emailInicial={emailCliente}
-          onEnviada={onEnviada}
-        />
+        <Tabs defaultValue="whatsapp">
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="whatsapp">Enviar no WhatsApp</TabsTrigger>
+            <TabsTrigger value="texto">Propor carrinho (copiar texto)</TabsTrigger>
+          </TabsList>
+          <TabsContent value="whatsapp" className="mt-4">
+            <p className="mb-3 text-xs text-muted-foreground">
+              A cliente recebe o resumo no WhatsApp e a cobrança só é gerada quando ela confirmar.
+            </p>
+            <FormularioProposta
+              conversaId={conversaId}
+              telefone={telefone}
+              emailInicial={emailCliente}
+              onEnviada={onEnviada}
+            />
+          </TabsContent>
+          <TabsContent value="texto" className="mt-4">
+            <p className="mb-3 text-xs text-muted-foreground">
+              Gera o link de pagamento e a cobrança Pix na hora e devolve o texto completo (com QR code) para
+              você copiar e enviar em qualquer canal.
+            </p>
+            <FormularioProposta
+              modo="texto"
+              conversaId={conversaId}
+              telefone={telefone}
+              emailInicial={emailCliente}
+            />
+          </TabsContent>
+        </Tabs>
       </DialogContent>
     </Dialog>
   );
 }
+
 
 type Proposta = {
   id?: string | number;
