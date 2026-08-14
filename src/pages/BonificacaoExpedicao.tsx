@@ -575,12 +575,22 @@ function DashboardTab({ mes }: { mes: string }) {
         </div>
       </Card>
 
+      {/* Resumo dos pedidos em aberto */}
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
+        <KPI icon={<Truck className="w-4 h-4" />} label="Total em aberto" value={String(resumoQ.data?.total_pedidos_abertos ?? 0)} />
+        <KPI icon={<AlertTriangle className="w-4 h-4 text-rose-600" />} label="Críticos (atrasados)" value={String(resumoQ.data?.total_criticos ?? 0)} tone="rose" />
+        <KPI icon={<Clock className="w-4 h-4 text-amber-600" />} label="Em alerta (vence hoje)" value={String(resumoQ.data?.total_alerta ?? 0)} tone="amber" />
+        <KPI icon={<CheckCircle2 className="w-4 h-4 text-emerald-600" />} label="No prazo" value={String(resumoQ.data?.total_no_prazo ?? 0)} tone="emerald" />
+        <KPI label="Valor total parado" value={fmtBRL(Number(resumoQ.data?.valor_total_parado ?? 0))} tone="primary" />
+      </div>
+
       {/* Lista pedidos em aberto (todos, independente do mês) */}
       <Card className="p-0 overflow-hidden">
         <div className="px-6 py-4 border-b">
           <h3 className="font-serif text-lg">
-            Pedidos em aberto a expedir ({abertosOrdenados.length})
+            Pedidos em aberto a expedir ({resumoQ.data?.total_pedidos_abertos ?? abertosOrdenados.length})
           </h3>
+
           <p className="text-xs text-muted-foreground mt-1">
             Todos os pedidos pendentes de envio, independente do mês de referência. Ordenados do mais crítico (prazo mais antigo) para o mais recente. O prazo de postagem pode ser editado diretamente na lista.
           </p>
