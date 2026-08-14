@@ -48,11 +48,48 @@ const tipoInfo = (t: string) =>
 export const brl = (v?: number | null) =>
   (Number(v) || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
+const somenteDigitos = (telefone?: string | null) => {
+  if (typeof telefone !== "string") return "";
+  // Ignora identificadores que não são telefone (ex.: "site:uuid")
+  if (/[a-zA-Z]/.test(telefone)) return "";
+  return telefone.replace(/\D/g, "");
+};
+
+export const telefoneValido = (telefone?: string | null) =>
+  /^\d{10,13}$/.test(somenteDigitos(telefone));
+
 const linkWhatsapp = (telefone?: string | null, mensagem?: string) => {
-  const num = (telefone || "").replace(/\D/g, "");
+  const num = somenteDigitos(telefone);
+  if (!/^\d{10,13}$/.test(num)) return "";
   const comDdi = num.startsWith("55") ? num : `55${num}`;
   return `https://wa.me/${comDdi}?text=${encodeURIComponent(mensagem || "")}`;
 };
+
+// Corrige moedas malformadas vindas do backend ("R$ ,50" -> "R$ 0,50")
+const corrigirMoeda = (texto?: string | null) =>
+  (texto || "").replace(/R\$\s*,/g, "R$ 0,");
+
+class CardErrorBoundary extends Component<{ children: ReactNode }, { erro: boolean }> {
+  constructor(props: { children: ReactNode }) {
+    super(props);
+    this.state = { erro: false };
+  }
+  static getDerivedStateFromError() {
+    return { erro: true };
+  }
+  render() {
+    if (this.state.erro) {
+      return (
+        <Card>
+          <CardContent className="p-4 text-sm text-muted-foreground">
+            Não foi possível exibir este follow-up.
+          </CardContent>
+        </Card>
+      );
+    }
+    return this.props.children;
+  }
+}
 
 /* --------------------------------- Fila ---------------------------------- */
 
