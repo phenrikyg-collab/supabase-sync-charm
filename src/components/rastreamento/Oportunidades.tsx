@@ -457,17 +457,23 @@ export default function Oportunidades() {
                 </div>
 
                 <div className="mt-3 flex flex-wrap justify-end gap-2">
-                  {o.telefone && (
-                    <Button size="sm" variant="outline" asChild>
-                      <a
-                        href={`https://wa.me/55${String(o.telefone).replace(/\D/g, "")}`}
-                        target="_blank"
-                        rel="noreferrer"
-                      >
-                        <MessageCircle className="mr-2 h-3.5 w-3.5" />
-                        Abrir no WhatsApp
-                      </a>
-                    </Button>
+                  {telefoneValido(o.telefone) && (
+                    <>
+                      <Button size="sm" variant="outline" asChild>
+                        <a
+                          href={`https://wa.me/55${somenteDigitos(o.telefone)}`}
+                          target="_blank"
+                          rel="noreferrer"
+                        >
+                          <MessageCircle className="mr-2 h-3.5 w-3.5" />
+                          Abrir no WhatsApp
+                        </a>
+                      </Button>
+                      <Button size="sm" variant="outline" onClick={() => copiarTelefone(o.telefone)}>
+                        <Copy className="mr-2 h-3.5 w-3.5" />
+                        Copiar WhatsApp
+                      </Button>
+                    </>
                   )}
                   {!o.visitante_id && (
                     <Button size="sm" variant="outline" onClick={() => abrirTimeline(o)}>
