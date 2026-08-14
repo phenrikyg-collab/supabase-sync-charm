@@ -631,13 +631,17 @@ function FormularioProposta({
         </div>
       </div>
 
-      <Button onClick={enviar} disabled={!valido || enviando} className="w-full">
+      <Button
+        onClick={modoTexto ? gerarTexto : enviar}
+        disabled={!valido || enviando}
+        className="w-full"
+      >
         {enviando ? (
           <Loader2 className="mr-2 h-4 w-4 animate-spin" />
         ) : (
           <ShoppingCart className="mr-2 h-4 w-4" />
         )}
-        Enviar proposta no WhatsApp
+        {modoTexto ? "Gerar texto do carrinho" : "Enviar proposta no WhatsApp"}
       </Button>
 
       {erro && (
