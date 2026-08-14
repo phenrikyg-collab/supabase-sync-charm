@@ -25,8 +25,9 @@ import {
   useRecalcularExpedicao,
   useResumoAbertos,
   useProdutosParados,
+  usePedidosAbertos,
   type ProdutoParado,
-
+  type PedidoAbertoExpedicao,
   type FaixaBonificacao,
   type PedidoAtrasado,
 } from "@/hooks/useBonificacaoExpedicao";
