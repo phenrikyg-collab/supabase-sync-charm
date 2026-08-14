@@ -243,3 +243,52 @@ export function useExcluirFaixa() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ["faixas-expedicao"] }),
   });
 }
+
+export interface ResumoAbertos {
+  total_pedidos_abertos: number;
+  total_criticos: number;
+  total_alerta: number;
+  total_no_prazo: number;
+  valor_total_parado: number;
+}
+
+export function useResumoAbertos() {
+  return useQuery<ResumoAbertos>({
+    queryKey: ["expedicao-resumo-abertos"],
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc("expedicao_resumo_pedidos_abertos");
+      if (error) throw error;
+      const row = Array.isArray(data) ? data[0] : data;
+      return (row ?? {
+        total_pedidos_abertos: 0,
+        total_criticos: 0,
+        total_alerta: 0,
+        total_no_prazo: 0,
+        valor_total_parado: 0,
+      }) as unknown as ResumoAbertos;
+    },
+  });
+}
+
+export interface ProdutoParado {
+  produto_id: string | number;
+  variant_id?: string | number | null;
+  nome: string | null;
+  cor: string | null;
+  tamanho: string | null;
+  vendido: number;
+  em_producao: number;
+  saldo: number;
+  pedidos: (string | number)[] | null;
+}
+
+export function useProdutosParados(limit = 200) {
+  return useQuery<ProdutoParado[]>({
+    queryKey: ["expedicao-produtos-parados", limit],
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc("expedicao_produtos_parados", { p_limit: limit });
+      if (error) throw error;
+      return (data ?? []) as unknown as ProdutoParado[];
+    },
+  });
+}
