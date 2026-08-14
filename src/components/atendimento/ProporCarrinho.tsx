@@ -77,6 +77,16 @@ type RespostaProposta = {
   error?: string;
 };
 
+type ItemResolvido = {
+  produto_id?: string | number | null;
+  nome?: string | null;
+  imagem?: string | null;
+  cor?: string | null;
+  tamanho?: string | null;
+  quantidade?: number | null;
+  preco_unitario?: number | string | null;
+};
+
 type RespostaTexto = {
   ok?: boolean;
   texto?: string;
@@ -86,6 +96,7 @@ type RespostaTexto = {
   cashback_cartao?: number | string | null;
   cashback_pix?: number | string | null;
   avisos?: string[] | null;
+  itens_resolvidos?: ItemResolvido[] | null;
   erro?: string;
   error?: string;
 };
