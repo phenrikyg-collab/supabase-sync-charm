@@ -115,7 +115,7 @@ export function FilaFollowups() {
     if (error) {
       if (!silencioso) toast.error("Erro ao carregar fila: " + error.message);
     } else {
-      setItens(((data as unknown) as Followup[]) || []);
+      setItens(Array.isArray(data) ? ((data as unknown) as Followup[]) : []);
     }
     setLoading(false);
   }, [tipo]);
