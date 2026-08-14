@@ -23,6 +23,10 @@ import {
   useExcluirFaixa,
   useTopAtrasados,
   useRecalcularExpedicao,
+  useResumoAbertos,
+  useProdutosParados,
+  type ProdutoParado,
+
   type FaixaBonificacao,
   type PedidoAtrasado,
 } from "@/hooks/useBonificacaoExpedicao";
