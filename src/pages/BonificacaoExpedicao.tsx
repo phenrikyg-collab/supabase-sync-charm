@@ -509,8 +509,6 @@ function DashboardTab({ mes }: { mes: string }) {
     return da.localeCompare(db_);
   });
 
-  const recalcular = useRecalcularExpedicao();
-  const atrasadosQ = useTopAtrasados(15);
   const abaixoMeta = ap.kpis.percentual_prazo < 80;
 
   return (
