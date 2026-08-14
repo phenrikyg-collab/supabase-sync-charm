@@ -14,7 +14,7 @@ import {
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import {
-  Loader2, RefreshCw, MessageCircle, ChevronDown, ChevronUp, ExternalLink, SkipForward, Check,
+  Loader2, RefreshCw, MessageCircle, ChevronDown, ChevronUp, ExternalLink, SkipForward, Check, Copy,
 } from "lucide-react";
 
 export type FollowupTipo =
