@@ -206,7 +206,8 @@ function CardFollowup({
   onFinalizado: () => void;
 }) {
   const info = tipoInfo(item.tipo);
-  const [mensagem, setMensagem] = useState(item.mensagem_sugerida || "");
+  const [mensagem, setMensagem] = useState(corrigirMoeda(item.mensagem_sugerida));
+  const podeWhatsapp = telefoneValido(item.telefone);
   const [resultado, setResultado] = useState("");
   const [motivo, setMotivo] = useState("");
   const [salvando, setSalvando] = useState(false);
