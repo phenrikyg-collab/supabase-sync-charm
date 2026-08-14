@@ -23,6 +23,10 @@ import {
   useExcluirFaixa,
   useTopAtrasados,
   useRecalcularExpedicao,
+  useResumoAbertos,
+  useProdutosParados,
+  type ProdutoParado,
+
   type FaixaBonificacao,
   type PedidoAtrasado,
 } from "@/hooks/useBonificacaoExpedicao";
@@ -471,6 +475,9 @@ function DashboardTab({ mes }: { mes: string }) {
 
   const recalcular = useRecalcularExpedicao();
   const atrasadosQ = useTopAtrasados(15);
+  const resumoQ = useResumoAbertos();
+  const paradosQ = useProdutosParados(200);
+
 
   if (ap.isLoading) {
     return (
@@ -568,12 +575,22 @@ function DashboardTab({ mes }: { mes: string }) {
         </div>
       </Card>
 
+      {/* Resumo dos pedidos em aberto */}
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
+        <KPI icon={<Truck className="w-4 h-4" />} label="Total em aberto" value={String(resumoQ.data?.total_pedidos_abertos ?? 0)} />
+        <KPI icon={<AlertTriangle className="w-4 h-4 text-rose-600" />} label="Críticos (atrasados)" value={String(resumoQ.data?.total_criticos ?? 0)} tone="rose" />
+        <KPI icon={<Clock className="w-4 h-4 text-amber-600" />} label="Em alerta (vence hoje)" value={String(resumoQ.data?.total_alerta ?? 0)} tone="amber" />
+        <KPI icon={<CheckCircle2 className="w-4 h-4 text-emerald-600" />} label="No prazo" value={String(resumoQ.data?.total_no_prazo ?? 0)} tone="emerald" />
+        <KPI label="Valor total parado" value={fmtBRL(Number(resumoQ.data?.valor_total_parado ?? 0))} tone="primary" />
+      </div>
+
       {/* Lista pedidos em aberto (todos, independente do mês) */}
       <Card className="p-0 overflow-hidden">
         <div className="px-6 py-4 border-b">
           <h3 className="font-serif text-lg">
-            Pedidos em aberto a expedir ({abertosOrdenados.length})
+            Pedidos em aberto a expedir ({resumoQ.data?.total_pedidos_abertos ?? abertosOrdenados.length})
           </h3>
+
           <p className="text-xs text-muted-foreground mt-1">
             Todos os pedidos pendentes de envio, independente do mês de referência. Ordenados do mais crítico (prazo mais antigo) para o mais recente. O prazo de postagem pode ser editado diretamente na lista.
           </p>
@@ -756,11 +773,11 @@ function DashboardTab({ mes }: { mes: string }) {
           <div>
             <h3 className="font-serif text-lg">Produtos parados em pedidos em aberto</h3>
             <p className="text-xs text-muted-foreground mt-1">
-              Soma de peças por produto, cor e tamanho considerando todos os pedidos pendentes de envio acima.
+              Soma de peças por produto, cor e tamanho considerando todos os pedidos pendentes de envio.
             </p>
           </div>
           <Badge variant="outline" className="text-xs">
-            {agregado.reduce((s, r) => s + r.qtd, 0)} peças · {agregado.length} variações
+            {(paradosQ.data ?? []).reduce((s, r) => s + Number(r.vendido ?? 0), 0)} peças · {(paradosQ.data ?? []).length} variações
           </Badge>
         </div>
         <div className="max-h-[500px] overflow-auto">
@@ -773,36 +790,36 @@ function DashboardTab({ mes }: { mes: string }) {
                 <TableHead className="text-right">Vendido</TableHead>
                 <TableHead className="text-right">Em produção</TableHead>
                 <TableHead className="text-right">Saldo</TableHead>
-                <TableHead className="text-right">Pedidos</TableHead>
+                <TableHead>Pedidos</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {agregado.length === 0 && (
+              {paradosQ.isLoading && (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center text-muted-foreground py-10">
-                    Nenhum produto para somar.
+                  <TableCell colSpan={7} className="text-center py-10">
+                    <Loader2 className="w-5 h-5 animate-spin inline text-primary" />
                   </TableCell>
                 </TableRow>
               )}
-              {agregado.map((r, i) => {
-                const emProd = emProducaoPara(r.nome, r.cor, r.tamanho);
-                const saldo = emProd - r.qtd;
+              {!paradosQ.isLoading && (paradosQ.data ?? []).length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={7} className="text-center text-muted-foreground py-10">
+                    Nenhum produto parado.
+                  </TableCell>
+                </TableRow>
+              )}
+              {(paradosQ.data ?? []).map((r: ProdutoParado, i: number) => {
+                const vendido = Number(r.vendido ?? 0);
+                const emProd = Number(r.em_producao ?? 0);
+                const saldo = Number(r.saldo ?? emProd - vendido);
                 const critico = saldo < 0;
-                const ok = saldo >= 0 && emProd > 0;
-                const semProd = emProd === 0;
-                const rowTone = critico
-                  ? "bg-rose-50/70 hover:bg-rose-100/70"
-                  : semProd
-                  ? "bg-amber-50/60 hover:bg-amber-100/60"
-                  : ok
-                  ? "bg-emerald-50/50 hover:bg-emerald-100/50"
-                  : "";
+                const pedidos = (r.pedidos ?? []).map(String);
                 return (
-                  <TableRow key={i} className={rowTone}>
-                    <TableCell className="font-medium">{r.nome}</TableCell>
-                    <TableCell>{r.cor}</TableCell>
-                    <TableCell>{r.tamanho}</TableCell>
-                    <TableCell className="text-right font-semibold">{r.qtd}</TableCell>
+                  <TableRow key={`${r.produto_id}-${r.cor ?? ""}-${r.tamanho ?? ""}-${i}`} className={critico ? "bg-rose-50/70 hover:bg-rose-100/70" : emProd > 0 ? "bg-emerald-50/50 hover:bg-emerald-100/50" : ""}>
+                    <TableCell className="font-medium">{r.nome ?? "—"}</TableCell>
+                    <TableCell>{r.cor ?? "—"}</TableCell>
+                    <TableCell>{r.tamanho ?? "—"}</TableCell>
+                    <TableCell className="text-right font-semibold">{vendido}</TableCell>
                     <TableCell className="text-right">
                       {emProd > 0 ? (
                         <Badge className="bg-amber-100 text-amber-800 border border-amber-200">
@@ -821,7 +838,13 @@ function DashboardTab({ mes }: { mes: string }) {
                         <Badge className="bg-emerald-100 text-emerald-800 border border-emerald-200">+{saldo}</Badge>
                       )}
                     </TableCell>
-                    <TableCell className="text-right text-muted-foreground">{r.pedidos.size}</TableCell>
+                    <TableCell className="max-w-[280px]">
+                      <span className="text-xs text-muted-foreground font-mono" title={pedidos.join(", ")}>
+                        {pedidos.slice(0, 5).join(", ")}
+                        {pedidos.length > 5 ? ` +${pedidos.length - 5}` : ""}
+                        {pedidos.length === 0 ? "—" : ""}
+                      </span>
+                    </TableCell>
                   </TableRow>
                 );
               })}
@@ -829,6 +852,7 @@ function DashboardTab({ mes }: { mes: string }) {
           </Table>
         </div>
       </Card>
+
 
       <GerarOPDialog
         pedido={opDialogPedido}
