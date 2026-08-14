@@ -329,7 +329,9 @@ function CardFollowup({
         </div>
 
         {item.referencia && (
-          <p className="text-xs text-muted-foreground line-clamp-1">{item.referencia}</p>
+          <div className="line-clamp-1">
+            <DetalhesReferencia tipo={item.tipo} referencia={item.referencia} />
+          </div>
         )}
 
         {expandido && (
