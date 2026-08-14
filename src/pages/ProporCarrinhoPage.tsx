@@ -1,13 +1,8 @@
-import { useState } from "react";
-import { FormularioProposta, ResultadoTexto } from "@/components/atendimento/ProporCarrinho";
-import { Button } from "@/components/ui/button";
+import { FormularioProposta } from "@/components/atendimento/ProporCarrinho";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Copy, ShoppingCart } from "lucide-react";
-import { toast } from "@/hooks/use-toast";
+import { ShoppingCart } from "lucide-react";
 
 export default function ProporCarrinhoPage() {
-  const [dados, setDados] = useState<Parameters<typeof ResultadoTexto>[0]["dados"] | null>(null);
-
   return (
     <div className="container mx-auto max-w-3xl py-6">
       <div className="mb-6 flex items-center gap-3">
@@ -32,17 +27,7 @@ export default function ProporCarrinhoPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          {dados ? (
-            <ResultadoTexto dados={dados} onNovo={() => setDados(null)} />
-          ) : (
-            <FormularioProposta
-              modo="texto"
-              onTextoGerado={(resposta) => {
-                setDados(resposta);
-                toast({ title: "Texto do carrinho gerado" });
-              }}
-            />
-          )}
+          <FormularioProposta modo="texto" />
         </CardContent>
       </Card>
     </div>
