@@ -108,7 +108,7 @@ function itemCompleto(i: ItemCarrinho) {
   return i.descricao.trim().length > 0 && paraNumero(i.valor_unitario) > 0;
 }
 
-function FormularioProposta({
+export function FormularioProposta({
   conversaId,
   telefone,
   emailInicial,
@@ -658,7 +658,7 @@ function FormularioProposta({
 }
 
 /** Resultado do modo "copiar texto": texto pronto, link, Pix e QR code. */
-function ResultadoTexto({ dados, onNovo }: { dados: RespostaTexto; onNovo: () => void }) {
+export function ResultadoTexto({ dados, onNovo }: { dados: RespostaTexto; onNovo: () => void }) {
   const [copiado, setCopiado] = useState<string | null>(null);
   const avisos = Array.isArray(dados.avisos) ? dados.avisos.filter(Boolean) : [];
 
