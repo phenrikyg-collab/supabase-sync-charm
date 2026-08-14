@@ -475,6 +475,9 @@ function DashboardTab({ mes }: { mes: string }) {
 
   const recalcular = useRecalcularExpedicao();
   const atrasadosQ = useTopAtrasados(15);
+  const resumoQ = useResumoAbertos();
+  const paradosQ = useProdutosParados(200);
+
 
   if (ap.isLoading) {
     return (
