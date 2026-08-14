@@ -729,6 +729,48 @@ export function ResultadoTexto({ dados, onNovo }: { dados: RespostaTexto; onNovo
         </Button>
       </div>
 
+      {itens.length > 0 && (
+        <div className="space-y-2 rounded-md border border-border p-3">
+          <Label className="text-xs">Imagens dos produtos</Label>
+          <p className="text-[11px] text-muted-foreground">
+            Copie cada foto e cole no app de destino; depois cole o texto acima.
+          </p>
+          <div className="grid gap-3 sm:grid-cols-2">
+            {itens.map((item, idx) => (
+              <div key={idx} className="flex items-center gap-3 rounded-md border border-border bg-muted/30 p-2">
+                <div className="h-16 w-16 shrink-0 overflow-hidden rounded bg-muted">
+                  {item.imagem ? (
+                    <img
+                      src={item.imagem}
+                      alt={item.nome ?? `Produto ${idx + 1}`}
+                      className="h-full w-full object-cover"
+                      loading="lazy"
+                    />
+                  ) : null}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-xs font-medium">{item.nome ?? `Produto ${idx + 1}`}</p>
+                  <p className="text-[11px] text-muted-foreground">
+                    {[item.cor, item.tamanho].filter(Boolean).join(" / ")}
+                    {item.quantidade != null ? ` · Qtd ${item.quantidade}` : ""}
+                  </p>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    className="mt-1 h-7 text-[11px]"
+                    onClick={() => copiarImagem(item.imagem!, item.nome ?? "Imagem")}
+                  >
+                    <Copy className="mr-1.5 h-3 w-3" />
+                    Copiar imagem
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {(dados.cashback_cartao != null || dados.cashback_pix != null) && (
         <div className="flex flex-wrap gap-4 rounded-md border border-border bg-muted/40 px-3 py-2 text-xs">
           <span>Cashback cartão: {moeda(Number(dados.cashback_cartao ?? 0))}</span>
