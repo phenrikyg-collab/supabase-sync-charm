@@ -683,19 +683,22 @@ export function ResultadoTexto({ dados, onNovo }: { dados: RespostaTexto; onNovo
     }
   };
 
-  const copiarImagem = async (url: string) => {
+  const copiarImagem = async (url: string, rotulo = "Imagem") => {
     try {
       const blob = await (await fetch(url)).blob();
       await navigator.clipboard.write([new ClipboardItem({ [blob.type]: blob })]);
-      toast({ title: "QR code copiado" });
+      toast({ title: `${rotulo} copiada` });
     } catch {
       toast({
         title: "Não foi possível copiar a imagem",
-        description: "Use o botão de baixar o QR code.",
+        description: "Abrindo em nova aba para salvar/copiar manualmente.",
         variant: "destructive",
       });
+      window.open(url, "_blank");
     }
   };
+
+  const itens = Array.isArray(dados.itens_resolvidos) ? dados.itens_resolvidos.filter((i) => i?.imagem) : [];
 
   return (
     <div className="space-y-3">
