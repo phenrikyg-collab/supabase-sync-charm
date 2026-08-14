@@ -11,14 +11,19 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "@/hooks/use-toast";
-import { CheckCircle2, Clock, Loader2, Plus, ShoppingCart, Trash2, Truck } from "lucide-react";
+import {
+  AlertTriangle, CheckCircle2, Clock, Copy, Download, Loader2, Plus, ShoppingCart, Trash2, Truck,
+} from "lucide-react";
 import { BuscaProduto, ProdutoPagamento, moedaBR, precoProduto } from "@/components/atendimento/BuscaProduto";
 import { SeletorVariante } from "@/components/atendimento/SeletorVariante";
 
 const EXTERNAL_SUPABASE_URL = "https://ezdtulcrqzmgocamjwwl.supabase.co";
 const PROPOR_CARRINHO_URL = `${EXTERNAL_SUPABASE_URL}/functions/v1/propor-carrinho`;
 const CALCULAR_FRETE_URL = `${EXTERNAL_SUPABASE_URL}/functions/v1/calcular-frete`;
+const GERAR_TEXTO_URL = `${EXTERNAL_SUPABASE_URL}/functions/v1/gerar-texto-carrinho`;
 
 const chaveProposta = (conversaId: string | number) => `proposta-carrinho:${conversaId}`;
 
@@ -73,6 +78,19 @@ type RespostaProposta = {
   error?: string;
 };
 
+type RespostaTexto = {
+  ok?: boolean;
+  texto?: string;
+  link_pagamento?: string | null;
+  pix_copia_cola?: string | null;
+  qr_code_url?: string | null;
+  cashback_cartao?: number | string | null;
+  cashback_pix?: number | string | null;
+  avisos?: string[] | null;
+  erro?: string;
+  error?: string;
+};
+
 const moeda = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
 function paraNumero(valor: string) {
@@ -95,11 +113,14 @@ function FormularioProposta({
   telefone,
   emailInicial,
   onEnviada,
+  modo = "whatsapp",
 }: {
   conversaId?: string | number;
   telefone?: string | null;
   emailInicial?: string | null;
   onEnviada?: (propostaId: string | number) => void;
+  /** "whatsapp": envia a proposta pelo bot. "texto": gera link/Pix e devolve texto pronto pra copiar. */
+  modo?: "whatsapp" | "texto";
 }) {
   const [email, setEmail] = useState(emailInicial ?? "");
   const [itens, setItens] = useState<ItemCarrinho[]>([]);
@@ -112,6 +133,9 @@ function FormularioProposta({
   const [enviando, setEnviando] = useState(false);
   const [erro, setErro] = useState("");
   const [resultado, setResultado] = useState<RespostaProposta | null>(null);
+  const [textoGerado, setTextoGerado] = useState<RespostaTexto | null>(null);
+
+  const modoTexto = modo === "texto";
 
   useEffect(() => {
     setEmail(emailInicial ?? "");
@@ -122,8 +146,13 @@ function FormularioProposta({
   const subtotal = itens.reduce((acc, i) => acc + precoItem(i) * (i.quantidade || 0), 0);
   const total = Math.max(subtotal + paraNumero(frete) - paraNumero(desconto), 0);
   const itensIncompletos = itens.filter((i) => !itemCompleto(i));
-  const emailValido = email.trim() === "" || /\S+@\S+\.\S+/.test(email.trim());
-  const valido = itens.length > 0 && itensIncompletos.length === 0 && emailValido && !!telefone;
+  const emailPreenchido = /\S+@\S+\.\S+/.test(email.trim());
+  const emailValido = modoTexto ? emailPreenchido : email.trim() === "" || emailPreenchido;
+  const valido =
+    itens.length > 0 &&
+    itensIncompletos.length === 0 &&
+    emailValido &&
+    (modoTexto || !!telefone);
 
   const atualizarItem = (index: number, patch: Partial<ItemCarrinho>) =>
     setItens((prev) => prev.map((it, i) => (i === index ? { ...it, ...patch } : it)));
@@ -254,6 +283,76 @@ function FormularioProposta({
     }
   };
 
+  const gerarTexto = async () => {
+    setEnviando(true);
+    setErro("");
+    setTextoGerado(null);
+    try {
+      if (itensIncompletos.length > 0) {
+        throw new Error(
+          "Há itens incompletos: cada item precisa de um produto do catálogo OU descrição e valor unitário.",
+        );
+      }
+      if (!emailPreenchido) throw new Error("Informe o e-mail da cliente para gerar o link de pagamento.");
+      const r = await fetch(GERAR_TEXTO_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          customer_email: email.trim(),
+          itens: itens.map((i) =>
+            i.produto_id
+              ? {
+                  produto_id: i.produto_id,
+                  ...(i.variant_id != null ? { variant_id: i.variant_id } : {}),
+                  quantidade: i.quantidade,
+                }
+              : {
+                  descricao: i.descricao.trim(),
+                  valor_unitario: paraNumero(i.valor_unitario).toFixed(2),
+                  quantidade: i.quantidade,
+                },
+          ),
+          valor_frete: paraNumero(frete).toFixed(2) || "0",
+          desconto: paraNumero(desconto).toFixed(2) || "0",
+        }),
+      });
+      const bruto = await r.text();
+      let json: RespostaTexto = {};
+      if (bruto) {
+        try {
+          json = JSON.parse(bruto) as RespostaTexto;
+        } catch {
+          throw new Error(`Resposta inválida (HTTP ${r.status}): ${bruto}`);
+        }
+      }
+      if (!r.ok || json.ok === false) throw new Error(json.erro || json.error || `HTTP ${r.status}`);
+      setTextoGerado(json);
+      toast({ title: "Texto do carrinho gerado" });
+    } catch (e) {
+      const mensagem = e instanceof Error ? e.message : String(e);
+      setErro(mensagem);
+      toast({ title: "Erro ao gerar texto", description: mensagem, variant: "destructive" });
+    } finally {
+      setEnviando(false);
+    }
+  };
+
+  const limpar = () => {
+    setResultado(null);
+    setTextoGerado(null);
+    setItens([]);
+    setFrete("");
+    setDesconto("");
+    setOpcoesFrete([]);
+    setFreteSelecionado(null);
+  };
+
+  if (textoGerado) {
+    return (
+      <ResultadoTexto dados={textoGerado} onNovo={limpar} />
+    );
+  }
+
   if (resultado) {
     return (
       <div className="space-y-3">
@@ -287,18 +386,7 @@ function FormularioProposta({
             necessária — o bot gera a cobrança automaticamente quando ela confirmar a forma de pagamento.
           </p>
         </div>
-        <Button
-          variant="outline"
-          className="w-full"
-          onClick={() => {
-            setResultado(null);
-            setItens([]);
-            setFrete("");
-            setDesconto("");
-            setOpcoesFrete([]);
-            setFreteSelecionado(null);
-          }}
-        >
+        <Button variant="outline" className="w-full" onClick={limpar}>
           Montar outra proposta
         </Button>
       </div>
@@ -307,7 +395,7 @@ function FormularioProposta({
 
   return (
     <div className="space-y-3">
-      {!telefone && (
+      {!telefone && !modoTexto && (
         <p role="alert" className="rounded-md border border-destructive/30 bg-destructive/5 p-3 text-xs text-destructive">
           Esta conversa não tem telefone identificado — não é possível enviar a proposta.
         </p>
@@ -509,7 +597,9 @@ function FormularioProposta({
       </div>
 
       <div className="space-y-1.5">
-        <Label htmlFor="proposta-email">E-mail da cliente (opcional)</Label>
+        <Label htmlFor="proposta-email">
+          {modoTexto ? "E-mail da cliente (obrigatório)" : "E-mail da cliente (opcional)"}
+        </Label>
         <Input
           id="proposta-email"
           value={email}
@@ -517,7 +607,13 @@ function FormularioProposta({
           placeholder="cliente@email.com"
           type="email"
         />
-        {!emailValido && <p className="text-xs text-destructive">E-mail inválido.</p>}
+        {!emailValido && (
+          <p className="text-xs text-destructive">
+            {modoTexto && email.trim() === ""
+              ? "Informe o e-mail para gerar o link de pagamento."
+              : "E-mail inválido."}
+          </p>
+        )}
       </div>
 
       <div className="space-y-1 rounded-md border border-border bg-muted/40 px-3 py-2">
@@ -539,13 +635,17 @@ function FormularioProposta({
         </div>
       </div>
 
-      <Button onClick={enviar} disabled={!valido || enviando} className="w-full">
+      <Button
+        onClick={modoTexto ? gerarTexto : enviar}
+        disabled={!valido || enviando}
+        className="w-full"
+      >
         {enviando ? (
           <Loader2 className="mr-2 h-4 w-4 animate-spin" />
         ) : (
           <ShoppingCart className="mr-2 h-4 w-4" />
         )}
-        Enviar proposta no WhatsApp
+        {modoTexto ? "Gerar texto do carrinho" : "Enviar proposta no WhatsApp"}
       </Button>
 
       {erro && (
@@ -553,6 +653,129 @@ function FormularioProposta({
           <p className="break-words text-xs text-destructive">{erro}</p>
         </div>
       )}
+    </div>
+  );
+}
+
+/** Resultado do modo "copiar texto": texto pronto, link, Pix e QR code. */
+function ResultadoTexto({ dados, onNovo }: { dados: RespostaTexto; onNovo: () => void }) {
+  const [copiado, setCopiado] = useState<string | null>(null);
+  const avisos = Array.isArray(dados.avisos) ? dados.avisos.filter(Boolean) : [];
+
+  const copiar = async (valor: string, rotulo: string) => {
+    try {
+      await navigator.clipboard.writeText(valor);
+      setCopiado(rotulo);
+      window.setTimeout(() => setCopiado(null), 2000);
+      toast({ title: `${rotulo} copiado` });
+    } catch {
+      toast({ title: "Não foi possível copiar", variant: "destructive" });
+    }
+  };
+
+  const copiarImagem = async (url: string) => {
+    try {
+      const blob = await (await fetch(url)).blob();
+      await navigator.clipboard.write([new ClipboardItem({ [blob.type]: blob })]);
+      toast({ title: "QR code copiado" });
+    } catch {
+      toast({
+        title: "Não foi possível copiar a imagem",
+        description: "Use o botão de baixar o QR code.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  return (
+    <div className="space-y-3">
+      {avisos.length > 0 && (
+        <div role="alert" className="space-y-1 rounded-md border border-warning/40 bg-warning/10 p-3">
+          <p className="flex items-center gap-2 text-xs font-semibold text-warning">
+            <AlertTriangle className="h-3.5 w-3.5" />
+            O texto pode estar incompleto
+          </p>
+          <ul className="list-disc pl-5 text-xs text-muted-foreground">
+            {avisos.map((a, i) => (
+              <li key={i}>{String(a)}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      <div className="space-y-2">
+        <Label className="text-xs">Texto pronto para enviar</Label>
+        <Textarea readOnly value={dados.texto ?? ""} rows={14} className="text-xs" />
+        <Button className="w-full" onClick={() => copiar(dados.texto ?? "", "Texto")}>
+          {copiado === "Texto" ? (
+            <CheckCircle2 className="mr-2 h-4 w-4" />
+          ) : (
+            <Copy className="mr-2 h-4 w-4" />
+          )}
+          Copiar texto completo
+        </Button>
+      </div>
+
+      {(dados.cashback_cartao != null || dados.cashback_pix != null) && (
+        <div className="flex flex-wrap gap-4 rounded-md border border-border bg-muted/40 px-3 py-2 text-xs">
+          <span>Cashback cartão: {moeda(Number(dados.cashback_cartao ?? 0))}</span>
+          <span className="text-success">Cashback Pix: {moeda(Number(dados.cashback_pix ?? 0))}</span>
+        </div>
+      )}
+
+      {dados.link_pagamento && (
+        <div className="space-y-1.5">
+          <Label className="text-xs">Link de pagamento</Label>
+          <div className="flex gap-2">
+            <Input readOnly value={dados.link_pagamento} className="text-xs" />
+            <Button variant="outline" size="icon" onClick={() => copiar(dados.link_pagamento!, "Link")}>
+              <Copy className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {dados.pix_copia_cola && (
+        <div className="space-y-1.5">
+          <Label className="text-xs">Pix copia e cola</Label>
+          <Textarea readOnly value={dados.pix_copia_cola} rows={3} className="text-[11px]" />
+          <Button
+            variant="outline"
+            className="w-full"
+            onClick={() => copiar(dados.pix_copia_cola!, "Código Pix")}
+          >
+            <Copy className="mr-2 h-4 w-4" />
+            Copiar código Pix
+          </Button>
+        </div>
+      )}
+
+      {dados.qr_code_url && (
+        <div className="space-y-2">
+          <Label className="text-xs">QR code do Pix</Label>
+          <img
+            src={dados.qr_code_url}
+            alt="QR code do Pix"
+            className="mx-auto h-44 w-44 rounded-md border border-border bg-background object-contain p-2"
+          />
+          <div className="flex gap-2">
+            <Button variant="outline" className="flex-1" onClick={() => copiarImagem(dados.qr_code_url!)}>
+              <Copy className="mr-2 h-4 w-4" />
+              Copiar imagem
+            </Button>
+            <Button variant="outline" className="flex-1" asChild>
+              <a href={dados.qr_code_url} download="qrcode-pix.png" target="_blank" rel="noreferrer">
+                <Download className="mr-2 h-4 w-4" />
+                Baixar QR code
+              </a>
+            </Button>
+          </div>
+        </div>
+      )}
+
+      <Button variant="ghost" className="w-full" onClick={onNovo}>
+        Montar outro carrinho
+      </Button>
     </div>
   );
 }
@@ -581,21 +804,45 @@ export function ProporCarrinhoDialog({
           <DialogTitle>Propor carrinho</DialogTitle>
           <DialogDescription>
             {nomeCliente
-              ? `Monta o resumo do carrinho e envia para ${nomeCliente} confirmar no WhatsApp.`
-              : "Monta o resumo do carrinho e envia para a cliente confirmar no WhatsApp."}{" "}
-            Nenhuma cobrança é criada agora.
+              ? `Monte o carrinho para ${nomeCliente}.`
+              : "Monte o carrinho da cliente."}{" "}
+            Envie direto no WhatsApp ou gere um texto pronto para copiar.
           </DialogDescription>
         </DialogHeader>
-        <FormularioProposta
-          conversaId={conversaId}
-          telefone={telefone}
-          emailInicial={emailCliente}
-          onEnviada={onEnviada}
-        />
+        <Tabs defaultValue="whatsapp">
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="whatsapp">Enviar no WhatsApp</TabsTrigger>
+            <TabsTrigger value="texto">Propor carrinho (copiar texto)</TabsTrigger>
+          </TabsList>
+          <TabsContent value="whatsapp" className="mt-4">
+            <p className="mb-3 text-xs text-muted-foreground">
+              A cliente recebe o resumo no WhatsApp e a cobrança só é gerada quando ela confirmar.
+            </p>
+            <FormularioProposta
+              conversaId={conversaId}
+              telefone={telefone}
+              emailInicial={emailCliente}
+              onEnviada={onEnviada}
+            />
+          </TabsContent>
+          <TabsContent value="texto" className="mt-4">
+            <p className="mb-3 text-xs text-muted-foreground">
+              Gera o link de pagamento e a cobrança Pix na hora e devolve o texto completo (com QR code) para
+              você copiar e enviar em qualquer canal.
+            </p>
+            <FormularioProposta
+              modo="texto"
+              conversaId={conversaId}
+              telefone={telefone}
+              emailInicial={emailCliente}
+            />
+          </TabsContent>
+        </Tabs>
       </DialogContent>
     </Dialog>
   );
 }
+
 
 type Proposta = {
   id?: string | number;

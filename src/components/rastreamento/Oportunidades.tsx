@@ -7,11 +7,31 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { StatCard } from "@/components/StatCard";
 import { cn } from "@/lib/utils";
+import { toast } from "@/hooks/use-toast";
 import {
   Loader2, Flame, MessageCircle, Mail, Phone, History, ShoppingBag,
   Users, Target, DollarSign, Send, Shirt, TicketPercent, ShoppingCart,
-  CreditCard, Megaphone,
+  CreditCard, Megaphone, Copy,
 } from "lucide-react";
+
+const somenteDigitos = (telefone?: string | null) => {
+  if (typeof telefone !== "string") return "";
+  if (/[a-zA-Z]/.test(telefone)) return "";
+  return telefone.replace(/\D/g, "");
+};
+
+const telefoneValido = (telefone?: string | null) => /^\d{10,13}$/.test(somenteDigitos(telefone));
+
+const copiarTelefone = async (telefone?: string | null) => {
+  const num = somenteDigitos(telefone);
+  if (!num) return;
+  try {
+    await navigator.clipboard.writeText(num);
+    toast({ title: "WhatsApp copiado", description: num });
+  } catch {
+    toast({ title: "Não foi possível copiar", variant: "destructive" });
+  }
+};
 
 type Oportunidade = {
   id?: string | null;
@@ -457,17 +477,23 @@ export default function Oportunidades() {
                 </div>
 
                 <div className="mt-3 flex flex-wrap justify-end gap-2">
-                  {o.telefone && (
-                    <Button size="sm" variant="outline" asChild>
-                      <a
-                        href={`https://wa.me/55${String(o.telefone).replace(/\D/g, "")}`}
-                        target="_blank"
-                        rel="noreferrer"
-                      >
-                        <MessageCircle className="mr-2 h-3.5 w-3.5" />
-                        Abrir no WhatsApp
-                      </a>
-                    </Button>
+                  {telefoneValido(o.telefone) && (
+                    <>
+                      <Button size="sm" variant="outline" asChild>
+                        <a
+                          href={`https://wa.me/55${somenteDigitos(o.telefone)}`}
+                          target="_blank"
+                          rel="noreferrer"
+                        >
+                          <MessageCircle className="mr-2 h-3.5 w-3.5" />
+                          Abrir no WhatsApp
+                        </a>
+                      </Button>
+                      <Button size="sm" variant="outline" onClick={() => copiarTelefone(o.telefone)}>
+                        <Copy className="mr-2 h-3.5 w-3.5" />
+                        Copiar WhatsApp
+                      </Button>
+                    </>
                   )}
                   {!o.visitante_id && (
                     <Button size="sm" variant="outline" onClick={() => abrirTimeline(o)}>
