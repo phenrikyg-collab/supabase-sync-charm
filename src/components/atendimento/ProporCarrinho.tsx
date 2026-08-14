@@ -593,7 +593,9 @@ function FormularioProposta({
       </div>
 
       <div className="space-y-1.5">
-        <Label htmlFor="proposta-email">E-mail da cliente (opcional)</Label>
+        <Label htmlFor="proposta-email">
+          {modoTexto ? "E-mail da cliente (obrigatório)" : "E-mail da cliente (opcional)"}
+        </Label>
         <Input
           id="proposta-email"
           value={email}
@@ -601,7 +603,13 @@ function FormularioProposta({
           placeholder="cliente@email.com"
           type="email"
         />
-        {!emailValido && <p className="text-xs text-destructive">E-mail inválido.</p>}
+        {!emailValido && (
+          <p className="text-xs text-destructive">
+            {modoTexto && email.trim() === ""
+              ? "Informe o e-mail para gerar o link de pagamento."
+              : "E-mail inválido."}
+          </p>
+        )}
       </div>
 
       <div className="space-y-1 rounded-md border border-border bg-muted/40 px-3 py-2">
