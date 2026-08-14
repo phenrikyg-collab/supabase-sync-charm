@@ -213,7 +213,7 @@ function CardFollowup({
   const [salvando, setSalvando] = useState(false);
   const atrasado = (Number(item.horas_atraso) || 0) > 24;
 
-  useEffect(() => { setMensagem(item.mensagem_sugerida || ""); }, [item.mensagem_sugerida]);
+  useEffect(() => { setMensagem(corrigirMoeda(item.mensagem_sugerida)); }, [item.mensagem_sugerida]);
 
   const concluir = async () => {
     setSalvando(true);
