@@ -19,6 +19,7 @@ import { SeletorVariante } from "@/components/atendimento/SeletorVariante";
 const EXTERNAL_SUPABASE_URL = "https://ezdtulcrqzmgocamjwwl.supabase.co";
 const PROPOR_CARRINHO_URL = `${EXTERNAL_SUPABASE_URL}/functions/v1/propor-carrinho`;
 const CALCULAR_FRETE_URL = `${EXTERNAL_SUPABASE_URL}/functions/v1/calcular-frete`;
+const GERAR_TEXTO_URL = `${EXTERNAL_SUPABASE_URL}/functions/v1/gerar-texto-carrinho`;
 
 const chaveProposta = (conversaId: string | number) => `proposta-carrinho:${conversaId}`;
 
