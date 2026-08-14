@@ -682,6 +682,72 @@ function DashboardTab({ mes }: { mes: string }) {
         </div>
       </Card>
 
+      {/* Pedidos críticos — atraso no envio */}
+      <Card className="p-0 overflow-hidden">
+        <div className="px-6 py-4 border-b flex items-center justify-between gap-3 flex-wrap">
+          <div>
+            <h3 className="font-serif text-lg">Pedidos Críticos — Atraso no Envio</h3>
+            <p className="text-xs text-muted-foreground mt-1">
+              Pedidos com maior atraso no envio, ordenados do mais crítico ao menos crítico.
+            </p>
+          </div>
+          <Badge variant="outline" className="text-xs">
+            {(atrasadosQ.data ?? []).length} pedidos
+          </Badge>
+        </div>
+        <div className="max-h-[520px] overflow-auto">
+          <Table>
+            <TableHeader className="sticky top-0 bg-background z-10 shadow-sm [&_th]:bg-background">
+              <TableRow>
+                <TableHead>Pedido</TableHead>
+                <TableHead>Cliente</TableHead>
+                <TableHead>Data do pedido</TableHead>
+                <TableHead>Etapa</TableHead>
+                <TableHead>Transportadora</TableHead>
+                <TableHead className="text-right">Dias de atraso</TableHead>
+                <TableHead className="text-right">Valor</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {atrasadosQ.isLoading && (
+                <TableRow>
+                  <TableCell colSpan={7} className="text-center py-10">
+                    <Loader2 className="w-5 h-5 animate-spin inline text-primary" />
+                  </TableCell>
+                </TableRow>
+              )}
+              {!atrasadosQ.isLoading && (atrasadosQ.data ?? []).length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={7} className="text-center text-muted-foreground py-10">
+                    Nenhum pedido crítico no momento.
+                  </TableCell>
+                </TableRow>
+              )}
+              {(atrasadosQ.data ?? []).map((p: PedidoAtrasado) => {
+                const dias = Number(p.dias_atraso ?? 0);
+                const badgeTone =
+                  dias >= 30 ? "bg-rose-100 text-rose-800 border-rose-200" :
+                  dias >= 14 ? "bg-orange-100 text-orange-800 border-orange-200" :
+                  "bg-amber-100 text-amber-800 border-amber-200";
+                return (
+                  <TableRow key={String(p.pedido_id)} className={dias >= 30 ? "bg-rose-50/50 hover:bg-rose-100/50" : ""}>
+                    <TableCell className="font-mono text-xs">#{p.pedido_id}</TableCell>
+                    <TableCell className="font-medium">{p.cliente ?? "—"}</TableCell>
+                    <TableCell>{fmtData(p.data_pedido)}</TableCell>
+                    <TableCell className="text-xs text-muted-foreground">{p.etapa ?? "—"}</TableCell>
+                    <TableCell className="text-xs text-muted-foreground">{p.transportadora ?? "—"}</TableCell>
+                    <TableCell className="text-right">
+                      <Badge className={badgeTone}>{dias} dias</Badge>
+                    </TableCell>
+                    <TableCell className="text-right font-medium">{fmtBRL(Number(p.valor_pedido ?? 0))}</TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+        </div>
+      </Card>
+
       {/* Produtos parados — somatório por produto + cor + tamanho */}
       <Card className="p-0 overflow-hidden">
         <div className="px-6 py-4 border-b flex items-center justify-between gap-3 flex-wrap">
