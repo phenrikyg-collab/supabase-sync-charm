@@ -1,5 +1,4 @@
-import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { useState } from "react";
 import { format, parse } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Card } from "@/components/ui/card";
@@ -9,10 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Loader2, Save, Trash2, Plus, CheckCircle2, AlertTriangle, Clock, Truck, Factory, RefreshCw } from "lucide-react";
 import {
   useApurarExpedicao,
@@ -25,12 +21,12 @@ import {
   useRecalcularExpedicao,
   useResumoAbertos,
   useProdutosParados,
+  usePedidosAbertos,
   type ProdutoParado,
-
+  type PedidoAbertoExpedicao,
   type FaixaBonificacao,
   type PedidoAtrasado,
 } from "@/hooks/useBonificacaoExpedicao";
-import { useCreateOrdemProducao, useOficinas, useProdutos } from "@/hooks/useSupabase";
 
 const fmtBRL = (v: number) =>
   v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -101,383 +97,15 @@ export default function BonificacaoExpedicao() {
 
 /* ───────────── Dashboard ───────────── */
 
-type TrayOpen = {
-  id: string | number;
-  date: string | null;
-  estimated_delivery_date: string | null;
-  shipment_date: string | null;
-  orderstatus_type: string | null;
-  orderstatus_status: string | null;
-};
-
-const EXCLUIR_STATUS = new Set([
-  "sent", "shipped", "enviado",
-  "completed", "finished", "finalizado", "concluido", "concluído",
-  "canceled", "cancelled", "cancelado",
-  "refunded", "estornado",
-  "waiting_payment", "aguardando_pagamento", "aguardando pagamento",
-  "pending_payment",
-]);
-
-async function fetchTodosAbertos(): Promise<TrayOpen[]> {
-  const acc: TrayOpen[] = [];
-  let from = 0;
-  const size = 1000;
-  // eslint-disable-next-line no-constant-condition
-  while (true) {
-    const { data, error } = await supabase
-      .from("tray_orders" as any)
-      .select("id,date,estimated_delivery_date,shipment_date,orderstatus_type,orderstatus_status")
-      .is("shipment_date", null)
-      .range(from, from + size - 1);
-    if (error) throw error;
-    const rows = (data ?? []) as TrayOpen[];
-    acc.push(...rows);
-    if (rows.length < size) break;
-    from += size;
-  }
-  return acc.filter((p) => {
-    const s = (p.orderstatus_status ?? "").toLowerCase().trim();
-    const t = (p.orderstatus_type ?? "").toLowerCase().trim();
-    return !EXCLUIR_STATUS.has(s) && !EXCLUIR_STATUS.has(t);
-  });
-}
-
-type ItemPedido = { nome: string; cor: string; tamanho: string; qtd: number; variant_id: string | null };
-
-function decodePy(s: string): string {
-  try { return decodeURIComponent(escape(s)); } catch { return s; }
-}
-function extrairCorTraySku(sku: string | null): string | null {
-  if (!sku) return null;
-  const m = sku.match(/'type':\s*u?'Cor'[^}]*'value':\s*u?'([^']+)'/i);
-  return m ? decodePy(m[1]).trim() : null;
-}
-function extrairTamanhoTraySku(sku: string | null): string | null {
-  if (!sku) return null;
-  const m = sku.match(/'type':\s*u?'Tamanho'[^}]*'value':\s*u?'([^']+)'/i);
-  return m ? decodePy(m[1]).trim() : null;
-}
 
 function DashboardTab({ mes }: { mes: string }) {
   const ap = useApurarExpedicao(mes);
   const fechar = useFecharApuracao();
-  const qc = useQueryClient();
-  const [itensPorPedido, setItensPorPedido] = useState<Record<string, ItemPedido[]>>({});
-  const [prazoEdit, setPrazoEdit] = useState<Record<string, string>>({});
-  const [savingPrazo, setSavingPrazo] = useState<Record<string, boolean>>({});
-  const [opDialogPedido, setOpDialogPedido] = useState<TrayOpen | null>(null);
-  const [justifDialog, setJustifDialog] = useState<{ pid: string; prazoAnterior: string; prazoNovo: string } | null>(null);
-  const [justifText, setJustifText] = useState("");
-
-  const abertosQ = useQuery({
-    queryKey: ["tray-abertos-all"],
-    queryFn: fetchTodosAbertos,
-  });
-  const abertosAll = abertosQ.data ?? [];
-
-  // Mapa variant_id -> { cor, tamanho } para todas as variantes Tray
-  const variantsQ = useQuery({
-    queryKey: ["tray-variants-cor-tamanho"],
-    queryFn: async () => {
-      const map: Record<string, { cor: string | null; tamanho: string | null }> = {};
-      let from = 0;
-      const size = 1000;
-      // eslint-disable-next-line no-constant-condition
-      while (true) {
-        const { data, error } = await supabase
-          .from("tray_products_variants" as any)
-          .select("variant_id, variant_sku")
-          .range(from, from + size - 1);
-        if (error) break;
-        const rows = (data ?? []) as any[];
-        for (const v of rows) {
-          map[String(v.variant_id)] = {
-            cor: extrairCorTraySku(v.variant_sku),
-            tamanho: extrairTamanhoTraySku(v.variant_sku),
-          };
-        }
-        if (rows.length < size) break;
-        from += size;
-      }
-      return map;
-    },
-  });
-  const variantsMap = variantsQ.data ?? {};
-
-  useEffect(() => {
-    const ids = abertosAll.map((p) => String(p.id));
-    if (ids.length === 0) {
-      setItensPorPedido({});
-      return;
-    }
-    let cancelled = false;
-    (async () => {
-      const map: Record<string, ItemPedido[]> = {};
-      const chunkSize = 200;
-      for (let i = 0; i < ids.length; i += chunkSize) {
-        const chunk = ids.slice(i, i + chunkSize);
-        const { data, error } = await supabase
-          .from("tray_productssold")
-          .select("order_id, name, model, reference, quantity, variant_id")
-          .in("order_id", chunk);
-        if (error || !data) continue;
-        for (const row of data as any[]) {
-          const oid = String(row.order_id);
-          const nome = (row.model || (row.name ? String(row.name).split("<br>")[0] : null) || row.reference || "Produto").trim();
-          const qtd = Number(row.quantity ?? 1);
-          const vid = row.variant_id != null ? String(row.variant_id) : null;
-          const v = vid ? variantsMap[vid] : null;
-          const cor = v?.cor ?? extrairCorTraySku(row.reference) ?? "—";
-          const tamanho = v?.tamanho ?? extrairTamanhoTraySku(row.reference) ?? "—";
-          if (!map[oid]) map[oid] = [];
-          map[oid].push({ nome, cor, tamanho, qtd, variant_id: vid });
-        }
-      }
-      if (!cancelled) setItensPorPedido(map);
-    })();
-    return () => { cancelled = true; };
-  }, [abertosAll.length, variantsQ.data]);
-
-  // Lista para exibir badges com nome (compat com lógica anterior)
-  const produtosPorPedido: Record<string, string[]> = {};
-  for (const [oid, itens] of Object.entries(itensPorPedido)) {
-    produtosPorPedido[oid] = itens.map((it) => {
-      const base = it.nome;
-      const extra: string[] = [];
-      if (it.cor !== "—") extra.push(it.cor);
-      if (it.tamanho !== "—") extra.push(it.tamanho);
-      const suf = extra.length ? ` [${extra.join(" / ")}]` : "";
-      return it.qtd > 1 ? `${base}${suf} (${it.qtd})` : `${base}${suf}`;
-    });
-  }
-
-  // OPs ativas: soma de peças em produção por (nome_produto + cor + tamanho).
-  // ordens_producao não tem tamanho; usamos ordens_corte_grade para abrir por tamanho
-  // e distribuímos proporcionalmente caso a soma da grade difira da qtd da OP.
-  const opsAtivasQ = useQuery({
-    queryKey: ["ops-ativas-producao-grade"],
-    queryFn: async () => {
-      const [ops, cores] = await Promise.all([
-        supabase
-          .from("ordens_producao" as any)
-          .select("produto_id, nome_produto, cor_id, ordem_corte_id, quantidade, quantidade_pecas_ordem, status_ordem"),
-        supabase.from("cores" as any).select("id, nome_cor"),
-      ]);
-      const coresMap: Record<string, string> = {};
-      for (const c of (cores.data ?? []) as any[]) coresMap[String(c.id)] = (c.nome_cor ?? "").trim();
-      const ATIVOS = new Set(["corte", "costura", "revisao", "revisão", "em conserto"]);
-      const activeOps = ((ops.data ?? []) as any[]).filter((o) =>
-        ATIVOS.has((o.status_ordem ?? "").toLowerCase().trim())
-      );
-
-      const nomePorProduto: Record<string, string> = {};
-      for (const o of activeOps) {
-        if (o.produto_id) nomePorProduto[String(o.produto_id)] = (o.nome_produto ?? "").trim().toLowerCase();
-      }
-
-      // Indexa qtd da OP por (oc|prod|cor) E por (oc|prod) — porque cor_id na OP pode ser null
-      const opQtdPorChaveCor: Record<string, number> = {};
-      const opQtdPorOcProd: Record<string, number> = {};
-      const ocIds = new Set<string>();
-      for (const o of activeOps) {
-        const qtd = Number(o.quantidade_pecas_ordem ?? o.quantidade ?? 0);
-        if (o.ordem_corte_id && o.produto_id) {
-          const kop = `${o.ordem_corte_id}|${o.produto_id}`;
-          opQtdPorOcProd[kop] = (opQtdPorOcProd[kop] ?? 0) + qtd;
-          if (o.cor_id) {
-            const k = `${kop}|${o.cor_id}`;
-            opQtdPorChaveCor[k] = (opQtdPorChaveCor[k] ?? 0) + qtd;
-          }
-          ocIds.add(String(o.ordem_corte_id));
-        }
-      }
-
-      const map: Record<string, number> = {};
-      const fallback: Record<string, number> = {};
-
-      if (ocIds.size > 0) {
-        const ocList = Array.from(ocIds);
-        const grades: any[] = [];
-        const CHUNK = 100;
-        for (let i = 0; i < ocList.length; i += CHUNK) {
-          const slice = ocList.slice(i, i + CHUNK);
-          const { data } = await supabase
-            .from("ordens_corte_grade" as any)
-            .select("ordem_corte_id, produto_id, cor_id, tamanho, quantidade")
-            .in("ordem_corte_id", slice);
-          if (data) grades.push(...(data as any[]));
-        }
-
-        // Totais de grade por (oc|prod|cor) e por (oc|prod) — só de produtos que têm OP
-        const totalGradePorCor: Record<string, number> = {};
-        const totalGradePorOcProd: Record<string, number> = {};
-        for (const g of grades) {
-          if (!nomePorProduto[String(g.produto_id)]) continue;
-          const kop = `${g.ordem_corte_id}|${g.produto_id}`;
-          const k = `${kop}|${g.cor_id ?? ""}`;
-          totalGradePorCor[k] = (totalGradePorCor[k] ?? 0) + Number(g.quantidade ?? 0);
-          totalGradePorOcProd[kop] = (totalGradePorOcProd[kop] ?? 0) + Number(g.quantidade ?? 0);
-        }
-
-        for (const g of grades) {
-          const nome = nomePorProduto[String(g.produto_id)] ?? "";
-          if (!nome) continue;
-          const kop = `${g.ordem_corte_id}|${g.produto_id}`;
-          const k = `${kop}|${g.cor_id ?? ""}`;
-
-          // Tenta atribuir qtd da OP específica daquela cor; se a OP não tem cor (cor_id null),
-          // distribui o total da OP (por oc|prod) proporcionalmente entre todas as linhas da grade.
-          let qtdOp = opQtdPorChaveCor[k];
-          let totalGrade = totalGradePorCor[k] || 0;
-          if (qtdOp == null) {
-            qtdOp = opQtdPorOcProd[kop];
-            totalGrade = totalGradePorOcProd[kop] || 0;
-          }
-          if (qtdOp == null) continue;
-
-          const qtdGrade = Number(g.quantidade ?? 0);
-          const qtdEfetiva =
-            totalGrade > 0 ? Math.round((qtdGrade * qtdOp) / totalGrade) : qtdGrade;
-
-          const cor = (coresMap[String(g.cor_id)] ?? "").trim().toLowerCase();
-          const tam = (g.tamanho ?? "").toString().trim().toLowerCase();
-          map[`${nome}||${cor}||${tam}`] = (map[`${nome}||${cor}||${tam}`] ?? 0) + qtdEfetiva;
-          const fkey = `${nome}||${cor}`;
-          fallback[fkey] = (fallback[fkey] ?? 0) + qtdEfetiva;
-        }
-      }
-
-      for (const o of activeOps) {
-        if (o.ordem_corte_id) continue;
-        const qtd = Number(o.quantidade_pecas_ordem ?? o.quantidade ?? 0);
-        const nome = (o.nome_produto ?? "").trim().toLowerCase();
-        const cor = (coresMap[String(o.cor_id)] ?? "").trim().toLowerCase();
-        if (!nome) continue;
-        fallback[`${nome}||${cor}`] = (fallback[`${nome}||${cor}`] ?? 0) + qtd;
-      }
-
-      return { map, fallback };
-    },
-  });
-  const opsData = opsAtivasQ.data ?? { map: {} as Record<string, number>, fallback: {} as Record<string, number> };
-
-  const norm = (s: string) =>
-    (s ?? "")
-      .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "")
-      .toLowerCase()
-      .replace(/[^a-z0-9\s]/g, " ")
-      .replace(/\s+/g, " ")
-      .trim();
-
-  // Índices normalizados (acentos, pontuação, case) sobre os dados de OPs
-  const opsNorm = (() => {
-    const exact: Record<string, number> = {};
-    const porNomeCor: Record<string, number> = {};
-    const porNome: Record<string, number> = {};
-    for (const [k, v] of Object.entries(opsData.map)) {
-      const [n, c, t] = k.split("||");
-      const nn = norm(n), nc = norm(c), nt = norm(t);
-      exact[`${nn}||${nc}||${nt}`] = (exact[`${nn}||${nc}||${nt}`] ?? 0) + v;
-      porNomeCor[`${nn}||${nc}`] = (porNomeCor[`${nn}||${nc}`] ?? 0) + v;
-      porNome[nn] = (porNome[nn] ?? 0) + v;
-    }
-    for (const [k, v] of Object.entries(opsData.fallback)) {
-      const [n, c] = k.split("||");
-      const nn = norm(n), nc = norm(c);
-      if (porNomeCor[`${nn}||${nc}`] == null) porNomeCor[`${nn}||${nc}`] = v;
-      porNome[nn] = (porNome[nn] ?? 0);
-    }
-    return { exact, porNomeCor, porNome, nomes: Object.keys(porNome).filter(Boolean) };
-  })();
-
-  const emProducaoPara = (nome: string, cor: string, tamanho: string) => {
-    const n = norm(nome);
-    const c = cor === "—" ? "" : norm(cor);
-    const t = tamanho === "—" ? "" : norm(tamanho);
-    if (n && c && t && opsNorm.exact[`${n}||${c}||${t}`] != null) return opsNorm.exact[`${n}||${c}||${t}`];
-    if (n && c && opsNorm.porNomeCor[`${n}||${c}`] != null) return opsNorm.porNomeCor[`${n}||${c}`];
-    if (n && opsNorm.porNome[n]) return opsNorm.porNome[n];
-    // fallback contains: nome do pedido contém OP ou vice-versa
-    if (!n) return 0;
-    let total = 0;
-    for (const opNome of opsNorm.nomes) {
-      if (opNome === n) continue;
-      if (n.includes(opNome) || opNome.includes(n)) {
-        if (c && opsNorm.porNomeCor[`${opNome}||${c}`] != null) {
-          total += opsNorm.porNomeCor[`${opNome}||${c}`];
-        } else {
-          total += opsNorm.porNome[opNome] ?? 0;
-        }
-      }
-    }
-    return total;
-  };
-
-  // Agregação por produto + cor + tamanho
-  const agregado = (() => {
-    const acc = new Map<string, { nome: string; cor: string; tamanho: string; qtd: number; pedidos: Set<string> }>();
-    for (const [oid, itens] of Object.entries(itensPorPedido)) {
-      for (const it of itens) {
-        const key = `${it.nome}||${it.cor}||${it.tamanho}`;
-        const cur = acc.get(key);
-        if (cur) {
-          cur.qtd += it.qtd;
-          cur.pedidos.add(oid);
-        } else {
-          acc.set(key, { nome: it.nome, cor: it.cor, tamanho: it.tamanho, qtd: it.qtd, pedidos: new Set([oid]) });
-        }
-      }
-    }
-    return Array.from(acc.values()).sort((a, b) => b.qtd - a.qtd);
-  })();
-
-  const requestEditPrazo = (pid: string, prazoAnterior: string, prazoNovo: string) => {
-    if (!prazoNovo || prazoNovo === prazoAnterior) return;
-    setJustifText("");
-    setJustifDialog({ pid, prazoAnterior, prazoNovo });
-  };
-
-  const savePrazo = async (pedidoId: string, novoPrazo: string, prazoAnterior: string, justificativa: string) => {
-    setSavingPrazo((s) => ({ ...s, [pedidoId]: true }));
-    try {
-      const { error } = await supabase
-        .from("tray_orders" as any)
-        .update({ estimated_delivery_date: novoPrazo })
-        .eq("id", pedidoId);
-      if (error) throw error;
-
-      // Registra a alteração (best-effort; ignora se tabela não existir)
-      const { data: userData } = await supabase.auth.getUser();
-      const { error: errLog } = await supabase
-        .from("expedicao_alteracoes_prazo" as any)
-        .insert({
-          pedido_id: pedidoId,
-          prazo_anterior: prazoAnterior || null,
-          prazo_novo: novoPrazo,
-          justificativa,
-          alterado_por: userData?.user?.id ?? null,
-        } as any);
-      if (errLog) {
-        console.warn("Falha ao registrar justificativa:", errLog.message);
-      }
-
-      toast.success("Prazo atualizado.");
-      qc.invalidateQueries({ queryKey: ["tray-abertos-all"] });
-      qc.invalidateQueries({ queryKey: ["pedidos-expedicao"] });
-    } catch (e: any) {
-      toast.error(e?.message ?? "Erro ao atualizar prazo.");
-    } finally {
-      setSavingPrazo((s) => ({ ...s, [pedidoId]: false }));
-    }
-  };
-
   const recalcular = useRecalcularExpedicao();
   const atrasadosQ = useTopAtrasados(15);
   const resumoQ = useResumoAbertos();
   const paradosQ = useProdutosParados(200);
-
+  const pedidosAbertosQ = usePedidosAbertos();
 
   if (ap.isLoading) {
     return (
@@ -486,7 +114,6 @@ function DashboardTab({ mes }: { mes: string }) {
       </div>
     );
   }
-
 
   const onFechar = async () => {
     try {
@@ -507,14 +134,6 @@ function DashboardTab({ mes }: { mes: string }) {
       toast.error(e?.message ?? "Erro ao salvar apuração.");
     }
   };
-
-  const HOJE = format(new Date(), "yyyy-MM-dd");
-  const D2 = format(new Date(Date.now() + 2 * 24 * 60 * 60 * 1000), "yyyy-MM-dd");
-  const abertosOrdenados = [...abertosAll].sort((a, b) => {
-    const da = a.estimated_delivery_date ?? "9999-12-31";
-    const db_ = b.estimated_delivery_date ?? "9999-12-31";
-    return da.localeCompare(db_);
-  });
 
   const abaixoMeta = ap.kpis.percentual_prazo < 80;
 
@@ -572,132 +191,6 @@ function DashboardTab({ mes }: { mes: string }) {
               Salvar / Fechar mês
             </Button>
           </div>
-        </div>
-      </Card>
-
-      {/* Resumo dos pedidos em aberto */}
-      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
-        <KPI icon={<Truck className="w-4 h-4" />} label="Total em aberto" value={String(resumoQ.data?.total_pedidos_abertos ?? 0)} />
-        <KPI icon={<AlertTriangle className="w-4 h-4 text-rose-600" />} label="Críticos (atrasados)" value={String(resumoQ.data?.total_criticos ?? 0)} tone="rose" />
-        <KPI icon={<Clock className="w-4 h-4 text-amber-600" />} label="Em alerta (vence hoje)" value={String(resumoQ.data?.total_alerta ?? 0)} tone="amber" />
-        <KPI icon={<CheckCircle2 className="w-4 h-4 text-emerald-600" />} label="No prazo" value={String(resumoQ.data?.total_no_prazo ?? 0)} tone="emerald" />
-        <KPI label="Valor total parado" value={fmtBRL(Number(resumoQ.data?.valor_total_parado ?? 0))} tone="primary" />
-      </div>
-
-      {/* Lista pedidos em aberto (todos, independente do mês) */}
-      <Card className="p-0 overflow-hidden">
-        <div className="px-6 py-4 border-b">
-          <h3 className="font-serif text-lg">
-            Pedidos em aberto a expedir ({resumoQ.data?.total_pedidos_abertos ?? abertosOrdenados.length})
-          </h3>
-
-          <p className="text-xs text-muted-foreground mt-1">
-            Todos os pedidos pendentes de envio, independente do mês de referência. Ordenados do mais crítico (prazo mais antigo) para o mais recente. O prazo de postagem pode ser editado diretamente na lista.
-          </p>
-        </div>
-        <div className="max-h-[620px] overflow-auto">
-          <Table>
-            <TableHeader className="sticky top-0 bg-background z-10 shadow-sm [&_th]:bg-background">
-              <TableRow>
-                <TableHead>Pedido</TableHead>
-                <TableHead>Data</TableHead>
-                <TableHead>Prazo de envio</TableHead>
-                <TableHead>Produtos</TableHead>
-                <TableHead>Status interno</TableHead>
-                <TableHead>Situação</TableHead>
-                <TableHead className="text-right">Ações</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {abertosQ.isLoading && (
-                <TableRow>
-                  <TableCell colSpan={7} className="text-center py-10">
-                    <Loader2 className="w-5 h-5 animate-spin inline text-primary" />
-                  </TableCell>
-                </TableRow>
-              )}
-              {!abertosQ.isLoading && abertosOrdenados.length === 0 && (
-                <TableRow>
-                  <TableCell colSpan={7} className="text-center text-muted-foreground py-10">
-                    Nenhum pedido em aberto.
-                  </TableCell>
-                </TableRow>
-              )}
-              {abertosOrdenados.map((p) => {
-                const pid = String(p.id);
-                const prazo = p.estimated_delivery_date ?? "";
-                const atrasado = prazo && prazo < HOJE;
-                const hoje = prazo === HOJE;
-                const venceEm2 = prazo && prazo > HOJE && prazo <= D2;
-                const editValue = prazoEdit[pid] ?? (prazo ? prazo.slice(0, 10) : "");
-                const rowTone = atrasado
-                  ? "bg-rose-50/70 hover:bg-rose-100/70"
-                  : hoje
-                  ? "bg-amber-50/70 hover:bg-amber-100/70"
-                  : venceEm2
-                  ? "bg-orange-50/60 hover:bg-orange-100/60"
-                  : "";
-                return (
-                  <TableRow key={pid} className={rowTone}>
-                    <TableCell className="font-mono text-xs">{pid}</TableCell>
-                    <TableCell>{fmtData(p.date)}</TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-1">
-                        <Input
-                          type="date"
-                          value={editValue}
-                          disabled={!!savingPrazo[pid]}
-                          onChange={(e) => setPrazoEdit((s) => ({ ...s, [pid]: e.target.value }))}
-                          onBlur={(e) => {
-                            const v = e.target.value;
-                            const anterior = prazo ? prazo.slice(0, 10) : "";
-                            if (v && v !== anterior) requestEditPrazo(pid, anterior, v);
-                          }}
-                          className={`h-8 w-[140px] text-xs ${atrasado ? "text-rose-700 font-medium" : ""}`}
-                        />
-                        {savingPrazo[pid] && <Loader2 className="w-3 h-3 animate-spin text-muted-foreground" />}
-                      </div>
-                    </TableCell>
-                    <TableCell className="max-w-[320px]">
-                      <div className="flex flex-wrap gap-1">
-                        {(produtosPorPedido[pid] ?? []).slice(0, 6).map((nome, idx) => (
-                          <Badge key={idx} variant="outline" className="text-[10px] font-normal max-w-[200px] truncate" title={nome}>
-                            {nome}
-                          </Badge>
-                        ))}
-                        {(produtosPorPedido[pid]?.length ?? 0) > 6 && (
-                          <Badge variant="outline" className="text-[10px]">+{(produtosPorPedido[pid]!.length - 6)}</Badge>
-                        )}
-                        {!produtosPorPedido[pid] && (
-                          <span className="text-[10px] text-muted-foreground">—</span>
-                        )}
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-xs text-muted-foreground">
-                      {p.orderstatus_status ?? "—"}
-                    </TableCell>
-                    <TableCell>
-                      {atrasado ? (
-                        <Badge className="bg-rose-100 text-rose-800 border border-rose-200">Atrasado</Badge>
-                      ) : hoje ? (
-                        <Badge className="bg-amber-100 text-amber-800 border border-amber-200">Vence hoje</Badge>
-                      ) : venceEm2 ? (
-                        <Badge className="bg-orange-100 text-orange-800 border border-orange-200">Vence em 2 dias</Badge>
-                      ) : (
-                        <Badge className="bg-emerald-100 text-emerald-800 border border-emerald-200">No prazo</Badge>
-                      )}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <Button size="sm" variant="outline" onClick={() => setOpDialogPedido(p)}>
-                        <Factory className="w-3.5 h-3.5 mr-1" />
-                        Gerar OP
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
         </div>
       </Card>
 
@@ -759,6 +252,92 @@ function DashboardTab({ mes }: { mes: string }) {
                       <Badge className={badgeTone}>{dias} dias</Badge>
                     </TableCell>
                     <TableCell className="text-right font-medium">{fmtBRL(Number(p.valor_pedido ?? 0))}</TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+        </div>
+      </Card>
+
+      {/* Resumo dos pedidos em aberto */}
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
+        <KPI icon={<Truck className="w-4 h-4" />} label="Total em aberto" value={String(resumoQ.data?.total_pedidos_abertos ?? 0)} />
+        <KPI icon={<AlertTriangle className="w-4 h-4 text-rose-600" />} label="Críticos (atrasados)" value={String(resumoQ.data?.total_criticos ?? 0)} tone="rose" />
+        <KPI icon={<Clock className="w-4 h-4 text-amber-600" />} label="Em alerta (vence hoje)" value={String(resumoQ.data?.total_alerta ?? 0)} tone="amber" />
+        <KPI icon={<CheckCircle2 className="w-4 h-4 text-emerald-600" />} label="No prazo" value={String(resumoQ.data?.total_no_prazo ?? 0)} tone="emerald" />
+        <KPI label="Valor total parado" value={fmtBRL(Number(resumoQ.data?.valor_total_parado ?? 0))} tone="primary" />
+      </div>
+
+      {/* Lista pedidos em aberto (fonte vw_expedicao_status) */}
+      <Card className="p-0 overflow-hidden">
+        <div className="px-6 py-4 border-b">
+          <h3 className="font-serif text-lg">
+            Pedidos em aberto a expedir ({resumoQ.data?.total_pedidos_abertos ?? (pedidosAbertosQ.data ?? []).length})
+          </h3>
+          <p className="text-xs text-muted-foreground mt-1">
+            Todos os pedidos pendentes de envio, ordenados do mais crítico (maior tempo em aberto) para o mais recente.
+          </p>
+        </div>
+        <div className="max-h-[620px] overflow-auto">
+          <Table>
+            <TableHeader className="sticky top-0 bg-background z-10 shadow-sm [&_th]:bg-background">
+              <TableRow>
+                <TableHead>Pedido</TableHead>
+                <TableHead>Cliente</TableHead>
+                <TableHead className="text-right">Dias em aberto</TableHead>
+                <TableHead>Etapa atual</TableHead>
+                <TableHead className="text-right">Valor</TableHead>
+                <TableHead>Risco</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {pedidosAbertosQ.isLoading && (
+                <TableRow>
+                  <TableCell colSpan={6} className="text-center py-10">
+                    <Loader2 className="w-5 h-5 animate-spin inline text-primary" />
+                  </TableCell>
+                </TableRow>
+              )}
+              {!pedidosAbertosQ.isLoading && (pedidosAbertosQ.data ?? []).length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={6} className="text-center text-muted-foreground py-10">
+                    Nenhum pedido em aberto.
+                  </TableCell>
+                </TableRow>
+              )}
+              {(pedidosAbertosQ.data ?? []).map((p: PedidoAbertoExpedicao) => {
+                const risco = (p.nivel_risco ?? "No Prazo").trim();
+                const riscoTone =
+                  risco === "Crítico"
+                    ? "bg-rose-100 text-rose-800 border-rose-200"
+                    : risco === "Alerta"
+                    ? "bg-amber-100 text-amber-800 border-amber-200"
+                    : "bg-emerald-100 text-emerald-800 border-emerald-200";
+                const rowTone =
+                  risco === "Crítico"
+                    ? "bg-rose-50/70 hover:bg-rose-100/70"
+                    : risco === "Alerta"
+                    ? "bg-amber-50/60 hover:bg-amber-100/60"
+                    : "";
+                return (
+                  <TableRow key={String(p.pedido_id)} className={rowTone}>
+                    <TableCell className="font-mono text-xs">
+                      {p.tracking_url ? (
+                        <a href={p.tracking_url} target="_blank" rel="noopener noreferrer" className="underline hover:text-primary">
+                          #{p.pedido_id}
+                        </a>
+                      ) : (
+                        `#${p.pedido_id}`
+                      )}
+                    </TableCell>
+                    <TableCell className="font-medium">{p.cliente ?? "—"}</TableCell>
+                    <TableCell className="text-right">{Number(p.dias_corridos ?? 0)}</TableCell>
+                    <TableCell className="text-xs text-muted-foreground">{p.etapa ?? "—"}</TableCell>
+                    <TableCell className="text-right font-medium">{fmtBRL(Number(p.valor_pedido ?? 0))}</TableCell>
+                    <TableCell>
+                      <Badge className={riscoTone}>{risco}</Badge>
+                    </TableCell>
                   </TableRow>
                 );
               })}
@@ -852,235 +431,10 @@ function DashboardTab({ mes }: { mes: string }) {
           </Table>
         </div>
       </Card>
-
-
-      <GerarOPDialog
-        pedido={opDialogPedido}
-        produtosSugeridos={opDialogPedido ? (produtosPorPedido[String(opDialogPedido.id)] ?? []) : []}
-        onClose={() => setOpDialogPedido(null)}
-      />
-
-      {/* Dialog justificativa alteração de prazo */}
-      <Dialog
-        open={!!justifDialog}
-        onOpenChange={(o) => {
-          if (!o) {
-            // cancelar: reverter input para o valor original
-            if (justifDialog) {
-              setPrazoEdit((s) => ({ ...s, [justifDialog.pid]: justifDialog.prazoAnterior }));
-            }
-            setJustifDialog(null);
-            setJustifText("");
-          }
-        }}
-      >
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Justificar alteração do prazo</DialogTitle>
-          </DialogHeader>
-          {justifDialog && (
-            <div className="space-y-3">
-              <div className="text-xs text-muted-foreground">
-                Pedido <span className="font-mono">{justifDialog.pid}</span>
-              </div>
-              <div className="text-sm">
-                <span className="text-muted-foreground">De </span>
-                <span className="font-medium">{fmtData(justifDialog.prazoAnterior || null)}</span>
-                <span className="text-muted-foreground"> para </span>
-                <span className="font-medium">{fmtData(justifDialog.prazoNovo)}</span>
-              </div>
-              <div>
-                <Label>Motivo da alteração <span className="text-rose-600">*</span></Label>
-                <textarea
-                  value={justifText}
-                  onChange={(e) => setJustifText(e.target.value)}
-                  rows={4}
-                  className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                  placeholder="Descreva o motivo da alteração do prazo..."
-                />
-              </div>
-            </div>
-          )}
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => {
-                if (justifDialog) {
-                  setPrazoEdit((s) => ({ ...s, [justifDialog.pid]: justifDialog.prazoAnterior }));
-                }
-                setJustifDialog(null);
-                setJustifText("");
-              }}
-            >
-              Cancelar
-            </Button>
-            <Button
-              onClick={async () => {
-                if (!justifDialog) return;
-                if (justifText.trim().length < 5) {
-                  toast.error("Informe uma justificativa (mín. 5 caracteres).");
-                  return;
-                }
-                const { pid, prazoAnterior, prazoNovo } = justifDialog;
-                setJustifDialog(null);
-                await savePrazo(pid, prazoNovo, prazoAnterior, justifText.trim());
-                setJustifText("");
-              }}
-            >
-              Confirmar alteração
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }
 
-function GerarOPDialog({
-  pedido,
-  produtosSugeridos,
-  onClose,
-}: {
-  pedido: TrayOpen | null;
-  produtosSugeridos: string[];
-  onClose: () => void;
-}) {
-  const { data: produtos = [] } = useProdutos();
-  const { data: oficinas = [] } = useOficinas();
-  const createOP = useCreateOrdemProducao();
-
-  const [nomeProduto, setNomeProduto] = useState("");
-  const [produtoId, setProdutoId] = useState<string>("");
-  const [quantidade, setQuantidade] = useState<number>(1);
-  const [oficinaId, setOficinaId] = useState<string>("");
-  const [previsao, setPrevisao] = useState<string>("");
-
-  useEffect(() => {
-    if (pedido) {
-      const sug = produtosSugeridos[0] ?? "";
-      const semQtd = sug.replace(/\s*\(\d+\)\s*$/, "").trim();
-      setNomeProduto(semQtd);
-      setProdutoId("");
-      setQuantidade(1);
-      setOficinaId("");
-      setPrevisao(pedido.estimated_delivery_date ? pedido.estimated_delivery_date.slice(0, 10) : "");
-    }
-  }, [pedido]);
-
-  const open = !!pedido;
-
-  const onSubmit = async () => {
-    if (!nomeProduto.trim()) {
-      toast.error("Informe o nome do produto.");
-      return;
-    }
-    if (!quantidade || quantidade < 1) {
-      toast.error("Quantidade inválida.");
-      return;
-    }
-    try {
-      await createOP.mutateAsync({
-        nome_produto: nomeProduto.trim(),
-        quantidade_pecas_ordem: quantidade,
-        quantidade,
-        produto_id: produtoId || null,
-        oficina_id: oficinaId || null,
-        status_ordem: "Corte",
-        data_previsao_termino: previsao || null,
-      } as any);
-      toast.success("Ordem de produção criada e enviada ao Kanban.");
-      onClose();
-    } catch (e: any) {
-      toast.error(e?.message ?? "Erro ao criar ordem.");
-    }
-  };
-
-  return (
-    <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="max-w-lg">
-        <DialogHeader>
-          <DialogTitle>Gerar Ordem de Produção</DialogTitle>
-        </DialogHeader>
-        {pedido && (
-          <div className="space-y-4">
-            <div className="text-xs text-muted-foreground">
-              Pedido <span className="font-mono">{String(pedido.id)}</span> · prazo {fmtData(pedido.estimated_delivery_date)}
-            </div>
-
-            {produtosSugeridos.length > 0 && (
-              <div className="rounded-md border bg-muted/40 p-2 space-y-1">
-                <div className="text-[11px] uppercase tracking-wider text-muted-foreground">Produtos do pedido</div>
-                <div className="flex flex-wrap gap-1">
-                  {produtosSugeridos.map((n, i) => (
-                    <button
-                      key={i}
-                      type="button"
-                      onClick={() => setNomeProduto(n.replace(/\s*\(\d+\)\s*$/, "").trim())}
-                      className="text-[11px] px-2 py-0.5 rounded border bg-background hover:bg-accent"
-                    >
-                      {n}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            <div>
-              <Label>Nome do produto</Label>
-              <Input value={nomeProduto} onChange={(e) => setNomeProduto(e.target.value)} />
-            </div>
-
-            <div>
-              <Label>Produto cadastrado (opcional)</Label>
-              <Select value={produtoId} onValueChange={(v) => {
-                setProdutoId(v);
-                const p = produtos.find((x: any) => x.id === v);
-                if (p?.nome_do_produto) setNomeProduto(p.nome_do_produto);
-              }}>
-                <SelectTrigger><SelectValue placeholder="Vincular a produto..." /></SelectTrigger>
-                <SelectContent>
-                  {produtos.map((p: any) => (
-                    <SelectItem key={p.id} value={p.id}>{p.nome_do_produto}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label>Quantidade</Label>
-                <Input type="number" min={1} value={quantidade} onChange={(e) => setQuantidade(Number(e.target.value))} />
-              </div>
-              <div>
-                <Label>Previsão de término</Label>
-                <Input type="date" value={previsao} onChange={(e) => setPrevisao(e.target.value)} />
-              </div>
-            </div>
-
-            <div>
-              <Label>Oficina (opcional)</Label>
-              <Select value={oficinaId} onValueChange={setOficinaId}>
-                <SelectTrigger><SelectValue placeholder="Selecionar oficina..." /></SelectTrigger>
-                <SelectContent>
-                  {oficinas.map((o: any) => (
-                    <SelectItem key={o.id} value={o.id}>{o.nome_oficina}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-        )}
-        <DialogFooter>
-          <Button variant="outline" onClick={onClose}>Cancelar</Button>
-          <Button onClick={onSubmit} disabled={createOP.isPending}>
-            {createOP.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Factory className="w-4 h-4 mr-2" />}
-            Criar OP
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-}
 
 
 function KPI({

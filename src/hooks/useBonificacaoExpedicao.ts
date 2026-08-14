@@ -292,3 +292,35 @@ export function useProdutosParados(limit = 200) {
     },
   });
 }
+
+export interface PedidoAbertoExpedicao {
+  pedido_id: string | number;
+  cliente: string | null;
+  data_pedido: string | null;
+  status_tray: string | null;
+  dias_corridos: number;
+  prazo_efetivo: number;
+  prazo_alterado: number;
+  nivel_risco: string | null;
+  etapa: string | null;
+  valor_pedido: number;
+  transportadora: string | null;
+  previsao_entrega: string | null;
+  codigo_rastreio: string | null;
+  tracking_url: string | null;
+  tem_nota_fiscal: boolean | null;
+}
+
+export function usePedidosAbertos() {
+  return useQuery<PedidoAbertoExpedicao[]>({
+    queryKey: ["expedicao-pedidos-abertos"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("vw_expedicao_status" as any)
+        .select("*")
+        .order("dias_corridos", { ascending: false });
+      if (error) throw error;
+      return (data ?? []) as unknown as PedidoAbertoExpedicao[];
+    },
+  });
+}
