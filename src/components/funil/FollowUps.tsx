@@ -105,6 +105,64 @@ class CardErrorBoundary extends Component<{ children: ReactNode }, { erro: boole
   }
 }
 
+function DetalhesReferencia({ tipo, referencia }: { tipo: string; referencia: Referencia | null }) {
+  if (!referencia) return <p className="text-xs text-muted-foreground">Detalhes não disponíveis</p>;
+
+  switch (tipo) {
+    case "carrinho_abandonado": {
+      const itens = Array.isArray(referencia.itens) ? referencia.itens : [];
+      return (
+        <p className="text-xs text-muted-foreground">
+          Carrinho com: {itens.length > 0 ? itens.join(", ") : "itens não especificados"}
+          {referencia.data_carrinho ? ` (em ${referencia.data_carrinho})` : ""}
+        </p>
+      );
+    }
+    case "pagamento_pendente": {
+      return (
+        <p className="text-xs text-muted-foreground">
+          {referencia.descricao || "Cobrança pendente"}
+          {referencia.pedido_id ? ` — Pedido: ${referencia.pedido_id}` : ""}
+          {referencia.vencimento ? ` — Venc.: ${referencia.vencimento}` : ""}
+          {referencia.link ? (
+            <>
+              {" — "}
+              <a
+                href={String(referencia.link)}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="underline hover:text-primary"
+                onClick={(e) => e.stopPropagation()}
+              >
+                Ver link
+              </a>
+            </>
+          ) : null}
+        </p>
+      );
+    }
+    case "pedido_cancelado": {
+      return (
+        <p className="text-xs text-muted-foreground">
+          Pedido #{referencia.tray_order_id || referencia.pedido_id || "-"} cancelado
+          {referencia.status ? ` (${referencia.status})` : ""}
+          {referencia.payment_method ? ` — ${referencia.payment_method}` : ""}
+        </p>
+      );
+    }
+    case "interesse": {
+      return (
+        <p className="text-xs text-muted-foreground">
+          Demonstrou interesse
+          {referencia.origem ? ` (origem: ${referencia.origem})` : ""}
+        </p>
+      );
+    }
+    default:
+      return <p className="text-xs text-muted-foreground">Detalhes não disponíveis</p>;
+  }
+}
+
 /* --------------------------------- Fila ---------------------------------- */
 
 export function FilaFollowups() {
