@@ -445,9 +445,12 @@ export default function KpisConversao() {
           </Card>
         </TabsContent>
 
-        <TabsContent value="analise">
+        <TabsContent value="analise" className="space-y-10">
           <AnaliseDiariaTab />
+          <Analise7DiasSection />
+          <ComparativoMensalSection />
         </TabsContent>
+
       </Tabs>
     </div>
   );
