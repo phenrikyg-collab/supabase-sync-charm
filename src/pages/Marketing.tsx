@@ -16,7 +16,7 @@ import { CampanhasSecao, MetricasComplementares, OportunidadesEscala, ResumoProx
 
 import { FunilLeitura, RedFlags } from "@/components/marketing/FunilLeitura";
 import { CriativosTab } from "@/components/marketing/CriativosTab";
-import { RankingsMetaTab } from "@/components/marketing/RankingsMetaTab";
+import { CriativosPerformance } from "@/components/marketing/CriativosPerformance";
 
 const fmtBRL = (n: number) =>
   (n || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 2 });
@@ -673,8 +673,7 @@ export default function Marketing() {
           <TabsTrigger value="windsor-produtos">Produtos - Mariana Cardoso</TabsTrigger>
           <TabsTrigger value="windsor-canais">Sessões por Canal - Mariana Cardoso</TabsTrigger>
           <TabsTrigger value="meta-ads">Meta Ads</TabsTrigger>
-          <TabsTrigger value="criativos">Criativos</TabsTrigger>
-          <TabsTrigger value="rankings-meta">Rankings Meta</TabsTrigger>
+          <TabsTrigger value="criativos">Criativos &amp; Performance</TabsTrigger>
         </TabsList>
 
         {/* ===== ACOMPANHAMENTO DA META ===== */}
@@ -1042,17 +1041,13 @@ export default function Marketing() {
           )}
         </TabsContent>
 
-        {/* ===== CRIATIVOS ===== */}
+        {/* ===== CRIATIVOS & PERFORMANCE ===== */}
         <TabsContent value="criativos" className="space-y-6">
+          <CriativosPerformance />
           <div className="flex justify-end">
             {renderPeriodoDias(diasCriativo, setDiasCriativo)}
           </div>
           <CriativosTab dias={diasCriativo} criativos={criativosRpc} loading={loadingCriativos} />
-        </TabsContent>
-
-        {/* ===== RANKINGS META ===== */}
-        <TabsContent value="rankings-meta" className="space-y-6">
-          <RankingsMetaTab />
         </TabsContent>
       </Tabs>
 
