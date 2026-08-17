@@ -685,17 +685,7 @@ export function CriativosPerformance() {
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader><CardTitle className="text-lg">Insights estratégicos</CardTitle></CardHeader>
-        <CardContent className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-          {INSIGHTS.map(([icone, titulo, texto]) => (
-            <div key={titulo} className="rounded-lg border p-4">
-              <p className="text-sm font-semibold">{icone} {titulo}</p>
-              <p className="mt-1 text-xs text-muted-foreground">{texto}</p>
-            </div>
-          ))}
-        </CardContent>
-      </Card>
     </div>
   );
 }
+
