@@ -649,7 +649,10 @@ export function CriativosPerformance() {
         </div>
       </div>
 
+      <BlocoInteligencia dados={dados} />
+
       <Legenda />
+
 
       <Card>
         <CardHeader className="space-y-3">
