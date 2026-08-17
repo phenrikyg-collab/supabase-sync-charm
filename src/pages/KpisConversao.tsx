@@ -12,6 +12,8 @@ import {
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
 import { Target, Loader2, TrendingDown, MousePointerClick, LogOut } from "lucide-react";
 import AnaliseDiariaTab from "@/components/kpis/AnaliseDiariaTab";
+import { Analise7DiasSection, ComparativoMensalSection } from "@/components/kpis/AnaliseSemanalMensal";
+
 
 type Row = Record<string, any>;
 
