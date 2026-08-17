@@ -508,6 +508,228 @@ const INSIGHTS: [string, string, string][] = [
   ["🏆", "Replicar o que funciona", "Identificar padrão do criativo com maior Score e ROAS e produzir variações."],
 ];
 
+// ===== Sugestões de conteúdo =====
+const SUGESTOES: { badge: string; badgeClasse: string; titulo: string; porque: string; gancho: string; base: string }[] = [
+  {
+    badge: "Reels · Aquisição",
+    badgeClasse: "bg-blue-500/10 text-blue-700",
+    titulo: "Mais produtos em 1 vídeo — ângulo comparativo",
+    porque: "REELS - CALÇAS POR HORA tem ROAS 7.46x e hook rate 34.6% — maior ROAS de vídeo no período. O padrão \"várias peças em ritmo rápido\" é o que mais retém.",
+    gancho: "Você não precisa escolher uma. Eu vou te mostrar as 3 que cabem no mesmo look.",
+    base: "REELS - CALÇAS POR HORA + REELS - CALCA ANNA CORES",
+  },
+  {
+    badge: "Imagem · Aquisição",
+    badgeClasse: "bg-[#EAF4EE] text-[#2D6A4F]",
+    titulo: "Imagem estática da Calça Anna Havenna — drop temático",
+    porque: "Imagens estáticas têm ROAS médio de 4.53x com CPM de R$ 18 — o mais barato do mix. IMGS - CALCA ANNA gerou R$ 17.686 com R$ 3.800 investidos.",
+    gancho: "Visual limpo, fundo neutro, calça Havenna em destaque. Texto: \"A cor mais pedida voltou.\"",
+    base: "IMGS - CALCA ANNA (replicar o padrão para a cor Havenna do drop Encanto Tinto)",
+  },
+  {
+    badge: "Carrossel · Remarketing",
+    badgeClasse: "bg-purple-500/10 text-purple-700",
+    titulo: "Carrossel de prova social — clientes reais usando",
+    porque: "CARROSSEL - BLUSAS TRICOT tem ROAS 7.69x — melhor ROAS geral do período — com apenas R$ 199 de gasto. Carrosséis de remarketing com prova social convertem sem precisar de alto investimento.",
+    gancho: "Slide 1: \"Elas já receberam.\" Slides 2-5: fotos de clientes usando + depoimento curto.",
+    base: "CARROSSEL - BLUSAS TRICOT (replicar para a Calça Anna Havenna e T-shirt Básica)",
+  },
+  {
+    badge: "Reels · Problema",
+    badgeClasse: "bg-[#FEF3E2] text-[#B45309]",
+    titulo: "Hook de pergunta direta — dor da calça que não serve",
+    porque: "Criativos com ângulo de problema + estrutura DSB têm engajamento ABOVE_AVERAGE consistente. Hook rate de 30%+ indica que o início captura atenção acima da média.",
+    gancho: "Quantas calças você já comprou que perderam a forma em 3 meses? [corte rápido para a calça Anna]",
+    base: "Padrão identificado nos criativos aprovados com pilar DSB",
+  },
+  {
+    badge: "Reels · Conversão direta",
+    badgeClasse: "bg-[#2D6A4F]/15 text-[#2D6A4F]",
+    titulo: "1 calça, 3 looks — vídeo de styling rápido",
+    porque: "REELS - 1 CALÇA TRÊS BLUSAS tem ROAS 3.36x em remarketing com hook rate 22.8%. Formato \"versatilidade\" funciona para quem já conhece a marca.",
+    gancho: "Uma calça. Manhã no trabalho, tarde casual, noite fashion. Eu vou te mostrar como.",
+    base: "REELS - 1 CALÇA TRÊS BLUSAS (adaptar para Calça Anna Havenna + T-shirt Básica)",
+  },
+  {
+    badge: "Catálogo · Aquisição",
+    badgeClasse: "bg-[#F0EFED] text-[#5A5450]",
+    titulo: "Catálogo dinâmico atualizado com drop Encanto Tinto",
+    porque: "CATALOGO - NOVO tem ROAS 7.13x com CPM de R$ 27 — terceiro maior ROAS do período. Catálogos dinâmicos funcionam especialmente para audiências frias.",
+    gancho: "Garantir que Calça Anna Havenna e T-shirt Básica estejam no feed do catálogo com imagens da variante correta.",
+    base: "CATALOGO - NOVO (incluir novos produtos do drop)",
+  },
+];
+
+const FALLBACK = {
+  top_roas: [
+    { nome: "CARROSSEL - BLUSAS TRICOT", roas: 7.69, formato: "carrossel", gasto: 199 },
+    { nome: "REELS - CALÇAS POR HORA", roas: 7.46, formato: "video", gasto: 222 },
+    { nome: "REELS - CALCA ANNA", roas: 7.15, formato: "video", gasto: 875 },
+  ],
+  sem_retorno: [
+    { nome: "LIVE 11/08", spend: 215 },
+    { nome: "VIDEO FRAN", spend: 1007 },
+  ],
+  escala: "REELS - CALÇAS POR HORA: ROAS 7.46x com apenas R$ 222 investidos — candidato prioritário para escalar",
+  gap: "Fase Inconsciente: apenas 2 criativos ativos — topo de funil desabastecido",
+};
+
+function useInteligencia(dados: CriativoUnificado[]) {
+  return useMemo(() => {
+    const comAd = dados.filter((c) => c.ad_id);
+    const grupos = new Map<string, { qtd: number; roas: number[]; cpm: number[]; hook: number[]; gasto: number }>();
+    comAd.forEach((c) => {
+      const f = norm(c.formato) || "outro";
+      const g = grupos.get(f) || { qtd: 0, roas: [], cpm: [], hook: [], gasto: 0 };
+      g.qtd += 1;
+      if (c.roas !== null) g.roas.push(n(c.roas));
+      if (c.cpm !== null) g.cpm.push(n(c.cpm));
+      if (c.thumb_stop_rate !== null) g.hook.push(n(c.thumb_stop_rate));
+      g.gasto += n(c.spend);
+      grupos.set(f, g);
+    });
+    const media = (a: number[]) => (a.length ? a.reduce((s, v) => s + v, 0) / a.length : 0);
+    const porFormato = [...grupos.entries()].map(([formato, g]) => ({
+      formato,
+      qtd: g.qtd,
+      roas: media(g.roas),
+      cpm: media(g.cpm),
+      hook: media(g.hook),
+      gasto: g.gasto,
+    }));
+    const gastoTotal = porFormato.reduce((s, f) => s + f.gasto, 0);
+    const melhorFormato = [...porFormato].sort((a, b) => b.roas - a.roas)[0];
+    const video = porFormato.find((f) => f.formato === "video");
+    const cpmMedio = media(comAd.filter((c) => n(c.impressions) > 1000).map((c) => n(c.cpm)));
+    const semAbove = comAd.filter((c) => c.quality_ranking === "ABOVE_AVERAGE").length === 0;
+
+    const topRoas = [...comAd].sort((a, b) => n(b.roas) - n(a.roas)).slice(0, 3)
+      .filter((c) => n(c.roas) > 5)
+      .map((c) => ({ nome: c.ad_name || c.titulo || "—", roas: n(c.roas), formato: c.formato || "—", gasto: n(c.spend) }));
+    const criticos = comAd.filter((c) => c.quality_ranking === "BELOW_AVERAGE_20" || c.quality_ranking === "BELOW_AVERAGE_10");
+    const semRetorno = comAd.filter((c) => n(c.roas) === 0 && n(c.spend) > 500);
+    const escala = [...comAd].filter((c) => n(c.spend) < 500 && n(c.roas) >= 3).sort((a, b) => n(b.roas) - n(a.roas))[0];
+
+    const porFunil = new Map<string, number>();
+    dados.forEach((c) => {
+      const k = c.etapa_funil || "Sem etapa";
+      porFunil.set(k, (porFunil.get(k) || 0) + 1);
+    });
+    const gap = [...porFunil.entries()].sort((a, b) => a[1] - b[1])[0];
+
+    const resumo = comAd.length
+      ? `Você tem ${dados.length} criativos ativos, sendo ${
+          porFormato.map((f) => `${f.qtd} ${f.formato}`).join(", ")
+        }. ${semAbove ? "Nenhum criativo chegou ao ranking ABOVE_AVERAGE de qualidade — todos estão em AVERAGE ou abaixo — o que está" : "Parte dos criativos já atinge ABOVE_AVERAGE de qualidade, mas o mix ainda está"} custando CPM médio de ${brl(cpmMedio)} e limitando o alcance. O melhor ROAS está em ${melhorFormato?.formato || "—"} (${roasFmt(melhorFormato?.roas)} em média)${
+          video ? `, enquanto vídeos ficam em ${roasFmt(video.roas)} apesar de representar ${gastoTotal ? Math.round((video.gasto / gastoTotal) * 100) : 0}% do gasto` : ""
+        }. Hook rate médio dos vídeos é de ${pct(video?.hook)} — referência ideal acima de 25%.`
+      : "Ainda não há anúncios Meta vinculados aos criativos. Assim que os anúncios entrarem no ar, o resumo de performance aparece aqui.";
+
+    return {
+      resumo,
+      topRoas: topRoas.length ? topRoas : FALLBACK.top_roas,
+      criticos,
+      semRetorno: semRetorno.length ? semRetorno.map((c) => ({ nome: c.ad_name || c.titulo || "—", spend: n(c.spend) })) : FALLBACK.sem_retorno,
+      escala: escala
+        ? `${escala.ad_name || escala.titulo}: ROAS ${roasFmt(escala.roas)} com apenas ${brl(escala.spend)} investidos — candidato prioritário para escalar`
+        : FALLBACK.escala,
+      gap: gap ? `${gap[0]}: apenas ${gap[1]} criativo(s) ativo(s) — etapa de funil desabastecida` : FALLBACK.gap,
+    };
+  }, [dados]);
+}
+
+function BlocoInteligencia({ dados }: { dados: CriativoUnificado[] }) {
+  const [aba, setAba] = useState<"acontecendo" | "sugestoes" | "diagnosticos">("acontecendo");
+  const i = useInteligencia(dados);
+
+  const abas: [typeof aba, string][] = [
+    ["acontecendo", "🔍 O que está acontecendo"],
+    ["sugestoes", "💡 Sugestões de conteúdo"],
+    ["diagnosticos", "⚡ Diagnósticos rápidos"],
+  ];
+
+  const achado = (cor: string, icone: string, titulo: string, corpo: React.ReactNode) => (
+    <div className="rounded-lg border border-[#E8E4DC] bg-white p-4" style={{ borderLeft: `3px solid ${cor}` }}>
+      <p className="text-[13px] font-bold">{icone} {titulo}</p>
+      <div className="mt-2 space-y-1 text-[11px] text-[#7A7570]">{corpo}</div>
+    </div>
+  );
+
+  return (
+    <div className="rounded-lg border border-[#E8E4DC] bg-[#FAFAF8] p-6">
+      <div className="flex flex-wrap gap-2">
+        {abas.map(([id, label]) => (
+          <button
+            key={id}
+            onClick={() => setAba(id)}
+            className={cn(
+              "rounded-full px-4 py-1.5 text-xs font-medium transition-colors",
+              aba === id ? "bg-[#1A1815] text-white" : "border border-[#E8E4DC] bg-white text-[#7A7570]"
+            )}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {aba === "acontecendo" && (
+        <div className="mt-5 space-y-4">
+          <p className="text-sm leading-relaxed text-[#1A1815]">{i.resumo}</p>
+          <div className="grid gap-4 md:grid-cols-2">
+            {achado("#2D6A4F", "✅", "O que está funcionando", (
+              <>
+                {i.topRoas.map((t) => (
+                  <p key={t.nome}>• {t.nome} — {roasFmt(t.roas)} ({t.formato})</p>
+                ))}
+                <p className="pt-1 italic">Padrão: reels mostrando múltiplos produtos com alta hook rate (&gt;30%)</p>
+              </>
+            ))}
+            {achado("#9B1C1C", "🚨", "O que está custando caro", (
+              <>
+                {i.criticos.slice(0, 3).map((c) => (
+                  <p key={c.criativo_id}>• {c.ad_name || c.titulo} — quality {c.quality_ranking}</p>
+                ))}
+                {i.semRetorno.slice(0, 3).map((c) => (
+                  <p key={c.nome}>• {c.nome} — {brl(c.spend)} sem retorno</p>
+                ))}
+                <p className="pt-1 italic">Padrão: lives sem remarketing imediato — gasto sem retorno direto</p>
+              </>
+            ))}
+            {achado("#B45309", "⚠️", "Gap no funil", <p>{i.gap}</p>)}
+            {achado("#C9A84C", "💰", "Oportunidade imediata", <p>{i.escala}</p>)}
+          </div>
+        </div>
+      )}
+
+      {aba === "sugestoes" && (
+        <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+          {SUGESTOES.map((s) => (
+            <div key={s.titulo} className="space-y-2 rounded-lg border border-[#E8E4DC] bg-white p-4">
+              <span className={cn("inline-block rounded-full px-2 py-0.5 text-[10px] font-semibold", s.badgeClasse)}>{s.badge}</span>
+              <p className="font-serif text-base leading-snug">{s.titulo}</p>
+              <p className="text-[11px] text-[#7A7570]">📊 {s.porque}</p>
+              <p className="border-l-2 border-[#C9A84C] bg-[#FAF8F0] p-2 text-xs italic text-[#1A1815]">{s.gancho}</p>
+              <p className="text-[10px] text-[#AAA59F]">Base: {s.base}</p>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {aba === "diagnosticos" && (
+        <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+          {INSIGHTS.map(([icone, titulo, texto]) => (
+            <div key={titulo} className="rounded-lg border border-[#E8E4DC] bg-white p-4">
+              <p className="text-sm font-semibold">{icone} {titulo}</p>
+              <p className="mt-1 text-xs text-[#7A7570]">{texto}</p>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+
 const FILTROS_STATUS = [
   { id: "todos", label: "Todos" },
   { id: "com-meta", label: "Com performance Meta" },
@@ -649,7 +871,10 @@ export function CriativosPerformance() {
         </div>
       </div>
 
+      <BlocoInteligencia dados={dados} />
+
       <Legenda />
+
 
       <Card>
         <CardHeader className="space-y-3">
@@ -682,17 +907,7 @@ export function CriativosPerformance() {
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader><CardTitle className="text-lg">Insights estratégicos</CardTitle></CardHeader>
-        <CardContent className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-          {INSIGHTS.map(([icone, titulo, texto]) => (
-            <div key={titulo} className="rounded-lg border p-4">
-              <p className="text-sm font-semibold">{icone} {titulo}</p>
-              <p className="mt-1 text-xs text-muted-foreground">{texto}</p>
-            </div>
-          ))}
-        </CardContent>
-      </Card>
     </div>
   );
 }
+
