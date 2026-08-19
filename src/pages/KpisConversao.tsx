@@ -13,6 +13,7 @@ import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGri
 import { Target, Loader2, TrendingDown, MousePointerClick, LogOut } from "lucide-react";
 import AnaliseDiariaTab from "@/components/kpis/AnaliseDiariaTab";
 import { Analise7DiasSection, ComparativoMensalSection } from "@/components/kpis/AnaliseSemanalMensal";
+import TamanhosDemanda from "@/components/kpis/TamanhosDemanda";
 
 
 type Row = Record<string, any>;
@@ -193,7 +194,9 @@ export default function KpisConversao() {
         <TabsList className="mb-4">
           <TabsTrigger value="regua">Régua de Conversão</TabsTrigger>
           <TabsTrigger value="analise">Análise Diária</TabsTrigger>
+          <TabsTrigger value="tamanhos">Tamanhos &amp; Demanda</TabsTrigger>
         </TabsList>
+
 
         <TabsContent value="regua" className="space-y-6">
           {/* Maior oportunidade */}
@@ -453,7 +456,12 @@ export default function KpisConversao() {
           <ComparativoMensalSection />
         </TabsContent>
 
+        <TabsContent value="tamanhos">
+          <TamanhosDemanda />
+        </TabsContent>
+
       </Tabs>
+
     </div>
   );
 }
