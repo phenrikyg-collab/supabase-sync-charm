@@ -194,7 +194,9 @@ export default function KpisConversao() {
         <TabsList className="mb-4">
           <TabsTrigger value="regua">Régua de Conversão</TabsTrigger>
           <TabsTrigger value="analise">Análise Diária</TabsTrigger>
+          <TabsTrigger value="tamanhos">Tamanhos &amp; Demanda</TabsTrigger>
         </TabsList>
+
 
         <TabsContent value="regua" className="space-y-6">
           {/* Maior oportunidade */}
@@ -454,7 +456,12 @@ export default function KpisConversao() {
           <ComparativoMensalSection />
         </TabsContent>
 
+        <TabsContent value="tamanhos">
+          <TamanhosDemanda />
+        </TabsContent>
+
       </Tabs>
+
     </div>
   );
 }
