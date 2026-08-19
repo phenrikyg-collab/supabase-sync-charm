@@ -13,6 +13,7 @@ import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGri
 import { Target, Loader2, TrendingDown, MousePointerClick, LogOut } from "lucide-react";
 import AnaliseDiariaTab from "@/components/kpis/AnaliseDiariaTab";
 import { Analise7DiasSection, ComparativoMensalSection } from "@/components/kpis/AnaliseSemanalMensal";
+import TamanhosDemanda from "@/components/kpis/TamanhosDemanda";
 
 
 type Row = Record<string, any>;
