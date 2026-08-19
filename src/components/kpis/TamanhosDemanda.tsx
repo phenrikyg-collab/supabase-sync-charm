@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
@@ -94,21 +94,22 @@ export default function TamanhosDemanda() {
   const funil = consulta("vw_kpi_funil_dia", "dia");
   const ausentes = consulta("vw_pdp_tamanho_ausente");
 
-  [
-    [demanda, "Demanda por tamanho"],
-    [rupturas, "Rupturas por produto"],
-    [funil, "Funil de conversão"],
-    [ausentes, "Grade incompleta"],
-  ].forEach(([q, titulo]: any) => {
-    if (q.isError && q.error) {
-      // dispara apenas quando o erro muda
-      const key = `${titulo}:${(q.error as Error).message}`;
-      if ((window as any).__kpiTamErro !== key) {
-        (window as any).__kpiTamErro = key;
-        onErro(titulo)(q.error);
-      }
-    }
-  });
+  const errosChave = [
+    demanda.isError ? `Demanda por tamanho:${(demanda.error as Error)?.message}` : "",
+    rupturas.isError ? `Rupturas por produto:${(rupturas.error as Error)?.message}` : "",
+    funil.isError ? `Funil de conversão:${(funil.error as Error)?.message}` : "",
+    ausentes.isError ? `Grade incompleta:${(ausentes.error as Error)?.message}` : "",
+  ].filter(Boolean).join("|");
+
+  useEffect(() => {
+    if (!errosChave) return;
+    errosChave.split("|").forEach((e) => {
+      const [titulo, ...resto] = e.split(":");
+      toast({ variant: "destructive", title: titulo, description: resto.join(":") || "Erro ao carregar dados." });
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [errosChave]);
+
 
   /* ---------- Bloco 1 ---------- */
   const dadosDemanda = useMemo(() => {
