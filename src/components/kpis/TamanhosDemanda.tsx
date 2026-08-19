@@ -17,6 +17,9 @@ import {
   CartesianGrid, ResponsiveContainer,
 } from "recharts";
 import { AlertTriangle, Ruler } from "lucide-react";
+import OndeEstaDinheiro from "./OndeEstaDinheiro";
+import CorTamanhoHeatmap from "./CorTamanhoHeatmap";
+import CrossSell from "./CrossSell";
 
 type Row = Record<string, any>;
 
@@ -232,6 +235,12 @@ export default function TamanhosDemanda() {
           ))}
         </div>
       </div>
+
+      <OndeEstaDinheiro />
+
+      <CorTamanhoHeatmap />
+
+      <CrossSell />
 
       {/* BLOCO 1 */}
       <Card className="rounded-xl p-5">
