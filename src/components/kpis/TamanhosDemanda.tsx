@@ -67,9 +67,6 @@ export default function TamanhosDemanda() {
   const [dias, setDias] = useState(30);
   const desde = isoDiasAtras(dias);
 
-  const onErro = (titulo: string) => (e: unknown) => {
-    toast({ variant: "destructive", title: titulo, description: (e as Error)?.message ?? "Erro ao carregar dados." });
-  };
 
   const consulta = (view: string, campoData?: string) =>
     useQuery({
