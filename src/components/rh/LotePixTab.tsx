@@ -82,6 +82,14 @@ export function LotePixTab({ competencia }: { competencia: string }) {
         <CardHeader>
           <CardTitle className="text-base font-serif">Pagamentos pendentes</CardTitle>
           <p className="text-xs text-muted-foreground">VA não entra no lote — o pedido é feito na plataforma Ticket.</p>
+          {saldoSemHolerite && (
+            <div className="mt-2 flex items-start gap-2 rounded-md border border-amber-300 bg-amber-50 p-2.5 text-xs text-amber-800">
+              <Info className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+              <span>
+                Gere os holerites de fechamento antes do lote do dia 5 — o valor do saldo é o líquido do holerite.
+              </span>
+            </div>
+          )}
         </CardHeader>
         <CardContent>
           {isLoading ? (
