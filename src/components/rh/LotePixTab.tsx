@@ -124,10 +124,13 @@ export function LotePixTab({ competencia }: { competencia: string }) {
 
 function ListaLotes() {
   const { toast } = useToast();
-  const { user } = useAuth();
   const qc = useQueryClient();
+  const { operador } = useRhAuth();
   const [detalhe, setDetalhe] = useState<any | null>(null);
   const [aprovar, setAprovar] = useState<any | null>(null);
+
+  const podeAprovar = operador ? operador.pode_aprovar !== false : true;
+  const podeExecutar = operador ? operador.pode_executar !== false : true;
 
   const { data: lotes, isLoading, refetch, isFetching } = useQuery({
     queryKey: ["rh-lotes"],
@@ -140,7 +143,7 @@ function ListaLotes() {
 
   const cancelar = async (id: string) => {
     const { error } = await supabase.rpc("rh_lote_cancelar", { p_lote_id: id });
-    if (error) return toast({ title: "Erro", description: error.message, variant: "destructive" });
+    if (error) return toast({ title: "Erro", description: erroRh(error).mensagem, variant: "destructive" });
     toast({ title: "Lote cancelado" });
     qc.invalidateQueries({ queryKey: ["rh-lotes"] });
     qc.invalidateQueries({ queryKey: ["rh-folha-mes"] });
@@ -148,10 +151,18 @@ function ListaLotes() {
 
   const executar = async (id: string) => {
     const { error } = await supabase.functions.invoke("inter-executar-lote", { body: { lote_id: id } });
-    if (error) return toast({ title: "Erro ao executar", description: error.message, variant: "destructive" });
+    if (error) {
+      const status = (error as any)?.context?.status;
+      return toast({
+        title: "Erro ao executar",
+        description: status === 403 ? "Você não tem permissão para executar pagamentos." : error.message,
+        variant: "destructive",
+      });
+    }
     toast({ title: "Execução disparada" });
     qc.invalidateQueries({ queryKey: ["rh-lotes"] });
   };
+
 
   return (
     <Card>
