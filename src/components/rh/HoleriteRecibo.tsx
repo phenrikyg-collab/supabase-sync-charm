@@ -56,16 +56,32 @@ export function normalizarHolerite(raw: any): Holerite {
 
 const LINHAS_MIN = 12;
 
+const TITULOS: Record<string, string> = {
+  vt: "Recibo de Vale Transporte",
+  va: "Recibo de Vale Alimentação",
+};
+
+function declaracao(tipo?: string | null, competencia?: string | null) {
+  const comp = competenciaLabel(competencia);
+  if (tipo === "vt")
+    return `Declaro ter recebido da MP CONFECCOES LTDA o vale transporte referente à competência ${comp}, no valor discriminado neste recibo.`;
+  if (tipo === "va")
+    return `Declaro ter recebido da MP CONFECCOES LTDA o vale alimentação (crédito na plataforma Ticket) referente à competência ${comp}, no valor discriminado neste recibo.`;
+  return "Declaro ter recebido a importância líquida discriminada neste recibo.";
+}
+
 export function HoleriteRecibo({ h, via }: { h: Holerite; via?: string }) {
   const eventos = h.eventos ?? [];
   const vazias = Math.max(0, LINHAS_MIN - eventos.length);
+  const beneficio = h.tipo === "vt" || h.tipo === "va";
+  const titulo = TITULOS[h.tipo ?? ""] ?? "Recibo de Pagamento de Salário";
 
   return (
     <div className="holerite-recibo bg-white text-black border border-black text-[11px] font-sans">
       <div className="bg-neutral-300 border-b border-black px-2 py-1 flex items-center gap-2">
         <img src="/images/logo.png" alt="Mariana Cardoso" className="h-8 w-8 rounded object-contain" />
         <div className="flex-1 text-center font-bold tracking-wide uppercase">
-          Recibo de Pagamento de Salário
+          {titulo}
         </div>
         <div className="h-8 w-8" />
       </div>
@@ -140,16 +156,18 @@ export function HoleriteRecibo({ h, via }: { h: Holerite; via?: string }) {
         </tfoot>
       </table>
 
-      <div className="grid grid-cols-5 border-t border-black">
-        <Celula label="Salário Base" valor={brl(h.salario_base)} />
-        <Celula label="Base INSS" valor={brl(h.base_inss)} />
-        <Celula label="Base IRRF" valor={brl(h.base_irrf)} />
-        <Celula label="Base FGTS" valor={brl(h.base_fgts)} />
-        <Celula label="FGTS do Mês" valor={brl(h.fgts_mes)} />
-      </div>
+      {!beneficio && (
+        <div className="grid grid-cols-5 border-t border-black">
+          <Celula label="Salário Base" valor={brl(h.salario_base)} />
+          <Celula label="Base INSS" valor={brl(h.base_inss)} />
+          <Celula label="Base IRRF" valor={brl(h.base_irrf)} />
+          <Celula label="Base FGTS" valor={brl(h.base_fgts)} />
+          <Celula label="FGTS do Mês" valor={brl(h.fgts_mes)} />
+        </div>
+      )}
 
       <div className="border-t border-black p-3 space-y-6">
-        <p className="text-[10px]">Declaro ter recebido a importância líquida discriminada neste recibo.</p>
+        <p className="text-[10px]">{declaracao(h.tipo, h.competencia)}</p>
         <div className="flex gap-8 items-end">
           <div className="w-40">
             <div className="border-b border-black h-5" />
