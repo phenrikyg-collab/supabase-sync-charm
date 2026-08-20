@@ -223,14 +223,20 @@ function MiniCard({ titulo, desc, status }: { titulo: string; desc: string; stat
 }
 
 function LinhaFuncionario({
-  f, aberto, onToggle, onSalvo,
-}: { f: FuncionarioFolha; aberto: boolean; onToggle: () => void; onSalvo: () => void }) {
+  f, aberto, onToggle, onSalvo, onVerHolerite,
+}: { f: FuncionarioFolha; aberto: boolean; onToggle: () => void; onSalvo: () => void; onVerHolerite?: () => void }) {
   const { toast } = useToast();
   const pags = f.pagamentos ?? {};
   const saldo = pags["saldo"];
   const [liquido, setLiquido] = useState<string>(saldo?.valor_liquido != null ? String(saldo.valor_liquido) : "");
   const [obs, setObs] = useState<string>(saldo?.observacao ?? "");
   const [salvando, setSalvando] = useState(false);
+
+  useEffect(() => {
+    setLiquido(saldo?.valor_liquido != null ? String(saldo.valor_liquido) : "");
+    setObs(saldo?.observacao ?? "");
+  }, [saldo?.id, saldo?.valor_liquido, saldo?.observacao]);
+
 
   const atualizar = async (extra: Record<string, any> = {}) => {
     if (!saldo?.id) return;
