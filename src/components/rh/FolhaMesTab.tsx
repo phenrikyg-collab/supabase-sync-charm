@@ -171,9 +171,11 @@ export function FolhaMesTab({
                   aberto={aberto === f.id}
                   onToggle={() => setAberto(aberto === f.id ? null : f.id)}
                   onSalvo={() => refetch()}
+                  onVerHolerite={onVerHolerite}
                 />
               ))}
             </tbody>
+
             <tfoot>
               <tr className="border-t font-medium">
                 <td className="py-2 pr-3">Totais</td>
