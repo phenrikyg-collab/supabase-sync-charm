@@ -140,9 +140,10 @@ export function HoleriteRecibo({ h, via }: { h: Holerite; via?: string }) {
         </tfoot>
       </table>
 
-      <div className="grid grid-cols-4 border-t border-black">
+      <div className="grid grid-cols-5 border-t border-black">
         <Celula label="Salário Base" valor={brl(h.salario_base)} />
         <Celula label="Base INSS" valor={brl(h.base_inss)} />
+        <Celula label="Base IRRF" valor={brl(h.base_irrf)} />
         <Celula label="Base FGTS" valor={brl(h.base_fgts)} />
         <Celula label="FGTS do Mês" valor={brl(h.fgts_mes)} />
       </div>
