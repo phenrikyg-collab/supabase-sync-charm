@@ -20,7 +20,7 @@ const TIPOS_CHAVE = ["cpf", "cnpj", "email", "telefone", "aleatoria"];
 const vazio = {
   id: null as string | null, nome: "", cpf: "", cargo: "", chave_pix: "", tipo_chave_pix: "cpf",
   ativo: true, observacao: "", admissao: "", salario_base: "", vt_mensal: "", va_mensal: "", cesta_valor: "",
-  registrada: false, vt_desconto_pct: "0", vt_diaria: "",
+  registrada: false, vt_desconto_pct: "6", vt_diaria: "",
 };
 
 
@@ -52,7 +52,7 @@ export function FuncionariosTab() {
             va_mensal: f.va_mensal != null ? String(f.va_mensal) : "",
             cesta_valor: f.cesta_valor != null ? String(f.cesta_valor) : "",
             registrada: !!f.registrada,
-            vt_desconto_pct: f.vt_desconto_pct != null ? String(f.vt_desconto_pct) : "0",
+            vt_desconto_pct: f.vt_desconto_pct != null ? String(f.vt_desconto_pct) : "6",
           }
         : { ...vazio }
     );
@@ -183,7 +183,10 @@ export function FuncionariosTab() {
                   <p className="text-[10px] text-muted-foreground">usado apenas se a passagem diária estiver zerada</p>
                 </Campo>
                 <Campo label="VA mensal (Ticket)"><Input value={edit.va_mensal} onChange={(e) => setEdit({ ...edit, va_mensal: e.target.value })} placeholder="0,00" /></Campo>
-                <Campo label="Cesta básica"><Input value={edit.cesta_valor} onChange={(e) => setEdit({ ...edit, cesta_valor: e.target.value })} placeholder="0,00" /></Campo>
+                <Campo label="Cesta básica (R$)">
+                  <Input value={edit.cesta_valor} onChange={(e) => setEdit({ ...edit, cesta_valor: e.target.value })} placeholder="0,00" />
+                  <p className="text-[10px] text-muted-foreground">paga dentro do fechamento, como provento do holerite</p>
+                </Campo>
                 <Campo label="Observação"><Input value={edit.observacao} onChange={(e) => setEdit({ ...edit, observacao: e.target.value })} /></Campo>
                 <div className="flex items-center gap-2 pt-6">
                   <Switch checked={edit.ativo} onCheckedChange={(v) => setEdit({ ...edit, ativo: v })} />
@@ -193,7 +196,7 @@ export function FuncionariosTab() {
                   <div className="flex items-center gap-2">
                     <Switch
                       checked={edit.registrada}
-                      onCheckedChange={(v) => setEdit({ ...edit, registrada: v, vt_desconto_pct: v ? edit.vt_desconto_pct : "0" })}
+                      onCheckedChange={(v) => setEdit({ ...edit, registrada: v, vt_desconto_pct: v ? (edit.vt_desconto_pct || "6") : "0" })}
                     />
                     <Label className="text-xs">Registrada (CLT)</Label>
                   </div>
@@ -212,7 +215,7 @@ export function FuncionariosTab() {
                       onChange={(e) => setEdit({ ...edit, vt_desconto_pct: e.target.value })}
                     />
                     <p className="text-[10px] text-muted-foreground">
-                      0% = empresa paga o VT integral (máximo 6%)
+                      padrão 6% (máximo legal); 0% = empresa paga o VT integral
                     </p>
                   </Campo>
                 )}

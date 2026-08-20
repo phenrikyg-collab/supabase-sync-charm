@@ -23,13 +23,17 @@ export interface Holerite {
   total_descontos?: number | null;
   salario_base?: number | null;
   base_inss?: number | null;
+  base_irrf?: number | null;
   base_fgts?: number | null;
   fgts_mes?: number | null;
+  pis?: string | null;
+  rg?: string | null;
   eventos?: HoleriteEvento[] | null;
   dados?: any;
 }
 
 const EMPRESA = {
+  codigo: "76",
   razao: "MP CONFECCOES LTDA",
   cnpj: "33.275.957/0001-08",
   endereco: "Pc Presidente Vargas, 4 - Vila Assuncao - Santo André/SP - 09030-325",
@@ -58,13 +62,17 @@ export function HoleriteRecibo({ h, via }: { h: Holerite; via?: string }) {
 
   return (
     <div className="holerite-recibo bg-white text-black border border-black text-[11px] font-sans">
-      <div className="bg-neutral-300 border-b border-black px-2 py-1 text-center font-bold tracking-wide uppercase">
-        Recibo de Pagamento de Salário
+      <div className="bg-neutral-300 border-b border-black px-2 py-1 flex items-center gap-2">
+        <img src="/images/logo.png" alt="Mariana Cardoso" className="h-8 w-8 rounded object-contain" />
+        <div className="flex-1 text-center font-bold tracking-wide uppercase">
+          Recibo de Pagamento de Salário
+        </div>
+        <div className="h-8 w-8" />
       </div>
 
       <div className="flex border-b border-black">
         <div className="flex-1 p-2 space-y-0.5">
-          <div className="font-bold uppercase">{EMPRESA.razao}</div>
+          <div className="font-bold uppercase">Empregador: {EMPRESA.codigo} - {EMPRESA.razao}</div>
           <div>CNPJ: {EMPRESA.cnpj}</div>
           <div>{EMPRESA.endereco}</div>
         </div>
@@ -76,10 +84,12 @@ export function HoleriteRecibo({ h, via }: { h: Holerite; via?: string }) {
         </div>
       </div>
 
-      <div className="grid grid-cols-4 border-b border-black">
+      <div className="grid grid-cols-6 border-b border-black">
         <Celula label="Nome do Funcionário" valor={holeriteNome(h)} className="col-span-2" />
         <Celula label="Função" valor={h.cargo ?? "—"} />
         <Celula label="CPF / Admissão" valor={`${h.cpf ?? "—"} · ${dataBRCompleta(h.admissao)}`} />
+        <Celula label="PIS" valor={h.pis ?? " "} />
+        <Celula label="RG" valor={h.rg ?? " "} />
       </div>
 
       <table className="w-full border-collapse">
@@ -130,9 +140,10 @@ export function HoleriteRecibo({ h, via }: { h: Holerite; via?: string }) {
         </tfoot>
       </table>
 
-      <div className="grid grid-cols-4 border-t border-black">
+      <div className="grid grid-cols-5 border-t border-black">
         <Celula label="Salário Base" valor={brl(h.salario_base)} />
         <Celula label="Base INSS" valor={brl(h.base_inss)} />
+        <Celula label="Base IRRF" valor={brl(h.base_irrf)} />
         <Celula label="Base FGTS" valor={brl(h.base_fgts)} />
         <Celula label="FGTS do Mês" valor={brl(h.fgts_mes)} />
       </div>

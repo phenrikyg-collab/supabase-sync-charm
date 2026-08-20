@@ -141,7 +141,7 @@ export function FolhaMesTab({
       <div className="grid gap-4 md:grid-cols-3">
         <MiniCard
           titulo="Dia 5"
-          desc="Saldo 60% do mês anterior + VT + cesta básica"
+          desc="Saldo líquido do fechamento (inclui cesta básica) + VT"
           status={statusAgregado(["saldo", "vt", "cesta"])}
         />
         <MiniCard titulo="Dia 20" desc="Adiantamento de 40% do salário base" status={statusAgregado(["adiantamento"])} />
@@ -157,10 +157,9 @@ export function FolhaMesTab({
                 <th className="text-left py-2 pr-3">Funcionário</th>
                 <th className="text-right px-3">Salário base</th>
                 <th className="text-right px-3">Adiant. 40%</th>
-                <th className="text-right px-3">Saldo 60%</th>
+                <th className="text-right px-3">Saldo líq. (dia 5)</th>
                 <th className="text-right px-3">VT</th>
                 <th className="text-right px-3">VA (Ticket)</th>
-                <th className="text-right px-3">Cesta</th>
                 <th className="text-right pl-3">Custo do mês</th>
               </tr>
             </thead>
@@ -182,7 +181,7 @@ export function FolhaMesTab({
               <tr className="border-t font-medium">
                 <td className="py-2 pr-3">Totais</td>
                 <td className="text-right px-3">—</td>
-                {["adiantamento", "saldo", "vt", "va", "cesta"].map((t) => (
+                {["adiantamento", "saldo", "vt", "va"].map((t) => (
                   <td key={t} className="text-right px-3 tabular-nums">{brl(totais[t] ?? 0)}</td>
                 ))}
                 <td className="text-right pl-3 tabular-nums">{brl(custoTotalTabela)}</td>
@@ -314,7 +313,7 @@ function LinhaFuncionario({
           </div>
         </td>
         <td className="text-right px-3 tabular-nums">{brl(f.salario_base)}</td>
-        {TIPOS_ORDEM.map((t) => (
+        {["adiantamento", "saldo", "vt", "va"].map((t) => (
           <td key={t} className="text-right px-3">
             <div className="flex flex-col items-end"><Celula p={pags[t]} /></div>
           </td>
@@ -323,7 +322,7 @@ function LinhaFuncionario({
       </tr>
       {aberto && (
         <tr className="border-b bg-muted/20">
-          <td colSpan={8} className="p-4">
+          <td colSpan={7} className="p-4">
             <div className="grid gap-4 md:grid-cols-3">
               <div className="text-xs space-y-1">
                 <p><span className="text-muted-foreground">Chave PIX:</span> {f.tipo_chave_pix ?? "—"} · {f.chave_pix ?? "—"}</p>
