@@ -31,7 +31,8 @@ interface MenuItem {
 }
 
 interface ModuleGroup {
-  key: AppModule;
+  key?: AppModule;
+  adminOnly?: boolean;
   label: string;
   icon: React.ComponentType<{ className?: string }>;
   items: MenuItem[];
@@ -39,7 +40,7 @@ interface ModuleGroup {
 
 const moduleGroups: ModuleGroup[] = [
   {
-    key: "planejamento" as AppModule,
+    adminOnly: true,
     label: "Planejamento Estratégico",
     icon: Compass,
     items: [
