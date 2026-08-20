@@ -141,7 +141,7 @@ export function FolhaMesTab({
       <div className="grid gap-4 md:grid-cols-3">
         <MiniCard
           titulo="Dia 5"
-          desc="Saldo 60% do mês anterior + VT + cesta básica"
+          desc="Saldo líquido do fechamento (inclui cesta básica) + VT"
           status={statusAgregado(["saldo", "vt", "cesta"])}
         />
         <MiniCard titulo="Dia 20" desc="Adiantamento de 40% do salário base" status={statusAgregado(["adiantamento"])} />
