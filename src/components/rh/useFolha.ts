@@ -23,11 +23,14 @@ export interface FuncionarioFolha {
   tipo_chave_pix?: string | null;
   admissao?: string | null;
   custo_mes?: number | null;
+  faltas?: number | null;
+  vt_diaria?: number | null;
   pagamentos?: Record<string, PagamentoFolha>;
 }
 
 export interface FolhaMes {
   competencia?: string;
+  dias_uteis?: number | null;
   gerado_em?: string | null;
   tiles?: {
     custo_total?: number;

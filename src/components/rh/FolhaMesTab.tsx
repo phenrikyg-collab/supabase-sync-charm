@@ -169,6 +169,7 @@ export function FolhaMesTab({
                 <LinhaFuncionario
                   key={f.id}
                   f={f}
+                  competencia={competencia}
                   aberto={aberto === f.id}
                   onToggle={() => setAberto(aberto === f.id ? null : f.id)}
                   onSalvo={() => refetch()}
@@ -224,19 +225,47 @@ function MiniCard({ titulo, desc, status }: { titulo: string; desc: string; stat
 }
 
 function LinhaFuncionario({
-  f, aberto, onToggle, onSalvo, onVerHolerite,
-}: { f: FuncionarioFolha; aberto: boolean; onToggle: () => void; onSalvo: () => void; onVerHolerite?: () => void }) {
+  f, competencia, aberto, onToggle, onSalvo, onVerHolerite,
+}: { f: FuncionarioFolha; competencia: string; aberto: boolean; onToggle: () => void; onSalvo: () => void; onVerHolerite?: () => void }) {
   const { toast } = useToast();
   const pags = f.pagamentos ?? {};
   const saldo = pags["saldo"];
   const [liquido, setLiquido] = useState<string>(saldo?.valor_liquido != null ? String(saldo.valor_liquido) : "");
   const [obs, setObs] = useState<string>(saldo?.observacao ?? "");
   const [salvando, setSalvando] = useState(false);
+  const [faltas, setFaltas] = useState<string>(f.faltas != null ? String(f.faltas) : "0");
+  const [salvandoFaltas, setSalvandoFaltas] = useState(false);
 
   useEffect(() => {
     setLiquido(saldo?.valor_liquido != null ? String(saldo.valor_liquido) : "");
     setObs(saldo?.observacao ?? "");
   }, [saldo?.id, saldo?.valor_liquido, saldo?.observacao]);
+
+  useEffect(() => {
+    setFaltas(f.faltas != null ? String(f.faltas) : "0");
+  }, [f.faltas]);
+
+  const salvarFaltas = async () => {
+    setSalvandoFaltas(true);
+    const { data, error } = await supabase.rpc("rh_faltas_registrar", {
+      p_funcionario_id: f.id,
+      p_competencia: competencia,
+      p_dias: Number(faltas) || 0,
+      p_obs: obs || null,
+    } as any);
+    setSalvandoFaltas(false);
+    if (error) return toast({ title: "Erro ao registrar faltas", description: erroRh(error).mensagem, variant: "destructive" });
+    const r: any = Array.isArray(data) ? data[0] : data;
+    toast({
+      title: "Faltas registradas",
+      description: r?.aviso
+        ? r.aviso
+        : r?.vt_recalculado != null
+          ? `VT recalculado: ${brl(r.vt_recalculado)}`
+          : undefined,
+    });
+    onSalvo();
+  };
 
 
   const atualizar = async (extra: Record<string, any> = {}) => {
@@ -272,7 +301,14 @@ function LinhaFuncionario({
           <div className="flex items-center gap-2">
             <ChevronDown className={cn("h-3.5 w-3.5 transition-transform", aberto && "rotate-180")} />
             <div>
-              <div className="font-medium">{f.nome}</div>
+              <div className="font-medium flex items-center gap-2">
+                {f.nome}
+                {Number(f.faltas) > 0 && (
+                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-red-100 text-red-700">
+                    {f.faltas} faltas
+                  </span>
+                )}
+              </div>
               <div className="text-xs text-muted-foreground">{f.cargo ?? "—"}</div>
             </div>
           </div>
@@ -319,6 +355,23 @@ function LinhaFuncionario({
               <div className="space-y-2">
                 <Label className="text-xs">Observação</Label>
                 <Input value={obs} onChange={(e) => setObs(e.target.value)} placeholder="Faltas, descontos..." />
+              </div>
+
+              <div className="space-y-2">
+                <Label className="text-xs">Faltas no mês</Label>
+                <div className="flex gap-2">
+                  <Input
+                    type="number"
+                    min={0}
+                    value={faltas}
+                    onChange={(e) => setFaltas(e.target.value)}
+                    placeholder="0"
+                  />
+                  <Button size="sm" variant="outline" onClick={salvarFaltas} disabled={salvandoFaltas}>
+                    Salvar
+                  </Button>
+                </div>
+                <p className="text-[10px] text-muted-foreground">Cada falta reduz um dia de VT do mês.</p>
               </div>
             </div>
             <div className="flex flex-wrap gap-2 mt-4">
