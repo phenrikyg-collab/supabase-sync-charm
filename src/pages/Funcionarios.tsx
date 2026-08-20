@@ -7,6 +7,8 @@ import { FuncionariosTab } from "@/components/rh/FuncionariosTab";
 import { HistoricoTab } from "@/components/rh/HistoricoTab";
 import { HoleritesTab, TipoHolerite } from "@/components/rh/HoleritesTab";
 import { RhAuthGate } from "@/components/rh/RhAuthGate";
+import { FeriadosDialog } from "@/components/rh/FeriadosDialog";
+import { useFolhaMes } from "@/components/rh/useFolha";
 
 
 export default function Funcionarios() {
@@ -16,7 +18,10 @@ export default function Funcionarios() {
   );
   const [tab, setTab] = useState("folha");
   const [tipoHolerite, setTipoHolerite] = useState<TipoHolerite>("fechamento");
+  const [feriadosAberto, setFeriadosAberto] = useState(false);
   const competencia = `${mesAno}-01`;
+  const { data: folha } = useFolhaMes(competencia);
+  const diasUteis = folha?.dias_uteis;
 
   const irParaHolerite = (comp: string, tipo: TipoHolerite = "fechamento") => {
     setMesAno(comp.slice(0, 7));
