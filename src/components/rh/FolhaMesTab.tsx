@@ -169,6 +169,7 @@ export function FolhaMesTab({
                 <LinhaFuncionario
                   key={f.id}
                   f={f}
+                  competencia={competencia}
                   aberto={aberto === f.id}
                   onToggle={() => setAberto(aberto === f.id ? null : f.id)}
                   onSalvo={() => refetch()}
