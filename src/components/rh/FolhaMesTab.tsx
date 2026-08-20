@@ -225,19 +225,47 @@ function MiniCard({ titulo, desc, status }: { titulo: string; desc: string; stat
 }
 
 function LinhaFuncionario({
-  f, aberto, onToggle, onSalvo, onVerHolerite,
-}: { f: FuncionarioFolha; aberto: boolean; onToggle: () => void; onSalvo: () => void; onVerHolerite?: () => void }) {
+  f, competencia, aberto, onToggle, onSalvo, onVerHolerite,
+}: { f: FuncionarioFolha; competencia: string; aberto: boolean; onToggle: () => void; onSalvo: () => void; onVerHolerite?: () => void }) {
   const { toast } = useToast();
   const pags = f.pagamentos ?? {};
   const saldo = pags["saldo"];
   const [liquido, setLiquido] = useState<string>(saldo?.valor_liquido != null ? String(saldo.valor_liquido) : "");
   const [obs, setObs] = useState<string>(saldo?.observacao ?? "");
   const [salvando, setSalvando] = useState(false);
+  const [faltas, setFaltas] = useState<string>(f.faltas != null ? String(f.faltas) : "0");
+  const [salvandoFaltas, setSalvandoFaltas] = useState(false);
 
   useEffect(() => {
     setLiquido(saldo?.valor_liquido != null ? String(saldo.valor_liquido) : "");
     setObs(saldo?.observacao ?? "");
   }, [saldo?.id, saldo?.valor_liquido, saldo?.observacao]);
+
+  useEffect(() => {
+    setFaltas(f.faltas != null ? String(f.faltas) : "0");
+  }, [f.faltas]);
+
+  const salvarFaltas = async () => {
+    setSalvandoFaltas(true);
+    const { data, error } = await supabase.rpc("rh_faltas_registrar", {
+      p_funcionario_id: f.id,
+      p_competencia: competencia,
+      p_dias: Number(faltas) || 0,
+      p_obs: obs || null,
+    } as any);
+    setSalvandoFaltas(false);
+    if (error) return toast({ title: "Erro ao registrar faltas", description: erroRh(error).mensagem, variant: "destructive" });
+    const r: any = Array.isArray(data) ? data[0] : data;
+    toast({
+      title: "Faltas registradas",
+      description: r?.aviso
+        ? r.aviso
+        : r?.vt_recalculado != null
+          ? `VT recalculado: ${brl(r.vt_recalculado)}`
+          : undefined,
+    });
+    onSalvo();
+  };
 
 
   const atualizar = async (extra: Record<string, any> = {}) => {
