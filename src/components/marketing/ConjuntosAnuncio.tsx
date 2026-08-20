@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -186,9 +186,8 @@ export function ConjuntosAnuncio() {
                         const alerta = emAlerta(c);
                         const open = aberto === key;
                         return (
-                          <>
+                          <Fragment key={key}>
                             <tr
-                              key={key}
                               onClick={() => setAberto(open ? null : key)}
                               className={cn(
                                 "border-b cursor-pointer hover:bg-muted/40 transition-colors",
@@ -238,7 +237,7 @@ export function ConjuntosAnuncio() {
                               <td className="py-2 text-right">{brl(c.receita)}</td>
                             </tr>
                             {open && (
-                              <tr key={`${key}-det`} className="border-b bg-muted/20">
+                              <tr className="border-b bg-muted/20">
                                 <td colSpan={13} className="py-4 px-4">
                                   <div className="flex flex-wrap items-center gap-2">
                                     {[
@@ -264,7 +263,7 @@ export function ConjuntosAnuncio() {
                                 </td>
                               </tr>
                             )}
-                          </>
+                          </Fragment>
                         );
                       })}
                     </tbody>
