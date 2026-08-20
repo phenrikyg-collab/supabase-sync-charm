@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { comoLista, comoMapaPorTipo, comoTotais } from "@/lib/rh";
 
 export interface PagamentoFolha {
   id: string;
@@ -51,7 +52,15 @@ export function useFolhaMes(competencia: string) {
     queryFn: async (): Promise<FolhaMes> => {
       const { data, error } = await supabase.rpc("rh_folha_mes", { p_competencia: competencia });
       if (error) throw error;
-      return (data ?? {}) as FolhaMes;
+      const d = (data ?? {}) as any;
+      return {
+        ...d,
+        totais_por_tipo: comoTotais(d.totais_por_tipo),
+        funcionarios: comoLista<any>(d.funcionarios).map((f: any) => ({
+          ...f,
+          pagamentos: comoMapaPorTipo<any>(f?.pagamentos),
+        })),
+      } as FolhaMes;
     },
     enabled: !!competencia,
   });
