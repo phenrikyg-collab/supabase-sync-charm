@@ -183,28 +183,26 @@ export function FuncionariosTab() {
                     />
                     <Label className="text-xs">Registrada (CLT)</Label>
                   </div>
-                  {!edit.registrada && (
-                    <p className="text-[10px] text-muted-foreground">
-                      Sem registro: não recebe VT nem tem descontos de INSS/FGTS
-                    </p>
-                  )}
-                </div>
-                <Campo label="Desconto de VT (%)">
-                  <Input
-                    type="number"
-                    min={0}
-                    max={6}
-                    step={0.5}
-                    disabled={!edit.registrada}
-                    value={edit.registrada ? edit.vt_desconto_pct : "0"}
-                    onChange={(e) => setEdit({ ...edit, vt_desconto_pct: e.target.value })}
-                  />
                   <p className="text-[10px] text-muted-foreground">
-                    {edit.registrada
-                      ? "0% = empresa paga o VT integral"
-                      : "Sem registro: não recebe VT nem tem descontos de INSS/FGTS"}
+                    Registrada: INSS descontado no fechamento, FGTS informado no holerite e desconto opcional de VT. Sem registro: recebe os benefícios normalmente, sem nenhum desconto.
                   </p>
-                </Campo>
+                </div>
+                {edit.registrada && (
+                  <Campo label="Desconto de VT (%)">
+                    <Input
+                      type="number"
+                      min={0}
+                      max={6}
+                      step={0.5}
+                      value={edit.vt_desconto_pct}
+                      onChange={(e) => setEdit({ ...edit, vt_desconto_pct: e.target.value })}
+                    />
+                    <p className="text-[10px] text-muted-foreground">
+                      0% = empresa paga o VT integral (máximo 6%)
+                    </p>
+                  </Campo>
+                )}
+
 
               </div>
               <div className="flex justify-end gap-2">
