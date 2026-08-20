@@ -313,7 +313,7 @@ function LinhaFuncionario({
           </div>
         </td>
         <td className="text-right px-3 tabular-nums">{brl(f.salario_base)}</td>
-        {TIPOS_ORDEM.map((t) => (
+        {["adiantamento", "saldo", "vt", "va"].map((t) => (
           <td key={t} className="text-right px-3">
             <div className="flex flex-col items-end"><Celula p={pags[t]} /></div>
           </td>
