@@ -49,6 +49,8 @@ export function FuncionariosTab() {
             vt_mensal: f.vt_mensal != null ? String(f.vt_mensal) : "",
             va_mensal: f.va_mensal != null ? String(f.va_mensal) : "",
             cesta_valor: f.cesta_valor != null ? String(f.cesta_valor) : "",
+            registrada: !!f.registrada,
+            vt_desconto_pct: f.vt_desconto_pct != null ? String(f.vt_desconto_pct) : "0",
           }
         : { ...vazio }
     );
@@ -70,7 +72,10 @@ export function FuncionariosTab() {
       p_vt_mensal: num(edit.vt_mensal),
       p_va_mensal: num(edit.va_mensal),
       p_cesta_valor: num(edit.cesta_valor),
-    });
+      p_registrada: edit.registrada,
+      p_vt_desconto_pct: edit.registrada ? Math.min(6, Math.max(0, Number(num(edit.vt_desconto_pct) ?? 0))) : 0,
+    } as any);
+
     if (error) return toast({ title: "Erro ao salvar", description: error.message, variant: "destructive" });
     toast({ title: "Funcionário salvo" });
     setEdit(null);
