@@ -1,0 +1,315 @@
+import { useMemo, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Skeleton } from "@/components/ui/skeleton";
+import { useToast } from "@/hooks/use-toast";
+import { AlertTriangle, ChevronDown, RefreshCw, Wallet, Users, Gift, Coins } from "lucide-react";
+import { brl, dataBR, dataBRCompleta, hojeISO, TIPOS_ORDEM } from "@/lib/rh";
+import { useFolhaMes, FuncionarioFolha, PagamentoFolha } from "./useFolha";
+import { cn } from "@/lib/utils";
+
+function StatusPagamento({ p }: { p?: PagamentoFolha }) {
+  if (!p) return null;
+  const st = p.status ?? "pendente";
+  if (st === "pago")
+    return <span className="text-[10px] text-green-600">pago {p.pago_em ? dataBR(p.pago_em) : ""}</span>;
+  if (st === "em_lote") return <span className="text-[10px] text-blue-600">no lote</span>;
+  const vencido = !!p.vencimento && p.vencimento.slice(0, 10) <= hojeISO();
+  return vencido ? (
+    <span className="text-[10px] text-red-600">vencido {dataBR(p.vencimento)}</span>
+  ) : (
+    <span className="text-[10px] text-amber-600">vence {dataBR(p.vencimento)}</span>
+  );
+}
+
+function Celula({ p }: { p?: PagamentoFolha }) {
+  if (!p) return <span className="text-muted-foreground">—</span>;
+  const valor = p.valor_liquido ?? p.valor ?? p.valor_bruto ?? 0;
+  return (
+    <div className="leading-tight">
+      <div className="tabular-nums">{brl(valor)}</div>
+      <StatusPagamento p={p} />
+    </div>
+  );
+}
+
+const MINI = {
+  pago: "bg-green-100 text-green-700",
+  pendente: "bg-amber-100 text-amber-700",
+  agendado: "bg-muted text-muted-foreground",
+};
+
+export function FolhaMesTab({
+  competencia,
+  onIrParaLote,
+}: {
+  competencia: string;
+  onIrParaLote: () => void;
+}) {
+  const { data, isLoading, refetch } = useFolhaMes(competencia);
+  const { toast } = useToast();
+  const qc = useQueryClient();
+  const [gerando, setGerando] = useState(false);
+  const [aberto, setAberto] = useState<string | null>(null);
+
+  const funcionarios = data?.funcionarios ?? [];
+  const tiles = data?.tiles ?? {};
+  const totais = data?.totais_por_tipo ?? {};
+
+  const gerar = async () => {
+    setGerando(true);
+    const { error } = await supabase.rpc("rh_folha_gerar", { p_competencia: competencia });
+    setGerando(false);
+    if (error) return toast({ title: "Erro ao gerar folha", description: error.message, variant: "destructive" });
+    toast({ title: "Lançamentos gerados" });
+    qc.invalidateQueries({ queryKey: ["rh-folha-mes"] });
+  };
+
+  const statusAgregado = (tipos: string[]) => {
+    const pags = funcionarios.flatMap((f) =>
+      tipos.map((t) => f.pagamentos?.[t]).filter(Boolean) as PagamentoFolha[]
+    );
+    if (!pags.length) return "agendado" as const;
+    if (pags.every((p) => p.status === "pago")) return "pago" as const;
+    if (pags.some((p) => (p.status ?? "pendente") === "pendente")) return "pendente" as const;
+    return "agendado" as const;
+  };
+
+  const custoTotalTabela = useMemo(
+    () => funcionarios.reduce((s, f) => s + (Number(f.custo_mes) || 0), 0),
+    [funcionarios]
+  );
+
+  if (isLoading) {
+    return (
+      <div className="space-y-4">
+        <div className="grid gap-4 md:grid-cols-4">
+          {[0, 1, 2, 3].map((i) => <Skeleton key={i} className="h-24" />)}
+        </div>
+        <Skeleton className="h-72" />
+      </div>
+    );
+  }
+
+  if (!funcionarios.length) {
+    return (
+      <Card>
+        <CardContent className="py-16 text-center space-y-4">
+          <p className="text-muted-foreground">Nenhum lançamento para esta competência.</p>
+          <Button onClick={gerar} disabled={gerando}>
+            {gerando ? "Gerando..." : "Gerar lançamentos do mês"}
+          </Button>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="flex justify-end">
+        <Button variant="outline" size="sm" onClick={gerar} disabled={gerando}>
+          <RefreshCw className={cn("h-3.5 w-3.5 mr-2", gerando && "animate-spin")} />
+          Gerar lançamentos do mês
+        </Button>
+      </div>
+
+      {(tiles.vencendo_qtd ?? 0) > 0 && (
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3">
+          <div className="flex items-center gap-2 text-amber-800 text-sm">
+            <AlertTriangle className="h-4 w-4" />
+            {tiles.vencendo_qtd} pagamentos vencem hoje ou estão atrasados — total {brl(tiles.vencendo_total)}
+          </div>
+          <Button size="sm" onClick={onIrParaLote}>Preparar lote PIX</Button>
+        </div>
+      )}
+
+      <div className="grid gap-4 md:grid-cols-4">
+        <Tile titulo="Custo total do mês" valor={brl(tiles.custo_total)} icon={Coins} />
+        <Tile titulo="A pagar" valor={brl(tiles.a_pagar)} legenda={`${brl(tiles.pago)} já pago`} icon={Wallet} />
+        <Tile titulo="Benefícios" valor={brl(tiles.beneficios)} icon={Gift} />
+        <Tile titulo="Funcionários ativos" valor={String(tiles.funcionarios_ativos ?? 0)} icon={Users} />
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-3">
+        <MiniCard
+          titulo="Dia 5"
+          desc="Saldo 60% do mês anterior + VT + cesta básica"
+          status={statusAgregado(["saldo", "vt", "cesta"])}
+        />
+        <MiniCard titulo="Dia 20" desc="Adiantamento de 40% do salário base" status={statusAgregado(["adiantamento"])} />
+        <MiniCard titulo="VA · Ticket" desc="Pedido na plataforma até dia 28 do mês anterior" status={statusAgregado(["va"])} />
+      </div>
+
+      <Card>
+        <CardHeader><CardTitle className="text-base font-serif">Folha por funcionário</CardTitle></CardHeader>
+        <CardContent className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b text-xs uppercase tracking-wide text-muted-foreground">
+                <th className="text-left py-2 pr-3">Funcionário</th>
+                <th className="text-right px-3">Salário base</th>
+                <th className="text-right px-3">Adiant. 40%</th>
+                <th className="text-right px-3">Saldo 60%</th>
+                <th className="text-right px-3">VT</th>
+                <th className="text-right px-3">VA (Ticket)</th>
+                <th className="text-right px-3">Cesta</th>
+                <th className="text-right pl-3">Custo do mês</th>
+              </tr>
+            </thead>
+            <tbody>
+              {funcionarios.map((f) => (
+                <LinhaFuncionario
+                  key={f.id}
+                  f={f}
+                  aberto={aberto === f.id}
+                  onToggle={() => setAberto(aberto === f.id ? null : f.id)}
+                  onSalvo={() => refetch()}
+                />
+              ))}
+            </tbody>
+            <tfoot>
+              <tr className="border-t font-medium">
+                <td className="py-2 pr-3">Totais</td>
+                <td className="text-right px-3">—</td>
+                {["adiantamento", "saldo", "vt", "va", "cesta"].map((t) => (
+                  <td key={t} className="text-right px-3 tabular-nums">{brl(totais[t] ?? 0)}</td>
+                ))}
+                <td className="text-right pl-3 tabular-nums">{brl(custoTotalTabela)}</td>
+              </tr>
+            </tfoot>
+          </table>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+function Tile({ titulo, valor, legenda, icon: Icon }: any) {
+  return (
+    <Card>
+      <CardContent className="p-5 flex items-start justify-between">
+        <div className="space-y-1">
+          <p className="text-xs uppercase tracking-wider text-muted-foreground">{titulo}</p>
+          <p className="text-2xl font-serif font-bold">{valor}</p>
+          {legenda && <p className="text-xs text-muted-foreground">{legenda}</p>}
+        </div>
+        <div className="rounded-lg p-2.5 bg-primary/10 text-primary"><Icon className="h-5 w-5" /></div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function MiniCard({ titulo, desc, status }: { titulo: string; desc: string; status: keyof typeof MINI }) {
+  return (
+    <Card>
+      <CardContent className="p-4 space-y-1">
+        <div className="flex items-center justify-between">
+          <p className="font-medium">{titulo}</p>
+          <span className={cn("text-[10px] px-2 py-0.5 rounded-full", MINI[status])}>{status}</span>
+        </div>
+        <p className="text-xs text-muted-foreground">{desc}</p>
+      </CardContent>
+    </Card>
+  );
+}
+
+function LinhaFuncionario({
+  f, aberto, onToggle, onSalvo,
+}: { f: FuncionarioFolha; aberto: boolean; onToggle: () => void; onSalvo: () => void }) {
+  const { toast } = useToast();
+  const pags = f.pagamentos ?? {};
+  const saldo = pags["saldo"];
+  const [liquido, setLiquido] = useState<string>(saldo?.valor_liquido != null ? String(saldo.valor_liquido) : "");
+  const [obs, setObs] = useState<string>(saldo?.observacao ?? "");
+  const [salvando, setSalvando] = useState(false);
+
+  const atualizar = async (extra: Record<string, any> = {}) => {
+    if (!saldo?.id) return;
+    setSalvando(true);
+    const { error } = await supabase.rpc("rh_folha_pagamento_atualizar", {
+      p_id: saldo.id,
+      p_valor_liquido: liquido === "" ? null : Number(liquido.replace(",", ".")),
+      p_status: null,
+      p_pago_em: null,
+      p_obs: obs || null,
+      ...extra,
+    });
+    setSalvando(false);
+    if (error) return toast({ title: "Erro ao salvar", description: error.message, variant: "destructive" });
+    toast({ title: "Atualizado" });
+    onSalvo();
+  };
+
+  const marcarPago = async (p: PagamentoFolha) => {
+    const { error } = await supabase.rpc("rh_folha_pagamento_atualizar", {
+      p_id: p.id, p_valor_liquido: null, p_status: "pago", p_pago_em: hojeISO(), p_obs: null,
+    });
+    if (error) return toast({ title: "Erro", description: error.message, variant: "destructive" });
+    toast({ title: "Pagamento marcado como pago" });
+    onSalvo();
+  };
+
+  return (
+    <>
+      <tr className="border-b cursor-pointer hover:bg-muted/40" onClick={onToggle}>
+        <td className="py-2 pr-3">
+          <div className="flex items-center gap-2">
+            <ChevronDown className={cn("h-3.5 w-3.5 transition-transform", aberto && "rotate-180")} />
+            <div>
+              <div className="font-medium">{f.nome}</div>
+              <div className="text-xs text-muted-foreground">{f.cargo ?? "—"}</div>
+            </div>
+          </div>
+        </td>
+        <td className="text-right px-3 tabular-nums">{brl(f.salario_base)}</td>
+        {TIPOS_ORDEM.map((t) => (
+          <td key={t} className="text-right px-3">
+            <div className="flex flex-col items-end"><Celula p={pags[t]} /></div>
+          </td>
+        ))}
+        <td className="text-right pl-3 tabular-nums font-medium">{brl(f.custo_mes)}</td>
+      </tr>
+      {aberto && (
+        <tr className="border-b bg-muted/20">
+          <td colSpan={8} className="p-4">
+            <div className="grid gap-4 md:grid-cols-3">
+              <div className="text-xs space-y-1">
+                <p><span className="text-muted-foreground">Chave PIX:</span> {f.tipo_chave_pix ?? "—"} · {f.chave_pix ?? "—"}</p>
+                <p><span className="text-muted-foreground">Admissão:</span> {dataBRCompleta(f.admissao)}</p>
+              </div>
+              <div className="space-y-2">
+                <Label className="text-xs">Saldo líquido do fechamento</Label>
+                <Input value={liquido} onChange={(e) => setLiquido(e.target.value)} placeholder="0,00" />
+                {saldo && saldo.valor_liquido == null && (
+                  <p className="text-[10px] text-muted-foreground">
+                    {brl(saldo.valor_bruto ?? saldo.valor)} bruto — lançar líquido no fechamento
+                  </p>
+                )}
+              </div>
+              <div className="space-y-2">
+                <Label className="text-xs">Observação</Label>
+                <Input value={obs} onChange={(e) => setObs(e.target.value)} placeholder="Faltas, descontos..." />
+              </div>
+            </div>
+            <div className="flex flex-wrap gap-2 mt-4">
+              <Button size="sm" onClick={() => atualizar()} disabled={salvando || !saldo}>Salvar fechamento</Button>
+              {TIPOS_ORDEM.map((t) => {
+                const p = pags[t];
+                if (!p || p.status === "pago") return null;
+                return (
+                  <Button key={t} size="sm" variant="outline" onClick={() => marcarPago(p)}>
+                    {t === "va" ? "Marcar pedido feito (VA)" : `Marcar ${t} pago`}
+                  </Button>
+                );
+              })}
+            </div>
+          </td>
+        </tr>
+      )}
+    </>
+  );
+}
