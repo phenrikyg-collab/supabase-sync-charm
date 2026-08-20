@@ -356,6 +356,23 @@ function LinhaFuncionario({
                 <Label className="text-xs">Observação</Label>
                 <Input value={obs} onChange={(e) => setObs(e.target.value)} placeholder="Faltas, descontos..." />
               </div>
+
+              <div className="space-y-2">
+                <Label className="text-xs">Faltas no mês</Label>
+                <div className="flex gap-2">
+                  <Input
+                    type="number"
+                    min={0}
+                    value={faltas}
+                    onChange={(e) => setFaltas(e.target.value)}
+                    placeholder="0"
+                  />
+                  <Button size="sm" variant="outline" onClick={salvarFaltas} disabled={salvandoFaltas}>
+                    Salvar
+                  </Button>
+                </div>
+                <p className="text-[10px] text-muted-foreground">Cada falta reduz um dia de VT do mês.</p>
+              </div>
             </div>
             <div className="flex flex-wrap gap-2 mt-4">
               <Button size="sm" onClick={() => atualizar()} disabled={salvando || !saldo}>Salvar fechamento</Button>
