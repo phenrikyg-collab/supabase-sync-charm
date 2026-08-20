@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { brl, dataBRCompleta, LOTE_STATUS, ITEM_STATUS, comoLista } from "@/lib/rh";
+import { brl, dataBRCompleta, LOTE_STATUS, ITEM_STATUS } from "@/lib/rh";
 import { cn } from "@/lib/utils";
 
 export function HistoricoTab() {
@@ -15,7 +15,7 @@ export function HistoricoTab() {
     queryFn: async () => {
       const { data, error } = await supabase.rpc("rh_folha_historico", { p_meses: 6 });
       if (error) throw error;
-      return comoLista<any>((data as any)?.eventos ?? data);
+      return (Array.isArray(data) ? data : (data as any)?.eventos ?? []) as any[];
     },
   });
 
@@ -24,7 +24,7 @@ export function HistoricoTab() {
     queryFn: async () => {
       const { data, error } = await supabase.rpc("rh_lote_detalhe", { p_lote_id: loteId });
       if (error) throw error;
-      return comoLista<any>((data as any)?.itens ?? data);
+      return (data ?? []) as any[];
     },
     enabled: !!loteId,
   });
@@ -83,7 +83,7 @@ export function HistoricoTab() {
                   </tr>
                 </thead>
                 <tbody>
-                  {comoLista<any>(itens).map((i: any, idx: number) => (
+                  {(itens ?? []).map((i: any, idx: number) => (
                     <tr key={i.id ?? idx} className="border-b">
                       <td className="py-2">{i.funcionario ?? i.nome ?? "—"}</td>
                       <td className="px-2">{i.descricao ?? i.tipo ?? "—"}</td>

@@ -13,7 +13,7 @@ import { useRhAuth, erroRh } from "./useRhAuth";
 
 
 import { RefreshCw, Info } from "lucide-react";
-import { brl, dataBR, hojeISO, competenciaLabel, LOTE_STATUS, ITEM_STATUS, TIPO_LABEL, comoLista, comoMapaPorTipo } from "@/lib/rh";
+import { brl, dataBR, hojeISO, competenciaLabel, LOTE_STATUS, ITEM_STATUS, TIPO_LABEL } from "@/lib/rh";
 import { useFolhaMes } from "./useFolha";
 import { cn } from "@/lib/utils";
 
@@ -27,8 +27,8 @@ export function LotePixTab({ competencia }: { competencia: string }) {
 
   const pendentes = useMemo(() => {
     const linhas: any[] = [];
-    comoLista<any>(folha?.funcionarios).forEach((f) => {
-      Object.entries(comoMapaPorTipo<any>(f.pagamentos)).forEach(([tipo, p]: any) => {
+    (folha?.funcionarios ?? []).forEach((f) => {
+      Object.entries(f.pagamentos ?? {}).forEach(([tipo, p]: any) => {
         if (!p || tipo === "va" || (p.status ?? "pendente") !== "pendente") return;
         linhas.push({
           id: p.id, tipo, nome: f.nome,
@@ -44,8 +44,8 @@ export function LotePixTab({ competencia }: { competencia: string }) {
 
   const saldoSemHolerite = useMemo(
     () =>
-      comoLista<any>(folha?.funcionarios).some((f: any) => {
-        const s = comoMapaPorTipo<any>(f.pagamentos).saldo;
+      (folha?.funcionarios ?? []).some((f: any) => {
+        const s = f.pagamentos?.saldo;
         return s && (s.status ?? "pendente") === "pendente" && s.valor_liquido == null;
       }),
     [folha]
@@ -157,7 +157,7 @@ function ListaLotes() {
     queryFn: async () => {
       const { data, error } = await supabase.rpc("rh_lotes_listar", { p_limite: 20 });
       if (error) throw error;
-      return comoLista<any>((data as any)?.lotes ?? data);
+      return (data ?? []) as any[];
     },
   });
 
@@ -254,14 +254,13 @@ function useLoteDetalhe(loteId?: string) {
     queryFn: async () => {
       const { data, error } = await supabase.rpc("rh_lote_detalhe", { p_lote_id: loteId });
       if (error) throw error;
-      return comoLista<any>((data as any)?.itens ?? data);
+      return (data ?? []) as any[];
     },
     enabled: !!loteId,
   });
 }
 
-function ItensTabela({ itens }: { itens: any }) {
-  const linhas = comoLista<any>(itens);
+function ItensTabela({ itens }: { itens: any[] }) {
   return (
     <table className="w-full text-sm">
       <thead>
@@ -273,7 +272,7 @@ function ItensTabela({ itens }: { itens: any }) {
         </tr>
       </thead>
       <tbody>
-        {linhas.map((i, idx) => (
+        {itens.map((i, idx) => (
           <tr key={i.id ?? idx} className="border-b align-top">
             <td className="py-2">{i.funcionario ?? i.nome ?? "—"}</td>
             <td className="px-2">{i.descricao ?? i.tipo ?? "—"}</td>
