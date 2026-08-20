@@ -11,9 +11,14 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { Plus } from "lucide-react";
+import { Plus, ShieldCheck, Loader2, AlertTriangle } from "lucide-react";
 import { brl, dataBRCompleta } from "@/lib/rh";
 import { cn } from "@/lib/utils";
+import { invokeEdgeFunction } from "@/lib/edgeFunctions";
+
+const RH_SUPABASE_URL = "https://ezdtulcrqzmgocamjwwl.supabase.co";
+const RH_ANON_KEY =
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV6ZHR1bGNycXptZ29jYW1qd3dsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE2MjIwMzAsImV4cCI6MjA4NzE5ODAzMH0.7CyKzK3cs-Cd-Wrh69oUAEtxW95l8iZLMCXi_3nAIPU";
 
 const TIPOS_CHAVE = ["cpf", "cnpj", "email", "telefone", "aleatoria"];
 
@@ -22,6 +27,7 @@ const vazio = {
   ativo: true, observacao: "", admissao: "", salario_base: "", vt_mensal: "", va_mensal: "", cesta_valor: "",
   registrada: false, vt_desconto_pct: "6", vt_diaria: "",
 };
+
 
 
 export function FuncionariosTab() {
