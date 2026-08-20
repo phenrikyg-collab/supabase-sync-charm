@@ -11,9 +11,14 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { Plus } from "lucide-react";
+import { Plus, ShieldCheck, Loader2, AlertTriangle } from "lucide-react";
 import { brl, dataBRCompleta } from "@/lib/rh";
 import { cn } from "@/lib/utils";
+import { invokeEdgeFunction } from "@/lib/edgeFunctions";
+
+const RH_SUPABASE_URL = "https://ezdtulcrqzmgocamjwwl.supabase.co";
+const RH_ANON_KEY =
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV6ZHR1bGNycXptZ29jYW1qd3dsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE2MjIwMzAsImV4cCI6MjA4NzE5ODAzMH0.7CyKzK3cs-Cd-Wrh69oUAEtxW95l8iZLMCXi_3nAIPU";
 
 const TIPOS_CHAVE = ["cpf", "cnpj", "email", "telefone", "aleatoria"];
 
@@ -24,10 +29,14 @@ const vazio = {
 };
 
 
+
 export function FuncionariosTab() {
   const { toast } = useToast();
   const qc = useQueryClient();
   const [edit, setEdit] = useState<typeof vazio | null>(null);
+  const [verificando, setVerificando] = useState<string | null>(null);
+  const [confirmando, setConfirmando] = useState<string | null>(null);
+  const [titulares, setTitulares] = useState<Record<string, string>>({});
 
   const { data, isLoading } = useQuery({
     queryKey: ["rh-funcionarios"],
@@ -37,6 +46,61 @@ export function FuncionariosTab() {
       return (data ?? []) as any[];
     },
   });
+
+  const { data: pendentes } = useQuery({
+    queryKey: ["rh-chaves-pendentes"],
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc("rh_chaves_pendentes_confirmacao" as any);
+      if (error) throw error;
+      return (data ?? []) as any[];
+    },
+  });
+
+  const verificarChave = async (f: any) => {
+    setVerificando(f.id);
+    try {
+      const res: any = await invokeEdgeFunction(
+        "inter-verificar-chave",
+        { funcionario_id: f.id },
+        { baseUrl: RH_SUPABASE_URL, anonKey: RH_ANON_KEY },
+      );
+      const titular = res?.titular_no_banco ?? res?.titular ?? null;
+      if (!titular) {
+        toast({ title: "Não foi possível obter o titular", variant: "destructive" });
+        return;
+      }
+      setTitulares((t) => ({ ...t, [f.id]: titular }));
+      toast({ title: "Chave verificada", description: `Titular no banco: ${titular}` });
+    } catch (e: any) {
+      toast({ title: "Erro ao verificar chave", description: e?.message, variant: "destructive" });
+    } finally {
+      setVerificando(null);
+    }
+  };
+
+  const confirmarTitular = async (f: any) => {
+    const titular = titulares[f.id];
+    if (!titular) return;
+    setConfirmando(f.id);
+    const { error } = await supabase.rpc("rh_chave_confirmar" as any, {
+      p_funcionario_id: f.id,
+      p_titular: titular,
+    });
+    setConfirmando(null);
+    if (error) {
+      return toast({ title: "Erro ao confirmar titular", description: erroRh(error).mensagem, variant: "destructive" });
+    }
+    toast({ title: "Titular confirmado" });
+    setTitulares((t) => {
+      const n = { ...t };
+      delete n[f.id];
+      return n;
+    });
+    qc.invalidateQueries({ queryKey: ["rh-funcionarios"] });
+    qc.invalidateQueries({ queryKey: ["rh-chaves-pendentes"] });
+  };
+
+
 
   const abrir = (f?: any) =>
     setEdit(
@@ -91,7 +155,20 @@ export function FuncionariosTab() {
         <CardTitle className="text-base font-serif">Funcionários</CardTitle>
         <Button size="sm" onClick={() => abrir()}><Plus className="h-3.5 w-3.5 mr-2" />Novo funcionário</Button>
       </CardHeader>
-      <CardContent className="overflow-x-auto">
+      <CardContent className="overflow-x-auto space-y-4">
+        {!!pendentes?.length && (
+          <div className="flex items-start gap-2 rounded-md border border-amber-300 bg-amber-50 p-3 text-xs text-amber-800">
+            <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
+            <div>
+              <p className="font-medium">
+                {pendentes.length} chave(s) PIX aguardando confirmação de titular
+              </p>
+              <p className="mt-0.5">
+                O lote PIX é recusado enquanto houver pendências: {pendentes.map((p: any) => p.nome ?? p.funcionario_nome ?? p.chave_pix).join(", ")}
+              </p>
+            </div>
+          </div>
+        )}
         {isLoading ? (
           <Skeleton className="h-48" />
         ) : (
@@ -117,7 +194,45 @@ export function FuncionariosTab() {
                   </td>
                   <td className="px-3">{dataBRCompleta(f.admissao)}</td>
                   <td className="px-3 text-right tabular-nums">{brl(f.salario_base)}</td>
-                  <td className="px-3 text-xs">{f.tipo_chave_pix ?? "—"} · {f.chave_pix ?? "—"}</td>
+                  <td className="px-3 text-xs align-top">
+                    <div>{f.tipo_chave_pix ?? "—"} · {f.chave_pix ?? "—"}</div>
+                    {f.chave_confirmada || f.titular_confirmado ? (
+                      <span className="mt-1 inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full bg-green-100 text-green-700">
+                        <ShieldCheck className="h-3 w-3" />
+                        {f.titular_confirmado || "titular confirmado"}
+                      </span>
+                    ) : (
+                      <div className="mt-1 space-y-1">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-6 text-[10px]"
+                          disabled={!f.chave_pix || verificando === f.id}
+                          onClick={() => verificarChave(f)}
+                        >
+                          {verificando === f.id ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : null}
+                          Verificar chave Pix
+                        </Button>
+                        {titulares[f.id] && (
+                          <div className="space-y-1">
+                            <div className="text-[10px] text-muted-foreground">
+                              Titular no banco: <span className="font-medium text-foreground">{titulares[f.id]}</span>
+                            </div>
+                            <Button
+                              size="sm"
+                              className="h-6 text-[10px]"
+                              disabled={confirmando === f.id}
+                              onClick={() => confirmarTitular(f)}
+                            >
+                              {confirmando === f.id ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : null}
+                              Confirmar titular
+                            </Button>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </td>
+
                   <td className="px-3">
                     <div className="flex flex-wrap gap-1">
                       {Number(f.vt_diaria) > 0 ? (
