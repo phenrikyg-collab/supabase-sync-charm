@@ -32,7 +32,7 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { UserPlus, Loader2, ShoppingBag, Banknote, Wrench, Save, Truck, Megaphone } from "lucide-react";
+import { UserPlus, Loader2, ShoppingBag, Banknote, Wrench, Save, Truck, Megaphone, BadgeDollarSign } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
 import type { AppModule } from "@/hooks/useUserModules";
@@ -44,12 +44,14 @@ const MODULE_OPTIONS: { key: AppModule; label: string; icon: React.ComponentType
   { key: "financeiro", label: "Financeiro", icon: Banknote },
   { key: "logistica", label: "Logística", icon: Truck },
   { key: "marketing", label: "Marketing", icon: Megaphone },
+  { key: "rh", label: "RH", icon: BadgeDollarSign },
 ];
 
 interface UserWithModules {
   id: string;
   email: string;
   modules: AppModule[];
+  isAdmin: boolean;
 }
 
 function AdminUsuariosContent() {
@@ -93,10 +95,15 @@ function AdminUsuariosContent() {
         userMap.set(m.user_id, list);
       });
 
+      const adminIds = new Set<string>(
+        (rolesData ?? []).filter((r: any) => r.role === "admin").map((r: any) => r.user_id)
+      );
+
       const result: UserWithModules[] = Array.from(userIds).map((uid) => ({
         id: uid,
         email: emailMap.get(uid) || uid.substring(0, 8) + "...",
         modules: userMap.get(uid) || [],
+        isAdmin: adminIds.has(uid),
       }));
 
       setUsers(result);
@@ -254,6 +261,7 @@ function AdminUsuariosContent() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Usuário</TableHead>
+                  <TableHead className="text-center">Admin</TableHead>
                   {MODULE_OPTIONS.map((opt) => (
                     <TableHead key={opt.key} className="text-center">{opt.label}</TableHead>
                   ))}
@@ -264,6 +272,9 @@ function AdminUsuariosContent() {
                 {users.map((u) => (
                   <TableRow key={u.id}>
                     <TableCell className="font-mono text-xs text-muted-foreground">{u.email}</TableCell>
+                    <TableCell className="text-center">
+                      {u.isAdmin ? <Badge>Admin</Badge> : <span className="text-xs text-muted-foreground">—</span>}
+                    </TableCell>
                     {MODULE_OPTIONS.map((opt) => (
                       <TableCell key={opt.key} className="text-center">
                         <Checkbox

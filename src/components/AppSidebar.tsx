@@ -31,7 +31,8 @@ interface MenuItem {
 }
 
 interface ModuleGroup {
-  key: AppModule;
+  key?: AppModule;
+  adminOnly?: boolean;
   label: string;
   icon: React.ComponentType<{ className?: string }>;
   items: MenuItem[];
@@ -39,7 +40,7 @@ interface ModuleGroup {
 
 const moduleGroups: ModuleGroup[] = [
   {
-    key: "planejamento" as AppModule,
+    adminOnly: true,
     label: "Planejamento Estratégico",
     icon: Compass,
     items: [
@@ -166,7 +167,7 @@ const moduleGroups: ModuleGroup[] = [
     ],
   },
   {
-    key: "financeiro",
+    key: "rh",
     label: "Recursos Humanos",
     icon: BadgeDollarSign,
     items: [
@@ -174,7 +175,7 @@ const moduleGroups: ModuleGroup[] = [
     ],
   },
   {
-    key: "automacoes",
+    adminOnly: true,
     label: "Automações",
     icon: Workflow,
     items: [
@@ -193,7 +194,7 @@ export function AppSidebar() {
 
   const visibleGroups = isAdmin
     ? moduleGroups
-    : moduleGroups.filter((g) => g.key === "marketing" || g.key === ("planejamento" as AppModule) || modules.includes(g.key));
+    : moduleGroups.filter((g) => !g.adminOnly && !!g.key && modules.includes(g.key));
 
   return (
     <Sidebar collapsible="icon">

@@ -2,7 +2,8 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
+import { useEffect } from "react";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { AppLayout } from "@/components/AppLayout";
 import Dashboard from "./pages/Dashboard";
@@ -88,7 +89,10 @@ import EmailMarketing from "./pages/EmailMarketing";
 import MarketingWhatsApp from "./pages/MarketingWhatsApp";
 import EmailTemplateEditor from "./pages/EmailTemplateEditor";
 import { Loader2 } from "lucide-react";
-import { useUserModules } from "@/hooks/useUserModules";
+import { useUserModules, type AppModule } from "@/hooks/useUserModules";
+import { useUserRole } from "@/hooks/useUserRole";
+import { useToast } from "@/hooks/use-toast";
+import { canAccess, requirementForPath, MODULE_HOME } from "@/lib/accessControl";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -110,28 +114,47 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
-const MODULE_HOME: Record<string, string> = {
-  comercial: "/dashboard-comercial",
-  producao: "/ordens-producao",
-  financeiro: "/dashboard-financeiro",
-  logistica: "/bonificacao-expedicao",
-  marketing: "/marketing",
-};
-
 function HomeRedirect() {
   const { modules, isLoading } = useUserModules();
-  if (isLoading) return (
+  const { isAdmin, isLoading: rolesLoading } = useUserRole();
+  if (isLoading || rolesLoading) return (
     <div className="min-h-[60vh] flex items-center justify-center">
       <Loader2 className="h-8 w-8 animate-spin text-primary" />
     </div>
   );
-  // Admin or full access default
-  if (modules.length === 0 || modules.includes("comercial")) {
-    return <Navigate to="/dashboard-comercial" replace />;
-  }
-  const order: string[] = ["comercial", "financeiro", "producao", "logistica", "marketing"];
-  const first = order.find((m) => modules.includes(m as any)) || "comercial";
+  if (isAdmin) return <Navigate to="/dashboard-comercial" replace />;
+  const order: AppModule[] = ["comercial", "financeiro", "producao", "logistica", "marketing", "rh"];
+  const first = order.find((m) => modules.includes(m));
+  if (!first) return <Navigate to="/tv-interna" replace />;
   return <Navigate to={MODULE_HOME[first]} replace />;
+}
+
+/** Bloqueia rotas sem permissão: redireciona para a home com toast. */
+function ModuleGuard({ children }: { children: React.ReactNode }) {
+  const location = useLocation();
+  const { modules, isLoading } = useUserModules();
+  const { isAdmin, isLoading: rolesLoading } = useUserRole();
+  const { toast } = useToast();
+  const loading = isLoading || rolesLoading;
+  const allowed = canAccess(requirementForPath(location.pathname), isAdmin, modules);
+
+  useEffect(() => {
+    if (!loading && !allowed) {
+      toast({
+        title: "Acesso negado",
+        description: "Você não tem acesso a este módulo",
+        variant: "destructive",
+      });
+    }
+  }, [loading, allowed, location.pathname]);
+
+  if (loading) return (
+    <div className="min-h-[60vh] flex items-center justify-center">
+      <Loader2 className="h-8 w-8 animate-spin text-primary" />
+    </div>
+  );
+  if (!allowed) return <Navigate to="/" replace />;
+  return <>{children}</>;
 }
 
 const AppRoutes = () => {
@@ -146,11 +169,12 @@ const AppRoutes = () => {
   return (
     <Routes>
       <Route path="/login" element={user ? <Navigate to="/" replace /> : <Login />} />
-      <Route path="/tv-interna" element={<TVInterna />} />
-      <Route path="/conteudo" element={<ProtectedRoute><ContentCalendar /></ProtectedRoute>} />
+      <Route path="/tv-interna" element={<ProtectedRoute><TVInterna /></ProtectedRoute>} />
+      <Route path="/conteudo" element={<ProtectedRoute><ModuleGuard><ContentCalendar /></ModuleGuard></ProtectedRoute>} />
       <Route path="*" element={
         <ProtectedRoute>
           <AppLayout>
+            <ModuleGuard>
             <Routes>
               <Route path="/" element={<HomeRedirect />} />
               <Route path="/dashboard-comercial" element={<DashboardComercialPage />} />
@@ -236,6 +260,7 @@ const AppRoutes = () => {
               <Route path="/automacoes/:id" element={<AutomacaoFluxo />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
+            </ModuleGuard>
           </AppLayout>
         </ProtectedRoute>
       } />

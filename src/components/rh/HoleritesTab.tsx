@@ -1,3 +1,4 @@
+import { erroRh } from "./useRhAuth";
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -59,7 +60,7 @@ export function HoleritesTab({
     setGerando(true);
     const { error } = await supabase.rpc("rh_holerites_gerar", { p_competencia: competencia, p_tipo: tipo });
     setGerando(false);
-    if (error) return toast({ title: "Erro ao gerar holerites", description: error.message, variant: "destructive" });
+    if (error) return toast({ title: "Erro ao gerar holerites", description: erroRh(error).mensagem, variant: "destructive" });
     toast({ title: "Holerites gerados" });
     refetch();
   };

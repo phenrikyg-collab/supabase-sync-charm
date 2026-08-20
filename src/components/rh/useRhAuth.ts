@@ -16,6 +16,11 @@ export function erroRh(error: { message?: string } | null | undefined) {
   const m = (error?.message ?? "").toLowerCase();
   if (m.includes("sessao nao autenticada") || m.includes("sessão não autenticada"))
     return { tipo: "sessao" as const, mensagem: "Sua sessão expirou. Faça login novamente." };
+  if (m.includes("acesso negado") && (m.includes("rh") || m.includes("restrita")))
+    return {
+      tipo: "sem_acesso" as const,
+      mensagem: "Acesso negado: área de RH restrita (requer módulo RH ou perfil admin)",
+    };
   if (m.includes("sem permissao na folha") || m.includes("sem permissão na folha"))
     return { tipo: "sem_acesso" as const, mensagem: MSG_SEM_ACESSO };
   if (m.includes("nao tem permissao para aprovar") || m.includes("não tem permissão para aprovar"))

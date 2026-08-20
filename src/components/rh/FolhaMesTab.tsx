@@ -1,3 +1,4 @@
+import { erroRh } from "./useRhAuth";
 import { useEffect, useMemo, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -67,7 +68,7 @@ export function FolhaMesTab({
     setGerando(true);
     const { error } = await supabase.rpc("rh_folha_gerar", { p_competencia: competencia });
     setGerando(false);
-    if (error) return toast({ title: "Erro ao gerar folha", description: error.message, variant: "destructive" });
+    if (error) return toast({ title: "Erro ao gerar folha", description: erroRh(error).mensagem, variant: "destructive" });
     toast({ title: "Lançamentos gerados" });
     qc.invalidateQueries({ queryKey: ["rh-folha-mes"] });
   };
@@ -250,7 +251,7 @@ function LinhaFuncionario({
       ...extra,
     });
     setSalvando(false);
-    if (error) return toast({ title: "Erro ao salvar", description: error.message, variant: "destructive" });
+    if (error) return toast({ title: "Erro ao salvar", description: erroRh(error).mensagem, variant: "destructive" });
     toast({ title: "Atualizado" });
     onSalvo();
   };
@@ -259,7 +260,7 @@ function LinhaFuncionario({
     const { error } = await supabase.rpc("rh_folha_pagamento_atualizar", {
       p_id: p.id, p_valor_liquido: null, p_status: "pago", p_pago_em: hojeISO(), p_obs: null,
     });
-    if (error) return toast({ title: "Erro", description: error.message, variant: "destructive" });
+    if (error) return toast({ title: "Erro", description: erroRh(error).mensagem, variant: "destructive" });
     toast({ title: "Pagamento marcado como pago" });
     onSalvo();
   };
