@@ -167,7 +167,7 @@ const moduleGroups: ModuleGroup[] = [
     ],
   },
   {
-    key: "financeiro",
+    key: "rh",
     label: "Recursos Humanos",
     icon: BadgeDollarSign,
     items: [
@@ -175,7 +175,7 @@ const moduleGroups: ModuleGroup[] = [
     ],
   },
   {
-    key: "automacoes",
+    adminOnly: true,
     label: "Automações",
     icon: Workflow,
     items: [
