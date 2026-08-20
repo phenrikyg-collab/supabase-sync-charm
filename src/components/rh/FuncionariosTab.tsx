@@ -20,7 +20,7 @@ const TIPOS_CHAVE = ["cpf", "cnpj", "email", "telefone", "aleatoria"];
 const vazio = {
   id: null as string | null, nome: "", cpf: "", cargo: "", chave_pix: "", tipo_chave_pix: "cpf",
   ativo: true, observacao: "", admissao: "", salario_base: "", vt_mensal: "", va_mensal: "", cesta_valor: "",
-  registrada: false, vt_desconto_pct: "0", vt_diaria: "",
+  registrada: false, vt_desconto_pct: "6", vt_diaria: "",
 };
 
 
