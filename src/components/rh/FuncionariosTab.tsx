@@ -19,7 +19,9 @@ const TIPOS_CHAVE = ["cpf", "cnpj", "email", "telefone", "aleatoria"];
 const vazio = {
   id: null as string | null, nome: "", cpf: "", cargo: "", chave_pix: "", tipo_chave_pix: "cpf",
   ativo: true, observacao: "", admissao: "", salario_base: "", vt_mensal: "", va_mensal: "", cesta_valor: "",
+  registrada: false, vt_desconto_pct: "0",
 };
+
 
 export function FuncionariosTab() {
   const { toast } = useToast();
@@ -47,6 +49,8 @@ export function FuncionariosTab() {
             vt_mensal: f.vt_mensal != null ? String(f.vt_mensal) : "",
             va_mensal: f.va_mensal != null ? String(f.va_mensal) : "",
             cesta_valor: f.cesta_valor != null ? String(f.cesta_valor) : "",
+            registrada: !!f.registrada,
+            vt_desconto_pct: f.vt_desconto_pct != null ? String(f.vt_desconto_pct) : "0",
           }
         : { ...vazio }
     );
@@ -68,7 +72,10 @@ export function FuncionariosTab() {
       p_vt_mensal: num(edit.vt_mensal),
       p_va_mensal: num(edit.va_mensal),
       p_cesta_valor: num(edit.cesta_valor),
-    });
+      p_registrada: edit.registrada,
+      p_vt_desconto_pct: edit.registrada ? Math.min(6, Math.max(0, Number(num(edit.vt_desconto_pct) ?? 0))) : 0,
+    } as any);
+
     if (error) return toast({ title: "Erro ao salvar", description: error.message, variant: "destructive" });
     toast({ title: "Funcionário salvo" });
     setEdit(null);
@@ -93,6 +100,7 @@ export function FuncionariosTab() {
                 <th className="text-right px-3">Salário base</th>
                 <th className="text-left px-3">Chave PIX</th>
                 <th className="text-left px-3">Benefícios</th>
+                <th className="text-left px-3">Registro</th>
                 <th className="text-left px-3">Status</th>
                 <th className="text-right px-3"></th>
               </tr>
@@ -114,6 +122,15 @@ export function FuncionariosTab() {
                       {Number(f.cesta_valor) > 0 && <Chip>Cesta {brl(f.cesta_valor)}</Chip>}
                     </div>
                   </td>
+                  <td className="px-3">
+                    <span className={cn(
+                      "text-[10px] px-2 py-0.5 rounded-full",
+                      f.registrada ? "bg-primary/15 text-primary" : "bg-muted text-muted-foreground"
+                    )}>
+                      {f.registrada ? "CLT" : "Sem registro"}
+                    </span>
+                  </td>
+
                   <td className="px-3">
                     <span className={cn("text-[10px] px-2 py-0.5 rounded-full", f.ativo ? "bg-green-100 text-green-700" : "bg-muted text-muted-foreground")}>
                       {f.ativo ? "ativo" : "inativo"}
@@ -158,6 +175,37 @@ export function FuncionariosTab() {
                   <Switch checked={edit.ativo} onCheckedChange={(v) => setEdit({ ...edit, ativo: v })} />
                   <Label className="text-xs">Ativo</Label>
                 </div>
+                <div className="space-y-1.5 pt-2">
+                  <div className="flex items-center gap-2">
+                    <Switch
+                      checked={edit.registrada}
+                      onCheckedChange={(v) => setEdit({ ...edit, registrada: v, vt_desconto_pct: v ? edit.vt_desconto_pct : "0" })}
+                    />
+                    <Label className="text-xs">Registrada (CLT)</Label>
+                  </div>
+                  {!edit.registrada && (
+                    <p className="text-[10px] text-muted-foreground">
+                      Sem registro: não recebe VT nem tem descontos de INSS/FGTS
+                    </p>
+                  )}
+                </div>
+                <Campo label="Desconto de VT (%)">
+                  <Input
+                    type="number"
+                    min={0}
+                    max={6}
+                    step={0.5}
+                    disabled={!edit.registrada}
+                    value={edit.registrada ? edit.vt_desconto_pct : "0"}
+                    onChange={(e) => setEdit({ ...edit, vt_desconto_pct: e.target.value })}
+                  />
+                  <p className="text-[10px] text-muted-foreground">
+                    {edit.registrada
+                      ? "0% = empresa paga o VT integral"
+                      : "Sem registro: não recebe VT nem tem descontos de INSS/FGTS"}
+                  </p>
+                </Campo>
+
               </div>
               <div className="flex justify-end gap-2">
                 <Button variant="outline" onClick={() => setEdit(null)}>Cancelar</Button>

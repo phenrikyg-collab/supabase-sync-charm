@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -46,11 +46,14 @@ const MINI = {
 export function FolhaMesTab({
   competencia,
   onIrParaLote,
+  onVerHolerite,
 }: {
   competencia: string;
   onIrParaLote: () => void;
+  onVerHolerite?: () => void;
 }) {
   const { data, isLoading, refetch } = useFolhaMes(competencia);
+
   const { toast } = useToast();
   const qc = useQueryClient();
   const [gerando, setGerando] = useState(false);
@@ -168,9 +171,11 @@ export function FolhaMesTab({
                   aberto={aberto === f.id}
                   onToggle={() => setAberto(aberto === f.id ? null : f.id)}
                   onSalvo={() => refetch()}
+                  onVerHolerite={onVerHolerite}
                 />
               ))}
             </tbody>
+
             <tfoot>
               <tr className="border-t font-medium">
                 <td className="py-2 pr-3">Totais</td>
@@ -218,14 +223,20 @@ function MiniCard({ titulo, desc, status }: { titulo: string; desc: string; stat
 }
 
 function LinhaFuncionario({
-  f, aberto, onToggle, onSalvo,
-}: { f: FuncionarioFolha; aberto: boolean; onToggle: () => void; onSalvo: () => void }) {
+  f, aberto, onToggle, onSalvo, onVerHolerite,
+}: { f: FuncionarioFolha; aberto: boolean; onToggle: () => void; onSalvo: () => void; onVerHolerite?: () => void }) {
   const { toast } = useToast();
   const pags = f.pagamentos ?? {};
   const saldo = pags["saldo"];
   const [liquido, setLiquido] = useState<string>(saldo?.valor_liquido != null ? String(saldo.valor_liquido) : "");
   const [obs, setObs] = useState<string>(saldo?.observacao ?? "");
   const [salvando, setSalvando] = useState(false);
+
+  useEffect(() => {
+    setLiquido(saldo?.valor_liquido != null ? String(saldo.valor_liquido) : "");
+    setObs(saldo?.observacao ?? "");
+  }, [saldo?.id, saldo?.valor_liquido, saldo?.observacao]);
+
 
   const atualizar = async (extra: Record<string, any> = {}) => {
     if (!saldo?.id) return;
@@ -282,14 +293,28 @@ function LinhaFuncionario({
                 <p><span className="text-muted-foreground">Admissão:</span> {dataBRCompleta(f.admissao)}</p>
               </div>
               <div className="space-y-2">
-                <Label className="text-xs">Saldo líquido do fechamento</Label>
+                <div className="flex items-center justify-between">
+                  <Label className="text-xs">Saldo líquido do fechamento</Label>
+                  {onVerHolerite && (
+                    <button
+                      type="button"
+                      className="text-[10px] underline text-primary"
+                      onClick={onVerHolerite}
+                    >
+                      Ver holerite
+                    </button>
+                  )}
+                </div>
                 <Input value={liquido} onChange={(e) => setLiquido(e.target.value)} placeholder="0,00" />
-                {saldo && saldo.valor_liquido == null && (
+                {saldo && saldo.valor_liquido == null ? (
                   <p className="text-[10px] text-muted-foreground">
-                    {brl(saldo.valor_bruto ?? saldo.valor)} bruto — lançar líquido no fechamento
+                    {brl(saldo.valor_bruto ?? saldo.valor)} bruto — gere o holerite de fechamento ou lance o líquido
                   </p>
+                ) : (
+                  <p className="text-[10px] text-muted-foreground">Preenchido pelo holerite — editável</p>
                 )}
               </div>
+
               <div className="space-y-2">
                 <Label className="text-xs">Observação</Label>
                 <Input value={obs} onChange={(e) => setObs(e.target.value)} placeholder="Faltas, descontos..." />

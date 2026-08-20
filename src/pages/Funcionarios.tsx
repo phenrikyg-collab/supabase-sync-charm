@@ -5,6 +5,7 @@ import { FolhaMesTab } from "@/components/rh/FolhaMesTab";
 import { LotePixTab } from "@/components/rh/LotePixTab";
 import { FuncionariosTab } from "@/components/rh/FuncionariosTab";
 import { HistoricoTab } from "@/components/rh/HistoricoTab";
+import { HoleritesTab, TipoHolerite } from "@/components/rh/HoleritesTab";
 
 export default function Funcionarios() {
   const hoje = new Date();
@@ -12,11 +13,18 @@ export default function Funcionarios() {
     `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, "0")}`
   );
   const [tab, setTab] = useState("folha");
+  const [tipoHolerite, setTipoHolerite] = useState<TipoHolerite>("fechamento");
   const competencia = `${mesAno}-01`;
+
+  const irParaHolerite = (comp: string, tipo: TipoHolerite = "fechamento") => {
+    setMesAno(comp.slice(0, 7));
+    setTipoHolerite(tipo);
+    setTab("holerites");
+  };
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3">
+      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3 print:hidden">
         <div>
           <h1 className="text-2xl font-serif font-bold">Funcionários</h1>
           <p className="text-sm text-muted-foreground">
@@ -29,18 +37,26 @@ export default function Funcionarios() {
       </div>
 
       <Tabs value={tab} onValueChange={setTab}>
-        <TabsList>
+        <TabsList className="print:hidden">
           <TabsTrigger value="folha">Folha do Mês</TabsTrigger>
           <TabsTrigger value="lote">Lote PIX · Inter</TabsTrigger>
+          <TabsTrigger value="holerites">Holerites</TabsTrigger>
           <TabsTrigger value="funcionarios">Funcionários</TabsTrigger>
           <TabsTrigger value="historico">Histórico</TabsTrigger>
         </TabsList>
 
         <TabsContent value="folha" className="mt-6">
-          <FolhaMesTab competencia={competencia} onIrParaLote={() => setTab("lote")} />
+          <FolhaMesTab
+            competencia={competencia}
+            onIrParaLote={() => setTab("lote")}
+            onVerHolerite={() => irParaHolerite(competencia, "fechamento")}
+          />
         </TabsContent>
         <TabsContent value="lote" className="mt-6">
           <LotePixTab competencia={competencia} />
+        </TabsContent>
+        <TabsContent value="holerites" className="mt-6">
+          <HoleritesTab competencia={competencia} tipo={tipoHolerite} onTipoChange={setTipoHolerite} />
         </TabsContent>
         <TabsContent value="funcionarios" className="mt-6">
           <FuncionariosTab />
