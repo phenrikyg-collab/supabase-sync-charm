@@ -322,7 +322,7 @@ function LinhaFuncionario({
       </tr>
       {aberto && (
         <tr className="border-b bg-muted/20">
-          <td colSpan={8} className="p-4">
+          <td colSpan={7} className="p-4">
             <div className="grid gap-4 md:grid-cols-3">
               <div className="text-xs space-y-1">
                 <p><span className="text-muted-foreground">Chave PIX:</span> {f.tipo_chave_pix ?? "—"} · {f.chave_pix ?? "—"}</p>
