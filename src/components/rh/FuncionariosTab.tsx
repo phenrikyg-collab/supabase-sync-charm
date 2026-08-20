@@ -52,7 +52,7 @@ export function FuncionariosTab() {
             va_mensal: f.va_mensal != null ? String(f.va_mensal) : "",
             cesta_valor: f.cesta_valor != null ? String(f.cesta_valor) : "",
             registrada: !!f.registrada,
-            vt_desconto_pct: f.vt_desconto_pct != null ? String(f.vt_desconto_pct) : "0",
+            vt_desconto_pct: f.vt_desconto_pct != null ? String(f.vt_desconto_pct) : "6",
           }
         : { ...vazio }
     );
