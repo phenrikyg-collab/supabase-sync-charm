@@ -46,11 +46,14 @@ const MINI = {
 export function FolhaMesTab({
   competencia,
   onIrParaLote,
+  onVerHolerite,
 }: {
   competencia: string;
   onIrParaLote: () => void;
+  onVerHolerite?: () => void;
 }) {
   const { data, isLoading, refetch } = useFolhaMes(competencia);
+
   const { toast } = useToast();
   const qc = useQueryClient();
   const [gerando, setGerando] = useState(false);
