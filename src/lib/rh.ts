@@ -52,3 +52,27 @@ export const ITEM_STATUS: Record<string, string> = {
   pago: "bg-green-100 text-green-700",
   falha: "bg-red-100 text-red-700",
 };
+
+/** RPCs do RH podem devolver listas como array OU objeto keyed. Normaliza para array. */
+export const comoLista = <T = any>(v: any): T[] =>
+  Array.isArray(v) ? v : v && typeof v === "object" ? (Object.values(v) as T[]) : [];
+
+/** Normaliza `pagamentos` (objeto keyed por tipo) — aceita array como fallback. */
+export const comoMapaPorTipo = <T extends { tipo?: string | null }>(v: any): Record<string, T> => {
+  if (Array.isArray(v)) {
+    const out: Record<string, T> = {};
+    v.filter(Boolean).forEach((p: any, i: number) => { out[p?.tipo ?? String(i)] = p; });
+    return out;
+  }
+  return (v && typeof v === "object" ? v : {}) as Record<string, T>;
+};
+
+/** Normaliza `totais_por_tipo` para objeto numérico. */
+export const comoTotais = (v: any): Record<string, number> => {
+  if (Array.isArray(v)) {
+    const out: Record<string, number> = {};
+    v.filter(Boolean).forEach((t: any) => { if (t?.tipo) out[t.tipo] = Number(t.total ?? t.valor ?? 0); });
+    return out;
+  }
+  return (v && typeof v === "object" ? v : {}) as Record<string, number>;
+};
