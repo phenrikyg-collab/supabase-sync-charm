@@ -56,11 +56,12 @@ export function LotePixTab({ competencia }: { competencia: string }) {
     const { error } = await supabase.rpc("rh_folha_lote_gerar", {
       p_ids: selecionados.map((l) => l.id),
       p_descricao: `Folha ${competenciaLabel(competencia)}`,
-      p_criado_por: user?.email ?? null,
+      p_criado_por: "",
     });
     setGerando(false);
-    if (error) return toast({ title: "Erro ao gerar lote", description: error.message, variant: "destructive" });
+    if (error) return toast({ title: "Erro ao gerar lote", description: erroRh(error).mensagem, variant: "destructive" });
     toast({ title: "Lote(s) criado(s) em rascunho" });
+
     setSel({});
     qc.invalidateQueries({ queryKey: ["rh-folha-mes"] });
     qc.invalidateQueries({ queryKey: ["rh-lotes"] });
