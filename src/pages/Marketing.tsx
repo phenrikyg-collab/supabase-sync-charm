@@ -673,7 +673,9 @@ export default function Marketing() {
           <TabsTrigger value="windsor-produtos">Produtos - Mariana Cardoso</TabsTrigger>
           <TabsTrigger value="windsor-canais">Sessões por Canal - Mariana Cardoso</TabsTrigger>
           <TabsTrigger value="meta-ads">Meta Ads</TabsTrigger>
+          <TabsTrigger value="conjuntos">Conjuntos de Anúncio</TabsTrigger>
           <TabsTrigger value="criativos">Criativos &amp; Performance</TabsTrigger>
+
         </TabsList>
 
         {/* ===== ACOMPANHAMENTO DA META ===== */}
