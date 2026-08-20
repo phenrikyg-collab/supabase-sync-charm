@@ -42,6 +42,15 @@ export function LotePixTab({ competencia }: { competencia: string }) {
     return linhas.sort((a, b) => String(a.vencimento).localeCompare(String(b.vencimento)));
   }, [folha]);
 
+  const saldoSemHolerite = useMemo(
+    () =>
+      (folha?.funcionarios ?? []).some((f: any) => {
+        const s = f.pagamentos?.saldo;
+        return s && (s.status ?? "pendente") === "pendente" && s.valor_liquido == null;
+      }),
+    [folha]
+  );
+
   useEffect(() => {
     const iniciais: Record<string, boolean> = {};
     pendentes.forEach((l) => { if (l.vencimento && l.vencimento.slice(0, 10) <= hojeISO()) iniciais[l.id] = true; });
