@@ -155,7 +155,20 @@ export function FuncionariosTab() {
         <CardTitle className="text-base font-serif">Funcionários</CardTitle>
         <Button size="sm" onClick={() => abrir()}><Plus className="h-3.5 w-3.5 mr-2" />Novo funcionário</Button>
       </CardHeader>
-      <CardContent className="overflow-x-auto">
+      <CardContent className="overflow-x-auto space-y-4">
+        {!!pendentes?.length && (
+          <div className="flex items-start gap-2 rounded-md border border-amber-300 bg-amber-50 p-3 text-xs text-amber-800">
+            <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
+            <div>
+              <p className="font-medium">
+                {pendentes.length} chave(s) PIX aguardando confirmação de titular
+              </p>
+              <p className="mt-0.5">
+                O lote PIX é recusado enquanto houver pendências: {pendentes.map((p: any) => p.nome ?? p.funcionario_nome ?? p.chave_pix).join(", ")}
+              </p>
+            </div>
+          </div>
+        )}
         {isLoading ? (
           <Skeleton className="h-48" />
         ) : (
@@ -181,7 +194,45 @@ export function FuncionariosTab() {
                   </td>
                   <td className="px-3">{dataBRCompleta(f.admissao)}</td>
                   <td className="px-3 text-right tabular-nums">{brl(f.salario_base)}</td>
-                  <td className="px-3 text-xs">{f.tipo_chave_pix ?? "—"} · {f.chave_pix ?? "—"}</td>
+                  <td className="px-3 text-xs align-top">
+                    <div>{f.tipo_chave_pix ?? "—"} · {f.chave_pix ?? "—"}</div>
+                    {f.chave_confirmada || f.titular_confirmado ? (
+                      <span className="mt-1 inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full bg-green-100 text-green-700">
+                        <ShieldCheck className="h-3 w-3" />
+                        {f.titular_confirmado || "titular confirmado"}
+                      </span>
+                    ) : (
+                      <div className="mt-1 space-y-1">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-6 text-[10px]"
+                          disabled={!f.chave_pix || verificando === f.id}
+                          onClick={() => verificarChave(f)}
+                        >
+                          {verificando === f.id ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : null}
+                          Verificar chave Pix
+                        </Button>
+                        {titulares[f.id] && (
+                          <div className="space-y-1">
+                            <div className="text-[10px] text-muted-foreground">
+                              Titular no banco: <span className="font-medium text-foreground">{titulares[f.id]}</span>
+                            </div>
+                            <Button
+                              size="sm"
+                              className="h-6 text-[10px]"
+                              disabled={confirmando === f.id}
+                              onClick={() => confirmarTitular(f)}
+                            >
+                              {confirmando === f.id ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : null}
+                              Confirmar titular
+                            </Button>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </td>
+
                   <td className="px-3">
                     <div className="flex flex-wrap gap-1">
                       {Number(f.vt_diaria) > 0 ? (
