@@ -1,3 +1,4 @@
+import { erroRh } from "./useRhAuth";
 import { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -76,7 +77,7 @@ export function FuncionariosTab() {
       p_vt_desconto_pct: edit.registrada ? Math.min(6, Math.max(0, Number(num(edit.vt_desconto_pct) ?? 0))) : 0,
     } as any);
 
-    if (error) return toast({ title: "Erro ao salvar", description: error.message, variant: "destructive" });
+    if (error) return toast({ title: "Erro ao salvar", description: erroRh(error).mensagem, variant: "destructive" });
     toast({ title: "Funcionário salvo" });
     setEdit(null);
     qc.invalidateQueries({ queryKey: ["rh-funcionarios"] });
