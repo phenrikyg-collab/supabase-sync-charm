@@ -110,28 +110,47 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
-const MODULE_HOME: Record<string, string> = {
-  comercial: "/dashboard-comercial",
-  producao: "/ordens-producao",
-  financeiro: "/dashboard-financeiro",
-  logistica: "/bonificacao-expedicao",
-  marketing: "/marketing",
-};
-
 function HomeRedirect() {
   const { modules, isLoading } = useUserModules();
-  if (isLoading) return (
+  const { isAdmin, isLoading: rolesLoading } = useUserRole();
+  if (isLoading || rolesLoading) return (
     <div className="min-h-[60vh] flex items-center justify-center">
       <Loader2 className="h-8 w-8 animate-spin text-primary" />
     </div>
   );
-  // Admin or full access default
-  if (modules.length === 0 || modules.includes("comercial")) {
-    return <Navigate to="/dashboard-comercial" replace />;
-  }
-  const order: string[] = ["comercial", "financeiro", "producao", "logistica", "marketing"];
-  const first = order.find((m) => modules.includes(m as any)) || "comercial";
+  if (isAdmin) return <Navigate to="/dashboard-comercial" replace />;
+  const order: AppModule[] = ["comercial", "financeiro", "producao", "logistica", "marketing", "rh"];
+  const first = order.find((m) => modules.includes(m));
+  if (!first) return <Navigate to="/tv-interna" replace />;
   return <Navigate to={MODULE_HOME[first]} replace />;
+}
+
+/** Bloqueia rotas sem permissão: redireciona para a home com toast. */
+function ModuleGuard({ children }: { children: React.ReactNode }) {
+  const location = useLocation();
+  const { modules, isLoading } = useUserModules();
+  const { isAdmin, isLoading: rolesLoading } = useUserRole();
+  const { toast } = useToast();
+  const loading = isLoading || rolesLoading;
+  const allowed = canAccess(requirementForPath(location.pathname), isAdmin, modules);
+
+  useEffect(() => {
+    if (!loading && !allowed) {
+      toast({
+        title: "Acesso negado",
+        description: "Você não tem acesso a este módulo",
+        variant: "destructive",
+      });
+    }
+  }, [loading, allowed, location.pathname]);
+
+  if (loading) return (
+    <div className="min-h-[60vh] flex items-center justify-center">
+      <Loader2 className="h-8 w-8 animate-spin text-primary" />
+    </div>
+  );
+  if (!allowed) return <Navigate to="/" replace />;
+  return <>{children}</>;
 }
 
 const AppRoutes = () => {
