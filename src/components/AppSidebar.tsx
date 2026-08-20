@@ -4,6 +4,7 @@ import {
   ShoppingBag, Banknote, Wrench, CreditCard, PieChart, Monitor, Settings, Trophy, CalendarDays, TrendingUp, ClipboardList, Megaphone, Tag, Sparkles, Heart, LayoutGrid,
   Compass, Boxes, UserSquare2, Link as LinkIcon, MessageCircle, Workflow, Mail, ShoppingCart, PackageX, Radar, Ticket,
   BellRing,
+  BadgeDollarSign,
   Filter,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
@@ -162,6 +163,14 @@ const moduleGroups: ModuleGroup[] = [
     icon: MessageCircle,
     items: [
       { title: "Templates, Segmentos e Campanhas", url: "/marketing-whatsapp", icon: MessageCircle },
+    ],
+  },
+  {
+    key: "financeiro",
+    label: "Recursos Humanos",
+    icon: BadgeDollarSign,
+    items: [
+      { title: "Funcionários", url: "/funcionarios", icon: Users },
     ],
   },
   {

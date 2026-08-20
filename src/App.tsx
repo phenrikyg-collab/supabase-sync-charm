@@ -81,6 +81,7 @@ import ProvadorVirtual from "./pages/ProvadorVirtual";
 import Cupons from "./pages/Cupons";
 import ProporCarrinhoPage from "./pages/ProporCarrinhoPage";
 
+import Funcionarios from "./pages/Funcionarios";
 import Automacoes from "./pages/Automacoes";
 import AutomacaoFluxo from "./pages/AutomacaoFluxo";
 import EmailMarketing from "./pages/EmailMarketing";
@@ -227,6 +228,7 @@ const AppRoutes = () => {
 
 
 
+              <Route path="/funcionarios" element={<Funcionarios />} />
               <Route path="/automacoes" element={<Automacoes />} />
               <Route path="/email-marketing" element={<EmailMarketing />} />
               <Route path="/email-marketing/templates/:id" element={<EmailTemplateEditor />} />
