@@ -23,8 +23,11 @@ export interface Holerite {
   total_descontos?: number | null;
   salario_base?: number | null;
   base_inss?: number | null;
+  base_irrf?: number | null;
   base_fgts?: number | null;
   fgts_mes?: number | null;
+  pis?: string | null;
+  rg?: string | null;
   eventos?: HoleriteEvento[] | null;
   dados?: any;
 }
