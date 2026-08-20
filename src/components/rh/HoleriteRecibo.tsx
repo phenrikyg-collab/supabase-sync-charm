@@ -62,13 +62,17 @@ export function HoleriteRecibo({ h, via }: { h: Holerite; via?: string }) {
 
   return (
     <div className="holerite-recibo bg-white text-black border border-black text-[11px] font-sans">
-      <div className="bg-neutral-300 border-b border-black px-2 py-1 text-center font-bold tracking-wide uppercase">
-        Recibo de Pagamento de Salário
+      <div className="bg-neutral-300 border-b border-black px-2 py-1 flex items-center gap-2">
+        <img src="/images/logo.png" alt="Mariana Cardoso" className="h-8 w-8 rounded object-contain" />
+        <div className="flex-1 text-center font-bold tracking-wide uppercase">
+          Recibo de Pagamento de Salário
+        </div>
+        <div className="h-8 w-8" />
       </div>
 
       <div className="flex border-b border-black">
         <div className="flex-1 p-2 space-y-0.5">
-          <div className="font-bold uppercase">{EMPRESA.razao}</div>
+          <div className="font-bold uppercase">Empregador: {EMPRESA.codigo} - {EMPRESA.razao}</div>
           <div>CNPJ: {EMPRESA.cnpj}</div>
           <div>{EMPRESA.endereco}</div>
         </div>
@@ -80,10 +84,12 @@ export function HoleriteRecibo({ h, via }: { h: Holerite; via?: string }) {
         </div>
       </div>
 
-      <div className="grid grid-cols-4 border-b border-black">
+      <div className="grid grid-cols-6 border-b border-black">
         <Celula label="Nome do Funcionário" valor={holeriteNome(h)} className="col-span-2" />
         <Celula label="Função" valor={h.cargo ?? "—"} />
         <Celula label="CPF / Admissão" valor={`${h.cpf ?? "—"} · ${dataBRCompleta(h.admissao)}`} />
+        <Celula label="PIS" valor={h.pis ?? " "} />
+        <Celula label="RG" valor={h.rg ?? " "} />
       </div>
 
       <table className="w-full border-collapse">
