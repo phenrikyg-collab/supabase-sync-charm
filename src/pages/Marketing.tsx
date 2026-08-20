@@ -17,6 +17,7 @@ import { CampanhasSecao, MetricasComplementares, OportunidadesEscala, ResumoProx
 import { FunilLeitura, RedFlags } from "@/components/marketing/FunilLeitura";
 import { CriativosTab } from "@/components/marketing/CriativosTab";
 import { CriativosPerformance } from "@/components/marketing/CriativosPerformance";
+import { ConjuntosAnuncio } from "@/components/marketing/ConjuntosAnuncio";
 
 const fmtBRL = (n: number) =>
   (n || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 2 });
@@ -1041,6 +1042,11 @@ export default function Marketing() {
             </>
 
           )}
+        </TabsContent>
+
+        {/* ===== CONJUNTOS DE ANÚNCIO ===== */}
+        <TabsContent value="conjuntos" className="space-y-6">
+          <ConjuntosAnuncio />
         </TabsContent>
 
         {/* ===== CRIATIVOS & PERFORMANCE ===== */}
