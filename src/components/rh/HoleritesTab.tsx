@@ -1,5 +1,5 @@
 import { erroRh } from "./useRhAuth";
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
@@ -7,12 +7,19 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
-import { Printer, RefreshCw, FileText } from "lucide-react";
+import { Printer, RefreshCw, FileText, Download } from "lucide-react";
 import { brl, competenciaLabel } from "@/lib/rh";
 import { cn } from "@/lib/utils";
 import { Holerite, HoleriteRecibo, holeriteNome, normalizarHolerite } from "./HoleriteRecibo";
 
-export type TipoHolerite = "adiantamento" | "fechamento";
+export type TipoHolerite = "adiantamento" | "fechamento" | "vt" | "va";
+
+const TIPOS: { valor: TipoHolerite; label: string }[] = [
+  { valor: "adiantamento", label: "Adiantamento (dia 20)" },
+  { valor: "fechamento", label: "Fechamento (dia 5)" },
+  { valor: "vt", label: "Recibo VT" },
+  { valor: "va", label: "Recibo VA" },
+];
 
 const PRINT_CSS = `
 @media print {
@@ -26,6 +33,11 @@ const PRINT_CSS = `
 }
 `;
 
+const slug = (s: string) =>
+  s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-zA-Z0-9]+/g, "_").replace(/^_|_$/g, "").toUpperCase();
+
+const prefixo = (tipo: TipoHolerite) => (tipo === "vt" ? "RECIBO_VT" : tipo === "va" ? "RECIBO_VA" : `HOLERITE_${slug(tipo)}`);
+
 export function HoleritesTab({
   competencia,
   tipo,
@@ -37,8 +49,10 @@ export function HoleritesTab({
 }) {
   const { toast } = useToast();
   const [gerando, setGerando] = useState(false);
+  const [baixando, setBaixando] = useState(false);
   const [aberto, setAberto] = useState<Holerite | null>(null);
   const [imprimir, setImprimir] = useState<Holerite[]>([]);
+  const areaRef = useRef<HTMLDivElement>(null);
 
   const { data, isLoading, refetch } = useQuery({
     queryKey: ["rh-holerites", competencia, tipo],
@@ -65,41 +79,87 @@ export function HoleritesTab({
     refetch();
   };
 
-  const disparar = (lista: Holerite[]) => {
+  const montar = (lista: Holerite[]) =>
+    new Promise<void>((resolve) => {
+      setImprimir(lista);
+      setTimeout(resolve, 150);
+    });
+
+  const disparar = async (lista: Holerite[]) => {
     if (!lista.length) return;
-    setImprimir(lista);
-    setTimeout(() => {
-      window.print();
-      setTimeout(() => setImprimir([]), 500);
-    }, 100);
+    await montar(lista);
+    window.print();
+    setTimeout(() => setImprimir([]), 500);
   };
+
+  const baixarPdf = async (lista: Holerite[], nome: string) => {
+    if (!lista.length) return;
+    setBaixando(true);
+    try {
+      await montar(lista);
+      const [{ default: jsPDF }, { default: html2canvas }] = await Promise.all([
+        import("jspdf"),
+        import("html2canvas"),
+      ]);
+      const area = areaRef.current;
+      if (!area) return;
+      area.classList.remove("hidden");
+      const paginas = Array.from(area.querySelectorAll<HTMLElement>(".holerite-pagina"));
+      const pdf = new jsPDF({ unit: "mm", format: "a4", orientation: "portrait" });
+      for (let i = 0; i < paginas.length; i++) {
+        const canvas = await html2canvas(paginas[i], { scale: 2, backgroundColor: "#ffffff" });
+        const img = canvas.toDataURL("image/jpeg", 0.95);
+        const largura = 210 - 12;
+        const altura = Math.min((canvas.height * largura) / canvas.width, 297 - 12);
+        if (i > 0) pdf.addPage();
+        pdf.addImage(img, "JPEG", 6, 6, largura, altura);
+      }
+      pdf.save(`${nome}.pdf`);
+    } catch (e: any) {
+      toast({ title: "Erro ao gerar PDF", description: e?.message, variant: "destructive" });
+    } finally {
+      areaRef.current?.classList.add("hidden");
+      setImprimir([]);
+      setBaixando(false);
+    }
+  };
+
+  const mesTag = competencia.slice(5, 7) + "_" + competencia.slice(0, 4);
 
   return (
     <div className="space-y-6">
       <style>{PRINT_CSS}</style>
 
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div className="inline-flex rounded-md border p-1">
-          {(["adiantamento", "fechamento"] as TipoHolerite[]).map((t) => (
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+        <div className="inline-flex flex-wrap rounded-md border p-1">
+          {TIPOS.map((t) => (
             <button
-              key={t}
-              onClick={() => onTipoChange(t)}
+              key={t.valor}
+              onClick={() => onTipoChange(t.valor)}
               className={cn(
                 "px-3 py-1.5 text-sm rounded",
-                tipo === t ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted"
+                tipo === t.valor ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted"
               )}
             >
-              {t === "adiantamento" ? "Adiantamento (dia 20)" : "Fechamento (dia 5)"}
+              {t.label}
             </button>
           ))}
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <Button variant="outline" size="sm" onClick={() => disparar(holerites)} disabled={!holerites.length}>
             <Printer className="h-3.5 w-3.5 mr-2" />Imprimir todos
           </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={!holerites.length || baixando}
+            onClick={() => baixarPdf(holerites, `${prefixo(tipo)}S_${mesTag}`)}
+          >
+            <Download className={cn("h-3.5 w-3.5 mr-2", baixando && "animate-pulse")} />Baixar todos (PDF)
+          </Button>
           <Button size="sm" onClick={gerar} disabled={gerando}>
             <RefreshCw className={cn("h-3.5 w-3.5 mr-2", gerando && "animate-spin")} />
-            Gerar holerites da competência
+            Gerar da competência
           </Button>
         </div>
       </div>
@@ -111,9 +171,9 @@ export function HoleritesTab({
           <CardContent className="py-16 text-center space-y-3">
             <FileText className="h-8 w-8 mx-auto text-muted-foreground" />
             <p className="text-muted-foreground">
-              Nenhum holerite de {tipo} em {competenciaLabel(competencia)}.
+              Nenhum recibo de {TIPOS.find((t) => t.valor === tipo)?.label.toLowerCase()} em {competenciaLabel(competencia)}.
             </p>
-            <Button onClick={gerar} disabled={gerando}>Gerar holerites da competência</Button>
+            <Button onClick={gerar} disabled={gerando}>Gerar da competência</Button>
           </CardContent>
         </Card>
       ) : (
@@ -123,15 +183,24 @@ export function HoleritesTab({
               <CardContent className="p-4 space-y-2">
                 <div>
                   <p className="font-medium">{holeriteNome(h)}</p>
-                  <p className="text-xs text-muted-foreground capitalize">
+                  <p className="text-xs text-muted-foreground uppercase">
                     {h.tipo ?? tipo} · {competenciaLabel(h.competencia ?? competencia)}
                   </p>
                 </div>
                 <p className="text-xl font-serif font-bold tabular-nums">{brl(h.liquido)}</p>
                 <div className="flex gap-2 pt-1">
                   <Button size="sm" variant="outline" onClick={() => setAberto(h)}>Visualizar</Button>
-                  <Button size="sm" variant="ghost" onClick={() => disparar([h])}>
+                  <Button size="sm" variant="ghost" onClick={() => disparar([h])} title="Imprimir">
                     <Printer className="h-3.5 w-3.5" />
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    title="Baixar PDF"
+                    disabled={baixando}
+                    onClick={() => baixarPdf([h], `${prefixo(tipo)}_${slug(holeriteNome(h))}_${mesTag}`)}
+                  >
+                    <Download className="h-3.5 w-3.5" />
                   </Button>
                 </div>
               </CardContent>
@@ -144,7 +213,11 @@ export function HoleritesTab({
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto bg-white">
           {aberto && (
             <div className="space-y-4">
-              <div className="flex justify-end">
+              <div className="flex justify-end gap-2">
+                <Button size="sm" variant="outline" disabled={baixando}
+                  onClick={() => baixarPdf([aberto], `${prefixo(tipo)}_${slug(holeriteNome(aberto))}_${mesTag}`)}>
+                  <Download className="h-3.5 w-3.5 mr-2" />Baixar PDF
+                </Button>
                 <Button size="sm" onClick={() => disparar([aberto])}>
                   <Printer className="h-3.5 w-3.5 mr-2" />Imprimir
                 </Button>
@@ -155,7 +228,7 @@ export function HoleritesTab({
         </DialogContent>
       </Dialog>
 
-      <div id="rh-print-area" className="hidden">
+      <div id="rh-print-area" ref={areaRef} className="hidden">
         {imprimir.map((h, i) => (
           <div className="holerite-pagina" key={h.id ?? i}>
             <div className="holerite-via"><HoleriteRecibo h={h} via="1ª via - Empresa" /></div>
