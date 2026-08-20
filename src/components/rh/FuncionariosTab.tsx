@@ -34,6 +34,9 @@ export function FuncionariosTab() {
   const { toast } = useToast();
   const qc = useQueryClient();
   const [edit, setEdit] = useState<typeof vazio | null>(null);
+  const [verificando, setVerificando] = useState<string | null>(null);
+  const [confirmando, setConfirmando] = useState<string | null>(null);
+  const [titulares, setTitulares] = useState<Record<string, string>>({});
 
   const { data, isLoading } = useQuery({
     queryKey: ["rh-funcionarios"],
@@ -43,6 +46,61 @@ export function FuncionariosTab() {
       return (data ?? []) as any[];
     },
   });
+
+  const { data: pendentes } = useQuery({
+    queryKey: ["rh-chaves-pendentes"],
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc("rh_chaves_pendentes_confirmacao" as any);
+      if (error) throw error;
+      return (data ?? []) as any[];
+    },
+  });
+
+  const verificarChave = async (f: any) => {
+    setVerificando(f.id);
+    try {
+      const res: any = await invokeEdgeFunction(
+        "inter-verificar-chave",
+        { funcionario_id: f.id },
+        { baseUrl: RH_SUPABASE_URL, anonKey: RH_ANON_KEY },
+      );
+      const titular = res?.titular_no_banco ?? res?.titular ?? null;
+      if (!titular) {
+        toast({ title: "Não foi possível obter o titular", variant: "destructive" });
+        return;
+      }
+      setTitulares((t) => ({ ...t, [f.id]: titular }));
+      toast({ title: "Chave verificada", description: `Titular no banco: ${titular}` });
+    } catch (e: any) {
+      toast({ title: "Erro ao verificar chave", description: e?.message, variant: "destructive" });
+    } finally {
+      setVerificando(null);
+    }
+  };
+
+  const confirmarTitular = async (f: any) => {
+    const titular = titulares[f.id];
+    if (!titular) return;
+    setConfirmando(f.id);
+    const { error } = await supabase.rpc("rh_chave_confirmar" as any, {
+      p_funcionario_id: f.id,
+      p_titular: titular,
+    });
+    setConfirmando(null);
+    if (error) {
+      return toast({ title: "Erro ao confirmar titular", description: erroRh(error).mensagem, variant: "destructive" });
+    }
+    toast({ title: "Titular confirmado" });
+    setTitulares((t) => {
+      const n = { ...t };
+      delete n[f.id];
+      return n;
+    });
+    qc.invalidateQueries({ queryKey: ["rh-funcionarios"] });
+    qc.invalidateQueries({ queryKey: ["rh-chaves-pendentes"] });
+  };
+
+
 
   const abrir = (f?: any) =>
     setEdit(
