@@ -9,8 +9,8 @@ import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
-import { useAuth } from "@/contexts/AuthContext";
 import { useRhAuth, erroRh } from "./useRhAuth";
+
 
 import { RefreshCw, Info } from "lucide-react";
 import { brl, dataBR, hojeISO, competenciaLabel, LOTE_STATUS, ITEM_STATUS, TIPO_LABEL } from "@/lib/rh";
@@ -305,10 +305,11 @@ function AprovarLoteDialog({ lote, onClose, aprovadoPor }: { lote: any | null; o
     const { error } = await supabase.rpc("rh_lote_aprovar", {
       p_lote_id: lote.id,
       p_total_conferido: Number(total.replace(/\./g, "").replace(",", ".")),
-      p_aprovado_por: aprovadoPor || null,
+      p_aprovado_por: "",
     });
     setSalvando(false);
-    if (error) return toast({ title: "Erro ao aprovar", description: error.message, variant: "destructive" });
+    if (error) return toast({ title: "Erro ao aprovar", description: erroRh(error).mensagem, variant: "destructive" });
+
     toast({ title: "Lote aprovado" });
     qc.invalidateQueries({ queryKey: ["rh-lotes"] });
     onClose();
