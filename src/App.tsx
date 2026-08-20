@@ -2,7 +2,8 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
+import { useEffect } from "react";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { AppLayout } from "@/components/AppLayout";
 import Dashboard from "./pages/Dashboard";
@@ -88,7 +89,10 @@ import EmailMarketing from "./pages/EmailMarketing";
 import MarketingWhatsApp from "./pages/MarketingWhatsApp";
 import EmailTemplateEditor from "./pages/EmailTemplateEditor";
 import { Loader2 } from "lucide-react";
-import { useUserModules } from "@/hooks/useUserModules";
+import { useUserModules, type AppModule } from "@/hooks/useUserModules";
+import { useUserRole } from "@/hooks/useUserRole";
+import { useToast } from "@/hooks/use-toast";
+import { canAccess, requirementForPath, MODULE_HOME } from "@/lib/accessControl";
 
 const queryClient = new QueryClient({
   defaultOptions: {
