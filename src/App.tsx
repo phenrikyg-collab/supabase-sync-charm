@@ -169,11 +169,12 @@ const AppRoutes = () => {
   return (
     <Routes>
       <Route path="/login" element={user ? <Navigate to="/" replace /> : <Login />} />
-      <Route path="/tv-interna" element={<TVInterna />} />
-      <Route path="/conteudo" element={<ProtectedRoute><ContentCalendar /></ProtectedRoute>} />
+      <Route path="/tv-interna" element={<ProtectedRoute><TVInterna /></ProtectedRoute>} />
+      <Route path="/conteudo" element={<ProtectedRoute><ModuleGuard><ContentCalendar /></ModuleGuard></ProtectedRoute>} />
       <Route path="*" element={
         <ProtectedRoute>
           <AppLayout>
+            <ModuleGuard>
             <Routes>
               <Route path="/" element={<HomeRedirect />} />
               <Route path="/dashboard-comercial" element={<DashboardComercialPage />} />
