@@ -9,7 +9,9 @@ import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
-import { useAuth } from "@/contexts/AuthContext";
+import { useRhAuth, erroRh } from "./useRhAuth";
+
+
 import { RefreshCw, Info } from "lucide-react";
 import { brl, dataBR, hojeISO, competenciaLabel, LOTE_STATUS, ITEM_STATUS, TIPO_LABEL } from "@/lib/rh";
 import { useFolhaMes } from "./useFolha";
@@ -18,7 +20,7 @@ import { cn } from "@/lib/utils";
 export function LotePixTab({ competencia }: { competencia: string }) {
   const { data: folha, isLoading } = useFolhaMes(competencia);
   const { toast } = useToast();
-  const { user } = useAuth();
+  
   const qc = useQueryClient();
   const [sel, setSel] = useState<Record<string, boolean>>({});
   const [gerando, setGerando] = useState(false);
@@ -54,11 +56,12 @@ export function LotePixTab({ competencia }: { competencia: string }) {
     const { error } = await supabase.rpc("rh_folha_lote_gerar", {
       p_ids: selecionados.map((l) => l.id),
       p_descricao: `Folha ${competenciaLabel(competencia)}`,
-      p_criado_por: user?.email ?? null,
+      p_criado_por: "",
     });
     setGerando(false);
-    if (error) return toast({ title: "Erro ao gerar lote", description: error.message, variant: "destructive" });
+    if (error) return toast({ title: "Erro ao gerar lote", description: erroRh(error).mensagem, variant: "destructive" });
     toast({ title: "Lote(s) criado(s) em rascunho" });
+
     setSel({});
     qc.invalidateQueries({ queryKey: ["rh-folha-mes"] });
     qc.invalidateQueries({ queryKey: ["rh-lotes"] });
@@ -124,10 +127,13 @@ export function LotePixTab({ competencia }: { competencia: string }) {
 
 function ListaLotes() {
   const { toast } = useToast();
-  const { user } = useAuth();
   const qc = useQueryClient();
+  const { operador } = useRhAuth();
   const [detalhe, setDetalhe] = useState<any | null>(null);
   const [aprovar, setAprovar] = useState<any | null>(null);
+
+  const podeAprovar = operador ? operador.pode_aprovar !== false : true;
+  const podeExecutar = operador ? operador.pode_executar !== false : true;
 
   const { data: lotes, isLoading, refetch, isFetching } = useQuery({
     queryKey: ["rh-lotes"],
@@ -140,7 +146,7 @@ function ListaLotes() {
 
   const cancelar = async (id: string) => {
     const { error } = await supabase.rpc("rh_lote_cancelar", { p_lote_id: id });
-    if (error) return toast({ title: "Erro", description: error.message, variant: "destructive" });
+    if (error) return toast({ title: "Erro", description: erroRh(error).mensagem, variant: "destructive" });
     toast({ title: "Lote cancelado" });
     qc.invalidateQueries({ queryKey: ["rh-lotes"] });
     qc.invalidateQueries({ queryKey: ["rh-folha-mes"] });
@@ -148,10 +154,18 @@ function ListaLotes() {
 
   const executar = async (id: string) => {
     const { error } = await supabase.functions.invoke("inter-executar-lote", { body: { lote_id: id } });
-    if (error) return toast({ title: "Erro ao executar", description: error.message, variant: "destructive" });
+    if (error) {
+      const status = (error as any)?.context?.status;
+      return toast({
+        title: "Erro ao executar",
+        description: status === 403 ? "Você não tem permissão para executar pagamentos." : error.message,
+        variant: "destructive",
+      });
+    }
     toast({ title: "Execução disparada" });
     qc.invalidateQueries({ queryKey: ["rh-lotes"] });
   };
+
 
   return (
     <Card>
@@ -180,15 +194,27 @@ function ListaLotes() {
                     {competenciaLabel(l.competencia)} · {l.qtd ?? l.qtd_itens ?? 0} itens · {brl(l.total_previsto)}
                   </p>
                 </div>
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                   {l.status === "rascunho" && (
                     <>
-                      <Button size="sm" onClick={() => setAprovar(l)}>Conferir e aprovar</Button>
+                      <span title={podeAprovar ? undefined : "Sua conta não tem permissão para aprovar a folha."}>
+                        <Button size="sm" disabled={!podeAprovar} onClick={() => setAprovar(l)}>Conferir e aprovar</Button>
+                      </span>
+                      {!podeAprovar && (
+                        <span className="text-[10px] text-muted-foreground">Sem permissão para aprovar</span>
+                      )}
                       <Button size="sm" variant="outline" onClick={() => cancelar(l.id)}>Cancelar lote</Button>
                     </>
                   )}
                   {l.status === "aprovado" && (
-                    <Button size="sm" onClick={() => executar(l.id)}>Executar pagamentos</Button>
+                    <>
+                      <span title={podeExecutar ? undefined : "Sua conta não tem permissão para executar pagamentos."}>
+                        <Button size="sm" disabled={!podeExecutar} onClick={() => executar(l.id)}>Pagar agora</Button>
+                      </span>
+                      {!podeExecutar && (
+                        <span className="text-[10px] text-muted-foreground">Sem permissão para pagar</span>
+                      )}
+                    </>
                   )}
                   <Button size="sm" variant="ghost" onClick={() => setDetalhe(l)}>Ver detalhe</Button>
                 </div>
@@ -199,7 +225,8 @@ function ListaLotes() {
       </CardContent>
 
       <DetalheLoteDialog lote={detalhe} onClose={() => setDetalhe(null)} />
-      <AprovarLoteDialog lote={aprovar} onClose={() => setAprovar(null)} aprovadoPor={user?.email ?? ""} />
+      <AprovarLoteDialog lote={aprovar} onClose={() => setAprovar(null)} aprovadoPor="" />
+
     </Card>
   );
 }
@@ -278,10 +305,11 @@ function AprovarLoteDialog({ lote, onClose, aprovadoPor }: { lote: any | null; o
     const { error } = await supabase.rpc("rh_lote_aprovar", {
       p_lote_id: lote.id,
       p_total_conferido: Number(total.replace(/\./g, "").replace(",", ".")),
-      p_aprovado_por: aprovadoPor || null,
+      p_aprovado_por: "",
     });
     setSalvando(false);
-    if (error) return toast({ title: "Erro ao aprovar", description: error.message, variant: "destructive" });
+    if (error) return toast({ title: "Erro ao aprovar", description: erroRh(error).mensagem, variant: "destructive" });
+
     toast({ title: "Lote aprovado" });
     qc.invalidateQueries({ queryKey: ["rh-lotes"] });
     onClose();

@@ -6,6 +6,8 @@ import { LotePixTab } from "@/components/rh/LotePixTab";
 import { FuncionariosTab } from "@/components/rh/FuncionariosTab";
 import { HistoricoTab } from "@/components/rh/HistoricoTab";
 import { HoleritesTab, TipoHolerite } from "@/components/rh/HoleritesTab";
+import { RhAuthGate } from "@/components/rh/RhAuthGate";
+
 
 export default function Funcionarios() {
   const hoje = new Date();
@@ -59,8 +61,11 @@ export default function Funcionarios() {
           <HoleritesTab competencia={competencia} tipo={tipoHolerite} onTipoChange={setTipoHolerite} />
         </TabsContent>
         <TabsContent value="funcionarios" className="mt-6">
-          <FuncionariosTab />
+          <RhAuthGate>
+            <FuncionariosTab />
+          </RhAuthGate>
         </TabsContent>
+
         <TabsContent value="historico" className="mt-6">
           <HistoricoTab />
         </TabsContent>
