@@ -301,7 +301,14 @@ function LinhaFuncionario({
           <div className="flex items-center gap-2">
             <ChevronDown className={cn("h-3.5 w-3.5 transition-transform", aberto && "rotate-180")} />
             <div>
-              <div className="font-medium">{f.nome}</div>
+              <div className="font-medium flex items-center gap-2">
+                {f.nome}
+                {Number(f.faltas) > 0 && (
+                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-red-100 text-red-700">
+                    {f.faltas} faltas
+                  </span>
+                )}
+              </div>
               <div className="text-xs text-muted-foreground">{f.cargo ?? "—"}</div>
             </div>
           </div>
