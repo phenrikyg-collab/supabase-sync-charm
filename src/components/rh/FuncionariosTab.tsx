@@ -196,7 +196,7 @@ export function FuncionariosTab() {
                   <div className="flex items-center gap-2">
                     <Switch
                       checked={edit.registrada}
-                      onCheckedChange={(v) => setEdit({ ...edit, registrada: v, vt_desconto_pct: v ? edit.vt_desconto_pct : "0" })}
+                      onCheckedChange={(v) => setEdit({ ...edit, registrada: v, vt_desconto_pct: v ? (edit.vt_desconto_pct || "6") : "0" })}
                     />
                     <Label className="text-xs">Registrada (CLT)</Label>
                   </div>
@@ -215,7 +215,7 @@ export function FuncionariosTab() {
                       onChange={(e) => setEdit({ ...edit, vt_desconto_pct: e.target.value })}
                     />
                     <p className="text-[10px] text-muted-foreground">
-                      0% = empresa paga o VT integral (máximo 6%)
+                      padrão 6% (máximo legal); 0% = empresa paga o VT integral
                     </p>
                   </Campo>
                 )}
