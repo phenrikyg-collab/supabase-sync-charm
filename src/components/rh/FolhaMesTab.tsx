@@ -157,10 +157,9 @@ export function FolhaMesTab({
                 <th className="text-left py-2 pr-3">Funcionário</th>
                 <th className="text-right px-3">Salário base</th>
                 <th className="text-right px-3">Adiant. 40%</th>
-                <th className="text-right px-3">Saldo 60%</th>
+                <th className="text-right px-3">Saldo líq. (dia 5)</th>
                 <th className="text-right px-3">VT</th>
                 <th className="text-right px-3">VA (Ticket)</th>
-                <th className="text-right px-3">Cesta</th>
                 <th className="text-right pl-3">Custo do mês</th>
               </tr>
             </thead>
