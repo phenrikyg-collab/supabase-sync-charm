@@ -85,6 +85,12 @@ export default function Funcionarios() {
           <HistoricoTab />
         </TabsContent>
       </Tabs>
+
+      <FeriadosDialog
+        open={feriadosAberto}
+        onOpenChange={setFeriadosAberto}
+        ano={Number(mesAno.slice(0, 4))}
+      />
     </div>
   );
 }
