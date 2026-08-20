@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -293,14 +293,28 @@ function LinhaFuncionario({
                 <p><span className="text-muted-foreground">Admissão:</span> {dataBRCompleta(f.admissao)}</p>
               </div>
               <div className="space-y-2">
-                <Label className="text-xs">Saldo líquido do fechamento</Label>
+                <div className="flex items-center justify-between">
+                  <Label className="text-xs">Saldo líquido do fechamento</Label>
+                  {onVerHolerite && (
+                    <button
+                      type="button"
+                      className="text-[10px] underline text-primary"
+                      onClick={onVerHolerite}
+                    >
+                      Ver holerite
+                    </button>
+                  )}
+                </div>
                 <Input value={liquido} onChange={(e) => setLiquido(e.target.value)} placeholder="0,00" />
-                {saldo && saldo.valor_liquido == null && (
+                {saldo && saldo.valor_liquido == null ? (
                   <p className="text-[10px] text-muted-foreground">
-                    {brl(saldo.valor_bruto ?? saldo.valor)} bruto — lançar líquido no fechamento
+                    {brl(saldo.valor_bruto ?? saldo.valor)} bruto — gere o holerite de fechamento ou lance o líquido
                   </p>
+                ) : (
+                  <p className="text-[10px] text-muted-foreground">Preenchido pelo holerite — editável</p>
                 )}
               </div>
+
               <div className="space-y-2">
                 <Label className="text-xs">Observação</Label>
                 <Input value={obs} onChange={(e) => setObs(e.target.value)} placeholder="Faltas, descontos..." />
