@@ -55,7 +55,6 @@ DECLARE
   r        record;
   v_def    text;
   v_novo   text;
-  v_pos    int;
   v_feitas text[] := '{}';
 BEGIN
   FOR r IN
@@ -71,9 +70,7 @@ BEGIN
   LOOP
     v_def := pg_get_functiondef(r.oid);
 
-    -- localiza o primeiro BEGIN do corpo (início do bloco executável)
-    v_pos := (regexp_match(v_def, '\mBEGIN\M', 'i'))[1] IS NOT NULL
-             AND true;
+    -- injeta a chamada logo após o primeiro BEGIN do corpo
     v_novo := regexp_replace(
       v_def,
       '(\mBEGIN\M)',
