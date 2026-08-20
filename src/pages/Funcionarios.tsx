@@ -38,8 +38,18 @@ export default function Funcionarios() {
             Adiantamento 40% (dia 20) · Saldo 60% (dia 5 do mês seguinte) · VT e cesta dia 5 · VA pedido na Ticket até dia 28 do mês anterior.
           </p>
         </div>
-        <div className="w-44">
-          <Input type="month" value={mesAno} onChange={(e) => setMesAno(e.target.value)} />
+        <div className="flex items-center gap-3">
+          <div className="w-44">
+            <Input type="month" value={mesAno} onChange={(e) => setMesAno(e.target.value)} />
+          </div>
+          {diasUteis != null && (
+            <span className="text-xs px-2.5 py-1 rounded-full bg-primary/10 text-primary whitespace-nowrap">
+              {diasUteis} dias úteis ·{" "}
+              <button type="button" className="underline" onClick={() => setFeriadosAberto(true)}>
+                feriados
+              </button>
+            </span>
+          )}
         </div>
       </div>
 
