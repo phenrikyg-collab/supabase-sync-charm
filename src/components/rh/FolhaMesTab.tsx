@@ -181,7 +181,7 @@ export function FolhaMesTab({
               <tr className="border-t font-medium">
                 <td className="py-2 pr-3">Totais</td>
                 <td className="text-right px-3">—</td>
-                {["adiantamento", "saldo", "vt", "va", "cesta"].map((t) => (
+                {["adiantamento", "saldo", "vt", "va"].map((t) => (
                   <td key={t} className="text-right px-3 tabular-nums">{brl(totais[t] ?? 0)}</td>
                 ))}
                 <td className="text-right pl-3 tabular-nums">{brl(custoTotalTabela)}</td>
