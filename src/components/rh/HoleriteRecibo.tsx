@@ -33,6 +33,7 @@ export interface Holerite {
 }
 
 const EMPRESA = {
+  codigo: "76",
   razao: "MP CONFECCOES LTDA",
   cnpj: "33.275.957/0001-08",
   endereco: "Pc Presidente Vargas, 4 - Vila Assuncao - Santo André/SP - 09030-325",
