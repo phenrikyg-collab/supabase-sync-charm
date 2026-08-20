@@ -260,6 +260,7 @@ const AppRoutes = () => {
               <Route path="/automacoes/:id" element={<AutomacaoFluxo />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
+            </ModuleGuard>
           </AppLayout>
         </ProtectedRoute>
       } />
