@@ -156,16 +156,18 @@ export function HoleriteRecibo({ h, via }: { h: Holerite; via?: string }) {
         </tfoot>
       </table>
 
-      <div className="grid grid-cols-5 border-t border-black">
-        <Celula label="Salário Base" valor={brl(h.salario_base)} />
-        <Celula label="Base INSS" valor={brl(h.base_inss)} />
-        <Celula label="Base IRRF" valor={brl(h.base_irrf)} />
-        <Celula label="Base FGTS" valor={brl(h.base_fgts)} />
-        <Celula label="FGTS do Mês" valor={brl(h.fgts_mes)} />
-      </div>
+      {!beneficio && (
+        <div className="grid grid-cols-5 border-t border-black">
+          <Celula label="Salário Base" valor={brl(h.salario_base)} />
+          <Celula label="Base INSS" valor={brl(h.base_inss)} />
+          <Celula label="Base IRRF" valor={brl(h.base_irrf)} />
+          <Celula label="Base FGTS" valor={brl(h.base_fgts)} />
+          <Celula label="FGTS do Mês" valor={brl(h.fgts_mes)} />
+        </div>
+      )}
 
       <div className="border-t border-black p-3 space-y-6">
-        <p className="text-[10px]">Declaro ter recebido a importância líquida discriminada neste recibo.</p>
+        <p className="text-[10px]">{declaracao(h.tipo, h.competencia)}</p>
         <div className="flex gap-8 items-end">
           <div className="w-40">
             <div className="border-b border-black h-5" />
