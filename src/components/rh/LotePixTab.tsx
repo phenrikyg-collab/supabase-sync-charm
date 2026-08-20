@@ -20,7 +20,7 @@ import { cn } from "@/lib/utils";
 export function LotePixTab({ competencia }: { competencia: string }) {
   const { data: folha, isLoading } = useFolhaMes(competencia);
   const { toast } = useToast();
-  const { user } = useAuth();
+  
   const qc = useQueryClient();
   const [sel, setSel] = useState<Record<string, boolean>>({});
   const [gerando, setGerando] = useState(false);
