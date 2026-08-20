@@ -183,7 +183,10 @@ export function FuncionariosTab() {
                   <p className="text-[10px] text-muted-foreground">usado apenas se a passagem diária estiver zerada</p>
                 </Campo>
                 <Campo label="VA mensal (Ticket)"><Input value={edit.va_mensal} onChange={(e) => setEdit({ ...edit, va_mensal: e.target.value })} placeholder="0,00" /></Campo>
-                <Campo label="Cesta básica"><Input value={edit.cesta_valor} onChange={(e) => setEdit({ ...edit, cesta_valor: e.target.value })} placeholder="0,00" /></Campo>
+                <Campo label="Cesta básica (R$)">
+                  <Input value={edit.cesta_valor} onChange={(e) => setEdit({ ...edit, cesta_valor: e.target.value })} placeholder="0,00" />
+                  <p className="text-[10px] text-muted-foreground">paga dentro do fechamento, como provento do holerite</p>
+                </Campo>
                 <Campo label="Observação"><Input value={edit.observacao} onChange={(e) => setEdit({ ...edit, observacao: e.target.value })} /></Campo>
                 <div className="flex items-center gap-2 pt-6">
                   <Switch checked={edit.ativo} onCheckedChange={(v) => setEdit({ ...edit, ativo: v })} />
