@@ -193,15 +193,27 @@ function ListaLotes() {
                     {competenciaLabel(l.competencia)} · {l.qtd ?? l.qtd_itens ?? 0} itens · {brl(l.total_previsto)}
                   </p>
                 </div>
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                   {l.status === "rascunho" && (
                     <>
-                      <Button size="sm" onClick={() => setAprovar(l)}>Conferir e aprovar</Button>
+                      <span title={podeAprovar ? undefined : "Sua conta não tem permissão para aprovar a folha."}>
+                        <Button size="sm" disabled={!podeAprovar} onClick={() => setAprovar(l)}>Conferir e aprovar</Button>
+                      </span>
+                      {!podeAprovar && (
+                        <span className="text-[10px] text-muted-foreground">Sem permissão para aprovar</span>
+                      )}
                       <Button size="sm" variant="outline" onClick={() => cancelar(l.id)}>Cancelar lote</Button>
                     </>
                   )}
                   {l.status === "aprovado" && (
-                    <Button size="sm" onClick={() => executar(l.id)}>Executar pagamentos</Button>
+                    <>
+                      <span title={podeExecutar ? undefined : "Sua conta não tem permissão para executar pagamentos."}>
+                        <Button size="sm" disabled={!podeExecutar} onClick={() => executar(l.id)}>Pagar agora</Button>
+                      </span>
+                      {!podeExecutar && (
+                        <span className="text-[10px] text-muted-foreground">Sem permissão para pagar</span>
+                      )}
+                    </>
                   )}
                   <Button size="sm" variant="ghost" onClick={() => setDetalhe(l)}>Ver detalhe</Button>
                 </div>
@@ -212,7 +224,8 @@ function ListaLotes() {
       </CardContent>
 
       <DetalheLoteDialog lote={detalhe} onClose={() => setDetalhe(null)} />
-      <AprovarLoteDialog lote={aprovar} onClose={() => setAprovar(null)} aprovadoPor={user?.email ?? ""} />
+      <AprovarLoteDialog lote={aprovar} onClose={() => setAprovar(null)} aprovadoPor="" />
+
     </Card>
   );
 }
