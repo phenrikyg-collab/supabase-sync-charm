@@ -20,7 +20,7 @@ const TIPOS_CHAVE = ["cpf", "cnpj", "email", "telefone", "aleatoria"];
 const vazio = {
   id: null as string | null, nome: "", cpf: "", cargo: "", chave_pix: "", tipo_chave_pix: "cpf",
   ativo: true, observacao: "", admissao: "", salario_base: "", vt_mensal: "", va_mensal: "", cesta_valor: "",
-  registrada: false, vt_desconto_pct: "0",
+  registrada: false, vt_desconto_pct: "0", vt_diaria: "",
 };
 
 
@@ -48,6 +48,7 @@ export function FuncionariosTab() {
             admissao: f.admissao ? String(f.admissao).slice(0, 10) : "",
             salario_base: f.salario_base != null ? String(f.salario_base) : "",
             vt_mensal: f.vt_mensal != null ? String(f.vt_mensal) : "",
+            vt_diaria: f.vt_diaria != null ? String(f.vt_diaria) : "",
             va_mensal: f.va_mensal != null ? String(f.va_mensal) : "",
             cesta_valor: f.cesta_valor != null ? String(f.cesta_valor) : "",
             registrada: !!f.registrada,
@@ -71,6 +72,7 @@ export function FuncionariosTab() {
       p_admissao: edit.admissao || null,
       p_salario_base: num(edit.salario_base),
       p_vt_mensal: num(edit.vt_mensal),
+      p_vt_diaria: num(edit.vt_diaria),
       p_va_mensal: num(edit.va_mensal),
       p_cesta_valor: num(edit.cesta_valor),
       p_registrada: edit.registrada,
@@ -118,7 +120,11 @@ export function FuncionariosTab() {
                   <td className="px-3 text-xs">{f.tipo_chave_pix ?? "—"} · {f.chave_pix ?? "—"}</td>
                   <td className="px-3">
                     <div className="flex flex-wrap gap-1">
-                      {Number(f.vt_mensal) > 0 && <Chip>VT {brl(f.vt_mensal)}</Chip>}
+                      {Number(f.vt_diaria) > 0 ? (
+                        <Chip>VT {brl(f.vt_diaria)}/dia</Chip>
+                      ) : Number(f.vt_mensal) > 0 ? (
+                        <Chip>VT {brl(f.vt_mensal)}</Chip>
+                      ) : null}
                       {Number(f.va_mensal) > 0 && <Chip>VA {brl(f.va_mensal)}</Chip>}
                       {Number(f.cesta_valor) > 0 && <Chip>Cesta {brl(f.cesta_valor)}</Chip>}
                     </div>
@@ -168,7 +174,14 @@ export function FuncionariosTab() {
                 </Campo>
                 <Campo label="Chave PIX"><Input value={edit.chave_pix} onChange={(e) => setEdit({ ...edit, chave_pix: e.target.value })} /></Campo>
                 <Campo label="Salário base"><Input value={edit.salario_base} onChange={(e) => setEdit({ ...edit, salario_base: e.target.value })} placeholder="0,00" /></Campo>
-                <Campo label="VT mensal"><Input value={edit.vt_mensal} onChange={(e) => setEdit({ ...edit, vt_mensal: e.target.value })} placeholder="0,00" /></Campo>
+                <Campo label="Passagem diária (R$)">
+                  <Input value={edit.vt_diaria} onChange={(e) => setEdit({ ...edit, vt_diaria: e.target.value })} placeholder="0,00" />
+                  <p className="text-[10px] text-muted-foreground">VT do mês = diária × dias úteis (menos feriados e faltas)</p>
+                </Campo>
+                <Campo label="VT fixo mensal (R$)">
+                  <Input value={edit.vt_mensal} onChange={(e) => setEdit({ ...edit, vt_mensal: e.target.value })} placeholder="0,00" />
+                  <p className="text-[10px] text-muted-foreground">usado apenas se a passagem diária estiver zerada</p>
+                </Campo>
                 <Campo label="VA mensal (Ticket)"><Input value={edit.va_mensal} onChange={(e) => setEdit({ ...edit, va_mensal: e.target.value })} placeholder="0,00" /></Campo>
                 <Campo label="Cesta básica"><Input value={edit.cesta_valor} onChange={(e) => setEdit({ ...edit, cesta_valor: e.target.value })} placeholder="0,00" /></Campo>
                 <Campo label="Observação"><Input value={edit.observacao} onChange={(e) => setEdit({ ...edit, observacao: e.target.value })} /></Campo>
