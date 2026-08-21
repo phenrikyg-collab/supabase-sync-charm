@@ -31,6 +31,40 @@ function formatCurrency(v: number | null | undefined) {
   return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v);
 }
 
+type Natureza = "todos" | "pedidos" | "custos";
+
+const RE_CUSTOS = /(taxa|tarifa|gateway|vindi|yapay|adquir|antecipa|das\b|simples nacional|imposto|icms|iss|pis|cofins|irpj|csll|mdr|juros|encargo)/i;
+const RE_PEDIDOS = /(pedido|venda|receita|faturamento|desconto|estorno|devolu|cupom|frete cobrado|bling|tray)/i;
+
+function naturezaDe(texto: string, tipo: string | null | undefined): Natureza {
+  if (RE_CUSTOS.test(texto)) return "custos";
+  if (RE_PEDIDOS.test(texto)) return "pedidos";
+  if ((tipo ?? "").toLowerCase() === "entrada") return "pedidos";
+  return "custos";
+}
+
+const ATALHOS_PERIODO = [
+  { key: "hoje", label: "Hoje" },
+  { key: "7d", label: "7 dias" },
+  { key: "30d", label: "30 dias" },
+  { key: "mes", label: "Mês atual" },
+] as const;
+
+type AtalhoPeriodo = (typeof ATALHOS_PERIODO)[number]["key"] | null;
+
+function intervaloAtalho(a: AtalhoPeriodo): { de: string; ate: string } | null {
+  if (!a) return null;
+  const hoje = new Date();
+  const ate = format(hoje, "yyyy-MM-dd");
+  if (a === "hoje") return { de: ate, ate };
+  if (a === "mes") return { de: format(new Date(hoje.getFullYear(), hoje.getMonth(), 1), "yyyy-MM-dd"), ate };
+  const dias = a === "7d" ? 7 : 30;
+  const de = new Date(hoje);
+  de.setDate(de.getDate() - (dias - 1));
+  return { de: format(de, "yyyy-MM-dd"), ate };
+}
+
+
 export default function Financeiro() {
   const { data: movs, isLoading } = useMovimentacoesFinanceiras();
   const { data: categorias } = useCategorias();
@@ -60,6 +94,9 @@ export default function Financeiro() {
   const [sortKey, setSortKey] = useState<SortKey>("data");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
   const [currentPage, setCurrentPage] = useState(1);
+  const [natureza, setNatureza] = useState<Natureza>("todos");
+  const [atalho, setAtalho] = useState<AtalhoPeriodo>(null);
+
 
   const mesesDisponiveis = useMemo(() => {
     const meses = new Set<string>();
@@ -68,6 +105,20 @@ export default function Financeiro() {
     });
     return Array.from(meses).sort().reverse();
   }, [movs]);
+
+  const categoriasUnicas = useMemo(() => {
+    const vistos = new Set<string>();
+    return [...(categorias ?? [])]
+      .sort((a, b) => (a.nome_categoria ?? "").localeCompare(b.nome_categoria ?? "", "pt-BR"))
+      .filter((c) => {
+        const chave = `${(c.nome_categoria ?? "").trim().toLowerCase()}|${(c.descricao_categoria ?? "").trim().toLowerCase()}`;
+        if (vistos.has(chave)) return false;
+        vistos.add(chave);
+        return true;
+      });
+  }, [categorias]);
+
+
 
   const sortedCategorias = useMemo(() => 
     [...(categorias ?? [])].sort((a, b) => (a.nome_categoria ?? "").localeCompare(b.nome_categoria ?? "", "pt-BR")),
@@ -113,8 +164,21 @@ export default function Financeiro() {
 
   const filtered = useMemo(() => {
     const busca = filtroBusca.toLowerCase().trim();
+    const janela = intervaloAtalho(atalho);
     return (movs ?? []).filter((m) => {
-      if (filtroPeriodo !== "todos" && m.data && !m.data.startsWith(filtroPeriodo)) return false;
+      if (janela) {
+        const d = (m.data ?? "").slice(0, 10);
+        if (!d || d < janela.de || d > janela.ate) return false;
+      } else if (filtroPeriodo !== "todos" && m.data && !m.data.startsWith(filtroPeriodo)) return false;
+      if (natureza !== "todos") {
+        const texto = [
+          m.descricao ?? "",
+          catMap[m.categoria_id ?? ""] ?? "",
+          catDescMap[m.categoria_id ?? ""] ?? "",
+          m.origem ?? "",
+        ].join(" ");
+        if (naturezaDe(texto, m.tipo) !== natureza) return false;
+      }
       if (filtroTipo !== "todos" && m.tipo !== filtroTipo) return false;
       if (filtroCategoria !== "todos" && m.categoria_id !== filtroCategoria) return false;
       if (filtroDescCategoria !== "todos") {
@@ -124,6 +188,7 @@ export default function Financeiro() {
       if (filtroCentro !== "todos" && m.centro_custo_id !== filtroCentro) return false;
       if (filtroOrigem !== "todos" && m.origem !== filtroOrigem) return false;
       if (filtroStatus !== "todos" && (m.status_pagamento ?? "em_aberto") !== filtroStatus) return false;
+
       if (busca) {
         const desc = (m.descricao ?? "").toLowerCase();
         const cat = (catMap[m.categoria_id ?? ""] ?? "").toLowerCase();
@@ -133,7 +198,7 @@ export default function Financeiro() {
       }
       return true;
     });
-  }, [movs, filtroPeriodo, filtroTipo, filtroCategoria, filtroDescCategoria, filtroCentro, filtroOrigem, filtroStatus, filtroBusca, catMap, descCatToIds]);
+  }, [movs, filtroPeriodo, atalho, natureza, filtroTipo, filtroCategoria, filtroDescCategoria, filtroCentro, filtroOrigem, filtroStatus, filtroBusca, catMap, catDescMap, descCatToIds]);
 
   const origens = [...new Set(movs?.map((m) => m.origem).filter(Boolean) ?? [])];
   const tipos = [...new Set(movs?.map((m) => m.tipo).filter(Boolean) ?? [])];
@@ -317,6 +382,61 @@ export default function Financeiro() {
           <h1 className="text-3xl font-serif font-bold text-foreground">Transações</h1>
           <p className="text-sm text-muted-foreground mt-1">{filtered.length} transações</p>
         </div>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => {
+            queryClient.invalidateQueries({ queryKey: ["categorias"] });
+            toast.success("Lista de categorias recarregada");
+          }}
+        >
+          Recarregar categorias
+        </Button>
+      </div>
+
+      {/* Natureza */}
+      <div className="flex flex-wrap gap-2">
+        {([
+          { key: "todos", label: "Todos" },
+          { key: "pedidos", label: "Pedidos" },
+          { key: "custos", label: "Taxas e Custos" },
+        ] as { key: Natureza; label: string }[]).map((n) => (
+          <button
+            key={n.key}
+            onClick={() => { setNatureza(n.key); setCurrentPage(1); setSelectedIds(new Set()); }}
+            className={cn(
+              "rounded-full border px-4 py-1.5 text-sm font-medium transition-colors",
+              natureza === n.key
+                ? "border-primary bg-primary text-primary-foreground"
+                : "border-border text-muted-foreground hover:bg-muted"
+            )}
+          >
+            {n.label}
+          </button>
+        ))}
+        <span className="mx-1 hidden w-px self-stretch bg-border sm:block" />
+        {ATALHOS_PERIODO.map((a) => (
+          <button
+            key={a.key}
+            onClick={() => { setAtalho((prev) => (prev === a.key ? null : a.key)); setCurrentPage(1); }}
+            className={cn(
+              "rounded-full border px-3 py-1.5 text-xs font-medium transition-colors",
+              atalho === a.key
+                ? "border-primary bg-primary/10 text-primary"
+                : "border-border text-muted-foreground hover:bg-muted"
+            )}
+          >
+            {a.label}
+          </button>
+        ))}
+        {atalho && (
+          <button
+            onClick={() => setAtalho(null)}
+            className="rounded-full border border-border px-3 py-1.5 text-xs text-muted-foreground hover:bg-muted"
+          >
+            Limpar período rápido
+          </button>
+        )}
       </div>
 
       {/* Search bar */}
@@ -334,6 +454,7 @@ export default function Financeiro() {
           </button>
         )}
       </div>
+
 
       <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3">
         <Select value={filtroPeriodo} onValueChange={setFiltroPeriodo}>
@@ -358,7 +479,7 @@ export default function Financeiro() {
           <SelectTrigger><SelectValue placeholder="Categoria" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="todos">Todas</SelectItem>
-            {categorias?.map((c) => <SelectItem key={c.id} value={c.id}>{c.nome_categoria}</SelectItem>)}
+            {categoriasUnicas.map((c) => <SelectItem key={c.id} value={c.id}>{c.nome_categoria}</SelectItem>)}
           </SelectContent>
         </Select>
         <Select value={filtroDescCategoria} onValueChange={setFiltroDescCategoria}>
