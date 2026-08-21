@@ -279,78 +279,50 @@ export default function PedidosLucro() {
           </CardHeader>
           <CardContent className="overflow-x-auto">
             <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Pedido</TableHead>
-                  <SortableHead campo="data" sort={sort} onSort={alternar}>Data</SortableHead>
-                  <TableHead>Canal</TableHead>
-                  <TableHead>Pagamento</TableHead>
-                  <TableHead>Cliente novo</TableHead>
-                  <TableHead className="text-right">Receita líq.</TableHead>
-                  <TableHead className="text-right">CMV</TableHead>
-                  <TableHead className="text-right">Taxa gateway</TableHead>
-                  <TableHead className="text-right">DAS</TableHead>
-                  <TableHead className="text-right">CAC</TableHead>
-                  <TableHead className="text-right">Frete real</TableHead>
-                  <TableHead className="text-right">Margem</TableHead>
-                  <SortableHead campo="margem_pct" sort={sort} onSort={alternar} className="text-right">Margem %</SortableHead>
-                  <TableHead className="text-right">Lucro líq.</TableHead>
-                </TableRow>
-              </TableHeader>
+              <CabecalhoPedidos sort={sort} alternar={alternar} />
               <TableBody>
-                {pedidos.map((p: any) => {
-                  const mp = num(p.margem_pct);
-                  return (
-                    <TableRow key={p.tray_order_id ?? `${p.data}-${Math.random()}`} className={cn(mp < 20 && "bg-red-500/5")}>
-                      <TableCell className="whitespace-nowrap font-medium">
-                        {p.url_tray ? (
-                          <a href={p.url_tray} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-primary hover:underline">
-                            {p.tray_order_id} <ExternalLink className="h-3 w-3" />
-                          </a>
-                        ) : p.tray_order_id}
-                        {mp < 0 && <Badge variant="destructive" className="ml-1.5 text-[10px]">PREJUÍZO</Badge>}
-                      </TableCell>
-                      <TableCell className="whitespace-nowrap">{ddmm(p.data)}</TableCell>
-                      <TableCell className="whitespace-nowrap">{p.canal ?? "—"}</TableCell>
-                      <TableCell className="whitespace-nowrap text-xs">{p.forma_pagamento ?? "—"}</TableCell>
-                      <TableCell>
-                        {p.cliente_novo ? <Badge className="bg-blue-500/10 text-blue-600 border-blue-500/20 text-[10px]" variant="outline">Novo</Badge> : <span className="text-muted-foreground">—</span>}
-                      </TableCell>
-                      <TableCell className="text-right">{brl(p.receita_liquida)}</TableCell>
-                      <TableCell className={cn("text-right", p.cmv_com_lacuna && "text-red-600 font-medium")}>
-                        <span className="inline-flex items-center gap-1">
-                          {p.cmv_com_lacuna ? (
-                            <Dica texto="Produto sem custo cadastrado — margem deste pedido não é confiável">
-                              <span className="inline-flex items-center gap-1">{brl(p.cmv)} <AlertTriangle className="h-3 w-3" /></span>
-                            </Dica>
-                          ) : p.cmv_com_estimativa ? (
-                            <Dica texto="Custo estimado a partir do cadastro do produto">
-                              <span className="inline-flex items-center gap-1">{brl(p.cmv)} <Info className="h-3 w-3 opacity-60" /></span>
-                            </Dica>
-                          ) : brl(p.cmv)}
-                        </span>
-                      </TableCell>
-                      <TableCell className="text-right">{brl(p.taxa_gateway)}</TableCell>
-                      <TableCell className="text-right">{brl(p.imposto_das ?? p.das)}</TableCell>
-                      <TableCell className="text-right">{num(p.cac_aplicado) > 0 ? brl(p.cac_aplicado) : "—"}</TableCell>
-                      <TableCell className="text-right">
-                        {p.frete_tem_dado_real ? brl(p.custo_frete_real) : (
-                          <Dica texto="Frete real ainda não sincronizado com Melhor Envio pra esse pedido">
-                            <span className="text-muted-foreground">—</span>
-                          </Dica>
-                        )}
-                      </TableCell>
-                      <TableCell className="text-right text-emerald-600">{brl(p.margem)}</TableCell>
-                      <TableCell className={cn("text-right font-medium", corMargem(mp))}>{pct(mp, 1)}</TableCell>
-                      <TableCell className="text-right">{brl(p.lucro_liquido)}</TableCell>
-                    </TableRow>
-                  );
-                })}
+                {pedidos.map((p: any, i: number) => <LinhaPedido key={p.tray_order_id ?? `${p.data}-${i}`} p={p} />)}
                 {!pedidos.length && !isLoading && (
-                  <TableRow><TableCell colSpan={14} className="text-center text-sm text-muted-foreground">Sem pedidos no período.</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={15} className="text-center text-sm text-muted-foreground">Sem pedidos no período.</TableCell></TableRow>
                 )}
               </TableBody>
             </Table>
+          </CardContent>
+        </Card>
+
+        {/* BLOCO D */}
+        <Card>
+          <CardHeader className="pb-2"><CardTitle className="text-base">Pedidos com margem baixa</CardTitle></CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              <Card>
+                <CardContent className="p-4 space-y-1">
+                  <p className={cn("text-2xl font-serif font-bold", qtdBaixa > 0 ? "text-red-600" : "text-foreground")}>
+                    {int(qtdBaixa)} pedidos com margem &lt; 40%
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {int(resumo.pedidos_margem_baixa_com_credito)} desses têm crédito de troca aplicado (não é prejuízo real)
+                  </p>
+                </CardContent>
+              </Card>
+            </div>
+
+            <div className="overflow-x-auto">
+              <Table>
+                <CabecalhoPedidos sort={sort} alternar={alternar} />
+                <TableBody>
+                  {pedidosBaixos.map((p: any, i: number) => <LinhaPedido key={p.tray_order_id ?? `baixo-${i}`} p={p} />)}
+                  {!pedidosBaixos.length && !isLoading && (
+                    <TableRow><TableCell colSpan={15} className="text-center text-sm text-muted-foreground">Nenhum pedido com margem abaixo de 40%.</TableCell></TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+
+            <p className="text-xs leading-relaxed text-muted-foreground">
+              Concentração alta em WhatsApp/atendimento manual indica desconto negociado na venda — revisar com o time
+              se os valores dados batem com o autorizado.
+            </p>
           </CardContent>
         </Card>
 
@@ -358,9 +330,11 @@ export default function PedidosLucro() {
           Margem de contribuição = receita líquida − custo do produto − taxa de gateway − DAS. Não desconta frete
           (o que foi cobrado do cliente já está na receita, o custo de envio não é rastreado por pedido) nem custo de
           mídia/CAC. Fonte de custo: cost_price do item no momento da venda; quando ausente, usa o custo cadastrado
-          hoje no produto (sinalizado na tela). Lucro líquido = margem de contribuição − frete real (Melhor Envio,
-          quando sincronizado) − CAC (só na 1ª compra do cliente, via gasto Meta Ads ÷ clientes novos no período).
+          hoje no produto (sinalizado na tela). Lucro líquido = margem de contribuição − frete (real via Melhor Envio
+          quando disponível; senão R$0 retirada na loja, R$14,90 motoboy, R$10,90 Correios SP Capital, ou média de
+          frete por estado) − CAC (só na 1ª compra do cliente, via gasto Meta Ads ÷ clientes novos no período).
         </p>
+
       </div>
     </TooltipProvider>
   );
