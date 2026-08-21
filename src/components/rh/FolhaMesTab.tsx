@@ -10,7 +10,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { AlertTriangle, ChevronDown, RefreshCw, Wallet, Users, Gift, Coins, Download } from "lucide-react";
 import { brl, dataBR, dataBRCompleta, hojeISO, TIPOS_ORDEM } from "@/lib/rh";
-import { baixarDocumentoRh, mesTag, primeiroNome } from "@/lib/rhDocumento";
+import { baixarDocumentoRh, nomeArquivo, prefixoComprovante } from "@/lib/rhDocumento";
 import { useFolhaMes, FuncionarioFolha, PagamentoFolha } from "./useFolha";
 import { ValesSection } from "./ValesSection";
 import { cn } from "@/lib/utils";
