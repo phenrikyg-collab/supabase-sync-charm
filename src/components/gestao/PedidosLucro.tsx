@@ -287,7 +287,7 @@ export default function PedidosLucro() {
               <TableBody>
                 {pedidos.map((p: any, i: number) => <LinhaPedido key={p.tray_order_id ?? `${p.data}-${i}`} p={p} />)}
                 {!pedidos.length && !isLoading && (
-                  <TableRow><TableCell colSpan={15} className="text-center text-sm text-muted-foreground">Sem pedidos no período.</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={14} className="text-center text-sm text-muted-foreground">Sem pedidos no período.</TableCell></TableRow>
                 )}
               </TableBody>
             </Table>
@@ -317,7 +317,7 @@ export default function PedidosLucro() {
                 <TableBody>
                   {pedidosBaixos.map((p: any, i: number) => <LinhaPedido key={p.tray_order_id ?? `baixo-${i}`} p={p} />)}
                   {!pedidosBaixos.length && !isLoading && (
-                    <TableRow><TableCell colSpan={15} className="text-center text-sm text-muted-foreground">Nenhum pedido com margem abaixo de 40%.</TableCell></TableRow>
+                    <TableRow><TableCell colSpan={14} className="text-center text-sm text-muted-foreground">Nenhum pedido com margem abaixo de 40%.</TableCell></TableRow>
                   )}
                 </TableBody>
               </Table>
