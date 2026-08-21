@@ -462,7 +462,7 @@ function LinhaFuncionario({
     setSalvando(true);
     const { error } = await supabase.rpc("rh_folha_pagamento_atualizar", {
       p_id: saldo.id,
-      p_valor_liquido: liquido === "" ? null : Number(liquido.replace(",", ".")),
+      p_valor_liquido: parseValorBR(liquido),
       p_status: null,
       p_pago_em: null,
       p_obs: obs || null,
