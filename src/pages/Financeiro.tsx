@@ -150,8 +150,21 @@ export default function Financeiro() {
 
   const filtered = useMemo(() => {
     const busca = filtroBusca.toLowerCase().trim();
+    const janela = intervaloAtalho(atalho);
     return (movs ?? []).filter((m) => {
-      if (filtroPeriodo !== "todos" && m.data && !m.data.startsWith(filtroPeriodo)) return false;
+      if (janela) {
+        const d = (m.data ?? "").slice(0, 10);
+        if (!d || d < janela.de || d > janela.ate) return false;
+      } else if (filtroPeriodo !== "todos" && m.data && !m.data.startsWith(filtroPeriodo)) return false;
+      if (natureza !== "todos") {
+        const texto = [
+          m.descricao ?? "",
+          catMap[m.categoria_id ?? ""] ?? "",
+          catDescMap[m.categoria_id ?? ""] ?? "",
+          m.origem ?? "",
+        ].join(" ");
+        if (naturezaDe(texto, m.tipo) !== natureza) return false;
+      }
       if (filtroTipo !== "todos" && m.tipo !== filtroTipo) return false;
       if (filtroCategoria !== "todos" && m.categoria_id !== filtroCategoria) return false;
       if (filtroDescCategoria !== "todos") {
@@ -161,6 +174,7 @@ export default function Financeiro() {
       if (filtroCentro !== "todos" && m.centro_custo_id !== filtroCentro) return false;
       if (filtroOrigem !== "todos" && m.origem !== filtroOrigem) return false;
       if (filtroStatus !== "todos" && (m.status_pagamento ?? "em_aberto") !== filtroStatus) return false;
+
       if (busca) {
         const desc = (m.descricao ?? "").toLowerCase();
         const cat = (catMap[m.categoria_id ?? ""] ?? "").toLowerCase();
