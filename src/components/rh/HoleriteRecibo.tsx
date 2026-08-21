@@ -29,6 +29,9 @@ export interface Holerite {
   pis?: string | null;
   rg?: string | null;
   eventos?: HoleriteEvento[] | null;
+  pagamento_id?: string | null;
+  pagamento_status?: string | null;
+  pagamento_pago_em?: string | null;
   dados?: any;
 }
 

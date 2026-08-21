@@ -1,5 +1,6 @@
 import { erroRh } from "./useRhAuth";
 import { useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
@@ -7,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
-import { Printer, RefreshCw, FileText, Download } from "lucide-react";
+import { Printer, RefreshCw, FileText, Download, Receipt } from "lucide-react";
 import { brl, competenciaLabel } from "@/lib/rh";
 import { cn } from "@/lib/utils";
 import { Holerite, HoleriteRecibo, holeriteNome, normalizarHolerite } from "./HoleriteRecibo";
@@ -25,13 +26,46 @@ const TIPOS: { valor: TipoHolerite; label: string }[] = [
 
 const PRINT_CSS = `
 @media print {
-  body * { visibility: hidden !important; }
-  #rh-print-area, #rh-print-area * { visibility: visible !important; }
-  #rh-print-area { display: block !important; position: absolute; top: 0; left: 0; width: 100%; padding: 0; }
-  .holerite-pagina { page-break-after: always; padding: 8mm; }
-  .holerite-pagina:last-child { page-break-after: auto; }
-  .holerite-via + .holerite-via { margin-top: 8mm; border-top: 1px dashed #999; padding-top: 8mm; }
-  @page { margin: 6mm; size: A4 portrait; }
+  @page { size: A4 portrait; margin: 10mm; }
+  html, body { background: #fff !important; }
+  body > *:not(#rh-print-area) { display: none !important; }
+  #rh-print-area { display: block !important; width: 190mm; margin: 0; padding: 0; }
+  #rh-print-area * {
+    box-shadow: none !important;
+    border-radius: 0 !important;
+    background-image: none !important;
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+  #rh-print-area .holerite-pagina {
+    width: 190mm;
+    page-break-after: always;
+    break-after: page;
+    break-inside: avoid;
+    page-break-inside: avoid;
+    padding: 0;
+  }
+  #rh-print-area .holerite-pagina:last-child { page-break-after: auto; break-after: auto; }
+  #rh-print-area .holerite-via { break-inside: avoid; page-break-inside: avoid; }
+  #rh-print-area .holerite-via + .holerite-via { margin-top: 6mm; border-top: 1px dashed #999; padding-top: 4mm; }
+  #rh-print-area .holerite-recibo { width: 190mm; font-size: 9px !important; line-height: 1.15 !important; }
+  #rh-print-area .holerite-recibo table { font-size: 9px !important; }
+  #rh-print-area .holerite-recibo th,
+  #rh-print-area .holerite-recibo td {
+    height: auto !important;
+    min-height: 0 !important;
+    padding: 0 2px !important;
+    line-height: 1.15 !important;
+  }
+  #rh-print-area .holerite-recibo img { height: 8mm !important; width: 8mm !important; }
+  #rh-print-area .holerite-recibo .bg-neutral-300 {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  #rh-print-area .holerite-recibo .bg-neutral-200,
+  #rh-print-area .holerite-recibo .bg-neutral-100 { background: transparent !important; }
+  #rh-print-area .holerite-recibo .p-3 { padding: 4px !important; }
+  #rh-print-area .holerite-recibo .space-y-6 > * + * { margin-top: 8mm !important; }
 }
 `;
 
@@ -53,6 +87,7 @@ export function HoleritesTab({
   const [gerando, setGerando] = useState(false);
   const [baixando, setBaixando] = useState(false);
   const [baixandoId, setBaixandoId] = useState<string | null>(null);
+  const [comprovanteId, setComprovanteId] = useState<string | null>(null);
   const [aberto, setAberto] = useState<Holerite | null>(null);
 
   const [imprimir, setImprimir] = useState<Holerite[]>([]);
@@ -144,6 +179,33 @@ export function HoleritesTab({
     }
   };
 
+  const baixarComprovante = async (h: Holerite) => {
+    if (!h.pagamento_id) return toast({ title: "Pagamento não identificado", variant: "destructive" });
+    setComprovanteId(h.pagamento_id);
+    try {
+      const tipoTag = (h.tipo ?? tipo) as TipoHolerite;
+      const nome = `COMPROVANTE_${slug(tipoTag)}_${primeiroNome(holeriteNome(h))}_${mesTag}.pdf`;
+      await baixarDocumentoRh("comprovante", h.pagamento_id, nome);
+    } catch (e: any) {
+      toast({ title: "Erro ao baixar comprovante", description: e?.message, variant: "destructive" });
+    } finally {
+      setComprovanteId(null);
+    }
+  };
+
+  const BotaoComprovante = ({ h }: { h: Holerite }) => {
+    const pago = h.pagamento_status === "pago" && !!h.pagamento_id;
+    const carregando = !!h.pagamento_id && comprovanteId === h.pagamento_id;
+    return (
+      <span title={pago ? "Baixar comprovante de pagamento" : "disponível após o pagamento"}>
+        <Button size="sm" variant="ghost" disabled={!pago || carregando} onClick={() => baixarComprovante(h)}>
+          <Receipt className={cn("h-3.5 w-3.5 mr-1", carregando && "animate-pulse")} />
+          {carregando ? "Gerando..." : "Comprovante"}
+        </Button>
+      </span>
+    );
+  };
+
 
   return (
     <div className="space-y-6">
@@ -207,7 +269,7 @@ export function HoleritesTab({
                   </p>
                 </div>
                 <p className="text-xl font-serif font-bold tabular-nums">{brl(h.liquido)}</p>
-                <div className="flex gap-2 pt-1">
+                <div className="flex flex-wrap gap-2 pt-1">
                   <Button size="sm" variant="outline" onClick={() => setAberto(h)}>Visualizar</Button>
                   <Button size="sm" variant="ghost" onClick={() => disparar([h])} title="Imprimir">
                     <Printer className="h-3.5 w-3.5" />
@@ -222,6 +284,7 @@ export function HoleritesTab({
                     <Download className={cn("h-3.5 w-3.5 mr-1", baixandoId === h.id && "animate-pulse")} />
                     {baixandoId === h.id ? "Gerando..." : "Baixar PDF"}
                   </Button>
+                  <BotaoComprovante h={h} />
                 </div>
 
               </CardContent>
@@ -234,12 +297,14 @@ export function HoleritesTab({
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto bg-white">
           {aberto && (
             <div className="space-y-4">
-              <div className="flex justify-end gap-2">
+              <div className="flex flex-wrap justify-end gap-2">
                 <Button size="sm" variant="outline" disabled={baixandoId === aberto.id}
                   onClick={() => baixarPdfServidor(aberto)}>
                   <Download className={cn("h-3.5 w-3.5 mr-2", baixandoId === aberto.id && "animate-pulse")} />
                   {baixandoId === aberto.id ? "Gerando..." : "Baixar PDF"}
                 </Button>
+
+                <BotaoComprovante h={aberto} />
 
                 <Button size="sm" onClick={() => disparar([aberto])}>
                   <Printer className="h-3.5 w-3.5 mr-2" />Imprimir
@@ -251,14 +316,17 @@ export function HoleritesTab({
         </DialogContent>
       </Dialog>
 
-      <div id="rh-print-area" ref={areaRef} className="hidden">
-        {imprimir.map((h, i) => (
-          <div className="holerite-pagina" key={h.id ?? i}>
-            <div className="holerite-via"><HoleriteRecibo h={h} via="1ª via - Empresa" /></div>
-            <div className="holerite-via"><HoleriteRecibo h={h} via="2ª via - Funcionário" /></div>
-          </div>
-        ))}
-      </div>
+      {createPortal(
+        <div id="rh-print-area" ref={areaRef} className="hidden">
+          {imprimir.map((h, i) => (
+            <div className="holerite-pagina" key={h.id ?? i}>
+              <div className="holerite-via"><HoleriteRecibo h={h} via="1ª via - Empresa" /></div>
+              <div className="holerite-via"><HoleriteRecibo h={h} via="2ª via - Funcionário" /></div>
+            </div>
+          ))}
+        </div>,
+        document.body,
+      )}
     </div>
   );
 }
