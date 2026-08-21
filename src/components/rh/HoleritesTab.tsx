@@ -235,10 +235,12 @@ export function HoleritesTab({
           {aberto && (
             <div className="space-y-4">
               <div className="flex justify-end gap-2">
-                <Button size="sm" variant="outline" disabled={baixando}
-                  onClick={() => baixarPdf([aberto], `${prefixo(tipo)}_${slug(holeriteNome(aberto))}_${mesTag}`)}>
-                  <Download className="h-3.5 w-3.5 mr-2" />Baixar PDF
+                <Button size="sm" variant="outline" disabled={baixandoId === aberto.id}
+                  onClick={() => baixarPdfServidor(aberto)}>
+                  <Download className={cn("h-3.5 w-3.5 mr-2", baixandoId === aberto.id && "animate-pulse")} />
+                  {baixandoId === aberto.id ? "Gerando..." : "Baixar PDF"}
                 </Button>
+
                 <Button size="sm" onClick={() => disparar([aberto])}>
                   <Printer className="h-3.5 w-3.5 mr-2" />Imprimir
                 </Button>
