@@ -460,11 +460,12 @@ function LinhaFuncionario({
                 const p = pags[t];
                 if (!p?.id || p.status !== "pago") return null;
                 return (
-                  <BotaoComprovante
+                <BotaoComprovante
                     key={`doc-${t}`}
                     pagamentoId={p.id}
                     nome={f.nome}
                     competencia={competencia}
+                    tipo={t}
                     rotulo={`Comprovante ${t}`}
                   />
                 );
