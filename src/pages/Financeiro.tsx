@@ -368,6 +368,61 @@ export default function Financeiro() {
           <h1 className="text-3xl font-serif font-bold text-foreground">Transações</h1>
           <p className="text-sm text-muted-foreground mt-1">{filtered.length} transações</p>
         </div>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => {
+            queryClient.invalidateQueries({ queryKey: ["categorias"] });
+            toast.success("Lista de categorias recarregada");
+          }}
+        >
+          Recarregar categorias
+        </Button>
+      </div>
+
+      {/* Natureza */}
+      <div className="flex flex-wrap gap-2">
+        {([
+          { key: "todos", label: "Todos" },
+          { key: "pedidos", label: "Pedidos" },
+          { key: "custos", label: "Taxas e Custos" },
+        ] as { key: Natureza; label: string }[]).map((n) => (
+          <button
+            key={n.key}
+            onClick={() => { setNatureza(n.key); setCurrentPage(1); setSelectedIds(new Set()); }}
+            className={cn(
+              "rounded-full border px-4 py-1.5 text-sm font-medium transition-colors",
+              natureza === n.key
+                ? "border-primary bg-primary text-primary-foreground"
+                : "border-border text-muted-foreground hover:bg-muted"
+            )}
+          >
+            {n.label}
+          </button>
+        ))}
+        <span className="mx-1 hidden w-px self-stretch bg-border sm:block" />
+        {ATALHOS_PERIODO.map((a) => (
+          <button
+            key={a.key}
+            onClick={() => { setAtalho((prev) => (prev === a.key ? null : a.key)); setCurrentPage(1); }}
+            className={cn(
+              "rounded-full border px-3 py-1.5 text-xs font-medium transition-colors",
+              atalho === a.key
+                ? "border-primary bg-primary/10 text-primary"
+                : "border-border text-muted-foreground hover:bg-muted"
+            )}
+          >
+            {a.label}
+          </button>
+        ))}
+        {atalho && (
+          <button
+            onClick={() => setAtalho(null)}
+            className="rounded-full border border-border px-3 py-1.5 text-xs text-muted-foreground hover:bg-muted"
+          >
+            Limpar período rápido
+          </button>
+        )}
       </div>
 
       {/* Search bar */}
@@ -385,6 +440,7 @@ export default function Financeiro() {
           </button>
         )}
       </div>
+
 
       <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3">
         <Select value={filtroPeriodo} onValueChange={setFiltroPeriodo}>
