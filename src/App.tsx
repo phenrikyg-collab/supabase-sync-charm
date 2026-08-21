@@ -40,6 +40,7 @@ import PagamentoOficinas from "./pages/PagamentoOficinas";
 import AdminUsuarios from "./pages/AdminUsuarios";
 import Login from "./pages/Login";
 import NotFound from "./pages/NotFound";
+import Ciencia from "./pages/Ciencia";
 import TVInterna from "./pages/TVInterna";
 import AdminTVInterna from "./pages/AdminTVInterna";
 import Bonificacao from "./pages/Bonificacao";
@@ -164,6 +165,8 @@ function ModuleGuard({ children }: { children: React.ReactNode }) {
 const AppRoutes = () => {
   const { user, loading } = useAuth();
 
+  if (window.location.pathname === "/ciencia") return <Ciencia />;
+
   if (loading) return (
     <div className="min-h-screen flex items-center justify-center bg-background">
       <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -172,6 +175,7 @@ const AppRoutes = () => {
 
   return (
     <Routes>
+      <Route path="/ciencia" element={<Ciencia />} />
       <Route path="/login" element={user ? <Navigate to="/" replace /> : <Login />} />
       <Route path="/tv-interna" element={<ProtectedRoute><TVInterna /></ProtectedRoute>} />
       <Route path="/conteudo" element={<ProtectedRoute><ModuleGuard><ContentCalendar /></ModuleGuard></ProtectedRoute>} />
