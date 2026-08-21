@@ -17,13 +17,42 @@ import { brl, dataBR, hojeISO, competenciaLabel, LOTE_STATUS, ITEM_STATUS, TIPO_
 import { useFolhaMes } from "./useFolha";
 import { cn } from "@/lib/utils";
 
-export function LotePixTab({ competencia }: { competencia: string }) {
+class LoteErrorBoundary extends Component<{ children: ReactNode }, { erro: Error | null }> {
+  state = { erro: null as Error | null };
+  static getDerivedStateFromError(erro: Error) { return { erro }; }
+  componentDidCatch(erro: Error, info: any) { console.error("[LotePixTab] erro de render", erro, info); }
+  render() {
+    if (!this.state.erro) return this.props.children;
+    return (
+      <Card>
+        <CardContent className="py-10 text-center space-y-3">
+          <p className="text-sm font-medium">Não foi possível exibir o lote.</p>
+          <p className="text-xs text-muted-foreground">{this.state.erro.message}</p>
+          <Button size="sm" onClick={() => this.setState({ erro: null })}>Recarregar</Button>
+        </CardContent>
+      </Card>
+    );
+  }
+}
+
+export function LotePixTab(props: { competencia: string }) {
+  return (
+    <LoteErrorBoundary>
+      <LotePixConteudo {...props} />
+    </LoteErrorBoundary>
+  );
+}
+
+function LotePixConteudo({ competencia }: { competencia: string }) {
   const { data: folha, isLoading } = useFolhaMes(competencia);
   const { toast } = useToast();
-  
+  const { session } = useRhAuth();
+  const emailUsuario = session?.user?.email ?? "";
+
   const qc = useQueryClient();
   const [sel, setSel] = useState<Record<string, boolean>>({});
   const [gerando, setGerando] = useState(false);
+
 
   const pendentes = useMemo(() => {
     const linhas: any[] = [];
