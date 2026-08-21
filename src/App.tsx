@@ -23,6 +23,8 @@ import Producao from "./pages/Producao";
 
 import Financeiro from "./pages/Financeiro";
 import TransacoesSite from "./pages/TransacoesSite";
+import VindiYapay from "./pages/VindiYapay";
+import BancoInter from "./pages/BancoInter";
 import ProvaSocial from "./pages/ProvaSocial";
 import ContasPagar from "./pages/ContasPagar";
 import ContasReceber from "./pages/ContasReceber";
@@ -206,6 +208,8 @@ const AppRoutes = () => {
               <Route path="/importar-extrato" element={<ImportarExtrato />} />
               <Route path="/faturas" element={<Faturas />} />
               <Route path="/transacoes-site" element={<TransacoesSite />} />
+              <Route path="/vindi-yapay" element={<VindiYapay />} />
+              <Route path="/banco-inter" element={<BancoInter />} />
               <Route path="/prova-social" element={<ProvaSocial />} />
               <Route path="/fluxo-caixa" element={<FluxoCaixa />} />
               <Route path="/importar" element={<ImportarPage />} />

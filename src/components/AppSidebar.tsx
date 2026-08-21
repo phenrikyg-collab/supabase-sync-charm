@@ -150,6 +150,8 @@ const moduleGroups: ModuleGroup[] = [
       { title: "Importar Extrato", url: "/importar-extrato", icon: Upload },
       { title: "Faturas Cartão", url: "/faturas", icon: CreditCard },
       { title: "Transações do Site", url: "/transacoes-site", icon: ShoppingCart },
+      { title: "Vindi / Yapay", url: "/vindi-yapay", icon: CreditCard },
+      { title: "Banco Inter", url: "/banco-inter", icon: Banknote },
       { title: "Orçamento", url: "/orcamento", icon: Target },
       { title: "Custos Fixos", url: "/custos-fixos", icon: TrendingUp },
       { title: "Pgto Oficinas", url: "/pagamento-oficinas", icon: DollarSign },

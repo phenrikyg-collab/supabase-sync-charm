@@ -61,6 +61,8 @@ export const ROUTE_ACCESS: Record<string, Requirement> = {
   "/importar-extrato": ["financeiro"],
   "/faturas": ["financeiro"],
   "/transacoes-site": ["financeiro"],
+  "/vindi-yapay": ["financeiro"],
+  "/banco-inter": ["financeiro"],
   "/orcamento": ["financeiro"],
   "/custos-fixos": ["financeiro"],
 
