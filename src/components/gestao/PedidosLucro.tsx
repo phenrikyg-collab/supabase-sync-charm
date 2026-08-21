@@ -34,6 +34,38 @@ function Dica({ texto, children }: { texto: string; children: React.ReactNode })
   );
 }
 
+const FRETE_SELO: Record<string, { label: string; className: string; dica?: string }> = {
+  retirada: { label: "retirada", className: "bg-muted text-muted-foreground border-border" },
+  motoboy_fixo: { label: "fixo", className: "bg-blue-500/10 text-blue-600 border-blue-500/20" },
+  correios_sp_capital_fixo: { label: "fixo", className: "bg-blue-500/10 text-blue-600 border-blue-500/20" },
+  media_estado: {
+    label: "estimado", className: "bg-amber-500/10 text-amber-600 border-amber-500/20",
+    dica: "Sem dado real desse pedido — usando média de frete da região do cliente",
+  },
+  media_nacional: {
+    label: "estimado", className: "bg-amber-500/10 text-amber-600 border-amber-500/20",
+    dica: "Sem dado real desse pedido — usando média de frete da região do cliente",
+  },
+};
+
+function CelulaFrete({ p }: { p: any }) {
+  const selo = FRETE_SELO[String(p.frete_tipo ?? "")];
+  const valor = brl(p.frete_usado ?? p.custo_frete_real);
+  if (!selo) return <>{valor}</>;
+  const badge = <Badge variant="outline" className={cn("ml-1 text-[10px]", selo.className)}>{selo.label}</Badge>;
+  return (
+    <span className="inline-flex items-center">
+      {valor}
+      {selo.dica ? <Dica texto={selo.dica}>{badge}</Dica> : badge}
+    </span>
+  );
+}
+
+function temCredito(p: any) {
+  return Boolean(p.credito_troca ?? p.tem_credito_troca ?? p.credito_troca_aplicado);
+}
+
+
 function Tile({
   titulo, valor, tom = "default", dica, pequeno,
 }: { titulo: string; valor: string; tom?: "default" | "red" | "green" | "muted"; dica?: string; pequeno?: boolean }) {
