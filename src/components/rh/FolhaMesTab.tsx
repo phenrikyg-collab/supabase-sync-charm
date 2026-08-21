@@ -382,7 +382,7 @@ function LinhaFuncionario({
         {["adiantamento", "saldo", "vt", "va"].map((t) => (
           <td key={t} className="text-right px-3">
             <div className="flex flex-col items-end">
-              <Celula p={pags[t]} nome={f.nome} competencia={competencia} />
+              <Celula p={pags[t]} nome={f.nome} competencia={competencia} tipo={t} />
             </div>
           </td>
         ))}
