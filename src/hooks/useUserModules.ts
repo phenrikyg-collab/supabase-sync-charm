@@ -2,7 +2,17 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 
-export type AppModule = "comercial" | "financeiro" | "producao" | "logistica" | "marketing" | "rh";
+export type AppModule =
+  | "gestao"
+  | "comercial"
+  | "marketing"
+  | "crm"
+  | "atendimento"
+  | "producao"
+  | "logistica"
+  | "financeiro"
+  | "rh"
+  | "cadastros";
 
 export function useUserModules() {
   const { user } = useAuth();
