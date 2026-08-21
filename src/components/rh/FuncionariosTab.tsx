@@ -14,7 +14,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Plus, ShieldCheck, Loader2, AlertTriangle } from "lucide-react";
 import { brl, dataBRCompleta } from "@/lib/rh";
 import { cn } from "@/lib/utils";
-import { invokeEdgeFunction } from "@/lib/edgeFunctions";
+import { lerErroEdge } from "@/lib/edgeError";
 import { parseValorBR, LIMITE_SALARIO, LIMITE_DIARIA } from "@/lib/rhMoeda";
 
 const RH_SUPABASE_URL = "https://ezdtulcrqzmgocamjwwl.supabase.co";
@@ -37,7 +37,10 @@ export function FuncionariosTab() {
   const [edit, setEdit] = useState<typeof vazio | null>(null);
   const [verificando, setVerificando] = useState<string | null>(null);
   const [confirmando, setConfirmando] = useState<string | null>(null);
-  const [titulares, setTitulares] = useState<Record<string, string>>({});
+  type Resultado =
+    | { tipo: "ok"; titular: string; cpf_mascarado?: string; veredito?: string; motivo?: string }
+    | { tipo: "aviso"; mensagem: string; dica?: string };
+  const [resultados, setResultados] = useState<Record<string, Resultado>>({});
 
   const { data, isLoading } = useQuery({
     queryKey: ["rh-funcionarios"],
@@ -57,20 +60,57 @@ export function FuncionariosTab() {
     },
   });
 
+  const limparResultado = (id: string) =>
+    setResultados((r) => {
+      const n = { ...r };
+      delete n[id];
+      return n;
+    });
+
   const verificarChave = async (f: any) => {
     setVerificando(f.id);
+    limparResultado(f.id);
     try {
-      const res: any = await invokeEdgeFunction(
-        "inter-verificar-chave",
-        { funcionario_id: f.id },
-        { baseUrl: RH_SUPABASE_URL, anonKey: RH_ANON_KEY },
-      );
-      const titular = res?.titular_no_banco ?? res?.titular ?? null;
-      if (!titular) {
-        toast({ title: "Não foi possível obter o titular", variant: "destructive" });
+      const { data: res, error } = await supabase.functions.invoke("inter-verificar-chave", {
+        body: { funcionario_id: f.id },
+      });
+
+      if (error) {
+        const e = await lerErroEdge(error, "Não foi possível verificar a chave");
+        toast({
+          title: "Chave não verificada",
+          description: [e.mensagem, e.dica].filter(Boolean).join(" — "),
+          variant: "destructive",
+        });
         return;
       }
-      setTitulares((t) => ({ ...t, [f.id]: titular }));
+
+      const r: any = res ?? {};
+      const titular = r.titular_no_banco ?? r.titular ?? null;
+
+      // 202: Pix saiu mas o banco ainda não devolveu o nome — aviso, não erro
+      if (!titular) {
+        setResultados((s) => ({
+          ...s,
+          [f.id]: {
+            tipo: "aviso",
+            mensagem: r.erro ?? "o banco ainda não devolveu o nome do recebedor",
+            dica: r.dica ?? "tente de novo em alguns minutos",
+          },
+        }));
+        return;
+      }
+
+      setResultados((s) => ({
+        ...s,
+        [f.id]: {
+          tipo: "ok",
+          titular,
+          cpf_mascarado: r.cpf_mascarado,
+          veredito: r.veredito,
+          motivo: r.motivo,
+        },
+      }));
       toast({ title: "Chave verificada", description: `Titular no banco: ${titular}` });
     } catch (e: any) {
       toast({ title: "Erro ao verificar chave", description: e?.message, variant: "destructive" });
@@ -80,26 +120,31 @@ export function FuncionariosTab() {
   };
 
   const confirmarTitular = async (f: any) => {
-    const titular = titulares[f.id];
-    if (!titular) return;
+    const r = resultados[f.id];
+    if (!r || r.tipo !== "ok") return;
+    const divergente = !!r.veredito && !/^(ok|confere|compat)/i.test(r.veredito);
+    if (divergente) {
+      const ok = window.confirm(
+        `Atenção: o veredito da verificação foi "${r.veredito}"${r.motivo ? ` (${r.motivo})` : ""}.\n\n` +
+          `Titular no banco: ${r.titular}\nCadastro: ${f.nome}\n\nConfirmar mesmo assim?`,
+      );
+      if (!ok) return;
+    }
     setConfirmando(f.id);
     const { error } = await supabase.rpc("rh_chave_confirmar" as any, {
       p_funcionario_id: f.id,
-      p_titular: titular,
+      p_titular: r.titular,
     });
     setConfirmando(null);
     if (error) {
       return toast({ title: "Erro ao confirmar titular", description: erroRh(error).mensagem, variant: "destructive" });
     }
     toast({ title: "Titular confirmado" });
-    setTitulares((t) => {
-      const n = { ...t };
-      delete n[f.id];
-      return n;
-    });
+    limparResultado(f.id);
     qc.invalidateQueries({ queryKey: ["rh-funcionarios"] });
     qc.invalidateQueries({ queryKey: ["rh-chaves-pendentes"] });
   };
+
 
 
 
@@ -237,11 +282,43 @@ export function FuncionariosTab() {
                           {verificando === f.id ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : null}
                           Verificar chave Pix
                         </Button>
-                        {titulares[f.id] && (
+                        {resultados[f.id]?.tipo === "aviso" && (
+                          <div className="space-y-1 rounded-md border border-amber-300 bg-amber-50 p-2 text-[10px] text-amber-800">
+                            <div className="font-medium">{(resultados[f.id] as any).mensagem}</div>
+                            {(resultados[f.id] as any).dica && <div>{(resultados[f.id] as any).dica}</div>}
+                            <div>A idempotência evita gastar outro centavo ao tentar de novo.</div>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-6 text-[10px]"
+                              disabled={verificando === f.id}
+                              onClick={() => verificarChave(f)}
+                            >
+                              {verificando === f.id ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : null}
+                              Tentar de novo
+                            </Button>
+                          </div>
+                        )}
+                        {resultados[f.id]?.tipo === "ok" && (
                           <div className="space-y-1">
                             <div className="text-[10px] text-muted-foreground">
-                              Titular no banco: <span className="font-medium text-foreground">{titulares[f.id]}</span>
+                              Titular no banco:{" "}
+                              <span className="font-medium text-foreground">{(resultados[f.id] as any).titular}</span>
+                              {(resultados[f.id] as any).cpf_mascarado ? ` · ${(resultados[f.id] as any).cpf_mascarado}` : ""}
                             </div>
+                            {(resultados[f.id] as any).veredito && (
+                              <div
+                                className={cn(
+                                  "text-[10px]",
+                                  /^(ok|confere|compat)/i.test((resultados[f.id] as any).veredito)
+                                    ? "text-green-700"
+                                    : "text-amber-700",
+                                )}
+                              >
+                                veredito: {(resultados[f.id] as any).veredito}
+                                {(resultados[f.id] as any).motivo ? ` — ${(resultados[f.id] as any).motivo}` : ""}
+                              </div>
+                            )}
                             <Button
                               size="sm"
                               className="h-6 text-[10px]"
@@ -253,6 +330,7 @@ export function FuncionariosTab() {
                             </Button>
                           </div>
                         )}
+
                       </div>
                     )}
                   </td>

@@ -10,6 +10,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { useRhAuth, erroRh } from "./useRhAuth";
+import { lerErroEdge } from "@/lib/edgeError";
+
 
 
 import { RefreshCw, Info, Archive, ArchiveRestore } from "lucide-react";
@@ -213,16 +215,20 @@ function ListaLotes() {
   const executar = async (id: string) => {
     const { error } = await supabase.functions.invoke("inter-executar-lote", { body: { lote_id: id } });
     if (error) {
-      const status = (error as any)?.context?.status;
+      const e = await lerErroEdge(error, "Falha ao executar o lote");
       return toast({
         title: "Erro ao executar",
-        description: status === 403 ? "Você não tem permissão para executar pagamentos." : error.message,
+        description:
+          e.status === 403
+            ? "Você não tem permissão para executar pagamentos."
+            : [e.mensagem, e.dica].filter(Boolean).join(" — "),
         variant: "destructive",
       });
     }
     toast({ title: "Execução disparada" });
     qc.invalidateQueries({ queryKey: ["rh-lotes"] });
   };
+
 
 
   return (
