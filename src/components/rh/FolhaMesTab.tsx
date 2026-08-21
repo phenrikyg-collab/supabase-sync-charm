@@ -8,9 +8,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
-import { AlertTriangle, ChevronDown, RefreshCw, Wallet, Users, Gift, Coins } from "lucide-react";
+import { AlertTriangle, ChevronDown, RefreshCw, Wallet, Users, Gift, Coins, Download } from "lucide-react";
 import { brl, dataBR, dataBRCompleta, hojeISO, TIPOS_ORDEM } from "@/lib/rh";
+import { baixarDocumentoRh, mesTag, primeiroNome } from "@/lib/rhDocumento";
 import { useFolhaMes, FuncionarioFolha, PagamentoFolha } from "./useFolha";
+import { ValesSection } from "./ValesSection";
 import { cn } from "@/lib/utils";
 
 function StatusPagamento({ p }: { p?: PagamentoFolha }) {
@@ -27,16 +29,72 @@ function StatusPagamento({ p }: { p?: PagamentoFolha }) {
   );
 }
 
-function Celula({ p }: { p?: PagamentoFolha }) {
+function BotaoComprovante({
+  pagamentoId,
+  nome,
+  competencia,
+  rotulo,
+}: {
+  pagamentoId: string;
+  nome: string;
+  competencia: string;
+  rotulo?: string;
+}) {
+  const { toast } = useToast();
+  const [baixando, setBaixando] = useState(false);
+
+  const baixar = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setBaixando(true);
+    try {
+      await baixarDocumentoRh(
+        "comprovante",
+        pagamentoId,
+        `${primeiroNome(nome)} - ${mesTag(competencia)}.pdf`,
+      );
+    } catch (err: any) {
+      toast({ title: "Erro ao baixar comprovante", description: err?.message, variant: "destructive" });
+    } finally {
+      setBaixando(false);
+    }
+  };
+
+  if (rotulo)
+    return (
+      <Button size="sm" variant="outline" onClick={baixar} disabled={baixando}>
+        <Download className={cn("h-3.5 w-3.5 mr-2", baixando && "animate-pulse")} />
+        {baixando ? "Gerando..." : rotulo}
+      </Button>
+    );
+
+  return (
+    <button
+      type="button"
+      onClick={baixar}
+      disabled={baixando}
+      title="Baixar comprovante"
+      className="text-[10px] inline-flex items-center gap-1 text-primary underline disabled:opacity-50"
+    >
+      <Download className={cn("h-3 w-3", baixando && "animate-pulse")} />
+      {baixando ? "gerando..." : "comprovante"}
+    </button>
+  );
+}
+
+function Celula({ p, nome, competencia }: { p?: PagamentoFolha; nome: string; competencia: string }) {
   if (!p) return <span className="text-muted-foreground">—</span>;
   const valor = p.valor_liquido ?? p.valor ?? p.valor_bruto ?? 0;
   return (
     <div className="leading-tight">
       <div className="tabular-nums">{brl(valor)}</div>
       <StatusPagamento p={p} />
+      {p.status === "pago" && p.id && (
+        <div><BotaoComprovante pagamentoId={p.id} nome={nome} competencia={competencia} /></div>
+      )}
     </div>
   );
 }
+
 
 const MINI = {
   pago: "bg-green-100 text-green-700",
