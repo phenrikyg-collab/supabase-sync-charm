@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { Component, useEffect, useMemo, useState, type ReactNode } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -17,13 +17,42 @@ import { brl, dataBR, hojeISO, competenciaLabel, LOTE_STATUS, ITEM_STATUS, TIPO_
 import { useFolhaMes } from "./useFolha";
 import { cn } from "@/lib/utils";
 
-export function LotePixTab({ competencia }: { competencia: string }) {
+class LoteErrorBoundary extends Component<{ children: ReactNode }, { erro: Error | null }> {
+  state = { erro: null as Error | null };
+  static getDerivedStateFromError(erro: Error) { return { erro }; }
+  componentDidCatch(erro: Error, info: any) { console.error("[LotePixTab] erro de render", erro, info); }
+  render() {
+    if (!this.state.erro) return this.props.children;
+    return (
+      <Card>
+        <CardContent className="py-10 text-center space-y-3">
+          <p className="text-sm font-medium">Não foi possível exibir o lote.</p>
+          <p className="text-xs text-muted-foreground">{this.state.erro.message}</p>
+          <Button size="sm" onClick={() => this.setState({ erro: null })}>Recarregar</Button>
+        </CardContent>
+      </Card>
+    );
+  }
+}
+
+export function LotePixTab(props: { competencia: string }) {
+  return (
+    <LoteErrorBoundary>
+      <LotePixConteudo {...props} />
+    </LoteErrorBoundary>
+  );
+}
+
+function LotePixConteudo({ competencia }: { competencia: string }) {
   const { data: folha, isLoading } = useFolhaMes(competencia);
   const { toast } = useToast();
-  
+  const { session } = useRhAuth();
+  const emailUsuario = session?.user?.email ?? "";
+
   const qc = useQueryClient();
   const [sel, setSel] = useState<Record<string, boolean>>({});
   const [gerando, setGerando] = useState(false);
+
 
   const pendentes = useMemo(() => {
     const linhas: any[] = [];
@@ -65,7 +94,7 @@ export function LotePixTab({ competencia }: { competencia: string }) {
     const { error } = await supabase.rpc("rh_folha_lote_gerar", {
       p_ids: selecionados.map((l) => l.id),
       p_descricao: `Folha ${competenciaLabel(competencia)}`,
-      p_criado_por: "",
+      p_criado_por: emailUsuario || "—",
     });
     setGerando(false);
     if (error) return toast({ title: "Erro ao gerar lote", description: erroRh(error).mensagem, variant: "destructive" });
@@ -145,7 +174,7 @@ export function LotePixTab({ competencia }: { competencia: string }) {
 function ListaLotes() {
   const { toast } = useToast();
   const qc = useQueryClient();
-  const { operador } = useRhAuth();
+  const { operador, session } = useRhAuth();
   const [detalhe, setDetalhe] = useState<any | null>(null);
   const [aprovar, setAprovar] = useState<any | null>(null);
   const [mostrarArquivados, setMostrarArquivados] = useState(false);
@@ -275,10 +304,34 @@ function ListaLotes() {
       </CardContent>
 
       <DetalheLoteDialog lote={detalhe} onClose={() => setDetalhe(null)} />
-      <AprovarLoteDialog lote={aprovar} onClose={() => setAprovar(null)} aprovadoPor="" />
+      <AprovarLoteDialog
+        lote={aprovar}
+        onClose={() => setAprovar(null)}
+        aprovadoPor={operador?.email ?? session?.user?.email ?? ""}
+      />
+
 
     </Card>
   );
+}
+
+/** rh_lote_detalhe devolve um OBJETO { lote, itens, resumo, resumo_por_status }.
+ *  Normaliza para { lote, itens[], resumo[] } — nunca chamar .map direto na resposta. */
+function normalizarDetalhe(data: any) {
+  if (!data) return { lote: null, itens: [] as any[], resumo: [] as any[] };
+  if (Array.isArray(data)) return { lote: null, itens: data, resumo: [] as any[] };
+
+  const itens = Array.isArray(data.itens) ? data.itens : [];
+  let resumo: any[] = [];
+  if (Array.isArray(data.resumo)) resumo = data.resumo;
+  else if (data.resumo_por_status && typeof data.resumo_por_status === "object") {
+    resumo = Object.entries(data.resumo_por_status).map(([status, r]: [string, any]) => ({
+      status,
+      qtd: r?.qtd ?? 0,
+      valor: r?.valor ?? 0,
+    }));
+  }
+  return { lote: data.lote ?? data, itens, resumo };
 }
 
 function useLoteDetalhe(loteId?: string) {
@@ -287,13 +340,30 @@ function useLoteDetalhe(loteId?: string) {
     queryFn: async () => {
       const { data, error } = await supabase.rpc("rh_lote_detalhe", { p_lote_id: loteId });
       if (error) throw error;
-      return (data ?? []) as any[];
+      return normalizarDetalhe(data);
     },
     enabled: !!loteId,
   });
 }
 
+const dataOpcional = (d: any) => (d ? dataBR(d) : "—");
+
+function ResumoStatus({ resumo }: { resumo: any[] }) {
+  if (!resumo?.length) return null;
+  return (
+    <div className="flex flex-wrap gap-2">
+      {resumo.map((r) => (
+        <span key={r.status} className={cn("text-[11px] px-2 py-0.5 rounded-full", ITEM_STATUS[r.status] ?? "bg-muted")}>
+          {r.status}: {r.qtd ?? 0} · {brl(r.valor)}
+        </span>
+      ))}
+    </div>
+  );
+}
+
 function ItensTabela({ itens }: { itens: any[] }) {
+  const lista = Array.isArray(itens) ? itens : [];
+  if (!lista.length) return <p className="text-sm text-muted-foreground py-4 text-center">Sem itens neste lote.</p>;
   return (
     <table className="w-full text-sm">
       <thead>
@@ -305,7 +375,7 @@ function ItensTabela({ itens }: { itens: any[] }) {
         </tr>
       </thead>
       <tbody>
-        {itens.map((i, idx) => (
+        {lista.map((i, idx) => (
           <tr key={i.id ?? idx} className="border-b align-top">
             <td className="py-2">{i.funcionario ?? i.nome ?? "—"}</td>
             <td className="px-2">{i.descricao ?? i.tipo ?? "—"}</td>
@@ -314,12 +384,32 @@ function ItensTabela({ itens }: { itens: any[] }) {
               <span className={cn("text-[10px] px-2 py-0.5 rounded-full", ITEM_STATUS[i.status] ?? "bg-muted")}>
                 {i.status ?? "—"}
               </span>
+              {i.enviado_em && <p className="text-[10px] text-muted-foreground mt-1">enviado {dataOpcional(i.enviado_em)}</p>}
+              {i.concluido_em && <p className="text-[10px] text-muted-foreground">concluído {dataOpcional(i.concluido_em)}</p>}
+              {i.codigo_solicitacao && <p className="text-[10px] text-muted-foreground">cód. {i.codigo_solicitacao}</p>}
               {i.erro && <p className="text-[10px] text-red-600 mt-1">{i.erro}</p>}
             </td>
           </tr>
         ))}
       </tbody>
     </table>
+  );
+}
+
+function DatasLote({ lote }: { lote: any }) {
+  if (!lote) return null;
+  const linhas = [
+    ["Criado por", lote.criado_por ? lote.criado_por : "—"],
+    ["Aprovado em", dataOpcional(lote.aprovado_em)],
+    ["Executado em", dataOpcional(lote.executado_em)],
+    ["Finalizado em", dataOpcional(lote.finalizado_em)],
+  ];
+  return (
+    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs text-muted-foreground">
+      {linhas.map(([k, v]) => (
+        <div key={k}><span className="block uppercase tracking-wide text-[10px]">{k}</span>{v}</div>
+      ))}
+    </div>
   );
 }
 
@@ -335,7 +425,13 @@ function DetalheLoteDialog({ lote, onClose }: { lote: any | null; onClose: () =>
             Aguardando confirmação do Inter; com alçada configurada, aprovar também no app do banco.
           </div>
         )}
-        {isLoading ? <Skeleton className="h-40" /> : <div className="overflow-x-auto"><ItensTabela itens={data ?? []} /></div>}
+        {isLoading ? <Skeleton className="h-40" /> : (
+          <div className="space-y-3">
+            <DatasLote lote={data?.lote ?? lote} />
+            <ResumoStatus resumo={data?.resumo ?? []} />
+            <div className="overflow-x-auto"><ItensTabela itens={data?.itens ?? []} /></div>
+          </div>
+        )}
       </DialogContent>
     </Dialog>
   );
@@ -350,18 +446,27 @@ function AprovarLoteDialog({ lote, onClose, aprovadoPor }: { lote: any | null; o
 
   useEffect(() => { setTotal(""); }, [lote?.id]);
 
+  const totalPrevisto = Number(data?.lote?.total_previsto ?? lote?.total_previsto ?? 0);
+  const totalDigitado = Number(String(total).replace(/\s|R\$/g, "").replace(/\./g, "").replace(",", "."));
+  const divergente = Number.isFinite(totalDigitado) && total !== "" &&
+    Math.abs(totalDigitado - totalPrevisto) > 0.009;
+
   const aprovar = async () => {
+    if (!Number.isFinite(totalDigitado)) {
+      return toast({ title: "Valor inválido", description: "Digite o total no formato 1.234,56.", variant: "destructive" });
+    }
     setSalvando(true);
     const { error } = await supabase.rpc("rh_lote_aprovar", {
       p_lote_id: lote.id,
-      p_total_conferido: Number(total.replace(/\./g, "").replace(",", ".")),
-      p_aprovado_por: "",
+      p_total_conferido: Number(totalDigitado.toFixed(2)),
+      p_aprovado_por: aprovadoPor || "—",
     });
     setSalvando(false);
     if (error) return toast({ title: "Erro ao aprovar", description: erroRh(error).mensagem, variant: "destructive" });
 
     toast({ title: "Lote aprovado" });
     qc.invalidateQueries({ queryKey: ["rh-lotes"] });
+    qc.invalidateQueries({ queryKey: ["rh-lote-detalhe", lote.id] });
     onClose();
   };
 
@@ -371,18 +476,28 @@ function AprovarLoteDialog({ lote, onClose, aprovadoPor }: { lote: any | null; o
         <DialogHeader><DialogTitle className="font-serif">Conferir e aprovar lote</DialogTitle></DialogHeader>
         <p className="text-xs text-muted-foreground">
           Digite o valor total do lote para confirmar. A aprovação é recusada se o total informado divergir do total previsto
-          ({brl(lote?.total_previsto)}).
+          ({brl(totalPrevisto)}).
         </p>
-        {isLoading ? <Skeleton className="h-40" /> : <div className="overflow-x-auto max-h-72"><ItensTabela itens={data ?? []} /></div>}
+        {isLoading ? <Skeleton className="h-40" /> : (
+          <div className="space-y-3">
+            <DatasLote lote={data?.lote ?? lote} />
+            <ResumoStatus resumo={data?.resumo ?? []} />
+            <div className="overflow-x-auto max-h-72"><ItensTabela itens={data?.itens ?? []} /></div>
+          </div>
+        )}
         <div className="space-y-2">
           <Label className="text-xs">Total conferido</Label>
           <Input value={total} onChange={(e) => setTotal(e.target.value)} placeholder="0,00" />
+          {divergente && (
+            <p className="text-[11px] text-red-600">Valor divergente do total previsto ({brl(totalPrevisto)}).</p>
+          )}
         </div>
         <div className="flex justify-end gap-2">
           <Button variant="outline" onClick={onClose}>Fechar</Button>
-          <Button onClick={aprovar} disabled={!total || salvando}>Aprovar lote</Button>
+          <Button onClick={aprovar} disabled={!total || salvando || divergente}>Aprovar lote</Button>
         </div>
       </DialogContent>
     </Dialog>
   );
 }
+
