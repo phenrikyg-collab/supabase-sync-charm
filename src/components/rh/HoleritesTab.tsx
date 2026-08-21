@@ -216,12 +216,14 @@ export function HoleritesTab({
                     size="sm"
                     variant="ghost"
                     title="Baixar PDF"
-                    disabled={baixando}
-                    onClick={() => baixarPdf([h], `${prefixo(tipo)}_${slug(holeriteNome(h))}_${mesTag}`)}
+                    disabled={baixandoId === h.id}
+                    onClick={() => baixarPdfServidor(h)}
                   >
-                    <Download className="h-3.5 w-3.5" />
+                    <Download className={cn("h-3.5 w-3.5 mr-1", baixandoId === h.id && "animate-pulse")} />
+                    {baixandoId === h.id ? "Gerando..." : "Baixar PDF"}
                   </Button>
                 </div>
+
               </CardContent>
             </Card>
           ))}
