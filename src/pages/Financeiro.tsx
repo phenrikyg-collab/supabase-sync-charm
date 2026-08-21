@@ -106,6 +106,20 @@ export default function Financeiro() {
     return Array.from(meses).sort().reverse();
   }, [movs]);
 
+  const categoriasUnicas = useMemo(() => {
+    const vistos = new Set<string>();
+    return [...(categorias ?? [])]
+      .sort((a, b) => (a.nome_categoria ?? "").localeCompare(b.nome_categoria ?? "", "pt-BR"))
+      .filter((c) => {
+        const chave = `${(c.nome_categoria ?? "").trim().toLowerCase()}|${(c.descricao_categoria ?? "").trim().toLowerCase()}`;
+        if (vistos.has(chave)) return false;
+        vistos.add(chave);
+        return true;
+      });
+  }, [categorias]);
+
+
+
   const sortedCategorias = useMemo(() => 
     [...(categorias ?? [])].sort((a, b) => (a.nome_categoria ?? "").localeCompare(b.nome_categoria ?? "", "pt-BR")),
     [categorias]
