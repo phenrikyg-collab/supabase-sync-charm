@@ -31,6 +31,40 @@ function formatCurrency(v: number | null | undefined) {
   return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v);
 }
 
+type Natureza = "todos" | "pedidos" | "custos";
+
+const RE_CUSTOS = /(taxa|tarifa|gateway|vindi|yapay|adquir|antecipa|das\b|simples nacional|imposto|icms|iss|pis|cofins|irpj|csll|mdr|juros|encargo)/i;
+const RE_PEDIDOS = /(pedido|venda|receita|faturamento|desconto|estorno|devolu|cupom|frete cobrado|bling|tray)/i;
+
+function naturezaDe(texto: string, tipo: string | null | undefined): Natureza {
+  if (RE_CUSTOS.test(texto)) return "custos";
+  if (RE_PEDIDOS.test(texto)) return "pedidos";
+  if ((tipo ?? "").toLowerCase() === "entrada") return "pedidos";
+  return "custos";
+}
+
+const ATALHOS_PERIODO = [
+  { key: "hoje", label: "Hoje" },
+  { key: "7d", label: "7 dias" },
+  { key: "30d", label: "30 dias" },
+  { key: "mes", label: "Mês atual" },
+] as const;
+
+type AtalhoPeriodo = (typeof ATALHOS_PERIODO)[number]["key"] | null;
+
+function intervaloAtalho(a: AtalhoPeriodo): { de: string; ate: string } | null {
+  if (!a) return null;
+  const hoje = new Date();
+  const ate = format(hoje, "yyyy-MM-dd");
+  if (a === "hoje") return { de: ate, ate };
+  if (a === "mes") return { de: format(new Date(hoje.getFullYear(), hoje.getMonth(), 1), "yyyy-MM-dd"), ate };
+  const dias = a === "7d" ? 7 : 30;
+  const de = new Date(hoje);
+  de.setDate(de.getDate() - (dias - 1));
+  return { de: format(de, "yyyy-MM-dd"), ate };
+}
+
+
 export default function Financeiro() {
   const { data: movs, isLoading } = useMovimentacoesFinanceiras();
   const { data: categorias } = useCategorias();
