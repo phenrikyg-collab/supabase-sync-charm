@@ -62,8 +62,8 @@ export const ROUTE_ACCESS: Record<string, Requirement> = {
   "/entrada-nf": ["producao"],
   "/aviamentos": ["producao"],
 
-  // Logística (Bonificação Expedição também está em Equipe)
-  "/bonificacao-expedicao": ["logistica", "rh"],
+  // Logística
+  "/bonificacao-expedicao": ["logistica"],
 
   // Financeiro
   "/dashboard-financeiro": ["financeiro"],
@@ -82,9 +82,11 @@ export const ROUTE_ACCESS: Record<string, Requirement> = {
   "/custos-fixos": ["financeiro"],
   "/pagamento-oficinas": ["financeiro", "producao"],
 
-  // Equipe (RH) — Bonificação Produção também está em Produção
+  // Recursos Humanos (folha, holerites, lotes PIX)
   "/funcionarios": ["rh"],
-  "/bonificacao": ["rh", "producao"],
+
+  // Bonificação Produção pertence a Produção & Estoque
+  "/bonificacao": ["producao"],
 
   // Cadastros
   "/produtos": ["cadastros"],

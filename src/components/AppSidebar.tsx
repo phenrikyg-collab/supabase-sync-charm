@@ -127,6 +127,7 @@ const moduleGroups: ModuleGroup[] = [
       { title: "Estoque Tecidos", url: "/estoque", icon: Layers },
       { title: "Entrada NF", url: "/entrada-nf", icon: FileText },
       { title: "Aviamentos", url: "/aviamentos", icon: Scissors },
+      { title: "Bonificação Produção", url: "/bonificacao", icon: Trophy },
     ],
   },
   {
@@ -161,12 +162,14 @@ const moduleGroups: ModuleGroup[] = [
   },
   {
     key: "rh",
-    label: "Equipe",
+    label: "Recursos Humanos",
     icon: Users,
     items: [
-      { title: "Funcionários", url: "/funcionarios", icon: Users },
-      { title: "Bonificação Produção", url: "/bonificacao", icon: Trophy },
-      { title: "Bonificação Expedição", url: "/bonificacao-expedicao", icon: Trophy },
+      { title: "Funcionários", url: "/funcionarios?tab=funcionarios", icon: Users },
+      { title: "Folha do Mês", url: "/funcionarios?tab=folha", icon: Banknote },
+      { title: "Lote PIX · Inter", url: "/funcionarios?tab=lote", icon: CreditCard },
+      { title: "Holerites", url: "/funcionarios?tab=holerites", icon: FileText },
+      { title: "Histórico", url: "/funcionarios?tab=historico", icon: ClipboardList },
     ],
   },
   {

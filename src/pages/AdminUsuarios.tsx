@@ -47,7 +47,7 @@ const MODULE_OPTIONS: { key: AppModule; label: string; icon: React.ComponentType
   { key: "producao", label: "Produção & Estoque", icon: Wrench },
   { key: "logistica", label: "Logística", icon: Truck },
   { key: "financeiro", label: "Financeiro", icon: Banknote },
-  { key: "rh", label: "Equipe", icon: BadgeDollarSign },
+  { key: "rh", label: "Recursos Humanos", icon: BadgeDollarSign },
   { key: "cadastros", label: "Cadastros", icon: Settings },
 ];
 
