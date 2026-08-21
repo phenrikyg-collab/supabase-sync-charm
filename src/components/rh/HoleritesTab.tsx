@@ -179,6 +179,33 @@ export function HoleritesTab({
     }
   };
 
+  const baixarComprovante = async (h: Holerite) => {
+    if (!h.pagamento_id) return toast({ title: "Pagamento não identificado", variant: "destructive" });
+    setComprovanteId(h.pagamento_id);
+    try {
+      const tipoTag = (h.tipo ?? tipo) as TipoHolerite;
+      const nome = `COMPROVANTE_${slug(tipoTag)}_${primeiroNome(holeriteNome(h))}_${mesTag}.pdf`;
+      await baixarDocumentoRh("comprovante", h.pagamento_id, nome);
+    } catch (e: any) {
+      toast({ title: "Erro ao baixar comprovante", description: e?.message, variant: "destructive" });
+    } finally {
+      setComprovanteId(null);
+    }
+  };
+
+  const BotaoComprovante = ({ h }: { h: Holerite }) => {
+    const pago = h.pagamento_status === "pago" && !!h.pagamento_id;
+    const carregando = !!h.pagamento_id && comprovanteId === h.pagamento_id;
+    return (
+      <span title={pago ? "Baixar comprovante de pagamento" : "disponível após o pagamento"}>
+        <Button size="sm" variant="ghost" disabled={!pago || carregando} onClick={() => baixarComprovante(h)}>
+          <Receipt className={cn("h-3.5 w-3.5 mr-1", carregando && "animate-pulse")} />
+          {carregando ? "Gerando..." : "Comprovante"}
+        </Button>
+      </span>
+    );
+  };
+
 
   return (
     <div className="space-y-6">
