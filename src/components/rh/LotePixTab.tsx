@@ -304,7 +304,12 @@ function ListaLotes() {
       </CardContent>
 
       <DetalheLoteDialog lote={detalhe} onClose={() => setDetalhe(null)} />
-      <AprovarLoteDialog lote={aprovar} onClose={() => setAprovar(null)} aprovadoPor="" />
+      <AprovarLoteDialog
+        lote={aprovar}
+        onClose={() => setAprovar(null)}
+        aprovadoPor={operador?.email ?? session?.user?.email ?? ""}
+      />
+
 
     </Card>
   );
