@@ -184,7 +184,7 @@ export default function Financeiro() {
       }
       return true;
     });
-  }, [movs, filtroPeriodo, filtroTipo, filtroCategoria, filtroDescCategoria, filtroCentro, filtroOrigem, filtroStatus, filtroBusca, catMap, descCatToIds]);
+  }, [movs, filtroPeriodo, atalho, natureza, filtroTipo, filtroCategoria, filtroDescCategoria, filtroCentro, filtroOrigem, filtroStatus, filtroBusca, catMap, catDescMap, descCatToIds]);
 
   const origens = [...new Set(movs?.map((m) => m.origem).filter(Boolean) ?? [])];
   const tipos = [...new Set(movs?.map((m) => m.tipo).filter(Boolean) ?? [])];
