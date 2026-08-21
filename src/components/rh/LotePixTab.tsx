@@ -174,7 +174,7 @@ function LotePixConteudo({ competencia }: { competencia: string }) {
 function ListaLotes() {
   const { toast } = useToast();
   const qc = useQueryClient();
-  const { operador } = useRhAuth();
+  const { operador, session } = useRhAuth();
   const [detalhe, setDetalhe] = useState<any | null>(null);
   const [aprovar, setAprovar] = useState<any | null>(null);
   const [mostrarArquivados, setMostrarArquivados] = useState(false);
