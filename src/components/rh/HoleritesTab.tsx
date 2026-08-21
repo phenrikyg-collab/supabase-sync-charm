@@ -426,6 +426,90 @@ export function HoleritesTab({
         </DialogContent>
       </Dialog>
 
+      <Dialog open={!!ciencia} onOpenChange={(o) => !o && setCiencia(null)}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="font-serif">Enviar para ciência</DialogTitle>
+          </DialogHeader>
+          {ciencia && (
+            <div className="space-y-3">
+              <p className="text-sm text-muted-foreground">
+                {holeriteNome(ciencia.h)} · {competenciaLabel(ciencia.h.competencia ?? competencia)} — o link expira em 30 dias
+                e a confirmação é única.
+              </p>
+              <Input readOnly value={ciencia.url} onFocus={(e) => e.currentTarget.select()} />
+              <div className="flex flex-wrap gap-2">
+                <Button size="sm" variant="outline" onClick={() => copiar(ciencia.url, "modal")}>
+                  {copiado === "modal" ? <Check className="h-3.5 w-3.5 mr-2" /> : <Copy className="h-3.5 w-3.5 mr-2" />}
+                  Copiar link
+                </Button>
+                {telefoneWa(ciencia.h) ? (
+                  <Button
+                    size="sm"
+                    onClick={() =>
+                      window.open(
+                        `https://wa.me/${telefoneWa(ciencia.h)}?text=${encodeURIComponent(
+                          mensagemCiencia(ciencia.h, competencia, ciencia.url),
+                        )}`,
+                        "_blank",
+                        "noopener",
+                      )
+                    }
+                  >
+                    <MessageCircle className="h-3.5 w-3.5 mr-2" />Abrir WhatsApp
+                  </Button>
+                ) : (
+                  <span className="text-xs text-muted-foreground self-center">
+                    Sem telefone cadastrado — envie o link copiado.
+                  </span>
+                )}
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!linksLote} onOpenChange={(o) => !o && setLinksLote(null)}>
+        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="font-serif">Links de ciência · {competenciaLabel(competencia)}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-2">
+            {(linksLote ?? []).map((l, i) => (
+              <div key={i} className="flex items-center gap-2 border-b pb-2">
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-medium">{l.nome}</p>
+                  <p className="text-[11px] text-muted-foreground truncate">{l.url}</p>
+                </div>
+                <Button size="sm" variant="outline" onClick={() => copiar(l.url, `lote-${i}`)}>
+                  {copiado === `lote-${i}` ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+                </Button>
+                {telefoneWa(l.h) && (
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() =>
+                      window.open(
+                        `https://wa.me/${telefoneWa(l.h)}?text=${encodeURIComponent(
+                          mensagemCiencia(l.h, competencia, l.url),
+                        )}`,
+                        "_blank",
+                        "noopener",
+                      )
+                    }
+                  >
+                    <MessageCircle className="h-3.5 w-3.5" />
+                  </Button>
+                )}
+              </div>
+            ))}
+            {!linksLote?.length && (
+              <p className="text-sm text-muted-foreground">Nenhum link gerado.</p>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
       {createPortal(
         <div id="rh-print-area" ref={areaRef} className="hidden">
           {imprimir.map((h, i) => (
