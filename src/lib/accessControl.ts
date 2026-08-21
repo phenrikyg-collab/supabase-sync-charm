@@ -63,6 +63,7 @@ export const ROUTE_ACCESS: Record<string, Requirement> = {
   "/transacoes-site": ["financeiro"],
   "/vindi-yapay": ["financeiro"],
   "/banco-inter": ["financeiro"],
+  "/conciliacao-pix-whatsapp": ["financeiro"],
   "/orcamento": ["financeiro"],
   "/custos-fixos": ["financeiro"],
 

@@ -25,6 +25,7 @@ import Financeiro from "./pages/Financeiro";
 import TransacoesSite from "./pages/TransacoesSite";
 import VindiYapay from "./pages/VindiYapay";
 import BancoInter from "./pages/BancoInter";
+import ConciliacaoPixWhatsApp from "./pages/ConciliacaoPixWhatsApp";
 import ProvaSocial from "./pages/ProvaSocial";
 import ContasPagar from "./pages/ContasPagar";
 import ContasReceber from "./pages/ContasReceber";
@@ -210,6 +211,7 @@ const AppRoutes = () => {
               <Route path="/transacoes-site" element={<TransacoesSite />} />
               <Route path="/vindi-yapay" element={<VindiYapay />} />
               <Route path="/banco-inter" element={<BancoInter />} />
+              <Route path="/conciliacao-pix-whatsapp" element={<ConciliacaoPixWhatsApp />} />
               <Route path="/prova-social" element={<ProvaSocial />} />
               <Route path="/fluxo-caixa" element={<FluxoCaixa />} />
               <Route path="/importar" element={<ImportarPage />} />
