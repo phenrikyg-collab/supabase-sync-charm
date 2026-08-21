@@ -40,6 +40,7 @@ import PagamentoOficinas from "./pages/PagamentoOficinas";
 import AdminUsuarios from "./pages/AdminUsuarios";
 import Login from "./pages/Login";
 import NotFound from "./pages/NotFound";
+import Ciencia from "./pages/Ciencia";
 import TVInterna from "./pages/TVInterna";
 import AdminTVInterna from "./pages/AdminTVInterna";
 import Bonificacao from "./pages/Bonificacao";
@@ -163,6 +164,8 @@ function ModuleGuard({ children }: { children: React.ReactNode }) {
 
 const AppRoutes = () => {
   const { user, loading } = useAuth();
+
+  if (window.location.pathname === "/ciencia") return <Ciencia />;
 
   if (loading) return (
     <div className="min-h-screen flex items-center justify-center bg-background">
