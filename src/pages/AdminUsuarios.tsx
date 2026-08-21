@@ -261,13 +261,14 @@ function AdminUsuariosContent() {
           ) : users.length === 0 ? (
             <p className="text-sm text-muted-foreground text-center py-8">Nenhum usuário encontrado com módulos atribuídos.</p>
           ) : (
+            <div className="overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead>Usuário</TableHead>
                   <TableHead className="text-center">Admin</TableHead>
                   {MODULE_OPTIONS.map((opt) => (
-                    <TableHead key={opt.key} className="text-center">{opt.label}</TableHead>
+                    <TableHead key={opt.key} className="text-center whitespace-nowrap text-xs">{opt.label}</TableHead>
                   ))}
                   <TableHead className="w-20"></TableHead>
                 </TableRow>
@@ -305,6 +306,7 @@ function AdminUsuariosContent() {
                 ))}
               </TableBody>
             </Table>
+            </div>
           )}
         </CardContent>
       </Card>
