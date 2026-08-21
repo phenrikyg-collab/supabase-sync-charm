@@ -14,12 +14,12 @@ import { cn } from "@/lib/utils";
 import { Holerite, HoleriteRecibo, holeriteNome, normalizarHolerite } from "./HoleriteRecibo";
 import {
   baixarDocumentoRh,
+  mesTag,
   nomeArquivo,
   nomeArquivoColetivo,
-  prefixoHolerite,
   prefixoComprovante,
+  prefixoHolerite,
   prefixoHoleriteColetivo,
-  slug,
 } from "@/lib/rhDocumento";
 
 
@@ -76,11 +76,6 @@ const PRINT_CSS = `
   #rh-print-area .holerite-recibo .space-y-6 > * + * { margin-top: 8mm !important; }
 }
 `;
-
-const slug = (s: string) =>
-  s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-zA-Z0-9]+/g, "_").replace(/^_|_$/g, "").toUpperCase();
-
-const prefixo = (tipo: TipoHolerite) => (tipo === "vt" ? "RECIBO_VT" : tipo === "va" ? "RECIBO_VA" : `HOLERITE_${slug(tipo)}`);
 
 export function HoleritesTab({
   competencia,
@@ -171,14 +166,12 @@ export function HoleritesTab({
     }
   };
 
-  const mesTag = competencia.slice(5, 7) + "_" + competencia.slice(0, 4);
-
   const baixarPdfServidor = async (h: Holerite) => {
     if (!h.id) return toast({ title: "Holerite sem identificador", variant: "destructive" });
     setBaixandoId(h.id);
     try {
       const tipoTag = (h.tipo ?? tipo) as TipoHolerite;
-      const nome = `${prefixo(tipoTag)}_${primeiroNome(holeriteNome(h))}_${mesTag}.pdf`;
+      const nome = nomeArquivo(holeriteNome(h), prefixoHolerite(tipoTag), competencia);
       await baixarDocumentoRh("holerite", h.id, nome);
     } catch (e: any) {
       toast({ title: "Erro ao baixar PDF", description: e?.message, variant: "destructive" });
@@ -192,7 +185,7 @@ export function HoleritesTab({
     setComprovanteId(h.pagamento_id);
     try {
       const tipoTag = (h.tipo ?? tipo) as TipoHolerite;
-      const nome = `COMPROVANTE_${slug(tipoTag)}_${primeiroNome(holeriteNome(h))}_${mesTag}.pdf`;
+      const nome = nomeArquivo(holeriteNome(h), prefixoComprovante(tipoTag), competencia);
       await baixarDocumentoRh("comprovante", h.pagamento_id, nome);
     } catch (e: any) {
       toast({ title: "Erro ao baixar comprovante", description: e?.message, variant: "destructive" });
@@ -242,7 +235,7 @@ export function HoleritesTab({
             variant="outline"
             size="sm"
             disabled={!holerites.length || baixando}
-            onClick={() => baixarPdf(holerites, `${prefixo(tipo)}S_${mesTag}`)}
+            onClick={() => baixarPdf(holerites, nomeArquivoColetivo(prefixoHoleriteColetivo(tipo), competencia))}
           >
             <Download className={cn("h-3.5 w-3.5 mr-2", baixando && "animate-pulse")} />Baixar todos (PDF)
           </Button>
