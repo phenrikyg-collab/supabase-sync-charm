@@ -292,18 +292,7 @@ export function AppSidebar() {
           {isAdmin && (
             <SidebarMenu>
               <SidebarMenuItem>
-                <SidebarMenuButton asChild>
-                  <NavLink
-                    to="/admin/usuarios"
-                    className="transition-colors hover:bg-sidebar-accent"
-                    activeClassName="bg-sidebar-accent text-sidebar-primary font-medium"
-                  >
-                    <Users className="h-4 w-4 mr-2 shrink-0" />
-                    {!collapsed && <span>Usuários</span>}
-                  </NavLink>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-              <SidebarMenuItem>
+
                 <SidebarMenuButton asChild>
                   <NavLink
                     to="/admin/tv-interna"
