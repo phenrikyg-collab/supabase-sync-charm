@@ -15,6 +15,7 @@ import { Plus, ShieldCheck, Loader2, AlertTriangle } from "lucide-react";
 import { brl, dataBRCompleta } from "@/lib/rh";
 import { cn } from "@/lib/utils";
 import { invokeEdgeFunction } from "@/lib/edgeFunctions";
+import { parseValorBR, LIMITE_SALARIO, LIMITE_DIARIA } from "@/lib/rhMoeda";
 
 const RH_SUPABASE_URL = "https://ezdtulcrqzmgocamjwwl.supabase.co";
 const RH_ANON_KEY =
@@ -123,7 +124,24 @@ export function FuncionariosTab() {
 
   const salvar = async () => {
     if (!edit) return;
-    const num = (v: string) => (v === "" ? null : Number(String(v).replace(/\./g, "").replace(",", ".")));
+    const num = (v: string) => parseValorBR(v);
+
+    const salario = num(edit.salario_base);
+    const diaria = num(edit.vt_diaria);
+
+    if (salario != null && salario > LIMITE_SALARIO) {
+      if (!window.confirm(`Salário base de ${brl(salario)} — esse valor parece alto, confirma?`)) return;
+    }
+    if (diaria != null && diaria > LIMITE_DIARIA) {
+      if (!window.confirm(`Passagem diária de ${brl(diaria)} — esse valor parece alto, confirma?`)) return;
+    }
+
+    const original = (data ?? []).find((f: any) => f.id === edit.id);
+    const mudouValor =
+      !!edit.id &&
+      (Number(original?.salario_base ?? 0) !== Number(salario ?? 0) ||
+        Number(original?.vt_diaria ?? 0) !== Number(diaria ?? 0));
+
     const { error } = await supabase.rpc("rh_funcionario_salvar", {
       p_nome: edit.nome,
       p_chave_pix: edit.chave_pix,
@@ -134,9 +152,9 @@ export function FuncionariosTab() {
       p_ativo: edit.ativo,
       p_observacao: edit.observacao || null,
       p_admissao: edit.admissao || null,
-      p_salario_base: num(edit.salario_base),
+      p_salario_base: salario,
       p_vt_mensal: num(edit.vt_mensal),
-      p_vt_diaria: num(edit.vt_diaria),
+      p_vt_diaria: diaria,
       p_va_mensal: num(edit.va_mensal),
       p_cesta_valor: num(edit.cesta_valor),
       p_registrada: edit.registrada,
@@ -144,10 +162,16 @@ export function FuncionariosTab() {
     } as any);
 
     if (error) return toast({ title: "Erro ao salvar", description: erroRh(error).mensagem, variant: "destructive" });
-    toast({ title: "Funcionário salvo" });
+    toast({
+      title: "Funcionário salvo",
+      description: mudouValor
+        ? "Rode 'Gerar lançamentos do mês' e regere os holerites para atualizar os valores da folha."
+        : undefined,
+    });
     setEdit(null);
     qc.invalidateQueries({ queryKey: ["rh-funcionarios"] });
   };
+
 
   return (
     <Card>

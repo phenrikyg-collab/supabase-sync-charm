@@ -8,10 +8,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
-import { AlertTriangle, ChevronDown, RefreshCw, Wallet, Users, Gift, Coins, Download } from "lucide-react";
+import { AlertTriangle, ChevronDown, RefreshCw, Wallet, Users, Gift, Coins, Download, Pencil, Check, X, RotateCcw } from "lucide-react";
 import { brl, dataBR, dataBRCompleta, hojeISO, TIPOS_ORDEM } from "@/lib/rh";
 import { baixarDocumentoRh, nomeArquivo, prefixoComprovante } from "@/lib/rhDocumento";
 import { useFolhaMes, FuncionarioFolha, PagamentoFolha } from "./useFolha";
+import { parseValorBR, formatValorBR } from "@/lib/rhMoeda";
 import { ValesSection } from "./ValesSection";
 import { cn } from "@/lib/utils";
 
@@ -36,7 +37,7 @@ function BotaoComprovante({
   tipo,
   rotulo,
 }: {
-  pagamentoId: string;
+  pagamentoId: string | null | undefined;
   nome: string;
   competencia: string;
   tipo: string;
@@ -47,6 +48,7 @@ function BotaoComprovante({
 
   const baixar = async (e: React.MouseEvent) => {
     e.stopPropagation();
+    if (!pagamentoId) return;
     setBaixando(true);
     try {
       const tipoHolerite = tipo === "saldo" ? "fechamento" : (tipo as any);
@@ -61,6 +63,13 @@ function BotaoComprovante({
       setBaixando(false);
     }
   };
+
+  if (!pagamentoId)
+    return (
+      <span title="pago manualmente, sem comprovante Pix" className="text-[10px] text-muted-foreground">
+        {rotulo ? "sem comprovante Pix" : "—"}
+      </span>
+    );
 
   if (rotulo)
     return (
@@ -84,15 +93,135 @@ function BotaoComprovante({
   );
 }
 
-function Celula({ p, nome, competencia, tipo }: { p?: PagamentoFolha; nome: string; competencia: string; tipo: string }) {
-  if (!p) return <span className="text-muted-foreground">—</span>;
+function ValorEditavel({
+  p,
+  competencia,
+  tipo,
+  onSalvo,
+}: {
+  p: PagamentoFolha;
+  competencia: string;
+  tipo: string;
+  onSalvo: () => void;
+}) {
+  const { toast } = useToast();
   const valor = p.valor_liquido ?? p.valor ?? p.valor_bruto ?? 0;
+  const [editando, setEditando] = useState(false);
+  const [texto, setTexto] = useState(formatValorBR(valor));
+  const [salvando, setSalvando] = useState(false);
+
+  useEffect(() => {
+    if (!editando) setTexto(formatValorBR(valor));
+  }, [valor, editando]);
+
+  const editavel = p.editavel !== false;
+
+  const salvar = async (e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    const novo = parseValorBR(texto);
+    if (novo == null || novo < 0) {
+      return toast({ title: "Valor inválido", variant: "destructive" });
+    }
+    setSalvando(true);
+    const { data: sess } = await supabase.auth.getUser();
+    const { data, error } = await supabase.rpc("rh_folha_valor_definir" as any, {
+      p_id: p.id,
+      p_valor: novo,
+      p_por: sess?.user?.email ?? "",
+      p_obs: null,
+    });
+    setSalvando(false);
+    if (error) return toast({ title: "Erro ao salvar valor", description: erroRh(error).mensagem, variant: "destructive" });
+    const r: any = Array.isArray(data) ? data[0] : data;
+    toast({ title: "Valor atualizado", description: r?.aviso ?? undefined });
+    setEditando(false);
+    onSalvo();
+  };
+
+  const limpar = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setSalvando(true);
+    const { error } = await supabase.rpc("rh_folha_valor_limpar" as any, { p_id: p.id });
+    setSalvando(false);
+    if (error) return toast({ title: "Erro", description: erroRh(error).mensagem, variant: "destructive" });
+    toast({ title: "Voltou ao cálculo automático" });
+    onSalvo();
+  };
+
+  if (editando)
+    return (
+      <div className="space-y-1" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center gap-1 justify-end">
+          <Input
+            value={texto}
+            onChange={(e) => setTexto(e.target.value)}
+            className="h-7 w-24 text-right text-xs"
+            placeholder="0,00"
+            autoFocus
+          />
+          <Button size="icon" variant="ghost" className="h-7 w-7" disabled={salvando} onClick={salvar}>
+            <Check className="h-3.5 w-3.5" />
+          </Button>
+          <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => setEditando(false)}>
+            <X className="h-3.5 w-3.5" />
+          </Button>
+        </div>
+        <p className="text-[10px] text-muted-foreground max-w-[190px] text-right">
+          {tipo === "adiantamento"
+            ? "O valor pago no dia 20 é descontado no fechamento do dia 5."
+            : tipo === "saldo"
+              ? "A diferença entre o calculado e o valor pago entra como arredondamento e é acertada no fechamento do mês seguinte."
+              : "Valor em reais com centavos."}
+        </p>
+      </div>
+    );
+
+  return (
+    <div className="flex items-center gap-1 justify-end">
+      <span className="tabular-nums">{brl(valor)}</span>
+      {p.editado && (
+        <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground">editado</span>
+      )}
+      {editavel ? (
+        <>
+          <button
+            type="button"
+            title="Editar valor"
+            className="text-muted-foreground hover:text-foreground"
+            onClick={(e) => { e.stopPropagation(); setEditando(true); }}
+          >
+            <Pencil className="h-3 w-3" />
+          </button>
+          {p.editado && (
+            <button
+              type="button"
+              title="Voltar ao cálculo automático"
+              className="text-muted-foreground hover:text-foreground"
+              disabled={salvando}
+              onClick={limpar}
+            >
+              <RotateCcw className="h-3 w-3" />
+            </button>
+          )}
+        </>
+      ) : (
+        <span title="em lote — cancele o lote para editar" className="text-[9px] text-muted-foreground">🔒</span>
+      )}
+    </div>
+  );
+}
+
+function Celula({
+  p, nome, competencia, tipo, onSalvo,
+}: { p?: PagamentoFolha; nome: string; competencia: string; tipo: string; onSalvo: () => void }) {
+  if (!p) return <span className="text-muted-foreground">—</span>;
+  const comprovanteId = p.pagamento_id ?? null;
   return (
     <div className="leading-tight">
-      <div className="tabular-nums">{brl(valor)}</div>
+      <ValorEditavel p={p} competencia={competencia} tipo={tipo} onSalvo={onSalvo} />
       <StatusPagamento p={p} />
-      {p.status === "pago" && p.id && (
-        <div><BotaoComprovante pagamentoId={p.id} nome={nome} competencia={competencia} tipo={tipo} /></div>
+      {p.status === "pago" && comprovanteId && (
+        <div><BotaoComprovante pagamentoId={comprovanteId} nome={nome} competencia={competencia} tipo={tipo} /></div>
       )}
     </div>
   );
@@ -186,7 +315,7 @@ export function FolhaMesTab({
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3">
           <div className="flex items-center gap-2 text-amber-800 text-sm">
             <AlertTriangle className="h-4 w-4" />
-            {tiles.vencendo_qtd} pagamentos vencem hoje ou estão atrasados — total {brl(tiles.vencendo_total)}
+            {tiles.vencendo_qtd} pagamentos vencem hoje ou estão atrasados — total {brl(tiles.vencendo_valor ?? tiles.vencendo_total)}
           </div>
           <Button size="sm" onClick={onIrParaLote}>Preparar lote PIX</Button>
         </div>
@@ -333,7 +462,7 @@ function LinhaFuncionario({
     setSalvando(true);
     const { error } = await supabase.rpc("rh_folha_pagamento_atualizar", {
       p_id: saldo.id,
-      p_valor_liquido: liquido === "" ? null : Number(liquido.replace(",", ".")),
+      p_valor_liquido: parseValorBR(liquido),
       p_status: null,
       p_pago_em: null,
       p_obs: obs || null,
@@ -382,7 +511,7 @@ function LinhaFuncionario({
         {["adiantamento", "saldo", "vt", "va"].map((t) => (
           <td key={t} className="text-right px-3">
             <div className="flex flex-col items-end">
-              <Celula p={pags[t]} nome={f.nome} competencia={competencia} tipo={t} />
+              <Celula p={pags[t]} nome={f.nome} competencia={competencia} tipo={t} onSalvo={onSalvo} />
             </div>
           </td>
         ))}
@@ -458,11 +587,11 @@ function LinhaFuncionario({
               })}
               {TIPOS_ORDEM.map((t) => {
                 const p = pags[t];
-                if (!p?.id || p.status !== "pago") return null;
+                if (!p?.pagamento_id || p.status !== "pago") return null;
                 return (
                 <BotaoComprovante
                     key={`doc-${t}`}
-                    pagamentoId={p.id}
+                    pagamentoId={p.pagamento_id}
                     nome={f.nome}
                     competencia={competencia}
                     tipo={t}

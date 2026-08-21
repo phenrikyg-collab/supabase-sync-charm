@@ -12,6 +12,11 @@ export interface PagamentoFolha {
   pago_em?: string | null;
   descricao?: string | null;
   observacao?: string | null;
+  valor_override?: number | null;
+  editado?: boolean | null;
+  editavel?: boolean | null;
+  obs?: string | null;
+  pagamento_id?: string | null;
 }
 
 export interface ValeFolha {
@@ -49,6 +54,7 @@ export interface FolhaMes {
     beneficios?: number;
     funcionarios_ativos?: number;
     vencendo_qtd?: number;
+    vencendo_valor?: number;
     vencendo_total?: number;
   };
   totais_por_tipo?: Record<string, number>;

@@ -12,7 +12,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useRhAuth, erroRh } from "./useRhAuth";
 
 
-import { RefreshCw, Info } from "lucide-react";
+import { RefreshCw, Info, Archive, ArchiveRestore } from "lucide-react";
 import { brl, dataBR, hojeISO, competenciaLabel, LOTE_STATUS, ITEM_STATUS, TIPO_LABEL } from "@/lib/rh";
 import { useFolhaMes } from "./useFolha";
 import { cn } from "@/lib/utils";
@@ -148,14 +148,18 @@ function ListaLotes() {
   const { operador } = useRhAuth();
   const [detalhe, setDetalhe] = useState<any | null>(null);
   const [aprovar, setAprovar] = useState<any | null>(null);
+  const [mostrarArquivados, setMostrarArquivados] = useState(false);
 
   const podeAprovar = operador ? operador.pode_aprovar !== false : true;
   const podeExecutar = operador ? operador.pode_executar !== false : true;
 
   const { data: lotes, isLoading, refetch, isFetching } = useQuery({
-    queryKey: ["rh-lotes"],
+    queryKey: ["rh-lotes", mostrarArquivados],
     queryFn: async () => {
-      const { data, error } = await supabase.rpc("rh_lotes_listar", { p_limite: 20 });
+      const { data, error } = await supabase.rpc("rh_lotes_listar", {
+        p_limite: 20,
+        p_incluir_arquivados: mostrarArquivados,
+      } as any);
       if (error) throw error;
       return (data ?? []) as any[];
     },
@@ -167,6 +171,14 @@ function ListaLotes() {
     toast({ title: "Lote cancelado" });
     qc.invalidateQueries({ queryKey: ["rh-lotes"] });
     qc.invalidateQueries({ queryKey: ["rh-folha-mes"] });
+  };
+
+  const arquivar = async (l: any, arquivar: boolean) => {
+    if (arquivar && !window.confirm("Arquivar este lote? O histórico bancário é preservado.")) return;
+    const { error } = await supabase.rpc("rh_lote_arquivar" as any, { p_lote_id: l.id, p_arquivar: arquivar });
+    if (error) return toast({ title: "Erro", description: erroRh(error).mensagem, variant: "destructive" });
+    toast({ title: arquivar ? "Lote arquivado" : "Lote desarquivado" });
+    qc.invalidateQueries({ queryKey: ["rh-lotes"] });
   };
 
   const executar = async (id: string) => {
@@ -188,9 +200,18 @@ function ListaLotes() {
     <Card>
       <CardHeader className="flex-row items-center justify-between space-y-0">
         <CardTitle className="text-base font-serif">Lotes</CardTitle>
+        <div className="flex items-center gap-2">
+        <label className="flex items-center gap-2 text-xs text-muted-foreground">
+          <Checkbox
+            checked={mostrarArquivados}
+            onCheckedChange={(v) => setMostrarArquivados(!!v)}
+          />
+          mostrar arquivados
+        </label>
         <Button variant="outline" size="sm" onClick={() => refetch()}>
           <RefreshCw className={cn("h-3.5 w-3.5 mr-2", isFetching && "animate-spin")} /> Atualizar
         </Button>
+        </div>
       </CardHeader>
       <CardContent className="space-y-3">
         {isLoading ? (
@@ -201,11 +222,14 @@ function ListaLotes() {
           lotes.map((l) => {
             const st = LOTE_STATUS[l.status] ?? { label: l.status, className: "bg-muted" };
             return (
-              <div key={l.id} className="border rounded-lg p-4 flex flex-col md:flex-row md:items-center justify-between gap-3">
+              <div key={l.id} className={cn("border rounded-lg p-4 flex flex-col md:flex-row md:items-center justify-between gap-3", l.arquivado && "opacity-60")}>
                 <div>
                   <div className="flex items-center gap-2">
                     <span className="font-medium">{l.descricao ?? "Lote"}</span>
                     <span className={cn("text-[10px] px-2 py-0.5 rounded-full", st.className)}>{st.label}</span>
+                    {l.arquivado && (
+                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-muted text-muted-foreground">arquivado</span>
+                    )}
                   </div>
                   <p className="text-xs text-muted-foreground">
                     {competenciaLabel(l.competencia)} · {l.qtd ?? l.qtd_itens ?? 0} itens · {brl(l.total_previsto)}
@@ -234,6 +258,15 @@ function ListaLotes() {
                     </>
                   )}
                   <Button size="sm" variant="ghost" onClick={() => setDetalhe(l)}>Ver detalhe</Button>
+                  {l.arquivado ? (
+                    <Button size="sm" variant="ghost" onClick={() => arquivar(l, false)}>
+                      <ArchiveRestore className="h-3.5 w-3.5 mr-1" />Desarquivar
+                    </Button>
+                  ) : (
+                    <Button size="sm" variant="ghost" onClick={() => arquivar(l, true)}>
+                      <Archive className="h-3.5 w-3.5 mr-1" />Arquivar
+                    </Button>
+                  )}
                 </div>
               </div>
             );
