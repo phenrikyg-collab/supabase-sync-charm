@@ -111,7 +111,13 @@ const PERIODOS_EXT = [
 const num = (v: any) => (typeof v === "number" ? v : Number(v) || 0);
 
 export default function Marketing() {
+  const abaInicial =
+    typeof window !== "undefined"
+      ? new URLSearchParams(window.location.search).get("tab") || "acompanhamento"
+      : "acompanhamento";
+  const [abaAtiva, setAbaAtiva] = useState(abaInicial);
   const [periodoPaginas, setPeriodoPaginas] = useState("30dias");
+
   const [periodoProdutos, setPeriodoProdutos] = useState("30dias");
   const [periodoCanais, setPeriodoCanais] = useState("30dias");
   const [periodoMeta, setPeriodoMeta] = useState("30dias");
