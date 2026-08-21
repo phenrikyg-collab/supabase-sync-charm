@@ -10,6 +10,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { useRhAuth, erroRh } from "./useRhAuth";
+import { lerErroEdge } from "@/lib/edgeError";
+
 
 
 import { RefreshCw, Info, Archive, ArchiveRestore } from "lucide-react";
