@@ -33,11 +33,13 @@ function BotaoComprovante({
   pagamentoId,
   nome,
   competencia,
+  tipo,
   rotulo,
 }: {
   pagamentoId: string;
   nome: string;
   competencia: string;
+  tipo: string;
   rotulo?: string;
 }) {
   const { toast } = useToast();
@@ -47,10 +49,11 @@ function BotaoComprovante({
     e.stopPropagation();
     setBaixando(true);
     try {
+      const tipoHolerite = tipo === "saldo" ? "fechamento" : (tipo as any);
       await baixarDocumentoRh(
         "comprovante",
         pagamentoId,
-        `${primeiroNome(nome)} - ${mesTag(competencia)}.pdf`,
+        nomeArquivo(nome, prefixoComprovante(tipoHolerite), competencia),
       );
     } catch (err: any) {
       toast({ title: "Erro ao baixar comprovante", description: err?.message, variant: "destructive" });
@@ -81,7 +84,7 @@ function BotaoComprovante({
   );
 }
 
-function Celula({ p, nome, competencia }: { p?: PagamentoFolha; nome: string; competencia: string }) {
+function Celula({ p, nome, competencia, tipo }: { p?: PagamentoFolha; nome: string; competencia: string; tipo: string }) {
   if (!p) return <span className="text-muted-foreground">—</span>;
   const valor = p.valor_liquido ?? p.valor ?? p.valor_bruto ?? 0;
   return (
@@ -89,7 +92,7 @@ function Celula({ p, nome, competencia }: { p?: PagamentoFolha; nome: string; co
       <div className="tabular-nums">{brl(valor)}</div>
       <StatusPagamento p={p} />
       {p.status === "pago" && p.id && (
-        <div><BotaoComprovante pagamentoId={p.id} nome={nome} competencia={competencia} /></div>
+        <div><BotaoComprovante pagamentoId={p.id} nome={nome} competencia={competencia} tipo={tipo} /></div>
       )}
     </div>
   );
