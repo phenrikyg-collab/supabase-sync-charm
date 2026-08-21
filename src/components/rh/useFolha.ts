@@ -14,6 +14,14 @@ export interface PagamentoFolha {
   observacao?: string | null;
 }
 
+export interface ValeFolha {
+  id: string;
+  data?: string | null;
+  valor?: number | null;
+  descricao?: string | null;
+  motivo?: string | null;
+}
+
 export interface FuncionarioFolha {
   id: string;
   nome: string;
@@ -24,9 +32,11 @@ export interface FuncionarioFolha {
   admissao?: string | null;
   custo_mes?: number | null;
   faltas?: number | null;
+  vales?: number | null;
   vt_diaria?: number | null;
   pagamentos?: Record<string, PagamentoFolha>;
 }
+
 
 export interface FolhaMes {
   competencia?: string;

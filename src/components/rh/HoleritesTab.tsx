@@ -11,6 +11,8 @@ import { Printer, RefreshCw, FileText, Download } from "lucide-react";
 import { brl, competenciaLabel } from "@/lib/rh";
 import { cn } from "@/lib/utils";
 import { Holerite, HoleriteRecibo, holeriteNome, normalizarHolerite } from "./HoleriteRecibo";
+import { baixarDocumentoRh, primeiroNome } from "@/lib/rhDocumento";
+
 
 export type TipoHolerite = "adiantamento" | "fechamento" | "vt" | "va";
 
@@ -50,7 +52,9 @@ export function HoleritesTab({
   const { toast } = useToast();
   const [gerando, setGerando] = useState(false);
   const [baixando, setBaixando] = useState(false);
+  const [baixandoId, setBaixandoId] = useState<string | null>(null);
   const [aberto, setAberto] = useState<Holerite | null>(null);
+
   const [imprimir, setImprimir] = useState<Holerite[]>([]);
   const areaRef = useRef<HTMLDivElement>(null);
 
@@ -126,6 +130,21 @@ export function HoleritesTab({
 
   const mesTag = competencia.slice(5, 7) + "_" + competencia.slice(0, 4);
 
+  const baixarPdfServidor = async (h: Holerite) => {
+    if (!h.id) return toast({ title: "Holerite sem identificador", variant: "destructive" });
+    setBaixandoId(h.id);
+    try {
+      const tipoTag = (h.tipo ?? tipo) as TipoHolerite;
+      const nome = `${prefixo(tipoTag)}_${primeiroNome(holeriteNome(h))}_${mesTag}.pdf`;
+      await baixarDocumentoRh("holerite", h.id, nome);
+    } catch (e: any) {
+      toast({ title: "Erro ao baixar PDF", description: e?.message, variant: "destructive" });
+    } finally {
+      setBaixandoId(null);
+    }
+  };
+
+
   return (
     <div className="space-y-6">
       <style>{PRINT_CSS}</style>
@@ -197,12 +216,14 @@ export function HoleritesTab({
                     size="sm"
                     variant="ghost"
                     title="Baixar PDF"
-                    disabled={baixando}
-                    onClick={() => baixarPdf([h], `${prefixo(tipo)}_${slug(holeriteNome(h))}_${mesTag}`)}
+                    disabled={baixandoId === h.id}
+                    onClick={() => baixarPdfServidor(h)}
                   >
-                    <Download className="h-3.5 w-3.5" />
+                    <Download className={cn("h-3.5 w-3.5 mr-1", baixandoId === h.id && "animate-pulse")} />
+                    {baixandoId === h.id ? "Gerando..." : "Baixar PDF"}
                   </Button>
                 </div>
+
               </CardContent>
             </Card>
           ))}
@@ -214,10 +235,12 @@ export function HoleritesTab({
           {aberto && (
             <div className="space-y-4">
               <div className="flex justify-end gap-2">
-                <Button size="sm" variant="outline" disabled={baixando}
-                  onClick={() => baixarPdf([aberto], `${prefixo(tipo)}_${slug(holeriteNome(aberto))}_${mesTag}`)}>
-                  <Download className="h-3.5 w-3.5 mr-2" />Baixar PDF
+                <Button size="sm" variant="outline" disabled={baixandoId === aberto.id}
+                  onClick={() => baixarPdfServidor(aberto)}>
+                  <Download className={cn("h-3.5 w-3.5 mr-2", baixandoId === aberto.id && "animate-pulse")} />
+                  {baixandoId === aberto.id ? "Gerando..." : "Baixar PDF"}
                 </Button>
+
                 <Button size="sm" onClick={() => disparar([aberto])}>
                   <Printer className="h-3.5 w-3.5 mr-2" />Imprimir
                 </Button>

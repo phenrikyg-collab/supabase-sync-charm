@@ -8,9 +8,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
-import { AlertTriangle, ChevronDown, RefreshCw, Wallet, Users, Gift, Coins } from "lucide-react";
+import { AlertTriangle, ChevronDown, RefreshCw, Wallet, Users, Gift, Coins, Download } from "lucide-react";
 import { brl, dataBR, dataBRCompleta, hojeISO, TIPOS_ORDEM } from "@/lib/rh";
+import { baixarDocumentoRh, mesTag, primeiroNome } from "@/lib/rhDocumento";
 import { useFolhaMes, FuncionarioFolha, PagamentoFolha } from "./useFolha";
+import { ValesSection } from "./ValesSection";
 import { cn } from "@/lib/utils";
 
 function StatusPagamento({ p }: { p?: PagamentoFolha }) {
@@ -27,16 +29,72 @@ function StatusPagamento({ p }: { p?: PagamentoFolha }) {
   );
 }
 
-function Celula({ p }: { p?: PagamentoFolha }) {
+function BotaoComprovante({
+  pagamentoId,
+  nome,
+  competencia,
+  rotulo,
+}: {
+  pagamentoId: string;
+  nome: string;
+  competencia: string;
+  rotulo?: string;
+}) {
+  const { toast } = useToast();
+  const [baixando, setBaixando] = useState(false);
+
+  const baixar = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setBaixando(true);
+    try {
+      await baixarDocumentoRh(
+        "comprovante",
+        pagamentoId,
+        `${primeiroNome(nome)} - ${mesTag(competencia)}.pdf`,
+      );
+    } catch (err: any) {
+      toast({ title: "Erro ao baixar comprovante", description: err?.message, variant: "destructive" });
+    } finally {
+      setBaixando(false);
+    }
+  };
+
+  if (rotulo)
+    return (
+      <Button size="sm" variant="outline" onClick={baixar} disabled={baixando}>
+        <Download className={cn("h-3.5 w-3.5 mr-2", baixando && "animate-pulse")} />
+        {baixando ? "Gerando..." : rotulo}
+      </Button>
+    );
+
+  return (
+    <button
+      type="button"
+      onClick={baixar}
+      disabled={baixando}
+      title="Baixar comprovante"
+      className="text-[10px] inline-flex items-center gap-1 text-primary underline disabled:opacity-50"
+    >
+      <Download className={cn("h-3 w-3", baixando && "animate-pulse")} />
+      {baixando ? "gerando..." : "comprovante"}
+    </button>
+  );
+}
+
+function Celula({ p, nome, competencia }: { p?: PagamentoFolha; nome: string; competencia: string }) {
   if (!p) return <span className="text-muted-foreground">—</span>;
   const valor = p.valor_liquido ?? p.valor ?? p.valor_bruto ?? 0;
   return (
     <div className="leading-tight">
       <div className="tabular-nums">{brl(valor)}</div>
       <StatusPagamento p={p} />
+      {p.status === "pago" && p.id && (
+        <div><BotaoComprovante pagamentoId={p.id} nome={nome} competencia={competencia} /></div>
+      )}
     </div>
   );
 }
+
 
 const MINI = {
   pago: "bg-green-100 text-green-700",
@@ -307,6 +365,11 @@ function LinhaFuncionario({
                     {f.faltas} faltas
                   </span>
                 )}
+                {Number(f.vales) > 0 && (
+                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-100 text-amber-700">
+                    vales {brl(f.vales)}
+                  </span>
+                )}
               </div>
               <div className="text-xs text-muted-foreground">{f.cargo ?? "—"}</div>
             </div>
@@ -315,9 +378,12 @@ function LinhaFuncionario({
         <td className="text-right px-3 tabular-nums">{brl(f.salario_base)}</td>
         {["adiantamento", "saldo", "vt", "va"].map((t) => (
           <td key={t} className="text-right px-3">
-            <div className="flex flex-col items-end"><Celula p={pags[t]} /></div>
+            <div className="flex flex-col items-end">
+              <Celula p={pags[t]} nome={f.nome} competencia={competencia} />
+            </div>
           </td>
         ))}
+
         <td className="text-right pl-3 tabular-nums font-medium">{brl(f.custo_mes)}</td>
       </tr>
       {aberto && (
@@ -373,6 +439,9 @@ function LinhaFuncionario({
                 <p className="text-[10px] text-muted-foreground">Cada falta reduz um dia de VT do mês.</p>
               </div>
             </div>
+
+            <ValesSection funcionarioId={f.id} competencia={competencia} onMudou={onSalvo} />
+
             <div className="flex flex-wrap gap-2 mt-4">
               <Button size="sm" onClick={() => atualizar()} disabled={salvando || !saldo}>Salvar fechamento</Button>
               {TIPOS_ORDEM.map((t) => {
@@ -384,7 +453,21 @@ function LinhaFuncionario({
                   </Button>
                 );
               })}
+              {TIPOS_ORDEM.map((t) => {
+                const p = pags[t];
+                if (!p?.id || p.status !== "pago") return null;
+                return (
+                  <BotaoComprovante
+                    key={`doc-${t}`}
+                    pagamentoId={p.id}
+                    nome={f.nome}
+                    competencia={competencia}
+                    rotulo={`Comprovante ${t}`}
+                  />
+                );
+              })}
             </div>
+
           </td>
         </tr>
       )}
