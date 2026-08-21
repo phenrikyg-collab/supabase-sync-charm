@@ -6,6 +6,7 @@ import {
   BellRing,
   BadgeDollarSign,
   Filter,
+  CheckCircle2,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useAuth } from "@/contexts/AuthContext";
@@ -152,6 +153,7 @@ const moduleGroups: ModuleGroup[] = [
       { title: "Transações do Site", url: "/transacoes-site", icon: ShoppingCart },
       { title: "Vindi / Yapay", url: "/vindi-yapay", icon: CreditCard },
       { title: "Banco Inter", url: "/banco-inter", icon: Banknote },
+      { title: "Conciliação Pix WhatsApp", url: "/conciliacao-pix-whatsapp", icon: CheckCircle2 },
       { title: "Orçamento", url: "/orcamento", icon: Target },
       { title: "Custos Fixos", url: "/custos-fixos", icon: TrendingUp },
       { title: "Pgto Oficinas", url: "/pagamento-oficinas", icon: DollarSign },
