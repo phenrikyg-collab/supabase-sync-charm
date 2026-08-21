@@ -667,7 +667,7 @@ export default function Marketing() {
         <h1 className="text-3xl font-serif font-bold">Marketing</h1>
       </div>
 
-      <Tabs defaultValue="acompanhamento">
+      <Tabs value={abaAtiva} onValueChange={setAbaAtiva}>
         <TabsList className="flex-wrap h-auto">
           <TabsTrigger value="acompanhamento">Acompanhamento da Meta</TabsTrigger>
           <TabsTrigger value="paginas">Páginas</TabsTrigger>
