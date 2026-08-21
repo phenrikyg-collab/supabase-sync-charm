@@ -439,6 +439,9 @@ function LinhaFuncionario({
                 <p className="text-[10px] text-muted-foreground">Cada falta reduz um dia de VT do mês.</p>
               </div>
             </div>
+
+            <ValesSection funcionarioId={f.id} competencia={competencia} onMudou={onSalvo} />
+
             <div className="flex flex-wrap gap-2 mt-4">
               <Button size="sm" onClick={() => atualizar()} disabled={salvando || !saldo}>Salvar fechamento</Button>
               {TIPOS_ORDEM.map((t) => {
@@ -450,7 +453,21 @@ function LinhaFuncionario({
                   </Button>
                 );
               })}
+              {TIPOS_ORDEM.map((t) => {
+                const p = pags[t];
+                if (!p?.id || p.status !== "pago") return null;
+                return (
+                  <BotaoComprovante
+                    key={`doc-${t}`}
+                    pagamentoId={p.id}
+                    nome={f.nome}
+                    competencia={competencia}
+                    rotulo={`Comprovante ${t}`}
+                  />
+                );
+              })}
             </div>
+
           </td>
         </tr>
       )}
