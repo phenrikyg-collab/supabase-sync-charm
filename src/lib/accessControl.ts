@@ -13,6 +13,7 @@ export const ROUTE_ACCESS: Record<string, Requirement> = {
   "/metas": "admin",
   "/admin": "admin",
   "/automacoes": "admin",
+  "/gestao": "admin",
   "/importar": "admin",
 
   // Comercial

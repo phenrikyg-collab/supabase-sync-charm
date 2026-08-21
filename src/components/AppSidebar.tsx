@@ -41,6 +41,14 @@ interface ModuleGroup {
 const moduleGroups: ModuleGroup[] = [
   {
     adminOnly: true,
+    label: "Gestão",
+    icon: ClipboardList,
+    items: [
+      { title: "Checklist e Auditorias", url: "/gestao", icon: ClipboardList },
+    ],
+  },
+  {
+    adminOnly: true,
     label: "Planejamento Estratégico",
     icon: Compass,
     items: [
