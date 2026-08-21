@@ -465,7 +465,7 @@ export default function Financeiro() {
           <SelectTrigger><SelectValue placeholder="Categoria" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="todos">Todas</SelectItem>
-            {categorias?.map((c) => <SelectItem key={c.id} value={c.id}>{c.nome_categoria}</SelectItem>)}
+            {categoriasUnicas.map((c) => <SelectItem key={c.id} value={c.id}>{c.nome_categoria}</SelectItem>)}
           </SelectContent>
         </Select>
         <Select value={filtroDescCategoria} onValueChange={setFiltroDescCategoria}>
