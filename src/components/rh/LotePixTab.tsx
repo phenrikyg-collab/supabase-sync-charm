@@ -94,7 +94,7 @@ function LotePixConteudo({ competencia }: { competencia: string }) {
     const { error } = await supabase.rpc("rh_folha_lote_gerar", {
       p_ids: selecionados.map((l) => l.id),
       p_descricao: `Folha ${competenciaLabel(competencia)}`,
-      p_criado_por: "",
+      p_criado_por: emailUsuario || "—",
     });
     setGerando(false);
     if (error) return toast({ title: "Erro ao gerar lote", description: erroRh(error).mensagem, variant: "destructive" });
