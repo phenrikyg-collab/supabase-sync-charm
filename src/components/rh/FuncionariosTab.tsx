@@ -15,6 +15,7 @@ import { Plus, ShieldCheck, Loader2, AlertTriangle } from "lucide-react";
 import { brl, dataBRCompleta } from "@/lib/rh";
 import { cn } from "@/lib/utils";
 import { invokeEdgeFunction } from "@/lib/edgeFunctions";
+import { parseValorBR, LIMITE_SALARIO, LIMITE_DIARIA } from "@/lib/rhMoeda";
 
 const RH_SUPABASE_URL = "https://ezdtulcrqzmgocamjwwl.supabase.co";
 const RH_ANON_KEY =
