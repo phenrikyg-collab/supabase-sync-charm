@@ -41,25 +41,21 @@ interface ModuleGroup {
 const moduleGroups: ModuleGroup[] = [
   {
     adminOnly: true,
-    label: "Gestão",
-    icon: ClipboardList,
-    items: [
-      { title: "Checklist e Auditorias", url: "/gestao", icon: ClipboardList },
-    ],
-  },
-  {
-    adminOnly: true,
-    label: "Planejamento Estratégico",
+    label: "Gestão & Estratégia",
     icon: Compass,
     items: [
+      { title: "Checklist e Auditorias", url: "/gestao", icon: ClipboardList },
       { title: "Dashboard Comercial", url: "/dashboard-comercial", icon: LayoutDashboard },
+      { title: "Meta Ads", url: "/marketing?tab=meta-ads", icon: Megaphone },
+      { title: "Dashboard GA4", url: "/marketing", icon: BarChart3 },
+      { title: "Dashboard RFM", url: "/dashboard-rfm", icon: UserSquare2 },
+      { title: "KPIs de Conversão", url: "/kpis-conversao", icon: TrendingUp },
       { title: "Padrões de Pedidos", url: "/padroes-pedidos", icon: BarChart3 },
-      { title: "Plano Comercial", url: "/plano-comercial", icon: Target },
       { title: "Meta Mensal", url: "/metas", icon: Target },
-      { title: "Visão Anual", url: "/planejamento/anual", icon: BarChart3 },
       { title: "Planejamento Mensal", url: "/planejamento/mensal", icon: CalendarDays },
+      { title: "Plano Comercial", url: "/plano-comercial", icon: Target },
+      { title: "Visão Anual", url: "/planejamento/anual", icon: BarChart3 },
       { title: "Simulador", url: "/planejamento/simulador", icon: Target },
-      
     ],
   },
   {
@@ -67,34 +63,68 @@ const moduleGroups: ModuleGroup[] = [
     label: "Comercial",
     icon: ShoppingBag,
     items: [
-      { title: "Ordens de Produção", url: "/ordens-producao", icon: LayoutGrid },
-      { title: "Lançamentos & Reposições", url: "/lancamentos", icon: Sparkles },
-      { title: "Bonificação WhatsApp", url: "/bonificacao-whatsapp", icon: Trophy },
       { title: "Produtos & Campanha", url: "/produtos-campanha", icon: Tag },
-      { title: "Dashboard RFM", url: "/dashboard-rfm", icon: UserSquare2 },
+      { title: "Lançamentos & Reposições", url: "/lancamentos", icon: Sparkles },
       { title: "Dashboard de Produtos", url: "/dashboard-produtos", icon: Boxes },
+      { title: "Ordens de Produção", url: "/ordens-producao", icon: LayoutGrid },
+      { title: "Bonificação WhatsApp", url: "/bonificacao-whatsapp", icon: Trophy },
+    ],
+  },
+  {
+    key: "marketing",
+    label: "Marketing",
+    icon: Megaphone,
+    items: [
+      { title: "Criativos", url: "/marketing?tab=criativos", icon: Sparkles },
+      { title: "Analytics Instagram", url: "/marketing-analytics", icon: Sparkles },
+      { title: "Matriz Criativa", url: "/marketing/matriz-criativa", icon: Sparkles },
+      { title: "Planejamento de Conteúdo", url: "/planejamento-conteudo-mensal", icon: CalendarDays },
+      { title: "Tendências", url: "/tendencias", icon: TrendingUp },
+      { title: "Embaixadoras", url: "/embaixadoras", icon: Heart },
+      { title: "Link na Bio", url: "/link-na-bio", icon: LinkIcon },
+      { title: "Prova Social", url: "/prova-social", icon: BellRing },
+    ],
+  },
+  {
+    key: "marketing",
+    label: "CRM & Relacionamento",
+    icon: Mail,
+    items: [
+      { title: "E-mail: Listas, Templates e Campanhas", url: "/email-marketing", icon: Mail },
+      { title: "WhatsApp: Templates, Segmentos e Campanhas", url: "/marketing-whatsapp", icon: MessageCircle },
+      { title: "Cupons", url: "/cupons", icon: Ticket },
+      { title: "Conteúdo & CRM", url: "/conteudo", icon: CalendarDays },
+      { title: "Fluxos", url: "/automacoes", icon: Workflow },
+    ],
+  },
+  {
+    key: "comercial",
+    label: "Atendimento & Venda Direta",
+    icon: MessageCircle,
+    items: [
+      { title: "WhatsApp", url: "/atendimento", icon: MessageCircle },
+      { title: "Funil WhatsApp", url: "/funil-whatsapp", icon: Filter },
       { title: "Propor Carrinho", url: "/propor-carrinho", icon: ShoppingCart },
+      { title: "Carrinho Abandonado", url: "/carrinho-abandonado", icon: ShoppingCart },
+      { title: "Pedidos Cancelados", url: "/pedidos-cancelados", icon: PackageX },
+      { title: "Visitantes ao Vivo", url: "/rastreamento", icon: Radar },
+      { title: "Audiência", url: "/audiencia", icon: UserSquare2 },
+      { title: "Provador Virtual", url: "/provador-virtual", icon: Sparkles },
     ],
   },
   {
     key: "producao",
-    label: "Produção",
+    label: "Produção & Estoque",
     icon: Wrench,
     items: [
-      { title: "Produtos", url: "/produtos", icon: Package },
-      { title: "Cadastro Produto", url: "/produtos/novo", icon: Plus },
-      { title: "Cores", url: "/cores", icon: Palette },
-      { title: "Cadastro Tecidos", url: "/cadastro-tecidos", icon: Layers },
-      { title: "Entrada NF", url: "/entrada-nf", icon: FileText },
-      { title: "Estoque Tecidos", url: "/estoque", icon: Layers },
-      { title: "Nova Ordem Corte", url: "/ordens-corte/nova", icon: Scissors },
+      { title: "Plano de Produção", url: "/plano-producao", icon: ClipboardList },
+      { title: "Ordem de Produção", url: "/ordens-producao", icon: Factory },
+      { title: "Nova Ordem de Corte", url: "/ordens-corte/nova", icon: Scissors },
       { title: "Ordem de Corte", url: "/ordens-corte", icon: Scissors },
       { title: "Oficinas", url: "/oficinas", icon: Building2 },
       { title: "Oficina Interna", url: "/oficina-interna", icon: Home },
-      { title: "Bonificação", url: "/bonificacao", icon: Trophy },
-      { title: "Ordem Produção", url: "/ordens-producao", icon: Factory },
-      { title: "Plano de Produção", url: "/plano-producao", icon: ClipboardList },
-      { title: "Pgto Oficinas", url: "/pagamento-oficinas", icon: DollarSign },
+      { title: "Estoque Tecidos", url: "/estoque", icon: Layers },
+      { title: "Entrada NF", url: "/entrada-nf", icon: FileText },
       { title: "Aviamentos", url: "/aviamentos", icon: Scissors },
     ],
   },
@@ -122,75 +152,40 @@ const moduleGroups: ModuleGroup[] = [
       { title: "Transações do Site", url: "/transacoes-site", icon: ShoppingCart },
       { title: "Orçamento", url: "/orcamento", icon: Target },
       { title: "Custos Fixos", url: "/custos-fixos", icon: TrendingUp },
-    ],
-  },
-  {
-    key: "marketing",
-    label: "Marketing",
-    icon: Megaphone,
-    items: [
-      { title: "Dashboard GA4", url: "/marketing", icon: BarChart3 },
-      { title: "Analytics Instagram", url: "/marketing-analytics", icon: Sparkles },
-      { title: "Embaixadoras", url: "/embaixadoras", icon: Heart },
-      { title: "Planejamento de Conteúdo", url: "/planejamento-conteudo-mensal", icon: CalendarDays },
-      { title: "Tendências", url: "/tendencias", icon: TrendingUp },
-      { title: "Conteúdo & CRM", url: "/conteudo", icon: CalendarDays },
-      { title: "Matriz Criativa", url: "/marketing/matriz-criativa", icon: Sparkles },
-      { title: "Link na Bio", url: "/link-na-bio", icon: LinkIcon },
-      { title: "Cupons", url: "/cupons", icon: Ticket },
-      { title: "Prova Social", url: "/prova-social", icon: BellRing },
-    ],
-  },
-  {
-    key: "comercial",
-    label: "Atendimento",
-    icon: MessageCircle,
-    items: [
-      { title: "WhatsApp", url: "/atendimento", icon: MessageCircle },
-      { title: "Audiência", url: "/audiencia", icon: UserSquare2 },
-      { title: "Carrinho Abandonado", url: "/carrinho-abandonado", icon: ShoppingCart },
-      { title: "Pedidos Cancelados", url: "/pedidos-cancelados", icon: PackageX },
-      { title: "Visitantes ao Vivo", url: "/rastreamento", icon: Radar },
-      { title: "Funil WhatsApp", url: "/funil-whatsapp", icon: Filter },
-      { title: "KPIs de Conversão", url: "/kpis-conversao", icon: TrendingUp },
-      { title: "Provador Virtual", url: "/provador-virtual", icon: Sparkles },
-
-
-    ],
-  },
-  {
-    key: "marketing",
-    label: "E-mail Marketing",
-    icon: Mail,
-    items: [
-      { title: "Listas, Templates e Campanhas", url: "/email-marketing", icon: Mail },
-    ],
-  },
-  {
-    key: "marketing",
-    label: "Marketing WhatsApp",
-    icon: MessageCircle,
-    items: [
-      { title: "Templates, Segmentos e Campanhas", url: "/marketing-whatsapp", icon: MessageCircle },
+      { title: "Pgto Oficinas", url: "/pagamento-oficinas", icon: DollarSign },
     ],
   },
   {
     key: "rh",
-    label: "Recursos Humanos",
-    icon: BadgeDollarSign,
+    label: "Equipe",
+    icon: Users,
     items: [
       { title: "Funcionários", url: "/funcionarios", icon: Users },
+      { title: "Bonificação Produção", url: "/bonificacao", icon: Trophy },
+      { title: "Bonificação Expedição", url: "/bonificacao-expedicao", icon: Trophy },
+    ],
+  },
+  {
+    key: "producao",
+    label: "Cadastros",
+    icon: Settings,
+    items: [
+      { title: "Cadastro de Produto", url: "/produtos/novo", icon: Plus },
+      { title: "Produtos", url: "/produtos", icon: Package },
+      { title: "Cores", url: "/cores", icon: Palette },
+      { title: "Cadastro de Tecidos", url: "/cadastro-tecidos", icon: Layers },
     ],
   },
   {
     adminOnly: true,
-    label: "Automações",
-    icon: Workflow,
+    label: "Acessos",
+    icon: Users,
     items: [
-      { title: "Fluxos", url: "/automacoes", icon: Workflow },
+      { title: "Acessos & Usuários", url: "/admin/usuarios", icon: Users },
     ],
   },
 ];
+
 
 export function AppSidebar() {
   const { state } = useSidebar();
@@ -237,7 +232,7 @@ export function AppSidebar() {
             );
 
             return (
-              <Collapsible key={group.label} defaultOpen={false}>
+              <Collapsible key={group.label} defaultOpen={group.label === "Gestão & Estratégia"}>
                 <SidebarGroup>
                   <CollapsibleTrigger className="w-full">
                     <SidebarGroupLabel className="text-sidebar-foreground/40 uppercase tracking-widest text-[10px] cursor-pointer hover:text-sidebar-foreground/60 transition-colors flex items-center justify-between w-full">
@@ -297,18 +292,7 @@ export function AppSidebar() {
           {isAdmin && (
             <SidebarMenu>
               <SidebarMenuItem>
-                <SidebarMenuButton asChild>
-                  <NavLink
-                    to="/admin/usuarios"
-                    className="transition-colors hover:bg-sidebar-accent"
-                    activeClassName="bg-sidebar-accent text-sidebar-primary font-medium"
-                  >
-                    <Users className="h-4 w-4 mr-2 shrink-0" />
-                    {!collapsed && <span>Usuários</span>}
-                  </NavLink>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-              <SidebarMenuItem>
+
                 <SidebarMenuButton asChild>
                   <NavLink
                     to="/admin/tv-interna"

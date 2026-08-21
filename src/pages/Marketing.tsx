@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
+import { useLocation } from "react-router-dom";
+
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -111,7 +113,17 @@ const PERIODOS_EXT = [
 const num = (v: any) => (typeof v === "number" ? v : Number(v) || 0);
 
 export default function Marketing() {
+  const routerLocation = useLocation();
+  const [abaAtiva, setAbaAtiva] = useState(
+    () => new URLSearchParams(routerLocation.search).get("tab") || "acompanhamento",
+  );
+  useEffect(() => {
+    const t = new URLSearchParams(routerLocation.search).get("tab");
+    if (t) setAbaAtiva(t);
+  }, [routerLocation.search]);
+
   const [periodoPaginas, setPeriodoPaginas] = useState("30dias");
+
   const [periodoProdutos, setPeriodoProdutos] = useState("30dias");
   const [periodoCanais, setPeriodoCanais] = useState("30dias");
   const [periodoMeta, setPeriodoMeta] = useState("30dias");
@@ -667,7 +679,7 @@ export default function Marketing() {
         <h1 className="text-3xl font-serif font-bold">Marketing</h1>
       </div>
 
-      <Tabs defaultValue="acompanhamento">
+      <Tabs value={abaAtiva} onValueChange={setAbaAtiva}>
         <TabsList className="flex-wrap h-auto">
           <TabsTrigger value="acompanhamento">Acompanhamento da Meta</TabsTrigger>
           <TabsTrigger value="paginas">Páginas</TabsTrigger>
