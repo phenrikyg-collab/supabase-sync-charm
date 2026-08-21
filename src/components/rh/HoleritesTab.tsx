@@ -87,6 +87,7 @@ export function HoleritesTab({
   const [gerando, setGerando] = useState(false);
   const [baixando, setBaixando] = useState(false);
   const [baixandoId, setBaixandoId] = useState<string | null>(null);
+  const [comprovanteId, setComprovanteId] = useState<string | null>(null);
   const [aberto, setAberto] = useState<Holerite | null>(null);
 
   const [imprimir, setImprimir] = useState<Holerite[]>([]);
