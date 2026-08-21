@@ -2,54 +2,68 @@ import type { AppModule } from "@/hooks/useUserModules";
 
 export type Requirement = "admin" | "any" | AppModule[];
 
-/** Mapa de rota -> permissão exigida. Prefixos mais longos têm prioridade. */
+/**
+ * Mapa de rota -> permissão exigida (seções do menu, 1 módulo por seção).
+ * Páginas com dois pontos de entrada listam TODOS os módulos que liberam a rota.
+ * Prefixos mais longos têm prioridade.
+ */
 export const ROUTE_ACCESS: Record<string, Requirement> = {
-  // Planejamento Estratégico / Gestão / Automações / Usuários -> admin
-  "/planejamento": "admin",
-  "/dashboard-comercial": "admin",
-  "/dashboard-antigo": "admin",
-  "/padroes-pedidos": "admin",
-  "/plano-comercial": "admin",
-  "/metas": "admin",
-  "/admin": "admin",
-  "/automacoes": "admin",
-  "/gestao": "admin",
-  "/importar": "admin",
+  // Gestão & Estratégia
+  "/gestao": ["gestao"],
+  "/dashboard-comercial": ["gestao"],
+  "/dashboard-antigo": ["gestao"],
+  "/dashboard-rfm": ["gestao"],
+  "/kpis-conversao": ["gestao"],
+  "/padroes-pedidos": ["gestao"],
+  "/metas": ["gestao"],
+  "/planejamento": ["gestao"],
+  "/plano-comercial": ["gestao"],
+  "/importar": ["gestao"],
 
   // Comercial
-  "/lancamentos": ["comercial"],
-  "/bonificacao-whatsapp": ["comercial"],
   "/produtos-campanha": ["comercial"],
-  "/dashboard-rfm": ["comercial"],
+  "/lancamentos": ["comercial"],
   "/dashboard-produtos": ["comercial"],
-  "/propor-carrinho": ["comercial"],
-  // Atendimento (módulo comercial)
-  "/atendimento": ["comercial"],
-  "/audiencia": ["comercial"],
-  "/carrinho-abandonado": ["comercial"],
-  "/pedidos-cancelados": ["comercial"],
-  "/rastreamento": ["comercial"],
-  "/funil-whatsapp": ["comercial"],
-  "/kpis-conversao": ["comercial"],
-  "/provador-virtual": ["comercial"],
+  "/bonificacao-whatsapp": ["comercial"],
 
-  // Produção
+  // Marketing (Meta Ads / GA4 também aparecem em Gestão & Estratégia)
+  "/marketing": ["marketing", "gestao"],
+  "/marketing-analytics": ["marketing"],
+  "/planejamento-conteudo-mensal": ["marketing"],
+  "/tendencias": ["marketing"],
+  "/embaixadoras": ["marketing"],
+  "/link-na-bio": ["marketing"],
+  "/prova-social": ["marketing"],
+
+  // CRM & Relacionamento
+  "/email-marketing": ["crm"],
+  "/marketing-whatsapp": ["crm"],
+  "/cupons": ["crm"],
+  "/conteudo": ["crm"],
+  "/automacoes": ["crm"],
+
+  // Atendimento & Venda Direta
+  "/atendimento": ["atendimento"],
+  "/funil-whatsapp": ["atendimento"],
+  "/propor-carrinho": ["atendimento"],
+  "/carrinho-abandonado": ["atendimento"],
+  "/pedidos-cancelados": ["atendimento"],
+  "/rastreamento": ["atendimento"],
+  "/audiencia": ["atendimento"],
+  "/provador-virtual": ["atendimento"],
+
+  // Produção & Estoque (Ordens de Produção também está em Comercial)
   "/ordens-producao": ["producao", "comercial"],
-  "/produtos": ["producao"],
-  "/cores": ["producao"],
-  "/cadastro-tecidos": ["producao"],
-  "/entrada-nf": ["producao"],
-  "/estoque": ["producao"],
+  "/plano-producao": ["producao"],
   "/ordens-corte": ["producao"],
   "/oficinas": ["producao"],
   "/oficina-interna": ["producao"],
-  "/bonificacao": ["producao"],
-  "/plano-producao": ["producao"],
-  "/pagamento-oficinas": ["producao"],
+  "/estoque": ["producao"],
+  "/entrada-nf": ["producao"],
   "/aviamentos": ["producao"],
 
-  // Logística
-  "/bonificacao-expedicao": ["logistica"],
+  // Logística (Bonificação Expedição também está em Equipe)
+  "/bonificacao-expedicao": ["logistica", "rh"],
 
   // Financeiro
   "/dashboard-financeiro": ["financeiro"],
@@ -66,22 +80,19 @@ export const ROUTE_ACCESS: Record<string, Requirement> = {
   "/conciliacao-pix-whatsapp": ["financeiro"],
   "/orcamento": ["financeiro"],
   "/custos-fixos": ["financeiro"],
+  "/pagamento-oficinas": ["financeiro", "producao"],
 
-  // Recursos Humanos (exige módulo 'rh')
+  // Equipe (RH) — Bonificação Produção também está em Produção
   "/funcionarios": ["rh"],
+  "/bonificacao": ["rh", "producao"],
 
-  // Marketing
-  "/marketing": ["marketing"],
-  "/marketing-analytics": ["marketing"],
-  "/marketing-whatsapp": ["marketing"],
-  "/email-marketing": ["marketing"],
-  "/embaixadoras": ["marketing"],
-  "/planejamento-conteudo-mensal": ["marketing"],
-  "/tendencias": ["marketing"],
-  "/conteudo": ["marketing"],
-  "/link-na-bio": ["marketing"],
-  "/cupons": ["marketing"],
-  "/prova-social": ["marketing"],
+  // Cadastros
+  "/produtos": ["cadastros"],
+  "/cores": ["cadastros"],
+  "/cadastro-tecidos": ["cadastros"],
+
+  // Acessos
+  "/admin": "admin",
 
   // Qualquer usuário logado
   "/tv-interna": "any",
@@ -108,10 +119,14 @@ export function canAccess(
 
 /** Home por módulo (usado no redirecionamento inicial). */
 export const MODULE_HOME: Record<AppModule, string> = {
-  comercial: "/atendimento",
-  producao: "/ordens-producao",
-  financeiro: "/dashboard-financeiro",
-  logistica: "/bonificacao-expedicao",
+  gestao: "/gestao",
+  comercial: "/produtos-campanha",
   marketing: "/marketing",
+  crm: "/email-marketing",
+  atendimento: "/atendimento",
+  producao: "/ordens-producao",
+  logistica: "/bonificacao-expedicao",
+  financeiro: "/dashboard-financeiro",
   rh: "/funcionarios",
+  cadastros: "/produtos",
 };
