@@ -126,6 +126,21 @@ export function HoleritesTab({
 
   const mesTag = competencia.slice(5, 7) + "_" + competencia.slice(0, 4);
 
+  const baixarPdfServidor = async (h: Holerite) => {
+    if (!h.id) return toast({ title: "Holerite sem identificador", variant: "destructive" });
+    setBaixandoId(h.id);
+    try {
+      const tipoTag = (h.tipo ?? tipo) as TipoHolerite;
+      const nome = `${prefixo(tipoTag)}_${primeiroNome(holeriteNome(h))}_${mesTag}.pdf`;
+      await baixarDocumentoRh("holerite", h.id, nome);
+    } catch (e: any) {
+      toast({ title: "Erro ao baixar PDF", description: e?.message, variant: "destructive" });
+    } finally {
+      setBaixandoId(null);
+    }
+  };
+
+
   return (
     <div className="space-y-6">
       <style>{PRINT_CSS}</style>
