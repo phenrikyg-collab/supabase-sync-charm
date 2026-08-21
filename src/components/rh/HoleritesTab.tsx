@@ -12,7 +12,15 @@ import { Printer, RefreshCw, FileText, Download, Receipt } from "lucide-react";
 import { brl, competenciaLabel } from "@/lib/rh";
 import { cn } from "@/lib/utils";
 import { Holerite, HoleriteRecibo, holeriteNome, normalizarHolerite } from "./HoleriteRecibo";
-import { baixarDocumentoRh, primeiroNome } from "@/lib/rhDocumento";
+import {
+  baixarDocumentoRh,
+  nomeArquivo,
+  nomeArquivoColetivo,
+  prefixoHolerite,
+  prefixoComprovante,
+  prefixoHoleriteColetivo,
+  slug,
+} from "@/lib/rhDocumento";
 
 
 export type TipoHolerite = "adiantamento" | "fechamento" | "vt" | "va";
