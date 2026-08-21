@@ -365,6 +365,11 @@ function LinhaFuncionario({
                     {f.faltas} faltas
                   </span>
                 )}
+                {Number(f.vales) > 0 && (
+                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-100 text-amber-700">
+                    vales {brl(f.vales)}
+                  </span>
+                )}
               </div>
               <div className="text-xs text-muted-foreground">{f.cargo ?? "—"}</div>
             </div>
@@ -373,9 +378,12 @@ function LinhaFuncionario({
         <td className="text-right px-3 tabular-nums">{brl(f.salario_base)}</td>
         {["adiantamento", "saldo", "vt", "va"].map((t) => (
           <td key={t} className="text-right px-3">
-            <div className="flex flex-col items-end"><Celula p={pags[t]} /></div>
+            <div className="flex flex-col items-end">
+              <Celula p={pags[t]} nome={f.nome} competencia={competencia} />
+            </div>
           </td>
         ))}
+
         <td className="text-right pl-3 tabular-nums font-medium">{brl(f.custo_mes)}</td>
       </tr>
       {aberto && (
