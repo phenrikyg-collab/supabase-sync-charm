@@ -25,13 +25,46 @@ const TIPOS: { valor: TipoHolerite; label: string }[] = [
 
 const PRINT_CSS = `
 @media print {
-  body * { visibility: hidden !important; }
-  #rh-print-area, #rh-print-area * { visibility: visible !important; }
-  #rh-print-area { display: block !important; position: absolute; top: 0; left: 0; width: 100%; padding: 0; }
-  .holerite-pagina { page-break-after: always; padding: 8mm; }
-  .holerite-pagina:last-child { page-break-after: auto; }
-  .holerite-via + .holerite-via { margin-top: 8mm; border-top: 1px dashed #999; padding-top: 8mm; }
-  @page { margin: 6mm; size: A4 portrait; }
+  @page { size: A4 portrait; margin: 10mm; }
+  html, body { background: #fff !important; }
+  body > *:not(#rh-print-area) { display: none !important; }
+  #rh-print-area { display: block !important; width: 190mm; margin: 0; padding: 0; }
+  #rh-print-area * {
+    box-shadow: none !important;
+    border-radius: 0 !important;
+    background-image: none !important;
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+  #rh-print-area .holerite-pagina {
+    width: 190mm;
+    page-break-after: always;
+    break-after: page;
+    break-inside: avoid;
+    page-break-inside: avoid;
+    padding: 0;
+  }
+  #rh-print-area .holerite-pagina:last-child { page-break-after: auto; break-after: auto; }
+  #rh-print-area .holerite-via { break-inside: avoid; page-break-inside: avoid; }
+  #rh-print-area .holerite-via + .holerite-via { margin-top: 6mm; border-top: 1px dashed #999; padding-top: 4mm; }
+  #rh-print-area .holerite-recibo { width: 190mm; font-size: 9px !important; line-height: 1.15 !important; }
+  #rh-print-area .holerite-recibo table { font-size: 9px !important; }
+  #rh-print-area .holerite-recibo th,
+  #rh-print-area .holerite-recibo td {
+    height: auto !important;
+    min-height: 0 !important;
+    padding: 0 2px !important;
+    line-height: 1.15 !important;
+  }
+  #rh-print-area .holerite-recibo img { height: 8mm !important; width: 8mm !important; }
+  #rh-print-area .holerite-recibo .bg-neutral-300 {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  #rh-print-area .holerite-recibo .bg-neutral-200,
+  #rh-print-area .holerite-recibo .bg-neutral-100 { background: transparent !important; }
+  #rh-print-area .holerite-recibo .p-3 { padding: 4px !important; }
+  #rh-print-area .holerite-recibo .space-y-6 > * + * { margin-top: 8mm !important; }
 }
 `;
 
