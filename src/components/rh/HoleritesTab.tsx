@@ -269,7 +269,7 @@ export function HoleritesTab({
                   </p>
                 </div>
                 <p className="text-xl font-serif font-bold tabular-nums">{brl(h.liquido)}</p>
-                <div className="flex gap-2 pt-1">
+                <div className="flex flex-wrap gap-2 pt-1">
                   <Button size="sm" variant="outline" onClick={() => setAberto(h)}>Visualizar</Button>
                   <Button size="sm" variant="ghost" onClick={() => disparar([h])} title="Imprimir">
                     <Printer className="h-3.5 w-3.5" />
@@ -284,6 +284,7 @@ export function HoleritesTab({
                     <Download className={cn("h-3.5 w-3.5 mr-1", baixandoId === h.id && "animate-pulse")} />
                     {baixandoId === h.id ? "Gerando..." : "Baixar PDF"}
                   </Button>
+                  <BotaoComprovante h={h} />
                 </div>
 
               </CardContent>
@@ -296,12 +297,14 @@ export function HoleritesTab({
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto bg-white">
           {aberto && (
             <div className="space-y-4">
-              <div className="flex justify-end gap-2">
+              <div className="flex flex-wrap justify-end gap-2">
                 <Button size="sm" variant="outline" disabled={baixandoId === aberto.id}
                   onClick={() => baixarPdfServidor(aberto)}>
                   <Download className={cn("h-3.5 w-3.5 mr-2", baixandoId === aberto.id && "animate-pulse")} />
                   {baixandoId === aberto.id ? "Gerando..." : "Baixar PDF"}
                 </Button>
+
+                <BotaoComprovante h={aberto} />
 
                 <Button size="sm" onClick={() => disparar([aberto])}>
                   <Printer className="h-3.5 w-3.5 mr-2" />Imprimir
@@ -313,14 +316,17 @@ export function HoleritesTab({
         </DialogContent>
       </Dialog>
 
-      <div id="rh-print-area" ref={areaRef} className="hidden">
-        {imprimir.map((h, i) => (
-          <div className="holerite-pagina" key={h.id ?? i}>
-            <div className="holerite-via"><HoleriteRecibo h={h} via="1ª via - Empresa" /></div>
-            <div className="holerite-via"><HoleriteRecibo h={h} via="2ª via - Funcionário" /></div>
-          </div>
-        ))}
-      </div>
+      {createPortal(
+        <div id="rh-print-area" ref={areaRef} className="hidden">
+          {imprimir.map((h, i) => (
+            <div className="holerite-pagina" key={h.id ?? i}>
+              <div className="holerite-via"><HoleriteRecibo h={h} via="1ª via - Empresa" /></div>
+              <div className="holerite-via"><HoleriteRecibo h={h} via="2ª via - Funcionário" /></div>
+            </div>
+          ))}
+        </div>,
+        document.body,
+      )}
     </div>
   );
 }
