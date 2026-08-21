@@ -118,9 +118,13 @@ export default function PedidosLucro() {
     return lista;
   }, [data, sort]);
 
+  const pedidosBaixos = useMemo(() => pedidos.filter((p: any) => num(p.margem_pct) < 40), [pedidos]);
+  const qtdBaixa = num(resumo.pedidos_margem_baixa) || pedidosBaixos.length;
+
   const maxReceita = Math.max(1, ...porCanal.map((c: any) => num(c.receita_liquida)));
   const lacunas = num(resumo.pedidos_com_lacuna_custo);
   const margemMedia = num(resumo.margem_media_pct);
+
 
   const opcoesCanal = useMemo(
     () => (data?.por_canal ?? []).map((c: any) => String(c.canal ?? "—")),
