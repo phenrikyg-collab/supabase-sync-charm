@@ -11,6 +11,8 @@ import { Printer, RefreshCw, FileText, Download } from "lucide-react";
 import { brl, competenciaLabel } from "@/lib/rh";
 import { cn } from "@/lib/utils";
 import { Holerite, HoleriteRecibo, holeriteNome, normalizarHolerite } from "./HoleriteRecibo";
+import { baixarDocumentoRh, primeiroNome } from "@/lib/rhDocumento";
+
 
 export type TipoHolerite = "adiantamento" | "fechamento" | "vt" | "va";
 
@@ -50,7 +52,9 @@ export function HoleritesTab({
   const { toast } = useToast();
   const [gerando, setGerando] = useState(false);
   const [baixando, setBaixando] = useState(false);
+  const [baixandoId, setBaixandoId] = useState<string | null>(null);
   const [aberto, setAberto] = useState<Holerite | null>(null);
+
   const [imprimir, setImprimir] = useState<Holerite[]>([]);
   const areaRef = useRef<HTMLDivElement>(null);
 
