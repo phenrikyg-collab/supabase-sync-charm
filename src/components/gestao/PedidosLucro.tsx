@@ -343,3 +343,75 @@ export default function PedidosLucro() {
     </TooltipProvider>
   );
 }
+
+function CabecalhoPedidos({ sort, alternar }: { sort: any; alternar: (c: SortCampo) => void }) {
+  return (
+    <TableHeader>
+      <TableRow>
+        <TableHead>Pedido</TableHead>
+        <SortableHead campo="data" sort={sort} onSort={alternar}>Data</SortableHead>
+        <TableHead>Canal</TableHead>
+        <TableHead>Pagamento</TableHead>
+        <TableHead>Cliente novo</TableHead>
+        <TableHead className="text-right">Receita líq.</TableHead>
+        <TableHead className="text-right">CMV</TableHead>
+        <TableHead className="text-right">Taxa gateway</TableHead>
+        <TableHead className="text-right">DAS</TableHead>
+        <TableHead className="text-right">CAC</TableHead>
+        <TableHead className="text-right">Frete</TableHead>
+        <TableHead className="text-right">Margem</TableHead>
+        <SortableHead campo="margem_pct" sort={sort} onSort={alternar} className="text-right">Margem %</SortableHead>
+        <TableHead className="text-right">Lucro líq.</TableHead>
+      </TableRow>
+    </TableHeader>
+  );
+}
+
+function LinhaPedido({ p }: { p: any }) {
+  const mp = num(p.margem_pct);
+  return (
+    <TableRow className={cn(mp < 20 && "bg-red-500/5")}>
+      <TableCell className="whitespace-nowrap font-medium">
+        {p.url_tray ? (
+          <a href={p.url_tray} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-primary hover:underline">
+            {p.tray_order_id} <ExternalLink className="h-3 w-3" />
+          </a>
+        ) : p.tray_order_id}
+        {mp < 0 && <Badge variant="destructive" className="ml-1.5 text-[10px]">PREJUÍZO</Badge>}
+        {temCredito(p) && (
+          <Badge variant="outline" className="ml-1.5 text-[10px] bg-muted text-muted-foreground border-border">crédito/troca</Badge>
+        )}
+      </TableCell>
+      <TableCell className="whitespace-nowrap">{ddmm(p.data)}</TableCell>
+      <TableCell className="whitespace-nowrap">{p.canal ?? "—"}</TableCell>
+      <TableCell className="whitespace-nowrap text-xs">{p.forma_pagamento ?? "—"}</TableCell>
+      <TableCell>
+        {p.cliente_novo
+          ? <Badge className="bg-blue-500/10 text-blue-600 border-blue-500/20 text-[10px]" variant="outline">Novo</Badge>
+          : <span className="text-muted-foreground">—</span>}
+      </TableCell>
+      <TableCell className="text-right">{brl(p.receita_liquida)}</TableCell>
+      <TableCell className={cn("text-right", p.cmv_com_lacuna && "text-red-600 font-medium")}>
+        <span className="inline-flex items-center gap-1">
+          {p.cmv_com_lacuna ? (
+            <Dica texto="Produto sem custo cadastrado — margem deste pedido não é confiável">
+              <span className="inline-flex items-center gap-1">{brl(p.cmv)} <AlertTriangle className="h-3 w-3" /></span>
+            </Dica>
+          ) : p.cmv_com_estimativa ? (
+            <Dica texto="Custo estimado a partir do cadastro do produto">
+              <span className="inline-flex items-center gap-1">{brl(p.cmv)} <Info className="h-3 w-3 opacity-60" /></span>
+            </Dica>
+          ) : brl(p.cmv)}
+        </span>
+      </TableCell>
+      <TableCell className="text-right">{brl(p.taxa_gateway)}</TableCell>
+      <TableCell className="text-right">{brl(p.imposto_das ?? p.das)}</TableCell>
+      <TableCell className="text-right">{num(p.cac_aplicado) > 0 ? brl(p.cac_aplicado) : "—"}</TableCell>
+      <TableCell className="text-right whitespace-nowrap"><CelulaFrete p={p} /></TableCell>
+      <TableCell className="text-right text-emerald-600">{brl(p.margem)}</TableCell>
+      <TableCell className={cn("text-right font-medium", corMargem(mp))}>{pct(mp, 1)}</TableCell>
+      <TableCell className="text-right">{brl(p.lucro_liquido)}</TableCell>
+    </TableRow>
+  );
+}
+
