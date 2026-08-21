@@ -282,11 +282,43 @@ export function FuncionariosTab() {
                           {verificando === f.id ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : null}
                           Verificar chave Pix
                         </Button>
-                        {titulares[f.id] && (
+                        {resultados[f.id]?.tipo === "aviso" && (
+                          <div className="space-y-1 rounded-md border border-amber-300 bg-amber-50 p-2 text-[10px] text-amber-800">
+                            <div className="font-medium">{(resultados[f.id] as any).mensagem}</div>
+                            {(resultados[f.id] as any).dica && <div>{(resultados[f.id] as any).dica}</div>}
+                            <div>A idempotência evita gastar outro centavo ao tentar de novo.</div>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-6 text-[10px]"
+                              disabled={verificando === f.id}
+                              onClick={() => verificarChave(f)}
+                            >
+                              {verificando === f.id ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : null}
+                              Tentar de novo
+                            </Button>
+                          </div>
+                        )}
+                        {resultados[f.id]?.tipo === "ok" && (
                           <div className="space-y-1">
                             <div className="text-[10px] text-muted-foreground">
-                              Titular no banco: <span className="font-medium text-foreground">{titulares[f.id]}</span>
+                              Titular no banco:{" "}
+                              <span className="font-medium text-foreground">{(resultados[f.id] as any).titular}</span>
+                              {(resultados[f.id] as any).cpf_mascarado ? ` · ${(resultados[f.id] as any).cpf_mascarado}` : ""}
                             </div>
+                            {(resultados[f.id] as any).veredito && (
+                              <div
+                                className={cn(
+                                  "text-[10px]",
+                                  /^(ok|confere|compat)/i.test((resultados[f.id] as any).veredito)
+                                    ? "text-green-700"
+                                    : "text-amber-700",
+                                )}
+                              >
+                                veredito: {(resultados[f.id] as any).veredito}
+                                {(resultados[f.id] as any).motivo ? ` — ${(resultados[f.id] as any).motivo}` : ""}
+                              </div>
+                            )}
                             <Button
                               size="sm"
                               className="h-6 text-[10px]"
@@ -298,6 +330,7 @@ export function FuncionariosTab() {
                             </Button>
                           </div>
                         )}
+
                       </div>
                     )}
                   </td>
