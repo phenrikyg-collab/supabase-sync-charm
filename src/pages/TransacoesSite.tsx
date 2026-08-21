@@ -13,7 +13,7 @@ import {
   limiteFim,
   type Periodo,
 } from "@/components/recuperacao/FiltroPeriodo";
-import { Zap, CreditCard, Barcode, ExternalLink, Inbox, ChevronLeft, ChevronRight } from "lucide-react";
+import { Zap, CreditCard, ExternalLink, Inbox, ChevronLeft, ChevronRight } from "lucide-react";
 
 const PAGE_SIZE = 25;
 
@@ -45,13 +45,12 @@ interface KpisTransacoes {
   taxa_gateway_disponivel: boolean | null;
 }
 
-type Filtro = "todos" | "pix" | "credit_card" | "boleto";
+type Filtro = "todos" | "pix" | "credit_card";
 
 const FILTROS: { key: Filtro; label: string }[] = [
   { key: "todos", label: "Todos" },
   { key: "pix", label: "Pix" },
   { key: "credit_card", label: "Cartão de Crédito" },
-  { key: "boleto", label: "Boleto" },
 ];
 
 function formatCurrency(v: number | null | undefined) {
@@ -67,12 +66,10 @@ function formatarDataHora(v: string | null) {
   return formatarData(String(v).slice(0, 10));
 }
 
-function tipoDe(t: Pick<TransacaoSite, "tipo_pagamento" | "boleto_url">): Filtro {
+function tipoDe(t: Pick<TransacaoSite, "tipo_pagamento">): Filtro {
   const tipo = (t.tipo_pagamento ?? "").toLowerCase();
   if (tipo.includes("pix")) return "pix";
   if (tipo.includes("credit") || tipo.includes("cart")) return "credit_card";
-  if (tipo.includes("boleto") || tipo.includes("bank_slip")) return "boleto";
-  if (t.boleto_url) return "boleto";
   return "todos";
 }
 
@@ -83,7 +80,7 @@ function bandeira(forma: string | null) {
 }
 
 function PagamentoIcone({ tipo }: { tipo: Filtro }) {
-  const Icon = tipo === "pix" ? Zap : tipo === "boleto" ? Barcode : CreditCard;
+  const Icon = tipo === "pix" ? Zap : CreditCard;
   return (
     <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-accent text-accent-foreground">
       <Icon className="h-4 w-4" />
@@ -216,7 +213,6 @@ export default function TransacoesSite() {
       if (ate) q = q.lte("data_pedido", ate);
       if (filtro === "pix") q = q.eq("tipo_pagamento", "pix");
       else if (filtro === "credit_card") q = q.eq("tipo_pagamento", "credit_card");
-      else if (filtro === "boleto") q = q.not("boleto_url", "is", null);
       const { data, error, count } = await q;
       if (error) throw error;
       return { rows: (data ?? []) as unknown as TransacaoSite[], count: count ?? 0 };
@@ -243,6 +239,10 @@ export default function TransacoesSite() {
       <div>
         <h1 className="text-2xl font-bold text-foreground">Transações do Site</h1>
         <p className="text-sm text-muted-foreground">Pagamentos processados no checkout da loja (Vindi / Yapay)</p>
+        <p className="mt-1 text-xs text-muted-foreground/80">
+          Pedidos do site são sempre pagos via Vindi (cartão de crédito ou Pix). Pedidos por WhatsApp são pagos por link
+          de pagamento Vindi ou Pix do Banco Inter. Boleto não é uma modalidade utilizada.
+        </p>
         <p className="mt-1 text-xs text-muted-foreground/80">Sincroniza a cada poucos minutos a partir dos webhooks da loja.</p>
       </div>
 
@@ -316,7 +316,7 @@ export default function TransacoesSite() {
           rows.map((t) => {
             const tipo = tipoDe(t);
             const marca = tipo === "credit_card" ? bandeira(t.forma_pagamento) : null;
-            const link = t.boleto_url || t.url_pagamento;
+            const link = t.url_pagamento;
             return (
               <div
                 key={`${t.pedido_id}-${t.transaction_id ?? ""}`}
@@ -327,7 +327,7 @@ export default function TransacoesSite() {
                   <p className="truncate text-sm font-semibold text-card-foreground">Pedido #{t.pedido_id}</p>
                   <p className="truncate text-xs text-muted-foreground">
                     {formatarDataHora(t.data_pedido)} ·{" "}
-                    {tipo === "pix" ? "Pix" : tipo === "boleto" ? "Boleto" : marca ? `Cartão · ${marca}` : t.forma_pagamento ?? "—"}
+                    {tipo === "pix" ? "Pix" : marca ? `Cartão · ${marca}` : t.forma_pagamento ?? "—"}
                   </p>
                 </div>
                 <div className="flex items-center gap-3">
