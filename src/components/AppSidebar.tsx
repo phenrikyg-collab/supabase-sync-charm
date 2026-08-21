@@ -41,7 +41,7 @@ interface ModuleGroup {
 
 const moduleGroups: ModuleGroup[] = [
   {
-    adminOnly: true,
+    key: "gestao",
     label: "Gestão & Estratégia",
     icon: Compass,
     items: [
@@ -87,7 +87,7 @@ const moduleGroups: ModuleGroup[] = [
     ],
   },
   {
-    key: "marketing",
+    key: "crm",
     label: "CRM & Relacionamento",
     icon: Mail,
     items: [
@@ -99,7 +99,7 @@ const moduleGroups: ModuleGroup[] = [
     ],
   },
   {
-    key: "comercial",
+    key: "atendimento",
     label: "Atendimento & Venda Direta",
     icon: MessageCircle,
     items: [
@@ -170,7 +170,7 @@ const moduleGroups: ModuleGroup[] = [
     ],
   },
   {
-    key: "producao",
+    key: "cadastros",
     label: "Cadastros",
     icon: Settings,
     items: [
