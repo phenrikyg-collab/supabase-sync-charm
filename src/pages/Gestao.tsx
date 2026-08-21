@@ -3,6 +3,7 @@ import ChecklistDiario from "@/components/gestao/ChecklistDiario";
 import MetaAdsDiario from "@/components/gestao/MetaAdsDiario";
 import CanaisSessoes from "@/components/gestao/CanaisSessoes";
 import Auditorias from "@/components/gestao/Auditorias";
+import PedidosLucro from "@/components/gestao/PedidosLucro";
 
 export default function Gestao() {
   return (
