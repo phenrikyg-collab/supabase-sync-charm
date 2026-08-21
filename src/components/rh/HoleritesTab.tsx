@@ -6,10 +6,12 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
-import { Printer, RefreshCw, FileText, Download, Receipt } from "lucide-react";
-import { brl, competenciaLabel } from "@/lib/rh";
+import { Printer, RefreshCw, FileText, Download, Receipt, Send, Copy, MessageCircle, Check } from "lucide-react";
+import { brl, competenciaLabel, dataBR } from "@/lib/rh";
+import { slug } from "@/lib/rhDocumento";
 import { cn } from "@/lib/utils";
 import { Holerite, HoleriteRecibo, holeriteNome, normalizarHolerite } from "./HoleriteRecibo";
 import {
@@ -77,6 +79,21 @@ const PRINT_CSS = `
 }
 `;
 
+function telefoneWa(h: Holerite): string | null {
+  const tipo = (h.tipo_chave_pix ?? "").toLowerCase();
+  const chave = String(h.chave_pix ?? "");
+  const digitos = chave.replace(/\D/g, "");
+  const ehTelefone = tipo === "telefone" || (!tipo && (digitos.length === 10 || digitos.length === 11));
+  if (!ehTelefone) return null;
+  const semDdi = digitos.startsWith("55") && digitos.length > 11 ? digitos.slice(2) : digitos;
+  if (semDdi.length < 10) return null;
+  return `55${semDdi}`;
+}
+
+function mensagemCiencia(h: Holerite, competencia: string, url: string) {
+  return `Oi, ${slug(holeriteNome(h))}! Segue o recibo de ${competenciaLabel(h.competencia ?? competencia)} para você conferir e confirmar o recebimento: ${url}`;
+}
+
 export function HoleritesTab({
   competencia,
   tipo,
@@ -92,6 +109,12 @@ export function HoleritesTab({
   const [baixandoId, setBaixandoId] = useState<string | null>(null);
   const [comprovanteId, setComprovanteId] = useState<string | null>(null);
   const [aberto, setAberto] = useState<Holerite | null>(null);
+  const [ciencia, setCiencia] = useState<{ h: Holerite; url: string } | null>(null);
+  const [gerandoLink, setGerandoLink] = useState<string | null>(null);
+  const [linksLote, setLinksLote] = useState<{ nome: string; url: string; h: Holerite }[] | null>(null);
+  const [gerandoLote, setGerandoLote] = useState(false);
+  const [soPendentes, setSoPendentes] = useState(false);
+  const [copiado, setCopiado] = useState<string | null>(null);
 
   const [imprimir, setImprimir] = useState<Holerite[]>([]);
   const areaRef = useRef<HTMLDivElement>(null);
@@ -111,6 +134,11 @@ export function HoleritesTab({
   });
 
   const holerites = useMemo(() => data ?? [], [data]);
+  const pendentesCiencia = useMemo(() => holerites.filter((h) => !h.ciente).length, [holerites]);
+  const listaVisivel = useMemo(
+    () => (soPendentes ? holerites.filter((h) => !h.ciente) : holerites),
+    [holerites, soPendentes],
+  );
 
   const gerar = async () => {
     setGerando(true);
@@ -119,6 +147,53 @@ export function HoleritesTab({
     if (error) return toast({ title: "Erro ao gerar holerites", description: erroRh(error).mensagem, variant: "destructive" });
     toast({ title: "Holerites gerados" });
     refetch();
+  };
+
+  const gerarLinkCiencia = async (h: Holerite): Promise<string | null> => {
+    if (!h.id) {
+      toast({ title: "Recibo sem identificador", variant: "destructive" });
+      return null;
+    }
+    const { data, error } = await supabase.rpc("rh_holerite_link" as any, {
+      p_holerite_id: h.id,
+      p_dias: 30,
+    });
+    if (error) {
+      toast({ title: "Erro ao gerar link", description: erroRh(error).mensagem, variant: "destructive" });
+      return null;
+    }
+    const r: any = Array.isArray(data) ? data[0] : data;
+    return r?.url ?? null;
+  };
+
+  const enviarCiencia = async (h: Holerite) => {
+    setGerandoLink(h.id ?? null);
+    const url = await gerarLinkCiencia(h);
+    setGerandoLink(null);
+    if (url) setCiencia({ h, url });
+  };
+
+  const enviarTodosCiencia = async () => {
+    setGerandoLote(true);
+    const resultados: { nome: string; url: string; h: Holerite }[] = [];
+    for (const h of holerites) {
+      const url = await gerarLinkCiencia(h);
+      if (url) resultados.push({ nome: holeriteNome(h), url, h });
+    }
+    setGerandoLote(false);
+    setLinksLote(resultados);
+    refetch();
+  };
+
+  const copiar = async (texto: string, chave: string) => {
+    try {
+      await navigator.clipboard.writeText(texto);
+      setCopiado(chave);
+      setTimeout(() => setCopiado(null), 2000);
+      toast({ title: "Link copiado" });
+    } catch {
+      toast({ title: "Não foi possível copiar", variant: "destructive" });
+    }
   };
 
   const montar = (lista: Holerite[]) =>
@@ -194,6 +269,18 @@ export function HoleritesTab({
     }
   };
 
+  const ChipCiencia = ({ h }: { h: Holerite }) =>
+    h.ciente ? (
+      <span className="text-[10px] px-2 py-0.5 rounded-full bg-green-100 text-green-700">
+        ciente em {dataBR(h.ciencia_em)}
+        {h.ciencia_protocolo ? ` · #${h.ciencia_protocolo}` : ""}
+      </span>
+    ) : (
+      <span className="text-[10px] px-2 py-0.5 rounded-full bg-muted text-muted-foreground">
+        aguardando ciência
+      </span>
+    );
+
   const BotaoComprovante = ({ h }: { h: Holerite }) => {
     const pago = h.pagamento_status === "pago" && !!h.pagamento_id;
     const carregando = !!h.pagamento_id && comprovanteId === h.pagamento_id;
@@ -239,6 +326,18 @@ export function HoleritesTab({
           >
             <Download className={cn("h-3.5 w-3.5 mr-2", baixando && "animate-pulse")} />Baixar todos (PDF)
           </Button>
+          <Button
+            variant={soPendentes ? "default" : "outline"}
+            size="sm"
+            onClick={() => setSoPendentes((v) => !v)}
+            disabled={!holerites.length}
+          >
+            Pendentes de ciência ({pendentesCiencia})
+          </Button>
+          <Button variant="outline" size="sm" onClick={enviarTodosCiencia} disabled={!holerites.length || gerandoLote}>
+            <Send className={cn("h-3.5 w-3.5 mr-2", gerandoLote && "animate-pulse")} />
+            {gerandoLote ? "Gerando..." : "Enviar todos para ciência"}
+          </Button>
           <Button size="sm" onClick={gerar} disabled={gerando}>
             <RefreshCw className={cn("h-3.5 w-3.5 mr-2", gerando && "animate-spin")} />
             Gerar da competência
@@ -260,7 +359,7 @@ export function HoleritesTab({
         </Card>
       ) : (
         <div className="grid gap-4 md:grid-cols-3">
-          {holerites.map((h, i) => (
+          {listaVisivel.map((h, i) => (
             <Card key={h.id ?? i}>
               <CardContent className="p-4 space-y-2">
                 <div>
@@ -270,6 +369,7 @@ export function HoleritesTab({
                   </p>
                 </div>
                 <p className="text-xl font-serif font-bold tabular-nums">{brl(h.liquido)}</p>
+                <div><ChipCiencia h={h} /></div>
                 <div className="flex flex-wrap gap-2 pt-1">
                   <Button size="sm" variant="outline" onClick={() => setAberto(h)}>Visualizar</Button>
                   <Button size="sm" variant="ghost" onClick={() => disparar([h])} title="Imprimir">
@@ -286,6 +386,15 @@ export function HoleritesTab({
                     {baixandoId === h.id ? "Gerando..." : "Baixar PDF"}
                   </Button>
                   <BotaoComprovante h={h} />
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    disabled={gerandoLink === h.id}
+                    onClick={() => enviarCiencia(h)}
+                  >
+                    <Send className={cn("h-3.5 w-3.5 mr-1", gerandoLink === h.id && "animate-pulse")} />
+                    {h.ciente ? "Reenviar link" : "Enviar para ciência"}
+                  </Button>
                 </div>
 
               </CardContent>
