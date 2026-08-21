@@ -94,6 +94,9 @@ export default function Financeiro() {
   const [sortKey, setSortKey] = useState<SortKey>("data");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
   const [currentPage, setCurrentPage] = useState(1);
+  const [natureza, setNatureza] = useState<Natureza>("todos");
+  const [atalho, setAtalho] = useState<AtalhoPeriodo>(null);
+
 
   const mesesDisponiveis = useMemo(() => {
     const meses = new Set<string>();
