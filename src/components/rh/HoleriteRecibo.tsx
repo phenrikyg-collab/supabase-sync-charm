@@ -32,6 +32,12 @@ export interface Holerite {
   pagamento_id?: string | null;
   pagamento_status?: string | null;
   pagamento_pago_em?: string | null;
+  ciente?: boolean | null;
+  ciencia_em?: string | null;
+  ciencia_protocolo?: string | null;
+  tem_link?: boolean | null;
+  chave_pix?: string | null;
+  tipo_chave_pix?: string | null;
   dados?: any;
 }
 
