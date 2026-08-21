@@ -113,11 +113,15 @@ const PERIODOS_EXT = [
 const num = (v: any) => (typeof v === "number" ? v : Number(v) || 0);
 
 export default function Marketing() {
-  const abaInicial =
-    typeof window !== "undefined"
-      ? new URLSearchParams(window.location.search).get("tab") || "acompanhamento"
-      : "acompanhamento";
-  const [abaAtiva, setAbaAtiva] = useState(abaInicial);
+  const routerLocation = useLocation();
+  const [abaAtiva, setAbaAtiva] = useState(
+    () => new URLSearchParams(routerLocation.search).get("tab") || "acompanhamento",
+  );
+  useEffect(() => {
+    const t = new URLSearchParams(routerLocation.search).get("tab");
+    if (t) setAbaAtiva(t);
+  }, [routerLocation.search]);
+
   const [periodoPaginas, setPeriodoPaginas] = useState("30dias");
 
   const [periodoProdutos, setPeriodoProdutos] = useState("30dias");
