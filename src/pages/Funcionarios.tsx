@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { FolhaMesTab } from "@/components/rh/FolhaMesTab";
@@ -16,7 +17,18 @@ export default function Funcionarios() {
   const [mesAno, setMesAno] = useState(
     `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, "0")}`
   );
-  const [tab, setTab] = useState("folha");
+  const [searchParams, setSearchParams] = useSearchParams();
+  const tabUrl = searchParams.get("tab");
+  const [tab, setTab] = useState(tabUrl ?? "folha");
+
+  useEffect(() => {
+    if (tabUrl && tabUrl !== tab) setTab(tabUrl);
+  }, [tabUrl]);
+
+  const mudarTab = (t: string) => {
+    setTab(t);
+    setSearchParams({ tab: t }, { replace: true });
+  };
   const [tipoHolerite, setTipoHolerite] = useState<TipoHolerite>("fechamento");
   const [feriadosAberto, setFeriadosAberto] = useState(false);
   const competencia = `${mesAno}-01`;
@@ -26,14 +38,14 @@ export default function Funcionarios() {
   const irParaHolerite = (comp: string, tipo: TipoHolerite = "fechamento") => {
     setMesAno(comp.slice(0, 7));
     setTipoHolerite(tipo);
-    setTab("holerites");
+    mudarTab("holerites");
   };
 
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3 print:hidden">
         <div>
-          <h1 className="text-2xl font-serif font-bold">Funcionários</h1>
+          <h1 className="text-2xl font-serif font-bold">Recursos Humanos</h1>
           <p className="text-sm text-muted-foreground">
             Adiantamento 40% (dia 20) · Saldo 60% (dia 5 do mês seguinte) · VT e cesta dia 5 · VA pedido na Ticket até dia 28 do mês anterior.
           </p>
@@ -53,7 +65,7 @@ export default function Funcionarios() {
         </div>
       </div>
 
-      <Tabs value={tab} onValueChange={setTab}>
+      <Tabs value={tab} onValueChange={mudarTab}>
         <TabsList className="print:hidden">
           <TabsTrigger value="folha">Folha do Mês</TabsTrigger>
           <TabsTrigger value="lote">Lote PIX · Inter</TabsTrigger>
@@ -65,7 +77,7 @@ export default function Funcionarios() {
         <TabsContent value="folha" className="mt-6">
           <FolhaMesTab
             competencia={competencia}
-            onIrParaLote={() => setTab("lote")}
+            onIrParaLote={() => mudarTab("lote")}
             onVerHolerite={() => irParaHolerite(competencia, "fechamento")}
           />
         </TabsContent>
