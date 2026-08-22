@@ -703,22 +703,6 @@ export function PublicacoesTab() {
                   </p>
                 </div>
 
-                <div className="space-y-1.5">
-                  <Label>Produtos vinculados</Label>
-                  <SeletorProdutos
-                    produtos={produtos}
-                    selecionados={form.produtoIds}
-                    onToggle={(id, marcado) =>
-                      setForm({
-                        ...form,
-                        produtoIds: marcado
-                          ? [...form.produtoIds, id]
-                          : form.produtoIds.filter((x) => x !== id),
-                      })
-                    }
-                    altura="h-40"
-                  />
-                </div>
               </section>
 
               {/* AUTOMAÇÃO DE RESPOSTA */}
