@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { db } from "@/lib/socialCommerce";
 import { CampoTags } from "./comum";
 import { SeletorProdutos, carregarProdutosPai, type ProdutoPai } from "./SeletorProdutos";
 import { BotaoGerarRespostas } from "./BotaoGerarRespostas";
 import { ListaVariacoesRespostas } from "./ListaVariacoesRespostas";
+import { carregarPostsPainel } from "./PostsNoAr";
 import { formatarData } from "@/utils/formatters";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -17,7 +19,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { AlertTriangle, ExternalLink, ImageOff, MessageSquare, Settings2, Star, Zap } from "lucide-react";
+import { AlertTriangle, ExternalLink, ImageOff, Megaphone, MessageSquare, Settings2, Star, Zap } from "lucide-react";
 
 type Post = {
   media_id: string;
@@ -25,17 +27,23 @@ type Post = {
   thumb_cache_url?: string | null;
   thumbnail_url?: string | null;
   media_url?: string | null;
+  imagem?: string | null;
   caption?: string | null;
+  legenda_curta?: string | null;
   data_publicacao?: string | null;
   comments_count?: number | null;
+  eh_anuncio?: boolean | null;
+  tem_automacao?: boolean | null;
+  automacao_ativa?: boolean | null;
+  sem_texto?: boolean | null;
   reach?: number | null;
   views?: number | null;
 };
 
-/** Imagem do post com fallback (cache → thumbnail → mídia) e placeholder "Sem prévia". */
+/** Imagem do post com fallback (cache → thumbnail → mídia → imagem da view) e placeholder "Sem prévia". */
 function ImagemPost({ post }: { post: Post }) {
   const [erro, setErro] = useState(false);
-  const src = post.thumb_cache_url || post.thumbnail_url || post.media_url;
+  const src = post.thumb_cache_url || post.thumbnail_url || post.media_url || post.imagem;
   if (!src || erro) {
     return (
       <div className="w-full h-full flex flex-col items-center justify-center gap-1.5 text-muted-foreground/50">
@@ -53,6 +61,18 @@ function ImagemPost({ post }: { post: Post }) {
       onError={() => setErro(true)}
     />
   );
+}
+
+/**
+ * Automação ligada, com produto vinculado e sem texto salvo.
+ * Usa o campo sem_texto da view quando disponível; senão calcula localmente.
+ */
+function semTextoDe(p: Post, auto?: Automacao, vinculos: LinkProduto[] = []): boolean {
+  if (p.sem_texto != null) return !!p.sem_texto;
+  if (!auto?.ativo || auto.modo !== "automatico" || vinculos.length === 0) return false;
+  const semPublica = !(auto.respostas_publicas?.length || auto.resposta_gatilho_publica?.trim());
+  const semDm = !auto.resposta_gatilho_dm?.trim();
+  return semPublica || semDm;
 }
 
 type LinkProduto = { media_id: string; produto_id: string; principal?: boolean | null };
@@ -93,6 +113,7 @@ type EditState = {
 };
 
 export function ProdutosPostTab() {
+  const [params, setParams] = useSearchParams();
   const [posts, setPosts] = useState<Post[]>([]);
   const [links, setLinks] = useState<LinkProduto[]>([]);
   const [automacoes, setAutomacoes] = useState<Map<string, Automacao>>(new Map());
@@ -100,17 +121,18 @@ export function ProdutosPostTab() {
   const [carregando, setCarregando] = useState(true);
   const [soSemProduto, setSoSemProduto] = useState(false);
   const [soAutomacaoAtiva, setSoAutomacaoAtiva] = useState(false);
+  const [soSemAutomacao, setSoSemAutomacao] = useState(false);
   const [edit, setEdit] = useState<EditState | null>(null);
   const [salvando, setSalvando] = useState(false);
 
   const carregar = useCallback(async () => {
-    const { data: ps } = await db
-      .from("instagram_posts")
-      .select("*")
-      .order("data_publicacao", { ascending: false })
-      .limit(300);
-    const lista = (ps ?? []) as Post[];
-    setPosts(lista);
+    // Fonte: vw_ig_posts_painel (inclui anúncios descobertos pelo backend).
+    // carregarPostsPainel cai para instagram_posts se a view ainda não existir.
+    const lista = [...(await carregarPostsPainel().catch((e) => {
+      toast.error("Falha ao carregar posts", { description: e?.message });
+      return [];
+    }))].sort((a, b) => (b.data_publicacao ?? "").localeCompare(a.data_publicacao ?? ""));
+    setPosts(lista as Post[]);
 
     const mediaIds = lista.map((p) => p.media_id).filter(Boolean);
     const promProdutos = carregarProdutosPai().catch((e) => {
@@ -136,6 +158,23 @@ export function ProdutosPostTab() {
     carregar();
   }, [carregar]);
 
+  // Deep-link: ?media=<id> abre a configuração do post; ?filtro=sem_automacao liga o filtro.
+  // Usado pelo alerta de anúncios da aba Comentários e pelos cards da visão "No ar".
+  useEffect(() => {
+    if (carregando) return;
+    const mid = params.get("media");
+    const filtro = params.get("filtro");
+    if (!mid && !filtro) return;
+    if (filtro === "sem_automacao") setSoSemAutomacao(true);
+    if (mid) {
+      const post = posts.find((p) => p.media_id === mid);
+      if (post) abrirConfig(post);
+      else toast.warning("Post não encontrado nesta lista.");
+    }
+    setParams({}, { replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [carregando]);
+
   const linksPorMedia = useMemo(() => {
     const m = new Map<string, LinkProduto[]>();
     for (const l of links) m.set(l.media_id, [...(m.get(l.media_id) ?? []), l]);
@@ -154,9 +193,13 @@ export function ProdutosPostTab() {
       posts.filter((p) => {
         if (soSemProduto && (linksPorMedia.get(p.media_id) ?? []).length > 0) return false;
         if (soAutomacaoAtiva && !automacoes.get(p.media_id)?.ativo) return false;
+        if (soSemAutomacao) {
+          const ativo = p.tem_automacao != null ? !!p.automacao_ativa : !!automacoes.get(p.media_id)?.ativo;
+          if (ativo) return false;
+        }
         return true;
       }),
-    [posts, soSemProduto, soAutomacaoAtiva, linksPorMedia, automacoes],
+    [posts, soSemProduto, soAutomacaoAtiva, soSemAutomacao, linksPorMedia, automacoes],
   );
 
   /** Botão de pânico: liga/desliga a automação direto na grade, sem abrir modal. */
@@ -255,8 +298,27 @@ export function ProdutosPostTab() {
       if (errAuto) throw errAuto;
 
       toast.success("Post atualizado");
+      const editSalvo = edit;
       setEdit(null);
       await carregar();
+
+      // Salvou com automação ativa, produto vinculado e sem texto: o backend
+      // escreve na hora do primeiro comentário — mas oferece gerar agora p/ revisão.
+      const ficouSemTexto =
+        editSalvo.ativo &&
+        editSalvo.modo === "automatico" &&
+        editSalvo.selecionados.length > 0 &&
+        (variacoes.length === 0 || !editSalvo.respostaDm.trim());
+      if (ficouSemTexto) {
+        toast.warning("Automação ativa sem textos de resposta.", {
+          description: "A Anna vai escrever no primeiro comentário — ou gere agora e revise.",
+          duration: 12000,
+          action: {
+            label: "Gerar respostas agora",
+            onClick: () => setEdit({ ...editSalvo, avisosIa: [] }),
+          },
+        });
+      }
     } catch (e: any) {
       toast.error(e?.message ?? "Falha ao salvar");
     } finally {
@@ -275,6 +337,10 @@ export function ProdutosPostTab() {
         <label className="flex items-center gap-2 text-sm cursor-pointer">
           <Checkbox checked={soAutomacaoAtiva} onCheckedChange={(v) => setSoAutomacaoAtiva(!!v)} />
           Somente posts com automação ativa
+        </label>
+        <label className="flex items-center gap-2 text-sm cursor-pointer">
+          <Checkbox checked={soSemAutomacao} onCheckedChange={(v) => setSoSemAutomacao(!!v)} />
+          Somente posts sem automação ativa
         </label>
         <span className="text-xs text-muted-foreground ml-auto">
           {totalVinculados} de {posts.length} posts vinculados
@@ -305,6 +371,11 @@ export function ProdutosPostTab() {
               <Card key={p.media_id} className="overflow-hidden flex flex-col">
                 <div className="aspect-square bg-muted relative">
                   <ImagemPost post={p} />
+                  {p.eh_anuncio && (
+                    <span className="absolute top-2 left-2 inline-flex items-center gap-1 rounded-full bg-foreground text-background px-2 py-0.5 text-[10px] font-semibold">
+                      <Megaphone className="h-3 w-3" /> Anúncio
+                    </span>
+                  )}
                   {auto?.ativo && (
                     <span className="absolute top-2 right-2 inline-flex items-center gap-1 rounded-full bg-primary text-primary-foreground px-2 py-0.5 text-[10px] font-semibold">
                       <Zap className="h-3 w-3" /> {auto.modo === "automatico" ? "Automático" : auto.modo === "desligado" ? "Desligado" : "Sombra"}
@@ -313,7 +384,7 @@ export function ProdutosPostTab() {
                 </div>
                 <CardContent className="p-3 flex-1 flex flex-col gap-2">
                   <p className="text-xs text-muted-foreground line-clamp-2 min-h-[2rem]">
-                    {p.caption || "(sem legenda)"}
+                    {p.caption || p.legenda_curta || "(sem legenda)"}
                   </p>
                   <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
                     <span>{formatarData((p.data_publicacao ?? "").slice(0, 10))}</span>
@@ -350,6 +421,14 @@ export function ProdutosPostTab() {
                       })
                     )}
                   </div>
+
+                  {/* Selo: automação ligada sem texto salvo — a Anna escreve na hora */}
+                  {semTextoDe(p, auto, ls) && (
+                    <p className="text-[10px] rounded border border-warning/30 bg-warning/10 p-1.5 flex items-start gap-1.5">
+                      <AlertTriangle className="h-3 w-3 text-warning shrink-0 mt-px" />
+                      <span>Sem resposta salva. A Anna vai escrever no primeiro comentário.</span>
+                    </p>
+                  )}
 
                   <div className="mt-auto pt-2 border-t flex items-center justify-between gap-2">
                     {/* Botão de pânico: um clique desliga a campanha */}
@@ -478,6 +557,17 @@ export function ProdutosPostTab() {
                         <p className="text-[10px] text-muted-foreground -mt-1">
                           Vazio = a mensagem sai sem a linha de cupom.
                         </p>
+                        {edit.ativo &&
+                          edit.selecionados.length > 0 &&
+                          (edit.respostasPublicas.every((v) => !v.trim()) || !edit.respostaDm.trim()) && (
+                            <p className="text-[11px] rounded border border-warning/30 bg-warning/10 p-2 flex items-start gap-1.5">
+                              <AlertTriangle className="h-3.5 w-3.5 text-warning shrink-0 mt-px" />
+                              <span>
+                                Sem resposta salva. A Anna vai escrever no primeiro comentário — gere agora
+                                com o botão abaixo e revise antes.
+                              </span>
+                            </p>
+                          )}
                         <div>
                           <BotaoGerarRespostas
                             produtoIds={edit.selecionados}

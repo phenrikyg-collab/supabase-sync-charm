@@ -6,6 +6,7 @@ import { CampoTags, dataHoraBR } from "./comum";
 import { SeletorProdutos, carregarProdutosPai, type ProdutoPai } from "./SeletorProdutos";
 import { BotaoGerarRespostas } from "./BotaoGerarRespostas";
 import { ListaVariacoesRespostas } from "./ListaVariacoesRespostas";
+import { PostsNoAr } from "./PostsNoAr";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -21,7 +22,7 @@ import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { toast } from "sonner";
 import {
   AlertTriangle, CalendarDays, Check, ChevronLeft, ChevronRight, Copy, Eye, List, Loader2,
-  Plus, Sparkles, Upload, Zap, ZapOff,
+  Megaphone, Plus, Sparkles, Upload, Zap, ZapOff,
 } from "lucide-react";
 
 type Publicacao = {
@@ -177,7 +178,7 @@ const ESTILOS = [
 ];
 
 export function PublicacoesTab() {
-  const [visao, setVisao] = useState<"calendario" | "lista">("calendario");
+  const [visao, setVisao] = useState<"calendario" | "lista" | "noar">("calendario");
   const [mesRef, setMesRef] = useState(() => {
     const d = new Date();
     d.setDate(1);
@@ -428,7 +429,10 @@ export function PublicacoesTab() {
             <CalendarDays className="h-4 w-4" /> Calendário
           </ToggleGroupItem>
           <ToggleGroupItem value="lista" className="gap-1.5">
-            <List className="h-4 w-4" /> Lista
+            <List className="h-4 w-4" /> Agendadas
+          </ToggleGroupItem>
+          <ToggleGroupItem value="noar" className="gap-1.5">
+            <Megaphone className="h-4 w-4" /> No ar
           </ToggleGroupItem>
         </ToggleGroup>
         <Button onClick={() => abrirNovo()}>
@@ -436,7 +440,9 @@ export function PublicacoesTab() {
         </Button>
       </div>
 
-      {carregando ? (
+      {visao === "noar" ? (
+        <PostsNoAr />
+      ) : carregando ? (
         <Skeleton className="h-[480px] w-full" />
       ) : visao === "calendario" ? (
         <Card>

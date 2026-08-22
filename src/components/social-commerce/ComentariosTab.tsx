@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { db, enviarInstagram, comentarioForaDoPrazo, MOTIVOS_409 } from "@/lib/socialCommerce";
@@ -13,7 +14,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { toast } from "sonner";
 import {
-  Bot, ChevronDown, ChevronUp, ExternalLink, EyeOff, ImageOff, Loader2, Mail, MessageSquare, Zap,
+  Bot, ChevronDown, ChevronUp, ExternalLink, EyeOff, ImageOff, Loader2, Mail, Megaphone,
+  MessageSquare, Zap,
 } from "lucide-react";
 
 type Comentario = {
@@ -101,6 +103,8 @@ export function ComentariosTab() {
   const [expandido, setExpandido] = useState<string | null>(null);
   const [textos, setTextos] = useState<Map<string, string>>(new Map());
   const [enviando, setEnviando] = useState<string | null>(null);
+  // Anúncios com comentário sem resposta e sem automação configurada (view do painel)
+  const [anunciosPendentes, setAnunciosPendentes] = useState<string[]>([]);
 
   const carregar = useCallback(async () => {
     const { data: coms } = await db
@@ -110,6 +114,25 @@ export function ComentariosTab() {
       .limit(200);
     const lista = (coms ?? []) as Comentario[];
     setComentarios(lista);
+
+    // Anúncios com comentário sem resposta e sem automação — lead quente parado.
+    // Silencioso se a view ainda não existir no banco.
+    try {
+      const { data: painel, error: errPainel } = await db
+        .from("vw_ig_posts_painel")
+        .select("media_id, tem_automacao, automacao_ativa")
+        .eq("eh_anuncio", true)
+        .gt("comentarios_sem_resposta", 0);
+      if (!errPainel) {
+        setAnunciosPendentes(
+          (painel ?? [])
+            .filter((p: any) => !p.tem_automacao || !p.automacao_ativa)
+            .map((p: any) => p.media_id as string),
+        );
+      }
+    } catch {
+      /* view indisponível — sem alerta */
+    }
 
     const mediaIds = [...new Set(lista.map((c) => c.media_id).filter(Boolean))] as string[];
     if (mediaIds.length > 0) {
@@ -222,6 +245,24 @@ export function ComentariosTab() {
 
   return (
     <div className="space-y-4">
+      {/* Alerta fixo: anúncios com comentário sem resposta e sem automação (incidente 22/08) */}
+      {anunciosPendentes.length > 0 && (
+        <div className="rounded-lg border border-danger/40 bg-danger/10 p-3 flex items-center gap-3">
+          <Megaphone className="h-4 w-4 text-danger shrink-0" />
+          <p className="text-sm flex-1">
+            <strong>
+              {anunciosPendentes.length === 1
+                ? "1 anúncio tem comentário sem resposta e sem automação."
+                : `${anunciosPendentes.length} anúncios têm comentários sem resposta e sem automação.`}
+            </strong>{" "}
+            Anúncio sem resposta é lead quente parado.
+          </p>
+          <Button size="sm" variant="outline" asChild>
+            <Link to="/social-commerce?tab=produtos&filtro=sem_automacao">Configurar agora</Link>
+          </Button>
+        </div>
+      )}
+
       {/* Filtros */}
       <div className="flex flex-wrap items-center gap-2">
         {FILTROS.map((f) => (
