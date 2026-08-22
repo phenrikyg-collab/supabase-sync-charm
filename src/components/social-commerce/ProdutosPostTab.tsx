@@ -347,12 +347,12 @@ export function ProdutosPostTab() {
       {/* Modal de configuração */}
       <Dialog open={!!edit} onOpenChange={(v) => !v && setEdit(null)}>
         <DialogContent className="max-w-xl max-h-[90vh] overflow-hidden flex flex-col">
-          <DialogHeader>
+          <DialogHeader className="shrink-0">
             <DialogTitle className="font-serif">Produtos e automação do post</DialogTitle>
           </DialogHeader>
           {edit && (
             <>
-              <ScrollArea className="flex-1 pr-4">
+              <div className="max-h-[calc(90vh-140px)] overflow-y-auto pr-4">
                 <div className="space-y-5 pb-4">
                   {/* Produtos */}
                   <section className="space-y-2">
