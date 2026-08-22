@@ -3,6 +3,7 @@ import { db } from "@/lib/socialCommerce";
 import { CampoTags } from "./comum";
 import { SeletorProdutos, carregarProdutosPai, type ProdutoPai } from "./SeletorProdutos";
 import { BotaoGerarRespostas } from "./BotaoGerarRespostas";
+import { ListaVariacoesRespostas } from "./ListaVariacoesRespostas";
 import { formatarData } from "@/utils/formatters";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -62,6 +63,7 @@ type Automacao = {
   gatilho_qualquer?: boolean | null;
   palavras_gatilho?: string[] | null;
   resposta_gatilho_publica?: string | null;
+  respostas_publicas?: string[] | null;
   resposta_gatilho_dm?: string | null;
   link_combo?: string | null;
   cupom?: string | null;
@@ -80,7 +82,7 @@ type EditState = {
   modo: string;
   qualquer: boolean;
   gatilhos: string[];
-  respostaPublica: string;
+  respostasPublicas: string[];
   respostaDm: string;
   linkCombo: string;
   cupom: string;
@@ -184,7 +186,12 @@ export function ProdutosPostTab() {
       modo: auto?.modo ?? "sombra",
       qualquer: auto?.gatilho_qualquer ?? false,
       gatilhos: auto?.palavras_gatilho ?? [],
-      respostaPublica: auto?.resposta_gatilho_publica ?? "",
+      respostasPublicas:
+        auto?.respostas_publicas?.length
+          ? auto.respostas_publicas
+          : auto?.resposta_gatilho_publica
+            ? [auto.resposta_gatilho_publica]
+            : [],
       respostaDm: auto?.resposta_gatilho_dm ?? "",
       linkCombo: auto?.link_combo ?? "",
       cupom: auto?.cupom ?? "",
@@ -216,12 +223,15 @@ export function ProdutosPostTab() {
       }
 
       // Automação do post
+      const variacoes = edit.respostasPublicas.map((v) => v.trim()).filter(Boolean);
       const autoPayload: Record<string, any> = {
         media_id: mid,
         modo: edit.modo,
         gatilho_qualquer: edit.modo === "automatico" ? edit.qualquer : false,
         palavras_gatilho: edit.modo === "automatico" ? edit.gatilhos : [],
-        resposta_gatilho_publica: edit.modo === "automatico" ? edit.respostaPublica : null,
+        respostas_publicas: edit.modo === "automatico" ? variacoes : null,
+        // Compatibilidade: a primeira variação continua no campo antigo
+        resposta_gatilho_publica: edit.modo === "automatico" ? variacoes[0] ?? null : null,
         resposta_gatilho_dm: edit.modo === "automatico" ? edit.respostaDm : null,
         link_combo: edit.modo === "automatico" ? edit.linkCombo.trim() || null : null,
         cupom: edit.modo === "automatico" ? edit.cupom.trim() || null : null,
@@ -234,7 +244,7 @@ export function ProdutosPostTab() {
         .from("instagram_post_automacao")
         .upsert(autoPayload, { onConflict: "media_id" });
       // Colunas novas podem ainda não existir no banco — tenta de novo sem elas
-      for (const coluna of ["gatilho_qualquer", "link_combo", "cupom_beneficio", "cupom_validade", "cupom"]) {
+      for (const coluna of ["respostas_publicas", "gatilho_qualquer", "link_combo", "cupom_beneficio", "cupom_validade", "cupom"]) {
         if (errAuto && new RegExp(coluna, "i").test(errAuto.message ?? "")) {
           delete autoPayload[coluna];
           ({ error: errAuto } = await db
@@ -480,7 +490,7 @@ export function ProdutosPostTab() {
                             onResultado={(r) =>
                               setEdit({
                                 ...edit,
-                                respostaPublica: r.respostaPublica.slice(0, 280),
+                                respostasPublicas: r.respostasPublicas.map((v) => v.slice(0, 280)),
                                 respostaDm: r.respostaDm,
                                 avisosIa: r.avisos,
                               })
@@ -517,18 +527,10 @@ export function ProdutosPostTab() {
                           )}
                         </div>
                         <div className="space-y-1.5">
-                          <Label>Resposta pública</Label>
-                          <Textarea
-                            value={edit.respostaPublica}
-                            onChange={(e) =>
-                              setEdit({ ...edit, respostaPublica: e.target.value.slice(0, 280) })
-                            }
-                            className="min-h-[50px]"
-                            placeholder='Ex.: "Te mandei no Direct 💛"'
+                          <ListaVariacoesRespostas
+                            value={edit.respostasPublicas}
+                            onChange={(v) => setEdit({ ...edit, respostasPublicas: v })}
                           />
-                          <p className="text-[10px] text-muted-foreground">
-                            Fica visível para todo mundo — preço e link vão no Direct.
-                          </p>
                           {edit.avisosIa.map((aviso, i) => (
                             <p key={i} className="text-[11px] rounded border border-warning/30 bg-warning/10 p-2 flex items-start gap-1.5">
                               <AlertTriangle className="h-3.5 w-3.5 text-warning shrink-0 mt-px" />

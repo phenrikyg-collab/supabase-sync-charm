@@ -7,7 +7,7 @@ import { toast } from "sonner";
 import { Loader2, Sparkles } from "lucide-react";
 
 export type RespostasGeradas = {
-  respostaPublica: string;
+  respostasPublicas: string[];
   respostaDm: string;
   avisos: string[];
 };
@@ -76,8 +76,13 @@ export function BotaoGerarRespostas({
         : data.aviso
           ? [String(data.aviso)]
           : [];
+      const lista: string[] = Array.isArray(data.respostas_publicas)
+        ? data.respostas_publicas.map((r: unknown) => String(r)).filter((r: string) => r.trim())
+        : data.resposta_gatilho_publica
+          ? [String(data.resposta_gatilho_publica)]
+          : [];
       onResultado({
-        respostaPublica: String(data.resposta_gatilho_publica ?? ""),
+        respostasPublicas: lista,
         respostaDm: String(data.resposta_gatilho_dm ?? ""),
         avisos,
       });
