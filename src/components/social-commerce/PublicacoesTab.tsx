@@ -5,6 +5,7 @@ import { lerErroEdge } from "@/lib/edgeError";
 import { CampoTags, dataHoraBR } from "./comum";
 import { SeletorProdutos, carregarProdutosPai, type ProdutoPai } from "./SeletorProdutos";
 import { BotaoGerarRespostas } from "./BotaoGerarRespostas";
+import { ListaVariacoesRespostas } from "./ListaVariacoesRespostas";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -37,6 +38,7 @@ type Publicacao = {
   gatilho_qualquer?: boolean | null;
   palavras_gatilho?: string[] | null;
   resposta_gatilho_publica?: string | null;
+  respostas_publicas?: string[] | null;
   resposta_gatilho_dm?: string | null;
   link_combo?: string | null;
   cupom?: string | null;
@@ -99,7 +101,7 @@ type FormState = {
   modoResposta: "sombra" | "automatico" | "desligado";
   gatilhoQualquer: boolean;
   gatilhos: string[];
-  respostaPublica: string;
+  respostasPublicas: string[];
   respostaDm: string;
   linkCombo: string;
   cupom: string;
@@ -117,7 +119,7 @@ const FORM_VAZIO: FormState = {
   modoResposta: "sombra",
   gatilhoQualquer: false,
   gatilhos: [],
-  respostaPublica: "Te mandei no Direct 💛",
+  respostasPublicas: ["Te mandei no Direct 💛"],
   respostaDm: "",
   linkCombo: "",
   cupom: "",
@@ -272,7 +274,12 @@ export function PublicacoesTab() {
       modoResposta: (p.modo_resposta as FormState["modoResposta"]) ?? "sombra",
       gatilhoQualquer: p.gatilho_qualquer ?? false,
       gatilhos: p.palavras_gatilho ?? [],
-      respostaPublica: p.resposta_gatilho_publica ?? "",
+      respostasPublicas:
+        p.respostas_publicas?.length
+          ? p.respostas_publicas
+          : p.resposta_gatilho_publica
+            ? [p.resposta_gatilho_publica]
+            : [],
       respostaDm: p.resposta_gatilho_dm ?? "",
       linkCombo: p.link_combo ?? "",
       cupom: p.cupom ?? "",
@@ -356,6 +363,7 @@ export function PublicacoesTab() {
         midiaUrls = await Promise.all(arquivos.map(uploadMidia));
       }
 
+      const variacoes = form.respostasPublicas.map((v) => v.trim()).filter(Boolean);
       const payload: Record<string, any> = {
         tipo: form.tipo,
         legenda: form.legenda,
@@ -368,7 +376,9 @@ export function PublicacoesTab() {
         modo_resposta: form.modoResposta,
         gatilho_qualquer: form.modoResposta === "automatico" ? form.gatilhoQualquer : false,
         palavras_gatilho: form.modoResposta === "automatico" ? form.gatilhos : [],
-        resposta_gatilho_publica: form.modoResposta === "automatico" ? form.respostaPublica : null,
+        respostas_publicas: form.modoResposta === "automatico" ? variacoes : null,
+        // Compatibilidade: a primeira variação continua no campo antigo
+        resposta_gatilho_publica: form.modoResposta === "automatico" ? variacoes[0] ?? null : null,
         resposta_gatilho_dm: form.modoResposta === "automatico" ? form.respostaDm : null,
         link_combo: form.modoResposta === "automatico" ? form.linkCombo.trim() || null : null,
         cupom: form.modoResposta === "automatico" ? form.cupom.trim() || null : null,
@@ -383,7 +393,7 @@ export function PublicacoesTab() {
 
       let { error } = await executar(payload);
       // Colunas novas podem ainda não existir no banco — tenta de novo sem elas
-      for (const coluna of ["texto_grupo_vip", "primeiro_comentario", "gatilho_qualquer", "link_combo", "cupom_beneficio", "cupom_validade", "cupom"]) {
+      for (const coluna of ["respostas_publicas", "texto_grupo_vip", "primeiro_comentario", "gatilho_qualquer", "link_combo", "cupom_beneficio", "cupom_validade", "cupom"]) {
         if (error && new RegExp(coluna, "i").test(error.message ?? "")) {
           delete payload[coluna];
           ({ error } = await executar(payload));
@@ -848,7 +858,7 @@ export function PublicacoesTab() {
                         onResultado={(r) => {
                           setForm((f) => ({
                             ...f,
-                            respostaPublica: r.respostaPublica.slice(0, LIMITE_RESPOSTA_PUBLICA),
+                            respostasPublicas: r.respostasPublicas.map((v) => v.slice(0, LIMITE_RESPOSTA_PUBLICA)),
                             respostaDm: r.respostaDm,
                           }));
                           setAvisoRespostas(r.avisos);
@@ -888,21 +898,11 @@ export function PublicacoesTab() {
                     </div>
 
                     <div className="space-y-1.5">
-                      <div className="flex items-center justify-between">
-                        <Label>Resposta pública (quando bater a chave)</Label>
-                        <span className={`text-[10px] ${form.respostaPublica.length > LIMITE_RESPOSTA_PUBLICA ? "text-danger font-semibold" : "text-muted-foreground"}`}>
-                          {form.respostaPublica.length}/{LIMITE_RESPOSTA_PUBLICA}
-                        </span>
-                      </div>
-                      <Textarea
-                        value={form.respostaPublica}
-                        onChange={(e) => setForm({ ...form, respostaPublica: e.target.value.slice(0, LIMITE_RESPOSTA_PUBLICA) })}
-                        className="min-h-[60px]"
-                        placeholder='Ex.: "Te mandei no Direct 💛"'
+                      <ListaVariacoesRespostas
+                        value={form.respostasPublicas}
+                        onChange={(v) => setForm({ ...form, respostasPublicas: v })}
+                        limite={LIMITE_RESPOSTA_PUBLICA}
                       />
-                      <p className="text-[10px] text-muted-foreground">
-                        Fica visível para todo mundo — preço e link vão no Direct.
-                      </p>
                       {avisoRespostas.map((aviso, i) => (
                         <p key={i} className="text-[11px] rounded border border-warning/30 bg-warning/10 p-2 flex items-start gap-1.5">
                           <AlertTriangle className="h-3.5 w-3.5 text-warning shrink-0 mt-px" />
