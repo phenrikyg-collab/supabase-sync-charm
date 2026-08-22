@@ -267,37 +267,45 @@ export function ComentariosTab() {
 
   return (
     <div className="space-y-4">
-      {/* Alerta fixo: anúncios com comentário sem resposta e sem automação (incidente 22/08) */}
-      {anunciosPendentes.length > 0 && (
+      {/* Alerta fixo: anúncios com comentário sem resposta e sem produto/automação.
+          O número e o destino vêm da mesma view (vw_ig_anuncios_pendentes). */}
+      {qtdAnunciosPendentes > 0 && (
         <div className="rounded-lg border border-danger/40 bg-danger/10 p-3 flex items-center gap-3">
           <Megaphone className="h-4 w-4 text-danger shrink-0" />
           <p className="text-sm flex-1">
             <strong>
-              {anunciosPendentes.length === 1
-                ? "1 anúncio tem comentário sem resposta e sem automação."
-                : `${anunciosPendentes.length} anúncios têm comentários sem resposta e sem automação.`}
+              {qtdAnunciosPendentes === 1
+                ? "1 anúncio tem comentário sem resposta e está sem produto ou automação."
+                : `${qtdAnunciosPendentes} anúncios têm comentários sem resposta e estão sem produto ou automação.`}
             </strong>{" "}
             Anúncio sem resposta é lead quente parado.
           </p>
           <Button size="sm" variant="outline" asChild>
-            <Link to="/social-commerce?tab=produtos&filtro=sem_automacao">Configurar agora</Link>
+            <Link to="/social-commerce?tab=publicacoes&visao=noar&filtro=anuncios_pendentes">
+              Configurar agora
+            </Link>
           </Button>
         </div>
       )}
 
       {/* Filtros */}
       <div className="flex flex-wrap items-center gap-2">
-        {FILTROS.map((f) => (
-          <Button
-            key={f.key}
-            size="sm"
-            variant={filtroStatus === f.key ? "default" : "outline"}
-            className="h-8 text-xs"
-            onClick={() => setFiltroStatus(f.key)}
-          >
-            {f.label}
-          </Button>
-        ))}
+        {FILTROS.map((f) => {
+          const n = contagens?.[f.key];
+          const zerado = n === 0 && filtroStatus !== f.key;
+          return (
+            <Button
+              key={f.key}
+              size="sm"
+              variant={filtroStatus === f.key ? "default" : "outline"}
+              className={`h-8 text-xs ${zerado ? "opacity-50" : ""}`}
+              onClick={() => setFiltroStatus(f.key)}
+            >
+              {f.label}
+              {n != null && ` (${n})`}
+            </Button>
+          );
+        })}
         <Select value={filtroIntencao} onValueChange={setFiltroIntencao}>
           <SelectTrigger className="h-8 w-44 text-xs">
             <SelectValue placeholder="Intenção" />
