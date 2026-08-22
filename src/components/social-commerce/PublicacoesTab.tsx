@@ -856,9 +856,9 @@ export function PublicacoesTab() {
                 )}
               </section>
             </div>
-          </ScrollArea>
+          </div>
 
-          <div className="flex justify-end gap-2 pt-3 border-t">
+          <div className="flex justify-end gap-2 pt-3 border-t shrink-0">
             <Button variant="outline" onClick={() => setModalAberto(false)} disabled={salvando}>
               Cancelar
             </Button>
