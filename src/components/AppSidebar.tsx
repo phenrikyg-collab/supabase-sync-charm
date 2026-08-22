@@ -3,7 +3,7 @@ import {
   Truck, DollarSign, Target, FileText, Building2, LogOut, Users, Home, BarChart3, Upload, Layers,
   ShoppingBag, Banknote, Wrench, CreditCard, PieChart, Monitor, Settings, Trophy, CalendarDays, TrendingUp, ClipboardList, Megaphone, Tag, Sparkles, Heart, LayoutGrid,
   Compass, Boxes, UserSquare2, Link as LinkIcon, MessageCircle, Workflow, Mail, ShoppingCart, PackageX, Radar, Ticket,
-  BellRing,
+  BellRing, Instagram,
   BadgeDollarSign,
   Filter,
   CheckCircle2,
@@ -78,6 +78,7 @@ const moduleGroups: ModuleGroup[] = [
     items: [
       { title: "Criativos", url: "/marketing?tab=criativos", icon: Sparkles },
       { title: "Analytics Instagram", url: "/marketing-analytics", icon: Sparkles },
+      { title: "Social Commerce", url: "/social-commerce", icon: Instagram },
       { title: "Matriz Criativa", url: "/marketing/matriz-criativa", icon: Sparkles },
       { title: "Planejamento de Conteúdo", url: "/planejamento-conteudo-mensal", icon: CalendarDays },
       { title: "Tendências", url: "/tendencias", icon: TrendingUp },
