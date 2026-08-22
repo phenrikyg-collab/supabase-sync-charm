@@ -4,6 +4,7 @@ import { db } from "@/lib/socialCommerce";
 import { lerErroEdge } from "@/lib/edgeError";
 import { CampoTags, dataHoraBR } from "./comum";
 import { SeletorProdutos, carregarProdutosPai, type ProdutoPai } from "./SeletorProdutos";
+import { BotaoGerarRespostas } from "./BotaoGerarRespostas";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -180,6 +181,7 @@ export function PublicacoesTab() {
   const [iaGerando, setIaGerando] = useState(false);
   const [iaRaciocinio, setIaRaciocinio] = useState<string | null>(null);
   const [copiadoVip, setCopiadoVip] = useState(false);
+  const [avisoRespostas, setAvisoRespostas] = useState<string | null>(null);
 
   const carregar = useCallback(async () => {
     const [{ data: pubs }, prods] = await Promise.all([
@@ -227,6 +229,7 @@ export function PublicacoesTab() {
     setArquivos([]);
     setIaContexto("");
     setIaRaciocinio(null);
+    setAvisoRespostas(null);
     setForm({
       ...FORM_VAZIO,
       agendadoPara: dia ? `${diaKey(dia)}T09:00` : "",
@@ -239,6 +242,7 @@ export function PublicacoesTab() {
     setArquivos([]);
     setIaContexto("");
     setIaRaciocinio(null);
+    setAvisoRespostas(null);
     const d = p.agendado_para ? new Date(p.agendado_para) : null;
     setForm({
       tipo: p.tipo ?? "IMAGE",
@@ -763,6 +767,22 @@ export function PublicacoesTab() {
                       </p>
                     </div>
 
+                    <div>
+                      <BotaoGerarRespostas
+                        produtoIds={form.produtoIds}
+                        gatilhos={form.gatilhos}
+                        contexto={iaContexto}
+                        onResultado={(r) => {
+                          setForm((f) => ({
+                            ...f,
+                            respostaPublica: r.respostaPublica.slice(0, LIMITE_RESPOSTA_PUBLICA),
+                            respostaDm: r.respostaDm,
+                          }));
+                          setAvisoRespostas(r.aviso);
+                        }}
+                      />
+                    </div>
+
                     <div className="space-y-1.5">
                       <Label>Palavras-gatilho</Label>
                       <CampoTags
@@ -791,6 +811,12 @@ export function PublicacoesTab() {
                       <p className="text-[10px] text-muted-foreground">
                         Fica visível para todo mundo — preço e link vão no Direct.
                       </p>
+                      {avisoRespostas && (
+                        <p className="text-[11px] rounded border border-warning/30 bg-warning/10 p-2 flex items-start gap-1.5">
+                          <AlertTriangle className="h-3.5 w-3.5 text-warning shrink-0 mt-px" />
+                          <span>{avisoRespostas}</span>
+                        </p>
+                      )}
                     </div>
 
                     <div className="space-y-1.5">

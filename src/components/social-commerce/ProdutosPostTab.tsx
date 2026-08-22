@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { db } from "@/lib/socialCommerce";
 import { CampoTags } from "./comum";
 import { SeletorProdutos, carregarProdutosPai, type ProdutoPai } from "./SeletorProdutos";
+import { BotaoGerarRespostas } from "./BotaoGerarRespostas";
 import { formatarData } from "@/utils/formatters";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -15,7 +16,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { ExternalLink, ImageOff, MessageSquare, Settings2, Star, Zap } from "lucide-react";
+import { AlertTriangle, ExternalLink, ImageOff, MessageSquare, Settings2, Star, Zap } from "lucide-react";
 
 type Post = {
   media_id: string;
@@ -76,6 +77,7 @@ type EditState = {
   respostaPublica: string;
   respostaDm: string;
   ativo: boolean;
+  avisoIa: string | null;
 };
 
 export function ProdutosPostTab() {
@@ -174,6 +176,7 @@ export function ProdutosPostTab() {
       respostaPublica: auto?.resposta_gatilho_publica ?? "",
       respostaDm: auto?.resposta_gatilho_dm ?? "",
       ativo: auto?.ativo ?? false,
+      avisoIa: null,
     });
   };
 
@@ -395,6 +398,21 @@ export function ProdutosPostTab() {
                           Comentários que <strong>não</strong> baterem a palavra-chave serão respondidos
                           pela Anna automaticamente, sem aprovação.
                         </p>
+                        <div>
+                          <BotaoGerarRespostas
+                            produtoIds={edit.selecionados}
+                            gatilhos={edit.gatilhos}
+                            mediaId={edit.post.media_id}
+                            onResultado={(r) =>
+                              setEdit({
+                                ...edit,
+                                respostaPublica: r.respostaPublica.slice(0, 280),
+                                respostaDm: r.respostaDm,
+                                avisoIa: r.aviso,
+                              })
+                            }
+                          />
+                        </div>
                         <div className="space-y-1.5">
                           <Label>Palavras-gatilho</Label>
                           <CampoTags
@@ -419,6 +437,12 @@ export function ProdutosPostTab() {
                           <p className="text-[10px] text-muted-foreground">
                             Fica visível para todo mundo — preço e link vão no Direct.
                           </p>
+                          {edit.avisoIa && (
+                            <p className="text-[11px] rounded border border-warning/30 bg-warning/10 p-2 flex items-start gap-1.5">
+                              <AlertTriangle className="h-3.5 w-3.5 text-warning shrink-0 mt-px" />
+                              <span>{edit.avisoIa}</span>
+                            </p>
+                          )}
                         </div>
                         <div className="space-y-1.5">
                           <Label>Resposta no Direct</Label>
