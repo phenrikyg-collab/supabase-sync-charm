@@ -62,6 +62,10 @@ type Automacao = {
   palavras_gatilho?: string[] | null;
   resposta_gatilho_publica?: string | null;
   resposta_gatilho_dm?: string | null;
+  link_combo?: string | null;
+  cupom?: string | null;
+  cupom_beneficio?: string | null;
+  cupom_validade?: string | null;
   produto_id?: string | null;
   ativo?: boolean | null;
   expira_em?: string | null;
@@ -77,8 +81,12 @@ type EditState = {
   gatilhos: string[];
   respostaPublica: string;
   respostaDm: string;
+  linkCombo: string;
+  cupom: string;
+  cupomBeneficio: string;
+  cupomValidade: string;
   ativo: boolean;
-  avisoIa: string | null;
+  avisosIa: string[];
 };
 
 export function ProdutosPostTab() {
@@ -177,8 +185,12 @@ export function ProdutosPostTab() {
       gatilhos: auto?.palavras_gatilho ?? [],
       respostaPublica: auto?.resposta_gatilho_publica ?? "",
       respostaDm: auto?.resposta_gatilho_dm ?? "",
+      linkCombo: auto?.link_combo ?? "",
+      cupom: auto?.cupom ?? "",
+      cupomBeneficio: auto?.cupom_beneficio ?? "",
+      cupomValidade: auto?.cupom_validade ?? "",
       ativo: auto?.ativo ?? false,
-      avisoIa: null,
+      avisosIa: [],
     });
   };
 
