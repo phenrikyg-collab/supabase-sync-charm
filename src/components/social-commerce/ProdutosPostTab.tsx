@@ -424,16 +424,34 @@ export function ProdutosPostTab() {
                             }
                           />
                         </div>
+                        <label className="flex items-start gap-2 text-xs cursor-pointer">
+                          <Checkbox
+                            checked={edit.qualquer}
+                            onCheckedChange={(v) => setEdit({ ...edit, qualquer: !!v })}
+                            className="mt-0.5"
+                          />
+                          <span>
+                            Responder qualquer comentário
+                            {edit.qualquer && (
+                              <span className="block text-[10px] text-muted-foreground mt-0.5">
+                                Todos os comentários recebem a resposta fixa, a palavra-chave não é usada.
+                              </span>
+                            )}
+                          </span>
+                        </label>
                         <div className="space-y-1.5">
                           <Label>Palavras-gatilho</Label>
                           <CampoTags
                             value={edit.gatilhos}
                             onChange={(v) => setEdit({ ...edit, gatilhos: v })}
                             placeholder="Ex.: EU QUERO, QUERO"
+                            disabled={edit.qualquer}
                           />
-                          <p className="text-[10px] text-muted-foreground">
-                            Maiúsculas, acentos e emojis são ignorados — "EU QUERO!!! 💛" casa com "eu quero".
-                          </p>
+                          {!edit.qualquer && (
+                            <p className="text-[10px] text-muted-foreground">
+                              Maiúsculas, acentos e emojis são ignorados — "EU QUERO!!! 💛" casa com "eu quero".
+                            </p>
+                          )}
                         </div>
                         <div className="space-y-1.5">
                           <Label>Resposta pública</Label>
