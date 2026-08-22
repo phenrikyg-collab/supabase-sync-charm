@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { db } from "@/lib/socialCommerce";
+import { lerErroEdge } from "@/lib/edgeError";
 import { CampoTags, dataHoraBR } from "./comum";
+import { SeletorProdutos, carregarProdutosPai, type ProdutoPai } from "./SeletorProdutos";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -9,7 +11,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Checkbox } from "@/components/ui/checkbox";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -18,7 +19,7 @@ import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { toast } from "sonner";
 import {
   AlertTriangle, CalendarDays, ChevronLeft, ChevronRight, Eye, List, Loader2,
-  Plus, Upload, Zap, ZapOff,
+  Plus, Sparkles, Upload, Zap, ZapOff,
 } from "lucide-react";
 
 type Publicacao = {
@@ -37,7 +38,7 @@ type Publicacao = {
   resposta_gatilho_dm?: string | null;
 };
 
-type Produto = { id: string; nome_do_produto?: string | null; codigo_sku?: string | null };
+
 
 const TIPOS = ["IMAGE", "REELS", "CAROUSEL", "STORIES"];
 const LIMITE_LEGENDA = 2200;
@@ -126,6 +127,22 @@ const MODOS = [
   },
 ] as const;
 
+const ETAPAS_FUNIL = [
+  { valor: "alcance", titulo: "Alcance", descricao: "Ser vista por quem ainda não conhece a marca" },
+  { valor: "educacao", titulo: "Educação", descricao: "Ensinar algo e construir autoridade" },
+  { valor: "prova_social", titulo: "Prova social", descricao: "Quebrar objeção com evidência" },
+  { valor: "oferta", titulo: "Oferta", descricao: "Converter — pode citar preço" },
+];
+
+const CTAS = [
+  { valor: "comentar_palavra_chave", titulo: "Comentar palavra-chave", descricao: '"Comenta EU QUERO que eu te mando o link"' },
+  { valor: "enviar_amiga", titulo: "Enviar para uma amiga", descricao: '"Marca aquela amiga que…"' },
+  { valor: "link_na_bio", titulo: "Link na bio", descricao: "Leva ao perfil, ganha seguidor" },
+  { valor: "salvar", titulo: "Salvar o post", descricao: "Para conteúdo útil" },
+  { valor: "stories", titulo: "Compartilhar nos stories", descricao: "Amplia o alcance do post" },
+  { valor: "seguir", titulo: "Seguir o perfil", descricao: "Cresce a base de seguidores" },
+];
+
 export function PublicacoesTab() {
   const [visao, setVisao] = useState<"calendario" | "lista">("calendario");
   const [mesRef, setMesRef] = useState(() => {
@@ -134,21 +151,29 @@ export function PublicacoesTab() {
     return d;
   });
   const [publicacoes, setPublicacoes] = useState<Publicacao[]>([]);
-  const [produtos, setProdutos] = useState<Produto[]>([]);
+  const [produtos, setProdutos] = useState<ProdutoPai[]>([]);
   const [carregando, setCarregando] = useState(true);
   const [modalAberto, setModalAberto] = useState(false);
   const [editando, setEditando] = useState<Publicacao | null>(null);
   const [form, setForm] = useState<FormState>(FORM_VAZIO);
   const [arquivos, setArquivos] = useState<File[]>([]);
   const [salvando, setSalvando] = useState(false);
+  const [iaFunil, setIaFunil] = useState("alcance");
+  const [iaCta, setIaCta] = useState("comentar_palavra_chave");
+  const [iaContexto, setIaContexto] = useState("");
+  const [iaGerando, setIaGerando] = useState(false);
+  const [iaRaciocinio, setIaRaciocinio] = useState<string | null>(null);
 
   const carregar = useCallback(async () => {
-    const [{ data: pubs }, { data: prods }] = await Promise.all([
+    const [{ data: pubs }, prods] = await Promise.all([
       db.from("instagram_publicacoes").select("*").order("agendado_para", { ascending: true }).limit(500),
-      db.from("produtos").select("id, nome_do_produto, codigo_sku").eq("ativo", true).order("nome_do_produto"),
+      carregarProdutosPai().catch((e) => {
+        toast.error("Falha ao carregar produtos", { description: e?.message });
+        return [] as ProdutoPai[];
+      }),
     ]);
     setPublicacoes((pubs ?? []) as Publicacao[]);
-    setProdutos((prods ?? []) as Produto[]);
+    setProdutos(prods);
     setCarregando(false);
   }, []);
 
@@ -183,6 +208,8 @@ export function PublicacoesTab() {
   const abrirNovo = (dia?: Date) => {
     setEditando(null);
     setArquivos([]);
+    setIaContexto("");
+    setIaRaciocinio(null);
     setForm({
       ...FORM_VAZIO,
       agendadoPara: dia ? `${diaKey(dia)}T09:00` : "",
@@ -193,6 +220,8 @@ export function PublicacoesTab() {
   const abrirEdicao = (p: Publicacao) => {
     setEditando(p);
     setArquivos([]);
+    setIaContexto("");
+    setIaRaciocinio(null);
     const d = p.agendado_para ? new Date(p.agendado_para) : null;
     setForm({
       tipo: p.tipo ?? "IMAGE",
@@ -209,6 +238,58 @@ export function PublicacoesTab() {
       respostaDm: p.resposta_gatilho_dm ?? "",
     });
     setModalAberto(true);
+  };
+
+  const gerarLegenda = async () => {
+    if (iaGerando) return;
+    setIaGerando(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("instagram-gerar-legenda", {
+        body: {
+          etapa_funil: iaFunil,
+          cta: iaCta,
+          tipo: form.tipo,
+          produto_ids: form.produtoIds,
+          contexto: iaContexto.trim() || null,
+        },
+      });
+      if (error) {
+        const det = await lerErroEdge(error, "Falha ao gerar a legenda. Tente novamente.");
+        toast.error(det.mensagem, { description: det.dica });
+        return;
+      }
+      if (!data || data.ok === false || data.erro || data.error) {
+        toast.error(data?.detalhe ?? data?.erro ?? data?.error ?? "A IA não devolveu uma legenda.", {
+          description: data?.dica,
+        });
+        return;
+      }
+
+      const gatilhos: string[] = Array.isArray(data.palavras_gatilho) ? data.palavras_gatilho : [];
+      setForm((f) => ({
+        ...f,
+        legenda: String(data.legenda ?? "").slice(0, LIMITE_LEGENDA),
+        primeiroComentario: String(data.primeiro_comentario ?? ""),
+        ...(gatilhos.length > 0
+          ? {
+              modoResposta: "automatico" as const,
+              gatilhos,
+              respostaPublica: String(data.resposta_gatilho_publica ?? f.respostaPublica).slice(0, LIMITE_RESPOSTA_PUBLICA),
+              respostaDm: String(data.resposta_gatilho_dm ?? f.respostaDm),
+            }
+          : {}),
+      }));
+      setIaRaciocinio(data.raciocinio ?? null);
+      if (gatilhos.length > 0) {
+        toast.info("Automação de comentários preenchida — revise antes de salvar.");
+      } else {
+        toast.success("Legenda gerada — revise e ajuste antes de salvar");
+      }
+    } catch (e: any) {
+      toast.error(e?.message ?? "Falha ao gerar a legenda");
+    } finally {
+      setIaGerando(false);
+    }
   };
 
   const salvar = async () => {
