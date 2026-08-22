@@ -624,31 +624,19 @@ export function PublicacoesTab() {
 
                 <div className="space-y-1.5">
                   <Label>Produtos vinculados</Label>
-                  <ScrollArea className="h-40 rounded-lg border p-2">
-                    {produtos.length === 0 ? (
-                      <p className="text-xs text-muted-foreground p-2">Nenhum produto ativo cadastrado.</p>
-                    ) : (
-                      produtos.map((p) => (
-                        <label key={p.id} className="flex items-center gap-2 py-1.5 px-1 rounded hover:bg-accent/40 cursor-pointer text-sm">
-                          <Checkbox
-                            checked={form.produtoIds.includes(p.id)}
-                            onCheckedChange={(checked) =>
-                              setForm({
-                                ...form,
-                                produtoIds: checked
-                                  ? [...form.produtoIds, p.id]
-                                  : form.produtoIds.filter((id) => id !== p.id),
-                              })
-                            }
-                          />
-                          <span className="flex-1 truncate">{p.nome_do_produto}</span>
-                          {p.codigo_sku && (
-                            <span className="text-[10px] text-muted-foreground">{p.codigo_sku}</span>
-                          )}
-                        </label>
-                      ))
-                    )}
-                  </ScrollArea>
+                  <SeletorProdutos
+                    produtos={produtos}
+                    selecionados={form.produtoIds}
+                    onToggle={(id, marcado) =>
+                      setForm({
+                        ...form,
+                        produtoIds: marcado
+                          ? [...form.produtoIds, id]
+                          : form.produtoIds.filter((x) => x !== id),
+                      })
+                    }
+                    altura="h-40"
+                  />
                 </div>
               </section>
 
