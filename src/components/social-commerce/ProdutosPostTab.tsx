@@ -222,18 +222,24 @@ export function ProdutosPostTab() {
         palavras_gatilho: edit.modo === "automatico" ? edit.gatilhos : [],
         resposta_gatilho_publica: edit.modo === "automatico" ? edit.respostaPublica : null,
         resposta_gatilho_dm: edit.modo === "automatico" ? edit.respostaDm : null,
+        link_combo: edit.modo === "automatico" ? edit.linkCombo.trim() || null : null,
+        cupom: edit.modo === "automatico" ? edit.cupom.trim() || null : null,
+        cupom_beneficio: edit.modo === "automatico" ? edit.cupomBeneficio.trim() || null : null,
+        cupom_validade: edit.modo === "automatico" ? edit.cupomValidade.trim() || null : null,
         produto_id: edit.principal,
         ativo: edit.ativo,
       };
       let { error: errAuto } = await db
         .from("instagram_post_automacao")
         .upsert(autoPayload, { onConflict: "media_id" });
-      // Coluna nova pode ainda não existir no banco — tenta de novo sem ela
-      if (errAuto && /gatilho_qualquer/i.test(errAuto.message ?? "")) {
-        delete autoPayload.gatilho_qualquer;
-        ({ error: errAuto } = await db
-          .from("instagram_post_automacao")
-          .upsert(autoPayload, { onConflict: "media_id" }));
+      // Colunas novas podem ainda não existir no banco — tenta de novo sem elas
+      for (const coluna of ["gatilho_qualquer", "link_combo", "cupom_beneficio", "cupom_validade", "cupom"]) {
+        if (errAuto && new RegExp(coluna, "i").test(errAuto.message ?? "")) {
+          delete autoPayload[coluna];
+          ({ error: errAuto } = await db
+            .from("instagram_post_automacao")
+            .upsert(autoPayload, { onConflict: "media_id" }));
+        }
       }
       if (errAuto) throw errAuto;
 
