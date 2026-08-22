@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { db } from "@/lib/socialCommerce";
 import { CampoTags } from "./comum";
-import { formatarMoeda } from "@/lib/financeiroFormat";
+import { brl } from "@/lib/financeiroFormat";
 import { formatarData } from "@/utils/formatters";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";

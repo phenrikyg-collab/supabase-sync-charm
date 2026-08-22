@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { db, enviarInstagram, comentarioForaDoPrazo, MOTIVOS_409 } from "@/lib/socialCommerce";
 import { tempoRelativo } from "./comum";
-import { formatarMoeda } from "@/lib/financeiroFormat";
+import { brl } from "@/lib/financeiroFormat";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
