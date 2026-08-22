@@ -13,6 +13,9 @@ export type ProdutoPai = {
   chave_busca?: string | null;
   codigo_sku?: string | null;
   preco_venda?: number | null;
+  preco_cheio?: number | null;
+  preco_promocional?: number | null;
+  estoque?: number | null;
   variacoes?: number | null;
 };
 
@@ -20,7 +23,7 @@ export type ProdutoPai = {
 export async function carregarProdutosPai(): Promise<ProdutoPai[]> {
   const { data, error } = await db
     .from("vw_produtos_pai")
-    .select("produto_id, nome, chave_busca, codigo_sku, preco_venda, variacoes")
+    .select("produto_id, nome, chave_busca, codigo_sku, preco_venda, preco_cheio, preco_promocional, estoque, variacoes")
     .order("nome");
   if (error) throw error;
   return (data ?? []) as ProdutoPai[];
@@ -105,9 +108,20 @@ export function SeletorProdutos({
                     </span>
                   )}
                 </span>
-                <span className="text-[10px] text-muted-foreground shrink-0">
+                <span className="text-[10px] text-muted-foreground shrink-0 text-right">
                   {p.codigo_sku}
-                  {p.preco_venda != null && ` · ${brl(p.preco_venda)}`}
+                  {p.preco_venda != null && (
+                    <>
+                      {" · "}
+                      <span className={p.preco_promocional != null ? "text-success font-medium" : undefined}>
+                        {brl(p.preco_venda)}
+                      </span>
+                      {p.preco_promocional != null && p.preco_cheio != null && (
+                        <span className="line-through ml-1">{brl(p.preco_cheio)}</span>
+                      )}
+                    </>
+                  )}
+                  {p.estoque != null && ` · est. ${p.estoque}`}
                 </span>
                 {onPrincipalChange && (
                   <button
