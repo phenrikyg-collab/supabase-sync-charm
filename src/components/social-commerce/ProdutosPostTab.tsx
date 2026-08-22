@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { db } from "@/lib/socialCommerce";
 import { CampoTags } from "./comum";
 import { SeletorProdutos, carregarProdutosPai, type ProdutoPai } from "./SeletorProdutos";
 import { BotaoGerarRespostas } from "./BotaoGerarRespostas";
 import { ListaVariacoesRespostas } from "./ListaVariacoesRespostas";
+import { carregarPostsPainel } from "./PostsNoAr";
 import { formatarData } from "@/utils/formatters";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -17,7 +19,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { AlertTriangle, ExternalLink, ImageOff, MessageSquare, Settings2, Star, Zap } from "lucide-react";
+import { AlertTriangle, ExternalLink, ImageOff, Megaphone, MessageSquare, Settings2, Star, Zap } from "lucide-react";
 
 type Post = {
   media_id: string;
@@ -25,9 +27,15 @@ type Post = {
   thumb_cache_url?: string | null;
   thumbnail_url?: string | null;
   media_url?: string | null;
+  imagem?: string | null;
   caption?: string | null;
+  legenda_curta?: string | null;
   data_publicacao?: string | null;
   comments_count?: number | null;
+  eh_anuncio?: boolean | null;
+  tem_automacao?: boolean | null;
+  automacao_ativa?: boolean | null;
+  sem_texto?: boolean | null;
   reach?: number | null;
   views?: number | null;
 };
