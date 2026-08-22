@@ -271,7 +271,7 @@ export function ComentariosTab() {
                           {produtos.map((p) => (
                             <Badge key={p.id} variant="secondary" className="text-[10px] font-normal">
                               {p.nome_do_produto}
-                              {p.preco_venda != null && ` · ${formatarMoeda(p.preco_venda)}`}
+                              {p.preco_venda != null && ` · ${brl(p.preco_venda)}`}
                             </Badge>
                           ))}
                         </div>

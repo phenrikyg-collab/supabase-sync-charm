@@ -340,7 +340,7 @@ export function ProdutosPostTab() {
                             />
                             <span className="flex-1 truncate text-sm">{p.nome_do_produto}</span>
                             {p.preco_venda != null && (
-                              <span className="text-[10px] text-muted-foreground">{formatarMoeda(p.preco_venda)}</span>
+                              <span className="text-[10px] text-muted-foreground">{brl(p.preco_venda)}</span>
                             )}
                             <button
                               type="button"
