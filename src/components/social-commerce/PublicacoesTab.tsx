@@ -34,6 +34,7 @@ type Publicacao = {
   produto_ids?: string[] | null;
   erro?: string | null;
   modo_resposta?: string | null;
+  gatilho_qualquer?: boolean | null;
   palavras_gatilho?: string[] | null;
   resposta_gatilho_publica?: string | null;
   resposta_gatilho_dm?: string | null;
@@ -92,6 +93,7 @@ type FormState = {
   agendadoPara: string; // datetime-local
   produtoIds: string[];
   modoResposta: "sombra" | "automatico" | "desligado";
+  gatilhoQualquer: boolean;
   gatilhos: string[];
   respostaPublica: string;
   respostaDm: string;
@@ -105,6 +107,7 @@ const FORM_VAZIO: FormState = {
   agendadoPara: "",
   produtoIds: [],
   modoResposta: "sombra",
+  gatilhoQualquer: false,
   gatilhos: [],
   respostaPublica: "Te mandei no Direct 💛",
   respostaDm: "",
@@ -255,6 +258,7 @@ export function PublicacoesTab() {
           : "",
       produtoIds: p.produto_ids ?? [],
       modoResposta: (p.modo_resposta as FormState["modoResposta"]) ?? "sombra",
+      gatilhoQualquer: p.gatilho_qualquer ?? false,
       gatilhos: p.palavras_gatilho ?? [],
       respostaPublica: p.resposta_gatilho_publica ?? "",
       respostaDm: p.resposta_gatilho_dm ?? "",
@@ -345,6 +349,7 @@ export function PublicacoesTab() {
         produto_ids: form.produtoIds,
         midia_urls: midiaUrls,
         modo_resposta: form.modoResposta,
+        gatilho_qualquer: form.modoResposta === "automatico" ? form.gatilhoQualquer : false,
         palavras_gatilho: form.modoResposta === "automatico" ? form.gatilhos : [],
         resposta_gatilho_publica: form.modoResposta === "automatico" ? form.respostaPublica : null,
         resposta_gatilho_dm: form.modoResposta === "automatico" ? form.respostaDm : null,
@@ -357,7 +362,7 @@ export function PublicacoesTab() {
 
       let { error } = await executar(payload);
       // Colunas novas podem ainda não existir no banco — tenta de novo sem elas
-      for (const coluna of ["texto_grupo_vip", "primeiro_comentario"]) {
+      for (const coluna of ["texto_grupo_vip", "primeiro_comentario", "gatilho_qualquer"]) {
         if (error && new RegExp(coluna, "i").test(error.message ?? "")) {
           delete payload[coluna];
           ({ error } = await executar(payload));
