@@ -34,6 +34,7 @@ export const ROUTE_ACCESS: Record<string, Requirement> = {
   "/embaixadoras": ["marketing"],
   "/link-na-bio": ["marketing"],
   "/prova-social": ["marketing"],
+  "/social-commerce": ["marketing"],
 
   // CRM & Relacionamento
   "/email-marketing": ["crm"],

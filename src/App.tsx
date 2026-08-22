@@ -27,6 +27,7 @@ import VindiYapay from "./pages/VindiYapay";
 import BancoInter from "./pages/BancoInter";
 import ConciliacaoPixWhatsApp from "./pages/ConciliacaoPixWhatsApp";
 import ProvaSocial from "./pages/ProvaSocial";
+import SocialCommerce from "./pages/SocialCommerce";
 import ContasPagar from "./pages/ContasPagar";
 import ContasReceber from "./pages/ContasReceber";
 import DRE from "./pages/DRE";
