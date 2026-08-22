@@ -59,6 +59,7 @@ type LinkProduto = { media_id: string; produto_id: string; principal?: boolean |
 type Automacao = {
   media_id: string;
   modo?: string | null;
+  gatilho_qualquer?: boolean | null;
   palavras_gatilho?: string[] | null;
   resposta_gatilho_publica?: string | null;
   resposta_gatilho_dm?: string | null;
@@ -73,6 +74,7 @@ type EditState = {
   selecionados: string[];
   principal: string | null;
   modo: string;
+  qualquer: boolean;
   gatilhos: string[];
   respostaPublica: string;
   respostaDm: string;
@@ -172,6 +174,7 @@ export function ProdutosPostTab() {
       selecionados: ls.map((l) => l.produto_id),
       principal: ls.find((l) => l.principal)?.produto_id ?? null,
       modo: auto?.modo ?? "sombra",
+      qualquer: auto?.gatilho_qualquer ?? false,
       gatilhos: auto?.palavras_gatilho ?? [],
       respostaPublica: auto?.resposta_gatilho_publica ?? "",
       respostaDm: auto?.resposta_gatilho_dm ?? "",
@@ -201,18 +204,26 @@ export function ProdutosPostTab() {
       }
 
       // Automação do post
-      const { error: errAuto } = await db.from("instagram_post_automacao").upsert(
-        {
-          media_id: mid,
-          modo: edit.modo,
-          palavras_gatilho: edit.modo === "automatico" ? edit.gatilhos : [],
-          resposta_gatilho_publica: edit.modo === "automatico" ? edit.respostaPublica : null,
-          resposta_gatilho_dm: edit.modo === "automatico" ? edit.respostaDm : null,
-          produto_id: edit.principal,
-          ativo: edit.ativo,
-        },
-        { onConflict: "media_id" },
-      );
+      const autoPayload: Record<string, any> = {
+        media_id: mid,
+        modo: edit.modo,
+        gatilho_qualquer: edit.modo === "automatico" ? edit.qualquer : false,
+        palavras_gatilho: edit.modo === "automatico" ? edit.gatilhos : [],
+        resposta_gatilho_publica: edit.modo === "automatico" ? edit.respostaPublica : null,
+        resposta_gatilho_dm: edit.modo === "automatico" ? edit.respostaDm : null,
+        produto_id: edit.principal,
+        ativo: edit.ativo,
+      };
+      let { error: errAuto } = await db
+        .from("instagram_post_automacao")
+        .upsert(autoPayload, { onConflict: "media_id" });
+      // Coluna nova pode ainda não existir no banco — tenta de novo sem ela
+      if (errAuto && /gatilho_qualquer/i.test(errAuto.message ?? "")) {
+        delete autoPayload.gatilho_qualquer;
+        ({ error: errAuto } = await db
+          .from("instagram_post_automacao")
+          .upsert(autoPayload, { onConflict: "media_id" }));
+      }
       if (errAuto) throw errAuto;
 
       toast.success("Post atualizado");
@@ -413,16 +424,34 @@ export function ProdutosPostTab() {
                             }
                           />
                         </div>
+                        <label className="flex items-start gap-2 text-xs cursor-pointer">
+                          <Checkbox
+                            checked={edit.qualquer}
+                            onCheckedChange={(v) => setEdit({ ...edit, qualquer: !!v })}
+                            className="mt-0.5"
+                          />
+                          <span>
+                            Responder qualquer comentário
+                            {edit.qualquer && (
+                              <span className="block text-[10px] text-muted-foreground mt-0.5">
+                                Todos os comentários recebem a resposta fixa, a palavra-chave não é usada.
+                              </span>
+                            )}
+                          </span>
+                        </label>
                         <div className="space-y-1.5">
                           <Label>Palavras-gatilho</Label>
                           <CampoTags
                             value={edit.gatilhos}
                             onChange={(v) => setEdit({ ...edit, gatilhos: v })}
                             placeholder="Ex.: EU QUERO, QUERO"
+                            disabled={edit.qualquer}
                           />
-                          <p className="text-[10px] text-muted-foreground">
-                            Maiúsculas, acentos e emojis são ignorados — "EU QUERO!!! 💛" casa com "eu quero".
-                          </p>
+                          {!edit.qualquer && (
+                            <p className="text-[10px] text-muted-foreground">
+                              Maiúsculas, acentos e emojis são ignorados — "EU QUERO!!! 💛" casa com "eu quero".
+                            </p>
+                          )}
                         </div>
                         <div className="space-y-1.5">
                           <Label>Resposta pública</Label>
