@@ -218,6 +218,7 @@ const AppRoutes = () => {
               <Route path="/banco-inter" element={<BancoInter />} />
               <Route path="/conciliacao-pix-whatsapp" element={<ConciliacaoPixWhatsApp />} />
               <Route path="/prova-social" element={<ProvaSocial />} />
+              <Route path="/social-commerce" element={<SocialCommerce />} />
               <Route path="/fluxo-caixa" element={<FluxoCaixa />} />
               <Route path="/importar" element={<ImportarPage />} />
               <Route path="/metas" element={<Metas />} />
