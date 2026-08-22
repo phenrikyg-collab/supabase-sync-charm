@@ -193,9 +193,13 @@ export function ProdutosPostTab() {
       posts.filter((p) => {
         if (soSemProduto && (linksPorMedia.get(p.media_id) ?? []).length > 0) return false;
         if (soAutomacaoAtiva && !automacoes.get(p.media_id)?.ativo) return false;
+        if (soSemAutomacao) {
+          const ativo = p.tem_automacao != null ? !!p.automacao_ativa : !!automacoes.get(p.media_id)?.ativo;
+          if (ativo) return false;
+        }
         return true;
       }),
-    [posts, soSemProduto, soAutomacaoAtiva, linksPorMedia, automacoes],
+    [posts, soSemProduto, soAutomacaoAtiva, soSemAutomacao, linksPorMedia, automacoes],
   );
 
   /** Botão de pânico: liga/desliga a automação direto na grade, sem abrir modal. */
@@ -315,6 +319,10 @@ export function ProdutosPostTab() {
           <Checkbox checked={soAutomacaoAtiva} onCheckedChange={(v) => setSoAutomacaoAtiva(!!v)} />
           Somente posts com automação ativa
         </label>
+        <label className="flex items-center gap-2 text-sm cursor-pointer">
+          <Checkbox checked={soSemAutomacao} onCheckedChange={(v) => setSoSemAutomacao(!!v)} />
+          Somente posts sem automação ativa
+        </label>
         <span className="text-xs text-muted-foreground ml-auto">
           {totalVinculados} de {posts.length} posts vinculados
         </span>
@@ -344,6 +352,11 @@ export function ProdutosPostTab() {
               <Card key={p.media_id} className="overflow-hidden flex flex-col">
                 <div className="aspect-square bg-muted relative">
                   <ImagemPost post={p} />
+                  {p.eh_anuncio && (
+                    <span className="absolute top-2 left-2 inline-flex items-center gap-1 rounded-full bg-foreground text-background px-2 py-0.5 text-[10px] font-semibold">
+                      <Megaphone className="h-3 w-3" /> Anúncio
+                    </span>
+                  )}
                   {auto?.ativo && (
                     <span className="absolute top-2 right-2 inline-flex items-center gap-1 rounded-full bg-primary text-primary-foreground px-2 py-0.5 text-[10px] font-semibold">
                       <Zap className="h-3 w-3" /> {auto.modo === "automatico" ? "Automático" : auto.modo === "desligado" ? "Desligado" : "Sombra"}
@@ -352,7 +365,7 @@ export function ProdutosPostTab() {
                 </div>
                 <CardContent className="p-3 flex-1 flex flex-col gap-2">
                   <p className="text-xs text-muted-foreground line-clamp-2 min-h-[2rem]">
-                    {p.caption || "(sem legenda)"}
+                    {p.caption || p.legenda_curta || "(sem legenda)"}
                   </p>
                   <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
                     <span>{formatarData((p.data_publicacao ?? "").slice(0, 10))}</span>
@@ -389,6 +402,14 @@ export function ProdutosPostTab() {
                       })
                     )}
                   </div>
+
+                  {/* Selo: automação ligada sem texto salvo — a Anna escreve na hora */}
+                  {semTextoDe(p, auto, ls) && (
+                    <p className="text-[10px] rounded border border-warning/30 bg-warning/10 p-1.5 flex items-start gap-1.5">
+                      <AlertTriangle className="h-3 w-3 text-warning shrink-0 mt-px" />
+                      <span>Sem resposta salva. A Anna vai escrever no primeiro comentário.</span>
+                    </p>
+                  )}
 
                   <div className="mt-auto pt-2 border-t flex items-center justify-between gap-2">
                     {/* Botão de pânico: um clique desliga a campanha */}
