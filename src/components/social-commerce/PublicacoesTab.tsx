@@ -767,6 +767,22 @@ export function PublicacoesTab() {
                       </p>
                     </div>
 
+                    <div>
+                      <BotaoGerarRespostas
+                        produtoIds={form.produtoIds}
+                        gatilhos={form.gatilhos}
+                        contexto={iaContexto}
+                        onResultado={(r) => {
+                          setForm((f) => ({
+                            ...f,
+                            respostaPublica: r.respostaPublica.slice(0, LIMITE_RESPOSTA_PUBLICA),
+                            respostaDm: r.respostaDm,
+                          }));
+                          setAvisoRespostas(r.aviso);
+                        }}
+                      />
+                    </div>
+
                     <div className="space-y-1.5">
                       <Label>Palavras-gatilho</Label>
                       <CampoTags
