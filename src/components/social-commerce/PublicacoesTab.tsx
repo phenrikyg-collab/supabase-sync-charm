@@ -7,6 +7,10 @@ import { SeletorProdutos, carregarProdutosPai, type ProdutoPai } from "./Seletor
 import { BotaoGerarRespostas } from "./BotaoGerarRespostas";
 import { ListaVariacoesRespostas } from "./ListaVariacoesRespostas";
 import { PostsNoAr } from "./PostsNoAr";
+import { CapaReels } from "./CapaReels";
+import { CardsCarrossel, MAX_CARDS_CARROSSEL, MIN_CARDS_CARROSSEL, type ItemMidia } from "./CardsCarrossel";
+import { ListaProdutosOrdenada } from "./ListaProdutosOrdenada";
+import { uploadMidia, ehUrlDeVideo } from "./midiaUpload";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -46,6 +50,8 @@ type Publicacao = {
   cupom_beneficio?: string | null;
   cupom_validade?: string | null;
   texto_grupo_vip?: string | null;
+  capa_url?: string | null;
+  capa_offset_ms?: number | null;
 };
 
 
@@ -53,7 +59,6 @@ type Publicacao = {
 const TIPOS = ["IMAGE", "REELS", "CAROUSEL", "STORIES"];
 const LIMITE_LEGENDA = 2200;
 const LIMITE_RESPOSTA_PUBLICA = 280;
-const BUCKET = "instagram-midia";
 
 const STATUS_COR: Record<string, string> = {
   agendado: "bg-primary/15 text-primary border-primary/30",
@@ -72,25 +77,6 @@ function diaKey(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
-async function uploadMidia(file: File): Promise<string> {
-  const nomeSeguro = file.name.replace(/[^\w.\-]+/g, "_");
-  const path = `publicacoes/${Date.now()}_${nomeSeguro}`;
-  let { error } = await supabase.storage.from(BUCKET).upload(path, file);
-  if (error && /bucket/i.test(error.message ?? "")) {
-    // Bucket pode não existir ainda — tenta criar e refaz o upload
-    try {
-      await (supabase.storage as any).createBucket(BUCKET, { public: true });
-    } catch {
-      /* sem permissão ou já existe — o retry abaixo resolve se existir */
-    }
-    const retry = await supabase.storage.from(BUCKET).upload(path, file);
-    if (retry.error) throw retry.error;
-  } else if (error) {
-    throw error;
-  }
-  const { data } = supabase.storage.from(BUCKET).getPublicUrl(path);
-  return data.publicUrl;
-}
 
 type FormState = {
   tipo: string;
@@ -108,6 +94,8 @@ type FormState = {
   cupom: string;
   cupomBeneficio: string;
   cupomValidade: string;
+  capaUrl: string;
+  capaOffsetMs: number | null;
 };
 
 const FORM_VAZIO: FormState = {
@@ -126,6 +114,8 @@ const FORM_VAZIO: FormState = {
   cupom: "",
   cupomBeneficio: "",
   cupomValidade: "",
+  capaUrl: "",
+  capaOffsetMs: null,
 };
 
 const MODOS = [
@@ -190,7 +180,7 @@ export function PublicacoesTab() {
   const [modalAberto, setModalAberto] = useState(false);
   const [editando, setEditando] = useState<Publicacao | null>(null);
   const [form, setForm] = useState<FormState>(FORM_VAZIO);
-  const [arquivos, setArquivos] = useState<File[]>([]);
+  const [itens, setItens] = useState<ItemMidia[]>([]);
   const [salvando, setSalvando] = useState(false);
   const [iaFunil, setIaFunil] = useState("alcance");
   const [iaEstilo, setIaEstilo] = useState("trend");
@@ -244,7 +234,10 @@ export function PublicacoesTab() {
 
   const abrirNovo = (dia?: Date) => {
     setEditando(null);
-    setArquivos([]);
+    setItens((prev) => {
+      prev.forEach((i) => i.file && URL.revokeObjectURL(i.url));
+      return [];
+    });
     setIaContexto("");
     setIaRaciocinio(null);
     setAvisoRespostas([]);
@@ -257,7 +250,14 @@ export function PublicacoesTab() {
 
   const abrirEdicao = (p: Publicacao) => {
     setEditando(p);
-    setArquivos([]);
+    setItens((prev) => {
+      prev.forEach((i) => i.file && URL.revokeObjectURL(i.url));
+      return (p.midia_urls ?? []).map((url) => ({
+        key: url,
+        url,
+        isVideo: ehUrlDeVideo(url),
+      }));
+    });
     setIaContexto("");
     setIaRaciocinio(null);
     setAvisoRespostas([]);
@@ -286,6 +286,8 @@ export function PublicacoesTab() {
       cupom: p.cupom ?? "",
       cupomBeneficio: p.cupom_beneficio ?? "",
       cupomValidade: p.cupom_validade ?? "",
+      capaUrl: p.capa_url ?? "",
+      capaOffsetMs: p.capa_offset_ms ?? null,
     });
     setModalAberto(true);
   };
@@ -355,14 +357,83 @@ export function PublicacoesTab() {
     }
   };
 
+  // ===== Mídias (carrossel arrastável / mídia única) =====
+  const reordenarItens = (de: number, para: number) =>
+    setItens((prev) => {
+      const copia = [...prev];
+      const [movido] = copia.splice(de, 1);
+      copia.splice(para, 0, movido);
+      return copia;
+    });
+
+  const removerItem = (key: string) =>
+    setItens((prev) => {
+      const alvo = prev.find((i) => i.key === key);
+      if (alvo?.file) URL.revokeObjectURL(alvo.url);
+      return prev.filter((i) => i.key !== key);
+    });
+
+  const adicionarCards = (files: File[]) => {
+    const espaco = MAX_CARDS_CARROSSEL - itens.length;
+    if (espaco <= 0) {
+      toast.warning("O Instagram aceita no máximo 10.");
+      return;
+    }
+    if (files.length > espaco) {
+      toast.warning(`O Instagram aceita no máximo 10 — só ${espaco} arquivo(s) foi(ram) adicionado(s).`);
+    }
+    const novos: ItemMidia[] = files.slice(0, espaco).map((f, i) => ({
+      key: `novo_${Date.now()}_${i}_${f.name}`,
+      file: f,
+      url: URL.createObjectURL(f),
+      isVideo: f.type.startsWith("video/"),
+      nome: f.name,
+    }));
+    setItens((prev) => [...prev, ...novos]);
+  };
+
+  const definirMidiaUnica = (file: File) => {
+    setItens((prev) => {
+      prev.forEach((i) => i.file && URL.revokeObjectURL(i.url));
+      return [
+        {
+          key: `novo_${Date.now()}_${file.name}`,
+          file,
+          url: URL.createObjectURL(file),
+          isVideo: file.type.startsWith("video/"),
+          nome: file.name,
+        },
+      ];
+    });
+  };
+
+  const primeiroVideoSrc = itens.find((i) => i.isVideo)?.url ?? null;
+  // Capa: vale para Reels e para vídeo de feed. Stories não aceita capa — bloco escondido.
+  const mostrarCapa =
+    form.tipo !== "STORIES" && (form.tipo === "REELS" || itens[0]?.isVideo === true);
+  const carrosselInvalido =
+    form.tipo === "CAROUSEL" &&
+    (itens.length < MIN_CARDS_CARROSSEL || itens.length > MAX_CARDS_CARROSSEL);
+
   const salvar = async () => {
     if (salvando) return;
+    // O backend falha com mensagem clara se passar de 10 — a tela impede antes de deixar agendar.
+    if (form.tipo === "CAROUSEL") {
+      if (itens.length < MIN_CARDS_CARROSSEL) {
+        toast.error("Carrossel precisa de pelo menos 2 cards.");
+        return;
+      }
+      if (itens.length > MAX_CARDS_CARROSSEL) {
+        toast.error("O Instagram aceita no máximo 10 cards.");
+        return;
+      }
+    }
     setSalvando(true);
     try {
-      let midiaUrls = editando?.midia_urls ?? [];
-      if (arquivos.length > 0) {
-        midiaUrls = await Promise.all(arquivos.map(uploadMidia));
-      }
+      const listaMidias = form.tipo === "CAROUSEL" ? itens : itens.slice(0, 1);
+      const midiaUrls = await Promise.all(
+        listaMidias.map((it) => (it.file ? uploadMidia(it.file) : it.url)),
+      );
 
       const variacoes = form.respostasPublicas.map((v) => v.trim()).filter(Boolean);
       const payload: Record<string, any> = {
@@ -374,6 +445,8 @@ export function PublicacoesTab() {
         status: form.agendadoPara ? "agendado" : "rascunho",
         produto_ids: form.produtoIds,
         midia_urls: midiaUrls,
+        capa_url: mostrarCapa ? form.capaUrl || null : null,
+        capa_offset_ms: mostrarCapa ? form.capaOffsetMs : null,
         modo_resposta: form.modoResposta,
         gatilho_qualquer: form.modoResposta === "automatico" ? form.gatilhoQualquer : false,
         palavras_gatilho: form.modoResposta === "automatico" ? form.gatilhos : [],
@@ -394,7 +467,7 @@ export function PublicacoesTab() {
 
       let { error } = await executar(payload);
       // Colunas novas podem ainda não existir no banco — tenta de novo sem elas
-      for (const coluna of ["respostas_publicas", "texto_grupo_vip", "primeiro_comentario", "gatilho_qualquer", "link_combo", "cupom_beneficio", "cupom_validade", "cupom"]) {
+      for (const coluna of ["capa_url", "capa_offset_ms", "respostas_publicas", "texto_grupo_vip", "primeiro_comentario", "gatilho_qualquer", "link_combo", "cupom_beneficio", "cupom_validade", "cupom"]) {
         if (error && new RegExp(coluna, "i").test(error.message ?? "")) {
           delete payload[coluna];
           ({ error } = await executar(payload));
@@ -584,28 +657,51 @@ export function PublicacoesTab() {
                 </div>
 
                 <div className="space-y-1.5">
-                  <Label>Mídia {form.tipo === "CAROUSEL" && "(múltiplos arquivos)"}</Label>
-                  <label className="flex items-center justify-center gap-2 rounded-lg border border-dashed p-4 cursor-pointer hover:bg-accent/40 transition-colors text-sm text-muted-foreground">
-                    <Upload className="h-4 w-4" />
-                    {arquivos.length > 0
-                      ? `${arquivos.length} arquivo(s) selecionado(s)`
-                      : editando?.midia_urls?.length
-                        ? `${editando.midia_urls.length} mídia(s) já anexada(s) — selecionar substitui`
-                        : "Selecionar arquivos"}
-                    <input
-                      type="file"
-                      accept="image/*,video/*"
-                      multiple={form.tipo === "CAROUSEL"}
-                      className="hidden"
-                      onChange={(e) => setArquivos(Array.from(e.target.files ?? []))}
+                  <Label>Mídia {form.tipo === "CAROUSEL" && `(${itens.length}/${MAX_CARDS_CARROSSEL} cards)`}</Label>
+                  {form.tipo === "CAROUSEL" ? (
+                    <CardsCarrossel
+                      itens={itens}
+                      onReordenar={reordenarItens}
+                      onRemover={removerItem}
+                      onAdicionar={adicionarCards}
                     />
-                  </label>
-                  {arquivos.length > 0 && (
-                    <p className="text-[10px] text-muted-foreground truncate">
-                      {arquivos.map((f) => f.name).join(", ")}
-                    </p>
+                  ) : (
+                    <>
+                      <label className="flex items-center justify-center gap-2 rounded-lg border border-dashed p-4 cursor-pointer hover:bg-accent/40 transition-colors text-sm text-muted-foreground">
+                        <Upload className="h-4 w-4" />
+                        {itens.length > 0
+                          ? itens[0].nome ?? "1 mídia anexada — selecionar substitui"
+                          : "Selecionar arquivo"}
+                        <input
+                          type="file"
+                          accept="image/*,video/*"
+                          className="hidden"
+                          onChange={(e) => {
+                            const f = e.target.files?.[0];
+                            if (f) definirMidiaUnica(f);
+                            e.target.value = "";
+                          }}
+                        />
+                      </label>
+                      {itens.length > 0 && !itens[0].file && (
+                        <p className="text-[10px] text-muted-foreground">
+                          Mídia atual mantida — selecionar um arquivo substitui.
+                        </p>
+                      )}
+                    </>
                   )}
                 </div>
+
+                {/* CAPA — Reels e vídeo de feed. Stories não aceita capa: bloco escondido. */}
+                {mostrarCapa && (
+                  <CapaReels
+                    videoSrc={primeiroVideoSrc}
+                    capaUrl={form.capaUrl}
+                    onCapaUrl={(url) => setForm({ ...form, capaUrl: url })}
+                    capaOffsetMs={form.capaOffsetMs}
+                    onCapaOffsetMs={(ms) => setForm({ ...form, capaOffsetMs: ms })}
+                  />
+                )}
 
                 <div className="space-y-1.5">
                   <Label>Produtos vinculados</Label>
@@ -621,6 +717,11 @@ export function PublicacoesTab() {
                       })
                     }
                     altura="h-60"
+                  />
+                  <ListaProdutosOrdenada
+                    ids={form.produtoIds}
+                    produtos={produtos}
+                    onChange={(ids) => setForm({ ...form, produtoIds: ids })}
                   />
                 </div>
 
@@ -932,11 +1033,14 @@ export function PublicacoesTab() {
             </div>
           </div>
 
-          <div className="flex justify-end gap-2 pt-3 border-t shrink-0">
+          <div className="flex justify-end items-center gap-2 pt-3 border-t shrink-0">
+            {carrosselInvalido && (
+              <p className="text-xs text-danger mr-auto">Carrossel precisa de pelo menos 2 cards.</p>
+            )}
             <Button variant="outline" onClick={() => setModalAberto(false)} disabled={salvando}>
               Cancelar
             </Button>
-            <Button onClick={salvar} disabled={salvando}>
+            <Button onClick={salvar} disabled={salvando || carrosselInvalido}>
               {salvando && <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />}
               {editando ? "Salvar alterações" : form.agendadoPara ? "Agendar" : "Salvar rascunho"}
             </Button>
