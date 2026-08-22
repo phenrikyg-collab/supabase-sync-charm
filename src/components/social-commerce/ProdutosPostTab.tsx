@@ -204,18 +204,26 @@ export function ProdutosPostTab() {
       }
 
       // Automação do post
-      const { error: errAuto } = await db.from("instagram_post_automacao").upsert(
-        {
-          media_id: mid,
-          modo: edit.modo,
-          palavras_gatilho: edit.modo === "automatico" ? edit.gatilhos : [],
-          resposta_gatilho_publica: edit.modo === "automatico" ? edit.respostaPublica : null,
-          resposta_gatilho_dm: edit.modo === "automatico" ? edit.respostaDm : null,
-          produto_id: edit.principal,
-          ativo: edit.ativo,
-        },
-        { onConflict: "media_id" },
-      );
+      const autoPayload: Record<string, any> = {
+        media_id: mid,
+        modo: edit.modo,
+        gatilho_qualquer: edit.modo === "automatico" ? edit.qualquer : false,
+        palavras_gatilho: edit.modo === "automatico" ? edit.gatilhos : [],
+        resposta_gatilho_publica: edit.modo === "automatico" ? edit.respostaPublica : null,
+        resposta_gatilho_dm: edit.modo === "automatico" ? edit.respostaDm : null,
+        produto_id: edit.principal,
+        ativo: edit.ativo,
+      };
+      let { error: errAuto } = await db
+        .from("instagram_post_automacao")
+        .upsert(autoPayload, { onConflict: "media_id" });
+      // Coluna nova pode ainda não existir no banco — tenta de novo sem ela
+      if (errAuto && /gatilho_qualquer/i.test(errAuto.message ?? "")) {
+        delete autoPayload.gatilho_qualquer;
+        ({ error: errAuto } = await db
+          .from("instagram_post_automacao")
+          .upsert(autoPayload, { onConflict: "media_id" }));
+      }
       if (errAuto) throw errAuto;
 
       toast.success("Post atualizado");
