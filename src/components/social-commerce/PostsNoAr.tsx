@@ -186,13 +186,24 @@ export function PostsNoAr({ filtroInicial }: { filtroInicial?: string | null }) 
         <Card>
           <CardContent className="p-10 text-center text-sm text-muted-foreground">
             <ImageOff className="h-8 w-8 mx-auto mb-2 opacity-40" />
-            Nenhuma mídia neste filtro.
+            {filtro === "anuncios_pendentes" && pendentes === null
+              ? "A view vw_ig_anuncios_pendentes ainda não existe no banco — atualize o backend para usar este filtro."
+              : "Nenhuma mídia neste filtro."}
           </CardContent>
         </Card>
       ) : (
         <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4">
           {filtrados.map((p) => (
-            <Card key={p.media_id} className="overflow-hidden flex flex-col">
+            <Card
+              key={p.media_id}
+              className={`overflow-hidden flex flex-col ${
+                filtro === "anuncios_pendentes"
+                  ? "cursor-pointer hover:ring-1 hover:ring-primary/40 transition-shadow"
+                  : ""
+              }`}
+              onClick={filtro === "anuncios_pendentes" ? () => configurar(p.media_id) : undefined}
+              title={filtro === "anuncios_pendentes" ? "Abrir configuração do anúncio" : undefined}
+            >
               <div className="aspect-square bg-muted relative">
                 <ImagemPainel post={p} />
                 {p.eh_anuncio && (
