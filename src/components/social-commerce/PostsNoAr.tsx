@@ -38,12 +38,13 @@ export type PostPainel = {
   comments_count?: number | null;
 };
 
-type FiltroPainel = "todos" | "organicos" | "anuncios" | "sem_automacao" | "sem_resposta";
+type FiltroPainel = "todos" | "organicos" | "anuncios" | "anuncios_pendentes" | "sem_automacao" | "sem_resposta";
 
 const FILTROS: { key: FiltroPainel; label: string }[] = [
   { key: "todos", label: "Todos" },
   { key: "organicos", label: "Orgânicos" },
   { key: "anuncios", label: "Anúncios" },
+  { key: "anuncios_pendentes", label: "Anúncios pendentes" },
   { key: "sem_automacao", label: "Sem automação" },
   { key: "sem_resposta", label: "Comentários sem resposta" },
 ];
@@ -96,17 +97,36 @@ function ImagemPainel({ post }: { post: PostPainel }) {
   );
 }
 
-export function PostsNoAr() {
+const FILTROS_VALIDOS = new Set<string>(FILTROS.map((f) => f.key));
+
+export function PostsNoAr({ filtroInicial }: { filtroInicial?: string | null }) {
   const navigate = useNavigate();
   const [posts, setPosts] = useState<PostPainel[]>([]);
+  // null = view vw_ig_anuncios_pendentes indisponível no banco
+  const [pendentes, setPendentes] = useState<PostPainel[] | null>(null);
   const [carregando, setCarregando] = useState(true);
-  const [filtro, setFiltro] = useState<FiltroPainel>("todos");
+  const [filtro, setFiltro] = useState<FiltroPainel>(
+    filtroInicial && FILTROS_VALIDOS.has(filtroInicial) ? (filtroInicial as FiltroPainel) : "todos",
+  );
 
   const carregar = useCallback(async () => {
     try {
       setPosts(await carregarPostsPainel());
     } catch (e: any) {
       toast.error("Falha ao carregar posts", { description: e?.message });
+    }
+    // Anúncios pendentes: comentário sem resposta + falta produto vinculado ou automação ativa.
+    // Mesma fonte do alerta da aba Comentários — o número do alerta bate com esta lista.
+    try {
+      const { data, error } = await db
+        .from("vw_ig_anuncios_pendentes")
+        .select("*")
+        .order("ultimo_comentario_em", { ascending: false });
+      if (!error) {
+        setPendentes(((data ?? []) as PostPainel[]).map((p) => ({ ...p, eh_anuncio: true })));
+      }
+    } catch {
+      /* view indisponível — o filtro mostra aviso */
     }
     setCarregando(false);
   }, []);
@@ -116,6 +136,7 @@ export function PostsNoAr() {
   }, [carregar]);
 
   const filtrados = useMemo(() => {
+    if (filtro === "anuncios_pendentes") return pendentes ?? [];
     const lista = posts.filter((p) => {
       if (filtro === "organicos" && p.eh_anuncio) return false;
       if (filtro === "anuncios" && !p.eh_anuncio) return false;
