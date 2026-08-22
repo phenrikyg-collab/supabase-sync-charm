@@ -298,8 +298,27 @@ export function ProdutosPostTab() {
       if (errAuto) throw errAuto;
 
       toast.success("Post atualizado");
+      const editSalvo = edit;
       setEdit(null);
       await carregar();
+
+      // Salvou com automação ativa, produto vinculado e sem texto: o backend
+      // escreve na hora do primeiro comentário — mas oferece gerar agora p/ revisão.
+      const ficouSemTexto =
+        editSalvo.ativo &&
+        editSalvo.modo === "automatico" &&
+        editSalvo.selecionados.length > 0 &&
+        (variacoes.length === 0 || !editSalvo.respostaDm.trim());
+      if (ficouSemTexto) {
+        toast.warning("Automação ativa sem textos de resposta.", {
+          description: "A Anna vai escrever no primeiro comentário — ou gere agora e revise.",
+          duration: 12000,
+          action: {
+            label: "Gerar respostas agora",
+            onClick: () => setEdit({ ...editSalvo, avisosIa: [] }),
+          },
+        });
+      }
     } catch (e: any) {
       toast.error(e?.message ?? "Falha ao salvar");
     } finally {
@@ -538,6 +557,17 @@ export function ProdutosPostTab() {
                         <p className="text-[10px] text-muted-foreground -mt-1">
                           Vazio = a mensagem sai sem a linha de cupom.
                         </p>
+                        {edit.ativo &&
+                          edit.selecionados.length > 0 &&
+                          (edit.respostasPublicas.every((v) => !v.trim()) || !edit.respostaDm.trim()) && (
+                            <p className="text-[11px] rounded border border-warning/30 bg-warning/10 p-2 flex items-start gap-1.5">
+                              <AlertTriangle className="h-3.5 w-3.5 text-warning shrink-0 mt-px" />
+                              <span>
+                                Sem resposta salva. A Anna vai escrever no primeiro comentário — gere agora
+                                com o botão abaixo e revise antes.
+                              </span>
+                            </p>
+                          )}
                         <div>
                           <BotaoGerarRespostas
                             produtoIds={edit.selecionados}
