@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { db } from "@/lib/socialCommerce";
 import { CampoTags } from "./comum";
 import { SeletorProdutos, carregarProdutosPai, type ProdutoPai } from "./SeletorProdutos";
+import { BotaoGerarRespostas } from "./BotaoGerarRespostas";
 import { formatarData } from "@/utils/formatters";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -15,7 +16,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { ExternalLink, ImageOff, MessageSquare, Settings2, Star, Zap } from "lucide-react";
+import { AlertTriangle, ExternalLink, ImageOff, MessageSquare, Settings2, Star, Zap } from "lucide-react";
 
 type Post = {
   media_id: string;
@@ -76,6 +77,7 @@ type EditState = {
   respostaPublica: string;
   respostaDm: string;
   ativo: boolean;
+  avisoIa: string | null;
 };
 
 export function ProdutosPostTab() {
@@ -174,6 +176,7 @@ export function ProdutosPostTab() {
       respostaPublica: auto?.resposta_gatilho_publica ?? "",
       respostaDm: auto?.resposta_gatilho_dm ?? "",
       ativo: auto?.ativo ?? false,
+      avisoIa: null,
     });
   };
 
