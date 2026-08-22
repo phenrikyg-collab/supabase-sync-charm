@@ -12,7 +12,6 @@ import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
@@ -486,9 +485,9 @@ export function ProdutosPostTab() {
                     )}
                   </section>
                 </div>
-              </ScrollArea>
+              </div>
 
-              <div className="flex justify-end gap-2 pt-3 border-t">
+              <div className="flex justify-end gap-2 pt-3 border-t shrink-0">
                 <Button variant="outline" onClick={() => setEdit(null)} disabled={salvando}>
                   Cancelar
                 </Button>
