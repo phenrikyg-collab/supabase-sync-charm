@@ -561,6 +561,23 @@ export function PublicacoesTab() {
                   )}
                 </div>
 
+                <div className="space-y-1.5">
+                  <Label>Produtos vinculados</Label>
+                  <SeletorProdutos
+                    produtos={produtos}
+                    selecionados={form.produtoIds}
+                    onToggle={(id, marcado) =>
+                      setForm({
+                        ...form,
+                        produtoIds: marcado
+                          ? [...form.produtoIds, id]
+                          : form.produtoIds.filter((x) => x !== id),
+                      })
+                    }
+                    altura="h-60"
+                  />
+                </div>
+
                 {/* GERAR COM IA */}
                 <div className="rounded-lg border border-primary/25 bg-primary/[0.04] p-3.5 space-y-3">
                   <p className="text-xs font-semibold uppercase tracking-widest text-primary flex items-center gap-1.5">
@@ -634,7 +651,7 @@ export function PublicacoesTab() {
                     </Button>
                     {form.produtoIds.length > 0 && (
                       <span className="text-[10px] text-muted-foreground">
-                        A IA usa os {form.produtoIds.length} produto(s) selecionados abaixo como referência.
+                        A IA usa os {form.produtoIds.length} produto(s) selecionados acima como referência.
                       </span>
                     )}
                   </div>
@@ -699,26 +716,10 @@ export function PublicacoesTab() {
                     placeholder="Gerado pela IA junto com a legenda — ou escreva manualmente…"
                   />
                   <p className="text-[10px] text-muted-foreground">
-                    Envie no grupo de clientes VIP assim que o post sair. Substitua [link do post] pelo link real.
+                    Envie no grupo VIP assim que o post sair. Troque [link do post] pelo link real.
                   </p>
                 </div>
 
-                <div className="space-y-1.5">
-                  <Label>Produtos vinculados</Label>
-                  <SeletorProdutos
-                    produtos={produtos}
-                    selecionados={form.produtoIds}
-                    onToggle={(id, marcado) =>
-                      setForm({
-                        ...form,
-                        produtoIds: marcado
-                          ? [...form.produtoIds, id]
-                          : form.produtoIds.filter((x) => x !== id),
-                      })
-                    }
-                    altura="h-40"
-                  />
-                </div>
               </section>
 
               {/* AUTOMAÇÃO DE RESPOSTA */}
