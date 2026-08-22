@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Checkbox } from "@/components/ui/checkbox";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -788,16 +789,35 @@ export function PublicacoesTab() {
                       />
                     </div>
 
+                    <label className="flex items-start gap-2 text-xs cursor-pointer">
+                      <Checkbox
+                        checked={form.gatilhoQualquer}
+                        onCheckedChange={(v) => setForm({ ...form, gatilhoQualquer: !!v })}
+                        className="mt-0.5"
+                      />
+                      <span>
+                        Responder qualquer comentário
+                        {form.gatilhoQualquer && (
+                          <span className="block text-[10px] text-muted-foreground mt-0.5">
+                            Todos os comentários recebem a resposta fixa, a palavra-chave não é usada.
+                          </span>
+                        )}
+                      </span>
+                    </label>
+
                     <div className="space-y-1.5">
                       <Label>Palavras-gatilho</Label>
                       <CampoTags
                         value={form.gatilhos}
                         onChange={(v) => setForm({ ...form, gatilhos: v })}
                         placeholder="Ex.: EU QUERO, QUERO, EU QUERO!"
+                        disabled={form.gatilhoQualquer}
                       />
-                      <p className="text-[10px] text-muted-foreground">
-                        Maiúsculas, acentos e emojis são ignorados na comparação — "EU QUERO!!! 💛" casa com "eu quero".
-                      </p>
+                      {!form.gatilhoQualquer && (
+                        <p className="text-[10px] text-muted-foreground">
+                          Maiúsculas, acentos e emojis são ignorados na comparação — "EU QUERO!!! 💛" casa com "eu quero".
+                        </p>
+                      )}
                     </div>
 
                     <div className="space-y-1.5">
