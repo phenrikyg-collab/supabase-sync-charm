@@ -229,6 +229,7 @@ export function PublicacoesTab() {
     setArquivos([]);
     setIaContexto("");
     setIaRaciocinio(null);
+    setAvisoRespostas(null);
     setForm({
       ...FORM_VAZIO,
       agendadoPara: dia ? `${diaKey(dia)}T09:00` : "",
@@ -241,6 +242,7 @@ export function PublicacoesTab() {
     setArquivos([]);
     setIaContexto("");
     setIaRaciocinio(null);
+    setAvisoRespostas(null);
     const d = p.agendado_para ? new Date(p.agendado_para) : null;
     setForm({
       tipo: p.tipo ?? "IMAGE",
