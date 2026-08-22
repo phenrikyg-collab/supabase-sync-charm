@@ -38,6 +38,10 @@ type Publicacao = {
   palavras_gatilho?: string[] | null;
   resposta_gatilho_publica?: string | null;
   resposta_gatilho_dm?: string | null;
+  link_combo?: string | null;
+  cupom?: string | null;
+  cupom_beneficio?: string | null;
+  cupom_validade?: string | null;
   texto_grupo_vip?: string | null;
 };
 
@@ -97,6 +101,10 @@ type FormState = {
   gatilhos: string[];
   respostaPublica: string;
   respostaDm: string;
+  linkCombo: string;
+  cupom: string;
+  cupomBeneficio: string;
+  cupomValidade: string;
 };
 
 const FORM_VAZIO: FormState = {
@@ -111,6 +119,10 @@ const FORM_VAZIO: FormState = {
   gatilhos: [],
   respostaPublica: "Te mandei no Direct 💛",
   respostaDm: "",
+  linkCombo: "",
+  cupom: "",
+  cupomBeneficio: "",
+  cupomValidade: "",
 };
 
 const MODOS = [
