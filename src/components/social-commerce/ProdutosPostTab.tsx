@@ -8,6 +8,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
@@ -426,17 +427,62 @@ export function ProdutosPostTab() {
                           Comentários que <strong>não</strong> baterem a palavra-chave serão respondidos
                           pela Anna automaticamente, sem aprovação.
                         </p>
+                        <div className="space-y-1.5">
+                          <Label>Link do combo</Label>
+                          <Input
+                            type="url"
+                            value={edit.linkCombo}
+                            onChange={(e) => setEdit({ ...edit, linkCombo: e.target.value })}
+                            placeholder="https://…"
+                          />
+                          <p className="text-[10px] text-muted-foreground">
+                            Use quando o post vende um combo com página própria. Vazio = usa os links individuais das peças.
+                          </p>
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                          <div className="space-y-1.5">
+                            <Label>Cupom</Label>
+                            <Input
+                              value={edit.cupom}
+                              onChange={(e) => setEdit({ ...edit, cupom: e.target.value })}
+                              placeholder="Ex.: COMBOANNA"
+                            />
+                          </div>
+                          <div className="space-y-1.5">
+                            <Label>O que o cupom dá</Label>
+                            <Input
+                              value={edit.cupomBeneficio}
+                              onChange={(e) => setEdit({ ...edit, cupomBeneficio: e.target.value })}
+                              placeholder="Ex.: R$50 de desconto"
+                            />
+                          </div>
+                          <div className="space-y-1.5">
+                            <Label>Validade</Label>
+                            <Input
+                              value={edit.cupomValidade}
+                              onChange={(e) => setEdit({ ...edit, cupomValidade: e.target.value })}
+                              placeholder="Ex.: válidos até amanhã"
+                            />
+                          </div>
+                        </div>
+                        <p className="text-[10px] text-muted-foreground -mt-1">
+                          Vazio = a mensagem sai sem a linha de cupom.
+                        </p>
                         <div>
                           <BotaoGerarRespostas
                             produtoIds={edit.selecionados}
                             gatilhos={edit.gatilhos}
                             mediaId={edit.post.media_id}
+                            linkCombo={edit.linkCombo}
+                            cupom={edit.cupom}
+                            cupomBeneficio={edit.cupomBeneficio}
+                            cupomValidade={edit.cupomValidade}
                             onResultado={(r) =>
                               setEdit({
                                 ...edit,
                                 respostaPublica: r.respostaPublica.slice(0, 280),
                                 respostaDm: r.respostaDm,
-                                avisoIa: r.aviso,
+                                avisosIa: r.avisos,
                               })
                             }
                           />
