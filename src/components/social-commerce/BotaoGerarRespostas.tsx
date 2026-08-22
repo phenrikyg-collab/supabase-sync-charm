@@ -9,7 +9,7 @@ import { Loader2, Sparkles } from "lucide-react";
 export type RespostasGeradas = {
   respostaPublica: string;
   respostaDm: string;
-  aviso: string | null;
+  avisos: string[];
 };
 
 type Props = {
@@ -18,14 +18,29 @@ type Props = {
   /** Só existe no modal de post já publicado */
   mediaId?: string | null;
   contexto?: string | null;
+  linkCombo?: string | null;
+  cupom?: string | null;
+  cupomBeneficio?: string | null;
+  cupomValidade?: string | null;
   onResultado: (r: RespostasGeradas) => void;
 };
 
 /**
  * Botão "Gerar respostas com IA" — chama a Edge Function instagram-gerar-respostas
- * e devolve resposta pública, resposta de Direct e aviso via onResultado.
+ * e devolve resposta pública, resposta de Direct e avisos via onResultado.
+ * É o ÚNICO gerador das respostas de gatilho (conhece cupom e link de combo).
  */
-export function BotaoGerarRespostas({ produtoIds, gatilhos, mediaId, contexto, onResultado }: Props) {
+export function BotaoGerarRespostas({
+  produtoIds,
+  gatilhos,
+  mediaId,
+  contexto,
+  linkCombo,
+  cupom,
+  cupomBeneficio,
+  cupomValidade,
+  onResultado,
+}: Props) {
   const [gerando, setGerando] = useState(false);
   const desabilitado = produtoIds.length === 0;
 
@@ -37,6 +52,10 @@ export function BotaoGerarRespostas({ produtoIds, gatilhos, mediaId, contexto, o
         body: {
           produto_ids: produtoIds,
           palavras_gatilho: gatilhos,
+          link_combo: linkCombo?.trim() || null,
+          cupom: cupom?.trim() || null,
+          cupom_beneficio: cupomBeneficio?.trim() || null,
+          cupom_validade: cupomValidade?.trim() || null,
           ...(mediaId ? { media_id: mediaId } : {}),
           ...(contexto?.trim() ? { contexto: contexto.trim() } : {}),
         },
@@ -52,10 +71,15 @@ export function BotaoGerarRespostas({ produtoIds, gatilhos, mediaId, contexto, o
         });
         return;
       }
+      const avisos: string[] = Array.isArray(data.avisos)
+        ? data.avisos.map((a: unknown) => String(a)).filter(Boolean)
+        : data.aviso
+          ? [String(data.aviso)]
+          : [];
       onResultado({
         respostaPublica: String(data.resposta_gatilho_publica ?? ""),
         respostaDm: String(data.resposta_gatilho_dm ?? ""),
-        aviso: data.aviso ? String(data.aviso) : null,
+        avisos,
       });
       toast.success("Respostas geradas — revise antes de salvar");
     } catch (e: any) {
