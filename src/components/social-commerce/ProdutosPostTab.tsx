@@ -40,10 +40,10 @@ type Post = {
   views?: number | null;
 };
 
-/** Imagem do post com fallback (cache → thumbnail → mídia) e placeholder "Sem prévia". */
+/** Imagem do post com fallback (cache → thumbnail → mídia → imagem da view) e placeholder "Sem prévia". */
 function ImagemPost({ post }: { post: Post }) {
   const [erro, setErro] = useState(false);
-  const src = post.thumb_cache_url || post.thumbnail_url || post.media_url;
+  const src = post.thumb_cache_url || post.thumbnail_url || post.media_url || post.imagem;
   if (!src || erro) {
     return (
       <div className="w-full h-full flex flex-col items-center justify-center gap-1.5 text-muted-foreground/50">
@@ -61,6 +61,18 @@ function ImagemPost({ post }: { post: Post }) {
       onError={() => setErro(true)}
     />
   );
+}
+
+/**
+ * Automação ligada, com produto vinculado e sem texto salvo.
+ * Usa o campo sem_texto da view quando disponível; senão calcula localmente.
+ */
+function semTextoDe(p: Post, auto?: Automacao, vinculos: LinkProduto[] = []): boolean {
+  if (p.sem_texto != null) return !!p.sem_texto;
+  if (!auto?.ativo || auto.modo !== "automatico" || vinculos.length === 0) return false;
+  const semPublica = !(auto.respostas_publicas?.length || auto.resposta_gatilho_publica?.trim());
+  const semDm = !auto.resposta_gatilho_dm?.trim();
+  return semPublica || semDm;
 }
 
 type LinkProduto = { media_id: string; produto_id: string; principal?: boolean | null };
@@ -101,6 +113,7 @@ type EditState = {
 };
 
 export function ProdutosPostTab() {
+  const [params, setParams] = useSearchParams();
   const [posts, setPosts] = useState<Post[]>([]);
   const [links, setLinks] = useState<LinkProduto[]>([]);
   const [automacoes, setAutomacoes] = useState<Map<string, Automacao>>(new Map());
@@ -108,17 +121,18 @@ export function ProdutosPostTab() {
   const [carregando, setCarregando] = useState(true);
   const [soSemProduto, setSoSemProduto] = useState(false);
   const [soAutomacaoAtiva, setSoAutomacaoAtiva] = useState(false);
+  const [soSemAutomacao, setSoSemAutomacao] = useState(false);
   const [edit, setEdit] = useState<EditState | null>(null);
   const [salvando, setSalvando] = useState(false);
 
   const carregar = useCallback(async () => {
-    const { data: ps } = await db
-      .from("instagram_posts")
-      .select("*")
-      .order("data_publicacao", { ascending: false })
-      .limit(300);
-    const lista = (ps ?? []) as Post[];
-    setPosts(lista);
+    // Fonte: vw_ig_posts_painel (inclui anúncios descobertos pelo backend).
+    // carregarPostsPainel cai para instagram_posts se a view ainda não existir.
+    const lista = [...(await carregarPostsPainel().catch((e) => {
+      toast.error("Falha ao carregar posts", { description: e?.message });
+      return [];
+    }))].sort((a, b) => (b.data_publicacao ?? "").localeCompare(a.data_publicacao ?? ""));
+    setPosts(lista as Post[]);
 
     const mediaIds = lista.map((p) => p.media_id).filter(Boolean);
     const promProdutos = carregarProdutosPai().catch((e) => {
@@ -143,6 +157,23 @@ export function ProdutosPostTab() {
   useEffect(() => {
     carregar();
   }, [carregar]);
+
+  // Deep-link: ?media=<id> abre a configuração do post; ?filtro=sem_automacao liga o filtro.
+  // Usado pelo alerta de anúncios da aba Comentários e pelos cards da visão "No ar".
+  useEffect(() => {
+    if (carregando) return;
+    const mid = params.get("media");
+    const filtro = params.get("filtro");
+    if (!mid && !filtro) return;
+    if (filtro === "sem_automacao") setSoSemAutomacao(true);
+    if (mid) {
+      const post = posts.find((p) => p.media_id === mid);
+      if (post) abrirConfig(post);
+      else toast.warning("Post não encontrado nesta lista.");
+    }
+    setParams({}, { replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [carregando]);
 
   const linksPorMedia = useMemo(() => {
     const m = new Map<string, LinkProduto[]>();
