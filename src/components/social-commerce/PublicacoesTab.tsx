@@ -4,6 +4,7 @@ import { db } from "@/lib/socialCommerce";
 import { lerErroEdge } from "@/lib/edgeError";
 import { CampoTags, dataHoraBR } from "./comum";
 import { SeletorProdutos, carregarProdutosPai, type ProdutoPai } from "./SeletorProdutos";
+import { BotaoGerarRespostas } from "./BotaoGerarRespostas";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -180,6 +181,7 @@ export function PublicacoesTab() {
   const [iaGerando, setIaGerando] = useState(false);
   const [iaRaciocinio, setIaRaciocinio] = useState<string | null>(null);
   const [copiadoVip, setCopiadoVip] = useState(false);
+  const [avisoRespostas, setAvisoRespostas] = useState<string | null>(null);
 
   const carregar = useCallback(async () => {
     const [{ data: pubs }, prods] = await Promise.all([
