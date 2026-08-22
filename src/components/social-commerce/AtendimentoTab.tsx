@@ -13,13 +13,14 @@ import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
 import {
   Bot, Check, ExternalLink, Loader2, MessageCircle, Pencil, SendHorizonal,
-  PanelRightClose, PanelRightOpen, Trash2, AlertTriangle, Inbox,
+  PanelRightClose, PanelRightOpen, Trash2, AlertTriangle, Inbox, User,
 } from "lucide-react";
 
 type Conversa = {
   id: number;
   username?: string | null;
   nome?: string | null;
+  foto_url?: string | null;
   status?: string | null;
   janela_expira_em?: string | null;
   nao_lidas?: number | null;
@@ -64,6 +65,35 @@ function ChipStatus({ status }: { status?: string | null }) {
     <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-semibold ${cls}`}>
       {status}
     </span>
+  );
+}
+
+/** Avatar circular com foto de perfil; cai para ícone neutro se faltar ou falhar. */
+function AvatarConversa({
+  foto,
+  nome,
+  tamanho = "h-9 w-9",
+}: {
+  foto?: string | null;
+  nome?: string | null;
+  tamanho?: string;
+}) {
+  const [erro, setErro] = useState(false);
+  if (foto && !erro) {
+    return (
+      <img
+        src={foto}
+        alt={nome ? `Foto de ${nome}` : "Foto de perfil"}
+        className={`${tamanho} rounded-full object-cover shrink-0 bg-muted`}
+        loading="lazy"
+        onError={() => setErro(true)}
+      />
+    );
+  }
+  return (
+    <div className={`${tamanho} rounded-full bg-muted flex items-center justify-center shrink-0`}>
+      <User className="h-1/2 w-1/2 text-muted-foreground/50" />
+    </div>
   );
 }
 
@@ -249,17 +279,25 @@ export function AtendimentoTab() {
                     ativa ? "bg-accent" : ""
                   }`}
                 >
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="font-medium text-sm truncate">
-                      @{c.username || c.nome || "desconhecido"}
-                    </span>
-                    <span className="text-[10px] text-muted-foreground shrink-0">
-                      {tempoRelativo(c.ultima_mensagem_em)}
-                    </span>
+                  <div className="flex items-start gap-2.5">
+                    <AvatarConversa foto={c.foto_url} nome={c.nome} />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="font-medium text-sm truncate">
+                          {c.nome || (c.username ? `@${c.username}` : "Nova conversa")}
+                        </span>
+                        <span className="text-[10px] text-muted-foreground shrink-0">
+                          {tempoRelativo(c.ultima_mensagem_em)}
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-muted-foreground truncate mt-0.5">
+                        {c.username ? `@${c.username}` : "Carregando perfil..."}
+                      </p>
+                      <p className="text-xs text-muted-foreground truncate mt-0.5">
+                        {c.ultima_mensagem ?? c.ultima_mensagem_texto ?? ""}
+                      </p>
+                    </div>
                   </div>
-                  <p className="text-xs text-muted-foreground truncate mt-0.5">
-                    {c.ultima_mensagem ?? c.ultima_mensagem_texto ?? ""}
-                  </p>
                   <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
                     {(c.nao_lidas ?? 0) > 0 && (
                       <Badge className="h-4 px-1.5 text-[10px]">{c.nao_lidas}</Badge>
@@ -299,19 +337,25 @@ export function AtendimentoTab() {
           <Card className="flex-1 flex flex-col overflow-hidden min-w-0">
             {/* Header da conversa */}
             <div className="p-3 border-b flex items-center justify-between gap-2">
-              <div className="min-w-0">
-                <p className="font-semibold text-sm truncate">
-                  @{conversaSel.username || conversaSel.nome || "desconhecido"}
-                </p>
-                <div className="flex items-center gap-1.5 mt-1 flex-wrap">
-                  <ChipStatus status={conversaSel.status} />
-                  {janela && (
-                    <span
-                      className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-semibold ${janela.classe}`}
-                    >
-                      {janela.expirada ? "Janela de 24h expirada" : `Janela: ${janela.label} restantes`}
-                    </span>
-                  )}
+              <div className="flex items-center gap-2.5 min-w-0">
+                <AvatarConversa foto={conversaSel.foto_url} nome={conversaSel.nome} tamanho="h-10 w-10" />
+                <div className="min-w-0">
+                  <p className="font-semibold text-sm truncate">
+                    {conversaSel.nome || (conversaSel.username ? `@${conversaSel.username}` : "Nova conversa")}
+                  </p>
+                  <p className="text-[11px] text-muted-foreground truncate">
+                    {conversaSel.username ? `@${conversaSel.username}` : "Carregando perfil..."}
+                  </p>
+                  <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+                    <ChipStatus status={conversaSel.status} />
+                    {janela && (
+                      <span
+                        className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-semibold ${janela.classe}`}
+                      >
+                        {janela.expirada ? "Janela de 24h expirada" : `Janela: ${janela.label} restantes`}
+                      </span>
+                    )}
+                  </div>
                 </div>
               </div>
               <Button variant="ghost" size="icon" onClick={() => setPainelAberto((v) => !v)}>
@@ -466,6 +510,20 @@ export function AtendimentoTab() {
                   Contexto
                 </p>
                 <Separator />
+                <div className="flex flex-col items-center gap-1.5 py-1 text-center">
+                  <AvatarConversa foto={conversaSel.foto_url} nome={conversaSel.nome} tamanho="h-20 w-20" />
+                  <p className="text-sm font-medium">{conversaSel.nome || "—"}</p>
+                  {conversaSel.username && (
+                    <a
+                      href={`https://instagram.com/${conversaSel.username}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-primary hover:underline inline-flex items-center gap-1 text-xs"
+                    >
+                      instagram.com/{conversaSel.username} <ExternalLink className="h-3 w-3" />
+                    </a>
+                  )}
+                </div>
                 <div>
                   <p className="text-xs text-muted-foreground">Intenção</p>
                   <p className="font-medium">{conversaSel.intencao || "—"}</p>
