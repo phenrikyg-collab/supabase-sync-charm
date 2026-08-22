@@ -6,6 +6,7 @@ import { CampoTags, dataHoraBR } from "./comum";
 import { SeletorProdutos, carregarProdutosPai, type ProdutoPai } from "./SeletorProdutos";
 import { BotaoGerarRespostas } from "./BotaoGerarRespostas";
 import { ListaVariacoesRespostas } from "./ListaVariacoesRespostas";
+import { PostsNoAr } from "./PostsNoAr";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -21,7 +22,7 @@ import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { toast } from "sonner";
 import {
   AlertTriangle, CalendarDays, Check, ChevronLeft, ChevronRight, Copy, Eye, List, Loader2,
-  Plus, Sparkles, Upload, Zap, ZapOff,
+  Megaphone, Plus, Sparkles, Upload, Zap, ZapOff,
 } from "lucide-react";
 
 type Publicacao = {
