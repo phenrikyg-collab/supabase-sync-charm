@@ -12,7 +12,6 @@ import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
@@ -347,12 +346,12 @@ export function ProdutosPostTab() {
       {/* Modal de configuração */}
       <Dialog open={!!edit} onOpenChange={(v) => !v && setEdit(null)}>
         <DialogContent className="max-w-xl max-h-[90vh] overflow-hidden flex flex-col">
-          <DialogHeader>
+          <DialogHeader className="shrink-0">
             <DialogTitle className="font-serif">Produtos e automação do post</DialogTitle>
           </DialogHeader>
           {edit && (
             <>
-              <ScrollArea className="flex-1 pr-4">
+              <div className="max-h-[calc(90vh-140px)] overflow-y-auto pr-4">
                 <div className="space-y-5 pb-4">
                   {/* Produtos */}
                   <section className="space-y-2">
@@ -486,9 +485,9 @@ export function ProdutosPostTab() {
                     )}
                   </section>
                 </div>
-              </ScrollArea>
+              </div>
 
-              <div className="flex justify-end gap-2 pt-3 border-t">
+              <div className="flex justify-end gap-2 pt-3 border-t shrink-0">
                 <Button variant="outline" onClick={() => setEdit(null)} disabled={salvando}>
                   Cancelar
                 </Button>
