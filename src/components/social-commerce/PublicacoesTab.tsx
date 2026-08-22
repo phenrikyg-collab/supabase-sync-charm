@@ -257,7 +257,7 @@ export function PublicacoesTab() {
     setArquivos([]);
     setIaContexto("");
     setIaRaciocinio(null);
-    setAvisoRespostas(null);
+    setAvisoRespostas([]);
     const d = p.agendado_para ? new Date(p.agendado_para) : null;
     setForm({
       tipo: p.tipo ?? "IMAGE",
@@ -903,12 +903,12 @@ export function PublicacoesTab() {
                       <p className="text-[10px] text-muted-foreground">
                         Fica visível para todo mundo — preço e link vão no Direct.
                       </p>
-                      {avisoRespostas && (
-                        <p className="text-[11px] rounded border border-warning/30 bg-warning/10 p-2 flex items-start gap-1.5">
+                      {avisoRespostas.map((aviso, i) => (
+                        <p key={i} className="text-[11px] rounded border border-warning/30 bg-warning/10 p-2 flex items-start gap-1.5">
                           <AlertTriangle className="h-3.5 w-3.5 text-warning shrink-0 mt-px" />
-                          <span>{avisoRespostas}</span>
+                          <span>{aviso}</span>
                         </p>
-                      )}
+                      ))}
                     </div>
 
                     <div className="space-y-1.5">
