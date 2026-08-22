@@ -1,0 +1,602 @@
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { db } from "@/lib/socialCommerce";
+import { CampoTags, dataHoraBR } from "./comum";
+import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Checkbox } from "@/components/ui/checkbox";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { toast } from "sonner";
+import {
+  AlertTriangle, CalendarDays, ChevronLeft, ChevronRight, Eye, List, Loader2,
+  Plus, Upload, Zap, ZapOff,
+} from "lucide-react";
+
+type Publicacao = {
+  id?: string | number;
+  tipo?: string | null;
+  midia_urls?: string[] | null;
+  legenda?: string | null;
+  primeiro_comentario?: string | null;
+  agendado_para?: string | null;
+  status?: string | null;
+  produto_ids?: string[] | null;
+  erro?: string | null;
+  modo_resposta?: string | null;
+  palavras_gatilho?: string[] | null;
+  resposta_gatilho_publica?: string | null;
+  resposta_gatilho_dm?: string | null;
+};
+
+type Produto = { id: string; nome_do_produto?: string | null; codigo_sku?: string | null };
+
+const TIPOS = ["IMAGE", "REELS", "CAROUSEL", "STORIES"];
+const LIMITE_LEGENDA = 2200;
+const LIMITE_RESPOSTA_PUBLICA = 280;
+const BUCKET = "instagram-midia";
+
+const STATUS_COR: Record<string, string> = {
+  agendado: "bg-primary/15 text-primary border-primary/30",
+  publicado: "bg-success/10 text-success border-success/20",
+  falhou: "bg-danger/10 text-danger border-danger/20",
+  rascunho: "bg-muted text-muted-foreground border-border",
+  publicando: "bg-warning/10 text-warning border-warning/20",
+};
+
+function chipStatus(status?: string | null) {
+  const s = (status ?? "rascunho").toLowerCase();
+  return STATUS_COR[s] ?? STATUS_COR.rascunho;
+}
+
+function diaKey(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+async function uploadMidia(file: File): Promise<string> {
+  const nomeSeguro = file.name.replace(/[^\w.\-]+/g, "_");
+  const path = `publicacoes/${Date.now()}_${nomeSeguro}`;
+  let { error } = await supabase.storage.from(BUCKET).upload(path, file);
+  if (error && /bucket/i.test(error.message ?? "")) {
+    // Bucket pode não existir ainda — tenta criar e refaz o upload
+    try {
+      await (supabase.storage as any).createBucket(BUCKET, { public: true });
+    } catch {
+      /* sem permissão ou já existe — o retry abaixo resolve se existir */
+    }
+    const retry = await supabase.storage.from(BUCKET).upload(path, file);
+    if (retry.error) throw retry.error;
+  } else if (error) {
+    throw error;
+  }
+  const { data } = supabase.storage.from(BUCKET).getPublicUrl(path);
+  return data.publicUrl;
+}
+
+type FormState = {
+  tipo: string;
+  legenda: string;
+  primeiroComentario: string;
+  agendadoPara: string; // datetime-local
+  produtoIds: string[];
+  modoResposta: "sombra" | "automatico" | "desligado";
+  gatilhos: string[];
+  respostaPublica: string;
+  respostaDm: string;
+};
+
+const FORM_VAZIO: FormState = {
+  tipo: "IMAGE",
+  legenda: "",
+  primeiroComentario: "",
+  agendadoPara: "",
+  produtoIds: [],
+  modoResposta: "sombra",
+  gatilhos: [],
+  respostaPublica: "Te mandei no Direct 💛",
+  respostaDm: "",
+};
+
+const MODOS = [
+  {
+    valor: "sombra",
+    titulo: "Modo sombra",
+    descricao: "A Anna redige, a equipe aprova antes de enviar",
+    icone: Eye,
+  },
+  {
+    valor: "automatico",
+    titulo: "Automático",
+    descricao: "A Anna responde sozinha, sem aprovação",
+    icone: Zap,
+  },
+  {
+    valor: "desligado",
+    titulo: "Desligado",
+    descricao: "Nenhuma resposta automática neste post",
+    icone: ZapOff,
+  },
+] as const;
+
+export function PublicacoesTab() {
+  const [visao, setVisao] = useState<"calendario" | "lista">("calendario");
+  const [mesRef, setMesRef] = useState(() => {
+    const d = new Date();
+    d.setDate(1);
+    return d;
+  });
+  const [publicacoes, setPublicacoes] = useState<Publicacao[]>([]);
+  const [produtos, setProdutos] = useState<Produto[]>([]);
+  const [carregando, setCarregando] = useState(true);
+  const [modalAberto, setModalAberto] = useState(false);
+  const [editando, setEditando] = useState<Publicacao | null>(null);
+  const [form, setForm] = useState<FormState>(FORM_VAZIO);
+  const [arquivos, setArquivos] = useState<File[]>([]);
+  const [salvando, setSalvando] = useState(false);
+
+  const carregar = useCallback(async () => {
+    const [{ data: pubs }, { data: prods }] = await Promise.all([
+      db.from("instagram_publicacoes").select("*").order("agendado_para", { ascending: true }).limit(500),
+      db.from("produtos").select("id, nome_do_produto, codigo_sku").eq("ativo", true).order("nome_do_produto"),
+    ]);
+    setPublicacoes((pubs ?? []) as Publicacao[]);
+    setProdutos((prods ?? []) as Produto[]);
+    setCarregando(false);
+  }, []);
+
+  useEffect(() => {
+    carregar();
+  }, [carregar]);
+
+  const pubsPorDia = useMemo(() => {
+    const m = new Map<string, Publicacao[]>();
+    for (const p of publicacoes) {
+      if (!p.agendado_para) continue;
+      const d = new Date(p.agendado_para);
+      if (Number.isNaN(d.getTime())) continue;
+      const k = diaKey(d);
+      m.set(k, [...(m.get(k) ?? []), p]);
+    }
+    return m;
+  }, [publicacoes]);
+
+  // Grade do calendário (semanas começando no domingo)
+  const celulas = useMemo(() => {
+    const primeiro = new Date(mesRef.getFullYear(), mesRef.getMonth(), 1);
+    const inicio = new Date(primeiro);
+    inicio.setDate(1 - primeiro.getDay());
+    return Array.from({ length: 42 }, (_, i) => {
+      const d = new Date(inicio);
+      d.setDate(inicio.getDate() + i);
+      return d;
+    });
+  }, [mesRef]);
+
+  const abrirNovo = (dia?: Date) => {
+    setEditando(null);
+    setArquivos([]);
+    setForm({
+      ...FORM_VAZIO,
+      agendadoPara: dia ? `${diaKey(dia)}T09:00` : "",
+    });
+    setModalAberto(true);
+  };
+
+  const abrirEdicao = (p: Publicacao) => {
+    setEditando(p);
+    setArquivos([]);
+    const d = p.agendado_para ? new Date(p.agendado_para) : null;
+    setForm({
+      tipo: p.tipo ?? "IMAGE",
+      legenda: p.legenda ?? "",
+      primeiroComentario: p.primeiro_comentario ?? "",
+      agendadoPara:
+        d && !Number.isNaN(d.getTime())
+          ? `${diaKey(d)}T${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`
+          : "",
+      produtoIds: p.produto_ids ?? [],
+      modoResposta: (p.modo_resposta as FormState["modoResposta"]) ?? "sombra",
+      gatilhos: p.palavras_gatilho ?? [],
+      respostaPublica: p.resposta_gatilho_publica ?? "",
+      respostaDm: p.resposta_gatilho_dm ?? "",
+    });
+    setModalAberto(true);
+  };
+
+  const salvar = async () => {
+    if (salvando) return;
+    setSalvando(true);
+    try {
+      let midiaUrls = editando?.midia_urls ?? [];
+      if (arquivos.length > 0) {
+        midiaUrls = await Promise.all(arquivos.map(uploadMidia));
+      }
+
+      const payload: Record<string, any> = {
+        tipo: form.tipo,
+        legenda: form.legenda,
+        primeiro_comentario: form.primeiroComentario || null,
+        agendado_para: form.agendadoPara ? new Date(form.agendadoPara).toISOString() : null,
+        status: form.agendadoPara ? "agendado" : "rascunho",
+        produto_ids: form.produtoIds,
+        midia_urls: midiaUrls,
+        modo_resposta: form.modoResposta,
+        palavras_gatilho: form.modoResposta === "automatico" ? form.gatilhos : [],
+        resposta_gatilho_publica: form.modoResposta === "automatico" ? form.respostaPublica : null,
+        resposta_gatilho_dm: form.modoResposta === "automatico" ? form.respostaDm : null,
+      };
+
+      const executar = async (p: Record<string, any>) =>
+        editando?.id != null
+          ? db.from("instagram_publicacoes").update(p).eq("id", editando.id)
+          : db.from("instagram_publicacoes").insert(p);
+
+      let { error } = await executar(payload);
+      if (error && /primeiro_comentario/i.test(error.message ?? "")) {
+        delete payload.primeiro_comentario;
+        ({ error } = await executar(payload));
+      }
+      if (error) throw error;
+
+      toast.success(editando ? "Publicação atualizada" : form.agendadoPara ? "Publicação agendada" : "Rascunho salvo");
+      setModalAberto(false);
+      await carregar();
+    } catch (e: any) {
+      toast.error(e?.message ?? "Falha ao salvar");
+    } finally {
+      setSalvando(false);
+    }
+  };
+
+  const mudarMes = (delta: number) => {
+    const d = new Date(mesRef);
+    d.setMonth(d.getMonth() + delta);
+    setMesRef(d);
+  };
+
+  const mesLabel = mesRef.toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
+
+  return (
+    <div className="space-y-4">
+      {/* Barra superior */}
+      <div className="flex items-center justify-between flex-wrap gap-2">
+        <ToggleGroup type="single" value={visao} onValueChange={(v) => v && setVisao(v as any)}>
+          <ToggleGroupItem value="calendario" className="gap-1.5">
+            <CalendarDays className="h-4 w-4" /> Calendário
+          </ToggleGroupItem>
+          <ToggleGroupItem value="lista" className="gap-1.5">
+            <List className="h-4 w-4" /> Lista
+          </ToggleGroupItem>
+        </ToggleGroup>
+        <Button onClick={() => abrirNovo()}>
+          <Plus className="h-4 w-4 mr-1.5" /> Nova publicação
+        </Button>
+      </div>
+
+      {carregando ? (
+        <Skeleton className="h-[480px] w-full" />
+      ) : visao === "calendario" ? (
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between mb-3">
+              <Button variant="ghost" size="icon" onClick={() => mudarMes(-1)}>
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+              <p className="font-serif text-lg font-semibold capitalize">{mesLabel}</p>
+              <Button variant="ghost" size="icon" onClick={() => mudarMes(1)}>
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+            </div>
+            <div className="grid grid-cols-7 gap-px bg-border rounded-lg overflow-hidden text-xs">
+              {["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"].map((d) => (
+                <div key={d} className="bg-muted px-2 py-1.5 text-center font-semibold text-muted-foreground">
+                  {d}
+                </div>
+              ))}
+              {celulas.map((d) => {
+                const foraDoMes = d.getMonth() !== mesRef.getMonth();
+                const pubs = pubsPorDia.get(diaKey(d)) ?? [];
+                return (
+                  <div
+                    key={d.toISOString()}
+                    className={`bg-card min-h-[92px] p-1.5 cursor-pointer hover:bg-accent/40 transition-colors ${
+                      foraDoMes ? "opacity-35" : ""
+                    }`}
+                    onClick={() => abrirNovo(d)}
+                  >
+                    <p className="text-[10px] text-muted-foreground mb-1">{d.getDate()}</p>
+                    <div className="space-y-1">
+                      {pubs.slice(0, 3).map((p, i) => (
+                        <button
+                          key={p.id ?? i}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            abrirEdicao(p);
+                          }}
+                          className={`w-full truncate rounded border px-1.5 py-0.5 text-left text-[10px] font-medium ${chipStatus(p.status)}`}
+                        >
+                          {p.modo_resposta === "automatico" && <Zap className="inline h-2.5 w-2.5 mr-0.5" />}
+                          {p.tipo} · {new Date(p.agendado_para!).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
+                        </button>
+                      ))}
+                      {pubs.length > 3 && (
+                        <p className="text-[10px] text-muted-foreground px-1">+{pubs.length - 3}</p>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            {/* Legenda */}
+            <div className="flex flex-wrap gap-3 mt-3 text-[10px] text-muted-foreground">
+              {Object.entries(STATUS_COR).map(([s, cls]) => (
+                <span key={s} className={`inline-flex items-center rounded-full border px-2 py-0.5 font-semibold ${cls}`}>
+                  {s}
+                </span>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="space-y-2.5">
+          {publicacoes.length === 0 ? (
+            <Card>
+              <CardContent className="p-10 text-center text-sm text-muted-foreground">
+                <CalendarDays className="h-8 w-8 mx-auto mb-2 opacity-40" />
+                Nenhuma publicação agendada. Clique em "Nova publicação" ou em um dia do calendário.
+              </CardContent>
+            </Card>
+          ) : (
+            [...publicacoes]
+              .sort((a, b) => (b.agendado_para ?? "").localeCompare(a.agendado_para ?? ""))
+              .map((p, i) => (
+                <Card key={p.id ?? i} className="cursor-pointer hover:bg-accent/30 transition-colors" onClick={() => abrirEdicao(p)}>
+                  <CardContent className="p-3.5 flex items-center gap-3">
+                    {p.modo_resposta === "automatico" && (
+                      <Zap className="h-4 w-4 text-primary shrink-0" aria-label="Resposta automática" />
+                    )}
+                    <Badge variant="outline" className="shrink-0">{p.tipo}</Badge>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm truncate">{p.legenda || <span className="text-muted-foreground">(sem legenda)</span>}</p>
+                      <p className="text-[10px] text-muted-foreground mt-0.5">{dataHoraBR(p.agendado_para)}</p>
+                    </div>
+                    {p.status === "falhou" && p.erro && (
+                      <p className="text-xs text-danger max-w-[280px] truncate">{p.erro}</p>
+                    )}
+                    <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold shrink-0 ${chipStatus(p.status)}`}>
+                      {p.status ?? "rascunho"}
+                    </span>
+                  </CardContent>
+                </Card>
+              ))
+          )}
+        </div>
+      )}
+
+      {/* ============ Modal: nova/editar publicação ============ */}
+      <Dialog open={modalAberto} onOpenChange={setModalAberto}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="font-serif">
+              {editando ? "Editar publicação" : "Nova publicação"}
+            </DialogTitle>
+          </DialogHeader>
+          <ScrollArea className="flex-1 pr-4">
+            <div className="space-y-6 pb-4">
+              {/* CONTEÚDO */}
+              <section className="space-y-4">
+                <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+                  Conteúdo
+                </p>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <Label>Tipo</Label>
+                    <Select value={form.tipo} onValueChange={(v) => setForm({ ...form, tipo: v })}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {TIPOS.map((t) => (
+                          <SelectItem key={t} value={t}>{t}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>Agendar para</Label>
+                    <Input
+                      type="datetime-local"
+                      value={form.agendadoPara}
+                      onChange={(e) => setForm({ ...form, agendadoPara: e.target.value })}
+                    />
+                    {!form.agendadoPara && (
+                      <p className="text-[10px] text-muted-foreground">Sem data = salva como rascunho.</p>
+                    )}
+                  </div>
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label>Mídia {form.tipo === "CAROUSEL" && "(múltiplos arquivos)"}</Label>
+                  <label className="flex items-center justify-center gap-2 rounded-lg border border-dashed p-4 cursor-pointer hover:bg-accent/40 transition-colors text-sm text-muted-foreground">
+                    <Upload className="h-4 w-4" />
+                    {arquivos.length > 0
+                      ? `${arquivos.length} arquivo(s) selecionado(s)`
+                      : editando?.midia_urls?.length
+                        ? `${editando.midia_urls.length} mídia(s) já anexada(s) — selecionar substitui`
+                        : "Selecionar arquivos"}
+                    <input
+                      type="file"
+                      accept="image/*,video/*"
+                      multiple={form.tipo === "CAROUSEL"}
+                      className="hidden"
+                      onChange={(e) => setArquivos(Array.from(e.target.files ?? []))}
+                    />
+                  </label>
+                  {arquivos.length > 0 && (
+                    <p className="text-[10px] text-muted-foreground truncate">
+                      {arquivos.map((f) => f.name).join(", ")}
+                    </p>
+                  )}
+                </div>
+
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <Label>Legenda</Label>
+                    <span className={`text-[10px] ${form.legenda.length > LIMITE_LEGENDA ? "text-danger font-semibold" : "text-muted-foreground"}`}>
+                      {form.legenda.length}/{LIMITE_LEGENDA}
+                    </span>
+                  </div>
+                  <Textarea
+                    value={form.legenda}
+                    onChange={(e) => setForm({ ...form, legenda: e.target.value.slice(0, LIMITE_LEGENDA) })}
+                    className="min-h-[110px]"
+                    placeholder="Texto da publicação…"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label>Primeiro comentário (opcional — hashtags)</Label>
+                  <Input
+                    value={form.primeiroComentario}
+                    onChange={(e) => setForm({ ...form, primeiroComentario: e.target.value })}
+                    placeholder="#moda #marianacardoso"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label>Produtos vinculados</Label>
+                  <ScrollArea className="h-40 rounded-lg border p-2">
+                    {produtos.length === 0 ? (
+                      <p className="text-xs text-muted-foreground p-2">Nenhum produto ativo cadastrado.</p>
+                    ) : (
+                      produtos.map((p) => (
+                        <label key={p.id} className="flex items-center gap-2 py-1.5 px-1 rounded hover:bg-accent/40 cursor-pointer text-sm">
+                          <Checkbox
+                            checked={form.produtoIds.includes(p.id)}
+                            onCheckedChange={(checked) =>
+                              setForm({
+                                ...form,
+                                produtoIds: checked
+                                  ? [...form.produtoIds, p.id]
+                                  : form.produtoIds.filter((id) => id !== p.id),
+                              })
+                            }
+                          />
+                          <span className="flex-1 truncate">{p.nome_do_produto}</span>
+                          {p.codigo_sku && (
+                            <span className="text-[10px] text-muted-foreground">{p.codigo_sku}</span>
+                          )}
+                        </label>
+                      ))
+                    )}
+                  </ScrollArea>
+                </div>
+              </section>
+
+              {/* AUTOMAÇÃO DE RESPOSTA */}
+              <section className="space-y-4 rounded-lg border-2 border-primary/20 bg-primary/[0.03] p-4">
+                <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+                  Automação de resposta
+                </p>
+
+                <RadioGroup
+                  value={form.modoResposta}
+                  onValueChange={(v) => setForm({ ...form, modoResposta: v as FormState["modoResposta"] })}
+                  className="grid grid-cols-1 sm:grid-cols-3 gap-2"
+                >
+                  {MODOS.map((m) => (
+                    <label
+                      key={m.valor}
+                      className={`flex items-start gap-2.5 rounded-lg border p-3 cursor-pointer transition-colors ${
+                        form.modoResposta === m.valor
+                          ? "border-primary bg-primary/5"
+                          : "border-border hover:bg-accent/40"
+                      }`}
+                    >
+                      <RadioGroupItem value={m.valor} className="mt-0.5" />
+                      <div>
+                        <p className="text-sm font-medium flex items-center gap-1.5">
+                          <m.icone className="h-3.5 w-3.5" /> {m.titulo}
+                        </p>
+                        <p className="text-[11px] text-muted-foreground mt-0.5">{m.descricao}</p>
+                      </div>
+                    </label>
+                  ))}
+                </RadioGroup>
+
+                {form.modoResposta === "automatico" && (
+                  <div className="space-y-4 pt-1">
+                    <div className="rounded-lg border border-warning/30 bg-warning/10 p-3 flex items-start gap-2">
+                      <AlertTriangle className="h-4 w-4 text-warning shrink-0 mt-0.5" />
+                      <p className="text-xs">
+                        Comentários que <strong>NÃO</strong> baterem a palavra-chave serão respondidos
+                        pela Anna automaticamente, sem aprovação.
+                      </p>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <Label>Palavras-gatilho</Label>
+                      <CampoTags
+                        value={form.gatilhos}
+                        onChange={(v) => setForm({ ...form, gatilhos: v })}
+                        placeholder="Ex.: EU QUERO, QUERO, EU QUERO!"
+                      />
+                      <p className="text-[10px] text-muted-foreground">
+                        Maiúsculas, acentos e emojis são ignorados na comparação — "EU QUERO!!! 💛" casa com "eu quero".
+                      </p>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <div className="flex items-center justify-between">
+                        <Label>Resposta pública (quando bater a chave)</Label>
+                        <span className={`text-[10px] ${form.respostaPublica.length > LIMITE_RESPOSTA_PUBLICA ? "text-danger font-semibold" : "text-muted-foreground"}`}>
+                          {form.respostaPublica.length}/{LIMITE_RESPOSTA_PUBLICA}
+                        </span>
+                      </div>
+                      <Textarea
+                        value={form.respostaPublica}
+                        onChange={(e) => setForm({ ...form, respostaPublica: e.target.value.slice(0, LIMITE_RESPOSTA_PUBLICA) })}
+                        className="min-h-[60px]"
+                        placeholder='Ex.: "Te mandei no Direct 💛"'
+                      />
+                      <p className="text-[10px] text-muted-foreground">
+                        Fica visível para todo mundo — preço e link vão no Direct.
+                      </p>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <Label>Resposta no Direct (mensagem privada)</Label>
+                      <Textarea
+                        value={form.respostaDm}
+                        onChange={(e) => setForm({ ...form, respostaDm: e.target.value })}
+                        className="min-h-[80px]"
+                        placeholder="Aqui entra o link do produto, preço e estoque…"
+                      />
+                    </div>
+                  </div>
+                )}
+              </section>
+            </div>
+          </ScrollArea>
+
+          <div className="flex justify-end gap-2 pt-3 border-t">
+            <Button variant="outline" onClick={() => setModalAberto(false)} disabled={salvando}>
+              Cancelar
+            </Button>
+            <Button onClick={salvar} disabled={salvando}>
+              {salvando && <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />}
+              {editando ? "Salvar alterações" : form.agendadoPara ? "Agendar" : "Salvar rascunho"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
