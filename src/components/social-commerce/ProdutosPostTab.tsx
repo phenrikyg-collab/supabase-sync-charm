@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { db } from "@/lib/socialCommerce";
 import { CampoTags } from "./comum";
-import { brl } from "@/lib/financeiroFormat";
+import { SeletorProdutos, carregarProdutosPai, type ProdutoPai } from "./SeletorProdutos";
 import { formatarData } from "@/utils/formatters";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -29,7 +29,6 @@ type Post = {
 };
 
 type LinkProduto = { media_id: string; produto_id: string; principal?: boolean | null };
-type Produto = { id: string; nome_do_produto?: string | null; codigo_sku?: string | null; preco_venda?: number | null };
 
 type Automacao = {
   media_id: string;
@@ -58,7 +57,7 @@ export function ProdutosPostTab() {
   const [posts, setPosts] = useState<Post[]>([]);
   const [links, setLinks] = useState<LinkProduto[]>([]);
   const [automacoes, setAutomacoes] = useState<Map<string, Automacao>>(new Map());
-  const [produtos, setProdutos] = useState<Produto[]>([]);
+  const [produtos, setProdutos] = useState<ProdutoPai[]>([]);
   const [carregando, setCarregando] = useState(true);
   const [soSemProduto, setSoSemProduto] = useState(false);
   const [soAutomacaoAtiva, setSoAutomacaoAtiva] = useState(false);
@@ -75,22 +74,21 @@ export function ProdutosPostTab() {
     setPosts(lista);
 
     const mediaIds = lista.map((p) => p.media_id).filter(Boolean);
+    const promProdutos = carregarProdutosPai().catch((e) => {
+      toast.error("Falha ao carregar produtos", { description: e?.message });
+      return [] as ProdutoPai[];
+    });
     if (mediaIds.length > 0) {
-      const [{ data: ls }, { data: autos }, { data: prods }] = await Promise.all([
+      const [{ data: ls }, { data: autos }, prods] = await Promise.all([
         db.from("instagram_post_produtos").select("*").in("media_id", mediaIds),
         db.from("instagram_post_automacao").select("*").in("media_id", mediaIds),
-        db.from("produtos").select("id, nome_do_produto, codigo_sku, preco_venda").eq("ativo", true).order("nome_do_produto"),
+        promProdutos,
       ]);
       setLinks((ls ?? []) as LinkProduto[]);
       setAutomacoes(new Map((autos ?? []).map((a: any) => [a.media_id, a as Automacao])));
-      setProdutos((prods ?? []) as Produto[]);
+      setProdutos(prods);
     } else {
-      const { data: prods } = await db
-        .from("produtos")
-        .select("id, nome_do_produto, codigo_sku, preco_venda")
-        .eq("ativo", true)
-        .order("nome_do_produto");
-      setProdutos((prods ?? []) as Produto[]);
+      setProdutos(await promProdutos);
     }
     setCarregando(false);
   }, []);
@@ -105,7 +103,7 @@ export function ProdutosPostTab() {
     return m;
   }, [links]);
 
-  const produtosMap = useMemo(() => new Map(produtos.map((p) => [p.id, p])), [produtos]);
+  const produtosMap = useMemo(() => new Map(produtos.map((p) => [p.produto_id, p])), [produtos]);
 
   const totalVinculados = useMemo(
     () => posts.filter((p) => (linksPorMedia.get(p.media_id) ?? []).length > 0).length,
@@ -275,7 +273,7 @@ export function ProdutosPostTab() {
                         return (
                           <Badge key={l.produto_id} variant="secondary" className="text-[10px] font-normal gap-0.5">
                             {l.principal && <Star className="h-2.5 w-2.5 fill-warning text-warning" />}
-                            {prod?.nome_do_produto ?? "Produto"}
+                            {prod?.nome ?? "Produto"}
                           </Badge>
                         );
                       })
@@ -321,44 +319,21 @@ export function ProdutosPostTab() {
                     <p className="text-[10px] text-muted-foreground">
                       Marque os produtos do post. A estrela indica o produto principal (vai na resposta automática).
                     </p>
-                    <ScrollArea className="h-52 rounded-lg border p-2">
-                      {produtos.map((p) => {
-                        const sel = edit.selecionados.includes(p.id);
-                        return (
-                          <div key={p.id} className="flex items-center gap-2 py-1.5 px-1 rounded hover:bg-accent/40">
-                            <Checkbox
-                              checked={sel}
-                              onCheckedChange={(checked) =>
-                                setEdit({
-                                  ...edit,
-                                  selecionados: checked
-                                    ? [...edit.selecionados, p.id]
-                                    : edit.selecionados.filter((id) => id !== p.id),
-                                  principal: edit.principal === p.id && !checked ? null : edit.principal,
-                                })
-                              }
-                            />
-                            <span className="flex-1 truncate text-sm">{p.nome_do_produto}</span>
-                            {p.preco_venda != null && (
-                              <span className="text-[10px] text-muted-foreground">{brl(p.preco_venda)}</span>
-                            )}
-                            <button
-                              type="button"
-                              disabled={!sel}
-                              onClick={() => setEdit({ ...edit, principal: edit.principal === p.id ? null : p.id })}
-                              className={`p-1 rounded ${sel ? "hover:bg-accent" : "opacity-20 cursor-not-allowed"}`}
-                              title={edit.principal === p.id ? "Produto principal" : "Marcar como principal"}
-                            >
-                              <Star
-                                className={`h-4 w-4 ${
-                                  edit.principal === p.id ? "fill-warning text-warning" : "text-muted-foreground"
-                                }`}
-                              />
-                            </button>
-                          </div>
-                        );
-                      })}
-                    </ScrollArea>
+                    <SeletorProdutos
+                      produtos={produtos}
+                      selecionados={edit.selecionados}
+                      onToggle={(id, marcado) =>
+                        setEdit({
+                          ...edit,
+                          selecionados: marcado
+                            ? [...edit.selecionados, id]
+                            : edit.selecionados.filter((x) => x !== id),
+                          principal: edit.principal === id && !marcado ? null : edit.principal,
+                        })
+                      }
+                      principal={edit.principal}
+                      onPrincipalChange={(id) => setEdit({ ...edit, principal: id })}
+                    />
                   </section>
 
                   {/* Automação */}

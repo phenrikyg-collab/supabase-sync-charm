@@ -31,7 +31,13 @@ type Comentario = {
   erro?: string | null;
 };
 
-type PostInfo = { media_id: string; thumbnail_url?: string | null; permalink?: string | null };
+type PostInfo = {
+  media_id: string;
+  thumb_cache_url?: string | null;
+  thumbnail_url?: string | null;
+  media_url?: string | null;
+  permalink?: string | null;
+};
 type ProdutoInfo = { id: string; nome_do_produto?: string | null; preco_venda?: number | null };
 
 type FiltroStatus = "novos" | "aguardando" | "respondidos" | "ignorados";
@@ -45,6 +51,40 @@ const FILTROS: { key: FiltroStatus; label: string }[] = [
 
 function statusNormalizado(c: Comentario): string {
   return (c.status ?? "novo").toLowerCase();
+}
+
+/** Miniatura do post com fallback (cache → thumbnail → mídia) e clique para o permalink. */
+function ThumbPost({ post }: { post?: PostInfo }) {
+  const [erro, setErro] = useState(false);
+  const src = post ? post.thumb_cache_url || post.thumbnail_url || post.media_url : null;
+  const conteudo =
+    src && !erro ? (
+      <img
+        src={src}
+        alt="Miniatura do post"
+        className="w-full h-full object-cover"
+        loading="lazy"
+        onError={() => setErro(true)}
+      />
+    ) : (
+      <ImageOff className="h-5 w-5 text-muted-foreground/40" />
+    );
+  const classe =
+    "w-14 h-14 rounded-md overflow-hidden bg-muted shrink-0 flex items-center justify-center";
+  if (post?.permalink) {
+    return (
+      <a
+        href={post.permalink}
+        target="_blank"
+        rel="noopener noreferrer"
+        className={`${classe} hover:opacity-80 transition-opacity`}
+        title="Abrir post no Instagram"
+      >
+        {conteudo}
+      </a>
+    );
+  }
+  return <div className={classe}>{conteudo}</div>;
 }
 
 export function ComentariosTab() {
@@ -240,13 +280,7 @@ export function ComentariosTab() {
                 <CardContent className="p-3.5">
                   <div className="flex gap-3">
                     {/* Miniatura do post */}
-                    <div className="w-14 h-14 rounded-md overflow-hidden bg-muted shrink-0 flex items-center justify-center">
-                      {post?.thumbnail_url ? (
-                        <img src={post.thumbnail_url} alt="Miniatura do post" className="w-full h-full object-cover" loading="lazy" />
-                      ) : (
-                        <ImageOff className="h-5 w-5 text-muted-foreground/40" />
-                      )}
-                    </div>
+                    <ThumbPost post={post} />
 
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
