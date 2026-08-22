@@ -527,6 +527,77 @@ export function PublicacoesTab() {
                   )}
                 </div>
 
+                {/* GERAR COM IA */}
+                <div className="rounded-lg border border-primary/25 bg-primary/[0.04] p-3.5 space-y-3">
+                  <p className="text-xs font-semibold uppercase tracking-widest text-primary flex items-center gap-1.5">
+                    <Sparkles className="h-3.5 w-3.5" /> Gerar com IA
+                  </p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">Etapa do funil</Label>
+                      <Select value={iaFunil} onValueChange={setIaFunil}>
+                        <SelectTrigger className="h-9 text-sm"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          {ETAPAS_FUNIL.map((e) => (
+                            <SelectItem key={e.valor} value={e.valor}>
+                              <div>
+                                <p className="text-sm font-medium">{e.titulo}</p>
+                                <p className="text-[10px] text-muted-foreground font-normal">{e.descricao}</p>
+                              </div>
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">Chamada para ação</Label>
+                      <Select value={iaCta} onValueChange={setIaCta}>
+                        <SelectTrigger className="h-9 text-sm"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          {CTAS.map((c) => (
+                            <SelectItem key={c.valor} value={c.valor}>
+                              <div>
+                                <p className="text-sm font-medium">{c.titulo}</p>
+                                <p className="text-[10px] text-muted-foreground font-normal">{c.descricao}</p>
+                              </div>
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Contexto (opcional)</Label>
+                    <Textarea
+                      value={iaContexto}
+                      onChange={(e) => setIaContexto(e.target.value)}
+                      rows={2}
+                      className="min-h-[44px] resize-none text-sm"
+                      placeholder="O que aparece no post?"
+                    />
+                  </div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <Button type="button" variant="outline" size="sm" onClick={gerarLegenda} disabled={iaGerando}>
+                      {iaGerando ? (
+                        <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+                      ) : (
+                        <Sparkles className="h-3.5 w-3.5 mr-1.5" />
+                      )}
+                      {iaGerando ? "Gerando… leva alguns segundos" : "Gerar legenda"}
+                    </Button>
+                    {form.produtoIds.length > 0 && (
+                      <span className="text-[10px] text-muted-foreground">
+                        A IA usa os {form.produtoIds.length} produto(s) selecionados abaixo como referência.
+                      </span>
+                    )}
+                  </div>
+                  {iaRaciocinio && (
+                    <p className="text-[11px] text-muted-foreground border-t border-primary/15 pt-2">
+                      Por que esse gancho: {iaRaciocinio}
+                    </p>
+                  )}
+                </div>
+
                 <div className="space-y-1.5">
                   <div className="flex items-center justify-between">
                     <Label>Legenda</Label>
