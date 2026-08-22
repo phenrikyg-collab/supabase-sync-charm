@@ -15,18 +15,43 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { ImageOff, MessageSquare, Settings2, Star, Zap } from "lucide-react";
+import { ExternalLink, ImageOff, MessageSquare, Settings2, Star, Zap } from "lucide-react";
 
 type Post = {
   media_id: string;
   permalink?: string | null;
+  thumb_cache_url?: string | null;
   thumbnail_url?: string | null;
+  media_url?: string | null;
   caption?: string | null;
   data_publicacao?: string | null;
   comments_count?: number | null;
   reach?: number | null;
   views?: number | null;
 };
+
+/** Imagem do post com fallback (cache → thumbnail → mídia) e placeholder "Sem prévia". */
+function ImagemPost({ post }: { post: Post }) {
+  const [erro, setErro] = useState(false);
+  const src = post.thumb_cache_url || post.thumbnail_url || post.media_url;
+  if (!src || erro) {
+    return (
+      <div className="w-full h-full flex flex-col items-center justify-center gap-1.5 text-muted-foreground/50">
+        <ImageOff className="h-8 w-8" />
+        <span className="text-[10px]">Sem prévia</span>
+      </div>
+    );
+  }
+  return (
+    <img
+      src={src}
+      alt="Post do Instagram"
+      className="w-full h-full object-cover"
+      loading="lazy"
+      onError={() => setErro(true)}
+    />
+  );
+}
 
 type LinkProduto = { media_id: string; produto_id: string; principal?: boolean | null };
 
@@ -237,13 +262,7 @@ export function ProdutosPostTab() {
             return (
               <Card key={p.media_id} className="overflow-hidden flex flex-col">
                 <div className="aspect-square bg-muted relative">
-                  {p.thumbnail_url ? (
-                    <img src={p.thumbnail_url} alt="Post do Instagram" className="w-full h-full object-cover" loading="lazy" />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center">
-                      <ImageOff className="h-8 w-8 text-muted-foreground/40" />
-                    </div>
-                  )}
+                  <ImagemPost post={p} />
                   {auto?.ativo && (
                     <span className="absolute top-2 right-2 inline-flex items-center gap-1 rounded-full bg-primary text-primary-foreground px-2 py-0.5 text-[10px] font-semibold">
                       <Zap className="h-3 w-3" /> {auto.modo === "automatico" ? "Automático" : auto.modo === "desligado" ? "Desligado" : "Sombra"}
@@ -256,6 +275,16 @@ export function ProdutosPostTab() {
                   </p>
                   <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
                     <span>{formatarData((p.data_publicacao ?? "").slice(0, 10))}</span>
+                    {p.permalink && (
+                      <a
+                        href={p.permalink}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-0.5 hover:text-foreground transition-colors"
+                      >
+                        <ExternalLink className="h-3 w-3" /> Ver no Instagram
+                      </a>
+                    )}
                     {(p.comments_count ?? 0) > 0 && (
                       <span className="inline-flex items-center gap-0.5">
                         <MessageSquare className="h-3 w-3" /> {p.comments_count}
