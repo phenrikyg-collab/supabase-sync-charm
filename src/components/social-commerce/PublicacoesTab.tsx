@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { db } from "@/lib/socialCommerce";
+import { lerErroEdge } from "@/lib/edgeError";
 import { CampoTags, dataHoraBR } from "./comum";
+import { SeletorProdutos, carregarProdutosPai, type ProdutoPai } from "./SeletorProdutos";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -9,7 +11,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Checkbox } from "@/components/ui/checkbox";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -18,7 +19,7 @@ import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { toast } from "sonner";
 import {
   AlertTriangle, CalendarDays, ChevronLeft, ChevronRight, Eye, List, Loader2,
-  Plus, Upload, Zap, ZapOff,
+  Plus, Sparkles, Upload, Zap, ZapOff,
 } from "lucide-react";
 
 type Publicacao = {
@@ -37,7 +38,7 @@ type Publicacao = {
   resposta_gatilho_dm?: string | null;
 };
 
-type Produto = { id: string; nome_do_produto?: string | null; codigo_sku?: string | null };
+
 
 const TIPOS = ["IMAGE", "REELS", "CAROUSEL", "STORIES"];
 const LIMITE_LEGENDA = 2200;
@@ -126,6 +127,22 @@ const MODOS = [
   },
 ] as const;
 
+const ETAPAS_FUNIL = [
+  { valor: "alcance", titulo: "Alcance", descricao: "Ser vista por quem ainda não conhece a marca" },
+  { valor: "educacao", titulo: "Educação", descricao: "Ensinar algo e construir autoridade" },
+  { valor: "prova_social", titulo: "Prova social", descricao: "Quebrar objeção com evidência" },
+  { valor: "oferta", titulo: "Oferta", descricao: "Converter — pode citar preço" },
+];
+
+const CTAS = [
+  { valor: "comentar_palavra_chave", titulo: "Comentar palavra-chave", descricao: '"Comenta EU QUERO que eu te mando o link"' },
+  { valor: "enviar_amiga", titulo: "Enviar para uma amiga", descricao: '"Marca aquela amiga que…"' },
+  { valor: "link_na_bio", titulo: "Link na bio", descricao: "Leva ao perfil, ganha seguidor" },
+  { valor: "salvar", titulo: "Salvar o post", descricao: "Para conteúdo útil" },
+  { valor: "stories", titulo: "Compartilhar nos stories", descricao: "Amplia o alcance do post" },
+  { valor: "seguir", titulo: "Seguir o perfil", descricao: "Cresce a base de seguidores" },
+];
+
 export function PublicacoesTab() {
   const [visao, setVisao] = useState<"calendario" | "lista">("calendario");
   const [mesRef, setMesRef] = useState(() => {
@@ -134,21 +151,29 @@ export function PublicacoesTab() {
     return d;
   });
   const [publicacoes, setPublicacoes] = useState<Publicacao[]>([]);
-  const [produtos, setProdutos] = useState<Produto[]>([]);
+  const [produtos, setProdutos] = useState<ProdutoPai[]>([]);
   const [carregando, setCarregando] = useState(true);
   const [modalAberto, setModalAberto] = useState(false);
   const [editando, setEditando] = useState<Publicacao | null>(null);
   const [form, setForm] = useState<FormState>(FORM_VAZIO);
   const [arquivos, setArquivos] = useState<File[]>([]);
   const [salvando, setSalvando] = useState(false);
+  const [iaFunil, setIaFunil] = useState("alcance");
+  const [iaCta, setIaCta] = useState("comentar_palavra_chave");
+  const [iaContexto, setIaContexto] = useState("");
+  const [iaGerando, setIaGerando] = useState(false);
+  const [iaRaciocinio, setIaRaciocinio] = useState<string | null>(null);
 
   const carregar = useCallback(async () => {
-    const [{ data: pubs }, { data: prods }] = await Promise.all([
+    const [{ data: pubs }, prods] = await Promise.all([
       db.from("instagram_publicacoes").select("*").order("agendado_para", { ascending: true }).limit(500),
-      db.from("produtos").select("id, nome_do_produto, codigo_sku").eq("ativo", true).order("nome_do_produto"),
+      carregarProdutosPai().catch((e) => {
+        toast.error("Falha ao carregar produtos", { description: e?.message });
+        return [] as ProdutoPai[];
+      }),
     ]);
     setPublicacoes((pubs ?? []) as Publicacao[]);
-    setProdutos((prods ?? []) as Produto[]);
+    setProdutos(prods);
     setCarregando(false);
   }, []);
 
@@ -183,6 +208,8 @@ export function PublicacoesTab() {
   const abrirNovo = (dia?: Date) => {
     setEditando(null);
     setArquivos([]);
+    setIaContexto("");
+    setIaRaciocinio(null);
     setForm({
       ...FORM_VAZIO,
       agendadoPara: dia ? `${diaKey(dia)}T09:00` : "",
@@ -193,6 +220,8 @@ export function PublicacoesTab() {
   const abrirEdicao = (p: Publicacao) => {
     setEditando(p);
     setArquivos([]);
+    setIaContexto("");
+    setIaRaciocinio(null);
     const d = p.agendado_para ? new Date(p.agendado_para) : null;
     setForm({
       tipo: p.tipo ?? "IMAGE",
@@ -209,6 +238,58 @@ export function PublicacoesTab() {
       respostaDm: p.resposta_gatilho_dm ?? "",
     });
     setModalAberto(true);
+  };
+
+  const gerarLegenda = async () => {
+    if (iaGerando) return;
+    setIaGerando(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("instagram-gerar-legenda", {
+        body: {
+          etapa_funil: iaFunil,
+          cta: iaCta,
+          tipo: form.tipo,
+          produto_ids: form.produtoIds,
+          contexto: iaContexto.trim() || null,
+        },
+      });
+      if (error) {
+        const det = await lerErroEdge(error, "Falha ao gerar a legenda. Tente novamente.");
+        toast.error(det.mensagem, { description: det.dica });
+        return;
+      }
+      if (!data || data.ok === false || data.erro || data.error) {
+        toast.error(data?.detalhe ?? data?.erro ?? data?.error ?? "A IA não devolveu uma legenda.", {
+          description: data?.dica,
+        });
+        return;
+      }
+
+      const gatilhos: string[] = Array.isArray(data.palavras_gatilho) ? data.palavras_gatilho : [];
+      setForm((f) => ({
+        ...f,
+        legenda: String(data.legenda ?? "").slice(0, LIMITE_LEGENDA),
+        primeiroComentario: String(data.primeiro_comentario ?? ""),
+        ...(gatilhos.length > 0
+          ? {
+              modoResposta: "automatico" as const,
+              gatilhos,
+              respostaPublica: String(data.resposta_gatilho_publica ?? f.respostaPublica).slice(0, LIMITE_RESPOSTA_PUBLICA),
+              respostaDm: String(data.resposta_gatilho_dm ?? f.respostaDm),
+            }
+          : {}),
+      }));
+      setIaRaciocinio(data.raciocinio ?? null);
+      if (gatilhos.length > 0) {
+        toast.info("Automação de comentários preenchida — revise antes de salvar.");
+      } else {
+        toast.success("Legenda gerada — revise e ajuste antes de salvar");
+      }
+    } catch (e: any) {
+      toast.error(e?.message ?? "Falha ao gerar a legenda");
+    } finally {
+      setIaGerando(false);
+    }
   };
 
   const salvar = async () => {
@@ -446,6 +527,77 @@ export function PublicacoesTab() {
                   )}
                 </div>
 
+                {/* GERAR COM IA */}
+                <div className="rounded-lg border border-primary/25 bg-primary/[0.04] p-3.5 space-y-3">
+                  <p className="text-xs font-semibold uppercase tracking-widest text-primary flex items-center gap-1.5">
+                    <Sparkles className="h-3.5 w-3.5" /> Gerar com IA
+                  </p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">Etapa do funil</Label>
+                      <Select value={iaFunil} onValueChange={setIaFunil}>
+                        <SelectTrigger className="h-9 text-sm"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          {ETAPAS_FUNIL.map((e) => (
+                            <SelectItem key={e.valor} value={e.valor}>
+                              <div>
+                                <p className="text-sm font-medium">{e.titulo}</p>
+                                <p className="text-[10px] text-muted-foreground font-normal">{e.descricao}</p>
+                              </div>
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">Chamada para ação</Label>
+                      <Select value={iaCta} onValueChange={setIaCta}>
+                        <SelectTrigger className="h-9 text-sm"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          {CTAS.map((c) => (
+                            <SelectItem key={c.valor} value={c.valor}>
+                              <div>
+                                <p className="text-sm font-medium">{c.titulo}</p>
+                                <p className="text-[10px] text-muted-foreground font-normal">{c.descricao}</p>
+                              </div>
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Contexto (opcional)</Label>
+                    <Textarea
+                      value={iaContexto}
+                      onChange={(e) => setIaContexto(e.target.value)}
+                      rows={2}
+                      className="min-h-[44px] resize-none text-sm"
+                      placeholder="O que aparece no post?"
+                    />
+                  </div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <Button type="button" variant="outline" size="sm" onClick={gerarLegenda} disabled={iaGerando}>
+                      {iaGerando ? (
+                        <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+                      ) : (
+                        <Sparkles className="h-3.5 w-3.5 mr-1.5" />
+                      )}
+                      {iaGerando ? "Gerando… leva alguns segundos" : "Gerar legenda"}
+                    </Button>
+                    {form.produtoIds.length > 0 && (
+                      <span className="text-[10px] text-muted-foreground">
+                        A IA usa os {form.produtoIds.length} produto(s) selecionados abaixo como referência.
+                      </span>
+                    )}
+                  </div>
+                  {iaRaciocinio && (
+                    <p className="text-[11px] text-muted-foreground border-t border-primary/15 pt-2">
+                      Por que esse gancho: {iaRaciocinio}
+                    </p>
+                  )}
+                </div>
+
                 <div className="space-y-1.5">
                   <div className="flex items-center justify-between">
                     <Label>Legenda</Label>
@@ -472,31 +624,19 @@ export function PublicacoesTab() {
 
                 <div className="space-y-1.5">
                   <Label>Produtos vinculados</Label>
-                  <ScrollArea className="h-40 rounded-lg border p-2">
-                    {produtos.length === 0 ? (
-                      <p className="text-xs text-muted-foreground p-2">Nenhum produto ativo cadastrado.</p>
-                    ) : (
-                      produtos.map((p) => (
-                        <label key={p.id} className="flex items-center gap-2 py-1.5 px-1 rounded hover:bg-accent/40 cursor-pointer text-sm">
-                          <Checkbox
-                            checked={form.produtoIds.includes(p.id)}
-                            onCheckedChange={(checked) =>
-                              setForm({
-                                ...form,
-                                produtoIds: checked
-                                  ? [...form.produtoIds, p.id]
-                                  : form.produtoIds.filter((id) => id !== p.id),
-                              })
-                            }
-                          />
-                          <span className="flex-1 truncate">{p.nome_do_produto}</span>
-                          {p.codigo_sku && (
-                            <span className="text-[10px] text-muted-foreground">{p.codigo_sku}</span>
-                          )}
-                        </label>
-                      ))
-                    )}
-                  </ScrollArea>
+                  <SeletorProdutos
+                    produtos={produtos}
+                    selecionados={form.produtoIds}
+                    onToggle={(id, marcado) =>
+                      setForm({
+                        ...form,
+                        produtoIds: marcado
+                          ? [...form.produtoIds, id]
+                          : form.produtoIds.filter((x) => x !== id),
+                      })
+                    }
+                    altura="h-40"
+                  />
                 </div>
               </section>
 
