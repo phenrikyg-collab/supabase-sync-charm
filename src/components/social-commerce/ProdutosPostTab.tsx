@@ -398,6 +398,21 @@ export function ProdutosPostTab() {
                           Comentários que <strong>não</strong> baterem a palavra-chave serão respondidos
                           pela Anna automaticamente, sem aprovação.
                         </p>
+                        <div>
+                          <BotaoGerarRespostas
+                            produtoIds={edit.selecionados}
+                            gatilhos={edit.gatilhos}
+                            mediaId={edit.post.media_id}
+                            onResultado={(r) =>
+                              setEdit({
+                                ...edit,
+                                respostaPublica: r.respostaPublica.slice(0, 280),
+                                respostaDm: r.respostaDm,
+                                avisoIa: r.aviso,
+                              })
+                            }
+                          />
+                        </div>
                         <div className="space-y-1.5">
                           <Label>Palavras-gatilho</Label>
                           <CampoTags
