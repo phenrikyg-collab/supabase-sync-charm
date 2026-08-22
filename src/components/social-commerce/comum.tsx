@@ -56,24 +56,31 @@ export function CampoTags({
   value,
   onChange,
   placeholder,
+  disabled = false,
 }: {
   value: string[];
   onChange: (v: string[]) => void;
   placeholder?: string;
+  disabled?: boolean;
 }) {
   const [txt, setTxt] = useState("");
   const add = () => {
+    if (disabled) return;
     const t = txt.trim();
     if (t && !value.some((v) => v.toLowerCase() === t.toLowerCase())) onChange([...value, t]);
     setTxt("");
   };
   return (
-    <div className="space-y-2">
+    <div
+      className={`space-y-2 transition-opacity ${disabled ? "opacity-50 pointer-events-none select-none" : ""}`}
+      aria-disabled={disabled}
+    >
       <div className="flex gap-2">
         <Input
           value={txt}
           onChange={(e) => setTxt(e.target.value)}
           placeholder={placeholder ?? "Digite e pressione Enter"}
+          disabled={disabled}
           onKeyDown={(e) => {
             if (e.key === "Enter" || e.key === ",") {
               e.preventDefault();
@@ -81,7 +88,7 @@ export function CampoTags({
             }
           }}
         />
-        <Button type="button" variant="outline" onClick={add}>
+        <Button type="button" variant="outline" onClick={add} disabled={disabled}>
           Adicionar
         </Button>
       </div>

@@ -59,6 +59,7 @@ type LinkProduto = { media_id: string; produto_id: string; principal?: boolean |
 type Automacao = {
   media_id: string;
   modo?: string | null;
+  gatilho_qualquer?: boolean | null;
   palavras_gatilho?: string[] | null;
   resposta_gatilho_publica?: string | null;
   resposta_gatilho_dm?: string | null;
@@ -73,6 +74,7 @@ type EditState = {
   selecionados: string[];
   principal: string | null;
   modo: string;
+  qualquer: boolean;
   gatilhos: string[];
   respostaPublica: string;
   respostaDm: string;
@@ -172,6 +174,7 @@ export function ProdutosPostTab() {
       selecionados: ls.map((l) => l.produto_id),
       principal: ls.find((l) => l.principal)?.produto_id ?? null,
       modo: auto?.modo ?? "sombra",
+      qualquer: auto?.gatilho_qualquer ?? false,
       gatilhos: auto?.palavras_gatilho ?? [],
       respostaPublica: auto?.resposta_gatilho_publica ?? "",
       respostaDm: auto?.resposta_gatilho_dm ?? "",
