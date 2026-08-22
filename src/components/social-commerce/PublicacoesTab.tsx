@@ -18,7 +18,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { toast } from "sonner";
 import {
-  AlertTriangle, CalendarDays, ChevronLeft, ChevronRight, Eye, List, Loader2,
+  AlertTriangle, CalendarDays, Check, ChevronLeft, ChevronRight, Copy, Eye, List, Loader2,
   Plus, Sparkles, Upload, Zap, ZapOff,
 } from "lucide-react";
 
@@ -36,6 +36,7 @@ type Publicacao = {
   palavras_gatilho?: string[] | null;
   resposta_gatilho_publica?: string | null;
   resposta_gatilho_dm?: string | null;
+  texto_grupo_vip?: string | null;
 };
 
 
@@ -86,6 +87,7 @@ type FormState = {
   tipo: string;
   legenda: string;
   primeiroComentario: string;
+  textoGrupoVip: string;
   agendadoPara: string; // datetime-local
   produtoIds: string[];
   modoResposta: "sombra" | "automatico" | "desligado";
@@ -98,6 +100,7 @@ const FORM_VAZIO: FormState = {
   tipo: "IMAGE",
   legenda: "",
   primeiroComentario: "",
+  textoGrupoVip: "",
   agendadoPara: "",
   produtoIds: [],
   modoResposta: "sombra",
@@ -143,6 +146,18 @@ const CTAS = [
   { valor: "seguir", titulo: "Seguir o perfil", descricao: "Cresce a base de seguidores" },
 ];
 
+const ESTILOS = [
+  { valor: "trend", titulo: "Trend / áudio do momento" },
+  { valor: "tutorial", titulo: "Tutorial / como usar" },
+  { valor: "antes_depois", titulo: "Antes e depois / caimento" },
+  { valor: "depoimento", titulo: "Depoimento de cliente" },
+  { valor: "bastidores", titulo: "Bastidores / ateliê" },
+  { valor: "vitrine", titulo: "Vitrine / detalhe da peça" },
+  { valor: "storytelling", titulo: "Storytelling / POV" },
+  { valor: "look_do_dia", titulo: "Look do dia / get ready" },
+  { valor: "comparativo", titulo: "Comparativo entre modelagens" },
+];
+
 export function PublicacoesTab() {
   const [visao, setVisao] = useState<"calendario" | "lista">("calendario");
   const [mesRef, setMesRef] = useState(() => {
@@ -159,10 +174,12 @@ export function PublicacoesTab() {
   const [arquivos, setArquivos] = useState<File[]>([]);
   const [salvando, setSalvando] = useState(false);
   const [iaFunil, setIaFunil] = useState("alcance");
+  const [iaEstilo, setIaEstilo] = useState("trend");
   const [iaCta, setIaCta] = useState("comentar_palavra_chave");
   const [iaContexto, setIaContexto] = useState("");
   const [iaGerando, setIaGerando] = useState(false);
   const [iaRaciocinio, setIaRaciocinio] = useState<string | null>(null);
+  const [copiadoVip, setCopiadoVip] = useState(false);
 
   const carregar = useCallback(async () => {
     const [{ data: pubs }, prods] = await Promise.all([
@@ -227,6 +244,7 @@ export function PublicacoesTab() {
       tipo: p.tipo ?? "IMAGE",
       legenda: p.legenda ?? "",
       primeiroComentario: p.primeiro_comentario ?? "",
+      textoGrupoVip: p.texto_grupo_vip ?? "",
       agendadoPara:
         d && !Number.isNaN(d.getTime())
           ? `${diaKey(d)}T${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`
@@ -247,6 +265,7 @@ export function PublicacoesTab() {
       const { data, error } = await supabase.functions.invoke("instagram-gerar-legenda", {
         body: {
           etapa_funil: iaFunil,
+          estilo: iaEstilo,
           cta: iaCta,
           tipo: form.tipo,
           produto_ids: form.produtoIds,
@@ -270,6 +289,7 @@ export function PublicacoesTab() {
         ...f,
         legenda: String(data.legenda ?? "").slice(0, LIMITE_LEGENDA),
         primeiroComentario: String(data.primeiro_comentario ?? ""),
+        textoGrupoVip: String(data.texto_grupo_vip ?? f.textoGrupoVip),
         ...(gatilhos.length > 0
           ? {
               modoResposta: "automatico" as const,
@@ -292,6 +312,16 @@ export function PublicacoesTab() {
     }
   };
 
+  const copiarTextoVip = async () => {
+    try {
+      await navigator.clipboard.writeText(form.textoGrupoVip);
+      setCopiadoVip(true);
+      window.setTimeout(() => setCopiadoVip(false), 2000);
+    } catch {
+      toast.error("Não foi possível copiar — selecione o texto e copie manualmente.");
+    }
+  };
+
   const salvar = async () => {
     if (salvando) return;
     setSalvando(true);
@@ -305,6 +335,7 @@ export function PublicacoesTab() {
         tipo: form.tipo,
         legenda: form.legenda,
         primeiro_comentario: form.primeiroComentario || null,
+        texto_grupo_vip: form.textoGrupoVip || null,
         agendado_para: form.agendadoPara ? new Date(form.agendadoPara).toISOString() : null,
         status: form.agendadoPara ? "agendado" : "rascunho",
         produto_ids: form.produtoIds,
@@ -321,9 +352,12 @@ export function PublicacoesTab() {
           : db.from("instagram_publicacoes").insert(p);
 
       let { error } = await executar(payload);
-      if (error && /primeiro_comentario/i.test(error.message ?? "")) {
-        delete payload.primeiro_comentario;
-        ({ error } = await executar(payload));
+      // Colunas novas podem ainda não existir no banco — tenta de novo sem elas
+      for (const coluna of ["texto_grupo_vip", "primeiro_comentario"]) {
+        if (error && new RegExp(coluna, "i").test(error.message ?? "")) {
+          delete payload[coluna];
+          ({ error } = await executar(payload));
+        }
       }
       if (error) throw error;
 
@@ -532,7 +566,7 @@ export function PublicacoesTab() {
                   <p className="text-xs font-semibold uppercase tracking-widest text-primary flex items-center gap-1.5">
                     <Sparkles className="h-3.5 w-3.5" /> Gerar com IA
                   </p>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                     <div className="space-y-1.5">
                       <Label className="text-xs">Etapa do funil</Label>
                       <Select value={iaFunil} onValueChange={setIaFunil}>
@@ -544,6 +578,19 @@ export function PublicacoesTab() {
                                 <p className="text-sm font-medium">{e.titulo}</p>
                                 <p className="text-[10px] text-muted-foreground font-normal">{e.descricao}</p>
                               </div>
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">Estilo do post</Label>
+                      <Select value={iaEstilo} onValueChange={setIaEstilo}>
+                        <SelectTrigger className="h-9 text-sm"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          {ESTILOS.map((e) => (
+                            <SelectItem key={e.valor} value={e.valor}>
+                              <p className="text-sm font-medium">{e.titulo}</p>
                             </SelectItem>
                           ))}
                         </SelectContent>
@@ -620,6 +667,40 @@ export function PublicacoesTab() {
                     onChange={(e) => setForm({ ...form, primeiroComentario: e.target.value })}
                     placeholder="#moda #marianacardoso"
                   />
+                </div>
+
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <Label>Mensagem para o grupo VIP</Label>
+                    {form.textoGrupoVip && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="h-6 px-2 text-xs"
+                        onClick={copiarTextoVip}
+                      >
+                        {copiadoVip ? (
+                          <>
+                            <Check className="h-3 w-3 mr-1 text-success" /> Copiado!
+                          </>
+                        ) : (
+                          <>
+                            <Copy className="h-3 w-3 mr-1" /> Copiar
+                          </>
+                        )}
+                      </Button>
+                    )}
+                  </div>
+                  <Textarea
+                    value={form.textoGrupoVip}
+                    onChange={(e) => setForm({ ...form, textoGrupoVip: e.target.value })}
+                    className="min-h-[70px]"
+                    placeholder="Gerado pela IA junto com a legenda — ou escreva manualmente…"
+                  />
+                  <p className="text-[10px] text-muted-foreground">
+                    Envie no grupo de clientes VIP assim que o post sair. Substitua [link do post] pelo link real.
+                  </p>
                 </div>
 
                 <div className="space-y-1.5">

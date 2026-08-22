@@ -13,7 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { toast } from "sonner";
 import {
-  Bot, ChevronDown, ChevronUp, EyeOff, ImageOff, Loader2, Mail, MessageSquare, Zap,
+  Bot, ChevronDown, ChevronUp, ExternalLink, EyeOff, ImageOff, Loader2, Mail, MessageSquare, Zap,
 } from "lucide-react";
 
 type Comentario = {
@@ -67,7 +67,10 @@ function ThumbPost({ post }: { post?: PostInfo }) {
         onError={() => setErro(true)}
       />
     ) : (
-      <ImageOff className="h-5 w-5 text-muted-foreground/40" />
+      <div className="flex flex-col items-center justify-center gap-0.5 text-muted-foreground/50">
+        <ImageOff className="h-4 w-4" />
+        <span className="text-[8px] leading-none">Sem prévia</span>
+      </div>
     );
   const classe =
     "w-14 h-14 rounded-md overflow-hidden bg-muted shrink-0 flex items-center justify-center";
@@ -286,6 +289,18 @@ export function ComentariosTab() {
                       <div className="flex items-center gap-2 flex-wrap">
                         <span className="font-medium text-sm">@{c.from_username || "desconhecido"}</span>
                         <span className="text-[10px] text-muted-foreground">{tempoRelativo(c.publicado_em)}</span>
+                        {post?.permalink && (
+                          <a
+                            href={post.permalink}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-muted-foreground hover:text-foreground transition-colors"
+                            title="Ver no Instagram"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <ExternalLink className="h-3 w-3" />
+                          </a>
+                        )}
                         {automatico && (
                           <span className="inline-flex items-center gap-1 rounded-full border border-primary/20 bg-primary/10 text-primary px-2 py-0.5 text-[10px] font-semibold">
                             <Zap className="h-3 w-3" /> Automático
