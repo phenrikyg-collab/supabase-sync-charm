@@ -38,6 +38,10 @@ type Publicacao = {
   palavras_gatilho?: string[] | null;
   resposta_gatilho_publica?: string | null;
   resposta_gatilho_dm?: string | null;
+  link_combo?: string | null;
+  cupom?: string | null;
+  cupom_beneficio?: string | null;
+  cupom_validade?: string | null;
   texto_grupo_vip?: string | null;
 };
 
@@ -97,6 +101,10 @@ type FormState = {
   gatilhos: string[];
   respostaPublica: string;
   respostaDm: string;
+  linkCombo: string;
+  cupom: string;
+  cupomBeneficio: string;
+  cupomValidade: string;
 };
 
 const FORM_VAZIO: FormState = {
@@ -111,6 +119,10 @@ const FORM_VAZIO: FormState = {
   gatilhos: [],
   respostaPublica: "Te mandei no Direct 💛",
   respostaDm: "",
+  linkCombo: "",
+  cupom: "",
+  cupomBeneficio: "",
+  cupomValidade: "",
 };
 
 const MODOS = [
@@ -184,7 +196,7 @@ export function PublicacoesTab() {
   const [iaGerando, setIaGerando] = useState(false);
   const [iaRaciocinio, setIaRaciocinio] = useState<string | null>(null);
   const [copiadoVip, setCopiadoVip] = useState(false);
-  const [avisoRespostas, setAvisoRespostas] = useState<string | null>(null);
+  const [avisoRespostas, setAvisoRespostas] = useState<string[]>([]);
 
   const carregar = useCallback(async () => {
     const [{ data: pubs }, prods] = await Promise.all([
@@ -232,7 +244,7 @@ export function PublicacoesTab() {
     setArquivos([]);
     setIaContexto("");
     setIaRaciocinio(null);
-    setAvisoRespostas(null);
+    setAvisoRespostas([]);
     setForm({
       ...FORM_VAZIO,
       agendadoPara: dia ? `${diaKey(dia)}T09:00` : "",
@@ -245,7 +257,7 @@ export function PublicacoesTab() {
     setArquivos([]);
     setIaContexto("");
     setIaRaciocinio(null);
-    setAvisoRespostas(null);
+    setAvisoRespostas([]);
     const d = p.agendado_para ? new Date(p.agendado_para) : null;
     setForm({
       tipo: p.tipo ?? "IMAGE",
@@ -262,6 +274,10 @@ export function PublicacoesTab() {
       gatilhos: p.palavras_gatilho ?? [],
       respostaPublica: p.resposta_gatilho_publica ?? "",
       respostaDm: p.resposta_gatilho_dm ?? "",
+      linkCombo: p.link_combo ?? "",
+      cupom: p.cupom ?? "",
+      cupomBeneficio: p.cupom_beneficio ?? "",
+      cupomValidade: p.cupom_validade ?? "",
     });
     setModalAberto(true);
   };
@@ -293,6 +309,9 @@ export function PublicacoesTab() {
       }
 
       const gatilhos: string[] = Array.isArray(data.palavras_gatilho) ? data.palavras_gatilho : [];
+      // A legenda também devolve resposta_gatilho_publica/resposta_gatilho_dm — IGNORADOS de propósito:
+      // quem preenche as respostas de gatilho é sempre o botão "Gerar respostas com IA"
+      // (único que conhece cupom e link de combo).
       setForm((f) => ({
         ...f,
         legenda: String(data.legenda ?? "").slice(0, LIMITE_LEGENDA),
@@ -302,14 +321,12 @@ export function PublicacoesTab() {
           ? {
               modoResposta: "automatico" as const,
               gatilhos,
-              respostaPublica: String(data.resposta_gatilho_publica ?? f.respostaPublica).slice(0, LIMITE_RESPOSTA_PUBLICA),
-              respostaDm: String(data.resposta_gatilho_dm ?? f.respostaDm),
             }
           : {}),
       }));
       setIaRaciocinio(data.raciocinio ?? null);
       if (gatilhos.length > 0) {
-        toast.info("Automação de comentários preenchida — revise antes de salvar.");
+        toast.info("Palavras-gatilho preenchidas — use “Gerar respostas com IA” para as respostas.");
       } else {
         toast.success("Legenda gerada — revise e ajuste antes de salvar");
       }
@@ -353,6 +370,10 @@ export function PublicacoesTab() {
         palavras_gatilho: form.modoResposta === "automatico" ? form.gatilhos : [],
         resposta_gatilho_publica: form.modoResposta === "automatico" ? form.respostaPublica : null,
         resposta_gatilho_dm: form.modoResposta === "automatico" ? form.respostaDm : null,
+        link_combo: form.modoResposta === "automatico" ? form.linkCombo.trim() || null : null,
+        cupom: form.modoResposta === "automatico" ? form.cupom.trim() || null : null,
+        cupom_beneficio: form.modoResposta === "automatico" ? form.cupomBeneficio.trim() || null : null,
+        cupom_validade: form.modoResposta === "automatico" ? form.cupomValidade.trim() || null : null,
       };
 
       const executar = async (p: Record<string, any>) =>
@@ -362,7 +383,7 @@ export function PublicacoesTab() {
 
       let { error } = await executar(payload);
       // Colunas novas podem ainda não existir no banco — tenta de novo sem elas
-      for (const coluna of ["texto_grupo_vip", "primeiro_comentario", "gatilho_qualquer"]) {
+      for (const coluna of ["texto_grupo_vip", "primeiro_comentario", "gatilho_qualquer", "link_combo", "cupom_beneficio", "cupom_validade", "cupom"]) {
         if (error && new RegExp(coluna, "i").test(error.message ?? "")) {
           delete payload[coluna];
           ({ error } = await executar(payload));
@@ -772,18 +793,65 @@ export function PublicacoesTab() {
                       </p>
                     </div>
 
+                    <div className="space-y-1.5">
+                      <Label>Link do combo</Label>
+                      <Input
+                        type="url"
+                        value={form.linkCombo}
+                        onChange={(e) => setForm({ ...form, linkCombo: e.target.value })}
+                        placeholder="https://…"
+                      />
+                      <p className="text-[10px] text-muted-foreground">
+                        Use quando o post vende um combo com página própria. Vazio = usa os links individuais das peças.
+                      </p>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                      <div className="space-y-1.5">
+                        <Label>Cupom</Label>
+                        <Input
+                          value={form.cupom}
+                          onChange={(e) => setForm({ ...form, cupom: e.target.value })}
+                          placeholder="Ex.: COMBOANNA"
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label>O que o cupom dá</Label>
+                        <Input
+                          value={form.cupomBeneficio}
+                          onChange={(e) => setForm({ ...form, cupomBeneficio: e.target.value })}
+                          placeholder="Ex.: R$50 de desconto"
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label>Validade</Label>
+                        <Input
+                          value={form.cupomValidade}
+                          onChange={(e) => setForm({ ...form, cupomValidade: e.target.value })}
+                          placeholder="Ex.: válidos até amanhã"
+                        />
+                      </div>
+                    </div>
+                    <p className="text-[10px] text-muted-foreground -mt-2">
+                      Vazio = a mensagem sai sem a linha de cupom.
+                    </p>
+
                     <div>
                       <BotaoGerarRespostas
                         produtoIds={form.produtoIds}
                         gatilhos={form.gatilhos}
                         contexto={iaContexto}
+                        linkCombo={form.linkCombo}
+                        cupom={form.cupom}
+                        cupomBeneficio={form.cupomBeneficio}
+                        cupomValidade={form.cupomValidade}
                         onResultado={(r) => {
                           setForm((f) => ({
                             ...f,
                             respostaPublica: r.respostaPublica.slice(0, LIMITE_RESPOSTA_PUBLICA),
                             respostaDm: r.respostaDm,
                           }));
-                          setAvisoRespostas(r.aviso);
+                          setAvisoRespostas(r.avisos);
                         }}
                       />
                     </div>
@@ -835,12 +903,12 @@ export function PublicacoesTab() {
                       <p className="text-[10px] text-muted-foreground">
                         Fica visível para todo mundo — preço e link vão no Direct.
                       </p>
-                      {avisoRespostas && (
-                        <p className="text-[11px] rounded border border-warning/30 bg-warning/10 p-2 flex items-start gap-1.5">
+                      {avisoRespostas.map((aviso, i) => (
+                        <p key={i} className="text-[11px] rounded border border-warning/30 bg-warning/10 p-2 flex items-start gap-1.5">
                           <AlertTriangle className="h-3.5 w-3.5 text-warning shrink-0 mt-px" />
-                          <span>{avisoRespostas}</span>
+                          <span>{aviso}</span>
                         </p>
-                      )}
+                      ))}
                     </div>
 
                     <div className="space-y-1.5">

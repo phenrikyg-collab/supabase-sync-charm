@@ -8,6 +8,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
@@ -62,6 +63,10 @@ type Automacao = {
   palavras_gatilho?: string[] | null;
   resposta_gatilho_publica?: string | null;
   resposta_gatilho_dm?: string | null;
+  link_combo?: string | null;
+  cupom?: string | null;
+  cupom_beneficio?: string | null;
+  cupom_validade?: string | null;
   produto_id?: string | null;
   ativo?: boolean | null;
   expira_em?: string | null;
@@ -77,8 +82,12 @@ type EditState = {
   gatilhos: string[];
   respostaPublica: string;
   respostaDm: string;
+  linkCombo: string;
+  cupom: string;
+  cupomBeneficio: string;
+  cupomValidade: string;
   ativo: boolean;
-  avisoIa: string | null;
+  avisosIa: string[];
 };
 
 export function ProdutosPostTab() {
@@ -177,8 +186,12 @@ export function ProdutosPostTab() {
       gatilhos: auto?.palavras_gatilho ?? [],
       respostaPublica: auto?.resposta_gatilho_publica ?? "",
       respostaDm: auto?.resposta_gatilho_dm ?? "",
+      linkCombo: auto?.link_combo ?? "",
+      cupom: auto?.cupom ?? "",
+      cupomBeneficio: auto?.cupom_beneficio ?? "",
+      cupomValidade: auto?.cupom_validade ?? "",
       ativo: auto?.ativo ?? false,
-      avisoIa: null,
+      avisosIa: [],
     });
   };
 
@@ -210,18 +223,24 @@ export function ProdutosPostTab() {
         palavras_gatilho: edit.modo === "automatico" ? edit.gatilhos : [],
         resposta_gatilho_publica: edit.modo === "automatico" ? edit.respostaPublica : null,
         resposta_gatilho_dm: edit.modo === "automatico" ? edit.respostaDm : null,
+        link_combo: edit.modo === "automatico" ? edit.linkCombo.trim() || null : null,
+        cupom: edit.modo === "automatico" ? edit.cupom.trim() || null : null,
+        cupom_beneficio: edit.modo === "automatico" ? edit.cupomBeneficio.trim() || null : null,
+        cupom_validade: edit.modo === "automatico" ? edit.cupomValidade.trim() || null : null,
         produto_id: edit.principal,
         ativo: edit.ativo,
       };
       let { error: errAuto } = await db
         .from("instagram_post_automacao")
         .upsert(autoPayload, { onConflict: "media_id" });
-      // Coluna nova pode ainda não existir no banco — tenta de novo sem ela
-      if (errAuto && /gatilho_qualquer/i.test(errAuto.message ?? "")) {
-        delete autoPayload.gatilho_qualquer;
-        ({ error: errAuto } = await db
-          .from("instagram_post_automacao")
-          .upsert(autoPayload, { onConflict: "media_id" }));
+      // Colunas novas podem ainda não existir no banco — tenta de novo sem elas
+      for (const coluna of ["gatilho_qualquer", "link_combo", "cupom_beneficio", "cupom_validade", "cupom"]) {
+        if (errAuto && new RegExp(coluna, "i").test(errAuto.message ?? "")) {
+          delete autoPayload[coluna];
+          ({ error: errAuto } = await db
+            .from("instagram_post_automacao")
+            .upsert(autoPayload, { onConflict: "media_id" }));
+        }
       }
       if (errAuto) throw errAuto;
 
@@ -408,17 +427,62 @@ export function ProdutosPostTab() {
                           Comentários que <strong>não</strong> baterem a palavra-chave serão respondidos
                           pela Anna automaticamente, sem aprovação.
                         </p>
+                        <div className="space-y-1.5">
+                          <Label>Link do combo</Label>
+                          <Input
+                            type="url"
+                            value={edit.linkCombo}
+                            onChange={(e) => setEdit({ ...edit, linkCombo: e.target.value })}
+                            placeholder="https://…"
+                          />
+                          <p className="text-[10px] text-muted-foreground">
+                            Use quando o post vende um combo com página própria. Vazio = usa os links individuais das peças.
+                          </p>
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                          <div className="space-y-1.5">
+                            <Label>Cupom</Label>
+                            <Input
+                              value={edit.cupom}
+                              onChange={(e) => setEdit({ ...edit, cupom: e.target.value })}
+                              placeholder="Ex.: COMBOANNA"
+                            />
+                          </div>
+                          <div className="space-y-1.5">
+                            <Label>O que o cupom dá</Label>
+                            <Input
+                              value={edit.cupomBeneficio}
+                              onChange={(e) => setEdit({ ...edit, cupomBeneficio: e.target.value })}
+                              placeholder="Ex.: R$50 de desconto"
+                            />
+                          </div>
+                          <div className="space-y-1.5">
+                            <Label>Validade</Label>
+                            <Input
+                              value={edit.cupomValidade}
+                              onChange={(e) => setEdit({ ...edit, cupomValidade: e.target.value })}
+                              placeholder="Ex.: válidos até amanhã"
+                            />
+                          </div>
+                        </div>
+                        <p className="text-[10px] text-muted-foreground -mt-1">
+                          Vazio = a mensagem sai sem a linha de cupom.
+                        </p>
                         <div>
                           <BotaoGerarRespostas
                             produtoIds={edit.selecionados}
                             gatilhos={edit.gatilhos}
                             mediaId={edit.post.media_id}
+                            linkCombo={edit.linkCombo}
+                            cupom={edit.cupom}
+                            cupomBeneficio={edit.cupomBeneficio}
+                            cupomValidade={edit.cupomValidade}
                             onResultado={(r) =>
                               setEdit({
                                 ...edit,
                                 respostaPublica: r.respostaPublica.slice(0, 280),
                                 respostaDm: r.respostaDm,
-                                avisoIa: r.aviso,
+                                avisosIa: r.avisos,
                               })
                             }
                           />
@@ -465,12 +529,12 @@ export function ProdutosPostTab() {
                           <p className="text-[10px] text-muted-foreground">
                             Fica visível para todo mundo — preço e link vão no Direct.
                           </p>
-                          {edit.avisoIa && (
-                            <p className="text-[11px] rounded border border-warning/30 bg-warning/10 p-2 flex items-start gap-1.5">
+                          {edit.avisosIa.map((aviso, i) => (
+                            <p key={i} className="text-[11px] rounded border border-warning/30 bg-warning/10 p-2 flex items-start gap-1.5">
                               <AlertTriangle className="h-3.5 w-3.5 text-warning shrink-0 mt-px" />
-                              <span>{edit.avisoIa}</span>
+                              <span>{aviso}</span>
                             </p>
-                          )}
+                          ))}
                         </div>
                         <div className="space-y-1.5">
                           <Label>Resposta no Direct</Label>
