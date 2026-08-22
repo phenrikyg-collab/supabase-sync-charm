@@ -115,6 +115,25 @@ export function ComentariosTab() {
     const lista = (coms ?? []) as Comentario[];
     setComentarios(lista);
 
+    // Anúncios com comentário sem resposta e sem automação — lead quente parado.
+    // Silencioso se a view ainda não existir no banco.
+    try {
+      const { data: painel, error: errPainel } = await db
+        .from("vw_ig_posts_painel")
+        .select("media_id, tem_automacao, automacao_ativa")
+        .eq("eh_anuncio", true)
+        .gt("comentarios_sem_resposta", 0);
+      if (!errPainel) {
+        setAnunciosPendentes(
+          (painel ?? [])
+            .filter((p: any) => !p.tem_automacao || !p.automacao_ativa)
+            .map((p: any) => p.media_id as string),
+        );
+      }
+    } catch {
+      /* view indisponível — sem alerta */
+    }
+
     const mediaIds = [...new Set(lista.map((c) => c.media_id).filter(Boolean))] as string[];
     if (mediaIds.length > 0) {
       const [{ data: ps }, { data: links }] = await Promise.all([
