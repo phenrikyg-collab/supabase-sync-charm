@@ -312,6 +312,16 @@ export function PublicacoesTab() {
     }
   };
 
+  const copiarTextoVip = async () => {
+    try {
+      await navigator.clipboard.writeText(form.textoGrupoVip);
+      setCopiadoVip(true);
+      window.setTimeout(() => setCopiadoVip(false), 2000);
+    } catch {
+      toast.error("Não foi possível copiar — selecione o texto e copie manualmente.");
+    }
+  };
+
   const salvar = async () => {
     if (salvando) return;
     setSalvando(true);
@@ -556,7 +566,7 @@ export function PublicacoesTab() {
                   <p className="text-xs font-semibold uppercase tracking-widest text-primary flex items-center gap-1.5">
                     <Sparkles className="h-3.5 w-3.5" /> Gerar com IA
                   </p>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                     <div className="space-y-1.5">
                       <Label className="text-xs">Etapa do funil</Label>
                       <Select value={iaFunil} onValueChange={setIaFunil}>
@@ -568,6 +578,19 @@ export function PublicacoesTab() {
                                 <p className="text-sm font-medium">{e.titulo}</p>
                                 <p className="text-[10px] text-muted-foreground font-normal">{e.descricao}</p>
                               </div>
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">Estilo do post</Label>
+                      <Select value={iaEstilo} onValueChange={setIaEstilo}>
+                        <SelectTrigger className="h-9 text-sm"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          {ESTILOS.map((e) => (
+                            <SelectItem key={e.valor} value={e.valor}>
+                              <p className="text-sm font-medium">{e.titulo}</p>
                             </SelectItem>
                           ))}
                         </SelectContent>
@@ -644,6 +667,40 @@ export function PublicacoesTab() {
                     onChange={(e) => setForm({ ...form, primeiroComentario: e.target.value })}
                     placeholder="#moda #marianacardoso"
                   />
+                </div>
+
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <Label>Mensagem para o grupo VIP</Label>
+                    {form.textoGrupoVip && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="h-6 px-2 text-xs"
+                        onClick={copiarTextoVip}
+                      >
+                        {copiadoVip ? (
+                          <>
+                            <Check className="h-3 w-3 mr-1 text-success" /> Copiado!
+                          </>
+                        ) : (
+                          <>
+                            <Copy className="h-3 w-3 mr-1" /> Copiar
+                          </>
+                        )}
+                      </Button>
+                    )}
+                  </div>
+                  <Textarea
+                    value={form.textoGrupoVip}
+                    onChange={(e) => setForm({ ...form, textoGrupoVip: e.target.value })}
+                    className="min-h-[70px]"
+                    placeholder="Gerado pela IA junto com a legenda — ou escreva manualmente…"
+                  />
+                  <p className="text-[10px] text-muted-foreground">
+                    Envie no grupo de clientes VIP assim que o post sair. Substitua [link do post] pelo link real.
+                  </p>
                 </div>
 
                 <div className="space-y-1.5">
