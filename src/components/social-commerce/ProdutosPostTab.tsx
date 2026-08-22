@@ -437,6 +437,12 @@ export function ProdutosPostTab() {
                           <p className="text-[10px] text-muted-foreground">
                             Fica visível para todo mundo — preço e link vão no Direct.
                           </p>
+                          {edit.avisoIa && (
+                            <p className="text-[11px] rounded border border-warning/30 bg-warning/10 p-2 flex items-start gap-1.5">
+                              <AlertTriangle className="h-3.5 w-3.5 text-warning shrink-0 mt-px" />
+                              <span>{edit.avisoIa}</span>
+                            </p>
+                          )}
                         </div>
                         <div className="space-y-1.5">
                           <Label>Resposta no Direct</Label>
