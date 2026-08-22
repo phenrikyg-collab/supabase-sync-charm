@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { db, enviarInstagram, comentarioForaDoPrazo, MOTIVOS_409 } from "@/lib/socialCommerce";
@@ -13,7 +14,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { toast } from "sonner";
 import {
-  Bot, ChevronDown, ChevronUp, ExternalLink, EyeOff, ImageOff, Loader2, Mail, MessageSquare, Zap,
+  Bot, ChevronDown, ChevronUp, ExternalLink, EyeOff, ImageOff, Loader2, Mail, Megaphone,
+  MessageSquare, Zap,
 } from "lucide-react";
 
 type Comentario = {
@@ -101,6 +103,8 @@ export function ComentariosTab() {
   const [expandido, setExpandido] = useState<string | null>(null);
   const [textos, setTextos] = useState<Map<string, string>>(new Map());
   const [enviando, setEnviando] = useState<string | null>(null);
+  // Anúncios com comentário sem resposta e sem automação configurada (view do painel)
+  const [anunciosPendentes, setAnunciosPendentes] = useState<string[]>([]);
 
   const carregar = useCallback(async () => {
     const { data: coms } = await db
