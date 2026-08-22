@@ -15,6 +15,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Checkbox } from "@/components/ui/checkbox";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { ScrollArea } from "@/components/ui/scroll-area";
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+const _scrollAreaRemovido = ScrollArea; // substituído por div com max-h fixa (rolagem do modal)
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
@@ -509,12 +511,12 @@ export function PublicacoesTab() {
       {/* ============ Modal: nova/editar publicação ============ */}
       <Dialog open={modalAberto} onOpenChange={setModalAberto}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
-          <DialogHeader>
+          <DialogHeader className="shrink-0">
             <DialogTitle className="font-serif">
               {editando ? "Editar publicação" : "Nova publicação"}
             </DialogTitle>
           </DialogHeader>
-          <ScrollArea className="flex-1 pr-4">
+          <div className="max-h-[calc(90vh-140px)] overflow-y-auto pr-4">
             <div className="space-y-6 pb-4">
               {/* CONTEÚDO */}
               <section className="space-y-4">
