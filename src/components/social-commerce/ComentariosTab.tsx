@@ -245,6 +245,24 @@ export function ComentariosTab() {
 
   return (
     <div className="space-y-4">
+      {/* Alerta fixo: anúncios com comentário sem resposta e sem automação (incidente 22/08) */}
+      {anunciosPendentes.length > 0 && (
+        <div className="rounded-lg border border-danger/40 bg-danger/10 p-3 flex items-center gap-3">
+          <Megaphone className="h-4 w-4 text-danger shrink-0" />
+          <p className="text-sm flex-1">
+            <strong>
+              {anunciosPendentes.length === 1
+                ? "1 anúncio tem comentário sem resposta e sem automação."
+                : `${anunciosPendentes.length} anúncios têm comentários sem resposta e sem automação.`}
+            </strong>{" "}
+            Anúncio sem resposta é lead quente parado.
+          </p>
+          <Button size="sm" variant="outline" asChild>
+            <Link to="/social-commerce?tab=produtos&filtro=sem_automacao">Configurar agora</Link>
+          </Button>
+        </div>
+      )}
+
       {/* Filtros */}
       <div className="flex flex-wrap items-center gap-2">
         {FILTROS.map((f) => (
