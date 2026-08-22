@@ -274,6 +274,10 @@ export function PublicacoesTab() {
       gatilhos: p.palavras_gatilho ?? [],
       respostaPublica: p.resposta_gatilho_publica ?? "",
       respostaDm: p.resposta_gatilho_dm ?? "",
+      linkCombo: p.link_combo ?? "",
+      cupom: p.cupom ?? "",
+      cupomBeneficio: p.cupom_beneficio ?? "",
+      cupomValidade: p.cupom_validade ?? "",
     });
     setModalAberto(true);
   };
@@ -305,6 +309,9 @@ export function PublicacoesTab() {
       }
 
       const gatilhos: string[] = Array.isArray(data.palavras_gatilho) ? data.palavras_gatilho : [];
+      // A legenda também devolve resposta_gatilho_publica/resposta_gatilho_dm — IGNORADOS de propósito:
+      // quem preenche as respostas de gatilho é sempre o botão "Gerar respostas com IA"
+      // (único que conhece cupom e link de combo).
       setForm((f) => ({
         ...f,
         legenda: String(data.legenda ?? "").slice(0, LIMITE_LEGENDA),
@@ -314,14 +321,12 @@ export function PublicacoesTab() {
           ? {
               modoResposta: "automatico" as const,
               gatilhos,
-              respostaPublica: String(data.resposta_gatilho_publica ?? f.respostaPublica).slice(0, LIMITE_RESPOSTA_PUBLICA),
-              respostaDm: String(data.resposta_gatilho_dm ?? f.respostaDm),
             }
           : {}),
       }));
       setIaRaciocinio(data.raciocinio ?? null);
       if (gatilhos.length > 0) {
-        toast.info("Automação de comentários preenchida — revise antes de salvar.");
+        toast.info("Palavras-gatilho preenchidas — use “Gerar respostas com IA” para as respostas.");
       } else {
         toast.success("Legenda gerada — revise e ajuste antes de salvar");
       }
