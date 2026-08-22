@@ -196,7 +196,7 @@ export function PublicacoesTab() {
   const [iaGerando, setIaGerando] = useState(false);
   const [iaRaciocinio, setIaRaciocinio] = useState<string | null>(null);
   const [copiadoVip, setCopiadoVip] = useState(false);
-  const [avisoRespostas, setAvisoRespostas] = useState<string | null>(null);
+  const [avisoRespostas, setAvisoRespostas] = useState<string[]>([]);
 
   const carregar = useCallback(async () => {
     const [{ data: pubs }, prods] = await Promise.all([
@@ -370,6 +370,10 @@ export function PublicacoesTab() {
         palavras_gatilho: form.modoResposta === "automatico" ? form.gatilhos : [],
         resposta_gatilho_publica: form.modoResposta === "automatico" ? form.respostaPublica : null,
         resposta_gatilho_dm: form.modoResposta === "automatico" ? form.respostaDm : null,
+        link_combo: form.modoResposta === "automatico" ? form.linkCombo.trim() || null : null,
+        cupom: form.modoResposta === "automatico" ? form.cupom.trim() || null : null,
+        cupom_beneficio: form.modoResposta === "automatico" ? form.cupomBeneficio.trim() || null : null,
+        cupom_validade: form.modoResposta === "automatico" ? form.cupomValidade.trim() || null : null,
       };
 
       const executar = async (p: Record<string, any>) =>
@@ -379,7 +383,7 @@ export function PublicacoesTab() {
 
       let { error } = await executar(payload);
       // Colunas novas podem ainda não existir no banco — tenta de novo sem elas
-      for (const coluna of ["texto_grupo_vip", "primeiro_comentario", "gatilho_qualquer"]) {
+      for (const coluna of ["texto_grupo_vip", "primeiro_comentario", "gatilho_qualquer", "link_combo", "cupom_beneficio", "cupom_validade", "cupom"]) {
         if (error && new RegExp(coluna, "i").test(error.message ?? "")) {
           delete payload[coluna];
           ({ error } = await executar(payload));
