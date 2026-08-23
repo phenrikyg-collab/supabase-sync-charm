@@ -203,7 +203,7 @@ export function ComentariosTab() {
         db.from("instagram_posts").select("*").in("media_id", mediaIds),
         db.from("instagram_post_produtos").select("*").in("media_id", mediaIds),
       ]);
-      const mapaPosts = new Map((ps ?? []).map((p: any) => [p.media_id, p as PostInfo]));
+      const mapaPosts = new Map<string, PostInfo>((ps ?? []).map((p: any) => [p.media_id as string, p as PostInfo]));
 
       // Selo de anúncio vem da view do painel (posts orgânicos têm eh_anuncio=false).
       // Silencioso se a view estiver indisponível.
