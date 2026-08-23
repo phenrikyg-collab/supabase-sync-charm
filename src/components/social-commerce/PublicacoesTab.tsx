@@ -12,6 +12,7 @@ import { CapaReels } from "./CapaReels";
 import { CardsCarrossel, MAX_CARDS_CARROSSEL, MIN_CARDS_CARROSSEL, type ItemMidia } from "./CardsCarrossel";
 import { ListaProdutosOrdenada } from "./ListaProdutosOrdenada";
 import { SeletorObjetivoPost, objetivoInferido, type ObjetivoPost } from "./ObjetivoPost";
+import { BlocoRespostasCompra, BlocoRespostasFallback } from "./RespostasCompraFallback";
 import { uploadMidia, ehUrlDeVideo } from "./midiaUpload";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -43,6 +44,9 @@ type Publicacao = {
   erro?: string | null;
   modo_resposta?: string | null;
   objetivo?: string | null;
+  /** 4.4/4.5 — resposta completa (pergunta de preço) e fallback sem Direct */
+  respostas_publicas_compra?: string[] | null;
+  respostas_publicas_fallback?: string[] | null;
   gatilho_qualquer?: boolean | null;
   palavras_gatilho?: string[] | null;
   resposta_gatilho_publica?: string | null;
@@ -93,6 +97,8 @@ type FormState = {
   gatilhoQualquer: boolean;
   gatilhos: string[];
   respostasPublicas: string[];
+  respostasCompra: string[];
+  respostasFallback: string[];
   respostaDm: string;
   linkCombo: string;
   cupom: string;
@@ -114,6 +120,8 @@ const FORM_VAZIO: FormState = {
   gatilhoQualquer: false,
   gatilhos: [],
   respostasPublicas: ["Te mandei no Direct 💛"],
+  respostasCompra: [],
+  respostasFallback: [],
   respostaDm: "",
   linkCombo: "",
   cupom: "",
@@ -294,6 +302,8 @@ export function PublicacoesTab() {
           : p.resposta_gatilho_publica
             ? [p.resposta_gatilho_publica]
             : [],
+      respostasCompra: p.respostas_publicas_compra ?? [],
+      respostasFallback: p.respostas_publicas_fallback ?? [],
       respostaDm: p.resposta_gatilho_dm ?? "",
       linkCombo: p.link_combo ?? "",
       cupom: p.cupom ?? "",
@@ -451,6 +461,8 @@ export function PublicacoesTab() {
       );
 
       const variacoes = form.respostasPublicas.map((v) => v.trim()).filter(Boolean);
+      const compra = form.respostasCompra.map((v) => v.trim()).filter(Boolean);
+      const fallback = form.respostasFallback.map((v) => v.trim()).filter(Boolean);
       const payload: Record<string, any> = {
         tipo: form.tipo,
         legenda: form.legenda,
@@ -467,6 +479,8 @@ export function PublicacoesTab() {
         gatilho_qualquer: form.modoResposta === "automatico" ? form.gatilhoQualquer : false,
         palavras_gatilho: form.modoResposta === "automatico" ? form.gatilhos : [],
         respostas_publicas: form.modoResposta === "automatico" ? variacoes : null,
+        respostas_publicas_compra: form.modoResposta === "automatico" ? (compra.length ? compra : null) : null,
+        respostas_publicas_fallback: form.modoResposta === "automatico" ? (fallback.length ? fallback : null) : null,
         // Compatibilidade: a primeira variação continua no campo antigo
         resposta_gatilho_publica: form.modoResposta === "automatico" ? variacoes[0] ?? null : null,
         resposta_gatilho_dm: form.modoResposta === "automatico" ? form.respostaDm : null,
@@ -483,7 +497,7 @@ export function PublicacoesTab() {
 
       let { error } = await executar(payload);
       // Colunas novas podem ainda não existir no banco — tenta de novo sem elas
-      for (const coluna of ["objetivo", "capa_url", "capa_offset_ms", "respostas_publicas", "texto_grupo_vip", "primeiro_comentario", "gatilho_qualquer", "link_combo", "cupom_beneficio", "cupom_validade", "cupom"]) {
+      for (const coluna of ["respostas_publicas_compra", "respostas_publicas_fallback", "objetivo", "capa_url", "capa_offset_ms", "respostas_publicas", "texto_grupo_vip", "primeiro_comentario", "gatilho_qualquer", "link_combo", "cupom_beneficio", "cupom_validade", "cupom"]) {
         if (error && new RegExp(coluna, "i").test(error.message ?? "")) {
           delete payload[coluna];
           ({ error } = await executar(payload));
@@ -1059,6 +1073,16 @@ export function PublicacoesTab() {
                         </p>
                       ))}
                     </div>
+
+                    <BlocoRespostasCompra
+                      value={form.respostasCompra}
+                      onChange={(v) => setForm({ ...form, respostasCompra: v })}
+                      combo={form.produtoIds.length > 1}
+                    />
+                    <BlocoRespostasFallback
+                      value={form.respostasFallback}
+                      onChange={(v) => setForm({ ...form, respostasFallback: v })}
+                    />
 
                     {form.objetivo === "venda" && (
                       <div className="space-y-1.5">

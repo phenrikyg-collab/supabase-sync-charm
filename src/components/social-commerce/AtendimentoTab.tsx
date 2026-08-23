@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useReducer, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { db, enviarInstagram, marcarConversaLida, marcarTodasLidas, MOTIVOS_409 } from "@/lib/socialCommerce";
+import { db, enviarInstagram, marcarConversaLida, marcarTodasLidas, devolverParaAnna, MOTIVOS_409 } from "@/lib/socialCommerce";
 import { tempoRelativo, janelaInfo } from "./comum";
 import { ContextoMensagem } from "./ContextoMensagem";
 import type { ProdutoPai } from "./SeletorProdutos";
@@ -42,6 +42,8 @@ type Conversa = {
   ultima_mensagem_em?: string | null;
   ultima_mensagem?: string | null;
   ultima_mensagem_texto?: string | null;
+  /** Por que a Anna escalou a conversa (status 'escalada') */
+  motivo_escalonamento?: string | null;
 };
 
 type Mensagem = {
@@ -79,14 +81,18 @@ const FILTROS: { key: Filtro; label: string }[] = [
 function ChipStatus({ status }: { status?: string | null }) {
   if (!status) return null;
   const s = status.toLowerCase();
+  // 'em_atendimento' = uma consultora assumiu; a Anna está fora desta conversa
+  const comConsultora = s.includes("em_atendimento");
   const cls = s.includes("escalad")
     ? "bg-warning/10 text-warning border-warning/20"
     : s.includes("resolvid")
       ? "bg-success/10 text-success border-success/20"
-      : "bg-muted text-muted-foreground border-border";
+      : comConsultora
+        ? "bg-primary/10 text-primary border-primary/20"
+        : "bg-muted text-muted-foreground border-border";
   return (
     <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-semibold ${cls}`}>
-      {status}
+      {comConsultora ? "Com a consultora" : status}
     </span>
   );
 }
@@ -265,6 +271,32 @@ export function AtendimentoTab() {
   const conversaSel = conversas.find((c) => c.id === selId) ?? null;
   const janela = janelaInfo(conversaSel?.janela_expira_em);
   const janelaBloqueada = !!janela?.expirada || janelaFechada409;
+
+  // 2.3 — conversa com consultora ('em_atendimento'): a Anna está fora, esconde sugestão
+  const statusSel = (conversaSel?.status ?? "").toLowerCase();
+  const emAtendimento = statusSel.includes("em_atendimento");
+  const escalada = statusSel.includes("escalad");
+  const motivoEscalada =
+    conversaSel?.motivo_escalonamento ??
+    (conversaSel as any)?.motivo_escalada ??
+    (conversaSel as any)?.motivo ??
+    null;
+  const [devolvendo, setDevolvendo] = useState(false);
+
+  /** Devolve a conversa para a Anna — encerra o atendimento humano. */
+  const devolver = async () => {
+    if (!conversaSel || devolvendo) return;
+    setDevolvendo(true);
+    try {
+      await devolverParaAnna(conversaSel.id, user?.email);
+      toast.success("Conversa devolvida — a Anna volta a responder");
+      await carregarConversas();
+    } catch (e: any) {
+      toast.error(e?.message ?? "Falha ao devolver para a Anna");
+    } finally {
+      setDevolvendo(false);
+    }
+  };
 
   const sugestao = useMemo(
     () => [...mensagens].reverse().find((m) => m.status === "aguardando_aprovacao") ?? null,
@@ -503,6 +535,13 @@ export function AtendimentoTab() {
                       </span>
                     )}
                   </div>
+                  {/* Escalada mostra o motivo — sem caça ao porquê */}
+                  {escalada && motivoEscalada && (
+                    <p className="text-[11px] mt-1 rounded border border-warning/30 bg-warning/10 p-1.5 flex items-start gap-1.5">
+                      <AlertTriangle className="h-3 w-3 text-warning shrink-0 mt-px" />
+                      <span>A Anna escalou: {motivoEscalada}</span>
+                    </p>
+                  )}
                   {conversaSel.revisada_em && (
                     <p className="text-[10px] text-muted-foreground mt-1 flex items-center gap-1">
                       <Check className="h-3 w-3" />
@@ -518,6 +557,29 @@ export function AtendimentoTab() {
                 </div>
               </div>
               <div className="flex items-center gap-1 shrink-0">
+                {emAtendimento && (
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-8 gap-1.5 text-xs"
+                        disabled={devolvendo}
+                        onClick={devolver}
+                      >
+                        {devolvendo ? (
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        ) : (
+                          <Bot className="h-3.5 w-3.5" />
+                        )}
+                        Devolver para a Anna
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      Encerra o atendimento humano — a Anna volta a responder esta conversa
+                    </TooltipContent>
+                  </Tooltip>
+                )}
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <Button
@@ -592,8 +654,8 @@ export function AtendimentoTab() {
               )}
             </ScrollArea>
 
-            {/* Sugestão da Anna */}
-            {sugestao && (
+            {/* Sugestão da Anna — some quando uma consultora assumiu a conversa */}
+            {sugestao && !emAtendimento && (
               <div className="mx-3 mb-2 rounded-lg border border-primary/30 bg-primary/5 p-3">
                 <p className="text-xs font-semibold flex items-center gap-1.5 text-primary">
                   <Bot className="h-3.5 w-3.5" /> Sugestão da Anna — revise antes de enviar
