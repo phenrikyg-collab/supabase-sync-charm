@@ -7,6 +7,7 @@ import {
   BadgeDollarSign,
   Filter,
   CheckCircle2,
+  Zap,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useAuth } from "@/contexts/AuthContext";
