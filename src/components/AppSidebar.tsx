@@ -205,6 +205,33 @@ export function AppSidebar() {
   const { modules, isLoading: modulesLoading } = useUserModules();
   const location = useLocation();
 
+  // Badge de conversas não lidas do Instagram (DM) — mesma regra da lista:
+  // nao_lidas > 0 ou revisao_pendente. Atualiza em tempo real.
+  const [igNaoLidas, setIgNaoLidas] = useState(0);
+  useEffect(() => {
+    let ativo = true;
+    const carregar = async () => {
+      try {
+        const { count, error } = await (supabase as any)
+          .from("instagram_conversas")
+          .select("id", { count: "exact", head: true })
+          .or("nao_lidas.gt.0,revisao_pendente.eq.true");
+        if (!error && ativo) setIgNaoLidas(count ?? 0);
+      } catch {
+        /* tabela/colunas indisponíveis — sem badge */
+      }
+    };
+    carregar();
+    const ch = supabase
+      .channel("ig-badge-menu")
+      .on("postgres_changes", { event: "*", schema: "public", table: "instagram_conversas" }, carregar)
+      .subscribe();
+    return () => {
+      ativo = false;
+      supabase.removeChannel(ch);
+    };
+  }, []);
+
   const visibleGroups = isAdmin
     ? moduleGroups
     : moduleGroups.filter((g) => !g.adminOnly && !!g.key && modules.includes(g.key));
