@@ -291,7 +291,7 @@ export function AppSidebar() {
                               <NavLink
                                 to={item.url}
                                 end={item.url === "/" || item.url === "/ordens-corte"}
-                                className="transition-colors hover:bg-sidebar-accent"
+                                className="relative transition-colors hover:bg-sidebar-accent"
                                 activeClassName="bg-sidebar-accent text-sidebar-primary font-medium"
                               >
                                 <item.icon className="h-4 w-4 mr-2 shrink-0" />
