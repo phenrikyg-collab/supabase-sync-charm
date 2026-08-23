@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { db } from "@/lib/socialCommerce";
 import { lerErroEdge } from "@/lib/edgeError";
@@ -168,7 +169,11 @@ const ESTILOS = [
 ];
 
 export function PublicacoesTab() {
-  const [visao, setVisao] = useState<"calendario" | "lista" | "noar">("calendario");
+  // Deep-link: ?visao=noar&filtro=anuncios_pendentes (usado pelo alerta da aba Comentários)
+  const [searchParams] = useSearchParams();
+  const [visao, setVisao] = useState<"calendario" | "lista" | "noar">(() =>
+    searchParams.get("visao") === "noar" ? "noar" : "calendario",
+  );
   const [mesRef, setMesRef] = useState(() => {
     const d = new Date();
     d.setDate(1);
