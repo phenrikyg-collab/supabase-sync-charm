@@ -139,6 +139,8 @@ export function AtendimentoTab() {
   const [mensagens, setMensagens] = useState<Mensagem[]>([]);
   const [carregandoMsgs, setCarregandoMsgs] = useState(false);
   const [texto, setTexto] = useState("");
+  /** Reels compartilhados da marca: dados do post por ref_media_id (media_id) */
+  const [postsReel, setPostsReel] = useState<Map<string, PostReel>>(new Map());
   const [editandoId, setEditandoId] = useState<number | null>(null);
   const [enviando, setEnviando] = useState(false);
   const [janelaFechada409, setJanelaFechada409] = useState(false);
