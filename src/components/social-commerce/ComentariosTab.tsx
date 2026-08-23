@@ -2,7 +2,15 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { db, enviarInstagram, comentarioForaDoPrazo, MOTIVOS_409 } from "@/lib/socialCommerce";
+import {
+  db,
+  enviarInstagram,
+  enviarComentarioEDm,
+  comentarioForaDoPrazo,
+  ehComentarioRemovido,
+  MOTIVOS_409,
+  MSG_COMENTARIO_REMOVIDO,
+} from "@/lib/socialCommerce";
 import { tempoRelativo } from "./comum";
 import { brl } from "@/lib/financeiroFormat";
 import { Card, CardContent } from "@/components/ui/card";
@@ -15,7 +23,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { toast } from "sonner";
 import {
   Bot, ChevronDown, ChevronUp, ExternalLink, EyeOff, ImageOff, Loader2, Mail, Megaphone,
-  MessageSquare, Zap,
+  MessageSquare, Send, Trash2, Zap,
 } from "lucide-react";
 
 type Comentario = {
@@ -28,6 +36,8 @@ type Comentario = {
   status?: string | null;
   intencao?: string | null;
   resposta_rascunho?: string | null;
+  /** Rascunho da Anna para o Direct (ver supabase_sql/instagram_comentarios_rascunho_dm.sql) */
+  resposta_rascunho_dm?: string | null;
   private_reply_usada?: boolean | null;
   aprovado_por?: string | null;
   erro?: string | null;
@@ -39,26 +49,55 @@ type PostInfo = {
   thumbnail_url?: string | null;
   media_url?: string | null;
   permalink?: string | null;
+  caption?: string | null;
+  media_type?: string | null;
+  media_product_type?: string | null;
+  eh_anuncio?: boolean | null;
+  /** Capa escolhida no agendamento — tem prioridade sobre o frame que a Meta entrega */
+  capa_url?: string | null;
 };
 type ProdutoInfo = { id: string; nome_do_produto?: string | null; preco_venda?: number | null };
 
-type FiltroStatus = "novos" | "aguardando" | "respondidos" | "ignorados";
+type FiltroStatus = "novos" | "aguardando" | "respondidos" | "ignorados" | "apagados";
 
 const FILTROS: { key: FiltroStatus; label: string }[] = [
   { key: "novos", label: "Novos" },
   { key: "aguardando", label: "Aguardando aprovação" },
   { key: "respondidos", label: "Respondidos" },
   { key: "ignorados", label: "Ignorados" },
+  { key: "apagados", label: "Apagados" },
 ];
 
 function statusNormalizado(c: Comentario): string {
   return (c.status ?? "novo").toLowerCase();
 }
 
-/** Miniatura do post com fallback (cache → thumbnail → mídia) e clique para o permalink. */
+/** Rótulo amigável do tipo de mídia: Anúncio > Reels > Carrossel > Story > Feed. */
+function rotuloTipoPost(post?: PostInfo): string | null {
+  if (!post) return null;
+  if (post.eh_anuncio) return "Anúncio";
+  const mpt = (post.media_product_type ?? "").toUpperCase();
+  const mt = (post.media_type ?? "").toUpperCase();
+  if (mpt === "REELS" || mt === "VIDEO") return "Reels";
+  if (mt === "CAROUSEL_ALBUM") return "Carrossel";
+  if (mpt === "STORY") return "Story";
+  if (!mpt && !mt) return null;
+  return "Feed";
+}
+
+/** Primeiras palavras da legenda — contexto ao lado da miniatura (o frame do reels nem sempre diz nada). */
+function resumoLegenda(caption?: string | null, palavras = 12): string | null {
+  if (!caption) return null;
+  const limpa = caption.replace(/\s+/g, " ").trim();
+  if (!limpa) return null;
+  const partes = limpa.split(" ");
+  return partes.length > palavras ? partes.slice(0, palavras).join(" ") + "…" : limpa;
+}
+
+/** Miniatura do post: capa escolhida no agendamento → cache → thumbnail → mídia. Clique abre o permalink. */
 function ThumbPost({ post }: { post?: PostInfo }) {
   const [erro, setErro] = useState(false);
-  const src = post ? post.thumb_cache_url || post.thumbnail_url || post.media_url : null;
+  const src = post ? post.capa_url || post.thumb_cache_url || post.thumbnail_url || post.media_url : null;
   const conteudo =
     src && !erro ? (
       <img
@@ -102,6 +141,7 @@ export function ComentariosTab() {
   const [filtroIntencao, setFiltroIntencao] = useState<string>("todas");
   const [expandido, setExpandido] = useState<string | null>(null);
   const [textos, setTextos] = useState<Map<string, string>>(new Map());
+  const [textosDm, setTextosDm] = useState<Map<string, string>>(new Map());
   const [enviando, setEnviando] = useState<string | null>(null);
   // Anúncios com comentário sem resposta e sem produto/automação (view vw_ig_anuncios_pendentes)
   const [qtdAnunciosPendentes, setQtdAnunciosPendentes] = useState(0);
@@ -121,23 +161,25 @@ export function ComentariosTab() {
     // Contagem por status (chips + filtro inicial). "Novos" inclui status nulo.
     try {
       const base = () => db.from("instagram_comentarios").select("comment_id", { count: "exact", head: true });
-      const [rNovos, rAguardando, rRespondidos, rIgnorados] = await Promise.all([
+      const [rNovos, rAguardando, rRespondidos, rIgnorados, rApagados] = await Promise.all([
         base().or("status.is.null,status.in.(novo,nova)"),
         base().eq("status", "aguardando_aprovacao"),
         base().eq("status", "respondido"),
         base().eq("status", "ignorado"),
+        base().eq("status", "removido"),
       ]);
       const novas: Record<FiltroStatus, number> = {
         novos: rNovos.count ?? 0,
         aguardando: rAguardando.count ?? 0,
         respondidos: rRespondidos.count ?? 0,
         ignorados: rIgnorados.count ?? 0,
+        apagados: rApagados.count ?? 0,
       };
       setContagens(novas);
-      // Abre no primeiro filtro que tiver item, em vez de sempre em "Novos"
+      // Abre no primeiro filtro que tiver item, em vez de sempre em "Novos" (apagados nunca abrem por padrão)
       if (!filtroInicialAplicado.current) {
         filtroInicialAplicado.current = true;
-        const primeiro = FILTROS.find((f) => novas[f.key] > 0);
+        const primeiro = FILTROS.find((f) => f.key !== "apagados" && novas[f.key] > 0);
         if (primeiro && primeiro.key !== "novos") setFiltroStatus(primeiro.key);
       }
     } catch {
@@ -162,7 +204,40 @@ export function ComentariosTab() {
         db.from("instagram_posts").select("*").in("media_id", mediaIds),
         db.from("instagram_post_produtos").select("*").in("media_id", mediaIds),
       ]);
-      setPosts(new Map((ps ?? []).map((p: any) => [p.media_id, p as PostInfo])));
+      const mapaPosts = new Map<string, PostInfo>((ps ?? []).map((p: any) => [p.media_id as string, p as PostInfo]));
+
+      // Selo de anúncio vem da view do painel (posts orgânicos têm eh_anuncio=false).
+      // Silencioso se a view estiver indisponível.
+      try {
+        const { data: painel } = await db
+          .from("vw_ig_posts_painel")
+          .select("media_id, eh_anuncio, permalink")
+          .in("media_id", mediaIds);
+        for (const p of (painel ?? []) as any[]) {
+          const ex = mapaPosts.get(p.media_id);
+          if (ex) mapaPosts.set(p.media_id, { ...ex, eh_anuncio: p.eh_anuncio, permalink: ex.permalink ?? p.permalink });
+          else mapaPosts.set(p.media_id, { media_id: p.media_id, eh_anuncio: p.eh_anuncio, permalink: p.permalink });
+        }
+      } catch {
+        /* view indisponível — sem selo de anúncio */
+      }
+
+      // Capa escolhida no agendamento substitui o frame que a Meta entrega como thumbnail
+      try {
+        const { data: pubs } = await db
+          .from("instagram_publicacoes")
+          .select("media_id, capa_url")
+          .in("media_id", mediaIds)
+          .not("capa_url", "is", null);
+        for (const p of (pubs ?? []) as any[]) {
+          const ex = mapaPosts.get(p.media_id);
+          if (ex && p.capa_url) mapaPosts.set(p.media_id, { ...ex, capa_url: p.capa_url });
+        }
+      } catch {
+        /* coluna capa_url pode não existir — segue com o frame da Meta */
+      }
+
+      setPosts(mapaPosts);
 
       const prodIds = [...new Set((links ?? []).map((l: any) => l.produto_id).filter(Boolean))];
       let produtos: any[] = [];
@@ -214,7 +289,9 @@ export function ComentariosTab() {
             ? s === "aguardando_aprovacao"
             : filtroStatus === "respondidos"
               ? s === "respondido"
-              : s === "ignorado";
+              : filtroStatus === "apagados"
+                ? s === "removido"
+                : s === "ignorado";
       if (!okStatus) return false;
       if (filtroIntencao !== "todas" && c.intencao !== filtroIntencao) return false;
       return true;
@@ -224,9 +301,51 @@ export function ComentariosTab() {
   const textoDe = (c: Comentario) => textos.get(c.comment_id) ?? c.resposta_rascunho ?? "";
   const setTextoDe = (c: Comentario, v: string) =>
     setTextos((prev) => new Map(prev).set(c.comment_id, v));
+  const textoDmDe = (c: Comentario) => textosDm.get(c.comment_id) ?? c.resposta_rascunho_dm ?? "";
+  const setTextoDmDe = (c: Comentario, v: string) =>
+    setTextosDm((prev) => new Map(prev).set(c.comment_id, v));
+
+  /** Marca localmente como removido — o comentário não existe mais no Instagram (apagado ou editado). */
+  const marcarRemovido = async (c: Comentario) => {
+    setComentarios((prev) =>
+      prev.map((x) => (x.comment_id === c.comment_id ? { ...x, status: "removido" } : x)),
+    );
+    try {
+      await db.from("instagram_comentarios").update({ status: "removido" }).eq("comment_id", c.comment_id);
+    } catch {
+      /* o backend já marca — aqui é só reforço otimista */
+    }
+  };
+
+  const marcarRespondido = async (c: Comentario) => {
+    try {
+      await db
+        .from("instagram_comentarios")
+        .update({ status: "respondido", aprovado_por: user?.email ?? null })
+        .eq("comment_id", c.comment_id);
+    } catch {
+      /* coluna aprovado_por pode não existir — a edge function cuida do status */
+    }
+  };
+
+  /** Trata erro de envio; retorna true se o erro já foi comunicado (não propagar). */
+  const tratarErroEnvio = async (e: any, c: Comentario): Promise<void> => {
+    if (ehComentarioRemovido(e)) {
+      toast.info(MSG_COMENTARIO_REMOVIDO, { duration: 8000 });
+      await marcarRemovido(c);
+      return;
+    }
+    const motivo = e?.motivo as string | undefined;
+    if (motivo && MOTIVOS_409[motivo]) {
+      toast.warning(MOTIVOS_409[motivo]);
+    } else {
+      toast.error(e?.message ?? "Falha ao enviar", { description: e?.dica });
+    }
+  };
 
   const responder = async (c: Comentario, tipo: "comentario" | "private_reply") => {
-    const texto = textoDe(c).trim();
+    // Cada canal usa o seu campo: pública curta, Direct com preço/link/cupom
+    const texto = (tipo === "comentario" ? textoDe(c) : textoDmDe(c)).trim();
     if (!texto || enviando) return;
     setEnviando(c.comment_id + tipo);
     try {
@@ -238,22 +357,51 @@ export function ComentariosTab() {
       });
       toast.success(tipo === "comentario" ? "Resposta pública enviada" : "Resposta enviada no Direct");
       // Marca como respondido manualmente (distingue do robô)
-      try {
-        await db
-          .from("instagram_comentarios")
-          .update({ status: "respondido", aprovado_por: user?.email ?? null })
-          .eq("comment_id", c.comment_id);
-      } catch {
-        /* coluna aprovado_por pode não existir — a edge function cuida do status */
-      }
+      await marcarRespondido(c);
       await carregar();
     } catch (e: any) {
-      const motivo = e?.motivo as string | undefined;
-      if (motivo && MOTIVOS_409[motivo]) {
-        toast.warning(MOTIVOS_409[motivo]);
-      } else {
-        toast.error(e?.message ?? "Falha ao enviar", { description: e?.dica });
+      await tratarErroEnvio(e, c);
+    } finally {
+      setEnviando(null);
+    }
+  };
+
+  /**
+   * Responder nos dois canais de uma vez: o backend manda o Direct PRIMEIRO
+   * (a pública costuma prometer a mensagem privada) e, se o Direct falhar,
+   * a pública ainda sai. Sucesso parcial não é erro — mostramos os dois resultados.
+   */
+  const responderNosDois = async (c: Comentario) => {
+    const textoPublico = textoDe(c).trim();
+    const textoDm = textoDmDe(c).trim();
+    if (!textoPublico || !textoDm || enviando) return;
+    setEnviando(c.comment_id + "ambos");
+    try {
+      const r = await enviarComentarioEDm({
+        comentario_id: c.id ?? c.comment_id,
+        texto_publico: textoPublico,
+        texto_dm: textoDm,
+        usuario: user?.email,
+      });
+      const dmOk = r.dm?.ok === true;
+      const pubOk = r.publica?.ok === true;
+      if (dmOk && pubOk) {
+        toast.success("Resposta publicada no comentário e Direct enviado");
+      } else if (pubOk) {
+        toast.warning("Resposta pública publicada, mas o Direct não saiu.", {
+          description: r.aviso ?? r.dm?.erro ?? "A cliente pode não aceitar mensagem de desconhecido.",
+        });
+      } else if (dmOk) {
+        toast.warning("Direct enviado, mas a resposta pública falhou.", {
+          description: r.aviso ?? r.publica?.erro,
+        });
       }
+      if (pubOk || dmOk) {
+        await marcarRespondido(c);
+        await carregar();
+      }
+    } catch (e: any) {
+      await tratarErroEnvio(e, c);
     } finally {
       setEnviando(null);
     }
@@ -340,7 +488,8 @@ export function ComentariosTab() {
             const post = c.media_id ? posts.get(c.media_id) : undefined;
             const produtos = c.media_id ? produtosPorMedia.get(c.media_id) ?? [] : [];
             const automatico = statusNormalizado(c) === "respondido" && !c.aprovado_por;
-            const aberto = expandido === c.comment_id;
+            const removido = statusNormalizado(c) === "removido";
+            const aberto = expandido === c.comment_id && !removido;
             const foraDoPrazo = comentarioForaDoPrazo(c.publicado_em);
             const privateBloqueada = !!c.private_reply_usada || foraDoPrazo;
             const privateMotivo = c.private_reply_usada
@@ -348,9 +497,14 @@ export function ComentariosTab() {
               : foraDoPrazo
                 ? "Comentários com mais de 7 dias não aceitam resposta privada (regra da Meta)"
                 : null;
+            const tipoPost = rotuloTipoPost(post);
+            const legendaResumo = resumoLegenda(post?.caption);
 
             return (
-              <Card key={c.comment_id} className={automatico ? "border-primary/20" : undefined}>
+              <Card
+                key={c.comment_id}
+                className={`${automatico ? "border-primary/20" : ""} ${removido ? "opacity-60 border-dashed" : ""}`.trim() || undefined}
+              >
                 <CardContent className="p-3.5">
                   <div className="flex gap-3">
                     {/* Miniatura do post */}
@@ -377,12 +531,31 @@ export function ComentariosTab() {
                             <Zap className="h-3 w-3" /> Automático
                           </span>
                         )}
+                        {removido && (
+                          <span className="inline-flex items-center gap-1 rounded-full border bg-muted px-2 py-0.5 text-[10px] font-semibold text-muted-foreground">
+                            <Trash2 className="h-3 w-3" /> apagado no Instagram
+                          </span>
+                        )}
                         {c.intencao && (
                           <Badge variant="outline" className="text-[10px] h-4 px-1.5">
                             {c.intencao}
                           </Badge>
                         )}
                       </div>
+
+                      {/* Contexto do post: tipo (Reels/Feed/Anúncio) + primeiras palavras da legenda.
+                          O frame que a Meta entrega como miniatura nem sempre representa o conteúdo. */}
+                      {(tipoPost || legendaResumo) && (
+                        <p className="mt-1 flex items-center gap-1.5 text-[11px] text-muted-foreground min-w-0">
+                          {tipoPost && (
+                            <Badge variant="outline" className="text-[9px] h-4 px-1 shrink-0">
+                              {tipoPost}
+                            </Badge>
+                          )}
+                          {legendaResumo && <span className="truncate italic">“{legendaResumo}”</span>}
+                        </p>
+                      )}
+
                       <p className="text-sm mt-1 whitespace-pre-wrap break-words">{c.texto}</p>
 
                       {/* Contexto: produtos do post */}
@@ -397,36 +570,98 @@ export function ComentariosTab() {
                         </div>
                       )}
 
-                      {c.erro && <p className="text-xs text-danger mt-1.5">{c.erro}</p>}
+                      {/* Erro de envio não aparece em comentário apagado — não é erro, é fato consumado */}
+                      {c.erro && !removido && <p className="text-xs text-danger mt-1.5">{c.erro}</p>}
                     </div>
 
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="shrink-0"
-                      onClick={() => setExpandido(aberto ? null : c.comment_id)}
-                    >
-                      {aberto ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-                    </Button>
+                    {!removido && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="shrink-0"
+                        onClick={() => setExpandido(aberto ? null : c.comment_id)}
+                      >
+                        {aberto ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                      </Button>
+                    )}
                   </div>
 
                   {/* Área expandida */}
                   {aberto && (
-                    <div className="mt-3 pt-3 border-t space-y-2.5">
-                      {c.resposta_rascunho && (
-                        <p className="text-xs font-semibold flex items-center gap-1.5 text-primary">
-                          <Bot className="h-3.5 w-3.5" /> Sugestão da Anna — edite se precisar
-                        </p>
-                      )}
-                      <Textarea
-                        value={textoDe(c)}
-                        onChange={(e) => setTextoDe(c, e.target.value)}
-                        placeholder="Escreva a resposta… Comentário é público: resposta curta que puxa para o Direct."
-                        className="min-h-[70px]"
-                      />
+                    <div className="mt-3 pt-3 border-t space-y-3">
+                      <div className="grid gap-3 md:grid-cols-2">
+                        {/* Resposta pública — curta, sem preço nem link */}
+                        <div className="space-y-1.5">
+                          <p className="text-xs font-semibold flex items-center gap-1.5">
+                            <MessageSquare className="h-3.5 w-3.5" /> Resposta pública
+                            <span className="font-normal text-muted-foreground">— curta, sem preço nem link</span>
+                          </p>
+                          {c.resposta_rascunho && (
+                            <p className="text-[11px] flex items-center gap-1 text-primary">
+                              <Bot className="h-3 w-3" /> Sugestão da Anna — edite se precisar
+                            </p>
+                          )}
+                          <Textarea
+                            value={textoDe(c)}
+                            onChange={(e) => setTextoDe(c, e.target.value)}
+                            placeholder="Ex.: Oiii! Te chamei no Direct com tudo certinho 💛"
+                            className="min-h-[70px]"
+                          />
+                        </div>
+
+                        {/* Mensagem no Direct — aqui vai preço, link e cupom */}
+                        <div className="space-y-1.5">
+                          <p className="text-xs font-semibold flex items-center gap-1.5">
+                            <Mail className="h-3.5 w-3.5" /> Mensagem no Direct
+                            <span className="font-normal text-muted-foreground">— aqui vai preço, link e cupom</span>
+                          </p>
+                          {c.resposta_rascunho_dm && (
+                            <p className="text-[11px] flex items-center gap-1 text-primary">
+                              <Bot className="h-3 w-3" /> Sugestão da Anna — edite se precisar
+                            </p>
+                          )}
+                          <Textarea
+                            value={textoDmDe(c)}
+                            onChange={(e) => setTextoDmDe(c, e.target.value)}
+                            placeholder="Ex.: Oiii! Essa é a Calça Reta Juliana, R$ 189. Com o cupom QUERO10…"
+                            className="min-h-[70px]"
+                          />
+                        </div>
+                      </div>
+
                       <div className="flex flex-wrap gap-2">
+                        {/* Principal: comentário + Direct numa chamada só. O Direct sai primeiro;
+                            se falhar, a pública ainda sai. */}
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <span>
+                              <Button
+                                size="sm"
+                                disabled={
+                                  enviando !== null ||
+                                  !textoDe(c).trim() ||
+                                  !textoDmDe(c).trim() ||
+                                  privateBloqueada
+                                }
+                                onClick={() => responderNosDois(c)}
+                              >
+                                {enviando === c.comment_id + "ambos" ? (
+                                  <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />
+                                ) : (
+                                  <Send className="h-3.5 w-3.5 mr-1" />
+                                )}
+                                Responder nos dois
+                              </Button>
+                            </span>
+                          </TooltipTrigger>
+                          {privateMotivo && (
+                            <TooltipContent className="max-w-xs text-xs">{privateMotivo}</TooltipContent>
+                          )}
+                        </Tooltip>
+
                         <Button
                           size="sm"
+                          variant="outline"
                           disabled={enviando !== null || !textoDe(c).trim()}
                           onClick={() => responder(c, "comentario")}
                         >
@@ -435,7 +670,7 @@ export function ComentariosTab() {
                           ) : (
                             <MessageSquare className="h-3.5 w-3.5 mr-1" />
                           )}
-                          Responder publicamente
+                          Só no comentário
                         </Button>
 
                         <Tooltip>
@@ -444,7 +679,7 @@ export function ComentariosTab() {
                               <Button
                                 size="sm"
                                 variant="outline"
-                                disabled={enviando !== null || !textoDe(c).trim() || privateBloqueada}
+                                disabled={enviando !== null || !textoDmDe(c).trim() || privateBloqueada}
                                 onClick={() => responder(c, "private_reply")}
                               >
                                 {enviando === c.comment_id + "private_reply" ? (
@@ -452,7 +687,7 @@ export function ComentariosTab() {
                                 ) : (
                                   <Mail className="h-3.5 w-3.5 mr-1" />
                                 )}
-                                Responder no Direct
+                                Só no Direct
                               </Button>
                             </span>
                           </TooltipTrigger>
