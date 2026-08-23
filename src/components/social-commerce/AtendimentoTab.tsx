@@ -4,6 +4,13 @@ import { useAuth } from "@/contexts/AuthContext";
 import { db, enviarInstagram, marcarConversaLida, marcarTodasLidas, devolverParaAnna, MOTIVOS_409 } from "@/lib/socialCommerce";
 import { tempoRelativo, janelaInfo } from "./comum";
 import { ContextoMensagem } from "./ContextoMensagem";
+import {
+  ReelCompartilhado,
+  ehReelCompartilhado,
+  textoSemAnexo,
+  extrairLinkInsta,
+  type PostReel,
+} from "./ReelCompartilhado";
 import type { ProdutoPai } from "./SeletorProdutos";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -57,6 +64,8 @@ type Mensagem = {
   criado_em?: string | null;
   // Contexto de story/mídia (vw_ig_mensagens_painel)
   tipo?: string | null;
+  /** Reels compartilhado: media_id do post quando é da marca (null = outra conta) */
+  ref_media_id?: string | null;
   contexto_rotulo?: string | null;
   imagem_url?: string | null;
   story_link?: string | null;
@@ -136,6 +145,8 @@ export function AtendimentoTab() {
   const [mensagens, setMensagens] = useState<Mensagem[]>([]);
   const [carregandoMsgs, setCarregandoMsgs] = useState(false);
   const [texto, setTexto] = useState("");
+  /** Reels compartilhados da marca: dados do post por ref_media_id (media_id) */
+  const [postsReel, setPostsReel] = useState<Map<string, PostReel>>(new Map());
   const [editandoId, setEditandoId] = useState<number | null>(null);
   const [enviando, setEnviando] = useState(false);
   const [janelaFechada409, setJanelaFechada409] = useState(false);
@@ -159,6 +170,46 @@ export function AtendimentoTab() {
     setCarregando(false);
   }, []);
 
+  /** Reels da marca compartilhados na conversa: enriquece com miniatura, legenda e permalink do post. */
+  const enriquecerReels = useCallback(async (lista: Mensagem[]) => {
+    const ids = [
+      ...new Set(
+        lista.filter((m) => ehReelCompartilhado(m) && m.ref_media_id).map((m) => m.ref_media_id as string),
+      ),
+    ];
+    if (ids.length === 0) {
+      setPostsReel(new Map());
+      return;
+    }
+    const mapa = new Map<string, PostReel>();
+    // Mapeamento client-side (sem join) — PostgREST tem cache instável com views aninhadas
+    try {
+      const { data: ps } = await db.from("instagram_posts").select("*").in("media_id", ids);
+      for (const p of (ps ?? []) as any[]) mapa.set(p.media_id, p as PostReel);
+    } catch {
+      /* tabela indisponível — card sai sem enriquecimento */
+    }
+    // Capa escolhida no agendamento e legenda editorial têm prioridade
+    try {
+      const { data: pubs } = await db
+        .from("instagram_publicacoes")
+        .select("media_id, capa_url, legenda, permalink")
+        .in("media_id", ids);
+      for (const p of (pubs ?? []) as any[]) {
+        const ex = mapa.get(p.media_id) ?? ({ media_id: p.media_id } as PostReel);
+        mapa.set(p.media_id, {
+          ...ex,
+          capa_url: ex.capa_url ?? p.capa_url,
+          legenda: ex.caption ?? ex.legenda ?? p.legenda,
+          permalink: ex.permalink ?? p.permalink,
+        });
+      }
+    } catch {
+      /* sem capa/legenda do agendamento — segue com o cache da Meta */
+    }
+    setPostsReel(mapa);
+  }, []);
+
   // Fonte única: a view resolve reply_to.story, link sticker, cache de mídia
   // e análise de imagem — o front não precisa conhecer essas tabelas.
   const carregarMensagens = useCallback(async (conversaId: number) => {
@@ -178,11 +229,13 @@ export function AtendimentoTab() {
         .order("criado_em", { ascending: true })
         .limit(500);
       setMensagens((crua ?? []) as Mensagem[]);
+      enriquecerReels((crua ?? []) as Mensagem[]);
     } else {
       setMensagens((data ?? []) as Mensagem[]);
+      enriquecerReels((data ?? []) as Mensagem[]);
     }
     setCarregandoMsgs(false);
-  }, []);
+  }, [enriquecerReels]);
 
   /** Confirmação manual da peça (menção a story com confiança média/baixa). */
   const confirmarProdutoMsg = useCallback((mensagemId: number, p: ProdutoPai) => {
@@ -639,7 +692,23 @@ export function AtendimentoTab() {
                             </span>
                           )}
                           <ContextoMensagem m={m} saida={saida} onConfirmado={confirmarProdutoMsg} />
-                          <p className="whitespace-pre-wrap break-words">{m.conteudo}</p>
+                          {ehReelCompartilhado(m) ? (
+                            <>
+                              <ReelCompartilhado
+                                m={m}
+                                post={m.ref_media_id ? postsReel.get(m.ref_media_id) : null}
+                                saida={saida}
+                              />
+                              {/* Texto além do "[anexo: ig_reel]" (comentário da cliente ao compartilhar).
+                                  Se o que sobra é só o link — já exibido no card — não repete. */}
+                              {textoSemAnexo(m.conteudo) &&
+                                textoSemAnexo(m.conteudo) !== extrairLinkInsta(m.conteudo) && (
+                                  <p className="whitespace-pre-wrap break-words">{textoSemAnexo(m.conteudo)}</p>
+                                )}
+                            </>
+                          ) : (
+                            <p className="whitespace-pre-wrap break-words">{m.conteudo}</p>
+                          )}
                           <div className={`text-[10px] mt-1 ${saida ? "text-primary-foreground/70" : "text-muted-foreground"}`}>
                             {tempoRelativo(m.criado_em)}
                             {m.status === "falhou" && " · falhou"}
