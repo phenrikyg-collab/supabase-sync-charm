@@ -2,7 +2,15 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { db, enviarInstagram, comentarioForaDoPrazo, MOTIVOS_409 } from "@/lib/socialCommerce";
+import {
+  db,
+  enviarInstagram,
+  enviarComentarioEDm,
+  comentarioForaDoPrazo,
+  ehComentarioRemovido,
+  MOTIVOS_409,
+  MSG_COMENTARIO_REMOVIDO,
+} from "@/lib/socialCommerce";
 import { tempoRelativo } from "./comum";
 import { brl } from "@/lib/financeiroFormat";
 import { Card, CardContent } from "@/components/ui/card";
@@ -15,7 +23,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { toast } from "sonner";
 import {
   Bot, ChevronDown, ChevronUp, ExternalLink, EyeOff, ImageOff, Loader2, Mail, Megaphone,
-  MessageSquare, Zap,
+  MessageSquare, Send, Trash2, Zap,
 } from "lucide-react";
 
 type Comentario = {
