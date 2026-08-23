@@ -230,6 +230,7 @@ export function PostsNoAr({ filtroInicial }: { filtroInicial?: string | null }) 
                       target="_blank"
                       rel="noopener noreferrer"
                       className="inline-flex items-center gap-0.5 hover:text-foreground transition-colors"
+                      onClick={(e) => e.stopPropagation()}
                     >
                       <ExternalLink className="h-3 w-3" /> Ver no Instagram
                     </a>
