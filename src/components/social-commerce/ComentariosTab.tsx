@@ -203,7 +203,40 @@ export function ComentariosTab() {
         db.from("instagram_posts").select("*").in("media_id", mediaIds),
         db.from("instagram_post_produtos").select("*").in("media_id", mediaIds),
       ]);
-      setPosts(new Map((ps ?? []).map((p: any) => [p.media_id, p as PostInfo])));
+      const mapaPosts = new Map((ps ?? []).map((p: any) => [p.media_id, p as PostInfo]));
+
+      // Selo de anúncio vem da view do painel (posts orgânicos têm eh_anuncio=false).
+      // Silencioso se a view estiver indisponível.
+      try {
+        const { data: painel } = await db
+          .from("vw_ig_posts_painel")
+          .select("media_id, eh_anuncio, permalink")
+          .in("media_id", mediaIds);
+        for (const p of (painel ?? []) as any[]) {
+          const ex = mapaPosts.get(p.media_id);
+          if (ex) mapaPosts.set(p.media_id, { ...ex, eh_anuncio: p.eh_anuncio, permalink: ex.permalink ?? p.permalink });
+          else mapaPosts.set(p.media_id, { media_id: p.media_id, eh_anuncio: p.eh_anuncio, permalink: p.permalink });
+        }
+      } catch {
+        /* view indisponível — sem selo de anúncio */
+      }
+
+      // Capa escolhida no agendamento substitui o frame que a Meta entrega como thumbnail
+      try {
+        const { data: pubs } = await db
+          .from("instagram_publicacoes")
+          .select("media_id, capa_url")
+          .in("media_id", mediaIds)
+          .not("capa_url", "is", null);
+        for (const p of (pubs ?? []) as any[]) {
+          const ex = mapaPosts.get(p.media_id);
+          if (ex && p.capa_url) mapaPosts.set(p.media_id, { ...ex, capa_url: p.capa_url });
+        }
+      } catch {
+        /* coluna capa_url pode não existir — segue com o frame da Meta */
+      }
+
+      setPosts(mapaPosts);
 
       const prodIds = [...new Set((links ?? []).map((l: any) => l.produto_id).filter(Boolean))];
       let produtos: any[] = [];
