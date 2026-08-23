@@ -160,23 +160,25 @@ export function ComentariosTab() {
     // Contagem por status (chips + filtro inicial). "Novos" inclui status nulo.
     try {
       const base = () => db.from("instagram_comentarios").select("comment_id", { count: "exact", head: true });
-      const [rNovos, rAguardando, rRespondidos, rIgnorados] = await Promise.all([
+      const [rNovos, rAguardando, rRespondidos, rIgnorados, rApagados] = await Promise.all([
         base().or("status.is.null,status.in.(novo,nova)"),
         base().eq("status", "aguardando_aprovacao"),
         base().eq("status", "respondido"),
         base().eq("status", "ignorado"),
+        base().eq("status", "removido"),
       ]);
       const novas: Record<FiltroStatus, number> = {
         novos: rNovos.count ?? 0,
         aguardando: rAguardando.count ?? 0,
         respondidos: rRespondidos.count ?? 0,
         ignorados: rIgnorados.count ?? 0,
+        apagados: rApagados.count ?? 0,
       };
       setContagens(novas);
-      // Abre no primeiro filtro que tiver item, em vez de sempre em "Novos"
+      // Abre no primeiro filtro que tiver item, em vez de sempre em "Novos" (apagados nunca abrem por padrão)
       if (!filtroInicialAplicado.current) {
         filtroInicialAplicado.current = true;
-        const primeiro = FILTROS.find((f) => novas[f.key] > 0);
+        const primeiro = FILTROS.find((f) => f.key !== "apagados" && novas[f.key] > 0);
         if (primeiro && primeiro.key !== "novos") setFiltroStatus(primeiro.key);
       }
     } catch {
