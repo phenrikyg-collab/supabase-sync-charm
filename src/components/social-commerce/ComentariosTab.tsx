@@ -366,6 +366,47 @@ export function ComentariosTab() {
     }
   };
 
+  /**
+   * Responder nos dois canais de uma vez: o backend manda o Direct PRIMEIRO
+   * (a pública costuma prometer a mensagem privada) e, se o Direct falhar,
+   * a pública ainda sai. Sucesso parcial não é erro — mostramos os dois resultados.
+   */
+  const responderNosDois = async (c: Comentario) => {
+    const textoPublico = textoDe(c).trim();
+    const textoDm = textoDmDe(c).trim();
+    if (!textoPublico || !textoDm || enviando) return;
+    setEnviando(c.comment_id + "ambos");
+    try {
+      const r = await enviarComentarioEDm({
+        comentario_id: c.id ?? c.comment_id,
+        texto_publico: textoPublico,
+        texto_dm: textoDm,
+        usuario: user?.email,
+      });
+      const dmOk = r.dm?.ok === true;
+      const pubOk = r.publica?.ok === true;
+      if (dmOk && pubOk) {
+        toast.success("Resposta publicada no comentário e Direct enviado");
+      } else if (pubOk) {
+        toast.warning("Resposta pública publicada, mas o Direct não saiu.", {
+          description: r.aviso ?? r.dm?.erro ?? "A cliente pode não aceitar mensagem de desconhecido.",
+        });
+      } else if (dmOk) {
+        toast.warning("Direct enviado, mas a resposta pública falhou.", {
+          description: r.aviso ?? r.publica?.erro,
+        });
+      }
+      if (pubOk || dmOk) {
+        await marcarRespondido(c);
+        await carregar();
+      }
+    } catch (e: any) {
+      await tratarErroEnvio(e, c);
+    } finally {
+      setEnviando(null);
+    }
+  };
+
   const ignorar = async (c: Comentario) => {
     await db.from("instagram_comentarios").update({ status: "ignorado" }).eq("comment_id", c.comment_id);
     toast.success("Comentário ignorado");
