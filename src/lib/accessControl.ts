@@ -45,6 +45,7 @@ export const ROUTE_ACCESS: Record<string, Requirement> = {
 
   // Atendimento & Venda Direta
   "/atendimento": ["atendimento"],
+  "/vendas-ao-vivo": ["atendimento"],
   "/funil-whatsapp": ["atendimento"],
   "/propor-carrinho": ["atendimento"],
   "/carrinho-abandonado": ["atendimento"],

@@ -87,6 +87,7 @@ import FunilWhatsApp from "./pages/FunilWhatsApp";
 import ProvadorVirtual from "./pages/ProvadorVirtual";
 import Cupons from "./pages/Cupons";
 import ProporCarrinhoPage from "./pages/ProporCarrinhoPage";
+import VendasAoVivo from "./pages/VendasAoVivo";
 
 import Funcionarios from "./pages/Funcionarios";
 import Automacoes from "./pages/Automacoes";
@@ -263,6 +264,7 @@ const AppRoutes = () => {
               <Route path="/provador-virtual" element={<ProvadorVirtual />} />
               <Route path="/cupons" element={<Cupons />} />
               <Route path="/propor-carrinho" element={<ProporCarrinhoPage />} />
+              <Route path="/vendas-ao-vivo" element={<VendasAoVivo />} />
 
 
 

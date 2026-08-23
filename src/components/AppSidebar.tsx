@@ -7,6 +7,7 @@ import {
   BadgeDollarSign,
   Filter,
   CheckCircle2,
+  Zap,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useAuth } from "@/contexts/AuthContext";
@@ -107,6 +108,7 @@ const moduleGroups: ModuleGroup[] = [
     icon: MessageCircle,
     items: [
       { title: "WhatsApp", url: "/atendimento", icon: MessageCircle },
+      { title: "Vendas ao Vivo", url: "/vendas-ao-vivo", icon: Zap },
       { title: "Funil WhatsApp", url: "/funil-whatsapp", icon: Filter },
       { title: "Propor Carrinho", url: "/propor-carrinho", icon: ShoppingCart },
       { title: "Carrinho Abandonado", url: "/carrinho-abandonado", icon: ShoppingCart },
