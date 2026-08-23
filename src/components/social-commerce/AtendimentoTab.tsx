@@ -164,6 +164,46 @@ export function AtendimentoTab() {
     setCarregando(false);
   }, []);
 
+  /** Reels da marca compartilhados na conversa: enriquece com miniatura, legenda e permalink do post. */
+  const enriquecerReels = useCallback(async (lista: Mensagem[]) => {
+    const ids = [
+      ...new Set(
+        lista.filter((m) => ehReelCompartilhado(m) && m.ref_media_id).map((m) => m.ref_media_id as string),
+      ),
+    ];
+    if (ids.length === 0) {
+      setPostsReel(new Map());
+      return;
+    }
+    const mapa = new Map<string, PostReel>();
+    // Mapeamento client-side (sem join) — PostgREST tem cache instável com views aninhadas
+    try {
+      const { data: ps } = await db.from("instagram_posts").select("*").in("media_id", ids);
+      for (const p of (ps ?? []) as any[]) mapa.set(p.media_id, p as PostReel);
+    } catch {
+      /* tabela indisponível — card sai sem enriquecimento */
+    }
+    // Capa escolhida no agendamento e legenda editorial têm prioridade
+    try {
+      const { data: pubs } = await db
+        .from("instagram_publicacoes")
+        .select("media_id, capa_url, legenda, permalink")
+        .in("media_id", ids);
+      for (const p of (pubs ?? []) as any[]) {
+        const ex = mapa.get(p.media_id) ?? ({ media_id: p.media_id } as PostReel);
+        mapa.set(p.media_id, {
+          ...ex,
+          capa_url: ex.capa_url ?? p.capa_url,
+          legenda: ex.caption ?? ex.legenda ?? p.legenda,
+          permalink: ex.permalink ?? p.permalink,
+        });
+      }
+    } catch {
+      /* sem capa/legenda do agendamento — segue com o cache da Meta */
+    }
+    setPostsReel(mapa);
+  }, []);
+
   // Fonte única: a view resolve reply_to.story, link sticker, cache de mídia
   // e análise de imagem — o front não precisa conhecer essas tabelas.
   const carregarMensagens = useCallback(async (conversaId: number) => {
@@ -183,11 +223,13 @@ export function AtendimentoTab() {
         .order("criado_em", { ascending: true })
         .limit(500);
       setMensagens((crua ?? []) as Mensagem[]);
+      enriquecerReels((crua ?? []) as Mensagem[]);
     } else {
       setMensagens((data ?? []) as Mensagem[]);
+      enriquecerReels((data ?? []) as Mensagem[]);
     }
     setCarregandoMsgs(false);
-  }, []);
+  }, [enriquecerReels]);
 
   /** Confirmação manual da peça (menção a story com confiança média/baixa). */
   const confirmarProdutoMsg = useCallback((mensagemId: number, p: ProdutoPai) => {
