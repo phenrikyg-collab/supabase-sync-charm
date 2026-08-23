@@ -863,12 +863,17 @@ export function PublicacoesTab() {
                 </div>
 
                 <div className="space-y-1.5">
-                  <Label>Primeiro comentário (opcional — hashtags)</Label>
-                  <Input
+                  <Label>Primeiro comentário (pergunta + hashtags)</Label>
+                  <Textarea
                     value={form.primeiroComentario}
                     onChange={(e) => setForm({ ...form, primeiroComentario: e.target.value })}
-                    placeholder="#moda #marianacardoso"
+                    placeholder={"Você é mais...?\n\n#moda #marianacardoso"}
+                    className="min-h-[90px] whitespace-pre-wrap"
+                    rows={4}
                   />
+                  <p className="text-xs text-muted-foreground">
+                    A pergunta puxa resposta, e comentário nos primeiros minutos é o que faz o post andar.
+                  </p>
                 </div>
 
                 <div className="space-y-1.5">
