@@ -576,6 +576,7 @@ export function AtendimentoTab() {
                               <Bot className="h-3 w-3" /> Anna
                             </span>
                           )}
+                          <ContextoMensagem m={m} saida={saida} onConfirmado={confirmarProdutoMsg} />
                           <p className="whitespace-pre-wrap break-words">{m.conteudo}</p>
                           <div className={`text-[10px] mt-1 ${saida ? "text-primary-foreground/70" : "text-muted-foreground"}`}>
                             {tempoRelativo(m.criado_em)}
