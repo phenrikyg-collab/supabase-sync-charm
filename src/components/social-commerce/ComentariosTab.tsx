@@ -630,8 +630,38 @@ export function ComentariosTab() {
                       </div>
 
                       <div className="flex flex-wrap gap-2">
+                        {/* Principal: comentário + Direct numa chamada só. O Direct sai primeiro;
+                            se falhar, a pública ainda sai. */}
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <span>
+                              <Button
+                                size="sm"
+                                disabled={
+                                  enviando !== null ||
+                                  !textoDe(c).trim() ||
+                                  !textoDmDe(c).trim() ||
+                                  privateBloqueada
+                                }
+                                onClick={() => responderNosDois(c)}
+                              >
+                                {enviando === c.comment_id + "ambos" ? (
+                                  <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />
+                                ) : (
+                                  <Send className="h-3.5 w-3.5 mr-1" />
+                                )}
+                                Responder nos dois
+                              </Button>
+                            </span>
+                          </TooltipTrigger>
+                          {privateMotivo && (
+                            <TooltipContent className="max-w-xs text-xs">{privateMotivo}</TooltipContent>
+                          )}
+                        </Tooltip>
+
                         <Button
                           size="sm"
+                          variant="outline"
                           disabled={enviando !== null || !textoDe(c).trim()}
                           onClick={() => responder(c, "comentario")}
                         >
@@ -640,7 +670,7 @@ export function ComentariosTab() {
                           ) : (
                             <MessageSquare className="h-3.5 w-3.5 mr-1" />
                           )}
-                          Responder publicamente
+                          Só no comentário
                         </Button>
 
                         <Tooltip>
@@ -649,7 +679,7 @@ export function ComentariosTab() {
                               <Button
                                 size="sm"
                                 variant="outline"
-                                disabled={enviando !== null || !textoDe(c).trim() || privateBloqueada}
+                                disabled={enviando !== null || !textoDmDe(c).trim() || privateBloqueada}
                                 onClick={() => responder(c, "private_reply")}
                               >
                                 {enviando === c.comment_id + "private_reply" ? (
@@ -657,7 +687,7 @@ export function ComentariosTab() {
                                 ) : (
                                   <Mail className="h-3.5 w-3.5 mr-1" />
                                 )}
-                                Responder no Direct
+                                Só no Direct
                               </Button>
                             </span>
                           </TooltipTrigger>
