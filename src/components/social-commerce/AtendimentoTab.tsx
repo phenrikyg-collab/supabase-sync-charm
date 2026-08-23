@@ -4,6 +4,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { db, enviarInstagram, marcarConversaLida, marcarTodasLidas, devolverParaAnna, MOTIVOS_409 } from "@/lib/socialCommerce";
 import { tempoRelativo, janelaInfo } from "./comum";
 import { ContextoMensagem } from "./ContextoMensagem";
+import { ReelCompartilhado, ehReelCompartilhado, textoSemAnexo, type PostReel } from "./ReelCompartilhado";
 import type { ProdutoPai } from "./SeletorProdutos";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -57,6 +58,8 @@ type Mensagem = {
   criado_em?: string | null;
   // Contexto de story/mídia (vw_ig_mensagens_painel)
   tipo?: string | null;
+  /** Reels compartilhado: media_id do post quando é da marca (null = outra conta) */
+  ref_media_id?: string | null;
   contexto_rotulo?: string | null;
   imagem_url?: string | null;
   story_link?: string | null;
