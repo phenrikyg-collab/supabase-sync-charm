@@ -24,10 +24,12 @@ export const MARCADORES_COMPRA = [
 
 /** Preview: resolve na tela o que dá (produto, preço, bio); os demais a Anna preenche no envio. */
 function preencherPreview(texto: string, produto?: ProdutoPai | null): string {
-  return texto
-    .replaceAll("{PRODUTO}", produto?.nome?.trim() || "o produto do post")
-    .replaceAll("{PRECO}", produto?.preco_venda != null ? brl(produto.preco_venda) : "o preço atual")
-    .replaceAll("{BIO}", "o link está na bio");
+  const sub = (txt: string, token: string, val: string) => txt.split(token).join(val);
+  let out = texto;
+  out = sub(out, "{PRODUTO}", produto?.nome?.trim() || "o produto do post");
+  out = sub(out, "{PRECO}", produto?.preco_venda != null ? brl(produto.preco_venda) : "o preço atual");
+  out = sub(out, "{BIO}", "o link está na bio");
+  return out;
 }
 
 /** Lista editável de variações (multi-linha, com marcadores). */
