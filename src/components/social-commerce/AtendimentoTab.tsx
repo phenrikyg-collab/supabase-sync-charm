@@ -4,7 +4,13 @@ import { useAuth } from "@/contexts/AuthContext";
 import { db, enviarInstagram, marcarConversaLida, marcarTodasLidas, devolverParaAnna, MOTIVOS_409 } from "@/lib/socialCommerce";
 import { tempoRelativo, janelaInfo } from "./comum";
 import { ContextoMensagem } from "./ContextoMensagem";
-import { ReelCompartilhado, ehReelCompartilhado, textoSemAnexo, type PostReel } from "./ReelCompartilhado";
+import {
+  ReelCompartilhado,
+  ehReelCompartilhado,
+  textoSemAnexo,
+  extrairLinkInsta,
+  type PostReel,
+} from "./ReelCompartilhado";
 import type { ProdutoPai } from "./SeletorProdutos";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -693,10 +699,12 @@ export function AtendimentoTab() {
                                 post={m.ref_media_id ? postsReel.get(m.ref_media_id) : null}
                                 saida={saida}
                               />
-                              {/* Texto além do "[anexo: ig_reel]" (comentário da cliente ao compartilhar) */}
-                              {textoSemAnexo(m.conteudo) && !extrairApenasLink(m.conteudo) && (
-                                <p className="whitespace-pre-wrap break-words">{textoSemAnexo(m.conteudo)}</p>
-                              )}
+                              {/* Texto além do "[anexo: ig_reel]" (comentário da cliente ao compartilhar).
+                                  Se o que sobra é só o link — já exibido no card — não repete. */}
+                              {textoSemAnexo(m.conteudo) &&
+                                textoSemAnexo(m.conteudo) !== extrairLinkInsta(m.conteudo) && (
+                                  <p className="whitespace-pre-wrap break-words">{textoSemAnexo(m.conteudo)}</p>
+                                )}
                             </>
                           ) : (
                             <p className="whitespace-pre-wrap break-words">{m.conteudo}</p>
