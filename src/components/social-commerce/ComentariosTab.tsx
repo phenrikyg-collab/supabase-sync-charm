@@ -20,10 +20,20 @@ import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 import {
-  Bot, ChevronDown, ChevronUp, ExternalLink, EyeOff, ImageOff, Loader2, Mail, Megaphone,
-  MessageSquare, Send, Trash2, Zap,
+  AlertTriangle, Bot, CheckCheck, ChevronDown, ChevronUp, ExternalLink, EyeOff, HandCoins,
+  ImageOff, Loader2, Mail, Megaphone, MessageSquare, Send, ShoppingBag, Trash2, Zap,
 } from "lucide-react";
 
 type Comentario = {
@@ -38,9 +48,26 @@ type Comentario = {
   resposta_rascunho?: string | null;
   /** Rascunho da Anna para o Direct (ver supabase_sql/instagram_comentarios_rascunho_dm.sql) */
   resposta_rascunho_dm?: string | null;
+  resposta_texto?: string | null;
   private_reply_usada?: boolean | null;
   aprovado_por?: string | null;
   erro?: string | null;
+  // vw_ig_comentarios_painel — selos e capacidades já resolvidos na view
+  ja_respondida?: boolean | null;
+  resposta_origem?: string | null; // 'automatica' | 'manual'
+  respondido_em?: string | null;
+  intencao_compra?: boolean | null;
+  pode_responder_publico?: boolean | null;
+  pode_mandar_direct?: boolean | null;
+  motivo_direct_indisponivel?: string | null;
+  post_tem_automacao?: boolean | null;
+  automacao_ativa?: boolean | null;
+  objetivo?: string | null;
+  eh_anuncio?: boolean | null;
+  permalink?: string | null;
+  tipo_post?: string | null;
+  imagem_post?: string | null;
+  legenda_curta?: string | null;
 };
 
 type PostInfo = {
@@ -52,6 +79,8 @@ type PostInfo = {
   caption?: string | null;
   media_type?: string | null;
   media_product_type?: string | null;
+  /** Tipo consolidado vindo da view (REELS, FEED, CARROSSEL, STORY, ANUNCIO) */
+  tipo_post?: string | null;
   eh_anuncio?: boolean | null;
   /** Capa escolhida no agendamento — tem prioridade sobre o frame que a Meta entrega */
   capa_url?: string | null;
@@ -65,7 +94,7 @@ const FILTROS: { key: FiltroStatus; label: string }[] = [
   { key: "aguardando", label: "Aguardando aprovação" },
   { key: "respondidos", label: "Respondidos" },
   { key: "ignorados", label: "Ignorados" },
-  { key: "apagados", label: "Apagados" },
+  { key: "apagados", label: "Removidos" },
 ];
 
 function statusNormalizado(c: Comentario): string {
@@ -76,12 +105,13 @@ function statusNormalizado(c: Comentario): string {
 function rotuloTipoPost(post?: PostInfo): string | null {
   if (!post) return null;
   if (post.eh_anuncio) return "Anúncio";
+  const tp = (post.tipo_post ?? "").toUpperCase();
   const mpt = (post.media_product_type ?? "").toUpperCase();
   const mt = (post.media_type ?? "").toUpperCase();
-  if (mpt === "REELS" || mt === "VIDEO") return "Reels";
-  if (mt === "CAROUSEL_ALBUM") return "Carrossel";
-  if (mpt === "STORY") return "Story";
-  if (!mpt && !mt) return null;
+  if (tp === "REELS" || mpt === "REELS" || mt === "VIDEO") return "Reels";
+  if (tp === "CARROSSEL" || mt === "CAROUSEL_ALBUM") return "Carrossel";
+  if (tp === "STORY" || mpt === "STORY") return "Story";
+  if (!tp && !mpt && !mt) return null;
   return "Feed";
 }
 
@@ -147,15 +177,65 @@ export function ComentariosTab() {
   const [qtdAnunciosPendentes, setQtdAnunciosPendentes] = useState(0);
   // Contagem por status — alimenta os chips de filtro e o filtro inicial
   const [contagens, setContagens] = useState<Record<FiltroStatus, number> | null>(null);
+  // 1.5 — confirmação antes de ignorar comentário com intenção de compra
+  const [confirmarIgnorar, setConfirmarIgnorar] = useState<Comentario | null>(null);
   const filtroInicialAplicado = useRef(false);
 
   const carregar = useCallback(async () => {
-    const { data: coms } = await db
-      .from("instagram_comentarios")
-      .select("*")
-      .order("publicado_em", { ascending: false })
-      .limit(200);
-    const lista = (coms ?? []) as Comentario[];
+    // Fonte única: a view resolve thumbnail, legenda, tipo do post e o que ainda
+    // pode ser feito em cada comentário (botões e tooltips saem prontos dela).
+    let lista: Comentario[] = [];
+    let viaView = true;
+    {
+      const { data, error } = await db
+        .from("vw_ig_comentarios_painel")
+        .select("*")
+        .order("publicado_em", { ascending: false })
+        .limit(200);
+      if (error) {
+        // View ainda não existe no banco — cai na tabela base (sem selos/capacidades)
+        viaView = false;
+        const { data: coms } = await db
+          .from("instagram_comentarios")
+          .select("*")
+          .order("publicado_em", { ascending: false })
+          .limit(200);
+        lista = (coms ?? []) as Comentario[];
+      } else {
+        // A view chama o id do comentário de comentario_id — normaliza para comment_id
+        lista = ((data ?? []) as any[]).map((r) => ({
+          ...r,
+          comment_id: r.comment_id ?? r.comentario_id,
+        })) as Comentario[];
+      }
+    }
+
+    // Complementos que a view ainda não expõe: id numérico (envio), rascunho do Direct e intenção em texto
+    const ids = lista.map((c) => c.comment_id).filter(Boolean);
+    if (viaView && ids.length) {
+      try {
+        const { data: extra } = await db
+          .from("instagram_comentarios")
+          .select("id, comment_id, intencao, resposta_rascunho, resposta_rascunho_dm, erro")
+          .in("comment_id", ids);
+        const mapa = new Map((extra ?? []).map((e: any) => [e.comment_id, e]));
+        lista = lista.map((c) => {
+          const e: any = mapa.get(c.comment_id);
+          if (!e) return c;
+          return {
+            ...c,
+            id: e.id ?? c.id,
+            intencao: c.intencao ?? e.intencao ?? null,
+            resposta_rascunho: c.resposta_rascunho ?? e.resposta_rascunho ?? null,
+            resposta_rascunho_dm: c.resposta_rascunho_dm ?? e.resposta_rascunho_dm ?? null,
+            erro: c.erro ?? e.erro ?? null,
+          };
+        });
+      } catch {
+        /* coluna resposta_rascunho_dm pode não existir — segue sem ela */
+      }
+    }
+
     setComentarios(lista);
 
     // Contagem por status (chips + filtro inicial). "Novos" inclui status nulo.
@@ -176,7 +256,7 @@ export function ComentariosTab() {
         apagados: rApagados.count ?? 0,
       };
       setContagens(novas);
-      // Abre no primeiro filtro que tiver item, em vez de sempre em "Novos" (apagados nunca abrem por padrão)
+      // Abre no primeiro filtro que tiver item, em vez de sempre em "Novos" (removidos nunca abrem por padrão)
       if (!filtroInicialAplicado.current) {
         filtroInicialAplicado.current = true;
         const primeiro = FILTROS.find((f) => f.key !== "apagados" && novas[f.key] > 0);
@@ -200,26 +280,43 @@ export function ComentariosTab() {
 
     const mediaIds = [...new Set(lista.map((c) => c.media_id).filter(Boolean))] as string[];
     if (mediaIds.length > 0) {
-      const [{ data: ps }, { data: links }] = await Promise.all([
-        db.from("instagram_posts").select("*").in("media_id", mediaIds),
-        db.from("instagram_post_produtos").select("*").in("media_id", mediaIds),
-      ]);
-      const mapaPosts = new Map<string, PostInfo>((ps ?? []).map((p: any) => [p.media_id as string, p as PostInfo]));
+      let mapaPosts: Map<string, PostInfo>;
+      if (viaView) {
+        // A view já traz tipo, legenda, miniatura e selo de anúncio — sem consultas extras
+        mapaPosts = new Map(
+          lista
+            .filter((c) => c.media_id)
+            .map((c) => [
+              c.media_id as string,
+              {
+                media_id: c.media_id as string,
+                permalink: c.permalink,
+                caption: c.legenda_curta,
+                tipo_post: c.tipo_post,
+                eh_anuncio: c.eh_anuncio,
+                thumb_cache_url: c.imagem_post,
+              } as PostInfo,
+            ]),
+        );
+      } else {
+        const { data: ps } = await db.from("instagram_posts").select("*").in("media_id", mediaIds);
+        mapaPosts = new Map<string, PostInfo>((ps ?? []).map((p: any) => [p.media_id as string, p as PostInfo]));
 
-      // Selo de anúncio vem da view do painel (posts orgânicos têm eh_anuncio=false).
-      // Silencioso se a view estiver indisponível.
-      try {
-        const { data: painel } = await db
-          .from("vw_ig_posts_painel")
-          .select("media_id, eh_anuncio, permalink")
-          .in("media_id", mediaIds);
-        for (const p of (painel ?? []) as any[]) {
-          const ex = mapaPosts.get(p.media_id);
-          if (ex) mapaPosts.set(p.media_id, { ...ex, eh_anuncio: p.eh_anuncio, permalink: ex.permalink ?? p.permalink });
-          else mapaPosts.set(p.media_id, { media_id: p.media_id, eh_anuncio: p.eh_anuncio, permalink: p.permalink });
+        // Selo de anúncio vem da view do painel (posts orgânicos têm eh_anuncio=false).
+        // Silencioso se a view estiver indisponível.
+        try {
+          const { data: painel } = await db
+            .from("vw_ig_posts_painel")
+            .select("media_id, eh_anuncio, permalink")
+            .in("media_id", mediaIds);
+          for (const p of (painel ?? []) as any[]) {
+            const ex = mapaPosts.get(p.media_id);
+            if (ex) mapaPosts.set(p.media_id, { ...ex, eh_anuncio: p.eh_anuncio, permalink: ex.permalink ?? p.permalink });
+            else mapaPosts.set(p.media_id, { media_id: p.media_id, eh_anuncio: p.eh_anuncio, permalink: p.permalink });
+          }
+        } catch {
+          /* view indisponível — sem selo de anúncio */
         }
-      } catch {
-        /* view indisponível — sem selo de anúncio */
       }
 
       // Capa escolhida no agendamento substitui o frame que a Meta entrega como thumbnail
@@ -239,6 +336,7 @@ export function ComentariosTab() {
 
       setPosts(mapaPosts);
 
+      const { data: links } = await db.from("instagram_post_produtos").select("*").in("media_id", mediaIds);
       const prodIds = [...new Set((links ?? []).map((l: any) => l.produto_id).filter(Boolean))];
       let produtos: any[] = [];
       if (prodIds.length > 0) {
@@ -413,6 +511,12 @@ export function ComentariosTab() {
     carregar();
   };
 
+  /** 1.5 — intenção de compra exige confirmação: foi assim que leads sumiram por um dia. */
+  const pedirIgnorar = (c: Comentario) => {
+    if (c.intencao_compra) setConfirmarIgnorar(c);
+    else ignorar(c);
+  };
+
   return (
     <div className="space-y-4">
       {/* Alerta fixo: anúncios com comentário sem resposta e sem produto/automação.
@@ -487,23 +591,33 @@ export function ComentariosTab() {
           {filtrados.map((c) => {
             const post = c.media_id ? posts.get(c.media_id) : undefined;
             const produtos = c.media_id ? produtosPorMedia.get(c.media_id) ?? [] : [];
-            const automatico = statusNormalizado(c) === "respondido" && !c.aprovado_por;
             const removido = statusNormalizado(c) === "removido";
-            const aberto = expandido === c.comment_id && !removido;
+            // 1.6 — respondida: selo de origem (automática/manual) e a resposta que saiu
+            const jaRespondida = c.ja_respondida ?? statusNormalizado(c) === "respondido";
+            const ehAutomatica = c.resposta_origem
+              ? c.resposta_origem === "automatica"
+              : jaRespondida && !c.aprovado_por;
+            const aberto = expandido === c.comment_id && !removido && !jaRespondida;
             const foraDoPrazo = comentarioForaDoPrazo(c.publicado_em);
+            // 1.1 — a view já diz o que ainda dá para fazer; tooltip explica o motivo
             const privateBloqueada = !!c.private_reply_usada || foraDoPrazo;
-            const privateMotivo = c.private_reply_usada
-              ? "A Meta permite apenas uma resposta privada por comentário — esta já foi usada"
-              : foraDoPrazo
-                ? "Comentários com mais de 7 dias não aceitam resposta privada (regra da Meta)"
-                : null;
+            const podePublico = c.pode_responder_publico ?? !jaRespondida;
+            const podeDirect = c.pode_mandar_direct ?? !privateBloqueada;
+            const motivoPublico = podePublico ? null : "Este comentário já foi respondido.";
+            const motivoDirect =
+              c.motivo_direct_indisponivel ??
+              (c.private_reply_usada
+                ? "A Meta permite apenas uma resposta privada por comentário — esta já foi usada"
+                : foraDoPrazo
+                  ? "Comentários com mais de 7 dias não aceitam resposta privada (regra da Meta)"
+                  : null);
             const tipoPost = rotuloTipoPost(post);
             const legendaResumo = resumoLegenda(post?.caption);
 
             return (
               <Card
                 key={c.comment_id}
-                className={`${automatico ? "border-primary/20" : ""} ${removido ? "opacity-60 border-dashed" : ""}`.trim() || undefined}
+                className={`${ehAutomatica && jaRespondida ? "border-primary/20" : ""} ${removido ? "opacity-60 border-dashed" : ""}`.trim() || undefined}
               >
                 <CardContent className="p-3.5">
                   <div className="flex gap-3">
@@ -526,14 +640,34 @@ export function ComentariosTab() {
                             <ExternalLink className="h-3 w-3" />
                           </a>
                         )}
-                        {automatico && (
-                          <span className="inline-flex items-center gap-1 rounded-full border border-primary/20 bg-primary/10 text-primary px-2 py-0.5 text-[10px] font-semibold">
-                            <Zap className="h-3 w-3" /> Automático
+                        {jaRespondida && !removido && (
+                          <span
+                            className="inline-flex items-center gap-1 rounded-full border border-success/30 bg-success/10 text-success px-2 py-0.5 text-[10px] font-semibold"
+                            title={ehAutomatica ? "Enviada pela automação da Anna" : `Enviada por ${c.aprovado_por ?? "equipe"}`}
+                          >
+                            {ehAutomatica ? <Zap className="h-3 w-3" /> : <CheckCheck className="h-3 w-3" />}
+                            {ehAutomatica
+                              ? "respondida (automática)"
+                              : `respondida${c.aprovado_por ? ` por ${c.aprovado_por}` : ""}`}
+                          </span>
+                        )}
+                        {c.intencao_compra && !removido && !jaRespondida && (
+                          <span className="inline-flex items-center gap-1 rounded-full border border-success/30 bg-success/10 text-success px-2 py-0.5 text-[10px] font-semibold">
+                            <ShoppingBag className="h-3 w-3" /> quer comprar
+                          </span>
+                        )}
+                        {c.objetivo && (
+                          <span
+                            className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-[10px] text-muted-foreground"
+                            title="Objetivo definido na automação do post"
+                          >
+                            <HandCoins className="h-3 w-3" />
+                            {c.objetivo === "conversa" ? "objetivo: conversa" : "objetivo: venda"}
                           </span>
                         )}
                         {removido && (
                           <span className="inline-flex items-center gap-1 rounded-full border bg-muted px-2 py-0.5 text-[10px] font-semibold text-muted-foreground">
-                            <Trash2 className="h-3 w-3" /> apagado no Instagram
+                            <Trash2 className="h-3 w-3" /> removido no Instagram
                           </span>
                         )}
                         {c.intencao && (
@@ -558,6 +692,18 @@ export function ComentariosTab() {
 
                       <p className="text-sm mt-1 whitespace-pre-wrap break-words">{c.texto}</p>
 
+                      {/* 1.6 — já respondida aparece recolhida, com a resposta que saiu */}
+                      {jaRespondida && c.resposta_texto && (
+                        <div className="mt-2 rounded-md border border-success/30 bg-success/5 p-2 text-xs space-y-0.5">
+                          <p className="font-semibold text-success flex items-center gap-1.5">
+                            {ehAutomatica ? <Bot className="h-3 w-3" /> : <CheckCheck className="h-3 w-3" />}
+                            Resposta enviada — {ehAutomatica ? "automática" : `por ${c.aprovado_por ?? "equipe"}`}
+                          </p>
+                          <p className="whitespace-pre-wrap">{c.resposta_texto}</p>
+                          {c.private_reply_usada && <p className="text-muted-foreground">Direct enviado</p>}
+                        </div>
+                      )}
+
                       {/* Contexto: produtos do post */}
                       {produtos.length > 0 && (
                         <div className="flex flex-wrap gap-1.5 mt-2">
@@ -570,11 +716,18 @@ export function ComentariosTab() {
                         </div>
                       )}
 
-                      {/* Erro de envio não aparece em comentário apagado — não é erro, é fato consumado */}
+                      {/* Post sem automação: comentário novo aqui não vai disparar nada */}
+                      {c.post_tem_automacao === false && !removido && !jaRespondida && (
+                        <p className="mt-2 text-[11px] rounded border border-warning/30 bg-warning/10 p-1.5 flex items-center gap-1.5">
+                          <AlertTriangle className="h-3 w-3 text-warning shrink-0" /> Post sem automação configurada
+                        </p>
+                      )}
+
+                      {/* Erro de envio não aparece em comentário removido — não é erro, é fato consumado */}
                       {c.erro && !removido && <p className="text-xs text-danger mt-1.5">{c.erro}</p>}
                     </div>
 
-                    {!removido && (
+                    {!removido && !jaRespondida && (
                       <Button
                         variant="ghost"
                         size="icon"
@@ -606,6 +759,7 @@ export function ComentariosTab() {
                             onChange={(e) => setTextoDe(c, e.target.value)}
                             placeholder="Ex.: Oiii! Te chamei no Direct com tudo certinho 💛"
                             className="min-h-[70px]"
+                            disabled={!podePublico}
                           />
                         </div>
 
@@ -625,6 +779,7 @@ export function ComentariosTab() {
                             onChange={(e) => setTextoDmDe(c, e.target.value)}
                             placeholder="Ex.: Oiii! Essa é a Calça Reta Juliana, R$ 189. Com o cupom QUERO10…"
                             className="min-h-[70px]"
+                            disabled={!podeDirect}
                           />
                         </div>
                       </div>
@@ -641,7 +796,8 @@ export function ComentariosTab() {
                                   enviando !== null ||
                                   !textoDe(c).trim() ||
                                   !textoDmDe(c).trim() ||
-                                  privateBloqueada
+                                  !podePublico ||
+                                  !podeDirect
                                 }
                                 onClick={() => responderNosDois(c)}
                               >
@@ -654,24 +810,10 @@ export function ComentariosTab() {
                               </Button>
                             </span>
                           </TooltipTrigger>
-                          {privateMotivo && (
-                            <TooltipContent className="max-w-xs text-xs">{privateMotivo}</TooltipContent>
+                          {(motivoPublico ?? motivoDirect) && (
+                            <TooltipContent className="max-w-xs text-xs">{motivoPublico ?? motivoDirect}</TooltipContent>
                           )}
                         </Tooltip>
-
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          disabled={enviando !== null || !textoDe(c).trim()}
-                          onClick={() => responder(c, "comentario")}
-                        >
-                          {enviando === c.comment_id + "comentario" ? (
-                            <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />
-                          ) : (
-                            <MessageSquare className="h-3.5 w-3.5 mr-1" />
-                          )}
-                          Só no comentário
-                        </Button>
 
                         <Tooltip>
                           <TooltipTrigger asChild>
@@ -679,7 +821,30 @@ export function ComentariosTab() {
                               <Button
                                 size="sm"
                                 variant="outline"
-                                disabled={enviando !== null || !textoDmDe(c).trim() || privateBloqueada}
+                                disabled={enviando !== null || !textoDe(c).trim() || !podePublico}
+                                onClick={() => responder(c, "comentario")}
+                              >
+                                {enviando === c.comment_id + "comentario" ? (
+                                  <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />
+                                ) : (
+                                  <MessageSquare className="h-3.5 w-3.5 mr-1" />
+                                )}
+                                Só no comentário
+                              </Button>
+                            </span>
+                          </TooltipTrigger>
+                          {motivoPublico && (
+                            <TooltipContent className="max-w-xs text-xs">{motivoPublico}</TooltipContent>
+                          )}
+                        </Tooltip>
+
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <span>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                disabled={enviando !== null || !textoDmDe(c).trim() || !podeDirect}
                                 onClick={() => responder(c, "private_reply")}
                               >
                                 {enviando === c.comment_id + "private_reply" ? (
@@ -691,12 +856,12 @@ export function ComentariosTab() {
                               </Button>
                             </span>
                           </TooltipTrigger>
-                          {privateMotivo && (
-                            <TooltipContent className="max-w-xs text-xs">{privateMotivo}</TooltipContent>
+                          {motivoDirect && (
+                            <TooltipContent className="max-w-xs text-xs">{motivoDirect}</TooltipContent>
                           )}
                         </Tooltip>
 
-                        <Button size="sm" variant="ghost" onClick={() => ignorar(c)}>
+                        <Button size="sm" variant="ghost" onClick={() => pedirIgnorar(c)}>
                           <EyeOff className="h-3.5 w-3.5 mr-1" /> Ignorar
                         </Button>
                       </div>
@@ -708,6 +873,30 @@ export function ComentariosTab() {
           })}
         </div>
       )}
+
+      {/* 1.5 — Ignorar comentário com intenção de compra exige confirmação */}
+      <AlertDialog open={!!confirmarIgnorar} onOpenChange={(v) => !v && setConfirmarIgnorar(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Ignorar um comentário com intenção de compra?</AlertDialogTitle>
+            <AlertDialogDescription>
+              @{confirmarIgnorar?.from_username ?? "?"} escreveu “{confirmarIgnorar?.texto}” e a leitura da Anna é
+              de interesse em comprar. Ignorados saem da fila — foi assim que leads sumiram por um dia.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (confirmarIgnorar) ignorar(confirmarIgnorar);
+                setConfirmarIgnorar(null);
+              }}
+            >
+              Sim, ignorar mesmo assim
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
