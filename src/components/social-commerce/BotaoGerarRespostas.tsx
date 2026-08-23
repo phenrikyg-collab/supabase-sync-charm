@@ -22,6 +22,8 @@ type Props = {
   cupom?: string | null;
   cupomBeneficio?: string | null;
   cupomValidade?: string | null;
+  /** Venda = gera também mensagem de Direct; conversa = só resposta no comentário */
+  objetivo?: "venda" | "conversa";
   onResultado: (r: RespostasGeradas) => void;
 };
 
@@ -39,6 +41,7 @@ export function BotaoGerarRespostas({
   cupom,
   cupomBeneficio,
   cupomValidade,
+  objetivo,
   onResultado,
 }: Props) {
   const [gerando, setGerando] = useState(false);
@@ -56,6 +59,7 @@ export function BotaoGerarRespostas({
           cupom: cupom?.trim() || null,
           cupom_beneficio: cupomBeneficio?.trim() || null,
           cupom_validade: cupomValidade?.trim() || null,
+          objetivo: objetivo ?? "venda",
           ...(mediaId ? { media_id: mediaId } : {}),
           ...(contexto?.trim() ? { contexto: contexto.trim() } : {}),
         },
