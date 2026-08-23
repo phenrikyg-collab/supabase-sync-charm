@@ -169,3 +169,27 @@ export async function marcarTodasLidas(usuario?: string | null): Promise<any> {
   }
   throw new Error(ultimoErro?.message ?? "Função fn_ig_marcar_todas_lidas indisponível no banco.");
 }
+
+/**
+ * Devolve a conversa para a Anna (encerra o atendimento humano — status 'em_atendimento').
+ * Mesma tolerância a variantes de assinatura das outras funções do painel.
+ */
+export async function devolverParaAnna(conversaId: number, usuario?: string | null): Promise<any> {
+  const usu = usuario ?? "painel";
+  const variantes: Record<string, any>[] = [
+    { p_conversa_id: conversaId, p_usuario: usu },
+    { _conversa_id: conversaId, _usuario: usu },
+    { conversa_id: conversaId, usuario: usu },
+  ];
+  let ultimoErro: any = null;
+  for (const args of variantes) {
+    const { data, error } = await db.rpc("fn_ig_devolver_para_anna", args);
+    if (!error) {
+      if (data && data.ok === false) throw new Error(data.erro ?? "Não foi possível devolver a conversa.");
+      return data;
+    }
+    ultimoErro = error;
+    if (!ehErroAssinatura(error.message)) throw new Error(error.message);
+  }
+  throw new Error(ultimoErro?.message ?? "Função fn_ig_devolver_para_anna indisponível no banco.");
+}
