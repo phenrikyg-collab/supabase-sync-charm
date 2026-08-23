@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useReducer, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { db, enviarInstagram, MOTIVOS_409 } from "@/lib/socialCommerce";
+import { db, enviarInstagram, marcarConversaLida, marcarTodasLidas, MOTIVOS_409 } from "@/lib/socialCommerce";
 import { tempoRelativo, janelaInfo } from "./comum";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -10,10 +10,16 @@ import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 import {
-  Bot, Check, ExternalLink, Loader2, MessageCircle, Pencil, SendHorizonal,
-  PanelRightClose, PanelRightOpen, Trash2, AlertTriangle, Inbox, User,
+  Bot, Check, ExternalLink, Loader2, Mail, MailCheck, MailOpen, MessageCircle, Pencil,
+  SendHorizonal, PanelRightClose, PanelRightOpen, Trash2, AlertTriangle, Inbox, User,
 } from "lucide-react";
 
 type Conversa = {
@@ -24,6 +30,9 @@ type Conversa = {
   status?: string | null;
   janela_expira_em?: string | null;
   nao_lidas?: number | null;
+  revisao_pendente?: boolean | null;
+  revisada_em?: string | null;
+  revisada_por?: string | null;
   prioridade?: string | null;
   intencao?: string | null;
   categoria?: string | null;
