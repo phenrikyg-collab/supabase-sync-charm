@@ -87,6 +87,7 @@ import FunilWhatsApp from "./pages/FunilWhatsApp";
 import ProvadorVirtual from "./pages/ProvadorVirtual";
 import Cupons from "./pages/Cupons";
 import ProporCarrinhoPage from "./pages/ProporCarrinhoPage";
+import VendasAoVivo from "./pages/VendasAoVivo";
 
 import Funcionarios from "./pages/Funcionarios";
 import Automacoes from "./pages/Automacoes";
