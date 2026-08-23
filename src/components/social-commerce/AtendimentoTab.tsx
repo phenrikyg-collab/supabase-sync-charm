@@ -304,6 +304,33 @@ export function AtendimentoTab() {
               )}
             </Button>
           ))}
+          {conversas.some(naoLida) && (
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button size="sm" variant="ghost" className="h-7 text-xs ml-auto" disabled={marcandoTodas}>
+                  {marcandoTodas ? (
+                    <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />
+                  ) : (
+                    <MailCheck className="h-3.5 w-3.5 mr-1" />
+                  )}
+                  Marcar todas como lidas
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Marcar todas as conversas como lidas?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Isso dá baixa em todas as conversas pendentes de revisão, incluindo as respostas que a
+                    Anna enviou e ninguém revisou ainda.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                  <AlertDialogAction onClick={marcarTodas}>Sim, marcar todas</AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          )}
         </div>
         <ScrollArea className="flex-1">
           {carregando ? (
