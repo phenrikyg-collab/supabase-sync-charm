@@ -488,7 +488,8 @@ export function ComentariosTab() {
             const post = c.media_id ? posts.get(c.media_id) : undefined;
             const produtos = c.media_id ? produtosPorMedia.get(c.media_id) ?? [] : [];
             const automatico = statusNormalizado(c) === "respondido" && !c.aprovado_por;
-            const aberto = expandido === c.comment_id;
+            const removido = statusNormalizado(c) === "removido";
+            const aberto = expandido === c.comment_id && !removido;
             const foraDoPrazo = comentarioForaDoPrazo(c.publicado_em);
             const privateBloqueada = !!c.private_reply_usada || foraDoPrazo;
             const privateMotivo = c.private_reply_usada
@@ -496,9 +497,14 @@ export function ComentariosTab() {
               : foraDoPrazo
                 ? "Comentários com mais de 7 dias não aceitam resposta privada (regra da Meta)"
                 : null;
+            const tipoPost = rotuloTipoPost(post);
+            const legendaResumo = resumoLegenda(post?.caption);
 
             return (
-              <Card key={c.comment_id} className={automatico ? "border-primary/20" : undefined}>
+              <Card
+                key={c.comment_id}
+                className={`${automatico ? "border-primary/20" : ""} ${removido ? "opacity-60 border-dashed" : ""}`.trim() || undefined}
+              >
                 <CardContent className="p-3.5">
                   <div className="flex gap-3">
                     {/* Miniatura do post */}
