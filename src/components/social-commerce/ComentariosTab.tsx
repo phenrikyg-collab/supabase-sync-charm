@@ -531,12 +531,31 @@ export function ComentariosTab() {
                             <Zap className="h-3 w-3" /> Automático
                           </span>
                         )}
+                        {removido && (
+                          <span className="inline-flex items-center gap-1 rounded-full border bg-muted px-2 py-0.5 text-[10px] font-semibold text-muted-foreground">
+                            <Trash2 className="h-3 w-3" /> apagado no Instagram
+                          </span>
+                        )}
                         {c.intencao && (
                           <Badge variant="outline" className="text-[10px] h-4 px-1.5">
                             {c.intencao}
                           </Badge>
                         )}
                       </div>
+
+                      {/* Contexto do post: tipo (Reels/Feed/Anúncio) + primeiras palavras da legenda.
+                          O frame que a Meta entrega como miniatura nem sempre representa o conteúdo. */}
+                      {(tipoPost || legendaResumo) && (
+                        <p className="mt-1 flex items-center gap-1.5 text-[11px] text-muted-foreground min-w-0">
+                          {tipoPost && (
+                            <Badge variant="outline" className="text-[9px] h-4 px-1 shrink-0">
+                              {tipoPost}
+                            </Badge>
+                          )}
+                          {legendaResumo && <span className="truncate italic">“{legendaResumo}”</span>}
+                        </p>
+                      )}
+
                       <p className="text-sm mt-1 whitespace-pre-wrap break-words">{c.texto}</p>
 
                       {/* Contexto: produtos do post */}
@@ -551,33 +570,65 @@ export function ComentariosTab() {
                         </div>
                       )}
 
-                      {c.erro && <p className="text-xs text-danger mt-1.5">{c.erro}</p>}
+                      {/* Erro de envio não aparece em comentário apagado — não é erro, é fato consumado */}
+                      {c.erro && !removido && <p className="text-xs text-danger mt-1.5">{c.erro}</p>}
                     </div>
 
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="shrink-0"
-                      onClick={() => setExpandido(aberto ? null : c.comment_id)}
-                    >
-                      {aberto ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-                    </Button>
+                    {!removido && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="shrink-0"
+                        onClick={() => setExpandido(aberto ? null : c.comment_id)}
+                      >
+                        {aberto ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                      </Button>
+                    )}
                   </div>
 
                   {/* Área expandida */}
                   {aberto && (
-                    <div className="mt-3 pt-3 border-t space-y-2.5">
-                      {c.resposta_rascunho && (
-                        <p className="text-xs font-semibold flex items-center gap-1.5 text-primary">
-                          <Bot className="h-3.5 w-3.5" /> Sugestão da Anna — edite se precisar
-                        </p>
-                      )}
-                      <Textarea
-                        value={textoDe(c)}
-                        onChange={(e) => setTextoDe(c, e.target.value)}
-                        placeholder="Escreva a resposta… Comentário é público: resposta curta que puxa para o Direct."
-                        className="min-h-[70px]"
-                      />
+                    <div className="mt-3 pt-3 border-t space-y-3">
+                      <div className="grid gap-3 md:grid-cols-2">
+                        {/* Resposta pública — curta, sem preço nem link */}
+                        <div className="space-y-1.5">
+                          <p className="text-xs font-semibold flex items-center gap-1.5">
+                            <MessageSquare className="h-3.5 w-3.5" /> Resposta pública
+                            <span className="font-normal text-muted-foreground">— curta, sem preço nem link</span>
+                          </p>
+                          {c.resposta_rascunho && (
+                            <p className="text-[11px] flex items-center gap-1 text-primary">
+                              <Bot className="h-3 w-3" /> Sugestão da Anna — edite se precisar
+                            </p>
+                          )}
+                          <Textarea
+                            value={textoDe(c)}
+                            onChange={(e) => setTextoDe(c, e.target.value)}
+                            placeholder="Ex.: Oiii! Te chamei no Direct com tudo certinho 💛"
+                            className="min-h-[70px]"
+                          />
+                        </div>
+
+                        {/* Mensagem no Direct — aqui vai preço, link e cupom */}
+                        <div className="space-y-1.5">
+                          <p className="text-xs font-semibold flex items-center gap-1.5">
+                            <Mail className="h-3.5 w-3.5" /> Mensagem no Direct
+                            <span className="font-normal text-muted-foreground">— aqui vai preço, link e cupom</span>
+                          </p>
+                          {c.resposta_rascunho_dm && (
+                            <p className="text-[11px] flex items-center gap-1 text-primary">
+                              <Bot className="h-3 w-3" /> Sugestão da Anna — edite se precisar
+                            </p>
+                          )}
+                          <Textarea
+                            value={textoDmDe(c)}
+                            onChange={(e) => setTextoDmDe(c, e.target.value)}
+                            placeholder="Ex.: Oiii! Essa é a Calça Reta Juliana, R$ 189. Com o cupom QUERO10…"
+                            className="min-h-[70px]"
+                          />
+                        </div>
+                      </div>
+
                       <div className="flex flex-wrap gap-2">
                         <Button
                           size="sm"
