@@ -3,6 +3,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { db, enviarInstagram, marcarConversaLida, marcarTodasLidas, MOTIVOS_409 } from "@/lib/socialCommerce";
 import { tempoRelativo, janelaInfo } from "./comum";
+import { ContextoMensagem } from "./ContextoMensagem";
+import type { ProdutoPai } from "./SeletorProdutos";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -51,6 +53,18 @@ type Mensagem = {
   status?: string | null;
   erro?: string | null;
   criado_em?: string | null;
+  // Contexto de story/mídia (vw_ig_mensagens_painel)
+  tipo?: string | null;
+  contexto_rotulo?: string | null;
+  imagem_url?: string | null;
+  story_link?: string | null;
+  story_produto_id?: string | null;
+  story_produto_nome?: string | null;
+  look_descricao?: string | null;
+  look_confianca?: string | null;
+  look_produtos_nomes?: string[] | string | null;
+  look_analisado?: boolean | null;
+  look_produto_confirmado_id?: string | null;
 };
 
 type Filtro = "todas" | "aprovacao" | "escaladas" | "resolvidas";
@@ -139,16 +153,40 @@ export function AtendimentoTab() {
     setCarregando(false);
   }, []);
 
+  // Fonte única: a view resolve reply_to.story, link sticker, cache de mídia
+  // e análise de imagem — o front não precisa conhecer essas tabelas.
   const carregarMensagens = useCallback(async (conversaId: number) => {
     setCarregandoMsgs(true);
-    const { data } = await db
-      .from("instagram_mensagens")
+    const { data, error } = await db
+      .from("vw_ig_mensagens_painel")
       .select("*")
       .eq("conversa_id", conversaId)
       .order("criado_em", { ascending: true })
       .limit(500);
-    setMensagens((data ?? []) as Mensagem[]);
+    if (error) {
+      // Fallback para a tabela crua caso a view ainda não exista no banco
+      const { data: crua } = await db
+        .from("instagram_mensagens")
+        .select("*")
+        .eq("conversa_id", conversaId)
+        .order("criado_em", { ascending: true })
+        .limit(500);
+      setMensagens((crua ?? []) as Mensagem[]);
+    } else {
+      setMensagens((data ?? []) as Mensagem[]);
+    }
     setCarregandoMsgs(false);
+  }, []);
+
+  /** Confirmação manual da peça (menção a story com confiança média/baixa). */
+  const confirmarProdutoMsg = useCallback((mensagemId: number, p: ProdutoPai) => {
+    setMensagens((prev) =>
+      prev.map((m) =>
+        m.id === mensagemId
+          ? { ...m, look_produto_confirmado_id: p.produto_id, story_produto_nome: p.nome }
+          : m,
+      ),
+    );
   }, []);
 
   useEffect(() => {
@@ -538,6 +576,7 @@ export function AtendimentoTab() {
                               <Bot className="h-3 w-3" /> Anna
                             </span>
                           )}
+                          <ContextoMensagem m={m} saida={saida} onConfirmado={confirmarProdutoMsg} />
                           <p className="whitespace-pre-wrap break-words">{m.conteudo}</p>
                           <div className={`text-[10px] mt-1 ${saida ? "text-primary-foreground/70" : "text-muted-foreground"}`}>
                             {tempoRelativo(m.criado_em)}
