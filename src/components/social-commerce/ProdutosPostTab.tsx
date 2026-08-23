@@ -7,6 +7,7 @@ import { BotaoGerarRespostas } from "./BotaoGerarRespostas";
 import { ListaVariacoesRespostas } from "./ListaVariacoesRespostas";
 import { carregarPostsPainel } from "./PostsNoAr";
 import { SeletorObjetivoPost, objetivoInferido, type ObjetivoPost } from "./ObjetivoPost";
+import { BlocoRespostasCompra, BlocoRespostasFallback } from "./RespostasCompraFallback";
 import { formatarData } from "@/utils/formatters";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -88,6 +89,10 @@ type Automacao = {
   palavras_gatilho?: string[] | null;
   resposta_gatilho_publica?: string | null;
   respostas_publicas?: string[] | null;
+  /** 4.4 — resposta completa (pergunta de preço), com marcadores {PRODUTO} {PRECO}… */
+  respostas_publicas_compra?: string[] | null;
+  /** 4.5 — usadas só quando a Meta recusa o Direct */
+  respostas_publicas_fallback?: string[] | null;
   resposta_gatilho_dm?: string | null;
   link_combo?: string | null;
   cupom?: string | null;
@@ -108,6 +113,8 @@ type EditState = {
   qualquer: boolean;
   gatilhos: string[];
   respostasPublicas: string[];
+  respostasCompra: string[];
+  respostasFallback: string[];
   respostaDm: string;
   linkCombo: string;
   cupom: string;
@@ -242,6 +249,8 @@ export function ProdutosPostTab() {
           : auto?.resposta_gatilho_publica
             ? [auto.resposta_gatilho_publica]
             : [],
+      respostasCompra: auto?.respostas_publicas_compra ?? [],
+      respostasFallback: auto?.respostas_publicas_fallback ?? [],
       respostaDm: auto?.resposta_gatilho_dm ?? "",
       linkCombo: auto?.link_combo ?? "",
       cupom: auto?.cupom ?? "",
@@ -274,6 +283,8 @@ export function ProdutosPostTab() {
 
       // Automação do post
       const variacoes = edit.respostasPublicas.map((v) => v.trim()).filter(Boolean);
+      const compra = edit.respostasCompra.map((v) => v.trim()).filter(Boolean);
+      const fallback = edit.respostasFallback.map((v) => v.trim()).filter(Boolean);
       const autoPayload: Record<string, any> = {
         media_id: mid,
         modo: edit.modo,
@@ -281,6 +292,8 @@ export function ProdutosPostTab() {
         gatilho_qualquer: edit.modo === "automatico" ? edit.qualquer : false,
         palavras_gatilho: edit.modo === "automatico" ? edit.gatilhos : [],
         respostas_publicas: edit.modo === "automatico" ? variacoes : null,
+        respostas_publicas_compra: edit.modo === "automatico" ? (compra.length ? compra : null) : null,
+        respostas_publicas_fallback: edit.modo === "automatico" ? (fallback.length ? fallback : null) : null,
         // Compatibilidade: a primeira variação continua no campo antigo
         resposta_gatilho_publica: edit.modo === "automatico" ? variacoes[0] ?? null : null,
         resposta_gatilho_dm: edit.modo === "automatico" ? edit.respostaDm : null,
@@ -295,7 +308,7 @@ export function ProdutosPostTab() {
         .from("instagram_post_automacao")
         .upsert(autoPayload, { onConflict: "media_id" });
       // Colunas novas podem ainda não existir no banco — tenta de novo sem elas
-      for (const coluna of ["objetivo", "respostas_publicas", "gatilho_qualquer", "link_combo", "cupom_beneficio", "cupom_validade", "cupom"]) {
+      for (const coluna of ["respostas_publicas_compra", "respostas_publicas_fallback", "objetivo", "respostas_publicas", "gatilho_qualquer", "link_combo", "cupom_beneficio", "cupom_validade", "cupom"]) {
         if (errAuto && new RegExp(coluna, "i").test(errAuto.message ?? "")) {
           delete autoPayload[coluna];
           ({ error: errAuto } = await db
@@ -654,6 +667,16 @@ export function ProdutosPostTab() {
                             </p>
                           ))}
                         </div>
+                        <BlocoRespostasCompra
+                          value={edit.respostasCompra}
+                          onChange={(v) => setEdit({ ...edit, respostasCompra: v })}
+                          produto={produtos.find((p: any) => (p.produto_id ?? p.id) === edit.principal) ?? null}
+                          combo={edit.selecionados.length > 1}
+                        />
+                        <BlocoRespostasFallback
+                          value={edit.respostasFallback}
+                          onChange={(v) => setEdit({ ...edit, respostasFallback: v })}
+                        />
                         {edit.objetivo === "venda" && (
                           <div className="space-y-1.5">
                             <Label>Resposta no Direct</Label>
