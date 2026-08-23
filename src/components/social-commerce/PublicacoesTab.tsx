@@ -867,7 +867,7 @@ export function PublicacoesTab() {
                   <Textarea
                     value={form.primeiroComentario}
                     onChange={(e) => setForm({ ...form, primeiroComentario: e.target.value })}
-                    placeholder="Você é mais...?&#10;&#10;#moda #marianacardoso"
+                    placeholder={"Você é mais...?\n\n#moda #marianacardoso"}
                     className="min-h-[90px] whitespace-pre-wrap"
                     rows={4}
                   />
