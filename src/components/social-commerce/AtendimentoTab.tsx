@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useReducer, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { db, enviarInstagram, MOTIVOS_409 } from "@/lib/socialCommerce";
+import { db, enviarInstagram, marcarConversaLida, marcarTodasLidas, MOTIVOS_409 } from "@/lib/socialCommerce";
 import { tempoRelativo, janelaInfo } from "./comum";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -10,10 +10,16 @@ import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 import {
-  Bot, Check, ExternalLink, Loader2, MessageCircle, Pencil, SendHorizonal,
-  PanelRightClose, PanelRightOpen, Trash2, AlertTriangle, Inbox, User,
+  Bot, Check, ExternalLink, Loader2, Mail, MailCheck, MailOpen, MessageCircle, Pencil,
+  SendHorizonal, PanelRightClose, PanelRightOpen, Trash2, AlertTriangle, Inbox, User,
 } from "lucide-react";
 
 type Conversa = {
@@ -24,6 +30,9 @@ type Conversa = {
   status?: string | null;
   janela_expira_em?: string | null;
   nao_lidas?: number | null;
+  revisao_pendente?: boolean | null;
+  revisada_em?: string | null;
+  revisada_por?: string | null;
   prioridade?: string | null;
   intencao?: string | null;
   categoria?: string | null;
@@ -111,6 +120,7 @@ export function AtendimentoTab() {
   const [enviando, setEnviando] = useState(false);
   const [janelaFechada409, setJanelaFechada409] = useState(false);
   const [painelAberto, setPainelAberto] = useState(true);
+  const [marcandoTodas, setMarcandoTodas] = useState(false);
   // Re-render a cada 30s para contagens regressivas e tempos relativos
   const [, tick] = useReducer((x: number) => x + 1, 0);
 
@@ -168,9 +178,49 @@ export function AtendimentoTab() {
     setEditandoId(null);
     setJanelaFechada409(false);
     carregarMensagens(c.id);
-    if ((c.nao_lidas ?? 0) > 0) {
-      await db.from("instagram_conversas").update({ nao_lidas: 0 }).eq("id", c.id);
-      setConversas((prev) => prev.map((p) => (p.id === c.id ? { ...p, nao_lidas: 0 } : p)));
+    // Abrir NÃO marca como lida — a equipe dá baixa manualmente,
+    // senão a regra de revisar as respostas da Anna perde o sentido.
+  };
+
+  /** Não lida = mensagens não lidas ou resposta da Anna aguardando revisão. */
+  const naoLida = (c: Conversa) => (c.nao_lidas ?? 0) > 0 || !!c.revisao_pendente;
+
+  const marcar = async (c: Conversa, lida: boolean) => {
+    try {
+      const r = await marcarConversaLida(c.id, lida, user?.email);
+      if (r?.conversa_id != null) {
+        setConversas((prev) =>
+          prev.map((p) =>
+            p.id === r.conversa_id
+              ? {
+                  ...p,
+                  nao_lidas: r.nao_lidas ?? p.nao_lidas,
+                  revisao_pendente: r.revisao_pendente ?? false,
+                  revisada_em: r.revisada_em ?? p.revisada_em,
+                  revisada_por: r.revisada_por ?? p.revisada_por,
+                }
+              : p,
+          ),
+        );
+      } else {
+        await carregarConversas();
+      }
+      toast.success(lida ? "Conversa marcada como lida" : "Conversa voltou para não lida");
+    } catch (e: any) {
+      toast.error("Falha ao marcar conversa", { description: e?.message });
+    }
+  };
+
+  const marcarTodas = async () => {
+    setMarcandoTodas(true);
+    try {
+      await marcarTodasLidas(user?.email);
+      toast.success("Todas as conversas foram marcadas como lidas");
+      await carregarConversas();
+    } catch (e: any) {
+      toast.error("Falha ao marcar todas", { description: e?.message });
+    } finally {
+      setMarcandoTodas(false);
     }
   };
 
@@ -254,6 +304,33 @@ export function AtendimentoTab() {
               )}
             </Button>
           ))}
+          {conversas.some(naoLida) && (
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button size="sm" variant="ghost" className="h-7 text-xs ml-auto" disabled={marcandoTodas}>
+                  {marcandoTodas ? (
+                    <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />
+                  ) : (
+                    <MailCheck className="h-3.5 w-3.5 mr-1" />
+                  )}
+                  Marcar todas como lidas
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Marcar todas as conversas como lidas?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Isso dá baixa em todas as conversas pendentes de revisão, incluindo as respostas que a
+                    Anna enviou e ninguém revisou ainda.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                  <AlertDialogAction onClick={marcarTodas}>Sim, marcar todas</AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          )}
         </div>
         <ScrollArea className="flex-1">
           {carregando ? (
@@ -271,11 +348,17 @@ export function AtendimentoTab() {
             filtradas.map((c) => {
               const j = janelaInfo(c.janela_expira_em);
               const ativa = c.id === selId;
+              const nl = naoLida(c);
               return (
-                <button
+                <div
                   key={c.id}
+                  role="button"
+                  tabIndex={0}
                   onClick={() => abrirConversa(c)}
-                  className={`w-full text-left px-3 py-2.5 border-b transition-colors hover:bg-accent/50 ${
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") abrirConversa(c);
+                  }}
+                  className={`group w-full text-left px-3 py-2.5 border-b transition-colors hover:bg-accent/50 cursor-pointer ${
                     ativa ? "bg-accent" : ""
                   }`}
                 >
@@ -286,8 +369,29 @@ export function AtendimentoTab() {
                         <span className="font-medium text-sm truncate">
                           {c.nome || (c.username ? `@${c.username}` : "Nova conversa")}
                         </span>
-                        <span className="text-[10px] text-muted-foreground shrink-0">
-                          {tempoRelativo(c.ultima_mensagem_em)}
+                        <span className="flex items-center gap-1 shrink-0">
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <span
+                                role="button"
+                                tabIndex={-1}
+                                aria-label={nl ? "Marcar como lida" : "Marcar como não lida"}
+                                className="p-1 rounded text-muted-foreground hover:text-foreground hover:bg-accent transition-all opacity-0 group-hover:opacity-100 focus-visible:opacity-100"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  marcar(c, nl);
+                                }}
+                              >
+                                {nl ? <MailOpen className="h-3.5 w-3.5" /> : <Mail className="h-3.5 w-3.5" />}
+                              </span>
+                            </TooltipTrigger>
+                            <TooltipContent side="left">
+                              {nl ? "Marcar como lida" : "Marcar como não lida"}
+                            </TooltipContent>
+                          </Tooltip>
+                          <span className="text-[10px] text-muted-foreground">
+                            {tempoRelativo(c.ultima_mensagem_em)}
+                          </span>
                         </span>
                       </div>
                       <p className="text-[11px] text-muted-foreground truncate mt-0.5">
@@ -301,6 +405,11 @@ export function AtendimentoTab() {
                   <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
                     {(c.nao_lidas ?? 0) > 0 && (
                       <Badge className="h-4 px-1.5 text-[10px]">{c.nao_lidas}</Badge>
+                    )}
+                    {c.revisao_pendente && (
+                      <span className="inline-flex items-center gap-1 rounded-full border border-warning/30 bg-warning/10 text-warning px-2 py-0.5 text-[10px] font-semibold">
+                        <Bot className="h-3 w-3" /> Revisar Anna
+                      </span>
                     )}
                     <ChipStatus status={c.status} />
                     {j && (
@@ -316,7 +425,7 @@ export function AtendimentoTab() {
                       </span>
                     )}
                   </div>
-                </button>
+                </div>
               );
             })
           )}
@@ -356,11 +465,44 @@ export function AtendimentoTab() {
                       </span>
                     )}
                   </div>
+                  {conversaSel.revisada_em && (
+                    <p className="text-[10px] text-muted-foreground mt-1 flex items-center gap-1">
+                      <Check className="h-3 w-3" />
+                      Revisada por {conversaSel.revisada_por ?? "equipe"},{" "}
+                      {new Date(conversaSel.revisada_em).toLocaleString("pt-BR", {
+                        day: "2-digit",
+                        month: "2-digit",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
+                    </p>
+                  )}
                 </div>
               </div>
-              <Button variant="ghost" size="icon" onClick={() => setPainelAberto((v) => !v)}>
-                {painelAberto ? <PanelRightClose className="h-4 w-4" /> : <PanelRightOpen className="h-4 w-4" />}
-              </Button>
+              <div className="flex items-center gap-1 shrink-0">
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      aria-label={naoLida(conversaSel) ? "Marcar como lida" : "Marcar como não lida"}
+                      onClick={() => marcar(conversaSel, naoLida(conversaSel))}
+                    >
+                      {naoLida(conversaSel) ? (
+                        <MailOpen className="h-4 w-4" />
+                      ) : (
+                        <Mail className="h-4 w-4" />
+                      )}
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    {naoLida(conversaSel) ? "Marcar como lida" : "Marcar como não lida"}
+                  </TooltipContent>
+                </Tooltip>
+                <Button variant="ghost" size="icon" onClick={() => setPainelAberto((v) => !v)}>
+                  {painelAberto ? <PanelRightClose className="h-4 w-4" /> : <PanelRightOpen className="h-4 w-4" />}
+                </Button>
+              </div>
             </div>
 
             {/* Histórico */}

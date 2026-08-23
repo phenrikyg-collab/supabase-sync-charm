@@ -13,6 +13,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useUserRole } from "@/hooks/useUserRole";
 import { useUserModules, AppModule } from "@/hooks/useUserModules";
 import { useLocation } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
 import {
   Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent,
   SidebarGroupLabel, SidebarMenu, SidebarMenuButton, SidebarMenuItem,
@@ -203,6 +205,33 @@ export function AppSidebar() {
   const { modules, isLoading: modulesLoading } = useUserModules();
   const location = useLocation();
 
+  // Badge de conversas não lidas do Instagram (DM) — mesma regra da lista:
+  // nao_lidas > 0 ou revisao_pendente. Atualiza em tempo real.
+  const [igNaoLidas, setIgNaoLidas] = useState(0);
+  useEffect(() => {
+    let ativo = true;
+    const carregar = async () => {
+      try {
+        const { count, error } = await (supabase as any)
+          .from("instagram_conversas")
+          .select("id", { count: "exact", head: true })
+          .or("nao_lidas.gt.0,revisao_pendente.eq.true");
+        if (!error && ativo) setIgNaoLidas(count ?? 0);
+      } catch {
+        /* tabela/colunas indisponíveis — sem badge */
+      }
+    };
+    carregar();
+    const ch = supabase
+      .channel("ig-badge-menu")
+      .on("postgres_changes", { event: "*", schema: "public", table: "instagram_conversas" }, carregar)
+      .subscribe();
+    return () => {
+      ativo = false;
+      supabase.removeChannel(ch);
+    };
+  }, []);
+
   const visibleGroups = isAdmin
     ? moduleGroups
     : moduleGroups.filter((g) => !g.adminOnly && !!g.key && modules.includes(g.key));
@@ -262,11 +291,20 @@ export function AppSidebar() {
                               <NavLink
                                 to={item.url}
                                 end={item.url === "/" || item.url === "/ordens-corte"}
-                                className="transition-colors hover:bg-sidebar-accent"
+                                className="relative transition-colors hover:bg-sidebar-accent"
                                 activeClassName="bg-sidebar-accent text-sidebar-primary font-medium"
                               >
                                 <item.icon className="h-4 w-4 mr-2 shrink-0" />
                                 {!collapsed && <span>{item.title}</span>}
+                                {item.url === "/social-commerce" && igNaoLidas > 0 && (
+                                  collapsed ? (
+                                    <span className="absolute right-1 top-1 h-2 w-2 rounded-full bg-danger" />
+                                  ) : (
+                                    <span className="ml-auto rounded-full bg-danger px-1.5 py-0.5 text-[10px] font-bold leading-none text-danger-foreground">
+                                      {igNaoLidas}
+                                    </span>
+                                  )
+                                )}
                               </NavLink>
                             </SidebarMenuButton>
                           </SidebarMenuItem>
