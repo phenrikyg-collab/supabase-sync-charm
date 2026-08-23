@@ -11,6 +11,7 @@ import { PostsNoAr } from "./PostsNoAr";
 import { CapaReels } from "./CapaReels";
 import { CardsCarrossel, MAX_CARDS_CARROSSEL, MIN_CARDS_CARROSSEL, type ItemMidia } from "./CardsCarrossel";
 import { ListaProdutosOrdenada } from "./ListaProdutosOrdenada";
+import { SeletorObjetivoPost, objetivoInferido, type ObjetivoPost } from "./ObjetivoPost";
 import { uploadMidia, ehUrlDeVideo } from "./midiaUpload";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -41,6 +42,7 @@ type Publicacao = {
   produto_ids?: string[] | null;
   erro?: string | null;
   modo_resposta?: string | null;
+  objetivo?: string | null;
   gatilho_qualquer?: boolean | null;
   palavras_gatilho?: string[] | null;
   resposta_gatilho_publica?: string | null;
@@ -87,6 +89,7 @@ type FormState = {
   agendadoPara: string; // datetime-local
   produtoIds: string[];
   modoResposta: "sombra" | "automatico" | "desligado";
+  objetivo: ObjetivoPost;
   gatilhoQualquer: boolean;
   gatilhos: string[];
   respostasPublicas: string[];
@@ -107,6 +110,7 @@ const FORM_VAZIO: FormState = {
   agendadoPara: "",
   produtoIds: [],
   modoResposta: "sombra",
+  objetivo: "conversa",
   gatilhoQualquer: false,
   gatilhos: [],
   respostasPublicas: ["Te mandei no Direct 💛"],
@@ -248,6 +252,8 @@ export function PublicacoesTab() {
     setAvisoRespostas([]);
     setForm({
       ...FORM_VAZIO,
+      // Padrão ao agendar: CTA de comentário ("comenta QUERO") nasce venda; os demais, conversa.
+      objetivo: iaCta === "comentar_palavra_chave" ? "venda" : "conversa",
       agendadoPara: dia ? `${diaKey(dia)}T09:00` : "",
     });
     setModalAberto(true);
@@ -278,6 +284,8 @@ export function PublicacoesTab() {
           : "",
       produtoIds: p.produto_ids ?? [],
       modoResposta: (p.modo_resposta as FormState["modoResposta"]) ?? "sombra",
+      // Registro antigo sem objetivo: quem já tem Direct/cupom/combo configurado era venda
+      objetivo: objetivoInferido(p.objetivo, !!(p.resposta_gatilho_dm || p.cupom || p.link_combo)),
       gatilhoQualquer: p.gatilho_qualquer ?? false,
       gatilhos: p.palavras_gatilho ?? [],
       respostasPublicas:
@@ -334,7 +342,9 @@ export function PublicacoesTab() {
         textoGrupoVip: String(data.texto_grupo_vip ?? f.textoGrupoVip),
         ...(gatilhos.length > 0
           ? {
+              // Palavras-gatilho = CTA de comentário ("comenta QUERO") → objetivo venda
               modoResposta: "automatico" as const,
+              objetivo: "venda" as const,
               gatilhos,
             }
           : {}),
@@ -452,6 +462,7 @@ export function PublicacoesTab() {
         midia_urls: midiaUrls,
         capa_url: mostrarCapa ? form.capaUrl || null : null,
         capa_offset_ms: mostrarCapa ? form.capaOffsetMs : null,
+        objetivo: form.objetivo,
         modo_resposta: form.modoResposta,
         gatilho_qualquer: form.modoResposta === "automatico" ? form.gatilhoQualquer : false,
         palavras_gatilho: form.modoResposta === "automatico" ? form.gatilhos : [],
@@ -472,7 +483,7 @@ export function PublicacoesTab() {
 
       let { error } = await executar(payload);
       // Colunas novas podem ainda não existir no banco — tenta de novo sem elas
-      for (const coluna of ["capa_url", "capa_offset_ms", "respostas_publicas", "texto_grupo_vip", "primeiro_comentario", "gatilho_qualquer", "link_combo", "cupom_beneficio", "cupom_validade", "cupom"]) {
+      for (const coluna of ["objetivo", "capa_url", "capa_offset_ms", "respostas_publicas", "texto_grupo_vip", "primeiro_comentario", "gatilho_qualquer", "link_combo", "cupom_beneficio", "cupom_validade", "cupom"]) {
         if (error && new RegExp(coluna, "i").test(error.message ?? "")) {
           delete payload[coluna];
           ({ error } = await executar(payload));
@@ -767,7 +778,15 @@ export function PublicacoesTab() {
                     </div>
                     <div className="space-y-1.5">
                       <Label className="text-xs">Chamada para ação</Label>
-                      <Select value={iaCta} onValueChange={setIaCta}>
+                      <Select
+                        value={iaCta}
+                        onValueChange={(v) => {
+                          setIaCta(v);
+                          // Sugestão de padrão: CTA de comentário nasce venda; os outros, conversa.
+                          // O usuário ainda pode trocar no seletor "Objetivo deste post" abaixo.
+                          setForm((f) => ({ ...f, objetivo: v === "comentar_palavra_chave" ? "venda" : "conversa" }));
+                        }}
+                      >
                         <SelectTrigger className="h-9 text-sm"><SelectValue /></SelectTrigger>
                         <SelectContent>
                           {CTAS.map((c) => (
@@ -880,6 +899,11 @@ export function PublicacoesTab() {
                   Automação de resposta
                 </p>
 
+                <SeletorObjetivoPost
+                  value={form.objetivo}
+                  onChange={(v) => setForm({ ...form, objetivo: v })}
+                />
+
                 <RadioGroup
                   value={form.modoResposta}
                   onValueChange={(v) => setForm({ ...form, modoResposta: v as FormState["modoResposta"] })}
@@ -915,53 +939,66 @@ export function PublicacoesTab() {
                       </p>
                     </div>
 
-                    <div className="space-y-1.5">
-                      <Label>Link do combo</Label>
-                      <Input
-                        type="url"
-                        value={form.linkCombo}
-                        onChange={(e) => setForm({ ...form, linkCombo: e.target.value })}
-                        placeholder="https://…"
-                      />
-                      <p className="text-[10px] text-muted-foreground">
-                        Use quando o post vende um combo com página própria. Vazio = usa os links individuais das peças.
+                    {form.objetivo === "conversa" && (
+                      <p className="text-[11px] rounded border border-border bg-muted/50 p-2">
+                        Objetivo <strong>conversa</strong>: a Anna responde só no comentário.
+                        Mensagem de Direct, card e cupom ficam desligados — quem pedir preço
+                        continua sendo atendido normalmente.
                       </p>
-                    </div>
+                    )}
 
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                      <div className="space-y-1.5">
-                        <Label>Cupom</Label>
-                        <Input
-                          value={form.cupom}
-                          onChange={(e) => setForm({ ...form, cupom: e.target.value })}
-                          placeholder="Ex.: COMBOANNA"
-                        />
-                      </div>
-                      <div className="space-y-1.5">
-                        <Label>O que o cupom dá</Label>
-                        <Input
-                          value={form.cupomBeneficio}
-                          onChange={(e) => setForm({ ...form, cupomBeneficio: e.target.value })}
-                          placeholder="Ex.: R$50 de desconto"
-                        />
-                      </div>
-                      <div className="space-y-1.5">
-                        <Label>Validade</Label>
-                        <Input
-                          value={form.cupomValidade}
-                          onChange={(e) => setForm({ ...form, cupomValidade: e.target.value })}
-                          placeholder="Ex.: válidos até amanhã"
-                        />
-                      </div>
-                    </div>
-                    <p className="text-[10px] text-muted-foreground -mt-2">
-                      Vazio = a mensagem sai sem a linha de cupom.
-                    </p>
+                    {form.objetivo === "venda" && (
+                      <>
+                        <div className="space-y-1.5">
+                          <Label>Link do combo (card do Direct)</Label>
+                          <Input
+                            type="url"
+                            value={form.linkCombo}
+                            onChange={(e) => setForm({ ...form, linkCombo: e.target.value })}
+                            placeholder="https://…"
+                          />
+                          <p className="text-[10px] text-muted-foreground">
+                            Use quando o post vende um combo com página própria. Vazio = usa os links individuais das peças.
+                          </p>
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                          <div className="space-y-1.5">
+                            <Label>Cupom</Label>
+                            <Input
+                              value={form.cupom}
+                              onChange={(e) => setForm({ ...form, cupom: e.target.value })}
+                              placeholder="Ex.: COMBOANNA"
+                            />
+                          </div>
+                          <div className="space-y-1.5">
+                            <Label>O que o cupom dá</Label>
+                            <Input
+                              value={form.cupomBeneficio}
+                              onChange={(e) => setForm({ ...form, cupomBeneficio: e.target.value })}
+                              placeholder="Ex.: R$50 de desconto"
+                            />
+                          </div>
+                          <div className="space-y-1.5">
+                            <Label>Validade</Label>
+                            <Input
+                              value={form.cupomValidade}
+                              onChange={(e) => setForm({ ...form, cupomValidade: e.target.value })}
+                              placeholder="Ex.: válidos até amanhã"
+                            />
+                          </div>
+                        </div>
+                        <p className="text-[10px] text-muted-foreground -mt-2">
+                          Vazio = a mensagem sai sem a linha de cupom.
+                        </p>
+                      </>
+                    )}
 
                     <div>
                       <BotaoGerarRespostas
                         produtoIds={form.produtoIds}
                         gatilhos={form.gatilhos}
+                        objetivo={form.objetivo}
                         contexto={iaContexto}
                         linkCombo={form.linkCombo}
                         cupom={form.cupom}
@@ -1023,15 +1060,17 @@ export function PublicacoesTab() {
                       ))}
                     </div>
 
-                    <div className="space-y-1.5">
-                      <Label>Resposta no Direct (mensagem privada)</Label>
-                      <Textarea
-                        value={form.respostaDm}
-                        onChange={(e) => setForm({ ...form, respostaDm: e.target.value })}
-                        className="min-h-[80px]"
-                        placeholder="Aqui entra o link do produto, preço e estoque…"
-                      />
-                    </div>
+                    {form.objetivo === "venda" && (
+                      <div className="space-y-1.5">
+                        <Label>Resposta no Direct (mensagem privada)</Label>
+                        <Textarea
+                          value={form.respostaDm}
+                          onChange={(e) => setForm({ ...form, respostaDm: e.target.value })}
+                          className="min-h-[80px]"
+                          placeholder="Aqui entra o link do produto, preço e estoque…"
+                        />
+                      </div>
+                    )}
                   </div>
                 )}
               </section>

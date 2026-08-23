@@ -6,6 +6,7 @@ import { SeletorProdutos, carregarProdutosPai, type ProdutoPai } from "./Seletor
 import { BotaoGerarRespostas } from "./BotaoGerarRespostas";
 import { ListaVariacoesRespostas } from "./ListaVariacoesRespostas";
 import { carregarPostsPainel } from "./PostsNoAr";
+import { SeletorObjetivoPost, objetivoInferido, type ObjetivoPost } from "./ObjetivoPost";
 import { formatarData } from "@/utils/formatters";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -71,7 +72,9 @@ function semTextoDe(p: Post, auto?: Automacao, vinculos: LinkProduto[] = []): bo
   if (p.sem_texto != null) return !!p.sem_texto;
   if (!auto?.ativo || auto.modo !== "automatico" || vinculos.length === 0) return false;
   const semPublica = !(auto.respostas_publicas?.length || auto.resposta_gatilho_publica?.trim());
-  const semDm = !auto.resposta_gatilho_dm?.trim();
+  // Objetivo conversa não usa Direct — só a resposta pública conta para "textos pendentes"
+  const obj = objetivoInferido(auto.objetivo, !!(auto.resposta_gatilho_dm || auto.cupom || auto.link_combo));
+  const semDm = obj === "venda" && !auto.resposta_gatilho_dm?.trim();
   return semPublica || semDm;
 }
 
@@ -80,6 +83,7 @@ type LinkProduto = { media_id: string; produto_id: string; principal?: boolean |
 type Automacao = {
   media_id: string;
   modo?: string | null;
+  objetivo?: string | null;
   gatilho_qualquer?: boolean | null;
   palavras_gatilho?: string[] | null;
   resposta_gatilho_publica?: string | null;
@@ -100,6 +104,7 @@ type EditState = {
   selecionados: string[];
   principal: string | null;
   modo: string;
+  objetivo: ObjetivoPost;
   qualquer: boolean;
   gatilhos: string[];
   respostasPublicas: string[];
@@ -227,6 +232,8 @@ export function ProdutosPostTab() {
       selecionados: ls.map((l) => l.produto_id),
       principal: ls.find((l) => l.principal)?.produto_id ?? null,
       modo: auto?.modo ?? "sombra",
+      // Sem objetivo salvo: quem já tem Direct/cupom/combo configurado era venda; o resto, conversa
+      objetivo: objetivoInferido(auto?.objetivo, !!(auto?.resposta_gatilho_dm || auto?.cupom || auto?.link_combo)),
       qualquer: auto?.gatilho_qualquer ?? false,
       gatilhos: auto?.palavras_gatilho ?? [],
       respostasPublicas:
@@ -270,6 +277,7 @@ export function ProdutosPostTab() {
       const autoPayload: Record<string, any> = {
         media_id: mid,
         modo: edit.modo,
+        objetivo: edit.objetivo,
         gatilho_qualquer: edit.modo === "automatico" ? edit.qualquer : false,
         palavras_gatilho: edit.modo === "automatico" ? edit.gatilhos : [],
         respostas_publicas: edit.modo === "automatico" ? variacoes : null,
@@ -287,7 +295,7 @@ export function ProdutosPostTab() {
         .from("instagram_post_automacao")
         .upsert(autoPayload, { onConflict: "media_id" });
       // Colunas novas podem ainda não existir no banco — tenta de novo sem elas
-      for (const coluna of ["respostas_publicas", "gatilho_qualquer", "link_combo", "cupom_beneficio", "cupom_validade", "cupom"]) {
+      for (const coluna of ["objetivo", "respostas_publicas", "gatilho_qualquer", "link_combo", "cupom_beneficio", "cupom_validade", "cupom"]) {
         if (errAuto && new RegExp(coluna, "i").test(errAuto.message ?? "")) {
           delete autoPayload[coluna];
           ({ error: errAuto } = await db
@@ -308,7 +316,7 @@ export function ProdutosPostTab() {
         editSalvo.ativo &&
         editSalvo.modo === "automatico" &&
         editSalvo.selecionados.length > 0 &&
-        (variacoes.length === 0 || !editSalvo.respostaDm.trim());
+        (variacoes.length === 0 || (editSalvo.objetivo === "venda" && !editSalvo.respostaDm.trim()));
       if (ficouSemTexto) {
         toast.warning("Automação ativa sem textos de resposta.", {
           description: "A Anna vai escrever no primeiro comentário — ou gere agora e revise.",
@@ -498,6 +506,11 @@ export function ProdutosPostTab() {
                       </label>
                     </div>
 
+                    <SeletorObjetivoPost
+                      value={edit.objetivo}
+                      onChange={(v) => setEdit({ ...edit, objetivo: v })}
+                    />
+
                     <div className="space-y-1.5">
                       <Label>Modo</Label>
                       <Select value={edit.modo} onValueChange={(v) => setEdit({ ...edit, modo: v })}>
@@ -516,50 +529,62 @@ export function ProdutosPostTab() {
                           Comentários que <strong>não</strong> baterem a palavra-chave serão respondidos
                           pela Anna automaticamente, sem aprovação.
                         </p>
-                        <div className="space-y-1.5">
-                          <Label>Link do combo</Label>
-                          <Input
-                            type="url"
-                            value={edit.linkCombo}
-                            onChange={(e) => setEdit({ ...edit, linkCombo: e.target.value })}
-                            placeholder="https://…"
-                          />
-                          <p className="text-[10px] text-muted-foreground">
-                            Use quando o post vende um combo com página própria. Vazio = usa os links individuais das peças.
+                        {edit.objetivo === "conversa" && (
+                          <p className="text-[11px] rounded border border-border bg-muted/50 p-2">
+                            Objetivo <strong>conversa</strong>: a Anna responde só no comentário.
+                            Mensagem de Direct, card e cupom ficam desligados — quem pedir preço
+                            continua sendo atendido normalmente.
                           </p>
-                        </div>
-                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                          <div className="space-y-1.5">
-                            <Label>Cupom</Label>
-                            <Input
-                              value={edit.cupom}
-                              onChange={(e) => setEdit({ ...edit, cupom: e.target.value })}
-                              placeholder="Ex.: COMBOANNA"
-                            />
-                          </div>
-                          <div className="space-y-1.5">
-                            <Label>O que o cupom dá</Label>
-                            <Input
-                              value={edit.cupomBeneficio}
-                              onChange={(e) => setEdit({ ...edit, cupomBeneficio: e.target.value })}
-                              placeholder="Ex.: R$50 de desconto"
-                            />
-                          </div>
-                          <div className="space-y-1.5">
-                            <Label>Validade</Label>
-                            <Input
-                              value={edit.cupomValidade}
-                              onChange={(e) => setEdit({ ...edit, cupomValidade: e.target.value })}
-                              placeholder="Ex.: válidos até amanhã"
-                            />
-                          </div>
-                        </div>
-                        <p className="text-[10px] text-muted-foreground -mt-1">
-                          Vazio = a mensagem sai sem a linha de cupom.
-                        </p>
+                        )}
+                        {edit.objetivo === "venda" && (
+                          <>
+                            <div className="space-y-1.5">
+                              <Label>Link do combo (card do Direct)</Label>
+                              <Input
+                                type="url"
+                                value={edit.linkCombo}
+                                onChange={(e) => setEdit({ ...edit, linkCombo: e.target.value })}
+                                placeholder="https://…"
+                              />
+                              <p className="text-[10px] text-muted-foreground">
+                                Use quando o post vende um combo com página própria. Vazio = usa os links individuais das peças.
+                              </p>
+                            </div>
+                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                              <div className="space-y-1.5">
+                                <Label>Cupom</Label>
+                                <Input
+                                  value={edit.cupom}
+                                  onChange={(e) => setEdit({ ...edit, cupom: e.target.value })}
+                                  placeholder="Ex.: COMBOANNA"
+                                />
+                              </div>
+                              <div className="space-y-1.5">
+                                <Label>O que o cupom dá</Label>
+                                <Input
+                                  value={edit.cupomBeneficio}
+                                  onChange={(e) => setEdit({ ...edit, cupomBeneficio: e.target.value })}
+                                  placeholder="Ex.: R$50 de desconto"
+                                />
+                              </div>
+                              <div className="space-y-1.5">
+                                <Label>Validade</Label>
+                                <Input
+                                  value={edit.cupomValidade}
+                                  onChange={(e) => setEdit({ ...edit, cupomValidade: e.target.value })}
+                                  placeholder="Ex.: válidos até amanhã"
+                                />
+                              </div>
+                            </div>
+                            <p className="text-[10px] text-muted-foreground -mt-1">
+                              Vazio = a mensagem sai sem a linha de cupom.
+                            </p>
+                          </>
+                        )}
                         {edit.ativo &&
                           edit.selecionados.length > 0 &&
-                          (edit.respostasPublicas.every((v) => !v.trim()) || !edit.respostaDm.trim()) && (
+                          (edit.respostasPublicas.every((v) => !v.trim()) ||
+                            (edit.objetivo === "venda" && !edit.respostaDm.trim())) && (
                             <p className="text-[11px] rounded border border-warning/30 bg-warning/10 p-2 flex items-start gap-1.5">
                               <AlertTriangle className="h-3.5 w-3.5 text-warning shrink-0 mt-px" />
                               <span>
@@ -572,6 +597,7 @@ export function ProdutosPostTab() {
                           <BotaoGerarRespostas
                             produtoIds={edit.selecionados}
                             gatilhos={edit.gatilhos}
+                            objetivo={edit.objetivo}
                             mediaId={edit.post.media_id}
                             linkCombo={edit.linkCombo}
                             cupom={edit.cupom}
@@ -628,15 +654,17 @@ export function ProdutosPostTab() {
                             </p>
                           ))}
                         </div>
-                        <div className="space-y-1.5">
-                          <Label>Resposta no Direct</Label>
-                          <Textarea
-                            value={edit.respostaDm}
-                            onChange={(e) => setEdit({ ...edit, respostaDm: e.target.value })}
-                            className="min-h-[70px]"
-                            placeholder="Mensagem privada com o link do produto…"
-                          />
-                        </div>
+                        {edit.objetivo === "venda" && (
+                          <div className="space-y-1.5">
+                            <Label>Resposta no Direct</Label>
+                            <Textarea
+                              value={edit.respostaDm}
+                              onChange={(e) => setEdit({ ...edit, respostaDm: e.target.value })}
+                              className="min-h-[70px]"
+                              placeholder="Mensagem privada com o link do produto…"
+                            />
+                          </div>
+                        )}
                       </>
                     )}
                   </section>
