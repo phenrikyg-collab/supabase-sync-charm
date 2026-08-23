@@ -53,6 +53,61 @@ export const MOTIVOS_409: Record<string, string> = {
   fora_do_prazo: "Comentários com mais de 7 dias não podem ser respondidos (regra da Meta).",
 };
 
+/** Mensagem padrão quando o comentário não existe mais no Instagram (apagado ou editado — editar troca o id). */
+export const MSG_COMENTARIO_REMOVIDO =
+  "Este comentário não existe mais no Instagram. Normalmente a cliente apagou, ou editou o texto (editar troca o id do comentário). Não dá para responder nem mandar Direct a partir dele.";
+
+/** Detecta o caso "comentário apagado/editado" a partir do erro devolvido pela edge function. */
+export function ehComentarioRemovido(e: any): boolean {
+  if (e?.motivo === "comentario_removido") return true;
+  return /não existe mais no Instagram|does not exist/i.test(e?.message ?? "");
+}
+
+export interface ResultadoEnvioDuplo {
+  ok?: boolean;
+  dm?: { ok?: boolean; [k: string]: any } | null;
+  publica?: { ok?: boolean; [k: string]: any } | null;
+  aviso?: string | null;
+  motivo?: string;
+  dica?: string;
+  detalhe?: string;
+  erro?: string;
+  error?: string;
+}
+
+/**
+ * Responde no comentário E no Direct numa chamada só (tipo "comentario_e_dm").
+ * O backend envia o Direct primeiro; se ele falhar, a resposta pública ainda sai
+ * (com texto_publico_sem_dm quando informado). Sucesso parcial NÃO lança erro —
+ * o chamador mostra o resultado de cada canal. Só lança quando nada saiu.
+ */
+export async function enviarComentarioEDm(payload: Record<string, any>): Promise<ResultadoEnvioDuplo> {
+  const { data, error } = await supabase.functions.invoke("instagram-enviar", {
+    body: { tipo: "comentario_e_dm", ...payload },
+  });
+
+  if (error) {
+    const det = await lerErroEdge(error, "Falha ao enviar. Tente novamente.");
+    const err = new Error(det.mensagem) as ErroEnvio;
+    err.status = det.status;
+    err.motivo = det.corpo?.motivo;
+    err.dica = det.dica;
+    throw err;
+  }
+
+  const r = (data ?? {}) as ResultadoEnvioDuplo;
+  const dmOk = r.dm?.ok === true;
+  const pubOk = r.publica?.ok === true;
+  // Falha total (nenhum canal saiu) continua sendo erro
+  if (r.ok === false && !dmOk && !pubOk) {
+    const err = new Error(r.detalhe || r.erro || r.error || "A Meta não confirmou o envio.") as ErroEnvio;
+    err.motivo = r.motivo;
+    err.dica = r.dica;
+    throw err;
+  }
+  return r;
+}
+
 // ===== Lido / não lido de conversas (DM) =====
 // Nunca escrever nao_lidas direto na tabela — sempre pelas funções do banco,
 // para que menu, lista e filtro de pendentes contem a mesma coisa.
