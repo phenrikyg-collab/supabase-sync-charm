@@ -686,7 +686,21 @@ export function AtendimentoTab() {
                             </span>
                           )}
                           <ContextoMensagem m={m} saida={saida} onConfirmado={confirmarProdutoMsg} />
-                          <p className="whitespace-pre-wrap break-words">{m.conteudo}</p>
+                          {ehReelCompartilhado(m) ? (
+                            <>
+                              <ReelCompartilhado
+                                m={m}
+                                post={m.ref_media_id ? postsReel.get(m.ref_media_id) : null}
+                                saida={saida}
+                              />
+                              {/* Texto além do "[anexo: ig_reel]" (comentário da cliente ao compartilhar) */}
+                              {textoSemAnexo(m.conteudo) && !extrairApenasLink(m.conteudo) && (
+                                <p className="whitespace-pre-wrap break-words">{textoSemAnexo(m.conteudo)}</p>
+                              )}
+                            </>
+                          ) : (
+                            <p className="whitespace-pre-wrap break-words">{m.conteudo}</p>
+                          )}
                           <div className={`text-[10px] mt-1 ${saida ? "text-primary-foreground/70" : "text-muted-foreground"}`}>
                             {tempoRelativo(m.criado_em)}
                             {m.status === "falhou" && " · falhou"}
