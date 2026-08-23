@@ -120,6 +120,7 @@ export function AtendimentoTab() {
   const [enviando, setEnviando] = useState(false);
   const [janelaFechada409, setJanelaFechada409] = useState(false);
   const [painelAberto, setPainelAberto] = useState(true);
+  const [marcandoTodas, setMarcandoTodas] = useState(false);
   // Re-render a cada 30s para contagens regressivas e tempos relativos
   const [, tick] = useReducer((x: number) => x + 1, 0);
 
@@ -177,9 +178,49 @@ export function AtendimentoTab() {
     setEditandoId(null);
     setJanelaFechada409(false);
     carregarMensagens(c.id);
-    if ((c.nao_lidas ?? 0) > 0) {
-      await db.from("instagram_conversas").update({ nao_lidas: 0 }).eq("id", c.id);
-      setConversas((prev) => prev.map((p) => (p.id === c.id ? { ...p, nao_lidas: 0 } : p)));
+    // Abrir NÃO marca como lida — a equipe dá baixa manualmente,
+    // senão a regra de revisar as respostas da Anna perde o sentido.
+  };
+
+  /** Não lida = mensagens não lidas ou resposta da Anna aguardando revisão. */
+  const naoLida = (c: Conversa) => (c.nao_lidas ?? 0) > 0 || !!c.revisao_pendente;
+
+  const marcar = async (c: Conversa, lida: boolean) => {
+    try {
+      const r = await marcarConversaLida(c.id, lida, user?.email);
+      if (r?.conversa_id != null) {
+        setConversas((prev) =>
+          prev.map((p) =>
+            p.id === r.conversa_id
+              ? {
+                  ...p,
+                  nao_lidas: r.nao_lidas ?? p.nao_lidas,
+                  revisao_pendente: r.revisao_pendente ?? false,
+                  revisada_em: r.revisada_em ?? p.revisada_em,
+                  revisada_por: r.revisada_por ?? p.revisada_por,
+                }
+              : p,
+          ),
+        );
+      } else {
+        await carregarConversas();
+      }
+      toast.success(lida ? "Conversa marcada como lida" : "Conversa voltou para não lida");
+    } catch (e: any) {
+      toast.error("Falha ao marcar conversa", { description: e?.message });
+    }
+  };
+
+  const marcarTodas = async () => {
+    setMarcandoTodas(true);
+    try {
+      await marcarTodasLidas(user?.email);
+      toast.success("Todas as conversas foram marcadas como lidas");
+      await carregarConversas();
+    } catch (e: any) {
+      toast.error("Falha ao marcar todas", { description: e?.message });
+    } finally {
+      setMarcandoTodas(false);
     }
   };
 
