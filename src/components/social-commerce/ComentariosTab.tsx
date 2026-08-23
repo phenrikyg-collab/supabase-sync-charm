@@ -36,6 +36,8 @@ type Comentario = {
   status?: string | null;
   intencao?: string | null;
   resposta_rascunho?: string | null;
+  /** Rascunho da Anna para o Direct (ver supabase_sql/instagram_comentarios_rascunho_dm.sql) */
+  resposta_rascunho_dm?: string | null;
   private_reply_usada?: boolean | null;
   aprovado_por?: string | null;
   erro?: string | null;
@@ -47,26 +49,55 @@ type PostInfo = {
   thumbnail_url?: string | null;
   media_url?: string | null;
   permalink?: string | null;
+  caption?: string | null;
+  media_type?: string | null;
+  media_product_type?: string | null;
+  eh_anuncio?: boolean | null;
+  /** Capa escolhida no agendamento — tem prioridade sobre o frame que a Meta entrega */
+  capa_url?: string | null;
 };
 type ProdutoInfo = { id: string; nome_do_produto?: string | null; preco_venda?: number | null };
 
-type FiltroStatus = "novos" | "aguardando" | "respondidos" | "ignorados";
+type FiltroStatus = "novos" | "aguardando" | "respondidos" | "ignorados" | "apagados";
 
 const FILTROS: { key: FiltroStatus; label: string }[] = [
   { key: "novos", label: "Novos" },
   { key: "aguardando", label: "Aguardando aprovação" },
   { key: "respondidos", label: "Respondidos" },
   { key: "ignorados", label: "Ignorados" },
+  { key: "apagados", label: "Apagados" },
 ];
 
 function statusNormalizado(c: Comentario): string {
   return (c.status ?? "novo").toLowerCase();
 }
 
-/** Miniatura do post com fallback (cache → thumbnail → mídia) e clique para o permalink. */
+/** Rótulo amigável do tipo de mídia: Anúncio > Reels > Carrossel > Story > Feed. */
+function rotuloTipoPost(post?: PostInfo): string | null {
+  if (!post) return null;
+  if (post.eh_anuncio) return "Anúncio";
+  const mpt = (post.media_product_type ?? "").toUpperCase();
+  const mt = (post.media_type ?? "").toUpperCase();
+  if (mpt === "REELS" || mt === "VIDEO") return "Reels";
+  if (mt === "CAROUSEL_ALBUM") return "Carrossel";
+  if (mpt === "STORY") return "Story";
+  if (!mpt && !mt) return null;
+  return "Feed";
+}
+
+/** Primeiras palavras da legenda — contexto ao lado da miniatura (o frame do reels nem sempre diz nada). */
+function resumoLegenda(caption?: string | null, palavras = 12): string | null {
+  if (!caption) return null;
+  const limpa = caption.replace(/\s+/g, " ").trim();
+  if (!limpa) return null;
+  const partes = limpa.split(" ");
+  return partes.length > palavras ? partes.slice(0, palavras).join(" ") + "…" : limpa;
+}
+
+/** Miniatura do post: capa escolhida no agendamento → cache → thumbnail → mídia. Clique abre o permalink. */
 function ThumbPost({ post }: { post?: PostInfo }) {
   const [erro, setErro] = useState(false);
-  const src = post ? post.thumb_cache_url || post.thumbnail_url || post.media_url : null;
+  const src = post ? post.capa_url || post.thumb_cache_url || post.thumbnail_url || post.media_url : null;
   const conteudo =
     src && !erro ? (
       <img
