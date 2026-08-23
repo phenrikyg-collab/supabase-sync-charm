@@ -141,6 +141,7 @@ export function ComentariosTab() {
   const [filtroIntencao, setFiltroIntencao] = useState<string>("todas");
   const [expandido, setExpandido] = useState<string | null>(null);
   const [textos, setTextos] = useState<Map<string, string>>(new Map());
+  const [textosDm, setTextosDm] = useState<Map<string, string>>(new Map());
   const [enviando, setEnviando] = useState<string | null>(null);
   // Anúncios com comentário sem resposta e sem produto/automação (view vw_ig_anuncios_pendentes)
   const [qtdAnunciosPendentes, setQtdAnunciosPendentes] = useState(0);
@@ -288,7 +289,9 @@ export function ComentariosTab() {
             ? s === "aguardando_aprovacao"
             : filtroStatus === "respondidos"
               ? s === "respondido"
-              : s === "ignorado";
+              : filtroStatus === "apagados"
+                ? s === "removido"
+                : s === "ignorado";
       if (!okStatus) return false;
       if (filtroIntencao !== "todas" && c.intencao !== filtroIntencao) return false;
       return true;
@@ -298,9 +301,51 @@ export function ComentariosTab() {
   const textoDe = (c: Comentario) => textos.get(c.comment_id) ?? c.resposta_rascunho ?? "";
   const setTextoDe = (c: Comentario, v: string) =>
     setTextos((prev) => new Map(prev).set(c.comment_id, v));
+  const textoDmDe = (c: Comentario) => textosDm.get(c.comment_id) ?? c.resposta_rascunho_dm ?? "";
+  const setTextoDmDe = (c: Comentario, v: string) =>
+    setTextosDm((prev) => new Map(prev).set(c.comment_id, v));
+
+  /** Marca localmente como removido — o comentário não existe mais no Instagram (apagado ou editado). */
+  const marcarRemovido = async (c: Comentario) => {
+    setComentarios((prev) =>
+      prev.map((x) => (x.comment_id === c.comment_id ? { ...x, status: "removido" } : x)),
+    );
+    try {
+      await db.from("instagram_comentarios").update({ status: "removido" }).eq("comment_id", c.comment_id);
+    } catch {
+      /* o backend já marca — aqui é só reforço otimista */
+    }
+  };
+
+  const marcarRespondido = async (c: Comentario) => {
+    try {
+      await db
+        .from("instagram_comentarios")
+        .update({ status: "respondido", aprovado_por: user?.email ?? null })
+        .eq("comment_id", c.comment_id);
+    } catch {
+      /* coluna aprovado_por pode não existir — a edge function cuida do status */
+    }
+  };
+
+  /** Trata erro de envio; retorna true se o erro já foi comunicado (não propagar). */
+  const tratarErroEnvio = async (e: any, c: Comentario): Promise<void> => {
+    if (ehComentarioRemovido(e)) {
+      toast.info(MSG_COMENTARIO_REMOVIDO, { duration: 8000 });
+      await marcarRemovido(c);
+      return;
+    }
+    const motivo = e?.motivo as string | undefined;
+    if (motivo && MOTIVOS_409[motivo]) {
+      toast.warning(MOTIVOS_409[motivo]);
+    } else {
+      toast.error(e?.message ?? "Falha ao enviar", { description: e?.dica });
+    }
+  };
 
   const responder = async (c: Comentario, tipo: "comentario" | "private_reply") => {
-    const texto = textoDe(c).trim();
+    // Cada canal usa o seu campo: pública curta, Direct com preço/link/cupom
+    const texto = (tipo === "comentario" ? textoDe(c) : textoDmDe(c)).trim();
     if (!texto || enviando) return;
     setEnviando(c.comment_id + tipo);
     try {
@@ -312,22 +357,10 @@ export function ComentariosTab() {
       });
       toast.success(tipo === "comentario" ? "Resposta pública enviada" : "Resposta enviada no Direct");
       // Marca como respondido manualmente (distingue do robô)
-      try {
-        await db
-          .from("instagram_comentarios")
-          .update({ status: "respondido", aprovado_por: user?.email ?? null })
-          .eq("comment_id", c.comment_id);
-      } catch {
-        /* coluna aprovado_por pode não existir — a edge function cuida do status */
-      }
+      await marcarRespondido(c);
       await carregar();
     } catch (e: any) {
-      const motivo = e?.motivo as string | undefined;
-      if (motivo && MOTIVOS_409[motivo]) {
-        toast.warning(MOTIVOS_409[motivo]);
-      } else {
-        toast.error(e?.message ?? "Falha ao enviar", { description: e?.dica });
-      }
+      await tratarErroEnvio(e, c);
     } finally {
       setEnviando(null);
     }
