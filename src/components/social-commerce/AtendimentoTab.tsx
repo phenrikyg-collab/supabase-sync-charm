@@ -348,11 +348,17 @@ export function AtendimentoTab() {
             filtradas.map((c) => {
               const j = janelaInfo(c.janela_expira_em);
               const ativa = c.id === selId;
+              const nl = naoLida(c);
               return (
-                <button
+                <div
                   key={c.id}
+                  role="button"
+                  tabIndex={0}
                   onClick={() => abrirConversa(c)}
-                  className={`w-full text-left px-3 py-2.5 border-b transition-colors hover:bg-accent/50 ${
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") abrirConversa(c);
+                  }}
+                  className={`group w-full text-left px-3 py-2.5 border-b transition-colors hover:bg-accent/50 cursor-pointer ${
                     ativa ? "bg-accent" : ""
                   }`}
                 >
@@ -363,8 +369,29 @@ export function AtendimentoTab() {
                         <span className="font-medium text-sm truncate">
                           {c.nome || (c.username ? `@${c.username}` : "Nova conversa")}
                         </span>
-                        <span className="text-[10px] text-muted-foreground shrink-0">
-                          {tempoRelativo(c.ultima_mensagem_em)}
+                        <span className="flex items-center gap-1 shrink-0">
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <span
+                                role="button"
+                                tabIndex={-1}
+                                aria-label={nl ? "Marcar como lida" : "Marcar como não lida"}
+                                className="p-1 rounded text-muted-foreground hover:text-foreground hover:bg-accent transition-all opacity-0 group-hover:opacity-100 focus-visible:opacity-100"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  marcar(c, nl);
+                                }}
+                              >
+                                {nl ? <MailOpen className="h-3.5 w-3.5" /> : <Mail className="h-3.5 w-3.5" />}
+                              </span>
+                            </TooltipTrigger>
+                            <TooltipContent side="left">
+                              {nl ? "Marcar como lida" : "Marcar como não lida"}
+                            </TooltipContent>
+                          </Tooltip>
+                          <span className="text-[10px] text-muted-foreground">
+                            {tempoRelativo(c.ultima_mensagem_em)}
+                          </span>
                         </span>
                       </div>
                       <p className="text-[11px] text-muted-foreground truncate mt-0.5">
@@ -378,6 +405,11 @@ export function AtendimentoTab() {
                   <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
                     {(c.nao_lidas ?? 0) > 0 && (
                       <Badge className="h-4 px-1.5 text-[10px]">{c.nao_lidas}</Badge>
+                    )}
+                    {c.revisao_pendente && (
+                      <span className="inline-flex items-center gap-1 rounded-full border border-warning/30 bg-warning/10 text-warning px-2 py-0.5 text-[10px] font-semibold">
+                        <Bot className="h-3 w-3" /> Revisar Anna
+                      </span>
                     )}
                     <ChipStatus status={c.status} />
                     {j && (
@@ -393,7 +425,7 @@ export function AtendimentoTab() {
                       </span>
                     )}
                   </div>
-                </button>
+                </div>
               );
             })
           )}
