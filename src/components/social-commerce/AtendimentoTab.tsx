@@ -153,16 +153,40 @@ export function AtendimentoTab() {
     setCarregando(false);
   }, []);
 
+  // Fonte única: a view resolve reply_to.story, link sticker, cache de mídia
+  // e análise de imagem — o front não precisa conhecer essas tabelas.
   const carregarMensagens = useCallback(async (conversaId: number) => {
     setCarregandoMsgs(true);
-    const { data } = await db
-      .from("instagram_mensagens")
+    const { data, error } = await db
+      .from("vw_ig_mensagens_painel")
       .select("*")
       .eq("conversa_id", conversaId)
       .order("criado_em", { ascending: true })
       .limit(500);
-    setMensagens((data ?? []) as Mensagem[]);
+    if (error) {
+      // Fallback para a tabela crua caso a view ainda não exista no banco
+      const { data: crua } = await db
+        .from("instagram_mensagens")
+        .select("*")
+        .eq("conversa_id", conversaId)
+        .order("criado_em", { ascending: true })
+        .limit(500);
+      setMensagens((crua ?? []) as Mensagem[]);
+    } else {
+      setMensagens((data ?? []) as Mensagem[]);
+    }
     setCarregandoMsgs(false);
+  }, []);
+
+  /** Confirmação manual da peça (menção a story com confiança média/baixa). */
+  const confirmarProdutoMsg = useCallback((mensagemId: number, p: ProdutoPai) => {
+    setMensagens((prev) =>
+      prev.map((m) =>
+        m.id === mensagemId
+          ? { ...m, look_produto_confirmado_id: p.produto_id, story_produto_nome: p.nome }
+          : m,
+      ),
+    );
   }, []);
 
   useEffect(() => {
