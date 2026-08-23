@@ -3,6 +3,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { db, enviarInstagram, marcarConversaLida, marcarTodasLidas, MOTIVOS_409 } from "@/lib/socialCommerce";
 import { tempoRelativo, janelaInfo } from "./comum";
+import { ContextoMensagem } from "./ContextoMensagem";
+import type { ProdutoPai } from "./SeletorProdutos";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -51,6 +53,18 @@ type Mensagem = {
   status?: string | null;
   erro?: string | null;
   criado_em?: string | null;
+  // Contexto de story/mídia (vw_ig_mensagens_painel)
+  tipo?: string | null;
+  contexto_rotulo?: string | null;
+  imagem_url?: string | null;
+  story_link?: string | null;
+  story_produto_id?: string | null;
+  story_produto_nome?: string | null;
+  look_descricao?: string | null;
+  look_confianca?: string | null;
+  look_produtos_nomes?: string[] | string | null;
+  look_analisado?: boolean | null;
+  look_produto_confirmado_id?: string | null;
 };
 
 type Filtro = "todas" | "aprovacao" | "escaladas" | "resolvidas";
