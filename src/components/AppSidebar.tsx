@@ -296,6 +296,15 @@ export function AppSidebar() {
                               >
                                 <item.icon className="h-4 w-4 mr-2 shrink-0" />
                                 {!collapsed && <span>{item.title}</span>}
+                                {item.url === "/social-commerce" && igNaoLidas > 0 && (
+                                  collapsed ? (
+                                    <span className="absolute right-1 top-1 h-2 w-2 rounded-full bg-danger" />
+                                  ) : (
+                                    <span className="ml-auto rounded-full bg-danger px-1.5 py-0.5 text-[10px] font-bold leading-none text-danger-foreground">
+                                      {igNaoLidas}
+                                    </span>
+                                  )
+                                )}
                               </NavLink>
                             </SidebarMenuButton>
                           </SidebarMenuItem>
