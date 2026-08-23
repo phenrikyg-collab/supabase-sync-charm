@@ -465,11 +465,44 @@ export function AtendimentoTab() {
                       </span>
                     )}
                   </div>
+                  {conversaSel.revisada_em && (
+                    <p className="text-[10px] text-muted-foreground mt-1 flex items-center gap-1">
+                      <Check className="h-3 w-3" />
+                      Revisada por {conversaSel.revisada_por ?? "equipe"},{" "}
+                      {new Date(conversaSel.revisada_em).toLocaleString("pt-BR", {
+                        day: "2-digit",
+                        month: "2-digit",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
+                    </p>
+                  )}
                 </div>
               </div>
-              <Button variant="ghost" size="icon" onClick={() => setPainelAberto((v) => !v)}>
-                {painelAberto ? <PanelRightClose className="h-4 w-4" /> : <PanelRightOpen className="h-4 w-4" />}
-              </Button>
+              <div className="flex items-center gap-1 shrink-0">
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      aria-label={naoLida(conversaSel) ? "Marcar como lida" : "Marcar como não lida"}
+                      onClick={() => marcar(conversaSel, naoLida(conversaSel))}
+                    >
+                      {naoLida(conversaSel) ? (
+                        <MailOpen className="h-4 w-4" />
+                      ) : (
+                        <Mail className="h-4 w-4" />
+                      )}
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    {naoLida(conversaSel) ? "Marcar como lida" : "Marcar como não lida"}
+                  </TooltipContent>
+                </Tooltip>
+                <Button variant="ghost" size="icon" onClick={() => setPainelAberto((v) => !v)}>
+                  {painelAberto ? <PanelRightClose className="h-4 w-4" /> : <PanelRightOpen className="h-4 w-4" />}
+                </Button>
+              </div>
             </div>
 
             {/* Histórico */}
