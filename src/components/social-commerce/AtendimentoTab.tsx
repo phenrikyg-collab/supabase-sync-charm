@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useReducer, useState } from "react";
+import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { db, enviarInstagram, marcarConversaLida, marcarTodasLidas, devolverParaAnna, MOTIVOS_409 } from "@/lib/socialCommerce";
@@ -51,6 +51,17 @@ type Conversa = {
   ultima_mensagem_texto?: string | null;
   /** Por que a Anna escalou a conversa (status 'escalada') */
   motivo_escalonamento?: string | null;
+  // vw_ig_conversas_lista — prévia e estado já resolvidos pelo banco
+  ultima_previa?: string | null;
+  ultima_direcao?: string | null;
+  ultimo_tipo?: string | null;
+  ultima_origem?: string | null;
+  janela_aberta?: boolean | null;
+  horas_restantes?: number | null;
+  e_lead?: boolean | null;
+  lead_status?: string | null;
+  tem_cadastro?: boolean | null;
+  peso?: number | null;
 };
 
 type Mensagem = {
@@ -78,14 +89,20 @@ type Mensagem = {
   look_produto_confirmado_id?: string | null;
 };
 
-type Filtro = "todas" | "aprovacao" | "escaladas" | "resolvidas";
+type Filtro = "nao_lidas" | "janela" | "revisao" | "leads" | "todas";
 
 const FILTROS: { key: Filtro; label: string }[] = [
+  { key: "nao_lidas", label: "Não lidas" },
+  { key: "janela", label: "Janela aberta" },
+  { key: "revisao", label: "Revisão pendente" },
+  { key: "leads", label: "São leads" },
   { key: "todas", label: "Todas" },
-  { key: "aprovacao", label: "Aguardando aprovação" },
-  { key: "escaladas", label: "Escaladas" },
-  { key: "resolvidas", label: "Resolvidas" },
 ];
+
+/** Fila de trabalho: 25 por vez, com scroll infinito. */
+const POR_PAGINA = 25;
+/** Conversa longa abre com as 50 últimas; o resto vem sob demanda. */
+const POR_PAGINA_MSGS = 50;
 
 function ChipStatus({ status }: { status?: string | null }) {
   if (!status) return null;
@@ -140,10 +157,17 @@ export function AtendimentoTab() {
   const [conversas, setConversas] = useState<Conversa[]>([]);
   const [pendentesAprovacao, setPendentesAprovacao] = useState<Set<number>>(new Set());
   const [carregando, setCarregando] = useState(true);
+  const [carregandoMais, setCarregandoMais] = useState(false);
+  const [temMais, setTemMais] = useState(false);
+  const [contagens, setContagens] = useState<Record<Filtro, number>>({
+    nao_lidas: 0, janela: 0, revisao: 0, leads: 0, todas: 0,
+  });
   const [filtro, setFiltro] = useState<Filtro>("todas");
   const [selId, setSelId] = useState<number | null>(null);
   const [mensagens, setMensagens] = useState<Mensagem[]>([]);
   const [carregandoMsgs, setCarregandoMsgs] = useState(false);
+  const [limiteMsgs, setLimiteMsgs] = useState(POR_PAGINA_MSGS);
+  const [temMsgsAntigas, setTemMsgsAntigas] = useState(false);
   const [texto, setTexto] = useState("");
   /** Reels compartilhados da marca: dados do post por ref_media_id (media_id) */
   const [postsReel, setPostsReel] = useState<Map<string, PostReel>>(new Map());
@@ -152,6 +176,8 @@ export function AtendimentoTab() {
   const [janelaFechada409, setJanelaFechada409] = useState(false);
   const [painelAberto, setPainelAberto] = useState(true);
   const [marcandoTodas, setMarcandoTodas] = useState(false);
+  const paginaRef = useRef(0);
+  const sentinelaRef = useRef<HTMLDivElement | null>(null);
   // Re-render a cada 30s para contagens regressivas e tempos relativos
   const [, tick] = useReducer((x: number) => x + 1, 0);
 
@@ -160,15 +186,79 @@ export function AtendimentoTab() {
     return () => clearInterval(i);
   }, []);
 
+  /**
+   * Lista sempre pela view: uma linha por conversa, com prévia pronta.
+   * Nunca consultar instagram_mensagens aqui — era isso que empilhava a página.
+   */
+  const consulta = useCallback((f: Filtro) => {
+    let q = db.from("vw_ig_conversas_lista").select("*", { count: "exact" });
+    if (f === "nao_lidas") q = q.or("nao_lidas.gt.0,revisao_pendente.is.true");
+    if (f === "janela") q = q.eq("janela_aberta", true);
+    if (f === "revisao") q = q.eq("revisao_pendente", true);
+    if (f === "leads") q = q.eq("e_lead", true);
+    return q
+      .order("peso", { ascending: false })
+      .order("ultima_mensagem_em", { ascending: false });
+  }, []);
+
+  const carregarPagina = useCallback(
+    async (pagina: number, f: Filtro) => {
+      const { data, count, error } = await consulta(f).range(
+        pagina * POR_PAGINA,
+        (pagina + 1) * POR_PAGINA - 1,
+      );
+      if (error) {
+        toast.error("Falha ao carregar conversas", { description: error.message });
+        return;
+      }
+      const linhas = (data ?? []) as Conversa[];
+      paginaRef.current = pagina;
+      setConversas((prev) => (pagina === 0 ? linhas : [...prev, ...linhas]));
+      const carregadas = pagina * POR_PAGINA + linhas.length;
+      setTemMais(count != null ? carregadas < count : linhas.length === POR_PAGINA);
+    },
+    [consulta],
+  );
+
+  const carregarContagens = useCallback(async () => {
+    const chaves: Filtro[] = ["nao_lidas", "janela", "revisao", "leads", "todas"];
+    const res = await Promise.all(chaves.map((k) => consulta(k).range(0, 0)));
+    setContagens(
+      Object.fromEntries(chaves.map((k, i) => [k, res[i].count ?? 0])) as Record<Filtro, number>,
+    );
+  }, [consulta]);
+
+  /** Recarrega a primeira página do filtro atual (usado também pelo realtime). */
   const carregarConversas = useCallback(async () => {
-    const [{ data: convs }, { data: pend }] = await Promise.all([
-      db.from("instagram_conversas").select("*").order("ultima_mensagem_em", { ascending: false }).limit(300),
+    const [, , { data: pend }] = await Promise.all([
+      carregarPagina(0, filtro),
+      carregarContagens(),
       db.from("instagram_mensagens").select("conversa_id").eq("status", "aguardando_aprovacao"),
     ]);
-    setConversas((convs ?? []) as Conversa[]);
     setPendentesAprovacao(new Set((pend ?? []).map((p: any) => p.conversa_id)));
     setCarregando(false);
-  }, []);
+  }, [carregarPagina, carregarContagens, filtro]);
+
+  const carregarMais = useCallback(async () => {
+    if (carregandoMais || !temMais) return;
+    setCarregandoMais(true);
+    await carregarPagina(paginaRef.current + 1, filtro);
+    setCarregandoMais(false);
+  }, [carregandoMais, temMais, carregarPagina, filtro]);
+
+  // Scroll infinito: fila de trabalho, a consultora desce até achar
+  useEffect(() => {
+    const alvo = sentinelaRef.current;
+    if (!alvo) return;
+    const obs = new IntersectionObserver(
+      (entradas) => {
+        if (entradas[0]?.isIntersecting) carregarMais();
+      },
+      { rootMargin: "200px" },
+    );
+    obs.observe(alvo);
+    return () => obs.disconnect();
+  }, [carregarMais]);
 
   /** Reels da marca compartilhados na conversa: enriquece com miniatura, legenda e permalink do post. */
   const enriquecerReels = useCallback(async (lista: Mensagem[]) => {
@@ -212,30 +302,38 @@ export function AtendimentoTab() {
 
   // Fonte única: a view resolve reply_to.story, link sticker, cache de mídia
   // e análise de imagem — o front não precisa conhecer essas tabelas.
-  const carregarMensagens = useCallback(async (conversaId: number) => {
-    setCarregandoMsgs(true);
-    const { data, error } = await db
-      .from("vw_ig_mensagens_painel")
-      .select("*")
-      .eq("conversa_id", conversaId)
-      .order("criado_em", { ascending: true })
-      .limit(500);
-    if (error) {
-      // Fallback para a tabela crua caso a view ainda não exista no banco
-      const { data: crua } = await db
-        .from("instagram_mensagens")
-        .select("*")
-        .eq("conversa_id", conversaId)
-        .order("criado_em", { ascending: true })
-        .limit(500);
-      setMensagens((crua ?? []) as Mensagem[]);
-      enriquecerReels((crua ?? []) as Mensagem[]);
-    } else {
-      setMensagens((data ?? []) as Mensagem[]);
-      enriquecerReels((data ?? []) as Mensagem[]);
-    }
-    setCarregandoMsgs(false);
-  }, [enriquecerReels]);
+  const carregarMensagens = useCallback(
+    async (conversaId: number, limite = POR_PAGINA_MSGS) => {
+      setCarregandoMsgs(true);
+      // Últimas N (desc) + 1 para saber se há histórico anterior; exibe em ordem cronológica
+      const buscar = (tabela: string) =>
+        db
+          .from(tabela)
+          .select("*")
+          .eq("conversa_id", conversaId)
+          .order("criado_em", { ascending: false })
+          .limit(limite + 1);
+      let { data, error } = await buscar("vw_ig_mensagens_painel");
+      if (error) {
+        // Fallback para a tabela crua caso a view ainda não exista no banco
+        ({ data } = await buscar("instagram_mensagens"));
+      }
+      const linhas = (data ?? []) as Mensagem[];
+      setTemMsgsAntigas(linhas.length > limite);
+      const lista = linhas.slice(0, limite).reverse();
+      setMensagens(lista);
+      enriquecerReels(lista);
+      setCarregandoMsgs(false);
+    },
+    [enriquecerReels],
+  );
+
+  const verAnteriores = useCallback(() => {
+    if (!selId) return;
+    const novo = limiteMsgs + POR_PAGINA_MSGS;
+    setLimiteMsgs(novo);
+    carregarMensagens(selId, novo);
+  }, [selId, limiteMsgs, carregarMensagens]);
 
   /** Confirmação manual da peça (menção a story com confiança média/baixa). */
   const confirmarProdutoMsg = useCallback((mensagemId: number, p: ProdutoPai) => {
