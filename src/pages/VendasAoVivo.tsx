@@ -421,6 +421,8 @@ export default function VendasAoVivo() {
   const [loading, setLoading] = useState(true);
   const [erro, setErro] = useState<string | null>(null);
   const [atualizadoEm, setAtualizadoEm] = useState<Date | null>(null);
+  const [ciclo, setCiclo] = useState(0);
+
 
   const carregar = useCallback(async (silencioso = false) => {
     if (!silencioso) setLoading(true);
