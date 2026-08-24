@@ -519,11 +519,6 @@ export function AtendimentoTab() {
               <Badge variant="secondary" className="ml-1.5 h-4 px-1 text-[10px]">
                 {contagens[f.key] ?? 0}
               </Badge>
-              {f.key === "aprovacao" && pendentesAprovacao.size > 0 && (
-                <Badge variant="secondary" className="ml-1.5 h-4 px-1 text-[10px]">
-                  {pendentesAprovacao.size}
-                </Badge>
-              )}
             </Button>
           ))}
           {conversas.some(naoLida) && (
