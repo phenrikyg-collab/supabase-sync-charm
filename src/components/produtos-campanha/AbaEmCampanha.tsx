@@ -36,7 +36,29 @@ interface CampanhaRow {
   observacao: string | null;
   status: string;
   created_at: string;
+  desconto_maximo_pct?: number | null;
 }
+
+interface PecaSorteada {
+  id: string;
+  produto_id: string;
+  nome: string;
+  preco: number | null;
+  unidades_em_estoque: number | null;
+  dias_sem_rotatividade: number | null;
+  classe_abc: string | null;
+  desconto_maximo_pct: number | null;
+  valido_ate: string | null;
+}
+
+interface SorteioResultado {
+  sorteado_em: string | null;
+  criterio: { dias_parado_min: number; classe_excluida: string; desconto_maximo_pct: number } | null;
+  pool_elegivel: number | null;
+  valido_ate: string | null;
+  pecas: PecaSorteada[] | null;
+}
+
 
 interface ViewRow {
   id: any;
