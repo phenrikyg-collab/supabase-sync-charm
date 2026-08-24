@@ -253,13 +253,18 @@ export default function ProdutosLucro() {
                 <TableHead className="text-right">Embalagem</TableHead>
                 <TableHead className="text-right">CAC</TableHead>
                 <SortableHead campo="margem_pct" sort={sort} onSort={alternar} className="text-right">Margem %</SortableHead>
+                <TableHead className="text-right whitespace-nowrap">Marg. contrib.</TableHead>
+                <TableHead className="text-right whitespace-nowrap">Marg. contrib. %</TableHead>
                 <SortableHead campo="lucro_liquido_total" sort={sort} onSort={alternar} className="text-right">Lucro líq.</SortableHead>
                 <SortableHead campo="lucro_liquido_unitario" sort={sort} onSort={alternar} className="text-right">Lucro líq./un.</SortableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {produtos.map((p: any, i: number) => (
-                <TableRow key={p.tray_product_id ?? `${p.nome_produto}-${i}`}>
+                <TableRow
+                  key={p.tray_product_id ?? `${p.nome_produto}-${i}`}
+                  className={fundoClassificacao(p.margem_contribuicao_classificacao)}
+                >
                   <TableCell className="min-w-[220px] font-medium">{p.nome_produto ?? "—"}</TableCell>
                   <TableCell className="text-right">{int(p.unidades_vendidas)}</TableCell>
                   <TableCell className="text-right">{brl(p.preco_medio)}</TableCell>
@@ -269,6 +274,15 @@ export default function ProdutosLucro() {
                   <TableCell className="text-right">{brl(p.embalagem_total)}</TableCell>
                   <TableCell className="text-right">{brl(p.cac_total)}</TableCell>
                   <TableCell className={cn("text-right font-medium", corMargem(num(p.margem_pct)))}>{pct(p.margem_pct, 1)}</TableCell>
+                  <TableCell className={cn("text-right", corClassificacao(p.margem_contribuicao_classificacao))}>
+                    {brl(p.margem_contribuicao)}
+                  </TableCell>
+                  <TableCell className="text-right whitespace-nowrap">
+                    <span className="inline-flex items-center gap-1">
+                      <CelulaMargemContrib item={p} />
+                      <BadgeClassificacao classificacao={p.margem_contribuicao_classificacao} />
+                    </span>
+                  </TableCell>
                   <TableCell className="text-right">{brl(p.lucro_liquido_total)}</TableCell>
                   <TableCell className={cn("text-right", num(p.lucro_liquido_unitario) < 0 && "text-red-600 font-medium")}>
                     {brl(p.lucro_liquido_unitario)}
