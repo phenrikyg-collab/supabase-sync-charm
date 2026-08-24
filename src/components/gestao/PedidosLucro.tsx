@@ -413,6 +413,8 @@ function CabecalhoPedidos({ sort, alternar }: { sort: any; alternar: (c: SortCam
         <TableHead className="text-right">Frete</TableHead>
         <TableHead className="text-right">Margem</TableHead>
         <SortableHead campo="margem_pct" sort={sort} onSort={alternar} className="text-right">Margem %</SortableHead>
+        <TableHead className="text-right whitespace-nowrap">Marg. contrib.</TableHead>
+        <TableHead className="text-right whitespace-nowrap">Marg. contrib. %</TableHead>
         <TableHead className="text-right">Lucro líq.</TableHead>
       </TableRow>
     </TableHeader>
