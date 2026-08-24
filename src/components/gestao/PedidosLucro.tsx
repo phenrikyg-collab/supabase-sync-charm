@@ -67,8 +67,8 @@ function temCredito(p: any) {
 
 
 function Tile({
-  titulo, valor, tom = "default", dica, pequeno,
-}: { titulo: string; valor: string; tom?: "default" | "red" | "green" | "muted"; dica?: string; pequeno?: boolean }) {
+  titulo, valor, tom = "default", dica, pequeno, variacao,
+}: { titulo: string; valor: string; tom?: "default" | "red" | "green" | "muted"; dica?: string; pequeno?: boolean; variacao?: React.ReactNode }) {
   const cor = tom === "red" ? "text-red-600" : tom === "green" ? "text-emerald-600" : tom === "muted" ? "text-muted-foreground" : "text-foreground";
   const conteudo = (
     <Card>
@@ -78,11 +78,13 @@ function Tile({
           {dica && <Info className="h-3 w-3 opacity-60" />}
         </p>
         <p className={cn(pequeno ? "text-lg" : "text-2xl", "font-serif font-bold", cor)}>{valor}</p>
+        {variacao}
       </CardContent>
     </Card>
   );
   return dica ? <Dica texto={dica}>{conteudo}</Dica> : conteudo;
 }
+
 
 type SortCampo = "data" | "margem_pct";
 
