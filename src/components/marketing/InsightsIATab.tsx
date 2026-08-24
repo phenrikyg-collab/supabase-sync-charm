@@ -3,6 +3,8 @@ import { Sparkles, RefreshCw, ArrowUp, ArrowDown, CheckCircle2, AlertTriangle, P
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import PlanoSemanaBlock from './PlanoSemanaBlock';
+import ResultadoConta, { ContaResumo, ResultadoDaConta } from './ResultadoConta';
+import CategorizacaoBlock, { AnaliseCategorias, CategoriasRaw } from './CategorizacaoBlock';
 
 const C = {
   bg: '#FAF8F3',
@@ -67,12 +69,43 @@ interface Relatorio {
   o_que_melhorar: { titulo: string; dado: string; correcao: string }[];
   recomendacoes: { acao: string; motivo: string; impacto: string; esforco: string; prioridade: string }[];
   foco_proxima_semana: string[];
+  resultado_da_conta?: ResultadoDaConta;
+  analise_categorias?: AnaliseCategorias;
+  confiabilidade_dos_dados?: string | string[];
+  observacao_do_ciclo?: string | null;
+}
+
+interface DadosRaw {
+  conta_atual?: ContaResumo | null;
+  conta_anterior?: ContaResumo | null;
+  categorias_atual?: CategoriasRaw | null;
+  categorias_anterior?: CategoriasRaw | null;
 }
 
 const statusBadge = (s: string) => {
-  if (s === 'on_track') return { bg: C.green + '22', color: C.green, label: '✓ No alvo' };
-  if (s === 'at_risk') return { bg: C.yellow + '22', color: C.yellow, label: '⚠ Em risco' };
-  return { bg: C.red + '22', color: C.red, label: '✗ Fora do alvo' };
+  const t = String(s ?? '').toLowerCase();
+  if (t.includes('critic') || t.includes('off_track') || t.includes('fora'))
+    return { bg: C.red + '22', color: C.red, label: '✗ Crítico' };
+  if (t.includes('atenc') || t.includes('atenç') || t.includes('at_risk') || t.includes('risco'))
+    return { bg: C.yellow + '22', color: C.yellow, label: '⚠ Atenção' };
+  if (t.includes('on_track') || t.includes('saud') || t.includes('alvo') || t.includes('ok'))
+    return { bg: C.green + '22', color: C.green, label: '✓ No alvo' };
+  return { bg: C.border, color: C.textSec, label: s || '—' };
+};
+
+// O nome importa: existe alcance dos posts e alcance da conta.
+const nomeMetrica = (nome: string) => (String(nome).trim().toLowerCase() === 'alcance' ? 'Alcance dos posts' : nome);
+
+const fmtPeriodoSemana = (inicio?: string | null, fim?: string | null) => {
+  const dia = (iso?: string | null) => {
+    if (!iso) return '';
+    const d = new Date(`${String(iso).slice(0, 10)}T00:00:00`);
+    return isNaN(d.getTime()) ? '' : d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+  };
+  const a = dia(inicio);
+  const b = dia(fim);
+  if (a && b) return `${a} a ${b}`;
+  return a || b || '';
 };
 
 const prioBadge = (p: string) => {
@@ -141,6 +174,8 @@ const normalizarRelatorio = (value: any): Relatorio | null => {
   } as Relatorio;
 };
 
+const COLUNAS = 'id, mes, ano, gerado_em, relatorio_ia, dados_raw, periodo_inicio, periodo_fim';
+
 const periodoDoRelatorio = (rel: Relatorio, payload: any) => {
   const inicioPayload = payload?.periodo_inicio ?? payload?.inicio ?? null;
   const fimPayload = payload?.periodo_fim ?? payload?.fim ?? null;
@@ -157,6 +192,8 @@ export default function InsightsIATab() {
   const [relatorio, setRelatorio] = useState<Relatorio | null>(null);
   const [geradoEm, setGeradoEm] = useState<string>('');
   const [ciclo, setCiclo] = useState(0);
+  const [dadosRaw, setDadosRaw] = useState<DadosRaw | null>(null);
+  const [periodoSemana, setPeriodoSemana] = useState('');
 
   // Carrega o relatório salvo mais recente do mês atual; se não houver, usa o último gerado.
   useEffect(() => {
@@ -169,10 +206,12 @@ export default function InsightsIATab() {
         if (!rel) return false;
         setRelatorio(rel);
         setGeradoEm(fmtDateTime(row.gerado_em));
+        setDadosRaw((row?.dados_raw ?? null) as DadosRaw | null);
+        setPeriodoSemana(fmtPeriodoSemana(row?.periodo_inicio, row?.periodo_fim));
         return true;
       };
       try {
-        const colunas = 'id, mes, ano, gerado_em, relatorio_ia';
+        const colunas = COLUNAS;
         const { data: atual } = await (supabase as any)
           .from('instagram_relatorios_mensais')
           .select(colunas)
@@ -261,7 +300,7 @@ export default function InsightsIATab() {
     try {
       const { data } = await (supabase as any)
         .from('instagram_relatorios_mensais')
-        .select('id, mes, ano, gerado_em, relatorio_ia')
+        .select(COLUNAS)
         .order('gerado_em', { ascending: false, nullsFirst: false })
         .limit(1)
         .maybeSingle();
@@ -270,6 +309,8 @@ export default function InsightsIATab() {
       if (rel && geradoEmMs > clicadoEm) {
         setRelatorio(rel);
         setGeradoEm(fmtDateTime(data.gerado_em));
+        setDadosRaw((data?.dados_raw ?? null) as DadosRaw | null);
+        setPeriodoSemana(fmtPeriodoSemana(data?.periodo_inicio, data?.periodo_fim));
         setCiclo((c) => c + 1);
         return true;
       }
@@ -289,6 +330,9 @@ export default function InsightsIATab() {
       if (!rel || !rel.metricas) throw new Error('Resposta inválida da função');
       setRelatorio(rel);
       setGeradoEm(new Date().toLocaleString('pt-BR'));
+      setDadosRaw((data?.dados_raw ?? data?.dados ?? null) as DadosRaw | null);
+      const per = periodoDoRelatorio(rel, data);
+      setPeriodoSemana(fmtPeriodoSemana(per.inicio, per.fim));
       setCiclo((c) => c + 1);
       try {
         const salvo = await salvarRelatorio(rel, data);
@@ -397,9 +441,9 @@ export default function InsightsIATab() {
 
       {/* 1. Resumo Executivo */}
       <div className="rounded-xl p-6 md:p-8" style={{ background: C.text, color: '#fff' }}>
-        {relatorio.periodo && (
+        {(periodoSemana || relatorio.periodo) && (
           <p className="text-xs uppercase tracking-widest mb-3" style={{ color: C.gold }}>
-            {relatorio.periodo}
+            Semana fechada · {periodoSemana || relatorio.periodo}
           </p>
         )}
         <p className="text-xl md:text-2xl font-bold mb-4 leading-tight text-white">
@@ -424,17 +468,21 @@ export default function InsightsIATab() {
         </div>
       </div>
 
-      {/* 1.1 Plano da semana — o que vamos fazer diferente */}
-      <PlanoSemanaBlock ciclo={ciclo} />
+      {/* 2. Resultado da conta */}
+      <ResultadoConta
+        atual={dadosRaw?.conta_atual}
+        anterior={dadosRaw?.conta_anterior}
+        analise={relatorio.resultado_da_conta}
+        periodo={periodoSemana}
+      />
 
-
-      {/* 2. Métricas */}
+      {/* 3. Métricas dos posts */}
       <div
         className="rounded-xl p-5 md:p-6"
         style={{ background: C.card, border: `1px solid ${C.border}`, boxShadow: '0 1px 3px rgba(0,0,0,0.08)' }}
       >
         <h3 className="text-xl mb-4" style={{ color: C.text, fontFamily: 'Cormorant Garamond, serif', fontWeight: 600 }}>
-          Métricas da Semana
+          Métricas dos posts na semana
         </h3>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
@@ -455,7 +503,7 @@ export default function InsightsIATab() {
                 const sb = statusBadge(m.status);
                 return (
                   <tr key={i} style={{ borderBottom: `1px solid ${C.border}` }}>
-                    <td className="py-3 px-3 font-medium" style={{ color: C.text }}>{m.nome}</td>
+                    <td className="py-3 px-3 font-medium" style={{ color: C.text }}>{nomeMetrica(m.nome)}</td>
                     <td className="text-right py-3 px-3" style={{ color: C.text }}>{m.atual}</td>
                     <td className="text-right py-3 px-3" style={{ color: C.textSec }}>{m.anterior}</td>
                     <td className="text-right py-3 px-3 font-semibold">
@@ -468,6 +516,7 @@ export default function InsightsIATab() {
                       <span
                         className="inline-block px-2 py-0.5 rounded-full text-xs font-medium"
                         style={{ background: sb.bg, color: sb.color }}
+                        title={String(m.status ?? '')}
                       >
                         {sb.label}
                       </span>
@@ -480,7 +529,13 @@ export default function InsightsIATab() {
         </div>
       </div>
 
-      {/* 2.1 O que mudou essa semana */}
+      {/* 4. Categorização */}
+      <CategorizacaoBlock categorias={dadosRaw?.categorias_atual} analise={relatorio.analise_categorias} />
+
+      {/* 5. Plano da semana — o que vamos fazer diferente */}
+      <PlanoSemanaBlock ciclo={ciclo} />
+
+      {/* 6. O que mudou essa semana */}
       {relatorio.o_que_mudou_essa_semana && (
         <div
           className="rounded-xl p-5 md:p-6"
@@ -673,6 +728,16 @@ export default function InsightsIATab() {
           ))}
         </div>
       </div>
+
+      {/* Confiabilidade dos dados — rodapé discreto */}
+      {relatorio.confiabilidade_dos_dados && (
+        <p className="text-xs leading-relaxed" style={{ color: C.textSec }}>
+          <strong style={{ color: C.text }}>Confiabilidade dos dados:</strong>{' '}
+          {Array.isArray(relatorio.confiabilidade_dos_dados)
+            ? relatorio.confiabilidade_dos_dados.join(' ')
+            : relatorio.confiabilidade_dos_dados}
+        </p>
+      )}
     </div>
   );
 }
