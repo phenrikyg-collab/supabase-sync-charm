@@ -22,12 +22,14 @@ export default function Gestao() {
           <TabsTrigger value="meta">Meta Ads Diário</TabsTrigger>
           <TabsTrigger value="canais">Canais e Sessões</TabsTrigger>
           <TabsTrigger value="pedidos-lucro">Pedidos × Lucro</TabsTrigger>
+          <TabsTrigger value="produtos-lucro">Produtos × Lucro</TabsTrigger>
           <TabsTrigger value="auditorias">Auditorias</TabsTrigger>
         </TabsList>
         <TabsContent value="checklist"><ChecklistDiario /></TabsContent>
         <TabsContent value="meta"><MetaAdsDiario /></TabsContent>
         <TabsContent value="canais"><CanaisSessoes /></TabsContent>
         <TabsContent value="pedidos-lucro"><PedidosLucro /></TabsContent>
+        <TabsContent value="produtos-lucro"><ProdutosLucro /></TabsContent>
         <TabsContent value="auditorias"><Auditorias /></TabsContent>
       </Tabs>
     </div>
