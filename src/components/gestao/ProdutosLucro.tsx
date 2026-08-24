@@ -189,12 +189,13 @@ export default function ProdutosLucro() {
                   <TableHead className="text-right">CMV</TableHead>
                   <TableHead className="text-right">Margem</TableHead>
                   <TableHead className="text-right">Margem %</TableHead>
+                  <TableHead className="text-right whitespace-nowrap">Marg. contrib. %</TableHead>
                   <TableHead className="text-right">Lucro líq.</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {porCanal.map((c: any) => (
-                  <TableRow key={String(c.canal ?? "—")}>
+                  <TableRow key={String(c.canal ?? "—")} className={fundoClassificacao(c.margem_contribuicao_classificacao)}>
                     <TableCell className="whitespace-nowrap font-medium">{c.canal ?? "—"}</TableCell>
                     <TableCell className="text-right">{int(c.unidades_vendidas)}</TableCell>
                     <TableCell className="text-right">{brl(c.receita_total)}</TableCell>
@@ -203,11 +204,17 @@ export default function ProdutosLucro() {
                     <TableCell className={cn("text-right font-medium", corMargem(num(c.margem_media_pct)))}>
                       {pct(c.margem_media_pct, 1)}
                     </TableCell>
+                    <TableCell className="text-right whitespace-nowrap">
+                      <span className="inline-flex items-center gap-1">
+                        <CelulaMargemContrib item={c} />
+                        <BadgeClassificacao classificacao={c.margem_contribuicao_classificacao} />
+                      </span>
+                    </TableCell>
                     <TableCell className="text-right">{brl(c.lucro_liquido_total)}</TableCell>
                   </TableRow>
                 ))}
                 {!porCanal.length && !isLoading && (
-                  <TableRow><TableCell colSpan={7} className="text-center text-sm text-muted-foreground">Sem dados no período.</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={8} className="text-center text-sm text-muted-foreground">Sem dados no período.</TableCell></TableRow>
                 )}
               </TableBody>
             </Table>
