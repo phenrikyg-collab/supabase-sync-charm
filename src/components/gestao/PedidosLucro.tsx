@@ -424,7 +424,7 @@ function CabecalhoPedidos({ sort, alternar }: { sort: any; alternar: (c: SortCam
 function LinhaPedido({ p }: { p: any }) {
   const mp = num(p.margem_pct);
   return (
-    <TableRow className={cn(mp < 20 && "bg-red-500/5")}>
+    <TableRow className={cn(fundoClassificacao(p.margem_contribuicao_classificacao), mp < 20 && "bg-red-500/5")}>
       <TableCell className="whitespace-nowrap font-medium">
         {p.url_tray ? (
           <a href={p.url_tray} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-primary hover:underline">
