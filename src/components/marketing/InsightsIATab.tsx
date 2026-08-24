@@ -155,6 +155,7 @@ export default function InsightsIATab() {
   const [carregando, setCarregando] = useState(true);
   const [relatorio, setRelatorio] = useState<Relatorio | null>(null);
   const [geradoEm, setGeradoEm] = useState<string>('');
+  const [ciclo, setCiclo] = useState(0);
 
   // Carrega o relatório salvo mais recente do mês atual; se não houver, usa o último gerado.
   useEffect(() => {
