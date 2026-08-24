@@ -153,7 +153,7 @@ export default function PlanoSemanaBlock({ ciclo = 0 }: { ciclo?: number }) {
       const { error } = await (supabase as any).rpc('fn_ig_plano_salvar', {
         p_compromissos: payload,
         p_observacoes: observacoes.trim() || null,
-        p_criado_por: autor.trim() || null,
+        p_usuario: autor.trim() || null,
       });
       if (error) throw error;
       toast({ title: 'Plano da semana salvo' });
