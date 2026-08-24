@@ -62,6 +62,7 @@ export default function ProdutosLucro() {
   });
 
   const resumo = data?.resumo ?? {};
+  const comparativo = data?.comparativo ?? null;
   const porCanal = useMemo(
     () => [...(data?.por_canal ?? [])].sort((a: any, b: any) => num(b.receita_total) - num(a.receita_total)),
     [data],
