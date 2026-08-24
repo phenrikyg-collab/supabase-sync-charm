@@ -91,8 +91,8 @@ export default function MetaAdsDiario() {
             </div>
           ) : (
             <TooltipProvider>
-              <Table>
-                <TableHeader>
+              <Table containerClassName="max-h-[70vh]">
+                <TableHeader className="sticky top-0 z-20 bg-card">
                   <TableRow>
                     <TableHead>Data</TableHead>
                     <TableHead className="text-right">Alcance</TableHead>
@@ -177,8 +177,8 @@ export default function MetaAdsDiario() {
             </p>
           ) : (
             <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
+              <Table containerClassName="max-h-[70vh]">
+                <TableHeader className="sticky top-0 z-20 bg-card">
                   <TableRow>
                     <TableHead>Data</TableHead>
                     <TableHead>Campanha</TableHead>

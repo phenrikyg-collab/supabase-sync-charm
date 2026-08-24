@@ -64,8 +64,8 @@ export default function Auditorias() {
             </CardHeader>
             {acoes.length > 0 && (
               <CardContent className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
+                <Table containerClassName="max-h-[70vh]">
+                  <TableHeader className="sticky top-0 z-20 bg-card">
                     <TableRow>
                       <TableHead>Ação</TableHead>
                       <TableHead>Domínio</TableHead>

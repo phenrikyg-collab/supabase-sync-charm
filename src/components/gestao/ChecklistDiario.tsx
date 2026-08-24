@@ -226,8 +226,8 @@ export default function ChecklistDiario() {
         </CardHeader>
         {pixAberto && pixLista.length > 0 && (
           <CardContent>
-            <Table>
-              <TableHeader>
+            <Table containerClassName="max-h-[70vh]">
+              <TableHeader className="sticky top-0 z-20 bg-card">
                 <TableRow>
                   <TableHead>Pedido</TableHead>
                   <TableHead className="text-right">Valor</TableHead>
@@ -270,8 +270,8 @@ export default function ChecklistDiario() {
           {estoqueLista.length === 0 ? (
             <p className="text-sm text-muted-foreground">Nenhum SKU em risco.</p>
           ) : (
-            <Table>
-              <TableHeader>
+            <Table containerClassName="max-h-[70vh]">
+              <TableHeader className="sticky top-0 z-20 bg-card">
                 <TableRow>
                   <TableHead>Produto</TableHead>
                   <TableHead className="text-right">Estoque</TableHead>
@@ -316,8 +316,8 @@ export default function ChecklistDiario() {
           {producaoLista.length === 0 ? (
             <p className="text-sm text-muted-foreground">Nenhuma ordem em aberto.</p>
           ) : (
-            <Table>
-              <TableHeader>
+            <Table containerClassName="max-h-[70vh]">
+              <TableHeader className="sticky top-0 z-20 bg-card">
                 <TableRow>
                   <TableHead>Produto</TableHead>
                   <TableHead className="text-right">Peças</TableHead>
@@ -489,8 +489,8 @@ export default function ChecklistDiario() {
             {snapshots.length === 0 ? (
               <p className="text-sm text-muted-foreground">Nenhum snapshot gravado.</p>
             ) : (
-              <Table>
-                <TableHeader>
+              <Table containerClassName="max-h-[70vh]">
+                <TableHeader className="sticky top-0 z-20 bg-card">
                   <TableRow>
                     <TableHead>Data</TableHead>
                     <TableHead className="text-right">Receita ontem</TableHead>

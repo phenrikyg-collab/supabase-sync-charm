@@ -182,6 +182,13 @@ export default function PedidosLucro() {
             dica="Margem de contribuição menos frete real (quando disponível) e CAC do cliente novo."
           />
           <Tile
+            titulo="Custo de embalagem"
+            valor={brl(resumo.custo_embalagem_total)}
+            pequeno
+            tom="red"
+            dica="Taxa fixa de R$ 4,00 por pedido, já descontada do lucro líquido."
+          />
+          <Tile
             titulo="CAC médio"
             valor={brl(resumo.cac_global_periodo)}
             pequeno
@@ -214,8 +221,8 @@ export default function PedidosLucro() {
           <Card>
             <CardHeader className="pb-2"><CardTitle className="text-base">Margem por canal</CardTitle></CardHeader>
             <CardContent className="overflow-x-auto">
-              <Table>
-                <TableHeader>
+              <Table containerClassName="max-h-[70vh]">
+                <TableHeader className="sticky top-0 z-20 bg-card">
                   <TableRow>
                     <TableHead>Canal</TableHead>
                     <TableHead className="text-right">Pedidos</TableHead>
@@ -282,7 +289,7 @@ export default function PedidosLucro() {
             <CardTitle className="text-base">Pedidos ({int(pedidos.length)})</CardTitle>
           </CardHeader>
           <CardContent className="overflow-x-auto">
-            <Table>
+            <Table containerClassName="max-h-[70vh]">
               <CabecalhoPedidos sort={sort} alternar={alternar} />
               <TableBody>
                 {pedidos.map((p: any, i: number) => <LinhaPedido key={p.tray_order_id ?? `${p.data}-${i}`} p={p} />)}
@@ -312,7 +319,7 @@ export default function PedidosLucro() {
             </div>
 
             <div className="overflow-x-auto">
-              <Table>
+              <Table containerClassName="max-h-[70vh]">
                 <CabecalhoPedidos sort={sort} alternar={alternar} />
                 <TableBody>
                   {pedidosBaixos.map((p: any, i: number) => <LinhaPedido key={p.tray_order_id ?? `baixo-${i}`} p={p} />)}
@@ -336,7 +343,8 @@ export default function PedidosLucro() {
           mídia/CAC. Fonte de custo: cost_price do item no momento da venda; quando ausente, usa o custo cadastrado
           hoje no produto (sinalizado na tela). Lucro líquido = margem de contribuição − frete (real via Melhor Envio
           quando disponível; senão R$0 retirada na loja, R$14,90 motoboy, R$10,90 Correios SP Capital, ou média de
-          frete por estado) − CAC (só na 1ª compra do cliente, via gasto Meta Ads ÷ clientes novos no período).
+          frete por estado) − embalagem (R$ 4,00 por pedido) − CAC (só na 1ª compra do cliente, via gasto Meta Ads ÷
+          clientes novos no período).
         </p>
 
       </div>
@@ -346,7 +354,7 @@ export default function PedidosLucro() {
 
 function CabecalhoPedidos({ sort, alternar }: { sort: any; alternar: (c: SortCampo) => void }) {
   return (
-    <TableHeader>
+    <TableHeader className="sticky top-0 z-20 bg-card">
       <TableRow>
         <TableHead>Pedido</TableHead>
         <SortableHead campo="data" sort={sort} onSort={alternar}>Data</SortableHead>
