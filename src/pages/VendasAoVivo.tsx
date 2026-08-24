@@ -13,6 +13,8 @@ import {
   TrendingUp, ArrowRight, Phone,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { OportunidadesAoVivo } from "@/components/recuperacao/OportunidadesAoVivo";
+
 
 // ============ Tipos (payload da RPC whatsapp_dashboard_vendas_ao_vivo) ============
 
