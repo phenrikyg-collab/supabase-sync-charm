@@ -52,6 +52,11 @@
     --danger: 0 72% 51%;
     --danger-foreground: 0 0% 100%;
 
+    /* semântica de variação do Dashboard Comercial */
+    --pos: 153 66% 30%;   /* #1a7f4b */
+    --neg: 4 71% 41%;     /* #b3261e */
+    --warn: 42 100% 27%;  /* #8a6100 */
+
     --chart-1: 38 60% 50%;
     --chart-2: 152 60% 40%;
     --chart-3: 220 60% 50%;
@@ -103,6 +108,10 @@
     --warning-foreground: 38 90% 10%;
     --danger: 0 62% 40%;
     --danger-foreground: 0 0% 100%;
+
+    --pos: 153 50% 55%;
+    --neg: 4 75% 62%;
+    --warn: 42 80% 58%;
   }
 }
 
