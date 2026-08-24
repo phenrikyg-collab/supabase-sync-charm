@@ -368,10 +368,16 @@ Retorne APENAS o texto pronto para publicar, sem comentários, sem JSON, sem mar
                         {c.nome_produto} <ExternalLink className="h-3 w-3" />
                       </a>
                     ) : <span className="font-medium">{c.nome_produto}</span>}
-                    <div className="mt-1 flex items-center gap-2">
+                    <div className="mt-1 flex flex-wrap items-center gap-2">
                       <StarsRow n={c.prioridade} urgent={c.prioridade === 5} />
                       <Badge variant="outline" className={STATUS_BADGE[c.status]}>{c.status}</Badge>
+                      {c.desconto_maximo_pct != null && (
+                        <Badge variant="outline" className="bg-amber-100 text-amber-900 border-amber-300">
+                          até {c.desconto_maximo_pct}% em carrinho complementar
+                        </Badge>
+                      )}
                     </div>
+
                   </div>
                 </div>
 
