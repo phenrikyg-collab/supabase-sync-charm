@@ -130,7 +130,19 @@ function HomeRedirect() {
     </div>
   );
   if (isAdmin) return <Navigate to="/dashboard-comercial" replace />;
-  const order: AppModule[] = ["comercial", "financeiro", "producao", "logistica", "marketing", "rh"];
+  // Ordem de prioridade: primeiro módulo que o usuário tiver define a home dele.
+  const order: AppModule[] = [
+    "gestao",
+    "comercial",
+    "marketing",
+    "crm",
+    "atendimento",
+    "producao",
+    "logistica",
+    "financeiro",
+    "rh",
+    "cadastros",
+  ];
   const first = order.find((m) => modules.includes(m));
   if (!first) return <Navigate to="/tv-interna" replace />;
   return <Navigate to={MODULE_HOME[first]} replace />;
