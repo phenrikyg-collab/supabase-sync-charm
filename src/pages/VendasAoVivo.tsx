@@ -433,8 +433,10 @@ export default function VendasAoVivo() {
       setErro(null);
       setAtualizadoEm(new Date());
       setCiclo((c) => c + 1);
-
+    } catch (e: any) {
+      setErro(e?.message ?? "Erro ao carregar o painel.");
     } finally {
+
       setLoading(false);
     }
   }, []);
