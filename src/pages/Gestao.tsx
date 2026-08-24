@@ -4,6 +4,7 @@ import MetaAdsDiario from "@/components/gestao/MetaAdsDiario";
 import CanaisSessoes from "@/components/gestao/CanaisSessoes";
 import Auditorias from "@/components/gestao/Auditorias";
 import PedidosLucro from "@/components/gestao/PedidosLucro";
+import ProdutosLucro from "@/components/gestao/ProdutosLucro";
 
 export default function Gestao() {
   return (
