@@ -74,6 +74,13 @@ function brl(v: number | null | undefined) {
   return v == null ? "—" : v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 }
 
+function dataValida(v: string | null | undefined) {
+  if (!v) return "—";
+  const d = new Date(String(v).length <= 10 ? `${v}T12:00:00` : v);
+  return isNaN(d.getTime()) ? String(v) : d.toLocaleDateString("pt-BR");
+}
+
+
 function StarsRow({ n, urgent }: { n: number; urgent: boolean }) {
   return (
     <div className="flex">
