@@ -27,18 +27,20 @@ function corMargem(p: number) {
 }
 
 function Tile({
-  titulo, valor, tom = "default",
-}: { titulo: string; valor: string; tom?: "default" | "red" | "green" | "muted" }) {
+  titulo, valor, tom = "default", variacao,
+}: { titulo: string; valor: string; tom?: "default" | "red" | "green" | "muted"; variacao?: React.ReactNode }) {
   const cor = tom === "red" ? "text-red-600" : tom === "green" ? "text-emerald-600" : tom === "muted" ? "text-muted-foreground" : "text-foreground";
   return (
     <Card>
       <CardContent className="p-4 space-y-1">
         <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{titulo}</p>
         <p className={cn("text-2xl font-serif font-bold", cor)}>{valor}</p>
+        {variacao}
       </CardContent>
     </Card>
   );
 }
+
 
 type SortCampo = "unidades_vendidas" | "receita_total" | "margem_pct" | "lucro_liquido_total" | "lucro_liquido_unitario";
 
