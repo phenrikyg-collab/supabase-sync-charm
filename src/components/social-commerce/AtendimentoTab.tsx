@@ -454,15 +454,8 @@ export function AtendimentoTab() {
     [mensagens],
   );
 
-  const filtradas = useMemo(() => {
-    return conversas.filter((c) => {
-      const s = (c.status ?? "").toLowerCase();
-      if (filtro === "aprovacao") return pendentesAprovacao.has(c.id);
-      if (filtro === "escaladas") return s.includes("escalad");
-      if (filtro === "resolvidas") return s.includes("resolvid");
-      return true;
-    });
-  }, [conversas, filtro, pendentesAprovacao]);
+  // Filtro e ordenação vêm do banco (vw_ig_conversas_lista + peso)
+  const filtradas = conversas;
 
   const enviar = async (opts?: { humanAgent?: boolean; mensagemId?: number; textoOverride?: string }) => {
     const corpo = (opts?.textoOverride ?? texto).trim();
@@ -515,9 +508,17 @@ export function AtendimentoTab() {
               size="sm"
               variant={filtro === f.key ? "default" : "outline"}
               className="h-7 text-xs"
-              onClick={() => setFiltro(f.key)}
+              onClick={() => {
+                if (f.key === filtro) return;
+                paginaRef.current = 0;
+                setCarregando(true);
+                setFiltro(f.key);
+              }}
             >
               {f.label}
+              <Badge variant="secondary" className="ml-1.5 h-4 px-1 text-[10px]">
+                {contagens[f.key] ?? 0}
+              </Badge>
               {f.key === "aprovacao" && pendentesAprovacao.size > 0 && (
                 <Badge variant="secondary" className="ml-1.5 h-4 px-1 text-[10px]">
                   {pendentesAprovacao.size}
