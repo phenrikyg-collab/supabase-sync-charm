@@ -423,6 +423,10 @@ export default function InsightsIATab() {
         </div>
       </div>
 
+      {/* 1.1 Plano da semana — o que vamos fazer diferente */}
+      <PlanoSemanaBlock ciclo={ciclo} />
+
+
       {/* 2. Métricas */}
       <div
         className="rounded-xl p-5 md:p-6"
