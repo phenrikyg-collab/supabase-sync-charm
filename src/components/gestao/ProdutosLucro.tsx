@@ -290,7 +290,7 @@ export default function ProdutosLucro() {
                 </TableRow>
               ))}
               {!produtos.length && !isLoading && (
-                <TableRow><TableCell colSpan={11} className="text-center text-sm text-muted-foreground">Sem produtos no período.</TableCell></TableRow>
+                <TableRow><TableCell colSpan={13} className="text-center text-sm text-muted-foreground">Sem produtos no período.</TableCell></TableRow>
               )}
             </TableBody>
           </Table>
