@@ -252,8 +252,34 @@ export default function InsightsIATab() {
     return atualizado;
   };
 
+  // O gateway das Edge Functions corta em 504, mas a função termina e grava o
+  // relatório. Nesse caso esperamos e relemos o relatório mais recente.
+  const recuperarAposTimeout = async (clicadoEm: number): Promise<boolean> => {
+    await new Promise((r) => setTimeout(r, 15000));
+    try {
+      const { data } = await (supabase as any)
+        .from('instagram_relatorios_mensais')
+        .select('id, mes, ano, gerado_em, relatorio_ia')
+        .order('gerado_em', { ascending: false, nullsFirst: false })
+        .limit(1)
+        .maybeSingle();
+      const geradoEmMs = data?.gerado_em ? new Date(data.gerado_em).getTime() : 0;
+      const rel = normalizarRelatorio(data?.relatorio_ia);
+      if (rel && geradoEmMs > clicadoEm) {
+        setRelatorio(rel);
+        setGeradoEm(fmtDateTime(data.gerado_em));
+        setCiclo((c) => c + 1);
+        return true;
+      }
+    } catch {
+      // segue para o erro
+    }
+    return false;
+  };
+
   const gerarRelatorio = async () => {
     setLoading(true);
+    const clicadoEm = Date.now();
     try {
       const { data, error } = await supabase.functions.invoke('gerar-insights-semanal', { body: {} });
       if (error) throw error;
@@ -261,6 +287,7 @@ export default function InsightsIATab() {
       if (!rel || !rel.metricas) throw new Error('Resposta inválida da função');
       setRelatorio(rel);
       setGeradoEm(new Date().toLocaleString('pt-BR'));
+      setCiclo((c) => c + 1);
       try {
         const salvo = await salvarRelatorio(rel, data);
         setGeradoEm(fmtDateTime(salvo?.gerado_em) || new Date().toLocaleString('pt-BR'));
@@ -268,6 +295,17 @@ export default function InsightsIATab() {
         toast({ title: 'Relatório gerado, mas não foi salvo', description: e.message, variant: 'destructive' });
       }
     } catch (err: any) {
+      const status = err?.context?.status;
+      const msg = String(err?.message ?? '');
+      const talvezTimeout =
+        status === 504 || status === 502 || status === 408 || /504|timeout|timed out|gateway/i.test(msg);
+      if (talvezTimeout) {
+        const recuperado = await recuperarAposTimeout(clicadoEm);
+        if (recuperado) {
+          setLoading(false);
+          return;
+        }
+      }
       toast({ title: 'Erro ao gerar relatório', description: err.message, variant: 'destructive' });
     } finally {
       setLoading(false);
