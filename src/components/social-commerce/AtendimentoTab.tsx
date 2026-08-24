@@ -615,7 +615,8 @@ export function AtendimentoTab() {
                         {c.username ? `@${c.username}` : "Carregando perfil..."}
                       </p>
                       <p className="text-xs text-muted-foreground truncate mt-0.5">
-                        {c.ultima_mensagem ?? c.ultima_mensagem_texto ?? ""}
+                        {c.ultima_direcao === "saida" ? "Você: " : ""}
+                        {c.ultima_previa ?? c.ultima_mensagem ?? c.ultima_mensagem_texto ?? ""}
                       </p>
                     </div>
                   </div>
@@ -641,11 +642,30 @@ export function AtendimentoTab() {
                         <Bot className="h-3 w-3" /> Aprovar
                       </span>
                     )}
+                    {c.e_lead && (
+                      <span className="inline-flex items-center rounded-full border border-primary/20 bg-primary/5 text-primary px-2 py-0.5 text-[10px] font-semibold">
+                        Lead{c.lead_status ? ` · ${c.lead_status}` : ""}
+                      </span>
+                    )}
                   </div>
                 </div>
               );
             })
           )}
+          {/* Scroll infinito: carrega mais 25 ao chegar no fim */}
+          <div ref={sentinelaRef} className="py-3 text-center">
+            {carregandoMais ? (
+              <Loader2 className="h-4 w-4 animate-spin mx-auto text-muted-foreground" />
+            ) : temMais ? (
+              <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={carregarMais}>
+                Carregar mais
+              </Button>
+            ) : filtradas.length > 0 ? (
+              <span className="text-[10px] text-muted-foreground">
+                {filtradas.length} de {contagens[filtro] ?? filtradas.length} conversa(s)
+              </span>
+            ) : null}
+          </div>
         </ScrollArea>
       </Card>
 
