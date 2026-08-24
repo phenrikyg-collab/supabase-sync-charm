@@ -182,6 +182,13 @@ export default function PedidosLucro() {
             dica="Margem de contribuição menos frete real (quando disponível) e CAC do cliente novo."
           />
           <Tile
+            titulo="Custo de embalagem"
+            valor={brl(resumo.custo_embalagem_total)}
+            pequeno
+            tom="red"
+            dica="Taxa fixa de R$ 4,00 por pedido, já descontada do lucro líquido."
+          />
+          <Tile
             titulo="CAC médio"
             valor={brl(resumo.cac_global_periodo)}
             pequeno
