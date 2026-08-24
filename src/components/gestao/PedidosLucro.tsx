@@ -464,6 +464,15 @@ function LinhaPedido({ p }: { p: any }) {
       <TableCell className="text-right whitespace-nowrap"><CelulaFrete p={p} /></TableCell>
       <TableCell className="text-right text-emerald-600">{brl(p.margem)}</TableCell>
       <TableCell className={cn("text-right font-medium", corMargem(mp))}>{pct(mp, 1)}</TableCell>
+      <TableCell className={cn("text-right", corClassificacao(p.margem_contribuicao_classificacao))}>
+        {brl(p.margem_contribuicao)}
+      </TableCell>
+      <TableCell className="text-right whitespace-nowrap">
+        <span className="inline-flex items-center gap-1">
+          <CelulaMargemContrib item={p} />
+          <BadgeClassificacao classificacao={p.margem_contribuicao_classificacao} />
+        </span>
+      </TableCell>
       <TableCell className="text-right">{brl(p.lucro_liquido)}</TableCell>
     </TableRow>
   );
