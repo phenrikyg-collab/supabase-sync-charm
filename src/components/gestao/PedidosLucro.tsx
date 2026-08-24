@@ -343,7 +343,8 @@ export default function PedidosLucro() {
           mídia/CAC. Fonte de custo: cost_price do item no momento da venda; quando ausente, usa o custo cadastrado
           hoje no produto (sinalizado na tela). Lucro líquido = margem de contribuição − frete (real via Melhor Envio
           quando disponível; senão R$0 retirada na loja, R$14,90 motoboy, R$10,90 Correios SP Capital, ou média de
-          frete por estado) − CAC (só na 1ª compra do cliente, via gasto Meta Ads ÷ clientes novos no período).
+          frete por estado) − embalagem (R$ 4,00 por pedido) − CAC (só na 1ª compra do cliente, via gasto Meta Ads ÷
+          clientes novos no período).
         </p>
 
       </div>
