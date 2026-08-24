@@ -109,6 +109,7 @@ export default function PedidosLucro() {
   });
 
   const resumo = data?.resumo ?? {};
+  const comparativo = data?.comparativo ?? null;
   const porCanal = useMemo(
     () => [...(data?.por_canal ?? [])].sort((a: any, b: any) => num(b.receita_liquida) - num(a.receita_liquida)),
     [data],
