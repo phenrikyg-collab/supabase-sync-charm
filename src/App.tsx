@@ -190,7 +190,6 @@ const AppRoutes = () => {
   return (
     <Routes>
       <Route path="/ciencia" element={<Ciencia />} />
-      <Route path="/__dc" element={<DashboardComercialPage />} />
       <Route path="/login" element={user ? <Navigate to="/" replace /> : <Login />} />
       <Route path="/tv-interna" element={<ProtectedRoute><TVInterna /></ProtectedRoute>} />
       <Route path="/conteudo" element={<ProtectedRoute><ModuleGuard><ContentCalendar /></ModuleGuard></ProtectedRoute>} />
