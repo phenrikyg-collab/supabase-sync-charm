@@ -123,23 +123,56 @@ export default function ProdutosLucro() {
 
       {/* KPIs */}
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <CardMargemContribuicao
+          valorPct={resumo.margem_contribuicao_pct}
+          total={resumo.margem_contribuicao_total}
+          classificacao={resumo.margem_contribuicao_classificacao}
+          regua={data?.regua_margem_contribuicao}
+          comparativoPct={comparativo?.margem_contribuicao_pct}
+        />
         <Tile titulo="Produtos distintos" valor={int(resumo.produtos_distintos)} />
-        <Tile titulo="Unidades vendidas" valor={int(resumo.unidades_vendidas)} />
-        <Tile titulo="Receita total" valor={brl(resumo.receita_total)} />
-        <Tile titulo="CMV" valor={brl(resumo.cmv_total)} tom="red" />
+        <Tile
+          titulo="Unidades vendidas"
+          valor={int(resumo.unidades_vendidas)}
+          variacao={<Variacao atual={resumo.unidades_vendidas} anterior={comparativo?.unidades_vendidas} />}
+        />
+        <Tile
+          titulo="Receita total"
+          valor={brl(resumo.receita_total)}
+          variacao={<Variacao atual={resumo.receita_total} anterior={comparativo?.receita_total} />}
+        />
+        <Tile
+          titulo="CMV"
+          valor={brl(resumo.cmv_total)}
+          tom="red"
+          variacao={<Variacao atual={resumo.cmv_total} anterior={comparativo?.cmv_total} inverso />}
+        />
         <Tile titulo="Frete" valor={brl(resumo.frete_total)} tom="red" />
         <Tile titulo="Embalagem" valor={brl(resumo.embalagem_total)} tom="red" />
+        <Tile
+          titulo="CAC"
+          valor={brl(resumo.cac_total)}
+          tom="red"
+          variacao={<Variacao atual={resumo.cac_total} anterior={comparativo?.cac_total} inverso />}
+        />
         <Card>
           <CardContent className="p-4 space-y-1">
-            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Margem de contribuição</p>
+            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Margem</p>
             <p className="text-2xl font-serif font-bold text-emerald-600">{brl(resumo.margem_total)}</p>
             <p className={cn("text-xs font-medium", corMargem(num(resumo.margem_media_pct)))}>
               {pct(resumo.margem_media_pct, 1)} de margem média
             </p>
+            <Variacao atual={resumo.margem_total} anterior={comparativo?.margem_total} />
           </CardContent>
         </Card>
-        <Tile titulo="Lucro líquido total" valor={brl(resumo.lucro_liquido_total)} tom="green" />
+        <Tile
+          titulo="Lucro líquido total"
+          valor={brl(resumo.lucro_liquido_total)}
+          tom="green"
+          variacao={<Variacao atual={resumo.lucro_liquido_total} anterior={comparativo?.lucro_liquido_total} />}
+        />
       </div>
+
 
       {/* Canal + gráfico */}
       <div className="grid gap-4 lg:grid-cols-2">
