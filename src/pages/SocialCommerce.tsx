@@ -41,6 +41,9 @@ export default function SocialCommerce() {
         <TabsContent value="atendimento" className="mt-4">
           <AtendimentoTab />
         </TabsContent>
+        <TabsContent value="funil" className="mt-4">
+          <FunilLeadsTab />
+        </TabsContent>
         <TabsContent value="comentarios" className="mt-4">
           <ComentariosTab />
         </TabsContent>
