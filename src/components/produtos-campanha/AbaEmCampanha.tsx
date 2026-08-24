@@ -105,7 +105,25 @@ export function AbaEmCampanha() {
   const [textoGerado, setTextoGerado] = useState<Record<string, string>>({});
   const [categoria, setCategoria] = useState<CategoriaKey>("todos");
   const [vendasPos, setVendasPos] = useState<Record<string, number>>({});
+  const [sorteio, setSorteio] = useState<SorteioResultado | null>(null);
+  const [sorteando, setSorteando] = useState(false);
   const { map: precoMinMap } = usePrecoMinimo();
+
+  async function sortearPecas() {
+    setSorteando(true);
+    try {
+      const { data, error } = await (supabase as any).rpc("sortear_pecas_estoque_parado");
+      if (error) throw error;
+      setSorteio((data ?? null) as SorteioResultado);
+      toast.success("Sorteio realizado");
+      await carregar();
+    } catch (e: any) {
+      toast.error("Erro ao sortear peças: " + (e.message || ""));
+    } finally {
+      setSorteando(false);
+    }
+  }
+
 
   async function carregar() {
     setLoading(true);
