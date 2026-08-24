@@ -1,13 +1,11 @@
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import {
-  CalendarIcon, DollarSign, Loader2, RefreshCw, ShoppingCart, Sparkles, Target,
+  CalendarIcon, Loader2, RefreshCw, Sparkles, Target,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -19,9 +17,9 @@ import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import { callClaude } from "@/lib/claudeApi";
 import {
-  aprovacaoCanceladosReais, ddmm, ddmmyyyy, diasUteis, diffDias, ehFimDeSemana, fetchDrivers, fetchGa4,
+  aprovacaoCanceladosReais, ddmm, ddmmyyyy, diasUteis, diffDias, fetchDrivers, fetchGa4,
   fetchItens, fetchMetaOficial, fetchMidia, fetchPedidos, fetchWindsor, fmtBRL, fmtNum, fmtPct, funilSessoes,
-  isoDia, listaDias, lmdi, Pedido, pickNum, resumoMidia, resumoPeriodo, somaDias,
+  isoDia, listaDias, lmdi, pickNum, resumoMidia, resumoPeriodo, somaDias,
 } from "@/lib/dashComercial";
 import { SeloAviso, SkeletonBloco, SkeletonCard, Tile, variacaoPct } from "@/components/dash-comercial/ui";
 import { Waterfall } from "@/components/dash-comercial/Waterfall";
