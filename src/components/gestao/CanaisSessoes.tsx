@@ -92,8 +92,8 @@ export default function CanaisSessoes() {
               <Loader2 className="h-5 w-5 animate-spin mr-2" /> Carregando…
             </div>
           ) : (
-            <Table>
-              <TableHeader>
+            <Table containerClassName="max-h-[70vh]">
+              <TableHeader className="sticky top-0 z-20 bg-card">
                 <TableRow>
                   <TableHead>Canal</TableHead>
                   <TableHead className="text-right">Sessões</TableHead>
@@ -176,8 +176,8 @@ export default function CanaisSessoes() {
           </div>
 
           <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
+            <Table containerClassName="max-h-[70vh]">
+              <TableHeader className="sticky top-0 z-20 bg-card">
                 <TableRow>
                   <TableHead>Data</TableHead>
                   <TableHead className="text-right">GA4</TableHead>

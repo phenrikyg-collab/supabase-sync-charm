@@ -214,8 +214,8 @@ export default function PedidosLucro() {
           <Card>
             <CardHeader className="pb-2"><CardTitle className="text-base">Margem por canal</CardTitle></CardHeader>
             <CardContent className="overflow-x-auto">
-              <Table>
-                <TableHeader>
+              <Table containerClassName="max-h-[70vh]">
+                <TableHeader className="sticky top-0 z-20 bg-card">
                   <TableRow>
                     <TableHead>Canal</TableHead>
                     <TableHead className="text-right">Pedidos</TableHead>
@@ -282,7 +282,7 @@ export default function PedidosLucro() {
             <CardTitle className="text-base">Pedidos ({int(pedidos.length)})</CardTitle>
           </CardHeader>
           <CardContent className="overflow-x-auto">
-            <Table>
+            <Table containerClassName="max-h-[70vh]">
               <CabecalhoPedidos sort={sort} alternar={alternar} />
               <TableBody>
                 {pedidos.map((p: any, i: number) => <LinhaPedido key={p.tray_order_id ?? `${p.data}-${i}`} p={p} />)}
@@ -312,7 +312,7 @@ export default function PedidosLucro() {
             </div>
 
             <div className="overflow-x-auto">
-              <Table>
+              <Table containerClassName="max-h-[70vh]">
                 <CabecalhoPedidos sort={sort} alternar={alternar} />
                 <TableBody>
                   {pedidosBaixos.map((p: any, i: number) => <LinhaPedido key={p.tray_order_id ?? `baixo-${i}`} p={p} />)}
@@ -346,7 +346,7 @@ export default function PedidosLucro() {
 
 function CabecalhoPedidos({ sort, alternar }: { sort: any; alternar: (c: SortCampo) => void }) {
   return (
-    <TableHeader>
+    <TableHeader className="sticky top-0 z-20 bg-card">
       <TableRow>
         <TableHead>Pedido</TableHead>
         <SortableHead campo="data" sort={sort} onSort={alternar}>Data</SortableHead>
