@@ -18,7 +18,7 @@ import {
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
-import { Star, ExternalLink, ChevronDown, Pause, X, Edit, RotateCcw, Sparkles, Copy } from "lucide-react";
+import { Star, ExternalLink, ChevronDown, Pause, X, Edit, RotateCcw, Sparkles, Copy, Dices } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { callClaude } from "@/lib/claudeApi";
 import { CategoryFilter } from "./CategoryFilter";
@@ -36,7 +36,29 @@ interface CampanhaRow {
   observacao: string | null;
   status: string;
   created_at: string;
+  desconto_maximo_pct?: number | null;
 }
+
+interface PecaSorteada {
+  id: string;
+  produto_id: string;
+  nome: string;
+  preco: number | null;
+  unidades_em_estoque: number | null;
+  dias_sem_rotatividade: number | null;
+  classe_abc: string | null;
+  desconto_maximo_pct: number | null;
+  valido_ate: string | null;
+}
+
+interface SorteioResultado {
+  sorteado_em: string | null;
+  criterio: { dias_parado_min: number; classe_excluida: string; desconto_maximo_pct: number } | null;
+  pool_elegivel: number | null;
+  valido_ate: string | null;
+  pecas: PecaSorteada[] | null;
+}
+
 
 interface ViewRow {
   id: any;
@@ -51,6 +73,13 @@ interface ViewRow {
 function brl(v: number | null | undefined) {
   return v == null ? "—" : v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 }
+
+function dataValida(v: string | null | undefined) {
+  if (!v) return "—";
+  const d = new Date(String(v).length <= 10 ? `${v}T12:00:00` : v);
+  return isNaN(d.getTime()) ? String(v) : d.toLocaleDateString("pt-BR");
+}
+
 
 function StarsRow({ n, urgent }: { n: number; urgent: boolean }) {
   return (
@@ -83,7 +112,25 @@ export function AbaEmCampanha() {
   const [textoGerado, setTextoGerado] = useState<Record<string, string>>({});
   const [categoria, setCategoria] = useState<CategoriaKey>("todos");
   const [vendasPos, setVendasPos] = useState<Record<string, number>>({});
+  const [sorteio, setSorteio] = useState<SorteioResultado | null>(null);
+  const [sorteando, setSorteando] = useState(false);
   const { map: precoMinMap } = usePrecoMinimo();
+
+  async function sortearPecas() {
+    setSorteando(true);
+    try {
+      const { data, error } = await (supabase as any).rpc("sortear_pecas_estoque_parado");
+      if (error) throw error;
+      setSorteio((data ?? null) as SorteioResultado);
+      toast.success("Sorteio realizado");
+      await carregar();
+    } catch (e: any) {
+      toast.error("Erro ao sortear peças: " + (e.message || ""));
+    } finally {
+      setSorteando(false);
+    }
+  }
+
 
   async function carregar() {
     setLoading(true);
@@ -252,7 +299,50 @@ Retorne APENAS o texto pronto para publicar, sem comentários, sem JSON, sem mar
         </CardContent></Card>
       </div>
 
+      <Card>
+        <CardContent className="py-4 space-y-4">
+          <div className="flex flex-wrap items-center gap-3">
+            <Button onClick={sortearPecas} disabled={sorteando}>
+              <Dices className={`h-4 w-4 mr-2 ${sorteando ? "animate-spin" : ""}`} /> Sortear peças (estoque parado)
+            </Button>
+            <p className="text-xs text-muted-foreground flex-1 min-w-[16rem]">
+              Sorteia peças com estoque parado que não são best-seller para virarem ação de venda da semana,
+              com desconto de até 40% liberado quando a peça entra num carrinho com outras peças.
+            </p>
+          </div>
+
+          {sorteio && (
+            <div className="space-y-3 border-t pt-3">
+              <p className="text-sm">
+                {(sorteio.pecas?.length ?? 0)} peças sorteadas de um pool de {sorteio.pool_elegivel ?? 0} elegíveis,
+                válido até {dataValida(sorteio.valido_ate)}
+              </p>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                {(sorteio.pecas || []).map((p) => (
+                  <div key={p.id} className="rounded border p-3 space-y-1">
+                    <div className="flex items-start justify-between gap-2">
+                      <span className="text-sm font-medium">{p.nome}</span>
+                      <span className="text-sm">{brl(p.preco)}</span>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                      <span>{p.dias_sem_rotatividade ?? "—"} dias parada</span>
+                      {p.classe_abc && <Badge variant="outline">Classe {p.classe_abc}</Badge>}
+                      {p.desconto_maximo_pct != null && (
+                        <Badge variant="outline" className="bg-amber-100 text-amber-900 border-amber-300">
+                          até {p.desconto_maximo_pct}% em carrinho complementar
+                        </Badge>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
       <CategoryFilter value={categoria} onChange={setCategoria} />
+
 
       {!ativos.length && (
         <Card><CardContent className="py-12 text-center text-muted-foreground">
@@ -278,10 +368,16 @@ Retorne APENAS o texto pronto para publicar, sem comentários, sem JSON, sem mar
                         {c.nome_produto} <ExternalLink className="h-3 w-3" />
                       </a>
                     ) : <span className="font-medium">{c.nome_produto}</span>}
-                    <div className="mt-1 flex items-center gap-2">
+                    <div className="mt-1 flex flex-wrap items-center gap-2">
                       <StarsRow n={c.prioridade} urgent={c.prioridade === 5} />
                       <Badge variant="outline" className={STATUS_BADGE[c.status]}>{c.status}</Badge>
+                      {c.desconto_maximo_pct != null && (
+                        <Badge variant="outline" className="bg-amber-100 text-amber-900 border-amber-300">
+                          até {c.desconto_maximo_pct}% em carrinho complementar
+                        </Badge>
+                      )}
                     </div>
+
                   </div>
                 </div>
 
