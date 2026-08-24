@@ -4,10 +4,12 @@ import { AtendimentoTab } from "@/components/social-commerce/AtendimentoTab";
 import { ComentariosTab } from "@/components/social-commerce/ComentariosTab";
 import { PublicacoesTab } from "@/components/social-commerce/PublicacoesTab";
 import { ProdutosPostTab } from "@/components/social-commerce/ProdutosPostTab";
-import { MessageCircle, MessagesSquare, CalendarDays, ShoppingBag } from "lucide-react";
+import { FunilLeadsTab } from "@/components/social-commerce/FunilLeadsTab";
+import { MessageCircle, MessagesSquare, CalendarDays, ShoppingBag, Filter } from "lucide-react";
 
 const ABAS = [
   { valor: "atendimento", label: "Atendimento (DM)", icone: MessageCircle },
+  { valor: "funil", label: "Funil de leads", icone: Filter },
   { valor: "comentarios", label: "Comentários", icone: MessagesSquare },
   { valor: "publicacoes", label: "Publicações", icone: CalendarDays },
   { valor: "produtos", label: "Produtos do Post", icone: ShoppingBag },
@@ -38,6 +40,9 @@ export default function SocialCommerce() {
 
         <TabsContent value="atendimento" className="mt-4">
           <AtendimentoTab />
+        </TabsContent>
+        <TabsContent value="funil" className="mt-4">
+          <FunilLeadsTab />
         </TabsContent>
         <TabsContent value="comentarios" className="mt-4">
           <ComentariosTab />
