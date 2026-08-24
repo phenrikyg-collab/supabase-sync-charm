@@ -15,6 +15,9 @@ import { Tooltip as UiTooltip, TooltipContent, TooltipProvider, TooltipTrigger }
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { SortableHead, useSortable } from "@/components/SortableHead";
 import { brl, ddmm, int, num, pct } from "@/lib/gestaoFormat";
+import {
+  BadgeClassificacao, CardMargemContribuicao, CelulaMargemContrib, Variacao, corClassificacao, fundoClassificacao,
+} from "@/components/gestao/margemContribuicao";
 import { cn } from "@/lib/utils";
 
 const PERIODOS = [7, 30, 90];
