@@ -1,1358 +1,814 @@
-import { useEffect, useMemo, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useForm } from "react-hook-form";
+import { toast } from "sonner";
+import {
+  CalendarIcon, DollarSign, Loader2, RefreshCw, ShoppingCart, Sparkles, Target,
+} from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Calendar } from "@/components/ui/calendar";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Progress } from "@/components/ui/progress";
-import { motion } from "framer-motion";
-import {
-  AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine,
-  PieChart, Pie, Cell, Legend,
-} from "recharts";
-import {
-  CalendarIcon, DollarSign, ShoppingCart, Receipt, Target, Percent,
-  TrendingDown, TrendingUp, ArrowUpRight, ArrowDownRight, Sparkles, Loader2,
-  Package, AlertTriangle, Zap, CreditCard, Wallet,
-} from "lucide-react";
-import {
-  format, startOfDay, endOfDay, startOfMonth, endOfMonth, startOfWeek, endOfWeek,
-  subMonths, subDays, eachDayOfInterval, isWeekend, parseISO, differenceInCalendarDays,
-} from "date-fns";
-import { ptBR } from "date-fns/locale";
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
-import { toast } from "sonner";
 import { callClaude } from "@/lib/claudeApi";
-import { useMetasFinanceiras, useProdutos } from "@/hooks/useSupabase";
-import { CategoryFilter } from "@/components/produtos-campanha/CategoryFilter";
-import { CategoriaKey, categorizarProduto } from "@/lib/categorias";
+import {
+  aprovacaoCanceladosReais, ddmm, ddmmyyyy, diasUteis, diffDias, ehFimDeSemana, fetchDrivers, fetchGa4,
+  fetchItens, fetchMetaOficial, fetchMidia, fetchPedidos, fetchWindsor, fmtBRL, fmtNum, fmtPct, funilSessoes,
+  isoDia, listaDias, lmdi, Pedido, pickNum, resumoMidia, resumoPeriodo, somaDias,
+} from "@/lib/dashComercial";
+import { SeloAviso, SkeletonBloco, SkeletonCard, Tile, variacaoPct } from "@/components/dash-comercial/ui";
+import { Waterfall } from "@/components/dash-comercial/Waterfall";
+import { DriverLinha, PlacarDrivers } from "@/components/dash-comercial/Drivers";
+import { DadosDetalhe, DetalheDriver } from "@/components/dash-comercial/Detalhes";
+import { Alerta, BarraAlertas } from "@/components/dash-comercial/Alertas";
+import {
+  CanaisEProdutos, LinhaFonte, MixClientes, RitmoDiario, SaudeFontes,
+} from "@/components/dash-comercial/Blocos";
 
-// ============ helpers ============
-const fmtBRL = (n: number | null | undefined) =>
-  new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Number(n ?? 0));
-const fmtNum = (n: number | null | undefined) => new Intl.NumberFormat("pt-BR").format(Number(n ?? 0));
-const fmtPct = (n: number | null | undefined, d = 1) => `${Number(n ?? 0).toFixed(d)}%`;
-const fmtData = (d: Date) => format(d, "dd/MM/yyyy");
+type Preset = "hoje" | "semana" | "mes" | "mes-anterior" | "personalizado";
+type ModoComp = "anterior" | "mes-passado";
 
-const CHANNEL_COLORS = ["hsl(38, 60%, 50%)", "hsl(152, 60%, 40%)", "hsl(220, 60%, 50%)", "hsl(280, 60%, 50%)", "hsl(0, 72%, 51%)", "hsl(200, 70%, 50%)"];
+const HOJE = isoDia(new Date());
 
-type Periodo = "hoje" | "semana" | "mes" | "mes-anterior" | "personalizado";
-
-// dias úteis (seg-sex) entre duas datas inclusivas
-function diasUteis(de: Date, ate: Date) {
-  if (ate < de) return 0;
-  return eachDayOfInterval({ start: de, end: ate }).filter((d) => !isWeekend(d)).length;
+function inicioSemana(iso: string) {
+  const [y, m, d] = iso.split("-").map(Number);
+  const dt = new Date(y, m - 1, d);
+  const wd = (dt.getDay() + 6) % 7; // segunda = 0
+  return somaDias(iso, -wd);
 }
-
-// fetch all rows respecting Supabase 1000-row pagination limit
-async function fetchAll<T = any>(table: string, build: (q: any) => any): Promise<T[]> {
-  const acc: T[] = [];
-  let from = 0;
-  const size = 1000;
-  // eslint-disable-next-line no-constant-condition
-  while (true) {
-    const { data, error } = await build(supabase.from(table).select("*").range(from, from + size - 1));
-    if (error) throw error;
-    const rows = (data ?? []) as T[];
-    acc.push(...rows);
-    if (rows.length < size) break;
-    from += size;
-  }
-  return acc;
+const inicioMes = (iso: string) => `${iso.slice(0, 7)}-01`;
+function fimMes(iso: string) {
+  const [y, m] = iso.split("-").map(Number);
+  return isoDia(new Date(y, m, 0));
 }
-
-// ============ types ============
-interface TrayOrder {
-  id: number;
-  date: string | null;
-  total: number | null;
-  discount: number | null;
-  discount_coupon: string | null;
-  payment_form: string | null;
-  point_sale: string | null;
-  orderstatus_status: string | null;
-  orderstatus_type: string | null;
+function mesAnteriorIso(iso: string) {
+  const [y, m, d] = iso.split("-").map(Number);
+  const dt = new Date(y, m - 2, 1);
+  const ultimo = new Date(dt.getFullYear(), dt.getMonth() + 1, 0).getDate();
+  return isoDia(new Date(dt.getFullYear(), dt.getMonth(), Math.min(d, ultimo)));
 }
+const dataDeIso = (iso: string) => { const [y, m, d] = iso.split("-").map(Number); return new Date(y, m - 1, d); };
 
-// extrai o valor de desconto do cupom no formato "NOME/24.90"
-function parseCupomValor(s: string | null | undefined): number {
-  if (!s) return 0;
-  const parts = String(s).split("/");
-  if (parts.length < 2) return 0;
-  const n = parseFloat(parts[parts.length - 1].replace(",", "."));
-  return isNaN(n) ? 0 : n;
-}
-
-// soma desconto bruto + cupom
-function descontoTotal(p: { discount: number | null; discount_coupon: string | null }): number {
-  return Number(p.discount ?? 0) + parseCupomValor(p.discount_coupon);
-}
-interface TrayVariant {
-  variant_id: number;
-  variant_product_id: number | null;
-  variant_stock: number | null;
-  variant_quantity_sold: number | null;
-  variant_price: number | null;
-  variant_sku: string | null;
-}
-
-// ============ component ============
 export default function DashboardComercialPage() {
-  const [periodo, setPeriodo] = useState<Periodo>("mes");
-  const [customRange, setCustomRange] = useState<{ from?: Date; to?: Date }>({});
-  const [aiInsights, setAiInsights] = useState<string>("");
-  const [loadingAi, setLoadingAi] = useState(false);
-  const [categoriaFiltro, setCategoriaFiltro] = useState<CategoriaKey>("todos");
+  const [preset, setPreset] = useState<Preset>("mes");
+  const [custom, setCustom] = useState<{ from?: Date; to?: Date }>({});
+  const [modoComp, setModoComp] = useState<ModoComp>("anterior");
+  const [drawer, setDrawer] = useState<string | null>(null);
+  const [lancamento, setLancamento] = useState<DriverLinha | null>(null);
+  const [ia, setIa] = useState("");
+  const [loadingIa, setLoadingIa] = useState(false);
 
-  const { dataInicio, dataFim, label } = useMemo(() => {
-    const hoje = new Date();
-    if (periodo === "hoje") return { dataInicio: startOfDay(hoje), dataFim: endOfDay(hoje), label: "Hoje" };
-    if (periodo === "semana") return { dataInicio: startOfWeek(hoje, { weekStartsOn: 1 }), dataFim: endOfWeek(hoje, { weekStartsOn: 1 }), label: "Esta semana" };
-    if (periodo === "mes") return { dataInicio: startOfMonth(hoje), dataFim: endOfMonth(hoje), label: "Este mês" };
-    if (periodo === "mes-anterior") {
-      const ant = subMonths(hoje, 1);
-      return { dataInicio: startOfMonth(ant), dataFim: endOfMonth(ant), label: "Mês anterior" };
+  /* ------------------------------ período ------------------------------- */
+  const { ini, fim, rotulo } = useMemo(() => {
+    if (preset === "hoje") return { ini: HOJE, fim: HOJE, rotulo: "Hoje" };
+    if (preset === "semana") {
+      const i = inicioSemana(HOJE);
+      return { ini: i, fim: HOJE, rotulo: "Esta semana" };
     }
-    const di = customRange.from ?? startOfMonth(hoje);
-    const df = customRange.to ?? endOfMonth(hoje);
-    return { dataInicio: startOfDay(di), dataFim: endOfDay(df), label: `${fmtData(di)} – ${fmtData(df)}` };
-  }, [periodo, customRange]);
+    if (preset === "mes") return { ini: inicioMes(HOJE), fim: HOJE, rotulo: "Este mês" };
+    if (preset === "mes-anterior") {
+      const ref = mesAnteriorIso(HOJE);
+      return { ini: inicioMes(ref), fim: fimMes(ref), rotulo: "Mês anterior" };
+    }
+    const i = custom.from ? isoDia(custom.from) : inicioMes(HOJE);
+    const f = custom.to ? isoDia(custom.to) : HOJE;
+    return { ini: i, fim: f, rotulo: `${ddmmyyyy(i)} – ${ddmmyyyy(f)}` };
+  }, [preset, custom]);
 
-  // período comparativo (mesmo intervalo do mês anterior)
-  const { compInicio, compFim } = useMemo(() => {
+  const { compIni, compFim } = useMemo(() => {
+    if (modoComp === "mes-passado") return { compIni: mesAnteriorIso(ini), compFim: mesAnteriorIso(fim) };
+    const dur = diffDias(fim, ini) + 1;
+    const cf = somaDias(ini, -1);
+    return { compIni: somaDias(cf, -(dur - 1)), compFim: cf };
+  }, [ini, fim, modoComp]);
+
+  const rotuloComp = `vs ${ddmm(compIni)}–${ddmm(compFim)} (${modoComp === "anterior" ? `${diffDias(fim, ini) + 1} dias anteriores` : "mesmo período do mês passado"})`;
+
+  const mesRef = fim.slice(0, 7);
+  const mesIni = `${mesRef}-01`;
+  const mesFim = fimMes(fim);
+  const janIni = [compIni, mesIni, ini].sort()[0];
+  const fetchIni = somaDias(janIni, -35);
+  const fetchFim = [fim, HOJE].sort().slice(-1)[0];
+
+  /* ------------------------------ queries ------------------------------- */
+  const qPedidos = useQuery({
+    queryKey: ["dc2-pedidos", fetchIni, fetchFim],
+    queryFn: () => fetchPedidos(fetchIni, fetchFim),
+    staleTime: 5 * 60_000,
+  });
+  const qGa4 = useQuery({
+    queryKey: ["dc2-ga4", fetchIni, fetchFim],
+    queryFn: () => fetchGa4(fetchIni, fetchFim),
+    staleTime: 5 * 60_000,
+  });
+  const qWindsor = useQuery({
+    queryKey: ["dc2-windsor", fetchIni, fetchFim],
+    queryFn: () => fetchWindsor(fetchIni, fetchFim),
+    staleTime: 5 * 60_000,
+  });
+  const qMidia = useQuery({
+    queryKey: ["dc2-midia", fetchIni, fetchFim],
+    queryFn: () => fetchMidia(fetchIni, fetchFim),
+    staleTime: 5 * 60_000,
+  });
+  const qMeta = useQuery({ queryKey: ["dc2-meta", mesRef], queryFn: () => fetchMetaOficial(mesRef), staleTime: 10 * 60_000 });
+  const qDrivers = useQuery({
+    queryKey: ["dc2-drivers", mesRef],
+    queryFn: () => fetchDrivers(Number(mesRef.slice(0, 4)), Number(mesRef.slice(5, 7))),
+    staleTime: 10 * 60_000,
+  });
+  const qFontesVazias = useQuery({
+    queryKey: ["dc2-fontes-vazias", mesRef],
+    queryFn: async () => {
+      const g = await supabase.from("google_ads_diario" as any).select("data").limit(1);
+      const i = await supabase.from("investimentos_midia" as any).select("mes_referencia").eq("mes_referencia", mesRef).limit(1);
+      return { googleAds: (g.data ?? []).length > 0, investMes: (i.data ?? []).length > 0 };
+    },
+    staleTime: 10 * 60_000,
+  });
+
+  const pedidos = qPedidos.data ?? [];
+  const ga4 = qGa4.data ?? [];
+  const windsor = qWindsor.data ?? [];
+  const midia = qMidia.data ?? [];
+  const carregando = qPedidos.isLoading || qGa4.isLoading || qMidia.isLoading;
+
+  const qItens = useQuery({
+    queryKey: ["dc2-itens", compIni, fim, pedidos.length],
+    enabled: pedidos.length > 0,
+    staleTime: 5 * 60_000,
+    queryFn: () =>
+      fetchItens(pedidos.filter((p) => !p.cancelado && p.dia >= compIni && p.dia <= fim).map((p) => p.id)),
+  });
+  const itens = qItens.data ?? [];
+
+  /* ---------------------- 1.3 GA4 x fallback Windsor -------------------- */
+  const ga4UltimoDia = useMemo(() => ga4.map((g) => g.dia).sort().slice(-1)[0] ?? null, [ga4]);
+  const ga4Atrasado = !ga4UltimoDia || diffDias(HOJE, ga4UltimoDia) > 1;
+  const sessoesFonte = ga4Atrasado && windsor.length ? windsor : ga4;
+  const nomeFonteSessoes = sessoesFonte === ga4 ? "GA4" : "Windsor (GA4 atrasado)";
+
+  /* ------------------------------ métricas ------------------------------ */
+  const resumo = useMemo(() => resumoPeriodo(pedidos, ini, fim), [pedidos, ini, fim]);
+  const resumoComp = useMemo(() => resumoPeriodo(pedidos, compIni, compFim), [pedidos, compIni, compFim]);
+  const aprov = useMemo(() => aprovacaoCanceladosReais(pedidos, ini, fim), [pedidos, ini, fim]);
+  const aprovComp = useMemo(() => aprovacaoCanceladosReais(pedidos, compIni, compFim), [pedidos, compIni, compFim]);
+  const aprovMes = useMemo(() => aprovacaoCanceladosReais(pedidos, mesIni, mesFim), [pedidos, mesIni, mesFim]);
+  const funil = useMemo(() => funilSessoes(sessoesFonte, ini, fim), [sessoesFonte, ini, fim]);
+  const funilComp = useMemo(() => funilSessoes(sessoesFonte, compIni, compFim), [sessoesFonte, compIni, compFim]);
+  const mid = useMemo(() => resumoMidia(midia, ini, fim, funil.sessoes_pagas), [midia, ini, fim, funil.sessoes_pagas]);
+
+  const mtd = useMemo(() => resumoPeriodo(pedidos, mesIni, [fim, HOJE].sort()[0]), [pedidos, mesIni, fim]);
+  const meta = qMeta.data;
+  const pctMeta = meta?.meta_mensal ? (mtd.receita_liquida / meta.meta_mensal) * 100 : null;
+  const faltante = meta?.meta_mensal ? Math.max(meta.meta_mensal - mtd.receita_liquida, 0) : null;
+  const uteisRestantes = Math.max(diasUteis([HOJE, mesIni].sort().slice(-1)[0], mesFim), 1);
+  const metaDiaria = faltante !== null ? faltante / uteisRestantes : null;
+
+  /* ------------------- Seção 3 — LMDI com janela ajustada ---------------- */
+  const { resultado, avisoJanela } = useMemo(() => {
+    const diasA = listaDias(ini, fim).filter((d) => funilDia(sessoesFonte, d) > 0);
+    const diasB = listaDias(compIni, compFim).filter((d) => funilDia(sessoesFonte, d) > 0);
+    const n = Math.min(diasA.length, diasB.length);
+    const setA = diasA.slice(0, n);
+    const setB = diasB.slice(0, n);
+    const totalDias = diffDias(fim, ini) + 1;
+    const faltando = listaDias(ini, fim).filter((d) => !setA.includes(d));
+    const aviso =
+      n === 0 ? "Sem dados de sessão nos dois períodos"
+      : n < totalDias ? `Janela ajustada para ${n} dias — ${nomeFonteSessoes.startsWith("GA4") ? "GA4" : "Windsor"} sem ${faltando.map(ddmm).join(", ")}`
+      : null;
+
+    const agregar = (dias: string[]) => {
+      const sessoes = sessoesFonte.filter((s) => dias.includes(s.dia)).reduce((s, l) => s + l.sessoes, 0);
+      const jan = pedidos.filter((p) => dias.includes(p.dia));
+      const ok = jan.filter((p) => !p.cancelado);
+      const receita = ok.reduce((s, p) => s + p.receita_liquida, 0);
+      return {
+        sessoes,
+        conversao: sessoes ? (jan.length / sessoes) * 100 : 0,
+        ticket: ok.length ? receita / ok.length : 0,
+        aprovacao: jan.length ? (ok.length / jan.length) * 100 : 0,
+      };
+    };
+    return { resultado: lmdi(agregar(setA), agregar(setB)), avisoJanela: aviso };
+  }, [pedidos, sessoesFonte, ini, fim, compIni, compFim, nomeFonteSessoes]);
+
+  /* ------------------------- Seção 4 — 9 drivers ------------------------- */
+  const drvRow = qDrivers.data;
+  const clientesMes = useMemo(() => {
+    const ok = pedidos.filter((p) => !p.cancelado && p.dia >= mesIni && p.dia <= mesFim && p.customer_id);
+    const anteriores = new Set(
+      pedidos.filter((p) => !p.cancelado && p.dia < mesIni && p.customer_id).map((p) => p.customer_id as string),
+    );
+    const unicos = new Set(ok.map((p) => p.customer_id as string));
+    let novos = 0;
+    unicos.forEach((c) => { if (!anteriores.has(c)) novos++; });
+    return { unicos: unicos.size, novos, recorrentes: unicos.size - novos, pedidos: ok.length };
+  }, [pedidos, mesIni, mesFim]);
+
+  const ticketConflito = pickNum(drvRow, ["ticket_medio", "ticket"]);
+  const investVipLancado = qFontesVazias.data?.investMes ?? false;
+
+  const drivers: DriverLinha[] = useMemo(() => {
+    const conversao = funil.sessoes ? (resumo.pedidos_captados / funil.sessoes) * 100 : null;
+    const retencao = clientesMes.unicos ? (clientesMes.recorrentes / clientesMes.unicos) * 100 : null;
+    const metaConv = pickNum(drvRow, ["taxa_conversao", "conversao"]);
+    const metaApr = pickNum(drvRow, ["taxa_aprovacao", "aprovacao"]);
+    const metaRet = pickNum(drvRow, ["taxa_retencao", "retencao"]);
+    const metaSessOrg = pickNum(drvRow, ["sessoes_organicas", "organicas"]);
+    const metaMidia = pickNum(drvRow, ["investimento_midia", "invest_midia", "midia"]);
+    const metaVip = pickNum(drvRow, ["vip"]);
+    const metaImprensa = pickNum(drvRow, ["imprensa", "pr_"]);
+    const metaCps = pickNum(drvRow, ["cps_midia", "cps"]);
+    const metaTicket = meta?.meta_ticket_medio ?? null;
+
+    const impTicket = metaTicket ? (resumo.ticket_medio - metaTicket) * resumo.pedidos : null;
+    const impApr = metaApr ? ((aprov.taxa - metaApr) / 100) * resumo.pedidos_captados * resumo.ticket_medio : null;
+    const impConv = metaConv && conversao !== null
+      ? ((conversao - metaConv) / 100) * funil.sessoes * resumo.ticket_medio * (aprov.taxa / 100) : null;
+    const impSess = metaSessOrg && conversao !== null
+      ? (funil.sessoes_organicas - metaSessOrg) * (conversao / 100) * resumo.ticket_medio * (aprov.taxa / 100) : null;
+    const impRet = metaRet && retencao !== null
+      ? ((retencao - metaRet) / 100) * clientesMes.unicos * resumo.ticket_medio : null;
+    const impMidia = metaMidia ? (mid.invest - metaMidia) * (mid.roas || 1) : null;
+    const impCps = metaCps && funil.sessoes_pagas ? (metaCps - mid.cps) * funil.sessoes_pagas : null;
+
+    return [
+      { id: "retencao", nome: "Retenção", unidade: "pct", meta: metaRet, realizado: retencao, impacto: impRet, nota: "% dos clientes únicos do mês" },
+      { id: "aprovacao", nome: "Aprovação", unidade: "pct", meta: metaApr, realizado: aprov.taxa, impacto: impApr, nota: "regra cancelados reais (±7 dias)" },
+      {
+        id: "ticket", nome: "Ticket médio", unidade: "brl", meta: metaTicket, realizado: resumo.ticket_medio, impacto: impTicket,
+        nota: ticketConflito && metaTicket && Math.abs(ticketConflito - metaTicket) > 0.01
+          ? `⚠︎ planejamento_drivers diverge — ${fmtBRL(ticketConflito)} (vale metas_financeiras)` : "meta oficial: metas_financeiras",
+      },
+      { id: "conversao", nome: "Taxa de conversão", unidade: "pct", meta: metaConv, realizado: conversao, impacto: impConv, nota: "pedidos captados ÷ sessões" },
+      { id: "midia", nome: "Invest. mídia", unidade: "brl", meta: metaMidia, realizado: mid.invest, impacto: impMidia, nota: "parcial: só Meta Ads" },
+      { id: "vip", nome: "Invest. VIP", unidade: "brl", meta: metaVip, realizado: investVipLancado ? 0 : null, impacto: null, semDado: !investVipLancado },
+      { id: "imprensa", nome: "Invest. imprensa", unidade: "brl", meta: metaImprensa, realizado: investVipLancado ? 0 : null, impacto: null, semDado: !investVipLancado },
+      { id: "sessoes", nome: "Sessões orgânicas", unidade: "num", meta: metaSessOrg, realizado: funil.sessoes_organicas, impacto: impSess },
+      { id: "cps", nome: "CPS de mídia", unidade: "brl", meta: metaCps, realizado: mid.cps, inverso: true, impacto: impCps, nota: "invest. mídia ÷ sessões pagas" },
+    ];
+  }, [drvRow, meta, funil, resumo, aprov, mid, clientesMes, ticketConflito, investVipLancado]);
+
+  /* ---------------------------- drawers/detalhe -------------------------- */
+  const dadosDetalhe: DadosDetalhe = useMemo(() => {
+    const porPedido = new Map(pedidos.map((p) => [p.id, p]));
+    const agItens = (di: string, df: string) => {
+      let qtd = 0, receita = 0;
+      const ids = new Set(pedidos.filter((p) => !p.cancelado && p.dia >= di && p.dia <= df).map((p) => p.id));
+      for (const it of itens) {
+        if (!ids.has(it.order_id)) continue;
+        qtd += it.quantidade;
+        receita += it.quantidade * it.preco;
+      }
+      const r = resumoPeriodo(pedidos, di, df);
+      return {
+        itens_por_pedido: r.pedidos ? qtd / r.pedidos : 0,
+        preco_medio_item: qtd ? receita / qtd : 0,
+        ticket: r.ticket_medio,
+        pedidos: r.pedidos,
+      };
+    };
+
+    const meios = new Map<string, { rec_atual: number; rec_comp: number; qtd_atual: number; qtd_comp: number }>();
+    for (const p of pedidos) {
+      if (!p.cancelado) continue;
+      const dentro = p.dia >= ini && p.dia <= fim;
+      const antes = p.dia >= compIni && p.dia <= compFim;
+      if (!dentro && !antes) continue;
+      const k = p.payment_method || "(sem meio de pagamento)";
+      const cur = meios.get(k) ?? { rec_atual: 0, rec_comp: 0, qtd_atual: 0, qtd_comp: 0 };
+      if (dentro) { cur.rec_atual += p.receita_liquida; cur.qtd_atual++; }
+      if (antes) { cur.rec_comp += p.receita_liquida; cur.qtd_comp++; }
+      meios.set(k, cur);
+    }
+
+    const canais = new Map<string, { atual: number; comp: number }>();
+    for (const s of sessoesFonte) {
+      const dentro = s.dia >= ini && s.dia <= fim;
+      const antes = s.dia >= compIni && s.dia <= compFim;
+      if (!dentro && !antes) continue;
+      const cur = canais.get(s.canal) ?? { atual: 0, comp: 0 };
+      if (dentro) cur.atual += s.sessoes;
+      if (antes) cur.comp += s.sessoes;
+      canais.set(s.canal, cur);
+    }
+
+    const camp = new Map<string, { spend: number; cliques: number; receita: number }>();
+    for (const m of midia.filter((m) => m.dia >= ini && m.dia <= fim)) {
+      const cur = camp.get(m.campanha) ?? { spend: 0, cliques: 0, receita: 0 };
+      cur.spend += m.spend; cur.cliques += m.cliques; cur.receita += m.receita_atribuida;
+      camp.set(m.campanha, cur);
+    }
+
     return {
-      compInicio: startOfDay(subMonths(dataInicio, 1)),
-      compFim: endOfDay(subMonths(dataFim, 1)),
+      ticket: { atual: agItens(ini, fim), comp: agItens(compIni, compFim) },
+      aprovacao: Array.from(meios.entries()).map(([meio, v]) => ({ meio, ...v })),
+      conversao: {
+        atual: { sessoes: funil.sessoes, carrinho: funil.carrinho, checkout: funil.checkout, compras: funil.compras_ga4 },
+        comp: { sessoes: funilComp.sessoes, carrinho: funilComp.carrinho, checkout: funilComp.checkout, compras: funilComp.compras_ga4 },
+      },
+      sessoes: Array.from(canais.entries()).map(([canal, v]) => ({ canal, ...v })),
+      midia: Array.from(camp.entries()).map(([campanha, v]) => ({
+        campanha, spend: v.spend, cliques: v.cliques,
+        cpc: v.cliques ? v.spend / v.cliques : 0, roas: v.spend ? v.receita / v.spend : 0,
+      })),
     };
-  }, [dataInicio, dataFim]);
+  }, [pedidos, itens, sessoesFonte, midia, funil, funilComp, ini, fim, compIni, compFim]);
 
-  // ===== fetch pedidos do período + período anterior (juntos) =====
-  const { data: pedidos = [], isLoading: loadPedidos } = useQuery({
-    queryKey: ["dash-comercial-pedidos", dataInicio.toISOString(), dataFim.toISOString(), compInicio.toISOString()],
-    queryFn: async () => {
-      return await fetchAll<TrayOrder>("tray_orders", (q) =>
-        q.gte("date", format(compInicio, "yyyy-MM-dd"))
-         .lte("date", format(dataFim, "yyyy-MM-dd"))
-         .neq("orderstatus_type", "canceled")
-         .order("date", { ascending: false })
-      );
-    },
-  });
-
-  // ===== fetch variants (apenas para estoque) =====
-  const { data: variants = [], isLoading: loadVar } = useQuery({
-    queryKey: ["dash-comercial-variants"],
-    queryFn: async () => fetchAll<TrayVariant>("tray_products_variants", (q) => q),
-  });
-
-  // ===== fetch detalhes de pedidos (para preço médio de venda por produto) =====
-  const { data: detalhes = [] } = useQuery({
-    queryKey: ["dash-comercial-detalhes"],
-    queryFn: async () =>
-      fetchAll<{ product_id: number | null; quantity: number | null; price: number | null; discount: number | null }>(
-        "tray_orders_detalhes",
-        (q) => q
-      ),
-  });
-
-  // ===== fetch produtos vendidos (tray_productssold) — para top produtos =====
-  const { data: productssold = [] } = useQuery({
-    queryKey: ["dash-comercial-productssold"],
-    queryFn: async () =>
-      fetchAll<{
-        order_id: string | null;
-        product_id: string | null;
-        variant_id: string | null;
-        name: string | null;
-        model: string | null;
-        reference: string | null;
-        price: number | null;
-        cost_price: number | null;
-        quantity: number | null;
-      }>("tray_productssold", (q) => q),
-  });
-
-  // ===== fetch vendas novo vs recorrente (view) =====
-  const { data: vendasTipo = [] } = useQuery({
-    queryKey: ["dash-comercial-novo-recorrente", dataInicio.toISOString(), dataFim.toISOString()],
-    queryFn: async () =>
-      fetchAll<{ id: number; date: string | null; total: number | null; tipo_cliente: string | null }>(
-        "vw_vendas_novo_recorrente",
-        (q) =>
-          q.gte("date", format(dataInicio, "yyyy-MM-dd"))
-           .lte("date", format(dataFim, "yyyy-MM-dd"))
-      ),
-  });
-
-  // ===== GA4: sessões do período atual + comparativo =====
-  const { data: ga4Sessoes = [] } = useQuery({
-    queryKey: ["dash-comercial-ga4-sessoes", compInicio.toISOString(), dataFim.toISOString()],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("ga4_aquisicao_canais" as any)
-        .select("event_date, sessoes, usuarios, novos_usuarios, canal")
-        .gte("event_date", format(compInicio, "yyyy-MM-dd"))
-        .lte("event_date", format(dataFim, "yyyy-MM-dd"));
-      if (error) {
-        console.warn("GA4 indisponível:", error.message);
-        return [];
-      }
-      return (data ?? []) as Array<{ event_date: string; sessoes: number | null; usuarios: number | null; novos_usuarios: number | null; canal: string | null }>;
-    },
-  });
-
-  // ===== Mix de clientes + CAC (mês do período) =====
-  const mesRefStr = format(dataInicio, "yyyy-MM");
-  const { data: mixClientes } = useQuery({
-    queryKey: ["dash-mix-clientes", mesRefStr],
-    queryFn: async () => {
-      const [taxaRes, adsRes] = await Promise.all([
-        (supabase as any)
-          .from("vw_taxa_conversao_mensal")
-          .select("clientes_novos, clientes_recorrentes")
-          .eq("mes", mesRefStr)
-          .maybeSingle(),
-        supabase
-          .from("windsor_meta_ads")
-          .select("spend")
-          .gte("date", `${mesRefStr}-01`)
-          .lte("date", `${mesRefStr}-31`),
-      ]);
-      const t = taxaRes.data as any;
-      const investimentoTotal = (adsRes.data ?? []).reduce(
-        (acc: number, r: any) => acc + (Number(r.spend) || 0),
-        0,
-      );
-      const novos = Number(t?.clientes_novos ?? 0);
-      const recorrentes = Number(t?.clientes_recorrentes ?? 0);
-      const unicos = novos + recorrentes;
+  /* ------------------------- Seção 5 — ritmo diário ---------------------- */
+  const ritmo = useMemo(
+    () => listaDias(ini, fim).map((d) => {
+      const jan = pedidos.filter((p) => p.dia === d && !p.cancelado);
       return {
-        novos,
-        recorrentes,
-        unicos,
-        percNovos: unicos > 0 ? (novos / unicos) * 100 : 0,
-        percRecorrentes: unicos > 0 ? (recorrentes / unicos) * 100 : 0,
-        cacNovos: novos > 0 ? investimentoTotal / novos : 0,
-        investimentoTotal,
+        dia: d,
+        receita: jan.reduce((s, p) => s + p.receita_liquida, 0),
+        meta_diaria: metaDiaria ?? 0,
+        spend: midia.filter((m) => m.dia === d).reduce((s, m) => s + m.spend, 0),
+        pedidos: jan.length,
       };
-    },
-  });
-
-  const novoRecorrente = useMemo(() => {
-    const acc = { novo: { pedidos: 0, receita: 0 }, recorrente: { pedidos: 0, receita: 0 } };
-    for (const v of vendasTipo) {
-      const tipo = v.tipo_cliente === "novo" ? "novo" : v.tipo_cliente === "recorrente" ? "recorrente" : null;
-      if (!tipo) continue;
-      acc[tipo].pedidos += 1;
-      acc[tipo].receita += Number(v.total ?? 0);
-    }
-    const totalReceita = acc.novo.receita + acc.recorrente.receita;
-    const totalPedidosNR = acc.novo.pedidos + acc.recorrente.pedidos;
-    const novo = {
-      ...acc.novo,
-      ticket: acc.novo.pedidos > 0 ? acc.novo.receita / acc.novo.pedidos : 0,
-      pct: totalReceita > 0 ? (acc.novo.receita / totalReceita) * 100 : 0,
-    };
-    const recorrente = {
-      ...acc.recorrente,
-      ticket: acc.recorrente.pedidos > 0 ? acc.recorrente.receita / acc.recorrente.pedidos : 0,
-      pct: totalReceita > 0 ? (acc.recorrente.receita / totalReceita) * 100 : 0,
-    };
-    let insight = "";
-    if (recorrente.pct >= 60) {
-      insight = `✅ Base sólida de clientes fiéis — ${fmtPct(recorrente.pct)} da receita vem de recorrentes`;
-    } else if (novo.pct > 50) {
-      insight = `🆕 Alto volume de aquisição — ${fmtPct(novo.pct)} da receita vem de clientes novos`;
-    } else if (novo.ticket > recorrente.ticket && novo.ticket > 0) {
-      insight = `💡 Clientes novos têm ticket médio maior (${fmtBRL(novo.ticket)} vs ${fmtBRL(recorrente.ticket)})`;
-    } else if (recorrente.ticket > novo.ticket && recorrente.ticket > 0) {
-      insight = `💡 Clientes recorrentes compram mais (${fmtBRL(recorrente.ticket)} vs ${fmtBRL(novo.ticket)})`;
-    }
-    return { novo, recorrente, totalReceita, totalPedidosNR, insight };
-  }, [vendasTipo]);
-
-  const { data: metas = [] } = useMetasFinanceiras();
-  const { data: produtos = [] } = useProdutos();
-
-  // ===== métricas =====
-  const noPeriodo = useMemo(
-    () => pedidos.filter((p) => p.date && p.date >= format(dataInicio, "yyyy-MM-dd") && p.date <= format(dataFim, "yyyy-MM-dd")),
-    [pedidos, dataInicio, dataFim]
-  );
-  const noComp = useMemo(
-    () => pedidos.filter((p) => p.date && p.date >= format(compInicio, "yyyy-MM-dd") && p.date <= format(compFim, "yyyy-MM-dd")),
-    [pedidos, compInicio, compFim]
+    }),
+    [pedidos, midia, ini, fim, metaDiaria],
   );
 
-  const sum = (arr: TrayOrder[], k: keyof TrayOrder) => arr.reduce((a, b) => a + Number((b[k] as number) ?? 0), 0);
-  // Na Tray, o campo `total` já é o valor final do pedido (líquido, após desconto).
-  // Receita Líquida = soma dos totais. Receita Bruta = total + desconto (antes do desconto).
-  const totalPedidos = noPeriodo.length;
-  const pedidosComp = noComp.length;
-  const totalDesconto = noPeriodo.reduce((a, b) => a + descontoTotal(b), 0);
-  const descontoComp = noComp.reduce((a, b) => a + descontoTotal(b), 0);
-  const receitaLiquida = sum(noPeriodo, "total");
-  const receitaLiquidaComp = sum(noComp, "total");
-  const receitaBruta = receitaLiquida + totalDesconto;
-  const receitaComp = receitaLiquidaComp + descontoComp;
-  const ticketMedio = totalPedidos > 0 ? receitaLiquida / totalPedidos : 0;
-  const ticketMedioComp = pedidosComp > 0 ? receitaLiquidaComp / pedidosComp : 0;
-  const descontoMedio = totalPedidos > 0 ? totalDesconto / totalPedidos : 0;
-  const descontoPct = receitaBruta > 0 ? (totalDesconto / receitaBruta) * 100 : 0;
-
-  // ===== meta do mês atual =====
-  const metaAtual = useMemo(() => {
-    const hojeMes = format(new Date(), "yyyy-MM");
-    return metas.find((m: any) => (m.mes ?? "").startsWith(hojeMes));
-  }, [metas]);
-  const metaMensal = Number(metaAtual?.meta_mensal ?? 0);
-  const metaTicket = Number(metaAtual?.meta_ticket_medio ?? 0);
-  const diasUteisMes = Number(metaAtual?.dias_uteis ?? diasUteis(startOfMonth(new Date()), endOfMonth(new Date())));
-
-  // realizado mês p/ progresso da meta (independente do período selecionado)
-  const realizadoMes = useMemo(() => {
-    const ini = format(startOfMonth(new Date()), "yyyy-MM-dd");
-    const fim = format(endOfMonth(new Date()), "yyyy-MM-dd");
-    return pedidos
-      .filter((p) => p.date && p.date >= ini && p.date <= fim)
-      .reduce((a, b) => a + Number(b.total ?? 0), 0);
-  }, [pedidos]);
-
-  const pctMeta = metaMensal > 0 ? (realizadoMes / metaMensal) * 100 : 0;
-  const faltaMeta = Math.max(metaMensal - realizadoMes, 0);
-  const hoje = new Date();
-  // Dias úteis restantes = de hoje (inclusive) até o último dia do mês, removendo sáb/dom
-  const diasUteisRestantes = diasUteis(startOfDay(hoje), endOfMonth(hoje));
-  const metaDiariaHoje = diasUteisRestantes > 0 ? faltaMeta / diasUteisRestantes : 0;
-
-  // ===== série diária =====
-  const serieDiaria = useMemo(() => {
-    const dias = eachDayOfInterval({ start: dataInicio, end: dataFim });
-    return dias.map((d) => {
-      const key = format(d, "yyyy-MM-dd");
-      const dia = noPeriodo.filter((p) => p.date === key);
-      const receita = dia.reduce((a, b) => a + Number(b.total ?? 0), 0);
-      return {
-        data: format(d, "dd/MM"),
-        receita,
-        meta: isWeekend(d) ? 0 : metaDiariaHoje,
-      };
-    });
-  }, [noPeriodo, dataInicio, dataFim, metaDiariaHoje]);
-
-  // ===== canais (point_sale) =====
-  const canais = useMemo(() => {
-    const map = new Map<string, { nome: string; valor: number; pedidos: number }>();
-    for (const p of noPeriodo) {
-      const raw = (p.point_sale ?? "").trim();
-      const nome = raw ? raw : "Não informado";
-      const cur = map.get(nome) ?? { nome, valor: 0, pedidos: 0 };
-      cur.valor += Number(p.total ?? 0);
-      cur.pedidos += 1;
-      map.set(nome, cur);
+  /* ------------------------------ Seção 6 -------------------------------- */
+  const mix = useMemo(() => {
+    const ok = pedidos.filter((p) => !p.cancelado && p.dia >= ini && p.dia <= fim);
+    const okComp = pedidos.filter((p) => !p.cancelado && p.dia >= compIni && p.dia <= compFim);
+    const origens = new Map<string, { receita: number; pedidos: number; receita_comp: number }>();
+    for (const p of ok) {
+      const k = p.point_sale || "(não informado)";
+      const c = origens.get(k) ?? { receita: 0, pedidos: 0, receita_comp: 0 };
+      c.receita += p.receita_liquida; c.pedidos++; origens.set(k, c);
     }
-    const arr = Array.from(map.values()).sort((a, b) => b.valor - a.valor);
-    const total = arr.reduce((a, b) => a + b.valor, 0);
-    return arr.map((c) => ({ ...c, pct: total > 0 ? (c.valor / total) * 100 : 0 }));
-  }, [noPeriodo]);
-
-  // ===== detalhe por canal (faturamento, ticket médio, desconto) =====
-  const canaisDetalhe = useMemo(() => {
-    const map = new Map<string, { nome: string; faturamento: number; pedidos: number; desconto: number }>();
-    for (const p of noPeriodo) {
-      const raw = (p.point_sale ?? "").trim();
-      const nome = raw ? raw : "Não informado";
-      const cur = map.get(nome) ?? { nome, faturamento: 0, pedidos: 0, desconto: 0 };
-      cur.faturamento += Number(p.total ?? 0);
-      cur.pedidos += 1;
-      cur.desconto += descontoTotal(p);
-      map.set(nome, cur);
+    for (const p of okComp) {
+      const k = p.point_sale || "(não informado)";
+      const c = origens.get(k) ?? { receita: 0, pedidos: 0, receita_comp: 0 };
+      c.receita_comp += p.receita_liquida; origens.set(k, c);
     }
-    return Array.from(map.values())
-      .map((c) => ({
-        ...c,
-        ticketMedio: c.pedidos > 0 ? c.faturamento / c.pedidos : 0,
-        descontoPct: c.faturamento > 0 ? (c.desconto / c.faturamento) * 100 : 0,
-      }))
-      .sort((a, b) => b.faturamento - a.faturamento);
-  }, [noPeriodo]);
+    return {
+      clientes_unicos: clientesMes.unicos,
+      novos: clientesMes.novos,
+      recorrentes: clientesMes.recorrentes,
+      taxa_recorrencia: clientesMes.unicos ? (clientesMes.recorrentes / clientesMes.unicos) * 100 : 0,
+      taxa_aquisicao_cliente: clientesMes.unicos ? (clientesMes.novos / clientesMes.unicos) * 100 : 0,
+      taxa_aquisicao_pedido: clientesMes.pedidos ? (clientesMes.novos / clientesMes.pedidos) * 100 : 0,
+      cac_novos: clientesMes.novos ? mid.invest / clientesMes.novos : null,
+      origens: Array.from(origens.entries())
+        .map(([origem, v]) => ({ origem, ...v }))
+        .sort((a, b) => b.receita - a.receita),
+    };
+  }, [pedidos, clientesMes, mid.invest, ini, fim, compIni, compFim]);
 
-  // ===== top produtos (tray_productssold filtrado pelo período) =====
+  /* ------------------------------ Seção 7 -------------------------------- */
+  const canaisTabela = useMemo(() => {
+    const m = new Map<string, { sessoes: number; receita: number; compras: number }>();
+    for (const s of sessoesFonte.filter((s) => s.dia >= ini && s.dia <= fim)) {
+      const c = m.get(s.canal) ?? { sessoes: 0, receita: 0, compras: 0 };
+      c.sessoes += s.sessoes; c.receita += s.receita; c.compras += s.compras;
+      m.set(s.canal, c);
+    }
+    return Array.from(m.entries()).map(([canal, v]) => ({ canal, ...v })).sort((a, b) => b.sessoes - a.sessoes);
+  }, [sessoesFonte, ini, fim]);
+
   const topProdutos = useMemo(() => {
-    const orderIds = new Set(noPeriodo.map((p) => String(p.id)));
-    const descontoPorPedido = new Map(noPeriodo.map((p) => [String(p.id), descontoTotal(p)]));
-    const brutoPorPedido = new Map<string, number>();
-
-    for (const s of productssold) {
-      if (!s.order_id || !orderIds.has(String(s.order_id))) continue;
-      const orderId = String(s.order_id);
-      brutoPorPedido.set(orderId, (brutoPorPedido.get(orderId) ?? 0) + Number(s.price ?? 0) * Number(s.quantity ?? 0));
+    const idsAtual = new Set(pedidos.filter((p) => !p.cancelado && p.dia >= ini && p.dia <= fim).map((p) => p.id));
+    const idsComp = new Set(pedidos.filter((p) => !p.cancelado && p.dia >= compIni && p.dia <= compFim).map((p) => p.id));
+    const m = new Map<string, { nome: string; receita: number; unidades: number; receita_comp: number }>();
+    for (const it of itens) {
+      const key = it.product_id ?? it.nome;
+      const c = m.get(key) ?? { nome: it.nome, receita: 0, unidades: 0, receita_comp: 0 };
+      const total = it.preco * it.quantidade;
+      if (idsAtual.has(it.order_id)) { c.receita += total; c.unidades += it.quantidade; }
+      else if (idsComp.has(it.order_id)) c.receita_comp += total;
+      m.set(key, c);
     }
+    return Array.from(m.entries())
+      .map(([product_id, v]) => ({ product_id, ...v }))
+      .filter((p) => p.receita > 0)
+      .sort((a, b) => b.receita - a.receita)
+      .slice(0, 10);
+  }, [itens, pedidos, ini, fim, compIni, compFim]);
 
-    const byProduct = new Map<string, { nome: string; vendido: number; receita: number; custoTotal: number; product_id: string; reference: string }>();
-    for (const s of productssold) {
-      if (!s.order_id || !orderIds.has(String(s.order_id))) continue;
-      const k = String(s.product_id ?? "");
-      if (!k) continue;
-      const orderId = String(s.order_id);
-      const qtd = Number(s.quantity ?? 0);
-      const receitaBrutaItem = Number(s.price ?? 0) * qtd;
-      const brutoPedido = brutoPorPedido.get(orderId) ?? 0;
-      const descontoRateado = brutoPedido > 0 ? (descontoPorPedido.get(orderId) ?? 0) * (receitaBrutaItem / brutoPedido) : 0;
-      const receita = Math.max(receitaBrutaItem - descontoRateado, 0);
-      const custo = Number(s.cost_price ?? 0) * qtd;
-      const nome = (s.model || s.name?.split("<br>")[0] || s.reference || `#${k}`).trim();
-      const ref = (s.reference ?? "").trim();
-      const cur = byProduct.get(k) ?? { nome, vendido: 0, receita: 0, custoTotal: 0, product_id: k, reference: ref };
-      cur.vendido += qtd;
-      cur.receita += receita;
-      cur.custoTotal += custo;
-      if (!cur.reference && ref) cur.reference = ref;
-      byProduct.set(k, cur);
-    }
-    // estoque a partir das variants
-    const estoquePor = new Map<string, number>();
-    for (const v of variants) {
-      const k = String(v.variant_product_id ?? "");
-      estoquePor.set(k, (estoquePor.get(k) ?? 0) + Number(v.variant_stock ?? 0));
-    }
-    return Array.from(byProduct.values())
-      .map((p) => ({
-        ...p,
-        estoque: estoquePor.get(p.product_id) ?? 0,
-        preco: p.vendido > 0 ? p.receita / p.vendido : 0,
-        custoMedio: p.vendido > 0 ? p.custoTotal / p.vendido : 0,
-      }))
-      .sort((a, b) => b.vendido - a.vendido);
-  }, [productssold, noPeriodo, variants]);
+  /* ------------------------- Parte 4 — alertas --------------------------- */
+  const alertas: Alerta[] = useMemo(() => {
+    const out: Alerta[] = [];
+    const dias = listaDias(ini, fim);
+    const mediaPedidos = dias.length
+      ? dias.reduce((s, d) => s + pedidos.filter((p) => p.dia === d && !p.cancelado).length, 0) / dias.length : 0;
+    const ticket = resumo.ticket_medio;
 
-  // ===== produtos mais lucrativos (MC sobre vendas do período) + insight de campanha =====
-  const lucrativos = useMemo(() => {
-    // índices para casar tray_productssold ↔ produtos cadastrados
-    const porBlingId = new Map<string, any>();
-    const porSku = new Map<string, any>();
-    const porNome = new Map<string, any>();
-    for (const p of produtos as any[]) {
-      if (!p.ativo) continue;
-      if (p.bling_produto_id != null) porBlingId.set(String(p.bling_produto_id), p);
-      if (p.codigo_sku) porSku.set(String(p.codigo_sku).trim().toUpperCase(), p);
-      if (p.nome_do_produto) porNome.set(String(p.nome_do_produto).trim().toUpperCase(), p);
-    }
-
-    const itens = topProdutos.map((tp) => {
-      // tenta achar o cadastro do produto apenas para custos adicionais/percentuais.
-      // A MC base sempre usa o custo médio real do item vendido (tp.custoMedio = cost_price ponderado por quantidade).
-      let prod: any = porBlingId.get(tp.product_id);
-      if (!prod && tp.reference) prod = porSku.get(tp.reference.toUpperCase());
-      if (!prod && tp.nome) prod = porNome.get(tp.nome.toUpperCase());
-
-      const precoMedio = tp.preco;
-      const custoMedio = Number(tp.custoMedio ?? 0);
-      const custosDir = custoMedio +
-        Number(prod?.custo_costura ?? 0) +
-        Number(prod?.custo_corte ?? 0) +
-        Number(prod?.custo_embalagem ?? 0) +
-        Number(prod?.custo_frete ?? 0) +
-        Number(prod?.custo_marketing ?? 0);
-      const pctSobreVenda = prod
-        ? (Number(prod.imposto_percentual ?? 0) +
-            Number(prod.comissao_percentual ?? 0) +
-            Number(prod.cupom_percentual ?? 0) +
-            Number(prod.parcelamento_percentual ?? 0) +
-            Number(prod.chargeback_percentual ?? 0) +
-            Number(prod.cac_percentual ?? 0) +
-            Number(prod.conteudo_percentual ?? 0) +
-            Number(prod.overhead_percentual ?? 0) +
-            Number(prod.devolucao_percentual ?? 0)) / 100
-        : 0;
-      const custosVar = precoMedio * pctSobreVenda;
-      const mcUnit = precoMedio - custosDir - custosVar;
-      const mcPct = precoMedio > 0 ? (mcUnit / precoMedio) * 100 : 0;
-      const mcTotal = mcUnit * tp.vendido;
-
-      // dias de cobertura de estoque baseado no ritmo do período
-      const dias = Math.max(differenceInCalendarDays(dataFim, dataInicio) + 1, 1);
-      const mediaDia = tp.vendido / dias;
-      const diasCobertura = mediaDia > 0 ? tp.estoque / mediaDia : Infinity;
-
-      // insight de campanha
-      let insight: { label: string; tone: "success" | "warning" | "danger" | "muted" } = { label: "Manter", tone: "muted" };
-      if (custoMedio <= 0) insight = { label: "Sem custo médio", tone: "muted" };
-      else if (!prod && mcPct >= 25 && tp.estoque >= 30) insight = { label: "Potencial campanha", tone: "success" };
-      else if (!prod) insight = { label: "MC por custo médio", tone: "muted" };
-      else if (mcPct >= 35 && tp.estoque >= 30) insight = { label: "Impulsionar (alto MC + estoque)", tone: "success" };
-      else if (mcPct >= 35 && diasCobertura < 15) insight = { label: "Repor produção (MC alta)", tone: "warning" };
-      else if (mcPct < 15 && tp.estoque >= 30) insight = { label: "Liquidar / promover giro", tone: "danger" };
-      else if (mcPct < 0) insight = { label: "Revisar precificação", tone: "danger" };
-      else if (mcPct >= 25) insight = { label: "Destacar em campanha", tone: "success" };
-
-      return {
-        ...tp,
-        produto: prod,
-        preco_venda_medio: precoMedio,
-        mc_unit: mcUnit,
-        mc_pct: mcPct,
-        mc_total: mcTotal,
-        dias_cobertura: diasCobertura,
-        insight,
-      };
-    });
-
-    return itens.sort((a, b) => b.mc_total - a.mc_total).slice(0, 10);
-  }, [topProdutos, produtos, dataInicio, dataFim]);
-
-  // ===== Top produtos do período comparativo (mesma lógica simplificada) =====
-  const topProdutosComp = useMemo(() => {
-    const orderIds = new Set(noComp.map((p) => String(p.id)));
-    const byProduct = new Map<string, { nome: string; vendido: number; receita: number; product_id: string }>();
-    for (const s of productssold) {
-      if (!s.order_id || !orderIds.has(String(s.order_id))) continue;
-      const k = String(s.product_id ?? "");
-      if (!k) continue;
-      const qtd = Number(s.quantity ?? 0);
-      const receita = Number(s.price ?? 0) * qtd;
-      const nome = (s.model || s.name?.split("<br>")[0] || s.reference || `#${k}`).trim();
-      const cur = byProduct.get(k) ?? { nome, vendido: 0, receita: 0, product_id: k };
-      cur.vendido += qtd;
-      cur.receita += receita;
-      byProduct.set(k, cur);
-    }
-    return Array.from(byProduct.values());
-  }, [productssold, noComp]);
-
-  // ===== Sessões GA4 atual vs comparativo =====
-  const ga4Comparativo = useMemo(() => {
-    const iniAtual = format(dataInicio, "yyyy-MM-dd");
-    const fimAtual = format(dataFim, "yyyy-MM-dd");
-    const iniComp = format(compInicio, "yyyy-MM-dd");
-    const fimComp = format(compFim, "yyyy-MM-dd");
-    let sessoesAtual = 0, sessoesComp = 0, usuariosAtual = 0, usuariosComp = 0;
-    for (const r of ga4Sessoes) {
-      const d = r.event_date;
-      if (!d) continue;
-      if (d >= iniAtual && d <= fimAtual) {
-        sessoesAtual += Number(r.sessoes ?? 0);
-        usuariosAtual += Number(r.usuarios ?? 0);
-      } else if (d >= iniComp && d <= fimComp) {
-        sessoesComp += Number(r.sessoes ?? 0);
-        usuariosComp += Number(r.usuarios ?? 0);
-      }
-    }
-    const conversaoAtual = sessoesAtual > 0 ? (totalPedidos / sessoesAtual) * 100 : 0;
-    const conversaoComp = sessoesComp > 0 ? (pedidosComp / sessoesComp) * 100 : 0;
-    const disponivel = sessoesAtual > 0 || sessoesComp > 0;
-    return { sessoesAtual, sessoesComp, usuariosAtual, usuariosComp, conversaoAtual, conversaoComp, disponivel };
-  }, [ga4Sessoes, dataInicio, dataFim, compInicio, compFim, totalPedidos, pedidosComp]);
-
-  // ===== Comparativo de produtos (subiu/caiu) =====
-  const produtosComparativo = useMemo(() => {
-    const mapComp = new Map(topProdutosComp.map((p) => [p.product_id, p]));
-    const mapAtual = new Map(topProdutos.map((p) => [p.product_id, p]));
-    const ids = new Set([...mapAtual.keys(), ...mapComp.keys()]);
-    const linhas: Array<{ product_id: string; nome: string; vendAtual: number; vendComp: number; recAtual: number; recComp: number; deltaRec: number }> = [];
-    for (const id of ids) {
-      const a = mapAtual.get(id);
-      const c = mapComp.get(id);
-      const nome = a?.nome ?? c?.nome ?? `#${id}`;
-      const vendAtual = a?.vendido ?? 0;
-      const vendComp = c?.vendido ?? 0;
-      const recAtual = a?.receita ?? 0;
-      const recComp = c?.receita ?? 0;
-      linhas.push({ product_id: id, nome, vendAtual, vendComp, recAtual, recComp, deltaRec: recAtual - recComp });
-    }
-    const subiram = [...linhas].sort((a, b) => b.deltaRec - a.deltaRec).slice(0, 5).filter((l) => l.deltaRec > 0);
-    const cairam = [...linhas].sort((a, b) => a.deltaRec - b.deltaRec).slice(0, 5).filter((l) => l.deltaRec < 0);
-    return { subiram, cairam };
-  }, [topProdutos, topProdutosComp]);
-
-  // ===== Motivos da diferença =====
-  const motivos = useMemo(() => {
-    const out: Array<{ tipo: "positivo" | "negativo" | "neutro"; texto: string }> = [];
-    const deltaReceita = receitaBruta - receitaComp;
-    const deltaPedidos = totalPedidos - pedidosComp;
-    const deltaTicket = ticketMedio - ticketMedioComp;
-    const pctReceita = receitaComp > 0 ? (deltaReceita / receitaComp) * 100 : 0;
-
-    if (Math.abs(pctReceita) < 1 && receitaComp > 0) {
-      out.push({ tipo: "neutro", texto: `Receita estável (${fmtPct(pctReceita)} vs período anterior).` });
-    } else if (receitaComp > 0) {
+    // mídia zerada
+    const zerados = ritmo.filter((r) => r.spend === 0 && r.pedidos < mediaPedidos);
+    if (zerados.length) {
       out.push({
-        tipo: deltaReceita >= 0 ? "positivo" : "negativo",
-        texto: `Receita ${deltaReceita >= 0 ? "subiu" : "caiu"} ${fmtPct(Math.abs(pctReceita))} (${fmtBRL(receitaBruta)} vs ${fmtBRL(receitaComp)}).`,
+        id: "midia-zerada", severidade: "critico", titulo: "Mídia zerada",
+        detalhe: `${zerados.map((z) => ddmm(z.dia)).join(", ")} sem investimento e com pedidos abaixo da média (${fmtNum(mediaPedidos, 1)}/dia)`,
+        impacto: -zerados.reduce((s, z) => s + (mediaPedidos - z.pedidos) * ticket, 0),
+        ancora: "ritmo",
       });
     }
 
-    if (pedidosComp > 0) {
-      const pctPed = (deltaPedidos / pedidosComp) * 100;
-      if (Math.abs(pctPed) >= 5) {
-        out.push({
-          tipo: deltaPedidos >= 0 ? "positivo" : "negativo",
-          texto: `Volume de pedidos ${deltaPedidos >= 0 ? "aumentou" : "diminuiu"} ${fmtPct(Math.abs(pctPed))} (${fmtNum(totalPedidos)} vs ${fmtNum(pedidosComp)}).`,
-        });
-      }
+    // anomalia de rastreamento
+    const unassignedDias = sessoesFonte.filter((s) => /unassigned|não atribu|nao atribu/i.test(s.canal));
+    const media14 = (() => {
+      const janela = listaDias(somaDias(ini, -14), somaDias(ini, -1));
+      const tot = unassignedDias.filter((s) => janela.includes(s.dia)).reduce((s, l) => s + l.sessoes, 0);
+      return tot / 14;
+    })();
+    const unassignedPeriodo = unassignedDias.filter((s) => s.dia >= ini && s.dia <= fim);
+    const somaUn = unassignedPeriodo.reduce((s, l) => s + l.sessoes, 0);
+    const picos = unassignedPeriodo.filter((s) => media14 > 0 && s.sessoes > media14 * 3);
+    if (picos.length) {
+      out.push({
+        id: "rastreamento", severidade: "critico", titulo: "Anomalia de rastreamento",
+        detalhe: `${fmtNum(somaUn)} sessões Unassigned em ${picos.map((p) => ddmm(p.dia)).join(", ")} · conversão reportada inflada`,
+        impacto: null, ancora: "canais",
+      });
     }
 
-    if (ticketMedioComp > 0) {
-      const pctTk = (deltaTicket / ticketMedioComp) * 100;
-      if (Math.abs(pctTk) >= 3) {
-        out.push({
-          tipo: deltaTicket >= 0 ? "positivo" : "negativo",
-          texto: `Ticket médio ${deltaTicket >= 0 ? "subiu" : "caiu"} ${fmtPct(Math.abs(pctTk))} (${fmtBRL(ticketMedio)} vs ${fmtBRL(ticketMedioComp)}).`,
-        });
-      }
+    // Pix parado
+    const pixCanc = (di: string, df: string) => pedidos
+      .filter((p) => p.cancelado && /pix/i.test(p.payment_method) && p.dia >= di && p.dia <= df)
+      .reduce((s, p) => s + p.receita_liquida, 0);
+    const pixAtual = pixCanc(ini, fim);
+    const media4sem = pixCanc(somaDias(ini, -28), somaDias(ini, -1)) / 4 * ((diffDias(fim, ini) + 1) / 7);
+    if (media4sem > 0 && pixAtual > media4sem * 1.5) {
+      out.push({
+        id: "pix", severidade: "atencao", titulo: "Pix parado",
+        detalhe: `Receita de Pix cancelado ${fmtBRL(pixAtual)} contra média de ${fmtBRL(media4sem)} nas últimas 4 semanas`,
+        impacto: -(pixAtual - media4sem), ancora: "drivers",
+      });
     }
 
-    if (ga4Comparativo.disponivel && ga4Comparativo.sessoesComp > 0) {
-      const deltaSes = ga4Comparativo.sessoesAtual - ga4Comparativo.sessoesComp;
-      const pctSes = (deltaSes / ga4Comparativo.sessoesComp) * 100;
-      if (Math.abs(pctSes) >= 3) {
-        out.push({
-          tipo: deltaSes >= 0 ? "positivo" : "negativo",
-          texto: `Tráfego do site (GA4) ${deltaSes >= 0 ? "cresceu" : "caiu"} ${fmtPct(Math.abs(pctSes))} (${fmtNum(ga4Comparativo.sessoesAtual)} vs ${fmtNum(ga4Comparativo.sessoesComp)} sessões).`,
-        });
-      }
-      const deltaConv = ga4Comparativo.conversaoAtual - ga4Comparativo.conversaoComp;
-      if (Math.abs(deltaConv) >= 0.1 && ga4Comparativo.conversaoComp > 0) {
-        out.push({
-          tipo: deltaConv >= 0 ? "positivo" : "negativo",
-          texto: `Taxa de conversão ${deltaConv >= 0 ? "subiu" : "caiu"} de ${fmtPct(ga4Comparativo.conversaoComp, 2)} para ${fmtPct(ga4Comparativo.conversaoAtual, 2)}.`,
-        });
-      }
+    // checkout quebrado
+    const semMeio = pedidos.filter((p) => p.dia >= ini && p.dia <= fim && !p.payment_method);
+    if (resumo.pedidos_captados && semMeio.length / resumo.pedidos_captados > 0.05) {
+      const canceladosSemMeio = semMeio.filter((p) => p.cancelado);
+      out.push({
+        id: "checkout", severidade: "critico", titulo: "Checkout quebrado",
+        detalhe: `${semMeio.length} pedidos sem meio de pagamento (${fmtPct((semMeio.length / resumo.pedidos_captados) * 100, 1)} dos captados) · ${canceladosSemMeio.length} cancelados`,
+        impacto: -semMeio.reduce((s, p) => s + p.receita_liquida, 0), ancora: "drivers",
+      });
     }
 
-    if (produtosComparativo.subiram[0]) {
-      const t = produtosComparativo.subiram[0];
-      out.push({ tipo: "positivo", texto: `Maior crescimento: ${t.nome} (+${fmtBRL(t.deltaRec)} • ${fmtNum(t.vendAtual)} vs ${fmtNum(t.vendComp)} un).` });
+    // fonte defasada
+    const atrasos: string[] = [];
+    if (ga4Atrasado) atrasos.push("GA4");
+    const midiaUlt = midia.map((m) => m.dia).sort().slice(-1)[0];
+    if (!midiaUlt || diffDias(HOJE, midiaUlt) > 1) atrasos.push("Meta Ads");
+    const trayUlt = pedidos.map((p) => p.dia).sort().slice(-1)[0];
+    if (!trayUlt || diffDias(HOJE, trayUlt) > 1) atrasos.push("Tray");
+    if (atrasos.length) {
+      out.push({
+        id: "fonte", severidade: "atencao", titulo: "Fonte defasada",
+        detalhe: `${atrasos.join(", ")} sem sincronização há mais de 24 h`, impacto: null, ancora: "fontes",
+      });
     }
-    if (produtosComparativo.cairam[0]) {
-      const t = produtosComparativo.cairam[0];
-      out.push({ tipo: "negativo", texto: `Maior queda: ${t.nome} (${fmtBRL(t.deltaRec)} • ${fmtNum(t.vendAtual)} vs ${fmtNum(t.vendComp)} un).` });
+
+    // cross-sell caindo
+    const itensPed = dadosDetalhe.ticket.atual.itens_por_pedido;
+    const itensComp = dadosDetalhe.ticket.comp.itens_por_pedido;
+    if (itensComp > 0 && itensPed < itensComp * 0.9) {
+      out.push({
+        id: "crosssell", severidade: "atencao", titulo: "Cross-sell caindo",
+        detalhe: `${fmtNum(itensPed, 2)} itens por pedido contra ${fmtNum(itensComp, 2)} no comparativo`,
+        impacto: -(itensComp - itensPed) * dadosDetalhe.ticket.atual.preco_medio_item * resumo.pedidos,
+        ancora: "drivers",
+      });
     }
 
-    return out;
-  }, [receitaBruta, receitaComp, totalPedidos, pedidosComp, ticketMedio, ticketMedioComp, ga4Comparativo, produtosComparativo]);
+    const ordem = { critico: 0, atencao: 1 } as const;
+    return out.sort((a, b) => ordem[a.severidade] - ordem[b.severidade]);
+  }, [pedidos, ritmo, sessoesFonte, midia, resumo, dadosDetalhe, ini, fim, ga4Atrasado]);
 
+  /* ------------------------ Parte 5 — saúde fontes ----------------------- */
+  const fontes: LinhaFonte[] = useMemo(() => {
+    const cobertura = (dias: string[]) => {
+      const total = diffDias(fim, ini) + 1;
+      const cobertos = new Set(dias.filter((d) => d >= ini && d <= fim)).size;
+      return `${cobertos}/${total} dias`;
+    };
+    const ultima = (dias: string[]) => dias.sort().slice(-1)[0] ?? null;
+    const diasPedidos = pedidos.map((p) => p.dia);
+    const diasGa4 = ga4.filter((g) => g.sessoes > 0).map((g) => g.dia);
+    const diasMidia = midia.map((m) => m.dia);
+    const diasWindsor = windsor.map((w) => w.dia);
+    const totalDias = diffDias(fim, ini) + 1;
+    const coberturaGa4 = new Set(diasGa4.filter((d) => d >= ini && d <= fim)).size;
+    return [
+      { fonte: "tray_direto.tray_orders", ultima_carga: ultima([...diasPedidos]), status: "ok", cobertura: cobertura([...diasPedidos]) },
+      {
+        fonte: "ga4_aquisicao_canais", ultima_carga: ultima([...diasGa4]),
+        status: coberturaGa4 >= totalDias ? "ok" : "atencao", cobertura: cobertura([...diasGa4]),
+        nota: "fonte oficial de sessões e funil",
+      },
+      { fonte: "meta_ads_campanhas", ultima_carga: ultima([...diasMidia]), status: diasMidia.length ? "ok" : "vazia", cobertura: cobertura([...diasMidia]) },
+      { fonte: "windsor_canais", ultima_carga: ultima([...diasWindsor]), status: "ok", cobertura: "fallback", nota: "usado só com GA4 atrasado > 24 h" },
+      { fonte: "google_ads_diario", ultima_carga: null, status: qFontesVazias.data?.googleAds ? "ok" : "vazia", cobertura: qFontesVazias.data?.googleAds ? "—" : "vazia", nota: "CAC e ROAS globais subestimados" },
+      { fonte: "investimentos_midia", ultima_carga: null, status: investVipLancado ? "ok" : "vazia", cobertura: investVipLancado ? "mês lançado" : "vazia", nota: "sem lançamento de VIP e imprensa" },
+      { fonte: "kondado.*", ultima_carga: "09/08/2026", status: "descontinuada", cobertura: "ETL morto", nota: "proibido usar — qualquer view apontando para lá está congelada" },
+    ];
+  }, [pedidos, ga4, midia, windsor, ini, fim, qFontesVazias.data, investVipLancado]);
 
-  // ===== sugestões de produção =====
-  const sugestoes = useMemo(() => {
-    const dias = Math.max(differenceInCalendarDays(dataFim, dataInicio) + 1, 1);
-    return topProdutos
-      .filter((p) => p.estoque < 5 && p.vendido > 0)
-      .map((p) => {
-        const mediaDia = p.vendido / dias;
-        const sugestao = Math.max(Math.ceil(mediaDia * 30), 30);
-        return { ...p, mediaDia, sugestao };
-      })
-      .slice(0, 6);
-  }, [topProdutos, dataInicio, dataFim]);
+  /* --------------------------- sparklines 14d ---------------------------- */
+  const spark = (fn: (dia: string) => number) =>
+    listaDias(somaDias(fim, -13), fim).map((d) => ({ v: fn(d) }));
+  const sparkReceita = useMemo(
+    () => spark((d) => pedidos.filter((p) => p.dia === d && !p.cancelado).reduce((s, p) => s + p.receita_liquida, 0)),
+    [pedidos, fim],
+  );
+  const sparkPedidos = useMemo(
+    () => spark((d) => pedidos.filter((p) => p.dia === d && !p.cancelado).length), [pedidos, fim],
+  );
+  const sparkTicket = useMemo(() => spark((d) => {
+    const j = pedidos.filter((p) => p.dia === d && !p.cancelado);
+    return j.length ? j.reduce((s, p) => s + p.receita_liquida, 0) / j.length : 0;
+  }), [pedidos, fim]);
+  const sparkAprov = useMemo(() => spark((d) => {
+    const j = pedidos.filter((p) => p.dia === d);
+    return j.length ? (j.filter((p) => !p.cancelado).length / j.length) * 100 : 0;
+  }), [pedidos, fim]);
 
-  // ===== IA =====
-  const gerarInsights = async () => {
-    setLoadingAi(true);
-    setAiInsights("");
+  /* ------------------------------- IA ------------------------------------ */
+  async function gerarInsights() {
+    setLoadingIa(true);
     try {
-      const contexto = {
-        periodo: label,
-        receitaBruta, totalPedidos, ticketMedio,
-        metaMensal, percentualMeta: Number(pctMeta.toFixed(1)),
-        diasRestantes: diasUteisRestantes, metaDiariaHoje,
-        descontoMedio, descontoPercentual: Number(descontoPct.toFixed(2)),
-        topProdutos: topProdutos.slice(0, 5),
-        estoquesCriticos: sugestoes,
-        canaisVenda: canais,
-      };
-      const prompt = `Você é um consultor de e-commerce especializado em moda feminina brasileira.
-Analise os dados de vendas abaixo e forneça 3-5 insights acionáveis e específicos.
-
-Dados: ${JSON.stringify(contexto)}
-
-Foque em:
-1. Performance vs meta (o que fazer para atingir a meta)
-2. Produtos com estoque crítico (urgência de produção)
-3. Canal de vendas com melhor performance
-4. Desconto médio (está alto ou adequado?)
-5. Sugestão de ação para hoje
-
-Seja direto e específico. Use valores reais dos dados. Responda em português.`;
-      const resp = await callClaude(prompt);
-      setAiInsights(resp);
+      const txt = await callClaude(
+        `Você é analista de e-commerce de moda feminina. Explique em até 6 bullets, em português do Brasil, por que a receita variou e o que fazer nesta semana.
+Período ${ddmmyyyy(ini)}–${ddmmyyyy(fim)} · comparativo ${ddmmyyyy(compIni)}–${ddmmyyyy(compFim)}.
+Receita líquida ${fmtBRL(resumo.receita_liquida)} (comp ${fmtBRL(resumoComp.receita_liquida)}), pedidos ${resumo.pedidos} (comp ${resumoComp.pedidos}), ticket ${fmtBRL(resumo.ticket_medio)} (comp ${fmtBRL(resumoComp.ticket_medio)}), aprovação ${fmtPct(aprov.taxa, 2)}.
+Decomposição LMDI: ${resultado.parcelas.map((p) => `${p.driver} ${fmtBRL(p.valor)}`).join(", ")}.
+Alertas: ${alertas.map((a) => a.titulo).join(", ") || "nenhum"}.`,
+      );
+      setIa(txt);
     } catch (e: any) {
-      toast.error(e?.message ?? "Erro ao gerar insights");
+      toast.error(e?.message ?? "Falha ao gerar insights");
     } finally {
-      setLoadingAi(false);
+      setLoadingIa(false);
     }
-  };
+  }
 
-  const Delta = ({ atual, anterior, invert = false, fmt }: { atual: number; anterior: number; invert?: boolean; fmt?: (n: number) => string }) => {
-    if (anterior === 0 && atual === 0) return <span className="text-xs text-muted-foreground">—</span>;
-    const diff = atual - anterior;
-    const pct = anterior !== 0 ? (diff / Math.abs(anterior)) * 100 : 100;
-    const positivo = invert ? diff < 0 : diff > 0;
-    // seta segue a direção real do número (subiu ou caiu); cor segue o "bom/ruim"
-    const Icon = diff > 0 ? ArrowUpRight : ArrowDownRight;
-    return (
-      <span className="inline-flex items-center gap-1 text-xs">
-        <span className={cn("inline-flex items-center gap-0.5 font-medium", positivo ? "text-success" : "text-danger")}>
-          <Icon className="h-3 w-3" />
-          {fmtPct(Math.abs(pct))}
-        </span>
-        {fmt && <span className="text-muted-foreground">· {fmt(anterior)}</span>}
-      </span>
-    );
-  };
-
-  const loading = loadPedidos || loadVar;
+  /* ------------------------------ render --------------------------------- */
+  const presets: { k: Preset; l: string }[] = [
+    { k: "hoje", l: "Hoje" }, { k: "semana", l: "Esta semana" }, { k: "mes", l: "Este mês" }, { k: "mes-anterior", l: "Mês anterior" },
+  ];
+  const ultimaCarga = new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
 
   return (
-    <div className="space-y-6 pb-12">
-      {/* SEÇÃO 1 — header */}
-      <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+    <div className="mx-auto w-full max-w-[1600px] space-y-5 p-4 md:p-6">
+      {/* Seção 1 — cabeçalho */}
+      <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h1 className="font-serif text-3xl font-bold text-foreground">Dashboard Comercial</h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            <CalendarIcon className="inline h-4 w-4 mr-1.5 -mt-0.5" />
-            <span className="font-medium text-foreground">{fmtData(hoje)}</span>
-            <span className="mx-2">•</span>
-            <span>Período: <strong>{label}</strong></span>
+          <h1 className="font-serif text-3xl font-bold tracking-tight">Dashboard Comercial</h1>
+          <p className="text-sm text-muted-foreground">
+            {rotulo} · {ddmmyyyy(ini)} – {ddmmyyyy(fim)} · fonte de pedidos: tray_direto (data crua, sem conversão de fuso)
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          {([
-            ["hoje", "Hoje"],
-            ["semana", "Esta semana"],
-            ["mes", "Este mês"],
-            ["mes-anterior", "Mês anterior"],
-          ] as const).map(([k, l]) => (
-            <Button key={k} size="sm" variant={periodo === k ? "default" : "outline"} onClick={() => setPeriodo(k)}>
-              {l}
+          {presets.map((p) => (
+            <Button key={p.k} size="sm" variant={preset === p.k ? "default" : "outline"} onClick={() => setPreset(p.k)}>
+              {p.l}
             </Button>
           ))}
           <Popover>
             <PopoverTrigger asChild>
-              <Button size="sm" variant={periodo === "personalizado" ? "default" : "outline"}>
-                <CalendarIcon className="h-4 w-4 mr-1.5" /> Personalizado
+              <Button size="sm" variant={preset === "personalizado" ? "default" : "outline"}>
+                <CalendarIcon className="mr-1 h-4 w-4" /> Personalizado
               </Button>
             </PopoverTrigger>
             <PopoverContent className="w-auto p-0" align="end">
               <Calendar
                 mode="range"
-                locale={ptBR}
-                selected={customRange as any}
-                onSelect={(r: any) => { setCustomRange(r ?? {}); if (r?.from && r?.to) setPeriodo("personalizado"); }}
+                selected={{ from: custom.from ?? dataDeIso(ini), to: custom.to ?? dataDeIso(fim) }}
+                onSelect={(r: any) => { setCustom({ from: r?.from, to: r?.to }); setPreset("personalizado"); }}
                 numberOfMonths={2}
               />
             </PopoverContent>
           </Popover>
-          <Button size="sm" onClick={gerarInsights} disabled={loadingAi} className="bg-primary text-primary-foreground">
-            {loadingAi ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> : <Sparkles className="h-4 w-4 mr-1.5" />}
-            Gerar insights com IA
+          <Button size="sm" variant="secondary" onClick={gerarInsights} disabled={loadingIa}>
+            {loadingIa ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <Sparkles className="mr-1 h-4 w-4" />}
+            Insights com IA
           </Button>
         </div>
-      </motion.div>
-
-      {/* SEÇÃO 2 — KPIs */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <KpiCard icon={DollarSign} label="Receita Bruta" value={fmtBRL(receitaBruta)} delta={<Delta atual={receitaBruta} anterior={receitaComp} fmt={fmtBRL} />} sub="vs período anterior" />
-        <KpiCard icon={ShoppingCart} label="Nº de Pedidos" value={`${fmtNum(totalPedidos)} pedidos`} delta={<Delta atual={totalPedidos} anterior={pedidosComp} fmt={(n) => `${fmtNum(n)} ped.`} />} sub="vs período anterior" />
-        <KpiCard icon={Receipt} label="Ticket Médio" value={fmtBRL(ticketMedio)} delta={<Delta atual={ticketMedio} anterior={metaTicket || ticketMedioComp} fmt={fmtBRL} />} sub={metaTicket ? `meta ${fmtBRL(metaTicket)}` : "vs período anterior"} />
-        <KpiCard icon={Target} label="Meta do Mês" value={fmtPct(pctMeta)} delta={<span className="text-xs text-muted-foreground">faltam {fmtBRL(faltaMeta)}</span>} sub={`de ${fmtBRL(metaMensal)}`} progress={Math.min(pctMeta, 100)} />
-
-        <KpiCard icon={Percent} label="Desconto Médio" value={`${fmtBRL(descontoMedio)} (${fmtPct(descontoPct)})`} delta={<Delta atual={descontoMedio} anterior={pedidosComp > 0 ? descontoComp / pedidosComp : 0} invert fmt={fmtBRL} />} sub="vs período anterior" />
-        <KpiCard icon={TrendingDown} label="Desconto Total" value={fmtBRL(totalDesconto)} delta={<Delta atual={totalDesconto} anterior={descontoComp} invert fmt={fmtBRL} />} sub="inclui cupons" />
-        <KpiCard icon={Wallet} label="Receita Líquida" value={fmtBRL(receitaLiquida)} delta={<Delta atual={receitaLiquida} anterior={receitaLiquidaComp} fmt={fmtBRL} />} sub="vs período anterior" />
-        <KpiCard icon={Zap} label="Meta Diária" value={fmtBRL(metaDiariaHoje)} delta={<span className="text-xs text-muted-foreground">{diasUteisRestantes} dias úteis</span>} sub="necessário hoje" />
       </div>
 
-      {/* SEÇÃO 2.5 — Mix de Clientes + CAC */}
-      {mixClientes && (
-        <Card style={{ borderColor: "#E8CD7E" }}>
-          <CardHeader>
-            <CardTitle className="text-lg font-serif">
-              Mix de Clientes — {format(dataInicio, "MMMM yyyy", { locale: ptBR })}
-            </CardTitle>
-            <p className="text-xs text-muted-foreground">Fonte: vw_taxa_conversao_mensal + windsor_meta_ads</p>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
-              <div className="rounded-lg border p-4 bg-card">
-                <p className="text-xs text-muted-foreground">Clientes Únicos</p>
-                <p className="text-2xl font-serif mt-1">{fmtNum(mixClientes.unicos)}</p>
-              </div>
-              <div className="rounded-lg border p-4 bg-card">
-                <div className="flex items-center justify-between">
-                  <p className="text-xs text-muted-foreground">Clientes Novos</p>
-                  <span className="text-xs px-2 py-0.5 rounded-full text-white" style={{ background: "#2563eb" }}>
-                    {mixClientes.percNovos.toFixed(1)}%
-                  </span>
-                </div>
-                <p className="text-2xl font-serif mt-1">{fmtNum(mixClientes.novos)}</p>
-              </div>
-              <div className="rounded-lg border p-4 bg-card">
-                <div className="flex items-center justify-between">
-                  <p className="text-xs text-muted-foreground">Clientes Recorrentes</p>
-                  <span className="text-xs px-2 py-0.5 rounded-full text-white" style={{ background: "#16a34a" }}>
-                    {mixClientes.percRecorrentes.toFixed(1)}%
-                  </span>
-                </div>
-                <p className="text-2xl font-serif mt-1">{fmtNum(mixClientes.recorrentes)}</p>
-              </div>
-              <div className="rounded-lg border p-4 bg-card">
-                <p className="text-xs text-muted-foreground">Taxa de Recorrência</p>
-                <p
-                  className="text-2xl font-serif mt-1"
-                  style={{
-                    color:
-                      mixClientes.percRecorrentes >= 60
-                        ? "#16a34a"
-                        : mixClientes.percRecorrentes >= 40
-                        ? "#ca8a04"
-                        : "#dc2626",
-                  }}
-                >
-                  {mixClientes.percRecorrentes.toFixed(1)}%
-                </p>
-              </div>
-              <div className="rounded-lg border p-4 bg-card">
-                <p className="text-xs text-muted-foreground">CAC Novos</p>
-                <p className="text-2xl font-serif mt-1">{fmtBRL(mixClientes.cacNovos)}</p>
-                <p className="text-[10px] text-muted-foreground mt-1">
-                  {fmtBRL(mixClientes.investimentoTotal)} / {fmtNum(mixClientes.novos)}
-                </p>
-              </div>
-            </div>
+      <div className="flex flex-wrap items-center gap-2">
+        <button
+          type="button"
+          onClick={() => setModoComp((m) => (m === "anterior" ? "mes-passado" : "anterior"))}
+          className="rounded-full border border-primary/40 bg-primary/10 px-3 py-1 text-xs font-medium text-primary transition-colors hover:bg-primary/20"
+          title="Clique para alternar entre período anterior e mesmo período do mês passado"
+        >
+          {rotuloComp} · trocar
+        </button>
+        <SeloAviso texto={`Sessões: ${nomeFonteSessoes}`} tom={ga4Atrasado ? "warn" : "muted"} />
+        <SeloAviso texto="Mídia parcial: só Meta Ads" tom="warn" />
+        <span className="flex items-center gap-1 text-xs text-muted-foreground">
+          <RefreshCw className={cn("h-3 w-3", carregando && "animate-spin")} />
+          {carregando ? "Atualizando…" : `Última carga ${ultimaCarga}`}
+        </span>
+      </div>
 
-            {/* Barra proporção Novos vs Recorrentes */}
-            <div>
-              <div className="flex items-center justify-between text-xs mb-1.5">
-                <span style={{ color: "#2563eb" }}>
-                  Novos {mixClientes.percNovos.toFixed(1)}%
-                </span>
-                <span style={{ color: "#16a34a" }}>
-                  Recorrentes {mixClientes.percRecorrentes.toFixed(1)}%
-                </span>
-              </div>
-              <div className="flex h-3 rounded-full overflow-hidden bg-muted">
-                <div style={{ width: `${mixClientes.percNovos}%`, background: "#2563eb" }} />
-                <div style={{ width: `${mixClientes.percRecorrentes}%`, background: "#16a34a" }} />
-              </div>
-            </div>
-          </CardContent>
+      {/* Parte 4 — alertas */}
+      {carregando ? <SkeletonCard h="h-16" /> : <BarraAlertas alertas={alertas} />}
+
+      {ia && (
+        <Card className="border-primary/30">
+          <CardHeader className="pb-2"><CardTitle className="font-serif text-lg">Leitura da IA</CardTitle></CardHeader>
+          <CardContent><p className="whitespace-pre-wrap text-sm leading-relaxed">{ia}</p></CardContent>
         </Card>
       )}
 
-      {/* SEÇÃO 3 — gráficos */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <Card className="lg:col-span-2">
-          <CardHeader>
-            <CardTitle className="text-lg font-serif">Evolução de vendas</CardTitle>
-            <p className="text-xs text-muted-foreground">Receita diária vs meta diária necessária</p>
-          </CardHeader>
-          <CardContent>
-            <div className="h-72">
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={serieDiaria} margin={{ top: 8, right: 16, left: 0, bottom: 0 }}>
-                  <defs>
-                    <linearGradient id="grad" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity={0.5} />
-                      <stop offset="100%" stopColor="hsl(var(--primary))" stopOpacity={0.02} />
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.4} vertical={false} />
-                  <XAxis dataKey="data" tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} />
-                  <YAxis tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} axisLine={false} tickLine={false} tickFormatter={(v) => `R$ ${(v / 1000).toFixed(0)}k`} />
-                  <Tooltip
-                    contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 8, fontSize: 12 }}
-                    formatter={(v: any) => fmtBRL(Number(v))}
-                  />
-                  <Area type="monotone" dataKey="receita" stroke="hsl(var(--primary))" strokeWidth={2.5} fill="url(#grad)" />
-                  {metaDiariaHoje > 0 && (
-                    <ReferenceLine y={metaDiariaHoje} stroke="hsl(var(--destructive))" strokeDasharray="4 4" strokeWidth={1.5} label={{ value: "Meta diária", position: "right", fill: "hsl(var(--destructive))", fontSize: 10, fontWeight: 600 }} />
-                  )}
-                </AreaChart>
-              </ResponsiveContainer>
-            </div>
-          </CardContent>
-        </Card>
+      {/* Seção 2 — resumo executivo */}
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-5">
+        <Tile
+          loading={carregando} titulo="Receita líquida" valor={fmtBRL(resumo.receita_liquida)}
+          pct={variacaoPct(resumo.receita_liquida, resumoComp.receita_liquida)} spark={sparkReceita}
+          sub={<>Bruta {fmtBRL(resumo.receita_bruta)} · desconto {fmtBRL(resumo.desconto_total)} ({fmtPct(resumo.desconto_medio_pct, 1)})</>}
+          ajuda="Soma de total_amount dos pedidos não-cancelados, por date_purchase::date (sem conversão de fuso)."
+        />
+        <Tile
+          loading={carregando} titulo="Pedidos" valor={fmtNum(resumo.pedidos)}
+          pct={variacaoPct(resumo.pedidos, resumoComp.pedidos)} spark={sparkPedidos}
+          sub={<>{fmtNum(resumo.pedidos_captados)} captados · cancelada {fmtBRL(resumo.receita_cancelada)}</>}
+        />
+        <Tile
+          loading={carregando} titulo="Ticket médio" valor={fmtBRL(resumo.ticket_medio)}
+          pct={variacaoPct(resumo.ticket_medio, resumoComp.ticket_medio)} spark={sparkTicket}
+          sub={meta?.meta_ticket_medio ? <>Meta {fmtBRL(meta.meta_ticket_medio)} (metas_financeiras)</> : "Sem meta cadastrada"}
+        />
+        <Tile
+          loading={carregando} titulo="Taxa de aprovação" valor={fmtPct(aprov.taxa, 2)}
+          pct={variacaoPct(aprov.taxa, aprovComp.taxa)} spark={sparkAprov}
+          sub={<>{aprov.retrabalho} pedidos recomprados em até 7 dias (retrabalho de checkout · {fmtBRL(aprov.receita_retrabalho)})</>}
+          ajuda="Regra oficial de cancelados reais: cancelamento não conta como perda se o mesmo cliente comprou em ±7 dias. Regra simples daria a taxa menor."
+          rodape={<p className="pt-1 text-[11px] text-muted-foreground">Regra simples: {fmtPct(aprov.taxa_simples, 2)}</p>}
+        />
         <Card>
-          <CardHeader>
-            <CardTitle className="text-lg font-serif">Vendas por canal</CardTitle>
-            <p className="text-xs text-muted-foreground">Distribuição da receita por origem</p>
-          </CardHeader>
-          <CardContent>
-            <div className="h-72">
-              {canais.length === 0 ? (
-                <div className="h-full flex items-center justify-center text-sm text-muted-foreground">Sem vendas no período</div>
-              ) : (
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie data={canais} dataKey="valor" nameKey="nome" innerRadius={50} outerRadius={90} paddingAngle={2} stroke="hsl(var(--card))" strokeWidth={2}>
-                      {canais.map((_, i) => <Cell key={i} fill={CHANNEL_COLORS[i % CHANNEL_COLORS.length]} />)}
-                    </Pie>
-                    <Tooltip
-                      contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 8, fontSize: 12 }}
-                      formatter={(v: any, _n: any, p: any) => [`${fmtBRL(Number(v))} • ${fmtPct(p?.payload?.pct ?? 0)}`, p?.payload?.nome]}
-                    />
-                    <Legend iconType="circle" wrapperStyle={{ fontSize: 11 }} />
-                  </PieChart>
-                </ResponsiveContainer>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* SEÇÃO 3.5 — Detalhamento por canal */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg font-serif flex items-center gap-2">
-            <Package className="h-5 w-5" />
-            Detalhamento por canal
-            <Badge variant="secondary" className="ml-2 font-normal">{canaisDetalhe.length} canais</Badge>
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Canal</TableHead>
-                <TableHead className="text-right">Pedidos</TableHead>
-                <TableHead className="text-right">Faturamento</TableHead>
-                <TableHead className="text-right">Ticket Médio</TableHead>
-                <TableHead className="text-right">Desconto</TableHead>
-                <TableHead className="text-right">% Desc.</TableHead>
-                <TableHead className="text-right">Participação</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {canaisDetalhe.length === 0 ? (
-                <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-6">Sem vendas no período</TableCell></TableRow>
-              ) : canaisDetalhe.map((c, i) => {
-                const totFat = canaisDetalhe.reduce((a, b) => a + b.faturamento, 0);
-                const part = totFat > 0 ? (c.faturamento / totFat) * 100 : 0;
-                return (
-                  <TableRow key={c.nome}>
-                    <TableCell className="font-medium flex items-center gap-2">
-                      <span className="inline-block h-2.5 w-2.5 rounded-full" style={{ background: CHANNEL_COLORS[i % CHANNEL_COLORS.length] }} />
-                      {c.nome}
-                    </TableCell>
-                    <TableCell className="text-right">{fmtNum(c.pedidos)}</TableCell>
-                    <TableCell className="text-right font-semibold">{fmtBRL(c.faturamento)}</TableCell>
-                    <TableCell className="text-right">{fmtBRL(c.ticketMedio)}</TableCell>
-                    <TableCell className="text-right text-danger">{c.desconto > 0 ? `−${fmtBRL(c.desconto)}` : "—"}</TableCell>
-                    <TableCell className="text-right text-muted-foreground">{fmtPct(c.descontoPct)}</TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex items-center justify-end gap-2">
-                        <span className="text-xs text-muted-foreground w-12 text-right">{fmtPct(part)}</span>
-                        <div className="w-20 h-1.5 rounded-full bg-muted overflow-hidden">
-                          <div className="h-full rounded-full" style={{ width: `${Math.min(part, 100)}%`, background: CHANNEL_COLORS[i % CHANNEL_COLORS.length] }} />
-                        </div>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
-
-      {/* SEÇÃO 3.6 — Clientes Novos vs Recorrentes */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg font-serif flex items-center gap-2">
-            <Sparkles className="h-5 w-5" />
-            Clientes Novos vs Recorrentes
-            <Badge variant="secondary" className="ml-2 font-normal">{fmtNum(novoRecorrente.totalPedidosNR)} pedidos</Badge>
-          </CardTitle>
-          <p className="text-xs text-muted-foreground">Comparativo de receita, pedidos e ticket médio no período</p>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-            {/* Cards lado a lado */}
-            <div className="lg:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="rounded-lg border border-primary/30 bg-primary/5 p-4">
-                <div className="flex items-center gap-2 mb-3">
-                  <span className="text-xl">🆕</span>
-                  <h3 className="font-semibold text-foreground uppercase text-xs tracking-wide">Clientes Novos</h3>
-                </div>
-                <div className="space-y-1.5">
-                  <div className="flex justify-between text-sm"><span className="text-muted-foreground">Receita</span><span className="font-serif font-bold text-lg text-foreground">{fmtBRL(novoRecorrente.novo.receita)}</span></div>
-                  <div className="flex justify-between text-sm"><span className="text-muted-foreground">% da receita total</span><span className="font-semibold text-primary">{fmtPct(novoRecorrente.novo.pct)}</span></div>
-                  <div className="flex justify-between text-sm"><span className="text-muted-foreground">Pedidos</span><span className="font-medium text-foreground">{fmtNum(novoRecorrente.novo.pedidos)}</span></div>
-                  <div className="flex justify-between text-sm"><span className="text-muted-foreground">Ticket médio</span><span className="font-medium text-foreground">{fmtBRL(novoRecorrente.novo.ticket)}</span></div>
-                </div>
-              </div>
-              <div className="rounded-lg border border-success/30 bg-success/5 p-4">
-                <div className="flex items-center gap-2 mb-3">
-                  <span className="text-xl">🔄</span>
-                  <h3 className="font-semibold text-foreground uppercase text-xs tracking-wide">Clientes Recorrentes</h3>
-                </div>
-                <div className="space-y-1.5">
-                  <div className="flex justify-between text-sm"><span className="text-muted-foreground">Receita</span><span className="font-serif font-bold text-lg text-foreground">{fmtBRL(novoRecorrente.recorrente.receita)}</span></div>
-                  <div className="flex justify-between text-sm"><span className="text-muted-foreground">% da receita total</span><span className="font-semibold text-success">{fmtPct(novoRecorrente.recorrente.pct)}</span></div>
-                  <div className="flex justify-between text-sm"><span className="text-muted-foreground">Pedidos</span><span className="font-medium text-foreground">{fmtNum(novoRecorrente.recorrente.pedidos)}</span></div>
-                  <div className="flex justify-between text-sm"><span className="text-muted-foreground">Ticket médio</span><span className="font-medium text-foreground">{fmtBRL(novoRecorrente.recorrente.ticket)}</span></div>
-                </div>
-              </div>
-            </div>
-            {/* Donut */}
-            <div className="h-56">
-              {novoRecorrente.totalReceita === 0 ? (
-                <div className="h-full flex items-center justify-center text-sm text-muted-foreground">Sem vendas no período</div>
-              ) : (
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie
-                      data={[
-                        { nome: "Novos", valor: novoRecorrente.novo.receita, pct: novoRecorrente.novo.pct },
-                        { nome: "Recorrentes", valor: novoRecorrente.recorrente.receita, pct: novoRecorrente.recorrente.pct },
-                      ]}
-                      dataKey="valor"
-                      nameKey="nome"
-                      innerRadius={45}
-                      outerRadius={80}
-                      paddingAngle={2}
-                      stroke="hsl(var(--card))"
-                      strokeWidth={2}
-                    >
-                      <Cell fill="hsl(220, 60%, 50%)" />
-                      <Cell fill="hsl(152, 60%, 40%)" />
-                    </Pie>
-                    <Tooltip
-                      contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 8, fontSize: 12 }}
-                      formatter={(v: any, _n: any, p: any) => [`${fmtBRL(Number(v))} • ${fmtPct(p?.payload?.pct ?? 0)}`, p?.payload?.nome]}
-                    />
-                    <Legend iconType="circle" wrapperStyle={{ fontSize: 11 }} />
-                  </PieChart>
-                </ResponsiveContainer>
-              )}
-            </div>
-          </div>
-          {novoRecorrente.insight && (
-            <div className="mt-4 p-3 rounded-lg bg-muted/40 border border-border text-sm text-foreground">
-              {novoRecorrente.insight}
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* SEÇÃO 3.7 — Análise comparativa: motivos da diferença */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg font-serif flex items-center gap-2">
-            <TrendingUp className="h-5 w-5" />
-            Análise comparativa: o que mudou
-          </CardTitle>
-          <p className="text-xs text-muted-foreground">
-            <strong>{label}</strong> ({fmtData(dataInicio)}–{fmtData(dataFim)}) vs período anterior ({fmtData(compInicio)}–{fmtData(compFim)})
-          </p>
-        </CardHeader>
-        <CardContent className="space-y-5">
-          {/* Mini KPIs comparativos */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            <div className="rounded-lg border bg-muted/30 p-3">
-              <p className="text-xs uppercase tracking-wide text-muted-foreground">Receita</p>
-              <p className="font-serif font-bold text-foreground">{fmtBRL(receitaBruta)}</p>
-              <p className="text-xs text-muted-foreground">antes: {fmtBRL(receitaComp)}</p>
-            </div>
-            <div className="rounded-lg border bg-muted/30 p-3">
-              <p className="text-xs uppercase tracking-wide text-muted-foreground">Pedidos</p>
-              <p className="font-serif font-bold text-foreground">{fmtNum(totalPedidos)}</p>
-              <p className="text-xs text-muted-foreground">antes: {fmtNum(pedidosComp)}</p>
-            </div>
-            <div className="rounded-lg border bg-muted/30 p-3">
-              <p className="text-xs uppercase tracking-wide text-muted-foreground">Ticket médio</p>
-              <p className="font-serif font-bold text-foreground">{fmtBRL(ticketMedio)}</p>
-              <p className="text-xs text-muted-foreground">antes: {fmtBRL(ticketMedioComp)}</p>
-            </div>
-            <div className="rounded-lg border bg-muted/30 p-3">
-              <p className="text-xs uppercase tracking-wide text-muted-foreground">Sessões (GA4)</p>
-              <p className="font-serif font-bold text-foreground">
-                {ga4Comparativo.disponivel ? fmtNum(ga4Comparativo.sessoesAtual) : "—"}
-              </p>
-              <p className="text-xs text-muted-foreground">
-                {ga4Comparativo.disponivel ? `antes: ${fmtNum(ga4Comparativo.sessoesComp)}` : "sem dados GA4"}
-              </p>
-            </div>
-          </div>
-
-          {/* Motivos */}
-          <div>
-            <h4 className="text-sm font-semibold mb-2 text-foreground">Principais motivos da diferença</h4>
-            {motivos.length === 0 ? (
-              <p className="text-sm text-muted-foreground">Sem variações relevantes detectadas.</p>
+          <CardContent className="space-y-2 p-4">
+            <p className="flex items-center gap-1 text-[11px] uppercase tracking-wider text-muted-foreground">
+              <Target className="h-3.5 w-3.5" /> Meta do mês
+            </p>
+            {meta?.meta_mensal ? (
+              <>
+                <p className="font-serif text-2xl font-bold tabular-nums">{fmtPct(pctMeta ?? 0, 2)}</p>
+                <Progress value={Math.min(pctMeta ?? 0, 100)} className="h-2" />
+                <p className="text-[11px] text-muted-foreground">
+                  MTD {fmtBRL(mtd.receita_liquida)} de {fmtBRL(meta.meta_mensal)} · faltam {fmtBRL(faltante ?? 0)}
+                </p>
+                <p className="text-[11px] font-medium">
+                  Meta diária necessária: {fmtBRL(metaDiaria ?? 0)} ({uteisRestantes} dias úteis restantes)
+                </p>
+                <p className="text-[11px] text-muted-foreground">Aprovação do mês: {fmtPct(aprovMes.taxa, 2)}</p>
+              </>
             ) : (
-              <ul className="space-y-2">
-                {motivos.map((m, i) => (
-                  <li
-                    key={i}
-                    className={cn(
-                      "text-sm px-3 py-2 rounded-md border-l-4 bg-muted/30",
-                      m.tipo === "positivo" && "border-success text-foreground",
-                      m.tipo === "negativo" && "border-danger text-foreground",
-                      m.tipo === "neutro" && "border-muted-foreground/40 text-muted-foreground"
-                    )}
-                  >
-                    {m.tipo === "positivo" && <ArrowUpRight className="inline h-4 w-4 mr-1.5 text-success" />}
-                    {m.tipo === "negativo" && <ArrowDownRight className="inline h-4 w-4 mr-1.5 text-danger" />}
-                    {m.texto}
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-
-          {/* Produtos que mais subiram / caíram */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <h4 className="text-sm font-semibold mb-2 text-foreground flex items-center gap-1.5">
-                <ArrowUpRight className="h-4 w-4 text-success" /> Produtos que mais subiram
-              </h4>
-              {produtosComparativo.subiram.length === 0 ? (
-                <p className="text-xs text-muted-foreground py-2">Nenhum produto com crescimento relevante.</p>
-              ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Produto</TableHead>
-                      <TableHead className="text-right">Atual</TableHead>
-                      <TableHead className="text-right">Antes</TableHead>
-                      <TableHead className="text-right">Δ Receita</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {produtosComparativo.subiram.map((p) => (
-                      <TableRow key={p.product_id}>
-                        <TableCell className="font-medium max-w-[180px] truncate" title={p.nome}>{p.nome}</TableCell>
-                        <TableCell className="text-right">{fmtNum(p.vendAtual)}</TableCell>
-                        <TableCell className="text-right text-muted-foreground">{fmtNum(p.vendComp)}</TableCell>
-                        <TableCell className="text-right font-semibold text-success">+{fmtBRL(p.deltaRec)}</TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              )}
-            </div>
-            <div>
-              <h4 className="text-sm font-semibold mb-2 text-foreground flex items-center gap-1.5">
-                <ArrowDownRight className="h-4 w-4 text-danger" /> Produtos que mais caíram
-              </h4>
-              {produtosComparativo.cairam.length === 0 ? (
-                <p className="text-xs text-muted-foreground py-2">Nenhum produto com queda relevante.</p>
-              ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Produto</TableHead>
-                      <TableHead className="text-right">Atual</TableHead>
-                      <TableHead className="text-right">Antes</TableHead>
-                      <TableHead className="text-right">Δ Receita</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {produtosComparativo.cairam.map((p) => (
-                      <TableRow key={p.product_id}>
-                        <TableCell className="font-medium max-w-[180px] truncate" title={p.nome}>{p.nome}</TableCell>
-                        <TableCell className="text-right">{fmtNum(p.vendAtual)}</TableCell>
-                        <TableCell className="text-right text-muted-foreground">{fmtNum(p.vendComp)}</TableCell>
-                        <TableCell className="text-right font-semibold text-danger">{fmtBRL(p.deltaRec)}</TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              )}
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardContent className="py-4">
-          <div className="flex items-center justify-between gap-3 flex-wrap">
-            <p className="text-sm font-medium text-muted-foreground">Filtrar produtos por categoria</p>
-            <CategoryFilter value={categoriaFiltro} onChange={setCategoriaFiltro} />
-          </div>
-        </CardContent>
-      </Card>
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <Card>
-          <CardHeader><CardTitle className="text-lg font-serif flex items-center gap-2"><Package className="h-5 w-5" /> Produtos mais vendidos</CardTitle></CardHeader>
-          <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Produto</TableHead>
-                  <TableHead className="text-right">Qtd</TableHead>
-                  <TableHead className="text-right">Estoque</TableHead>
-                  <TableHead className="text-right">Preço</TableHead>
-                  <TableHead className="text-center">Status</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {(() => {
-                  const filtrados = categoriaFiltro === "todos" ? topProdutos : topProdutos.filter((p) => categorizarProduto(p.nome) === categoriaFiltro);
-                  if (filtrados.length === 0) return (
-                    <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-6">Sem dados</TableCell></TableRow>
-                  );
-                  return filtrados.slice(0, 10).map((p, i) => {
-                  const status = p.estoque < 5 ? { l: "Crítico", c: "bg-danger/15 text-danger" } : p.estoque <= 20 ? { l: "Baixo", c: "bg-warning/15 text-warning" } : { l: "OK", c: "bg-success/15 text-success" };
-                  return (
-                    <TableRow key={i}>
-                      <TableCell className="font-medium">{p.nome}</TableCell>
-                      <TableCell className="text-right">{fmtNum(p.vendido)}</TableCell>
-                      <TableCell className="text-right">{fmtNum(p.estoque)}</TableCell>
-                      <TableCell className="text-right">{fmtBRL(p.preco)}</TableCell>
-                      <TableCell className="text-center"><Badge className={cn("border-0", status.c)}>{status.l}</Badge></TableCell>
-                    </TableRow>
-                  );
-                });
-                })()}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg font-serif flex items-center gap-2"><TrendingUp className="h-5 w-5" /> Produtos mais lucrativos</CardTitle>
-            <p className="text-xs text-muted-foreground">Maior margem de contribuição entre os produtos vendidos no período</p>
-          </CardHeader>
-          <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Produto</TableHead>
-                  <TableHead className="text-right">Vend.</TableHead>
-                  <TableHead className="text-right">Estoque</TableHead>
-                  <TableHead className="text-right">Venda média</TableHead>
-                  <TableHead className="text-right">MC %</TableHead>
-                  <TableHead className="text-right">MC total</TableHead>
-                  <TableHead>Insight</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {(() => {
-                  const filtrados = categoriaFiltro === "todos" ? lucrativos : lucrativos.filter((p: any) => categorizarProduto(p.nome) === categoriaFiltro);
-                  if (filtrados.length === 0) return (
-                    <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-6">Sem vendas no período</TableCell></TableRow>
-                  );
-                  return filtrados.map((p: any) => {
-                  const toneCls =
-                    p.insight.tone === "success" ? "bg-success/15 text-success" :
-                    p.insight.tone === "warning" ? "bg-warning/15 text-warning" :
-                    p.insight.tone === "danger"  ? "bg-danger/15 text-danger"   :
-                                                   "bg-muted text-muted-foreground";
-                  return (
-                    <TableRow key={p.product_id}>
-                      <TableCell className="font-medium max-w-[180px] truncate" title={p.nome}>{p.nome}</TableCell>
-                      <TableCell className="text-right">{fmtNum(p.vendido)}</TableCell>
-                      <TableCell className="text-right">{fmtNum(p.estoque)}</TableCell>
-                      <TableCell className="text-right">{fmtBRL(p.preco_venda_medio)}</TableCell>
-                      <TableCell className={cn("text-right font-semibold", p.mc_pct >= 0 ? "text-success" : "text-danger")}>
-                        {fmtPct(p.mc_pct)}
-                      </TableCell>
-                      <TableCell className={cn("text-right", p.mc_total >= 0 ? "text-foreground" : "text-danger")}>
-                        {fmtBRL(p.mc_total)}
-                      </TableCell>
-                      <TableCell>
-                        <Badge className={cn("border-0 whitespace-nowrap", toneCls)}>{p.insight.label}</Badge>
-                      </TableCell>
-                    </TableRow>
-                  );
-                });
-                })()}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* SEÇÃO 5 — sugestões + IA */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <Card>
-          <CardHeader><CardTitle className="text-lg font-serif flex items-center gap-2"><AlertTriangle className="h-5 w-5 text-warning" /> Sugestões de produção</CardTitle></CardHeader>
-          <CardContent>
-            {sugestoes.length === 0 ? (
-              <p className="text-sm text-muted-foreground py-6 text-center">Nenhum produto em situação crítica.</p>
-            ) : (
-              <ul className="space-y-3">
-                {sugestoes.map((s, i) => (
-                  <li key={i} className="flex items-start gap-3 p-3 rounded-lg bg-warning/5 border border-warning/20">
-                    <AlertTriangle className="h-5 w-5 text-warning shrink-0 mt-0.5" />
-                    <div className="text-sm">
-                      <p className="font-semibold text-foreground">{s.nome}</p>
-                      <p className="text-muted-foreground">
-                        Estoque crítico ({fmtNum(s.estoque)} un). Média de venda: {s.mediaDia.toFixed(1)}/dia.
-                      </p>
-                      <p className="text-foreground mt-0.5">
-                        Sugestão: produzir <strong>{fmtNum(s.sugestao)} unidades</strong>.
-                      </p>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader><CardTitle className="text-lg font-serif flex items-center gap-2"><Sparkles className="h-5 w-5 text-primary" /> Insights de IA</CardTitle></CardHeader>
-          <CardContent>
-            {loadingAi ? (
-              <div className="flex flex-col items-center justify-center py-8 gap-2">
-                <Loader2 className="h-6 w-6 animate-spin text-primary" />
-                <p className="text-sm text-muted-foreground">Analisando dados…</p>
-              </div>
-            ) : aiInsights ? (
-              <div className="prose prose-sm max-w-none whitespace-pre-wrap text-sm leading-relaxed text-foreground">
-                {aiInsights}
-              </div>
-            ) : (
-              <div className="text-center py-8">
-                <Sparkles className="h-10 w-10 mx-auto text-muted-foreground/40 mb-3" />
-                <p className="text-sm text-muted-foreground mb-4">Clique em "Gerar insights com IA" para receber recomendações personalizadas.</p>
-                <Button size="sm" onClick={gerarInsights} variant="outline">
-                  <Sparkles className="h-4 w-4 mr-1.5" /> Gerar agora
-                </Button>
-              </div>
+              <>
+                <p className="font-serif text-2xl font-bold">—</p>
+                <SeloAviso texto="metas_financeiras sem meta para o mês" tom="neg" />
+              </>
             )}
           </CardContent>
         </Card>
       </div>
 
-      {loading && (
-        <div className="fixed bottom-4 right-4 bg-card border rounded-lg px-3 py-2 shadow-lg flex items-center gap-2 text-sm">
-          <Loader2 className="h-4 w-4 animate-spin" /> Atualizando…
-        </div>
+      {/* Seção 3 — decomposição do gap */}
+      {carregando ? <SkeletonBloco altura={220} /> : (
+        <Waterfall
+          resultado={resultado}
+          avisoJanela={avisoJanela}
+          rotuloComparativo={rotuloComp}
+          onDriver={(d) =>
+            setDrawer(d === "Sessões" ? "sessoes" : d === "Conversão" ? "conversao" : d === "Ticket" ? "ticket" : "aprovacao")
+          }
+        />
       )}
+
+      {/* Seção 4 — placar dos drivers */}
+      <div id="drivers">
+        {carregando ? <SkeletonBloco altura={320} /> : (
+          <PlacarDrivers linhas={drivers} onAbrir={(id) => setDrawer(id)} onLancarInvestimento={(l) => setLancamento(l)} />
+        )}
+      </div>
+
+      {/* Seção 5 */}
+      {carregando ? <SkeletonBloco altura={300} /> : <RitmoDiario dias={ritmo} />}
+
+      {/* Seção 6 */}
+      {carregando ? <SkeletonBloco altura={200} /> : <MixClientes mix={mix} />}
+
+      {/* Seção 7 */}
+      {carregando ? <SkeletonBloco altura={260} /> : <CanaisEProdutos canais={canaisTabela} produtos={topProdutos} />}
+
+      {/* Parte 5 */}
+      <SaudeFontes fontes={fontes} />
+
+      {/* drawers */}
+      <Sheet open={!!drawer} onOpenChange={(o) => !o && setDrawer(null)}>
+        <SheetContent side="right" className="w-full overflow-y-auto sm:max-w-2xl">
+          <SheetHeader>
+            <SheetTitle className="font-serif text-2xl">
+              {drawer === "ticket" ? "Ticket médio"
+                : drawer === "aprovacao" ? "Aprovação"
+                : drawer === "conversao" ? "Taxa de conversão"
+                : drawer === "sessoes" ? "Sessões"
+                : drawer === "cps" || drawer === "midia" ? "Mídia e CPS"
+                : drawer === "retencao" ? "Retenção" : "Driver"}
+            </SheetTitle>
+            <SheetDescription>{ddmmyyyy(ini)} – {ddmmyyyy(fim)} · {rotuloComp}</SheetDescription>
+          </SheetHeader>
+          <div className="mt-5">
+            {drawer && (
+              drawer === "retencao" ? (
+                <div className="space-y-2 text-sm">
+                  <p>{fmtNum(mix.recorrentes)} clientes recorrentes de {fmtNum(mix.clientes_unicos)} únicos no mês.</p>
+                  <p className="text-muted-foreground">Taxa de recorrência {fmtPct(mix.taxa_recorrencia, 1)} · aquisição {fmtPct(mix.taxa_aquisicao_cliente, 1)} dos clientes únicos do mês.</p>
+                </div>
+              ) : (
+                <DetalheDriver
+                  id={drawer === "cps" ? "midia" : drawer === "sessoes" ? "sessoes" : drawer}
+                  dados={dadosDetalhe}
+                />
+              )
+            )}
+          </div>
+        </SheetContent>
+      </Sheet>
+
+      <DialogLancarInvestimento
+        driver={lancamento}
+        mesRef={mesRef}
+        onClose={() => setLancamento(null)}
+        onSalvo={() => { setLancamento(null); qFontesVazias.refetch(); }}
+      />
     </div>
   );
 }
 
-// ============ KPI Card ============
-function KpiCard({
-  icon: Icon, label, value, delta, sub, progress,
-}: {
-  icon: any; label: string; value: string; delta?: React.ReactNode; sub?: string; progress?: number;
-}) {
+/** soma de sessões de um dia na fonte escolhida */
+function funilDia(linhas: { dia: string; sessoes: number }[], dia: string) {
+  let t = 0;
+  for (const l of linhas) if (l.dia === dia) t += l.sessoes;
+  return t;
+}
+
+function DialogLancarInvestimento({
+  driver, mesRef, onClose, onSalvo,
+}: { driver: DriverLinha | null; mesRef: string; onClose: () => void; onSalvo: () => void }) {
+  const [valor, setValor] = useState("");
+  const [salvando, setSalvando] = useState(false);
+
+  async function salvar() {
+    const v = Number(valor.replace(".", "").replace(",", "."));
+    if (!Number.isFinite(v) || v <= 0) { toast.error("Informe um valor válido"); return; }
+    setSalvando(true);
+    const { error } = await supabase.from("investimentos_midia" as any).insert({
+      mes_referencia: mesRef,
+      facebook_ads: 0,
+      google_ads: 0,
+      outros: v,
+      observacao: `${driver?.nome ?? "Investimento"} — lançado pelo Dashboard Comercial`,
+    } as any);
+    setSalvando(false);
+    if (error) { toast.error(error.message); return; }
+    toast.success("Investimento lançado");
+    setValor("");
+    onSalvo();
+  }
+
   return (
-    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
-      <Card className="h-full">
-        <CardContent className="p-4">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-xs uppercase tracking-wide text-muted-foreground font-medium">{label}</span>
-            <Icon className="h-4 w-4 text-muted-foreground" />
+    <Dialog open={!!driver} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader><DialogTitle className="font-serif">Lançar {driver?.nome?.toLowerCase()}</DialogTitle></DialogHeader>
+        <div className="space-y-3">
+          <div className="space-y-1.5">
+            <Label htmlFor="mes">Mês de referência</Label>
+            <Input id="mes" value={mesRef} readOnly />
           </div>
-          <div className="text-xl font-serif font-bold text-foreground">{value}</div>
-          <div className="flex items-center justify-between mt-1">
-            {delta}
-            {sub && <span className="text-xs text-muted-foreground">{sub}</span>}
+          <div className="space-y-1.5">
+            <Label htmlFor="valor">Valor investido (R$)</Label>
+            <Input id="valor" inputMode="decimal" placeholder="0,00" value={valor} onChange={(e) => setValor(e.target.value)} />
           </div>
-          {typeof progress === "number" && <Progress value={progress} className="h-1.5 mt-2" />}
-        </CardContent>
-      </Card>
-    </motion.div>
+          <p className="text-xs text-muted-foreground">
+            Grava em investimentos_midia — a ausência do lançamento é o que mantém o driver em cinza no placar.
+          </p>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>Cancelar</Button>
+          <Button onClick={salvar} disabled={salvando}>
+            {salvando && <Loader2 className="mr-1 h-4 w-4 animate-spin" />} Salvar
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
