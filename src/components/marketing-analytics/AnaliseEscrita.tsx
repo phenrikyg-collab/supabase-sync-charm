@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Aviso, C, SANS, SERIF } from './shared';
+import type { FiltroGrade } from './GradeConteudo';
 
 export interface PadraoResumo {
   dimensao: string;
@@ -43,8 +44,9 @@ export function useResumoPerformance(formato: string | null, dias = 90) {
   useEffect(() => {
     let ativo = true;
     setLoading(true);
-    const args: Record<string, unknown> = { p_dias: dias };
-    if (formato) args.p_formato = formato;
+    // p_formato explícito: sem ele a função assume REELS e a leitura fica
+    // restrita a metade do conteúdo publicado.
+    const args: Record<string, unknown> = { p_dias: dias, p_formato: formato };
     supabase.rpc('fn_ig_resumo_performance' as any, args).then(({ data }: any) => {
       if (!ativo) return;
       setData((data as ResumoPerformance) || null);
@@ -73,11 +75,39 @@ function Confianca({ valor }: { valor?: string | null }) {
   );
 }
 
-function CardPadrao({ p, cor }: { p: PadraoResumo; cor: string }) {
+const DIM_CAMPO: Record<string, 'pilar' | 'angulo' | 'funcao'> = {
+  pilar: 'pilar',
+  angulo: 'angulo',
+  funcao: 'funcao',
+  funcao_funil: 'funcao',
+};
+
+const FUNCAO_VALOR: Record<string, string> = {
+  'conversão': 'Conversao',
+  conversao: 'Conversao',
+  alcance: 'Alcance',
+  relacionamento: 'Relacionamento',
+};
+
+export const filtroDoPadrao = (p: PadraoResumo): FiltroGrade | null => {
+  const campo = DIM_CAMPO[String(p.dimensao ?? '').toLowerCase()];
+  if (!campo || !p.categoria) return null;
+  const valor = campo === 'funcao'
+    ? (FUNCAO_VALOR[String(p.categoria).toLowerCase()] ?? p.categoria)
+    : p.categoria;
+  return { [campo]: valor } as FiltroGrade;
+};
+
+function CardPadrao({ p, cor, onFiltrar }: { p: PadraoResumo; cor: string; onFiltrar?: (f: FiltroGrade) => void }) {
   const conf = CONF_META[p.confianca || ''] ?? CONF_META.baixa;
+  const filtro = onFiltrar ? filtroDoPadrao(p) : null;
   return (
     <div
-      className="rounded-lg p-3.5"
+      role={filtro ? 'button' : undefined}
+      tabIndex={filtro ? 0 : undefined}
+      onClick={filtro ? () => onFiltrar?.(filtro) : undefined}
+      onKeyDown={filtro ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onFiltrar?.(filtro); } } : undefined}
+      className={`rounded-lg p-3.5 ${filtro ? 'cursor-pointer transition hover:shadow-md' : ''}`}
       style={{ border: `1px solid ${C.border}`, borderLeft: `3px solid ${cor}`, background: C.card, opacity: conf.opacidade }}
     >
       <div className="flex items-start justify-between gap-3 mb-1.5">
@@ -101,23 +131,26 @@ function CardPadrao({ p, cor }: { p: PadraoResumo; cor: string }) {
         <span className="text-[11px]" style={{ color: C.grey, fontFamily: SANS }}>
           {p.posts} posts{p.pct_volume_txt ? ` · ${p.pct_volume_txt}% do volume` : ''}
         </span>
+        {filtro && (
+          <span className="text-[11px] font-medium" style={{ color: C.bronze, fontFamily: SANS }}>ver publicações →</span>
+        )}
       </div>
     </div>
   );
 }
 
-function Coluna({ titulo, cor, itens, vazio }: { titulo: string; cor: string; itens: PadraoResumo[]; vazio: string }) {
+function Coluna({ titulo, cor, itens, vazio, onFiltrar }: { titulo: string; cor: string; itens: PadraoResumo[]; vazio: string; onFiltrar?: (f: FiltroGrade) => void }) {
   return (
     <div className="space-y-2.5">
       <p className="text-sm font-semibold" style={{ color: C.text, fontFamily: SANS }}>{titulo}</p>
       {!itens.length
         ? <p className="text-xs" style={{ color: C.grey, fontFamily: SANS }}>{vazio}</p>
-        : itens.map((p, i) => <CardPadrao key={`${p.dimensao}-${p.categoria}-${i}`} p={p} cor={cor} />)}
+        : itens.map((p, i) => <CardPadrao key={`${p.dimensao}-${p.categoria}-${i}`} p={p} cor={cor} onFiltrar={onFiltrar} />)}
     </div>
   );
 }
 
-export function AnaliseEscrita({ formato, dias = 90 }: { formato: string | null; dias?: number }) {
+export function AnaliseEscrita({ formato, dias = 90, onFiltrar }: { formato: string | null; dias?: number; onFiltrar?: (f: FiltroGrade) => void }) {
   const { resumo, loading } = useResumoPerformance(formato, dias);
 
   if (loading) {
@@ -146,8 +179,8 @@ export function AnaliseEscrita({ formato, dias = 90 }: { formato: string | null;
       )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <Coluna titulo="✅ O que replicar" cor={C.green} itens={rep} vazio="Nenhum padrão passou do corte de relevância no período." />
-        <Coluna titulo="⛔ O que evitar" cor={C.red} itens={evi} vazio="Nenhum padrão ficou abaixo do corte no período." />
+        <Coluna titulo="✅ O que replicar" cor={C.green} itens={rep} vazio="Nenhum padrão passou do corte de relevância no período." onFiltrar={onFiltrar} />
+        <Coluna titulo="⛔ O que evitar" cor={C.red} itens={evi} vazio="Nenhum padrão ficou abaixo do corte no período." onFiltrar={onFiltrar} />
       </div>
 
       <div className="p-4 rounded-lg" style={{ background: '#FFFBEF', borderLeft: `3px solid ${C.gold}` }}>
@@ -159,7 +192,7 @@ export function AnaliseEscrita({ formato, dias = 90 }: { formato: string | null;
           <p className="text-xs" style={{ color: C.grey, fontFamily: SANS }}>Nenhuma oportunidade subutilizada identificada.</p>
         ) : (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-2.5">
-            {opo.map((p, i) => <CardPadrao key={`${p.dimensao}-${p.categoria}-${i}`} p={p} cor={C.gold} />)}
+            {opo.map((p, i) => <CardPadrao key={`${p.dimensao}-${p.categoria}-${i}`} p={p} cor={C.gold} onFiltrar={onFiltrar} />)}
           </div>
         )}
       </div>

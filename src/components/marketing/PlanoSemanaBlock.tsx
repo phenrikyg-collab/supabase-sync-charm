@@ -87,7 +87,7 @@ const vazio = (): Compromisso => ({
  * Fecha o ciclo: a equipe registra compromissos e o relatório da semana
  * seguinte confere item a item (avaliacao_ia).
  */
-export default function PlanoSemanaBlock({ ciclo = 0 }: { ciclo?: number }) {
+export default function PlanoSemanaBlock({ ciclo = 0, avaliacaoFallback = null }: { ciclo?: number; avaliacaoFallback?: any }) {
   const { toast } = useToast();
   const [plano, setPlano] = useState<PlanoSemana | null>(null);
   const [carregando, setCarregando] = useState(true);
@@ -189,7 +189,7 @@ export default function PlanoSemanaBlock({ ciclo = 0 }: { ciclo?: number }) {
   }
   if (!plano) return null;
 
-  const avaliacao = plano.avaliacao_ia ?? null;
+  const avaliacao = plano.avaliacao_ia ?? avaliacaoFallback ?? null;
   const cumprimento: any[] = Array.isArray(avaliacao?.cumprimento_do_plano)
     ? avaliacao.cumprimento_do_plano
     : Array.isArray(avaliacao?.compromissos)
