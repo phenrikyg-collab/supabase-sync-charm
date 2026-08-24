@@ -533,7 +533,13 @@ export default function InsightsIATab() {
       <CategorizacaoBlock categorias={dadosRaw?.categorias_atual} analise={relatorio.analise_categorias} />
 
       {/* 5. Plano da semana — o que vamos fazer diferente */}
-      <PlanoSemanaBlock ciclo={ciclo} />
+      <PlanoSemanaBlock
+        ciclo={ciclo}
+        avaliacaoFallback={{
+          cumprimento_do_plano: (relatorio as any).cumprimento_do_plano ?? [],
+          observacao_do_ciclo: relatorio.observacao_do_ciclo ?? null,
+        }}
+      />
 
       {/* 6. O que mudou essa semana */}
       {relatorio.o_que_mudou_essa_semana && (
