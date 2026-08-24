@@ -483,7 +483,9 @@ export default function VendasAoVivo() {
       ) : data ? (
         <>
           <BlocoVendasHoje data={data} />
+          <OportunidadesAoVivo refreshKey={ciclo} />
           <BlocoMetaMensal meta={data.meta_mensal} />
+
           <BlocoAcaoSemana acao={data.acao_semana} proxima={data.proxima_acao} />
           <BlocoRecuperacaoPendente data={data} />
           <BlocoRecuperacaoAnterior rec={data.recuperacao_ontem} />
