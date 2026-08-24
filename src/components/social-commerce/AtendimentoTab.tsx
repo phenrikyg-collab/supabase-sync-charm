@@ -372,7 +372,9 @@ export function AtendimentoTab() {
     setTexto("");
     setEditandoId(null);
     setJanelaFechada409(false);
-    carregarMensagens(c.id);
+    setLimiteMsgs(POR_PAGINA_MSGS);
+    // Mensagens só carregam ao abrir a conversa
+    carregarMensagens(c.id, POR_PAGINA_MSGS);
     // Abrir NÃO marca como lida — a equipe dá baixa manualmente,
     // senão a regra de revisar as respostas da Anna perde o sentido.
   };
@@ -786,6 +788,13 @@ export function AtendimentoTab() {
                 </p>
               ) : (
                 <div className="space-y-2.5">
+                  {temMsgsAntigas && (
+                    <div className="text-center pb-1">
+                      <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={verAnteriores}>
+                        Ver mensagens anteriores
+                      </Button>
+                    </div>
+                  )}
                   {mensagens.map((m) => {
                     const saida = m.direcao === "saida";
                     const anna = m.origem === "anna";
