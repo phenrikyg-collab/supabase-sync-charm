@@ -13,6 +13,9 @@ import {
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { SortableHead, useSortable } from "@/components/SortableHead";
 import { brl, int, num, pct } from "@/lib/gestaoFormat";
+import {
+  BadgeClassificacao, CardMargemContribuicao, CelulaMargemContrib, Variacao, corClassificacao, fundoClassificacao,
+} from "@/components/gestao/margemContribuicao";
 import { cn } from "@/lib/utils";
 
 const PERIODOS = [7, 30, 90];
@@ -24,18 +27,20 @@ function corMargem(p: number) {
 }
 
 function Tile({
-  titulo, valor, tom = "default",
-}: { titulo: string; valor: string; tom?: "default" | "red" | "green" | "muted" }) {
+  titulo, valor, tom = "default", variacao,
+}: { titulo: string; valor: string; tom?: "default" | "red" | "green" | "muted"; variacao?: React.ReactNode }) {
   const cor = tom === "red" ? "text-red-600" : tom === "green" ? "text-emerald-600" : tom === "muted" ? "text-muted-foreground" : "text-foreground";
   return (
     <Card>
       <CardContent className="p-4 space-y-1">
         <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{titulo}</p>
         <p className={cn("text-2xl font-serif font-bold", cor)}>{valor}</p>
+        {variacao}
       </CardContent>
     </Card>
   );
 }
+
 
 type SortCampo = "unidades_vendidas" | "receita_total" | "margem_pct" | "lucro_liquido_total" | "lucro_liquido_unitario";
 
@@ -57,6 +62,7 @@ export default function ProdutosLucro() {
   });
 
   const resumo = data?.resumo ?? {};
+  const comparativo = data?.comparativo ?? null;
   const porCanal = useMemo(
     () => [...(data?.por_canal ?? [])].sort((a: any, b: any) => num(b.receita_total) - num(a.receita_total)),
     [data],
@@ -118,23 +124,56 @@ export default function ProdutosLucro() {
 
       {/* KPIs */}
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <CardMargemContribuicao
+          valorPct={resumo.margem_contribuicao_pct}
+          total={resumo.margem_contribuicao_total}
+          classificacao={resumo.margem_contribuicao_classificacao}
+          regua={data?.regua_margem_contribuicao}
+          comparativoPct={comparativo?.margem_contribuicao_pct}
+        />
         <Tile titulo="Produtos distintos" valor={int(resumo.produtos_distintos)} />
-        <Tile titulo="Unidades vendidas" valor={int(resumo.unidades_vendidas)} />
-        <Tile titulo="Receita total" valor={brl(resumo.receita_total)} />
-        <Tile titulo="CMV" valor={brl(resumo.cmv_total)} tom="red" />
+        <Tile
+          titulo="Unidades vendidas"
+          valor={int(resumo.unidades_vendidas)}
+          variacao={<Variacao atual={resumo.unidades_vendidas} anterior={comparativo?.unidades_vendidas} />}
+        />
+        <Tile
+          titulo="Receita total"
+          valor={brl(resumo.receita_total)}
+          variacao={<Variacao atual={resumo.receita_total} anterior={comparativo?.receita_total} />}
+        />
+        <Tile
+          titulo="CMV"
+          valor={brl(resumo.cmv_total)}
+          tom="red"
+          variacao={<Variacao atual={resumo.cmv_total} anterior={comparativo?.cmv_total} inverso />}
+        />
         <Tile titulo="Frete" valor={brl(resumo.frete_total)} tom="red" />
         <Tile titulo="Embalagem" valor={brl(resumo.embalagem_total)} tom="red" />
+        <Tile
+          titulo="CAC"
+          valor={brl(resumo.cac_total)}
+          tom="red"
+          variacao={<Variacao atual={resumo.cac_total} anterior={comparativo?.cac_total} inverso />}
+        />
         <Card>
           <CardContent className="p-4 space-y-1">
-            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Margem de contribuição</p>
+            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Margem</p>
             <p className="text-2xl font-serif font-bold text-emerald-600">{brl(resumo.margem_total)}</p>
             <p className={cn("text-xs font-medium", corMargem(num(resumo.margem_media_pct)))}>
               {pct(resumo.margem_media_pct, 1)} de margem média
             </p>
+            <Variacao atual={resumo.margem_total} anterior={comparativo?.margem_total} />
           </CardContent>
         </Card>
-        <Tile titulo="Lucro líquido total" valor={brl(resumo.lucro_liquido_total)} tom="green" />
+        <Tile
+          titulo="Lucro líquido total"
+          valor={brl(resumo.lucro_liquido_total)}
+          tom="green"
+          variacao={<Variacao atual={resumo.lucro_liquido_total} anterior={comparativo?.lucro_liquido_total} />}
+        />
       </div>
+
 
       {/* Canal + gráfico */}
       <div className="grid gap-4 lg:grid-cols-2">
@@ -150,12 +189,13 @@ export default function ProdutosLucro() {
                   <TableHead className="text-right">CMV</TableHead>
                   <TableHead className="text-right">Margem</TableHead>
                   <TableHead className="text-right">Margem %</TableHead>
+                  <TableHead className="text-right whitespace-nowrap">Marg. contrib. %</TableHead>
                   <TableHead className="text-right">Lucro líq.</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {porCanal.map((c: any) => (
-                  <TableRow key={String(c.canal ?? "—")}>
+                  <TableRow key={String(c.canal ?? "—")} className={fundoClassificacao(c.margem_contribuicao_classificacao)}>
                     <TableCell className="whitespace-nowrap font-medium">{c.canal ?? "—"}</TableCell>
                     <TableCell className="text-right">{int(c.unidades_vendidas)}</TableCell>
                     <TableCell className="text-right">{brl(c.receita_total)}</TableCell>
@@ -164,11 +204,17 @@ export default function ProdutosLucro() {
                     <TableCell className={cn("text-right font-medium", corMargem(num(c.margem_media_pct)))}>
                       {pct(c.margem_media_pct, 1)}
                     </TableCell>
+                    <TableCell className="text-right whitespace-nowrap">
+                      <span className="inline-flex items-center gap-1">
+                        <CelulaMargemContrib item={c} />
+                        <BadgeClassificacao classificacao={c.margem_contribuicao_classificacao} />
+                      </span>
+                    </TableCell>
                     <TableCell className="text-right">{brl(c.lucro_liquido_total)}</TableCell>
                   </TableRow>
                 ))}
                 {!porCanal.length && !isLoading && (
-                  <TableRow><TableCell colSpan={7} className="text-center text-sm text-muted-foreground">Sem dados no período.</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={8} className="text-center text-sm text-muted-foreground">Sem dados no período.</TableCell></TableRow>
                 )}
               </TableBody>
             </Table>
@@ -207,13 +253,18 @@ export default function ProdutosLucro() {
                 <TableHead className="text-right">Embalagem</TableHead>
                 <TableHead className="text-right">CAC</TableHead>
                 <SortableHead campo="margem_pct" sort={sort} onSort={alternar} className="text-right">Margem %</SortableHead>
+                <TableHead className="text-right whitespace-nowrap">Marg. contrib.</TableHead>
+                <TableHead className="text-right whitespace-nowrap">Marg. contrib. %</TableHead>
                 <SortableHead campo="lucro_liquido_total" sort={sort} onSort={alternar} className="text-right">Lucro líq.</SortableHead>
                 <SortableHead campo="lucro_liquido_unitario" sort={sort} onSort={alternar} className="text-right">Lucro líq./un.</SortableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {produtos.map((p: any, i: number) => (
-                <TableRow key={p.tray_product_id ?? `${p.nome_produto}-${i}`}>
+                <TableRow
+                  key={p.tray_product_id ?? `${p.nome_produto}-${i}`}
+                  className={fundoClassificacao(p.margem_contribuicao_classificacao)}
+                >
                   <TableCell className="min-w-[220px] font-medium">{p.nome_produto ?? "—"}</TableCell>
                   <TableCell className="text-right">{int(p.unidades_vendidas)}</TableCell>
                   <TableCell className="text-right">{brl(p.preco_medio)}</TableCell>
@@ -223,6 +274,15 @@ export default function ProdutosLucro() {
                   <TableCell className="text-right">{brl(p.embalagem_total)}</TableCell>
                   <TableCell className="text-right">{brl(p.cac_total)}</TableCell>
                   <TableCell className={cn("text-right font-medium", corMargem(num(p.margem_pct)))}>{pct(p.margem_pct, 1)}</TableCell>
+                  <TableCell className={cn("text-right", corClassificacao(p.margem_contribuicao_classificacao))}>
+                    {brl(p.margem_contribuicao)}
+                  </TableCell>
+                  <TableCell className="text-right whitespace-nowrap">
+                    <span className="inline-flex items-center gap-1">
+                      <CelulaMargemContrib item={p} />
+                      <BadgeClassificacao classificacao={p.margem_contribuicao_classificacao} />
+                    </span>
+                  </TableCell>
                   <TableCell className="text-right">{brl(p.lucro_liquido_total)}</TableCell>
                   <TableCell className={cn("text-right", num(p.lucro_liquido_unitario) < 0 && "text-red-600 font-medium")}>
                     {brl(p.lucro_liquido_unitario)}
@@ -230,7 +290,7 @@ export default function ProdutosLucro() {
                 </TableRow>
               ))}
               {!produtos.length && !isLoading && (
-                <TableRow><TableCell colSpan={11} className="text-center text-sm text-muted-foreground">Sem produtos no período.</TableCell></TableRow>
+                <TableRow><TableCell colSpan={13} className="text-center text-sm text-muted-foreground">Sem produtos no período.</TableCell></TableRow>
               )}
             </TableBody>
           </Table>

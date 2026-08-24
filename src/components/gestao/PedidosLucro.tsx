@@ -15,6 +15,9 @@ import { Tooltip as UiTooltip, TooltipContent, TooltipProvider, TooltipTrigger }
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { SortableHead, useSortable } from "@/components/SortableHead";
 import { brl, ddmm, int, num, pct } from "@/lib/gestaoFormat";
+import {
+  BadgeClassificacao, CardMargemContribuicao, CelulaMargemContrib, Variacao, corClassificacao, fundoClassificacao,
+} from "@/components/gestao/margemContribuicao";
 import { cn } from "@/lib/utils";
 
 const PERIODOS = [7, 30, 90];
@@ -67,8 +70,8 @@ function temCredito(p: any) {
 
 
 function Tile({
-  titulo, valor, tom = "default", dica, pequeno,
-}: { titulo: string; valor: string; tom?: "default" | "red" | "green" | "muted"; dica?: string; pequeno?: boolean }) {
+  titulo, valor, tom = "default", dica, pequeno, variacao,
+}: { titulo: string; valor: string; tom?: "default" | "red" | "green" | "muted"; dica?: string; pequeno?: boolean; variacao?: React.ReactNode }) {
   const cor = tom === "red" ? "text-red-600" : tom === "green" ? "text-emerald-600" : tom === "muted" ? "text-muted-foreground" : "text-foreground";
   const conteudo = (
     <Card>
@@ -78,11 +81,13 @@ function Tile({
           {dica && <Info className="h-3 w-3 opacity-60" />}
         </p>
         <p className={cn(pequeno ? "text-lg" : "text-2xl", "font-serif font-bold", cor)}>{valor}</p>
+        {variacao}
       </CardContent>
     </Card>
   );
   return dica ? <Dica texto={dica}>{conteudo}</Dica> : conteudo;
 }
+
 
 type SortCampo = "data" | "margem_pct";
 
@@ -104,6 +109,7 @@ export default function PedidosLucro() {
   });
 
   const resumo = data?.resumo ?? {};
+  const comparativo = data?.comparativo ?? null;
   const porCanal = useMemo(
     () => [...(data?.por_canal ?? [])].sort((a: any, b: any) => num(b.receita_liquida) - num(a.receita_liquida)),
     [data],
@@ -165,14 +171,41 @@ export default function PedidosLucro() {
 
         {/* BLOCO A */}
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          <Tile titulo="Pedidos" valor={int(resumo.pedidos)} />
-          <Tile titulo="Receita líquida" valor={brl(resumo.receita_liquida)} />
-          <Tile titulo="CMV" valor={brl(resumo.cmv_total)} tom="red" />
-          <Tile titulo="Margem de contribuição" valor={brl(resumo.margem_total)} tom="green" />
+          <CardMargemContribuicao
+            valorPct={resumo.margem_contribuicao_pct}
+            total={resumo.margem_contribuicao_total}
+            classificacao={resumo.margem_contribuicao_classificacao}
+            regua={data?.regua_margem_contribuicao}
+            comparativoPct={comparativo?.margem_contribuicao_pct}
+          />
+          <Tile
+            titulo="Pedidos"
+            valor={int(resumo.pedidos)}
+            variacao={<Variacao atual={resumo.pedidos} anterior={comparativo?.pedidos} />}
+          />
+          <Tile
+            titulo="Receita líquida"
+            valor={brl(resumo.receita_liquida)}
+            variacao={<Variacao atual={resumo.receita_liquida} anterior={comparativo?.receita_liquida} />}
+          />
+          <Tile
+            titulo="CMV"
+            valor={brl(resumo.cmv_total)}
+            tom="red"
+            variacao={<Variacao atual={resumo.cmv_total} anterior={comparativo?.cmv_total} inverso />}
+          />
+          <Tile
+            titulo="Margem"
+            valor={brl(resumo.margem_total)}
+            tom="green"
+            dica="Receita líquida menos produto, taxa de gateway e imposto. Não desconta frete/embalagem — por isso é maior que a margem de contribuição."
+            variacao={<Variacao atual={resumo.margem_total} anterior={comparativo?.margem_total} />}
+          />
           <Card>
             <CardContent className="p-4 space-y-1">
               <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Margem média</p>
               <p className={cn("text-2xl font-serif font-bold", corMargem(margemMedia))}>{pct(margemMedia, 1)}</p>
+              <Variacao atual={margemMedia} anterior={comparativo?.margem_media_pct} pp />
             </CardContent>
           </Card>
           <Tile
@@ -180,6 +213,7 @@ export default function PedidosLucro() {
             valor={brl(resumo.lucro_liquido_total)}
             tom="green"
             dica="Margem de contribuição menos frete real (quando disponível) e CAC do cliente novo."
+            variacao={<Variacao atual={resumo.lucro_liquido_total} anterior={comparativo?.lucro_liquido_total} />}
           />
           <Tile
             titulo="Custo de embalagem"
@@ -187,6 +221,15 @@ export default function PedidosLucro() {
             pequeno
             tom="red"
             dica="Taxa fixa de R$ 4,00 por pedido, já descontada do lucro líquido."
+            variacao={<Variacao atual={resumo.custo_embalagem_total} anterior={comparativo?.custo_embalagem_total} inverso />}
+          />
+          <Tile
+            titulo="CAC aplicado"
+            valor={brl(resumo.cac_total_aplicado)}
+            pequeno
+            tom="red"
+            dica="Soma do CAC aplicado nos pedidos de 1ª compra do período."
+            variacao={<Variacao atual={resumo.cac_total_aplicado} anterior={comparativo?.cac_total_aplicado} inverso />}
           />
           <Tile
             titulo="CAC médio"
@@ -195,6 +238,7 @@ export default function PedidosLucro() {
             tom="muted"
             dica="Gasto Meta Ads ÷ clientes novos no período. Aplicado só no pedido da 1ª compra do cliente."
           />
+
           <Card>
             <CardContent className="p-4 space-y-2">
               <Dica texto="Parte do custo desses pedidos veio do cadastro atual do produto, não do valor exato da venda — pode ter pequena diferença.">
@@ -294,7 +338,7 @@ export default function PedidosLucro() {
               <TableBody>
                 {pedidos.map((p: any, i: number) => <LinhaPedido key={p.tray_order_id ?? `${p.data}-${i}`} p={p} />)}
                 {!pedidos.length && !isLoading && (
-                  <TableRow><TableCell colSpan={14} className="text-center text-sm text-muted-foreground">Sem pedidos no período.</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={16} className="text-center text-sm text-muted-foreground">Sem pedidos no período.</TableCell></TableRow>
                 )}
               </TableBody>
             </Table>
@@ -324,7 +368,7 @@ export default function PedidosLucro() {
                 <TableBody>
                   {pedidosBaixos.map((p: any, i: number) => <LinhaPedido key={p.tray_order_id ?? `baixo-${i}`} p={p} />)}
                   {!pedidosBaixos.length && !isLoading && (
-                    <TableRow><TableCell colSpan={14} className="text-center text-sm text-muted-foreground">Nenhum pedido com margem abaixo de 40%.</TableCell></TableRow>
+                    <TableRow><TableCell colSpan={16} className="text-center text-sm text-muted-foreground">Nenhum pedido com margem abaixo de 40%.</TableCell></TableRow>
                   )}
                 </TableBody>
               </Table>
@@ -369,6 +413,8 @@ function CabecalhoPedidos({ sort, alternar }: { sort: any; alternar: (c: SortCam
         <TableHead className="text-right">Frete</TableHead>
         <TableHead className="text-right">Margem</TableHead>
         <SortableHead campo="margem_pct" sort={sort} onSort={alternar} className="text-right">Margem %</SortableHead>
+        <TableHead className="text-right whitespace-nowrap">Marg. contrib.</TableHead>
+        <TableHead className="text-right whitespace-nowrap">Marg. contrib. %</TableHead>
         <TableHead className="text-right">Lucro líq.</TableHead>
       </TableRow>
     </TableHeader>
@@ -378,7 +424,7 @@ function CabecalhoPedidos({ sort, alternar }: { sort: any; alternar: (c: SortCam
 function LinhaPedido({ p }: { p: any }) {
   const mp = num(p.margem_pct);
   return (
-    <TableRow className={cn(mp < 20 && "bg-red-500/5")}>
+    <TableRow className={cn(fundoClassificacao(p.margem_contribuicao_classificacao), mp < 20 && "bg-red-500/5")}>
       <TableCell className="whitespace-nowrap font-medium">
         {p.url_tray ? (
           <a href={p.url_tray} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-primary hover:underline">
@@ -418,6 +464,15 @@ function LinhaPedido({ p }: { p: any }) {
       <TableCell className="text-right whitespace-nowrap"><CelulaFrete p={p} /></TableCell>
       <TableCell className="text-right text-emerald-600">{brl(p.margem)}</TableCell>
       <TableCell className={cn("text-right font-medium", corMargem(mp))}>{pct(mp, 1)}</TableCell>
+      <TableCell className={cn("text-right", corClassificacao(p.margem_contribuicao_classificacao))}>
+        {brl(p.margem_contribuicao)}
+      </TableCell>
+      <TableCell className="text-right whitespace-nowrap">
+        <span className="inline-flex items-center gap-1">
+          <CelulaMargemContrib item={p} />
+          <BadgeClassificacao classificacao={p.margem_contribuicao_classificacao} />
+        </span>
+      </TableCell>
       <TableCell className="text-right">{brl(p.lucro_liquido)}</TableCell>
     </TableRow>
   );
