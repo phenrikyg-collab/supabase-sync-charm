@@ -170,14 +170,41 @@ export default function PedidosLucro() {
 
         {/* BLOCO A */}
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          <Tile titulo="Pedidos" valor={int(resumo.pedidos)} />
-          <Tile titulo="Receita líquida" valor={brl(resumo.receita_liquida)} />
-          <Tile titulo="CMV" valor={brl(resumo.cmv_total)} tom="red" />
-          <Tile titulo="Margem de contribuição" valor={brl(resumo.margem_total)} tom="green" />
+          <CardMargemContribuicao
+            valorPct={resumo.margem_contribuicao_pct}
+            total={resumo.margem_contribuicao_total}
+            classificacao={resumo.margem_contribuicao_classificacao}
+            regua={data?.regua_margem_contribuicao}
+            comparativoPct={comparativo?.margem_contribuicao_pct}
+          />
+          <Tile
+            titulo="Pedidos"
+            valor={int(resumo.pedidos)}
+            variacao={<Variacao atual={resumo.pedidos} anterior={comparativo?.pedidos} />}
+          />
+          <Tile
+            titulo="Receita líquida"
+            valor={brl(resumo.receita_liquida)}
+            variacao={<Variacao atual={resumo.receita_liquida} anterior={comparativo?.receita_liquida} />}
+          />
+          <Tile
+            titulo="CMV"
+            valor={brl(resumo.cmv_total)}
+            tom="red"
+            variacao={<Variacao atual={resumo.cmv_total} anterior={comparativo?.cmv_total} inverso />}
+          />
+          <Tile
+            titulo="Margem"
+            valor={brl(resumo.margem_total)}
+            tom="green"
+            dica="Receita líquida menos produto, taxa de gateway e imposto. Não desconta frete/embalagem — por isso é maior que a margem de contribuição."
+            variacao={<Variacao atual={resumo.margem_total} anterior={comparativo?.margem_total} />}
+          />
           <Card>
             <CardContent className="p-4 space-y-1">
               <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Margem média</p>
               <p className={cn("text-2xl font-serif font-bold", corMargem(margemMedia))}>{pct(margemMedia, 1)}</p>
+              <Variacao atual={margemMedia} anterior={comparativo?.margem_media_pct} pp />
             </CardContent>
           </Card>
           <Tile
@@ -185,6 +212,7 @@ export default function PedidosLucro() {
             valor={brl(resumo.lucro_liquido_total)}
             tom="green"
             dica="Margem de contribuição menos frete real (quando disponível) e CAC do cliente novo."
+            variacao={<Variacao atual={resumo.lucro_liquido_total} anterior={comparativo?.lucro_liquido_total} />}
           />
           <Tile
             titulo="Custo de embalagem"
@@ -192,6 +220,15 @@ export default function PedidosLucro() {
             pequeno
             tom="red"
             dica="Taxa fixa de R$ 4,00 por pedido, já descontada do lucro líquido."
+            variacao={<Variacao atual={resumo.custo_embalagem_total} anterior={comparativo?.custo_embalagem_total} inverso />}
+          />
+          <Tile
+            titulo="CAC aplicado"
+            valor={brl(resumo.cac_total_aplicado)}
+            pequeno
+            tom="red"
+            dica="Soma do CAC aplicado nos pedidos de 1ª compra do período."
+            variacao={<Variacao atual={resumo.cac_total_aplicado} anterior={comparativo?.cac_total_aplicado} inverso />}
           />
           <Tile
             titulo="CAC médio"
@@ -200,6 +237,7 @@ export default function PedidosLucro() {
             tom="muted"
             dica="Gasto Meta Ads ÷ clientes novos no período. Aplicado só no pedido da 1ª compra do cliente."
           />
+
           <Card>
             <CardContent className="p-4 space-y-2">
               <Dica texto="Parte do custo desses pedidos veio do cadastro atual do produto, não do valor exato da venda — pode ter pequena diferença.">
