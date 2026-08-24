@@ -432,8 +432,8 @@ export default function VendasAoVivo() {
       setData(rpcData as Dashboard);
       setErro(null);
       setAtualizadoEm(new Date());
-    } catch (e: any) {
-      setErro(e?.message ?? "Erro ao carregar o painel.");
+      setCiclo((c) => c + 1);
+
     } finally {
       setLoading(false);
     }
