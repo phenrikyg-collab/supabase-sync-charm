@@ -501,7 +501,7 @@ export function fraseWaterfall(r: ResultadoLMDI): string {
     partes.push(
       pos.length === 1
         ? `${nome(pos[0].driver)} compensou ${fmtBRL(soma)}.`
-        : `${pos.map((p) => nome(p.driver)).join(" e ")} compensaram ${fmtBRL(soma)}.`,
+        : `${pos.slice(0, -1).map((p) => nome(p.driver)).join(", ")} e ${nome(pos[pos.length - 1].driver).toLowerCase()} compensaram ${fmtBRL(soma)}.`,
     );
   }
   partes.push(`Saldo: ${r.gap < 0 ? "−" : "+"}${fmtBRL(Math.abs(r.gap))}.`);

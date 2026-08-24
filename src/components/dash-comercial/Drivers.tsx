@@ -38,13 +38,13 @@ export function deltaPctDriver(l: DriverLinha): number | null {
 
 export function statusDriver(l: DriverLinha): { chave: "alvo" | "atencao" | "gargalo" | "sem"; label: string; cls: string } {
   if (l.semDado || l.meta === null || l.realizado === null) {
-    return { chave: "sem", label: "sem lançamento", cls: "bg-muted text-muted-foreground border-border" };
+    return { chave: "sem", label: l.semDado ? "sem lançamento" : "sem meta", cls: "bg-muted text-muted-foreground border-border" };
   }
   const d = deltaPctDriver(l);
   if (d === null) return { chave: "sem", label: "sem meta", cls: "bg-muted text-muted-foreground border-border" };
-  if (d >= -5) return { chave: "alvo", label: "🟢 no alvo", cls: "bg-pos/10 text-pos border-pos/30" };
-  if (d >= -15) return { chave: "atencao", label: "🟡 atenção", cls: "bg-warn/10 text-warn border-warn/30" };
-  return { chave: "gargalo", label: "🔴 gargalo", cls: "bg-neg/10 text-neg border-neg/30" };
+  if (d >= -5) return { chave: "alvo", label: "no alvo", cls: "bg-pos/10 text-pos border-pos/30" };
+  if (d >= -15) return { chave: "atencao", label: "atenção", cls: "bg-warn/10 text-warn border-warn/30" };
+  return { chave: "gargalo", label: "gargalo", cls: "bg-neg/10 text-neg border-neg/30" };
 }
 
 export function PlacarDrivers({
@@ -73,7 +73,7 @@ export function PlacarDrivers({
             </p>
           </div>
           <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
-            <span>🟢 ±5%</span><span>🟡 5–15% abaixo</span><span>🔴 &gt;15% abaixo</span>
+            <span className="flex items-center gap-1"><i className="h-2 w-2 rounded-full bg-pos" /> no alvo ±5%</span><span className="flex items-center gap-1"><i className="h-2 w-2 rounded-full bg-warn" /> atenção 5–15% abaixo</span><span className="flex items-center gap-1"><i className="h-2 w-2 rounded-full bg-neg" /> gargalo &gt;15% abaixo</span>
           </div>
         </div>
         <div className="overflow-x-auto">
@@ -125,8 +125,8 @@ export function PlacarDrivers({
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">
-                        <Badge variant="outline" className={cn("whitespace-nowrap", st.cls)}>{st.label}</Badge>
-                        {semDado && (
+                        <Badge variant="outline" className={cn("whitespace-nowrap gap-1.5", st.cls)}><i className={cn("h-2 w-2 rounded-full", st.chave === "alvo" ? "bg-pos" : st.chave === "atencao" ? "bg-warn" : st.chave === "gargalo" ? "bg-neg" : "bg-muted-foreground")} />{st.label}</Badge>
+                        {l.semDado && (
                           <Button
                             size="sm"
                             variant="outline"

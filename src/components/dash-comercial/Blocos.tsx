@@ -28,7 +28,7 @@ export function RitmoDiario({ dias }: { dias: DiaRitmo[] }) {
         <CardTitle className="font-serif text-xl">Ritmo diário</CardTitle>
         <p className="text-xs text-muted-foreground">
           Receita líquida vs meta diária necessária, com investimento em mídia no eixo secundário.
-          Fim de semana sombreado · 🔴 dia com spend zerado.
+          Fim de semana sombreado · destaque em vermelho para dia com spend zerado.
         </p>
       </CardHeader>
       <CardContent className="space-y-3">
@@ -57,7 +57,7 @@ export function RitmoDiario({ dias }: { dias: DiaRitmo[] }) {
           <div className="flex flex-wrap gap-2">
             {zerados.map((d) => (
               <Badge key={d.dia} variant="outline" className="border-neg/30 bg-neg/10 text-neg">
-                🔴 {ddmm(d.dia)} · mídia R$ 0,00 · {fmtNum(d.pedidos)} pedidos
+                <i className="mr-1.5 inline-block h-2 w-2 rounded-full bg-neg" />{ddmm(d.dia)} · mídia R$ 0,00 · {fmtNum(d.pedidos)} pedidos
               </Badge>
             ))}
           </div>
@@ -237,10 +237,10 @@ export interface LinhaFonte {
 }
 
 const STATUS_FONTE: Record<LinhaFonte["status"], { icone: string; cls: string; label: string }> = {
-  ok: { icone: "🟢", cls: "text-pos", label: "operando" },
-  atencao: { icone: "🟡", cls: "text-warn", label: "atraso/parcial" },
-  vazia: { icone: "🔴", cls: "text-neg", label: "vazia" },
-  descontinuada: { icone: "⛔", cls: "text-neg", label: "descontinuada" },
+  ok: { icone: "●", cls: "text-pos", label: "operando" },
+  atencao: { icone: "●", cls: "text-warn", label: "atraso/parcial" },
+  vazia: { icone: "●", cls: "text-neg", label: "vazia" },
+  descontinuada: { icone: "■", cls: "text-neg", label: "descontinuada" },
 };
 
 export function SaudeFontes({ fontes }: { fontes: LinhaFonte[] }) {
@@ -249,7 +249,7 @@ export function SaudeFontes({ fontes }: { fontes: LinhaFonte[] }) {
       <CardHeader className="pb-2">
         <CardTitle className="font-serif text-xl">Saúde das fontes</CardTitle>
         <p className="text-xs text-muted-foreground">
-          Nenhum card exibe número de fonte 🔴 ou ⛔ sem selo de aviso visível.
+          Nenhum card exibe número de fonte vazia ou descontinuada sem selo de aviso visível.
         </p>
       </CardHeader>
       <CardContent className="overflow-x-auto">

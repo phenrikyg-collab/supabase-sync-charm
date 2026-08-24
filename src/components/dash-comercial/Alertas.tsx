@@ -48,7 +48,7 @@ export function BarraAlertas({ alertas }: { alertas: Alerta[] }) {
               <li key={a.id} className="flex flex-wrap items-center justify-between gap-3 px-4 py-3">
                 <div className="min-w-[240px] flex-1">
                   <p className="text-sm font-semibold">
-                    <span className="mr-1">{a.severidade === "critico" ? "🔴" : "🟡"}</span>
+                    <i className={cn("mr-2 inline-block h-2 w-2 rounded-full align-middle", a.severidade === "critico" ? "bg-neg" : "bg-warn")} />
                     {a.titulo}
                   </p>
                   <p className="text-xs text-muted-foreground">{a.detalhe}</p>
