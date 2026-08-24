@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { supabase } from '@/integrations/supabase/client';
 import { CalculadoraValorSeguidor } from '@/components/marketing-analytics/CalculadoraValorSeguidor';
@@ -9,6 +9,7 @@ import { FunilConta, FunilTaxa } from '@/components/marketing-analytics/FunilCon
 import { FunilDestino } from '@/components/marketing-analytics/FunilDestino';
 import { FunilVisual } from '@/components/marketing-analytics/FunilVisual';
 import { MelhorHorario } from '@/components/marketing-analytics/MelhorHorario';
+import { FiltroGrade, GradeConteudo, useConteudo } from '@/components/marketing-analytics/GradeConteudo';
 import {
   Aviso, BlocoLoading, C, Card, KpiCard, MALayout, SANS, SectionTitle, SemDado,
   dataInicioISO, fmtCompact, fmtInt, fmtNum, media, useDias,
@@ -171,6 +172,18 @@ function Demografia() {
 export default function MarketingAnalytics() {
   const [dias] = useDias();
   const { funil, loading } = useFunil(dias);
+  const { data: conteudo, loading: carregandoConteudo } = useConteudo(dias, 'TODOS');
+  const [filtroGrade, setFiltroGrade] = useState<FiltroGrade>({ chave: 0 });
+  const chave = useRef(0);
+
+  // Cards de "o que replicar / evitar" filtram a grade e rolam até ela.
+  const filtrarGrade = useCallback((f: FiltroGrade) => {
+    chave.current += 1;
+    setFiltroGrade({ ...f, chave: chave.current });
+    requestAnimationFrame(() => {
+      document.getElementById('grade-perfil')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  }, []);
 
   return (
     <MALayout titulo="Análise do Perfil" subtitulo="Funil da conta, mix de formatos e o que move o alcance">
@@ -206,11 +219,21 @@ export default function MarketingAnalytics() {
 
       <MelhorHorario dias={90} />
 
-      <DriversBlock dias={dias} formato={null} />
+      <DriversBlock dias={dias} formato={null} onFiltrar={filtrarGrade} />
 
       <ClarezaComunicacao dias={dias} />
 
       <CalculadoraValorSeguidor dias={dias} />
+
+      <GradeConteudo
+        id="grade-perfil"
+        titulo="Todas as publicações"
+        posts={conteudo || []}
+        loading={carregandoConteudo}
+        isReels={false}
+        porFormato
+        filtro={filtroGrade}
+      />
 
       <Demografia />
 
