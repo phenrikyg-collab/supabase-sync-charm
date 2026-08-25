@@ -33,6 +33,7 @@ import {
 export function GruposTab() {
   const [grupos, setGrupos] = useState<VipGrupo[]>([]);
   const [resumo, setResumo] = useState<any>(null);
+  const [mov7, setMov7] = useState<Record<string, { entradas: number; saidas: number }>>({});
   const [config, setConfig] = useState<VipConfig>({});
   const [apiKey, setApiKey] = useState("");
   const [margem, setMargem] = useState(20);
@@ -57,6 +58,20 @@ export function GruposTab() {
   useEffect(() => {
     carregar();
   }, [carregar]);
+
+  useEffect(() => {
+    vipMembrosMovimento(7)
+      .then((m) => {
+        const mapa: Record<string, { entradas: number; saidas: number }> = {};
+        (m?.por_grupo ?? []).forEach((g: any) => {
+          const chave = String(g.grupo_id ?? g.grupo ?? g.nome ?? "");
+          if (chave) mapa[chave] = { entradas: Number(g.entradas ?? 0), saidas: Number(g.saidas ?? 0) };
+        });
+        setMov7(mapa);
+      })
+      .catch(() => undefined);
+  }, []);
+
 
   const totalMembros = useMemo(() => grupos.reduce((s, g) => s + Number(g.membros ?? 0), 0), [grupos]);
   const totalBroadcast = useMemo(
