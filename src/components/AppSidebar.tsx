@@ -8,7 +8,8 @@ import {
   Filter,
   CheckCircle2,
   Zap,
-, Repeat} from "lucide-react";
+  Repeat,
+} from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUserRole } from "@/hooks/useUserRole";
