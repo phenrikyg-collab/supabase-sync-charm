@@ -155,7 +155,9 @@ export function LiveChat({
   }, [mediaId]);
 
   const carregarCarrinhos = useCallback(async () => {
-    if (!config.ativado_em) {
+    const desde = live?.inicio ?? config.ativado_em;
+    if (!desde) {
+
       setCarrinhos([]);
       return;
     }
