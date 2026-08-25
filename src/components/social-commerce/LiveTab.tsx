@@ -313,7 +313,9 @@ export function LiveTab() {
             />
           </CardContent>
         </Card>
+        </div>
       </div>
     </div>
   );
+
 }
