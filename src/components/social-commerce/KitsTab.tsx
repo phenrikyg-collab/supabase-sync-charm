@@ -1,7 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
 import { db } from "@/lib/socialCommerce";
-import { useAuth } from "@/contexts/AuthContext";
 import { brl } from "@/lib/financeiroFormat";
 import { toast } from "sonner";
 import {
@@ -25,7 +23,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
-  AlertTriangle, ExternalLink, GripVertical, ImageOff, Loader2, Package, Plus, Search, Trash2, X,
+  AlertTriangle, GripVertical, ImageOff, Loader2, Package, Plus, Search, Trash2, X,
 } from "lucide-react";
 
 /* ------------------------------ busca de peça ----------------------------- */
