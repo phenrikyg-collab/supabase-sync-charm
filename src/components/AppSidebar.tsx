@@ -84,6 +84,7 @@ const moduleGroups: ModuleGroup[] = [
       { title: "Criativos", url: "/marketing?tab=criativos", icon: Sparkles },
       { title: "Analytics Instagram", url: "/marketing-analytics", icon: Sparkles },
       { title: "Social Commerce", url: "/social-commerce", icon: Instagram },
+      { title: "Grupo VIP", url: "/grupo-vip", icon: Users },
       { title: "Matriz Criativa", url: "/marketing/matriz-criativa", icon: Sparkles },
       { title: "Planejamento de Conteúdo", url: "/planejamento-conteudo-mensal", icon: CalendarDays },
       { title: "Tendências", url: "/tendencias", icon: TrendingUp },
