@@ -1,17 +1,21 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { db, enviarInstagram } from "@/lib/socialCommerce";
 import { brl } from "@/lib/financeiroFormat";
-import { ConfigLive, Kit, normalizarGatilho, problemasTexto, restante } from "@/lib/kitsLive";
+import {
+  ConfigLive, Kit, Live, ResultadoBusca, buscarComentariosLive, dataHoraLonga,
+  normalizarGatilho, problemasTexto, restante,
+} from "@/lib/kitsLive";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import {
-  ArrowDown, Copy, Loader2, MessageSquare, Package, Send, ShoppingCart, Users, X, Zap,
+  ArrowDown, Copy, Loader2, MessageSquare, Package, Search, Send, ShoppingCart, Users, X, Zap,
 } from "lucide-react";
 
 export type ComentarioLive = {
