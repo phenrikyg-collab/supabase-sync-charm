@@ -25,6 +25,8 @@ import {
   vipEntradaConfigSalvar,
   vipEntradasResumo,
   vipGrupoSalvar,
+  vipMembrosMovimento,
+
   vipGruposListar,
   type VipConfig,
   type VipGrupo,
@@ -33,6 +35,7 @@ import {
 export function GruposTab() {
   const [grupos, setGrupos] = useState<VipGrupo[]>([]);
   const [resumo, setResumo] = useState<any>(null);
+  const [mov7, setMov7] = useState<Record<string, { entradas: number; saidas: number }>>({});
   const [config, setConfig] = useState<VipConfig>({});
   const [apiKey, setApiKey] = useState("");
   const [margem, setMargem] = useState(20);
@@ -57,6 +60,20 @@ export function GruposTab() {
   useEffect(() => {
     carregar();
   }, [carregar]);
+
+  useEffect(() => {
+    vipMembrosMovimento(7)
+      .then((m) => {
+        const mapa: Record<string, { entradas: number; saidas: number }> = {};
+        (m?.por_grupo ?? []).forEach((g: any) => {
+          const chave = String(g.grupo_id ?? g.grupo ?? g.nome ?? "");
+          if (chave) mapa[chave] = { entradas: Number(g.entradas ?? 0), saidas: Number(g.saidas ?? 0) };
+        });
+        setMov7(mapa);
+      })
+      .catch(() => undefined);
+  }, []);
+
 
   const totalMembros = useMemo(() => grupos.reduce((s, g) => s + Number(g.membros ?? 0), 0), [grupos]);
   const totalBroadcast = useMemo(
@@ -282,7 +299,9 @@ export function GruposTab() {
             recebe tudo, inclusive oferta, mas com texto próprio, mais curto e sempre puxando resposta. Grupos novos
             entram inativos.
           </p>
-          {grupos.map((g, idx) => (
+          {grupos.map((g, idx) => {
+            const m = mov7[String(g.id)] ?? mov7[String(g.nome ?? "")];
+            return (
             <div key={g.id} className="grid gap-2 rounded-lg border p-3 md:grid-cols-12">
               <div className="md:col-span-3">
                 <Label className="text-[11px]">Nome</Label>
@@ -290,7 +309,14 @@ export function GruposTab() {
                   value={g.nome ?? ""}
                   onChange={(e) => setGrupos(grupos.map((x, i) => (i === idx ? { ...x, nome: e.target.value } : x)))}
                 />
+                {m && (
+                  <div className="mt-1 text-[11px] text-muted-foreground">
+                    <span className="text-emerald-600">+{m.entradas}</span> /{" "}
+                    <span className="text-destructive">-{m.saidas}</span> nos últimos 7 dias
+                  </div>
+                )}
               </div>
+
               <div className="md:col-span-2">
                 <Label className="text-[11px]">Perfil</Label>
                 <Select
@@ -370,7 +396,9 @@ export function GruposTab() {
                 </Badge>
               )}
             </div>
-          ))}
+            );
+          })}
+
         </CardContent>
       </Card>
 

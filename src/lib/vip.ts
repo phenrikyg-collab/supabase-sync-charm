@@ -29,13 +29,21 @@ export type VipKpis = {
     membros_hoje?: number | null;
     membros_inicio_periodo?: number | null;
     entradas?: number | null;
+    entradas_pelo_link?: number | null;
+    saidas?: number | null;
     saidas_estimadas?: number | null;
     crescimento_liquido?: number | null;
+    crescimento_snapshot?: number | null;
     taxa_entrada_pct?: number | null;
     taxa_saida_pct?: number | null;
     origens_ativas?: number | null;
     benchmark_saida?: string | null;
+    medido?: boolean | null;
+    medido_desde?: string | null;
+    medicao_cobre_periodo?: boolean | null;
+    nota_medicao?: string | null;
     serie?: Array<{ dia?: string; data?: string; entradas?: number; saidas?: number; liquido?: number }>;
+    [k: string]: any;
   } | null;
   engajamento?: {
     alcance?: number | null;
@@ -185,6 +193,25 @@ export async function vipRpc<T = any>(fn: string, args?: Record<string, any>): P
  * ------------------------------------------------------------------ */
 
 export const vipKpis = (dias: number) => vipRpc<VipKpis>("vip_kpis", { p_dias: dias });
+
+export type VipMovimento = {
+  por_dia?: Array<{ dia?: string; data?: string; entradas?: number; saidas?: number; saldo?: number }> | null;
+  por_grupo?: Array<{
+    grupo?: string;
+    nome?: string;
+    grupo_id?: string;
+    membros?: number;
+    entradas?: number;
+    saidas?: number;
+    saldo?: number;
+  }> | null;
+  medido_desde?: string | null;
+  [k: string]: any;
+};
+
+export const vipMembrosMovimento = (dias: number) =>
+  vipRpc<VipMovimento>("vip_membros_movimento", { p_dias: dias });
+
 
 export const vipCalendariosListar = () =>
   vipRpc<VipCalendarioResumo[]>("vip_calendarios_listar");
