@@ -46,12 +46,13 @@ export const CONFIG_PADRAO: ConfigGeral = {
   lead_campo_nome_obrigatorio: true,
   lead_campo_whatsapp_obrigatorio: true,
   lead_campo_email_obrigatorio: false,
+  lead_url_destino: "",
+  bio_destaques: [],
   lead_jogo_ativo: false,
   lead_jogo_titulo: "",
   lead_jogo_qtd_caixas: 3,
   lead_jogo_texto_vitoria: "",
   lead_jogo_cupom_codigo: "",
-  lead_jogo_texto_ja_jogou: "",
 };
 
 const BUCKET = "linkbio";
