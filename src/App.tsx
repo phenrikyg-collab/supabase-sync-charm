@@ -41,6 +41,7 @@ import Metas from "./pages/Metas";
 import PagamentoOficinas from "./pages/PagamentoOficinas";
 import AdminUsuarios from "./pages/AdminUsuarios";
 import Login from "./pages/Login";
+import Home from "./pages/Home";
 import NotFound from "./pages/NotFound";
 import Ciencia from "./pages/Ciencia";
 import TVInterna from "./pages/TVInterna";
