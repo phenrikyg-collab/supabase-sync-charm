@@ -472,10 +472,22 @@ export function PainelTab() {
             <AlertTitle>Red flags do canal</AlertTitle>
             <AlertDescription>
               <ul className="mt-2 space-y-1 text-sm">
-                {flags.map((f, i) => (
-                  <li key={i}>• {textoRedFlag(f)}</li>
-                ))}
+                {flags.map((f, i) => {
+                  const texto = textoRedFlag(f);
+                  const medicao = /não medidas pelo WhatsApp|nao medidas pelo WhatsApp/i.test(texto);
+                  return (
+                    <li key={i}>
+                      • {texto}
+                      {medicao && (
+                        <button onClick={irParaWebhook} className="ml-2 underline underline-offset-2">
+                          como ligar
+                        </button>
+                      )}
+                    </li>
+                  );
+                })}
               </ul>
+
             </AlertDescription>
           </Alert>
         )}
