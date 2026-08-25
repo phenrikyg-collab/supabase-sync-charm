@@ -226,7 +226,27 @@ export function LiveTab() {
 
   return (
     <div className="space-y-4">
-      <LiveChat config={config} kits={kits} onToggleAtivo={(v) => salvar({ ativo: v })} />
+      <SeletorLive
+        lives={lives}
+        selecionada={liveSelecionada}
+        onSelecionar={setMediaSelecionado}
+        kits={kits}
+        ultimoComentarioEm={ultimoComentarioEm}
+        onAtualizar={() => {
+          recarregarLives();
+          carregarConfig();
+        }}
+      />
+
+      <LiveChat
+        config={config}
+        kits={kits}
+        onToggleAtivo={(v) => salvar({ ativo: v })}
+        live={liveSelecionada}
+        mediaId={mediaSelecionado ?? config.media_id_atual ?? null}
+        onSelecionarLive={setMediaSelecionado}
+        onUltimoComentario={setUltimoComentarioEm}
+      />
 
       <div className="grid gap-4 lg:grid-cols-[1fr_380px]">
         <div className="space-y-4">
