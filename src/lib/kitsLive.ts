@@ -129,3 +129,104 @@ export function restante(iso?: string | null): string | null {
   const m = Math.floor((ms % 3600000) / 60000);
   return h > 0 ? `${h}h${String(m).padStart(2, "0")}` : `${Math.max(1, m)} min`;
 }
+
+/* ------------------------------------------------------------------ */
+/* Lives (public.instagram_lives)                                       */
+/* ------------------------------------------------------------------ */
+
+export type Live = {
+  media_id: string;
+  titulo?: string | null;
+  inicio?: string | null;
+  fim?: string | null;
+  status?: "ao_vivo" | "encerrada" | string | null;
+  comentarios?: number | null;
+  quer_comprar?: number | null;
+  directs?: number | null;
+  carrinhos?: number | null;
+  valor_carrinhos?: number | null;
+  observacoes?: string | null;
+};
+
+/** "DD/MM/YYYY HH:MM" */
+export function dataHoraLonga(iso?: string | null): string {
+  if (!iso) return "—";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "—";
+  return d.toLocaleString("pt-BR", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+export async function carregarLives(): Promise<Live[]> {
+  const { data, error } = await db
+    .from("instagram_lives")
+    .select("*")
+    .order("inicio", { ascending: false })
+    .limit(200);
+  if (error) throw error;
+  return (data ?? []) as Live[];
+}
+
+export async function atualizarLive(mediaId: string): Promise<void> {
+  if (!mediaId) return;
+  await db.rpc("fn_ig_atualizar_live", { p_media_id: mediaId });
+}
+
+export async function encerrarLive(mediaId: string, titulo: string): Promise<void> {
+  const { error } = await db.rpc("fn_ig_encerrar_live", {
+    p_media_id: mediaId,
+    p_titulo: titulo,
+  });
+  if (error) throw error;
+}
+
+export async function renomearLive(mediaId: string, titulo: string): Promise<void> {
+  const { error } = await db.from("instagram_lives").update({ titulo }).eq("media_id", mediaId);
+  if (error) throw error;
+}
+
+export async function salvarObservacoesLive(mediaId: string, observacoes: string): Promise<void> {
+  await db.from("instagram_lives").update({ observacoes }).eq("media_id", mediaId);
+}
+
+export type ResultadoBusca = {
+  id?: string | number;
+  comment_id?: string | null;
+  media_id?: string | null;
+  live_titulo?: string | null;
+  from_username?: string | null;
+  texto?: string | null;
+  publicado_em?: string | null;
+  status?: string | null;
+  kit_id?: string | number | null;
+  kit_nome?: string | null;
+  intencao?: string | null;
+  resposta_texto?: string | null;
+  private_reply_usada?: boolean | null;
+};
+
+export async function buscarComentariosLive(
+  termo: string,
+  mediaId: string | null,
+  limite = 200,
+): Promise<ResultadoBusca[]> {
+  const { data, error } = await db.rpc("fn_ig_buscar_comentarios_live", {
+    p_busca: termo,
+    p_media_id: mediaId,
+    p_limite: limite,
+  });
+  if (error) throw error;
+  return (data ?? []) as ResultadoBusca[];
+}
+
+/** Título padrão de arquivamento: "LIVE DD/MM/YYYY". */
+export function tituloPadraoLive(iso?: string | null): string {
+  const d = iso ? new Date(iso) : new Date();
+  const base = Number.isNaN(d.getTime()) ? new Date() : d;
+  return `LIVE ${base.toLocaleDateString("pt-BR")}`;
+}

@@ -1,17 +1,21 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { db, enviarInstagram } from "@/lib/socialCommerce";
 import { brl } from "@/lib/financeiroFormat";
-import { ConfigLive, Kit, normalizarGatilho, problemasTexto, restante } from "@/lib/kitsLive";
+import {
+  ConfigLive, Kit, Live, ResultadoBusca, buscarComentariosLive, dataHoraLonga,
+  normalizarGatilho, problemasTexto, restante,
+} from "@/lib/kitsLive";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import {
-  ArrowDown, Copy, Loader2, MessageSquare, Package, Send, ShoppingCart, Users, X, Zap,
+  ArrowDown, Copy, Loader2, MessageSquare, Package, Search, Send, ShoppingCart, Users, X, Zap,
 } from "lucide-react";
 
 export type ComentarioLive = {
@@ -51,17 +55,41 @@ function Contador({ icone: Icone, label, valor }: { icone: any; label: string; v
   );
 }
 
+/** Destaca o termo buscado dentro do texto, ignorando acento. */
+function Destacado({ texto, termo }: { texto: string; termo: string }) {
+  const alvo = normalizarGatilho(termo);
+  if (!alvo) return <>{texto}</>;
+  const base = normalizarGatilho(texto);
+  const i = base.indexOf(alvo);
+  if (i < 0 || base.length !== texto.length) return <>{texto}</>;
+  return (
+    <>
+      {texto.slice(0, i)}
+      <mark className="rounded bg-primary/25 px-0.5 text-foreground">{texto.slice(i, i + alvo.length)}</mark>
+      {texto.slice(i + alvo.length)}
+    </>
+  );
+}
+
 export function LiveChat({
   config,
   kits,
   onToggleAtivo,
+  live,
+  mediaId,
+  onSelecionarLive,
+  onUltimoComentario,
 }: {
   config: ConfigLive;
   kits: Kit[];
   onToggleAtivo: (v: boolean) => void;
+  live?: Live | null;
+  mediaId: string | null;
+  onSelecionarLive?: (mediaId: string) => void;
+  onUltimoComentario?: (iso: string | null) => void;
 }) {
   const { user } = useAuth();
-  const mediaId = config.media_id_atual ?? null;
+
 
   const [comentarios, setComentarios] = useState<ComentarioLive[]>([]);
   const [carrinhos, setCarrinhos] = useState<Carrinho[]>([]);
@@ -73,6 +101,18 @@ export function LiveChat({
   const [pausado, setPausado] = useState(false);
   const [noFim, setNoFim] = useState(true);
   const [agora, setAgora] = useState(Date.now());
+
+  // busca
+  const [termo, setTermo] = useState("");
+  const [escopo, setEscopo] = useState<"live" | "todas">("live");
+  const [filtros, setFiltros] = useState<{ quer: boolean; direct: boolean; semResposta: boolean }>({
+    quer: false,
+    direct: false,
+    semResposta: false,
+  });
+  const [resultados, setResultados] = useState<ResultadoBusca[]>([]);
+  const [buscando, setBuscando] = useState(false);
+
 
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const balaoRefs = useRef<Record<string, HTMLDivElement | null>>({});
@@ -115,19 +155,21 @@ export function LiveChat({
   }, [mediaId]);
 
   const carregarCarrinhos = useCallback(async () => {
-    if (!config.ativado_em) {
+    const desde = live?.inicio ?? config.ativado_em;
+    if (!desde) {
       setCarrinhos([]);
       return;
     }
-    const { data } = await db
+    let q = db
       .from("vw_carrinhos_tray")
       .select("*")
       .eq("canal", "instagram")
-      .gte("criado_em", config.ativado_em)
-      .order("criado_em", { ascending: false })
-      .limit(100);
+      .gte("criado_em", desde);
+    if (live?.fim) q = q.lte("criado_em", live.fim);
+    const { data } = await q.order("criado_em", { ascending: false }).limit(100);
     setCarrinhos((data ?? []) as Carrinho[]);
-  }, [config.ativado_em]);
+  }, [config.ativado_em, live?.inicio, live?.fim]);
+
 
   useEffect(() => {
     carregarComentarios();
@@ -180,11 +222,70 @@ export function LiveChat({
   };
 
   const ultimoComentario = comentarios[comentarios.length - 1]?.publicado_em;
+
+  useEffect(() => {
+    onUltimoComentario?.(ultimoComentario ?? null);
+  }, [ultimoComentario, onUltimoComentario]);
+
   const expirou = !!config.expira_em && new Date(config.expira_em).getTime() <= agora;
   const semNovidade =
     !!ultimoComentario && agora - new Date(ultimoComentario).getTime() > 30 * 60 * 1000;
-  const encerrada = !!mediaId && (expirou || semNovidade);
+  const arquivada = live ? live.status === "encerrada" : false;
+  const encerrada = !!mediaId && (arquivada || (!live && (expirou || semNovidade)));
   const podeResponder = !!mediaId && !encerrada;
+
+  const temFiltro = filtros.quer || filtros.direct || filtros.semResposta;
+  const buscaAtiva = termo.trim().length > 0 || temFiltro;
+
+  const aplicaFiltros = useCallback(
+    (c: { kit_id?: any; intencao?: any; private_reply_usada?: any; status?: any; resposta_texto?: any }) => {
+      if (filtros.quer && !(c.kit_id != null || String(c.intencao ?? "").startsWith("kit:"))) return false;
+      if (filtros.direct && !c.private_reply_usada) return false;
+      if (filtros.semResposta && !(c.status !== "respondido" && !c.resposta_texto)) return false;
+      return true;
+    },
+    [filtros],
+  );
+
+  // busca com debounce de 300 ms
+  useEffect(() => {
+    const t = termo.trim();
+    if (!t) {
+      setResultados([]);
+      setBuscando(false);
+      return;
+    }
+    setBuscando(true);
+    const id = setTimeout(async () => {
+      try {
+        const r = await buscarComentariosLive(t, escopo === "todas" ? null : mediaId, 200);
+        setResultados(r);
+      } catch (e: any) {
+        toast.error(e?.message ?? "Não foi possível buscar.");
+        setResultados([]);
+      } finally {
+        setBuscando(false);
+      }
+    }, 300);
+    return () => clearTimeout(id);
+  }, [termo, escopo, mediaId]);
+
+  const resultadosFiltrados = useMemo(
+    () => resultados.filter(aplicaFiltros),
+    [resultados, aplicaFiltros],
+  );
+
+  const comentariosFiltrados = useMemo(
+    () => (temFiltro && !termo.trim() ? comentarios.filter(aplicaFiltros) : comentarios),
+    [comentarios, temFiltro, termo, aplicaFiltros],
+  );
+
+  const limparBusca = () => {
+    setTermo("");
+    setResultados([]);
+    setFiltros({ quer: false, direct: false, semResposta: false });
+  };
+
 
   const fila = useMemo(
     () => comentarios.filter(temIntencao).filter((c) => c.status !== "removido").slice().reverse(),
@@ -300,20 +401,127 @@ export function LiveChat({
 
         {encerrada && (
           <div className="border-b bg-muted px-4 py-2 text-xs text-muted-foreground">
-            Live encerrada. Os comentários ficam como histórico; não é mais possível responder.
+            {live?.fim
+              ? `Live encerrada em ${dataHoraLonga(live.fim)}. Somente leitura.`
+              : "Live encerrada. Os comentários ficam como histórico; não é mais possível responder."}
           </div>
         )}
+
+        {/* busca */}
+        <div className="flex flex-wrap items-center gap-2 border-b px-3 py-2">
+          <div className="relative min-w-[240px] flex-1">
+            <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              value={termo}
+              onChange={(e) => setTermo(e.target.value)}
+              placeholder="Buscar comentário, @usuária ou resposta"
+              className="h-8 pl-8 pr-8 text-sm"
+            />
+            {(termo || temFiltro) && (
+              <button
+                onClick={limparBusca}
+                aria-label="limpar busca"
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            )}
+          </div>
+          <div className="flex flex-wrap gap-1.5">
+            {([
+              ["live", "Nesta live"],
+              ["todas", "Todas as lives"],
+            ] as const).map(([v, l]) => (
+              <button
+                key={v}
+                onClick={() => setEscopo(v)}
+                className={`rounded-full border px-2.5 py-1 text-[11px] transition-colors ${
+                  escopo === v ? "border-primary bg-primary/10 text-foreground" : "text-muted-foreground hover:bg-muted"
+                }`}
+              >
+                {l}
+              </button>
+            ))}
+            <span className="mx-1 w-px bg-border" />
+            {([
+              ["quer", "Quer comprar"],
+              ["direct", "Com Direct"],
+              ["semResposta", "Sem resposta"],
+            ] as const).map(([k, l]) => (
+              <button
+                key={k}
+                onClick={() => setFiltros((f) => ({ ...f, [k]: !f[k] }))}
+                className={`rounded-full border px-2.5 py-1 text-[11px] transition-colors ${
+                  filtros[k] ? "border-primary bg-primary/10 text-foreground" : "text-muted-foreground hover:bg-muted"
+                }`}
+              >
+                {l}
+              </button>
+            ))}
+          </div>
+          {buscando && <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />}
+        </div>
 
         <div className="grid min-h-0 flex-1 grid-cols-1 lg:grid-cols-[7fr_3fr]">
           {/* fluxo */}
           <div className="relative flex min-h-0 flex-col border-r">
             <div ref={scrollRef} onScroll={aoRolar} className="flex-1 space-y-3 overflow-y-auto p-4">
-              {!mediaId || comentarios.length === 0 ? (
+              {termo.trim() ? (
+                resultadosFiltrados.length === 0 ? (
+                  <p className="py-10 text-center text-sm text-muted-foreground">
+                    {buscando ? "Buscando…" : "Nenhum comentário encontrado."}
+                  </p>
+                ) : (
+                  resultadosFiltrados.map((r, i) => (
+                    <button
+                      key={`${r.comment_id ?? r.id ?? i}`}
+                      onClick={() => {
+                        if (r.media_id && r.media_id !== mediaId) {
+                          onSelecionarLive?.(String(r.media_id));
+                          limparBusca();
+                          return;
+                        }
+                        const alvo = comentarios.find(
+                          (c) => String(c.id) === String(r.id) || (r.comment_id && c.comment_id === r.comment_id),
+                        );
+                        limparBusca();
+                        if (alvo) setTimeout(() => rolarAte(alvo), 60);
+                      }}
+                      className="w-full rounded-lg border p-2.5 text-left transition-colors hover:bg-muted/50"
+                    >
+                      <div className="flex flex-wrap items-center gap-1.5 text-[11px] text-muted-foreground">
+                        <span>{horaHHMM(r.publicado_em)}</span>
+                        {escopo === "todas" && r.live_titulo && (
+                          <Badge variant="outline" className="text-[10px]">{r.live_titulo}</Badge>
+                        )}
+                        <strong className="text-foreground">@{r.from_username ?? "cliente"}</strong>
+                        {(r.kit_nome || (r.kit_id != null && nomesKits.get(String(r.kit_id)))) && (
+                          <Badge variant="secondary" className="gap-1 text-[10px]">
+                            <Package className="h-3 w-3" />
+                            {r.kit_nome ?? nomesKits.get(String(r.kit_id))}
+                          </Badge>
+                        )}
+                      </div>
+                      <p className="mt-1 text-sm">
+                        <Destacado texto={r.texto ?? ""} termo={termo} />
+                      </p>
+                      {r.resposta_texto && (
+                        <p className="mt-1 border-l-2 border-primary/40 pl-2 text-xs text-muted-foreground">
+                          {r.resposta_texto}
+                        </p>
+                      )}
+                    </button>
+                  ))
+                )
+              ) : !mediaId || comentariosFiltrados.length === 0 ? (
                 <p className="py-10 text-center text-sm text-muted-foreground">
-                  Nenhum comentário da live ainda. Assim que a live começar, eles aparecem aqui em tempo real.
+                  {temFiltro
+                    ? "Nenhum comentário com esses filtros."
+                    : "Nenhum comentário da live ainda. Assim que a live começar, eles aparecem aqui em tempo real."}
                 </p>
               ) : (
-                comentarios.map((c) => {
+                comentariosFiltrados.map((c) => {
+
                   const chave = String(c.id);
                   const removido = c.status === "removido";
                   const kitNome = c.kit_id != null ? nomesKits.get(String(c.kit_id)) : null;

@@ -3,11 +3,13 @@ import { db } from "@/lib/socialCommerce";
 import { brl } from "@/lib/financeiroFormat";
 import { toast } from "sonner";
 import {
-  ConfigLive, Kit, carregarKits, dataHoraCurta, normalizarGatilho, problemasTexto, restante, totalKit,
+  ConfigLive, Kit, Live, atualizarLive, carregarKits, carregarLives, dataHoraCurta,
+  normalizarGatilho, problemasTexto, restante, totalKit,
 } from "@/lib/kitsLive";
 import { carregarProdutosPai, SeletorProdutos, type ProdutoPai } from "./SeletorProdutos";
 import { CampoTags, tempoRelativo } from "./comum";
 import { LiveChat } from "./LiveChat";
+import { SeletorLive } from "./SeletorLive";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -49,6 +51,10 @@ export function LiveTab() {
   const [carregando, setCarregando] = useState(true);
   const [salvando, setSalvando] = useState(false);
   const [agora, setAgora] = useState(Date.now());
+  const [lives, setLives] = useState<Live[]>([]);
+  const [mediaSelecionado, setMediaSelecionado] = useState<string | null>(null);
+  const [ultimoComentarioEm, setUltimoComentarioEm] = useState<string | null>(null);
+
 
   const mapaProdutos = useMemo(
     () => new Map(produtos.map((p) => [String(p.produto_id), p])),
@@ -108,11 +114,52 @@ export function LiveTab() {
     carregarTudo();
   }, [carregarTudo]);
 
+  // lives registradas
+  const recarregarLives = useCallback(async () => {
+    try {
+      const l = await carregarLives();
+      setLives(l);
+      setMediaSelecionado((atual) => {
+        if (atual && l.some((x) => x.media_id === atual)) return atual;
+        return (l.find((x) => x.status === "ao_vivo") ?? l[0])?.media_id ?? null;
+      });
+    } catch {
+      /* tabela pode não existir ainda */
+    }
+  }, []);
+
+  useEffect(() => {
+    recarregarLives();
+  }, [recarregarLives]);
+
+  const liveSelecionada = useMemo(
+    () => lives.find((l) => l.media_id === mediaSelecionado) ?? null,
+    [lives, mediaSelecionado],
+  );
+
+  // recalcula contadores: a cada 30 s ao vivo, e uma vez ao abrir uma arquivada
+  useEffect(() => {
+    if (!mediaSelecionado) return;
+    let cancelado = false;
+    const rodar = async () => {
+      await atualizarLive(mediaSelecionado);
+      if (!cancelado) recarregarLives();
+    };
+    rodar();
+    if (liveSelecionada?.status !== "ao_vivo") return () => { cancelado = true; };
+    const t = setInterval(rodar, 30_000);
+    return () => {
+      cancelado = true;
+      clearInterval(t);
+    };
+  }, [mediaSelecionado, liveSelecionada?.status, recarregarLives]);
+
   // contagem regressiva
   useEffect(() => {
     const t = setInterval(() => setAgora(Date.now()), 30_000);
     return () => clearInterval(t);
   }, []);
+
 
   // comentários em tempo real
   useEffect(() => {
@@ -179,7 +226,27 @@ export function LiveTab() {
 
   return (
     <div className="space-y-4">
-      <LiveChat config={config} kits={kits} onToggleAtivo={(v) => salvar({ ativo: v })} />
+      <SeletorLive
+        lives={lives}
+        selecionada={liveSelecionada}
+        onSelecionar={setMediaSelecionado}
+        kits={kits}
+        ultimoComentarioEm={ultimoComentarioEm}
+        onAtualizar={() => {
+          recarregarLives();
+          carregarConfig();
+        }}
+      />
+
+      <LiveChat
+        config={config}
+        kits={kits}
+        onToggleAtivo={(v) => salvar({ ativo: v })}
+        live={liveSelecionada}
+        mediaId={mediaSelecionado ?? config.media_id_atual ?? null}
+        onSelecionarLive={setMediaSelecionado}
+        onUltimoComentario={setUltimoComentarioEm}
+      />
 
       <div className="grid gap-4 lg:grid-cols-[1fr_380px]">
         <div className="space-y-4">
