@@ -176,22 +176,19 @@ export function LiveTab() {
   }
 
   return (
-    <div className="grid gap-4 lg:grid-cols-[1fr_380px]">
-      <div className="space-y-4">
-        {/* status */}
-        <Card className={config.ativo ? "border-success/40" : undefined}>
-          <CardContent className="flex flex-wrap items-center gap-4 p-4">
-            <div className="flex items-center gap-2">
-              <span
-                className={`h-2.5 w-2.5 rounded-full ${config.ativo ? "animate-pulse bg-success" : "bg-muted-foreground/40"}`}
-              />
-              <span className="font-medium">
-                {config.ativo ? "Automação da live ligada" : "Automação da live desligada"}
-              </span>
-              {salvando && <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />}
-            </div>
-            <Switch checked={config.ativo} onCheckedChange={(v) => salvar({ ativo: v })} />
-            <div className="ml-auto flex flex-wrap items-center gap-4 text-xs text-muted-foreground">
+    <div className="space-y-4">
+      <LiveChat config={config} kits={kits} onToggleAtivo={(v) => salvar({ ativo: v })} />
+
+      <div className="grid gap-4 lg:grid-cols-[1fr_380px]">
+        <div className="space-y-4">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <Tile label="Comentários" valor={comentarios.length} sub="últimos da live" />
+            <Tile label="Com kit citado" valor={comKit} />
+            <Tile label="Respondidos" valor={respondidos} />
+            <Tile label="Pessoas" valor={pessoas} />
+          </div>
+          <Card>
+            <CardContent className="flex flex-wrap items-center gap-4 p-4 text-xs text-muted-foreground">
               <span>
                 Post da live:{" "}
                 <strong className="text-foreground">{config.media_id_atual ?? "ainda não detectado"}</strong>
@@ -208,62 +205,11 @@ export function LiveTab() {
                   "Sem expiração definida"
                 )}
               </span>
-            </div>
-          </CardContent>
-        </Card>
-
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-          <Tile label="Comentários" valor={comentarios.length} sub="últimos da live" />
-          <Tile label="Com kit citado" valor={comKit} />
-          <Tile label="Respondidos" valor={respondidos} />
-          <Tile label="Pessoas" valor={pessoas} />
+              {salvando && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+            </CardContent>
+          </Card>
         </div>
 
-        {/* comentários ao vivo */}
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="flex items-center gap-2 text-base">
-              <Radio className="h-4 w-4" /> Comentários da live
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            {comentarios.length === 0 ? (
-              <p className="py-8 text-center text-sm text-muted-foreground">
-                Nenhum comentário da live ainda. Assim que a live começar, eles aparecem aqui em tempo real.
-              </p>
-            ) : (
-              comentarios.map((c) => {
-                const kitPorTexto = gatilhosDosKits.get(normalizarGatilho(c.texto ?? ""));
-                const kitNome = c.kit_nome ?? kitPorTexto ?? null;
-                return (
-                  <div key={c.comment_id} className="rounded-lg border p-2.5">
-                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                      <strong className="text-foreground">@{c.from_username ?? "cliente"}</strong>
-                      <span>{tempoRelativo(c.publicado_em)}</span>
-                      {kitNome && (
-                        <Badge variant="secondary" className="gap-1 text-[10px]">
-                          <Package className="h-3 w-3" /> {kitNome}
-                        </Badge>
-                      )}
-                      {(c.resposta_texto || c.status === "respondido") && (
-                        <Badge variant="outline" className="border-success/30 bg-success/10 text-[10px] text-success">
-                          respondido
-                        </Badge>
-                      )}
-                    </div>
-                    <p className="mt-1 text-sm">{c.texto}</p>
-                    {c.resposta_texto && (
-                      <p className="mt-1 rounded bg-muted/50 p-1.5 text-xs text-muted-foreground">
-                        Anna: {c.resposta_texto}
-                      </p>
-                    )}
-                  </div>
-                );
-              })
-            )}
-          </CardContent>
-        </Card>
-      </div>
 
       {/* configuração */}
       <div className="space-y-4">
