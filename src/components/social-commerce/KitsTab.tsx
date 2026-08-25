@@ -132,7 +132,15 @@ function TestarCarrinho({
   const [tamanhos, setTamanhos] = useState<Record<number, string>>({});
   const [verificando, setVerificando] = useState(false);
   const [linhas, setLinhas] = useState<
-    { nome: string; ok: boolean; motivo?: string; cores?: string[]; tamanhos?: string[] }[] | null
+    {
+      nome: string;
+      ok: boolean;
+      motivo?: string;
+      estoque?: number | null;
+      variant_id?: string | null;
+      cores?: string[];
+      tamanhos?: string[];
+    }[] | null
   >(null);
 
   const testar = async () => {
@@ -151,11 +159,13 @@ function TestarCarrinho({
           const r: any = Array.isArray(data) ? data[0] : data;
           const cores = (r?.cores_disponiveis ?? []).map((c: any) => (typeof c === "string" ? c : c?.cor));
           const tams = (r?.tamanhos_disponiveis ?? []).map((t: any) => (typeof t === "string" ? t : t?.tamanho));
-          const disponivel = r?.disponivel ?? r?.existe ?? (Number(r?.estoque ?? 0) > 0);
+          const disponivel = r?.disponivel_na_combinacao_pedida === true;
           return {
             nome,
-            ok: !!disponivel,
+            ok: disponivel,
             motivo: disponivel ? undefined : r?.motivo ?? "sem estoque nessa combinação",
+            estoque: r?.estoque ?? null,
+            variant_id: r?.variant_id ?? null,
             cores,
             tamanhos: tams,
           };
