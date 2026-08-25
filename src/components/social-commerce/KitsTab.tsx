@@ -132,7 +132,15 @@ function TestarCarrinho({
   const [tamanhos, setTamanhos] = useState<Record<number, string>>({});
   const [verificando, setVerificando] = useState(false);
   const [linhas, setLinhas] = useState<
-    { nome: string; ok: boolean; motivo?: string; cores?: string[]; tamanhos?: string[] }[] | null
+    {
+      nome: string;
+      ok: boolean;
+      motivo?: string;
+      estoque?: number | null;
+      variant_id?: string | null;
+      cores?: string[];
+      tamanhos?: string[];
+    }[] | null
   >(null);
 
   const testar = async () => {
@@ -151,11 +159,13 @@ function TestarCarrinho({
           const r: any = Array.isArray(data) ? data[0] : data;
           const cores = (r?.cores_disponiveis ?? []).map((c: any) => (typeof c === "string" ? c : c?.cor));
           const tams = (r?.tamanhos_disponiveis ?? []).map((t: any) => (typeof t === "string" ? t : t?.tamanho));
-          const disponivel = r?.disponivel ?? r?.existe ?? (Number(r?.estoque ?? 0) > 0);
+          const disponivel = r?.disponivel_na_combinacao_pedida === true;
           return {
             nome,
-            ok: !!disponivel,
+            ok: disponivel,
             motivo: disponivel ? undefined : r?.motivo ?? "sem estoque nessa combinação",
+            estoque: r?.estoque ?? null,
+            variant_id: r?.variant_id ?? null,
             cores,
             tamanhos: tams,
           };
@@ -202,15 +212,24 @@ function TestarCarrinho({
           <div className="space-y-1.5 rounded-lg border p-3 text-sm">
             {linhas.map((l, i) => (
               <div key={i} className="text-xs">
-                <p className={l.ok ? "text-success" : "text-danger"}>
-                  {l.ok ? "Disponível" : "Indisponível"} · <span className="text-foreground">{l.nome}</span>
-                </p>
-                {!l.ok && (
-                  <p className="text-muted-foreground">
-                    {l.motivo}
-                    {l.cores?.length ? ` · cores: ${l.cores.join(", ")}` : ""}
-                    {l.tamanhos?.length ? ` · tamanhos: ${l.tamanhos.join(", ")}` : ""}
+                {l.ok ? (
+                  <p className="text-success">
+                    Disponível · <span className="text-foreground">{l.nome}</span>
+                    {l.estoque != null && (
+                      <span className="ml-1 text-muted-foreground">(estoque: {l.estoque})</span>
+                    )}
                   </p>
+                ) : (
+                  <>
+                    <p className="text-danger">
+                      Indisponível · <span className="text-foreground">{l.nome}</span>
+                    </p>
+                    <p className="text-muted-foreground">
+                      {l.motivo}
+                      {l.cores?.length ? ` · cores: ${l.cores.join(", ")}` : ""}
+                      {l.tamanhos?.length ? ` · tamanhos: ${l.tamanhos.join(", ")}` : ""}
+                    </p>
+                  </>
                 )}
               </div>
             ))}
@@ -228,7 +247,7 @@ function TestarCarrinho({
         )}
 
         <DialogFooter>
-          <Button onClick={testar} disabled={verificando}>
+          <Button onClick={testar} disabled={verificando || (linhas?.some((l) => !l.ok) ?? false)}>
             {verificando && <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />}
             Testar carrinho
           </Button>
