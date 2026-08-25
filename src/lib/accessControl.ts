@@ -11,6 +11,7 @@ export const ROUTE_ACCESS: Record<string, Requirement> = {
   // Gestão & Estratégia
   "/gestao": ["gestao"],
   "/dashboard-comercial": ["gestao"],
+  "/jornada-compra": ["gestao"],
   "/dashboard-antigo": ["gestao"],
   "/dashboard-rfm": ["gestao"],
   "/kpis-conversao": ["gestao"],
