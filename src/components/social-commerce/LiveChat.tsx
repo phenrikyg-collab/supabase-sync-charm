@@ -157,19 +157,19 @@ export function LiveChat({
   const carregarCarrinhos = useCallback(async () => {
     const desde = live?.inicio ?? config.ativado_em;
     if (!desde) {
-
       setCarrinhos([]);
       return;
     }
-    const { data } = await db
+    let q = db
       .from("vw_carrinhos_tray")
       .select("*")
       .eq("canal", "instagram")
-      .gte("criado_em", config.ativado_em)
-      .order("criado_em", { ascending: false })
-      .limit(100);
+      .gte("criado_em", desde);
+    if (live?.fim) q = q.lte("criado_em", live.fim);
+    const { data } = await q.order("criado_em", { ascending: false }).limit(100);
     setCarrinhos((data ?? []) as Carrinho[]);
-  }, [config.ativado_em]);
+  }, [config.ativado_em, live?.inicio, live?.fim]);
+
 
   useEffect(() => {
     carregarComentarios();
