@@ -100,9 +100,21 @@ function Gauge({ nota }: { nota: number }) {
   );
 }
 
+function dataHora(v?: string | null) {
+  if (!v) return "";
+  const d = new Date(v);
+  if (Number.isNaN(d.getTime())) return String(v);
+  const p = (n: number) => String(n).padStart(2, "0");
+  return `${p(d.getDate())}/${p(d.getMonth() + 1)} ${p(d.getHours())}:${p(d.getMinutes())}`;
+}
+
+const sinal = (n: number) => `${n > 0 ? "+" : ""}${n}`;
+
 export function PainelTab() {
+  const [, setParams] = useSearchParams();
   const [dias, setDias] = useState(30);
   const [dados, setDados] = useState<VipKpis | null>(null);
+  const [movimento, setMovimento] = useState<VipMovimento | null>(null);
   const [carregando, setCarregando] = useState(true);
 
   useEffect(() => {
@@ -112,6 +124,9 @@ export function PainelTab() {
       .then((d) => vivo && setDados(d))
       .catch((e) => toast.error(e.message ?? "Falha ao carregar KPIs"))
       .finally(() => vivo && setCarregando(false));
+    vipMembrosMovimento(dias)
+      .then((m) => vivo && setMovimento(m))
+      .catch(() => undefined);
     return () => {
       vivo = false;
     };
@@ -123,23 +138,46 @@ export function PainelTab() {
   const health = dados?.health_score ?? {};
   const flags = dados?.red_flags ?? [];
 
+  const medidoDesde = (base as any)?.medido_desde ?? movimento?.medido_desde ?? null;
+  const medidoDesdeMs = medidoDesde ? new Date(medidoDesde).getTime() : null;
+
   const serie = useMemo(() => {
-    const s = (base as any)?.serie ?? [];
-    return (Array.isArray(s) ? s : []).map((p: any) => ({
-      dia: dataCurta(p.dia ?? p.data) ?? p.dia ?? "",
-      entradas: Number(p.entradas ?? 0),
-      saidas: Number(p.saidas ?? p.saidas_estimadas ?? 0),
-      liquido: Number(p.liquido ?? (p.entradas ?? 0) - (p.saidas ?? 0)),
-    }));
-  }, [base]);
+    const s = movimento?.por_dia ?? (base as any)?.serie ?? [];
+    let acumulado = 0;
+    return (Array.isArray(s) ? s : []).map((p: any) => {
+      const bruto = p.dia ?? p.data;
+      const entradas = Number(p.entradas ?? 0);
+      const saidas = Number(p.saidas ?? p.saidas_estimadas ?? 0);
+      acumulado += entradas - saidas;
+      const ts = bruto ? new Date(bruto).getTime() : NaN;
+      return {
+        dia: dataCurta(bruto) ?? bruto ?? "",
+        entradas,
+        saidasNeg: -Math.abs(saidas),
+        saidas,
+        saldo: acumulado,
+        semMedicao: medidoDesdeMs != null && !Number.isNaN(ts) ? ts < medidoDesdeMs : false,
+      };
+    });
+  }, [movimento, base, medidoDesdeMs]);
+
+  const porGrupo = movimento?.por_grupo ?? [];
 
   const taxaSaida = Number(base?.taxa_saida_pct ?? 0);
-  const semHistorico = base?.membros_inicio_periodo === null || base?.membros_inicio_periodo === undefined;
+  const medido = (base as any)?.medido !== false;
+  const entradas = Number(base?.entradas ?? 0);
+  const entradasLink = Number((base as any)?.entradas_pelo_link ?? 0);
+  const saidas = Number(base?.saidas ?? base?.saidas_estimadas ?? 0);
+  const crescimentoSnapshot = Number((base as any)?.crescimento_snapshot ?? 0);
+  const crescimentoLiquido = Number(base?.crescimento_liquido ?? 0);
+  const cobrePeriodo = (base as any)?.medicao_cobre_periodo !== false;
   const receitaMembro = Number(conv?.receita_por_membro ?? 0);
   const reguaMembro =
     receitaMembro < 5 ? "desengajado" : receitaMembro <= 40 ? "saudável" : receitaMembro <= 100 ? "avançado" : "excepcional";
   const distribuicao = dados?.distribuicao ?? {};
   const pctOferta = Number((distribuicao as any)?.oferta ?? (distribuicao as any)?.oportunidade ?? 0);
+
+  const irParaWebhook = () => setParams({ tab: "grupos" }, { replace: true });
 
   if (carregando && !dados) {
     return (
@@ -166,38 +204,68 @@ export function PainelTab() {
         {/* Linha 1 — A base */}
         <section className="space-y-3">
           <h2 className="font-serif text-lg font-semibold">A base</h2>
+
+          {!cobrePeriodo && (
+            <div className="flex items-start gap-2 rounded-lg border border-amber-500/40 bg-amber-500/10 p-3 text-xs">
+              <Info className="mt-0.5 h-4 w-4 text-amber-600" />
+              <span>
+                Medição pelo WhatsApp ativa desde {dataHora(medidoDesde)}. Períodos anteriores não têm entrada e saída
+                medidas.
+              </span>
+            </div>
+          )}
+
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
             <Tile
               titulo="Membros hoje"
               valor={num(base?.membros_hoje ?? 0)}
               sub={
                 <span className="inline-flex items-center gap-1">
-                  {Number(base?.crescimento_liquido ?? 0) >= 0 ? (
+                  {crescimentoLiquido >= 0 ? (
                     <ArrowUpRight className="h-3.5 w-3.5 text-emerald-500" />
                   ) : (
                     <ArrowDownRight className="h-3.5 w-3.5 text-destructive" />
                   )}
-                  {num(base?.crescimento_liquido ?? 0)} no período
+                  <span className={crescimentoLiquido >= 0 ? "text-emerald-600" : "text-destructive"}>
+                    {sinal(crescimentoLiquido)}
+                  </span>{" "}
+                  no período
                 </span>
               }
-            />
-            <Tile
-              titulo="Entradas"
-              valor={num(base?.entradas ?? 0)}
-              sub={`Taxa de entrada ${pctBr(base?.taxa_entrada_pct ?? 0, 1)}`}
-            />
-            <Tile
-              titulo="Saídas (estimadas)"
-              valor={semHistorico ? <span className="text-lg">ainda sem histórico suficiente</span> : num(base?.saidas_estimadas ?? 0)}
-              tom={semHistorico ? "default" : taxaSaida > 10 ? "ruim" : "ok"}
-              sub={semHistorico ? undefined : `Taxa de saída ${pctBr(taxaSaida, 1)} · ${base?.benchmark_saida ?? "ideal abaixo de 10%"}`}
             >
-              <p className="text-[11px] leading-snug text-muted-foreground mt-2">
-                Saída é estimada — o WhatsApp não avisa quem sai do grupo. Calculamos comparando quantas pessoas
-                entraram pelo nosso link com a variação real do tamanho do grupo no período. O histórico começa a
-                acumular com o sync diário.
+              <p className="mt-1 text-[11px] text-muted-foreground">
+                tamanho dos grupos: {sinal(crescimentoSnapshot)} desde o primeiro registro do período
               </p>
             </Tile>
+
+            <Tile titulo="Entradas" valor={num(entradas)}>
+              <div className="mt-1 space-y-0.5 text-xs text-muted-foreground">
+                <div className="inline-flex items-center gap-1">
+                  pelo nosso link: {num(entradasLink)}
+                  {entradas > entradasLink && (
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Info className="h-3.5 w-3.5" />
+                      </TooltipTrigger>
+                      <TooltipContent className="max-w-xs">
+                        A diferença entrou por link antigo ou foi adicionada à mão.
+                      </TooltipContent>
+                    </Tooltip>
+                  )}
+                </div>
+                <div>Taxa de entrada {pctBr(base?.taxa_entrada_pct ?? 0, 1)}</div>
+              </div>
+            </Tile>
+
+            <Tile titulo={medido ? "Saídas" : "Saídas (estimadas)"} valor={num(saidas)}>
+              <div className={`text-xs ${taxaSaida > 10 ? "text-destructive" : "text-emerald-600 dark:text-emerald-400"}`}>
+                Taxa de saída {pctBr(taxaSaida, 1)} · {base?.benchmark_saida ?? "ideal abaixo de 10%"}
+              </div>
+              {(base as any)?.nota_medicao && (
+                <p className="mt-2 text-[11px] leading-snug text-muted-foreground">{(base as any).nota_medicao}</p>
+              )}
+            </Tile>
+
             <Tile
               titulo="Origens de captação"
               valor={num(base?.origens_ativas ?? 0)}
@@ -213,25 +281,79 @@ export function PainelTab() {
           {serie.length > 0 && (
             <Card>
               <CardHeader className="pb-2">
-                <CardTitle className="text-sm">Entradas x saídas por período</CardTitle>
+                <CardTitle className="text-sm">Entradas × saídas por dia</CardTitle>
               </CardHeader>
-              <CardContent className="h-64">
+              <CardContent className="h-72">
                 <ResponsiveContainer width="100%" height="100%">
-                  <ComposedChart data={serie}>
+                  <ComposedChart data={serie} stackOffset="sign">
+                    <defs>
+                      <pattern id="vipHachura" patternUnits="userSpaceOnUse" width="6" height="6">
+                        <rect width="6" height="6" fill="hsl(var(--muted))" />
+                        <path d="M0 6 L6 0" stroke="hsl(var(--muted-foreground))" strokeWidth="1" opacity="0.5" />
+                      </pattern>
+                    </defs>
                     <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
                     <XAxis dataKey="dia" fontSize={11} />
                     <YAxis fontSize={11} />
-                    <RTooltip />
+                    <RTooltip
+                      formatter={(v: any, n: any) => [Math.abs(Number(v)), n === "saidasNeg" ? "Saídas" : n]}
+                    />
                     <Legend />
-                    <Bar dataKey="entradas" name="Entradas" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
-                    <Bar dataKey="saidas" name="Saídas" fill="hsl(var(--destructive))" radius={[4, 4, 0, 0]} />
-                    <Line dataKey="liquido" name="Crescimento líquido" stroke="hsl(var(--foreground))" dot={false} />
+                    <Bar dataKey="entradas" name="Entradas" stackId="mov" radius={[4, 4, 0, 0]}>
+                      {serie.map((d, i) => (
+                        <Cell key={i} fill={d.semMedicao ? "url(#vipHachura)" : "hsl(var(--primary))"} />
+                      ))}
+                    </Bar>
+                    <Bar dataKey="saidasNeg" name="Saídas" stackId="mov" radius={[0, 0, 4, 4]}>
+                      {serie.map((d, i) => (
+                        <Cell key={i} fill={d.semMedicao ? "url(#vipHachura)" : "hsl(var(--muted-foreground))"} />
+                      ))}
+                    </Bar>
+                    <Line dataKey="saldo" name="Saldo acumulado" stroke="hsl(var(--foreground))" dot={false} />
                   </ComposedChart>
                 </ResponsiveContainer>
               </CardContent>
             </Card>
           )}
+
+          {porGrupo.length > 0 && (
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm">Por grupo</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <Table>
+                  <TableHeader className="sticky top-0 bg-background">
+                    <TableRow>
+                      <TableHead>Grupo</TableHead>
+                      <TableHead className="text-right">Membros</TableHead>
+                      <TableHead className="text-right">Entradas</TableHead>
+                      <TableHead className="text-right">Saídas</TableHead>
+                      <TableHead className="text-right">Saldo</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {porGrupo.map((g: any, i: number) => {
+                      const e = Number(g.entradas ?? 0);
+                      const s = Number(g.saidas ?? 0);
+                      const saldo = Number(g.saldo ?? e - s);
+                      return (
+                        <TableRow key={i} className={s > e ? "bg-destructive/10" : undefined}>
+                          <TableCell>{g.grupo ?? g.nome ?? "—"}</TableCell>
+                          <TableCell className="text-right tabular-nums">{num(g.membros ?? 0)}</TableCell>
+                          <TableCell className="text-right tabular-nums">{num(e)}</TableCell>
+                          <TableCell className="text-right tabular-nums">{num(s)}</TableCell>
+                          <TableCell className="text-right tabular-nums">{sinal(saldo)}</TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          )}
         </section>
+
 
         {/* Linha 2 */}
         <section className="grid gap-4 lg:grid-cols-2">
