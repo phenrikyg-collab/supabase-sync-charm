@@ -51,6 +51,10 @@ export function LiveTab() {
   const [carregando, setCarregando] = useState(true);
   const [salvando, setSalvando] = useState(false);
   const [agora, setAgora] = useState(Date.now());
+  const [lives, setLives] = useState<Live[]>([]);
+  const [mediaSelecionado, setMediaSelecionado] = useState<string | null>(null);
+  const [ultimoComentarioEm, setUltimoComentarioEm] = useState<string | null>(null);
+
 
   const mapaProdutos = useMemo(
     () => new Map(produtos.map((p) => [String(p.produto_id), p])),
