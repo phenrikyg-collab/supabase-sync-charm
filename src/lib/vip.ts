@@ -186,6 +186,25 @@ export async function vipRpc<T = any>(fn: string, args?: Record<string, any>): P
 
 export const vipKpis = (dias: number) => vipRpc<VipKpis>("vip_kpis", { p_dias: dias });
 
+export type VipMovimento = {
+  por_dia?: Array<{ dia?: string; data?: string; entradas?: number; saidas?: number; saldo?: number }> | null;
+  por_grupo?: Array<{
+    grupo?: string;
+    nome?: string;
+    grupo_id?: string;
+    membros?: number;
+    entradas?: number;
+    saidas?: number;
+    saldo?: number;
+  }> | null;
+  medido_desde?: string | null;
+  [k: string]: any;
+};
+
+export const vipMembrosMovimento = (dias: number) =>
+  vipRpc<VipMovimento>("vip_membros_movimento", { p_dias: dias });
+
+
 export const vipCalendariosListar = () =>
   vipRpc<VipCalendarioResumo[]>("vip_calendarios_listar");
 
