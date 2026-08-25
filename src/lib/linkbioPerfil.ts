@@ -107,12 +107,13 @@ export async function salvarConfigGeral(cfg: ConfigGeral) {
     p_lead_campo_nome_obrigatorio: cfg.lead_campo_nome_obrigatorio,
     p_lead_campo_whatsapp_obrigatorio: cfg.lead_campo_whatsapp_obrigatorio,
     p_lead_campo_email_obrigatorio: cfg.lead_campo_email_obrigatorio,
+    p_lead_url_destino: cfg.lead_url_destino.trim() || null,
+    p_bio_destaques: cfg.bio_destaques ?? [],
     p_lead_jogo_ativo: cfg.lead_jogo_ativo,
     p_lead_jogo_titulo: cfg.lead_jogo_titulo.trim() || null,
     p_lead_jogo_qtd_caixas: Math.min(8, Math.max(3, Number(cfg.lead_jogo_qtd_caixas) || 3)),
     p_lead_jogo_texto_vitoria: cfg.lead_jogo_texto_vitoria.trim() || null,
     p_lead_jogo_cupom_codigo: cfg.lead_jogo_cupom_codigo.trim().toUpperCase() || null,
-    p_lead_jogo_texto_ja_jogou: cfg.lead_jogo_texto_ja_jogou.trim() || null,
   });
   if (error) throw error;
 }
