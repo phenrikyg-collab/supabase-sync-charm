@@ -212,15 +212,24 @@ function TestarCarrinho({
           <div className="space-y-1.5 rounded-lg border p-3 text-sm">
             {linhas.map((l, i) => (
               <div key={i} className="text-xs">
-                <p className={l.ok ? "text-success" : "text-danger"}>
-                  {l.ok ? "Disponível" : "Indisponível"} · <span className="text-foreground">{l.nome}</span>
-                </p>
-                {!l.ok && (
-                  <p className="text-muted-foreground">
-                    {l.motivo}
-                    {l.cores?.length ? ` · cores: ${l.cores.join(", ")}` : ""}
-                    {l.tamanhos?.length ? ` · tamanhos: ${l.tamanhos.join(", ")}` : ""}
+                {l.ok ? (
+                  <p className="text-success">
+                    Disponível · <span className="text-foreground">{l.nome}</span>
+                    {l.estoque != null && (
+                      <span className="ml-1 text-muted-foreground">(estoque: {l.estoque})</span>
+                    )}
                   </p>
+                ) : (
+                  <>
+                    <p className="text-danger">
+                      Indisponível · <span className="text-foreground">{l.nome}</span>
+                    </p>
+                    <p className="text-muted-foreground">
+                      {l.motivo}
+                      {l.cores?.length ? ` · cores: ${l.cores.join(", ")}` : ""}
+                      {l.tamanhos?.length ? ` · tamanhos: ${l.tamanhos.join(", ")}` : ""}
+                    </p>
+                  </>
                 )}
               </div>
             ))}
@@ -238,7 +247,7 @@ function TestarCarrinho({
         )}
 
         <DialogFooter>
-          <Button onClick={testar} disabled={verificando}>
+          <Button onClick={testar} disabled={verificando || (linhas?.some((l) => !l.ok) ?? false)}>
             {verificando && <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />}
             Testar carrinho
           </Button>
