@@ -102,6 +102,18 @@ export function LiveChat({
   const [noFim, setNoFim] = useState(true);
   const [agora, setAgora] = useState(Date.now());
 
+  // busca
+  const [termo, setTermo] = useState("");
+  const [escopo, setEscopo] = useState<"live" | "todas">("live");
+  const [filtros, setFiltros] = useState<{ quer: boolean; direct: boolean; semResposta: boolean }>({
+    quer: false,
+    direct: false,
+    semResposta: false,
+  });
+  const [resultados, setResultados] = useState<ResultadoBusca[]>([]);
+  const [buscando, setBuscando] = useState(false);
+
+
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const balaoRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
