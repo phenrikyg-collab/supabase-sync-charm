@@ -342,15 +342,6 @@ export function AparenciaTab() {
               />
             </div>
             <div className="space-y-1.5 md:col-span-2">
-              <Label>Mensagem para quem já jogou</Label>
-              <Input
-                value={cfg.lead_jogo_texto_ja_jogou}
-                maxLength={160}
-                onChange={(e) => set({ lead_jogo_texto_ja_jogou: e.target.value })}
-                placeholder="Você já participou do jogo. Use o cupom que enviamos."
-              />
-            </div>
-            <div className="space-y-1.5 md:col-span-2">
               <Label>Cupom do jogo</Label>
               <Input
                 value={cfg.lead_jogo_cupom_codigo}
