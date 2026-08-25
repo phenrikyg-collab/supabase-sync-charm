@@ -25,6 +25,8 @@ import {
   vipEntradaConfigSalvar,
   vipEntradasResumo,
   vipGrupoSalvar,
+  vipMembrosMovimento,
+
   vipGruposListar,
   type VipConfig,
   type VipGrupo,
