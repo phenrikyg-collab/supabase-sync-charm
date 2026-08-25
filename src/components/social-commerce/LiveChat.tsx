@@ -55,17 +55,41 @@ function Contador({ icone: Icone, label, valor }: { icone: any; label: string; v
   );
 }
 
+/** Destaca o termo buscado dentro do texto, ignorando acento. */
+function Destacado({ texto, termo }: { texto: string; termo: string }) {
+  const alvo = normalizarGatilho(termo);
+  if (!alvo) return <>{texto}</>;
+  const base = normalizarGatilho(texto);
+  const i = base.indexOf(alvo);
+  if (i < 0 || base.length !== texto.length) return <>{texto}</>;
+  return (
+    <>
+      {texto.slice(0, i)}
+      <mark className="rounded bg-primary/25 px-0.5 text-foreground">{texto.slice(i, i + alvo.length)}</mark>
+      {texto.slice(i + alvo.length)}
+    </>
+  );
+}
+
 export function LiveChat({
   config,
   kits,
   onToggleAtivo,
+  live,
+  mediaId,
+  onSelecionarLive,
+  onUltimoComentario,
 }: {
   config: ConfigLive;
   kits: Kit[];
   onToggleAtivo: (v: boolean) => void;
+  live?: Live | null;
+  mediaId: string | null;
+  onSelecionarLive?: (mediaId: string) => void;
+  onUltimoComentario?: (iso: string | null) => void;
 }) {
   const { user } = useAuth();
-  const mediaId = config.media_id_atual ?? null;
+
 
   const [comentarios, setComentarios] = useState<ComentarioLive[]>([]);
   const [carrinhos, setCarrinhos] = useState<Carrinho[]>([]);
