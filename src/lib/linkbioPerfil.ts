@@ -23,12 +23,13 @@ export type ConfigGeral = {
   lead_campo_nome_obrigatorio: boolean;
   lead_campo_whatsapp_obrigatorio: boolean;
   lead_campo_email_obrigatorio: boolean;
+  lead_url_destino: string;
+  bio_destaques: any[];
   lead_jogo_ativo: boolean;
   lead_jogo_titulo: string;
   lead_jogo_qtd_caixas: number;
   lead_jogo_texto_vitoria: string;
   lead_jogo_cupom_codigo: string;
-  lead_jogo_texto_ja_jogou: string;
 };
 
 export const CONFIG_PADRAO: ConfigGeral = {
