@@ -1,15 +1,18 @@
 import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Progress } from "@/components/ui/progress";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   Bar,
   BarChart,
   CartesianGrid,
+  Cell,
   ComposedChart,
   Legend,
   Line,
@@ -20,8 +23,9 @@ import {
 } from "recharts";
 import { AlertTriangle, ArrowDownRight, ArrowUpRight, Info, TrendingUp } from "lucide-react";
 import { brl, num, pctBr, dataCurta } from "@/lib/financeiroFormat";
-import { vipKpis, textoRedFlag, type VipKpis } from "@/lib/vip";
+import { vipKpis, vipMembrosMovimento, textoRedFlag, type VipKpis, type VipMovimento } from "@/lib/vip";
 import { toast } from "sonner";
+
 
 const PERIODOS = [7, 30, 90];
 
