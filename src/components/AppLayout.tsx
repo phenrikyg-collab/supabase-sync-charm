@@ -12,12 +12,11 @@ function formatDate() {
 
 export function AppLayout({ children }: { children: React.ReactNode }) {
   return (
-    <SidebarProvider defaultOpen={false}>
+    <SidebarProvider open={true} onOpenChange={() => {}}>
       <div className="min-h-screen flex w-full">
         <AppSidebar />
         <div className="flex-1 flex flex-col min-w-0">
-          <header className="h-14 flex items-center justify-between border-b border-border bg-card/80 backdrop-blur-sm sticky top-0 z-30 px-4">
-            <SidebarTrigger className="mr-4" />
+          <header className="h-14 flex items-center justify-end border-b border-border bg-card/80 backdrop-blur-sm sticky top-0 z-30 px-4">
             <span className="text-sm text-muted-foreground font-medium capitalize">{formatDate()}</span>
           </header>
           <main className="flex-1 p-6 overflow-auto">

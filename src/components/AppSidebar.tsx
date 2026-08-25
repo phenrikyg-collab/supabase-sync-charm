@@ -254,7 +254,7 @@ export function AppSidebar() {
                 <h1 className="text-sidebar-primary-foreground font-serif text-xl font-bold tracking-tight">
                   Gestão
                 </h1>
-                <p className="text-[10px] uppercase tracking-[0.2em] text-sidebar-foreground/60 mt-0.5">
+                <p className="text-[10px] uppercase tracking-[0.2em] text-sidebar-foreground/80 mt-0.5">
                   Mariana Cardoso
                 </p>
               </div>
@@ -273,10 +273,10 @@ export function AppSidebar() {
             );
 
             return (
-              <Collapsible key={group.label} defaultOpen={group.label === "Gestão & Estratégia"}>
+              <Collapsible key={group.label} defaultOpen={false}>
                 <SidebarGroup>
                   <CollapsibleTrigger className="w-full">
-                    <SidebarGroupLabel className="text-sidebar-foreground/40 uppercase tracking-widest text-[10px] cursor-pointer hover:text-sidebar-foreground/60 transition-colors flex items-center justify-between w-full">
+                    <SidebarGroupLabel className="text-sidebar-foreground/80 uppercase tracking-widest text-[10px] cursor-pointer hover:text-sidebar-foreground transition-colors flex items-center justify-between w-full">
                       <span className="flex items-center gap-2">
                         <group.icon className="h-3.5 w-3.5" />
                         {!collapsed && group.label}
@@ -295,7 +295,7 @@ export function AppSidebar() {
                               <NavLink
                                 to={item.url}
                                 end={item.url === "/" || item.url === "/ordens-corte"}
-                                className="relative transition-colors hover:bg-sidebar-accent"
+                                className="relative transition-colors hover:bg-sidebar-accent text-sidebar-foreground/90"
                                 activeClassName="bg-sidebar-accent text-sidebar-primary font-medium"
                               >
                                 <item.icon className="h-4 w-4 mr-2 shrink-0" />
@@ -357,7 +357,7 @@ export function AppSidebar() {
             </SidebarMenu>
           )}
           {!collapsed && user && (
-            <p className="text-[10px] text-sidebar-foreground/50 truncate px-2">{user.email}</p>
+            <p className="text-[10px] text-sidebar-foreground/70 truncate px-2">{user.email}</p>
           )}
           <Button
             variant="ghost"
