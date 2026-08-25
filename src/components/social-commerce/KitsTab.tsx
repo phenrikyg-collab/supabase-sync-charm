@@ -131,32 +131,43 @@ function TestarCarrinho({
   aberto: boolean;
   onOpenChange: (v: boolean) => void;
 }) {
-  const { user } = useAuth();
   const [tamanhos, setTamanhos] = useState<Record<number, string>>({});
-  const [enviando, setEnviando] = useState(false);
-  const [resultado, setResultado] = useState<any>(null);
+  const [verificando, setVerificando] = useState(false);
+  const [linhas, setLinhas] = useState<
+    { nome: string; ok: boolean; motivo?: string; cores?: string[]; tamanhos?: string[] }[] | null
+  >(null);
 
   const testar = async () => {
-    setEnviando(true);
-    setResultado(null);
+    setVerificando(true);
+    setLinhas(null);
     try {
-      const { data, error } = await supabase.functions.invoke("criar-carrinho-tray", {
-        body: {
-          itens: kit.itens.map((i, idx) => ({
-            produto_id: String(i.produto_id),
-            cor: i.cor ?? null,
-            tamanho: tamanhos[idx] ?? "",
-          })),
-          canal: "painel",
-          criado_por: user?.email ?? "painel",
-        },
-      });
-      if (error) throw error;
-      setResultado(data);
+      const saida = await Promise.all(
+        kit.itens.map(async (i, idx) => {
+          const nome = mapa.get(String(i.produto_id))?.nome ?? `Produto ${i.produto_id}`;
+          const { data, error } = await db.rpc("whatsapp_tool_verificar_variante", {
+            p_produto_id: String(i.produto_id),
+            p_cor: i.cor ?? null,
+            p_tamanho: tamanhos[idx] || null,
+          });
+          if (error) return { nome, ok: false, motivo: error.message };
+          const r: any = Array.isArray(data) ? data[0] : data;
+          const cores = (r?.cores_disponiveis ?? []).map((c: any) => (typeof c === "string" ? c : c?.cor));
+          const tams = (r?.tamanhos_disponiveis ?? []).map((t: any) => (typeof t === "string" ? t : t?.tamanho));
+          const disponivel = r?.disponivel ?? r?.existe ?? (Number(r?.estoque ?? 0) > 0);
+          return {
+            nome,
+            ok: !!disponivel,
+            motivo: disponivel ? undefined : r?.motivo ?? "sem estoque nessa combinação",
+            cores,
+            tamanhos: tams,
+          };
+        }),
+      );
+      setLinhas(saida);
     } catch (e: any) {
-      toast.error(e?.message ?? "Não foi possível testar o carrinho.");
+      toast.error(e?.message ?? "Não foi possível testar o kit.");
     } finally {
-      setEnviando(false);
+      setVerificando(false);
     }
   };
 
@@ -189,45 +200,38 @@ function TestarCarrinho({
           <p className="pt-1 text-xs text-muted-foreground">Total das peças: {brl(total)}</p>
         </div>
 
-        {resultado && (
-          <div className="rounded-lg border p-3 text-sm">
-            {resultado.ok === false ? (
-              <div className="space-y-2">
-                <p className="flex items-center gap-1.5 font-medium text-danger">
-                  <AlertTriangle className="h-4 w-4" /> Não deu para montar o carrinho.
+        {linhas && (
+          <div className="space-y-1.5 rounded-lg border p-3 text-sm">
+            {linhas.map((l, i) => (
+              <div key={i} className="text-xs">
+                <p className={l.ok ? "text-success" : "text-danger"}>
+                  {l.ok ? "Disponível" : "Indisponível"} · <span className="text-foreground">{l.nome}</span>
                 </p>
-                {(resultado.faltando ?? []).map((f: any, i: number) => (
-                  <div key={i} className="rounded bg-muted/50 p-2 text-xs">
-                    <p className="font-medium">{f.nome ?? f.produto_id}</p>
-                    <p className="text-muted-foreground">{f.motivo}</p>
-                    {f.cores_disponiveis?.length > 0 && (
-                      <p className="text-muted-foreground">Cores: {f.cores_disponiveis.join(", ")}</p>
-                    )}
-                    {f.tamanhos_disponiveis?.length > 0 && (
-                      <p className="text-muted-foreground">Tamanhos: {f.tamanhos_disponiveis.join(", ")}</p>
-                    )}
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="space-y-1.5">
-                <p className="font-medium text-success">Carrinho criado.</p>
-                {resultado.total != null && <p>Total: {brl(Number(resultado.total))}</p>}
-                {resultado.cart_url && (
-                  <Button size="sm" variant="outline" asChild>
-                    <a href={resultado.cart_url} target="_blank" rel="noopener noreferrer">
-                      Abrir carrinho <ExternalLink className="ml-1.5 h-3.5 w-3.5" />
-                    </a>
-                  </Button>
+                {!l.ok && (
+                  <p className="text-muted-foreground">
+                    {l.motivo}
+                    {l.cores?.length ? ` · cores: ${l.cores.join(", ")}` : ""}
+                    {l.tamanhos?.length ? ` · tamanhos: ${l.tamanhos.join(", ")}` : ""}
+                  </p>
                 )}
               </div>
+            ))}
+            {linhas.every((l) => l.ok) && (
+              <p className="flex items-center gap-1.5 pt-1 font-medium text-success">
+                Kit inteiro disponível: a Anna consegue montar o carrinho.
+              </p>
+            )}
+            {linhas.some((l) => !l.ok) && (
+              <p className="flex items-center gap-1.5 pt-1 text-warning">
+                <AlertTriangle className="h-3.5 w-3.5" /> Ajuste as peças antes de usar o kit na live.
+              </p>
             )}
           </div>
         )}
 
         <DialogFooter>
-          <Button onClick={testar} disabled={enviando}>
-            {enviando && <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />}
+          <Button onClick={testar} disabled={verificando}>
+            {verificando && <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />}
             Testar carrinho
           </Button>
         </DialogFooter>
@@ -235,6 +239,7 @@ function TestarCarrinho({
     </Dialog>
   );
 }
+
 
 /* --------------------------------- editor --------------------------------- */
 
