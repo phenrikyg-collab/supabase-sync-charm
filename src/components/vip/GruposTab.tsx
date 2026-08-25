@@ -396,7 +396,9 @@ export function GruposTab() {
                 </Badge>
               )}
             </div>
-          ))}
+            );
+          })}
+
         </CardContent>
       </Card>
 
