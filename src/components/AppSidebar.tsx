@@ -8,6 +8,7 @@ import {
   Filter,
   CheckCircle2,
   Zap,
+  Repeat,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useAuth } from "@/contexts/AuthContext";
@@ -53,6 +54,7 @@ const moduleGroups: ModuleGroup[] = [
       { title: "Meta Ads", url: "/marketing?tab=meta-ads", icon: Megaphone },
       { title: "Dashboard GA4", url: "/marketing", icon: BarChart3 },
       { title: "Dashboard RFM", url: "/dashboard-rfm", icon: UserSquare2 },
+      { title: "Jornada de Compra", url: "/jornada-compra", icon: Repeat },
       { title: "KPIs de Conversão", url: "/kpis-conversao", icon: TrendingUp },
       { title: "Padrões de Pedidos", url: "/padroes-pedidos", icon: BarChart3 },
       { title: "Meta Mensal", url: "/metas", icon: Target },
