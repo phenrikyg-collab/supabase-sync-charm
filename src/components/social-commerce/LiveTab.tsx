@@ -7,6 +7,8 @@ import {
 } from "@/lib/kitsLive";
 import { carregarProdutosPai, SeletorProdutos, type ProdutoPai } from "./SeletorProdutos";
 import { CampoTags, tempoRelativo } from "./comum";
+import { LiveChat } from "./LiveChat";
+
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
