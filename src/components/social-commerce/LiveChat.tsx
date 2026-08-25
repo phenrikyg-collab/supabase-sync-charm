@@ -220,11 +220,70 @@ export function LiveChat({
   };
 
   const ultimoComentario = comentarios[comentarios.length - 1]?.publicado_em;
+
+  useEffect(() => {
+    onUltimoComentario?.(ultimoComentario ?? null);
+  }, [ultimoComentario, onUltimoComentario]);
+
   const expirou = !!config.expira_em && new Date(config.expira_em).getTime() <= agora;
   const semNovidade =
     !!ultimoComentario && agora - new Date(ultimoComentario).getTime() > 30 * 60 * 1000;
-  const encerrada = !!mediaId && (expirou || semNovidade);
+  const arquivada = live ? live.status === "encerrada" : false;
+  const encerrada = !!mediaId && (arquivada || (!live && (expirou || semNovidade)));
   const podeResponder = !!mediaId && !encerrada;
+
+  const temFiltro = filtros.quer || filtros.direct || filtros.semResposta;
+  const buscaAtiva = termo.trim().length > 0 || temFiltro;
+
+  const aplicaFiltros = useCallback(
+    (c: { kit_id?: any; intencao?: any; private_reply_usada?: any; status?: any; resposta_texto?: any }) => {
+      if (filtros.quer && !(c.kit_id != null || String(c.intencao ?? "").startsWith("kit:"))) return false;
+      if (filtros.direct && !c.private_reply_usada) return false;
+      if (filtros.semResposta && !(c.status !== "respondido" && !c.resposta_texto)) return false;
+      return true;
+    },
+    [filtros],
+  );
+
+  // busca com debounce de 300 ms
+  useEffect(() => {
+    const t = termo.trim();
+    if (!t) {
+      setResultados([]);
+      setBuscando(false);
+      return;
+    }
+    setBuscando(true);
+    const id = setTimeout(async () => {
+      try {
+        const r = await buscarComentariosLive(t, escopo === "todas" ? null : mediaId, 200);
+        setResultados(r);
+      } catch (e: any) {
+        toast.error(e?.message ?? "Não foi possível buscar.");
+        setResultados([]);
+      } finally {
+        setBuscando(false);
+      }
+    }, 300);
+    return () => clearTimeout(id);
+  }, [termo, escopo, mediaId]);
+
+  const resultadosFiltrados = useMemo(
+    () => resultados.filter(aplicaFiltros),
+    [resultados, aplicaFiltros],
+  );
+
+  const comentariosFiltrados = useMemo(
+    () => (temFiltro && !termo.trim() ? comentarios.filter(aplicaFiltros) : comentarios),
+    [comentarios, temFiltro, termo, aplicaFiltros],
+  );
+
+  const limparBusca = () => {
+    setTermo("");
+    setResultados([]);
+    setFiltros({ quer: false, direct: false, semResposta: false });
+  };
+
 
   const fila = useMemo(
     () => comentarios.filter(temIntencao).filter((c) => c.status !== "removido").slice().reverse(),
