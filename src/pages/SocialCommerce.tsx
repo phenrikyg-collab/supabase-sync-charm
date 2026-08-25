@@ -5,15 +5,20 @@ import { ComentariosTab } from "@/components/social-commerce/ComentariosTab";
 import { PublicacoesTab } from "@/components/social-commerce/PublicacoesTab";
 import { ProdutosPostTab } from "@/components/social-commerce/ProdutosPostTab";
 import { FunilLeadsTab } from "@/components/social-commerce/FunilLeadsTab";
-import { MessageCircle, MessagesSquare, CalendarDays, ShoppingBag, Filter } from "lucide-react";
+import { KitsTab } from "@/components/social-commerce/KitsTab";
+import { LiveTab } from "@/components/social-commerce/LiveTab";
+import { MessageCircle, MessagesSquare, CalendarDays, ShoppingBag, Filter, Package, Radio } from "lucide-react";
 
 const ABAS = [
   { valor: "atendimento", label: "Atendimento (DM)", icone: MessageCircle },
   { valor: "funil", label: "Funil de leads", icone: Filter },
   { valor: "comentarios", label: "Comentários", icone: MessagesSquare },
+  { valor: "kits", label: "Kits", icone: Package },
+  { valor: "live", label: "Live", icone: Radio },
   { valor: "publicacoes", label: "Publicações", icone: CalendarDays },
   { valor: "produtos", label: "Produtos do Post", icone: ShoppingBag },
 ];
+
 
 export default function SocialCommerce() {
   const [params, setParams] = useSearchParams();
