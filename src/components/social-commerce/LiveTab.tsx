@@ -1,0 +1,373 @@
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { db } from "@/lib/socialCommerce";
+import { brl } from "@/lib/financeiroFormat";
+import { toast } from "sonner";
+import {
+  ConfigLive, Kit, carregarKits, dataHoraCurta, normalizarGatilho, problemasTexto, restante, totalKit,
+} from "@/lib/kitsLive";
+import { carregarProdutosPai, SeletorProdutos, type ProdutoPai } from "./SeletorProdutos";
+import { CampoTags, tempoRelativo } from "./comum";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
+import { Textarea } from "@/components/ui/textarea";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Separator } from "@/components/ui/separator";
+import { AlertTriangle, Loader2, MessageSquare, Package, Radio, Users, Zap } from "lucide-react";
+
+type ComentarioLive = {
+  comment_id: string;
+  from_username?: string | null;
+  texto?: string | null;
+  publicado_em?: string | null;
+  status?: string | null;
+  kit_nome?: string | null;
+  kit_id?: string | number | null;
+  intencao?: string | null;
+  resposta_texto?: string | null;
+};
+
+function Tile({ label, valor, sub }: { label: string; valor: string | number; sub?: string }) {
+  return (
+    <div className="rounded-lg border bg-card p-3">
+      <p className="text-[11px] uppercase tracking-wide text-muted-foreground">{label}</p>
+      <p className="mt-0.5 text-xl font-semibold">{valor}</p>
+      {sub && <p className="text-[11px] text-muted-foreground">{sub}</p>}
+    </div>
+  );
+}
+
+export function LiveTab() {
+  const [config, setConfig] = useState<ConfigLive | null>(null);
+  const [kits, setKits] = useState<Kit[]>([]);
+  const [produtos, setProdutos] = useState<ProdutoPai[]>([]);
+  const [comentarios, setComentarios] = useState<ComentarioLive[]>([]);
+  const [carregando, setCarregando] = useState(true);
+  const [salvando, setSalvando] = useState(false);
+  const [agora, setAgora] = useState(Date.now());
+
+  const mapaProdutos = useMemo(
+    () => new Map(produtos.map((p) => [String(p.produto_id), p])),
+    [produtos],
+  );
+
+  const carregarConfig = useCallback(async () => {
+    const { data, error } = await db
+      .from("instagram_live_automacao")
+      .select("*")
+      .order("id", { ascending: true })
+      .limit(1);
+    if (error) throw error;
+    const c = (data ?? [])[0] as any;
+    setConfig({
+      id: c?.id,
+      ativo: !!c?.ativo,
+      palavras_gatilho: Array.isArray(c?.palavras_gatilho) ? c.palavras_gatilho : [],
+      respostas_publicas: Array.isArray(c?.respostas_publicas) ? c.respostas_publicas : [],
+      resposta_gatilho_dm: c?.resposta_gatilho_dm ?? "",
+      produto_ids: Array.isArray(c?.produto_ids) ? c.produto_ids.map(String) : [],
+      usar_kits: c?.usar_kits ?? true,
+      expira_em: c?.expira_em ?? null,
+      media_id_atual: c?.media_id_atual ?? null,
+      ativado_em: c?.ativado_em ?? null,
+    });
+  }, []);
+
+  const carregarComentarios = useCallback(async () => {
+    const { data } = await db
+      .from("vw_ig_comentarios_painel")
+      .select("*")
+      .eq("origem_midia", "live")
+      .order("publicado_em", { ascending: false })
+      .limit(60);
+    setComentarios((data ?? []) as ComentarioLive[]);
+  }, []);
+
+  const carregarTudo = useCallback(async () => {
+    try {
+      const [, k, p] = await Promise.all([
+        carregarConfig(),
+        carregarKits(true).catch(() => []),
+        carregarProdutosPai().catch(() => []),
+      ]);
+      setKits(k);
+      setProdutos(p);
+      await carregarComentarios();
+    } catch (e: any) {
+      toast.error(e?.message ?? "Não foi possível carregar a automação da live.");
+    } finally {
+      setCarregando(false);
+    }
+  }, [carregarConfig, carregarComentarios]);
+
+  useEffect(() => {
+    carregarTudo();
+  }, [carregarTudo]);
+
+  // contagem regressiva
+  useEffect(() => {
+    const t = setInterval(() => setAgora(Date.now()), 30_000);
+    return () => clearInterval(t);
+  }, []);
+
+  // comentários em tempo real
+  useEffect(() => {
+    const ch = db
+      .channel("live-comentarios")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "instagram_comentarios" },
+        () => carregarComentarios(),
+      )
+      .subscribe();
+    return () => {
+      db.removeChannel(ch);
+    };
+  }, [carregarComentarios]);
+
+  const salvar = async (patch: Partial<ConfigLive>) => {
+    if (!config) return;
+    const novo = { ...config, ...patch };
+    setConfig(novo);
+    setSalvando(true);
+    try {
+      const payload: any = {
+        ativo: novo.ativo,
+        palavras_gatilho: novo.palavras_gatilho,
+        respostas_publicas: novo.respostas_publicas,
+        resposta_gatilho_dm: novo.resposta_gatilho_dm ?? null,
+        produto_ids: novo.produto_ids,
+        usar_kits: novo.usar_kits,
+      };
+      const { error } = novo.id
+        ? await db.from("instagram_live_automacao").update(payload).eq("id", novo.id)
+        : await db.from("instagram_live_automacao").insert(payload);
+      if (error) throw error;
+    } catch (e: any) {
+      toast.error(e?.message ?? "Não foi possível salvar.");
+      carregarConfig();
+    } finally {
+      setSalvando(false);
+    }
+  };
+
+  const restanteTxt = useMemo(() => restante(config?.expira_em), [config?.expira_em, agora]);
+  const problemasDm = problemasTexto(config?.resposta_gatilho_dm);
+
+  const gatilhosDosKits = useMemo(() => {
+    const m = new Map<string, string>();
+    kits.forEach((k) => k.gatilhos.forEach((g) => m.set(normalizarGatilho(g), k.nome)));
+    return m;
+  }, [kits]);
+
+  const comKit = comentarios.filter((c) => !!c.kit_nome).length;
+  const respondidos = comentarios.filter((c) => !!c.resposta_texto || c.status === "respondido").length;
+  const pessoas = new Set(comentarios.map((c) => c.from_username ?? "")).size;
+
+  if (carregando || !config) {
+    return (
+      <div className="space-y-3">
+        <Skeleton className="h-24 w-full" />
+        <Skeleton className="h-64 w-full" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="grid gap-4 lg:grid-cols-[1fr_380px]">
+      <div className="space-y-4">
+        {/* status */}
+        <Card className={config.ativo ? "border-success/40" : undefined}>
+          <CardContent className="flex flex-wrap items-center gap-4 p-4">
+            <div className="flex items-center gap-2">
+              <span
+                className={`h-2.5 w-2.5 rounded-full ${config.ativo ? "animate-pulse bg-success" : "bg-muted-foreground/40"}`}
+              />
+              <span className="font-medium">
+                {config.ativo ? "Automação da live ligada" : "Automação da live desligada"}
+              </span>
+              {salvando && <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />}
+            </div>
+            <Switch checked={config.ativo} onCheckedChange={(v) => salvar({ ativo: v })} />
+            <div className="ml-auto flex flex-wrap items-center gap-4 text-xs text-muted-foreground">
+              <span>
+                Post da live:{" "}
+                <strong className="text-foreground">{config.media_id_atual ?? "ainda não detectado"}</strong>
+              </span>
+              <span>Ligada em {dataHoraCurta(config.ativado_em)}</span>
+              <span>
+                {restanteTxt ? (
+                  <>
+                    Expira em <strong className="text-foreground">{restanteTxt}</strong>
+                  </>
+                ) : config.expira_em ? (
+                  "Janela expirada"
+                ) : (
+                  "Sem expiração definida"
+                )}
+              </span>
+            </div>
+          </CardContent>
+        </Card>
+
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <Tile label="Comentários" valor={comentarios.length} sub="últimos da live" />
+          <Tile label="Com kit citado" valor={comKit} />
+          <Tile label="Respondidos" valor={respondidos} />
+          <Tile label="Pessoas" valor={pessoas} />
+        </div>
+
+        {/* comentários ao vivo */}
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <Radio className="h-4 w-4" /> Comentários da live
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            {comentarios.length === 0 ? (
+              <p className="py-8 text-center text-sm text-muted-foreground">
+                Nenhum comentário da live ainda. Assim que a live começar, eles aparecem aqui em tempo real.
+              </p>
+            ) : (
+              comentarios.map((c) => {
+                const kitPorTexto = gatilhosDosKits.get(normalizarGatilho(c.texto ?? ""));
+                const kitNome = c.kit_nome ?? kitPorTexto ?? null;
+                return (
+                  <div key={c.comment_id} className="rounded-lg border p-2.5">
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                      <strong className="text-foreground">@{c.from_username ?? "cliente"}</strong>
+                      <span>{tempoRelativo(c.publicado_em)}</span>
+                      {kitNome && (
+                        <Badge variant="secondary" className="gap-1 text-[10px]">
+                          <Package className="h-3 w-3" /> {kitNome}
+                        </Badge>
+                      )}
+                      {(c.resposta_texto || c.status === "respondido") && (
+                        <Badge variant="outline" className="border-success/30 bg-success/10 text-[10px] text-success">
+                          respondido
+                        </Badge>
+                      )}
+                    </div>
+                    <p className="mt-1 text-sm">{c.texto}</p>
+                    {c.resposta_texto && (
+                      <p className="mt-1 rounded bg-muted/50 p-1.5 text-xs text-muted-foreground">
+                        Anna: {c.resposta_texto}
+                      </p>
+                    )}
+                  </div>
+                );
+              })
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* configuração */}
+      <div className="space-y-4">
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <Zap className="h-4 w-4" /> Palavras que a Anna escuta
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            <CampoTags
+              value={config.palavras_gatilho}
+              onChange={(v) => salvar({ palavras_gatilho: v })}
+              placeholder="quero, eu quero, link, preço"
+            />
+            <p className="text-[11px] text-muted-foreground">
+              Além destas, a Anna sempre escuta as palavras-chave dos kits ativos.
+            </p>
+            <Separator />
+            <div className="flex items-center gap-2">
+              <Switch checked={config.usar_kits} onCheckedChange={(v) => salvar({ usar_kits: v })} />
+              <Label className="cursor-pointer text-sm">Usar kits nesta live</Label>
+            </div>
+            {config.usar_kits && (
+              <div className="space-y-1 pt-1">
+                {kits.length === 0 ? (
+                  <p className="text-[11px] text-muted-foreground">Nenhum kit ativo no momento.</p>
+                ) : (
+                  kits.map((k) => (
+                    <div key={String(k.id)} className="flex items-center justify-between text-xs">
+                      <span className="truncate">{k.nome}</span>
+                      <span className="text-muted-foreground">{brl(totalKit(k.itens, mapaProdutos))}</span>
+                    </div>
+                  ))
+                )}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <MessageSquare className="h-4 w-4" /> Respostas públicas
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            <CampoTags
+              value={config.respostas_publicas}
+              onChange={(v) => salvar({ respostas_publicas: v })}
+              placeholder="Te mandei no Direct 💛"
+            />
+            <p className="text-[11px] text-muted-foreground">
+              A Anna sorteia entre estas frases para não repetir a mesma resposta no post.
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <Users className="h-4 w-4" /> Mensagem do Direct
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            <Textarea
+              rows={4}
+              value={config.resposta_gatilho_dm ?? ""}
+              onChange={(e) => setConfig({ ...config, resposta_gatilho_dm: e.target.value })}
+              onBlur={() => salvar({ resposta_gatilho_dm: config.resposta_gatilho_dm })}
+              placeholder="Oi! Vi seu comentário na live 💛 Me diz o seu tamanho que eu monto o carrinho."
+            />
+            {problemasDm.map((p) => (
+              <p key={p} className="flex items-center gap-1.5 text-[11px] text-danger">
+                <AlertTriangle className="h-3 w-3" /> {p}
+              </p>
+            ))}
+            <p className="text-[11px] text-muted-foreground">
+              Usada quando o comentário não cita nenhum kit.
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <Package className="h-4 w-4" /> Peças avulsas da live
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <SeletorProdutos
+              produtos={produtos}
+              selecionados={config.produto_ids}
+              onToggle={(id, marcado) =>
+                salvar({
+                  produto_ids: marcado
+                    ? [...config.produto_ids, String(id)]
+                    : config.produto_ids.filter((p) => p !== String(id)),
+                })
+              }
+            />
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  );
+}
