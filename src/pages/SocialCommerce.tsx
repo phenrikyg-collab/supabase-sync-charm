@@ -52,6 +52,13 @@ export default function SocialCommerce() {
         <TabsContent value="comentarios" className="mt-4">
           <ComentariosTab />
         </TabsContent>
+        <TabsContent value="kits" className="mt-4">
+          <KitsTab />
+        </TabsContent>
+        <TabsContent value="live" className="mt-4">
+          <LiveTab />
+        </TabsContent>
+
         <TabsContent value="publicacoes" className="mt-4">
           <PublicacoesTab />
         </TabsContent>
