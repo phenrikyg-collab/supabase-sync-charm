@@ -114,11 +114,52 @@ export function LiveTab() {
     carregarTudo();
   }, [carregarTudo]);
 
+  // lives registradas
+  const recarregarLives = useCallback(async () => {
+    try {
+      const l = await carregarLives();
+      setLives(l);
+      setMediaSelecionado((atual) => {
+        if (atual && l.some((x) => x.media_id === atual)) return atual;
+        return (l.find((x) => x.status === "ao_vivo") ?? l[0])?.media_id ?? null;
+      });
+    } catch {
+      /* tabela pode não existir ainda */
+    }
+  }, []);
+
+  useEffect(() => {
+    recarregarLives();
+  }, [recarregarLives]);
+
+  const liveSelecionada = useMemo(
+    () => lives.find((l) => l.media_id === mediaSelecionado) ?? null,
+    [lives, mediaSelecionado],
+  );
+
+  // recalcula contadores: a cada 30 s ao vivo, e uma vez ao abrir uma arquivada
+  useEffect(() => {
+    if (!mediaSelecionado) return;
+    let cancelado = false;
+    const rodar = async () => {
+      await atualizarLive(mediaSelecionado);
+      if (!cancelado) recarregarLives();
+    };
+    rodar();
+    if (liveSelecionada?.status !== "ao_vivo") return () => { cancelado = true; };
+    const t = setInterval(rodar, 30_000);
+    return () => {
+      cancelado = true;
+      clearInterval(t);
+    };
+  }, [mediaSelecionado, liveSelecionada?.status, recarregarLives]);
+
   // contagem regressiva
   useEffect(() => {
     const t = setInterval(() => setAgora(Date.now()), 30_000);
     return () => clearInterval(t);
   }, []);
+
 
   // comentários em tempo real
   useEffect(() => {
