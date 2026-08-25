@@ -3,11 +3,13 @@ import { db } from "@/lib/socialCommerce";
 import { brl } from "@/lib/financeiroFormat";
 import { toast } from "sonner";
 import {
-  ConfigLive, Kit, carregarKits, dataHoraCurta, normalizarGatilho, problemasTexto, restante, totalKit,
+  ConfigLive, Kit, Live, atualizarLive, carregarKits, carregarLives, dataHoraCurta,
+  normalizarGatilho, problemasTexto, restante, totalKit,
 } from "@/lib/kitsLive";
 import { carregarProdutosPai, SeletorProdutos, type ProdutoPai } from "./SeletorProdutos";
 import { CampoTags, tempoRelativo } from "./comum";
 import { LiveChat } from "./LiveChat";
+import { SeletorLive } from "./SeletorLive";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
