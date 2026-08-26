@@ -215,6 +215,7 @@ export function CalendarioTab() {
   const [carregando, setCarregando] = useState(true);
   const [modal, setModal] = useState(false);
   const [sel, setSel] = useState<string[]>([]);
+  const [disparando, setDisparando] = useState(false);
   const [filtroIntencao, setFiltroIntencao] = useState("todas");
   const [filtroStatus, setFiltroStatus] = useState("todos");
   const [filtroExtra, setFiltroExtra] = useState("todas");
