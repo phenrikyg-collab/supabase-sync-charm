@@ -317,15 +317,12 @@ export const vipDisparar = (acao: string, extra?: Record<string, any>) =>
   invokeEdgeFunction("vip-disparar", { acao, ...(extra ?? {}) }, { timeoutMs: 90_000 });
 
 /**
- * Executa manualmente a rotina que o cron roda: envia as mensagens agendadas
- * cujo dia/horário já passou. O backend pode expor a ação com nomes diferentes,
- * então tentamos os apelidos conhecidos antes de desistir.
+ * Executa manualmente a rotina de disparo. O backend pode expor a ação com
+ * nomes diferentes, então tentamos os apelidos conhecidos antes de desistir.
  */
-const ACOES_AGENDADOS = ["processar_agendados", "disparar_agendados", "enviar_agendados", "cron", "processar"];
-
-export async function vipDispararAgendados(extra?: Record<string, any>) {
+async function tentarAcoes(acoes: string[], extra?: Record<string, any>) {
   let ultimoErro: any = null;
-  for (const acao of ACOES_AGENDADOS) {
+  for (const acao of acoes) {
     try {
       return await vipDisparar(acao, extra);
     } catch (e: any) {
@@ -338,8 +335,16 @@ export async function vipDispararAgendados(extra?: Record<string, any>) {
       throw e;
     }
   }
-  throw ultimoErro ?? new Error("Nenhuma ação de disparo de agendados foi aceita pelo backend.");
+  throw ultimoErro ?? new Error("Nenhuma ação de disparo foi aceita pelo backend.");
 }
+
+/** Dispara uma única mensagem agendada, agora, para os grupos ativos. */
+export const vipDispararMensagem = (mensagemId: string) =>
+  tentarAcoes(
+    ["enviar", "enviar_mensagem", "disparar_mensagem", "enviar_agora", "processar_agendados"],
+    { mensagem_id: mensagemId },
+  );
+
 
 
 export const VIP_BASE_URL = (import.meta.env.VITE_SUPABASE_URL as string) ?? "";
