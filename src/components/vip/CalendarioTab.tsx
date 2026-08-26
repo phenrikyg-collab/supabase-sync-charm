@@ -37,7 +37,7 @@ import {
   vipCalendarioExcluir,
   vipCalendarioGet,
   vipCalendariosListar,
-  vipDispararAgendados,
+  vipDispararMensagem,
   vipGerarCalendario,
   vipGruposListar,
   vipMensagensStatus,
@@ -215,7 +215,7 @@ export function CalendarioTab() {
   const [carregando, setCarregando] = useState(true);
   const [modal, setModal] = useState(false);
   const [sel, setSel] = useState<string[]>([]);
-  const [disparando, setDisparando] = useState(false);
+  const [disparandoId, setDisparandoId] = useState<string | null>(null);
   const [filtroIntencao, setFiltroIntencao] = useState("todas");
   const [filtroStatus, setFiltroStatus] = useState("todos");
   const [filtroExtra, setFiltroExtra] = useState("todas");
@@ -330,32 +330,6 @@ export function CalendarioTab() {
         </Select>
         <Button onClick={() => setModal(true)}>
           <Sparkles className="mr-1 h-4 w-4" /> Gerar calendário
-        </Button>
-        <Button
-          variant="outline"
-          disabled={disparando}
-          onClick={async () => {
-            setDisparando(true);
-            try {
-              const r: any = await vipDispararAgendados(id ? { calendario_id: id } : undefined);
-              const enviadas = r?.enviadas ?? r?.total_enviadas ?? r?.processadas ?? null;
-              toast.success(
-                r?.mensagem ??
-                  (enviadas != null
-                    ? `${enviadas} mensagem(ns) processada(s).`
-                    : "Rotina de disparo executada."),
-              );
-              if (r?.aviso) toast.warning(r.aviso, { duration: 8000 });
-              if (id) await carregarCal(id);
-            } catch (e: any) {
-              toast.error(e?.message ?? "Falha ao disparar as mensagens agendadas");
-            } finally {
-              setDisparando(false);
-            }
-          }}
-        >
-          <Send className={`mr-1 h-4 w-4 ${disparando ? "animate-pulse" : ""}`} />
-          {disparando ? "Disparando…" : "Disparar agendados agora"}
         </Button>
         <Button variant="outline" size="icon" onClick={() => id && carregarCal(id)}>
           <RefreshCw className="h-4 w-4" />
@@ -600,6 +574,28 @@ export function CalendarioTab() {
                         }}
                       >
                         Aprovar
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        disabled={disparandoId === m.id}
+                        onClick={async () => {
+                          if (!confirm(`Disparar agora a mensagem #${m.ordem} para os grupos ativos?`)) return;
+                          setDisparandoId(m.id);
+                          try {
+                            const r: any = await vipDispararMensagem(m.id);
+                            toast.success(r?.mensagem ?? "Mensagem enviada aos grupos ativos.");
+                            if (r?.aviso) toast.warning(r.aviso, { duration: 8000 });
+                            if (id) await carregarCal(id);
+                          } catch (e: any) {
+                            toast.error(e?.message ?? "Falha ao disparar a mensagem");
+                          } finally {
+                            setDisparandoId(null);
+                          }
+                        }}
+                      >
+                        <Send className={`mr-1 h-3.5 w-3.5 ${disparandoId === m.id ? "animate-pulse" : ""}`} />
+                        {disparandoId === m.id ? "Disparando…" : "Disparar agora"}
                       </Button>
                     </div>
                   </CardContent>
