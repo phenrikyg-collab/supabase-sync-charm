@@ -328,9 +328,36 @@ export function CalendarioTab() {
         <Button onClick={() => setModal(true)}>
           <Sparkles className="mr-1 h-4 w-4" /> Gerar calendário
         </Button>
+        <Button
+          variant="outline"
+          disabled={disparando}
+          onClick={async () => {
+            setDisparando(true);
+            try {
+              const r: any = await vipDispararAgendados(id ? { calendario_id: id } : undefined);
+              const enviadas = r?.enviadas ?? r?.total_enviadas ?? r?.processadas ?? null;
+              toast.success(
+                r?.mensagem ??
+                  (enviadas != null
+                    ? `${enviadas} mensagem(ns) processada(s).`
+                    : "Rotina de disparo executada."),
+              );
+              if (r?.aviso) toast.warning(r.aviso, { duration: 8000 });
+              if (id) await carregarCal(id);
+            } catch (e: any) {
+              toast.error(e?.message ?? "Falha ao disparar as mensagens agendadas");
+            } finally {
+              setDisparando(false);
+            }
+          }}
+        >
+          <Send className={`mr-1 h-4 w-4 ${disparando ? "animate-pulse" : ""}`} />
+          {disparando ? "Disparando…" : "Disparar agendados agora"}
+        </Button>
         <Button variant="outline" size="icon" onClick={() => id && carregarCal(id)}>
           <RefreshCw className="h-4 w-4" />
         </Button>
+
         {id && (
           <Button
             variant="ghost"
