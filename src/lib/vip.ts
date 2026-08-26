@@ -313,8 +313,34 @@ export const vipContexto = () => vipRpc<any>("vip_contexto");
 export const vipGerarCalendario = (payload: Record<string, any>) =>
   invokeEdgeFunction("vip-gerar-calendario", payload, { timeoutMs: 60_000 });
 
-export const vipDisparar = (acao: "testar" | "sincronizar_grupos" | "sincronizar_convites" | "enviar_teste", extra?: Record<string, any>) =>
+export const vipDisparar = (acao: string, extra?: Record<string, any>) =>
   invokeEdgeFunction("vip-disparar", { acao, ...(extra ?? {}) }, { timeoutMs: 90_000 });
+
+/**
+ * Executa manualmente a rotina que o cron roda: envia as mensagens agendadas
+ * cujo dia/horário já passou. O backend pode expor a ação com nomes diferentes,
+ * então tentamos os apelidos conhecidos antes de desistir.
+ */
+const ACOES_AGENDADOS = ["processar_agendados", "disparar_agendados", "enviar_agendados", "cron", "processar"];
+
+export async function vipDispararAgendados(extra?: Record<string, any>) {
+  let ultimoErro: any = null;
+  for (const acao of ACOES_AGENDADOS) {
+    try {
+      return await vipDisparar(acao, extra);
+    } catch (e: any) {
+      const msg = String(e?.message ?? "");
+      // Ação desconhecida → tenta o próximo apelido. Qualquer outro erro é real.
+      if (/ação|acao|action|inválid|invalid|desconhec|unknown|not.?found|404/i.test(msg)) {
+        ultimoErro = e;
+        continue;
+      }
+      throw e;
+    }
+  }
+  throw ultimoErro ?? new Error("Nenhuma ação de disparo de agendados foi aceita pelo backend.");
+}
+
 
 export const VIP_BASE_URL = (import.meta.env.VITE_SUPABASE_URL as string) ?? "";
 
