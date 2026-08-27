@@ -60,15 +60,21 @@ export function LeadsTab() {
   });
 
   const comp = comparativo?.semana_atual_vs_anterior ?? null;
+  // Sempre a comparação com o MESMO ponto da semana passada.
+  // variacao_pct_vs_semana_fechada compara semana parcial com semana inteira — nunca usar como queda.
   const variacao = comp?.variacao_pct === null || comp?.variacao_pct === undefined ? null : Number(comp.variacao_pct);
   const serieSemanas = useMemo(() => {
     const raw = comparativo?.semanas;
     if (!Array.isArray(raw)) return [];
-    return raw.map((s: any) => ({
+    const mapeadas = raw.map((s: any) => ({
       semana: formatarDiaMes(s.semana_inicio),
       sessoes: Number(s.total_sessoes ?? 0),
       leads: Number(s.total_leads ?? 0),
+      parcial: s.parcial === true,
     }));
+    // A bio só começou a registrar em 03/08 — descarta as semanas zeradas antes da primeira com tráfego.
+    const primeira = mapeadas.findIndex((s) => s.sessoes > 0);
+    return primeira <= 0 ? mapeadas : mapeadas.slice(primeira);
   }, [comparativo]);
 
 
