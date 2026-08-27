@@ -14,6 +14,9 @@ import {
 import {
   Accordion, AccordionContent, AccordionItem, AccordionTrigger,
 } from "@/components/ui/accordion";
+import {
+  Tooltip as UITooltip, TooltipContent, TooltipProvider, TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { LineChart, Line, ResponsiveContainer, Tooltip } from "recharts";
 import { brl, dec, ddmm, ddmmyyyy, int, num, pct, varPct } from "@/lib/gestaoFormat";
 import { cn } from "@/lib/utils";
@@ -42,6 +45,57 @@ function semaforoVar(v: number | null) {
   if (v < -30) return "text-red-600";
   if (v < -15) return "text-amber-600";
   return "text-emerald-600";
+}
+
+function cpsGeralCor(v: number) {
+  if (v <= 0) return "";
+  if (v < 0.64) return "text-emerald-600";
+  if (v <= 0.80) return "text-amber-600";
+  return "text-red-600";
+}
+
+function GoogleStatus({ google }: { google: any }) {
+  const semaforo = google?.semaforo ?? "desativado";
+  const ultimoDia = google?.ultimo_dia_com_veiculacao;
+
+  const configs: Record<string, { emoji: string; label: string; cor: string }> = {
+    verde: { emoji: "🟢", label: "Veiculando", cor: "text-emerald-600" },
+    amarelo: { emoji: "🟡", label: "Sem veiculação ontem", cor: "text-amber-600" },
+    vermelho: { emoji: "🔴", label: `Parado há ${google?.dias_sem_veiculacao ?? "?"} dias`, cor: "text-red-600" },
+    pausa_planejada: { emoji: "⚪", label: "Pausa planejada", cor: "text-muted-foreground" },
+    erro_tecnico: { emoji: "🔴", label: "Erro de integração", cor: "text-red-600" },
+    desativado: { emoji: "⚪", label: "Integração desligada", cor: "text-muted-foreground" },
+  };
+
+  const cfg = configs[semaforo] ?? configs.desativado;
+  const tooltip =
+    semaforo === "pausa_planejada" ? google?.pausa_observacao
+    : semaforo === "erro_tecnico" ? google?.ultimo_erro
+    : null;
+
+  const content = (
+    <div className="space-y-1">
+      <div className="flex flex-wrap items-center gap-2">
+        <span className={cn("text-sm font-medium", cfg.cor)}>{cfg.emoji} {cfg.label}</span>
+        {semaforo === "verde" && google?.custo_ontem != null && (
+          <span className="text-xs text-muted-foreground">{brl(google.custo_ontem)}</span>
+        )}
+      </div>
+      {ultimoDia && (
+        <p className="text-[11px] text-muted-foreground">Última veiculação: {ddmm(ultimoDia)}</p>
+      )}
+    </div>
+  );
+
+  if (tooltip) {
+    return (
+      <UITooltip>
+        <TooltipTrigger asChild><div className="cursor-help inline-block">{content}</div></TooltipTrigger>
+        <TooltipContent className="max-w-xs"><p>{tooltip}</p></TooltipContent>
+      </UITooltip>
+    );
+  }
+  return content;
 }
 
 export default function ChecklistDiario() {
@@ -82,6 +136,7 @@ export default function ChecklistDiario() {
   const producao = data?.producao ?? {};
   const metaOntem = data?.meta_ontem ?? {};
   const funil = data?.funil_7d ?? {};
+  const midia = data?.midia ?? {};
 
   const pixLista: any[] = Array.isArray(pix.lista) ? pix.lista : Array.isArray(pix.itens) ? pix.itens : [];
   const estoqueLista: any[] = Array.isArray(estoque.lista) ? estoque.lista : Array.isArray(estoque.itens) ? estoque.itens : [];
@@ -98,8 +153,12 @@ export default function ChecklistDiario() {
     const vs = varPct(num(vendas.receita_ontem), num(vendas.media_7d ?? vendas.receita_media_7d));
     if (vs !== null && vs < -30) out.push(`receita ontem ${dec(vs, 1)}% vs média 7d`);
     if (num(metaOntem.cpa) > CPA_PISO) out.push(`CPA de ${brl(metaOntem.cpa)} acima do piso`);
+    const googleSemaforo = midia.google?.semaforo;
+    if (googleSemaforo === "vermelho" || googleSemaforo === "erro_tecnico") {
+      out.push("Google Ads parado ou com erro de integração");
+    }
     return out;
-  }, [estoque, producao, pix, vendas, metaOntem]);
+  }, [estoque, producao, pix, vendas, metaOntem, midia]);
 
   // diagnóstico CPS × CVR contra a média dos 7 dias anteriores
   const diagnostico = useMemo(() => {
@@ -401,6 +460,68 @@ export default function ChecklistDiario() {
             <span className="font-medium text-foreground">{int(vendas.mes_ate_agora?.pedidos ?? vendas.mes_ate_agora_pedidos)}</span>{" "}
             pedidos
           </div>
+        </CardContent>
+      </Card>
+
+      {/* TRÁFEGO PAGO */}
+      <Card>
+        <CardHeader className="pb-3"><CardTitle className="text-base">Tráfego pago</CardTitle></CardHeader>
+        <CardContent>
+          <TooltipProvider>
+            <div className="grid gap-4 grid-cols-2 md:grid-cols-4">
+              {/* Investimento de ontem */}
+              <div>
+                <p className="text-xs uppercase tracking-wide text-muted-foreground">Investimento de ontem</p>
+                <p className="text-xl font-semibold">{brl(midia.ontem?.total)}</p>
+                <div className="mt-1 space-y-0.5 text-xs text-muted-foreground">
+                  <p>Meta {brl(midia.ontem?.meta)}</p>
+                  <p>Google {brl(midia.ontem?.google)}</p>
+                </div>
+              </div>
+              {/* Investimento 7 dias */}
+              <div>
+                <p className="text-xs uppercase tracking-wide text-muted-foreground">Investimento 7 dias</p>
+                <p className="text-xl font-semibold">{brl(midia.ultimos_7d?.total)}</p>
+                <div className="mt-1 space-y-0.5 text-xs text-muted-foreground">
+                  <p>Meta {brl(midia.ultimos_7d?.meta)}</p>
+                  <p>Google {brl(midia.ultimos_7d?.google)}</p>
+                </div>
+              </div>
+              {/* Investimento no mês */}
+              <div>
+                <p className="text-xs uppercase tracking-wide text-muted-foreground">Investimento no mês</p>
+                <p className="text-xl font-semibold">{brl(midia.mes?.total)}</p>
+                <div className="mt-1 space-y-0.5 text-xs text-muted-foreground">
+                  <p>Meta {brl(midia.mes?.meta)}</p>
+                  <p>Google {brl(midia.mes?.google)} {midia.mes?.google_pct != null && `(${dec(midia.mes.google_pct, 1)}%)`}</p>
+                </div>
+              </div>
+              {/* MER (30d) */}
+              <div>
+                <p className="text-xs uppercase tracking-wide text-muted-foreground">MER (30d)</p>
+                <UITooltip>
+                  <TooltipTrigger asChild>
+                    <p className="text-xl font-semibold cursor-help">{dec(midia.mer_30d, 2)}x</p>
+                  </TooltipTrigger>
+                  <TooltipContent className="max-w-xs">
+                    <p>
+                      Com Google no denominador: {dec(midia.mer_30d, 2)}. Só com Meta seria {dec(midia.mer_30d_so_meta, 2)} — o número que o painel mostrava antes de 27/08.
+                    </p>
+                  </TooltipContent>
+                </UITooltip>
+              </div>
+              {/* CPS geral (mês) */}
+              <div>
+                <p className="text-xs uppercase tracking-wide text-muted-foreground">CPS geral (mês)</p>
+                <p className={cn("text-xl font-semibold", cpsGeralCor(num(midia.cps_geral_mes)))}>{brl(midia.cps_geral_mes)}</p>
+              </div>
+              {/* Status Google Ads */}
+              <div className="md:col-span-2">
+                <p className="text-xs uppercase tracking-wide text-muted-foreground">Status Google Ads</p>
+                <div className="mt-1"><GoogleStatus google={midia.google} /></div>
+              </div>
+            </div>
+          </TooltipProvider>
         </CardContent>
       </Card>
 
