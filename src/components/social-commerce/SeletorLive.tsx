@@ -138,7 +138,7 @@ export function SeletorLive({
     setExportando(true);
     try {
       const { data, error } = await db
-        .from("instagram_comentarios")
+        .from("vw_comentarios_live")
         .select("*")
         .eq("media_id", selecionada.media_id)
         .order("publicado_em", { ascending: true })

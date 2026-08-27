@@ -196,7 +196,7 @@ export function ComentariosTab() {
         // View ainda não existe no banco — cai na tabela base (sem selos/capacidades)
         viaView = false;
         const { data: coms } = await db
-          .from("instagram_comentarios")
+          .from("vw_comentarios_post")
           .select("*")
           .order("publicado_em", { ascending: false })
           .limit(200);
@@ -215,7 +215,7 @@ export function ComentariosTab() {
     if (viaView && ids.length) {
       try {
         const { data: extra } = await db
-          .from("instagram_comentarios")
+          .from("vw_comentarios_post")
           .select("id, comment_id, intencao, resposta_rascunho, resposta_rascunho_dm, erro")
           .in("comment_id", ids);
         const mapa = new Map((extra ?? []).map((e: any) => [e.comment_id, e]));
@@ -240,7 +240,7 @@ export function ComentariosTab() {
 
     // Contagem por status (chips + filtro inicial). "Novos" inclui status nulo.
     try {
-      const base = () => db.from("instagram_comentarios").select("comment_id", { count: "exact", head: true });
+      const base = () => db.from("vw_comentarios_post").select("comment_id", { count: "exact", head: true });
       const [rNovos, rAguardando, rRespondidos, rIgnorados, rApagados] = await Promise.all([
         base().or("status.is.null,status.in.(novo,nova)"),
         base().eq("status", "aguardando_aprovacao"),
