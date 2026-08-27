@@ -463,6 +463,68 @@ export default function ChecklistDiario() {
         </CardContent>
       </Card>
 
+      {/* TRÁFEGO PAGO */}
+      <Card>
+        <CardHeader className="pb-3"><CardTitle className="text-base">Tráfego pago</CardTitle></CardHeader>
+        <CardContent>
+          <TooltipProvider>
+            <div className="grid gap-4 grid-cols-2 md:grid-cols-4">
+              {/* Investimento de ontem */}
+              <div>
+                <p className="text-xs uppercase tracking-wide text-muted-foreground">Investimento de ontem</p>
+                <p className="text-xl font-semibold">{brl(midia.ontem?.total)}</p>
+                <div className="mt-1 space-y-0.5 text-xs text-muted-foreground">
+                  <p>Meta {brl(midia.ontem?.meta)}</p>
+                  <p>Google {brl(midia.ontem?.google)}</p>
+                </div>
+              </div>
+              {/* Investimento 7 dias */}
+              <div>
+                <p className="text-xs uppercase tracking-wide text-muted-foreground">Investimento 7 dias</p>
+                <p className="text-xl font-semibold">{brl(midia.ultimos_7d?.total)}</p>
+                <div className="mt-1 space-y-0.5 text-xs text-muted-foreground">
+                  <p>Meta {brl(midia.ultimos_7d?.meta)}</p>
+                  <p>Google {brl(midia.ultimos_7d?.google)}</p>
+                </div>
+              </div>
+              {/* Investimento no mês */}
+              <div>
+                <p className="text-xs uppercase tracking-wide text-muted-foreground">Investimento no mês</p>
+                <p className="text-xl font-semibold">{brl(midia.mes?.total)}</p>
+                <div className="mt-1 space-y-0.5 text-xs text-muted-foreground">
+                  <p>Meta {brl(midia.mes?.meta)}</p>
+                  <p>Google {brl(midia.mes?.google)} {midia.mes?.google_pct != null && `(${dec(midia.mes.google_pct, 1)}%)`}</p>
+                </div>
+              </div>
+              {/* MER (30d) */}
+              <div>
+                <p className="text-xs uppercase tracking-wide text-muted-foreground">MER (30d)</p>
+                <UITooltip>
+                  <TooltipTrigger asChild>
+                    <p className="text-xl font-semibold cursor-help">{dec(midia.mer_30d, 2)}x</p>
+                  </TooltipTrigger>
+                  <TooltipContent className="max-w-xs">
+                    <p>
+                      Com Google no denominador: {dec(midia.mer_30d, 2)}. Só com Meta seria {dec(midia.mer_30d_so_meta, 2)} — o número que o painel mostrava antes de 27/08.
+                    </p>
+                  </TooltipContent>
+                </UITooltip>
+              </div>
+              {/* CPS geral (mês) */}
+              <div>
+                <p className="text-xs uppercase tracking-wide text-muted-foreground">CPS geral (mês)</p>
+                <p className={cn("text-xl font-semibold", cpsGeralCor(num(midia.cps_geral_mes)))}>{brl(midia.cps_geral_mes)}</p>
+              </div>
+              {/* Status Google Ads */}
+              <div className="md:col-span-2">
+                <p className="text-xs uppercase tracking-wide text-muted-foreground">Status Google Ads</p>
+                <div className="mt-1"><GoogleStatus google={midia.google} /></div>
+              </div>
+            </div>
+          </TooltipProvider>
+        </CardContent>
+      </Card>
+
       {/* META ONTEM */}
       <Card>
         <CardHeader className="pb-3"><CardTitle className="text-base">Meta ontem</CardTitle></CardHeader>
