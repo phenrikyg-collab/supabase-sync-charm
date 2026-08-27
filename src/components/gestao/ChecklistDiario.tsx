@@ -44,6 +44,57 @@ function semaforoVar(v: number | null) {
   return "text-emerald-600";
 }
 
+function cpsGeralCor(v: number) {
+  if (v <= 0) return "";
+  if (v < 0.64) return "text-emerald-600";
+  if (v <= 0.80) return "text-amber-600";
+  return "text-red-600";
+}
+
+function GoogleStatus({ google }: { google: any }) {
+  const semaforo = google?.semaforo ?? "desativado";
+  const ultimoDia = google?.ultimo_dia_com_veiculacao;
+
+  const configs: Record<string, { emoji: string; label: string; cor: string }> = {
+    verde: { emoji: "🟢", label: "Veiculando", cor: "text-emerald-600" },
+    amarelo: { emoji: "🟡", label: "Sem veiculação ontem", cor: "text-amber-600" },
+    vermelho: { emoji: "🔴", label: `Parado há ${google?.dias_sem_veiculacao ?? "?"} dias`, cor: "text-red-600" },
+    pausa_planejada: { emoji: "⚪", label: "Pausa planejada", cor: "text-muted-foreground" },
+    erro_tecnico: { emoji: "🔴", label: "Erro de integração", cor: "text-red-600" },
+    desativado: { emoji: "⚪", label: "Integração desligada", cor: "text-muted-foreground" },
+  };
+
+  const cfg = configs[semaforo] ?? configs.desativado;
+  const tooltip =
+    semaforo === "pausa_planejada" ? google?.pausa_observacao
+    : semaforo === "erro_tecnico" ? google?.ultimo_erro
+    : null;
+
+  const content = (
+    <div className="space-y-1">
+      <div className="flex flex-wrap items-center gap-2">
+        <span className={cn("text-sm font-medium", cfg.cor)}>{cfg.emoji} {cfg.label}</span>
+        {semaforo === "verde" && google?.custo_ontem != null && (
+          <span className="text-xs text-muted-foreground">{brl(google.custo_ontem)}</span>
+        )}
+      </div>
+      {ultimoDia && (
+        <p className="text-[11px] text-muted-foreground">Última veiculação: {ddmm(ultimoDia)}</p>
+      )}
+    </div>
+  );
+
+  if (tooltip) {
+    return (
+      <UITooltip>
+        <TooltipTrigger asChild><div className="cursor-help inline-block">{content}</div></TooltipTrigger>
+        <TooltipContent className="max-w-xs"><p>{tooltip}</p></TooltipContent>
+      </UITooltip>
+    );
+  }
+  return content;
+}
+
 export default function ChecklistDiario() {
   const [gravando, setGravando] = useState(false);
   const [pixAberto, setPixAberto] = useState(false);
