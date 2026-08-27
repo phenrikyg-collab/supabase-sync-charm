@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { GripVertical, Loader2, Plus, Save, Star, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Card, CardContent } from "@/components/ui/card";
@@ -201,7 +202,7 @@ export function BotoesTab() {
           key={b.id ?? `novo-${idx}`}
           onDragOver={(e) => e.preventDefault()}
           onDrop={() => onDrop(idx)}
-          className={dragIdx === idx ? "opacity-60" : ""}
+          className={`${dragIdx === idx ? "opacity-60" : ""} ${b.ativo ? "" : "opacity-60 border-dashed"}`}
         >
           <CardContent className="pt-5 space-y-4">
             <div className="flex items-start gap-3">
@@ -216,7 +217,10 @@ export function BotoesTab() {
               </div>
               <div className="grid flex-1 gap-4 md:grid-cols-2">
                 <div className="space-y-1.5">
-                  <Label>Texto do botão *</Label>
+                  <Label className="flex items-center gap-2">
+                    Texto do botão *
+                    {!b.ativo && <Badge variant="outline">Inativo</Badge>}
+                  </Label>
                   <Input value={b.label} onChange={(e) => upd(idx, { label: e.target.value })} placeholder="Ex: Loja oficial" />
                 </div>
                 <div className="space-y-1.5">
