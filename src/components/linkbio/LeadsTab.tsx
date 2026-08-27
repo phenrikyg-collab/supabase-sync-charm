@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { ArrowDownRight, ArrowRight, ArrowUpRight, Download, Loader2, MousePointerClick, TrendingUp, Users } from "lucide-react";
 import {
-  Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis,
+  Bar, BarChart, CartesianGrid, Cell, LabelList, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis,
 } from "recharts";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -60,15 +60,21 @@ export function LeadsTab() {
   });
 
   const comp = comparativo?.semana_atual_vs_anterior ?? null;
+  // Sempre a comparação com o MESMO ponto da semana passada.
+  // variacao_pct_vs_semana_fechada compara semana parcial com semana inteira — nunca usar como queda.
   const variacao = comp?.variacao_pct === null || comp?.variacao_pct === undefined ? null : Number(comp.variacao_pct);
   const serieSemanas = useMemo(() => {
     const raw = comparativo?.semanas;
     if (!Array.isArray(raw)) return [];
-    return raw.map((s: any) => ({
+    const mapeadas = raw.map((s: any) => ({
       semana: formatarDiaMes(s.semana_inicio),
       sessoes: Number(s.total_sessoes ?? 0),
       leads: Number(s.total_leads ?? 0),
+      parcial: s.parcial === true,
     }));
+    // A bio só começou a registrar em 03/08 — descarta as semanas zeradas antes da primeira com tráfego.
+    const primeira = mapeadas.findIndex((s) => s.sessoes > 0);
+    return primeira <= 0 ? mapeadas : mapeadas.slice(primeira);
   }, [comparativo]);
 
 
@@ -186,7 +192,7 @@ export function LeadsTab() {
                 <p className="text-sm text-muted-foreground">Sessões nesta semana</p>
                 <div className="mt-1 flex flex-wrap items-center gap-3">
                   <span className="text-3xl font-semibold">
-                    {Number(comp?.sessoes_atual ?? comp?.total_sessoes ?? 0).toLocaleString("pt-BR")}
+                    {Number(comp?.total_sessoes ?? comp?.semana_atual ?? 0).toLocaleString("pt-BR")}
                   </span>
                   {variacao === null ? (
                     <span className="flex items-center gap-1 text-sm text-muted-foreground">
@@ -199,10 +205,15 @@ export function LeadsTab() {
                       }`}
                     >
                       {variacao > 0 ? <ArrowUpRight className="h-4 w-4" /> : variacao < 0 ? <ArrowDownRight className="h-4 w-4" /> : <ArrowRight className="h-4 w-4" />}
-                      {Math.abs(variacao).toFixed(1)}% {variacao >= 0 ? "mais" : "menos"} acessos que a semana passada
+                      {Math.abs(variacao).toFixed(1)}% vs. mesmo ponto da semana passada
                     </span>
                   )}
                 </div>
+                {comp?.parcial === true && (
+                  <p className="mt-2 text-xs text-muted-foreground">
+                    semana em andamento — {Number(comp?.dias_decorridos ?? 0)} de 7 dias
+                  </p>
+                )}
               </div>
 
               {serieSemanas.length === 0 ? (
@@ -223,8 +234,22 @@ export function LeadsTab() {
                         }}
                       />
                       <Legend />
-                      <Bar dataKey="sessoes" name="Sessões" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
-                      <Bar dataKey="leads" name="Leads" fill="hsl(var(--muted-foreground))" radius={[4, 4, 0, 0]} />
+                      <Bar dataKey="sessoes" name="Sessões" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]}>
+                        <LabelList
+                          dataKey="parcial"
+                          position="top"
+                          formatter={(v: any) => (v ? "parcial" : "")}
+                          style={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }}
+                        />
+                        {serieSemanas.map((s, i) => (
+                          <Cell key={i} fill="hsl(var(--primary))" fillOpacity={s.parcial ? 0.35 : 1} />
+                        ))}
+                      </Bar>
+                      <Bar dataKey="leads" name="Leads" fill="hsl(var(--muted-foreground))" radius={[4, 4, 0, 0]}>
+                        {serieSemanas.map((s, i) => (
+                          <Cell key={i} fill="hsl(var(--muted-foreground))" fillOpacity={s.parcial ? 0.35 : 1} />
+                        ))}
+                      </Bar>
                     </BarChart>
                   </ResponsiveContainer>
                 </div>

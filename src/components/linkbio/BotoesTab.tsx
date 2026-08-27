@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { GripVertical, Loader2, Plus, Save, Star, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Card, CardContent } from "@/components/ui/card";
@@ -49,10 +50,12 @@ export function BotoesTab() {
   const [salvando, setSalvando] = useState(false);
   const [excluir, setExcluir] = useState<{ idx: number; item: Botao } | null>(null);
 
+  // Admin lê TODOS os botões (ativos e inativos). linkbio_get_config() filtra ativo = true
+  // e serve só para a página pública da bio.
   const { data, isLoading } = useQuery({
-    queryKey: ["linkbio-config"],
+    queryKey: ["linkbio-admin-botoes"],
     queryFn: async () => {
-      const { data, error } = await supabase.rpc("linkbio_get_config" as any);
+      const { data, error } = await supabase.rpc("linkbio_admin_listar_botoes" as any);
       if (error) throw error;
       return data as any;
     },
@@ -60,7 +63,7 @@ export function BotoesTab() {
 
   useEffect(() => {
     if (!data) return;
-    const lista = (Array.isArray(data) ? data[0]?.botoes ?? data : (data as any).botoes) ?? [];
+    const lista = (Array.isArray(data) ? data : (data as any)?.botoes) ?? [];
     setItens(
       (lista as any[]).map((b, i) => ({
         id: b.id,
@@ -134,7 +137,8 @@ export function BotoesTab() {
         if (error) throw error;
       }
       toast.success("Botões salvos com sucesso.");
-      qc.invalidateQueries({ queryKey: ["linkbio-config"] });
+      qc.invalidateQueries({ queryKey: ["linkbio-admin-botoes"] });
+    qc.invalidateQueries({ queryKey: ["linkbio-config"] });
     } catch (e: any) {
       toast.error(e.message ?? "Erro ao salvar botões.");
     } finally {
@@ -153,6 +157,7 @@ export function BotoesTab() {
     const { error } = await supabase.rpc("linkbio_admin_delete_botao" as any, { p_id: item.id });
     if (error) return toast.error(error.message);
     toast.success("Botão excluído.");
+    qc.invalidateQueries({ queryKey: ["linkbio-admin-botoes"] });
     qc.invalidateQueries({ queryKey: ["linkbio-config"] });
   };
 
@@ -197,7 +202,7 @@ export function BotoesTab() {
           key={b.id ?? `novo-${idx}`}
           onDragOver={(e) => e.preventDefault()}
           onDrop={() => onDrop(idx)}
-          className={dragIdx === idx ? "opacity-60" : ""}
+          className={`${dragIdx === idx ? "opacity-60" : ""} ${b.ativo ? "" : "opacity-60 border-dashed"}`}
         >
           <CardContent className="pt-5 space-y-4">
             <div className="flex items-start gap-3">
@@ -212,7 +217,10 @@ export function BotoesTab() {
               </div>
               <div className="grid flex-1 gap-4 md:grid-cols-2">
                 <div className="space-y-1.5">
-                  <Label>Texto do botão *</Label>
+                  <Label className="flex items-center gap-2">
+                    Texto do botão *
+                    {!b.ativo && <Badge variant="outline">Inativo</Badge>}
+                  </Label>
                   <Input value={b.label} onChange={(e) => upd(idx, { label: e.target.value })} placeholder="Ex: Loja oficial" />
                 </div>
                 <div className="space-y-1.5">

@@ -62,10 +62,11 @@ export function ProdutosTab() {
   const [editando, setEditando] = useState<Produto | null>(null);
   const [excluir, setExcluir] = useState<Produto | null>(null);
 
+  // Admin lê TODOS os produtos em destaque (ativos e inativos).
   const { data, isLoading } = useQuery({
-    queryKey: ["linkbio-config"],
+    queryKey: ["linkbio-admin-produtos-destaque"],
     queryFn: async () => {
-      const { data, error } = await supabase.rpc("linkbio_get_config" as any);
+      const { data, error } = await supabase.rpc("linkbio_admin_listar_produtos_destaque" as any);
       if (error) throw error;
       return data as any;
     },
@@ -73,8 +74,7 @@ export function ProdutosTab() {
 
   useEffect(() => {
     if (!data) return;
-    const raiz = Array.isArray(data) ? data[0] ?? {} : data;
-    const lista = (raiz as any).produtos_destaque ?? (raiz as any).produtos ?? [];
+    const lista = (Array.isArray(data) ? data : (data as any)?.produtos_destaque ?? (data as any)?.produtos) ?? [];
     setItens(
       (lista as any[]).map((p, i) => ({
         id: p.id,
@@ -124,6 +124,7 @@ export function ProdutosTab() {
     try {
       for (const [i, p] of reordenado.entries()) await salvarProduto(p, i + 1);
       toast.success("Ordem atualizada.");
+      qc.invalidateQueries({ queryKey: ["linkbio-admin-produtos-destaque"] });
       qc.invalidateQueries({ queryKey: ["linkbio-config"] });
     } catch (e: any) {
       toast.error(e.message ?? "Erro ao reordenar.");
@@ -136,7 +137,8 @@ export function ProdutosTab() {
     setExcluir(null);
     if (error) return toast.error(error.message);
     toast.success("Produto excluído.");
-    qc.invalidateQueries({ queryKey: ["linkbio-config"] });
+    qc.invalidateQueries({ queryKey: ["linkbio-admin-produtos-destaque"] });
+      qc.invalidateQueries({ queryKey: ["linkbio-config"] });
   };
 
   if (isLoading) {
@@ -211,7 +213,11 @@ export function ProdutosTab() {
         <ProdutoDialog
           produto={editando}
           onClose={() => setEditando(null)}
-          onSaved={() => { setEditando(null); qc.invalidateQueries({ queryKey: ["linkbio-config"] }); }}
+          onSaved={() => {
+            setEditando(null);
+            qc.invalidateQueries({ queryKey: ["linkbio-admin-produtos-destaque"] });
+            qc.invalidateQueries({ queryKey: ["linkbio-config"] });
+          }}
           salvar={salvarProduto}
         />
       )}

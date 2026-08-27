@@ -42,6 +42,8 @@ type Publicacao = {
   status?: string | null;
   produto_ids?: string[] | null;
   erro?: string | null;
+  /** preenchido pelo backend quando o post foi realmente pro Instagram */
+  media_id?: string | null;
   modo_resposta?: string | null;
   objetivo?: string | null;
   /** 4.4/4.5 — resposta completa (pergunta de preço) e fallback sem Direct */
@@ -267,8 +269,14 @@ export function PublicacoesTab() {
     setModalAberto(true);
   };
 
+  // Post já publicado não pode ser reagendado — abre como nova publicação com o mesmo conteúdo.
+  const duplicar = (p: Publicacao) => {
+    abrirEdicao({ ...p, id: undefined, media_id: null, status: "rascunho", erro: null, agendado_para: null });
+    toast.info("Cópia aberta como nova publicação — escolha a nova data.");
+  };
+
   const abrirEdicao = (p: Publicacao) => {
-    setEditando(p);
+    setEditando(p.id != null ? p : null);
     setItens((prev) => {
       prev.forEach((i) => i.file && URL.revokeObjectURL(i.url));
       return (p.midia_urls ?? []).map((url) => ({
@@ -440,8 +448,15 @@ export function PublicacoesTab() {
     form.tipo === "CAROUSEL" &&
     (itens.length < MIN_CARDS_CARROSSEL || itens.length > MAX_CARDS_CARROSSEL);
 
-  const salvar = async () => {
+  // legenda vazia só é aceita em STORIES — o Instagram recusa os demais formatos.
+  const legendaObrigatoriaFaltando = form.tipo !== "STORIES" && !form.legenda.trim();
+
+  const salvar = async (opcoes?: { publicarAgora?: boolean }) => {
     if (salvando) return;
+    if (legendaObrigatoriaFaltando) {
+      toast.error("Escreva a legenda antes de agendar. Só Stories pode ir sem legenda.");
+      return;
+    }
     // O backend falha com mensagem clara se passar de 10 — a tela impede antes de deixar agendar.
     if (form.tipo === "CAROUSEL") {
       if (itens.length < MIN_CARDS_CARROSSEL) {
@@ -490,10 +505,21 @@ export function PublicacoesTab() {
         cupom_validade: form.modoResposta === "automatico" ? form.cupomValidade.trim() || null : null,
       };
 
-      const executar = async (p: Record<string, any>) =>
-        editando?.id != null
-          ? db.from("instagram_publicacoes").update(p).eq("id", editando.id)
-          : db.from("instagram_publicacoes").insert(p);
+      if (opcoes?.publicarAgora) {
+        // Publicar agora = envio imediato, sem esperar o cron; o agendamento não vale mais.
+        payload.agendado_para = new Date().toISOString();
+        payload.status = "agendado";
+      }
+
+      let idSalvo: string | number | null = editando?.id ?? null;
+      const executar = async (p: Record<string, any>) => {
+        if (editando?.id != null) {
+          return db.from("instagram_publicacoes").update(p).eq("id", editando.id);
+        }
+        const res = await db.from("instagram_publicacoes").insert(p).select("id").maybeSingle();
+        if (!res.error) idSalvo = (res.data as any)?.id ?? null;
+        return res as any;
+      };
 
       let { error } = await executar(payload);
       // Colunas novas podem ainda não existir no banco — tenta de novo sem elas
@@ -505,8 +531,26 @@ export function PublicacoesTab() {
       }
       if (error) throw error;
 
-      toast.success(editando ? "Publicação atualizada" : form.agendadoPara ? "Publicação agendada" : "Rascunho salvo");
-      setModalAberto(false);
+      if (opcoes?.publicarAgora) {
+        // Autorização explícita: sem ignorar_agendamento o backend recusa publicar fora da hora marcada.
+        const { data, error: erroEdge } = await supabase.functions.invoke("instagram-publicar", {
+          body: { publicacao_id: idSalvo, ignorar_agendamento: true },
+        });
+        if (erroEdge) {
+          const det = await lerErroEdge(erroEdge, "Falha ao publicar agora.");
+          toast.error(det.mensagem, { description: det.dica });
+        } else if (data?.ok === false || data?.erro || data?.error) {
+          toast.error(String(data?.erro ?? data?.error ?? "O Instagram recusou a publicação."), {
+            description: data?.detalhe ?? undefined,
+          });
+        } else {
+          toast.success("Publicado no Instagram");
+          setModalAberto(false);
+        }
+      } else {
+        toast.success(editando ? "Publicação atualizada" : form.agendadoPara ? "Publicação agendada" : "Rascunho salvo");
+        setModalAberto(false);
+      }
       await carregar();
     } catch (e: any) {
       toast.error(e?.message ?? "Falha ao salvar");
@@ -622,7 +666,7 @@ export function PublicacoesTab() {
             [...publicacoes]
               .sort((a, b) => (b.agendado_para ?? "").localeCompare(a.agendado_para ?? ""))
               .map((p, i) => (
-                <Card key={p.id ?? i} className="cursor-pointer hover:bg-accent/30 transition-colors" onClick={() => abrirEdicao(p)}>
+                <Card key={p.id ?? i} className="cursor-pointer hover:bg-accent/30 transition-colors" onClick={() => (p.media_id ? duplicar(p) : abrirEdicao(p))}>
                   <CardContent className="p-3.5 flex items-center gap-3">
                     {p.modo_resposta === "automatico" && (
                       <Zap className="h-4 w-4 text-primary shrink-0" aria-label="Resposta automática" />
@@ -632,12 +676,29 @@ export function PublicacoesTab() {
                       <p className="text-sm truncate">{p.legenda || <span className="text-muted-foreground">(sem legenda)</span>}</p>
                       <p className="text-[10px] text-muted-foreground mt-0.5">{dataHoraBR(p.agendado_para)}</p>
                     </div>
-                    {p.status === "falhou" && p.erro && (
-                      <p className="text-xs text-danger max-w-[280px] truncate">{p.erro}</p>
+                    {p.erro && (
+                      <p
+                        className={`text-xs max-w-[280px] truncate ${
+                          p.status === "falhou" ? "text-danger" : "text-amber-600"
+                        }`}
+                        title={p.erro}
+                      >
+                        {p.erro}
+                      </p>
                     )}
                     <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold shrink-0 ${chipStatus(p.status)}`}>
                       {p.status ?? "rascunho"}
                     </span>
+                    {p.media_id && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="shrink-0"
+                        onClick={(e) => { e.stopPropagation(); duplicar(p); }}
+                      >
+                        <Copy className="h-3.5 w-3.5 mr-1" /> Duplicar
+                      </Button>
+                    )}
                   </CardContent>
                 </Card>
               ))
@@ -1113,7 +1174,18 @@ export function PublicacoesTab() {
             <Button variant="outline" onClick={() => setModalAberto(false)} disabled={salvando}>
               Cancelar
             </Button>
-            <Button onClick={salvar} disabled={salvando || carrosselInvalido}>
+            {legendaObrigatoriaFaltando && (
+              <p className="text-xs text-danger mr-auto">Escreva a legenda — só Stories publica sem texto.</p>
+            )}
+            <Button
+              variant="secondary"
+              onClick={() => salvar({ publicarAgora: true })}
+              disabled={salvando || carrosselInvalido || legendaObrigatoriaFaltando}
+            >
+              {salvando && <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />}
+              Publicar agora
+            </Button>
+            <Button onClick={() => salvar()} disabled={salvando || carrosselInvalido || legendaObrigatoriaFaltando}>
               {salvando && <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />}
               {editando ? "Salvar alterações" : form.agendadoPara ? "Agendar" : "Salvar rascunho"}
             </Button>

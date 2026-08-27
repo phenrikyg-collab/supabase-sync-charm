@@ -28,7 +28,7 @@ import {
 import { toast } from "sonner";
 import {
   Bot, Check, ExternalLink, Loader2, Mail, MailCheck, MailOpen, MessageCircle, Pencil,
-  SendHorizonal, PanelRightClose, PanelRightOpen, Trash2, AlertTriangle, Inbox, User,
+  SendHorizonal, PanelRightClose, PanelRightOpen, Trash2, AlertTriangle, Inbox, User, MousePointerClick,
 } from "lucide-react";
 
 type Conversa = {
@@ -63,6 +63,20 @@ type Conversa = {
   tem_cadastro?: boolean | null;
   peso?: number | null;
 };
+
+const ROTULO_INTENCAO: Record<string, string> = {
+  acao_campanha: "Clicou no botão da campanha",
+  compra: "Intenção de compra",
+  duvida: "Dúvida",
+  suporte: "Suporte",
+};
+
+/** Mensagem tipo 'botao': a cliente tocou num botão do Direct, não digitou nada. */
+const ehBotao = (m: { tipo?: string | null; conteudo?: string | null }) =>
+  (m.tipo ?? "").toLowerCase() === "botao" || (m.conteudo ?? "").trimStart().startsWith("[botão]");
+
+const textoBotao = (conteudo?: string | null) =>
+  (conteudo ?? "").replace(/^\s*\[bot[ãa]o\]\s*/i, "").trim() || "Botão";
 
 type Mensagem = {
   id: number;
@@ -618,6 +632,9 @@ export function AtendimentoTab() {
                       </p>
                       <p className="text-xs text-muted-foreground truncate mt-0.5">
                         {c.ultima_direcao === "saida" ? "Você: " : ""}
+                        {(c.ultimo_tipo ?? "").toLowerCase() === "botao" && (
+                          <MousePointerClick className="inline h-3 w-3 mr-1 -mt-0.5" />
+                        )}
                         {c.ultima_previa ?? c.ultima_mensagem ?? c.ultima_mensagem_texto ?? ""}
                       </p>
                     </div>
@@ -625,6 +642,17 @@ export function AtendimentoTab() {
                   <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
                     {(c.nao_lidas ?? 0) > 0 && (
                       <Badge className="h-4 px-1.5 text-[10px]">{c.nao_lidas}</Badge>
+                    )}
+                    {c.intencao && (
+                      <span
+                        className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-semibold ${
+                          c.intencao === "acao_campanha"
+                            ? "border-primary/40 bg-primary/10 text-primary"
+                            : "border-border text-muted-foreground"
+                        }`}
+                      >
+                        {ROTULO_INTENCAO[c.intencao] ?? c.intencao}
+                      </span>
                     )}
                     {c.revisao_pendente && (
                       <span className="inline-flex items-center gap-1 rounded-full border border-warning/30 bg-warning/10 text-warning px-2 py-0.5 text-[10px] font-semibold">
@@ -815,7 +843,11 @@ export function AtendimentoTab() {
                             </span>
                           )}
                           <ContextoMensagem m={m} saida={saida} onConfirmado={confirmarProdutoMsg} />
-                          {ehReelCompartilhado(m) ? (
+                          {ehBotao(m) ? (
+                            <span className="inline-flex items-center gap-1.5 rounded-full border border-current/30 bg-background/20 px-2.5 py-1 text-xs font-medium">
+                              <MousePointerClick className="h-3.5 w-3.5" /> {textoBotao(m.conteudo)}
+                            </span>
+                          ) : ehReelCompartilhado(m) ? (
                             <>
                               <ReelCompartilhado
                                 m={m}
