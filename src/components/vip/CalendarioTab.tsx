@@ -532,6 +532,9 @@ export function CalendarioTab() {
                         {m.midia_url && <ImageIcon className="h-3.5 w-3.5 text-muted-foreground" />}
                         {m.enquete && <MessageSquare className="h-3.5 w-3.5 text-muted-foreground" />}
                         <Badge variant="outline" className={CORES_STATUS[m.status ?? "rascunho"]}>{m.status}</Badge>
+                        {((m as any).avulsa || (m as any).origem === "avulsa") && (
+                          <Badge variant="outline" className="text-[10px] text-muted-foreground">avulsa</Badge>
+                        )}
                         {pendente && (
                           <Badge variant="outline" className="border-amber-500/40 text-amber-600">Precisa de autorização</Badge>
                         )}
