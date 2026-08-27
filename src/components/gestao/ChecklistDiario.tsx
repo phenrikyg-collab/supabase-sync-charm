@@ -14,6 +14,9 @@ import {
 import {
   Accordion, AccordionContent, AccordionItem, AccordionTrigger,
 } from "@/components/ui/accordion";
+import {
+  Tooltip as UITooltip, TooltipContent, TooltipProvider, TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { LineChart, Line, ResponsiveContainer, Tooltip } from "recharts";
 import { brl, dec, ddmm, ddmmyyyy, int, num, pct, varPct } from "@/lib/gestaoFormat";
 import { cn } from "@/lib/utils";
