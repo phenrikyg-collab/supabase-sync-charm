@@ -269,8 +269,14 @@ export function PublicacoesTab() {
     setModalAberto(true);
   };
 
+  // Post já publicado não pode ser reagendado — abre como nova publicação com o mesmo conteúdo.
+  const duplicar = (p: Publicacao) => {
+    abrirEdicao({ ...p, id: undefined, media_id: null, status: "rascunho", erro: null, agendado_para: null });
+    toast.info("Cópia aberta como nova publicação — escolha a nova data.");
+  };
+
   const abrirEdicao = (p: Publicacao) => {
-    setEditando(p);
+    setEditando(p.id != null ? p : null);
     setItens((prev) => {
       prev.forEach((i) => i.file && URL.revokeObjectURL(i.url));
       return (p.midia_urls ?? []).map((url) => ({
