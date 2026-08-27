@@ -49,10 +49,12 @@ export function BotoesTab() {
   const [salvando, setSalvando] = useState(false);
   const [excluir, setExcluir] = useState<{ idx: number; item: Botao } | null>(null);
 
+  // Admin lê TODOS os botões (ativos e inativos). linkbio_get_config() filtra ativo = true
+  // e serve só para a página pública da bio.
   const { data, isLoading } = useQuery({
-    queryKey: ["linkbio-config"],
+    queryKey: ["linkbio-admin-botoes"],
     queryFn: async () => {
-      const { data, error } = await supabase.rpc("linkbio_get_config" as any);
+      const { data, error } = await supabase.rpc("linkbio_admin_listar_botoes" as any);
       if (error) throw error;
       return data as any;
     },
@@ -60,7 +62,7 @@ export function BotoesTab() {
 
   useEffect(() => {
     if (!data) return;
-    const lista = (Array.isArray(data) ? data[0]?.botoes ?? data : (data as any).botoes) ?? [];
+    const lista = (Array.isArray(data) ? data : (data as any)?.botoes) ?? [];
     setItens(
       (lista as any[]).map((b, i) => ({
         id: b.id,
@@ -134,7 +136,8 @@ export function BotoesTab() {
         if (error) throw error;
       }
       toast.success("Botões salvos com sucesso.");
-      qc.invalidateQueries({ queryKey: ["linkbio-config"] });
+      qc.invalidateQueries({ queryKey: ["linkbio-admin-botoes"] });
+    qc.invalidateQueries({ queryKey: ["linkbio-config"] });
     } catch (e: any) {
       toast.error(e.message ?? "Erro ao salvar botões.");
     } finally {
@@ -153,6 +156,7 @@ export function BotoesTab() {
     const { error } = await supabase.rpc("linkbio_admin_delete_botao" as any, { p_id: item.id });
     if (error) return toast.error(error.message);
     toast.success("Botão excluído.");
+    qc.invalidateQueries({ queryKey: ["linkbio-admin-botoes"] });
     qc.invalidateQueries({ queryKey: ["linkbio-config"] });
   };
 
