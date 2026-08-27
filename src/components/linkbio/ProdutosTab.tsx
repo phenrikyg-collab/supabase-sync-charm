@@ -213,8 +213,11 @@ export function ProdutosTab() {
         <ProdutoDialog
           produto={editando}
           onClose={() => setEditando(null)}
-          onSaved={() => { setEditando(null); qc.invalidateQueries({ queryKey: ["linkbio-admin-produtos-destaque"] });
-      qc.invalidateQueries({ queryKey: ["linkbio-config"] }); }}
+          onSaved={() => {
+            setEditando(null);
+            qc.invalidateQueries({ queryKey: ["linkbio-admin-produtos-destaque"] });
+            qc.invalidateQueries({ queryKey: ["linkbio-config"] });
+          }}
           salvar={salvarProduto}
         />
       )}
