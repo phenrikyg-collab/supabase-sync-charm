@@ -75,6 +75,7 @@ import MatrizCriativa from "./pages/MatrizCriativa";
 import Aviamentos from "./pages/Aviamentos";
 import Gestao from "./pages/Gestao";
 import JornadaCompra from "./pages/JornadaCompra";
+import GoogleAds from "./pages/GoogleAds";
 import DashboardRFM from "./pages/DashboardRFM";
 import DashboardProdutos from "./pages/DashboardProdutos";
 import PlanejamentoConteudoMensal from "./pages/PlanejamentoConteudoMensal";
@@ -265,6 +266,7 @@ const AppRoutes = () => {
               <Route path="/aviamentos" element={<Aviamentos />} />
               <Route path="/gestao" element={<Gestao />} />
               <Route path="/jornada-compra" element={<JornadaCompra />} />
+              <Route path="/google-ads" element={<GoogleAds />} />
               <Route path="/dashboard-rfm" element={<DashboardRFM />} />
               <Route path="/dashboard-produtos" element={<DashboardProdutos />} />
               <Route path="/planejamento-conteudo-mensal" element={<PlanejamentoConteudoMensal />} />
