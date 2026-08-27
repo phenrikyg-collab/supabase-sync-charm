@@ -28,7 +28,7 @@ import {
 import { toast } from "sonner";
 import {
   Bot, Check, ExternalLink, Loader2, Mail, MailCheck, MailOpen, MessageCircle, Pencil,
-  SendHorizonal, PanelRightClose, PanelRightOpen, Trash2, AlertTriangle, Inbox, User,
+  SendHorizonal, PanelRightClose, PanelRightOpen, Trash2, AlertTriangle, Inbox, User, MousePointerClick,
 } from "lucide-react";
 
 type Conversa = {
