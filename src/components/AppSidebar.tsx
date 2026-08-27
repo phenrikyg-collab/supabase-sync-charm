@@ -52,6 +52,7 @@ const moduleGroups: ModuleGroup[] = [
       { title: "Checklist e Auditorias", url: "/gestao", icon: ClipboardList },
       { title: "Dashboard Comercial", url: "/dashboard-comercial", icon: LayoutDashboard },
       { title: "Meta Ads", url: "/marketing?tab=meta-ads", icon: Megaphone },
+      { title: "Google Ads", url: "/google-ads", icon: Megaphone },
       { title: "Dashboard GA4", url: "/marketing", icon: BarChart3 },
       { title: "Dashboard RFM", url: "/dashboard-rfm", icon: UserSquare2 },
       { title: "Jornada de Compra", url: "/jornada-compra", icon: Repeat },
