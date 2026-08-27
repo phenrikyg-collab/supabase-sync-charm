@@ -307,6 +307,200 @@ export const vipConfigSalvar = (payload: any) => vipRpc("vip_config_salvar", { p
 export const vipContexto = () => vipRpc<any>("vip_contexto");
 
 /* ------------------------------------------------------------------ *
+ * Mensagem avulsa
+ * ------------------------------------------------------------------ */
+
+export type VipProduto = {
+  produto_id: string;
+  nome?: string | null;
+  categoria?: string | null;
+  preco_cheio?: number | null;
+  preco_promocional_vigente?: number | null;
+  end_promotion?: string | null;
+  estoque?: number | null;
+  link?: string | null;
+  imagem?: string | null;
+  [k: string]: any;
+};
+
+export type VipEstoqueTamanho = {
+  produto_id: string;
+  cor?: string | null;
+  tamanho?: string | null;
+  estoque_tamanho?: number | null;
+  preco_cheio?: number | null;
+  preco_promocional?: number | null;
+  link?: string | null;
+  imagem?: string | null;
+  nome?: string | null;
+  [k: string]: any;
+};
+
+export type VipAlerta = {
+  codigo?: string | null;
+  tipo?: string | null;
+  severidade?: string | null;
+  texto?: string | null;
+  mensagem?: string | null;
+  bloqueia?: boolean | null;
+  [k: string]: any;
+};
+
+/** Busca produtos por nome na view vw_vip_produtos. */
+export async function vipProdutosBuscar(termo: string, limite = 12): Promise<VipProduto[]> {
+  let q = (supabase as any).from("vw_vip_produtos").select("*").limit(limite);
+  if (termo.trim()) q = q.ilike("nome", `%${termo.trim()}%`);
+  const { data, error } = await q;
+  if (error) throw new Error(error.message);
+  return (data ?? []) as VipProduto[];
+}
+
+/** Grade real por cor e tamanho de uma peça. */
+export async function vipEstoqueTamanho(produtoId: string): Promise<VipEstoqueTamanho[]> {
+  const { data, error } = await (supabase as any)
+    .from("vw_vip_estoque_tamanho")
+    .select("*")
+    .eq("produto_id", produtoId);
+  if (error) throw new Error(error.message);
+  return (data ?? []) as VipEstoqueTamanho[];
+}
+
+export const vipMensagemAvulsa = (payload: Record<string, any>, por: string) =>
+  vipRpc<{ id: string; calendario_id?: string; ordem?: number; data_envio?: string; horario?: string; alertas?: VipAlerta[] }>(
+    "vip_mensagem_avulsa",
+    { p: payload, p_por: por },
+  );
+
+export const vipMensagemValidar = (id: string) => vipRpc<any>("vip_mensagem_validar", { p_id: id });
+
+/** Normaliza o retorno de vip_mensagem_validar em lista de alertas. */
+export function normalizarAlertas(bruto: any): VipAlerta[] {
+  const lista = Array.isArray(bruto) ? bruto : (bruto?.alertas ?? bruto?.avisos ?? []);
+  if (!Array.isArray(lista)) return [];
+  return lista.map((a: any) =>
+    typeof a === "string" ? ({ texto: a } as VipAlerta) : (a as VipAlerta),
+  );
+}
+
+export function textoAlerta(a: VipAlerta): string {
+  return a.texto ?? a.mensagem ?? a.codigo ?? JSON.stringify(a);
+}
+
+/** Alerta de imagem de cliente sem autorização é trava, não aviso. */
+export function alertaBloqueante(a: VipAlerta): boolean {
+  if (a.bloqueia === true) return true;
+  const alvo = `${a.codigo ?? ""} ${a.tipo ?? ""} ${a.severidade ?? ""} ${textoAlerta(a)}`.toLowerCase();
+  return /autoriza/.test(alvo) && /(sem|nao|não|pendente|falta)/.test(alvo);
+}
+
+export const vipEnviarTeste = (mensagemId: string, numero: string) =>
+  invokeEdgeFunction(
+    "vip-disparar",
+    { acao: "enviar_teste", mensagem_id: mensagemId, numero },
+    { timeoutMs: 90_000 },
+  );
+
+/* ------------------------------------------------------------------ *
+ * Prova social
+ * ------------------------------------------------------------------ */
+
+export type VipProva = {
+  id: string;
+  cliente_nome?: string | null;
+  cliente_whatsapp?: string | null;
+  produto_nome?: string | null;
+  produto_id?: string | null;
+  depoimento?: string | null;
+  status?: string | null;
+  imagem_path?: string | null;
+  imagem_url?: string | null;
+  com_nome?: boolean | null;
+  validade?: string | null;
+  dias_esperando?: number | null;
+  criado_em?: string | null;
+  pedido_em?: string | null;
+  [k: string]: any;
+};
+
+export const VIP_PROVAS_BUCKET = "vip-provas";
+
+export const vipProvasPainel = () => vipRpc<any>("vip_provas_painel");
+
+/** Lista o acervo. O backend pode expor a leitura por RPC ou por view. */
+export async function vipProvasListar(status?: string | null): Promise<VipProva[]> {
+  const tentativas: Array<() => Promise<any>> = [
+    () => vipRpc("vip_provas_listar", { p_status: status ?? null }),
+    () => vipRpc("vip_provas_listar"),
+    async () => {
+      let q = (supabase as any).from("vw_vip_provas").select("*");
+      if (status) q = q.eq("status", status);
+      const { data, error } = await q;
+      if (error) throw new Error(error.message);
+      return data;
+    },
+  ];
+  let ultimo: any = null;
+  for (const t of tentativas) {
+    try {
+      const r = await t();
+      const lista = Array.isArray(r) ? r : (r?.provas ?? r?.itens ?? []);
+      if (Array.isArray(lista)) {
+        return status ? lista.filter((p: any) => !p.status || p.status === status) : lista;
+      }
+    } catch (e) {
+      ultimo = e;
+    }
+  }
+  throw ultimo ?? new Error("Não foi possível ler o acervo de prova social.");
+}
+
+export const vipProvaRegistrar = (payload: Record<string, any>) =>
+  vipRpc<any>("vip_prova_registrar", { p: payload });
+
+export const vipProvaPedir = (id: string, texto: string) =>
+  vipRpc("vip_prova_pedir", { p_id: id, p_texto: texto });
+
+export const vipProvaResponder = (
+  id: string,
+  autorizada: boolean,
+  comNome: boolean | null,
+  resposta: string | null,
+  validade: string | null,
+) =>
+  vipRpc("vip_prova_responder", {
+    p_id: id,
+    p_autorizada: autorizada,
+    p_com_nome: comNome,
+    p_resposta: resposta,
+    p_validade: validade,
+  });
+
+export const vipProvaRevogar = (id: string, motivo: string) =>
+  vipRpc("vip_prova_revogar", { p_id: id, p_motivo: motivo });
+
+/** Miniatura assinada de curta duração (bucket privado). */
+export async function vipProvaSignedUrl(path: string | null | undefined, segundos = 300) {
+  if (!path) return null;
+  const limpo = path.includes(`/${VIP_PROVAS_BUCKET}/`)
+    ? path.split(`/${VIP_PROVAS_BUCKET}/`)[1].split("?")[0]
+    : path;
+  const { data } = await supabase.storage.from(VIP_PROVAS_BUCKET).createSignedUrl(limpo, segundos);
+  return data?.signedUrl ?? null;
+}
+
+export async function vipProvaUpload(file: File) {
+  const ext = file.name.split(".").pop() ?? "jpg";
+  const path = `${new Date().getFullYear()}/${crypto.randomUUID()}.${ext}`;
+  const { error } = await supabase.storage.from(VIP_PROVAS_BUCKET).upload(path, file, {
+    contentType: file.type || "image/jpeg",
+    upsert: false,
+  });
+  if (error) throw new Error(error.message);
+  return path;
+}
+
+
+/* ------------------------------------------------------------------ *
  * Edge functions
  * ------------------------------------------------------------------ */
 
