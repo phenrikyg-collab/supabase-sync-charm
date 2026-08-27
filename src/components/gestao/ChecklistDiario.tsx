@@ -82,6 +82,7 @@ export default function ChecklistDiario() {
   const producao = data?.producao ?? {};
   const metaOntem = data?.meta_ontem ?? {};
   const funil = data?.funil_7d ?? {};
+  const midia = data?.midia ?? {};
 
   const pixLista: any[] = Array.isArray(pix.lista) ? pix.lista : Array.isArray(pix.itens) ? pix.itens : [];
   const estoqueLista: any[] = Array.isArray(estoque.lista) ? estoque.lista : Array.isArray(estoque.itens) ? estoque.itens : [];
