@@ -99,8 +99,12 @@ export default function ChecklistDiario() {
     const vs = varPct(num(vendas.receita_ontem), num(vendas.media_7d ?? vendas.receita_media_7d));
     if (vs !== null && vs < -30) out.push(`receita ontem ${dec(vs, 1)}% vs média 7d`);
     if (num(metaOntem.cpa) > CPA_PISO) out.push(`CPA de ${brl(metaOntem.cpa)} acima do piso`);
+    const googleSemaforo = midia.google?.semaforo;
+    if (googleSemaforo === "vermelho" || googleSemaforo === "erro_tecnico") {
+      out.push("Google Ads parado ou com erro de integração");
+    }
     return out;
-  }, [estoque, producao, pix, vendas, metaOntem]);
+  }, [estoque, producao, pix, vendas, metaOntem, midia]);
 
   // diagnóstico CPS × CVR contra a média dos 7 dias anteriores
   const diagnostico = useMemo(() => {
