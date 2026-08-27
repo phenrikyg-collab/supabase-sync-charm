@@ -1,5 +1,6 @@
 import { useSearchParams } from "react-router-dom";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Button } from "@/components/ui/button";
 import { BarChart3, CalendarDays, Eye, Heart, LineChart, PenLine, Users } from "lucide-react";
 import { PainelTab } from "@/components/vip/PainelTab";
 import { CalendarioTab } from "@/components/vip/CalendarioTab";
