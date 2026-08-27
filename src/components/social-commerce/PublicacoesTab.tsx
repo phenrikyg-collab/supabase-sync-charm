@@ -666,7 +666,7 @@ export function PublicacoesTab() {
             [...publicacoes]
               .sort((a, b) => (b.agendado_para ?? "").localeCompare(a.agendado_para ?? ""))
               .map((p, i) => (
-                <Card key={p.id ?? i} className="cursor-pointer hover:bg-accent/30 transition-colors" onClick={() => abrirEdicao(p)}>
+                <Card key={p.id ?? i} className="cursor-pointer hover:bg-accent/30 transition-colors" onClick={() => (p.media_id ? duplicar(p) : abrirEdicao(p))}>
                   <CardContent className="p-3.5 flex items-center gap-3">
                     {p.modo_resposta === "automatico" && (
                       <Zap className="h-4 w-4 text-primary shrink-0" aria-label="Resposta automática" />
