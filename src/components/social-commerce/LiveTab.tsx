@@ -85,7 +85,7 @@ export function LiveTab() {
 
   const carregarComentarios = useCallback(async () => {
     const { data } = await db
-      .from("vw_ig_comentarios_painel")
+      .from("vw_comentarios_live")
       .select("*")
       .eq("origem_midia", "live")
       .order("publicado_em", { ascending: false })

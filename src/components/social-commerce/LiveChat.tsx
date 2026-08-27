@@ -146,7 +146,7 @@ export function LiveChat({
       return;
     }
     const { data } = await db
-      .from("instagram_comentarios")
+      .from("vw_comentarios_live")
       .select("*")
       .eq("media_id", mediaId)
       .order("publicado_em", { ascending: true })
