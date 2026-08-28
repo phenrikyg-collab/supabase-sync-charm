@@ -619,3 +619,80 @@ export function corpoMensagem(m: VipMensagem, perfil: "listas" | "comunidade" = 
 export async function copiar(texto: string) {
   await navigator.clipboard.writeText(texto);
 }
+
+/* ------------------------------------------------------------------ *
+ * Classificação (9 camadas) e redação por IA
+ * ------------------------------------------------------------------ */
+
+export type VipPersona = {
+  id?: string | null;
+  nome?: string | null;
+  emoji?: string | null;
+  motivacao?: string | null;
+  objecao?: string | null;
+  pilar_abre?: string | null;
+  pilar_fecha?: string | null;
+  mensagem_principal?: string | null;
+  perfil_vida?: string | null;
+  faixa_etaria?: string | null;
+  etapa_funil?: string | null;
+  [k: string]: any;
+};
+
+export type VipClassificacaoOpcoes = {
+  nota?: string | null;
+  tema?: string[] | null;
+  tipo?: string[] | null;
+  midia?: string[] | null;
+  pilar?: string[] | null;
+  angulo?: string[] | null;
+  jornada?: string[] | null;
+  intencao?: string[] | null;
+  objetivo?: string[] | null;
+  etapa_funil?: string[] | null;
+  estrutura_narrativa?: string[] | null;
+  personas?: VipPersona[] | null;
+  [k: string]: any;
+};
+
+export const vipClassificacaoOpcoes = () =>
+  vipRpc<VipClassificacaoOpcoes>("vip_classificacao_opcoes");
+
+export type VipCriativoMatriz = {
+  id?: string | null;
+  angulo?: string | null;
+  dor?: string | null;
+  solucao?: string | null;
+  beneficio?: string | null;
+  objecao_resolvida?: string | null;
+  persona?: string | null;
+  estrutura_narrativa?: string | null;
+  etapa_funil?: string | null;
+  [k: string]: any;
+};
+
+export async function vipCriativosDoProduto(produtoId: string): Promise<VipCriativoMatriz[]> {
+  const r = await vipRpc<any>("vip_criativos_do_produto", { p_produto_id: produtoId });
+  const lista = Array.isArray(r) ? r : (r?.criativos ?? r?.itens ?? []);
+  return Array.isArray(lista) ? lista : [];
+}
+
+export type VipRedacao = {
+  headline?: string | null;
+  corpo?: string | null;
+  cta?: string | null;
+  midia_sugerida?: string | null;
+  midia_url?: string | null;
+  link_destino?: string | null;
+  raciocinio?: string | null;
+  variante_comunidade?: VipVariante | null;
+  usou?: {
+    criativos_da_matriz?: number | null;
+    grade_disponivel?: boolean | number | null;
+    preco_sale?: number | boolean | null;
+  } | null;
+  [k: string]: any;
+};
+
+export const vipRedigir = (payload: Record<string, any>) =>
+  invokeEdgeFunction("vip-redigir", payload, { timeoutMs: 120_000 }) as Promise<VipRedacao>;
