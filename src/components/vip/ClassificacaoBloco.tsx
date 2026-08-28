@@ -87,6 +87,10 @@ export function ClassificacaoBloco({ camadas, setCamadas, produtoId, publico, on
         publico,
         observacoes: observacoes || null,
       });
+      if (r?.ok === false) {
+        toast.error(r?.erro ?? "Falha ao gerar o texto");
+        return;
+      }
       setUsou(r?.usou ?? null);
       onGerado(r ?? {});
       toast.success("Texto gerado. Leia e ajuste antes de aprovar.");
