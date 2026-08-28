@@ -189,7 +189,7 @@ export function NovaMensagemTab() {
     });
   };
 
-  const linkDestino = enqueteAtiva ? null : (produto?.link ?? null);
+  
 
   const payload = useMemo(
     () => ({
