@@ -32,6 +32,7 @@ import {
   type VipEstoqueTamanho,
   type VipGrupo,
   type VipProduto,
+  type VipVariante,
 } from "@/lib/vip";
 import { SeletorProva } from "./SeletorProva";
 import { ClassificacaoBloco } from "./ClassificacaoBloco";
@@ -86,6 +87,10 @@ export function NovaMensagemTab() {
 
   const [camadas, setCamadas] = useState<Record<string, string>>({});
   const [raciocinio, setRaciocinio] = useState("");
+
+  const [linkDestino, setLinkDestino] = useState<string | null>(null);
+  const [varianteComunidade, setVarianteComunidade] = useState<VipVariante | null>(null);
+  const [abaTexto, setAbaTexto] = useState("listas");
 
   const [mensagemId, setMensagemId] = useState<string | null>(null);
   const [alertas, setAlertas] = useState<VipAlerta[]>([]);
@@ -148,6 +153,7 @@ export function NovaMensagemTab() {
     setProduto(p);
     setResultados([]);
     setBusca(p.nome ?? "");
+    setLinkDestino(p.link ?? null);
     if (p.imagem && !midiaUrl) {
       setMidiaUrl(p.imagem);
       setAbaImagem("produto");
@@ -184,7 +190,7 @@ export function NovaMensagemTab() {
     });
   };
 
-  const linkDestino = enqueteAtiva ? null : (produto?.link ?? null);
+  
 
   const payload = useMemo(
     () => ({
@@ -199,13 +205,14 @@ export function NovaMensagemTab() {
       horario: quando === "agora" ? new Date().toTimeString().slice(0, 5) : horario,
       midia_url: midiaUrl || null,
       prova_id: provaId,
-      link_destino: linkDestino,
+      link_destino: enqueteAtiva ? null : (linkDestino || produto?.link || null),
       tipo_envio: enqueteAtiva ? "enquete" : midiaUrl ? "imagem" : "texto",
       enquete_pergunta: enqueteAtiva ? pergunta : null,
       enquete_opcoes: enqueteAtiva ? opcoes.filter((o) => o.trim()) : null,
+      variantes: varianteComunidade ? { comunidade: varianteComunidade } : null,
       ...camadas,
     }),
-    [headline, corpo, cta, produto, publico, gruposAlvo, quando, dataEnvio, horario, hoje, midiaUrl, provaId, linkDestino, enqueteAtiva, pergunta, opcoes, camadas],
+    [headline, corpo, cta, produto, publico, gruposAlvo, quando, dataEnvio, horario, hoje, midiaUrl, provaId, linkDestino, enqueteAtiva, pergunta, opcoes, camadas, varianteComunidade],
   );
 
   /* ---------------- validação (debounce 800ms) ---------------- */

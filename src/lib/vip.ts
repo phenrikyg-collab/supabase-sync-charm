@@ -695,4 +695,4 @@ export type VipRedacao = {
 };
 
 export const vipRedigir = (payload: Record<string, any>) =>
-  invokeEdgeFunction("vip-redigir", payload, { timeoutMs: 120_000 }) as Promise<VipRedacao>;
+  invokeEdgeFunction("vip-redigir", payload, { timeoutMs: 60_000 }) as Promise<VipRedacao>;
