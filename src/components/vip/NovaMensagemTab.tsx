@@ -34,6 +34,7 @@ import {
   type VipProduto,
 } from "@/lib/vip";
 import { SeletorProva } from "./SeletorProva";
+import { ClassificacaoBloco } from "./ClassificacaoBloco";
 
 type Publico = "todos" | "listas" | "comunidade";
 
@@ -84,6 +85,7 @@ export function NovaMensagemTab() {
   const [opcoes, setOpcoes] = useState<string[]>(["", ""]);
 
   const [camadas, setCamadas] = useState<Record<string, string>>({});
+  const [raciocinio, setRaciocinio] = useState("");
 
   const [mensagemId, setMensagemId] = useState<string | null>(null);
   const [alertas, setAlertas] = useState<VipAlerta[]>([]);
