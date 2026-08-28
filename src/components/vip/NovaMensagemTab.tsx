@@ -204,13 +204,14 @@ export function NovaMensagemTab() {
       horario: quando === "agora" ? new Date().toTimeString().slice(0, 5) : horario,
       midia_url: midiaUrl || null,
       prova_id: provaId,
-      link_destino: linkDestino,
+      link_destino: enqueteAtiva ? null : (linkDestino || produto?.link || null),
       tipo_envio: enqueteAtiva ? "enquete" : midiaUrl ? "imagem" : "texto",
       enquete_pergunta: enqueteAtiva ? pergunta : null,
       enquete_opcoes: enqueteAtiva ? opcoes.filter((o) => o.trim()) : null,
+      variantes: varianteComunidade ? { comunidade: varianteComunidade } : null,
       ...camadas,
     }),
-    [headline, corpo, cta, produto, publico, gruposAlvo, quando, dataEnvio, horario, hoje, midiaUrl, provaId, linkDestino, enqueteAtiva, pergunta, opcoes, camadas],
+    [headline, corpo, cta, produto, publico, gruposAlvo, quando, dataEnvio, horario, hoje, midiaUrl, provaId, linkDestino, enqueteAtiva, pergunta, opcoes, camadas, varianteComunidade],
   );
 
   /* ---------------- validação (debounce 800ms) ---------------- */
