@@ -88,6 +88,10 @@ export function NovaMensagemTab() {
   const [camadas, setCamadas] = useState<Record<string, string>>({});
   const [raciocinio, setRaciocinio] = useState("");
 
+  const [linkDestino, setLinkDestino] = useState<string | null>(null);
+  const [varianteComunidade, setVarianteComunidade] = useState<VipVariante | null>(null);
+  const [abaTexto, setAbaTexto] = useState("listas");
+
   const [mensagemId, setMensagemId] = useState<string | null>(null);
   const [alertas, setAlertas] = useState<VipAlerta[]>([]);
   const [validando, setValidando] = useState(false);
