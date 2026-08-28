@@ -34,6 +34,7 @@ import {
   type VipProduto,
 } from "@/lib/vip";
 import { SeletorProva } from "./SeletorProva";
+import { ClassificacaoBloco } from "./ClassificacaoBloco";
 
 type Publico = "todos" | "listas" | "comunidade";
 
@@ -84,6 +85,7 @@ export function NovaMensagemTab() {
   const [opcoes, setOpcoes] = useState<string[]>(["", ""]);
 
   const [camadas, setCamadas] = useState<Record<string, string>>({});
+  const [raciocinio, setRaciocinio] = useState("");
 
   const [mensagemId, setMensagemId] = useState<string | null>(null);
   const [alertas, setAlertas] = useState<VipAlerta[]>([]);
@@ -613,29 +615,29 @@ export function NovaMensagemTab() {
         </Collapsible>
 
         {/* Classificação */}
-        <Collapsible>
-          <Card>
-            <CollapsibleTrigger asChild>
-              <CardHeader className="flex-row cursor-pointer items-center justify-between py-3">
-                <CardTitle className="text-sm">Classificação (opcional)</CardTitle>
-                <ChevronDown className="h-4 w-4" />
-              </CardHeader>
-            </CollapsibleTrigger>
-            <CollapsibleContent>
-              <CardContent className="grid gap-3 sm:grid-cols-2">
-                {CAMADAS.map((c) => (
-                  <div key={c.campo}>
-                    <Label>{c.label}</Label>
-                    <Input
-                      value={camadas[c.campo] ?? ""}
-                      onChange={(e) => setCamadas({ ...camadas, [c.campo]: e.target.value })}
-                    />
-                  </div>
-                ))}
-              </CardContent>
-            </CollapsibleContent>
-          </Card>
-        </Collapsible>
+        <ClassificacaoBloco
+          camadas={camadas}
+          setCamadas={setCamadas}
+          produtoId={produto?.produto_id ?? null}
+          publico={publico}
+          onGerado={(r) => {
+            if (r.headline) setHeadline(r.headline);
+            if (r.corpo) setCorpo(r.corpo);
+            if (r.cta) setCta(r.cta);
+            if (r.midia_sugerida) setCamadas({ ...camadas, midia_sugerida: r.midia_sugerida });
+            if (r.midia_url) {
+              setMidiaUrl(r.midia_url);
+              setAbaImagem("produto");
+            }
+            if (r.raciocinio) setRaciocinio(r.raciocinio);
+          }}
+        />
+        {raciocinio && (
+          <p className="text-xs text-muted-foreground">
+            <b>Raciocínio da IA:</b> {raciocinio}
+          </p>
+        )}
+
       </div>
 
       {/* Coluna direita: preview + validação */}
