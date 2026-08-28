@@ -211,7 +211,7 @@ export function ClassificacaoBloco({ camadas, setCamadas, produtoId, publico, on
             <div className="flex flex-wrap items-center gap-2">
               <Button onClick={gerar} disabled={gerando}>
                 {gerando ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <Sparkles className="mr-1 h-4 w-4" />}
-                Gerar texto com IA
+                {gerando ? "Escrevendo... isso leva alguns segundos" : "Gerar texto com IA"}
               </Button>
               <span className="text-[11px] text-muted-foreground">
                 Preenche o formulário. Nada é salvo — leia e ajuste antes de aprovar.
