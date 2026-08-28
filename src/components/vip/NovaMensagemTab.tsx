@@ -153,6 +153,7 @@ export function NovaMensagemTab() {
     setProduto(p);
     setResultados([]);
     setBusca(p.nome ?? "");
+    setLinkDestino(p.link ?? null);
     if (p.imagem && !midiaUrl) {
       setMidiaUrl(p.imagem);
       setAbaImagem("produto");
