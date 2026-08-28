@@ -32,6 +32,7 @@ import {
   type VipEstoqueTamanho,
   type VipGrupo,
   type VipProduto,
+  type VipVariante,
 } from "@/lib/vip";
 import { SeletorProva } from "./SeletorProva";
 import { ClassificacaoBloco } from "./ClassificacaoBloco";
