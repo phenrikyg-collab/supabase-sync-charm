@@ -281,12 +281,21 @@ export function NovaMensagemTab() {
     }
     setSalvando(true);
     try {
-      const r: any = await vipMensagemAvulsa(payload as any, "painel");
-      const id = r?.id ?? r?.mensagem_id;
-      if (!id) throw new Error("O backend não devolveu o id da mensagem.");
+      let id = mensagemId;
+      if (id) {
+        // Já existe: ATUALIZA em vez de criar duplicado.
+        await vipMensagemSalvar(id, payload as any, "painel");
+        if (payload.variante_comunidade) {
+          await vipVarianteSalvar(id, "comunidade", payload.variante_comunidade, "painel");
+        }
+      } else {
+        const r: any = await vipMensagemAvulsa(payload as any, "painel");
+        id = r?.id ?? r?.mensagem_id;
+        if (!id) throw new Error("O backend não devolveu o id da mensagem.");
+        setAlertas(normalizarAlertas(r?.alertas ?? []));
+      }
       setMensagemId(id);
       setSnapshotSalvo(JSON.stringify(payload));
-      setAlertas(normalizarAlertas(r?.alertas ?? []));
       if (aprovar) {
         await vipMensagensStatus([id], "aprovada");
         toast.success("Mensagem aprovada — entra na fila no horário marcado.");
