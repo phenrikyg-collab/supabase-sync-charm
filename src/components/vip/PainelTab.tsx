@@ -179,7 +179,7 @@ export function PainelTab() {
   const reguaMembro =
     receitaMembro < 5 ? "desengajado" : receitaMembro <= 40 ? "saudável" : receitaMembro <= 100 ? "avançado" : "excepcional";
   const distribuicao = dados?.distribuicao ?? {};
-  const pctOferta = Number((distribuicao as any)?.oferta ?? (distribuicao as any)?.oportunidade ?? 0);
+  const pctOferta = Number((distribuicao as any)?.pct_oferta ?? 0);
 
   const irParaWebhook = () => setParams({ tab: "grupos" }, { replace: true });
 
