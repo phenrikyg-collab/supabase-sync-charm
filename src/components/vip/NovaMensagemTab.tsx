@@ -454,7 +454,7 @@ export function NovaMensagemTab() {
                     ))}
                     {grade.length === 0 && <div className="text-xs text-muted-foreground">Sem grade por tamanho.</div>}
                   </div>
-                  <Button variant="ghost" size="sm" className="h-7 px-0 text-xs" onClick={() => { setProduto(null); setGrade([]); setBusca(""); }}>
+                  <Button variant="ghost" size="sm" className="h-7 px-0 text-xs" onClick={() => { setProduto(null); setGrade([]); setBusca(""); setLinkDestino(null); setVarianteComunidade(null); }}>
                     Remover peça
                   </Button>
                 </div>
