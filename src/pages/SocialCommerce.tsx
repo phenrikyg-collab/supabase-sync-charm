@@ -59,9 +59,11 @@ export default function SocialCommerce() {
           <LiveTab />
         </TabsContent>
 
-        <TabsContent value="publicacoes" className="mt-4">
+        <TabsContent value="publicacoes" className="mt-4 space-y-4">
+          <TikTokConexaoCard />
           <PublicacoesTab />
         </TabsContent>
+
         <TabsContent value="produtos" className="mt-4">
           <ProdutosPostTab />
         </TabsContent>
