@@ -100,6 +100,16 @@ export async function iniciarOAuthTikTok(): Promise<string> {
   return url as string;
 }
 
+/**
+ * Desconecta a conta do TikTok. A função recusa (ok: false) quando há post
+ * sendo processado — nesse caso repassar `erro` sem limpar a tela.
+ */
+export async function desconectarTikTok(): Promise<{ ok: boolean; erro?: string | null }> {
+  const { data, error } = await supabase.functions.invoke("tiktok-desconectar");
+  if (error) return { ok: false, erro: error.message };
+  return { ok: !!(data as any)?.ok, erro: (data as any)?.erro ?? null };
+}
+
 /** Dados frescos do criador — obrigatório ao abrir a tela de agendamento. */
 export async function lerCreatorInfo(): Promise<TikTokCreatorInfo> {
   const { data, error } = await supabase.functions.invoke("tiktok-creator-info");
