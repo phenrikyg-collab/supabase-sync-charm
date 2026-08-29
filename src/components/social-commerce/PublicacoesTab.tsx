@@ -540,7 +540,34 @@ export function PublicacoesTab() {
     (itens.length < MIN_CARDS_CARROSSEL || itens.length > MAX_CARDS_CARROSSEL);
 
   // legenda vazia só é aceita em STORIES — o Instagram recusa os demais formatos.
-  const legendaObrigatoriaFaltando = form.tipo !== "STORIES" && !form.legenda.trim();
+  const legendaObrigatoriaFaltando =
+    publicarNoIg && form.tipo !== "STORIES" && !form.legenda.trim();
+
+  // Compatibilidade Instagram → TikTok (usa a mídia já anexada na tela)
+  const compatTikTok = useMemo(
+    () => compatibilidadeTikTok(form.tipo, itens.map((i) => ({ url: i.url, isVideo: i.isVideo }))),
+    [form.tipo, itens],
+  );
+
+  /** Publicar agora no TikTok, direto da lista. */
+  const publicarTikTok = async (linha: TikTokPublicacao) => {
+    if (!linha.id || ttPublicando) return;
+    setTtPublicando(linha.id);
+    try {
+      const r = await publicarTikTokAgora(linha.id);
+      const { texto, ok } = mensagemDoResultado(r);
+      const link = urlDoPostTikTok(ttConfig?.creator_username, r.post_id);
+      if (ok) toast.success(texto, { description: link ?? undefined });
+      else toast.error(texto);
+      await carregar();
+    } catch (e: any) {
+      toast.error(e?.message ?? "Falha ao publicar no TikTok");
+    } finally {
+      setTtPublicando(null);
+    }
+  };
+
+
 
   const salvar = async (opcoes?: { publicarAgora?: boolean }) => {
     if (salvando) return;
