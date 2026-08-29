@@ -183,16 +183,8 @@ export function PostsNoAr({ filtroInicial }: { filtroInicial?: string | null }) 
       ) : (
         <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4">
           {filtrados.map((p) => (
-            <Card
-              key={p.media_id}
-              className={`overflow-hidden flex flex-col ${
-                filtro === "anuncios_pendentes"
-                  ? "cursor-pointer hover:ring-1 hover:ring-primary/40 transition-shadow"
-                  : ""
-              }`}
-              onClick={filtro === "anuncios_pendentes" ? () => configurar(p.media_id) : undefined}
-              title={filtro === "anuncios_pendentes" ? "Abrir configuração do anúncio" : undefined}
-            >
+            <Card key={p.media_id} className="overflow-hidden flex flex-col">
+
               <div className="aspect-square bg-muted relative">
                 <ImagemPainel post={p} />
                 {p.eh_anuncio && (
