@@ -747,6 +747,9 @@ export function PublicacoesTab() {
           }
         }
         if (error) throw error;
+        // A partir do primeiro insert bem-sucedido, qualquer nova tentativa
+        // vira UPDATE na mesma linha — nunca nasce um segundo agendamento.
+        if (!editando && idSalvo != null) setEditando({ id: idSalvo });
       }
 
       // ===== TikTok: só grava a linha da fila. O cron publica na hora marcada. =====
@@ -757,7 +760,21 @@ export function PublicacoesTab() {
           status: statusFila,
           produtoIds: form.produtoIds,
         });
-        await salvarTikTokPublicacao(payloadTt, ttLinha?.id ?? null);
+        try {
+          const salvoTt = await salvarTikTokPublicacao(payloadTt, ttLinha?.id ?? null);
+          if (salvoTt?.id) setTtLinha(salvoTt);
+        } catch (eTt: any) {
+          // O Instagram já gravou — dizer isso com clareza para ninguém achar
+          // que "nada foi salvo" e clicar de novo. A próxima tentativa é UPDATE.
+          await carregar();
+          toast.error(
+            soTikTok
+              ? eTt?.message ?? "Falha ao salvar no TikTok"
+              : `O agendamento do Instagram foi salvo. O do TikTok não: ${eTt?.message ?? "erro desconhecido"}. Corrija e salve de novo. Não vai duplicar o post do Instagram.`,
+            { duration: 12000 },
+          );
+          return;
+        }
       } else if (ttLinha?.id) {
         if (ttLinha.status === "publicado") {
           toast.info("Já publicado no TikTok");
