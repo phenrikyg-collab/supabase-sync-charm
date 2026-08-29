@@ -872,7 +872,9 @@ export function PublicacoesTab() {
                         >
                           {p.modo_resposta === "automatico" && <Zap className="inline h-2.5 w-2.5 mr-0.5" />}
                           {p.tipo} · {new Date(p.agendado_para!).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
+                          {p.id != null && ttPorIg.has(String(p.id)) && " · TT"}
                         </button>
+
                       ))}
                       {pubs.length > 3 && (
                         <p className="text-[10px] text-muted-foreground px-1">+{pubs.length - 3}</p>
