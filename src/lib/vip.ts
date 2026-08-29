@@ -678,6 +678,10 @@ export async function vipCriativosDoProduto(produtoId: string): Promise<VipCriat
 }
 
 export type VipRedacao = {
+  ok?: boolean;
+  erro?: string | null;
+  redacao_id?: string | null;
+  status?: "gerando" | "pronta" | "erro" | null;
   headline?: string | null;
   corpo?: string | null;
   cta?: string | null;
