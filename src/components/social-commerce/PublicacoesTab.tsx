@@ -632,6 +632,21 @@ export function PublicacoesTab() {
     }
   };
 
+  /** Post publicado não volta pra fila: duplicar cria uma linha nova como rascunho. */
+  const duplicarTikTok = async (linha: TikTokPublicacao) => {
+    const { id, publish_id, post_id, publicado_em, erro, criado_em, atualizado_em, ...resto } = linha as any;
+    try {
+      await salvarTikTokPublicacao(
+        { ...resto, publish_id: null, post_id: null, publicado_em: null, erro: null, status: "rascunho", agendado_para: null },
+        null,
+      );
+      toast.success("Cópia criada como rascunho no TikTok — escolha a nova data.");
+      await carregar();
+    } catch (e: any) {
+      toast.error(e?.message ?? "Falha ao duplicar");
+    }
+  };
+
 
 
   const salvar = async (opcoes?: { publicarAgora?: boolean }) => {
