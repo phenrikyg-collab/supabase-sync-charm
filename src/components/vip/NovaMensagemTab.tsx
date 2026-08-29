@@ -261,7 +261,12 @@ export function NovaMensagemTab() {
   const provaSemAutorizacao = abaImagem === "prova" && !!provaId && !provaAutorizada;
   const travado = travas.length > 0 || provaSemAutorizacao;
 
-  const textoFinal = [headline, corpo, cta].filter(Boolean).join("\n\n");
+  // Preview segue a aba de texto selecionada. O campo "corpo" já termina com o
+  // CTA — nunca concatenar o campo cta separado (existe só para métrica/edição).
+  const textoFinal =
+    abaTexto === "comunidade"
+      ? [varianteComunidade?.headline, varianteComunidade?.corpo].filter(Boolean).join("\n\n")
+      : [headline, corpo].filter(Boolean).join("\n\n");
 
   /* ---------------- salvar ---------------- */
 
