@@ -576,63 +576,90 @@ export function PublicacoesTab() {
         listaMidias.map((it) => (it.file ? uploadMidia(it.file) : it.url)),
       );
 
-      const variacoes = form.respostasPublicas.map((v) => v.trim()).filter(Boolean);
-      const compra = form.respostasCompra.map((v) => v.trim()).filter(Boolean);
-      const fallback = form.respostasFallback.map((v) => v.trim()).filter(Boolean);
-      const payload: Record<string, any> = {
-        tipo: form.tipo,
-        legenda: form.legenda,
-        primeiro_comentario: form.primeiroComentario || null,
-        texto_grupo_vip: form.textoGrupoVip || null,
-        agendado_para: form.agendadoPara ? new Date(form.agendadoPara).toISOString() : null,
-        status: form.agendadoPara ? "agendado" : "rascunho",
-        produto_ids: form.produtoIds,
-        midia_urls: midiaUrls,
-        capa_url: mostrarCapa ? form.capaUrl || null : null,
-        capa_offset_ms: mostrarCapa ? form.capaOffsetMs : null,
-        objetivo: form.objetivo,
-        modo_resposta: form.modoResposta,
-        gatilho_qualquer: form.modoResposta === "automatico" ? form.gatilhoQualquer : false,
-        palavras_gatilho: form.modoResposta === "automatico" ? form.gatilhos : [],
-        respostas_publicas: form.modoResposta === "automatico" ? variacoes : null,
-        respostas_publicas_compra: form.modoResposta === "automatico" ? (compra.length ? compra : null) : null,
-        respostas_publicas_fallback: form.modoResposta === "automatico" ? (fallback.length ? fallback : null) : null,
-        // Compatibilidade: a primeira variação continua no campo antigo
-        resposta_gatilho_publica: form.modoResposta === "automatico" ? variacoes[0] ?? null : null,
-        resposta_gatilho_dm: form.modoResposta === "automatico" ? form.respostaDm : null,
-        link_combo: form.modoResposta === "automatico" ? form.linkCombo.trim() || null : null,
-        cupom: form.modoResposta === "automatico" ? form.cupom.trim() || null : null,
-        cupom_beneficio: form.modoResposta === "automatico" ? form.cupomBeneficio.trim() || null : null,
-        cupom_validade: form.modoResposta === "automatico" ? form.cupomValidade.trim() || null : null,
-      };
-
-      if (opcoes?.publicarAgora) {
-        // Publicar agora = envio imediato, sem esperar o cron; o agendamento não vale mais.
-        payload.agendado_para = new Date().toISOString();
-        payload.status = "agendado";
-      }
+      const agendadoIso = form.agendadoPara ? new Date(form.agendadoPara).toISOString() : null;
+      const statusFila = form.agendadoPara ? "agendado" : "rascunho";
+      const compatSalvar = compatibilidadeTikTok(
+        form.tipo,
+        midiaUrls.map((u) => ({ url: u, isVideo: ehUrlDeVideo(u) })),
+      );
 
       let idSalvo: string | number | null = editando?.id ?? null;
-      const executar = async (p: Record<string, any>) => {
-        if (editando?.id != null) {
-          return db.from("instagram_publicacoes").update(p).eq("id", editando.id);
-        }
-        const res = await db.from("instagram_publicacoes").insert(p).select("id").maybeSingle();
-        if (!res.error) idSalvo = (res.data as any)?.id ?? null;
-        return res as any;
-      };
 
-      let { error } = await executar(payload);
-      // Colunas novas podem ainda não existir no banco — tenta de novo sem elas
-      for (const coluna of ["respostas_publicas_compra", "respostas_publicas_fallback", "objetivo", "capa_url", "capa_offset_ms", "respostas_publicas", "texto_grupo_vip", "primeiro_comentario", "gatilho_qualquer", "link_combo", "cupom_beneficio", "cupom_validade", "cupom"]) {
-        if (error && new RegExp(coluna, "i").test(error.message ?? "")) {
-          delete payload[coluna];
-          ({ error } = await executar(payload));
+      if (!soTikTok) {
+        const variacoes = form.respostasPublicas.map((v) => v.trim()).filter(Boolean);
+        const compra = form.respostasCompra.map((v) => v.trim()).filter(Boolean);
+        const fallback = form.respostasFallback.map((v) => v.trim()).filter(Boolean);
+        const payload: Record<string, any> = {
+          tipo: form.tipo,
+          legenda: form.legenda,
+          primeiro_comentario: form.primeiroComentario || null,
+          texto_grupo_vip: form.textoGrupoVip || null,
+          agendado_para: agendadoIso,
+          status: statusFila,
+          produto_ids: form.produtoIds,
+          midia_urls: midiaUrls,
+          capa_url: mostrarCapa ? form.capaUrl || null : null,
+          capa_offset_ms: mostrarCapa ? form.capaOffsetMs : null,
+          objetivo: form.objetivo,
+          modo_resposta: form.modoResposta,
+          gatilho_qualquer: form.modoResposta === "automatico" ? form.gatilhoQualquer : false,
+          palavras_gatilho: form.modoResposta === "automatico" ? form.gatilhos : [],
+          respostas_publicas: form.modoResposta === "automatico" ? variacoes : null,
+          respostas_publicas_compra: form.modoResposta === "automatico" ? (compra.length ? compra : null) : null,
+          respostas_publicas_fallback: form.modoResposta === "automatico" ? (fallback.length ? fallback : null) : null,
+          // Compatibilidade: a primeira variação continua no campo antigo
+          resposta_gatilho_publica: form.modoResposta === "automatico" ? variacoes[0] ?? null : null,
+          resposta_gatilho_dm: form.modoResposta === "automatico" ? form.respostaDm : null,
+          link_combo: form.modoResposta === "automatico" ? form.linkCombo.trim() || null : null,
+          cupom: form.modoResposta === "automatico" ? form.cupom.trim() || null : null,
+          cupom_beneficio: form.modoResposta === "automatico" ? form.cupomBeneficio.trim() || null : null,
+          cupom_validade: form.modoResposta === "automatico" ? form.cupomValidade.trim() || null : null,
+        };
+
+        if (opcoes?.publicarAgora) {
+          // Publicar agora = envio imediato, sem esperar o cron; o agendamento não vale mais.
+          payload.agendado_para = new Date().toISOString();
+          payload.status = "agendado";
+        }
+
+        const executar = async (p: Record<string, any>) => {
+          if (editando?.id != null) {
+            return db.from("instagram_publicacoes").update(p).eq("id", editando.id);
+          }
+          const res = await db.from("instagram_publicacoes").insert(p).select("id").maybeSingle();
+          if (!res.error) idSalvo = (res.data as any)?.id ?? null;
+          return res as any;
+        };
+
+        let { error } = await executar(payload);
+        // Colunas novas podem ainda não existir no banco — tenta de novo sem elas
+        for (const coluna of ["respostas_publicas_compra", "respostas_publicas_fallback", "objetivo", "capa_url", "capa_offset_ms", "respostas_publicas", "texto_grupo_vip", "primeiro_comentario", "gatilho_qualquer", "link_combo", "cupom_beneficio", "cupom_validade", "cupom"]) {
+          if (error && new RegExp(coluna, "i").test(error.message ?? "")) {
+            delete payload[coluna];
+            ({ error } = await executar(payload));
+          }
+        }
+        if (error) throw error;
+      }
+
+      // ===== TikTok: só grava a linha da fila. O cron publica na hora marcada. =====
+      if (ttForm.ativo) {
+        const payloadTt = payloadTikTok(ttForm, compatSalvar, {
+          publicacaoIgId: soTikTok ? null : idSalvo,
+          agendadoPara: agendadoIso,
+          status: statusFila,
+          produtoIds: form.produtoIds,
+        });
+        await salvarTikTokPublicacao(payloadTt, ttLinha?.id ?? null);
+      } else if (ttLinha?.id) {
+        if (ttLinha.status === "publicado") {
+          toast.info("Já publicado no TikTok");
+        } else {
+          await apagarTikTokPublicacao(ttLinha.id);
         }
       }
-      if (error) throw error;
 
-      if (opcoes?.publicarAgora) {
+      if (opcoes?.publicarAgora && !soTikTok) {
         // Autorização explícita: sem ignorar_agendamento o backend recusa publicar fora da hora marcada.
         const { data, error: erroEdge } = await supabase.functions.invoke("instagram-publicar", {
           body: { publicacao_id: idSalvo, ignorar_agendamento: true },
@@ -653,6 +680,7 @@ export function PublicacoesTab() {
         setModalAberto(false);
       }
       await carregar();
+
     } catch (e: any) {
       toast.error(e?.message ?? "Falha ao salvar");
     } finally {
