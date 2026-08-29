@@ -6,7 +6,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Tooltip as UITooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Badge } from "@/components/ui/badge";
-import { AlertTriangle, ChevronDown, TrendingUp } from "lucide-react";
+import { AlertTriangle, ChevronDown, Rocket, TrendingUp } from "lucide-react";
 import {
   Cell,
   CartesianGrid,
@@ -59,80 +59,145 @@ function irParaCampanha(id: string) {
 }
 
 // ===== 6. Resumo e Próximos Passos =====
-export function ResumoProximosPassos({ campanhas, loading }: { campanhas: CampanhaPeriodo[]; loading: boolean }) {
-  if (loading) return <Skeleton className="h-[220px]" />;
+export function ResumoProximosPassos({ dias }: { dias: number }) {
+  const [carregando, setCarregando] = useState(true);
+  const [resumo, setResumo] = useState<MetaAlertaResumo | null>(null);
+  const [alertas, setAlertas] = useState<MetaAlertaPeriodo[]>([]);
 
-  const ativas = campanhas.filter((c) => (c.status || "").toUpperCase() !== "ARCHIVED");
-  const oportunidades = ativas.filter(ehOportunidadeEscala);
+  useEffect(() => {
+    let cancelado = false;
+    setCarregando(true);
+    Promise.all([metaAlertasResumo(dias), metaAlertasPeriodo(dias)])
+      .then(([r, lista]) => {
+        if (cancelado) return;
+        setResumo(r);
+        setAlertas(lista ?? []);
+      })
+      .catch(() => {
+        if (cancelado) return;
+        setResumo(null);
+        setAlertas([]);
+      })
+      .finally(() => setCarregando(false));
+    return () => {
+      cancelado = true;
+    };
+  }, [dias]);
 
-  type Aviso = { id: string; nome: string; texto: string; nivel: "danger" | "warning" };
-  const avisos: Aviso[] = [];
-  for (const c of ativas) {
-    const nome = c.campaign_name || "—";
-    if (n(c.roas) < 2 && n(c.investimento) > 300)
-      avisos.push({ id: c.campaign_id, nome, texto: "Queimando margem — pausar até reestruturar", nivel: "danger" });
-    if (n(c.frequency) > 4)
-      avisos.push({ id: c.campaign_id, nome, texto: "Audiência saturada — pausar ou expandir público", nivel: "danger" });
-    if (n(c.cpm) > 25)
-      avisos.push({ id: c.campaign_id, nome, texto: "CPM alto — leilão caro ou criativo de baixa relevância", nivel: "warning" });
-    if (n(c.conversao_rate) < 0.5 && n(c.link_clicks) > 200 && n(c.ctr_link) >= 1 && n(c.cps) <= 1.5)
-      avisos.push({ id: c.campaign_id, nome, texto: "Sessão boa não está convertendo — auditar página/oferta, não o anúncio", nivel: "warning" });
-  }
+  if (carregando) return <Skeleton className="h-[260px]" />;
 
-  const cpsMedioOportunidade =
-    oportunidades.length > 0
-      ? oportunidades.reduce((s, c) => s + n(c.cps), 0) / oportunidades.length
-      : null;
+  const riscos = alertas
+    .filter((a) => a.dinheiro_em_risco > 0 && a.severidade >= 2)
+    .sort((a, b) => b.dinheiro_em_risco - a.dinheiro_em_risco);
+  const monitorar = alertas
+    .filter((a) => a.severidade === 1 && a.dinheiro_em_risco > 0)
+    .sort((a, b) => b.dinheiro_em_risco - a.dinheiro_em_risco);
+  const oportunidades = alertas
+    .filter((a) => a.ganho_potencial > 0)
+    .sort((a, b) => b.ganho_potencial - a.ganho_potencial);
+
+  const bm = resumo?.benchmark ?? {};
 
   return (
     <Card>
       <CardHeader>
         <CardTitle className="text-lg">Resumo e Próximos Passos</CardTitle>
-        <p className="text-sm text-muted-foreground">Gerado automaticamente a partir das campanhas do período</p>
-      </CardHeader>
-      <CardContent className="grid md:grid-cols-2 gap-4">
-        <div className="rounded-lg border border-success/20 bg-success/5 p-4 space-y-2">
-          <p className="flex items-center gap-2 text-sm font-semibold text-success">
-            <Rocket className="h-4 w-4" /> Oportunidades
-          </p>
-          {oportunidades.length === 0 ? (
-            <p className="text-sm text-muted-foreground">Nenhuma campanha de público frio atingiu todos os critérios de escala no período.</p>
-          ) : (
+        <p className="text-sm text-muted-foreground">
+          {resumo ? (
             <>
-              <p className="text-sm">
-                {oportunidades.length} campanha(s) prontas para escalar — público frio convertendo com CPS de {brl(cpsMedioOportunidade)}
-              </p>
-              <ul className="space-y-1">
-                {oportunidades.map((c) => (
-                  <li key={c.campaign_id}>
-                    <button onClick={() => irParaCampanha(c.campaign_id)} className="text-left text-sm hover:underline">
-                      ⭐ {c.campaign_name} <span className="text-muted-foreground">· CPS {brl(c.cps)} · ROAS {roasFmt(c.roas)}</span>
-                    </button>
-                  </li>
-                ))}
-              </ul>
+              <span className="text-destructive font-medium">{brl(resumo.total_em_risco)} em risco</span>
+              {" · "}
+              <span className="text-emerald-600 font-medium">{brl(resumo.ganho_potencial)} de oportunidade</span>
             </>
-          )}
-        </div>
-
-        <div className="rounded-lg border border-danger/20 bg-danger/5 p-4 space-y-2">
-          <p className="flex items-center gap-2 text-sm font-semibold text-danger">
-            <AlertTriangle className="h-4 w-4" /> Pausas / Atenção
-          </p>
-          {avisos.length === 0 ? (
-            <p className="text-sm text-muted-foreground">Nenhum alerta de pausa no período.</p>
           ) : (
-            <ul className="space-y-1">
-              {avisos.map((a, i) => (
-                <li key={`${a.id}-${i}`}>
-                  <button onClick={() => irParaCampanha(a.id)} className="text-left text-sm hover:underline">
-                    <span className={a.nivel === "danger" ? "text-danger" : "text-warning"}>●</span> {a.nome}{" "}
-                    <span className="text-muted-foreground">— {a.texto}</span>
-                  </button>
+            "Gerado automaticamente a partir das campanhas do período"
+          )}
+        </p>
+      </CardHeader>
+      <CardContent className="space-y-6">
+        {/* Risco */}
+        <section className="rounded-lg border border-destructive/20 bg-destructive/5 p-4 space-y-3">
+          <p className="flex items-center gap-2 text-sm font-semibold text-destructive">
+            <AlertTriangle className="h-4 w-4" /> Ação necessária · {brl(resumo?.total_em_risco ?? 0)} em risco
+          </p>
+          {riscos.length === 0 ? (
+            <p className="text-sm text-muted-foreground">
+              Nenhuma campanha ativa acima de R$ 100 está abaixo do alvo no período.
+            </p>
+          ) : (
+            <ul className="space-y-3">
+              {riscos.map((a) => (
+                <li key={a.campaign_id} className="rounded-md bg-background/60 p-3 space-y-2">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Badge variant="destructive">{a.acao}</Badge>
+                    <span className="text-sm font-medium">{a.campanha}</span>
+                    <span className="ml-auto text-sm font-semibold text-destructive">{brl(a.dinheiro_em_risco)} em risco</span>
+                  </div>
+                  <p className="text-xs text-muted-foreground">{a.resumo}</p>
+                  {a.motivos && a.motivos.length > 0 && (
+                    <div className="flex flex-wrap gap-1">
+                      {a.motivos.map((m, i) => (
+                        <Badge key={i} variant="outline" className="text-[10px] font-normal">
+                          {m.tag}: {m.texto}
+                        </Badge>
+                      ))}
+                    </div>
+                  )}
                 </li>
               ))}
             </ul>
           )}
+          {monitorar.length > 0 && (
+            <Collapsible defaultOpen={false}>
+              <CollapsibleTrigger className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground">
+                <ChevronDown className="h-3.5 w-3.5" /> Monitorar ({monitorar.length})
+              </CollapsibleTrigger>
+              <CollapsibleContent>
+                <ul className="mt-2 space-y-2">
+                  {monitorar.map((a) => (
+                    <li key={a.campaign_id} className="text-sm">
+                      <Badge variant="secondary" className="mr-2">{a.acao}</Badge>
+                      {a.campanha} · {a.resumo}
+                    </li>
+                  ))}
+                </ul>
+              </CollapsibleContent>
+            </Collapsible>
+          )}
+        </section>
+
+        {/* Oportunidades */}
+        <section className="rounded-lg border border-emerald-500/20 bg-emerald-500/5 p-4 space-y-3">
+          <p className="flex items-center gap-2 text-sm font-semibold text-emerald-700">
+            <TrendingUp className="h-4 w-4" /> Oportunidades · {brl(resumo?.ganho_potencial ?? 0)} de receita adicional projetada
+          </p>
+          {oportunidades.length === 0 ? (
+            <p className="text-sm text-muted-foreground">
+              Nenhuma campanha ativa acima de R$ 100 está acima do alvo com espaço para escalar.
+            </p>
+          ) : (
+            <ul className="space-y-3">
+              {oportunidades.map((a) => (
+                <li key={a.campaign_id} className="rounded-md bg-background/60 p-3 space-y-2">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Badge className="bg-emerald-600 hover:bg-emerald-700">{a.acao}</Badge>
+                    <span className="text-sm font-medium">{a.campanha}</span>
+                    <span className="ml-auto text-sm font-semibold text-emerald-700">+ {brl(a.ganho_potencial)} projetados</span>
+                  </div>
+                  <p className="text-xs text-muted-foreground">{a.resumo}</p>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+
+        {/* Benchmark */}
+        <div className="text-xs text-muted-foreground border-t pt-3">
+          Alvo da conta no período:
+          {bm.roas_alvo != null && <> ROAS {roasFmt(bm.roas_alvo)}</>}
+          {bm.cpm_conta != null && <> · CPM {brl(bm.cpm_conta)}</>}
+          {bm.cpa_conta != null && <> · CPA {brl(bm.cpa_conta)}</>}
+          {bm.ctr_conta != null && <> · CTR {pct(bm.ctr_conta)}</>}
         </div>
       </CardContent>
     </Card>
