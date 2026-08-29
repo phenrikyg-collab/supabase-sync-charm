@@ -157,12 +157,16 @@ export function PostsNoAr({ filtroInicial }: { filtroInicial?: string | null }) 
             {f.label}
           </Button>
         ))}
-        <span className="text-xs text-muted-foreground ml-auto">
-          {filtrados.length} {filtrados.length === 1 ? "mídia no ar" : "mídias no ar"}
-        </span>
+        {filtro !== "anuncios_pendentes" && (
+          <span className="text-xs text-muted-foreground ml-auto">
+            {filtrados.length} {filtrados.length === 1 ? "mídia no ar" : "mídias no ar"}
+          </span>
+        )}
       </div>
 
-      {carregando ? (
+      {filtro === "anuncios_pendentes" ? (
+        <AnunciosPendentes />
+      ) : carregando ? (
         <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4">
           {Array.from({ length: 8 }).map((_, i) => (
             <Skeleton key={i} className="h-72 w-full" />
@@ -172,11 +176,10 @@ export function PostsNoAr({ filtroInicial }: { filtroInicial?: string | null }) 
         <Card>
           <CardContent className="p-10 text-center text-sm text-muted-foreground">
             <ImageOff className="h-8 w-8 mx-auto mb-2 opacity-40" />
-            {filtro === "anuncios_pendentes" && pendentes === null
-              ? "A view vw_ig_anuncios_pendentes ainda não existe no banco — atualize o backend para usar este filtro."
-              : "Nenhuma mídia neste filtro."}
+            Nenhuma mídia neste filtro.
           </CardContent>
         </Card>
+
       ) : (
         <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4">
           {filtrados.map((p) => (
