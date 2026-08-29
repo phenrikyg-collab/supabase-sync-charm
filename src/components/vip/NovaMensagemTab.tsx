@@ -795,10 +795,27 @@ export function NovaMensagemTab() {
                 onChange={(e) => setNumeroTeste(e.target.value)}
                 placeholder="11951552693 ou jid do grupo"
               />
-              <Button variant="outline" disabled={enviandoTeste} onClick={enviarTeste}>
+              <Button
+                variant="outline"
+                disabled={enviandoTeste || !mensagemId || editadoAposSalvar}
+                onClick={enviarTeste}
+              >
                 {enviandoTeste ? <Loader2 className="h-4 w-4 animate-spin" /> : "Testar"}
               </Button>
             </div>
+            {!mensagemId && (
+              <p className="text-[11px] text-muted-foreground">Salve o rascunho antes de testar.</p>
+            )}
+            {mensagemId && editadoAposSalvar && (
+              <p className="text-[11px] text-amber-600">
+                Você editou depois de salvar — salve de novo antes de testar.
+              </p>
+            )}
+            {ultimoTeste && (
+              <p className="text-[11px] text-emerald-700">
+                Enviado: {ultimoTeste}
+              </p>
+            )}
           </CardContent>
         </Card>
       </div>
