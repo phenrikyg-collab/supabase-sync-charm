@@ -11,7 +11,7 @@ import { toast } from "sonner";
 import {
   vipClassificacaoOpcoes,
   vipCriativosDoProduto,
-  vipRedigir,
+  vipRedigirGerar,
   type VipClassificacaoOpcoes,
   type VipCriativoMatriz,
   type VipPersona,
@@ -71,7 +71,7 @@ export function ClassificacaoBloco({ camadas, setCamadas, produtoId, publico, on
   const gerar = async () => {
     setGerando(true);
     try {
-      const r = await vipRedigir({
+      const r = await vipRedigirGerar({
         persona: camadas.persona || null,
         tema: camadas.tema || null,
         tipo: camadas.tipo || null,
@@ -87,7 +87,7 @@ export function ClassificacaoBloco({ camadas, setCamadas, produtoId, publico, on
         publico,
         observacoes: observacoes || null,
       });
-      if (r?.ok === false) {
+      if (r?.ok === false || r?.status === "erro") {
         toast.error(r?.erro ?? "Falha ao gerar o texto");
         return;
       }
@@ -211,7 +211,7 @@ export function ClassificacaoBloco({ camadas, setCamadas, produtoId, publico, on
             <div className="flex flex-wrap items-center gap-2">
               <Button onClick={gerar} disabled={gerando}>
                 {gerando ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <Sparkles className="mr-1 h-4 w-4" />}
-                {gerando ? "Escrevendo... isso leva alguns segundos" : "Gerar texto com IA"}
+                {gerando ? "Escrevendo..." : "Gerar texto com IA"}
               </Button>
               <span className="text-[11px] text-muted-foreground">
                 Preenche o formulário. Nada é salvo — leia e ajuste antes de aprovar.

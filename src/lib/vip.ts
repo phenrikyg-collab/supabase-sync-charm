@@ -678,6 +678,10 @@ export async function vipCriativosDoProduto(produtoId: string): Promise<VipCriat
 }
 
 export type VipRedacao = {
+  ok?: boolean;
+  erro?: string | null;
+  redacao_id?: string | null;
+  status?: "gerando" | "pronta" | "erro" | null;
   headline?: string | null;
   corpo?: string | null;
   cta?: string | null;
@@ -696,3 +700,28 @@ export type VipRedacao = {
 
 export const vipRedigir = (payload: Record<string, any>) =>
   invokeEdgeFunction("vip-redigir", payload, { timeoutMs: 60_000 }) as Promise<VipRedacao>;
+
+/**
+ * Fluxo em duas etapas:
+ * 1) POST com a classificação -> { ok, redacao_id, status: "gerando" } (~1s)
+ * 2) Polling a cada 2s com { redacao_id } até status "pronta" ou "erro" (máx. 40s)
+ */
+export async function vipRedigirGerar(payload: Record<string, any>): Promise<VipRedacao> {
+  const inicio = await vipRedigir(payload);
+  if (inicio?.ok === false) return inicio;
+  if (inicio?.status === "pronta") return inicio;
+  const id = inicio?.redacao_id;
+  if (!id) {
+    // Resposta síncrona (modo antigo) ou formato inesperado: devolve como veio.
+    return inicio;
+  }
+
+  const limite = Date.now() + 40_000;
+  while (Date.now() < limite) {
+    await new Promise((r) => setTimeout(r, 2_000));
+    const r = await vipRedigir({ redacao_id: id });
+    if (r?.status === "pronta" || r?.status === "erro" || r?.ok === false) return r;
+    if (r?.status && r.status !== "gerando") return r;
+  }
+  return { ok: false, status: "erro", erro: "A geração demorou mais de 40 segundos. Tente de novo." };
+}
