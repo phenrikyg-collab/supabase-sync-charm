@@ -1,5 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
-import { invokeEdgeFunction } from "@/lib/edgeFunctions";
+import { invokeEdgeFunction, SUPABASE_URL } from "@/lib/edgeFunctions";
 
 /* ------------------------------------------------------------------ *
  * Tipos (defensivos: o backend pode enviar campos extras)
