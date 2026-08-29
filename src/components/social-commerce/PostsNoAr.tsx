@@ -2,6 +2,8 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { db } from "@/lib/socialCommerce";
 import { tempoRelativo } from "./comum";
+import { AnunciosPendentes } from "./AnunciosPendentes";
+
 import { formatarData } from "@/utils/formatters";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
