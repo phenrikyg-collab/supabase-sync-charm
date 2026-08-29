@@ -1394,7 +1394,6 @@ export function PublicacoesTab() {
             </Button>
           </div>
 
-          </div>
         </DialogContent>
       </Dialog>
     </div>
