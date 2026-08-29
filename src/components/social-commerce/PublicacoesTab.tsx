@@ -33,6 +33,29 @@ import { ListaProdutosOrdenada } from "./ListaProdutosOrdenada";
 import { SeletorObjetivoPost, objetivoInferido, type ObjetivoPost } from "./ObjetivoPost";
 import { BlocoRespostasCompra, BlocoRespostasFallback } from "./RespostasCompraFallback";
 import { uploadMidia, ehUrlDeVideo } from "./midiaUpload";
+import {
+  BlocoTikTok,
+  TIKTOK_FORM_VAZIO,
+  compatibilidadeTikTok,
+  payloadTikTok,
+  tiktokFormDaLinha,
+  type TikTokFormState,
+} from "./BlocoTikTok";
+import {
+  STATUS_TIKTOK_COR,
+  apagarTikTokPublicacao,
+  lerCreatorInfo,
+  lerTikTokConfig,
+  listarTikTokPublicacoes,
+  mensagemDoResultado,
+  publicarTikTokAgora,
+  salvarTikTokPublicacao,
+  urlDoPostTikTok,
+  type TikTokConfig,
+  type TikTokCreatorInfo,
+  type TikTokPublicacao,
+} from "@/lib/tiktok";
+
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
