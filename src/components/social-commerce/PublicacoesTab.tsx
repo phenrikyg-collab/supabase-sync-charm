@@ -340,6 +340,10 @@ export function PublicacoesTab() {
     setIaContexto("");
     setIaRaciocinio(null);
     setAvisoRespostas([]);
+    setTtForm(TIKTOK_FORM_VAZIO);
+    setTtLinha(null);
+    setTtErro(null);
+    setPublicarNoIg(true);
     setForm({
       ...FORM_VAZIO,
       // Padrão ao agendar: CTA de comentário ("comenta QUERO") nasce venda; os demais, conversa.
@@ -348,6 +352,7 @@ export function PublicacoesTab() {
     });
     setModalAberto(true);
   };
+
 
   // Post já publicado não pode ser reagendado — abre como nova publicação com o mesmo conteúdo.
   const duplicar = (p: Publicacao) => {
