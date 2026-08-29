@@ -43,7 +43,6 @@ import {
 } from "./BlocoTikTok";
 import {
   STATUS_TIKTOK_COR,
-  apagarTikTokPublicacao,
   lerCreatorInfo,
   lerTikTokConfig,
   listarTikTokPublicacoes,
@@ -64,6 +63,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Switch } from "@/components/ui/switch";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -1125,6 +1125,22 @@ export function PublicacoesTab() {
                     produtos={produtos}
                     onChange={(ids) => setForm({ ...form, produtoIds: ids })}
                   />
+                  <div className="flex items-start justify-between gap-3 rounded-lg border p-3">
+                    <div className="space-y-0.5">
+                      <Label htmlFor="marcar-produtos" className="text-sm cursor-pointer">
+                        Marcar produtos na publicação
+                      </Label>
+                      <p className="text-xs text-muted-foreground">
+                        As peças aparecem com etiqueta de preço no post, e a cliente compra tocando na foto.
+                        Precisa ter produto vinculado acima.
+                      </p>
+                    </div>
+                    <Switch
+                      id="marcar-produtos"
+                      checked={form.marcarProdutos}
+                      onCheckedChange={(v) => setForm({ ...form, marcarProdutos: v })}
+                    />
+                  </div>
                 </div>
 
                 {/* GERAR COM IA */}
