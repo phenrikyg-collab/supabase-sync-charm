@@ -102,8 +102,6 @@ const FILTROS_VALIDOS = new Set<string>(FILTROS.map((f) => f.key));
 export function PostsNoAr({ filtroInicial }: { filtroInicial?: string | null }) {
   const navigate = useNavigate();
   const [posts, setPosts] = useState<PostPainel[]>([]);
-  // null = view vw_ig_anuncios_pendentes indisponível no banco
-  const [pendentes, setPendentes] = useState<PostPainel[] | null>(null);
   const [carregando, setCarregando] = useState(true);
   const [filtro, setFiltro] = useState<FiltroPainel>(
     filtroInicial && FILTROS_VALIDOS.has(filtroInicial) ? (filtroInicial as FiltroPainel) : "todos",
@@ -115,19 +113,6 @@ export function PostsNoAr({ filtroInicial }: { filtroInicial?: string | null }) 
     } catch (e: any) {
       toast.error("Falha ao carregar posts", { description: e?.message });
     }
-    // Anúncios pendentes: comentário sem resposta + falta produto vinculado ou automação ativa.
-    // Mesma fonte do alerta da aba Comentários — o número do alerta bate com esta lista.
-    try {
-      const { data, error } = await db
-        .from("vw_ig_anuncios_pendentes")
-        .select("*")
-        .order("ultimo_comentario_em", { ascending: false });
-      if (!error) {
-        setPendentes(((data ?? []) as PostPainel[]).map((p) => ({ ...p, eh_anuncio: true })));
-      }
-    } catch {
-      /* view indisponível — o filtro mostra aviso */
-    }
     setCarregando(false);
   }, []);
 
@@ -136,7 +121,7 @@ export function PostsNoAr({ filtroInicial }: { filtroInicial?: string | null }) 
   }, [carregar]);
 
   const filtrados = useMemo(() => {
-    if (filtro === "anuncios_pendentes") return pendentes ?? [];
+    if (filtro === "anuncios_pendentes") return [];
     const lista = posts.filter((p) => {
       if (filtro === "organicos" && p.eh_anuncio) return false;
       if (filtro === "anuncios" && !p.eh_anuncio) return false;
@@ -152,6 +137,7 @@ export function PostsNoAr({ filtroInicial }: { filtroInicial?: string | null }) 
       return (b.data_publicacao ?? "").localeCompare(a.data_publicacao ?? "");
     });
   }, [posts, filtro]);
+
 
   const configurar = (mediaId: string) =>
     navigate(`/social-commerce?tab=produtos&media=${encodeURIComponent(mediaId)}`);
