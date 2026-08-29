@@ -71,7 +71,7 @@ export function ClassificacaoBloco({ camadas, setCamadas, produtoId, publico, on
   const gerar = async () => {
     setGerando(true);
     try {
-      const r = await vipRedigir({
+      const r = await vipRedigirGerar({
         persona: camadas.persona || null,
         tema: camadas.tema || null,
         tipo: camadas.tipo || null,
@@ -87,7 +87,7 @@ export function ClassificacaoBloco({ camadas, setCamadas, produtoId, publico, on
         publico,
         observacoes: observacoes || null,
       });
-      if (r?.ok === false) {
+      if (r?.ok === false || r?.status === "erro") {
         toast.error(r?.erro ?? "Falha ao gerar o texto");
         return;
       }
