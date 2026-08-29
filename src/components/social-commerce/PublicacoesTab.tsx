@@ -33,6 +33,29 @@ import { ListaProdutosOrdenada } from "./ListaProdutosOrdenada";
 import { SeletorObjetivoPost, objetivoInferido, type ObjetivoPost } from "./ObjetivoPost";
 import { BlocoRespostasCompra, BlocoRespostasFallback } from "./RespostasCompraFallback";
 import { uploadMidia, ehUrlDeVideo } from "./midiaUpload";
+import {
+  BlocoTikTok,
+  TIKTOK_FORM_VAZIO,
+  compatibilidadeTikTok,
+  payloadTikTok,
+  tiktokFormDaLinha,
+  type TikTokFormState,
+} from "./BlocoTikTok";
+import {
+  STATUS_TIKTOK_COR,
+  apagarTikTokPublicacao,
+  lerCreatorInfo,
+  lerTikTokConfig,
+  listarTikTokPublicacoes,
+  mensagemDoResultado,
+  publicarTikTokAgora,
+  salvarTikTokPublicacao,
+  urlDoPostTikTok,
+  type TikTokConfig,
+  type TikTokCreatorInfo,
+  type TikTokPublicacao,
+} from "@/lib/tiktok";
+
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -189,6 +212,71 @@ const CTAS = [
   { valor: "seguir", titulo: "Seguir o perfil", descricao: "Cresce a base de seguidores" },
 ];
 
+/** Linha de status do TikTok exibida dentro do card da publicação. */
+function LinhaTikTok({
+  tt,
+  username,
+  publicando,
+  onPublicar,
+  onDuplicar,
+}: {
+  tt: TikTokPublicacao;
+  username?: string | null;
+  publicando: boolean;
+  onPublicar: () => void;
+  onDuplicar: () => void;
+}) {
+  const link = urlDoPostTikTok(username, tt.post_id);
+  return (
+    <div className="flex flex-wrap items-center gap-2 border-t pt-2" onClick={(e) => e.stopPropagation()}>
+      <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">TikTok</span>
+      <span
+        className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-semibold ${
+          STATUS_TIKTOK_COR[tt.status ?? "rascunho"] ?? STATUS_TIKTOK_COR.rascunho
+        }`}
+      >
+        {tt.status ?? "rascunho"}
+      </span>
+      {tt.status === "publicando" && (
+        <span className="text-[11px] text-muted-foreground">
+          Enviado ao TikTok. Pode levar alguns minutos para processar e aparecer no perfil.
+        </span>
+      )}
+      {tt.status === "publicado" &&
+        (link ? (
+          <a href={link} target="_blank" rel="noreferrer" className="text-[11px] underline text-primary">
+            Ver no TikTok
+          </a>
+        ) : (
+          <span className="text-[11px] text-muted-foreground">Publicado (privado)</span>
+        ))}
+      {tt.erro && (
+        <span
+          className={`text-[11px] max-w-[320px] truncate ${tt.status === "falhou" ? "text-danger" : "text-amber-600"}`}
+          title={tt.erro}
+        >
+          {tt.erro}
+        </span>
+      )}
+      <div className="ml-auto flex gap-2">
+        {tt.status !== "publicado" && (
+          <Button size="sm" variant="outline" onClick={onPublicar} disabled={publicando}>
+            {publicando && <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />}
+            Publicar agora
+          </Button>
+        )}
+        {tt.status === "publicado" && (
+          <Button size="sm" variant="outline" onClick={onDuplicar}>
+            <Copy className="h-3.5 w-3.5 mr-1" /> Duplicar
+          </Button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+
+
 const ESTILOS = [
   { valor: "trend", titulo: "Trend / áudio do momento" },
   { valor: "tutorial", titulo: "Tutorial / como usar" },
@@ -229,22 +317,60 @@ export function PublicacoesTab() {
   const [copiadoVip, setCopiadoVip] = useState(false);
   const [avisoRespostas, setAvisoRespostas] = useState<string[]>([]);
 
+  // ===== TikTok =====
+  const [ttConfig, setTtConfig] = useState<TikTokConfig | null>(null);
+  const [ttCreator, setTtCreator] = useState<TikTokCreatorInfo | null>(null);
+  const [ttCarregandoCreator, setTtCarregandoCreator] = useState(false);
+  const [ttForm, setTtForm] = useState<TikTokFormState>(TIKTOK_FORM_VAZIO);
+  const [ttLinha, setTtLinha] = useState<TikTokPublicacao | null>(null);
+  const [ttErro, setTtErro] = useState<string | null>(null);
+  const [ttPorIg, setTtPorIg] = useState<Map<string, TikTokPublicacao>>(new Map());
+  const [ttSoltas, setTtSoltas] = useState<TikTokPublicacao[]>([]);
+  const [ttPublicando, setTtPublicando] = useState<string | null>(null);
+  const [publicarNoIg, setPublicarNoIg] = useState(true);
+
   const carregar = useCallback(async () => {
-    const [{ data: pubs }, prods] = await Promise.all([
+    const [{ data: pubs }, prods, tts, cfg] = await Promise.all([
       db.from("instagram_publicacoes").select("*").order("agendado_para", { ascending: true }).limit(500),
       carregarProdutosPai().catch((e) => {
         toast.error("Falha ao carregar produtos", { description: e?.message });
         return [] as ProdutoPai[];
       }),
+      listarTikTokPublicacoes().catch(() => [] as TikTokPublicacao[]),
+      lerTikTokConfig().catch(() => null),
     ]);
     setPublicacoes((pubs ?? []) as Publicacao[]);
     setProdutos(prods);
+    const mapa = new Map<string, TikTokPublicacao>();
+    const soltas: TikTokPublicacao[] = [];
+    for (const t of tts) {
+      if (t.publicacao_ig_id != null) mapa.set(String(t.publicacao_ig_id), t);
+      else soltas.push(t);
+    }
+    setTtPorIg(mapa);
+    setTtSoltas(soltas);
+    setTtConfig(cfg);
     setCarregando(false);
   }, []);
 
   useEffect(() => {
     carregar();
   }, [carregar]);
+
+  // Dados frescos do criador sempre que a tela de agendamento abre.
+  useEffect(() => {
+    if (!modalAberto || ttConfig?.conectado !== true) return;
+    let vivo = true;
+    setTtCarregandoCreator(true);
+    lerCreatorInfo()
+      .then((ci) => vivo && setTtCreator(ci))
+      .catch(() => vivo && setTtCreator(null))
+      .finally(() => vivo && setTtCarregandoCreator(false));
+    return () => {
+      vivo = false;
+    };
+  }, [modalAberto, ttConfig?.conectado]);
+
 
   const pubsPorDia = useMemo(() => {
     const m = new Map<string, Publicacao[]>();
@@ -279,6 +405,10 @@ export function PublicacoesTab() {
     setIaContexto("");
     setIaRaciocinio(null);
     setAvisoRespostas([]);
+    setTtForm(TIKTOK_FORM_VAZIO);
+    setTtLinha(null);
+    setTtErro(null);
+    setPublicarNoIg(true);
     setForm({
       ...FORM_VAZIO,
       // Padrão ao agendar: CTA de comentário ("comenta QUERO") nasce venda; os demais, conversa.
@@ -287,6 +417,7 @@ export function PublicacoesTab() {
     });
     setModalAberto(true);
   };
+
 
   // Post já publicado não pode ser reagendado — abre como nova publicação com o mesmo conteúdo.
   const duplicar = (p: Publicacao) => {
@@ -307,6 +438,12 @@ export function PublicacoesTab() {
     setIaContexto("");
     setIaRaciocinio(null);
     setAvisoRespostas([]);
+    setPublicarNoIg(true);
+    setTtErro(null);
+    const tt = p.id != null ? ttPorIg.get(String(p.id)) ?? null : null;
+    setTtLinha(tt);
+    setTtForm(tt ? tiktokFormDaLinha(tt) : TIKTOK_FORM_VAZIO);
+
     const d = p.agendado_para ? new Date(p.agendado_para) : null;
     setForm({
       tipo: p.tipo ?? "IMAGE",
@@ -468,16 +605,67 @@ export function PublicacoesTab() {
     (itens.length < MIN_CARDS_CARROSSEL || itens.length > MAX_CARDS_CARROSSEL);
 
   // legenda vazia só é aceita em STORIES — o Instagram recusa os demais formatos.
-  const legendaObrigatoriaFaltando = form.tipo !== "STORIES" && !form.legenda.trim();
+  const legendaObrigatoriaFaltando =
+    publicarNoIg && form.tipo !== "STORIES" && !form.legenda.trim();
+
+  // Compatibilidade Instagram → TikTok (usa a mídia já anexada na tela)
+  const compatTikTok = useMemo(
+    () => compatibilidadeTikTok(form.tipo, itens.map((i) => ({ url: i.url, isVideo: i.isVideo }))),
+    [form.tipo, itens],
+  );
+
+  /** Publicar agora no TikTok, direto da lista. */
+  const publicarTikTok = async (linha: TikTokPublicacao) => {
+    if (!linha.id || ttPublicando) return;
+    setTtPublicando(linha.id);
+    try {
+      const r = await publicarTikTokAgora(linha.id);
+      const { texto, ok } = mensagemDoResultado(r);
+      const link = urlDoPostTikTok(ttConfig?.creator_username, r.post_id);
+      if (ok) toast.success(texto, { description: link ?? undefined });
+      else toast.error(texto);
+      await carregar();
+    } catch (e: any) {
+      toast.error(e?.message ?? "Falha ao publicar no TikTok");
+    } finally {
+      setTtPublicando(null);
+    }
+  };
+
+  /** Post publicado não volta pra fila: duplicar cria uma linha nova como rascunho. */
+  const duplicarTikTok = async (linha: TikTokPublicacao) => {
+    const { id, publish_id, post_id, publicado_em, erro, criado_em, atualizado_em, ...resto } = linha as any;
+    try {
+      await salvarTikTokPublicacao(
+        { ...resto, publish_id: null, post_id: null, publicado_em: null, erro: null, status: "rascunho", agendado_para: null },
+        null,
+      );
+      toast.success("Cópia criada como rascunho no TikTok — escolha a nova data.");
+      await carregar();
+    } catch (e: any) {
+      toast.error(e?.message ?? "Falha ao duplicar");
+    }
+  };
+
+
 
   const salvar = async (opcoes?: { publicarAgora?: boolean }) => {
     if (salvando) return;
-    if (legendaObrigatoriaFaltando) {
+    const soTikTok = !publicarNoIg && ttForm.ativo;
+    if (ttForm.ativo && ttErro) {
+      toast.error(ttErro);
+      return;
+    }
+    if (!publicarNoIg && !ttForm.ativo) {
+      toast.error("Escolha ao menos uma plataforma: Instagram ou TikTok.");
+      return;
+    }
+    if (!soTikTok && legendaObrigatoriaFaltando) {
       toast.error("Escreva a legenda antes de agendar. Só Stories pode ir sem legenda.");
       return;
     }
     // O backend falha com mensagem clara se passar de 10 — a tela impede antes de deixar agendar.
-    if (form.tipo === "CAROUSEL") {
+    if (!soTikTok && form.tipo === "CAROUSEL") {
       if (itens.length < MIN_CARDS_CARROSSEL) {
         toast.error("Carrossel precisa de pelo menos 2 cards.");
         return;
@@ -488,69 +676,97 @@ export function PublicacoesTab() {
       }
     }
     setSalvando(true);
+
     try {
       const listaMidias = form.tipo === "CAROUSEL" ? itens : itens.slice(0, 1);
       const midiaUrls = await Promise.all(
         listaMidias.map((it) => (it.file ? uploadMidia(it.file) : it.url)),
       );
 
-      const variacoes = form.respostasPublicas.map((v) => v.trim()).filter(Boolean);
-      const compra = form.respostasCompra.map((v) => v.trim()).filter(Boolean);
-      const fallback = form.respostasFallback.map((v) => v.trim()).filter(Boolean);
-      const payload: Record<string, any> = {
-        tipo: form.tipo,
-        legenda: form.legenda,
-        primeiro_comentario: form.primeiroComentario || null,
-        texto_grupo_vip: form.textoGrupoVip || null,
-        agendado_para: form.agendadoPara ? new Date(form.agendadoPara).toISOString() : null,
-        status: form.agendadoPara ? "agendado" : "rascunho",
-        produto_ids: form.produtoIds,
-        midia_urls: midiaUrls,
-        capa_url: mostrarCapa ? form.capaUrl || null : null,
-        capa_offset_ms: mostrarCapa ? form.capaOffsetMs : null,
-        objetivo: form.objetivo,
-        modo_resposta: form.modoResposta,
-        gatilho_qualquer: form.modoResposta === "automatico" ? form.gatilhoQualquer : false,
-        palavras_gatilho: form.modoResposta === "automatico" ? form.gatilhos : [],
-        respostas_publicas: form.modoResposta === "automatico" ? variacoes : null,
-        respostas_publicas_compra: form.modoResposta === "automatico" ? (compra.length ? compra : null) : null,
-        respostas_publicas_fallback: form.modoResposta === "automatico" ? (fallback.length ? fallback : null) : null,
-        // Compatibilidade: a primeira variação continua no campo antigo
-        resposta_gatilho_publica: form.modoResposta === "automatico" ? variacoes[0] ?? null : null,
-        resposta_gatilho_dm: form.modoResposta === "automatico" ? form.respostaDm : null,
-        link_combo: form.modoResposta === "automatico" ? form.linkCombo.trim() || null : null,
-        cupom: form.modoResposta === "automatico" ? form.cupom.trim() || null : null,
-        cupom_beneficio: form.modoResposta === "automatico" ? form.cupomBeneficio.trim() || null : null,
-        cupom_validade: form.modoResposta === "automatico" ? form.cupomValidade.trim() || null : null,
-      };
-
-      if (opcoes?.publicarAgora) {
-        // Publicar agora = envio imediato, sem esperar o cron; o agendamento não vale mais.
-        payload.agendado_para = new Date().toISOString();
-        payload.status = "agendado";
-      }
+      const agendadoIso = form.agendadoPara ? new Date(form.agendadoPara).toISOString() : null;
+      const statusFila = form.agendadoPara ? "agendado" : "rascunho";
+      const compatSalvar = compatibilidadeTikTok(
+        form.tipo,
+        midiaUrls.map((u) => ({ url: u, isVideo: ehUrlDeVideo(u) })),
+      );
 
       let idSalvo: string | number | null = editando?.id ?? null;
-      const executar = async (p: Record<string, any>) => {
-        if (editando?.id != null) {
-          return db.from("instagram_publicacoes").update(p).eq("id", editando.id);
-        }
-        const res = await db.from("instagram_publicacoes").insert(p).select("id").maybeSingle();
-        if (!res.error) idSalvo = (res.data as any)?.id ?? null;
-        return res as any;
-      };
 
-      let { error } = await executar(payload);
-      // Colunas novas podem ainda não existir no banco — tenta de novo sem elas
-      for (const coluna of ["respostas_publicas_compra", "respostas_publicas_fallback", "objetivo", "capa_url", "capa_offset_ms", "respostas_publicas", "texto_grupo_vip", "primeiro_comentario", "gatilho_qualquer", "link_combo", "cupom_beneficio", "cupom_validade", "cupom"]) {
-        if (error && new RegExp(coluna, "i").test(error.message ?? "")) {
-          delete payload[coluna];
-          ({ error } = await executar(payload));
+      if (!soTikTok) {
+        const variacoes = form.respostasPublicas.map((v) => v.trim()).filter(Boolean);
+        const compra = form.respostasCompra.map((v) => v.trim()).filter(Boolean);
+        const fallback = form.respostasFallback.map((v) => v.trim()).filter(Boolean);
+        const payload: Record<string, any> = {
+          tipo: form.tipo,
+          legenda: form.legenda,
+          primeiro_comentario: form.primeiroComentario || null,
+          texto_grupo_vip: form.textoGrupoVip || null,
+          agendado_para: agendadoIso,
+          status: statusFila,
+          produto_ids: form.produtoIds,
+          midia_urls: midiaUrls,
+          capa_url: mostrarCapa ? form.capaUrl || null : null,
+          capa_offset_ms: mostrarCapa ? form.capaOffsetMs : null,
+          objetivo: form.objetivo,
+          modo_resposta: form.modoResposta,
+          gatilho_qualquer: form.modoResposta === "automatico" ? form.gatilhoQualquer : false,
+          palavras_gatilho: form.modoResposta === "automatico" ? form.gatilhos : [],
+          respostas_publicas: form.modoResposta === "automatico" ? variacoes : null,
+          respostas_publicas_compra: form.modoResposta === "automatico" ? (compra.length ? compra : null) : null,
+          respostas_publicas_fallback: form.modoResposta === "automatico" ? (fallback.length ? fallback : null) : null,
+          // Compatibilidade: a primeira variação continua no campo antigo
+          resposta_gatilho_publica: form.modoResposta === "automatico" ? variacoes[0] ?? null : null,
+          resposta_gatilho_dm: form.modoResposta === "automatico" ? form.respostaDm : null,
+          link_combo: form.modoResposta === "automatico" ? form.linkCombo.trim() || null : null,
+          cupom: form.modoResposta === "automatico" ? form.cupom.trim() || null : null,
+          cupom_beneficio: form.modoResposta === "automatico" ? form.cupomBeneficio.trim() || null : null,
+          cupom_validade: form.modoResposta === "automatico" ? form.cupomValidade.trim() || null : null,
+        };
+
+        if (opcoes?.publicarAgora) {
+          // Publicar agora = envio imediato, sem esperar o cron; o agendamento não vale mais.
+          payload.agendado_para = new Date().toISOString();
+          payload.status = "agendado";
+        }
+
+        const executar = async (p: Record<string, any>) => {
+          if (editando?.id != null) {
+            return db.from("instagram_publicacoes").update(p).eq("id", editando.id);
+          }
+          const res = await db.from("instagram_publicacoes").insert(p).select("id").maybeSingle();
+          if (!res.error) idSalvo = (res.data as any)?.id ?? null;
+          return res as any;
+        };
+
+        let { error } = await executar(payload);
+        // Colunas novas podem ainda não existir no banco — tenta de novo sem elas
+        for (const coluna of ["respostas_publicas_compra", "respostas_publicas_fallback", "objetivo", "capa_url", "capa_offset_ms", "respostas_publicas", "texto_grupo_vip", "primeiro_comentario", "gatilho_qualquer", "link_combo", "cupom_beneficio", "cupom_validade", "cupom"]) {
+          if (error && new RegExp(coluna, "i").test(error.message ?? "")) {
+            delete payload[coluna];
+            ({ error } = await executar(payload));
+          }
+        }
+        if (error) throw error;
+      }
+
+      // ===== TikTok: só grava a linha da fila. O cron publica na hora marcada. =====
+      if (ttForm.ativo) {
+        const payloadTt = payloadTikTok(ttForm, compatSalvar, {
+          publicacaoIgId: soTikTok ? null : idSalvo,
+          agendadoPara: agendadoIso,
+          status: statusFila,
+          produtoIds: form.produtoIds,
+        });
+        await salvarTikTokPublicacao(payloadTt, ttLinha?.id ?? null);
+      } else if (ttLinha?.id) {
+        if (ttLinha.status === "publicado") {
+          toast.info("Já publicado no TikTok");
+        } else {
+          await apagarTikTokPublicacao(ttLinha.id);
         }
       }
-      if (error) throw error;
 
-      if (opcoes?.publicarAgora) {
+      if (opcoes?.publicarAgora && !soTikTok) {
         // Autorização explícita: sem ignorar_agendamento o backend recusa publicar fora da hora marcada.
         const { data, error: erroEdge } = await supabase.functions.invoke("instagram-publicar", {
           body: { publicacao_id: idSalvo, ignorar_agendamento: true },
@@ -571,6 +787,7 @@ export function PublicacoesTab() {
         setModalAberto(false);
       }
       await carregar();
+
     } catch (e: any) {
       toast.error(e?.message ?? "Falha ao salvar");
     } finally {
@@ -655,7 +872,9 @@ export function PublicacoesTab() {
                         >
                           {p.modo_resposta === "automatico" && <Zap className="inline h-2.5 w-2.5 mr-0.5" />}
                           {p.tipo} · {new Date(p.agendado_para!).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
+                          {p.id != null && ttPorIg.has(String(p.id)) && " · TT"}
                         </button>
+
                       ))}
                       {pubs.length > 3 && (
                         <p className="text-[10px] text-muted-foreground px-1">+{pubs.length - 3}</p>
@@ -677,7 +896,7 @@ export function PublicacoesTab() {
         </Card>
       ) : (
         <div className="space-y-2.5">
-          {publicacoes.length === 0 ? (
+          {publicacoes.length === 0 && ttSoltas.length === 0 ? (
             <Card>
               <CardContent className="p-10 text-center text-sm text-muted-foreground">
                 <CalendarDays className="h-8 w-8 mx-auto mb-2 opacity-40" />
@@ -685,15 +904,23 @@ export function PublicacoesTab() {
               </CardContent>
             </Card>
           ) : (
-            [...publicacoes]
+            <>
+            {[...publicacoes]
               .sort((a, b) => (b.agendado_para ?? "").localeCompare(a.agendado_para ?? ""))
-              .map((p, i) => (
+              .map((p, i) => {
+                const tt = p.id != null ? ttPorIg.get(String(p.id)) ?? null : null;
+                return (
                 <Card key={p.id ?? i} className="cursor-pointer hover:bg-accent/30 transition-colors" onClick={() => (p.media_id ? duplicar(p) : abrirEdicao(p))}>
-                  <CardContent className="p-3.5 flex items-center gap-3">
+                  <CardContent className="p-3.5 space-y-2">
+                   <div className="flex items-center gap-3">
                     {p.modo_resposta === "automatico" && (
                       <Zap className="h-4 w-4 text-primary shrink-0" aria-label="Resposta automática" />
                     )}
                     <Badge variant="outline" className="shrink-0">{p.tipo}</Badge>
+                    <div className="flex gap-1 shrink-0">
+                      <Badge variant="secondary" className="text-[10px]">Instagram</Badge>
+                      {tt && <Badge variant="secondary" className="text-[10px]">TikTok</Badge>}
+                    </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm truncate">{p.legenda || <span className="text-muted-foreground">(sem legenda)</span>}</p>
                       <p className="text-[10px] text-muted-foreground mt-0.5">{dataHoraBR(p.agendado_para)}</p>
@@ -721,11 +948,50 @@ export function PublicacoesTab() {
                         <Copy className="h-3.5 w-3.5 mr-1" /> Duplicar
                       </Button>
                     )}
+                   </div>
+                   {tt && (
+                     <LinhaTikTok
+                       tt={tt}
+                       username={ttConfig?.creator_username}
+                       publicando={ttPublicando === tt.id}
+                       onPublicar={() => publicarTikTok(tt)}
+                       onDuplicar={() => duplicarTikTok(tt)}
+                     />
+                   )}
                   </CardContent>
                 </Card>
-              ))
+                );
+              })}
+
+            {ttSoltas
+              .sort((a, b) => (b.agendado_para ?? "").localeCompare(a.agendado_para ?? ""))
+              .map((tt) => (
+                <Card key={`tt_${tt.id}`}>
+                  <CardContent className="p-3.5 space-y-2">
+                    <div className="flex items-center gap-3">
+                      <Badge variant="outline" className="shrink-0">{tt.tipo}</Badge>
+                      <Badge variant="secondary" className="text-[10px] shrink-0">TikTok</Badge>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm truncate">
+                          {tt.titulo || <span className="text-muted-foreground">(sem texto)</span>}
+                        </p>
+                        <p className="text-[10px] text-muted-foreground mt-0.5">{dataHoraBR(tt.agendado_para)}</p>
+                      </div>
+                    </div>
+                    <LinhaTikTok
+                      tt={tt}
+                      username={ttConfig?.creator_username}
+                      publicando={ttPublicando === tt.id}
+                      onPublicar={() => publicarTikTok(tt)}
+                      onDuplicar={() => duplicarTikTok(tt)}
+                    />
+                  </CardContent>
+                </Card>
+              ))}
+            </>
           )}
         </div>
+
       )}
 
       {/* ============ Modal: nova/editar publicação ============ */}
@@ -740,9 +1006,23 @@ export function PublicacoesTab() {
             <div className="space-y-6 pb-4">
               {/* CONTEÚDO */}
               <section className="space-y-4">
-                <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-                  Conteúdo
-                </p>
+                <div className="flex items-center justify-between flex-wrap gap-2">
+                  <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+                    Conteúdo
+                  </p>
+                  {!editando && (
+                    <label className="flex items-center gap-2 text-xs cursor-pointer">
+                      <Checkbox
+                        checked={publicarNoIg}
+                        onCheckedChange={(v) => setPublicarNoIg(!!v)}
+                      />
+                      Publicar no Instagram
+                      <span className="text-muted-foreground">(desmarque para agendar só no TikTok)</span>
+                    </label>
+                  )}
+                </div>
+
+
 
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-1.5">
@@ -995,6 +1275,24 @@ export function PublicacoesTab() {
 
               </section>
 
+              {/* TAMBÉM NO TIKTOK — salvar só grava a linha; quem publica é o cron. */}
+              <BlocoTikTok
+                form={ttForm}
+                onChange={setTtForm}
+                config={ttConfig}
+                creatorInfo={ttCreator}
+                carregandoCreator={ttCarregandoCreator}
+                compat={compatTikTok}
+                legendaIg={form.legenda}
+                onErroValidacao={setTtErro}
+              />
+
+              {ttLinha?.status === "publicado" && !ttForm.ativo && (
+                <p className="text-xs text-muted-foreground">Já publicado no TikTok</p>
+              )}
+
+
+
               {/* AUTOMAÇÃO DE RESPOSTA */}
               <section className="space-y-4 rounded-lg border-2 border-primary/20 bg-primary/[0.03] p-4">
                 <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
@@ -1190,8 +1488,11 @@ export function PublicacoesTab() {
           </div>
 
           <div className="flex justify-end items-center gap-2 pt-3 border-t shrink-0">
-            {carrosselInvalido && (
+            {carrosselInvalido && publicarNoIg && (
               <p className="text-xs text-danger mr-auto">Carrossel precisa de pelo menos 2 cards.</p>
+            )}
+            {ttForm.ativo && ttErro && (
+              <p className="text-xs text-danger mr-auto">{ttErro}</p>
             )}
             <Button variant="outline" onClick={() => setModalAberto(false)} disabled={salvando}>
               Cancelar
@@ -1199,19 +1500,29 @@ export function PublicacoesTab() {
             {legendaObrigatoriaFaltando && (
               <p className="text-xs text-danger mr-auto">Escreva a legenda — só Stories publica sem texto.</p>
             )}
+            {publicarNoIg && (
+              <Button
+                variant="secondary"
+                onClick={() => salvar({ publicarAgora: true })}
+                disabled={salvando || carrosselInvalido || legendaObrigatoriaFaltando || !!(ttForm.ativo && ttErro)}
+              >
+                {salvando && <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />}
+                Publicar agora
+              </Button>
+            )}
             <Button
-              variant="secondary"
-              onClick={() => salvar({ publicarAgora: true })}
-              disabled={salvando || carrosselInvalido || legendaObrigatoriaFaltando}
+              onClick={() => salvar()}
+              disabled={
+                salvando ||
+                (publicarNoIg && (carrosselInvalido || legendaObrigatoriaFaltando)) ||
+                !!(ttForm.ativo && ttErro)
+              }
             >
-              {salvando && <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />}
-              Publicar agora
-            </Button>
-            <Button onClick={() => salvar()} disabled={salvando || carrosselInvalido || legendaObrigatoriaFaltando}>
               {salvando && <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />}
               {editando ? "Salvar alterações" : form.agendadoPara ? "Agendar" : "Salvar rascunho"}
             </Button>
           </div>
+
         </DialogContent>
       </Dialog>
     </div>

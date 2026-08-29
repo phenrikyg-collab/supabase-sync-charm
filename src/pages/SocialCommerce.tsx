@@ -7,6 +7,8 @@ import { ProdutosPostTab } from "@/components/social-commerce/ProdutosPostTab";
 import { FunilLeadsTab } from "@/components/social-commerce/FunilLeadsTab";
 import { KitsTab } from "@/components/social-commerce/KitsTab";
 import { LiveTab } from "@/components/social-commerce/LiveTab";
+import { TikTokConexaoCard } from "@/components/social-commerce/TikTokConexaoCard";
+
 import { MessageCircle, MessagesSquare, CalendarDays, ShoppingBag, Filter, Package, Radio } from "lucide-react";
 
 const ABAS = [
@@ -59,9 +61,11 @@ export default function SocialCommerce() {
           <LiveTab />
         </TabsContent>
 
-        <TabsContent value="publicacoes" className="mt-4">
+        <TabsContent value="publicacoes" className="mt-4 space-y-4">
+          <TikTokConexaoCard />
           <PublicacoesTab />
         </TabsContent>
+
         <TabsContent value="produtos" className="mt-4">
           <ProdutosPostTab />
         </TabsContent>
