@@ -541,7 +541,7 @@ export const vipDispararMensagem = (mensagemId: string) =>
 
 
 
-export const VIP_BASE_URL = (import.meta.env.VITE_SUPABASE_URL as string) ?? "";
+export const VIP_BASE_URL = SUPABASE_URL;
 
 export const linkEntrada = (origem: string, utms?: Record<string, string>) => {
   const params = new URLSearchParams({ origem });
