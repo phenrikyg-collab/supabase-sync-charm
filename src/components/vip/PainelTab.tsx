@@ -10,7 +10,6 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   Bar,
-  BarChart,
   CartesianGrid,
   Cell,
   ComposedChart,
