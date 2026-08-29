@@ -544,12 +544,21 @@ export function PublicacoesTab() {
 
   const salvar = async (opcoes?: { publicarAgora?: boolean }) => {
     if (salvando) return;
-    if (legendaObrigatoriaFaltando) {
+    const soTikTok = !publicarNoIg && ttForm.ativo;
+    if (ttForm.ativo && ttErro) {
+      toast.error(ttErro);
+      return;
+    }
+    if (!publicarNoIg && !ttForm.ativo) {
+      toast.error("Escolha ao menos uma plataforma: Instagram ou TikTok.");
+      return;
+    }
+    if (!soTikTok && legendaObrigatoriaFaltando) {
       toast.error("Escreva a legenda antes de agendar. Só Stories pode ir sem legenda.");
       return;
     }
     // O backend falha com mensagem clara se passar de 10 — a tela impede antes de deixar agendar.
-    if (form.tipo === "CAROUSEL") {
+    if (!soTikTok && form.tipo === "CAROUSEL") {
       if (itens.length < MIN_CARDS_CARROSSEL) {
         toast.error("Carrossel precisa de pelo menos 2 cards.");
         return;
@@ -560,6 +569,7 @@ export function PublicacoesTab() {
       }
     }
     setSalvando(true);
+
     try {
       const listaMidias = form.tipo === "CAROUSEL" ? itens : itens.slice(0, 1);
       const midiaUrls = await Promise.all(
