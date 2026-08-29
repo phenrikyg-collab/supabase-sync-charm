@@ -93,12 +93,16 @@ export function NovaMensagemTab() {
   const [abaTexto, setAbaTexto] = useState("listas");
 
   const [mensagemId, setMensagemId] = useState<string | null>(null);
+  /** Snapshot do payload na última gravação — garante que o teste usa o id do texto atual. */
+  const [snapshotSalvo, setSnapshotSalvo] = useState<string | null>(null);
   const [alertas, setAlertas] = useState<VipAlerta[]>([]);
   const [validando, setValidando] = useState(false);
   const [salvando, setSalvando] = useState(false);
   const [resumoAberto, setResumoAberto] = useState(false);
   const [numeroTeste, setNumeroTeste] = useState("");
   const [enviandoTeste, setEnviandoTeste] = useState(false);
+  /** Confirmação do que saiu no último teste ("Enviado: <headline>"). */
+  const [ultimoTeste, setUltimoTeste] = useState<string | null>(null);
 
   /* ---------------- grupos ---------------- */
 
