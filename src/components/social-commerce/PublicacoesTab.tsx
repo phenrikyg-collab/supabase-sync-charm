@@ -373,6 +373,12 @@ export function PublicacoesTab() {
     setIaContexto("");
     setIaRaciocinio(null);
     setAvisoRespostas([]);
+    setPublicarNoIg(true);
+    setTtErro(null);
+    const tt = p.id != null ? ttPorIg.get(String(p.id)) ?? null : null;
+    setTtLinha(tt);
+    setTtForm(tt ? tiktokFormDaLinha(tt) : TIKTOK_FORM_VAZIO);
+
     const d = p.agendado_para ? new Date(p.agendado_para) : null;
     setForm({
       tipo: p.tipo ?? "IMAGE",
