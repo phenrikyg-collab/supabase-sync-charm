@@ -998,7 +998,7 @@ export default function Marketing() {
             {renderPeriodo(periodoMeta, setPeriodoMeta, PERIODOS_EXT)}
           </div>
 
-          <ResumoProximosPassos campanhas={campanhasRpc} loading={loadingCampanhas} />
+          <ResumoProximosPassos dias={diasCriativo} />
           <MetricasComplementares campanhas={campanhasRpc} loading={loadingCampanhas} />
           <FunilLeitura dias={diasCriativo} />
           <RedFlags dias={diasCriativo} criativos={criativosRpc} loading={loadingCriativos} />

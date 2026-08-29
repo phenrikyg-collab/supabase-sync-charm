@@ -454,7 +454,7 @@ export function NovaMensagemTab() {
                     ))}
                     {grade.length === 0 && <div className="text-xs text-muted-foreground">Sem grade por tamanho.</div>}
                   </div>
-                  <Button variant="ghost" size="sm" className="h-7 px-0 text-xs" onClick={() => { setProduto(null); setGrade([]); setBusca(""); }}>
+                  <Button variant="ghost" size="sm" className="h-7 px-0 text-xs" onClick={() => { setProduto(null); setGrade([]); setBusca(""); setLinkDestino(null); setVarianteComunidade(null); }}>
                     Remover peça
                   </Button>
                 </div>
@@ -469,35 +469,64 @@ export function NovaMensagemTab() {
             <CardTitle className="text-sm">Texto</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
-            <div>
-              <div className="flex items-center justify-between">
-                <Label>Headline</Label>
-                <span className="text-[11px] text-muted-foreground">{headline.length} caracteres</span>
-              </div>
-              <Input value={headline} onChange={(e) => setHeadline(e.target.value)} />
-              <p className="mt-1 text-[11px] text-muted-foreground">
-                É o que aparece na notificação. Não comece com saudação.
-              </p>
-            </div>
-            <div>
-              <div className="mb-1 flex items-center gap-1">
-                <Label className="flex-1">Corpo</Label>
-                <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => envolver("*")}>
-                  <Bold className="h-3.5 w-3.5" />
-                </Button>
-                <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => envolver("_")}>
-                  <Italic className="h-3.5 w-3.5" />
-                </Button>
-                <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => envolver("~")}>
-                  <Strikethrough className="h-3.5 w-3.5" />
-                </Button>
-              </div>
-              <Textarea ref={corpoRef} rows={7} value={corpo} onChange={(e) => setCorpo(e.target.value)} />
-            </div>
-            <div>
-              <Label>CTA</Label>
-              <Input value={cta} onChange={(e) => setCta(e.target.value)} />
-            </div>
+            <Tabs value={abaTexto} onValueChange={setAbaTexto}>
+              <TabsList>
+                <TabsTrigger value="listas">Listas VIP</TabsTrigger>
+                <TabsTrigger value="comunidade">Cria Comigo</TabsTrigger>
+              </TabsList>
+              <TabsContent value="listas" className="space-y-3 pt-2">
+                <div>
+                  <div className="flex items-center justify-between">
+                    <Label>Headline</Label>
+                    <span className="text-[11px] text-muted-foreground">{headline.length} caracteres</span>
+                  </div>
+                  <Input value={headline} onChange={(e) => setHeadline(e.target.value)} />
+                  <p className="mt-1 text-[11px] text-muted-foreground">
+                    É o que aparece na notificação. Não comece com saudação.
+                  </p>
+                </div>
+                <div>
+                  <div className="mb-1 flex items-center gap-1">
+                    <Label className="flex-1">Corpo</Label>
+                    <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => envolver("*")}>
+                      <Bold className="h-3.5 w-3.5" />
+                    </Button>
+                    <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => envolver("_")}>
+                      <Italic className="h-3.5 w-3.5" />
+                    </Button>
+                    <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => envolver("~")}>
+                      <Strikethrough className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
+                  <Textarea ref={corpoRef} rows={7} value={corpo} onChange={(e) => setCorpo(e.target.value)} />
+                </div>
+                <div>
+                  <Label>CTA</Label>
+                  <Input value={cta} onChange={(e) => setCta(e.target.value)} />
+                </div>
+              </TabsContent>
+              <TabsContent value="comunidade" className="space-y-3 pt-2">
+                <div>
+                  <div className="flex items-center justify-between">
+                    <Label>Headline (comunidade)</Label>
+                    <span className="text-[11px] text-muted-foreground">{(varianteComunidade?.headline ?? "").length} caracteres</span>
+                  </div>
+                  <Input value={varianteComunidade?.headline ?? ""} onChange={(e) => setVarianteComunidade((v) => ({ ...(v ?? {}), headline: e.target.value }))} />
+                </div>
+                <div>
+                  <Label>Corpo (comunidade)</Label>
+                  <Textarea rows={5} value={varianteComunidade?.corpo ?? ""} onChange={(e) => setVarianteComunidade((v) => ({ ...(v ?? {}), corpo: e.target.value }))} />
+                </div>
+                <div>
+                  <Label>CTA (comunidade)</Label>
+                  <Input value={varianteComunidade?.cta ?? ""} onChange={(e) => setVarianteComunidade((v) => ({ ...(v ?? {}), cta: e.target.value }))} />
+                </div>
+                <div>
+                  <Label>Link de destino</Label>
+                  <Input value={linkDestino ?? ""} onChange={(e) => setLinkDestino(e.target.value || null)} placeholder={produto?.link ?? "https://..."} />
+                </div>
+              </TabsContent>
+            </Tabs>
           </CardContent>
         </Card>
 
@@ -635,6 +664,11 @@ export function NovaMensagemTab() {
             if (r.midia_url) {
               setMidiaUrl(r.midia_url);
               setAbaImagem("produto");
+            }
+            if (r.link_destino) setLinkDestino(r.link_destino);
+            if (r.variante_comunidade) {
+              setVarianteComunidade(r.variante_comunidade);
+              setAbaTexto("comunidade");
             }
             if (r.raciocinio) setRaciocinio(r.raciocinio);
           }}

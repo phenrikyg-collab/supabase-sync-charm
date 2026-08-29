@@ -10,7 +10,6 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   Bar,
-  BarChart,
   CartesianGrid,
   Cell,
   ComposedChart,
@@ -179,7 +178,7 @@ export function PainelTab() {
   const reguaMembro =
     receitaMembro < 5 ? "desengajado" : receitaMembro <= 40 ? "saudável" : receitaMembro <= 100 ? "avançado" : "excepcional";
   const distribuicao = dados?.distribuicao ?? {};
-  const pctOferta = Number((distribuicao as any)?.oferta ?? (distribuicao as any)?.oportunidade ?? 0);
+  const pctOferta = Number((distribuicao as any)?.pct_oferta ?? 0);
 
   const irParaWebhook = () => setParams({ tab: "grupos" }, { replace: true });
 
@@ -449,18 +448,16 @@ export function PainelTab() {
                 </span>
                 <span className="text-xs text-muted-foreground">de oferta · limite saudável 25%</span>
               </div>
-              <ResponsiveContainer width="100%" height={140}>
-                <BarChart
-                  data={Object.entries(distribuicao ?? {}).map(([k, v]) => ({ nome: k, pct: Number(v) }))}
-                  layout="vertical"
-                  margin={{ left: 30 }}
-                >
-                  <XAxis type="number" fontSize={11} />
-                  <YAxis type="category" dataKey="nome" fontSize={11} width={90} />
-                  <RTooltip />
-                  <Bar dataKey="pct" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
+              <div className="space-y-2">
+                {Object.entries(distribuicao ?? {})
+                  .filter(([k]) => k !== "pct_oferta")
+                  .map(([k, v]) => (
+                    <div key={k} className="flex items-center justify-between text-xs">
+                      <span className="capitalize text-muted-foreground">{k}</span>
+                      <span className="font-medium">{pctBr(Number(v), 1)}</span>
+                    </div>
+                  ))}
+              </div>
             </CardContent>
           </Card>
         </section>

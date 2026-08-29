@@ -102,6 +102,71 @@ export interface CampanhaPeriodo {
   prev_roas: number | null;
 }
 
+export interface MetaAlertaMotivo {
+  tag: string;
+  texto: string;
+}
+
+export interface MetaAlertaBenchmark {
+  roas_alvo?: number | null;
+  cpm_conta?: number | null;
+  cpa_conta?: number | null;
+  ctr_conta?: number | null;
+  conversao_conta?: number | null;
+}
+
+export interface MetaAlertaPeriodo {
+  campaign_id: string;
+  campanha: string;
+  campanha_completa: string;
+  objetivo_grupo: string;
+  publico: string;
+  tipo: string;
+  acao: string;
+  severidade: number;
+  dinheiro_em_risco: number;
+  ganho_potencial: number;
+  investimento: number;
+  receita: number;
+  roas: number;
+  cpa: number;
+  cpm: number;
+  ctr_link: number;
+  conversao_rate: number;
+  frequency: number;
+  purchases: number;
+  resumo: string;
+  motivos: MetaAlertaMotivo[];
+  benchmark: MetaAlertaBenchmark;
+}
+
+export interface MetaAlertaResumo {
+  criticos: number;
+  riscos: number;
+  oportunidades: number;
+  total_em_risco: number;
+  ganho_potencial: number;
+  campanhas_ativas: number;
+  campanhas_sem_alerta: number;
+  benchmark: MetaAlertaBenchmark;
+}
+
+export async function metaAlertasPeriodo(dias: number, minGasto?: number | null, roasAlvo?: number | null) {
+  const { data, error } = await (supabase.rpc as any)("meta_alertas_periodo", {
+    p_dias: dias,
+    p_min_gasto: minGasto ?? null,
+    p_roas_alvo: roasAlvo ?? null,
+  });
+  if (error) throw error;
+  return (data ?? []) as MetaAlertaPeriodo[];
+}
+
+export async function metaAlertasResumo(dias: number) {
+  const { data, error } = await (supabase.rpc as any)("meta_alertas_resumo", { p_dias: dias });
+  if (error) throw error;
+  return (data?.[0] ?? null) as MetaAlertaResumo | null;
+}
+
 /** Rótulos e cores da classificação de público. */
 export const PUBLICO_BADGE: Record<string, string> = {
   "Novo (frio)": "bg-blue-500/10 text-blue-600 border-blue-500/20",
