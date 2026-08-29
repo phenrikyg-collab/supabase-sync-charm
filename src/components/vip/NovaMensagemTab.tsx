@@ -24,8 +24,10 @@ import {
   vipEstoqueTamanho,
   vipGruposListar,
   vipMensagemAvulsa,
+  vipMensagemSalvar,
   vipMensagemValidar,
   vipMensagensStatus,
+  vipVarianteSalvar,
   vipProdutosBuscar,
   whatsappParaHtml,
   type VipAlerta,
@@ -213,7 +215,15 @@ export function NovaMensagemTab() {
       tipo_envio: enqueteAtiva ? "enquete" : midiaUrl ? "imagem" : "texto",
       enquete_pergunta: enqueteAtiva ? pergunta : null,
       enquete_opcoes: enqueteAtiva ? opcoes.filter((o) => o.trim()) : null,
-      variantes: varianteComunidade ? { comunidade: varianteComunidade } : null,
+      variante_comunidade:
+        varianteComunidade &&
+        (varianteComunidade.headline || varianteComunidade.corpo || varianteComunidade.cta)
+          ? {
+              headline: varianteComunidade.headline ?? null,
+              corpo: varianteComunidade.corpo ?? null,
+              cta: varianteComunidade.cta ?? null,
+            }
+          : null,
       ...camadas,
     }),
     [headline, corpo, cta, produto, publico, gruposAlvo, quando, dataEnvio, horario, hoje, midiaUrl, provaId, linkDestino, enqueteAtiva, pergunta, opcoes, camadas, varianteComunidade],
