@@ -265,6 +265,7 @@ export function NovaMensagemTab() {
       const id = r?.id ?? r?.mensagem_id;
       if (!id) throw new Error("O backend não devolveu o id da mensagem.");
       setMensagemId(id);
+      setSnapshotSalvo(JSON.stringify(payload));
       setAlertas(normalizarAlertas(r?.alertas ?? []));
       if (aprovar) {
         await vipMensagensStatus([id], "aprovada");
