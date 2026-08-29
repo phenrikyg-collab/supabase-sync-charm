@@ -636,6 +636,11 @@ export function NovaMensagemTab() {
               setMidiaUrl(r.midia_url);
               setAbaImagem("produto");
             }
+            if (r.link_destino) setLinkDestino(r.link_destino);
+            if (r.variante_comunidade) {
+              setVarianteComunidade(r.variante_comunidade);
+              setAbaTexto("comunidade");
+            }
             if (r.raciocinio) setRaciocinio(r.raciocinio);
           }}
         />
