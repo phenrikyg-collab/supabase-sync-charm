@@ -877,9 +877,23 @@ export function PublicacoesTab() {
             <div className="space-y-6 pb-4">
               {/* CONTEÚDO */}
               <section className="space-y-4">
-                <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-                  Conteúdo
-                </p>
+                <div className="flex items-center justify-between flex-wrap gap-2">
+                  <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+                    Conteúdo
+                  </p>
+                  {!editando && (
+                    <label className="flex items-center gap-2 text-xs cursor-pointer">
+                      <Checkbox
+                        checked={publicarNoIg}
+                        onCheckedChange={(v) => setPublicarNoIg(!!v)}
+                      />
+                      Publicar no Instagram
+                      <span className="text-muted-foreground">(desmarque para agendar só no TikTok)</span>
+                    </label>
+                  )}
+                </div>
+
+
 
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-1.5">
