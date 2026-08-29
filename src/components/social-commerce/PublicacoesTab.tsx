@@ -404,6 +404,7 @@ export function PublicacoesTab() {
 
   const abrirNovo = (dia?: Date) => {
     setEditando(null);
+    setChaveSalvamento(crypto.randomUUID()); // nova composição = chave nova
     setItens((prev) => {
       prev.forEach((i) => i.file && URL.revokeObjectURL(i.url));
       return [];
@@ -433,6 +434,8 @@ export function PublicacoesTab() {
 
   const abrirEdicao = (p: Publicacao) => {
     setEditando(p.id != null ? p : null);
+    // "Duplicar" abre sem id: é outro post, precisa de chave nova.
+    if (p.id == null) setChaveSalvamento(crypto.randomUUID());
     setItens((prev) => {
       prev.forEach((i) => i.file && URL.revokeObjectURL(i.url));
       return (p.midia_urls ?? []).map((url) => ({
@@ -481,6 +484,7 @@ export function PublicacoesTab() {
       cupomValidade: p.cupom_validade ?? "",
       capaUrl: p.capa_url ?? "",
       capaOffsetMs: p.capa_offset_ms ?? null,
+      marcarProdutos: p.marcar_produtos ?? true,
     });
     setModalAberto(true);
   };
