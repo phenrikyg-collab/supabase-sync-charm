@@ -1359,8 +1359,11 @@ export function PublicacoesTab() {
           </div>
 
           <div className="flex justify-end items-center gap-2 pt-3 border-t shrink-0">
-            {carrosselInvalido && (
+            {carrosselInvalido && publicarNoIg && (
               <p className="text-xs text-danger mr-auto">Carrossel precisa de pelo menos 2 cards.</p>
+            )}
+            {ttForm.ativo && ttErro && (
+              <p className="text-xs text-danger mr-auto">{ttErro}</p>
             )}
             <Button variant="outline" onClick={() => setModalAberto(false)} disabled={salvando}>
               Cancelar
@@ -1368,18 +1371,29 @@ export function PublicacoesTab() {
             {legendaObrigatoriaFaltando && (
               <p className="text-xs text-danger mr-auto">Escreva a legenda — só Stories publica sem texto.</p>
             )}
+            {publicarNoIg && (
+              <Button
+                variant="secondary"
+                onClick={() => salvar({ publicarAgora: true })}
+                disabled={salvando || carrosselInvalido || legendaObrigatoriaFaltando || !!(ttForm.ativo && ttErro)}
+              >
+                {salvando && <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />}
+                Publicar agora
+              </Button>
+            )}
             <Button
-              variant="secondary"
-              onClick={() => salvar({ publicarAgora: true })}
-              disabled={salvando || carrosselInvalido || legendaObrigatoriaFaltando}
+              onClick={() => salvar()}
+              disabled={
+                salvando ||
+                (publicarNoIg && (carrosselInvalido || legendaObrigatoriaFaltando)) ||
+                !!(ttForm.ativo && ttErro)
+              }
             >
-              {salvando && <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />}
-              Publicar agora
-            </Button>
-            <Button onClick={() => salvar()} disabled={salvando || carrosselInvalido || legendaObrigatoriaFaltando}>
               {salvando && <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />}
               {editando ? "Salvar alterações" : form.agendadoPara ? "Agendar" : "Salvar rascunho"}
             </Button>
+          </div>
+
           </div>
         </DialogContent>
       </Dialog>
