@@ -1,4 +1,23 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { Component, useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+
+/** Evita que um bloco com erro derrube a aba Publicações inteira. */
+class BlocoSeguro extends Component<{ children: ReactNode }, { erro: boolean }> {
+  state = { erro: false };
+  static getDerivedStateFromError() {
+    return { erro: true };
+  }
+  render() {
+    if (this.state.erro) {
+      return (
+        <div className="rounded border p-8 text-center text-sm text-muted-foreground">
+          Não foi possível exibir este conteúdo. Tente outro filtro ou recarregue a página.
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 import { useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { db } from "@/lib/socialCommerce";
