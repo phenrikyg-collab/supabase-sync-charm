@@ -1,10 +1,12 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tooltip as UITooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { AlertTriangle, Rocket, TrendingUp } from "lucide-react";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Badge } from "@/components/ui/badge";
+import { AlertTriangle, ChevronDown, TrendingUp } from "lucide-react";
 import {
   Cell,
   CartesianGrid,
@@ -20,11 +22,15 @@ import {
 import { cn } from "@/lib/utils";
 import {
   CampanhaPeriodo,
+  MetaAlertaPeriodo,
+  MetaAlertaResumo,
   PUBLICO_BADGE,
   brl,
   ehOportunidadeEscala,
   freqFmt,
   int,
+  metaAlertasPeriodo,
+  metaAlertasResumo,
   n,
   pct,
   roasFmt,
