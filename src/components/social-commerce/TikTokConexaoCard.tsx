@@ -175,7 +175,7 @@ export function TikTokConexaoCard() {
           </p>
         )}
 
-        {!carregando && cfg?.ultimo_erro && (
+        {!carregando && conectado && cfg?.ultimo_erro && (
           <p className="text-xs text-danger">{cfg.ultimo_erro}</p>
         )}
       </CardContent>
