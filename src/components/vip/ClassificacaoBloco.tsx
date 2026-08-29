@@ -11,7 +11,7 @@ import { toast } from "sonner";
 import {
   vipClassificacaoOpcoes,
   vipCriativosDoProduto,
-  vipRedigir,
+  vipRedigirGerar,
   type VipClassificacaoOpcoes,
   type VipCriativoMatriz,
   type VipPersona,
