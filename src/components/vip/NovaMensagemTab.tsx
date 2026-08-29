@@ -93,12 +93,16 @@ export function NovaMensagemTab() {
   const [abaTexto, setAbaTexto] = useState("listas");
 
   const [mensagemId, setMensagemId] = useState<string | null>(null);
+  /** Snapshot do payload na última gravação — garante que o teste usa o id do texto atual. */
+  const [snapshotSalvo, setSnapshotSalvo] = useState<string | null>(null);
   const [alertas, setAlertas] = useState<VipAlerta[]>([]);
   const [validando, setValidando] = useState(false);
   const [salvando, setSalvando] = useState(false);
   const [resumoAberto, setResumoAberto] = useState(false);
   const [numeroTeste, setNumeroTeste] = useState("");
   const [enviandoTeste, setEnviandoTeste] = useState(false);
+  /** Confirmação do que saiu no último teste ("Enviado: <headline>"). */
+  const [ultimoTeste, setUltimoTeste] = useState<string | null>(null);
 
   /* ---------------- grupos ---------------- */
 
@@ -215,6 +219,9 @@ export function NovaMensagemTab() {
     [headline, corpo, cta, produto, publico, gruposAlvo, quando, dataEnvio, horario, hoje, midiaUrl, provaId, linkDestino, enqueteAtiva, pergunta, opcoes, camadas, varianteComunidade],
   );
 
+  /** Formulário editado depois da última gravação — precisa salvar de novo antes de testar. */
+  const editadoAposSalvar = mensagemId != null && snapshotSalvo !== JSON.stringify(payload);
+
   /* ---------------- validação (debounce 800ms) ---------------- */
 
   const validar = useCallback(async (id: string) => {
@@ -233,6 +240,11 @@ export function NovaMensagemTab() {
     const t = setTimeout(() => validar(mensagemId), 800);
     return () => clearTimeout(t);
   }, [mensagemId, headline, corpo, cta, midiaUrl, provaId, gruposAlvo, validar]);
+
+  // Qualquer edição invalida a confirmação do teste anterior
+  useEffect(() => {
+    setUltimoTeste(null);
+  }, [payload]);
 
   const travas = alertas.filter(alertaBloqueante);
   const avisos = alertas.filter((a) => !alertaBloqueante(a));
@@ -258,6 +270,7 @@ export function NovaMensagemTab() {
       const id = r?.id ?? r?.mensagem_id;
       if (!id) throw new Error("O backend não devolveu o id da mensagem.");
       setMensagemId(id);
+      setSnapshotSalvo(JSON.stringify(payload));
       setAlertas(normalizarAlertas(r?.alertas ?? []));
       if (aprovar) {
         await vipMensagensStatus([id], "aprovada");
@@ -286,18 +299,34 @@ export function NovaMensagemTab() {
   };
 
   const enviarTeste = async () => {
-    let id = mensagemId;
-    if (!id) id = await salvar(false);
-    if (!id) return;
+    // Só testa o id devolvido pela ÚLTIMA gravação deste formulário —
+    // nunca um id antigo nem o de outra mensagem do calendário.
+    const id = mensagemId;
+    if (!id) {
+      toast.error("Salve o rascunho antes de testar.");
+      return;
+    }
+    if (editadoAposSalvar) {
+      toast.error("Você editou depois de salvar — salve de novo antes de testar.");
+      return;
+    }
     if (!numeroTeste.trim()) {
       toast.error("Informe o número ou o jid do grupo de teste.");
       return;
     }
     setEnviandoTeste(true);
+    setUltimoTeste(null);
     try {
       const r: any = await vipEnviarTeste(id, numeroTeste.trim());
-      if (r?.ok === false) toast.error(r?.erro ?? "O backend recusou o teste.", { duration: 10000 });
-      else toast.success("Teste enviado.");
+      if (r?.ok === false) {
+        toast.error(r?.erro ?? "O backend recusou o teste.", { duration: 10000 });
+      } else {
+        const headlineEnviada = r?.enviei?.headline;
+        setUltimoTeste(headlineEnviada ?? null);
+        toast.success(
+          headlineEnviada ? `Enviado: ${headlineEnviada}` : "Teste enviado.",
+        );
+      }
     } catch (e: any) {
       toast.error(e.message ?? "Falha ao enviar o teste");
     } finally {
@@ -771,10 +800,27 @@ export function NovaMensagemTab() {
                 onChange={(e) => setNumeroTeste(e.target.value)}
                 placeholder="11951552693 ou jid do grupo"
               />
-              <Button variant="outline" disabled={enviandoTeste} onClick={enviarTeste}>
+              <Button
+                variant="outline"
+                disabled={enviandoTeste || !mensagemId || editadoAposSalvar}
+                onClick={enviarTeste}
+              >
                 {enviandoTeste ? <Loader2 className="h-4 w-4 animate-spin" /> : "Testar"}
               </Button>
             </div>
+            {!mensagemId && (
+              <p className="text-[11px] text-muted-foreground">Salve o rascunho antes de testar.</p>
+            )}
+            {mensagemId && editadoAposSalvar && (
+              <p className="text-[11px] text-amber-600">
+                Você editou depois de salvar — salve de novo antes de testar.
+              </p>
+            )}
+            {ultimoTeste && (
+              <p className="text-[11px] text-emerald-700">
+                Enviado: {ultimoTeste}
+              </p>
+            )}
           </CardContent>
         </Card>
       </div>
