@@ -229,22 +229,60 @@ export function PublicacoesTab() {
   const [copiadoVip, setCopiadoVip] = useState(false);
   const [avisoRespostas, setAvisoRespostas] = useState<string[]>([]);
 
+  // ===== TikTok =====
+  const [ttConfig, setTtConfig] = useState<TikTokConfig | null>(null);
+  const [ttCreator, setTtCreator] = useState<TikTokCreatorInfo | null>(null);
+  const [ttCarregandoCreator, setTtCarregandoCreator] = useState(false);
+  const [ttForm, setTtForm] = useState<TikTokFormState>(TIKTOK_FORM_VAZIO);
+  const [ttLinha, setTtLinha] = useState<TikTokPublicacao | null>(null);
+  const [ttErro, setTtErro] = useState<string | null>(null);
+  const [ttPorIg, setTtPorIg] = useState<Map<string, TikTokPublicacao>>(new Map());
+  const [ttSoltas, setTtSoltas] = useState<TikTokPublicacao[]>([]);
+  const [ttPublicando, setTtPublicando] = useState<string | null>(null);
+  const [publicarNoIg, setPublicarNoIg] = useState(true);
+
   const carregar = useCallback(async () => {
-    const [{ data: pubs }, prods] = await Promise.all([
+    const [{ data: pubs }, prods, tts, cfg] = await Promise.all([
       db.from("instagram_publicacoes").select("*").order("agendado_para", { ascending: true }).limit(500),
       carregarProdutosPai().catch((e) => {
         toast.error("Falha ao carregar produtos", { description: e?.message });
         return [] as ProdutoPai[];
       }),
+      listarTikTokPublicacoes().catch(() => [] as TikTokPublicacao[]),
+      lerTikTokConfig().catch(() => null),
     ]);
     setPublicacoes((pubs ?? []) as Publicacao[]);
     setProdutos(prods);
+    const mapa = new Map<string, TikTokPublicacao>();
+    const soltas: TikTokPublicacao[] = [];
+    for (const t of tts) {
+      if (t.publicacao_ig_id != null) mapa.set(String(t.publicacao_ig_id), t);
+      else soltas.push(t);
+    }
+    setTtPorIg(mapa);
+    setTtSoltas(soltas);
+    setTtConfig(cfg);
     setCarregando(false);
   }, []);
 
   useEffect(() => {
     carregar();
   }, [carregar]);
+
+  // Dados frescos do criador sempre que a tela de agendamento abre.
+  useEffect(() => {
+    if (!modalAberto || ttConfig?.conectado !== true) return;
+    let vivo = true;
+    setTtCarregandoCreator(true);
+    lerCreatorInfo()
+      .then((ci) => vivo && setTtCreator(ci))
+      .catch(() => vivo && setTtCreator(null))
+      .finally(() => vivo && setTtCarregandoCreator(false));
+    return () => {
+      vivo = false;
+    };
+  }, [modalAberto, ttConfig?.conectado]);
+
 
   const pubsPorDia = useMemo(() => {
     const m = new Map<string, Publicacao[]>();
