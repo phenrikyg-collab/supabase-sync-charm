@@ -1524,7 +1524,7 @@ export function PublicacoesTab() {
                 disabled={salvando || carrosselInvalido || legendaObrigatoriaFaltando || !!(ttForm.ativo && ttErro)}
               >
                 {salvando && <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />}
-                Publicar agora
+                {salvando ? "Salvando..." : "Publicar agora"}
               </Button>
             )}
             <Button
@@ -1536,7 +1536,7 @@ export function PublicacoesTab() {
               }
             >
               {salvando && <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />}
-              {editando ? "Salvar alterações" : form.agendadoPara ? "Agendar" : "Salvar rascunho"}
+              {salvando ? "Salvando..." : editando ? "Salvar alterações" : form.agendadoPara ? "Agendar" : "Salvar rascunho"}
             </Button>
           </div>
 
