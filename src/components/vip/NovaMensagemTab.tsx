@@ -219,6 +219,9 @@ export function NovaMensagemTab() {
     [headline, corpo, cta, produto, publico, gruposAlvo, quando, dataEnvio, horario, hoje, midiaUrl, provaId, linkDestino, enqueteAtiva, pergunta, opcoes, camadas, varianteComunidade],
   );
 
+  /** Formulário editado depois da última gravação — precisa salvar de novo antes de testar. */
+  const editadoAposSalvar = mensagemId != null && snapshotSalvo !== JSON.stringify(payload);
+
   /* ---------------- validação (debounce 800ms) ---------------- */
 
   const validar = useCallback(async (id: string) => {
