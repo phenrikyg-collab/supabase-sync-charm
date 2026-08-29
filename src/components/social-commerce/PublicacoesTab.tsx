@@ -588,7 +588,10 @@ export function PublicacoesTab() {
       </div>
 
       {visao === "noar" ? (
-        <PostsNoAr filtroInicial={searchParams.get("filtro")} />
+        <BlocoSeguro>
+          <PostsNoAr filtroInicial={searchParams.get("filtro")} />
+        </BlocoSeguro>
+
       ) : carregando ? (
         <Skeleton className="h-[480px] w-full" />
       ) : visao === "calendario" ? (
