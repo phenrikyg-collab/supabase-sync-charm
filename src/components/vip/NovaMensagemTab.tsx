@@ -241,6 +241,11 @@ export function NovaMensagemTab() {
     return () => clearTimeout(t);
   }, [mensagemId, headline, corpo, cta, midiaUrl, provaId, gruposAlvo, validar]);
 
+  // Qualquer edição invalida a confirmação do teste anterior
+  useEffect(() => {
+    setUltimoTeste(null);
+  }, [payload]);
+
   const travas = alertas.filter(alertaBloqueante);
   const avisos = alertas.filter((a) => !alertaBloqueante(a));
   const provaSemAutorizacao = abaImagem === "prova" && !!provaId && !provaAutorizada;
