@@ -24,8 +24,10 @@ import {
   vipEstoqueTamanho,
   vipGruposListar,
   vipMensagemAvulsa,
+  vipMensagemSalvar,
   vipMensagemValidar,
   vipMensagensStatus,
+  vipVarianteSalvar,
   vipProdutosBuscar,
   whatsappParaHtml,
   type VipAlerta,
@@ -213,7 +215,15 @@ export function NovaMensagemTab() {
       tipo_envio: enqueteAtiva ? "enquete" : midiaUrl ? "imagem" : "texto",
       enquete_pergunta: enqueteAtiva ? pergunta : null,
       enquete_opcoes: enqueteAtiva ? opcoes.filter((o) => o.trim()) : null,
-      variantes: varianteComunidade ? { comunidade: varianteComunidade } : null,
+      variante_comunidade:
+        varianteComunidade &&
+        (varianteComunidade.headline || varianteComunidade.corpo || varianteComunidade.cta)
+          ? {
+              headline: varianteComunidade.headline ?? null,
+              corpo: varianteComunidade.corpo ?? null,
+              cta: varianteComunidade.cta ?? null,
+            }
+          : null,
       ...camadas,
     }),
     [headline, corpo, cta, produto, publico, gruposAlvo, quando, dataEnvio, horario, hoje, midiaUrl, provaId, linkDestino, enqueteAtiva, pergunta, opcoes, camadas, varianteComunidade],
@@ -251,7 +261,12 @@ export function NovaMensagemTab() {
   const provaSemAutorizacao = abaImagem === "prova" && !!provaId && !provaAutorizada;
   const travado = travas.length > 0 || provaSemAutorizacao;
 
-  const textoFinal = [headline, corpo, cta].filter(Boolean).join("\n\n");
+  // Preview segue a aba de texto selecionada. O campo "corpo" já termina com o
+  // CTA — nunca concatenar o campo cta separado (existe só para métrica/edição).
+  const textoFinal =
+    abaTexto === "comunidade"
+      ? [varianteComunidade?.headline, varianteComunidade?.corpo].filter(Boolean).join("\n\n")
+      : [headline, corpo].filter(Boolean).join("\n\n");
 
   /* ---------------- salvar ---------------- */
 
@@ -266,12 +281,21 @@ export function NovaMensagemTab() {
     }
     setSalvando(true);
     try {
-      const r: any = await vipMensagemAvulsa(payload as any, "painel");
-      const id = r?.id ?? r?.mensagem_id;
-      if (!id) throw new Error("O backend não devolveu o id da mensagem.");
+      let id = mensagemId;
+      if (id) {
+        // Já existe: ATUALIZA em vez de criar duplicado.
+        await vipMensagemSalvar(id, payload as any, "painel");
+        if (payload.variante_comunidade) {
+          await vipVarianteSalvar(id, "comunidade", payload.variante_comunidade, "painel");
+        }
+      } else {
+        const r: any = await vipMensagemAvulsa(payload as any, "painel");
+        id = r?.id ?? r?.mensagem_id;
+        if (!id) throw new Error("O backend não devolveu o id da mensagem.");
+        setAlertas(normalizarAlertas(r?.alertas ?? []));
+      }
       setMensagemId(id);
       setSnapshotSalvo(JSON.stringify(payload));
-      setAlertas(normalizarAlertas(r?.alertas ?? []));
       if (aprovar) {
         await vipMensagensStatus([id], "aprovada");
         toast.success("Mensagem aprovada — entra na fila no horário marcado.");
@@ -717,6 +741,9 @@ export function NovaMensagemTab() {
             <CardTitle className="text-sm">Preview do WhatsApp</CardTitle>
           </CardHeader>
           <CardContent>
+            <p className="mb-2 text-[11px] text-muted-foreground">
+              Visualizando: {abaTexto === "comunidade" ? "Cria Comigo (comunidade)" : "Listas VIP"}
+            </p>
             <div className="rounded-xl bg-[#0b141a] p-3">
               <div className="max-w-[300px] rounded-lg rounded-tl-none bg-[#005c4b] p-2 text-sm text-white">
                 {midiaUrl && (
