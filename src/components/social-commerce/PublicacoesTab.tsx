@@ -1132,6 +1132,24 @@ export function PublicacoesTab() {
 
               </section>
 
+              {/* TAMBÉM NO TIKTOK — salvar só grava a linha; quem publica é o cron. */}
+              <BlocoTikTok
+                form={ttForm}
+                onChange={setTtForm}
+                config={ttConfig}
+                creatorInfo={ttCreator}
+                carregandoCreator={ttCarregandoCreator}
+                compat={compatTikTok}
+                legendaIg={form.legenda}
+                onErroValidacao={setTtErro}
+              />
+
+              {ttLinha?.status === "publicado" && !ttForm.ativo && (
+                <p className="text-xs text-muted-foreground">Já publicado no TikTok</p>
+              )}
+
+
+
               {/* AUTOMAÇÃO DE RESPOSTA */}
               <section className="space-y-4 rounded-lg border-2 border-primary/20 bg-primary/[0.03] p-4">
                 <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
