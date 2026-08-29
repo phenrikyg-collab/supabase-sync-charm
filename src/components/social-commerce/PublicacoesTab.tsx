@@ -103,6 +103,7 @@ type Publicacao = {
   texto_grupo_vip?: string | null;
   capa_url?: string | null;
   capa_offset_ms?: number | null;
+  marcar_produtos?: boolean | null;
 };
 
 
@@ -150,6 +151,7 @@ type FormState = {
   cupomValidade: string;
   capaUrl: string;
   capaOffsetMs: number | null;
+  marcarProdutos: boolean;
 };
 
 const FORM_VAZIO: FormState = {
@@ -173,6 +175,7 @@ const FORM_VAZIO: FormState = {
   cupomValidade: "",
   capaUrl: "",
   capaOffsetMs: null,
+  marcarProdutos: true,
 };
 
 const MODOS = [
@@ -328,6 +331,9 @@ export function PublicacoesTab() {
   const [ttSoltas, setTtSoltas] = useState<TikTokPublicacao[]>([]);
   const [ttPublicando, setTtPublicando] = useState<string | null>(null);
   const [publicarNoIg, setPublicarNoIg] = useState(true);
+  // Chave de idempotência: um UUID por sessão de composição. Não muda entre
+  // tentativas de salvar — a retentativa vira UPDATE na mesma linha, nunca duplicata.
+  const [chaveSalvamento, setChaveSalvamento] = useState(() => crypto.randomUUID());
 
   const carregar = useCallback(async () => {
     const [{ data: pubs }, prods, tts, cfg] = await Promise.all([
