@@ -741,6 +741,9 @@ export function NovaMensagemTab() {
             <CardTitle className="text-sm">Preview do WhatsApp</CardTitle>
           </CardHeader>
           <CardContent>
+            <p className="mb-2 text-[11px] text-muted-foreground">
+              Visualizando: {abaTexto === "comunidade" ? "Cria Comigo (comunidade)" : "Listas VIP"}
+            </p>
             <div className="rounded-xl bg-[#0b141a] p-3">
               <div className="max-w-[300px] rounded-lg rounded-tl-none bg-[#005c4b] p-2 text-sm text-white">
                 {midiaUrl && (
