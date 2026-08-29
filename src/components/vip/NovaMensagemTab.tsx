@@ -294,18 +294,34 @@ export function NovaMensagemTab() {
   };
 
   const enviarTeste = async () => {
-    let id = mensagemId;
-    if (!id) id = await salvar(false);
-    if (!id) return;
+    // Só testa o id devolvido pela ÚLTIMA gravação deste formulário —
+    // nunca um id antigo nem o de outra mensagem do calendário.
+    const id = mensagemId;
+    if (!id) {
+      toast.error("Salve o rascunho antes de testar.");
+      return;
+    }
+    if (editadoAposSalvar) {
+      toast.error("Você editou depois de salvar — salve de novo antes de testar.");
+      return;
+    }
     if (!numeroTeste.trim()) {
       toast.error("Informe o número ou o jid do grupo de teste.");
       return;
     }
     setEnviandoTeste(true);
+    setUltimoTeste(null);
     try {
       const r: any = await vipEnviarTeste(id, numeroTeste.trim());
-      if (r?.ok === false) toast.error(r?.erro ?? "O backend recusou o teste.", { duration: 10000 });
-      else toast.success("Teste enviado.");
+      if (r?.ok === false) {
+        toast.error(r?.erro ?? "O backend recusou o teste.", { duration: 10000 });
+      } else {
+        const headlineEnviada = r?.enviei?.headline;
+        setUltimoTeste(headlineEnviada ?? null);
+        toast.success(
+          headlineEnviada ? `Enviado: ${headlineEnviada}` : "Teste enviado.",
+        );
+      }
     } catch (e: any) {
       toast.error(e.message ?? "Falha ao enviar o teste");
     } finally {
