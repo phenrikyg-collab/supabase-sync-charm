@@ -814,7 +814,7 @@ export function PublicacoesTab() {
         </Card>
       ) : (
         <div className="space-y-2.5">
-          {publicacoes.length === 0 ? (
+          {publicacoes.length === 0 && ttSoltas.length === 0 ? (
             <Card>
               <CardContent className="p-10 text-center text-sm text-muted-foreground">
                 <CalendarDays className="h-8 w-8 mx-auto mb-2 opacity-40" />
@@ -822,15 +822,23 @@ export function PublicacoesTab() {
               </CardContent>
             </Card>
           ) : (
-            [...publicacoes]
+            <>
+            {[...publicacoes]
               .sort((a, b) => (b.agendado_para ?? "").localeCompare(a.agendado_para ?? ""))
-              .map((p, i) => (
+              .map((p, i) => {
+                const tt = p.id != null ? ttPorIg.get(String(p.id)) ?? null : null;
+                return (
                 <Card key={p.id ?? i} className="cursor-pointer hover:bg-accent/30 transition-colors" onClick={() => (p.media_id ? duplicar(p) : abrirEdicao(p))}>
-                  <CardContent className="p-3.5 flex items-center gap-3">
+                  <CardContent className="p-3.5 space-y-2">
+                   <div className="flex items-center gap-3">
                     {p.modo_resposta === "automatico" && (
                       <Zap className="h-4 w-4 text-primary shrink-0" aria-label="Resposta automática" />
                     )}
                     <Badge variant="outline" className="shrink-0">{p.tipo}</Badge>
+                    <div className="flex gap-1 shrink-0">
+                      <Badge variant="secondary" className="text-[10px]">Instagram</Badge>
+                      {tt && <Badge variant="secondary" className="text-[10px]">TikTok</Badge>}
+                    </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm truncate">{p.legenda || <span className="text-muted-foreground">(sem legenda)</span>}</p>
                       <p className="text-[10px] text-muted-foreground mt-0.5">{dataHoraBR(p.agendado_para)}</p>
@@ -858,11 +866,50 @@ export function PublicacoesTab() {
                         <Copy className="h-3.5 w-3.5 mr-1" /> Duplicar
                       </Button>
                     )}
+                   </div>
+                   {tt && (
+                     <LinhaTikTok
+                       tt={tt}
+                       username={ttConfig?.creator_username}
+                       publicando={ttPublicando === tt.id}
+                       onPublicar={() => publicarTikTok(tt)}
+                       onDuplicar={() => duplicarTikTok(tt)}
+                     />
+                   )}
                   </CardContent>
                 </Card>
-              ))
+                );
+              })}
+
+            {ttSoltas
+              .sort((a, b) => (b.agendado_para ?? "").localeCompare(a.agendado_para ?? ""))
+              .map((tt) => (
+                <Card key={`tt_${tt.id}`}>
+                  <CardContent className="p-3.5 space-y-2">
+                    <div className="flex items-center gap-3">
+                      <Badge variant="outline" className="shrink-0">{tt.tipo}</Badge>
+                      <Badge variant="secondary" className="text-[10px] shrink-0">TikTok</Badge>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm truncate">
+                          {tt.titulo || <span className="text-muted-foreground">(sem texto)</span>}
+                        </p>
+                        <p className="text-[10px] text-muted-foreground mt-0.5">{dataHoraBR(tt.agendado_para)}</p>
+                      </div>
+                    </div>
+                    <LinhaTikTok
+                      tt={tt}
+                      username={ttConfig?.creator_username}
+                      publicando={ttPublicando === tt.id}
+                      onPublicar={() => publicarTikTok(tt)}
+                      onDuplicar={() => duplicarTikTok(tt)}
+                    />
+                  </CardContent>
+                </Card>
+              ))}
+            </>
           )}
         </div>
+
       )}
 
       {/* ============ Modal: nova/editar publicação ============ */}
