@@ -1,8 +1,12 @@
-// Helper to invoke edge functions on the correct Lovable Cloud project
+// Helper to invoke edge functions on the SAME Supabase project as the data client.
+// IMPORTANTE: não usar import.meta.env.VITE_SUPABASE_URL — o .env aponta para um
+// projeto diferente (gerencia o app), enquanto os dados e as edge functions vivem
+// no projeto externo abaixo. Manter sincronizado com src/integrations/supabase/client.ts.
 import { supabase } from "@/integrations/supabase/client";
 
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
-const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+export const SUPABASE_URL = "https://ezdtulcrqzmgocamjwwl.supabase.co";
+export const SUPABASE_ANON_KEY =
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV6ZHR1bGNycXptZ29jYW1qd3dsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE2MjIwMzAsImV4cCI6MjA4NzE5ODAzMH0.7CyKzK3cs-Cd-Wrh69oUAEtxW95l8iZLMCXi_3nAIPU";
 
 type InvokeEdgeFunctionOptions = {
   baseUrl?: string;

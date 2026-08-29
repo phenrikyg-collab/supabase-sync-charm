@@ -1,5 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
-import { invokeEdgeFunction } from "@/lib/edgeFunctions";
+import { invokeEdgeFunction, SUPABASE_URL } from "@/lib/edgeFunctions";
 
 /* ------------------------------------------------------------------ *
  * Tipos (defensivos: o backend pode enviar campos extras)
@@ -541,7 +541,7 @@ export const vipDispararMensagem = (mensagemId: string) =>
 
 
 
-export const VIP_BASE_URL = (import.meta.env.VITE_SUPABASE_URL as string) ?? "";
+export const VIP_BASE_URL = SUPABASE_URL;
 
 export const linkEntrada = (origem: string, utms?: Record<string, string>) => {
   const params = new URLSearchParams({ origem });
