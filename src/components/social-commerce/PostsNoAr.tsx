@@ -2,6 +2,8 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { db } from "@/lib/socialCommerce";
 import { tempoRelativo } from "./comum";
+import { AnunciosPendentes } from "./AnunciosPendentes";
+
 import { formatarData } from "@/utils/formatters";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -102,8 +104,6 @@ const FILTROS_VALIDOS = new Set<string>(FILTROS.map((f) => f.key));
 export function PostsNoAr({ filtroInicial }: { filtroInicial?: string | null }) {
   const navigate = useNavigate();
   const [posts, setPosts] = useState<PostPainel[]>([]);
-  // null = view vw_ig_anuncios_pendentes indisponível no banco
-  const [pendentes, setPendentes] = useState<PostPainel[] | null>(null);
   const [carregando, setCarregando] = useState(true);
   const [filtro, setFiltro] = useState<FiltroPainel>(
     filtroInicial && FILTROS_VALIDOS.has(filtroInicial) ? (filtroInicial as FiltroPainel) : "todos",
@@ -115,19 +115,6 @@ export function PostsNoAr({ filtroInicial }: { filtroInicial?: string | null }) 
     } catch (e: any) {
       toast.error("Falha ao carregar posts", { description: e?.message });
     }
-    // Anúncios pendentes: comentário sem resposta + falta produto vinculado ou automação ativa.
-    // Mesma fonte do alerta da aba Comentários — o número do alerta bate com esta lista.
-    try {
-      const { data, error } = await db
-        .from("vw_ig_anuncios_pendentes")
-        .select("*")
-        .order("ultimo_comentario_em", { ascending: false });
-      if (!error) {
-        setPendentes(((data ?? []) as PostPainel[]).map((p) => ({ ...p, eh_anuncio: true })));
-      }
-    } catch {
-      /* view indisponível — o filtro mostra aviso */
-    }
     setCarregando(false);
   }, []);
 
@@ -136,7 +123,7 @@ export function PostsNoAr({ filtroInicial }: { filtroInicial?: string | null }) 
   }, [carregar]);
 
   const filtrados = useMemo(() => {
-    if (filtro === "anuncios_pendentes") return pendentes ?? [];
+    if (filtro === "anuncios_pendentes") return [];
     const lista = posts.filter((p) => {
       if (filtro === "organicos" && p.eh_anuncio) return false;
       if (filtro === "anuncios" && !p.eh_anuncio) return false;
@@ -152,6 +139,7 @@ export function PostsNoAr({ filtroInicial }: { filtroInicial?: string | null }) 
       return (b.data_publicacao ?? "").localeCompare(a.data_publicacao ?? "");
     });
   }, [posts, filtro]);
+
 
   const configurar = (mediaId: string) =>
     navigate(`/social-commerce?tab=produtos&media=${encodeURIComponent(mediaId)}`);
@@ -171,12 +159,16 @@ export function PostsNoAr({ filtroInicial }: { filtroInicial?: string | null }) 
             {f.label}
           </Button>
         ))}
-        <span className="text-xs text-muted-foreground ml-auto">
-          {filtrados.length} {filtrados.length === 1 ? "mídia no ar" : "mídias no ar"}
-        </span>
+        {filtro !== "anuncios_pendentes" && (
+          <span className="text-xs text-muted-foreground ml-auto">
+            {filtrados.length} {filtrados.length === 1 ? "mídia no ar" : "mídias no ar"}
+          </span>
+        )}
       </div>
 
-      {carregando ? (
+      {filtro === "anuncios_pendentes" ? (
+        <AnunciosPendentes />
+      ) : carregando ? (
         <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4">
           {Array.from({ length: 8 }).map((_, i) => (
             <Skeleton key={i} className="h-72 w-full" />
@@ -186,24 +178,15 @@ export function PostsNoAr({ filtroInicial }: { filtroInicial?: string | null }) 
         <Card>
           <CardContent className="p-10 text-center text-sm text-muted-foreground">
             <ImageOff className="h-8 w-8 mx-auto mb-2 opacity-40" />
-            {filtro === "anuncios_pendentes" && pendentes === null
-              ? "A view vw_ig_anuncios_pendentes ainda não existe no banco — atualize o backend para usar este filtro."
-              : "Nenhuma mídia neste filtro."}
+            Nenhuma mídia neste filtro.
           </CardContent>
         </Card>
+
       ) : (
         <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4">
           {filtrados.map((p) => (
-            <Card
-              key={p.media_id}
-              className={`overflow-hidden flex flex-col ${
-                filtro === "anuncios_pendentes"
-                  ? "cursor-pointer hover:ring-1 hover:ring-primary/40 transition-shadow"
-                  : ""
-              }`}
-              onClick={filtro === "anuncios_pendentes" ? () => configurar(p.media_id) : undefined}
-              title={filtro === "anuncios_pendentes" ? "Abrir configuração do anúncio" : undefined}
-            >
+            <Card key={p.media_id} className="overflow-hidden flex flex-col">
+
               <div className="aspect-square bg-muted relative">
                 <ImagemPainel post={p} />
                 {p.eh_anuncio && (
