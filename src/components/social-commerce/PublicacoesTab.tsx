@@ -702,19 +702,48 @@ export function PublicacoesTab() {
 
       let idSalvo: string | number | null = editando?.id ?? null;
 
-      if (!soTikTok) {
+      if (soTikTok) {
+        // Só TikTok (toggle do Instagram desligado): grava só a linha da fila do TikTok.
+        const payloadTt = payloadTikTok(ttForm, compatSalvar, {
+          publicacaoIgId: null,
+          agendadoPara: agendadoIso,
+          status: statusFila,
+          produtoIds: form.produtoIds,
+        });
+        try {
+          const salvoTt = await salvarTikTokPublicacao(payloadTt, ttLinha?.id ?? null);
+          if (salvoTt?.id) setTtLinha(salvoTt);
+        } catch (eTt: any) {
+          await carregar();
+          toast.error(eTt?.message ?? "Falha ao salvar no TikTok", { duration: 12000 });
+          return;
+        }
+      } else {
+        // ===== Salvamento ATÔMICO: Instagram + TikTok na mesma transação via RPC. =====
+        // Se o TikTok falhar, o Instagram volta atrás junto — nunca fica meio salvo.
+        // A chave_salvamento torna a retentativa um UPDATE, não um INSERT novo.
         const variacoes = form.respostasPublicas.map((v) => v.trim()).filter(Boolean);
         const compra = form.respostasCompra.map((v) => v.trim()).filter(Boolean);
-        const fallback = form.respostasFallback.map((v) => v.trim()).filter(Boolean);
-        const payload: Record<string, any> = {
+        const fallback = form.respostasFallback.map((v) => v.trim().length ? v.trim() : "").filter(Boolean);
+        const payloadTt = payloadTikTok(ttForm, compatSalvar, {
+          publicacaoIgId: null,
+          agendadoPara: agendadoIso,
+          status: statusFila,
+          produtoIds: form.produtoIds,
+        });
+
+        const p: Record<string, any> = {
+          id: idSalvo,
+          chave_salvamento: chaveSalvamento,
           tipo: form.tipo,
+          midia_urls: midiaUrls,
           legenda: form.legenda,
           primeiro_comentario: form.primeiroComentario || null,
           texto_grupo_vip: form.textoGrupoVip || null,
-          agendado_para: agendadoIso,
-          status: statusFila,
+          agendado_para: opcoes?.publicarAgora ? new Date().toISOString() : agendadoIso,
+          status: opcoes?.publicarAgora ? "agendado" : statusFila,
           produto_ids: form.produtoIds,
-          midia_urls: midiaUrls,
+          marcar_produtos: form.marcarProdutos,
           capa_url: mostrarCapa ? form.capaUrl || null : null,
           capa_offset_ms: mostrarCapa ? form.capaOffsetMs : null,
           objetivo: form.objetivo,
@@ -724,73 +753,26 @@ export function PublicacoesTab() {
           respostas_publicas: form.modoResposta === "automatico" ? variacoes : null,
           respostas_publicas_compra: form.modoResposta === "automatico" ? (compra.length ? compra : null) : null,
           respostas_publicas_fallback: form.modoResposta === "automatico" ? (fallback.length ? fallback : null) : null,
-          // Compatibilidade: a primeira variação continua no campo antigo
           resposta_gatilho_publica: form.modoResposta === "automatico" ? variacoes[0] ?? null : null,
           resposta_gatilho_dm: form.modoResposta === "automatico" ? form.respostaDm : null,
           link_combo: form.modoResposta === "automatico" ? form.linkCombo.trim() || null : null,
           cupom: form.modoResposta === "automatico" ? form.cupom.trim() || null : null,
           cupom_beneficio: form.modoResposta === "automatico" ? form.cupomBeneficio.trim() || null : null,
           cupom_validade: form.modoResposta === "automatico" ? form.cupomValidade.trim() || null : null,
+          // Toggle desligado: a função remove o agendamento de TikTok vinculado (se ainda não publicado).
+          tiktok: ttForm.ativo
+            ? { ...payloadTt, publicacao_ig_id: undefined, ativo: true }
+            : { ativo: false },
         };
 
-        if (opcoes?.publicarAgora) {
-          // Publicar agora = envio imediato, sem esperar o cron; o agendamento não vale mais.
-          payload.agendado_para = new Date().toISOString();
-          payload.status = "agendado";
-        }
-
-        const executar = async (p: Record<string, any>) => {
-          if (editando?.id != null) {
-            return db.from("instagram_publicacoes").update(p).eq("id", editando.id);
-          }
-          const res = await db.from("instagram_publicacoes").insert(p).select("id").maybeSingle();
-          if (!res.error) idSalvo = (res.data as any)?.id ?? null;
-          return res as any;
-        };
-
-        let { error } = await executar(payload);
-        // Colunas novas podem ainda não existir no banco — tenta de novo sem elas
-        for (const coluna of ["respostas_publicas_compra", "respostas_publicas_fallback", "objetivo", "capa_url", "capa_offset_ms", "respostas_publicas", "texto_grupo_vip", "primeiro_comentario", "gatilho_qualquer", "link_combo", "cupom_beneficio", "cupom_validade", "cupom"]) {
-          if (error && new RegExp(coluna, "i").test(error.message ?? "")) {
-            delete payload[coluna];
-            ({ error } = await executar(payload));
-          }
-        }
-        if (error) throw error;
-        // A partir do primeiro insert bem-sucedido, qualquer nova tentativa
-        // vira UPDATE na mesma linha — nunca nasce um segundo agendamento.
+        const { data, error } = await supabase.rpc("fn_publicacao_salvar", { p });
+        // Mensagens do banco vêm em português e específicas — mostrar como vieram.
+        if (error) throw new Error(error.message);
+        if (data?.ok === false) throw new Error(data.erro ?? "Falha ao salvar");
+        idSalvo = data?.publicacao_id ?? idSalvo;
+        // A partir do primeiro salvamento, o formulário edita esse agendamento:
+        // as próximas chamadas mandam o id e atualizam a mesma linha.
         if (!editando && idSalvo != null) setEditando({ id: idSalvo });
-      }
-
-      // ===== TikTok: só grava a linha da fila. O cron publica na hora marcada. =====
-      if (ttForm.ativo) {
-        const payloadTt = payloadTikTok(ttForm, compatSalvar, {
-          publicacaoIgId: soTikTok ? null : idSalvo,
-          agendadoPara: agendadoIso,
-          status: statusFila,
-          produtoIds: form.produtoIds,
-        });
-        try {
-          const salvoTt = await salvarTikTokPublicacao(payloadTt, ttLinha?.id ?? null);
-          if (salvoTt?.id) setTtLinha(salvoTt);
-        } catch (eTt: any) {
-          // O Instagram já gravou — dizer isso com clareza para ninguém achar
-          // que "nada foi salvo" e clicar de novo. A próxima tentativa é UPDATE.
-          await carregar();
-          toast.error(
-            soTikTok
-              ? eTt?.message ?? "Falha ao salvar no TikTok"
-              : `O agendamento do Instagram foi salvo. O do TikTok não: ${eTt?.message ?? "erro desconhecido"}. Corrija e salve de novo. Não vai duplicar o post do Instagram.`,
-            { duration: 12000 },
-          );
-          return;
-        }
-      } else if (ttLinha?.id) {
-        if (ttLinha.status === "publicado") {
-          toast.info("Já publicado no TikTok");
-        } else {
-          await apagarTikTokPublicacao(ttLinha.id);
-        }
       }
 
       if (opcoes?.publicarAgora && !soTikTok) {
