@@ -212,6 +212,71 @@ const CTAS = [
   { valor: "seguir", titulo: "Seguir o perfil", descricao: "Cresce a base de seguidores" },
 ];
 
+/** Linha de status do TikTok exibida dentro do card da publicação. */
+function LinhaTikTok({
+  tt,
+  username,
+  publicando,
+  onPublicar,
+  onDuplicar,
+}: {
+  tt: TikTokPublicacao;
+  username?: string | null;
+  publicando: boolean;
+  onPublicar: () => void;
+  onDuplicar: () => void;
+}) {
+  const link = urlDoPostTikTok(username, tt.post_id);
+  return (
+    <div className="flex flex-wrap items-center gap-2 border-t pt-2" onClick={(e) => e.stopPropagation()}>
+      <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">TikTok</span>
+      <span
+        className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-semibold ${
+          STATUS_TIKTOK_COR[tt.status ?? "rascunho"] ?? STATUS_TIKTOK_COR.rascunho
+        }`}
+      >
+        {tt.status ?? "rascunho"}
+      </span>
+      {tt.status === "publicando" && (
+        <span className="text-[11px] text-muted-foreground">
+          Enviado ao TikTok. Pode levar alguns minutos para processar e aparecer no perfil.
+        </span>
+      )}
+      {tt.status === "publicado" &&
+        (link ? (
+          <a href={link} target="_blank" rel="noreferrer" className="text-[11px] underline text-primary">
+            Ver no TikTok
+          </a>
+        ) : (
+          <span className="text-[11px] text-muted-foreground">Publicado (privado)</span>
+        ))}
+      {tt.erro && (
+        <span
+          className={`text-[11px] max-w-[320px] truncate ${tt.status === "falhou" ? "text-danger" : "text-amber-600"}`}
+          title={tt.erro}
+        >
+          {tt.erro}
+        </span>
+      )}
+      <div className="ml-auto flex gap-2">
+        {tt.status !== "publicado" && (
+          <Button size="sm" variant="outline" onClick={onPublicar} disabled={publicando}>
+            {publicando && <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />}
+            Publicar agora
+          </Button>
+        )}
+        {tt.status === "publicado" && (
+          <Button size="sm" variant="outline" onClick={onDuplicar}>
+            <Copy className="h-3.5 w-3.5 mr-1" /> Duplicar
+          </Button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+
+
 const ESTILOS = [
   { valor: "trend", titulo: "Trend / áudio do momento" },
   { valor: "tutorial", titulo: "Tutorial / como usar" },
