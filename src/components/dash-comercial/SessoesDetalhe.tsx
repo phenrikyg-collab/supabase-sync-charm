@@ -19,7 +19,7 @@ export function SessoesDetalhe({ serie }: { serie: LinhaSessaoDia[] }) {
             <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
             <XAxis dataKey="label" tick={{ fontSize: 11 }} />
             <YAxis tick={{ fontSize: 11 }} />
-            <Tooltip formatter={(v: any) => fmtNum(Number(v))} />
+            <RechartsTooltip formatter={(v: any) => fmtNum(Number(v))} />
             <Legend />
             <Bar dataKey="meta_lpv" name="Meta LPV" fill="hsl(var(--muted-foreground))" opacity={0.25} />
             <Line type="monotone" dataKey="ga4" name="GA4" stroke="hsl(var(--primary))" strokeWidth={2} dot={false} />
