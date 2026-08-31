@@ -33,6 +33,11 @@ import { Alerta, BarraAlertas } from "@/components/dash-comercial/Alertas";
 import {
   CanaisEProdutos, LinhaFonte, MixClientes, RitmoDiario, SaudeFontes,
 } from "@/components/dash-comercial/Blocos";
+import { SessoesDetalhe } from "@/components/dash-comercial/SessoesDetalhe";
+import {
+  fetchSessoesComparativo, integridadePeriodo, rotuloFontes, serieComposta,
+} from "@/lib/sessoesComposta";
+
 
 type Preset = "hoje" | "semana" | "mes" | "mes-anterior" | "personalizado";
 type ModoComp = "anterior" | "mes-passado";
