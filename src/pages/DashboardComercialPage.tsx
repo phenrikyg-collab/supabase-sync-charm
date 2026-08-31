@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
-  CalendarIcon, Loader2, RefreshCw, Sparkles, Target,
+  AlertTriangle, CalendarIcon, Loader2, RefreshCw, Sparkles, Target,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -13,6 +13,9 @@ import { Progress } from "@/components/ui/progress";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import {
+  Tooltip as UITooltip, TooltipContent, TooltipProvider, TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import { callClaude } from "@/lib/claudeApi";
@@ -537,6 +540,57 @@ export default function DashboardComercialPage() {
     return j.length ? (j.filter((p) => !p.cancelado).length / j.length) * 100 : 0;
   }), [pedidos, fim]);
 
+  /* ------------- cards Sessões e Conversão (mesma base da LMDI) ---------- */
+  const anomaliaRastreamento = useMemo(() => alertas.some((a) => a.id === "rastreamento"), [alertas]);
+
+  const ultimoDiaComSessao = useMemo(() => {
+    const dias = listaDias(ini, fim).filter((d) => funilDia(sessoesFonte, d) > 0);
+    return dias.slice(-1)[0] ?? null;
+  }, [sessoesFonte, ini, fim]);
+
+  const conversaoPeriodo = funil.sessoes ? (resumo.pedidos_captados / funil.sessoes) * 100 : 0;
+  const conversaoComp = funilComp.sessoes ? (resumoComp.pedidos_captados / funilComp.sessoes) * 100 : 0;
+  const deltaConversaoPP = conversaoPeriodo - conversaoComp;
+
+  /** Últimos 14 dias, ignorando dias sem sessão registrada (lag do GA4). */
+  const diasSpark = useMemo(
+    () => listaDias(somaDias(fim, -13), fim).filter((d) => funilDia(sessoesFonte, d) > 0),
+    [sessoesFonte, fim],
+  );
+  const sparkSessoes = useMemo(
+    () => diasSpark.map((d) => ({ v: funilDia(sessoesFonte, d) })), [diasSpark, sessoesFonte],
+  );
+  const sparkConversao = useMemo(
+    () => diasSpark.map((d) => {
+      const s = funilDia(sessoesFonte, d);
+      return { v: s ? (pedidos.filter((p) => p.dia === d).length / s) * 100 : 0 };
+    }),
+    [diasSpark, sessoesFonte, pedidos],
+  );
+
+  const fonteEmFallback = sessoesFonte !== ga4 || ga4Atrasado;
+  const subFonteSessoes = (
+    <span className={cn("inline-flex items-center gap-1", fonteEmFallback && "text-warn")}>
+      Fonte: {nomeFonteSessoes === "GA4" ? "GA4" : "Windsor — GA4 atrasado"}
+      {ultimoDiaComSessao && ultimoDiaComSessao < fim && <> · até {ddmm(ultimoDiaComSessao)}</>}
+    </span>
+  );
+  const seloAnomalia = anomaliaRastreamento ? (
+    <TooltipProvider delayDuration={100}>
+      <UITooltip>
+        <TooltipTrigger asChild>
+          <span className="text-warn" aria-label="Anomalia de rastreamento">
+            <AlertTriangle className="h-3.5 w-3.5" />
+          </span>
+        </TooltipTrigger>
+        <TooltipContent className="max-w-xs text-xs leading-relaxed">
+          Sessões infladas por anomalia de rastreamento — a conversão real é MAIOR que a exibida e as sessões reais são menores
+        </TooltipContent>
+      </UITooltip>
+    </TooltipProvider>
+  ) : undefined;
+
+
   /* ------------------------------- IA ------------------------------------ */
   async function gerarInsights() {
     setLoadingIa(true);
@@ -628,7 +682,7 @@ Alertas: ${alertas.map((a) => a.titulo).join(", ") || "nenhum"}.`,
       )}
 
       {/* Seção 2 — resumo executivo */}
-      <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-5">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7">
         <Tile
           loading={carregando} titulo="Receita líquida" valor={fmtBRL(resumo.receita_liquida)}
           pct={variacaoPct(resumo.receita_liquida, resumoComp.receita_liquida)} spark={sparkReceita}
@@ -639,6 +693,20 @@ Alertas: ${alertas.map((a) => a.titulo).join(", ") || "nenhum"}.`,
           loading={carregando} titulo="Pedidos" valor={fmtNum(resumo.pedidos)}
           pct={variacaoPct(resumo.pedidos, resumoComp.pedidos)} spark={sparkPedidos}
           sub={<>{fmtNum(resumo.pedidos_captados)} captados · cancelada {fmtBRL(resumo.receita_cancelada)}</>}
+        />
+        <Tile
+          loading={carregando} titulo="Sessões" valor={fmtNum(funil.sessoes)}
+          pct={variacaoPct(funil.sessoes, funilComp.sessoes)} spark={sparkSessoes}
+          sub={subFonteSessoes} selo={seloAnomalia}
+          ajuda="Mesma base de sessões usada na decomposição “Por que a receita mudou”."
+        />
+        <Tile
+          loading={carregando} titulo="Taxa de conversão" valor={fmtPct(conversaoPeriodo, 2)}
+          pct={Number.isFinite(deltaConversaoPP) ? deltaConversaoPP : null}
+          pctTexto={`${fmtNum(Math.abs(deltaConversaoPP), 2)} p.p.`}
+          spark={sparkConversao} selo={seloAnomalia}
+          sub={<>Pedidos captados ÷ sessões do período</>}
+          ajuda="Mesma definição da decomposição: pedidos captados ÷ sessões da fonte ativa."
         />
         <Tile
           loading={carregando} titulo="Ticket médio" valor={fmtBRL(resumo.ticket_medio)}
