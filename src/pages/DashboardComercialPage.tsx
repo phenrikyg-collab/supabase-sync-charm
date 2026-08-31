@@ -247,7 +247,7 @@ export default function DashboardComercialPage() {
       };
     };
     return { resultado: lmdi(agregar(setA), agregar(setB)), avisoJanela: aviso };
-  }, [pedidos, sessoesFonte, ini, fim, compIni, compFim, nomeFonteSessoes]);
+  }, [pedidos, sessoesFonte, mapaSessoes, temSerieComposta, ini, fim, compIni, compFim, nomeFonteSessoes]);
 
   /* ------------------------- Seção 4 — 9 drivers ------------------------- */
   const drvRow = qDrivers.data;
