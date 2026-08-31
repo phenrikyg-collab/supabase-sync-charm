@@ -897,6 +897,9 @@ export function NovaMensagemTab() {
                   <img src={midiaUrl} alt="" className="mb-2 max-h-56 w-full rounded object-cover" />
                 )}
                 <div dangerouslySetInnerHTML={{ __html: whatsappParaHtml(textoFinal) || "<em>Sem texto</em>" }} />
+                {!enqueteAtiva && linkEfetivo && (
+                  <div className="mt-1 text-[11px] text-white/60">{ENCURTADO_PLACEHOLDER}</div>
+                )}
               </div>
               {/* Balão 2 — enquete, mensagem separada, sem legenda e sem imagem */}
               {enqueteAtiva && (
