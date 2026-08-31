@@ -257,17 +257,40 @@ export function NovaMensagemTab() {
     if (!mensagemId) return;
     const t = setTimeout(() => validar(mensagemId), 800);
     return () => clearTimeout(t);
-  }, [mensagemId, headline, corpo, cta, midiaUrl, provaId, gruposAlvo, validar]);
+  }, [mensagemId, headline, corpo, cta, midiaUrl, provaId, gruposAlvo, enqueteAtiva, pergunta, opcoesValidas, validar]);
 
   // Qualquer edição invalida a confirmação do teste anterior
   useEffect(() => {
     setUltimoTeste(null);
   }, [payload]);
 
-  const travas = alertas.filter(alertaBloqueante);
+  /** Regras da enquete conferidas na hora — as mesmas de vip_mensagem_validar. */
+  const alertasEnquete = useMemo<VipAlerta[]>(() => {
+    if (!enqueteAtiva) return [];
+    const l: VipAlerta[] = [];
+    if (!pergunta.trim()) l.push({ nivel: "trava", texto: "Enquete sem pergunta." } as VipAlerta);
+    if (!corpo.trim()) {
+      l.push({ nivel: "trava", texto: "Enquete sem corpo — o balão de texto sairia só com a headline." } as VipAlerta);
+    }
+    if (opcoesValidas.length < 2) {
+      l.push({ nivel: "trava", texto: "Enquete precisa de pelo menos 2 opções." } as VipAlerta);
+    }
+    opcoesValidas.forEach((o, i) => {
+      if (TEM_MARCACAO.test(o)) {
+        l.push({ nivel: "trava", texto: `Opção ${i + 1} tem * _ ou ~ — a enquete não formata e a cliente lê o símbolo.` } as VipAlerta);
+      }
+      if (o.length > 100) {
+        l.push({ nivel: "trava", texto: `Opção ${i + 1} tem ${o.length} caracteres — o WhatsApp corta em 100.` } as VipAlerta);
+      }
+    });
+    return l;
+  }, [enqueteAtiva, pergunta, corpo, opcoesValidas]);
+
+  const travas = [...alertas.filter(alertaBloqueante), ...alertasEnquete];
   const avisos = alertas.filter((a) => !alertaBloqueante(a));
-  const provaSemAutorizacao = abaImagem === "prova" && !!provaId && !provaAutorizada;
+  const provaSemAutorizacao = !enqueteAtiva && abaImagem === "prova" && !!provaId && !provaAutorizada;
   const travado = travas.length > 0 || provaSemAutorizacao;
+
 
   // Preview segue a aba de texto selecionada. O campo "corpo" já termina com o
   // CTA — nunca concatenar o campo cta separado (existe só para métrica/edição).
