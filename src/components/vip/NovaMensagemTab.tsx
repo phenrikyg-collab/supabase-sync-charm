@@ -299,6 +299,26 @@ export function NovaMensagemTab() {
       ? [varianteComunidade?.headline, varianteComunidade?.corpo].filter(Boolean).join("\n\n")
       : [headline, corpo].filter(Boolean).join("\n\n");
 
+  /* ---------------- link de destino ---------------- */
+
+  /** Link efetivo que vai no payload (campo livre ou link da peça). */
+  const linkEfetivo = linkDestino || produto?.link || null;
+  const linkSemHttps = !!linkDestino && !/^https:\/\//i.test(linkDestino);
+  const linkDominioExterno =
+    !!linkDestino &&
+    /^https:\/\//i.test(linkDestino) &&
+    !/^https:\/\/(www\.)?usemarianacardoso\.com\.br(\/|$)/i.test(linkDestino);
+
+  /** URL crua escrita dentro do corpo — sai sem rastreio e duplica com o encurtado. */
+  const urlNoCorpo = corpo.match(/https?:\/\/\S+/i)?.[0] ?? null;
+
+  const moverUrlParaCampo = () => {
+    if (!urlNoCorpo) return;
+    setLinkDestino(urlNoCorpo);
+    setCorpo(corpo.replace(urlNoCorpo, "").replace(/\n{3,}/g, "\n\n").trim());
+    toast.success("Link movido para o campo Link de destino.");
+  };
+
   /* ---------------- salvar ---------------- */
 
   const salvar = async (aprovar: boolean) => {
