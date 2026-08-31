@@ -909,6 +909,16 @@ Alertas: ${alertas.map((a) => a.titulo).join(", ") || "nenhum"}.`,
         </SheetContent>
       </Sheet>
 
+      <Dialog open={detalheSessoes} onOpenChange={setDetalheSessoes}>
+        <DialogContent className="max-w-4xl">
+          <DialogHeader>
+            <DialogTitle className="font-serif text-2xl">Sessões — GA4 x rastreamento próprio</DialogTitle>
+          </DialogHeader>
+          <SessoesDetalhe serie={serieSessoesPeriodo} />
+        </DialogContent>
+      </Dialog>
+
+
       <DialogLancarInvestimento
         driver={lancamento}
         mesRef={mesRef}
