@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+// O preview nunca inventa um código real de encurtado — ele só existe no envio.
+const ENCURTADO_PLACEHOLDER = "vip.usemarianacardoso.com.br/••••••";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
