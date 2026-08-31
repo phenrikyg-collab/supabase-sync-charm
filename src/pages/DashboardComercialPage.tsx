@@ -2,8 +2,9 @@ import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
-  AlertTriangle, CalendarIcon, Loader2, RefreshCw, Sparkles, Target,
+  AlertTriangle, CalendarIcon, Loader2, Maximize2, RefreshCw, Sparkles, Target,
 } from "lucide-react";
+
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -32,6 +33,11 @@ import { Alerta, BarraAlertas } from "@/components/dash-comercial/Alertas";
 import {
   CanaisEProdutos, LinhaFonte, MixClientes, RitmoDiario, SaudeFontes,
 } from "@/components/dash-comercial/Blocos";
+import { SessoesDetalhe } from "@/components/dash-comercial/SessoesDetalhe";
+import {
+  fetchSessoesComparativo, integridadePeriodo, rotuloFontes, serieComposta,
+} from "@/lib/sessoesComposta";
+
 
 type Preset = "hoje" | "semana" | "mes" | "mes-anterior" | "personalizado";
 type ModoComp = "anterior" | "mes-passado";
@@ -62,6 +68,8 @@ export default function DashboardComercialPage() {
   const [custom, setCustom] = useState<{ from?: Date; to?: Date }>({});
   const [modoComp, setModoComp] = useState<ModoComp>("anterior");
   const [drawer, setDrawer] = useState<string | null>(null);
+  const [detalheSessoes, setDetalheSessoes] = useState(false);
+
   const [lancamento, setLancamento] = useState<DriverLinha | null>(null);
   const [ia, setIa] = useState("");
   const [loadingIa, setLoadingIa] = useState(false);
@@ -157,6 +165,33 @@ export default function DashboardComercialPage() {
   const sessoesFonte = ga4Atrasado && windsor.length ? windsor : ga4;
   const nomeFonteSessoes = sessoesFonte === ga4 ? "GA4" : "Windsor (GA4 atrasado)";
 
+  /* -------- 1.4 série composta de sessões (GA4 + rastreamento próprio) ---- */
+  const diasRpc = Math.max(diffDias(HOJE, somaDias(janIni, -3)) + 1, 30);
+  const qSessComp = useQuery({
+    queryKey: ["dc2-sessoes-comparativo", diasRpc],
+    queryFn: () => fetchSessoesComparativo(diasRpc),
+    staleTime: 5 * 60_000,
+  });
+  const serieSessoes = useMemo(() => serieComposta(qSessComp.data ?? []), [qSessComp.data]);
+  const mapaSessoes = useMemo(() => {
+    const m = new Map<string, (typeof serieSessoes)[number]>();
+    serieSessoes.forEach((l) => m.set(l.dia, l));
+    return m;
+  }, [serieSessoes]);
+  const temSerieComposta = serieSessoes.some((l) => l.usada > 0);
+
+  /** Sessões de um dia pela série composta, com queda para a fonte antiga. */
+  const sessoesDoDia = (d: string) =>
+    temSerieComposta ? (mapaSessoes.get(d)?.usada ?? 0) : funilDia(sessoesFonte, d);
+  const somaSessoes = (a: string, b: string) =>
+    listaDias(a, b).reduce((s, d) => s + sessoesDoDia(d), 0);
+
+  const serieSessoesPeriodo = useMemo(
+    () => serieSessoes.filter((l) => l.dia >= ini && l.dia <= fim), [serieSessoes, ini, fim],
+  );
+  const integridade = useMemo(() => integridadePeriodo(serieSessoesPeriodo), [serieSessoesPeriodo]);
+
+
   /* ------------------------------ métricas ------------------------------ */
   const resumo = useMemo(() => resumoPeriodo(pedidos, ini, fim), [pedidos, ini, fim]);
   const resumoComp = useMemo(() => resumoPeriodo(pedidos, compIni, compFim), [pedidos, compIni, compFim]);
@@ -167,6 +202,17 @@ export default function DashboardComercialPage() {
   const funilComp = useMemo(() => funilSessoes(sessoesFonte, compIni, compFim), [sessoesFonte, compIni, compFim]);
   const mid = useMemo(() => resumoMidia(midia, ini, fim, funil.sessoes_pagas), [midia, ini, fim, funil.sessoes_pagas]);
 
+  /** Total de sessões do período pela série composta (denominador único do painel). */
+  const sessoesPeriodo = useMemo(
+    () => (temSerieComposta ? somaSessoes(ini, fim) : funil.sessoes),
+    [temSerieComposta, mapaSessoes, ini, fim, funil.sessoes],
+  );
+  const sessoesPeriodoComp = useMemo(
+    () => (temSerieComposta ? somaSessoes(compIni, compFim) : funilComp.sessoes),
+    [temSerieComposta, mapaSessoes, compIni, compFim, funilComp.sessoes],
+  );
+
+
   const mtd = useMemo(() => resumoPeriodo(pedidos, mesIni, [fim, HOJE].sort()[0]), [pedidos, mesIni, fim]);
   const meta = qMeta.data;
   const pctMeta = meta?.meta_mensal ? (mtd.receita_liquida / meta.meta_mensal) * 100 : null;
@@ -176,20 +222,22 @@ export default function DashboardComercialPage() {
 
   /* ------------------- Seção 3 — LMDI com janela ajustada ---------------- */
   const { resultado, avisoJanela } = useMemo(() => {
-    const diasA = listaDias(ini, fim).filter((d) => funilDia(sessoesFonte, d) > 0);
-    const diasB = listaDias(compIni, compFim).filter((d) => funilDia(sessoesFonte, d) > 0);
+    const diasA = listaDias(ini, fim).filter((d) => sessoesDoDia(d) > 0);
+    const diasB = listaDias(compIni, compFim).filter((d) => sessoesDoDia(d) > 0);
     const n = Math.min(diasA.length, diasB.length);
     const setA = diasA.slice(0, n);
     const setB = diasB.slice(0, n);
     const totalDias = diffDias(fim, ini) + 1;
     const faltando = listaDias(ini, fim).filter((d) => !setA.includes(d));
+    const nomeSerie = temSerieComposta ? "Série composta" : nomeFonteSessoes.startsWith("GA4") ? "GA4" : "Windsor";
     const aviso =
       n === 0 ? "Sem dados de sessão nos dois períodos"
-      : n < totalDias ? `Janela ajustada para ${n} dias — ${nomeFonteSessoes.startsWith("GA4") ? "GA4" : "Windsor"} sem ${faltando.map(ddmm).join(", ")}`
+      : n < totalDias ? `Janela ajustada para ${n} dias — ${nomeSerie} sem ${faltando.map(ddmm).join(", ")}`
       : null;
 
     const agregar = (dias: string[]) => {
-      const sessoes = sessoesFonte.filter((s) => dias.includes(s.dia)).reduce((s, l) => s + l.sessoes, 0);
+      const sessoes = dias.reduce((s, d) => s + sessoesDoDia(d), 0);
+
       const jan = pedidos.filter((p) => dias.includes(p.dia));
       const ok = jan.filter((p) => !p.cancelado);
       const receita = ok.reduce((s, p) => s + p.receita_liquida, 0);
@@ -201,7 +249,7 @@ export default function DashboardComercialPage() {
       };
     };
     return { resultado: lmdi(agregar(setA), agregar(setB)), avisoJanela: aviso };
-  }, [pedidos, sessoesFonte, ini, fim, compIni, compFim, nomeFonteSessoes]);
+  }, [pedidos, sessoesFonte, mapaSessoes, temSerieComposta, ini, fim, compIni, compFim, nomeFonteSessoes]);
 
   /* ------------------------- Seção 4 — 9 drivers ------------------------- */
   const drvRow = qDrivers.data;
@@ -544,51 +592,80 @@ export default function DashboardComercialPage() {
   const anomaliaRastreamento = useMemo(() => alertas.some((a) => a.id === "rastreamento"), [alertas]);
 
   const ultimoDiaComSessao = useMemo(() => {
-    const dias = listaDias(ini, fim).filter((d) => funilDia(sessoesFonte, d) > 0);
+    const dias = listaDias(ini, fim).filter((d) => sessoesDoDia(d) > 0);
     return dias.slice(-1)[0] ?? null;
-  }, [sessoesFonte, ini, fim]);
+  }, [sessoesFonte, mapaSessoes, temSerieComposta, ini, fim]);
 
-  const conversaoPeriodo = funil.sessoes ? (resumo.pedidos_captados / funil.sessoes) * 100 : 0;
-  const conversaoComp = funilComp.sessoes ? (resumoComp.pedidos_captados / funilComp.sessoes) * 100 : 0;
+  const conversaoPeriodo = sessoesPeriodo ? (resumo.pedidos_captados / sessoesPeriodo) * 100 : 0;
+  const conversaoComp = sessoesPeriodoComp ? (resumoComp.pedidos_captados / sessoesPeriodoComp) * 100 : 0;
   const deltaConversaoPP = conversaoPeriodo - conversaoComp;
 
   /** Últimos 14 dias, ignorando dias sem sessão registrada (lag do GA4). */
   const diasSpark = useMemo(
-    () => listaDias(somaDias(fim, -13), fim).filter((d) => funilDia(sessoesFonte, d) > 0),
-    [sessoesFonte, fim],
+    () => listaDias(somaDias(fim, -13), fim).filter((d) => sessoesDoDia(d) > 0),
+    [sessoesFonte, mapaSessoes, temSerieComposta, fim],
   );
   const sparkSessoes = useMemo(
-    () => diasSpark.map((d) => ({ v: funilDia(sessoesFonte, d) })), [diasSpark, sessoesFonte],
+    () => diasSpark.map((d) => ({ v: sessoesDoDia(d), alerta: mapaSessoes.get(d)?.fallback ?? false })),
+    [diasSpark, sessoesFonte, mapaSessoes, temSerieComposta],
   );
   const sparkConversao = useMemo(
     () => diasSpark.map((d) => {
-      const s = funilDia(sessoesFonte, d);
-      return { v: s ? (pedidos.filter((p) => p.dia === d).length / s) * 100 : 0 };
+      const s = sessoesDoDia(d);
+      return {
+        v: s ? (pedidos.filter((p) => p.dia === d).length / s) * 100 : 0,
+        alerta: mapaSessoes.get(d)?.fallback ?? false,
+      };
     }),
-    [diasSpark, sessoesFonte, pedidos],
+    [diasSpark, sessoesFonte, mapaSessoes, temSerieComposta, pedidos],
   );
 
-  const fonteEmFallback = sessoesFonte !== ga4 || ga4Atrasado;
+  const houveFallback = integridade.fallbacks > 0;
+  const rotuloFonteSerie = temSerieComposta ? rotuloFontes(integridade.fontes) : nomeFonteSessoes;
   const subFonteSessoes = (
-    <span className={cn("inline-flex items-center gap-1", fonteEmFallback && "text-warn")}>
-      Fonte: {nomeFonteSessoes === "GA4" ? "GA4" : "Windsor — GA4 atrasado"}
+    <span className={cn("inline-flex items-center gap-1", houveFallback && "text-warn")}>
+      Fonte: {rotuloFonteSerie}
       {ultimoDiaComSessao && ultimoDiaComSessao < fim && <> · até {ddmm(ultimoDiaComSessao)}</>}
     </span>
   );
-  const seloAnomalia = anomaliaRastreamento ? (
+
+  const badgeIntegridade = temSerieComposta ? (
+    integridade.divergente ? (
+      <TooltipProvider delayDuration={100}>
+        <UITooltip>
+          <TooltipTrigger asChild>
+            <span><SeloAviso texto="Divergência entre coletas" tom="neg" /></span>
+          </TooltipTrigger>
+          <TooltipContent className="max-w-xs text-xs leading-relaxed">
+            Razão fora de 85–115% por 2+ dias = uma das coletas quebrou
+          </TooltipContent>
+        </UITooltip>
+      </TooltipProvider>
+    ) : integridade.razaoMedia !== null ? (
+      <span className="inline-flex items-center gap-1 rounded-full border border-pos/40 bg-pos/10 px-2 py-0.5 text-[11px] font-medium text-pos">
+        Coletas batendo (razão média {fmtPct(integridade.razaoMedia, 0)})
+      </span>
+    ) : undefined
+  ) : undefined;
+
+  const denominadorSobDivergencia = anomaliaRastreamento || integridade.divergente;
+  const seloAnomalia = denominadorSobDivergencia ? (
     <TooltipProvider delayDuration={100}>
       <UITooltip>
         <TooltipTrigger asChild>
-          <span className="text-warn" aria-label="Anomalia de rastreamento">
+          <span className="text-warn" aria-label="Sessões sob divergência">
             <AlertTriangle className="h-3.5 w-3.5" />
           </span>
         </TooltipTrigger>
         <TooltipContent className="max-w-xs text-xs leading-relaxed">
-          Sessões infladas por anomalia de rastreamento — a conversão real é MAIOR que a exibida e as sessões reais são menores
+          {integridade.divergente
+            ? "Denominador de sessões sob divergência entre coletas — interpretar com cautela"
+            : "Sessões infladas por anomalia de rastreamento — a conversão real é MAIOR que a exibida e as sessões reais são menores"}
         </TooltipContent>
       </UITooltip>
     </TooltipProvider>
   ) : undefined;
+
 
 
   /* ------------------------------- IA ------------------------------------ */
@@ -663,7 +740,15 @@ Alertas: ${alertas.map((a) => a.titulo).join(", ") || "nenhum"}.`,
         >
           {rotuloComp} · trocar
         </button>
-        <SeloAviso texto={`Sessões: ${nomeFonteSessoes}`} tom={ga4Atrasado ? "warn" : "muted"} />
+        <SeloAviso
+          texto={
+            temSerieComposta
+              ? `Sessões: ${rotuloFonteSerie.toLowerCase()}${ga4Atrasado ? " · GA4 até D-1" : ""}`
+              : `Sessões: ${nomeFonteSessoes}`
+          }
+          tom={integridade.divergente ? "neg" : houveFallback || ga4Atrasado ? "warn" : "muted"}
+        />
+
         <SeloAviso texto="Mídia parcial: só Meta Ads" tom="warn" />
         <span className="flex items-center gap-1 text-xs text-muted-foreground">
           <RefreshCw className={cn("h-3 w-3", carregando && "animate-spin")} />
@@ -695,10 +780,23 @@ Alertas: ${alertas.map((a) => a.titulo).join(", ") || "nenhum"}.`,
           sub={<>{fmtNum(resumo.pedidos_captados)} captados · cancelada {fmtBRL(resumo.receita_cancelada)}</>}
         />
         <Tile
-          loading={carregando} titulo="Sessões" valor={fmtNum(funil.sessoes)}
-          pct={variacaoPct(funil.sessoes, funilComp.sessoes)} spark={sparkSessoes}
-          sub={subFonteSessoes} selo={seloAnomalia}
-          ajuda="Mesma base de sessões usada na decomposição “Por que a receita mudou”."
+          loading={carregando} titulo="Sessões" valor={fmtNum(sessoesPeriodo)}
+          pct={variacaoPct(sessoesPeriodo, sessoesPeriodoComp)} spark={sparkSessoes}
+          sub={subFonteSessoes}
+          selo={
+            <span className="ml-auto flex items-center gap-1">
+              {seloAnomalia}
+              <button
+                type="button" onClick={() => setDetalheSessoes(true)}
+                className="text-muted-foreground transition-colors hover:text-foreground"
+                aria-label="Expandir detalhe de sessões"
+              >
+                <Maximize2 className="h-3.5 w-3.5" />
+              </button>
+            </span>
+          }
+          rodape={badgeIntegridade ? <div className="pt-1">{badgeIntegridade}</div> : undefined}
+          ajuda="Série composta GA4 + rastreamento próprio, por dia pela fonte oficial, com fallback quando a coleta quebra. Mesma base da decomposição “Por que a receita mudou”."
         />
         <Tile
           loading={carregando} titulo="Taxa de conversão" valor={fmtPct(conversaoPeriodo, 2)}
@@ -706,8 +804,9 @@ Alertas: ${alertas.map((a) => a.titulo).join(", ") || "nenhum"}.`,
           pctTexto={`${fmtNum(Math.abs(deltaConversaoPP), 2)} p.p.`}
           spark={sparkConversao} selo={seloAnomalia}
           sub={<>Pedidos captados ÷ sessões do período</>}
-          ajuda="Mesma definição da decomposição: pedidos captados ÷ sessões da fonte ativa."
+          ajuda="Mesma definição da decomposição: pedidos captados ÷ sessões da série composta."
         />
+
         <Tile
           loading={carregando} titulo="Ticket médio" valor={fmtBRL(resumo.ticket_medio)}
           pct={variacaoPct(resumo.ticket_medio, resumoComp.ticket_medio)} spark={sparkTicket}
@@ -809,6 +908,16 @@ Alertas: ${alertas.map((a) => a.titulo).join(", ") || "nenhum"}.`,
           </div>
         </SheetContent>
       </Sheet>
+
+      <Dialog open={detalheSessoes} onOpenChange={setDetalheSessoes}>
+        <DialogContent className="max-w-4xl">
+          <DialogHeader>
+            <DialogTitle className="font-serif text-2xl">Sessões — GA4 x rastreamento próprio</DialogTitle>
+          </DialogHeader>
+          <SessoesDetalhe serie={serieSessoesPeriodo} />
+        </DialogContent>
+      </Dialog>
+
 
       <DialogLancarInvestimento
         driver={lancamento}
