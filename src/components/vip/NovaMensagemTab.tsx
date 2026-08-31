@@ -1042,6 +1042,9 @@ export function NovaMensagemTab() {
               <div className="rounded-lg bg-[#005c4b] p-2 text-sm text-white">
                 {!enqueteAtiva && midiaUrl && <img src={midiaUrl} alt="" className="mb-2 max-h-48 w-full rounded object-cover" />}
                 <div dangerouslySetInnerHTML={{ __html: whatsappParaHtml(textoFinal) }} />
+                {!enqueteAtiva && linkEfetivo && (
+                  <div className="mt-1 text-[11px] text-white/60">{ENCURTADO_PLACEHOLDER}</div>
+                )}
               </div>
               {enqueteAtiva && (
                 <div className="space-y-2 rounded-lg bg-[#1f2c34] p-3 text-sm text-white">
