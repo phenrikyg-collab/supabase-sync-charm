@@ -537,6 +537,57 @@ export default function DashboardComercialPage() {
     return j.length ? (j.filter((p) => !p.cancelado).length / j.length) * 100 : 0;
   }), [pedidos, fim]);
 
+  /* ------------- cards Sessões e Conversão (mesma base da LMDI) ---------- */
+  const anomaliaRastreamento = useMemo(() => alertas.some((a) => a.id === "rastreamento"), [alertas]);
+
+  const ultimoDiaComSessao = useMemo(() => {
+    const dias = listaDias(ini, fim).filter((d) => funilDia(sessoesFonte, d) > 0);
+    return dias.slice(-1)[0] ?? null;
+  }, [sessoesFonte, ini, fim]);
+
+  const conversaoPeriodo = funil.sessoes ? (resumo.pedidos_captados / funil.sessoes) * 100 : 0;
+  const conversaoComp = funilComp.sessoes ? (resumoComp.pedidos_captados / funilComp.sessoes) * 100 : 0;
+  const deltaConversaoPP = conversaoPeriodo - conversaoComp;
+
+  /** Últimos 14 dias, ignorando dias sem sessão registrada (lag do GA4). */
+  const diasSpark = useMemo(
+    () => listaDias(somaDias(fim, -13), fim).filter((d) => funilDia(sessoesFonte, d) > 0),
+    [sessoesFonte, fim],
+  );
+  const sparkSessoes = useMemo(
+    () => diasSpark.map((d) => ({ v: funilDia(sessoesFonte, d) })), [diasSpark, sessoesFonte],
+  );
+  const sparkConversao = useMemo(
+    () => diasSpark.map((d) => {
+      const s = funilDia(sessoesFonte, d);
+      return { v: s ? (pedidos.filter((p) => p.dia === d).length / s) * 100 : 0 };
+    }),
+    [diasSpark, sessoesFonte, pedidos],
+  );
+
+  const fonteEmFallback = sessoesFonte !== ga4 || ga4Atrasado;
+  const subFonteSessoes = (
+    <span className={cn("inline-flex items-center gap-1", fonteEmFallback && "text-warn")}>
+      Fonte: {nomeFonteSessoes === "GA4" ? "GA4" : "Windsor — GA4 atrasado"}
+      {ultimoDiaComSessao && ultimoDiaComSessao < fim && <> · até {ddmm(ultimoDiaComSessao)}</>}
+    </span>
+  );
+  const seloAnomalia = anomaliaRastreamento ? (
+    <TooltipProvider delayDuration={100}>
+      <UITooltip>
+        <TooltipTrigger asChild>
+          <span className="text-warn" aria-label="Anomalia de rastreamento">
+            <AlertTriangle className="h-3.5 w-3.5" />
+          </span>
+        </TooltipTrigger>
+        <TooltipContent className="max-w-xs text-xs leading-relaxed">
+          Sessões infladas por anomalia de rastreamento — a conversão real é MAIOR que a exibida e as sessões reais são menores
+        </TooltipContent>
+      </UITooltip>
+    </TooltipProvider>
+  ) : undefined;
+
+
   /* ------------------------------- IA ------------------------------------ */
   async function gerarInsights() {
     setLoadingIa(true);
