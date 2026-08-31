@@ -772,10 +772,23 @@ Alertas: ${alertas.map((a) => a.titulo).join(", ") || "nenhum"}.`,
           sub={<>{fmtNum(resumo.pedidos_captados)} captados · cancelada {fmtBRL(resumo.receita_cancelada)}</>}
         />
         <Tile
-          loading={carregando} titulo="Sessões" valor={fmtNum(funil.sessoes)}
-          pct={variacaoPct(funil.sessoes, funilComp.sessoes)} spark={sparkSessoes}
-          sub={subFonteSessoes} selo={seloAnomalia}
-          ajuda="Mesma base de sessões usada na decomposição “Por que a receita mudou”."
+          loading={carregando} titulo="Sessões" valor={fmtNum(sessoesPeriodo)}
+          pct={variacaoPct(sessoesPeriodo, sessoesPeriodoComp)} spark={sparkSessoes}
+          sub={subFonteSessoes}
+          selo={
+            <span className="ml-auto flex items-center gap-1">
+              {seloAnomalia}
+              <button
+                type="button" onClick={() => setDetalheSessoes(true)}
+                className="text-muted-foreground transition-colors hover:text-foreground"
+                aria-label="Expandir detalhe de sessões"
+              >
+                <Maximize2 className="h-3.5 w-3.5" />
+              </button>
+            </span>
+          }
+          rodape={badgeIntegridade ? <div className="pt-1">{badgeIntegridade}</div> : undefined}
+          ajuda="Série composta GA4 + rastreamento próprio, por dia pela fonte oficial, com fallback quando a coleta quebra. Mesma base da decomposição “Por que a receita mudou”."
         />
         <Tile
           loading={carregando} titulo="Taxa de conversão" valor={fmtPct(conversaoPeriodo, 2)}
@@ -783,8 +796,9 @@ Alertas: ${alertas.map((a) => a.titulo).join(", ") || "nenhum"}.`,
           pctTexto={`${fmtNum(Math.abs(deltaConversaoPP), 2)} p.p.`}
           spark={sparkConversao} selo={seloAnomalia}
           sub={<>Pedidos captados ÷ sessões do período</>}
-          ajuda="Mesma definição da decomposição: pedidos captados ÷ sessões da fonte ativa."
+          ajuda="Mesma definição da decomposição: pedidos captados ÷ sessões da série composta."
         />
+
         <Tile
           loading={carregando} titulo="Ticket médio" valor={fmtBRL(resumo.ticket_medio)}
           pct={variacaoPct(resumo.ticket_medio, resumoComp.ticket_medio)} spark={sparkTicket}
