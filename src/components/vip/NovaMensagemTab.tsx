@@ -376,11 +376,17 @@ export function NovaMensagemTab() {
       if (r?.ok === false) {
         toast.error(r?.erro ?? "O backend recusou o teste.", { duration: 10000 });
       } else {
-        const headlineEnviada = r?.enviei?.headline;
-        setUltimoTeste(headlineEnviada ?? null);
-        toast.success(
-          headlineEnviada ? `Enviado: ${headlineEnviada}` : "Teste enviado.",
-        );
+        const e = r?.enviei ?? {};
+        const tipo = e.tipo_envio ?? (r?.enquete ? "enquete" : null);
+        const partes = [
+          e.headline ? `“${e.headline}”` : null,
+          tipo ? `tipo ${tipo}` : null,
+          r?.enquete && e.enquete_pergunta ? `enquete: ${e.enquete_pergunta}` : null,
+          r?.enquete && Array.isArray(e.enquete_opcoes) ? `${e.enquete_opcoes.length} opções` : null,
+        ].filter(Boolean) as string[];
+        setUltimoTeste(partes.length ? partes.join(" · ") : null);
+        toast.success(partes.length ? `Enviado: ${partes.join(" · ")}` : "Teste enviado.");
+
       }
     } catch (e: any) {
       toast.error(e.message ?? "Falha ao enviar o teste");
