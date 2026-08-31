@@ -10,8 +10,9 @@ export interface LinhaSessaoDia {
   dia: string;                 // YYYY-MM-DD
   ga4: number;
   rastreio: number;
+  rastreio_bruto: number;      // sessões antes da limpeza de loop de rastreamento
   meta_lpv: number;
-  razao: number | null;        // rastreio ÷ ga4 em %
+  razao: number | null;        // razao_rastreio_ga4_pct vindo da RPC (sobre o limpo)
   oficial: FonteSessao;
   usada: number;               // valor efetivamente usado no painel
   fonte_usada: FonteSessao;
