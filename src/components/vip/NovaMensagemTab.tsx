@@ -705,26 +705,69 @@ export function NovaMensagemTab() {
                 </div>
                 {enqueteAtiva && (
                   <>
-                    <p className="text-[11px] text-muted-foreground">Enquete não carrega link de destino.</p>
+                    <p className="text-[11px] text-muted-foreground">
+                      A enquete é um balão separado: sai primeiro o texto (headline + corpo) e depois a enquete.
+                      Ela não carrega imagem, link nem legenda — e não formata negrito, itálico ou riscado. Emoji pode.
+                    </p>
                     <div>
                       <Label>Pergunta</Label>
-                      <Input value={pergunta} onChange={(e) => setPergunta(e.target.value)} />
+                      <Input
+                        value={pergunta}
+                        onChange={(e) => setPergunta(e.target.value)}
+                        onPaste={(e) => {
+                          if (TEM_MARCACAO.test(e.clipboardData.getData("text"))) {
+                            toast.warning("Colei sem * _ ~ — a enquete não formata esses símbolos.");
+                          }
+                        }}
+                      />
                     </div>
                     <div className="space-y-2">
-                      {opcoes.map((o, i) => (
-                        <div key={i} className="flex gap-2">
-                          <Input
-                            value={o}
-                            placeholder={`Opção ${i + 1}`}
-                            onChange={(e) => setOpcoes(opcoes.map((x, j) => (j === i ? e.target.value : x)))}
-                          />
-                          {opcoes.length > 2 && (
-                            <Button variant="ghost" size="icon" onClick={() => setOpcoes(opcoes.filter((_, j) => j !== i))}>
-                              <Trash2 className="h-4 w-4 text-destructive" />
-                            </Button>
-                          )}
-                        </div>
-                      ))}
+                      {opcoes.map((o, i) => {
+                        const crua = TEM_MARCACAO.test(o);
+                        const longa = o.trim().length > 100;
+                        return (
+                          <div key={i} className="space-y-1">
+                            <div className="flex gap-2">
+                              <Input
+                                value={o}
+                                placeholder={`Opção ${i + 1}`}
+                                maxLength={140}
+                                aria-invalid={crua || longa}
+                                className={crua || longa ? "border-destructive" : undefined}
+                                onChange={(e) => setOpcoes(opcoes.map((x, j) => (j === i ? e.target.value : x)))}
+                                onPaste={(e) => {
+                                  const txt = e.clipboardData.getData("text");
+                                  if (TEM_MARCACAO.test(txt)) {
+                                    e.preventDefault();
+                                    const limpo = limparMarcacao(txt);
+                                    setOpcoes(opcoes.map((x, j) => (j === i ? (x + limpo).slice(0, 140) : x)));
+                                    toast.warning("Tirei os * _ ~ do texto colado — a enquete não formata nada.");
+                                  }
+                                }}
+                              />
+                              {opcoes.length > 2 && (
+                                <Button variant="ghost" size="icon" onClick={() => setOpcoes(opcoes.filter((_, j) => j !== i))}>
+                                  <Trash2 className="h-4 w-4 text-destructive" />
+                                </Button>
+                              )}
+                            </div>
+                            {(crua || longa) && (
+                              <div className="flex items-center gap-2 text-[11px] text-destructive">
+                                {crua && <span>Tem * _ ou ~ — a cliente lê o símbolo.</span>}
+                                {longa && <span>{o.trim().length}/100 caracteres — o WhatsApp corta.</span>}
+                                {crua && (
+                                  <Button
+                                    variant="ghost" size="sm" className="h-6 px-2 text-[11px]"
+                                    onClick={() => setOpcoes(opcoes.map((x, j) => (j === i ? limparMarcacao(x) : x)))}
+                                  >
+                                    Remover formatação
+                                  </Button>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
                       {opcoes.length < 12 && (
                         <Button variant="outline" size="sm" onClick={() => setOpcoes([...opcoes, ""])}>
                           <Plus className="mr-1 h-3.5 w-3.5" /> Opção
@@ -733,6 +776,7 @@ export function NovaMensagemTab() {
                     </div>
                   </>
                 )}
+
               </CardContent>
             </CollapsibleContent>
           </Card>
