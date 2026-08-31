@@ -60,9 +60,10 @@ export function variacaoPct(atual: number, anterior: number): number | null {
   return ((atual - anterior) / Math.abs(anterior)) * 100;
 }
 
-export function Sparkline({ dados, negativo }: { dados: { v: number }[]; negativo?: boolean }) {
+export function Sparkline({ dados, negativo }: { dados: { v: number; alerta?: boolean }[]; negativo?: boolean }) {
   if (!dados.length) return <div className="h-10" />;
   const cor = negativo ? "hsl(var(--neg))" : "hsl(var(--pos))";
+  const temAlerta = dados.some((d) => d.alerta);
   return (
     <div className="h-10 -mx-1">
       <ResponsiveContainer width="100%" height="100%">
@@ -74,7 +75,12 @@ export function Sparkline({ dados, negativo }: { dados: { v: number }[]; negativ
             </linearGradient>
           </defs>
           <Area
-            type="monotone" dataKey="v" stroke={cor} strokeWidth={1.5} dot={false}
+            type="monotone" dataKey="v" stroke={cor} strokeWidth={1.5}
+            dot={temAlerta ? (props: any) => {
+              const p = props?.payload;
+              if (!p?.alerta) return <g key={props?.key} />;
+              return <circle key={props?.key} cx={props.cx} cy={props.cy} r={2.5} fill="hsl(var(--warn))" />;
+            } : false}
             fill={`url(#spark-${negativo ? "n" : "p"})`} isAnimationActive={false}
           />
         </AreaChart>
@@ -82,6 +88,7 @@ export function Sparkline({ dados, negativo }: { dados: { v: number }[]; negativ
     </div>
   );
 }
+
 
 export function SeloAviso({ texto, tom = "warn" }: { texto: string; tom?: "warn" | "neg" | "muted" }) {
   const cls =
