@@ -220,20 +220,22 @@ export default function DashboardComercialPage() {
 
   /* ------------------- Seção 3 — LMDI com janela ajustada ---------------- */
   const { resultado, avisoJanela } = useMemo(() => {
-    const diasA = listaDias(ini, fim).filter((d) => funilDia(sessoesFonte, d) > 0);
-    const diasB = listaDias(compIni, compFim).filter((d) => funilDia(sessoesFonte, d) > 0);
+    const diasA = listaDias(ini, fim).filter((d) => sessoesDoDia(d) > 0);
+    const diasB = listaDias(compIni, compFim).filter((d) => sessoesDoDia(d) > 0);
     const n = Math.min(diasA.length, diasB.length);
     const setA = diasA.slice(0, n);
     const setB = diasB.slice(0, n);
     const totalDias = diffDias(fim, ini) + 1;
     const faltando = listaDias(ini, fim).filter((d) => !setA.includes(d));
+    const nomeSerie = temSerieComposta ? "Série composta" : nomeFonteSessoes.startsWith("GA4") ? "GA4" : "Windsor";
     const aviso =
       n === 0 ? "Sem dados de sessão nos dois períodos"
-      : n < totalDias ? `Janela ajustada para ${n} dias — ${nomeFonteSessoes.startsWith("GA4") ? "GA4" : "Windsor"} sem ${faltando.map(ddmm).join(", ")}`
+      : n < totalDias ? `Janela ajustada para ${n} dias — ${nomeSerie} sem ${faltando.map(ddmm).join(", ")}`
       : null;
 
     const agregar = (dias: string[]) => {
-      const sessoes = sessoesFonte.filter((s) => dias.includes(s.dia)).reduce((s, l) => s + l.sessoes, 0);
+      const sessoes = dias.reduce((s, d) => s + sessoesDoDia(d), 0);
+
       const jan = pedidos.filter((p) => dias.includes(p.dia));
       const ok = jan.filter((p) => !p.cancelado);
       const receita = ok.reduce((s, p) => s + p.receita_liquida, 0);
