@@ -636,6 +636,22 @@ export function NovaMensagemTab() {
                     </Button>
                   </div>
                   <Textarea ref={corpoRef} rows={7} value={corpo} onChange={(e) => setCorpo(e.target.value)} />
+                  {urlNoCorpo && (
+                    <Alert className="mt-2 border-amber-500/40 bg-amber-500/10">
+                      <AlertTriangle className="h-4 w-4" />
+                      <AlertTitle className="text-sm">Tem um link escrito dentro do corpo</AlertTitle>
+                      <AlertDescription className="space-y-2 text-xs">
+                        <p>
+                          Ele sai sem rastreio e ainda duplica com o link encurtado. Move para o campo Link de
+                          destino.
+                        </p>
+                        <p className="truncate text-muted-foreground">{urlNoCorpo}</p>
+                        <Button size="sm" variant="outline" onClick={moverUrlParaCampo}>
+                          Mover para o campo
+                        </Button>
+                      </AlertDescription>
+                    </Alert>
+                  )}
                 </div>
                 <div>
                   <Label>CTA</Label>
@@ -657,10 +673,6 @@ export function NovaMensagemTab() {
                 <div>
                   <Label>CTA (comunidade)</Label>
                   <Input value={varianteComunidade?.cta ?? ""} onChange={(e) => setVarianteComunidade((v) => ({ ...(v ?? {}), cta: e.target.value }))} />
-                </div>
-                <div>
-                  <Label>Link de destino</Label>
-                  <Input value={linkDestino ?? ""} onChange={(e) => setLinkDestino(e.target.value || null)} placeholder={produto?.link ?? "https://..."} />
                 </div>
               </TabsContent>
             </Tabs>
