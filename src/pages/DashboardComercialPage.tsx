@@ -68,6 +68,8 @@ export default function DashboardComercialPage() {
   const [custom, setCustom] = useState<{ from?: Date; to?: Date }>({});
   const [modoComp, setModoComp] = useState<ModoComp>("anterior");
   const [drawer, setDrawer] = useState<string | null>(null);
+  const [detalheSessoes, setDetalheSessoes] = useState(false);
+
   const [lancamento, setLancamento] = useState<DriverLinha | null>(null);
   const [ia, setIa] = useState("");
   const [loadingIa, setLoadingIa] = useState(false);
