@@ -163,6 +163,33 @@ export default function DashboardComercialPage() {
   const sessoesFonte = ga4Atrasado && windsor.length ? windsor : ga4;
   const nomeFonteSessoes = sessoesFonte === ga4 ? "GA4" : "Windsor (GA4 atrasado)";
 
+  /* -------- 1.4 série composta de sessões (GA4 + rastreamento próprio) ---- */
+  const diasRpc = Math.max(diffDias(HOJE, somaDias(janIni, -3)) + 1, 30);
+  const qSessComp = useQuery({
+    queryKey: ["dc2-sessoes-comparativo", diasRpc],
+    queryFn: () => fetchSessoesComparativo(diasRpc),
+    staleTime: 5 * 60_000,
+  });
+  const serieSessoes = useMemo(() => serieComposta(qSessComp.data ?? []), [qSessComp.data]);
+  const mapaSessoes = useMemo(() => {
+    const m = new Map<string, (typeof serieSessoes)[number]>();
+    serieSessoes.forEach((l) => m.set(l.dia, l));
+    return m;
+  }, [serieSessoes]);
+  const temSerieComposta = serieSessoes.some((l) => l.usada > 0);
+
+  /** Sessões de um dia pela série composta, com queda para a fonte antiga. */
+  const sessoesDoDia = (d: string) =>
+    temSerieComposta ? (mapaSessoes.get(d)?.usada ?? 0) : funilDia(sessoesFonte, d);
+  const somaSessoes = (a: string, b: string) =>
+    listaDias(a, b).reduce((s, d) => s + sessoesDoDia(d), 0);
+
+  const serieSessoesPeriodo = useMemo(
+    () => serieSessoes.filter((l) => l.dia >= ini && l.dia <= fim), [serieSessoes, ini, fim],
+  );
+  const integridade = useMemo(() => integridadePeriodo(serieSessoesPeriodo), [serieSessoesPeriodo]);
+
+
   /* ------------------------------ métricas ------------------------------ */
   const resumo = useMemo(() => resumoPeriodo(pedidos, ini, fim), [pedidos, ini, fim]);
   const resumoComp = useMemo(() => resumoPeriodo(pedidos, compIni, compFim), [pedidos, compIni, compFim]);
