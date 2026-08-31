@@ -137,7 +137,7 @@ export function Tile({
   pct?: number | null;
   pctTexto?: string;
   inverso?: boolean;
-  spark?: { v: number }[];
+  spark?: { v: number; alerta?: boolean }[];
   selo?: ReactNode;
   ajuda?: ReactNode;
   rodape?: ReactNode;
