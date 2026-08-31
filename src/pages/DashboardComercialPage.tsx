@@ -740,7 +740,15 @@ Alertas: ${alertas.map((a) => a.titulo).join(", ") || "nenhum"}.`,
         >
           {rotuloComp} · trocar
         </button>
-        <SeloAviso texto={`Sessões: ${nomeFonteSessoes}`} tom={ga4Atrasado ? "warn" : "muted"} />
+        <SeloAviso
+          texto={
+            temSerieComposta
+              ? `Sessões: ${rotuloFonteSerie.toLowerCase()}${ga4Atrasado ? " · GA4 até D-1" : ""}`
+              : `Sessões: ${nomeFonteSessoes}`
+          }
+          tom={integridade.divergente ? "neg" : houveFallback || ga4Atrasado ? "warn" : "muted"}
+        />
+
         <SeloAviso texto="Mídia parcial: só Meta Ads" tom="warn" />
         <span className="flex items-center gap-1 text-xs text-muted-foreground">
           <RefreshCw className={cn("h-3 w-3", carregando && "animate-spin")} />
