@@ -614,8 +614,10 @@ export function NovaMensagemTab() {
           </CardContent>
         </Card>
 
-        {/* Imagem */}
+        {/* Imagem — enquete não carrega imagem, então o bloco some */}
+        {!enqueteAtiva && (
         <Card>
+
           <CardHeader className="py-3">
             <CardTitle className="text-sm">Imagem</CardTitle>
           </CardHeader>
