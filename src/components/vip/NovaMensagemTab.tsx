@@ -196,8 +196,14 @@ export function NovaMensagemTab() {
     });
   };
 
-  
+  /** Marcadores do WhatsApp que a enquete NÃO formata — sairiam crus para a cliente. */
+  const TEM_MARCACAO = /[*_~]/;
+  const limparMarcacao = (t: string) => t.replace(/[*_~]/g, "");
 
+  const opcoesValidas = useMemo(() => opcoes.map((o) => o.trim()).filter(Boolean), [opcoes]);
+
+  // O banco monta o campo `mensagem` a partir de headline/corpo/cta.
+  // Nunca montar a string aqui nem enviar `mensagem` — foi isso que apagava o corpo.
   const payload = useMemo(
     () => ({
       headline,
@@ -209,12 +215,13 @@ export function NovaMensagemTab() {
       quando,
       data_envio: quando === "agora" ? hoje : dataEnvio,
       horario: quando === "agora" ? new Date().toTimeString().slice(0, 5) : horario,
-      midia_url: midiaUrl || null,
-      prova_id: provaId,
+      // Enquete é um balão separado: não carrega imagem nem link.
+      midia_url: enqueteAtiva ? null : (midiaUrl || null),
+      prova_id: enqueteAtiva ? null : provaId,
       link_destino: enqueteAtiva ? null : (linkDestino || produto?.link || null),
       tipo_envio: enqueteAtiva ? "enquete" : midiaUrl ? "imagem" : "texto",
       enquete_pergunta: enqueteAtiva ? pergunta : null,
-      enquete_opcoes: enqueteAtiva ? opcoes.filter((o) => o.trim()) : null,
+      enquete_opcoes: enqueteAtiva ? opcoesValidas : null,
       variante_comunidade:
         varianteComunidade &&
         (varianteComunidade.headline || varianteComunidade.corpo || varianteComunidade.cta)
@@ -226,8 +233,9 @@ export function NovaMensagemTab() {
           : null,
       ...camadas,
     }),
-    [headline, corpo, cta, produto, publico, gruposAlvo, quando, dataEnvio, horario, hoje, midiaUrl, provaId, linkDestino, enqueteAtiva, pergunta, opcoes, camadas, varianteComunidade],
+    [headline, corpo, cta, produto, publico, gruposAlvo, quando, dataEnvio, horario, hoje, midiaUrl, provaId, linkDestino, enqueteAtiva, pergunta, opcoesValidas, camadas, varianteComunidade],
   );
+
 
   /** Formulário editado depois da última gravação — precisa salvar de novo antes de testar. */
   const editadoAposSalvar = mensagemId != null && snapshotSalvo !== JSON.stringify(payload);
@@ -249,17 +257,40 @@ export function NovaMensagemTab() {
     if (!mensagemId) return;
     const t = setTimeout(() => validar(mensagemId), 800);
     return () => clearTimeout(t);
-  }, [mensagemId, headline, corpo, cta, midiaUrl, provaId, gruposAlvo, validar]);
+  }, [mensagemId, headline, corpo, cta, midiaUrl, provaId, gruposAlvo, enqueteAtiva, pergunta, opcoesValidas, validar]);
 
   // Qualquer edição invalida a confirmação do teste anterior
   useEffect(() => {
     setUltimoTeste(null);
   }, [payload]);
 
-  const travas = alertas.filter(alertaBloqueante);
+  /** Regras da enquete conferidas na hora — as mesmas de vip_mensagem_validar. */
+  const alertasEnquete = useMemo<VipAlerta[]>(() => {
+    if (!enqueteAtiva) return [];
+    const l: VipAlerta[] = [];
+    if (!pergunta.trim()) l.push({ bloqueia: true, texto: "Enquete sem pergunta." } as VipAlerta);
+    if (!corpo.trim()) {
+      l.push({ bloqueia: true, texto: "Enquete sem corpo — o balão de texto sairia só com a headline." } as VipAlerta);
+    }
+    if (opcoesValidas.length < 2) {
+      l.push({ bloqueia: true, texto: "Enquete precisa de pelo menos 2 opções." } as VipAlerta);
+    }
+    opcoesValidas.forEach((o, i) => {
+      if (TEM_MARCACAO.test(o)) {
+        l.push({ bloqueia: true, texto: `Opção ${i + 1} tem * _ ou ~ — a enquete não formata e a cliente lê o símbolo.` } as VipAlerta);
+      }
+      if (o.length > 100) {
+        l.push({ bloqueia: true, texto: `Opção ${i + 1} tem ${o.length} caracteres — o WhatsApp corta em 100.` } as VipAlerta);
+      }
+    });
+    return l;
+  }, [enqueteAtiva, pergunta, corpo, opcoesValidas]);
+
+  const travas = [...alertas.filter(alertaBloqueante), ...alertasEnquete];
   const avisos = alertas.filter((a) => !alertaBloqueante(a));
-  const provaSemAutorizacao = abaImagem === "prova" && !!provaId && !provaAutorizada;
+  const provaSemAutorizacao = !enqueteAtiva && abaImagem === "prova" && !!provaId && !provaAutorizada;
   const travado = travas.length > 0 || provaSemAutorizacao;
+
 
   // Preview segue a aba de texto selecionada. O campo "corpo" já termina com o
   // CTA — nunca concatenar o campo cta separado (existe só para métrica/edição).
@@ -345,11 +376,17 @@ export function NovaMensagemTab() {
       if (r?.ok === false) {
         toast.error(r?.erro ?? "O backend recusou o teste.", { duration: 10000 });
       } else {
-        const headlineEnviada = r?.enviei?.headline;
-        setUltimoTeste(headlineEnviada ?? null);
-        toast.success(
-          headlineEnviada ? `Enviado: ${headlineEnviada}` : "Teste enviado.",
-        );
+        const e = r?.enviei ?? {};
+        const tipo = e.tipo_envio ?? (r?.enquete ? "enquete" : null);
+        const partes = [
+          e.headline ? `“${e.headline}”` : null,
+          tipo ? `tipo ${tipo}` : null,
+          r?.enquete && e.enquete_pergunta ? `enquete: ${e.enquete_pergunta}` : null,
+          r?.enquete && Array.isArray(e.enquete_opcoes) ? `${e.enquete_opcoes.length} opções` : null,
+        ].filter(Boolean) as string[];
+        setUltimoTeste(partes.length ? partes.join(" · ") : null);
+        toast.success(partes.length ? `Enviado: ${partes.join(" · ")}` : "Teste enviado.");
+
       }
     } catch (e: any) {
       toast.error(e.message ?? "Falha ao enviar o teste");
@@ -583,8 +620,10 @@ export function NovaMensagemTab() {
           </CardContent>
         </Card>
 
-        {/* Imagem */}
+        {/* Imagem — enquete não carrega imagem, então o bloco some */}
+        {!enqueteAtiva && (
         <Card>
+
           <CardHeader className="py-3">
             <CardTitle className="text-sm">Imagem</CardTitle>
           </CardHeader>
@@ -652,6 +691,8 @@ export function NovaMensagemTab() {
             )}
           </CardContent>
         </Card>
+        )}
+
 
         {/* Enquete */}
         <Collapsible>
@@ -670,26 +711,69 @@ export function NovaMensagemTab() {
                 </div>
                 {enqueteAtiva && (
                   <>
-                    <p className="text-[11px] text-muted-foreground">Enquete não carrega link de destino.</p>
+                    <p className="text-[11px] text-muted-foreground">
+                      A enquete é um balão separado: sai primeiro o texto (headline + corpo) e depois a enquete.
+                      Ela não carrega imagem, link nem legenda — e não formata negrito, itálico ou riscado. Emoji pode.
+                    </p>
                     <div>
                       <Label>Pergunta</Label>
-                      <Input value={pergunta} onChange={(e) => setPergunta(e.target.value)} />
+                      <Input
+                        value={pergunta}
+                        onChange={(e) => setPergunta(e.target.value)}
+                        onPaste={(e) => {
+                          if (TEM_MARCACAO.test(e.clipboardData.getData("text"))) {
+                            toast.warning("Colei sem * _ ~ — a enquete não formata esses símbolos.");
+                          }
+                        }}
+                      />
                     </div>
                     <div className="space-y-2">
-                      {opcoes.map((o, i) => (
-                        <div key={i} className="flex gap-2">
-                          <Input
-                            value={o}
-                            placeholder={`Opção ${i + 1}`}
-                            onChange={(e) => setOpcoes(opcoes.map((x, j) => (j === i ? e.target.value : x)))}
-                          />
-                          {opcoes.length > 2 && (
-                            <Button variant="ghost" size="icon" onClick={() => setOpcoes(opcoes.filter((_, j) => j !== i))}>
-                              <Trash2 className="h-4 w-4 text-destructive" />
-                            </Button>
-                          )}
-                        </div>
-                      ))}
+                      {opcoes.map((o, i) => {
+                        const crua = TEM_MARCACAO.test(o);
+                        const longa = o.trim().length > 100;
+                        return (
+                          <div key={i} className="space-y-1">
+                            <div className="flex gap-2">
+                              <Input
+                                value={o}
+                                placeholder={`Opção ${i + 1}`}
+                                maxLength={140}
+                                aria-invalid={crua || longa}
+                                className={crua || longa ? "border-destructive" : undefined}
+                                onChange={(e) => setOpcoes(opcoes.map((x, j) => (j === i ? e.target.value : x)))}
+                                onPaste={(e) => {
+                                  const txt = e.clipboardData.getData("text");
+                                  if (TEM_MARCACAO.test(txt)) {
+                                    e.preventDefault();
+                                    const limpo = limparMarcacao(txt);
+                                    setOpcoes(opcoes.map((x, j) => (j === i ? (x + limpo).slice(0, 140) : x)));
+                                    toast.warning("Tirei os * _ ~ do texto colado — a enquete não formata nada.");
+                                  }
+                                }}
+                              />
+                              {opcoes.length > 2 && (
+                                <Button variant="ghost" size="icon" onClick={() => setOpcoes(opcoes.filter((_, j) => j !== i))}>
+                                  <Trash2 className="h-4 w-4 text-destructive" />
+                                </Button>
+                              )}
+                            </div>
+                            {(crua || longa) && (
+                              <div className="flex items-center gap-2 text-[11px] text-destructive">
+                                {crua && <span>Tem * _ ou ~ — a cliente lê o símbolo.</span>}
+                                {longa && <span>{o.trim().length}/100 caracteres — o WhatsApp corta.</span>}
+                                {crua && (
+                                  <Button
+                                    variant="ghost" size="sm" className="h-6 px-2 text-[11px]"
+                                    onClick={() => setOpcoes(opcoes.map((x, j) => (j === i ? limparMarcacao(x) : x)))}
+                                  >
+                                    Remover formatação
+                                  </Button>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
                       {opcoes.length < 12 && (
                         <Button variant="outline" size="sm" onClick={() => setOpcoes([...opcoes, ""])}>
                           <Plus className="mr-1 h-3.5 w-3.5" /> Opção
@@ -698,6 +782,7 @@ export function NovaMensagemTab() {
                     </div>
                   </>
                 )}
+
               </CardContent>
             </CollapsibleContent>
           </Card>
@@ -744,22 +829,37 @@ export function NovaMensagemTab() {
             <p className="mb-2 text-[11px] text-muted-foreground">
               Visualizando: {abaTexto === "comunidade" ? "Cria Comigo (comunidade)" : "Listas VIP"}
             </p>
-            <div className="rounded-xl bg-[#0b141a] p-3">
+            <div className="space-y-2 rounded-xl bg-[#0b141a] p-3">
+              {/* Balão 1 — texto */}
               <div className="max-w-[300px] rounded-lg rounded-tl-none bg-[#005c4b] p-2 text-sm text-white">
-                {midiaUrl && (
+                {!enqueteAtiva && midiaUrl && (
                   <img src={midiaUrl} alt="" className="mb-2 max-h-56 w-full rounded object-cover" />
                 )}
                 <div dangerouslySetInnerHTML={{ __html: whatsappParaHtml(textoFinal) || "<em>Sem texto</em>" }} />
-                {enqueteAtiva && (
-                  <div className="mt-2 rounded bg-black/20 p-2 text-xs">
-                    <div className="font-medium">{pergunta || "Pergunta da enquete"}</div>
-                    {opcoes.filter(Boolean).map((o, i) => (
-                      <div key={i}>• {o}</div>
+              </div>
+              {/* Balão 2 — enquete, mensagem separada, sem legenda e sem imagem */}
+              {enqueteAtiva && (
+                <div className="max-w-[300px] space-y-2 rounded-lg bg-[#1f2c34] p-3 text-sm text-white">
+                  <div className="text-[10px] uppercase tracking-wide text-white/50">Enquete</div>
+                  <div className="font-medium">{pergunta || "Pergunta da enquete"}</div>
+                  <div className="space-y-2 pt-1">
+                    {(opcoesValidas.length ? opcoesValidas : ["Opção 1", "Opção 2"]).map((o, i) => (
+                      <div key={i} className="flex items-center gap-2 rounded bg-white/5 px-2 py-1.5 text-xs">
+                        <span className="h-4 w-4 shrink-0 rounded-full border border-white/50" />
+                        <span className="min-w-0 flex-1 break-words">{o}</span>
+                      </div>
                     ))}
                   </div>
-                )}
-              </div>
+                  <div className="pt-1 text-[10px] text-white/50">Toque para votar</div>
+                </div>
+              )}
             </div>
+            {enqueteAtiva && (
+              <p className="mt-2 text-[11px] text-muted-foreground">
+                São duas mensagens no WhatsApp: o texto e, logo depois, a enquete.
+              </p>
+            )}
+
           </CardContent>
         </Card>
 
@@ -874,12 +974,24 @@ export function NovaMensagemTab() {
                 {avisos.length} alerta(s) serão ignorados
               </Badge>
             )}
-            <div className="rounded-xl bg-[#0b141a] p-3">
+            <div className="space-y-2 rounded-xl bg-[#0b141a] p-3">
               <div className="rounded-lg bg-[#005c4b] p-2 text-sm text-white">
-                {midiaUrl && <img src={midiaUrl} alt="" className="mb-2 max-h-48 w-full rounded object-cover" />}
+                {!enqueteAtiva && midiaUrl && <img src={midiaUrl} alt="" className="mb-2 max-h-48 w-full rounded object-cover" />}
                 <div dangerouslySetInnerHTML={{ __html: whatsappParaHtml(textoFinal) }} />
               </div>
+              {enqueteAtiva && (
+                <div className="space-y-2 rounded-lg bg-[#1f2c34] p-3 text-sm text-white">
+                  <div className="font-medium">{pergunta || "Pergunta da enquete"}</div>
+                  {opcoesValidas.map((o, i) => (
+                    <div key={i} className="flex items-center gap-2 rounded bg-white/5 px-2 py-1.5 text-xs">
+                      <span className="h-4 w-4 shrink-0 rounded-full border border-white/50" />
+                      <span className="min-w-0 flex-1 break-words">{o}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
+
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setResumoAberto(false)}>Voltar</Button>
