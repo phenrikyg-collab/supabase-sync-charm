@@ -590,51 +590,80 @@ export default function DashboardComercialPage() {
   const anomaliaRastreamento = useMemo(() => alertas.some((a) => a.id === "rastreamento"), [alertas]);
 
   const ultimoDiaComSessao = useMemo(() => {
-    const dias = listaDias(ini, fim).filter((d) => funilDia(sessoesFonte, d) > 0);
+    const dias = listaDias(ini, fim).filter((d) => sessoesDoDia(d) > 0);
     return dias.slice(-1)[0] ?? null;
-  }, [sessoesFonte, ini, fim]);
+  }, [sessoesFonte, mapaSessoes, temSerieComposta, ini, fim]);
 
-  const conversaoPeriodo = funil.sessoes ? (resumo.pedidos_captados / funil.sessoes) * 100 : 0;
-  const conversaoComp = funilComp.sessoes ? (resumoComp.pedidos_captados / funilComp.sessoes) * 100 : 0;
+  const conversaoPeriodo = sessoesPeriodo ? (resumo.pedidos_captados / sessoesPeriodo) * 100 : 0;
+  const conversaoComp = sessoesPeriodoComp ? (resumoComp.pedidos_captados / sessoesPeriodoComp) * 100 : 0;
   const deltaConversaoPP = conversaoPeriodo - conversaoComp;
 
   /** Últimos 14 dias, ignorando dias sem sessão registrada (lag do GA4). */
   const diasSpark = useMemo(
-    () => listaDias(somaDias(fim, -13), fim).filter((d) => funilDia(sessoesFonte, d) > 0),
-    [sessoesFonte, fim],
+    () => listaDias(somaDias(fim, -13), fim).filter((d) => sessoesDoDia(d) > 0),
+    [sessoesFonte, mapaSessoes, temSerieComposta, fim],
   );
   const sparkSessoes = useMemo(
-    () => diasSpark.map((d) => ({ v: funilDia(sessoesFonte, d) })), [diasSpark, sessoesFonte],
+    () => diasSpark.map((d) => ({ v: sessoesDoDia(d), alerta: mapaSessoes.get(d)?.fallback ?? false })),
+    [diasSpark, sessoesFonte, mapaSessoes, temSerieComposta],
   );
   const sparkConversao = useMemo(
     () => diasSpark.map((d) => {
-      const s = funilDia(sessoesFonte, d);
-      return { v: s ? (pedidos.filter((p) => p.dia === d).length / s) * 100 : 0 };
+      const s = sessoesDoDia(d);
+      return {
+        v: s ? (pedidos.filter((p) => p.dia === d).length / s) * 100 : 0,
+        alerta: mapaSessoes.get(d)?.fallback ?? false,
+      };
     }),
-    [diasSpark, sessoesFonte, pedidos],
+    [diasSpark, sessoesFonte, mapaSessoes, temSerieComposta, pedidos],
   );
 
-  const fonteEmFallback = sessoesFonte !== ga4 || ga4Atrasado;
+  const houveFallback = integridade.fallbacks > 0;
+  const rotuloFonteSerie = temSerieComposta ? rotuloFontes(integridade.fontes) : nomeFonteSessoes;
   const subFonteSessoes = (
-    <span className={cn("inline-flex items-center gap-1", fonteEmFallback && "text-warn")}>
-      Fonte: {nomeFonteSessoes === "GA4" ? "GA4" : "Windsor — GA4 atrasado"}
+    <span className={cn("inline-flex items-center gap-1", houveFallback && "text-warn")}>
+      Fonte: {rotuloFonteSerie}
       {ultimoDiaComSessao && ultimoDiaComSessao < fim && <> · até {ddmm(ultimoDiaComSessao)}</>}
     </span>
   );
-  const seloAnomalia = anomaliaRastreamento ? (
+
+  const badgeIntegridade = temSerieComposta ? (
+    integridade.divergente ? (
+      <TooltipProvider delayDuration={100}>
+        <UITooltip>
+          <TooltipTrigger asChild>
+            <span><SeloAviso texto="Divergência entre coletas" tom="neg" /></span>
+          </TooltipTrigger>
+          <TooltipContent className="max-w-xs text-xs leading-relaxed">
+            Razão fora de 85–115% por 2+ dias = uma das coletas quebrou
+          </TooltipContent>
+        </UITooltip>
+      </TooltipProvider>
+    ) : integridade.razaoMedia !== null ? (
+      <span className="inline-flex items-center gap-1 rounded-full border border-pos/40 bg-pos/10 px-2 py-0.5 text-[11px] font-medium text-pos">
+        Coletas batendo (razão média {fmtPct(integridade.razaoMedia, 0)})
+      </span>
+    ) : undefined
+  ) : undefined;
+
+  const denominadorSobDivergencia = anomaliaRastreamento || integridade.divergente;
+  const seloAnomalia = denominadorSobDivergencia ? (
     <TooltipProvider delayDuration={100}>
       <UITooltip>
         <TooltipTrigger asChild>
-          <span className="text-warn" aria-label="Anomalia de rastreamento">
+          <span className="text-warn" aria-label="Sessões sob divergência">
             <AlertTriangle className="h-3.5 w-3.5" />
           </span>
         </TooltipTrigger>
         <TooltipContent className="max-w-xs text-xs leading-relaxed">
-          Sessões infladas por anomalia de rastreamento — a conversão real é MAIOR que a exibida e as sessões reais são menores
+          {integridade.divergente
+            ? "Denominador de sessões sob divergência entre coletas — interpretar com cautela"
+            : "Sessões infladas por anomalia de rastreamento — a conversão real é MAIOR que a exibida e as sessões reais são menores"}
         </TooltipContent>
       </UITooltip>
     </TooltipProvider>
   ) : undefined;
+
 
 
   /* ------------------------------- IA ------------------------------------ */
