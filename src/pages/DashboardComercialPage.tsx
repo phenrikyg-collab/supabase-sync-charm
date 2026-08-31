@@ -200,6 +200,17 @@ export default function DashboardComercialPage() {
   const funilComp = useMemo(() => funilSessoes(sessoesFonte, compIni, compFim), [sessoesFonte, compIni, compFim]);
   const mid = useMemo(() => resumoMidia(midia, ini, fim, funil.sessoes_pagas), [midia, ini, fim, funil.sessoes_pagas]);
 
+  /** Total de sessões do período pela série composta (denominador único do painel). */
+  const sessoesPeriodo = useMemo(
+    () => (temSerieComposta ? somaSessoes(ini, fim) : funil.sessoes),
+    [temSerieComposta, mapaSessoes, ini, fim, funil.sessoes],
+  );
+  const sessoesPeriodoComp = useMemo(
+    () => (temSerieComposta ? somaSessoes(compIni, compFim) : funilComp.sessoes),
+    [temSerieComposta, mapaSessoes, compIni, compFim, funilComp.sessoes],
+  );
+
+
   const mtd = useMemo(() => resumoPeriodo(pedidos, mesIni, [fim, HOJE].sort()[0]), [pedidos, mesIni, fim]);
   const meta = qMeta.data;
   const pctMeta = meta?.meta_mensal ? (mtd.receita_liquida / meta.meta_mensal) * 100 : null;
