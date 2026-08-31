@@ -823,22 +823,37 @@ export function NovaMensagemTab() {
             <p className="mb-2 text-[11px] text-muted-foreground">
               Visualizando: {abaTexto === "comunidade" ? "Cria Comigo (comunidade)" : "Listas VIP"}
             </p>
-            <div className="rounded-xl bg-[#0b141a] p-3">
+            <div className="space-y-2 rounded-xl bg-[#0b141a] p-3">
+              {/* Balão 1 — texto */}
               <div className="max-w-[300px] rounded-lg rounded-tl-none bg-[#005c4b] p-2 text-sm text-white">
-                {midiaUrl && (
+                {!enqueteAtiva && midiaUrl && (
                   <img src={midiaUrl} alt="" className="mb-2 max-h-56 w-full rounded object-cover" />
                 )}
                 <div dangerouslySetInnerHTML={{ __html: whatsappParaHtml(textoFinal) || "<em>Sem texto</em>" }} />
-                {enqueteAtiva && (
-                  <div className="mt-2 rounded bg-black/20 p-2 text-xs">
-                    <div className="font-medium">{pergunta || "Pergunta da enquete"}</div>
-                    {opcoes.filter(Boolean).map((o, i) => (
-                      <div key={i}>• {o}</div>
+              </div>
+              {/* Balão 2 — enquete, mensagem separada, sem legenda e sem imagem */}
+              {enqueteAtiva && (
+                <div className="max-w-[300px] space-y-2 rounded-lg bg-[#1f2c34] p-3 text-sm text-white">
+                  <div className="text-[10px] uppercase tracking-wide text-white/50">Enquete</div>
+                  <div className="font-medium">{pergunta || "Pergunta da enquete"}</div>
+                  <div className="space-y-2 pt-1">
+                    {(opcoesValidas.length ? opcoesValidas : ["Opção 1", "Opção 2"]).map((o, i) => (
+                      <div key={i} className="flex items-center gap-2 rounded bg-white/5 px-2 py-1.5 text-xs">
+                        <span className="h-4 w-4 shrink-0 rounded-full border border-white/50" />
+                        <span className="min-w-0 flex-1 break-words">{o}</span>
+                      </div>
                     ))}
                   </div>
-                )}
-              </div>
+                  <div className="pt-1 text-[10px] text-white/50">Toque para votar</div>
+                </div>
+              )}
             </div>
+            {enqueteAtiva && (
+              <p className="mt-2 text-[11px] text-muted-foreground">
+                São duas mensagens no WhatsApp: o texto e, logo depois, a enquete.
+              </p>
+            )}
+
           </CardContent>
         </Card>
 
