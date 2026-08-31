@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+// O preview nunca inventa um código real de encurtado — ele só existe no envio.
+const ENCURTADO_PLACEHOLDER = "vip.usemarianacardoso.com.br/••••••";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -299,6 +301,26 @@ export function NovaMensagemTab() {
       ? [varianteComunidade?.headline, varianteComunidade?.corpo].filter(Boolean).join("\n\n")
       : [headline, corpo].filter(Boolean).join("\n\n");
 
+  /* ---------------- link de destino ---------------- */
+
+  /** Link efetivo que vai no payload (campo livre ou link da peça). */
+  const linkEfetivo = linkDestino || produto?.link || null;
+  const linkSemHttps = !!linkDestino && !/^https:\/\//i.test(linkDestino);
+  const linkDominioExterno =
+    !!linkDestino &&
+    /^https:\/\//i.test(linkDestino) &&
+    !/^https:\/\/(www\.)?usemarianacardoso\.com\.br(\/|$)/i.test(linkDestino);
+
+  /** URL crua escrita dentro do corpo — sai sem rastreio e duplica com o encurtado. */
+  const urlNoCorpo = corpo.match(/https?:\/\/\S+/i)?.[0] ?? null;
+
+  const moverUrlParaCampo = () => {
+    if (!urlNoCorpo) return;
+    setLinkDestino(urlNoCorpo);
+    setCorpo(corpo.replace(urlNoCorpo, "").replace(/\n{3,}/g, "\n\n").trim());
+    toast.success("Link movido para o campo Link de destino.");
+  };
+
   /* ---------------- salvar ---------------- */
 
   const salvar = async (aprovar: boolean) => {
@@ -512,6 +534,33 @@ export function NovaMensagemTab() {
               )}
             </div>
 
+            {/* Enquete não carrega URL — o campo some quando ela está ligada */}
+            {!enqueteAtiva && (
+              <div>
+                <Label>Link de destino</Label>
+                <Input
+                  value={linkDestino ?? ""}
+                  onChange={(e) => setLinkDestino(e.target.value || null)}
+                  placeholder="https://www.usemarianacardoso.com.br/sale-elegant"
+                  className={linkSemHttps || linkDominioExterno ? "border-amber-500" : ""}
+                />
+                {linkSemHttps && (
+                  <p className="mt-1 flex items-center gap-1 text-[11px] text-amber-600">
+                    <AlertTriangle className="h-3 w-3" /> O link precisa começar com https://
+                  </p>
+                )}
+                {linkDominioExterno && (
+                  <p className="mt-1 flex items-center gap-1 text-[11px] text-amber-600">
+                    <AlertTriangle className="h-3 w-3" /> Domínio fora de usemarianacardoso.com.br — confira se é intencional.
+                  </p>
+                )}
+                <p className="mt-1 text-[11px] text-muted-foreground">
+                  O link vai ser encurtado para vip.usemarianacardoso.com.br/xxxxxx na hora do envio, um código
+                  diferente por grupo. É assim que sabemos quantas clicaram e de qual grupo.
+                </p>
+              </div>
+            )}
+
             {produto && (
               <div className="flex gap-3 rounded-lg border p-3">
                 {produto.imagem && (
@@ -589,6 +638,22 @@ export function NovaMensagemTab() {
                     </Button>
                   </div>
                   <Textarea ref={corpoRef} rows={7} value={corpo} onChange={(e) => setCorpo(e.target.value)} />
+                  {urlNoCorpo && (
+                    <Alert className="mt-2 border-amber-500/40 bg-amber-500/10">
+                      <AlertTriangle className="h-4 w-4" />
+                      <AlertTitle className="text-sm">Tem um link escrito dentro do corpo</AlertTitle>
+                      <AlertDescription className="space-y-2 text-xs">
+                        <p>
+                          Ele sai sem rastreio e ainda duplica com o link encurtado. Move para o campo Link de
+                          destino.
+                        </p>
+                        <p className="truncate text-muted-foreground">{urlNoCorpo}</p>
+                        <Button size="sm" variant="outline" onClick={moverUrlParaCampo}>
+                          Mover para o campo
+                        </Button>
+                      </AlertDescription>
+                    </Alert>
+                  )}
                 </div>
                 <div>
                   <Label>CTA</Label>
@@ -610,10 +675,6 @@ export function NovaMensagemTab() {
                 <div>
                   <Label>CTA (comunidade)</Label>
                   <Input value={varianteComunidade?.cta ?? ""} onChange={(e) => setVarianteComunidade((v) => ({ ...(v ?? {}), cta: e.target.value }))} />
-                </div>
-                <div>
-                  <Label>Link de destino</Label>
-                  <Input value={linkDestino ?? ""} onChange={(e) => setLinkDestino(e.target.value || null)} placeholder={produto?.link ?? "https://..."} />
                 </div>
               </TabsContent>
             </Tabs>
@@ -836,6 +897,9 @@ export function NovaMensagemTab() {
                   <img src={midiaUrl} alt="" className="mb-2 max-h-56 w-full rounded object-cover" />
                 )}
                 <div dangerouslySetInnerHTML={{ __html: whatsappParaHtml(textoFinal) || "<em>Sem texto</em>" }} />
+                {!enqueteAtiva && linkEfetivo && (
+                  <div className="mt-1 text-[11px] text-white/60">{ENCURTADO_PLACEHOLDER}</div>
+                )}
               </div>
               {/* Balão 2 — enquete, mensagem separada, sem legenda e sem imagem */}
               {enqueteAtiva && (
@@ -978,6 +1042,9 @@ export function NovaMensagemTab() {
               <div className="rounded-lg bg-[#005c4b] p-2 text-sm text-white">
                 {!enqueteAtiva && midiaUrl && <img src={midiaUrl} alt="" className="mb-2 max-h-48 w-full rounded object-cover" />}
                 <div dangerouslySetInnerHTML={{ __html: whatsappParaHtml(textoFinal) }} />
+                {!enqueteAtiva && linkEfetivo && (
+                  <div className="mt-1 text-[11px] text-white/60">{ENCURTADO_PLACEHOLDER}</div>
+                )}
               </div>
               {enqueteAtiva && (
                 <div className="space-y-2 rounded-lg bg-[#1f2c34] p-3 text-sm text-white">
