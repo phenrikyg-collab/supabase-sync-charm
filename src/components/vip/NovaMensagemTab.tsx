@@ -968,12 +968,24 @@ export function NovaMensagemTab() {
                 {avisos.length} alerta(s) serão ignorados
               </Badge>
             )}
-            <div className="rounded-xl bg-[#0b141a] p-3">
+            <div className="space-y-2 rounded-xl bg-[#0b141a] p-3">
               <div className="rounded-lg bg-[#005c4b] p-2 text-sm text-white">
-                {midiaUrl && <img src={midiaUrl} alt="" className="mb-2 max-h-48 w-full rounded object-cover" />}
+                {!enqueteAtiva && midiaUrl && <img src={midiaUrl} alt="" className="mb-2 max-h-48 w-full rounded object-cover" />}
                 <div dangerouslySetInnerHTML={{ __html: whatsappParaHtml(textoFinal) }} />
               </div>
+              {enqueteAtiva && (
+                <div className="space-y-2 rounded-lg bg-[#1f2c34] p-3 text-sm text-white">
+                  <div className="font-medium">{pergunta || "Pergunta da enquete"}</div>
+                  {opcoesValidas.map((o, i) => (
+                    <div key={i} className="flex items-center gap-2 rounded bg-white/5 px-2 py-1.5 text-xs">
+                      <span className="h-4 w-4 shrink-0 rounded-full border border-white/50" />
+                      <span className="min-w-0 flex-1 break-words">{o}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
+
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setResumoAberto(false)}>Voltar</Button>
