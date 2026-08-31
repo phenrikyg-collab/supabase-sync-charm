@@ -10,8 +10,9 @@ export interface LinhaSessaoDia {
   dia: string;                 // YYYY-MM-DD
   ga4: number;
   rastreio: number;
+  rastreio_bruto: number;      // sessões antes da limpeza de loop de rastreamento
   meta_lpv: number;
-  razao: number | null;        // rastreio ÷ ga4 em %
+  razao: number | null;        // razao_rastreio_ga4_pct vindo da RPC (sobre o limpo)
   oficial: FonteSessao;
   usada: number;               // valor efetivamente usado no painel
   fonte_usada: FonteSessao;
@@ -49,10 +50,13 @@ export function serieComposta(linhas: any[]): LinhaSessaoDia[] {
     .map((r) => {
       const ga4 = num(r.sessoes_ga4);
       const rastreio = num(r.sessoes_rastreio);
+      const rastreio_bruto = num(r.sessoes_rastreio_bruto);
       const oficial: FonteSessao = String(r.fonte_oficial ?? "ga4").toLowerCase().startsWith("rastre")
         ? "rastreamento" : "ga4";
-      const razao = ga4 > 0 && rastreio > 0
-        ? (r.razao_rastreio_ga4_pct != null ? num(r.razao_rastreio_ga4_pct) : (rastreio / ga4) * 100)
+      // A RPC já calcula a razão sobre os dados limpos; nunca recalcular no front.
+      // Dias sem GA4 (lag D-1/D-2) devem vir como null — se vierem 0, forçamos "—".
+      const razao = ga4 > 0 && r.razao_rastreio_ga4_pct != null
+        ? num(r.razao_rastreio_ga4_pct)
         : null;
 
       const oficialV = oficial === "ga4" ? ga4 : rastreio;
@@ -64,6 +68,7 @@ export function serieComposta(linhas: any[]): LinhaSessaoDia[] {
         dia: isoDaData(r.data ?? r.dia),
         ga4,
         rastreio,
+        rastreio_bruto,
         meta_lpv: num(r.sessoes_meta_lpv),
         razao,
         oficial,
