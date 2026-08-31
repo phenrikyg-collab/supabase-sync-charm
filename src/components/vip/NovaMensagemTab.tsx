@@ -685,6 +685,8 @@ export function NovaMensagemTab() {
             )}
           </CardContent>
         </Card>
+        )}
+
 
         {/* Enquete */}
         <Collapsible>
