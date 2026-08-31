@@ -25,11 +25,14 @@ export function Variacao({
   pct,
   inverso = false,
   sufixo = "",
+  texto,
   className,
 }: {
   pct: number | null;
   inverso?: boolean;
   sufixo?: string;
+  /** Substitui o texto exibido (ex.: variação em pontos percentuais). */
+  texto?: string;
   className?: string;
 }) {
   if (pct === null || !Number.isFinite(pct)) {
@@ -47,7 +50,7 @@ export function Variacao({
       )}
     >
       <Icon className={int === "forte" ? "h-3.5 w-3.5" : "h-3 w-3"} />
-      {fmtPct(Math.abs(pct), 1)}{sufixo}
+      {texto ?? `${fmtPct(Math.abs(pct), 1)}${sufixo}`}
     </span>
   );
 }
@@ -112,6 +115,7 @@ export function Tile({
   valor,
   sub,
   pct,
+  pctTexto,
   inverso,
   spark,
   selo,
@@ -124,6 +128,7 @@ export function Tile({
   valor: string;
   sub?: ReactNode;
   pct?: number | null;
+  pctTexto?: string;
   inverso?: boolean;
   spark?: { v: number }[];
   selo?: ReactNode;
@@ -143,7 +148,7 @@ export function Tile({
         </div>
         <div className="flex items-end justify-between gap-2">
           <p className="font-serif text-2xl font-bold leading-tight tabular-nums">{valor}</p>
-          {pct !== undefined && <Variacao pct={pct ?? null} inverso={inverso} />}
+          {pct !== undefined && <Variacao pct={pct ?? null} inverso={inverso} texto={pctTexto} />}
         </div>
         {sub && <div className="text-xs text-muted-foreground">{sub}</div>}
         {spark && <Sparkline dados={spark} negativo={(pct ?? 0) < 0} />}
