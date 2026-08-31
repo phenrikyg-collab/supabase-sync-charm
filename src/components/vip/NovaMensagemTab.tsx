@@ -532,6 +532,33 @@ export function NovaMensagemTab() {
               )}
             </div>
 
+            {/* Enquete não carrega URL — o campo some quando ela está ligada */}
+            {!enqueteAtiva && (
+              <div>
+                <Label>Link de destino</Label>
+                <Input
+                  value={linkDestino ?? ""}
+                  onChange={(e) => setLinkDestino(e.target.value || null)}
+                  placeholder="https://www.usemarianacardoso.com.br/sale-elegant"
+                  className={linkSemHttps || linkDominioExterno ? "border-amber-500" : ""}
+                />
+                {linkSemHttps && (
+                  <p className="mt-1 flex items-center gap-1 text-[11px] text-amber-600">
+                    <AlertTriangle className="h-3 w-3" /> O link precisa começar com https://
+                  </p>
+                )}
+                {linkDominioExterno && (
+                  <p className="mt-1 flex items-center gap-1 text-[11px] text-amber-600">
+                    <AlertTriangle className="h-3 w-3" /> Domínio fora de usemarianacardoso.com.br — confira se é intencional.
+                  </p>
+                )}
+                <p className="mt-1 text-[11px] text-muted-foreground">
+                  O link vai ser encurtado para vip.usemarianacardoso.com.br/xxxxxx na hora do envio, um código
+                  diferente por grupo. É assim que sabemos quantas clicaram e de qual grupo.
+                </p>
+              </div>
+            )}
+
             {produto && (
               <div className="flex gap-3 rounded-lg border p-3">
                 {produto.imagem && (
