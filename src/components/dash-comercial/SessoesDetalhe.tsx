@@ -1,7 +1,8 @@
 import {
-  Bar, CartesianGrid, ComposedChart, Legend, Line, ResponsiveContainer, Tooltip, XAxis, YAxis,
+  Bar, CartesianGrid, ComposedChart, Legend, Line, ResponsiveContainer, Tooltip as RechartsTooltip, XAxis, YAxis,
 } from "recharts";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { ddmm, fmtNum, fmtPct } from "@/lib/dashComercial";
 import type { LinhaSessaoDia } from "@/lib/sessoesComposta";
 import { cn } from "@/lib/utils";
