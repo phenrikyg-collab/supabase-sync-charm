@@ -268,19 +268,19 @@ export function NovaMensagemTab() {
   const alertasEnquete = useMemo<VipAlerta[]>(() => {
     if (!enqueteAtiva) return [];
     const l: VipAlerta[] = [];
-    if (!pergunta.trim()) l.push({ nivel: "trava", texto: "Enquete sem pergunta." } as VipAlerta);
+    if (!pergunta.trim()) l.push({ bloqueia: true, texto: "Enquete sem pergunta." } as VipAlerta);
     if (!corpo.trim()) {
-      l.push({ nivel: "trava", texto: "Enquete sem corpo — o balão de texto sairia só com a headline." } as VipAlerta);
+      l.push({ bloqueia: true, texto: "Enquete sem corpo — o balão de texto sairia só com a headline." } as VipAlerta);
     }
     if (opcoesValidas.length < 2) {
-      l.push({ nivel: "trava", texto: "Enquete precisa de pelo menos 2 opções." } as VipAlerta);
+      l.push({ bloqueia: true, texto: "Enquete precisa de pelo menos 2 opções." } as VipAlerta);
     }
     opcoesValidas.forEach((o, i) => {
       if (TEM_MARCACAO.test(o)) {
-        l.push({ nivel: "trava", texto: `Opção ${i + 1} tem * _ ou ~ — a enquete não formata e a cliente lê o símbolo.` } as VipAlerta);
+        l.push({ bloqueia: true, texto: `Opção ${i + 1} tem * _ ou ~ — a enquete não formata e a cliente lê o símbolo.` } as VipAlerta);
       }
       if (o.length > 100) {
-        l.push({ nivel: "trava", texto: `Opção ${i + 1} tem ${o.length} caracteres — o WhatsApp corta em 100.` } as VipAlerta);
+        l.push({ bloqueia: true, texto: `Opção ${i + 1} tem ${o.length} caracteres — o WhatsApp corta em 100.` } as VipAlerta);
       }
     });
     return l;
