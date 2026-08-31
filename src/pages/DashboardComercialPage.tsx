@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
-  CalendarIcon, Loader2, RefreshCw, Sparkles, Target,
+  AlertTriangle, CalendarIcon, Loader2, RefreshCw, Sparkles, Target,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -13,6 +13,9 @@ import { Progress } from "@/components/ui/progress";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import {
+  Tooltip as UITooltip, TooltipContent, TooltipProvider, TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import { callClaude } from "@/lib/claudeApi";
@@ -679,7 +682,7 @@ Alertas: ${alertas.map((a) => a.titulo).join(", ") || "nenhum"}.`,
       )}
 
       {/* Seção 2 — resumo executivo */}
-      <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-5">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7">
         <Tile
           loading={carregando} titulo="Receita líquida" valor={fmtBRL(resumo.receita_liquida)}
           pct={variacaoPct(resumo.receita_liquida, resumoComp.receita_liquida)} spark={sparkReceita}
@@ -690,6 +693,20 @@ Alertas: ${alertas.map((a) => a.titulo).join(", ") || "nenhum"}.`,
           loading={carregando} titulo="Pedidos" valor={fmtNum(resumo.pedidos)}
           pct={variacaoPct(resumo.pedidos, resumoComp.pedidos)} spark={sparkPedidos}
           sub={<>{fmtNum(resumo.pedidos_captados)} captados · cancelada {fmtBRL(resumo.receita_cancelada)}</>}
+        />
+        <Tile
+          loading={carregando} titulo="Sessões" valor={fmtNum(funil.sessoes)}
+          pct={variacaoPct(funil.sessoes, funilComp.sessoes)} spark={sparkSessoes}
+          sub={subFonteSessoes} selo={seloAnomalia}
+          ajuda="Mesma base de sessões usada na decomposição “Por que a receita mudou”."
+        />
+        <Tile
+          loading={carregando} titulo="Taxa de conversão" valor={fmtPct(conversaoPeriodo, 2)}
+          pct={Number.isFinite(deltaConversaoPP) ? deltaConversaoPP : null}
+          pctTexto={`${fmtNum(Math.abs(deltaConversaoPP), 2)} p.p.`}
+          spark={sparkConversao} selo={seloAnomalia}
+          sub={<>Pedidos captados ÷ sessões do período</>}
+          ajuda="Mesma definição da decomposição: pedidos captados ÷ sessões da fonte ativa."
         />
         <Tile
           loading={carregando} titulo="Ticket médio" valor={fmtBRL(resumo.ticket_medio)}
