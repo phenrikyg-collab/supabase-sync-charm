@@ -196,8 +196,14 @@ export function NovaMensagemTab() {
     });
   };
 
-  
+  /** Marcadores do WhatsApp que a enquete NÃO formata — sairiam crus para a cliente. */
+  const TEM_MARCACAO = /[*_~]/;
+  const limparMarcacao = (t: string) => t.replace(/[*_~]/g, "");
 
+  const opcoesValidas = useMemo(() => opcoes.map((o) => o.trim()).filter(Boolean), [opcoes]);
+
+  // O banco monta o campo `mensagem` a partir de headline/corpo/cta.
+  // Nunca montar a string aqui nem enviar `mensagem` — foi isso que apagava o corpo.
   const payload = useMemo(
     () => ({
       headline,
@@ -209,12 +215,13 @@ export function NovaMensagemTab() {
       quando,
       data_envio: quando === "agora" ? hoje : dataEnvio,
       horario: quando === "agora" ? new Date().toTimeString().slice(0, 5) : horario,
-      midia_url: midiaUrl || null,
-      prova_id: provaId,
+      // Enquete é um balão separado: não carrega imagem nem link.
+      midia_url: enqueteAtiva ? null : (midiaUrl || null),
+      prova_id: enqueteAtiva ? null : provaId,
       link_destino: enqueteAtiva ? null : (linkDestino || produto?.link || null),
       tipo_envio: enqueteAtiva ? "enquete" : midiaUrl ? "imagem" : "texto",
       enquete_pergunta: enqueteAtiva ? pergunta : null,
-      enquete_opcoes: enqueteAtiva ? opcoes.filter((o) => o.trim()) : null,
+      enquete_opcoes: enqueteAtiva ? opcoesValidas : null,
       variante_comunidade:
         varianteComunidade &&
         (varianteComunidade.headline || varianteComunidade.corpo || varianteComunidade.cta)
@@ -226,8 +233,9 @@ export function NovaMensagemTab() {
           : null,
       ...camadas,
     }),
-    [headline, corpo, cta, produto, publico, gruposAlvo, quando, dataEnvio, horario, hoje, midiaUrl, provaId, linkDestino, enqueteAtiva, pergunta, opcoes, camadas, varianteComunidade],
+    [headline, corpo, cta, produto, publico, gruposAlvo, quando, dataEnvio, horario, hoje, midiaUrl, provaId, linkDestino, enqueteAtiva, pergunta, opcoesValidas, camadas, varianteComunidade],
   );
+
 
   /** Formulário editado depois da última gravação — precisa salvar de novo antes de testar. */
   const editadoAposSalvar = mensagemId != null && snapshotSalvo !== JSON.stringify(payload);
