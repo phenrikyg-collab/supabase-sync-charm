@@ -100,6 +100,9 @@ export function LiveChat({
   const [erros, setErros] = useState<Record<string, string>>({});
   const [pausado, setPausado] = useState(false);
   const [noFim, setNoFim] = useState(true);
+  const [novos, setNovos] = useState(0);
+  const [conectado, setConectado] = useState(false);
+  const [ultimoEventoEm, setUltimoEventoEm] = useState<number | null>(null);
   const [agora, setAgora] = useState(Date.now());
 
   // busca
@@ -116,6 +119,7 @@ export function LiveChat({
 
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const balaoRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  const noFimRef = useRef(true);
 
   const nomesKits = useMemo(() => {
     const m = new Map<string, string>();
