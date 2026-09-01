@@ -94,7 +94,12 @@ const statusBadge = (s: string) => {
 };
 
 // O nome importa: existe alcance dos posts e alcance da conta.
-const nomeMetrica = (nome: string) => (String(nome).trim().toLowerCase() === 'alcance' ? 'Alcance dos posts' : nome);
+const nomeMetrica = (nome: string) => {
+  const n = String(nome).trim().toLowerCase();
+  if (n === 'alcance') return 'Alcance dos posts';
+  if (n === 'visualizacoes' || n === 'visualizações' || n === 'views') return 'Visualizações dos posts';
+  return nome;
+};
 
 const fmtPeriodoSemana = (inicio?: string | null, fim?: string | null) => {
   const dia = (iso?: string | null) => {
