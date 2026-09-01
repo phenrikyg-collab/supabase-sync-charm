@@ -133,7 +133,12 @@ export default function CategorizacaoBlock({ categorias, analise }: {
         <h3 className="text-xl" style={{ color: C.text, fontFamily: 'Cormorant Garamond, serif', fontWeight: 600 }}>
           Conteúdo por função no funil
         </h3>
-        <span className="text-xs" style={{ color: C.textSec }}>meta: 40 / 30 / 30</span>
+        <span className="text-xs" style={{ color: C.textSec }}>
+          meta: 40 / 30 / 30
+          {semClass > 0 && (
+            <span style={{ color: C.red, fontWeight: 600 }}> · {semClass} sem classificação</span>
+          )}
+        </span>
       </div>
 
       {semClass > 0 && (
