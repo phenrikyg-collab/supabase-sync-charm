@@ -221,7 +221,9 @@ export function NovaMensagemTab() {
       midia_url: enqueteAtiva ? null : (midiaUrl || null),
       prova_id: enqueteAtiva ? null : provaId,
       link_destino: enqueteAtiva ? null : (linkDestino || produto?.link || null),
-      tipo_envio: enqueteAtiva ? "enquete" : midiaUrl ? "imagem" : "texto",
+      // tipo_envio descreve o formato do balão: só "texto" ou "enquete".
+      // Imagem não é tipo de envio — é a presença de midia_url.
+      tipo_envio: enqueteAtiva ? "enquete" : "texto",
       enquete_pergunta: enqueteAtiva ? pergunta : null,
       enquete_opcoes: enqueteAtiva ? opcoesValidas : null,
       variante_comunidade:
