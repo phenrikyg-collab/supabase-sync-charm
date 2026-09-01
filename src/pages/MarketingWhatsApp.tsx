@@ -5,6 +5,7 @@ import { Info } from "lucide-react";
 import { TemplatesWppTab } from "@/components/whatsapp-marketing/TemplatesWppTab";
 import { SegmentosTab } from "@/components/whatsapp-marketing/SegmentosTab";
 import { CampanhasWppTab } from "@/components/whatsapp-marketing/CampanhasWppTab";
+import { PortasTab } from "@/components/whatsapp-marketing/PortasTab";
 
 export default function MarketingWhatsApp() {
   const [aba, setAba] = useState("templates");
@@ -31,10 +32,12 @@ export default function MarketingWhatsApp() {
           <TabsTrigger value="templates">Templates</TabsTrigger>
           <TabsTrigger value="segmentos">Segmentos</TabsTrigger>
           <TabsTrigger value="campanhas">Campanhas</TabsTrigger>
+          <TabsTrigger value="portas">Portas</TabsTrigger>
         </TabsList>
         <TabsContent value="templates" className="mt-6"><TemplatesWppTab /></TabsContent>
         <TabsContent value="segmentos" className="mt-6"><SegmentosTab /></TabsContent>
         <TabsContent value="campanhas" className="mt-6"><CampanhasWppTab /></TabsContent>
+        <TabsContent value="portas" className="mt-6"><PortasTab /></TabsContent>
       </Tabs>
     </div>
   );
