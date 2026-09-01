@@ -17,7 +17,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { AlertTriangle, Bold, ChevronDown, ImageIcon, Italic, Loader2, Plus, Search, Send, Strikethrough, Trash2, Users } from "lucide-react";
 import { toast } from "sonner";
 import { brl } from "@/lib/financeiroFormat";
-import { uploadMidia } from "@/components/social-commerce/midiaUpload";
+import { uploadVipMidia } from "@/lib/vipMidia";
 import {
   alertaBloqueante,
   normalizarAlertas,
