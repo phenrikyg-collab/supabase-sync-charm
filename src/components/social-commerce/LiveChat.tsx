@@ -291,6 +291,13 @@ export function LiveChat({
     onUltimoComentario?.(ultimoComentario ?? null);
   }, [ultimoComentario, onUltimoComentario]);
 
+  const idadeDado = useMemo(() => {
+    if (!ultimoEventoEm) return "agora";
+    const s = Math.max(0, Math.round((agora - ultimoEventoEm) / 1000));
+    if (s < 60) return `há ${s}s`;
+    return `há ${Math.floor(s / 60)} min`;
+  }, [ultimoEventoEm, agora]);
+
   const expirou = !!config.expira_em && new Date(config.expira_em).getTime() <= agora;
   const semNovidade =
     !!ultimoComentario && agora - new Date(ultimoComentario).getTime() > 30 * 60 * 1000;
