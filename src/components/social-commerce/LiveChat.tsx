@@ -144,6 +144,26 @@ export function LiveChat({
     [palavras],
   );
 
+  /** Mescla por id, sem trocar o array inteiro — evita remontar a lista (piscar). */
+  const mesclar = useCallback((novosItens: ComentarioLive[]) => {
+    if (!novosItens.length) return;
+    setComentarios((prev) => {
+      const porId = new Map(prev.map((c) => [String(c.id), c]));
+      let inseridos = 0;
+      for (const c of novosItens) {
+        const chave = String(c.id);
+        const atual = porId.get(chave);
+        if (!atual) inseridos += 1;
+        porId.set(chave, { ...(atual ?? {}), ...c } as ComentarioLive);
+      }
+      if (inseridos && !noFimRef.current) setNovos((n) => n + inseridos);
+      return [...porId.values()].sort(
+        (a, b) => +new Date(a.publicado_em ?? 0) - +new Date(b.publicado_em ?? 0),
+      );
+    });
+    setUltimoEventoEm(Date.now());
+  }, []);
+
   const carregarComentarios = useCallback(async () => {
     if (!mediaId) {
       setComentarios([]);
@@ -155,8 +175,18 @@ export function LiveChat({
       .eq("media_id", mediaId)
       .order("publicado_em", { ascending: true })
       .limit(500);
-    setComentarios((data ?? []) as ComentarioLive[]);
-  }, [mediaId]);
+    mesclar((data ?? []) as ComentarioLive[]);
+  }, [mediaId, mesclar]);
+
+  /** Busca só a linha alterada na view (traz kit_nome e afins que o payload cru não tem). */
+  const buscarUm = useCallback(
+    async (id: any) => {
+      if (id == null) return;
+      const { data } = await db.from("vw_comentarios_live").select("*").eq("id", id).limit(1);
+      if (data?.length) mesclar(data as ComentarioLive[]);
+    },
+    [mesclar],
+  );
 
   const carregarCarrinhos = useCallback(async () => {
     const desde = live?.inicio ?? config.ativado_em;
@@ -175,9 +205,15 @@ export function LiveChat({
   }, [config.ativado_em, live?.inicio, live?.fim]);
 
 
+  // primeira carga (troca de live zera a lista)
   useEffect(() => {
+    setComentarios([]);
+    setNovos(0);
+    setNoFim(true);
+    noFimRef.current = true;
     carregarComentarios();
-  }, [carregarComentarios]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mediaId]);
 
   useEffect(() => {
     carregarCarrinhos();
@@ -186,7 +222,7 @@ export function LiveChat({
   }, [carregarCarrinhos]);
 
   useEffect(() => {
-    const t = setInterval(() => setAgora(Date.now()), 30_000);
+    const t = setInterval(() => setAgora(Date.now()), 5_000);
     return () => clearInterval(t);
   }, []);
 
@@ -197,16 +233,35 @@ export function LiveChat({
       .channel(`live-chat-${mediaId}`)
       .on(
         "postgres_changes",
-        { event: "*", schema: "public", table: "instagram_comentarios", filter: `media_id=eq.${mediaId}` },
-        () => carregarComentarios(),
+        { event: "INSERT", schema: "public", table: "instagram_comentarios", filter: `media_id=eq.${mediaId}` },
+        ({ new: novo }: any) => {
+          mesclar([novo as ComentarioLive]);
+          buscarUm(novo?.id);
+        },
       )
-      .subscribe();
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "instagram_comentarios", filter: `media_id=eq.${mediaId}` },
+        ({ new: novo }: any) => {
+          mesclar([novo as ComentarioLive]);
+          buscarUm(novo?.id);
+        },
+      )
+      .subscribe((status) => setConectado(status === "SUBSCRIBED"));
     return () => {
+      setConectado(false);
       db.removeChannel(ch);
     };
-  }, [mediaId, carregarComentarios]);
+  }, [mediaId, mesclar, buscarUm]);
 
-  // rolagem automática
+  // rede de segurança: se o canal cair, volta ao polling de 15 s
+  useEffect(() => {
+    if (!mediaId || conectado) return;
+    const t = setInterval(carregarComentarios, 15_000);
+    return () => clearInterval(t);
+  }, [mediaId, conectado, carregarComentarios]);
+
+  // rolagem automática só para quem já está no fim
   useEffect(() => {
     if (noFim && scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
@@ -216,13 +271,18 @@ export function LiveChat({
   const aoRolar = () => {
     const el = scrollRef.current;
     if (!el) return;
-    setNoFim(el.scrollHeight - el.scrollTop - el.clientHeight < 80);
+    const fim = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
+    noFimRef.current = fim;
+    setNoFim(fim);
+    if (fim) setNovos(0);
   };
 
   const irParaOFim = () => {
     const el = scrollRef.current;
     if (el) el.scrollTop = el.scrollHeight;
+    noFimRef.current = true;
     setNoFim(true);
+    setNovos(0);
   };
 
   const ultimoComentario = comentarios[comentarios.length - 1]?.publicado_em;
