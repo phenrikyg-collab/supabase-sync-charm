@@ -101,7 +101,6 @@ const moduleGroups: ModuleGroup[] = [
     icon: Mail,
     items: [
       { title: "E-mail: Listas, Templates e Campanhas", url: "/email-marketing", icon: Mail },
-      { title: "WhatsApp: Templates, Segmentos e Campanhas", url: "/marketing-whatsapp", icon: MessageCircle },
       { title: "Cupons", url: "/cupons", icon: Ticket },
       { title: "Conteúdo & CRM", url: "/conteudo", icon: CalendarDays },
       { title: "Fluxos", url: "/automacoes", icon: Workflow },
