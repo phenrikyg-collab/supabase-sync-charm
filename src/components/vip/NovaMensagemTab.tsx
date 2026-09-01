@@ -713,15 +713,17 @@ export function NovaMensagemTab() {
               </TabsContent>
               <TabsContent value="arquivo" className="space-y-2 pt-3">
                 <Input
+                  id="vip-midia-input"
                   type="file"
-                  accept="image/*"
+                  accept="image/jpeg,image/png,image/webp,video/mp4"
                   disabled={subindo}
                   onChange={async (e) => {
                     const f = e.target.files?.[0];
+                    e.target.value = "";
                     if (!f) return;
                     setSubindo(true);
                     try {
-                      const url = await uploadMidia(f, "vip-avulsa");
+                      const url = await uploadVipMidia(f);
                       setMidiaUrl(url);
                       setProvaId(null);
                       toast.success("Imagem enviada.");
@@ -733,6 +735,10 @@ export function NovaMensagemTab() {
                   }}
                 />
                 {subindo && <p className="text-xs text-muted-foreground">Enviando…</p>}
+                <p className="text-[11px] text-muted-foreground">
+                  JPEG, PNG, WebP ou MP4, até 25 MB. Foto de cliente não entra aqui — use a aba
+                  “Prova social de cliente”.
+                </p>
               </TabsContent>
               <TabsContent value="prova" className="pt-3">
                 <SeletorProva
@@ -746,10 +752,39 @@ export function NovaMensagemTab() {
               </TabsContent>
             </Tabs>
             {midiaUrl && (
-              <p className="mt-3 flex items-center gap-1 truncate text-[11px] text-muted-foreground">
-                <ImageIcon className="h-3 w-3" /> {midiaUrl}
-              </p>
+              <div className="mt-3 flex items-start gap-3 rounded-md border p-2">
+                <img
+                  src={midiaUrl}
+                  alt="Miniatura da imagem anexada à mensagem VIP"
+                  className="h-20 w-20 shrink-0 rounded object-cover"
+                  loading="lazy"
+                />
+                <div className="min-w-0 flex-1 space-y-2">
+                  <p className="flex items-center gap-1 truncate text-[11px] text-muted-foreground">
+                    <ImageIcon className="h-3 w-3 shrink-0" /> {midiaUrl}
+                  </p>
+                  <div className="flex gap-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={subindo}
+                      onClick={() => document.getElementById("vip-midia-input")?.click()}
+                    >
+                      Trocar
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      disabled={subindo}
+                      onClick={() => { setMidiaUrl(""); setProvaId(null); }}
+                    >
+                      Remover
+                    </Button>
+                  </div>
+                </div>
+              </div>
             )}
+
           </CardContent>
         </Card>
         )}
