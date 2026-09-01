@@ -699,11 +699,14 @@ export function LiveChat({
             {!noFim && (
               <Button
                 size="sm"
-                variant="secondary"
+                variant={novos > 0 ? "default" : "secondary"}
                 className="absolute bottom-28 left-1/2 h-8 -translate-x-1/2 gap-1 shadow"
                 onClick={irParaOFim}
               >
-                <ArrowDown className="h-3.5 w-3.5" /> ir para o fim
+                <ArrowDown className="h-3.5 w-3.5" />
+                {novos > 0
+                  ? `${novos} ${novos === 1 ? "novo comentário" : "novos comentários"}`
+                  : "ir para o fim"}
               </Button>
             )}
 
