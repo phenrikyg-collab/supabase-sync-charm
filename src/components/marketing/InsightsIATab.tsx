@@ -94,7 +94,12 @@ const statusBadge = (s: string) => {
 };
 
 // O nome importa: existe alcance dos posts e alcance da conta.
-const nomeMetrica = (nome: string) => (String(nome).trim().toLowerCase() === 'alcance' ? 'Alcance dos posts' : nome);
+const nomeMetrica = (nome: string) => {
+  const n = String(nome).trim().toLowerCase();
+  if (n === 'alcance') return 'Alcance dos posts';
+  if (n === 'visualizacoes' || n === 'visualizações' || n === 'views') return 'Visualizações dos posts';
+  return nome;
+};
 
 const fmtPeriodoSemana = (inicio?: string | null, fim?: string | null) => {
   const dia = (iso?: string | null) => {
@@ -129,6 +134,27 @@ const esforcoBadge = (e: string) => {
   if (low.startsWith('med')) return { bg: C.yellow, color: '#fff' };
   if (low.startsWith('alt')) return { bg: C.red, color: '#fff' };
   return { bg: C.gray, color: '#fff' };
+};
+
+// Lê os contadores do backend sem fixar nada no código — muda a cada semana.
+const ROTULO_EXCLUIDO: Record<string, [string, string]> = {
+  lives: ['live', 'lives'],
+  posts_apagados: ['post apagado', 'posts apagados'],
+  apagados: ['post apagado', 'posts apagados'],
+  anuncios: ['anúncio', 'anúncios'],
+};
+const descreverExcluidos = (excl: any): string => {
+  if (!excl || typeof excl !== 'object') return '';
+  const partes = Object.entries(excl)
+    .map(([chave, valor]) => {
+      const n = Number(valor);
+      if (!Number.isFinite(n) || n <= 0) return null;
+      const [sing, plur] = ROTULO_EXCLUIDO[chave] ?? [chave.replace(/_/g, ' '), chave.replace(/_/g, ' ')];
+      return `${n} ${n === 1 ? sing : plur}`;
+    })
+    .filter(Boolean) as string[];
+  if (!partes.length) return '';
+  return partes.length === 1 ? partes[0] : `${partes.slice(0, -1).join(', ')} e ${partes[partes.length - 1]}`;
 };
 
 const fmtDateTime = (iso?: string | null) => {
@@ -174,15 +200,30 @@ const normalizarRelatorio = (value: any): Relatorio | null => {
   } as Relatorio;
 };
 
-const COLUNAS = 'id, mes, ano, gerado_em, relatorio_ia, dados_raw, periodo_inicio, periodo_fim';
+// O relatório semanal mora em instagram_relatorios_semanais, com chave
+// (periodo_inicio, periodo_fim) — instagram_relatorios_mensais é só do mensal.
+const TABELA = 'instagram_relatorios_semanais';
+const COLUNAS =
+  'id, periodo_inicio, periodo_fim, gerado_em, dados_coletados_em, relatorio_ia, dados_raw, total_posts, alcance_total, engajamento_total, salvamentos, compartilhamentos, taxa_engajamento, formato_dominante';
 
-const periodoDoRelatorio = (rel: Relatorio, payload: any) => {
-  const inicioPayload = payload?.periodo_inicio ?? payload?.inicio ?? null;
-  const fimPayload = payload?.periodo_fim ?? payload?.fim ?? null;
-  if (inicioPayload || fimPayload) return { inicio: inicioPayload, fim: fimPayload };
+interface SemanaRow {
+  id: string;
+  periodo_inicio: string | null;
+  periodo_fim: string | null;
+  gerado_em: string | null;
+  dados_coletados_em?: string | null;
+  relatorio_ia: any;
+  dados_raw: any;
+}
 
-  const datas = String(rel?.periodo ?? '').match(/\d{4}-\d{2}-\d{2}/g) ?? [];
-  return { inicio: datas[0] ?? null, fim: datas[1] ?? null };
+/** A janela vem pronta do backend (domingo a sábado) — nunca recalcular no front. */
+const janelaDoRelatorio = (rel: any, row?: any, payload?: any) => {
+  const j = rel?.janela ?? {};
+  return {
+    inicio: j?.inicio ?? row?.periodo_inicio ?? payload?.periodo_inicio ?? null,
+    fim: j?.fim ?? row?.periodo_fim ?? payload?.periodo_fim ?? null,
+    tipo: rel?.tipo_de_semana ?? null,
+  };
 };
 
 export default function InsightsIATab() {
@@ -194,63 +235,69 @@ export default function InsightsIATab() {
   const [ciclo, setCiclo] = useState(0);
   const [dadosRaw, setDadosRaw] = useState<DadosRaw | null>(null);
   const [periodoSemana, setPeriodoSemana] = useState('');
+  const [tipoSemana, setTipoSemana] = useState<string | null>(null);
+  const [coletadoEm, setColetadoEm] = useState<string>('');
+  const [coleta, setColeta] = useState<any>(null);
+  const [excluidos, setExcluidos] = useState<any>(null);
+  const [semanas, setSemanas] = useState<SemanaRow[]>([]);
+  const [semanaSel, setSemanaSel] = useState<string | null>(null);
 
-  // Carrega o relatório salvo mais recente do mês atual; se não houver, usa o último gerado.
+  const aplicarLinha = (row: any) => {
+    const rel = normalizarRelatorio(row?.relatorio_ia);
+    if (!rel) return false;
+    const janela = janelaDoRelatorio(rel, row);
+    setRelatorio(rel);
+    setGeradoEm(fmtDateTime(row?.gerado_em));
+    setDadosRaw((row?.dados_raw ?? null) as DadosRaw | null);
+    setPeriodoSemana(fmtPeriodoSemana(janela.inicio, janela.fim));
+    setTipoSemana(janela.tipo);
+    setColetadoEm(fmtDateTime((rel as any)?.dados_coletados_em ?? row?.dados_coletados_em));
+    setColeta((rel as any)?.coleta ?? null);
+    setExcluidos((rel as any)?.excluidos_das_somas ?? null);
+    setSemanaSel(row?.id ?? null);
+    return true;
+  };
+
+  const carregarSemanas = async (selecionarId?: string) => {
+    const { data } = await (supabase as any)
+      .from(TABELA)
+      .select(COLUNAS)
+      .order('periodo_inicio', { ascending: false, nullsFirst: false })
+      .order('gerado_em', { ascending: false, nullsFirst: false })
+      .limit(30);
+    const rows = (data ?? []) as SemanaRow[];
+    setSemanas(rows);
+    const alvo = (selecionarId && rows.find((r) => r.id === selecionarId)) || rows[0];
+    if (alvo) aplicarLinha(alvo);
+    return rows;
+  };
+
   useEffect(() => {
-    const carregar = async () => {
-      const hoje = new Date();
-      const mes = hoje.getMonth() + 1;
-      const ano = hoje.getFullYear();
-      const aplicar = (row: any) => {
-        const rel = normalizarRelatorio(row?.relatorio_ia);
-        if (!rel) return false;
-        setRelatorio(rel);
-        setGeradoEm(fmtDateTime(row.gerado_em));
-        setDadosRaw((row?.dados_raw ?? null) as DadosRaw | null);
-        setPeriodoSemana(fmtPeriodoSemana(row?.periodo_inicio, row?.periodo_fim));
-        return true;
-      };
+    (async () => {
       try {
-        const colunas = COLUNAS;
-        const { data: atual } = await (supabase as any)
-          .from('instagram_relatorios_mensais')
-          .select(colunas)
-          .eq('mes', mes)
-          .eq('ano', ano)
-          .order('gerado_em', { ascending: false, nullsFirst: false })
-          .limit(1)
-          .maybeSingle();
-        if (aplicar(atual)) return;
-
-        // Fallback: relatório salvo mais recente de qualquer período
-        const { data: ultimo } = await (supabase as any)
-          .from('instagram_relatorios_mensais')
-          .select(colunas)
-          .order('gerado_em', { ascending: false, nullsFirst: false })
-          .limit(1)
-          .maybeSingle();
-        aplicar(ultimo);
+        await carregarSemanas();
       } catch {
         // sem relatório salvo — mostra o botão
       } finally {
         setCarregando(false);
       }
-    };
-    carregar();
+    })();
   }, []);
 
+  const selecionarSemana = (id: string) => {
+    const row = semanas.find((r) => r.id === id);
+    if (row) {
+      aplicarLinha(row);
+      setCiclo((c) => c + 1);
+    }
+  };
 
   const salvarRelatorio = async (rel: Relatorio, payload: any) => {
-    const hoje = new Date();
-    const mes = hoje.getMonth() + 1;
-    const ano = hoje.getFullYear();
     const geradoEmISO = new Date().toISOString();
-    const periodo = periodoDoRelatorio(rel, payload);
+    const janela = janelaDoRelatorio(rel, null, payload);
     const registro: any = {
-      mes,
-      ano,
-      periodo_inicio: periodo.inicio,
-      periodo_fim: periodo.fim,
+      periodo_inicio: janela.inicio,
+      periodo_fim: janela.fim,
       relatorio_ia: limparJson(rel),
       dados_raw: limparJson(payload?.dados_raw ?? payload?.dados ?? null),
       total_posts: payload?.total_posts ?? null,
@@ -259,23 +306,26 @@ export default function InsightsIATab() {
       salvamentos: payload?.salvamentos ?? null,
       compartilhamentos: payload?.compartilhamentos ?? null,
       taxa_engajamento: payload?.taxa_engajamento ?? null,
+      dados_coletados_em: (rel as any)?.dados_coletados_em ?? null,
       gerado_em: geradoEmISO,
     };
     Object.keys(registro).forEach((k) => registro[k] === null && delete registro[k]);
 
     const { data, error } = await (supabase as any)
-      .from('instagram_relatorios_mensais')
+      .from(TABELA)
       .insert(registro)
-      .select('id, mes, ano, gerado_em, relatorio_ia')
+      .select(COLUNAS)
       .single();
 
     if (!error) return data;
 
+    // A chave é (periodo_inicio, periodo_fim): regerar a mesma semana atualiza,
+    // sem apagar as semanas anteriores do histórico.
     const { data: existente } = await (supabase as any)
-      .from('instagram_relatorios_mensais')
+      .from(TABELA)
       .select('id')
-      .eq('mes', mes)
-      .eq('ano', ano)
+      .eq('periodo_inicio', janela.inicio)
+      .eq('periodo_fim', janela.fim)
       .order('gerado_em', { ascending: false, nullsFirst: false })
       .limit(1)
       .maybeSingle();
@@ -283,10 +333,10 @@ export default function InsightsIATab() {
     if (!existente?.id) throw error;
 
     const { data: atualizado, error: updateError } = await (supabase as any)
-      .from('instagram_relatorios_mensais')
+      .from(TABELA)
       .update(registro)
       .eq('id', existente.id)
-      .select('id, mes, ano, gerado_em, relatorio_ia')
+      .select(COLUNAS)
       .single();
 
     if (updateError) throw updateError;
@@ -298,19 +348,12 @@ export default function InsightsIATab() {
   const recuperarAposTimeout = async (clicadoEm: number): Promise<boolean> => {
     await new Promise((r) => setTimeout(r, 15000));
     try {
-      const { data } = await (supabase as any)
-        .from('instagram_relatorios_mensais')
-        .select(COLUNAS)
-        .order('gerado_em', { ascending: false, nullsFirst: false })
-        .limit(1)
-        .maybeSingle();
-      const geradoEmMs = data?.gerado_em ? new Date(data.gerado_em).getTime() : 0;
-      const rel = normalizarRelatorio(data?.relatorio_ia);
-      if (rel && geradoEmMs > clicadoEm) {
-        setRelatorio(rel);
-        setGeradoEm(fmtDateTime(data.gerado_em));
-        setDadosRaw((data?.dados_raw ?? null) as DadosRaw | null);
-        setPeriodoSemana(fmtPeriodoSemana(data?.periodo_inicio, data?.periodo_fim));
+      const rows = await carregarSemanas();
+      const recente = rows
+        .slice()
+        .sort((a, b) => new Date(b.gerado_em ?? 0).getTime() - new Date(a.gerado_em ?? 0).getTime())[0];
+      const geradoEmMs = recente?.gerado_em ? new Date(recente.gerado_em).getTime() : 0;
+      if (recente && geradoEmMs > clicadoEm && aplicarLinha(recente)) {
         setCiclo((c) => c + 1);
         return true;
       }
@@ -328,15 +371,20 @@ export default function InsightsIATab() {
       if (error) throw error;
       const rel: Relatorio = data?.relatorio || data;
       if (!rel || !rel.metricas) throw new Error('Resposta inválida da função');
+      const janela = janelaDoRelatorio(rel, null, data);
       setRelatorio(rel);
       setGeradoEm(new Date().toLocaleString('pt-BR'));
       setDadosRaw((data?.dados_raw ?? data?.dados ?? null) as DadosRaw | null);
-      const per = periodoDoRelatorio(rel, data);
-      setPeriodoSemana(fmtPeriodoSemana(per.inicio, per.fim));
+      setPeriodoSemana(fmtPeriodoSemana(janela.inicio, janela.fim));
+      setTipoSemana(janela.tipo);
+      setColetadoEm(fmtDateTime((rel as any)?.dados_coletados_em));
+      setColeta((rel as any)?.coleta ?? null);
+      setExcluidos((rel as any)?.excluidos_das_somas ?? null);
       setCiclo((c) => c + 1);
       try {
         const salvo = await salvarRelatorio(rel, data);
         setGeradoEm(fmtDateTime(salvo?.gerado_em) || new Date().toLocaleString('pt-BR'));
+        await carregarSemanas(salvo?.id);
       } catch (e: any) {
         toast({ title: 'Relatório gerado, mas não foi salvo', description: e.message, variant: 'destructive' });
       }
@@ -412,12 +460,23 @@ export default function InsightsIATab() {
 
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-3 no-print">
-        <span
-          className="text-xs px-3 py-1.5 rounded-full"
-          style={{ background: C.gold + '33', color: C.bronze, fontWeight: 600 }}
-        >
-          Gerado em {geradoEm}
-        </span>
+        <div className="flex items-center gap-2 flex-wrap">
+          <span
+            className="text-xs px-3 py-1.5 rounded-full"
+            style={{ background: C.gold + '33', color: C.bronze, fontWeight: 600 }}
+          >
+            Gerado em {geradoEm}
+          </span>
+          {coletadoEm && (
+            <span
+              className="text-xs px-3 py-1.5 rounded-full"
+              style={{ background: C.border, color: C.textSec, fontWeight: 600 }}
+              title="Momento em que os números foram lidos da Meta. O texto do relatório é uma foto desse instante."
+            >
+              Dados coletados em {coletadoEm}
+            </span>
+          )}
+        </div>
         <div className="flex items-center gap-2">
           <button
             onClick={() => window.print()}
@@ -438,12 +497,42 @@ export default function InsightsIATab() {
         </div>
       </div>
 
+      {coleta && coleta.sincronizou_antes_de_gerar === false && coleta.detalhe && (
+        <p className="text-xs flex items-start gap-1.5 no-print" style={{ color: C.bronze }}>
+          <AlertTriangle size={13} className="mt-0.5 shrink-0" /> {coleta.detalhe}
+        </p>
+      )}
+
+      {/* Seletor de semanas — histórico por (periodo_inicio, periodo_fim) */}
+      {semanas.length > 1 && (
+        <div className="flex flex-wrap gap-2 no-print">
+          {semanas.map((s) => {
+            const ativo = s.id === semanaSel;
+            const jan = janelaDoRelatorio(s.relatorio_ia, s);
+            return (
+              <button
+                key={s.id}
+                onClick={() => selecionarSemana(s.id)}
+                className="px-3 py-1.5 rounded-full text-xs transition"
+                style={{
+                  background: ativo ? C.text : '#fff',
+                  color: ativo ? C.gold : C.text,
+                  border: `1px solid ${ativo ? C.text : C.border}`,
+                }}
+              >
+                {fmtPeriodoSemana(jan.inicio, jan.fim) || '—'}
+              </button>
+            );
+          })}
+        </div>
+      )}
 
       {/* 1. Resumo Executivo */}
       <div className="rounded-xl p-6 md:p-8" style={{ background: C.text, color: '#fff' }}>
         {(periodoSemana || relatorio.periodo) && (
           <p className="text-xs uppercase tracking-widest mb-3" style={{ color: C.gold }}>
-            Semana fechada · {periodoSemana || relatorio.periodo}
+            Semana de {periodoSemana || relatorio.periodo}
+            {tipoSemana ? ` (${tipoSemana === 'domingo a sabado' ? 'domingo a sábado' : tipoSemana})` : ''}
           </p>
         )}
         <p className="text-xl md:text-2xl font-bold mb-4 leading-tight text-white">
@@ -484,6 +573,11 @@ export default function InsightsIATab() {
         <h3 className="text-xl mb-4" style={{ color: C.text, fontFamily: 'Cormorant Garamond, serif', fontWeight: 600 }}>
           Métricas dos posts na semana
         </h3>
+        {descreverExcluidos(excluidos) && (
+          <p className="text-xs mb-3" style={{ color: C.textSec }}>
+            {descreverExcluidos(excluidos)} ficaram fora das somas.
+          </p>
+        )}
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>

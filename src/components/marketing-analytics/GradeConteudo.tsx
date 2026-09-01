@@ -246,7 +246,12 @@ export function GradeConteudo({
                     {new Date(p.data_br + 'T00:00:00').toLocaleDateString('pt-BR')}
                   </p>
                   <div className="grid grid-cols-3 gap-1 mt-2 text-[11px]" style={{ color: C.textSec }}>
-                    <span>Alcance<br /><b style={{ color: C.text }}>{fmtInt(p.reach)}</b></span>
+                    {p.views != null && (
+                      <span title="Visualizações contam quantas vezes o vídeo foi reproduzido. Alcance conta quantas contas diferentes viram. O app do Instagram destaca visualizações.">
+                        Visualizações<br /><b style={{ color: C.text }}>{fmtInt(p.views)}</b>
+                      </span>
+                    )}
+                    <span title="Alcance conta quantas contas diferentes viram — costuma ser menor que as visualizações.">Alcance<br /><b style={{ color: C.text }}>{fmtInt(p.reach)}</b></span>
                     <span>Saves<br /><b style={{ color: C.text }}>{fmtInt(p.saves)}</b></span>
                     <span>Eng.<br /><b style={{ color: C.text }}>{fmtNum(p.taxa_engajamento, 2)}%</b></span>
                     {reels && <span>Skip<br /><b style={{ color: C.text }}>{fmtNum(p.skip_rate)}%</b></span>}

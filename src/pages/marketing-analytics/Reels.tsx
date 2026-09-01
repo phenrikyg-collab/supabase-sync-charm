@@ -50,8 +50,8 @@ export default function MAReels() {
   return (
     <MALayout titulo="Reels" subtitulo="Performance do formato que mais distribui">
       <div className="grid grid-cols-2 lg:grid-cols-7 gap-3">
+        <KpiCard label="Visualizações" value={fmtCompact(kpis.views)} accent={C.gold} />
         <KpiCard label="Alcance médio" value={fmtCompact(kpis.alcanceMed)} accent={C.bronze} />
-        <KpiCard label="Views" value={fmtCompact(kpis.views)} accent={C.gold} />
         <KpiCard label="Skip rate mediano" value={kpis.skipMed === null ? '—' : `${fmtNum(kpis.skipMed)}%`} accent={C.red} />
         <KpiCard label="Watch médio" value={kpis.watchMed === null ? '—' : `${fmtNum(kpis.watchMed)}s`} accent={C.blue} />
         <KpiCard label="Retenção inicial" value={kpis.retencaoMed === null ? '—' : `${fmtNum(kpis.retencaoMed)}%`} accent={C.green} />
