@@ -131,6 +131,27 @@ const esforcoBadge = (e: string) => {
   return { bg: C.gray, color: '#fff' };
 };
 
+// Lê os contadores do backend sem fixar nada no código — muda a cada semana.
+const ROTULO_EXCLUIDO: Record<string, [string, string]> = {
+  lives: ['live', 'lives'],
+  posts_apagados: ['post apagado', 'posts apagados'],
+  apagados: ['post apagado', 'posts apagados'],
+  anuncios: ['anúncio', 'anúncios'],
+};
+const descreverExcluidos = (excl: any): string => {
+  if (!excl || typeof excl !== 'object') return '';
+  const partes = Object.entries(excl)
+    .map(([chave, valor]) => {
+      const n = Number(valor);
+      if (!Number.isFinite(n) || n <= 0) return null;
+      const [sing, plur] = ROTULO_EXCLUIDO[chave] ?? [chave.replace(/_/g, ' '), chave.replace(/_/g, ' ')];
+      return `${n} ${n === 1 ? sing : plur}`;
+    })
+    .filter(Boolean) as string[];
+  if (!partes.length) return '';
+  return partes.length === 1 ? partes[0] : `${partes.slice(0, -1).join(', ')} e ${partes[partes.length - 1]}`;
+};
+
 const fmtDateTime = (iso?: string | null) => {
   if (!iso) return '';
   const d = new Date(iso);
