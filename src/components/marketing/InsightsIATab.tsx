@@ -434,12 +434,23 @@ export default function InsightsIATab() {
 
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-3 no-print">
-        <span
-          className="text-xs px-3 py-1.5 rounded-full"
-          style={{ background: C.gold + '33', color: C.bronze, fontWeight: 600 }}
-        >
-          Gerado em {geradoEm}
-        </span>
+        <div className="flex items-center gap-2 flex-wrap">
+          <span
+            className="text-xs px-3 py-1.5 rounded-full"
+            style={{ background: C.gold + '33', color: C.bronze, fontWeight: 600 }}
+          >
+            Gerado em {geradoEm}
+          </span>
+          {coletadoEm && (
+            <span
+              className="text-xs px-3 py-1.5 rounded-full"
+              style={{ background: C.border, color: C.textSec, fontWeight: 600 }}
+              title="Momento em que os números foram lidos da Meta. O texto do relatório é uma foto desse instante."
+            >
+              Dados coletados em {coletadoEm}
+            </span>
+          )}
+        </div>
         <div className="flex items-center gap-2">
           <button
             onClick={() => window.print()}
@@ -460,12 +471,42 @@ export default function InsightsIATab() {
         </div>
       </div>
 
+      {coleta && coleta.sincronizou_antes_de_gerar === false && coleta.detalhe && (
+        <p className="text-xs flex items-start gap-1.5 no-print" style={{ color: C.bronze }}>
+          <AlertTriangle size={13} className="mt-0.5 shrink-0" /> {coleta.detalhe}
+        </p>
+      )}
+
+      {/* Seletor de semanas — histórico por (periodo_inicio, periodo_fim) */}
+      {semanas.length > 1 && (
+        <div className="flex flex-wrap gap-2 no-print">
+          {semanas.map((s) => {
+            const ativo = s.id === semanaSel;
+            const jan = janelaDoRelatorio(s.relatorio_ia, s);
+            return (
+              <button
+                key={s.id}
+                onClick={() => selecionarSemana(s.id)}
+                className="px-3 py-1.5 rounded-full text-xs transition"
+                style={{
+                  background: ativo ? C.text : '#fff',
+                  color: ativo ? C.gold : C.text,
+                  border: `1px solid ${ativo ? C.text : C.border}`,
+                }}
+              >
+                {fmtPeriodoSemana(jan.inicio, jan.fim) || '—'}
+              </button>
+            );
+          })}
+        </div>
+      )}
 
       {/* 1. Resumo Executivo */}
       <div className="rounded-xl p-6 md:p-8" style={{ background: C.text, color: '#fff' }}>
         {(periodoSemana || relatorio.periodo) && (
           <p className="text-xs uppercase tracking-widest mb-3" style={{ color: C.gold }}>
-            Semana fechada · {periodoSemana || relatorio.periodo}
+            Semana de {periodoSemana || relatorio.periodo}
+            {tipoSemana ? ` (${tipoSemana === 'domingo a sabado' ? 'domingo a sábado' : tipoSemana})` : ''}
           </p>
         )}
         <p className="text-xl md:text-2xl font-bold mb-4 leading-tight text-white">
