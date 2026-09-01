@@ -568,9 +568,9 @@ export default function InsightsIATab() {
         <h3 className="text-xl mb-4" style={{ color: C.text, fontFamily: 'Cormorant Garamond, serif', fontWeight: 600 }}>
           Métricas dos posts na semana
         </h3>
-        {textoExcluidos && (
+        {descreverExcluidos(excluidos) && (
           <p className="text-xs mb-3" style={{ color: C.textSec }}>
-            {textoExcluidos} — ficaram fora das somas.
+            {descreverExcluidos(excluidos)} ficaram fora das somas.
           </p>
         )}
         <div className="overflow-x-auto">
