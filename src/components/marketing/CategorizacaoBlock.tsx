@@ -59,14 +59,60 @@ export default function CategorizacaoBlock({ categorias, analise }: {
   const [aberta, setAberta] = useState<string | null>(null);
   if (!categorias && !analise) return null;
 
-  const porFuncao = categorias?.por_funcao ?? [];
-  const semClass = Number(categorias?.sem_classificacao ?? 0);
-  const classificados = porFuncao.reduce((s, f) => s + (f.posts || 0), 0);
-  const total = classificados || Number(categorias?.total_posts ?? 0);
-  const posts = categorias?.posts ?? [];
+  // O backend já mudou o nome dos campos algumas vezes (funcao / categoria /
+  // funcao_funil, posts / qtd_posts / total_posts). Lemos de forma tolerante
+  // para o bloco nunca mais mostrar 0% com dado cheio no banco.
+  const raw = categorias as any;
+  const num = (...vals: any[]) => {
+    for (const v of vals) {
+      const n = Number(v);
+      if (v !== null && v !== undefined && v !== '' && Number.isFinite(n)) return n;
+    }
+    return 0;
+  };
+  const nomeFuncao = (o: any) =>
+    String(o?.funcao ?? o?.funcao_funil ?? o?.categoria ?? o?.nome ?? o?.grupo ?? '')
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .trim()
+      .toLowerCase();
+
+  const listaFuncoes: any[] = Array.isArray(raw)
+    ? raw
+    : (raw?.por_funcao ?? raw?.funcoes ?? raw?.por_funcao_funil ?? raw?.categorias ?? raw?.mix ?? []) as any[];
+
+  const porFuncao = (Array.isArray(listaFuncoes) ? listaFuncoes : []).map((f: any) => ({
+    funcao: nomeFuncao(f),
+    posts: num(f?.posts, f?.qtd_posts, f?.qtd, f?.total_posts, f?.n_posts, f?.quantidade),
+    alcance: num(f?.alcance, f?.alcance_total, f?.alcance_medio),
+  }));
+
+  const postsBrutos: any[] = (raw?.posts ?? raw?.itens ?? raw?.detalhe ?? []) as any[];
+  const posts: PostCategoria[] = (Array.isArray(postsBrutos) ? postsBrutos : []).map((p: any) => ({
+    dia: p?.dia ?? p?.data_br ?? p?.data ?? null,
+    funcao: p?.funcao ?? p?.funcao_funil ?? p?.categoria ?? null,
+    pilar: p?.pilar ?? null,
+    angulo: p?.angulo ?? null,
+    alcance: p?.alcance ?? p?.reach ?? null,
+    engajamento: p?.engajamento ?? p?.interacoes ?? null,
+    legenda: p?.legenda ?? p?.caption ?? null,
+  }));
+
+  const semNome = porFuncao.find((f) => !f.funcao || f.funcao.includes('sem classific'));
+  const semClass = num(
+    raw?.sem_classificacao,
+    raw?.sem_classificacao_posts,
+    raw?.posts_sem_classificacao,
+    semNome?.posts
+  );
+  const classificados = porFuncao
+    .filter((f) => f.funcao && !f.funcao.includes('sem classific'))
+    .reduce((s, f) => s + f.posts, 0);
+  const total = classificados || Math.max(num(raw?.total_posts) - semClass, 0);
 
   const linhas = ORDEM.map((funcao) => {
-    const item = porFuncao.find((f) => String(f.funcao).toLowerCase() === funcao.toLowerCase());
+    const alvo = nomeFuncao({ funcao });
+    const item = porFuncao.find((f) => f.funcao === alvo);
     const qtd = item?.posts ?? 0;
     const pct = total ? (qtd / total) * 100 : 0;
     const meta = META[funcao];
@@ -76,8 +122,10 @@ export default function CategorizacaoBlock({ categorias, analise }: {
     return { funcao, qtd, pct, meta, statusCor, statusLabel };
   });
 
-  const postsDaFuncao = (funcao: string) =>
-    posts.filter((p) => String(p.funcao ?? '').toLowerCase() === funcao.toLowerCase());
+  const postsDaFuncao = (funcao: string) => {
+    const alvo = nomeFuncao({ funcao });
+    return posts.filter((p) => nomeFuncao({ funcao: p.funcao }) === alvo);
+  };
 
   return (
     <div className="rounded-xl p-5 md:p-6" style={{ background: C.card, border: `1px solid ${C.border}`, boxShadow: '0 1px 3px rgba(0,0,0,0.08)' }}>
