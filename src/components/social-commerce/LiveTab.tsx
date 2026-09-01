@@ -161,7 +161,7 @@ export function LiveTab() {
   }, []);
 
 
-  // comentários em tempo real
+  // comentários em tempo real (refetch em segundo plano, sem apagar a lista)
   useEffect(() => {
     const ch = db
       .channel("live-comentarios")
@@ -175,6 +175,30 @@ export function LiveTab() {
       db.removeChannel(ch);
     };
   }, [carregarComentarios]);
+
+  // contadores do cabeçalho: a própria linha da live em tempo real
+  useEffect(() => {
+    if (!mediaSelecionado) return;
+    const ch = db
+      .channel(`live-row-${mediaSelecionado}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "instagram_lives",
+          filter: `media_id=eq.${mediaSelecionado}`,
+        },
+        ({ new: novo }: any) =>
+          setLives((prev) =>
+            prev.map((l) => (l.media_id === novo?.media_id ? { ...l, ...novo } : l)),
+          ),
+      )
+      .subscribe();
+    return () => {
+      db.removeChannel(ch);
+    };
+  }, [mediaSelecionado]);
 
   const salvar = async (patch: Partial<ConfigLive>) => {
     if (!config) return;
