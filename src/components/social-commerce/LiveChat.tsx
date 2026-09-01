@@ -455,7 +455,15 @@ export function LiveChat({
             <Contador icone={ShoppingCart} label="carrinhos" valor={carrinhos.length} />
             <Contador icone={Package} label="em carrinhos" valor={brl(totalCarrinhos)} />
           </div>
-          <div className="ml-auto flex items-center gap-2">
+          <div className="ml-auto flex items-center gap-3">
+            {mediaId && (
+              <span className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                <span
+                  className={`h-1.5 w-1.5 rounded-full ${conectado ? "bg-success" : "animate-pulse bg-warning"}`}
+                />
+                {conectado ? `atualizado ${idadeDado}` : "reconectando…"}
+              </span>
+            )}
             <Switch id="pausar" checked={pausado} onCheckedChange={pausarAutomaticas} disabled={!mediaId} />
             <Label htmlFor="pausar" className="cursor-pointer text-xs">
               Pausar respostas automáticas
