@@ -386,6 +386,44 @@ export function PublicacoesTab() {
     carregar();
   }, [carregar]);
 
+  // Limites do VIP (grupos/pessoas/teto diário) — carrega uma vez por abertura do modal.
+  useEffect(() => {
+    if (!modalAberto) return;
+    let vivo = true;
+    vipLimites().then((l) => vivo && setVipLim(l));
+    return () => {
+      vivo = false;
+    };
+  }, [modalAberto]);
+
+  // Estado da mensagem VIP depois da publicação — lê por vip_mensagem_id.
+  useEffect(() => {
+    if (!modalAberto) return;
+    const msgId = editando?.vip_mensagem_id;
+    setVipMsg(null);
+    setVipEnviados(null);
+    setVipCliques([]);
+    if (!msgId) return;
+    let vivo = true;
+    (async () => {
+      const msg = await vipMensagemPorId(msgId);
+      if (!vivo || !msg) return;
+      setVipMsg(msg);
+      if ((msg.status ?? "").toLowerCase() === "enviada") {
+        const [enviados, cliques] = await Promise.all([
+          vipEnviosEnviados(msgId),
+          vipCliquesPorGrupo(msgId),
+        ]);
+        if (!vivo) return;
+        setVipEnviados(enviados);
+        setVipCliques(cliques);
+      }
+    })();
+    return () => {
+      vivo = false;
+    };
+  }, [modalAberto, editando?.vip_mensagem_id]);
+
   // Dados frescos do criador sempre que a tela de agendamento abre.
   useEffect(() => {
     if (!modalAberto || ttConfig?.conectado !== true) return;
