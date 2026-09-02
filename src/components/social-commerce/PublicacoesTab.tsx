@@ -1374,8 +1374,98 @@ export function PublicacoesTab() {
                     placeholder="Gerado pela IA junto com a legenda — ou escreva manualmente…"
                   />
                   <p className="text-[10px] text-muted-foreground">
-                    Envie no grupo VIP assim que o post sair. Troque [link do post] pelo link real.
+                    Não escreva o link. Ele é adicionado automaticamente no fim da mensagem, encurtado e rastreado por grupo.
                   </p>
+
+                  <label
+                    className={`flex items-start gap-2.5 rounded-lg border p-3 transition-colors ${
+                      form.textoGrupoVip.trim()
+                        ? "cursor-pointer hover:bg-accent/40"
+                        : "opacity-60 cursor-not-allowed"
+                    } ${form.vipDisparar ? "border-primary bg-primary/5" : "border-border"}`}
+                  >
+                    <Switch
+                      checked={form.vipDisparar}
+                      disabled={!form.textoGrupoVip.trim()}
+                      onCheckedChange={(v) => setForm({ ...form, vipDisparar: !!v })}
+                      className="mt-0.5"
+                    />
+                    <span className="text-xs">
+                      <span className="font-medium block">Disparar no Grupo VIP automaticamente</span>
+                      {!form.textoGrupoVip.trim() ? (
+                        <span className="text-[11px] text-muted-foreground">
+                          Escreva o texto do grupo VIP primeiro.
+                        </span>
+                      ) : form.vipDisparar ? (
+                        <span className="text-[11px] text-muted-foreground">
+                          Vai para {vipLim?.gruposAtivos ?? "…"} grupos
+                          {vipLim?.pessoas ? `, ${vipLim.pessoas.toLocaleString("pt-BR")} pessoas` : ""},
+                          5 minutos depois da publicação.
+                        </span>
+                      ) : (
+                        <span className="text-[11px] text-muted-foreground">
+                          Sem marcar, a mensagem fica como rascunho esperando aprovação.
+                        </span>
+                      )}
+                    </span>
+                  </label>
+
+                  {/* Estado da mensagem VIP depois que o post foi publicado */}
+                  {editando?.status === "publicado" && (
+                    editando.vip_mensagem_id ? (
+                      <div className="rounded-lg border border-border bg-muted/40 p-3 space-y-2 text-xs">
+                        {(() => {
+                          const s = (vipMsg?.status ?? "").toLowerCase();
+                          if (s === "rascunho" || !vipMsg) {
+                            return (
+                              <p>
+                                Mensagem VIP criada, aguardando aprovação —{" "}
+                                <a href="/grupo-vip" className="underline text-primary">abrir no painel do VIP</a>
+                              </p>
+                            );
+                          }
+                          if (s === "aprovada") {
+                            return <p>Mensagem VIP sai às {vipMsg.horario ?? "--:--"}</p>;
+                          }
+                          if (s === "agendada") {
+                            return <p>Mensagem VIP na fila de envio</p>;
+                          }
+                          if (s === "enviada") {
+                            return <p>Enviada para {vipEnviados ?? "…"} grupos</p>;
+                          }
+                          return <p>Status da mensagem VIP: {vipMsg.status}</p>;
+                        })()}
+                        {vipCliques.length > 0 && (
+                          <table className="w-full text-[11px]">
+                            <thead>
+                              <tr className="text-muted-foreground">
+                                <th className="text-left font-medium">grupo</th>
+                                <th className="text-right font-medium">cliques</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {vipCliques.map((g) => (
+                                <tr key={g.grupo} className="border-t border-border/60">
+                                  <td className="py-1 pr-2">{g.grupo}</td>
+                                  <td className="py-1 text-right tabular-nums">{g.cliques}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        )}
+                      </div>
+                    ) : (
+                      form.textoGrupoVip.trim() && (
+                        <div className="rounded-lg border border-warning/30 bg-warning/10 p-3 flex items-start gap-2 text-xs">
+                          <AlertTriangle className="h-4 w-4 text-warning shrink-0 mt-0.5" />
+                          <span>
+                            <strong>Mensagem VIP não foi criada.</strong>
+                            {vipMsg?.motivo && <span className="block text-[11px] mt-0.5">{vipMsg.motivo}</span>}
+                          </span>
+                        </div>
+                      )
+                    )
+                  )}
                 </div>
 
               </section>
