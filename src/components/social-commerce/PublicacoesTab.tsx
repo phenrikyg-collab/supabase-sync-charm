@@ -476,6 +476,7 @@ export function PublicacoesTab() {
       legenda: p.legenda ?? "",
       primeiroComentario: p.primeiro_comentario ?? "",
       textoGrupoVip: p.texto_grupo_vip ?? "",
+      vipDisparar: p.vip_disparar ?? false,
       agendadoPara:
         d && !Number.isNaN(d.getTime())
           ? `${diaKey(d)}T${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`
