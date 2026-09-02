@@ -216,9 +216,10 @@ export function limparPlaceholderLink(texto: string): string {
   if (!texto) return texto;
   const token = /[\[{]\s*link[^\]}\n]*[\]}]/gi;
   const linhas = texto.split("\n").filter((l) => {
+    const tinha = /[\[{]\s*link[^\]}\n]*[\]}]/i.test(l);
     const resto = l.replace(token, "").trim();
-    // a linha tinha placeholder e não sobrou nada → some com ela
-    return !(resto === "" && token.test(l));
+    // a linha só tinha o placeholder → some com ela
+    return !(tinha && resto === "");
   });
   return linhas
     .join("\n")
