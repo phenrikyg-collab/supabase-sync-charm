@@ -42,6 +42,17 @@ import {
   type TikTokFormState,
 } from "./BlocoTikTok";
 import {
+  limparPlaceholderLink,
+  vipCliquesPorGrupo,
+  vipEnviosEnviados,
+  vipLimites,
+  vipMensagemPorId,
+  vipMensagensNoDia,
+  type VipCliquesGrupo,
+  type VipLimites,
+  type VipMensagemEstado,
+} from "@/lib/vipPublicacao";
+import {
   STATUS_TIKTOK_COR,
   lerCreatorInfo,
   lerTikTokConfig,
@@ -101,6 +112,12 @@ type Publicacao = {
   cupom_beneficio?: string | null;
   cupom_validade?: string | null;
   texto_grupo_vip?: string | null;
+  /** marcado na tela: a mensagem VIP dispara sozinha ao publicar (senão vira rascunho no VIP) */
+  vip_disparar?: boolean | null;
+  /** preenchido pelo backend quando a mensagem VIP é criada (somente leitura) */
+  vip_mensagem_id?: string | null;
+  /** motivo devolvido pelo backend quando a mensagem VIP não pôde ser criada */
+  vip_erro?: string | null;
   capa_url?: string | null;
   capa_offset_ms?: number | null;
   marcar_produtos?: boolean | null;
@@ -135,6 +152,7 @@ type FormState = {
   legenda: string;
   primeiroComentario: string;
   textoGrupoVip: string;
+  vipDisparar: boolean;
   agendadoPara: string; // datetime-local
   produtoIds: string[];
   modoResposta: "sombra" | "automatico" | "desligado";
@@ -159,6 +177,7 @@ const FORM_VAZIO: FormState = {
   legenda: "",
   primeiroComentario: "",
   textoGrupoVip: "",
+  vipDisparar: false,
   agendadoPara: "",
   produtoIds: [],
   modoResposta: "sombra",
@@ -335,6 +354,12 @@ export function PublicacoesTab() {
   // tentativas de salvar — a retentativa vira UPDATE na mesma linha, nunca duplicata.
   const [chaveSalvamento, setChaveSalvamento] = useState(() => crypto.randomUUID());
 
+  // ===== Grupo VIP =====
+  const [vipLim, setVipLim] = useState<VipLimites | null>(null);
+  const [vipMsg, setVipMsg] = useState<VipMensagemEstado | null>(null);
+  const [vipEnviados, setVipEnviados] = useState<number | null>(null);
+  const [vipCliques, setVipCliques] = useState<VipCliquesGrupo[]>([]);
+
   const carregar = useCallback(async () => {
     const [{ data: pubs }, prods, tts, cfg] = await Promise.all([
       db.from("instagram_publicacoes").select("*").order("agendado_para", { ascending: true }).limit(500),
@@ -362,6 +387,44 @@ export function PublicacoesTab() {
   useEffect(() => {
     carregar();
   }, [carregar]);
+
+  // Limites do VIP (grupos/pessoas/teto diário) — carrega uma vez por abertura do modal.
+  useEffect(() => {
+    if (!modalAberto) return;
+    let vivo = true;
+    vipLimites().then((l) => vivo && setVipLim(l));
+    return () => {
+      vivo = false;
+    };
+  }, [modalAberto]);
+
+  // Estado da mensagem VIP depois da publicação — lê por vip_mensagem_id.
+  useEffect(() => {
+    if (!modalAberto) return;
+    const msgId = editando?.vip_mensagem_id;
+    setVipMsg(null);
+    setVipEnviados(null);
+    setVipCliques([]);
+    if (!msgId) return;
+    let vivo = true;
+    (async () => {
+      const msg = await vipMensagemPorId(msgId);
+      if (!vivo || !msg) return;
+      setVipMsg(msg);
+      if ((msg.status ?? "").toLowerCase() === "enviada") {
+        const [enviados, cliques] = await Promise.all([
+          vipEnviosEnviados(msgId),
+          vipCliquesPorGrupo(msgId),
+        ]);
+        if (!vivo) return;
+        setVipEnviados(enviados);
+        setVipCliques(cliques);
+      }
+    })();
+    return () => {
+      vivo = false;
+    };
+  }, [modalAberto, editando?.vip_mensagem_id]);
 
   // Dados frescos do criador sempre que a tela de agendamento abre.
   useEffect(() => {
@@ -459,6 +522,7 @@ export function PublicacoesTab() {
       legenda: p.legenda ?? "",
       primeiroComentario: p.primeiro_comentario ?? "",
       textoGrupoVip: p.texto_grupo_vip ?? "",
+      vipDisparar: p.vip_disparar ?? false,
       agendadoPara:
         d && !Number.isNaN(d.getTime())
           ? `${diaKey(d)}T${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`
@@ -523,7 +587,9 @@ export function PublicacoesTab() {
         ...f,
         legenda: String(data.legenda ?? "").slice(0, LIMITE_LEGENDA),
         primeiroComentario: String(data.primeiro_comentario ?? ""),
-        textoGrupoVip: String(data.texto_grupo_vip ?? f.textoGrupoVip),
+        // O link entra sozinho no rodapé (encurtado e rastreado por grupo) —
+        // nenhum texto do VIP pode sair com "[link do post]" no meio.
+        textoGrupoVip: limparPlaceholderLink(String(data.texto_grupo_vip ?? f.textoGrupoVip)),
         ...(gatilhos.length > 0
           ? {
               // Palavras-gatilho = CTA de comentário ("comenta QUERO") → objetivo venda
@@ -695,6 +761,21 @@ export function PublicacoesTab() {
 
       const agendadoIso = form.agendadoPara ? new Date(form.agendadoPara).toISOString() : null;
       const statusFila = form.agendadoPara ? "agendado" : "rascunho";
+
+      // Teto diário do VIP: avisa (sem bloquear) quando o dia já está cheio.
+      const textoVipLimpo = limparPlaceholderLink(form.textoGrupoVip);
+      const vipDispararFinal = form.vipDisparar && !!textoVipLimpo.trim();
+      if (vipDispararFinal && agendadoIso && !opcoes?.publicarAgora) {
+        const teto = vipLim?.limitePratico ?? 3;
+        const existentes = await vipMensagensNoDia(diaKey(new Date(agendadoIso))).catch(() => null);
+        if (existentes != null && existentes >= teto) {
+          toast.warning(
+            `Já existem ${existentes} mensagens VIP neste dia. O limite prático é ${teto} por dia.`,
+            { description: "Uma delas pode não sair.", duration: 8000 },
+          );
+        }
+      }
+
       const compatSalvar = compatibilidadeTikTok(
         form.tipo,
         midiaUrls.map((u) => ({ url: u, isVideo: ehUrlDeVideo(u) })),
@@ -739,7 +820,8 @@ export function PublicacoesTab() {
           midia_urls: midiaUrls,
           legenda: form.legenda,
           primeiro_comentario: form.primeiroComentario || null,
-          texto_grupo_vip: form.textoGrupoVip || null,
+          texto_grupo_vip: textoVipLimpo || null,
+          vip_disparar: vipDispararFinal,
           agendado_para: opcoes?.publicarAgora ? new Date().toISOString() : agendadoIso,
           status: opcoes?.publicarAgora ? "agendado" : statusFila,
           produto_ids: form.produtoIds,
@@ -1294,8 +1376,100 @@ export function PublicacoesTab() {
                     placeholder="Gerado pela IA junto com a legenda — ou escreva manualmente…"
                   />
                   <p className="text-[10px] text-muted-foreground">
-                    Envie no grupo VIP assim que o post sair. Troque [link do post] pelo link real.
+                    Não escreva o link. Ele é adicionado automaticamente no fim da mensagem, encurtado e rastreado por grupo.
                   </p>
+
+                  <label
+                    className={`flex items-start gap-2.5 rounded-lg border p-3 transition-colors ${
+                      form.textoGrupoVip.trim()
+                        ? "cursor-pointer hover:bg-accent/40"
+                        : "opacity-60 cursor-not-allowed"
+                    } ${form.vipDisparar ? "border-primary bg-primary/5" : "border-border"}`}
+                  >
+                    <Switch
+                      checked={form.vipDisparar}
+                      disabled={!form.textoGrupoVip.trim()}
+                      onCheckedChange={(v) => setForm({ ...form, vipDisparar: !!v })}
+                      className="mt-0.5"
+                    />
+                    <span className="text-xs">
+                      <span className="font-medium block">Disparar no Grupo VIP automaticamente</span>
+                      {!form.textoGrupoVip.trim() ? (
+                        <span className="text-[11px] text-muted-foreground">
+                          Escreva o texto do grupo VIP primeiro.
+                        </span>
+                      ) : form.vipDisparar ? (
+                        <span className="text-[11px] text-muted-foreground">
+                          Vai para {vipLim?.gruposAtivos ?? "…"} grupos
+                          {vipLim?.pessoas ? `, ${vipLim.pessoas.toLocaleString("pt-BR")} pessoas` : ""},
+                          5 minutos depois da publicação.
+                        </span>
+                      ) : (
+                        <span className="text-[11px] text-muted-foreground">
+                          Sem marcar, a mensagem fica como rascunho esperando aprovação.
+                        </span>
+                      )}
+                    </span>
+                  </label>
+
+                  {/* Estado da mensagem VIP depois que o post foi publicado */}
+                  {editando?.status === "publicado" && (
+                    editando.vip_mensagem_id ? (
+                      <div className="rounded-lg border border-border bg-muted/40 p-3 space-y-2 text-xs">
+                        {(() => {
+                          const s = (vipMsg?.status ?? "").toLowerCase();
+                          if (s === "rascunho" || !vipMsg) {
+                            return (
+                              <p>
+                                Mensagem VIP criada, aguardando aprovação —{" "}
+                                <a href="/grupo-vip" className="underline text-primary">abrir no painel do VIP</a>
+                              </p>
+                            );
+                          }
+                          if (s === "aprovada") {
+                            return <p>Mensagem VIP sai às {vipMsg.horario ?? "--:--"}</p>;
+                          }
+                          if (s === "agendada") {
+                            return <p>Mensagem VIP na fila de envio</p>;
+                          }
+                          if (s === "enviada") {
+                            return <p>Enviada para {vipEnviados ?? "…"} grupos</p>;
+                          }
+                          return <p>Status da mensagem VIP: {vipMsg.status}</p>;
+                        })()}
+                        {vipCliques.length > 0 && (
+                          <table className="w-full text-[11px]">
+                            <thead>
+                              <tr className="text-muted-foreground">
+                                <th className="text-left font-medium">grupo</th>
+                                <th className="text-right font-medium">cliques</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {vipCliques.map((g) => (
+                                <tr key={g.grupo} className="border-t border-border/60">
+                                  <td className="py-1 pr-2">{g.grupo}</td>
+                                  <td className="py-1 text-right tabular-nums">{g.cliques}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        )}
+                      </div>
+                    ) : (
+                      form.textoGrupoVip.trim() && (
+                        <div className="rounded-lg border border-warning/30 bg-warning/10 p-3 flex items-start gap-2 text-xs">
+                          <AlertTriangle className="h-4 w-4 text-warning shrink-0 mt-0.5" />
+                          <span>
+                            <strong>Mensagem VIP não foi criada.</strong>
+                            {(vipMsg?.motivo ?? editando.vip_erro) && (
+                              <span className="block text-[11px] mt-0.5">{vipMsg?.motivo ?? editando.vip_erro}</span>
+                            )}
+                          </span>
+                        </div>
+                      )
+                    )
+                  )}
                 </div>
 
               </section>
@@ -1525,7 +1699,7 @@ export function PublicacoesTab() {
             {legendaObrigatoriaFaltando && (
               <p className="text-xs text-danger mr-auto">Escreva a legenda — só Stories publica sem texto.</p>
             )}
-            {publicarNoIg && (
+            {publicarNoIg && editando?.status !== "publicado" && (
               <Button
                 variant="secondary"
                 onClick={() => salvar({ publicarAgora: true })}
