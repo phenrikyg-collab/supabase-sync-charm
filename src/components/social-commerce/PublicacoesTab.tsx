@@ -150,6 +150,7 @@ type FormState = {
   legenda: string;
   primeiroComentario: string;
   textoGrupoVip: string;
+  vipDisparar: boolean;
   agendadoPara: string; // datetime-local
   produtoIds: string[];
   modoResposta: "sombra" | "automatico" | "desligado";
@@ -174,6 +175,7 @@ const FORM_VAZIO: FormState = {
   legenda: "",
   primeiroComentario: "",
   textoGrupoVip: "",
+  vipDisparar: false,
   agendadoPara: "",
   produtoIds: [],
   modoResposta: "sombra",
