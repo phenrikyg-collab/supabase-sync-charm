@@ -585,7 +585,9 @@ export function PublicacoesTab() {
         ...f,
         legenda: String(data.legenda ?? "").slice(0, LIMITE_LEGENDA),
         primeiroComentario: String(data.primeiro_comentario ?? ""),
-        textoGrupoVip: String(data.texto_grupo_vip ?? f.textoGrupoVip),
+        // O link entra sozinho no rodapé (encurtado e rastreado por grupo) —
+        // nenhum texto do VIP pode sair com "[link do post]" no meio.
+        textoGrupoVip: limparPlaceholderLink(String(data.texto_grupo_vip ?? f.textoGrupoVip)),
         ...(gatilhos.length > 0
           ? {
               // Palavras-gatilho = CTA de comentário ("comenta QUERO") → objetivo venda
