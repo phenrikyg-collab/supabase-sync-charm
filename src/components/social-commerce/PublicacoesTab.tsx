@@ -42,6 +42,17 @@ import {
   type TikTokFormState,
 } from "./BlocoTikTok";
 import {
+  limparPlaceholderLink,
+  vipCliquesPorGrupo,
+  vipEnviosEnviados,
+  vipLimites,
+  vipMensagemPorId,
+  vipMensagensNoDia,
+  type VipCliquesGrupo,
+  type VipLimites,
+  type VipMensagemEstado,
+} from "@/lib/vipPublicacao";
+import {
   STATUS_TIKTOK_COR,
   lerCreatorInfo,
   lerTikTokConfig,
@@ -101,6 +112,10 @@ type Publicacao = {
   cupom_beneficio?: string | null;
   cupom_validade?: string | null;
   texto_grupo_vip?: string | null;
+  /** marcado na tela: a mensagem VIP dispara sozinha ao publicar (senão vira rascunho no VIP) */
+  vip_disparar?: boolean | null;
+  /** preenchido pelo backend quando a mensagem VIP é criada (somente leitura) */
+  vip_mensagem_id?: string | null;
   capa_url?: string | null;
   capa_offset_ms?: number | null;
   marcar_produtos?: boolean | null;
