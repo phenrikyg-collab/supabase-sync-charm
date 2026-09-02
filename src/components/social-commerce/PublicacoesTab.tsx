@@ -1462,7 +1462,9 @@ export function PublicacoesTab() {
                           <AlertTriangle className="h-4 w-4 text-warning shrink-0 mt-0.5" />
                           <span>
                             <strong>Mensagem VIP não foi criada.</strong>
-                            {vipMsg?.motivo && <span className="block text-[11px] mt-0.5">{vipMsg.motivo}</span>}
+                            {(vipMsg?.motivo ?? editando.vip_erro) && (
+                              <span className="block text-[11px] mt-0.5">{vipMsg?.motivo ?? editando.vip_erro}</span>
+                            )}
                           </span>
                         </div>
                       )
