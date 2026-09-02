@@ -116,6 +116,8 @@ type Publicacao = {
   vip_disparar?: boolean | null;
   /** preenchido pelo backend quando a mensagem VIP é criada (somente leitura) */
   vip_mensagem_id?: string | null;
+  /** motivo devolvido pelo backend quando a mensagem VIP não pôde ser criada */
+  vip_erro?: string | null;
   capa_url?: string | null;
   capa_offset_ms?: number | null;
   marcar_produtos?: boolean | null;
