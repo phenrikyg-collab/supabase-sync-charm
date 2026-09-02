@@ -1695,7 +1695,7 @@ export function PublicacoesTab() {
             {legendaObrigatoriaFaltando && (
               <p className="text-xs text-danger mr-auto">Escreva a legenda — só Stories publica sem texto.</p>
             )}
-            {publicarNoIg && (
+            {publicarNoIg && editando?.status !== "publicado" && (
               <Button
                 variant="secondary"
                 onClick={() => salvar({ publicarAgora: true })}
