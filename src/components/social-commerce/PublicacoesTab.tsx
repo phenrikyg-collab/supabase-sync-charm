@@ -759,6 +759,21 @@ export function PublicacoesTab() {
 
       const agendadoIso = form.agendadoPara ? new Date(form.agendadoPara).toISOString() : null;
       const statusFila = form.agendadoPara ? "agendado" : "rascunho";
+
+      // Teto diário do VIP: avisa (sem bloquear) quando o dia já está cheio.
+      const textoVipLimpo = limparPlaceholderLink(form.textoGrupoVip);
+      const vipDispararFinal = form.vipDisparar && !!textoVipLimpo.trim();
+      if (vipDispararFinal && agendadoIso && !opcoes?.publicarAgora) {
+        const teto = vipLim?.limitePratico ?? 3;
+        const existentes = await vipMensagensNoDia(diaKey(new Date(agendadoIso))).catch(() => null);
+        if (existentes != null && existentes >= teto) {
+          toast.warning(
+            `Já existem ${existentes} mensagens VIP neste dia. O limite prático é ${teto} por dia.`,
+            { description: "Uma delas pode não sair.", duration: 8000 },
+          );
+        }
+      }
+
       const compatSalvar = compatibilidadeTikTok(
         form.tipo,
         midiaUrls.map((u) => ({ url: u, isVideo: ehUrlDeVideo(u) })),
