@@ -352,6 +352,12 @@ export function PublicacoesTab() {
   // tentativas de salvar — a retentativa vira UPDATE na mesma linha, nunca duplicata.
   const [chaveSalvamento, setChaveSalvamento] = useState(() => crypto.randomUUID());
 
+  // ===== Grupo VIP =====
+  const [vipLim, setVipLim] = useState<VipLimites | null>(null);
+  const [vipMsg, setVipMsg] = useState<VipMensagemEstado | null>(null);
+  const [vipEnviados, setVipEnviados] = useState<number | null>(null);
+  const [vipCliques, setVipCliques] = useState<VipCliquesGrupo[]>([]);
+
   const carregar = useCallback(async () => {
     const [{ data: pubs }, prods, tts, cfg] = await Promise.all([
       db.from("instagram_publicacoes").select("*").order("agendado_para", { ascending: true }).limit(500),
