@@ -56,7 +56,7 @@ function PainelInsight({ insights, card, semTitulo }: { insights: Insight[]; car
         <div key={idx} className="flex gap-3 rounded-md bg-muted/40 p-3">
           <div className={`w-1 shrink-0 rounded-full ${sevCor(i.severidade)}`} />
           <div className="space-y-1 text-sm">
-            {i.titulo && <p className="font-semibold">{i.titulo}</p>}
+            {i.titulo && !semTitulo && <p className="font-semibold">{i.titulo}</p>}
             {i.texto && <p className="text-muted-foreground">{i.texto}</p>}
             {i.acao && (
               <p className="rounded bg-background/70 px-2 py-1 text-xs">
