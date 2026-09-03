@@ -56,6 +56,7 @@ const moduleGroups: ModuleGroup[] = [
       { title: "Dashboard Comercial", url: "/dashboard-comercial", icon: LayoutDashboard },
       { title: "Dashboard GA4", url: "/marketing", icon: BarChart3 },
       { title: "Dashboard RFM", url: "/dashboard-rfm", icon: UserSquare2 },
+      { title: "Dashboard de Produtos", url: "/dashboard-produtos", icon: Boxes },
       { title: "Meta Mensal", url: "/metas", icon: Target },
     ],
   },
@@ -66,7 +67,6 @@ const moduleGroups: ModuleGroup[] = [
     items: [
       { title: "Produtos & Campanha", url: "/produtos-campanha", icon: Tag },
       { title: "Lançamentos & Reposições", url: "/lancamentos", icon: Sparkles },
-      { title: "Dashboard de Produtos", url: "/dashboard-produtos", icon: Boxes },
       { title: "Ordens de Produção", url: "/ordens-producao", icon: LayoutGrid },
       { title: "Bonificação WhatsApp", url: "/bonificacao-whatsapp", icon: Trophy },
       { title: "Trocas & Devoluções", url: "/comercial/trocas-devolucoes", icon: Undo2 },
