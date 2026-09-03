@@ -331,6 +331,72 @@ export default function AcoesSolicitacao({ linha }: { linha: any }) {
         </div>
       )}
 
+      {/* ── Autorizar postagem (com cotação) ── */}
+      <Dialog open={aberta === "autorizar"} onOpenChange={(o) => !o && fechar()}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Autorizar postagem</DialogTitle>
+            <DialogDescription>
+              {linha.cliente ?? "Cliente"} · pedido {linha.pedido ?? linha.numero_pedido ?? "—"}
+            </DialogDescription>
+          </DialogHeader>
+          {cotacao && (
+            <div className="space-y-3">
+              <div className="rounded-md border-2 border-primary bg-primary/5 p-3">
+                <p className="text-sm font-semibold">
+                  {String(cotacao.recomendada.servico).toUpperCase()} — {brl(cotacao.recomendada.preco)}
+                  {cotacao.recomendada.prazo_dias ? ` · ${cotacao.recomendada.prazo_dias} dias` : ""}
+                </p>
+                <p className="text-[11px] text-muted-foreground">Modalidade recomendada</p>
+              </div>
+              {cotacao.opcoes.filter((o) => o !== cotacao.recomendada).length > 0 && (
+                <div className="space-y-1">
+                  {cotacao.opcoes
+                    .filter((o) => o !== cotacao.recomendada)
+                    .map((o, i) => (
+                      <p key={i} className="text-xs text-muted-foreground">
+                        {String(o.servico).toUpperCase()} — {brl(o.preco)}
+                        {o.prazo_dias ? ` · ${o.prazo_dias} dias` : ""}
+                      </p>
+                    ))}
+                </div>
+              )}
+              <p className="text-xs text-muted-foreground">
+                A regra da loja é sempre Correios, na modalidade mais barata.
+              </p>
+              {(cotacao.recomendada.agencia_proxima ?? cotacao.opcoes[0]?.agencia_proxima) && (
+                <p className="text-xs">
+                  <span className="font-medium">Agência mais próxima da cliente: </span>
+                  {String(cotacao.recomendada.agencia_proxima ?? cotacao.opcoes[0]?.agencia_proxima)}
+                </p>
+              )}
+            </div>
+          )}
+          <DialogFooter className="flex-col gap-2 sm:flex-col">
+            <div className="flex w-full justify-end gap-2">
+              <Button variant="ghost" onClick={fechar}>Cancelar</Button>
+              <Button disabled={enviando || travado} onClick={() => autorizar()}>
+                {enviando && <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />}
+                Autorizar com {cotacao ? String(cotacao.recomendada.servico).toUpperCase() : "…"}
+              </Button>
+            </div>
+            {cotacao && cotacao.opcoes.filter((o) => o !== cotacao.recomendada).length > 0 && (
+              <button
+                type="button"
+                className="self-end text-[11px] text-muted-foreground underline underline-offset-2 hover:text-foreground disabled:opacity-50"
+                disabled={enviando || travado}
+                onClick={() => {
+                  const outra = cotacao.opcoes.find((o) => o !== cotacao.recomendada);
+                  if (outra) autorizar(String(outra.servico).toLowerCase());
+                }}
+              >
+                usar a outra modalidade
+              </button>
+            )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* ── Registrar postagem ── */}
       <Dialog open={aberta === "marcar_postado"} onOpenChange={(o) => !o && fechar()}>
         <DialogContent>
