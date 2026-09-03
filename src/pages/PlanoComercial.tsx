@@ -212,7 +212,7 @@ export default function PlanoComercial() {
     const det: any[] = Array.isArray(estoque?.detalhe) ? estoque.detalhe : [];
     const map = new Map<string, { faltas: { tamanho: string; faltam: number }[] }>();
     det.forEach((d) => {
-      const id = String(pick(d, "produto_id", "produto") ?? "");
+      const id = String(pick(d, "produto_id", "tray_product_id") ?? "");
       if (!id) return;
       if (!map.has(id)) map.set(id, { faltas: [] });
       const saldo = n(pick(d, "saldo"));
@@ -228,7 +228,12 @@ export default function PlanoComercial() {
 
   const badgeEstoque = (produtoId: any) => {
     const info = estoquePorProduto.get(String(produtoId ?? ""));
-    if (!info) return <Badge variant="outline" className="text-xs">sem dado</Badge>;
+    if (!info)
+      return (
+        <Badge variant="outline" className="text-xs">
+          fora do top {TOP_PRODUTOS}
+        </Badge>
+      );
     if (!info.faltas.length)
       return (
         <Badge className="bg-emerald-600 text-xs hover:bg-emerald-600">
@@ -236,8 +241,8 @@ export default function PlanoComercial() {
         </Badge>
       );
     const txt = info.faltas
-      .map((f) => `faltam ${num(f.faltam)} un em ${f.tamanho}`)
-      .join(" · ");
+      .map((f) => `faltam ${num(f.faltam)} em ${f.tamanho}`)
+      .join(", ");
     return (
       <Badge variant="destructive" className="text-xs">
         {txt}
