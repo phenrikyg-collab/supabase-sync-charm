@@ -76,6 +76,7 @@ import Aviamentos from "./pages/Aviamentos";
 import Gestao from "./pages/Gestao";
 import JornadaCompra from "./pages/JornadaCompra";
 import GoogleAds from "./pages/GoogleAds";
+import SeoBlog from "./pages/SeoBlog";
 import DashboardRFM from "./pages/DashboardRFM";
 import DashboardProdutos from "./pages/DashboardProdutos";
 import PlanejamentoConteudoMensal from "./pages/PlanejamentoConteudoMensal";
@@ -250,6 +251,7 @@ const AppRoutes = () => {
               <Route path="/plano-comercial" element={<PlanoComercial />} />
               <Route path="/lancamentos" element={<Lancamentos />} />
               <Route path="/marketing-analytics" element={<MarketingAnalyticsPerfil />} />
+              <Route path="/seo-blog" element={<SeoBlog />} />
               <Route path="/marketing-analytics/reels" element={<MAReels />} />
               <Route path="/marketing-analytics/carrossel" element={<MACarrossel />} />
               <Route path="/marketing-analytics/stories" element={<MAStories />} />
