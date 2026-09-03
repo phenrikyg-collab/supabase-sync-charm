@@ -675,12 +675,15 @@ export default function Marketing({ abaInicial, ocultarChrome }: { abaInicial?: 
 
   return (
     <div className="p-6 space-y-6">
-      <div className="flex items-center gap-3">
-        <Megaphone className="h-7 w-7 text-primary" />
-        <h1 className="text-3xl font-serif font-bold">Marketing</h1>
-      </div>
+      {!ocultarChrome && (
+        <div className="flex items-center gap-3">
+          <Megaphone className="h-7 w-7 text-primary" />
+          <h1 className="text-3xl font-serif font-bold">Marketing</h1>
+        </div>
+      )}
 
       <Tabs value={abaAtiva} onValueChange={setAbaAtiva}>
+        {!ocultarChrome && (
         <TabsList className="flex-wrap h-auto">
           <TabsTrigger value="acompanhamento">Acompanhamento da Meta</TabsTrigger>
           <TabsTrigger value="paginas">Páginas</TabsTrigger>
@@ -691,6 +694,7 @@ export default function Marketing({ abaInicial, ocultarChrome }: { abaInicial?: 
           <TabsTrigger value="criativos">Criativos &amp; Performance</TabsTrigger>
 
         </TabsList>
+        )}
 
         {/* ===== ACOMPANHAMENTO DA META ===== */}
         <TabsContent value="acompanhamento" className="space-y-6">
