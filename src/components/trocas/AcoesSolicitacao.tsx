@@ -289,9 +289,10 @@ export default function AcoesSolicitacao({ linha }: { linha: any }) {
             key={a}
             size="sm"
             variant={a === "cancelar_autorizacao" ? "outline" : "default"}
-            disabled={enviando || (notifica(a) && travado)}
-            onClick={() => setAberta(a)}
+            disabled={enviando || cotando || (notifica(a) && travado)}
+            onClick={() => (a === "autorizar" ? cotarEAbrir() : setAberta(a))}
           >
+            {a === "autorizar" && cotando && <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />}
             {ROTULO_ACAO[a]}
           </Button>
         ))}
