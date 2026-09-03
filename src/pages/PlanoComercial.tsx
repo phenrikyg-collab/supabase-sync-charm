@@ -1216,6 +1216,59 @@ export default function PlanoComercial() {
                 </Table>
               </CardContent>
             </Card>
+
+            <Card>
+              <CardHeader className="flex-row items-center justify-between space-y-0">
+                <CardTitle className="text-base">
+                  Necessidade por semana — cronograma de produção
+                </CardTitle>
+                <Button variant="outline" size="sm" onClick={exportarNecessidadeSemana}>
+                  <Download className="mr-2 h-4 w-4" /> CSV
+                </Button>
+              </CardHeader>
+              <CardContent>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Semana</TableHead>
+                      {TAMANHOS.map((t) => (
+                        <TableHead key={t} className="text-right">
+                          {t}
+                        </TableHead>
+                      ))}
+                      <TableHead className="text-right">Total</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {necessidadeSemana.map((l, i) => (
+                      <TableRow key={i}>
+                        <TableCell className="font-medium">{l.rotulo}</TableCell>
+                        {TAMANHOS.map((t) => (
+                          <TableCell key={t} className="text-right">
+                            {num(l.tamanhos[t] ?? 0)}
+                          </TableCell>
+                        ))}
+                        <TableCell className="text-right font-semibold">
+                          {num(l.total)}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                    {!necessidadeSemana.length && (
+                      <TableRow>
+                        <TableCell
+                          colSpan={TAMANHOS.length + 2}
+                          className="text-sm text-muted-foreground"
+                        >
+                          Sem necessidade semanal calculada.
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+            </>
+            )}
           </TabsContent>
         </Tabs>
 
