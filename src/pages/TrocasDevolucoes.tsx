@@ -92,9 +92,10 @@ export default function TrocasDevolucoes() {
   const [fim, setFim] = useState(isoHoje());
 
   const [estagio, setEstagio] = useState<string | null>(null);
+  const [preferencia, setPreferencia] = useState<string | null>(null);
   const [busca, setBusca] = useState("");
   const [buscaDebounce, setBuscaDebounce] = useState("");
-  const [ordem, setOrdem] = useState("antigas");
+  const [ordem, setOrdem] = useState("prioridade");
   const [pagina, setPagina] = useState(0);
   const LIMIT = 50;
 
@@ -103,7 +104,7 @@ export default function TrocasDevolucoes() {
     return () => clearTimeout(t);
   }, [busca]);
 
-  useEffect(() => setPagina(0), [estagio, buscaDebounce, ordem, inicio, fim]);
+  useEffect(() => setPagina(0), [estagio, preferencia, buscaDebounce, ordem, inicio, fim]);
 
   const aplicarAtalho = (v: string) => {
     setAtalho(v);
