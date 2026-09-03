@@ -10,6 +10,9 @@ export type Requirement = "admin" | "any" | AppModule[];
 export const ROUTE_ACCESS: Record<string, Requirement> = {
   // Gestão & Estratégia
   "/gestao": ["gestao"],
+  "/gestao/planejamento": ["gestao"],
+  "/gestao/midia-paga": ["gestao"],
+  "/gestao/analises": ["gestao"],
   "/dashboard-comercial": ["gestao"],
   "/google-ads": ["gestao"],
   "/jornada-compra": ["gestao"],
