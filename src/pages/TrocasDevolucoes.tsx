@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import PecasEmRetorno from "@/components/trocas/PecasEmRetorno";
 import {
   AlertTriangle, ArrowDown, ArrowUp, ChevronDown, ChevronRight, ExternalLink, PackageX, Search,
 } from "lucide-react";
@@ -35,6 +36,7 @@ const dataBR = (v: any) => {
   const d = new Date(v);
   return isNaN(d.getTime()) ? String(v) : d.toLocaleDateString("pt-BR");
 };
+const isoBR = (v: string) => (v && /^\d{4}-\d{2}-\d{2}$/.test(v) ? v.split("-").reverse().join("/") : dataBR(v));
 const isoHoje = () => new Date().toISOString().slice(0, 10);
 const isoMenos = (dias: number) => {
   const d = new Date();
@@ -47,7 +49,7 @@ type Insight = { card?: string; severidade?: string; titulo?: string; texto?: st
 const sevCor = (s?: string) =>
   s === "alto" ? "bg-destructive" : s === "medio" ? "bg-amber-500" : "bg-emerald-600";
 
-function PainelInsight({ insights, card }: { insights: Insight[]; card: string }) {
+function PainelInsight({ insights, card, semTitulo }: { insights: Insight[]; card: string; semTitulo?: boolean }) {
   const lista = insights.filter((i) => i?.card === card);
   if (!lista.length) return null;
   return (
@@ -56,7 +58,7 @@ function PainelInsight({ insights, card }: { insights: Insight[]; card: string }
         <div key={idx} className="flex gap-3 rounded-md bg-muted/40 p-3">
           <div className={`w-1 shrink-0 rounded-full ${sevCor(i.severidade)}`} />
           <div className="space-y-1 text-sm">
-            {i.titulo && <p className="font-semibold">{i.titulo}</p>}
+            {i.titulo && !semTitulo && <p className="font-semibold">{i.titulo}</p>}
             {i.texto && <p className="text-muted-foreground">{i.texto}</p>}
             {i.acao && (
               <p className="rounded bg-background/70 px-2 py-1 text-xs">
@@ -87,7 +89,7 @@ const ESTAGIO_CHIP: Record<string, string> = {
 /* ────────────────────────── página ────────────────────────── */
 
 export default function TrocasDevolucoes() {
-  const [atalho, setAtalho] = useState("90");
+  const [chave, setChave] = useState<string | null>(null);
   const [inicio, setInicio] = useState(isoMenos(90));
   const [fim, setFim] = useState(isoHoje());
 
@@ -106,12 +108,48 @@ export default function TrocasDevolucoes() {
 
   useEffect(() => setPagina(0), [estagio, preferencia, buscaDebounce, ordem, inicio, fim]);
 
-  const aplicarAtalho = (v: string) => {
-    setAtalho(v);
-    if (v === "livre") return;
-    setInicio(isoMenos(Number(v)));
-    setFim(isoHoje());
+  /* períodos vindos da RPC */
+  const periodos = useQuery({
+    queryKey: ["trocas-periodos"],
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc("fn_trocas_periodos" as any);
+      if (error) throw error;
+      return (data ?? {}) as any;
+    },
+  });
+
+  const atalhos: any[] = Array.isArray(periodos.data?.atalhos)
+    ? periodos.data.atalhos
+    : Array.isArray(periodos.data?.periodos?.atalhos)
+      ? periodos.data.periodos.atalhos
+      : [];
+  const meses: any[] = Array.isArray(periodos.data?.meses)
+    ? periodos.data.meses
+    : Array.isArray(periodos.data?.periodos?.meses)
+      ? periodos.data.periodos.meses
+      : [];
+  const padrao: string | undefined = periodos.data?.padrao ?? periodos.data?.periodos?.padrao;
+
+  const opcoes = useMemo(() => [...atalhos, ...meses], [atalhos, meses]);
+  const selecionado = opcoes.find((o) => String(o.chave) === String(chave));
+
+  useEffect(() => {
+    if (chave || !opcoes.length) return;
+    const p = opcoes.find((o) => String(o.chave) === String(padrao)) ?? opcoes[0];
+    if (p) {
+      setChave(String(p.chave));
+      if (p.inicio) setInicio(p.inicio);
+      if (p.fim) setFim(p.fim);
+    }
+  }, [opcoes, padrao, chave]);
+
+  const aplicarPeriodo = (v: string) => {
+    setChave(v);
+    const p = opcoes.find((o) => String(o.chave) === v);
+    if (p?.inicio) setInicio(p.inicio);
+    if (p?.fim) setFim(p.fim);
   };
+
 
   const dash = useQuery({
     queryKey: ["trocas-dashboard", inicio, fim],
@@ -195,28 +233,26 @@ export default function TrocasDevolucoes() {
               {d.periodo ? `${dataBR(d.periodo.inicio)} a ${dataBR(d.periodo.fim)} · ${num(d.periodo.dias)} dias` : "Logística reversa"}
             </p>
           </div>
-          <div className="flex flex-wrap items-end gap-2">
-            <Select value={atalho} onValueChange={aplicarAtalho}>
-              <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="7">Últimos 7 dias</SelectItem>
-                <SelectItem value="30">Últimos 30 dias</SelectItem>
-                <SelectItem value="90">Últimos 90 dias</SelectItem>
-                <SelectItem value="365">Últimos 12 meses</SelectItem>
-                <SelectItem value="livre">Intervalo livre</SelectItem>
+          <div className="flex flex-col items-end gap-1">
+            <Select value={chave ?? ""} onValueChange={aplicarPeriodo}>
+              <SelectTrigger className="w-64"><SelectValue placeholder="Período" /></SelectTrigger>
+              <SelectContent className="max-h-80">
+                {atalhos.map((a: any) => (
+                  <SelectItem key={a.chave} value={String(a.chave)}>{a.rotulo}</SelectItem>
+                ))}
+                {atalhos.length > 0 && meses.length > 0 && <div className="my-1 h-px bg-border" />}
+                {meses.map((m: any) => (
+                  <SelectItem key={m.chave} value={String(m.chave)}>
+                    {(m.rotulo ?? `${m.mes_nome} / ${m.ano}`)} ({num(m.qtd)}){m.parcial ? " · em andamento" : ""}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
-            {atalho === "livre" && (
-              <>
-                <div className="space-y-1">
-                  <Label className="text-xs">Início</Label>
-                  <Input type="date" value={inicio} onChange={(e) => setInicio(e.target.value)} className="w-40" />
-                </div>
-                <div className="space-y-1">
-                  <Label className="text-xs">Fim</Label>
-                  <Input type="date" value={fim} onChange={(e) => setFim(e.target.value)} className="w-40" />
-                </div>
-              </>
+            <p className="text-xs text-muted-foreground">
+              {isoBR(inicio)} a {isoBR(fim)}
+            </p>
+            {selecionado?.parcial && (
+              <p className="text-xs text-amber-600">Mês em andamento — os números ainda vão mudar até o fim do mês.</p>
             )}
           </div>
         </div>
@@ -300,9 +336,10 @@ export default function TrocasDevolucoes() {
                       {num(kpis.backlog_qtd)} solicitações chegaram na loja e nunca foram encerradas
                     </p>
                     <p className="text-sm text-muted-foreground">
-                      {brl(kpis.backlog_valor)} represados · a mais antiga há {num(kpis.backlog_dias_max)} dias
+                      {brl(kpis.backlog_valor)} represados · {num(kpis.backlog_parada_90d)} sem movimento há mais de 90 dias · a mais parada há {num(kpis.backlog_dias_max)} dias
                     </p>
-                    <PainelInsight insights={insights} card="backlog" />
+                    <p className="text-xs text-muted-foreground">independente do período</p>
+                    <PainelInsight insights={insights} card="backlog" semTitulo />
                   </div>
                   <Button onClick={() => irParaFila("recebida")}>Ver fila</Button>
                 </CardContent>
@@ -439,6 +476,10 @@ export default function TrocasDevolucoes() {
             <PainelInsight insights={insights} card="fila" />
           </CardContent>
         </Card>
+
+        {/* PEÇAS EM RETORNO */}
+        <PecasEmRetorno inicio={inicio} fim={fim} />
+
 
         {/* FAIXA 5 — análise */}
         {!dash.isLoading && (
