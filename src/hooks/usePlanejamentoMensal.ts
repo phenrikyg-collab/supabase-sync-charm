@@ -42,6 +42,11 @@ export interface PlanejamentoMensal {
   premissa_taxa_aprovacao: number | null;
   premissa_taxa_aquisicao: number | null;
   premissa_cps_midia: number | null;
+  // Auditoria de origem dos dados
+  fonte_faturamento: string | null;
+  fonte_sessoes: string | null;
+  fonte_investimento: string | null;
+  qualidade: Record<string, any> | null;
 }
 
 export const CAMPOS_MANUAIS_REALIZADO = [

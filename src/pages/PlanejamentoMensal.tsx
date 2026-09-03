@@ -920,8 +920,15 @@ export default function PlanejamentoMensal() {
               ]},
             ];
 
+            // Meses com sessões manuais não são auditáveis: ficam fora da média de sessões, conversão e CPS
+            const sessaoManual = (m: PM) =>
+              String((m as any).fonte_sessoes ?? "").toLowerCase().includes("manual");
+            const qual = (m: PM): Record<string, any> => ((m as any).qualidade ?? {}) as Record<string, any>;
+            const KEYS_SEM_MANUAL = new Set<string>(["sessoes_totais", "taxa_conversao", "cps_geral", "cps_midia"]);
+
             const avg = (k: keyof PM) => {
-              const xs = historico.map((r) => r[k] as number | null).filter((v): v is number => v != null && isFinite(v));
+              const base = KEYS_SEM_MANUAL.has(k as string) ? historico.filter((m) => !sessaoManual(m)) : historico;
+              const xs = base.map((r) => r[k] as number | null).filter((v): v is number => v != null && isFinite(v));
               return xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : null;
             };
 
@@ -954,6 +961,7 @@ export default function PlanejamentoMensal() {
                         </th>
                       ))}
                       <th className="text-right uppercase whitespace-nowrap"
+                          title="Sessões, Tx. Conversão e CPS ignoram meses com sessões manuais (não auditáveis)."
                           style={{ padding: headPad, letterSpacing: 1, minWidth: 110, background: "#FAF6EE", color: "#1D1D1B" }}>
                         Média
                       </th>
@@ -990,6 +998,51 @@ export default function PlanejamentoMensal() {
                                 const v = m[r.key] as number | null;
                                 const pv = mi > 0 ? (historico[mi - 1][r.key] as number | null) : null;
                                 const cur = monthIsCurrent(m);
+                                const q = qual(m);
+
+                                let conteudo: React.ReactNode = <span>{r.fmt(v)}</span>;
+
+                                if (r.key === "sessoes_totais") {
+                                  if (v == null) {
+                                    const cob = q.sessoes_dias_cobertos;
+                                    const tot = q.sessoes_dias_no_mes;
+                                    conteudo = (
+                                      <span
+                                        className="text-muted-foreground italic"
+                                        title={cob != null || tot != null
+                                          ? `${cob ?? "?"} de ${tot ?? "?"} dias com dados de sessões`
+                                          : "Sem fonte de sessões para este mês"}
+                                      >
+                                        sem fonte
+                                      </span>
+                                    );
+                                  } else if (sessaoManual(m)) {
+                                    conteudo = (
+                                      <span
+                                        className="inline-flex items-center gap-1 text-muted-foreground"
+                                        title={q.aviso ?? "Sessões informadas manualmente (não auditável)"}
+                                      >
+                                        <AlertTriangle className="h-3 w-3 text-amber-500" />
+                                        {r.fmt(v)}
+                                      </span>
+                                    );
+                                  }
+                                }
+
+                                if (r.key === "investimento_total" && v != null) {
+                                  const meta = q.invest_meta;
+                                  const google = q.invest_google;
+                                  const partes = [
+                                    meta != null ? `Meta: ${fmtBRL(Number(meta))}` : null,
+                                    google != null ? `Google: ${fmtBRL(Number(google))}` : null,
+                                  ].filter(Boolean);
+                                  conteudo = (
+                                    <span title={["Meta + Google", ...partes].join("\n")}>
+                                      {r.fmt(v)}
+                                    </span>
+                                  );
+                                }
+
                                 return (
                                   <td key={m.id} className="text-right whitespace-nowrap"
                                       style={{
@@ -997,7 +1050,7 @@ export default function PlanejamentoMensal() {
                                         borderLeft: cur ? "2px solid #E8CD7E" : undefined,
                                         borderRight: cur ? "2px solid #E8CD7E" : undefined,
                                       }}>
-                                    <span>{r.fmt(v)}</span>
+                                    {conteudo}
                                     <span style={{ fontSize: 11, marginLeft: 4 }}>
                                       <Trend cur={v} prev={pv} lowerIsBetter={r.lowerIsBetter} />
                                     </span>
