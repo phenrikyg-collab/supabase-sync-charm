@@ -10,36 +10,14 @@ import { db } from "./socialCommerce";
  */
 
 export interface TikTokConfig {
-  conectado: boolean;
-  open_id?: string | null;
-  creator_username?: string | null;
-  creator_nickname?: string | null;
-  creator_avatar_url?: string | null;
-  privacy_level_options?: string[] | null;
-  comment_disabled?: boolean | null;
-  duet_disabled?: boolean | null;
-  stitch_disabled?: boolean | null;
+  conectado?: boolean | null;
+  /** Buffer: quem publica no TikTok desde 03/09. */
+  buffer_conectado?: boolean | null;
+  buffer_channel_id?: string | null;
+  buffer_channel_nome?: string | null;
   max_video_post_duration_sec?: number | null;
-  creator_info_em?: string | null;
-  auditado?: boolean | null;
-  sandbox?: boolean | null;
-  access_expira_em?: string | null;
-  refresh_expira_em?: string | null;
   ultimo_erro?: string | null;
   atualizado_em?: string | null;
-}
-
-export interface TikTokCreatorInfo {
-  can_post?: boolean;
-  erro?: string | null;
-  privacy_level_options?: string[] | null;
-  comment_disabled?: boolean;
-  duet_disabled?: boolean;
-  stitch_disabled?: boolean;
-  max_video_post_duration_sec?: number | null;
-  creator_nickname?: string | null;
-  creator_username?: string | null;
-  creator_avatar_url?: string | null;
 }
 
 export interface TikTokPublicacao {
@@ -51,14 +29,6 @@ export interface TikTokPublicacao {
   descricao?: string | null;
   capa_offset_ms?: number | null;
   capa_index?: number | null;
-  privacy_level?: string | null;
-  desabilitar_comentario?: boolean | null;
-  desabilitar_duet?: boolean | null;
-  desabilitar_stitch?: boolean | null;
-  marca_propria?: boolean | null;
-  conteudo_patrocinado?: boolean | null;
-  auto_add_music?: boolean | null;
-  is_aigc?: boolean | null;
   agendado_para?: string | null;
   status?: string | null;
   publish_id?: string | null;
@@ -76,32 +46,6 @@ export async function lerTikTokConfig(): Promise<TikTokConfig | null> {
   const { data, error } = await db.from("vw_tiktok_config").select("*").maybeSingle();
   if (error) throw new Error(error.message);
   return (data ?? null) as TikTokConfig | null;
-}
-
-/** Abre o fluxo de autorização do TikTok em outra aba. */
-export async function iniciarOAuthTikTok(): Promise<string> {
-  const { data, error } = await supabase.functions.invoke("tiktok-oauth-start");
-  if (error) throw new Error(error.message);
-  const url = (data as any)?.url;
-  if (!url) throw new Error("A função não devolveu a URL de autorização do TikTok.");
-  return url as string;
-}
-
-/**
- * Desconecta a conta do TikTok. A função recusa (ok: false) quando há post
- * sendo processado — nesse caso repassar `erro` sem limpar a tela.
- */
-export async function desconectarTikTok(): Promise<{ ok: boolean; erro?: string | null }> {
-  const { data, error } = await supabase.functions.invoke("tiktok-desconectar");
-  if (error) return { ok: false, erro: error.message };
-  return { ok: !!(data as any)?.ok, erro: (data as any)?.erro ?? null };
-}
-
-/** Dados frescos do criador — obrigatório ao abrir a tela de agendamento. */
-export async function lerCreatorInfo(): Promise<TikTokCreatorInfo> {
-  const { data, error } = await supabase.functions.invoke("tiktok-creator-info");
-  if (error) throw new Error(error.message);
-  return (data ?? {}) as TikTokCreatorInfo;
 }
 
 export async function lerTikTokDaPublicacao(igId: string | number): Promise<TikTokPublicacao | null> {
@@ -208,16 +152,6 @@ export function mensagemDoResultado(r: ResultadoPublicacaoTikTok): { texto: stri
     default:
       return { texto: r.erro ?? r.motivo ?? "Enviado ao TikTok.", ok: !r.erro };
   }
-}
-
-/**
- * Link do post. Em SELF_ONLY o TikTok não devolve id público — montar a URL sem
- * o id geraria link quebrado, então devolvemos null e a tela mostra
- * "Publicado (privado)".
- */
-export function urlDoPostTikTok(username?: string | null, postId?: string | null): string | null {
-  if (!username || !postId) return null;
-  return `https://www.tiktok.com/@${username}/video/${postId}`;
 }
 
 export const STATUS_TIKTOK_COR: Record<string, string> = {
