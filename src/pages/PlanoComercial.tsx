@@ -55,6 +55,8 @@ const MESES = [
 
 const hoje = new Date();
 
+const TAMANHOS = ["P", "M", "G", "GG", "EG"];
+
 const coorteDaSemana = (s: any, k: CoorteKey) => {
   if (!s) return {};
   if (k === "aquisicao") return pick(s, "aquisicao", "novos", "novo") ?? {};
@@ -82,6 +84,16 @@ export default function PlanoComercial() {
   const [padrao, setPadrao] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [erroRpc, setErroRpc] = useState<string | null>(null);
+  const [erroEstoque, setErroEstoque] = useState<string | null>(null);
+  const [pctAquisicao, setPctAquisicao] = useState(80);
+  const [pctAquisicaoInput, setPctAquisicaoInput] = useState("80");
+  const TOP_PRODUTOS = 8;
+
+  const commitPctAquisicao = () => {
+    const v = Math.min(100, Math.max(0, Math.round(Number(pctAquisicaoInput) || 0)));
+    setPctAquisicaoInput(String(v));
+    setPctAquisicao(v);
+  };
 
   // meta de lançamento p/ fiéis
   const [planoComercialId, setPlanoComercialId] = useState<string | null>(null);
@@ -94,15 +106,33 @@ export default function PlanoComercial() {
   const carregar = useCallback(async () => {
     setLoading(true);
     setErroRpc(null);
+    setErroEstoque(null);
     try {
       const [r1, r2, r3] = await Promise.all([
-        supabase.rpc("plano_comercial_semanal", { p_ano: ano, p_mes: mes }),
-        supabase.rpc("necessidade_estoque_plano", { p_ano: ano, p_mes: mes }),
+        supabase.rpc("plano_comercial_semanal", {
+          p_ano: ano,
+          p_mes: mes,
+          p_meses_padrao: 6,
+          p_pct_midia_aquisicao: pctAquisicao,
+        }),
+        supabase.rpc("necessidade_estoque_plano", {
+          p_ano: ano,
+          p_mes: mes,
+          p_top_produtos: TOP_PRODUTOS,
+        }),
         supabase.rpc("padrao_pedidos", { p_meses: 6 }),
       ]);
       if (r1.error) throw r1.error;
       setPlano(r1.data ?? null);
-      setEstoque(r2.error ? null : r2.data ?? null);
+      if (r2.error) {
+        setEstoque(null);
+        setErroEstoque(r2.error.message || "Falha ao carregar necessidade de estoque");
+      } else if (!r2.data) {
+        setEstoque(null);
+        setErroEstoque("A RPC necessidade_estoque_plano não retornou dados.");
+      } else {
+        setEstoque(r2.data);
+      }
       setPadrao(r3.error ? null : r3.data ?? null);
     } catch (e: any) {
       setErroRpc(e?.message || "Erro ao carregar o plano comercial");
@@ -112,7 +142,7 @@ export default function PlanoComercial() {
     } finally {
       setLoading(false);
     }
-  }, [ano, mes]);
+  }, [ano, mes, pctAquisicao]);
 
   useEffect(() => {
     carregar();
@@ -157,6 +187,63 @@ export default function PlanoComercial() {
     ? plano.top_dias_investimento
     : [];
   const jornada = plano?.jornada_produtos ?? {};
+  const topDiasAquisicao: any[] = Array.isArray(plano?.top_dias_aquisicao)
+    ? plano.top_dias_aquisicao
+    : [];
+  const topDiasBase: any[] = Array.isArray(plano?.top_dias_base)
+    ? plano.top_dias_base
+    : [];
+
+  const contagemFoco = useMemo(() => {
+    const c = { aquisicao: 0, base: 0, misto: 0 };
+    dias.forEach((d) => {
+      const f = String(pick(d, "foco") ?? "misto");
+      if (f === "aquisicao") c.aquisicao += 1;
+      else if (f === "base") c.base += 1;
+      else c.misto += 1;
+    });
+    return c;
+  }, [dias]);
+
+  const necessidadeSemana = useMemo(() => {
+    const src: any[] = Array.isArray(estoque?.necessidade_por_semana)
+      ? estoque.necessidade_por_semana
+      : [];
+    return src.map((l, i) => {
+      const tamanhos: Record<string, number> = {};
+      const bruto: any = pick(l, "tamanhos", "por_tamanho") ?? l;
+      TAMANHOS.forEach((t) => {
+        tamanhos[t] = n(
+          bruto?.[t] ?? bruto?.[t.toLowerCase()] ?? pick(l, t, t.toLowerCase()),
+        );
+      });
+      const total = n(pick(l, "total")) || TAMANHOS.reduce((a, t) => a + tamanhos[t], 0);
+      const ini = pick(l, "inicio", "data_inicio");
+      const fim = pick(l, "fim", "data_fim");
+      const rotulo = ini
+        ? `S${num(pick(l, "semana") ?? i + 1)} · ${dataDDMM(String(ini))}${fim ? ` a ${dataDDMM(String(fim))}` : ""}`
+        : `Semana ${num(pick(l, "semana") ?? i + 1)}`;
+      return { rotulo, tamanhos, total };
+    });
+  }, [estoque]);
+
+  const exportarNecessidadeSemana = () => {
+    const linhas = [
+      ["semana", ...TAMANHOS, "total"].join(";"),
+      ...necessidadeSemana.map((l) =>
+        [l.rotulo, ...TAMANHOS.map((t) => l.tamanhos[t] ?? 0), l.total]
+          .map(csvEscape)
+          .join(";"),
+      ),
+    ].join("\n");
+    const blob = new Blob(["\ufeff" + linhas], { type: "text/csv;charset=utf-8" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = `necessidade-semana-${mesRef}.csv`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+  };
+
 
   const maiorPeso = useMemo(
     () => Math.max(0, ...semanas.map((s) => n(pick(s, "peso_pct")))),
@@ -191,7 +278,7 @@ export default function PlanoComercial() {
     const det: any[] = Array.isArray(estoque?.detalhe) ? estoque.detalhe : [];
     const map = new Map<string, { faltas: { tamanho: string; faltam: number }[] }>();
     det.forEach((d) => {
-      const id = String(pick(d, "produto_id", "produto") ?? "");
+      const id = String(pick(d, "produto_id", "tray_product_id") ?? "");
       if (!id) return;
       if (!map.has(id)) map.set(id, { faltas: [] });
       const saldo = n(pick(d, "saldo"));
@@ -207,7 +294,12 @@ export default function PlanoComercial() {
 
   const badgeEstoque = (produtoId: any) => {
     const info = estoquePorProduto.get(String(produtoId ?? ""));
-    if (!info) return <Badge variant="outline" className="text-xs">sem dado</Badge>;
+    if (!info)
+      return (
+        <Badge variant="outline" className="text-xs">
+          fora do top {TOP_PRODUTOS}
+        </Badge>
+      );
     if (!info.faltas.length)
       return (
         <Badge className="bg-emerald-600 text-xs hover:bg-emerald-600">
@@ -215,8 +307,8 @@ export default function PlanoComercial() {
         </Badge>
       );
     const txt = info.faltas
-      .map((f) => `faltam ${num(f.faltam)} un em ${f.tamanho}`)
-      .join(" · ");
+      .map((f) => `faltam ${num(f.faltam)} em ${f.tamanho}`)
+      .join(", ");
     return (
       <Badge variant="destructive" className="text-xs">
         {txt}
@@ -243,12 +335,16 @@ export default function PlanoComercial() {
           <TableBody>
             {lista.map((p, i) => (
               <TableRow key={i}>
-                <TableCell>{pick(p, "produto", "nome", "produto_nome") ?? "—"}</TableCell>
+                <TableCell>
+                  {pick(p, "produto", "nome", "nome_produto", "produto_nome") ?? "—"}
+                </TableCell>
                 <TableCell className="text-right">{num(pick(p, "clientes"))}</TableCell>
                 <TableCell className="text-right">
                   {pct(pick(p, "pct_dos_clientes", "pct"))}
                 </TableCell>
-                <TableCell>{badgeEstoque(pick(p, "produto_id"))}</TableCell>
+                <TableCell>
+                  {badgeEstoque(pick(p, "produto_id", "tray_product_id"))}
+                </TableCell>
               </TableRow>
             ))}
           </TableBody>
@@ -335,6 +431,41 @@ export default function PlanoComercial() {
     </div>
   );
 
+  const politica = plano?.politica_midia ?? null;
+
+  const politicaBar = (
+    <Card>
+      <CardContent className="flex flex-wrap items-center gap-4 p-4">
+        <div className="flex items-center gap-2">
+          <Label className="text-sm">Verba para aquisição</Label>
+          <Input
+            className="w-20"
+            inputMode="numeric"
+            value={pctAquisicaoInput}
+            onChange={(e) => setPctAquisicaoInput(e.target.value)}
+            onBlur={commitPctAquisicao}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") commitPctAquisicao();
+            }}
+          />
+          <span className="text-sm text-muted-foreground">
+            % · base: {num(100 - pctAquisicao)}%
+          </span>
+        </div>
+        {politica && (
+          <div className="flex flex-wrap gap-3 text-sm">
+            <Badge variant="outline" className="text-xs">
+              Aquisição {brl(pick(politica, "verba_aquisicao"))}
+            </Badge>
+            <Badge variant="outline" className="text-xs">
+              Base {brl(pick(politica, "verba_base"))}
+            </Badge>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+
   if (loading) {
     return (
       <div className="space-y-6 p-6">
@@ -390,6 +521,9 @@ export default function PlanoComercial() {
     <TooltipProvider>
       <div className="space-y-6 p-6">
         {header}
+
+        {politicaBar}
+
 
         {/* 1. cabeçalho */}
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
@@ -507,11 +641,44 @@ export default function PlanoComercial() {
                         })}
                       </div>
 
-                      <div className="border-t pt-2 text-xs">
-                        <span className="text-muted-foreground">Investimento sugerido </span>
-                        <span className="font-semibold">
-                          {brl(pick(s, "investimento_sugerido", "investimento"))}
-                        </span>
+                      <div className="space-y-1 border-t pt-2 text-xs">
+                        <div>
+                          <span className="text-muted-foreground">Investimento sugerido </span>
+                          <span className="font-semibold">
+                            {brl(pick(s, "investimento_sugerido", "investimento"))}
+                          </span>
+                        </div>
+                        <div className="text-muted-foreground">
+                          Aquisição {brl(pick(s, "investimento_aquisicao"))} · Base{" "}
+                          {brl(pick(s, "investimento_base"))}
+                        </div>
+                        {(() => {
+                          const pv = n(pick(s, "pct_verba_do_mes"));
+                          const diverge = Math.abs(pv - peso) > 2;
+                          return (
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Badge
+                                  variant={diverge ? "destructive" : "outline"}
+                                  className="text-[10px]"
+                                >
+                                  {pct(pv)} da verba
+                                </Badge>
+                              </TooltipTrigger>
+                              <TooltipContent className="max-w-[260px]">
+                                Esta semana entrega {pct(peso)} dos pedidos mas recebe{" "}
+                                {pct(pv)} da verba, porque o mix dela é mais de
+                                base/aquisição.
+                              </TooltipContent>
+                            </Tooltip>
+                          );
+                        })()}
+                        <div className="text-muted-foreground">
+                          CAC previsto{" "}
+                          <span className="font-medium text-foreground">
+                            {brl(pick(coorteDaSemana(s, "aquisicao"), "cac"), 2)}
+                          </span>
+                        </div>
                       </div>
                     </CardContent>
                   </Card>
@@ -522,6 +689,20 @@ export default function PlanoComercial() {
 
           {/* 3. calendário */}
           <TabsContent value="calendario" className="mt-4 space-y-4">
+            <div className="flex flex-wrap items-center gap-3 text-sm">
+              <span className="font-medium">
+                {num(contagemFoco.aquisicao)} dias de aquisição ·{" "}
+                {num(contagemFoco.base)} de base · {num(contagemFoco.misto)} mistos
+              </span>
+              <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                <span className="h-2.5 w-2.5 rounded-full bg-sky-500" /> aquisição = mais
+                de 40% novos
+                <span className="ml-2 h-2.5 w-2.5 rounded-full bg-emerald-600" /> base =
+                mais de 55% fiéis
+                <span className="ml-2 h-2.5 w-2.5 rounded-full bg-amber-500" /> misto
+              </span>
+            </div>
+
             <div className="flex flex-wrap gap-2">
               {topDias.map((d, i) => {
                 const data = String(pick(d, "data") ?? "");
@@ -549,33 +730,56 @@ export default function PlanoComercial() {
                     </div>
                   ))}
                   {(() => {
-                    const maxPeso = Math.max(
-                      0.0001,
-                      ...dias.map((d) => n(pick(d, "peso_pct"))),
-                    );
                     const primeiro = new Date(ano, mes - 1, 1).getDay();
                     const celulas: JSX.Element[] = [];
                     for (let i = 0; i < primeiro; i++)
                       celulas.push(<div key={`v${i}`} />);
                     dias.forEach((d, i) => {
                       const peso = n(pick(d, "peso_pct"));
-                      const alpha = 0.12 + 0.78 * (peso / maxPeso);
                       const dataStr = String(pick(d, "data") ?? "");
                       const diaNum =
                         pick(d, "dia") ??
                         (dataStr ? Number(dataStr.slice(8, 10)) : i + 1);
+                      const foco = String(pick(d, "foco") ?? "misto");
+                      const aq: any = pick(d, "aquisicao") ?? {};
+                      const sc: any = pick(d, "segunda_compra") ?? {};
+                      const fi: any = pick(d, "fieis") ?? {};
                       celulas.push(
-                        <div
-                          key={i}
-                          className="rounded-md border p-1.5 text-left"
-                          style={{ backgroundColor: `rgba(5, 150, 105, ${alpha})` }}
-                        >
-                          <div className="text-[11px] font-semibold">{diaNum}</div>
-                          <div className="text-[10px] opacity-80">{pct(peso, 2)}</div>
-                          <div className="text-[10px] font-medium">
-                            {brl(pick(d, "investimento"))}
-                          </div>
-                        </div>,
+                        <Tooltip key={i}>
+                          <TooltipTrigger asChild>
+                            <div
+                              className={cn(
+                                "rounded-md border p-1.5 text-left text-white",
+                                foco === "aquisicao" && "bg-sky-500",
+                                foco === "base" && "bg-emerald-600",
+                                foco !== "aquisicao" && foco !== "base" && "bg-amber-500",
+                              )}
+                            >
+                              <div className="text-[11px] font-semibold">{diaNum}</div>
+                              <div className="text-[10px] opacity-90">{pct(peso, 2)}</div>
+                              <div className="text-[10px] font-medium">
+                                {brl(pick(d, "investimento"))}
+                              </div>
+                            </div>
+                          </TooltipTrigger>
+                          <TooltipContent className="space-y-1 text-xs">
+                            <p className="font-medium">
+                              {dataStr ? dataBR(dataStr) : `Dia ${diaNum}`} · foco {foco}
+                            </p>
+                            <p>
+                              Investimento {brl(pick(d, "investimento"))} · aquisição{" "}
+                              {brl(pick(d, "investimento_aquisicao"))} · base{" "}
+                              {brl(pick(d, "investimento_base"))}
+                            </p>
+                            <p>
+                              Novos {num(pick(aq, "pedidos"))} ped ({pct(pick(aq, "pct"))})
+                            </p>
+                            <p>2ª compra {num(pick(sc, "pedidos"))} ped</p>
+                            <p>
+                              Fiéis {num(pick(fi, "pedidos"))} ped ({pct(pick(fi, "pct"))})
+                            </p>
+                          </TooltipContent>
+                        </Tooltip>,
                       );
                     });
                     return celulas;
@@ -587,7 +791,49 @@ export default function PlanoComercial() {
                 </p>
               </CardContent>
             </Card>
+
+            <div className="grid gap-4 md:grid-cols-2">
+              {[
+                { titulo: "Onde colocar a verba de prospecção", lista: topDiasAquisicao, campo: "investimento_aquisicao" },
+                { titulo: "Onde acionar a base", lista: topDiasBase, campo: "investimento_base" },
+              ].map((bloco) => (
+                <Card key={bloco.titulo}>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-base">{bloco.titulo}</CardTitle>
+                    {bloco.titulo === "Onde acionar a base" && (
+                      <p className="text-xs text-muted-foreground">
+                        CRM e remarketing, não mídia fria.
+                      </p>
+                    )}
+                  </CardHeader>
+                  <CardContent className="space-y-1.5">
+                    {!bloco.lista.length && (
+                      <p className="text-sm text-muted-foreground">Sem dias listados.</p>
+                    )}
+                    {bloco.lista.map((d: any, i: number) => {
+                      const dt = String(pick(d, "data") ?? "");
+                      return (
+                        <div key={i} className="flex justify-between text-sm">
+                          <span>
+                            {dt ? dataBR(dt) : `Dia ${num(pick(d, "dia"))}`}
+                            {dt && (
+                              <span className="ml-1 text-xs text-muted-foreground">
+                                {DOW_CURTO[new Date(`${dt.slice(0, 10)}T12:00:00`).getDay()]}
+                              </span>
+                            )}
+                          </span>
+                          <span className="font-medium">
+                            {brl(pick(d, bloco.campo, "investimento"))}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
           </TabsContent>
+
 
           {/* 4. aquisição */}
           <TabsContent value="aquisicao" className="mt-4 space-y-4">
@@ -813,11 +1059,19 @@ export default function PlanoComercial() {
 
           {/* 6. estoque */}
           <TabsContent value="estoque" className="mt-4 space-y-4">
-            {estoque?.erro && (
-              <div className="rounded-md border border-destructive/40 bg-destructive/5 p-3 text-sm text-destructive">
-                {estoque.erro}
+            {(erroEstoque || estoque?.erro) && (
+              <div className="flex items-start gap-2 rounded-md border border-destructive/40 bg-destructive/5 p-3 text-sm text-destructive">
+                <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+                <span>
+                  Não foi possível carregar a necessidade de estoque:{" "}
+                  {erroEstoque || estoque?.erro}
+                </span>
               </div>
             )}
+
+            {!erroEstoque && (
+            <>
+
 
             <Card>
               <CardHeader>
@@ -1011,6 +1265,59 @@ export default function PlanoComercial() {
                 </Table>
               </CardContent>
             </Card>
+
+            <Card>
+              <CardHeader className="flex-row items-center justify-between space-y-0">
+                <CardTitle className="text-base">
+                  Necessidade por semana — cronograma de produção
+                </CardTitle>
+                <Button variant="outline" size="sm" onClick={exportarNecessidadeSemana}>
+                  <Download className="mr-2 h-4 w-4" /> CSV
+                </Button>
+              </CardHeader>
+              <CardContent>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Semana</TableHead>
+                      {TAMANHOS.map((t) => (
+                        <TableHead key={t} className="text-right">
+                          {t}
+                        </TableHead>
+                      ))}
+                      <TableHead className="text-right">Total</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {necessidadeSemana.map((l, i) => (
+                      <TableRow key={i}>
+                        <TableCell className="font-medium">{l.rotulo}</TableCell>
+                        {TAMANHOS.map((t) => (
+                          <TableCell key={t} className="text-right">
+                            {num(l.tamanhos[t] ?? 0)}
+                          </TableCell>
+                        ))}
+                        <TableCell className="text-right font-semibold">
+                          {num(l.total)}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                    {!necessidadeSemana.length && (
+                      <TableRow>
+                        <TableCell
+                          colSpan={TAMANHOS.length + 2}
+                          className="text-sm text-muted-foreground"
+                        >
+                          Sem necessidade semanal calculada.
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+            </>
+            )}
           </TabsContent>
         </Tabs>
 
