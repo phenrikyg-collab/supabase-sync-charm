@@ -126,9 +126,9 @@ export default function TrocasDevolucoes() {
   });
 
   const lista = useQuery({
-    queryKey: ["trocas-solicitacoes", estagio, inicio, fim, buscaDebounce, ordem, pagina],
+    queryKey: ["trocas-solicitacoes", estagio, preferencia, inicio, fim, buscaDebounce, ordem, pagina],
     queryFn: async () => {
-      const { data, error } = await supabase.rpc("fn_trocas_solicitacoes" as any, {
+      const params: any = {
         p_estagio: estagio,
         p_inicio: inicio,
         p_fim: fim,
@@ -136,7 +136,9 @@ export default function TrocasDevolucoes() {
         p_ordem: ordem,
         p_limit: LIMIT,
         p_offset: pagina * LIMIT,
-      });
+      };
+      if (preferencia) params.p_preferencia = preferencia;
+      const { data, error } = await supabase.rpc("fn_trocas_solicitacoes" as any, params);
       if (error) throw error;
       return (data ?? {}) as any;
     },
