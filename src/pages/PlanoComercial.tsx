@@ -55,6 +55,8 @@ const MESES = [
 
 const hoje = new Date();
 
+const TAMANHOS = ["P", "M", "G", "GG", "EG"];
+
 const coorteDaSemana = (s: any, k: CoorteKey) => {
   if (!s) return {};
   if (k === "aquisicao") return pick(s, "aquisicao", "novos", "novo") ?? {};
