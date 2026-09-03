@@ -961,6 +961,7 @@ export default function PlanejamentoMensal() {
                         </th>
                       ))}
                       <th className="text-right uppercase whitespace-nowrap"
+                          title="Sessões, Tx. Conversão e CPS ignoram meses com sessões manuais (não auditáveis)."
                           style={{ padding: headPad, letterSpacing: 1, minWidth: 110, background: "#FAF6EE", color: "#1D1D1B" }}>
                         Média
                       </th>
