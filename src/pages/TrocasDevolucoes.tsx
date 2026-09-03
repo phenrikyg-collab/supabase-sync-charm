@@ -92,9 +92,10 @@ export default function TrocasDevolucoes() {
   const [fim, setFim] = useState(isoHoje());
 
   const [estagio, setEstagio] = useState<string | null>(null);
+  const [preferencia, setPreferencia] = useState<string | null>(null);
   const [busca, setBusca] = useState("");
   const [buscaDebounce, setBuscaDebounce] = useState("");
-  const [ordem, setOrdem] = useState("antigas");
+  const [ordem, setOrdem] = useState("prioridade");
   const [pagina, setPagina] = useState(0);
   const LIMIT = 50;
 
@@ -103,7 +104,7 @@ export default function TrocasDevolucoes() {
     return () => clearTimeout(t);
   }, [busca]);
 
-  useEffect(() => setPagina(0), [estagio, buscaDebounce, ordem, inicio, fim]);
+  useEffect(() => setPagina(0), [estagio, preferencia, buscaDebounce, ordem, inicio, fim]);
 
   const aplicarAtalho = (v: string) => {
     setAtalho(v);
@@ -125,9 +126,9 @@ export default function TrocasDevolucoes() {
   });
 
   const lista = useQuery({
-    queryKey: ["trocas-solicitacoes", estagio, inicio, fim, buscaDebounce, ordem, pagina],
+    queryKey: ["trocas-solicitacoes", estagio, preferencia, inicio, fim, buscaDebounce, ordem, pagina],
     queryFn: async () => {
-      const { data, error } = await supabase.rpc("fn_trocas_solicitacoes" as any, {
+      const params: any = {
         p_estagio: estagio,
         p_inicio: inicio,
         p_fim: fim,
@@ -135,7 +136,9 @@ export default function TrocasDevolucoes() {
         p_ordem: ordem,
         p_limit: LIMIT,
         p_offset: pagina * LIMIT,
-      });
+      };
+      if (preferencia) params.p_preferencia = preferencia;
+      const { data, error } = await supabase.rpc("fn_trocas_solicitacoes" as any, params);
       if (error) throw error;
       return (data ?? {}) as any;
     },
@@ -163,6 +166,7 @@ export default function TrocasDevolucoes() {
 
   const irParaFila = (est: string | null) => {
     setEstagio(est);
+    setOrdem("prioridade");
     document.getElementById("lista-solicitacoes")?.scrollIntoView({ behavior: "smooth", block: "start" });
   };
 
@@ -344,29 +348,37 @@ export default function TrocasDevolucoes() {
         <Card id="lista-solicitacoes">
           <CardHeader className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
             <CardTitle>
-              Solicitações {estagio ? `· ${estagio.replace(/_/g, " ")}` : "· todas"}{" "}
+              Solicitações · {lista.data?.estagio_rotulo ?? (estagio ? estagio.replace(/_/g, " ") : "todas")}{" "}
               <span className="text-sm font-normal text-muted-foreground">({num(total)})</span>
             </CardTitle>
             <div className="flex flex-wrap items-center gap-2">
               <div className="relative">
                 <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
                 <Input
-                  className="w-64 pl-8"
-                  placeholder="nome, e-mail, pedido ou rastreio"
+                  className="w-72 pl-8"
+                  placeholder="Buscar por pedido, cliente, e-mail, telefone, produto, SKU, cidade ou rastreio"
                   value={busca}
                   onChange={(e) => setBusca(e.target.value)}
                 />
               </div>
-              <Select value={ordem} onValueChange={setOrdem}>
-                <SelectTrigger className="w-44"><SelectValue /></SelectTrigger>
+              <Select value={preferencia ?? ""} onValueChange={(v) => setPreferencia(v || null)}>
+                <SelectTrigger className="w-44"><SelectValue placeholder="Preferência" /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="antigas">Mais antigas</SelectItem>
+                  <SelectItem value="voucher">Vale-trocas</SelectItem>
+                  <SelectItem value="refund">Reembolso</SelectItem>
+                  <SelectItem value="product">Troca por peça</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select value={ordem} onValueChange={setOrdem}>
+                <SelectTrigger className="w-56"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="prioridade">Prioridade (mais antigas primeiro)</SelectItem>
                   <SelectItem value="recentes">Mais recentes</SelectItem>
                   <SelectItem value="valor">Maior valor</SelectItem>
                 </SelectContent>
               </Select>
-              {estagio && (
-                <Button variant="ghost" size="sm" onClick={() => setEstagio(null)}>Limpar estágio</Button>
+              {(estagio || preferencia) && (
+                <Button variant="ghost" size="sm" onClick={() => { setEstagio(null); setPreferencia(null); }}>Limpar filtros</Button>
               )}
             </div>
           </CardHeader>
@@ -443,7 +455,7 @@ export default function TrocasDevolucoes() {
                       const maior = Math.max(...itens.map((m) => n(m.qtd)));
                       return (
                         <div key={area} className="space-y-2">
-                          <p className="text-sm font-medium">{area === "exchange" ? "Troca" : "Devolução"}</p>
+                          <p className="text-sm font-medium">{itens[0]?.area_rotulo ?? (area === "exchange" ? "Troca" : "Devolução")}</p>
                           {itens.map((m, i) => (
                             <div key={i} className="space-y-1">
                               <div className="flex justify-between text-xs">
@@ -629,7 +641,7 @@ export default function TrocasDevolucoes() {
                           <TableRow key={i}>
                             <TableCell className="text-sm">{g.transportadora ?? "—"}</TableCell>
                             <TableCell className="text-xs">{g.servico ?? "—"}</TableCell>
-                            <TableCell className="text-xs">{g.forma_postagem ?? "—"}</TableCell>
+                            <TableCell className="text-xs">{g.forma_postagem_rotulo ?? g.forma_postagem ?? "—"}</TableCell>
                             <TableCell className="text-right">{num(g.qtd)}</TableCell>
                             <TableCell className="text-right">{brl(g.frete_medio)}</TableCell>
                             <TableCell className="text-right">{brl(g.frete_total)}</TableCell>
@@ -681,8 +693,8 @@ export default function TrocasDevolucoes() {
                     <TableBody>
                       {(d.pagamentos as any[]).map((p, i) => (
                         <TableRow key={i}>
-                          <TableCell className="text-sm">{p.preferencia ?? "—"}</TableCell>
-                          <TableCell className="text-sm">{p.metodo_pago ?? "—"}</TableCell>
+                          <TableCell className="text-sm">{p.preferencia_rotulo ?? p.preferencia ?? "—"}</TableCell>
+                          <TableCell className="text-sm">{p.metodo_pago_rotulo ?? p.metodo_pago ?? "—"}</TableCell>
                           <TableCell className="text-right">{num(p.qtd)}</TableCell>
                           <TableCell className="text-right">{brl(p.valor)}</TableCell>
                         </TableRow>
@@ -775,13 +787,13 @@ function LinhaSolicitacao({ l }: { l: any }) {
   const finalizada = est === "concluida" || est === "cancelada";
   const dias = n(l.dias_aberta ?? l.dias_em_aberto);
   const vencer = l.dias_para_vencer;
-  const atrasada = dias > 15 && !finalizada;
+  const urgenciaDias = finalizada ? null : dias > 30 ? "alta" : dias > 15 ? "media" : null;
   const rastreio = l.rastreio ?? l.codigo_rastreio;
 
   return (
     <>
       <TableRow
-        className={`cursor-pointer ${atrasada ? "bg-amber-500/10" : ""}`}
+        className={`cursor-pointer ${urgenciaDias === "alta" ? "bg-destructive/10" : urgenciaDias === "media" ? "bg-amber-500/10" : ""}`}
         onClick={() => setAberta((v) => !v)}
       >
         <TableCell>{aberta ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}</TableCell>
@@ -817,15 +829,15 @@ function LinhaSolicitacao({ l }: { l: any }) {
         <TableCell className="text-right text-sm">{brl(l.valor ?? l.valor_total)}</TableCell>
         <TableCell>
           <Badge variant="outline" className="text-[10px]">
-            {String(l.preferencia ?? "").includes("vale") ? "vale-trocas" : l.preferencia ?? "—"}
+            {l.preferencia_rotulo ?? l.preferencia ?? "—"}
           </Badge>
         </TableCell>
         <TableCell>
           <span className={`rounded px-2 py-1 text-[11px] ${ESTAGIO_CHIP[est] ?? "bg-muted"}`}>
-            {(l.estagio_rotulo ?? est).replace(/_/g, " ") || "—"}
+            {(l.estagio_rotulo ?? est.replace(/_/g, " ")) || "—"}
           </span>
         </TableCell>
-        <TableCell className="text-right text-sm">
+        <TableCell className={`text-right text-sm ${dias > 30 ? "text-destructive font-semibold" : dias > 15 ? "text-amber-600" : ""}`}>
           {num(dias)}
           {Number.isFinite(Number(vencer)) && n(vencer) >= 0 && n(vencer) <= 3 && (
             <Badge variant="destructive" className="ml-2 text-[10px]">vence em {num(vencer)}d</Badge>
@@ -866,6 +878,8 @@ function LinhaSolicitacao({ l }: { l: any }) {
                       <p className="text-muted-foreground">
                         {[it.sku, it.cor, it.tamanho].filter(Boolean).join(" · ") || "—"}
                       </p>
+                      <p className="text-muted-foreground">Tipo: {it.tipo_rotulo ?? it.tipo ?? "—"}</p>
+                      <p className="text-muted-foreground">Área: {it.motivo_area_rotulo ?? it.motivo_area ?? "—"}</p>
                       <p className="text-muted-foreground">Motivo: {it.motivo ?? "—"}</p>
                       <p className={n(it.estoque_variante) === 0 ? "text-destructive" : "text-muted-foreground"}>
                         Estoque da variação: {it.estoque_variante ?? "—"}
@@ -878,7 +892,8 @@ function LinhaSolicitacao({ l }: { l: any }) {
                 <p className="text-sm font-medium">Logística</p>
                 <p>Transportadora: {l.transportadora ?? "—"}</p>
                 <p>Serviço: {l.servico ?? "—"}</p>
-                <p>Forma de postagem: {l.forma_postagem ?? "—"}</p>
+                <p>Forma de postagem: {l.forma_postagem_rotulo ?? l.forma_postagem ?? "—"}</p>
+                <p>Método pago: {l.metodo_pago_rotulo ?? l.metodo_pago ?? "—"}</p>
                 <p>Centro de retorno: {l.centro_retorno ?? "—"}</p>
                 <p>Prazo: {l.prazo ? dataBR(l.prazo) : "—"}</p>
                 {l.store_note && (
