@@ -9,6 +9,7 @@ import {
   CheckCircle2,
   Zap,
   Repeat,
+  Search,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useAuth } from "@/contexts/AuthContext";
@@ -84,6 +85,7 @@ const moduleGroups: ModuleGroup[] = [
     items: [
       { title: "Criativos", url: "/marketing?tab=criativos", icon: Sparkles },
       { title: "Analytics Instagram", url: "/marketing-analytics", icon: Sparkles },
+      { title: "SEO & Blog", url: "/seo-blog", icon: Search },
       { title: "Social Commerce", url: "/social-commerce", icon: Instagram },
       { title: "Grupo VIP", url: "/grupo-vip", icon: Users },
       { title: "Matriz Criativa", url: "/marketing/matriz-criativa", icon: Sparkles },
