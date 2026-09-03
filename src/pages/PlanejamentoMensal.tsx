@@ -1023,7 +1023,7 @@ export default function PlanejamentoMensal() {
                               {historico.map((m, mi) => {
                                 const v = valOf(r, m);
 
-                                const pv = mi > 0 ? (historico[mi - 1][r.key] as number | null) : null;
+                                const pv = mi > 0 ? valOf(r, historico[mi - 1]) : null;
                                 const cur = monthIsCurrent(m);
                                 const q = qual(m);
 
