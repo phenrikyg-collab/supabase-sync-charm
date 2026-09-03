@@ -87,7 +87,7 @@ const ESTAGIO_CHIP: Record<string, string> = {
 /* ────────────────────────── página ────────────────────────── */
 
 export default function TrocasDevolucoes() {
-  const [atalho, setAtalho] = useState("90");
+  const [chave, setChave] = useState<string | null>(null);
   const [inicio, setInicio] = useState(isoMenos(90));
   const [fim, setFim] = useState(isoHoje());
 
@@ -106,12 +106,48 @@ export default function TrocasDevolucoes() {
 
   useEffect(() => setPagina(0), [estagio, preferencia, buscaDebounce, ordem, inicio, fim]);
 
-  const aplicarAtalho = (v: string) => {
-    setAtalho(v);
-    if (v === "livre") return;
-    setInicio(isoMenos(Number(v)));
-    setFim(isoHoje());
+  /* períodos vindos da RPC */
+  const periodos = useQuery({
+    queryKey: ["trocas-periodos"],
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc("fn_trocas_periodos" as any);
+      if (error) throw error;
+      return (data ?? {}) as any;
+    },
+  });
+
+  const atalhos: any[] = Array.isArray(periodos.data?.atalhos)
+    ? periodos.data.atalhos
+    : Array.isArray(periodos.data?.periodos?.atalhos)
+      ? periodos.data.periodos.atalhos
+      : [];
+  const meses: any[] = Array.isArray(periodos.data?.meses)
+    ? periodos.data.meses
+    : Array.isArray(periodos.data?.periodos?.meses)
+      ? periodos.data.periodos.meses
+      : [];
+  const padrao: string | undefined = periodos.data?.padrao ?? periodos.data?.periodos?.padrao;
+
+  const opcoes = useMemo(() => [...atalhos, ...meses], [atalhos, meses]);
+  const selecionado = opcoes.find((o) => String(o.chave) === String(chave));
+
+  useEffect(() => {
+    if (chave || !opcoes.length) return;
+    const p = opcoes.find((o) => String(o.chave) === String(padrao)) ?? opcoes[0];
+    if (p) {
+      setChave(String(p.chave));
+      if (p.inicio) setInicio(p.inicio);
+      if (p.fim) setFim(p.fim);
+    }
+  }, [opcoes, padrao, chave]);
+
+  const aplicarPeriodo = (v: string) => {
+    setChave(v);
+    const p = opcoes.find((o) => String(o.chave) === v);
+    if (p?.inicio) setInicio(p.inicio);
+    if (p?.fim) setFim(p.fim);
   };
+
 
   const dash = useQuery({
     queryKey: ["trocas-dashboard", inicio, fim],
