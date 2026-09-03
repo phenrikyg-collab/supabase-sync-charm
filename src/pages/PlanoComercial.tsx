@@ -185,6 +185,24 @@ export default function PlanoComercial() {
     ? plano.top_dias_investimento
     : [];
   const jornada = plano?.jornada_produtos ?? {};
+  const topDiasAquisicao: any[] = Array.isArray(plano?.top_dias_aquisicao)
+    ? plano.top_dias_aquisicao
+    : [];
+  const topDiasBase: any[] = Array.isArray(plano?.top_dias_base)
+    ? plano.top_dias_base
+    : [];
+
+  const contagemFoco = useMemo(() => {
+    const c = { aquisicao: 0, base: 0, misto: 0 };
+    dias.forEach((d) => {
+      const f = String(pick(d, "foco") ?? "misto");
+      if (f === "aquisicao") c.aquisicao += 1;
+      else if (f === "base") c.base += 1;
+      else c.misto += 1;
+    });
+    return c;
+  }, [dias]);
+
 
   const maiorPeso = useMemo(
     () => Math.max(0, ...semanas.map((s) => n(pick(s, "peso_pct")))),
