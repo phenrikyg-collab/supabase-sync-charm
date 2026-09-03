@@ -834,7 +834,7 @@ function LinhaSolicitacao({ l }: { l: any }) {
         </TableCell>
         <TableCell>
           <span className={`rounded px-2 py-1 text-[11px] ${ESTAGIO_CHIP[est] ?? "bg-muted"}`}>
-            {l.estagio_rotulo ?? est.replace(/_/g, " ") || "—"}
+            {(l.estagio_rotulo ?? est.replace(/_/g, " ")) || "—"}
           </span>
         </TableCell>
         <TableCell className={`text-right text-sm ${dias > 30 ? "text-destructive font-semibold" : dias > 15 ? "text-amber-600" : ""}`}>
