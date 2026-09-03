@@ -27,19 +27,20 @@ const calcBadge = (className = "") => (
   <span className={`ml-2 text-[10px] uppercase tracking-wider text-muted-foreground ${className}`}>calc</span>
 );
 
-function CalcField({ label, value, format = "num" }: { label: string; value: number | null | undefined; format?: "brl" | "pct" | "num" }) {
+function CalcField({ label, value, format = "num", danger }: { label: string; value: number | null | undefined; format?: "brl" | "pct" | "num"; danger?: boolean }) {
   const display = value == null || !isFinite(value as number)
     ? "—"
     : format === "brl" ? fmtBRL(value)
     : format === "pct" ? fmtPct(value)
     : fmtNum(value);
   return (
-    <div className="rounded-md px-3 py-2" style={{ background: "#FAF6EE" }}>
+    <div className="rounded-md px-3 py-2" style={{ background: danger ? "#FFE8E5" : "#FAF6EE" }}>
       <div className="text-xs text-muted-foreground flex items-center">{label}{calcBadge()}</div>
-      <div className="font-semibold text-sm mt-0.5">{display}</div>
+      <div className="font-semibold text-sm mt-0.5" style={danger ? { color: "#C0392B" } : undefined}>{display}</div>
     </div>
   );
 }
+
 
 function NumInput({ label, value, onChange, suffix, disabled, badge }: {
   label: string; value: number | null | undefined; onChange: (v: number | null) => void; suffix?: string; disabled?: boolean;
