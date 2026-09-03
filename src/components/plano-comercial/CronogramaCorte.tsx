@@ -35,7 +35,7 @@ const porTamanho = (fonte: any, tamanho: string): number => {
     const l = fonte.find(
       (x) => String(pick(x, "tamanho", "size") ?? "").toUpperCase() === tamanho,
     );
-    return n(pick(l, "quantidade", "qtd", "valor", "total", "pecas"));
+    return n(pick(l, "quantidade", "qtd", "valor", "total", "pecas", "demanda_mes", "demanda"));
   }
   return n(fonte?.[tamanho] ?? fonte?.[tamanho.toLowerCase()]);
 };
@@ -346,7 +346,163 @@ export default function CronogramaCorte({ ano, mes }: { ano: number; mes: number
       )}
 
       {modelos.map((m, i) => {
-        const riscos: any[] = Array.isArray(pick(m, "riscos")) ? (pick(m, "riscos") as any[]) : [];
+        const corte: any = pick(m, "corte") ?? null;
+        const riscos: any[] = Array.isArray(corte?.riscos) ? corte.riscos : [];
+        const temCorte =
+          corte != null && n(pick(corte, "qtd_riscos") ?? riscos.length) > 0;
+        const tecido: any = pick(m, "tecido") ?? {};
+        return (
+          <Card key={i}>
+            <CardHeader className="pb-2">
+              <CardTitle className="flex flex-wrap items-center gap-2 text-base">
+                <span>
+                  {String(
+                    pick(m, "modelo", "produto", "nome", "nome_produto") ?? "Sem nome",
+                  )}
+                </span>
+                {pick(m, "urgencia") && (
+                  <Badge
+                    variant={
+                      String(pick(m, "urgencia")).toLowerCase() === "crítico" ||
+                      String(pick(m, "urgencia")).toLowerCase() === "critico"
+                        ? "destructive"
+                        : "secondary"
+                    }
+                    className="text-xs"
+                  >
+                    {String(pick(m, "urgencia"))}
+                  </Badge>
+                )}
+                {pick(m, "classe_abc") && (
+                  <Badge variant="outline" className="text-xs">
+                    curva {String(pick(m, "classe_abc"))}
+                  </Badge>
+                )}
+                {pick(m, "linha_continua") === true && (
+                  <Badge variant="outline" className="text-xs">
+                    linha contínua
+                  </Badge>
+                )}
+              </CardTitle>
+              <p className="text-sm text-muted-foreground">
+                Demanda do mês {num(pick(m, "demanda_mes"))} · Estoque{" "}
+                {num(pick(m, "estoque_atual"))} · A cortar{" "}
+                <span className="font-semibold text-foreground">
+                  {num(pick(m, "a_cortar"))}
+                </span>
+              </p>
+              <Chips
+                titulo="Meta do mês"
+                fonte={pick(m, "demanda_por_tamanho_lista") ?? pick(m, "demanda_por_tamanho")}
+              />
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {!temCorte && (
+                <p className="text-sm text-muted-foreground">Sem corte planejado.</p>
+              )}
+              {temCorte && (
+                <div className="flex flex-wrap gap-2">
+                  <Badge variant="secondary" className="text-xs">
+                    {num(pick(corte, "qtd_riscos") ?? riscos.length)} risco(s)
+                  </Badge>
+                  <Badge variant="outline" className="text-xs">
+                    sobra {num(pick(corte, "sobra"))} (
+                    {pct(pick(corte, "sobra_pct"))})
+                  </Badge>
+                  {pick(tecido, "metros_necessarios") != null && (
+                    <Badge variant="outline" className="text-xs">
+                      {num(pick(tecido, "metros_necessarios"))} m
+                      {pick(tecido, "nome") ? ` · ${String(pick(tecido, "nome"))}` : ""}
+                    </Badge>
+                  )}
+                  {pick(m, "custo_estimado") != null && (
+                    <Badge variant="outline" className="text-xs">
+                      custo estimado {brl(pick(m, "custo_estimado"))}
+                    </Badge>
+                  )}
+                </div>
+              )}
+              {corte?.aviso && (
+                <p className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-300">
+                  {String(corte.aviso)}
+                </p>
+              )}
+              {riscos.map((r, j) => {
+                const descricao = String(pick(r, "descricao") ?? "").replace(
+                  /^Risco:\s*/i,
+                  "",
+                );
+                const lista: any[] = Array.isArray(r?.tamanhos_lista)
+                  ? r.tamanhos_lista
+                  : [];
+                return (
+                  <div key={j} className="rounded-md border p-3">
+                    <div className="mb-2 flex flex-wrap items-center gap-2 text-sm font-medium">
+                      <span>
+                        Risco {j + 1}
+                        {descricao ? `: ${descricao}` : ""}
+                      </span>
+                      {pick(r, "repeticoes") != null && (
+                        <Badge variant="outline" className="text-xs">
+                          {num(pick(r, "repeticoes"))} repetições
+                        </Badge>
+                      )}
+                      {pick(r, "total_produzido") != null && (
+                        <Badge variant="outline" className="text-xs">
+                          {num(pick(r, "total_produzido"))} peças
+                        </Badge>
+                      )}
+                      {pick(r, "sobra") != null && (
+                        <Badge variant="outline" className="text-xs">
+                          sobra {num(pick(r, "sobra"))}
+                        </Badge>
+                      )}
+                    </div>
+                    {!!lista.length && (
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Tamanho</TableHead>
+                            <TableHead className="text-right">Meta do mês</TableHead>
+                            <TableHead className="text-right">Falta</TableHead>
+                            <TableHead className="text-right">Produção</TableHead>
+                            <TableHead className="text-right">Sobra</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {lista.map((it: any, k: number) => (
+                            <TableRow key={k}>
+                              <TableCell className="font-medium">
+                                {String(pick(it, "tamanho") ?? "—")}
+                              </TableCell>
+                              <TableCell className="text-right">
+                                {num(pick(it, "demanda_mes"))}
+                              </TableCell>
+                              <TableCell className="text-right">
+                                {num(pick(it, "necessidade"))}
+                              </TableCell>
+                              <TableCell className="text-right">
+                                {num(pick(it, "producao"))}
+                              </TableCell>
+                              <TableCell className="text-right">
+                                {num(pick(it, "sobra"))}
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    )}
+                    <p className="mt-2 text-xs text-muted-foreground">
+                      Meta do mês é o total que a venda exige. Falta é o que sobrou
+                      depois do estoque. São números diferentes de propósito.
+                    </p>
+                  </div>
+                );
+              })}
+            </CardContent>
+          </Card>
+        );
+      })}
         return (
           <Card key={i}>
             <CardHeader className="pb-2">
