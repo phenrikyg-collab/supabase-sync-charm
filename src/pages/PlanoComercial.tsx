@@ -463,6 +463,9 @@ export default function PlanoComercial() {
       <div className="space-y-6 p-6">
         {header}
 
+        {politicaBar}
+
+
         {/* 1. cabeçalho */}
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
           {cards.map((c) => (
