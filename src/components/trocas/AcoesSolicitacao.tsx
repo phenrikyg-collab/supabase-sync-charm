@@ -134,6 +134,7 @@ export default function AcoesSolicitacao({ linha }: { linha: any }) {
   const fechar = () => {
     setAberta(null);
     setCienteNotificacao(false);
+    setCotacao(null);
   };
 
   const executar = async (acao: Acao, dados: any, toastSucesso?: (r: any) => { titulo: string; descricao?: string }) => {
