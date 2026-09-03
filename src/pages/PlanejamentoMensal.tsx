@@ -1008,16 +1008,21 @@ export default function PlanejamentoMensal() {
                         </tr>
                         {g.rows.map((r, ri) => {
                           const rowBg = g.bg ?? (ri % 2 ? "#FAF8F3" : "#FFFFFF");
-                          const mediaVal = avg(r.key);
-                          const metaVal = planejadoMes ? planejadoVal(r.key) : null;
+                          const mediaVal = avg(r);
+                          const metaVal = planejadoMes
+                            ? (r.calc ? r.calc(planejadoMes) : planejadoVal(r.key as keyof PM))
+                            : null;
                           return (
-                            <tr key={r.key as string} style={{ background: rowBg, minHeight: 44 }}>
+                            <tr key={r.key} style={{ background: rowBg, minHeight: 44 }}>
                               <td className="font-medium whitespace-nowrap"
-                                  style={{ ...stickyKpiBase, background: rowBg, padding: cellPad }}>
+                                  style={{ ...stickyKpiBase, background: rowBg, padding: cellPad }}
+                                  title={r.tip}>
                                 {r.label}
+                                {r.tip && <span className="ml-1 text-[10px] text-muted-foreground">ⓘ</span>}
                               </td>
                               {historico.map((m, mi) => {
-                                const v = m[r.key] as number | null;
+                                const v = valOf(r, m);
+
                                 const pv = mi > 0 ? (historico[mi - 1][r.key] as number | null) : null;
                                 const cur = monthIsCurrent(m);
                                 const q = qual(m);
