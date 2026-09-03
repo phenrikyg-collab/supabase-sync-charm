@@ -443,6 +443,7 @@ export default function TrocasDevolucoes() {
                         <TableHead>Preferência</TableHead>
                         <TableHead>Estágio</TableHead>
                         <TableHead className="text-right">Dias</TableHead>
+                        <TableHead>Última etapa</TableHead>
                         <TableHead>Rastreio</TableHead>
                       </TableRow>
                     </TableHeader>
@@ -882,6 +883,16 @@ function LinhaSolicitacao({ l }: { l: any }) {
           {num(dias)}
           {Number.isFinite(Number(vencer)) && n(vencer) >= 0 && n(vencer) <= 3 && (
             <Badge variant="destructive" className="ml-2 text-[10px]">vence em {num(vencer)}d</Badge>
+          )}
+        </TableCell>
+        <TableCell>
+          {ultimoMarco ? (
+            <div>
+              <p className="text-xs">{ultimoMarco.para_descricao ?? ultimoMarco.para ?? "—"}</p>
+              <p className="text-[11px] text-muted-foreground">há {num(l.parada_ha_dias)} dias</p>
+            </div>
+          ) : (
+            <span className="text-xs text-muted-foreground">—</span>
           )}
         </TableCell>
         <TableCell onClick={(e) => e.stopPropagation()}>
