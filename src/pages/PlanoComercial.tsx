@@ -1018,11 +1018,19 @@ export default function PlanoComercial() {
 
           {/* 6. estoque */}
           <TabsContent value="estoque" className="mt-4 space-y-4">
-            {estoque?.erro && (
-              <div className="rounded-md border border-destructive/40 bg-destructive/5 p-3 text-sm text-destructive">
-                {estoque.erro}
+            {(erroEstoque || estoque?.erro) && (
+              <div className="flex items-start gap-2 rounded-md border border-destructive/40 bg-destructive/5 p-3 text-sm text-destructive">
+                <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+                <span>
+                  Não foi possível carregar a necessidade de estoque:{" "}
+                  {erroEstoque || estoque?.erro}
+                </span>
               </div>
             )}
+
+            {!erroEstoque && (
+            <>
+
 
             <Card>
               <CardHeader>
