@@ -9,19 +9,6 @@ import { db } from "./socialCommerce";
  * Só o botão "Publicar agora" chama a edge function.
  */
 
-export type TikTokPrivacidade =
-  | "PUBLIC_TO_EVERYONE"
-  | "MUTUAL_FOLLOW_FRIENDS"
-  | "FOLLOWER_OF_CREATOR"
-  | "SELF_ONLY";
-
-export const ROTULO_PRIVACIDADE: Record<string, string> = {
-  PUBLIC_TO_EVERYONE: "Todos",
-  MUTUAL_FOLLOW_FRIENDS: "Amigos (seguem um ao outro)",
-  FOLLOWER_OF_CREATOR: "Seguidores",
-  SELF_ONLY: "Só eu",
-};
-
 export interface TikTokConfig {
   conectado: boolean;
   open_id?: string | null;
