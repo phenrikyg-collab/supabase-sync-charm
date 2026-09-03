@@ -958,6 +958,11 @@ function LinhaSolicitacao({ l }: { l: any }) {
                 )}
               </div>
             </div>
+            {timeline.length > 0 && (
+              <div className="mt-4 border-t pt-4">
+                <LinhaDoTempo timeline={timeline} paradaHaDias={l.parada_ha_dias} />
+              </div>
+            )}
           </TableCell>
         </TableRow>
       )}
