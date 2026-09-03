@@ -32,6 +32,7 @@ const dataHoraBR = (v: any) => {
 const n = (v: any) => (Number.isFinite(Number(v)) ? Number(v) : 0);
 
 type Acao =
+  | "cotar"
   | "autorizar"
   | "marcar_postado"
   | "marcar_entregue"
@@ -41,7 +42,7 @@ type Acao =
   | "reembolsar";
 
 const ROTULO_ACAO: Record<string, string> = {
-  autorizar: "Autorizar",
+  autorizar: "Autorizar postagem",
   marcar_postado: "Registrar postagem",
   marcar_entregue: "Registrar entrega",
   cancelar_autorizacao: "Cancelar autorização",
@@ -103,6 +104,8 @@ export default function AcoesSolicitacao({ linha }: { linha: any }) {
 
   const [aberta, setAberta] = useState<Acao | null>(null);
   const [enviando, setEnviando] = useState(false);
+  const [cotando, setCotando] = useState(false);
+  const [cotacao, setCotacao] = useState<{ opcoes: any[]; recomendada: any } | null>(null);
   const [travaAte, setTravaAte] = useState<number>(0);
   const [avisoTrava, setAvisoTrava] = useState<string | null>(null);
 
@@ -131,9 +134,10 @@ export default function AcoesSolicitacao({ linha }: { linha: any }) {
   const fechar = () => {
     setAberta(null);
     setCienteNotificacao(false);
+    setCotacao(null);
   };
 
-  const executar = async (acao: Acao, dados: any) => {
+  const executar = async (acao: Acao, dados: any, toastSucesso?: (r: any) => { titulo: string; descricao?: string }) => {
     setEnviando(true);
     try {
       const { data, error } = await supabase.functions.invoke("troque-devolva-acao", {
@@ -167,9 +171,10 @@ export default function AcoesSolicitacao({ linha }: { linha: any }) {
         return false;
       }
 
-      toast.success(`${ROTULO_ACAO[acao] ?? "Ação"} concluída.`, {
-        description: r.aviso ? String(r.aviso) : undefined,
-      });
+      const t = toastSucesso
+        ? toastSucesso(r)
+        : { titulo: `${ROTULO_ACAO[acao] ?? "Ação"} concluída.`, descricao: r.aviso ? String(r.aviso) : undefined };
+      toast.success(t.titulo, { description: t.descricao });
       qc.invalidateQueries({ queryKey: ["trocas-solicitacoes"] });
       qc.invalidateQueries({ queryKey: ["trocas-acoes", requestId] });
       qc.invalidateQueries({ queryKey: ["trocas-dashboard"] });
@@ -182,16 +187,82 @@ export default function AcoesSolicitacao({ linha }: { linha: any }) {
     }
   };
 
-  const rodar = async (acao: Acao, dados: any, aoConcluir?: () => void) => {
-    const ok = await executar(acao, dados);
+  const rodar = async (
+    acao: Acao,
+    dados: any,
+    aoConcluir?: () => void,
+    toastSucesso?: (r: any) => { titulo: string; descricao?: string },
+  ) => {
+    const ok = await executar(acao, dados, toastSucesso);
     if (ok) {
       aoConcluir?.();
       fechar();
     }
   };
 
+  /* ── cotação + autorização ── */
+  const cotarEAbrir = async () => {
+    setCotando(true);
+    setCotacao(null);
+    try {
+      const { data, error } = await supabase.functions.invoke("troque-devolva-acao", {
+        body: { acao: "cotar", request_id: requestId, dados: {} },
+      });
+      let corpo: any = null;
+      if (error) {
+        try {
+          corpo = await (error as any)?.context?.json?.();
+        } catch { /* não json */ }
+        toast.error(String(corpo?.erro ?? corpo?.message ?? error.message ?? "Falha ao cotar o frete."));
+        return;
+      }
+      const r: any = data ?? {};
+      const resp = r.resposta ?? r;
+      const opcoes: any[] = Array.isArray(resp?.opcoes) ? resp.opcoes : [];
+      if (r.ok === false || !opcoes.length) {
+        toast.error(String(resp?.erro ?? resp?.message ?? r.erro ?? "Nenhuma opção de frete disponível para esta solicitação."));
+        return;
+      }
+      const recRaw = resp.recomendada;
+      const recomendada =
+        recRaw && typeof recRaw === "object"
+          ? recRaw
+          : opcoes.find((o) => String(o.servico).toLowerCase() === String(recRaw).toLowerCase()) ?? opcoes[0];
+      setCotacao({ opcoes, recomendada });
+      setAberta("autorizar");
+    } catch (e: any) {
+      toast.error(e?.message ?? "Erro inesperado ao cotar o frete.");
+    } finally {
+      setCotando(false);
+    }
+  };
+
+  const toastAutorizar = (r: any) => {
+    const resp = r.resposta ?? r;
+    const esc = resp?.escolhida;
+    if (!esc) return { titulo: "Postagem autorizada.", descricao: r.aviso ? String(r.aviso) : undefined };
+    const comparadas: any[] = Array.isArray(resp?.comparadas) ? resp.comparadas : [];
+    const maisCara = comparadas
+      .filter((c) => String(c.servico).toLowerCase() !== String(esc.servico).toLowerCase())
+      .sort((a, b) => n(b.preco) - n(a.preco))[0];
+    const economia = maisCara ? n(maisCara.preco) - n(esc.preco) : 0;
+    const partes = [
+      `${String(esc.servico).toUpperCase()} ${brl(esc.preco)}${esc.prazo_dias ? `, ${esc.prazo_dias} dias` : ""}.`,
+    ];
+    if (economia > 0 && maisCara) {
+      partes.push(`Economia de ${brl(economia)} sobre o ${String(maisCara.servico).toUpperCase()}.`);
+    }
+    if (r.aviso) partes.push(String(r.aviso));
+    return { titulo: "Autorizado", descricao: partes.join(" ") };
+  };
+
+  const autorizar = (servico?: string) =>
+    rodar("autorizar", servico ? { servico } : {}, undefined, toastAutorizar);
+
   const botoesEstagio: Acao[] =
-    est === "aguardando_postagem"
+    est === "aguardando_aprovacao"
+      ? ["autorizar"]
+      : est === "aguardando_postagem"
       ? ["cancelar_autorizacao", "marcar_postado"]
       : est === "em_transito"
       ? ["marcar_entregue", "cancelar_autorizacao"]
@@ -199,7 +270,7 @@ export default function AcoesSolicitacao({ linha }: { linha: any }) {
       ? ["emitir_vale", "reembolsar"]
       : [];
 
-  const notifica = (a: Acao) => a === "emitir_vale" || a === "reembolsar";
+  const notifica = (a: Acao) => a === "emitir_vale" || a === "reembolsar" || a === "autorizar";
 
   return (
     <div className="space-y-2">
@@ -219,9 +290,10 @@ export default function AcoesSolicitacao({ linha }: { linha: any }) {
             key={a}
             size="sm"
             variant={a === "cancelar_autorizacao" ? "outline" : "default"}
-            disabled={enviando || (notifica(a) && travado)}
-            onClick={() => setAberta(a)}
+            disabled={enviando || cotando || (notifica(a) && travado)}
+            onClick={() => (a === "autorizar" ? cotarEAbrir() : setAberta(a))}
           >
+            {a === "autorizar" && cotando && <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />}
             {ROTULO_ACAO[a]}
           </Button>
         ))}
@@ -259,6 +331,72 @@ export default function AcoesSolicitacao({ linha }: { linha: any }) {
           </div>
         </div>
       )}
+
+      {/* ── Autorizar postagem (com cotação) ── */}
+      <Dialog open={aberta === "autorizar"} onOpenChange={(o) => !o && fechar()}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Autorizar postagem</DialogTitle>
+            <DialogDescription>
+              {linha.cliente ?? "Cliente"} · pedido {linha.pedido ?? linha.numero_pedido ?? "—"}
+            </DialogDescription>
+          </DialogHeader>
+          {cotacao && (
+            <div className="space-y-3">
+              <div className="rounded-md border-2 border-primary bg-primary/5 p-3">
+                <p className="text-sm font-semibold">
+                  {String(cotacao.recomendada.servico).toUpperCase()} — {brl(cotacao.recomendada.preco)}
+                  {cotacao.recomendada.prazo_dias ? ` · ${cotacao.recomendada.prazo_dias} dias` : ""}
+                </p>
+                <p className="text-[11px] text-muted-foreground">Modalidade recomendada</p>
+              </div>
+              {cotacao.opcoes.filter((o) => o !== cotacao.recomendada).length > 0 && (
+                <div className="space-y-1">
+                  {cotacao.opcoes
+                    .filter((o) => o !== cotacao.recomendada)
+                    .map((o, i) => (
+                      <p key={i} className="text-xs text-muted-foreground">
+                        {String(o.servico).toUpperCase()} — {brl(o.preco)}
+                        {o.prazo_dias ? ` · ${o.prazo_dias} dias` : ""}
+                      </p>
+                    ))}
+                </div>
+              )}
+              <p className="text-xs text-muted-foreground">
+                A regra da loja é sempre Correios, na modalidade mais barata.
+              </p>
+              {(cotacao.recomendada.agencia_proxima ?? cotacao.opcoes[0]?.agencia_proxima) && (
+                <p className="text-xs">
+                  <span className="font-medium">Agência mais próxima da cliente: </span>
+                  {String(cotacao.recomendada.agencia_proxima ?? cotacao.opcoes[0]?.agencia_proxima)}
+                </p>
+              )}
+            </div>
+          )}
+          <DialogFooter className="flex-col gap-2 sm:flex-col">
+            <div className="flex w-full justify-end gap-2">
+              <Button variant="ghost" onClick={fechar}>Cancelar</Button>
+              <Button disabled={enviando || travado} onClick={() => autorizar()}>
+                {enviando && <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />}
+                Autorizar com {cotacao ? String(cotacao.recomendada.servico).toUpperCase() : "…"}
+              </Button>
+            </div>
+            {cotacao && cotacao.opcoes.filter((o) => o !== cotacao.recomendada).length > 0 && (
+              <button
+                type="button"
+                className="self-end text-[11px] text-muted-foreground underline underline-offset-2 hover:text-foreground disabled:opacity-50"
+                disabled={enviando || travado}
+                onClick={() => {
+                  const outra = cotacao.opcoes.find((o) => o !== cotacao.recomendada);
+                  if (outra) autorizar(String(outra.servico).toLowerCase());
+                }}
+              >
+                usar a outra modalidade
+              </button>
+            )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* ── Registrar postagem ── */}
       <Dialog open={aberta === "marcar_postado"} onOpenChange={(o) => !o && fechar()}>
