@@ -787,13 +787,13 @@ function LinhaSolicitacao({ l }: { l: any }) {
   const finalizada = est === "concluida" || est === "cancelada";
   const dias = n(l.dias_aberta ?? l.dias_em_aberto);
   const vencer = l.dias_para_vencer;
-  const atrasada = dias > 15 && !finalizada;
+  const urgenciaDias = finalizada ? null : dias > 30 ? "alta" : dias > 15 ? "media" : null;
   const rastreio = l.rastreio ?? l.codigo_rastreio;
 
   return (
     <>
       <TableRow
-        className={`cursor-pointer ${atrasada ? "bg-amber-500/10" : ""}`}
+        className={`cursor-pointer ${urgenciaDias === "alta" ? "bg-destructive/10" : urgenciaDias === "media" ? "bg-amber-500/10" : ""}`}
         onClick={() => setAberta((v) => !v)}
       >
         <TableCell>{aberta ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}</TableCell>
@@ -825,19 +825,19 @@ function LinhaSolicitacao({ l }: { l: any }) {
             {itens.length > 3 && <p className="text-xs text-muted-foreground">+{itens.length - 3} itens</p>}
           </div>
         </TableCell>
-        <TableCell className="text-xs">{l.motivo ?? itens[0]?.motivo ?? "—"}</TableCell>
+        <TableCell className="text-xs">{l.motivo_area_rotulo ?? l.motivo ?? itens[0]?.motivo_area_rotulo ?? itens[0]?.motivo ?? "—"}</TableCell>
         <TableCell className="text-right text-sm">{brl(l.valor ?? l.valor_total)}</TableCell>
         <TableCell>
           <Badge variant="outline" className="text-[10px]">
-            {String(l.preferencia ?? "").includes("vale") ? "vale-trocas" : l.preferencia ?? "—"}
+            {l.preferencia_rotulo ?? l.preferencia ?? "—"}
           </Badge>
         </TableCell>
         <TableCell>
           <span className={`rounded px-2 py-1 text-[11px] ${ESTAGIO_CHIP[est] ?? "bg-muted"}`}>
-            {(l.estagio_rotulo ?? est).replace(/_/g, " ") || "—"}
+            {l.estagio_rotulo ?? est.replace(/_/g, " ") || "—"}
           </span>
         </TableCell>
-        <TableCell className="text-right text-sm">
+        <TableCell className={`text-right text-sm ${dias > 30 ? "text-destructive font-semibold" : dias > 15 ? "text-amber-600" : ""}`}>
           {num(dias)}
           {Number.isFinite(Number(vencer)) && n(vencer) >= 0 && n(vencer) <= 3 && (
             <Badge variant="destructive" className="ml-2 text-[10px]">vence em {num(vencer)}d</Badge>
@@ -878,6 +878,8 @@ function LinhaSolicitacao({ l }: { l: any }) {
                       <p className="text-muted-foreground">
                         {[it.sku, it.cor, it.tamanho].filter(Boolean).join(" · ") || "—"}
                       </p>
+                      <p className="text-muted-foreground">Tipo: {it.tipo_rotulo ?? it.tipo ?? "—"}</p>
+                      <p className="text-muted-foreground">Área: {it.motivo_area_rotulo ?? it.motivo_area ?? "—"}</p>
                       <p className="text-muted-foreground">Motivo: {it.motivo ?? "—"}</p>
                       <p className={n(it.estoque_variante) === 0 ? "text-destructive" : "text-muted-foreground"}>
                         Estoque da variação: {it.estoque_variante ?? "—"}
@@ -890,7 +892,8 @@ function LinhaSolicitacao({ l }: { l: any }) {
                 <p className="text-sm font-medium">Logística</p>
                 <p>Transportadora: {l.transportadora ?? "—"}</p>
                 <p>Serviço: {l.servico ?? "—"}</p>
-                <p>Forma de postagem: {l.forma_postagem ?? "—"}</p>
+                <p>Forma de postagem: {l.forma_postagem_rotulo ?? l.forma_postagem ?? "—"}</p>
+                <p>Método pago: {l.metodo_pago_rotulo ?? l.metodo_pago ?? "—"}</p>
                 <p>Centro de retorno: {l.centro_retorno ?? "—"}</p>
                 <p>Prazo: {l.prazo ? dataBR(l.prazo) : "—"}</p>
                 {l.store_note && (
