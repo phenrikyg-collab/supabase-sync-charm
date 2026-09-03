@@ -13,8 +13,16 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { num, pct, pick } from "@/lib/coortes";
+import RepresentatividadeTamanho from "./RepresentatividadeTamanho";
+import OportunidadesSeo from "./OportunidadesSeo";
 
 const TAMANHOS = ["P", "M", "G", "GG", "EG"];
 
@@ -82,6 +90,9 @@ export default function CronogramaCorte({ ano, mes }: { ano: number; mes: number
       p_max_pecas_risco: 6,
       p_max_riscos: 3,
       p_apenas_continua: apenasContinua,
+      p_incluir_grade_quebrada: true,
+      p_min_pecas_grade_quebrada: 3,
+      p_classes_abc: ["A"],
     } as any);
     if (error) {
       setErro(error.message || "Falha ao carregar o cronograma de corte");
@@ -120,6 +131,11 @@ export default function CronogramaCorte({ ano, mes }: { ano: number; mes: number
     : Array.isArray(dados?.linha_continua_sem_corte)
       ? dados.linha_continua_sem_corte
       : [];
+  const foraDaCurva: any[] = Array.isArray(dados?.linha_continua_fora_da_curva)
+    ? dados.linha_continua_fora_da_curva
+    : Array.isArray(corte?.linha_continua_fora_da_curva)
+      ? corte.linha_continua_fora_da_curva
+      : [];
 
   const cabecalho = (
     <div className="flex flex-wrap items-center gap-3">
@@ -133,15 +149,48 @@ export default function CronogramaCorte({ ano, mes }: { ano: number; mes: number
           Somente linha contínua
         </Label>
       </div>
+      <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <span className="cursor-help rounded-md border px-2 py-1 text-xs font-medium">
+              Somente curva A
+            </span>
+          </TooltipTrigger>
+          <TooltipContent>
+            164 produtos que respondem por 79,9% da receita.
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
       {escopoTxt && (
         <span className="text-xs text-muted-foreground">{escopoTxt}</span>
       )}
     </div>
   );
 
+  const faixaForaDaCurva = !!foraDaCurva.length && (
+    <div className="flex items-start gap-2 rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
+      <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+      <span>
+        {foraDaCurva.length} modelo(s) de produção contínua estão fora da curva A e não
+        aparecem nos cards:{" "}
+        {foraDaCurva
+          .map((m) => {
+            const nome = String(
+              pick(m, "modelo", "produto", "nome", "nome_produto") ?? "—",
+            );
+            const classe = pick(m, "classe_abc", "classe", "curva");
+            return classe ? `${nome} (${classe})` : nome;
+          })
+          .join(", ")}
+        .
+      </span>
+    </div>
+  );
+
   if (loading) {
     return (
       <div className="space-y-4">
+        <RepresentatividadeTamanho />
         {cabecalho}
         <div className="flex items-center gap-2 text-muted-foreground">
           <Loader2 className="h-4 w-4 animate-spin" /> Carregando cronograma...
@@ -152,7 +201,12 @@ export default function CronogramaCorte({ ano, mes }: { ano: number; mes: number
 
   return (
     <div className="space-y-4">
+      {/* B — representatividade de faturamento por tamanho */}
+      <RepresentatividadeTamanho />
+
       {cabecalho}
+
+      {faixaForaDaCurva}
 
       {erro && (
         <div className="flex items-start gap-2 rounded-md border border-destructive/40 bg-destructive/5 p-3 text-sm text-destructive">
@@ -160,6 +214,7 @@ export default function CronogramaCorte({ ano, mes }: { ano: number; mes: number
           <span>{erro}</span>
         </div>
       )}
+
 
       {resumo && (
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
@@ -384,6 +439,10 @@ export default function CronogramaCorte({ ano, mes }: { ano: number; mes: number
           </CardContent>
         </Card>
       )}
+
+      {/* C — oportunidades de SEO sem estoque */}
+      <OportunidadesSeo />
     </div>
   );
 }
+
