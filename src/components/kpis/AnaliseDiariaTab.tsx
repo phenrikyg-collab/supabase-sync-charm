@@ -13,7 +13,7 @@ import { cn } from "@/lib/utils";
 import { formatarData } from "@/utils/formatters";
 import { format, subDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { CalendarIcon, TrendingUp, TrendingDown, Loader2 } from "lucide-react";
+import { CalendarIcon, TrendingUp, TrendingDown, Loader2, AlertTriangle } from "lucide-react";
 
 const fmtBRL = (n: number | null | undefined) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Number(n ?? 0));
@@ -54,6 +54,8 @@ interface AnaliseDiariaResponse {
   variacao_ticket_medio_pct: number;
   variacao_taxa_conversao_pct_pontos: number;
   canais_sessoes: CanalSessoes[];
+  fonte_sessoes?: string | null;
+  aviso?: string | null;
 }
 
 function num(v: any): number {
@@ -76,11 +78,11 @@ export default function AnaliseDiariaTab() {
 
   const d = analise.data;
 
-  const drivers: { label: string; valor: number; variacao: number; formato: "moeda" | "numero" | "pct" | "pp"; chave: string }[] = useMemo(() => {
+  const drivers: { label: string; valor: number; variacao: number; formato: "moeda" | "numero" | "pct" | "pp"; chave: string; fonte?: string | null }[] = useMemo(() => {
     if (!d) return [];
     return [
       { label: "Receita", valor: num(d.dia_analisado.receita), variacao: num(d.variacao_receita_pct), formato: "moeda", chave: "receita" },
-      { label: "Sessões", valor: num(d.dia_analisado.sessoes), variacao: num(d.variacao_sessoes_pct), formato: "numero", chave: "sessoes" },
+      { label: "Sessões", valor: num(d.dia_analisado.sessoes), variacao: num(d.variacao_sessoes_pct), formato: "numero", chave: "sessoes", fonte: d.fonte_sessoes ?? null },
       { label: "Ticket Médio", valor: num(d.dia_analisado.ticket_medio), variacao: num(d.variacao_ticket_medio_pct), formato: "moeda", chave: "ticket" },
       { label: "Taxa de Conversão", valor: num(d.dia_analisado.taxa_conversao_pct), variacao: num(d.variacao_taxa_conversao_pct_pontos), formato: "pp", chave: "conversao" },
     ];
@@ -175,6 +177,14 @@ export default function AnaliseDiariaTab() {
 
       {!analise.isLoading && d && (
         <>
+          {/* Aviso de qualidade dos dados */}
+          {d.aviso && (
+            <div className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+              <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+              <span>{d.aviso}</span>
+            </div>
+          )}
+
           {/* Cards de driver */}
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {drivers.map((driver) => {
@@ -190,6 +200,11 @@ export default function AnaliseDiariaTab() {
                       <p className="mt-1 font-serif text-2xl font-bold truncate">
                         {formatarValor(driver.formato, driver.valor)}
                       </p>
+                      {driver.fonte && (
+                        <p className="mt-1 text-[11px] text-muted-foreground truncate">
+                          fonte: {driver.fonte}
+                        </p>
+                      )}
                     </div>
                     <div className={cn("rounded-lg p-2.5", positivo ? "bg-success/10" : "bg-danger/10")}>
                       <Icon className={cn("h-5 w-5", positivo ? "text-success" : "text-danger")} />
