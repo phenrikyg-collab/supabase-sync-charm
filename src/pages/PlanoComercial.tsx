@@ -31,6 +31,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
+import CronogramaCorte from "@/components/plano-comercial/CronogramaCorte";
 import {
   brl,
   COORTES,
@@ -273,86 +274,6 @@ export default function PlanoComercial() {
   const divergencia =
     receitaMeta > 0 ? Math.abs(receitaSemanas - receitaMeta) / receitaMeta : 0;
 
-  // estoque por produto (badge)
-  const estoquePorProduto = useMemo(() => {
-    const det: any[] = Array.isArray(estoque?.detalhe) ? estoque.detalhe : [];
-    const map = new Map<string, { faltas: { tamanho: string; faltam: number }[] }>();
-    det.forEach((d) => {
-      const id = String(pick(d, "produto_id", "tray_product_id") ?? "");
-      if (!id) return;
-      if (!map.has(id)) map.set(id, { faltas: [] });
-      const saldo = n(pick(d, "saldo"));
-      if (saldo < 0) {
-        map.get(id)!.faltas.push({
-          tamanho: String(pick(d, "tamanho") ?? "—"),
-          faltam: Math.abs(saldo),
-        });
-      }
-    });
-    return map;
-  }, [estoque]);
-
-  const badgeEstoque = (produtoId: any) => {
-    const info = estoquePorProduto.get(String(produtoId ?? ""));
-    if (!info)
-      return (
-        <Badge variant="outline" className="text-xs">
-          fora do top {TOP_PRODUTOS}
-        </Badge>
-      );
-    if (!info.faltas.length)
-      return (
-        <Badge className="bg-emerald-600 text-xs hover:bg-emerald-600">
-          grade ok
-        </Badge>
-      );
-    const txt = info.faltas
-      .map((f) => `faltam ${num(f.faltam)} em ${f.tamanho}`)
-      .join(", ");
-    return (
-      <Badge variant="destructive" className="text-xs">
-        {txt}
-      </Badge>
-    );
-  };
-
-  const tabelaJornada = (lista: any[], titulo: string) => (
-    <div>
-      <h4 className="mb-2 text-sm font-semibold">{titulo}</h4>
-      {(!lista || !lista.length) && (
-        <p className="text-sm text-muted-foreground">Sem produtos no período.</p>
-      )}
-      {!!lista?.length && (
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Produto</TableHead>
-              <TableHead className="text-right">Clientes</TableHead>
-              <TableHead className="text-right">% dos clientes</TableHead>
-              <TableHead>Estoque</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {lista.map((p, i) => (
-              <TableRow key={i}>
-                <TableCell>
-                  {pick(p, "produto", "nome", "nome_produto", "produto_nome") ?? "—"}
-                </TableCell>
-                <TableCell className="text-right">{num(pick(p, "clientes"))}</TableCell>
-                <TableCell className="text-right">
-                  {pct(pick(p, "pct_dos_clientes", "pct"))}
-                </TableCell>
-                <TableCell>
-                  {badgeEstoque(pick(p, "produto_id", "tray_product_id"))}
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      )}
-    </div>
-  );
-
   const salvarMetaFieis = async () => {
     setSalvandoMeta(true);
     try {
@@ -563,6 +484,7 @@ export default function PlanoComercial() {
             <TabsTrigger value="aquisicao">Aquisição</TabsTrigger>
             <TabsTrigger value="recorrentes">Recorrentes</TabsTrigger>
             <TabsTrigger value="estoque">Estoque x Demanda</TabsTrigger>
+            <TabsTrigger value="corte">Cronograma de corte</TabsTrigger>
           </TabsList>
 
           {/* 2. linha do tempo semanal */}
@@ -861,12 +783,6 @@ export default function PlanoComercial() {
             </div>
 
             <Card>
-              <CardContent className="p-4">
-                {tabelaJornada(jornada?.primeira_compra, "Produtos de primeira compra")}
-              </CardContent>
-            </Card>
-
-            <Card>
               <CardContent className="space-y-2 p-4">
                 <h4 className="text-sm font-semibold">Melhores dias para aquisição</h4>
                 <p className="text-xs text-muted-foreground">
@@ -918,8 +834,6 @@ export default function PlanoComercial() {
                     <p className="text-xl font-semibold">{brl(tSegunda.receita)}</p>
                   </div>
                 </div>
-
-                {tabelaJornada(jornada?.segunda_compra, "Produtos de segunda compra")}
 
                 {(() => {
                   const rec = jornada?.recompra;
@@ -1004,8 +918,6 @@ export default function PlanoComercial() {
                     <p className="text-xl font-semibold">{brl(tFieis.receita)}</p>
                   </div>
                 </div>
-
-                {tabelaJornada(jornada?.terceira_compra, "Produtos de terceira compra")}
 
                 <div className="rounded-md border p-3">
                   <h4 className="mb-2 text-sm font-semibold">
