@@ -136,7 +136,7 @@ export default function AcoesSolicitacao({ linha }: { linha: any }) {
     setCienteNotificacao(false);
   };
 
-  const executar = async (acao: Acao, dados: any) => {
+  const executar = async (acao: Acao, dados: any, toastSucesso?: (r: any) => { titulo: string; descricao?: string }) => {
     setEnviando(true);
     try {
       const { data, error } = await supabase.functions.invoke("troque-devolva-acao", {
@@ -170,9 +170,10 @@ export default function AcoesSolicitacao({ linha }: { linha: any }) {
         return false;
       }
 
-      toast.success(`${ROTULO_ACAO[acao] ?? "Ação"} concluída.`, {
-        description: r.aviso ? String(r.aviso) : undefined,
-      });
+      const t = toastSucesso
+        ? toastSucesso(r)
+        : { titulo: `${ROTULO_ACAO[acao] ?? "Ação"} concluída.`, descricao: r.aviso ? String(r.aviso) : undefined };
+      toast.success(t.titulo, { description: t.descricao });
       qc.invalidateQueries({ queryKey: ["trocas-solicitacoes"] });
       qc.invalidateQueries({ queryKey: ["trocas-acoes", requestId] });
       qc.invalidateQueries({ queryKey: ["trocas-dashboard"] });
@@ -193,8 +194,69 @@ export default function AcoesSolicitacao({ linha }: { linha: any }) {
     }
   };
 
+  /* ── cotação + autorização ── */
+  const cotarEAbrir = async () => {
+    setCotando(true);
+    setCotacao(null);
+    try {
+      const { data, error } = await supabase.functions.invoke("troque-devolva-acao", {
+        body: { acao: "cotar", request_id: requestId, dados: {} },
+      });
+      let corpo: any = null;
+      if (error) {
+        try {
+          corpo = await (error as any)?.context?.json?.();
+        } catch { /* não json */ }
+        toast.error(String(corpo?.erro ?? corpo?.message ?? error.message ?? "Falha ao cotar o frete."));
+        return;
+      }
+      const r: any = data ?? {};
+      const resp = r.resposta ?? r;
+      const opcoes: any[] = Array.isArray(resp?.opcoes) ? resp.opcoes : [];
+      if (r.ok === false || !opcoes.length) {
+        toast.error(String(resp?.erro ?? resp?.message ?? r.erro ?? "Nenhuma opção de frete disponível para esta solicitação."));
+        return;
+      }
+      const recRaw = resp.recomendada;
+      const recomendada =
+        recRaw && typeof recRaw === "object"
+          ? recRaw
+          : opcoes.find((o) => String(o.servico).toLowerCase() === String(recRaw).toLowerCase()) ?? opcoes[0];
+      setCotacao({ opcoes, recomendada });
+      setAberta("autorizar");
+    } catch (e: any) {
+      toast.error(e?.message ?? "Erro inesperado ao cotar o frete.");
+    } finally {
+      setCotando(false);
+    }
+  };
+
+  const toastAutorizar = (r: any) => {
+    const resp = r.resposta ?? r;
+    const esc = resp?.escolhida;
+    if (!esc) return { titulo: "Postagem autorizada.", descricao: r.aviso ? String(r.aviso) : undefined };
+    const comparadas: any[] = Array.isArray(resp?.comparadas) ? resp.comparadas : [];
+    const maisCara = comparadas
+      .filter((c) => String(c.servico).toLowerCase() !== String(esc.servico).toLowerCase())
+      .sort((a, b) => n(b.preco) - n(a.preco))[0];
+    const economia = maisCara ? n(maisCara.preco) - n(esc.preco) : 0;
+    const partes = [
+      `${String(esc.servico).toUpperCase()} ${brl(esc.preco)}${esc.prazo_dias ? `, ${esc.prazo_dias} dias` : ""}.`,
+    ];
+    if (economia > 0 && maisCara) {
+      partes.push(`Economia de ${brl(economia)} sobre o ${String(maisCara.servico).toUpperCase()}.`);
+    }
+    if (r.aviso) partes.push(String(r.aviso));
+    return { titulo: "Autorizado", descricao: partes.join(" ") };
+  };
+
+  const autorizar = (servico?: string) =>
+    rodar("autorizar", servico ? { servico } : {}, undefined, toastAutorizar);
+
   const botoesEstagio: Acao[] =
-    est === "aguardando_postagem"
+    est === "aguardando_aprovacao"
+      ? ["autorizar"]
+      : est === "aguardando_postagem"
       ? ["cancelar_autorizacao", "marcar_postado"]
       : est === "em_transito"
       ? ["marcar_entregue", "cancelar_autorizacao"]
@@ -202,7 +264,7 @@ export default function AcoesSolicitacao({ linha }: { linha: any }) {
       ? ["emitir_vale", "reembolsar"]
       : [];
 
-  const notifica = (a: Acao) => a === "emitir_vale" || a === "reembolsar";
+  const notifica = (a: Acao) => a === "emitir_vale" || a === "reembolsar" || a === "autorizar";
 
   return (
     <div className="space-y-2">
