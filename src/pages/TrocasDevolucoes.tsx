@@ -455,7 +455,7 @@ export default function TrocasDevolucoes() {
                       const maior = Math.max(...itens.map((m) => n(m.qtd)));
                       return (
                         <div key={area} className="space-y-2">
-                          <p className="text-sm font-medium">{area === "exchange" ? "Troca" : "Devolução"}</p>
+                          <p className="text-sm font-medium">{itens[0]?.area_rotulo ?? (area === "exchange" ? "Troca" : "Devolução")}</p>
                           {itens.map((m, i) => (
                             <div key={i} className="space-y-1">
                               <div className="flex justify-between text-xs">
