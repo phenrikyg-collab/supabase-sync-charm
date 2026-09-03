@@ -997,6 +997,51 @@ export default function PlanejamentoMensal() {
                                 const v = m[r.key] as number | null;
                                 const pv = mi > 0 ? (historico[mi - 1][r.key] as number | null) : null;
                                 const cur = monthIsCurrent(m);
+                                const q = qual(m);
+
+                                let conteudo: React.ReactNode = <span>{r.fmt(v)}</span>;
+
+                                if (r.key === "sessoes_totais") {
+                                  if (v == null) {
+                                    const cob = q.sessoes_dias_cobertos;
+                                    const tot = q.sessoes_dias_no_mes;
+                                    conteudo = (
+                                      <span
+                                        className="text-muted-foreground italic"
+                                        title={cob != null || tot != null
+                                          ? `${cob ?? "?"} de ${tot ?? "?"} dias com dados de sessões`
+                                          : "Sem fonte de sessões para este mês"}
+                                      >
+                                        sem fonte
+                                      </span>
+                                    );
+                                  } else if (sessaoManual(m)) {
+                                    conteudo = (
+                                      <span
+                                        className="inline-flex items-center gap-1 text-muted-foreground"
+                                        title={q.aviso ?? "Sessões informadas manualmente (não auditável)"}
+                                      >
+                                        <AlertTriangle className="h-3 w-3 text-amber-500" />
+                                        {r.fmt(v)}
+                                      </span>
+                                    );
+                                  }
+                                }
+
+                                if (r.key === "investimento_total" && v != null) {
+                                  const meta = q.invest_meta;
+                                  const google = q.invest_google;
+                                  const partes = [
+                                    meta != null ? `Meta: ${fmtBRL(Number(meta))}` : null,
+                                    google != null ? `Google: ${fmtBRL(Number(google))}` : null,
+                                  ].filter(Boolean);
+                                  conteudo = (
+                                    <span title={["Meta + Google", ...partes].join("\n")}>
+                                      {r.fmt(v)}
+                                    </span>
+                                  );
+                                }
+
                                 return (
                                   <td key={m.id} className="text-right whitespace-nowrap"
                                       style={{
@@ -1004,7 +1049,7 @@ export default function PlanejamentoMensal() {
                                         borderLeft: cur ? "2px solid #E8CD7E" : undefined,
                                         borderRight: cur ? "2px solid #E8CD7E" : undefined,
                                       }}>
-                                    <span>{r.fmt(v)}</span>
+                                    {conteudo}
                                     <span style={{ fontSize: 11, marginLeft: 4 }}>
                                       <Trend cur={v} prev={pv} lowerIsBetter={r.lowerIsBetter} />
                                     </span>
