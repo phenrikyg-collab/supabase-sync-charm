@@ -13,8 +13,16 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { num, pct, pick } from "@/lib/coortes";
+import RepresentatividadeTamanho from "./RepresentatividadeTamanho";
+import OportunidadesSeo from "./OportunidadesSeo";
 
 const TAMANHOS = ["P", "M", "G", "GG", "EG"];
 
