@@ -958,11 +958,28 @@ function LinhaSolicitacao({ l }: { l: any }) {
                 )}
               </div>
             </div>
-            {timeline.length > 0 && (
-              <div className="mt-4 border-t pt-4">
-                <LinhaDoTempo timeline={timeline} paradaHaDias={l.parada_ha_dias} />
-              </div>
-            )}
+            <div className="mt-4 border-t pt-4">
+              <AcoesSolicitacao linha={l} />
+            </div>
+            <div className="mt-4 border-t pt-4">
+              <Tabs defaultValue="historico">
+                <TabsList>
+                  <TabsTrigger value="historico">Histórico</TabsTrigger>
+                  <TabsTrigger value="painel">Ações do painel</TabsTrigger>
+                </TabsList>
+                <TabsContent value="historico" className="pt-3">
+                  {timeline.length > 0 ? (
+                    <LinhaDoTempo timeline={timeline} paradaHaDias={l.parada_ha_dias} />
+                  ) : (
+                    <Vazio texto="Sem histórico" />
+                  )}
+                </TabsContent>
+                <TabsContent value="painel" className="pt-3">
+                  <AcoesDoPainel requestId={l.request_id ?? l.id} />
+                </TabsContent>
+              </Tabs>
+            </div>
+
           </TableCell>
         </TableRow>
       )}
