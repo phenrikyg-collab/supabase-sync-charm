@@ -34,13 +34,13 @@ import { SeletorObjetivoPost, objetivoInferido, type ObjetivoPost } from "./Obje
 import { BlocoRespostasCompra, BlocoRespostasFallback } from "./RespostasCompraFallback";
 import { uploadMidia, ehUrlDeVideo } from "./midiaUpload";
 import {
-  BlocoTikTok,
-  TIKTOK_FORM_VAZIO,
-  compatibilidadeTikTok,
-  payloadTikTok,
-  tiktokFormDaLinha,
-  type TikTokFormState,
-} from "./BlocoTikTok";
+  BlocoBuffer,
+  BUFFER_FORM_VAZIO,
+  bufferFormDasLinhas,
+  compatibilidadeBuffer,
+  payloadDestino,
+  type BufferFormState,
+} from "./BlocoBuffer";
 import {
   limparPlaceholderLink,
   vipCliquesPorGrupo,
@@ -53,15 +53,19 @@ import {
   type VipMensagemEstado,
 } from "@/lib/vipPublicacao";
 import {
-  STATUS_TIKTOK_COR,
-  lerTikTokConfig,
-  listarTikTokPublicacoes,
+  NOME_SERVICO,
+  SERVICOS,
+  STATUS_BUFFER_COR,
+  apagarDestino,
+  listarBufferPublicacoes,
+  listarCanaisBuffer,
   mensagemDoResultado,
-  publicarTikTokAgora,
-  salvarTikTokPublicacao,
-  type TikTokConfig,
-  type TikTokPublicacao,
-} from "@/lib/tiktok";
+  publicarBufferAgora,
+  salvarDestino,
+  type BufferCanal,
+  type BufferPublicacao,
+  type ServicoBuffer,
+} from "@/lib/buffer";
 
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -231,64 +235,59 @@ const CTAS = [
   { valor: "seguir", titulo: "Seguir o perfil", descricao: "Cresce a base de seguidores" },
 ];
 
-/** Linha de status do TikTok exibida dentro do card da publicação. */
-function LinhaTikTok({
-  tt,
+/** Linha de status de um destino da Buffer dentro do card da publicação. */
+function LinhaDestino({
+  linha,
   publicando,
   onPublicar,
-  onDuplicar,
 }: {
-  tt: TikTokPublicacao;
+  linha: BufferPublicacao;
   publicando: boolean;
   onPublicar: () => void;
-  onDuplicar: () => void;
 }) {
+  const servico = (linha.servico ?? "tiktok") as ServicoBuffer;
+  const status = linha.status ?? "rascunho";
   return (
     <div className="flex flex-wrap items-center gap-2 border-t pt-2" onClick={(e) => e.stopPropagation()}>
-      <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">TikTok</span>
+      <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+        {NOME_SERVICO[servico] ?? servico}
+      </span>
       <span
         className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-semibold ${
-          STATUS_TIKTOK_COR[tt.status ?? "rascunho"] ?? STATUS_TIKTOK_COR.rascunho
+          STATUS_BUFFER_COR[status] ?? STATUS_BUFFER_COR.rascunho
         }`}
       >
-        {tt.status ?? "rascunho"}
+        {status}
       </span>
-      {tt.status === "publicando" && (
+      {status === "publicando" && (
         <span className="text-[11px] text-muted-foreground">
-          Enviado à Buffer. Pode levar alguns minutos para aparecer no TikTok.
+          Enviado à Buffer. Pode levar alguns minutos para aparecer.
         </span>
       )}
-      {tt.status === "publicado" && (
+      {status === "publicado" && (
         <span className="text-[11px] text-muted-foreground">
-          Publicado{tt.publicado_em ? ` · ${dataHoraBR(tt.publicado_em)}` : ""}
+          Publicado{linha.publicado_em ? ` · ${dataHoraBR(linha.publicado_em)}` : ""}
         </span>
       )}
-      {tt.erro && (
+      {linha.erro && (
         <span
-          className={`text-[11px] max-w-[320px] truncate ${tt.status === "falhou" ? "text-danger" : "text-amber-600"}`}
-          title={tt.erro}
+          className={`text-[11px] max-w-[320px] truncate ${status === "falhou" ? "text-danger" : "text-amber-600"}`}
+          title={linha.erro}
         >
-          {tt.erro}
+          {linha.erro}
         </span>
       )}
-      <div className="ml-auto flex gap-2">
-        {tt.status !== "publicado" && (
+      {status !== "publicado" && (
+        <div className="ml-auto">
           <Button size="sm" variant="outline" onClick={onPublicar} disabled={publicando}>
             {publicando && <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />}
             Publicar agora
           </Button>
-        )}
-        {tt.status === "publicado" && (
-          <Button size="sm" variant="outline" onClick={onDuplicar}>
-            <Copy className="h-3.5 w-3.5 mr-1" /> Duplicar
-          </Button>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 }
-
-
 
 const ESTILOS = [
   { valor: "trend", titulo: "Trend / áudio do momento" },
@@ -330,14 +329,21 @@ export function PublicacoesTab() {
   const [copiadoVip, setCopiadoVip] = useState(false);
   const [avisoRespostas, setAvisoRespostas] = useState<string[]>([]);
 
-  // ===== TikTok =====
-  const [ttConfig, setTtConfig] = useState<TikTokConfig | null>(null);
-  const [ttForm, setTtForm] = useState<TikTokFormState>(TIKTOK_FORM_VAZIO);
-  const [ttLinha, setTtLinha] = useState<TikTokPublicacao | null>(null);
-  const [ttErro, setTtErro] = useState<string | null>(null);
-  const [ttPorIg, setTtPorIg] = useState<Map<string, TikTokPublicacao>>(new Map());
-  const [ttSoltas, setTtSoltas] = useState<TikTokPublicacao[]>([]);
-  const [ttPublicando, setTtPublicando] = useState<string | null>(null);
+  // ===== Buffer (TikTok, YouTube, Pinterest) =====
+  const [canais, setCanais] = useState<BufferCanal[]>([]);
+  const [bufForm, setBufForm] = useState<BufferFormState>(BUFFER_FORM_VAZIO);
+  const [bufLinhas, setBufLinhas] = useState<BufferPublicacao[]>([]);
+  // Um id por destino: se um serviço falhar, a nova tentativa não duplica os já salvos.
+  const [bufIds, setBufIds] = useState<Record<ServicoBuffer, string | null>>({
+    tiktok: null,
+    youtube: null,
+    pinterest: null,
+  });
+  const [grupoId, setGrupoId] = useState<string | null>(null);
+  const [bufErro, setBufErro] = useState<string | null>(null);
+  const [bufPorIg, setBufPorIg] = useState<Map<string, BufferPublicacao[]>>(new Map());
+  const [bufSoltas, setBufSoltas] = useState<BufferPublicacao[][]>([]);
+  const [bufPublicando, setBufPublicando] = useState<string | null>(null);
   const [publicarNoIg, setPublicarNoIg] = useState(true);
   // Chave de idempotência: um UUID por sessão de composição. Não muda entre
   // tentativas de salvar — a retentativa vira UPDATE na mesma linha, nunca duplicata.
@@ -356,20 +362,25 @@ export function PublicacoesTab() {
         toast.error("Falha ao carregar produtos", { description: e?.message });
         return [] as ProdutoPai[];
       }),
-      listarTikTokPublicacoes().catch(() => [] as TikTokPublicacao[]),
-      lerTikTokConfig().catch(() => null),
+      listarBufferPublicacoes().catch(() => [] as BufferPublicacao[]),
+      listarCanaisBuffer().catch(() => [] as BufferCanal[]),
     ]);
     setPublicacoes((pubs ?? []) as Publicacao[]);
     setProdutos(prods);
-    const mapa = new Map<string, TikTokPublicacao>();
-    const soltas: TikTokPublicacao[] = [];
+    const mapa = new Map<string, BufferPublicacao[]>();
+    const grupos = new Map<string, BufferPublicacao[]>();
     for (const t of tts) {
-      if (t.publicacao_ig_id != null) mapa.set(String(t.publicacao_ig_id), t);
-      else soltas.push(t);
+      if (t.publicacao_ig_id != null) {
+        const k = String(t.publicacao_ig_id);
+        mapa.set(k, [...(mapa.get(k) ?? []), t]);
+      } else {
+        const k = t.grupo_id ?? `avulso_${t.id}`;
+        grupos.set(k, [...(grupos.get(k) ?? []), t]);
+      }
     }
-    setTtPorIg(mapa);
-    setTtSoltas(soltas);
-    setTtConfig(cfg);
+    setBufPorIg(mapa);
+    setBufSoltas([...grupos.values()]);
+    setCanais(cfg);
     setCarregando(false);
   }, []);
 
@@ -451,9 +462,11 @@ export function PublicacoesTab() {
     setIaContexto("");
     setIaRaciocinio(null);
     setAvisoRespostas([]);
-    setTtForm(TIKTOK_FORM_VAZIO);
-    setTtLinha(null);
-    setTtErro(null);
+    setBufForm(BUFFER_FORM_VAZIO);
+    setBufLinhas([]);
+    setBufIds({ tiktok: null, youtube: null, pinterest: null });
+    setGrupoId(null);
+    setBufErro(null);
     setPublicarNoIg(true);
     setForm({
       ...FORM_VAZIO,
@@ -487,10 +500,16 @@ export function PublicacoesTab() {
     setIaRaciocinio(null);
     setAvisoRespostas([]);
     setPublicarNoIg(true);
-    setTtErro(null);
-    const tt = p.id != null ? ttPorIg.get(String(p.id)) ?? null : null;
-    setTtLinha(tt);
-    setTtForm(tt ? tiktokFormDaLinha(tt) : TIKTOK_FORM_VAZIO);
+    setBufErro(null);
+    const linhas = p.id != null ? bufPorIg.get(String(p.id)) ?? [] : [];
+    setBufLinhas(linhas);
+    setBufForm(linhas.length ? bufferFormDasLinhas(linhas) : BUFFER_FORM_VAZIO);
+    setGrupoId(linhas[0]?.grupo_id ?? null);
+    setBufIds({
+      tiktok: linhas.find((l) => l.servico === "tiktok")?.id ?? null,
+      youtube: linhas.find((l) => l.servico === "youtube")?.id ?? null,
+      pinterest: linhas.find((l) => l.servico === "pinterest")?.id ?? null,
+    });
 
     const d = p.agendado_para ? new Date(p.agendado_para) : null;
     setForm({
@@ -660,45 +679,35 @@ export function PublicacoesTab() {
   const legendaObrigatoriaFaltando =
     publicarNoIg && form.tipo !== "STORIES" && !form.legenda.trim();
 
-  // Compatibilidade Instagram → TikTok (usa a mídia já anexada na tela)
-  const compatTikTok = useMemo(
-    () => compatibilidadeTikTok(form.tipo, itens.map((i) => ({ url: i.url, isVideo: i.isVideo }))),
+  // Compatibilidade Instagram → Buffer (usa a mídia já anexada na tela)
+  const compatBuffer = useMemo(
+    () => compatibilidadeBuffer(form.tipo, itens.map((i) => ({ url: i.url, isVideo: i.isVideo }))),
     [form.tipo, itens],
   );
 
-  /** Publicar agora no TikTok, direto da lista. */
-  const publicarTikTok = async (linha: TikTokPublicacao) => {
-    if (!linha.id || ttPublicando) return;
-    setTtPublicando(linha.id);
+  const algumDestino =
+    bufForm.tiktok.ativo || bufForm.youtube.ativo || bufForm.pinterest.ativo;
+
+  /** Publicar agora um destino, direto da lista. */
+  const publicarDestino = async (linha: BufferPublicacao) => {
+    if (!linha.id || bufPublicando) return;
+    setBufPublicando(linha.id);
     try {
-      const r = await publicarTikTokAgora(linha.id);
-      const { texto, ok } = mensagemDoResultado(r);
-      if (ok) toast.success(texto);
-      else toast.error(texto);
+      const resultados = await publicarBufferAgora({ id: linha.id });
+      for (const r of resultados) {
+        const msg = mensagemDoResultado(r);
+        if (!msg) continue;
+        const prefixo = r.servico ? `${NOME_SERVICO[r.servico as ServicoBuffer] ?? r.servico}: ` : "";
+        if (msg.ok) toast.success(prefixo + msg.texto);
+        else toast.error(prefixo + msg.texto);
+      }
       await carregar();
     } catch (e: any) {
-      toast.error(e?.message ?? "Falha ao publicar no TikTok");
+      toast.error(e?.message ?? "Falha ao publicar pela Buffer");
     } finally {
-      setTtPublicando(null);
+      setBufPublicando(null);
     }
   };
-
-  /** Post publicado não volta pra fila: duplicar cria uma linha nova como rascunho. */
-  const duplicarTikTok = async (linha: TikTokPublicacao) => {
-    const { id, publish_id, post_id, publicado_em, erro, criado_em, atualizado_em, ...resto } = linha as any;
-    try {
-      await salvarTikTokPublicacao(
-        { ...resto, publish_id: null, post_id: null, publicado_em: null, erro: null, status: "rascunho", agendado_para: null },
-        null,
-      );
-      toast.success("Cópia criada como rascunho no TikTok — escolha a nova data.");
-      await carregar();
-    } catch (e: any) {
-      toast.error(e?.message ?? "Falha ao duplicar");
-    }
-  };
-
-
 
   const salvar = async (opcoes?: { publicarAgora?: boolean }) => {
     if (salvando) return;
