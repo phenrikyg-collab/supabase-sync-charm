@@ -1,28 +1,18 @@
 import { useCallback, useEffect, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
-import { AlertTriangle, Loader2, Music2, RefreshCw, Unplug } from "lucide-react";
-import { desconectarTikTok, iniciarOAuthTikTok, lerTikTokConfig, type TikTokConfig } from "@/lib/tiktok";
+import { Music2 } from "lucide-react";
+import { lerTikTokConfig, type TikTokConfig } from "@/lib/tiktok";
 
-/** Card de conexão da conta do TikTok (Configurações › Integrações). */
+/**
+ * Estado da publicação no TikTok (Configurações › Integrações).
+ * Desde 03/09 quem publica é a Buffer — não há mais OAuth do TikTok aqui.
+ * A chave da Buffer é configurada pelo responsável técnico, direto no banco.
+ */
 export function TikTokConexaoCard() {
   const [cfg, setCfg] = useState<TikTokConfig | null>(null);
   const [carregando, setCarregando] = useState(true);
-  const [conectando, setConectando] = useState(false);
-  const [desconectando, setDesconectando] = useState(false);
 
   const carregar = useCallback(async () => {
     try {
@@ -38,53 +28,7 @@ export function TikTokConexaoCard() {
     carregar();
   }, [carregar]);
 
-  // A autorização termina numa página do próprio backend, na outra aba — o
-  // painel não é avisado. Reler a view quando a aba voltar a ter foco.
-  useEffect(() => {
-    const aoVoltar = () => {
-      if (!document.hidden) carregar();
-    };
-    document.addEventListener("visibilitychange", aoVoltar);
-    window.addEventListener("focus", aoVoltar);
-    return () => {
-      document.removeEventListener("visibilitychange", aoVoltar);
-      window.removeEventListener("focus", aoVoltar);
-    };
-  }, [carregar]);
-
-  const conectar = async () => {
-    if (conectando) return;
-    setConectando(true);
-    try {
-      const url = await iniciarOAuthTikTok();
-      window.open(url, "_blank");
-    } catch (e: any) {
-      toast.error(e?.message ?? "Não foi possível iniciar a conexão com o TikTok");
-    } finally {
-      setConectando(false);
-    }
-  };
-
-  const desconectar = async () => {
-    if (desconectando) return;
-    setDesconectando(true);
-    try {
-      const r = await desconectarTikTok();
-      if (!r.ok) {
-        // Recusa (ex.: post processando): manter o card e só mostrar o texto.
-        toast.error(r.erro ?? "Não foi possível desconectar o TikTok agora.");
-        return;
-      }
-      toast.success("TikTok desconectado.");
-      await carregar();
-    } finally {
-      setDesconectando(false);
-    }
-  };
-
-  const conectado = cfg?.conectado === true;
-  const refreshVencido =
-    !!cfg?.refresh_expira_em && new Date(cfg.refresh_expira_em).getTime() < Date.now();
+  const conectado = cfg?.buffer_conectado === true;
 
   return (
     <Card>
@@ -103,79 +47,20 @@ export function TikTokConexaoCard() {
           </div>
 
           {carregando ? (
-            <Skeleton className="h-9 w-36" />
+            <Skeleton className="h-9 w-56" />
           ) : conectado ? (
-            <div className="flex items-center gap-3 flex-wrap">
-              {cfg?.creator_avatar_url && (
-                <img
-                  src={cfg.creator_avatar_url}
-                  alt={cfg.creator_nickname ?? "Conta do TikTok"}
-                  className="h-10 w-10 rounded-full object-cover border"
-                />
-              )}
-              <div className="text-sm">
-                <p className="font-medium leading-tight">{cfg?.creator_nickname ?? "Conta conectada"}</p>
-                <p className="text-xs text-muted-foreground">@{cfg?.creator_username ?? "—"}</p>
-              </div>
-              <Button variant="outline" size="sm" onClick={conectar} disabled={conectando || desconectando}>
-                {conectando ? (
-                  <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
-                ) : (
-                  <RefreshCw className="h-3.5 w-3.5 mr-1.5" />
-                )}
-                Reconectar
-              </Button>
-              <AlertDialog>
-                <AlertDialogTrigger asChild>
-                  <Button variant="ghost" size="sm" disabled={conectando || desconectando}>
-                    {desconectando ? (
-                      <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
-                    ) : (
-                      <Unplug className="h-3.5 w-3.5 mr-1.5" />
-                    )}
-                    Desconectar
-                  </Button>
-                </AlertDialogTrigger>
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>Desconectar o TikTok?</AlertDialogTitle>
-                    <AlertDialogDescription>
-                      Isso não apaga nada no TikTok. Os posts já publicados continuam lá. Só desliga
-                      a conexão com o painel, e agendamentos futuros param de subir até reconectar.
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                    <AlertDialogAction onClick={desconectar}>Desconectar</AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
-            </div>
+            <p className="text-sm">
+              Publicando no TikTok via Buffer, canal{" "}
+              <strong>@{cfg?.buffer_channel_nome ?? "—"}</strong>
+            </p>
           ) : (
-            <Button onClick={conectar} disabled={conectando}>
-              {conectando && <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />}
-              Conectar TikTok
-            </Button>
+            <p className="text-sm text-muted-foreground">
+              Publicação no TikTok desligada. A chave da Buffer não está configurada.
+            </p>
           )}
         </div>
 
-        {!carregando && conectado && cfg?.auditado === false && (
-          <div className="rounded-lg border border-warning/30 bg-warning/10 p-3 flex items-start gap-2">
-            <AlertTriangle className="h-4 w-4 text-warning shrink-0 mt-0.5" />
-            <p className="text-xs">
-              App em auditoria no TikTok. Até a aprovação, só dá para publicar em conta no modo
-              privado, e o post sai como "Só eu".
-            </p>
-          </div>
-        )}
-
-        {!carregando && conectado && refreshVencido && (
-          <p className="text-xs text-danger font-medium">
-            A autorização do TikTok venceu. Reconecte a conta.
-          </p>
-        )}
-
-        {!carregando && conectado && cfg?.ultimo_erro && (
+        {!carregando && cfg?.ultimo_erro && (
           <p className="text-xs text-danger">{cfg.ultimo_erro}</p>
         )}
       </CardContent>
