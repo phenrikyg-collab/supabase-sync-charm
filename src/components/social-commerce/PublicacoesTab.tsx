@@ -54,15 +54,12 @@ import {
 } from "@/lib/vipPublicacao";
 import {
   STATUS_TIKTOK_COR,
-  lerCreatorInfo,
   lerTikTokConfig,
   listarTikTokPublicacoes,
   mensagemDoResultado,
   publicarTikTokAgora,
   salvarTikTokPublicacao,
-  urlDoPostTikTok,
   type TikTokConfig,
-  type TikTokCreatorInfo,
   type TikTokPublicacao,
 } from "@/lib/tiktok";
 
@@ -237,18 +234,15 @@ const CTAS = [
 /** Linha de status do TikTok exibida dentro do card da publicação. */
 function LinhaTikTok({
   tt,
-  username,
   publicando,
   onPublicar,
   onDuplicar,
 }: {
   tt: TikTokPublicacao;
-  username?: string | null;
   publicando: boolean;
   onPublicar: () => void;
   onDuplicar: () => void;
 }) {
-  const link = urlDoPostTikTok(username, tt.post_id);
   return (
     <div className="flex flex-wrap items-center gap-2 border-t pt-2" onClick={(e) => e.stopPropagation()}>
       <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">TikTok</span>
@@ -261,17 +255,14 @@ function LinhaTikTok({
       </span>
       {tt.status === "publicando" && (
         <span className="text-[11px] text-muted-foreground">
-          Enviado ao TikTok. Pode levar alguns minutos para processar e aparecer no perfil.
+          Enviado à Buffer. Pode levar alguns minutos para aparecer no TikTok.
         </span>
       )}
-      {tt.status === "publicado" &&
-        (link ? (
-          <a href={link} target="_blank" rel="noreferrer" className="text-[11px] underline text-primary">
-            Ver no TikTok
-          </a>
-        ) : (
-          <span className="text-[11px] text-muted-foreground">Publicado (privado)</span>
-        ))}
+      {tt.status === "publicado" && (
+        <span className="text-[11px] text-muted-foreground">
+          Publicado{tt.publicado_em ? ` · ${dataHoraBR(tt.publicado_em)}` : ""}
+        </span>
+      )}
       {tt.erro && (
         <span
           className={`text-[11px] max-w-[320px] truncate ${tt.status === "falhou" ? "text-danger" : "text-amber-600"}`}
@@ -341,8 +332,6 @@ export function PublicacoesTab() {
 
   // ===== TikTok =====
   const [ttConfig, setTtConfig] = useState<TikTokConfig | null>(null);
-  const [ttCreator, setTtCreator] = useState<TikTokCreatorInfo | null>(null);
-  const [ttCarregandoCreator, setTtCarregandoCreator] = useState(false);
   const [ttForm, setTtForm] = useState<TikTokFormState>(TIKTOK_FORM_VAZIO);
   const [ttLinha, setTtLinha] = useState<TikTokPublicacao | null>(null);
   const [ttErro, setTtErro] = useState<string | null>(null);
@@ -426,19 +415,6 @@ export function PublicacoesTab() {
     };
   }, [modalAberto, editando?.vip_mensagem_id]);
 
-  // Dados frescos do criador sempre que a tela de agendamento abre.
-  useEffect(() => {
-    if (!modalAberto || ttConfig?.conectado !== true) return;
-    let vivo = true;
-    setTtCarregandoCreator(true);
-    lerCreatorInfo()
-      .then((ci) => vivo && setTtCreator(ci))
-      .catch(() => vivo && setTtCreator(null))
-      .finally(() => vivo && setTtCarregandoCreator(false));
-    return () => {
-      vivo = false;
-    };
-  }, [modalAberto, ttConfig?.conectado]);
 
 
   const pubsPorDia = useMemo(() => {
@@ -697,8 +673,7 @@ export function PublicacoesTab() {
     try {
       const r = await publicarTikTokAgora(linha.id);
       const { texto, ok } = mensagemDoResultado(r);
-      const link = urlDoPostTikTok(ttConfig?.creator_username, r.post_id);
-      if (ok) toast.success(texto, { description: link ?? undefined });
+      if (ok) toast.success(texto);
       else toast.error(texto);
       await carregar();
     } catch (e: any) {
@@ -1043,7 +1018,6 @@ export function PublicacoesTab() {
                    {tt && (
                      <LinhaTikTok
                        tt={tt}
-                       username={ttConfig?.creator_username}
                        publicando={ttPublicando === tt.id}
                        onPublicar={() => publicarTikTok(tt)}
                        onDuplicar={() => duplicarTikTok(tt)}
@@ -1071,7 +1045,6 @@ export function PublicacoesTab() {
                     </div>
                     <LinhaTikTok
                       tt={tt}
-                      username={ttConfig?.creator_username}
                       publicando={ttPublicando === tt.id}
                       onPublicar={() => publicarTikTok(tt)}
                       onDuplicar={() => duplicarTikTok(tt)}
@@ -1479,8 +1452,6 @@ export function PublicacoesTab() {
                 form={ttForm}
                 onChange={setTtForm}
                 config={ttConfig}
-                creatorInfo={ttCreator}
-                carregandoCreator={ttCarregandoCreator}
                 compat={compatTikTok}
                 legendaIg={form.legenda}
                 onErroValidacao={setTtErro}
