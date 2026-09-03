@@ -503,86 +503,6 @@ export default function CronogramaCorte({ ano, mes }: { ano: number; mes: number
           </Card>
         );
       })}
-        return (
-          <Card key={i}>
-            <CardHeader className="pb-2">
-              <CardTitle className="flex flex-wrap items-center gap-2 text-base">
-                <span>
-                  {String(
-                    pick(m, "modelo", "produto", "nome", "nome_produto") ?? "Sem nome",
-                  )}
-                </span>
-                {pick(m, "linha_continua") === true && (
-                  <Badge variant="outline" className="text-xs">
-                    linha contínua
-                  </Badge>
-                )}
-              </CardTitle>
-              <Chips titulo="Meta do mês" fonte={pick(m, "demanda_por_tamanho")} />
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {!riscos.length && (
-                <p className="text-sm text-muted-foreground">Sem corte planejado.</p>
-              )}
-              {riscos.map((r, j) => {
-                const dem = pick(r, "demanda_mes");
-                const nec = pick(r, "necessidade");
-                const prod = pick(r, "producao");
-                const tams = tamanhosPresentes(dem, nec, prod).filter(
-                  (t) =>
-                    porTamanho(dem, t) > 0 ||
-                    porTamanho(nec, t) > 0 ||
-                    porTamanho(prod, t) > 0,
-                );
-                return (
-                  <div key={j} className="rounded-md border p-3">
-                    <div className="mb-2 flex flex-wrap items-center gap-2 text-sm font-medium">
-                      <span>Risco {num(pick(r, "risco", "numero", "ordem") ?? j + 1)}</span>
-                      {pick(r, "total_pecas", "pecas") != null && (
-                        <Badge variant="outline" className="text-xs">
-                          {num(pick(r, "total_pecas", "pecas"))} peças
-                        </Badge>
-                      )}
-                    </div>
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Tamanho</TableHead>
-                          <TableHead className="text-right">Meta do mês</TableHead>
-                          <TableHead className="text-right">Falta</TableHead>
-                          <TableHead className="text-right">Produção</TableHead>
-                          <TableHead className="text-right">Sobra</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {tams.map((t) => {
-                          const p = porTamanho(prod, t);
-                          const f = porTamanho(nec, t);
-                          return (
-                            <TableRow key={t}>
-                              <TableCell className="font-medium">{t}</TableCell>
-                              <TableCell className="text-right">
-                                {num(porTamanho(dem, t))}
-                              </TableCell>
-                              <TableCell className="text-right">{num(f)}</TableCell>
-                              <TableCell className="text-right">{num(p)}</TableCell>
-                              <TableCell className="text-right">{num(p - f)}</TableCell>
-                            </TableRow>
-                          );
-                        })}
-                      </TableBody>
-                    </Table>
-                    <p className="mt-2 text-xs text-muted-foreground">
-                      Meta do mês é o total que a venda exige. Falta é o que sobrou
-                      depois do estoque. São números diferentes de propósito.
-                    </p>
-                  </div>
-                );
-              })}
-            </CardContent>
-          </Card>
-        );
-      })}
 
       {/* B5 — linha contínua sem corte */}
       {!!semCorte.length && (
@@ -599,7 +519,10 @@ export default function CronogramaCorte({ ano, mes }: { ano: number; mes: number
                 <span className="font-medium">
                   {String(pick(m, "modelo", "produto", "nome", "nome_produto") ?? "—")}
                 </span>
-                <Chips titulo="Meta do mês" fonte={pick(m, "demanda_por_tamanho")} />
+                <Chips
+                  titulo="Meta do mês"
+                  fonte={pick(m, "demanda_por_tamanho_lista") ?? pick(m, "demanda_por_tamanho")}
+                />
               </div>
             ))}
           </CardContent>
