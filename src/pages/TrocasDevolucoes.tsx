@@ -825,7 +825,7 @@ function LinhaSolicitacao({ l }: { l: any }) {
             {itens.length > 3 && <p className="text-xs text-muted-foreground">+{itens.length - 3} itens</p>}
           </div>
         </TableCell>
-        <TableCell className="text-xs">{l.motivo_area_rotulo ?? l.motivo ?? itens[0]?.motivo_area_rotulo ?? itens[0]?.motivo ?? "—"}</TableCell>
+        <TableCell className="text-xs">{l.motivo ?? itens[0]?.motivo ?? "—"}</TableCell>
         <TableCell className="text-right text-sm">{brl(l.valor ?? l.valor_total)}</TableCell>
         <TableCell>
           <Badge variant="outline" className="text-[10px]">
