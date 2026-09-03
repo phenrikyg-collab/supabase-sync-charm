@@ -1,7 +1,7 @@
 import {
   LayoutDashboard, Package, Plus, Palette, Scissors, Factory,
   Truck, DollarSign, Target, FileText, Building2, LogOut, Users, Home, BarChart3, Upload, Layers,
-  ShoppingBag, Banknote, Wrench, CreditCard, PieChart, Monitor, Settings, Trophy, CalendarDays, TrendingUp, ClipboardList, Megaphone, Tag, Sparkles, Heart, LayoutGrid,
+  ShoppingBag, Undo2, Banknote, Wrench, CreditCard, PieChart, Monitor, Settings, Trophy, CalendarDays, TrendingUp, ClipboardList, Megaphone, Tag, Sparkles, Heart, LayoutGrid,
   Compass, Boxes, UserSquare2, Link as LinkIcon, MessageCircle, Workflow, Mail, ShoppingCart, PackageX, Radar, Ticket,
   BellRing, Instagram,
   BadgeDollarSign,
@@ -69,6 +69,7 @@ const moduleGroups: ModuleGroup[] = [
       { title: "Dashboard de Produtos", url: "/dashboard-produtos", icon: Boxes },
       { title: "Ordens de Produção", url: "/ordens-producao", icon: LayoutGrid },
       { title: "Bonificação WhatsApp", url: "/bonificacao-whatsapp", icon: Trophy },
+      { title: "Trocas & Devoluções", url: "/comercial/trocas-devolucoes", icon: Undo2 },
     ],
   },
   {

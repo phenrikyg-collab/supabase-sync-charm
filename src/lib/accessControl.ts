@@ -30,6 +30,7 @@ export const ROUTE_ACCESS: Record<string, Requirement> = {
   "/lancamentos": ["comercial"],
   "/dashboard-produtos": ["comercial"],
   "/bonificacao-whatsapp": ["comercial"],
+  "/comercial/trocas-devolucoes": ["comercial"],
 
   // Marketing (Meta Ads / GA4 também aparecem em Gestão & Estratégia)
   "/marketing": ["marketing", "gestao"],

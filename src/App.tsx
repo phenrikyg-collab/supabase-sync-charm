@@ -56,6 +56,7 @@ import PlanoProducao from "./pages/PlanoProducao";
 import Marketing from "./pages/Marketing";
 import PadroesPedidos from "./pages/PadroesPedidos";
 import ProdutosCampanha from "./pages/ProdutosCampanha";
+import TrocasDevolucoes from "./pages/TrocasDevolucoes";
 import PlanoComercial from "./pages/PlanoComercial";
 import Lancamentos from "./pages/Lancamentos";
 import MarketingAnalyticsPerfil from "./pages/marketing-analytics/Perfil";
@@ -251,6 +252,7 @@ const AppRoutes = () => {
               <Route path="/marketing" element={<Marketing />} />
               <Route path="/padroes-pedidos" element={<PadroesPedidos />} />
               <Route path="/produtos-campanha" element={<ProdutosCampanha />} />
+              <Route path="/comercial/trocas-devolucoes" element={<TrocasDevolucoes />} />
               <Route path="/plano-comercial" element={<PlanoComercial />} />
               <Route path="/lancamentos" element={<Lancamentos />} />
               <Route path="/marketing-analytics" element={<MarketingAnalyticsPerfil />} />
