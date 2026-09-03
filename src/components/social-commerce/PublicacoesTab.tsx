@@ -415,19 +415,6 @@ export function PublicacoesTab() {
     };
   }, [modalAberto, editando?.vip_mensagem_id]);
 
-  // Dados frescos do criador sempre que a tela de agendamento abre.
-  useEffect(() => {
-    if (!modalAberto || ttConfig?.conectado !== true) return;
-    let vivo = true;
-    setTtCarregandoCreator(true);
-    lerCreatorInfo()
-      .then((ci) => vivo && setTtCreator(ci))
-      .catch(() => vivo && setTtCreator(null))
-      .finally(() => vivo && setTtCarregandoCreator(false));
-    return () => {
-      vivo = false;
-    };
-  }, [modalAberto, ttConfig?.conectado]);
 
 
   const pubsPorDia = useMemo(() => {
