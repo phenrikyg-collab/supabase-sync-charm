@@ -231,28 +231,26 @@ export default function TrocasDevolucoes() {
               {d.periodo ? `${dataBR(d.periodo.inicio)} a ${dataBR(d.periodo.fim)} · ${num(d.periodo.dias)} dias` : "Logística reversa"}
             </p>
           </div>
-          <div className="flex flex-wrap items-end gap-2">
-            <Select value={atalho} onValueChange={aplicarAtalho}>
-              <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="7">Últimos 7 dias</SelectItem>
-                <SelectItem value="30">Últimos 30 dias</SelectItem>
-                <SelectItem value="90">Últimos 90 dias</SelectItem>
-                <SelectItem value="365">Últimos 12 meses</SelectItem>
-                <SelectItem value="livre">Intervalo livre</SelectItem>
+          <div className="flex flex-col items-end gap-1">
+            <Select value={chave ?? ""} onValueChange={aplicarPeriodo}>
+              <SelectTrigger className="w-64"><SelectValue placeholder="Período" /></SelectTrigger>
+              <SelectContent className="max-h-80">
+                {atalhos.map((a: any) => (
+                  <SelectItem key={a.chave} value={String(a.chave)}>{a.rotulo}</SelectItem>
+                ))}
+                {atalhos.length > 0 && meses.length > 0 && <div className="my-1 h-px bg-border" />}
+                {meses.map((m: any) => (
+                  <SelectItem key={m.chave} value={String(m.chave)}>
+                    {(m.rotulo ?? `${m.mes_nome} / ${m.ano}`)} ({num(m.qtd)}){m.parcial ? " · em andamento" : ""}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
-            {atalho === "livre" && (
-              <>
-                <div className="space-y-1">
-                  <Label className="text-xs">Início</Label>
-                  <Input type="date" value={inicio} onChange={(e) => setInicio(e.target.value)} className="w-40" />
-                </div>
-                <div className="space-y-1">
-                  <Label className="text-xs">Fim</Label>
-                  <Input type="date" value={fim} onChange={(e) => setFim(e.target.value)} className="w-40" />
-                </div>
-              </>
+            <p className="text-xs text-muted-foreground">
+              {dataBR(inicio)} a {dataBR(fim)}
+            </p>
+            {selecionado?.parcial && (
+              <p className="text-xs text-amber-600">Mês em andamento — os números ainda vão mudar até o fim do mês.</p>
             )}
           </div>
         </div>
