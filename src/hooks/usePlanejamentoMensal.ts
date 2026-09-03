@@ -209,5 +209,21 @@ export const fmtBRL = (v: number | null | undefined) =>
 export const fmtNum = (v: number | null | undefined, decimals = 0) =>
   v == null || !isFinite(v) ? "—" : v.toLocaleString("pt-BR", { maximumFractionDigits: decimals });
 
+export const fmtBRL = (v: number | null | undefined) =>
+  v == null || !isFinite(v)
+    ? "—"
+    : v.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 });
+
+// Sempre com centavos — usado em CPS, onde valores abaixo de R$ 1 são comuns
+const brl2 = new Intl.NumberFormat("pt-BR", {
+  style: "currency", currency: "BRL", minimumFractionDigits: 2, maximumFractionDigits: 2,
+});
+export const fmtBRL2 = (v: number | null | undefined) =>
+  v == null || !isFinite(Number(v)) ? "—" : brl2.format(Number(v));
+
+export const fmtNum = (v: number | null | undefined, decimals = 0) =>
+  v == null || !isFinite(v) ? "—" : v.toLocaleString("pt-BR", { maximumFractionDigits: decimals });
+
 export const fmtPct = (v: number | null | undefined) =>
   v == null || !isFinite(v) ? "—" : `${Number(v).toFixed(1)}%`;
+
