@@ -47,7 +47,7 @@ type Insight = { card?: string; severidade?: string; titulo?: string; texto?: st
 const sevCor = (s?: string) =>
   s === "alto" ? "bg-destructive" : s === "medio" ? "bg-amber-500" : "bg-emerald-600";
 
-function PainelInsight({ insights, card }: { insights: Insight[]; card: string }) {
+function PainelInsight({ insights, card, semTitulo }: { insights: Insight[]; card: string; semTitulo?: boolean }) {
   const lista = insights.filter((i) => i?.card === card);
   if (!lista.length) return null;
   return (
