@@ -693,8 +693,8 @@ export default function TrocasDevolucoes() {
                     <TableBody>
                       {(d.pagamentos as any[]).map((p, i) => (
                         <TableRow key={i}>
-                          <TableCell className="text-sm">{p.preferencia ?? "—"}</TableCell>
-                          <TableCell className="text-sm">{p.metodo_pago ?? "—"}</TableCell>
+                          <TableCell className="text-sm">{p.preferencia_rotulo ?? p.preferencia ?? "—"}</TableCell>
+                          <TableCell className="text-sm">{p.metodo_pago_rotulo ?? p.metodo_pago ?? "—"}</TableCell>
                           <TableCell className="text-right">{num(p.qtd)}</TableCell>
                           <TableCell className="text-right">{brl(p.valor)}</TableCell>
                         </TableRow>
