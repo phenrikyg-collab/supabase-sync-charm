@@ -825,6 +825,8 @@ export default function TrocasDevolucoes() {
 function LinhaSolicitacao({ l }: { l: any }) {
   const [aberta, setAberta] = useState(false);
   const itens: any[] = Array.isArray(l.itens) ? l.itens : [];
+  const timeline: any[] = Array.isArray(l.linha_do_tempo) ? l.linha_do_tempo : [];
+  const ultimoMarco = timeline.length ? timeline[timeline.length - 1] : null;
   const est = String(l.estagio ?? "");
   const finalizada = est === "concluida" || est === "cancelada";
   const dias = n(l.dias_aberta ?? l.dias_em_aberto);
@@ -912,7 +914,7 @@ function LinhaSolicitacao({ l }: { l: any }) {
       </TableRow>
       {aberta && (
         <TableRow>
-          <TableCell colSpan={10} className="bg-muted/30">
+          <TableCell colSpan={11} className="bg-muted/30">
             <div className="grid gap-4 p-2 md:grid-cols-3">
               <div className="md:col-span-2 space-y-3">
                 <p className="text-sm font-medium">Itens</p>
