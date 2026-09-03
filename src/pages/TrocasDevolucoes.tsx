@@ -348,29 +348,37 @@ export default function TrocasDevolucoes() {
         <Card id="lista-solicitacoes">
           <CardHeader className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
             <CardTitle>
-              Solicitações {estagio ? `· ${estagio.replace(/_/g, " ")}` : "· todas"}{" "}
+              Solicitações · {lista.data?.estagio_rotulo ?? (estagio ? estagio.replace(/_/g, " ") : "todas")}{" "}
               <span className="text-sm font-normal text-muted-foreground">({num(total)})</span>
             </CardTitle>
             <div className="flex flex-wrap items-center gap-2">
               <div className="relative">
                 <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
                 <Input
-                  className="w-64 pl-8"
-                  placeholder="nome, e-mail, pedido ou rastreio"
+                  className="w-72 pl-8"
+                  placeholder="Buscar por pedido, cliente, e-mail, telefone, produto, SKU, cidade ou rastreio"
                   value={busca}
                   onChange={(e) => setBusca(e.target.value)}
                 />
               </div>
-              <Select value={ordem} onValueChange={setOrdem}>
-                <SelectTrigger className="w-44"><SelectValue /></SelectTrigger>
+              <Select value={preferencia ?? ""} onValueChange={(v) => setPreferencia(v || null)}>
+                <SelectTrigger className="w-44"><SelectValue placeholder="Preferência" /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="antigas">Mais antigas</SelectItem>
+                  <SelectItem value="voucher">Vale-trocas</SelectItem>
+                  <SelectItem value="refund">Reembolso</SelectItem>
+                  <SelectItem value="product">Troca por peça</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select value={ordem} onValueChange={setOrdem}>
+                <SelectTrigger className="w-56"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="prioridade">Prioridade (mais antigas primeiro)</SelectItem>
                   <SelectItem value="recentes">Mais recentes</SelectItem>
                   <SelectItem value="valor">Maior valor</SelectItem>
                 </SelectContent>
               </Select>
-              {estagio && (
-                <Button variant="ghost" size="sm" onClick={() => setEstagio(null)}>Limpar estágio</Button>
+              {(estagio || preferencia) && (
+                <Button variant="ghost" size="sm" onClick={() => { setEstagio(null); setPreferencia(null); }}>Limpar filtros</Button>
               )}
             </div>
           </CardHeader>
