@@ -699,7 +699,7 @@ export default function PlanejamentoMensal() {
   const metaLabel = tipo === "realizado" ? "Meta" : "Média Histórica";
   const metaFootnote = tipo === "realizado"
     ? "Meta = registro planejado do mês (fallback: média dos realizados anteriores)."
-    : "Média histórica vinda da função media_historica() — últimos 6 meses realizados.";
+    : `Média ponderada vinda da função media_historica() — janela de ${janela} meses.`;
 
 
   if (isLoading) {
