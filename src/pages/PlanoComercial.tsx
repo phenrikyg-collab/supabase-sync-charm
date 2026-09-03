@@ -269,12 +269,16 @@ export default function PlanoComercial() {
           <TableBody>
             {lista.map((p, i) => (
               <TableRow key={i}>
-                <TableCell>{pick(p, "produto", "nome", "produto_nome") ?? "—"}</TableCell>
+                <TableCell>
+                  {pick(p, "produto", "nome", "nome_produto", "produto_nome") ?? "—"}
+                </TableCell>
                 <TableCell className="text-right">{num(pick(p, "clientes"))}</TableCell>
                 <TableCell className="text-right">
                   {pct(pick(p, "pct_dos_clientes", "pct"))}
                 </TableCell>
-                <TableCell>{badgeEstoque(pick(p, "produto_id"))}</TableCell>
+                <TableCell>
+                  {badgeEstoque(pick(p, "produto_id", "tray_product_id"))}
+                </TableCell>
               </TableRow>
             ))}
           </TableBody>
