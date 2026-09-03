@@ -641,7 +641,7 @@ export default function TrocasDevolucoes() {
                           <TableRow key={i}>
                             <TableCell className="text-sm">{g.transportadora ?? "—"}</TableCell>
                             <TableCell className="text-xs">{g.servico ?? "—"}</TableCell>
-                            <TableCell className="text-xs">{g.forma_postagem ?? "—"}</TableCell>
+                            <TableCell className="text-xs">{g.forma_postagem_rotulo ?? g.forma_postagem ?? "—"}</TableCell>
                             <TableCell className="text-right">{num(g.qtd)}</TableCell>
                             <TableCell className="text-right">{brl(g.frete_medio)}</TableCell>
                             <TableCell className="text-right">{brl(g.frete_total)}</TableCell>
