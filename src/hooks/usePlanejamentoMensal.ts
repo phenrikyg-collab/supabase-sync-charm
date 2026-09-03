@@ -206,13 +206,7 @@ export const fmtBRL = (v: number | null | undefined) =>
     ? "—"
     : v.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 });
 
-export const fmtNum = (v: number | null | undefined, decimals = 0) =>
-  v == null || !isFinite(v) ? "—" : v.toLocaleString("pt-BR", { maximumFractionDigits: decimals });
 
-export const fmtBRL = (v: number | null | undefined) =>
-  v == null || !isFinite(v)
-    ? "—"
-    : v.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 });
 
 // Sempre com centavos — usado em CPS, onde valores abaixo de R$ 1 são comuns
 const brl2 = new Intl.NumberFormat("pt-BR", {
