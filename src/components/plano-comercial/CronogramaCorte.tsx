@@ -20,7 +20,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
-import { num, pct, pick } from "@/lib/coortes";
+import { brl, num, pct, pick } from "@/lib/coortes";
 import RepresentatividadeTamanho from "./RepresentatividadeTamanho";
 import OportunidadesSeo from "./OportunidadesSeo";
 
