@@ -211,18 +211,28 @@ function NovePilaresCard({
   );
 }
 
+function mesLabel(v: string | null | undefined): string | null {
+  if (!v) return null;
+  const m = String(v).match(/^(\d{4})-(\d{2})/);
+  if (m) return `${m[2]}/${m[1]}`;
+  return String(v);
+}
+
 function PlanejadoForm({
-  form, setField, isSaving, mediaHist, mediaOrganicas2m,
+  form, setField, isSaving, mediaHist, janela, setJanela, avisoPlano,
 }: {
   form: Manual;
   setField: (k: keyof Manual, v: number | null) => void;
   isSaving: boolean;
   mediaHist: MediaHistorica | null;
-  mediaOrganicas2m: number | null;
+  janela: number;
+  setJanela: (n: number) => void;
+  avisoPlano?: string | null;
 }) {
   const st = form.sessoes_totais ?? 0;
   const so = form.sessoes_organicas ?? 0;
   const sm = Math.max(st - so, 0);
+  const organicaEngole = st > 0 && so > st;
   const cps = form.premissa_cps_midia ?? 0;
   const it = sm * cps;
   const tc = form.premissa_taxa_conversao ?? 0;
@@ -242,70 +252,116 @@ function PlanejadoForm({
     if (mediaHist.cps_midia != null) setField("premissa_cps_midia", Number(mediaHist.cps_midia));
   };
 
-  const sub = (label: string, v: number | null | undefined, fmt: (x: number) => string) => (
+  const ini = mesLabel(mediaHist?.primeiro_mes);
+  const fim = mesLabel(mediaHist?.ultimo_mes);
+  const usados = mediaHist?.meses_usados ?? null;
+  const auditaveis = mediaHist?.meses_com_sessao_auditavel ?? null;
+  const janelaTxt = ini && fim ? `${ini} a ${fim}` : `últimos ${janela} meses`;
+  const mesesTxt = usados != null ? ` (${usados} ${usados === 1 ? "mês" : "meses"})` : "";
+
+  const sub = (v: number | null | undefined, fmt: (x: number) => string) => (
     <p className="text-[11px] text-muted-foreground mt-0.5">
-      Média histórica: {v == null || !isFinite(v) ? "—" : fmt(Number(v))}
+      Média ponderada {janelaTxt}{mesesTxt}: {v == null || !isFinite(Number(v)) ? "—" : fmt(Number(v))}
     </p>
   );
 
+  const mediaOrganicas = mediaHist?.sessoes_organicas ?? null;
+
   return (
     <>
-      <Card style={{ borderColor: "#F5E9B8" }}>
+      <Card style={{ borderColor: organicaEngole ? "#C0392B" : "#F5E9B8" }}>
         <CardHeader><CardTitle className="font-serif text-lg">Meta de Sessões</CardTitle></CardHeader>
         <CardContent className="space-y-3">
+          {avisoPlano && (
+            <div className="rounded-md border px-3 py-2 text-xs flex items-start gap-2"
+                 style={{ borderColor: "#C0392B", background: "#FFE8E5", color: "#C0392B" }}>
+              <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
+              <span>{avisoPlano}</span>
+            </div>
+          )}
           <NumInput label="Meta de Sessões Totais" value={form.sessoes_totais} onChange={(v) => setField("sessoes_totais", v)} disabled={isSaving} />
           <div>
             <div className="flex items-end justify-between gap-2">
               <div className="flex-1">
                 <NumInput label="Sessões Orgânicas Esperadas" value={form.sessoes_organicas} onChange={(v) => setField("sessoes_organicas", v)} disabled={isSaving} />
               </div>
-              {mediaOrganicas2m != null && (
+              {mediaOrganicas != null && (
                 <Button
                   type="button" variant="outline" size="sm"
-                  onClick={() => setField("sessoes_organicas", Math.round(mediaOrganicas2m))}
+                  onClick={() => setField("sessoes_organicas", Math.round(Number(mediaOrganicas)))}
                   disabled={isSaving}
                   className="gap-1 whitespace-nowrap"
-                  title="Usar média dos últimos 2 meses realizados"
+                  title="Usar a média ponderada da janela selecionada"
                 >
                   <RefreshCw className="h-3 w-3" /> Usar média
                 </Button>
               )}
             </div>
             <p className="text-[11px] text-muted-foreground mt-0.5">
-              Média últimos 2 meses (realizado): {mediaOrganicas2m == null ? "—" : `${fmtNum(Math.round(mediaOrganicas2m))} sessões`}
+              Média ponderada da janela: {mediaOrganicas == null ? "—" : fmtNum(Math.round(Number(mediaOrganicas)))}
             </p>
           </div>
-          <CalcField label="Sessões Mídia = Total − Orgânicas" value={sm} />
+          <div className={organicaEngole ? "rounded-md" : ""} style={organicaEngole ? { outline: "1px solid #C0392B" } : undefined}>
+            <CalcField label="Sessões Mídia = Total − Orgânicas" value={sm} danger={organicaEngole} />
+          </div>
+          {organicaEngole && (
+            <p className="text-[11px]" style={{ color: "#C0392B" }}>
+              As sessões orgânicas esperadas ({fmtNum(so)}) são maiores que a meta de sessões totais ({fmtNum(st)}).
+              Com isso a mídia zera e o investimento sai R$ 0. Suba a meta total.
+            </p>
+          )}
         </CardContent>
       </Card>
 
       <Card style={{ borderColor: "#F5E9B8" }}>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0">
-          <CardTitle className="font-serif text-lg">Premissas (médias históricas)</CardTitle>
-          <Button type="button" variant="outline" size="sm" onClick={aplicarMedia} disabled={!mediaHist} className="gap-1">
-            <RefreshCw className="h-3 w-3" /> Recalcular com média histórica
-          </Button>
+        <CardHeader className="space-y-2">
+          <div className="flex flex-row items-center justify-between gap-2 flex-wrap">
+            <CardTitle className="font-serif text-lg">Premissas (médias históricas)</CardTitle>
+            <Button type="button" variant="outline" size="sm" onClick={aplicarMedia} disabled={!mediaHist} className="gap-1">
+              <RefreshCw className="h-3 w-3" /> Recalcular com média histórica
+            </Button>
+          </div>
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-[11px] text-muted-foreground">Janela:</span>
+            <div className="flex rounded-md overflow-hidden border" style={{ borderColor: "#E8CD7E" }}>
+              {[3, 6, 12].map((n) => (
+                <button key={n} type="button" onClick={() => setJanela(n)}
+                  className={`px-3 py-1 text-[11px] transition ${janela === n ? "bg-[#1D1D1B] text-[#E8CD7E]" : "bg-white text-[#1D1D1B] hover:bg-[#FAF8F3]"}`}>
+                  {n} meses
+                </button>
+              ))}
+            </div>
+            {usados != null && auditaveis != null && auditaveis < usados && (
+              <Badge variant="outline" className="text-[10px] font-normal">
+                {auditaveis} de {usados} meses da janela têm fonte de sessão auditável
+              </Badge>
+            )}
+          </div>
         </CardHeader>
         <CardContent className="space-y-3">
           <div>
             <NumInput label="Taxa de Conversão" suffix="%" value={form.premissa_taxa_conversao} onChange={(v) => setField("premissa_taxa_conversao", v)} disabled={isSaving} />
-            {sub("", mediaHist?.taxa_conversao, (x) => `${x.toFixed(2)}%`)}
+            {sub(mediaHist?.taxa_conversao, (x) => `${x.toFixed(2)}%`)}
           </div>
           <div>
             <NumInput label="Ticket Médio" suffix="R$" value={form.premissa_ticket_medio} onChange={(v) => setField("premissa_ticket_medio", v)} disabled={isSaving} />
-            {sub("", mediaHist?.ticket_medio, (x) => `R$ ${x.toFixed(0)}`)}
+            {sub(mediaHist?.ticket_medio, (x) => fmtBRL2(x))}
           </div>
           <div>
             <NumInput label="Taxa de Aprovação" suffix="%" value={form.premissa_taxa_aprovacao} onChange={(v) => setField("premissa_taxa_aprovacao", v)} disabled={isSaving} />
-            {sub("", mediaHist?.taxa_aprovacao, (x) => `${x.toFixed(1)}%`)}
+            {sub(mediaHist?.taxa_aprovacao, (x) => `${x.toFixed(1)}%`)}
           </div>
           <div>
             <NumInput label="Taxa de Aquisição" suffix="%" value={form.premissa_taxa_aquisicao} onChange={(v) => setField("premissa_taxa_aquisicao", v)} disabled={isSaving} />
-            {sub("", mediaHist?.taxa_aquisicao, (x) => `${x.toFixed(1)}%`)}
+            {sub(mediaHist?.taxa_aquisicao, (x) => `${x.toFixed(1)}%`)}
           </div>
           <div>
             <NumInput label="CPS Médio Mídia" suffix="R$" value={form.premissa_cps_midia} onChange={(v) => setField("premissa_cps_midia", v)} disabled={isSaving} />
-            {sub("", mediaHist?.cps_midia, (x) => `R$ ${x.toFixed(2)}`)}
+            {sub(mediaHist?.cps_midia, (x) => fmtBRL2(x))}
+            <p className="text-[11px] text-muted-foreground mt-0.5">
+              CPS Geral no mesmo período: {fmtBRL2(mediaHist?.cps_geral)} — referência apenas.
+              O campo editável é o de mídia, porque é ele que gera o orçamento.
+            </p>
           </div>
         </CardContent>
       </Card>
@@ -314,7 +370,7 @@ function PlanejadoForm({
         <CardHeader><CardTitle className="font-serif text-lg">Resultado da Projeção</CardTitle></CardHeader>
         <CardContent className="space-y-3">
           <div className="grid grid-cols-2 gap-2">
-            <CalcField label="Sessões Mídia" value={sm} />
+            <CalcField label="Sessões Mídia" value={sm} danger={organicaEngole} />
             <CalcField label="Investimento Total" value={it} format="brl" />
             <CalcField label="Pedidos Captados" value={pc} />
             <CalcField label="Receita Captada" value={rc} format="brl" />
@@ -329,6 +385,7 @@ function PlanejadoForm({
     </>
   );
 }
+
 
 
 
