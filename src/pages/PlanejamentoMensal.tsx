@@ -875,13 +875,21 @@ export default function PlanejamentoMensal() {
             <p className="text-sm text-muted-foreground p-4">Nenhum mês realizado registrado ainda</p>
           ) : (() => {
             type Row = {
-              key: keyof PM;
+              key: string;
               label: string;
               fmt: (v: number | null | undefined) => string;
               lowerIsBetter?: boolean;
+              tip?: string;
+              calc?: (m: Partial<PM> | null) => number | null;
             };
             type Group = { label: string; rows: Row[]; bg?: string };
             const fmtRoas = (v: number | null | undefined) => v == null || !isFinite(v) ? "—" : v.toFixed(2) + "x";
+            const pctOrganico = (m: Partial<PM> | null): number | null => {
+              const st = m?.sessoes_totais ?? null;
+              const so = m?.sessoes_organicas ?? null;
+              if (!st || so == null || !isFinite(st) || st <= 0) return null;
+              return (so / st) * 100;
+            };
 
             const groups: Group[] = [
               { label: "Receitas", bg: "#FBF7EC", rows: [
@@ -901,12 +909,16 @@ export default function PlanejamentoMensal() {
               ]},
               { label: "Tráfego", rows: [
                 { key: "sessoes_totais", label: "Sessões Totais", fmt: (v) => fmtNum(v) },
+                { key: "sessoes_organicas", label: "Sessões Orgânicas", fmt: (v) => fmtNum(v) },
+                { key: "pct_organico", label: "% Orgânico", fmt: (v) => v == null || !isFinite(Number(v)) ? "—" : `${Number(v).toFixed(1)}%`, calc: pctOrganico },
                 { key: "sessoes_midia", label: "Sessões Mídia", fmt: (v) => fmtNum(v) },
               ]},
               { label: "Investimento & Eficiência", bg: "#FBF7EC", rows: [
                 { key: "investimento_total", label: "Invest. Total", fmt: fmtBRL, lowerIsBetter: true },
-                { key: "cps_geral", label: "CPS Geral", fmt: fmtBRL, lowerIsBetter: true },
-                { key: "cps_midia", label: "CPS Mídia", fmt: fmtBRL, lowerIsBetter: true },
+                { key: "cps_geral", label: "CPS Geral", fmt: fmtBRL2, lowerIsBetter: true,
+                  tip: "Investimento ÷ sessões totais. Eficiência do negócio." },
+                { key: "cps_midia", label: "CPS Mídia", fmt: fmtBRL2, lowerIsBetter: true,
+                  tip: "Investimento ÷ sessões de mídia. É o driver que multiplica as sessões de mídia para gerar o orçamento do mês." },
                 { key: "cac_novos", label: "CAC Novos", fmt: fmtBRL, lowerIsBetter: true },
                 { key: "cac_geral", label: "CAC Geral", fmt: fmtBRL, lowerIsBetter: true },
               ]},
@@ -924,13 +936,23 @@ export default function PlanejamentoMensal() {
             const sessaoManual = (m: PM) =>
               String((m as any).fonte_sessoes ?? "").toLowerCase().includes("manual");
             const qual = (m: PM): Record<string, any> => ((m as any).qualidade ?? {}) as Record<string, any>;
-            const KEYS_SEM_MANUAL = new Set<string>(["sessoes_totais", "taxa_conversao", "cps_geral", "cps_midia"]);
+            const KEYS_SEM_MANUAL = new Set<string>([
+              "sessoes_totais", "sessoes_organicas", "pct_organico", "taxa_conversao", "cps_geral", "cps_midia",
+            ]);
 
-            const avg = (k: keyof PM) => {
-              const base = KEYS_SEM_MANUAL.has(k as string) ? historico.filter((m) => !sessaoManual(m)) : historico;
-              const xs = base.map((r) => r[k] as number | null).filter((v): v is number => v != null && isFinite(v));
+            const valOf = (r: Row, m: Partial<PM> | null): number | null => {
+              if (!m) return null;
+              if (r.calc) return r.calc(m);
+              const v = (m as any)[r.key];
+              return v == null || !isFinite(Number(v)) ? null : Number(v);
+            };
+
+            const avg = (r: Row) => {
+              const base = KEYS_SEM_MANUAL.has(r.key) ? historico.filter((m) => !sessaoManual(m)) : historico;
+              const xs = base.map((m) => valOf(r, m)).filter((v): v is number => v != null && isFinite(v));
               return xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : null;
             };
+
 
             const stickyKpiBase: React.CSSProperties = {
               position: "sticky", left: 0, zIndex: 2, minWidth: 180,
