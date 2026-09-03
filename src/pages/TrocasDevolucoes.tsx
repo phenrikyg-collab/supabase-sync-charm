@@ -969,3 +969,108 @@ function LinhaSolicitacao({ l }: { l: any }) {
     </>
   );
 }
+
+/* ──────────────────────── linha do tempo ──────────────────────── */
+
+const dataHoraBR = (v: any) => {
+  if (!v) return "—";
+  const d = new Date(v);
+  return isNaN(d.getTime())
+    ? String(v)
+    : `${d.toLocaleDateString("pt-BR")} ${d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}`;
+};
+
+const fmtDiasParados = (v: any) => {
+  if (v === null || v === undefined || !Number.isFinite(Number(v))) return null;
+  const d = Number(v);
+  const txt = d.toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+  return `${txt} ${d === 1 ? "dia" : "dias"}`;
+};
+
+const RASTREIO_RE = /\b[A-Z]{2}\d{9}BR\b/g;
+
+function MensagemTimeline({ texto }: { texto: string }) {
+  const [expandida, setExpandida] = useState(false);
+  const partes = texto.split(RASTREIO_RE);
+  const codigos = texto.match(RASTREIO_RE) ?? [];
+  return (
+    <p className={`text-xs text-muted-foreground ${expandida ? "" : "line-clamp-2"}`}>
+      {partes.map((p, i) => (
+        <span key={i}>
+          {p}
+          {codigos[i] && (
+            <a
+              href={`https://rastreamento.correios.com.br/app/index.php?objeto=${codigos[i]}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-primary underline"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {codigos[i]}
+            </a>
+          )}
+        </span>
+      ))}
+      {texto.length > 120 && (
+        <button
+          type="button"
+          className="ml-1 text-primary underline"
+          onClick={(e) => { e.stopPropagation(); setExpandida((v) => !v); }}
+        >
+          {expandida ? "ver menos" : "ver mais"}
+        </button>
+      )}
+    </p>
+  );
+}
+
+function LinhaDoTempo({ timeline, paradaHaDias }: { timeline: any[]; paradaHaDias: any }) {
+  const parada = n(paradaHaDias);
+  const corParada = parada > 30 ? "text-destructive" : parada >= 7 ? "text-amber-600" : "text-muted-foreground";
+  return (
+    <div className="space-y-3">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="text-sm font-medium">
+          Histórico · {timeline.length} {timeline.length === 1 ? "etapa" : "etapas"} · {num(paradaHaDias)} dias desde a última movimentação
+        </p>
+        <p className="flex items-center gap-3 text-[11px] text-muted-foreground">
+          <span className="flex items-center gap-1"><span className="inline-block h-2 w-2 rounded-full bg-sky-500" /> equipe</span>
+          <span className="flex items-center gap-1"><span className="inline-block h-2 w-2 rounded-full bg-muted-foreground/50" /> cliente / automação</span>
+        </p>
+      </div>
+      <div className="space-y-0">
+        {timeline.map((m: any, i: number) => {
+          const ultima = m.ultima === true;
+          const corCirculo = m.acao_humana_da_loja ? "border-sky-500" : "border-muted-foreground/50";
+          const preenchido = m.acao_humana_da_loja ? "bg-sky-500" : "bg-muted-foreground/50";
+          const diasAntes = fmtDiasParados(m.dias_desde_anterior);
+          return (
+            <div key={m.ordem ?? i} className="relative flex gap-3">
+              {i < timeline.length - 1 && (
+                <span className="absolute left-[7px] top-4 h-full w-px bg-border" />
+              )}
+              <span
+                className={`z-10 mt-1 h-4 w-4 shrink-0 rounded-full border-2 ${corCirculo} ${ultima ? preenchido : "bg-background"}`}
+              />
+              <div className="flex-1 pb-4">
+                <div className="flex flex-wrap items-center gap-2">
+                  <p className="text-sm font-medium">{m.para_descricao ?? m.para ?? "—"}</p>
+                  <span className="text-xs text-muted-foreground">{dataHoraBR(m.em)}</span>
+                  {ultima && <Badge className="text-[10px]">ATUAL</Badge>}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  {m.por ?? "—"}
+                  {diasAntes ? ` · ${diasAntes}${i === 1 ? " após a etapa anterior" : ""}` : ""}
+                </p>
+                {ultima && (
+                  <p className={`text-xs ${corParada}`}>parada há {num(paradaHaDias)} dias</p>
+                )}
+                {m.mensagem && <MensagemTimeline texto={String(m.mensagem)} />}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
