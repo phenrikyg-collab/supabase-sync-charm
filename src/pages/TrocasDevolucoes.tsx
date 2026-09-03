@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import PecasEmRetorno from "@/components/trocas/PecasEmRetorno";
 import {
   AlertTriangle, ArrowDown, ArrowUp, ChevronDown, ChevronRight, ExternalLink, PackageX, Search,
 } from "lucide-react";
