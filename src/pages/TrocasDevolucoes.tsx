@@ -476,6 +476,10 @@ export default function TrocasDevolucoes() {
           </CardContent>
         </Card>
 
+        {/* PEÇAS EM RETORNO */}
+        <PecasEmRetorno inicio={inicio} fim={fim} />
+
+
         {/* FAIXA 5 — análise */}
         {!dash.isLoading && (
           <div className="grid gap-4 lg:grid-cols-2">
