@@ -166,6 +166,7 @@ export default function TrocasDevolucoes() {
 
   const irParaFila = (est: string | null) => {
     setEstagio(est);
+    setOrdem("prioridade");
     document.getElementById("lista-solicitacoes")?.scrollIntoView({ behavior: "smooth", block: "start" });
   };
 
