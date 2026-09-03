@@ -24,11 +24,11 @@ export const ROUTE_ACCESS: Record<string, Requirement> = {
   "/planejamento": ["gestao"],
   "/plano-comercial": ["gestao"],
   "/importar": ["gestao"],
+  "/dashboard-produtos": ["gestao"],
 
   // Comercial
   "/produtos-campanha": ["comercial"],
   "/lancamentos": ["comercial"],
-  "/dashboard-produtos": ["comercial"],
   "/bonificacao-whatsapp": ["comercial"],
   "/comercial/trocas-devolucoes": ["comercial"],
 
