@@ -3,7 +3,7 @@ import { useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import {
   usePlanejamentoMensal, PlanejamentoMensal as PM,
-  MESES, fmtBRL, fmtNum, fmtPct,
+  MESES, fmtBRL, fmtBRL2, fmtNum, fmtPct,
   buscarMediaHistorica, MediaHistorica,
 } from "@/hooks/usePlanejamentoMensal";
 import { useRealizadoMes } from "@/hooks/useRealizadoMes";
@@ -27,19 +27,20 @@ const calcBadge = (className = "") => (
   <span className={`ml-2 text-[10px] uppercase tracking-wider text-muted-foreground ${className}`}>calc</span>
 );
 
-function CalcField({ label, value, format = "num" }: { label: string; value: number | null | undefined; format?: "brl" | "pct" | "num" }) {
+function CalcField({ label, value, format = "num", danger }: { label: string; value: number | null | undefined; format?: "brl" | "pct" | "num"; danger?: boolean }) {
   const display = value == null || !isFinite(value as number)
     ? "—"
     : format === "brl" ? fmtBRL(value)
     : format === "pct" ? fmtPct(value)
     : fmtNum(value);
   return (
-    <div className="rounded-md px-3 py-2" style={{ background: "#FAF6EE" }}>
+    <div className="rounded-md px-3 py-2" style={{ background: danger ? "#FFE8E5" : "#FAF6EE" }}>
       <div className="text-xs text-muted-foreground flex items-center">{label}{calcBadge()}</div>
-      <div className="font-semibold text-sm mt-0.5">{display}</div>
+      <div className="font-semibold text-sm mt-0.5" style={danger ? { color: "#C0392B" } : undefined}>{display}</div>
     </div>
   );
 }
+
 
 function NumInput({ label, value, onChange, suffix, disabled, badge }: {
   label: string; value: number | null | undefined; onChange: (v: number | null) => void; suffix?: string; disabled?: boolean;
@@ -211,18 +212,28 @@ function NovePilaresCard({
   );
 }
 
+function mesLabel(v: string | null | undefined): string | null {
+  if (!v) return null;
+  const m = String(v).match(/^(\d{4})-(\d{2})/);
+  if (m) return `${m[2]}/${m[1]}`;
+  return String(v);
+}
+
 function PlanejadoForm({
-  form, setField, isSaving, mediaHist, mediaOrganicas2m,
+  form, setField, isSaving, mediaHist, janela, setJanela, avisoPlano,
 }: {
   form: Manual;
   setField: (k: keyof Manual, v: number | null) => void;
   isSaving: boolean;
   mediaHist: MediaHistorica | null;
-  mediaOrganicas2m: number | null;
+  janela: number;
+  setJanela: (n: number) => void;
+  avisoPlano?: string | null;
 }) {
   const st = form.sessoes_totais ?? 0;
   const so = form.sessoes_organicas ?? 0;
   const sm = Math.max(st - so, 0);
+  const organicaEngole = st > 0 && so > st;
   const cps = form.premissa_cps_midia ?? 0;
   const it = sm * cps;
   const tc = form.premissa_taxa_conversao ?? 0;
@@ -242,70 +253,116 @@ function PlanejadoForm({
     if (mediaHist.cps_midia != null) setField("premissa_cps_midia", Number(mediaHist.cps_midia));
   };
 
-  const sub = (label: string, v: number | null | undefined, fmt: (x: number) => string) => (
+  const ini = mesLabel(mediaHist?.primeiro_mes);
+  const fim = mesLabel(mediaHist?.ultimo_mes);
+  const usados = mediaHist?.meses_usados ?? null;
+  const auditaveis = mediaHist?.meses_com_sessao_auditavel ?? null;
+  const janelaTxt = ini && fim ? `${ini} a ${fim}` : `últimos ${janela} meses`;
+  const mesesTxt = usados != null ? ` (${usados} ${usados === 1 ? "mês" : "meses"})` : "";
+
+  const sub = (v: number | null | undefined, fmt: (x: number) => string) => (
     <p className="text-[11px] text-muted-foreground mt-0.5">
-      Média histórica: {v == null || !isFinite(v) ? "—" : fmt(Number(v))}
+      Média ponderada {janelaTxt}{mesesTxt}: {v == null || !isFinite(Number(v)) ? "—" : fmt(Number(v))}
     </p>
   );
 
+  const mediaOrganicas = mediaHist?.sessoes_organicas ?? null;
+
   return (
     <>
-      <Card style={{ borderColor: "#F5E9B8" }}>
+      <Card style={{ borderColor: organicaEngole ? "#C0392B" : "#F5E9B8" }}>
         <CardHeader><CardTitle className="font-serif text-lg">Meta de Sessões</CardTitle></CardHeader>
         <CardContent className="space-y-3">
+          {avisoPlano && (
+            <div className="rounded-md border px-3 py-2 text-xs flex items-start gap-2"
+                 style={{ borderColor: "#C0392B", background: "#FFE8E5", color: "#C0392B" }}>
+              <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
+              <span>{avisoPlano}</span>
+            </div>
+          )}
           <NumInput label="Meta de Sessões Totais" value={form.sessoes_totais} onChange={(v) => setField("sessoes_totais", v)} disabled={isSaving} />
           <div>
             <div className="flex items-end justify-between gap-2">
               <div className="flex-1">
                 <NumInput label="Sessões Orgânicas Esperadas" value={form.sessoes_organicas} onChange={(v) => setField("sessoes_organicas", v)} disabled={isSaving} />
               </div>
-              {mediaOrganicas2m != null && (
+              {mediaOrganicas != null && (
                 <Button
                   type="button" variant="outline" size="sm"
-                  onClick={() => setField("sessoes_organicas", Math.round(mediaOrganicas2m))}
+                  onClick={() => setField("sessoes_organicas", Math.round(Number(mediaOrganicas)))}
                   disabled={isSaving}
                   className="gap-1 whitespace-nowrap"
-                  title="Usar média dos últimos 2 meses realizados"
+                  title="Usar a média ponderada da janela selecionada"
                 >
                   <RefreshCw className="h-3 w-3" /> Usar média
                 </Button>
               )}
             </div>
             <p className="text-[11px] text-muted-foreground mt-0.5">
-              Média últimos 2 meses (realizado): {mediaOrganicas2m == null ? "—" : `${fmtNum(Math.round(mediaOrganicas2m))} sessões`}
+              Média ponderada da janela: {mediaOrganicas == null ? "—" : fmtNum(Math.round(Number(mediaOrganicas)))}
             </p>
           </div>
-          <CalcField label="Sessões Mídia = Total − Orgânicas" value={sm} />
+          <div className={organicaEngole ? "rounded-md" : ""} style={organicaEngole ? { outline: "1px solid #C0392B" } : undefined}>
+            <CalcField label="Sessões Mídia = Total − Orgânicas" value={sm} danger={organicaEngole} />
+          </div>
+          {organicaEngole && (
+            <p className="text-[11px]" style={{ color: "#C0392B" }}>
+              As sessões orgânicas esperadas ({fmtNum(so)}) são maiores que a meta de sessões totais ({fmtNum(st)}).
+              Com isso a mídia zera e o investimento sai R$ 0. Suba a meta total.
+            </p>
+          )}
         </CardContent>
       </Card>
 
       <Card style={{ borderColor: "#F5E9B8" }}>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0">
-          <CardTitle className="font-serif text-lg">Premissas (médias históricas)</CardTitle>
-          <Button type="button" variant="outline" size="sm" onClick={aplicarMedia} disabled={!mediaHist} className="gap-1">
-            <RefreshCw className="h-3 w-3" /> Recalcular com média histórica
-          </Button>
+        <CardHeader className="space-y-2">
+          <div className="flex flex-row items-center justify-between gap-2 flex-wrap">
+            <CardTitle className="font-serif text-lg">Premissas (médias históricas)</CardTitle>
+            <Button type="button" variant="outline" size="sm" onClick={aplicarMedia} disabled={!mediaHist} className="gap-1">
+              <RefreshCw className="h-3 w-3" /> Recalcular com média histórica
+            </Button>
+          </div>
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-[11px] text-muted-foreground">Janela:</span>
+            <div className="flex rounded-md overflow-hidden border" style={{ borderColor: "#E8CD7E" }}>
+              {[3, 6, 12].map((n) => (
+                <button key={n} type="button" onClick={() => setJanela(n)}
+                  className={`px-3 py-1 text-[11px] transition ${janela === n ? "bg-[#1D1D1B] text-[#E8CD7E]" : "bg-white text-[#1D1D1B] hover:bg-[#FAF8F3]"}`}>
+                  {n} meses
+                </button>
+              ))}
+            </div>
+            {usados != null && auditaveis != null && auditaveis < usados && (
+              <Badge variant="outline" className="text-[10px] font-normal">
+                {auditaveis} de {usados} meses da janela têm fonte de sessão auditável
+              </Badge>
+            )}
+          </div>
         </CardHeader>
         <CardContent className="space-y-3">
           <div>
             <NumInput label="Taxa de Conversão" suffix="%" value={form.premissa_taxa_conversao} onChange={(v) => setField("premissa_taxa_conversao", v)} disabled={isSaving} />
-            {sub("", mediaHist?.taxa_conversao, (x) => `${x.toFixed(2)}%`)}
+            {sub(mediaHist?.taxa_conversao, (x) => `${x.toFixed(2)}%`)}
           </div>
           <div>
             <NumInput label="Ticket Médio" suffix="R$" value={form.premissa_ticket_medio} onChange={(v) => setField("premissa_ticket_medio", v)} disabled={isSaving} />
-            {sub("", mediaHist?.ticket_medio, (x) => `R$ ${x.toFixed(0)}`)}
+            {sub(mediaHist?.ticket_medio, (x) => fmtBRL2(x))}
           </div>
           <div>
             <NumInput label="Taxa de Aprovação" suffix="%" value={form.premissa_taxa_aprovacao} onChange={(v) => setField("premissa_taxa_aprovacao", v)} disabled={isSaving} />
-            {sub("", mediaHist?.taxa_aprovacao, (x) => `${x.toFixed(1)}%`)}
+            {sub(mediaHist?.taxa_aprovacao, (x) => `${x.toFixed(1)}%`)}
           </div>
           <div>
             <NumInput label="Taxa de Aquisição" suffix="%" value={form.premissa_taxa_aquisicao} onChange={(v) => setField("premissa_taxa_aquisicao", v)} disabled={isSaving} />
-            {sub("", mediaHist?.taxa_aquisicao, (x) => `${x.toFixed(1)}%`)}
+            {sub(mediaHist?.taxa_aquisicao, (x) => `${x.toFixed(1)}%`)}
           </div>
           <div>
             <NumInput label="CPS Médio Mídia" suffix="R$" value={form.premissa_cps_midia} onChange={(v) => setField("premissa_cps_midia", v)} disabled={isSaving} />
-            {sub("", mediaHist?.cps_midia, (x) => `R$ ${x.toFixed(2)}`)}
+            {sub(mediaHist?.cps_midia, (x) => fmtBRL2(x))}
+            <p className="text-[11px] text-muted-foreground mt-0.5">
+              CPS Geral no mesmo período: {fmtBRL2(mediaHist?.cps_geral)} — referência apenas.
+              O campo editável é o de mídia, porque é ele que gera o orçamento.
+            </p>
           </div>
         </CardContent>
       </Card>
@@ -314,7 +371,7 @@ function PlanejadoForm({
         <CardHeader><CardTitle className="font-serif text-lg">Resultado da Projeção</CardTitle></CardHeader>
         <CardContent className="space-y-3">
           <div className="grid grid-cols-2 gap-2">
-            <CalcField label="Sessões Mídia" value={sm} />
+            <CalcField label="Sessões Mídia" value={sm} danger={organicaEngole} />
             <CalcField label="Investimento Total" value={it} format="brl" />
             <CalcField label="Pedidos Captados" value={pc} />
             <CalcField label="Receita Captada" value={rc} format="brl" />
@@ -329,6 +386,7 @@ function PlanejadoForm({
     </>
   );
 }
+
 
 
 
@@ -371,33 +429,16 @@ export default function PlanejamentoMensal() {
     setAutoFilled(new Set());
   }, [data]);
 
-  // Média histórica via RPC (para premissas e meta dos 9 pilares quando planejado)
+  // Média histórica ponderada via RPC (janela declarada: 3, 6 ou 12 meses)
   const [mediaHist, setMediaHist] = useState<MediaHistorica | null>(null);
-  const [mediaOrganicas2m, setMediaOrganicas2m] = useState<number | null>(null);
+  const [janela, setJanela] = useState(3);
   useEffect(() => {
     (async () => {
-      const m = await buscarMediaHistorica(ano, mes);
+      const m = await buscarMediaHistorica(ano, mes, janela);
       setMediaHist(m);
     })();
-  }, [ano, mes]);
+  }, [ano, mes, janela]);
 
-  // Média de sessões orgânicas dos últimos 2 meses realizados (parâmetro para planejado)
-  useEffect(() => {
-    (async () => {
-      const { data: rows } = await (supabase as any)
-        .from("planejamento_mensal")
-        .select("sessoes_totais, sessoes_midia")
-        .eq("tipo", "realizado")
-        .or(`ano.lt.${ano},and(ano.eq.${ano},mes.lt.${mes})`)
-        .order("ano", { ascending: false })
-        .order("mes", { ascending: false })
-        .limit(2);
-      if (!rows || rows.length === 0) { setMediaOrganicas2m(null); return; }
-      const organicas = rows.map((r: any) => Math.max((r.sessoes_totais ?? 0) - (r.sessoes_midia ?? 0), 0));
-      const avg = organicas.reduce((a: number, b: number) => a + b, 0) / organicas.length;
-      setMediaOrganicas2m(isFinite(avg) ? avg : null);
-    })();
-  }, [ano, mes]);
 
   // Preview local dos cálculos (apenas exibição enquanto edita)
   const preview = useMemo(() => {
@@ -544,7 +585,21 @@ export default function PlanejamentoMensal() {
     setSearch({ ano: String(ano), mes: String(mes), tipo: t });
   };
 
-  const salvar = () => salvarCamposManuais(form as any);
+  const salvar = () => {
+    if (tipo === "planejado") {
+      const st = form.sessoes_totais ?? 0;
+      const so = form.sessoes_organicas ?? 0;
+      if (st > 0 && so > st) {
+        toast.error(
+          `As sessões orgânicas esperadas (${fmtNum(so)}) são maiores que a meta de sessões totais (${fmtNum(st)}). ` +
+          "Com isso a mídia zera e o investimento sai R$ 0. Suba a meta total.",
+        );
+        return;
+      }
+    }
+    salvarCamposManuais(form as any);
+  };
+
 
   // Red flags baseado nos dados persistidos
   const flags = useMemo(() => {
@@ -644,7 +699,7 @@ export default function PlanejamentoMensal() {
   const metaLabel = tipo === "realizado" ? "Meta" : "Média Histórica";
   const metaFootnote = tipo === "realizado"
     ? "Meta = registro planejado do mês (fallback: média dos realizados anteriores)."
-    : "Média histórica vinda da função media_historica() — últimos 6 meses realizados.";
+    : `Média ponderada vinda da função media_historica() — janela de ${janela} meses.`;
 
 
   if (isLoading) {
@@ -756,7 +811,10 @@ export default function PlanejamentoMensal() {
               setField={setField}
               isSaving={isSaving}
               mediaHist={mediaHist}
-              mediaOrganicas2m={mediaOrganicas2m}
+              janela={janela}
+              setJanela={setJanela}
+              avisoPlano={(data as any)?.qualidade?.aviso_plano ?? null}
+
             />
           )}
 
@@ -875,13 +933,21 @@ export default function PlanejamentoMensal() {
             <p className="text-sm text-muted-foreground p-4">Nenhum mês realizado registrado ainda</p>
           ) : (() => {
             type Row = {
-              key: keyof PM;
+              key: string;
               label: string;
               fmt: (v: number | null | undefined) => string;
               lowerIsBetter?: boolean;
+              tip?: string;
+              calc?: (m: Partial<PM> | null) => number | null;
             };
             type Group = { label: string; rows: Row[]; bg?: string };
             const fmtRoas = (v: number | null | undefined) => v == null || !isFinite(v) ? "—" : v.toFixed(2) + "x";
+            const pctOrganico = (m: Partial<PM> | null): number | null => {
+              const st = m?.sessoes_totais ?? null;
+              const so = m?.sessoes_organicas ?? null;
+              if (!st || so == null || !isFinite(st) || st <= 0) return null;
+              return (so / st) * 100;
+            };
 
             const groups: Group[] = [
               { label: "Receitas", bg: "#FBF7EC", rows: [
@@ -901,12 +967,16 @@ export default function PlanejamentoMensal() {
               ]},
               { label: "Tráfego", rows: [
                 { key: "sessoes_totais", label: "Sessões Totais", fmt: (v) => fmtNum(v) },
+                { key: "sessoes_organicas", label: "Sessões Orgânicas", fmt: (v) => fmtNum(v) },
+                { key: "pct_organico", label: "% Orgânico", fmt: (v) => v == null || !isFinite(Number(v)) ? "—" : `${Number(v).toFixed(1)}%`, calc: pctOrganico },
                 { key: "sessoes_midia", label: "Sessões Mídia", fmt: (v) => fmtNum(v) },
               ]},
               { label: "Investimento & Eficiência", bg: "#FBF7EC", rows: [
                 { key: "investimento_total", label: "Invest. Total", fmt: fmtBRL, lowerIsBetter: true },
-                { key: "cps_geral", label: "CPS Geral", fmt: fmtBRL, lowerIsBetter: true },
-                { key: "cps_midia", label: "CPS Mídia", fmt: fmtBRL, lowerIsBetter: true },
+                { key: "cps_geral", label: "CPS Geral", fmt: fmtBRL2, lowerIsBetter: true,
+                  tip: "Investimento ÷ sessões totais. Eficiência do negócio." },
+                { key: "cps_midia", label: "CPS Mídia", fmt: fmtBRL2, lowerIsBetter: true,
+                  tip: "Investimento ÷ sessões de mídia. É o driver que multiplica as sessões de mídia para gerar o orçamento do mês." },
                 { key: "cac_novos", label: "CAC Novos", fmt: fmtBRL, lowerIsBetter: true },
                 { key: "cac_geral", label: "CAC Geral", fmt: fmtBRL, lowerIsBetter: true },
               ]},
@@ -924,13 +994,23 @@ export default function PlanejamentoMensal() {
             const sessaoManual = (m: PM) =>
               String((m as any).fonte_sessoes ?? "").toLowerCase().includes("manual");
             const qual = (m: PM): Record<string, any> => ((m as any).qualidade ?? {}) as Record<string, any>;
-            const KEYS_SEM_MANUAL = new Set<string>(["sessoes_totais", "taxa_conversao", "cps_geral", "cps_midia"]);
+            const KEYS_SEM_MANUAL = new Set<string>([
+              "sessoes_totais", "sessoes_organicas", "pct_organico", "taxa_conversao", "cps_geral", "cps_midia",
+            ]);
 
-            const avg = (k: keyof PM) => {
-              const base = KEYS_SEM_MANUAL.has(k as string) ? historico.filter((m) => !sessaoManual(m)) : historico;
-              const xs = base.map((r) => r[k] as number | null).filter((v): v is number => v != null && isFinite(v));
+            const valOf = (r: Row, m: Partial<PM> | null): number | null => {
+              if (!m) return null;
+              if (r.calc) return r.calc(m);
+              const v = (m as any)[r.key];
+              return v == null || !isFinite(Number(v)) ? null : Number(v);
+            };
+
+            const avg = (r: Row) => {
+              const base = KEYS_SEM_MANUAL.has(r.key) ? historico.filter((m) => !sessaoManual(m)) : historico;
+              const xs = base.map((m) => valOf(r, m)).filter((v): v is number => v != null && isFinite(v));
               return xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : null;
             };
+
 
             const stickyKpiBase: React.CSSProperties = {
               position: "sticky", left: 0, zIndex: 2, minWidth: 180,
@@ -986,17 +1066,22 @@ export default function PlanejamentoMensal() {
                         </tr>
                         {g.rows.map((r, ri) => {
                           const rowBg = g.bg ?? (ri % 2 ? "#FAF8F3" : "#FFFFFF");
-                          const mediaVal = avg(r.key);
-                          const metaVal = planejadoMes ? planejadoVal(r.key) : null;
+                          const mediaVal = avg(r);
+                          const metaVal = planejadoMes
+                            ? (r.calc ? r.calc(planejadoMes) : planejadoVal(r.key as keyof PM))
+                            : null;
                           return (
-                            <tr key={r.key as string} style={{ background: rowBg, minHeight: 44 }}>
+                            <tr key={r.key} style={{ background: rowBg, minHeight: 44 }}>
                               <td className="font-medium whitespace-nowrap"
-                                  style={{ ...stickyKpiBase, background: rowBg, padding: cellPad }}>
+                                  style={{ ...stickyKpiBase, background: rowBg, padding: cellPad }}
+                                  title={r.tip}>
                                 {r.label}
+                                {r.tip && <span className="ml-1 text-[10px] text-muted-foreground">ⓘ</span>}
                               </td>
                               {historico.map((m, mi) => {
-                                const v = m[r.key] as number | null;
-                                const pv = mi > 0 ? (historico[mi - 1][r.key] as number | null) : null;
+                                const v = valOf(r, m);
+
+                                const pv = mi > 0 ? valOf(r, historico[mi - 1]) : null;
                                 const cur = monthIsCurrent(m);
                                 const q = qual(m);
 
