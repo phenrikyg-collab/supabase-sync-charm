@@ -920,8 +920,15 @@ export default function PlanejamentoMensal() {
               ]},
             ];
 
+            // Meses com sessões manuais não são auditáveis: ficam fora da média de sessões, conversão e CPS
+            const sessaoManual = (m: PM) =>
+              String((m as any).fonte_sessoes ?? "").toLowerCase().includes("manual");
+            const qual = (m: PM): Record<string, any> => ((m as any).qualidade ?? {}) as Record<string, any>;
+            const KEYS_SEM_MANUAL = new Set<string>(["sessoes_totais", "taxa_conversao", "cps_geral", "cps_midia"]);
+
             const avg = (k: keyof PM) => {
-              const xs = historico.map((r) => r[k] as number | null).filter((v): v is number => v != null && isFinite(v));
+              const base = KEYS_SEM_MANUAL.has(k as string) ? historico.filter((m) => !sessaoManual(m)) : historico;
+              const xs = base.map((r) => r[k] as number | null).filter((v): v is number => v != null && isFinite(v));
               return xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : null;
             };
 
