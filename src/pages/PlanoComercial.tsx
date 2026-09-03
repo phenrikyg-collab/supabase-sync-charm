@@ -84,7 +84,14 @@ export default function PlanoComercial() {
   const [erroRpc, setErroRpc] = useState<string | null>(null);
   const [erroEstoque, setErroEstoque] = useState<string | null>(null);
   const [pctAquisicao, setPctAquisicao] = useState(80);
+  const [pctAquisicaoInput, setPctAquisicaoInput] = useState("80");
   const TOP_PRODUTOS = 8;
+
+  const commitPctAquisicao = () => {
+    const v = Math.min(100, Math.max(0, Math.round(Number(pctAquisicaoInput) || 0)));
+    setPctAquisicaoInput(String(v));
+    setPctAquisicao(v);
+  };
 
   // meta de lançamento p/ fiéis
   const [planoComercialId, setPlanoComercialId] = useState<string | null>(null);
