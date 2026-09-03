@@ -335,9 +335,10 @@ export default function TrocasDevolucoes() {
                       {num(kpis.backlog_qtd)} solicitações chegaram na loja e nunca foram encerradas
                     </p>
                     <p className="text-sm text-muted-foreground">
-                      {brl(kpis.backlog_valor)} represados · a mais antiga há {num(kpis.backlog_dias_max)} dias
+                      {brl(kpis.backlog_valor)} represados · {num(kpis.backlog_parada_90d)} sem movimento há mais de 90 dias · a mais parada há {num(kpis.backlog_dias_max)} dias
                     </p>
-                    <PainelInsight insights={insights} card="backlog" />
+                    <p className="text-xs text-muted-foreground">independente do período</p>
+                    <PainelInsight insights={insights} card="backlog" semTitulo />
                   </div>
                   <Button onClick={() => irParaFila("recebida")}>Ver fila</Button>
                 </CardContent>
