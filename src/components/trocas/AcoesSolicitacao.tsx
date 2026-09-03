@@ -186,8 +186,13 @@ export default function AcoesSolicitacao({ linha }: { linha: any }) {
     }
   };
 
-  const rodar = async (acao: Acao, dados: any, aoConcluir?: () => void) => {
-    const ok = await executar(acao, dados);
+  const rodar = async (
+    acao: Acao,
+    dados: any,
+    aoConcluir?: () => void,
+    toastSucesso?: (r: any) => { titulo: string; descricao?: string },
+  ) => {
+    const ok = await executar(acao, dados, toastSucesso);
     if (ok) {
       aoConcluir?.();
       fechar();
