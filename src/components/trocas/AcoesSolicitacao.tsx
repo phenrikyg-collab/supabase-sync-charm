@@ -32,6 +32,7 @@ const dataHoraBR = (v: any) => {
 const n = (v: any) => (Number.isFinite(Number(v)) ? Number(v) : 0);
 
 type Acao =
+  | "cotar"
   | "autorizar"
   | "marcar_postado"
   | "marcar_entregue"
@@ -41,7 +42,7 @@ type Acao =
   | "reembolsar";
 
 const ROTULO_ACAO: Record<string, string> = {
-  autorizar: "Autorizar",
+  autorizar: "Autorizar postagem",
   marcar_postado: "Registrar postagem",
   marcar_entregue: "Registrar entrega",
   cancelar_autorizacao: "Cancelar autorização",
@@ -103,6 +104,8 @@ export default function AcoesSolicitacao({ linha }: { linha: any }) {
 
   const [aberta, setAberta] = useState<Acao | null>(null);
   const [enviando, setEnviando] = useState(false);
+  const [cotando, setCotando] = useState(false);
+  const [cotacao, setCotacao] = useState<{ opcoes: any[]; recomendada: any } | null>(null);
   const [travaAte, setTravaAte] = useState<number>(0);
   const [avisoTrava, setAvisoTrava] = useState<string | null>(null);
 
