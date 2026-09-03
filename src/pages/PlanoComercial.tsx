@@ -203,6 +203,45 @@ export default function PlanoComercial() {
     return c;
   }, [dias]);
 
+  const necessidadeSemana = useMemo(() => {
+    const src: any[] = Array.isArray(estoque?.necessidade_por_semana)
+      ? estoque.necessidade_por_semana
+      : [];
+    return src.map((l, i) => {
+      const tamanhos: Record<string, number> = {};
+      const bruto: any = pick(l, "tamanhos", "por_tamanho") ?? l;
+      TAMANHOS.forEach((t) => {
+        tamanhos[t] = n(
+          bruto?.[t] ?? bruto?.[t.toLowerCase()] ?? pick(l, t, t.toLowerCase()),
+        );
+      });
+      const total = n(pick(l, "total")) || TAMANHOS.reduce((a, t) => a + tamanhos[t], 0);
+      const ini = pick(l, "inicio", "data_inicio");
+      const fim = pick(l, "fim", "data_fim");
+      const rotulo = ini
+        ? `S${num(pick(l, "semana") ?? i + 1)} · ${dataDDMM(String(ini))}${fim ? ` a ${dataDDMM(String(fim))}` : ""}`
+        : `Semana ${num(pick(l, "semana") ?? i + 1)}`;
+      return { rotulo, tamanhos, total };
+    });
+  }, [estoque]);
+
+  const exportarNecessidadeSemana = () => {
+    const linhas = [
+      ["semana", ...TAMANHOS, "total"].join(";"),
+      ...necessidadeSemana.map((l) =>
+        [l.rotulo, ...TAMANHOS.map((t) => l.tamanhos[t] ?? 0), l.total]
+          .map(csvEscape)
+          .join(";"),
+      ),
+    ].join("\n");
+    const blob = new Blob(["\ufeff" + linhas], { type: "text/csv;charset=utf-8" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = `necessidade-semana-${mesRef}.csv`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+  };
+
 
   const maiorPeso = useMemo(
     () => Math.max(0, ...semanas.map((s) => n(pick(s, "peso_pct")))),
