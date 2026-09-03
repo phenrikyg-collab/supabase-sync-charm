@@ -585,7 +585,21 @@ export default function PlanejamentoMensal() {
     setSearch({ ano: String(ano), mes: String(mes), tipo: t });
   };
 
-  const salvar = () => salvarCamposManuais(form as any);
+  const salvar = () => {
+    if (tipo === "planejado") {
+      const st = form.sessoes_totais ?? 0;
+      const so = form.sessoes_organicas ?? 0;
+      if (st > 0 && so > st) {
+        toast.error(
+          `As sessões orgânicas esperadas (${fmtNum(so)}) são maiores que a meta de sessões totais (${fmtNum(st)}). ` +
+          "Com isso a mídia zera e o investimento sai R$ 0. Suba a meta total.",
+        );
+        return;
+      }
+    }
+    salvarCamposManuais(form as any);
+  };
+
 
   // Red flags baseado nos dados persistidos
   const flags = useMemo(() => {
