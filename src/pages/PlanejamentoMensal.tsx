@@ -429,33 +429,16 @@ export default function PlanejamentoMensal() {
     setAutoFilled(new Set());
   }, [data]);
 
-  // Média histórica via RPC (para premissas e meta dos 9 pilares quando planejado)
+  // Média histórica ponderada via RPC (janela declarada: 3, 6 ou 12 meses)
   const [mediaHist, setMediaHist] = useState<MediaHistorica | null>(null);
-  const [mediaOrganicas2m, setMediaOrganicas2m] = useState<number | null>(null);
+  const [janela, setJanela] = useState(3);
   useEffect(() => {
     (async () => {
-      const m = await buscarMediaHistorica(ano, mes);
+      const m = await buscarMediaHistorica(ano, mes, janela);
       setMediaHist(m);
     })();
-  }, [ano, mes]);
+  }, [ano, mes, janela]);
 
-  // Média de sessões orgânicas dos últimos 2 meses realizados (parâmetro para planejado)
-  useEffect(() => {
-    (async () => {
-      const { data: rows } = await (supabase as any)
-        .from("planejamento_mensal")
-        .select("sessoes_totais, sessoes_midia")
-        .eq("tipo", "realizado")
-        .or(`ano.lt.${ano},and(ano.eq.${ano},mes.lt.${mes})`)
-        .order("ano", { ascending: false })
-        .order("mes", { ascending: false })
-        .limit(2);
-      if (!rows || rows.length === 0) { setMediaOrganicas2m(null); return; }
-      const organicas = rows.map((r: any) => Math.max((r.sessoes_totais ?? 0) - (r.sessoes_midia ?? 0), 0));
-      const avg = organicas.reduce((a: number, b: number) => a + b, 0) / organicas.length;
-      setMediaOrganicas2m(isFinite(avg) ? avg : null);
-    })();
-  }, [ano, mes]);
 
   // Preview local dos cálculos (apenas exibição enquanto edita)
   const preview = useMemo(() => {
