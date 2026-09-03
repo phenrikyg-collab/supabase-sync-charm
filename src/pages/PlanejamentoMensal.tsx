@@ -3,7 +3,7 @@ import { useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import {
   usePlanejamentoMensal, PlanejamentoMensal as PM,
-  MESES, fmtBRL, fmtNum, fmtPct,
+  MESES, fmtBRL, fmtBRL2, fmtNum, fmtPct,
   buscarMediaHistorica, MediaHistorica,
 } from "@/hooks/usePlanejamentoMensal";
 import { useRealizadoMes } from "@/hooks/useRealizadoMes";
