@@ -439,6 +439,10 @@ export default function CronogramaCorte({ ano, mes }: { ano: number; mes: number
           </CardContent>
         </Card>
       )}
+
+      {/* C — oportunidades de SEO sem estoque */}
+      <OportunidadesSeo />
     </div>
   );
 }
+
