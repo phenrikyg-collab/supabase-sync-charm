@@ -797,7 +797,10 @@ export default function PlanejamentoMensal() {
               setField={setField}
               isSaving={isSaving}
               mediaHist={mediaHist}
-              mediaOrganicas2m={mediaOrganicas2m}
+              janela={janela}
+              setJanela={setJanela}
+              avisoPlano={(data as any)?.qualidade?.aviso_plano ?? null}
+
             />
           )}
 
