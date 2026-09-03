@@ -82,6 +82,9 @@ export default function PlanoComercial() {
   const [padrao, setPadrao] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [erroRpc, setErroRpc] = useState<string | null>(null);
+  const [erroEstoque, setErroEstoque] = useState<string | null>(null);
+  const [pctAquisicao, setPctAquisicao] = useState(80);
+  const TOP_PRODUTOS = 8;
 
   // meta de lançamento p/ fiéis
   const [planoComercialId, setPlanoComercialId] = useState<string | null>(null);
@@ -94,15 +97,33 @@ export default function PlanoComercial() {
   const carregar = useCallback(async () => {
     setLoading(true);
     setErroRpc(null);
+    setErroEstoque(null);
     try {
       const [r1, r2, r3] = await Promise.all([
-        supabase.rpc("plano_comercial_semanal", { p_ano: ano, p_mes: mes }),
-        supabase.rpc("necessidade_estoque_plano", { p_ano: ano, p_mes: mes }),
+        supabase.rpc("plano_comercial_semanal", {
+          p_ano: ano,
+          p_mes: mes,
+          p_meses_padrao: 6,
+          p_pct_midia_aquisicao: pctAquisicao,
+        }),
+        supabase.rpc("necessidade_estoque_plano", {
+          p_ano: ano,
+          p_mes: mes,
+          p_top_produtos: TOP_PRODUTOS,
+        }),
         supabase.rpc("padrao_pedidos", { p_meses: 6 }),
       ]);
       if (r1.error) throw r1.error;
       setPlano(r1.data ?? null);
-      setEstoque(r2.error ? null : r2.data ?? null);
+      if (r2.error) {
+        setEstoque(null);
+        setErroEstoque(r2.error.message || "Falha ao carregar necessidade de estoque");
+      } else if (!r2.data) {
+        setEstoque(null);
+        setErroEstoque("A RPC necessidade_estoque_plano não retornou dados.");
+      } else {
+        setEstoque(r2.data);
+      }
       setPadrao(r3.error ? null : r3.data ?? null);
     } catch (e: any) {
       setErroRpc(e?.message || "Erro ao carregar o plano comercial");
@@ -112,7 +133,7 @@ export default function PlanoComercial() {
     } finally {
       setLoading(false);
     }
-  }, [ano, mes]);
+  }, [ano, mes, pctAquisicao]);
 
   useEffect(() => {
     carregar();
