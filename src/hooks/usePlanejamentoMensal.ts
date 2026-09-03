@@ -85,10 +85,21 @@ export interface MediaHistorica {
   investimento_total: number | null;
   roas_faturado: number | null;
   cac_novos: number | null;
+  // Novos campos da RPC ponderada
+  cps_geral?: number | null;
+  sessoes_midia?: number | null;
+  meses_usados?: number | null;
+  primeiro_mes?: string | null;
+  ultimo_mes?: string | null;
+  meses_com_sessao_auditavel?: number | null;
 }
 
-export async function buscarMediaHistorica(ano: number, mes: number): Promise<MediaHistorica | null> {
-  const { data, error } = await (supabase as any).rpc("media_historica", { p_ano: ano, p_mes: mes });
+export async function buscarMediaHistorica(
+  ano: number,
+  mes: number,
+  meses = 3,
+): Promise<MediaHistorica | null> {
+  const { data, error } = await (supabase as any).rpc("media_historica", { p_ano: ano, p_mes: mes, p_meses: meses });
   if (error) {
     console.error("media_historica", error);
     return null;
@@ -96,6 +107,7 @@ export async function buscarMediaHistorica(ano: number, mes: number): Promise<Me
   const row = Array.isArray(data) ? data[0] : data;
   return (row as MediaHistorica) ?? null;
 }
+
 
 export function usePlanejamentoMensal(ano: number, mes: number, tipo: "planejado" | "realizado") {
   const [data, setData] = useState<PlanejamentoMensal | null>(null);
