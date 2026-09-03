@@ -94,11 +94,18 @@ export default function CronogramaCorte({ ano, mes }: { ano: number; mes: number
       p_min_pecas_grade_quebrada: 3,
       p_classes_abc: ["A"],
     } as any);
+    console.log("[plano_corte_producao] resposta crua:", { data, error });
     if (error) {
       setErro(error.message || "Falha ao carregar o cronograma de corte");
       setDados(null);
+    } else if (!data || typeof data !== "object") {
+      setErro("A RPC plano_corte_producao devolveu uma resposta vazia ou inválida.");
+      setDados(null);
+    } else if ((data as any).erro || (data as any).error) {
+      setErro(String((data as any).erro ?? (data as any).error));
+      setDados(null);
     } else {
-      setDados(data ?? null);
+      setDados(data);
     }
     setLoading(false);
   }, [ano, mes, apenasContinua]);
@@ -119,13 +126,16 @@ export default function CronogramaCorte({ ano, mes }: { ano: number; mes: number
       : [];
 
   const corte = dados?.corte ?? {};
-  const modelos: any[] = Array.isArray(corte?.modelos)
-    ? corte.modelos
-    : Array.isArray(corte?.produtos)
-      ? corte.produtos
-      : Array.isArray(corte)
-        ? corte
-        : [];
+  // Caminho correto: resposta.modelos (array na raiz). Fallbacks defensivos apenas.
+  const modelos: any[] = Array.isArray(dados?.modelos)
+    ? dados.modelos
+    : Array.isArray(corte?.modelos)
+      ? corte.modelos
+      : Array.isArray(corte?.produtos)
+        ? corte.produtos
+        : Array.isArray(corte)
+          ? corte
+          : [];
   const semCorte: any[] = Array.isArray(corte?.linha_continua_sem_corte)
     ? corte.linha_continua_sem_corte
     : Array.isArray(dados?.linha_continua_sem_corte)
