@@ -582,11 +582,44 @@ export default function PlanoComercial() {
                         })}
                       </div>
 
-                      <div className="border-t pt-2 text-xs">
-                        <span className="text-muted-foreground">Investimento sugerido </span>
-                        <span className="font-semibold">
-                          {brl(pick(s, "investimento_sugerido", "investimento"))}
-                        </span>
+                      <div className="space-y-1 border-t pt-2 text-xs">
+                        <div>
+                          <span className="text-muted-foreground">Investimento sugerido </span>
+                          <span className="font-semibold">
+                            {brl(pick(s, "investimento_sugerido", "investimento"))}
+                          </span>
+                        </div>
+                        <div className="text-muted-foreground">
+                          Aquisição {brl(pick(s, "investimento_aquisicao"))} · Base{" "}
+                          {brl(pick(s, "investimento_base"))}
+                        </div>
+                        {(() => {
+                          const pv = n(pick(s, "pct_verba_do_mes"));
+                          const diverge = Math.abs(pv - peso) > 2;
+                          return (
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Badge
+                                  variant={diverge ? "destructive" : "outline"}
+                                  className="text-[10px]"
+                                >
+                                  {pct(pv)} da verba
+                                </Badge>
+                              </TooltipTrigger>
+                              <TooltipContent className="max-w-[260px]">
+                                Esta semana entrega {pct(peso)} dos pedidos mas recebe{" "}
+                                {pct(pv)} da verba, porque o mix dela é mais de
+                                base/aquisição.
+                              </TooltipContent>
+                            </Tooltip>
+                          );
+                        })()}
+                        <div className="text-muted-foreground">
+                          CAC previsto{" "}
+                          <span className="font-medium text-foreground">
+                            {brl(pick(coorteDaSemana(s, "aquisicao"), "cac"), 2)}
+                          </span>
+                        </div>
                       </div>
                     </CardContent>
                   </Card>
