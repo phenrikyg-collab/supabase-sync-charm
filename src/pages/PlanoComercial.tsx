@@ -1231,6 +1231,11 @@ export default function PlanoComercial() {
             </>
             )}
           </TabsContent>
+
+          {/* 8. cronograma de corte */}
+          <TabsContent value="corte" className="mt-4">
+            <CronogramaCorte ano={ano} mes={mes} />
+          </TabsContent>
         </Tabs>
 
         {padrao?.janela_meses && (
