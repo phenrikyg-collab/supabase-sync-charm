@@ -365,6 +365,41 @@ export default function PlanoComercial() {
     </div>
   );
 
+  const politica = plano?.politica_midia ?? null;
+
+  const politicaBar = (
+    <Card>
+      <CardContent className="flex flex-wrap items-center gap-4 p-4">
+        <div className="flex items-center gap-2">
+          <Label className="text-sm">Verba para aquisição</Label>
+          <Input
+            className="w-20"
+            inputMode="numeric"
+            value={pctAquisicaoInput}
+            onChange={(e) => setPctAquisicaoInput(e.target.value)}
+            onBlur={commitPctAquisicao}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") commitPctAquisicao();
+            }}
+          />
+          <span className="text-sm text-muted-foreground">
+            % · base: {num(100 - pctAquisicao)}%
+          </span>
+        </div>
+        {politica && (
+          <div className="flex flex-wrap gap-3 text-sm">
+            <Badge variant="outline" className="text-xs">
+              Aquisição {brl(pick(politica, "verba_aquisicao"))}
+            </Badge>
+            <Badge variant="outline" className="text-xs">
+              Base {brl(pick(politica, "verba_base"))}
+            </Badge>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+
   if (loading) {
     return (
       <div className="space-y-6 p-6">
