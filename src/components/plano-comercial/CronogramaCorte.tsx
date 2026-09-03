@@ -82,6 +82,9 @@ export default function CronogramaCorte({ ano, mes }: { ano: number; mes: number
       p_max_pecas_risco: 6,
       p_max_riscos: 3,
       p_apenas_continua: apenasContinua,
+      p_incluir_grade_quebrada: true,
+      p_min_pecas_grade_quebrada: 3,
+      p_classes_abc: ["A"],
     } as any);
     if (error) {
       setErro(error.message || "Falha ao carregar o cronograma de corte");
