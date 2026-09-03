@@ -711,21 +711,21 @@ export function PublicacoesTab() {
 
   const salvar = async (opcoes?: { publicarAgora?: boolean }) => {
     if (salvando) return;
-    const soTikTok = !publicarNoIg && ttForm.ativo;
-    if (ttForm.ativo && ttErro) {
-      toast.error(ttErro);
+    const soBuffer = !publicarNoIg && algumDestino;
+    if (algumDestino && bufErro) {
+      toast.error(bufErro);
       return;
     }
-    if (!publicarNoIg && !ttForm.ativo) {
-      toast.error("Escolha ao menos uma plataforma: Instagram ou TikTok.");
+    if (!publicarNoIg && !algumDestino) {
+      toast.error("Escolha ao menos uma plataforma: Instagram, TikTok, YouTube ou Pinterest.");
       return;
     }
-    if (!soTikTok && legendaObrigatoriaFaltando) {
+    if (!soBuffer && legendaObrigatoriaFaltando) {
       toast.error("Escreva a legenda antes de agendar. Só Stories pode ir sem legenda.");
       return;
     }
     // O backend falha com mensagem clara se passar de 10 — a tela impede antes de deixar agendar.
-    if (!soTikTok && form.tipo === "CAROUSEL") {
+    if (!soBuffer && form.tipo === "CAROUSEL") {
       if (itens.length < MIN_CARDS_CARROSSEL) {
         toast.error("Carrossel precisa de pelo menos 2 cards.");
         return;
@@ -760,42 +760,18 @@ export function PublicacoesTab() {
         }
       }
 
-      const compatSalvar = compatibilidadeTikTok(
+      const compatSalvar = compatibilidadeBuffer(
         form.tipo,
         midiaUrls.map((u) => ({ url: u, isVideo: ehUrlDeVideo(u) })),
       );
 
       let idSalvo: string | number | null = editando?.id ?? null;
 
-      if (soTikTok) {
-        // Só TikTok (toggle do Instagram desligado): grava só a linha da fila do TikTok.
-        const payloadTt = payloadTikTok(ttForm, compatSalvar, {
-          publicacaoIgId: null,
-          agendadoPara: agendadoIso,
-          status: statusFila,
-          produtoIds: form.produtoIds,
-        });
-        try {
-          const salvoTt = await salvarTikTokPublicacao(payloadTt, ttLinha?.id ?? null);
-          if (salvoTt?.id) setTtLinha(salvoTt);
-        } catch (eTt: any) {
-          await carregar();
-          toast.error(eTt?.message ?? "Falha ao salvar no TikTok", { duration: 12000 });
-          return;
-        }
-      } else {
-        // ===== Salvamento ATÔMICO: Instagram + TikTok na mesma transação via RPC. =====
-        // Se o TikTok falhar, o Instagram volta atrás junto — nunca fica meio salvo.
-        // A chave_salvamento torna a retentativa um UPDATE, não um INSERT novo.
+      if (!soBuffer) {
+        // ===== Instagram: salvamento atômico via RPC (chave_salvamento evita duplicar). =====
         const variacoes = form.respostasPublicas.map((v) => v.trim()).filter(Boolean);
         const compra = form.respostasCompra.map((v) => v.trim()).filter(Boolean);
         const fallback = form.respostasFallback.map((v) => v.trim().length ? v.trim() : "").filter(Boolean);
-        const payloadTt = payloadTikTok(ttForm, compatSalvar, {
-          publicacaoIgId: null,
-          agendadoPara: agendadoIso,
-          status: statusFila,
-          produtoIds: form.produtoIds,
-        });
 
         const p: Record<string, any> = {
           id: idSalvo,
@@ -825,10 +801,8 @@ export function PublicacoesTab() {
           cupom: form.modoResposta === "automatico" ? form.cupom.trim() || null : null,
           cupom_beneficio: form.modoResposta === "automatico" ? form.cupomBeneficio.trim() || null : null,
           cupom_validade: form.modoResposta === "automatico" ? form.cupomValidade.trim() || null : null,
-          // Toggle desligado: a função remove o agendamento de TikTok vinculado (se ainda não publicado).
-          tiktok: ttForm.ativo
-            ? { ...payloadTt, publicacao_ig_id: undefined, ativo: true }
-            : { ativo: false },
+          // As linhas da Buffer são gravadas logo abaixo, uma por destino.
+          tiktok: { ativo: false },
         };
 
         const { data, error } = await supabase.rpc("fn_publicacao_salvar", { p });
@@ -841,7 +815,49 @@ export function PublicacoesTab() {
         if (!editando && idSalvo != null) setEditando({ id: idSalvo });
       }
 
-      if (opcoes?.publicarAgora && !soTikTok) {
+      // ===== Buffer: uma linha por destino, todas com o mesmo grupo_id. =====
+      const grupo = grupoId ?? crypto.randomUUID();
+      if (grupo !== grupoId) setGrupoId(grupo);
+      const idsAtuais = { ...bufIds };
+      for (const servico of SERVICOS) {
+        const ativo = bufForm[servico].ativo;
+        const linhaExistente = bufLinhas.find((l) => l.servico === servico);
+        if (!ativo) {
+          // Desligar o switch apaga a linha, exceto se já foi publicada.
+          if (linhaExistente?.id && linhaExistente.status !== "publicado") {
+            await apagarDestino(linhaExistente.id).catch(() => null);
+            idsAtuais[servico] = null;
+          } else if (linhaExistente?.status === "publicado") {
+            toast.info(`Já publicado no ${NOME_SERVICO[servico]}`);
+          }
+          continue;
+        }
+        if (linhaExistente?.status === "publicado") continue;
+        const payload = payloadDestino(servico, bufForm, compatSalvar, {
+          grupoId: grupo,
+          publicacaoIgId: soBuffer ? null : idSalvo,
+          agendadoPara: agendadoIso,
+          status: statusFila,
+          produtoIds: form.produtoIds,
+        });
+        try {
+          const salvo = await salvarDestino(payload, idsAtuais[servico] ?? linhaExistente?.id ?? null);
+          if (salvo?.id) {
+            idsAtuais[servico] = salvo.id;
+            // Guarda o id antes de ir para o próximo destino: retentativa vira update.
+            setBufIds({ ...idsAtuais });
+          }
+        } catch (eDest: any) {
+          setBufIds({ ...idsAtuais });
+          await carregar();
+          // Mensagens do banco já vêm prontas em português.
+          toast.error(`${NOME_SERVICO[servico]}: ${eDest?.message ?? "falha ao salvar"}`, { duration: 12000 });
+          return;
+        }
+      }
+      setBufIds(idsAtuais);
+
+      if (opcoes?.publicarAgora && !soBuffer) {
         // Autorização explícita: sem ignorar_agendamento o backend recusa publicar fora da hora marcada.
         const { data, error: erroEdge } = await supabase.functions.invoke("instagram-publicar", {
           body: { publicacao_id: idSalvo, ignorar_agendamento: true },
@@ -947,7 +963,10 @@ export function PublicacoesTab() {
                         >
                           {p.modo_resposta === "automatico" && <Zap className="inline h-2.5 w-2.5 mr-0.5" />}
                           {p.tipo} · {new Date(p.agendado_para!).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
-                          {p.id != null && ttPorIg.has(String(p.id)) && " · TT"}
+                          {p.id != null &&
+                            (bufPorIg.get(String(p.id)) ?? [])
+                              .map((l) => ` · ${NOME_SERVICO[(l.servico ?? "tiktok") as ServicoBuffer] ?? l.servico}`)
+                              .join("")}
                         </button>
 
                       ))}
@@ -971,7 +990,7 @@ export function PublicacoesTab() {
         </Card>
       ) : (
         <div className="space-y-2.5">
-          {publicacoes.length === 0 && ttSoltas.length === 0 ? (
+          {publicacoes.length === 0 && bufSoltas.length === 0 ? (
             <Card>
               <CardContent className="p-10 text-center text-sm text-muted-foreground">
                 <CalendarDays className="h-8 w-8 mx-auto mb-2 opacity-40" />
@@ -983,7 +1002,7 @@ export function PublicacoesTab() {
             {[...publicacoes]
               .sort((a, b) => (b.agendado_para ?? "").localeCompare(a.agendado_para ?? ""))
               .map((p, i) => {
-                const tt = p.id != null ? ttPorIg.get(String(p.id)) ?? null : null;
+                const destinos = p.id != null ? bufPorIg.get(String(p.id)) ?? [] : [];
                 return (
                 <Card key={p.id ?? i} className="cursor-pointer hover:bg-accent/30 transition-colors" onClick={() => (p.media_id ? duplicar(p) : abrirEdicao(p))}>
                   <CardContent className="p-3.5 space-y-2">
@@ -994,7 +1013,11 @@ export function PublicacoesTab() {
                     <Badge variant="outline" className="shrink-0">{p.tipo}</Badge>
                     <div className="flex gap-1 shrink-0">
                       <Badge variant="secondary" className="text-[10px]">Instagram</Badge>
-                      {tt && <Badge variant="secondary" className="text-[10px]">TikTok</Badge>}
+                      {destinos.map((l) => (
+                        <Badge key={l.id} variant="secondary" className="text-[10px]">
+                          {NOME_SERVICO[(l.servico ?? "tiktok") as ServicoBuffer] ?? l.servico}
+                        </Badge>
+                      ))}
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm truncate">{p.legenda || <span className="text-muted-foreground">(sem legenda)</span>}</p>
@@ -1024,40 +1047,50 @@ export function PublicacoesTab() {
                       </Button>
                     )}
                    </div>
-                   {tt && (
-                     <LinhaTikTok
-                       tt={tt}
-                       publicando={ttPublicando === tt.id}
-                       onPublicar={() => publicarTikTok(tt)}
-                       onDuplicar={() => duplicarTikTok(tt)}
+                   {destinos.map((l) => (
+                     <LinhaDestino
+                       key={l.id}
+                       linha={l}
+                       publicando={bufPublicando === l.id}
+                       onPublicar={() => publicarDestino(l)}
                      />
-                   )}
+                   ))}
                   </CardContent>
                 </Card>
                 );
               })}
 
-            {ttSoltas
-              .sort((a, b) => (b.agendado_para ?? "").localeCompare(a.agendado_para ?? ""))
-              .map((tt) => (
-                <Card key={`tt_${tt.id}`}>
+            {bufSoltas
+              .sort((a, b) => (b[0]?.agendado_para ?? "").localeCompare(a[0]?.agendado_para ?? ""))
+              .map((grupo) => (
+                <Card key={`buf_${grupo[0]?.grupo_id ?? grupo[0]?.id}`}>
                   <CardContent className="p-3.5 space-y-2">
                     <div className="flex items-center gap-3">
-                      <Badge variant="outline" className="shrink-0">{tt.tipo}</Badge>
-                      <Badge variant="secondary" className="text-[10px] shrink-0">TikTok</Badge>
+                      <Badge variant="outline" className="shrink-0">{grupo[0]?.tipo}</Badge>
+                      <div className="flex gap-1 shrink-0">
+                        {grupo.map((l) => (
+                          <Badge key={l.id} variant="secondary" className="text-[10px]">
+                            {NOME_SERVICO[(l.servico ?? "tiktok") as ServicoBuffer] ?? l.servico}
+                          </Badge>
+                        ))}
+                      </div>
                       <div className="flex-1 min-w-0">
                         <p className="text-sm truncate">
-                          {tt.titulo || <span className="text-muted-foreground">(sem texto)</span>}
+                          {grupo[0]?.titulo || <span className="text-muted-foreground">(sem texto)</span>}
                         </p>
-                        <p className="text-[10px] text-muted-foreground mt-0.5">{dataHoraBR(tt.agendado_para)}</p>
+                        <p className="text-[10px] text-muted-foreground mt-0.5">
+                          {dataHoraBR(grupo[0]?.agendado_para)}
+                        </p>
                       </div>
                     </div>
-                    <LinhaTikTok
-                      tt={tt}
-                      publicando={ttPublicando === tt.id}
-                      onPublicar={() => publicarTikTok(tt)}
-                      onDuplicar={() => duplicarTikTok(tt)}
-                    />
+                    {grupo.map((l) => (
+                      <LinhaDestino
+                        key={l.id}
+                        linha={l}
+                        publicando={bufPublicando === l.id}
+                        onPublicar={() => publicarDestino(l)}
+                      />
+                    ))}
                   </CardContent>
                 </Card>
               ))}
@@ -1090,7 +1123,7 @@ export function PublicacoesTab() {
                         onCheckedChange={(v) => setPublicarNoIg(!!v)}
                       />
                       Publicar no Instagram
-                      <span className="text-muted-foreground">(desmarque para agendar só no TikTok)</span>
+                      <span className="text-muted-foreground">(desmarque para agendar só pela Buffer)</span>
                     </label>
                   )}
                 </div>
@@ -1456,19 +1489,17 @@ export function PublicacoesTab() {
 
               </section>
 
-              {/* TAMBÉM NO TIKTOK — salvar só grava a linha; quem publica é o cron. */}
-              <BlocoTikTok
-                form={ttForm}
-                onChange={setTtForm}
-                config={ttConfig}
-                compat={compatTikTok}
+              {/* TAMBÉM EM (Buffer) — salvar só grava as linhas; quem publica é o cron. */}
+              <BlocoBuffer
+                form={bufForm}
+                onChange={setBufForm}
+                canais={canais}
+                compat={compatBuffer}
                 legendaIg={form.legenda}
-                onErroValidacao={setTtErro}
+                produtoIds={form.produtoIds}
+                linhas={bufLinhas}
+                onErroValidacao={setBufErro}
               />
-
-              {ttLinha?.status === "publicado" && !ttForm.ativo && (
-                <p className="text-xs text-muted-foreground">Já publicado no TikTok</p>
-              )}
 
 
 
@@ -1670,8 +1701,8 @@ export function PublicacoesTab() {
             {carrosselInvalido && publicarNoIg && (
               <p className="text-xs text-danger mr-auto">Carrossel precisa de pelo menos 2 cards.</p>
             )}
-            {ttForm.ativo && ttErro && (
-              <p className="text-xs text-danger mr-auto">{ttErro}</p>
+            {algumDestino && bufErro && (
+              <p className="text-xs text-danger mr-auto">{bufErro}</p>
             )}
             <Button variant="outline" onClick={() => setModalAberto(false)} disabled={salvando}>
               Cancelar
@@ -1683,7 +1714,7 @@ export function PublicacoesTab() {
               <Button
                 variant="secondary"
                 onClick={() => salvar({ publicarAgora: true })}
-                disabled={salvando || carrosselInvalido || legendaObrigatoriaFaltando || !!(ttForm.ativo && ttErro)}
+                disabled={salvando || carrosselInvalido || legendaObrigatoriaFaltando || !!(algumDestino && bufErro)}
               >
                 {salvando && <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />}
                 {salvando ? "Salvando..." : "Publicar agora"}
@@ -1694,7 +1725,7 @@ export function PublicacoesTab() {
               disabled={
                 salvando ||
                 (publicarNoIg && (carrosselInvalido || legendaObrigatoriaFaltando)) ||
-                !!(ttForm.ativo && ttErro)
+                !!(algumDestino && bufErro)
               }
             >
               {salvando && <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />}
