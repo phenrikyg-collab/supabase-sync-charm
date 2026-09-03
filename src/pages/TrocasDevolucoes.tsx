@@ -35,6 +35,7 @@ const dataBR = (v: any) => {
   const d = new Date(v);
   return isNaN(d.getTime()) ? String(v) : d.toLocaleDateString("pt-BR");
 };
+const isoBR = (v: string) => (v && /^\d{4}-\d{2}-\d{2}$/.test(v) ? v.split("-").reverse().join("/") : dataBR(v));
 const isoHoje = () => new Date().toISOString().slice(0, 10);
 const isoMenos = (dias: number) => {
   const d = new Date();
@@ -247,7 +248,7 @@ export default function TrocasDevolucoes() {
               </SelectContent>
             </Select>
             <p className="text-xs text-muted-foreground">
-              {dataBR(inicio)} a {dataBR(fim)}
+              {isoBR(inicio)} a {isoBR(fim)}
             </p>
             {selecionado?.parcial && (
               <p className="text-xs text-amber-600">Mês em andamento — os números ainda vão mudar até o fim do mês.</p>
