@@ -630,6 +630,20 @@ export default function PlanoComercial() {
 
           {/* 3. calendário */}
           <TabsContent value="calendario" className="mt-4 space-y-4">
+            <div className="flex flex-wrap items-center gap-3 text-sm">
+              <span className="font-medium">
+                {num(contagemFoco.aquisicao)} dias de aquisição ·{" "}
+                {num(contagemFoco.base)} de base · {num(contagemFoco.misto)} mistos
+              </span>
+              <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                <span className="h-2.5 w-2.5 rounded-full bg-sky-500" /> aquisição = mais
+                de 40% novos
+                <span className="ml-2 h-2.5 w-2.5 rounded-full bg-emerald-600" /> base =
+                mais de 55% fiéis
+                <span className="ml-2 h-2.5 w-2.5 rounded-full bg-amber-500" /> misto
+              </span>
+            </div>
+
             <div className="flex flex-wrap gap-2">
               {topDias.map((d, i) => {
                 const data = String(pick(d, "data") ?? "");
@@ -657,33 +671,56 @@ export default function PlanoComercial() {
                     </div>
                   ))}
                   {(() => {
-                    const maxPeso = Math.max(
-                      0.0001,
-                      ...dias.map((d) => n(pick(d, "peso_pct"))),
-                    );
                     const primeiro = new Date(ano, mes - 1, 1).getDay();
                     const celulas: JSX.Element[] = [];
                     for (let i = 0; i < primeiro; i++)
                       celulas.push(<div key={`v${i}`} />);
                     dias.forEach((d, i) => {
                       const peso = n(pick(d, "peso_pct"));
-                      const alpha = 0.12 + 0.78 * (peso / maxPeso);
                       const dataStr = String(pick(d, "data") ?? "");
                       const diaNum =
                         pick(d, "dia") ??
                         (dataStr ? Number(dataStr.slice(8, 10)) : i + 1);
+                      const foco = String(pick(d, "foco") ?? "misto");
+                      const aq: any = pick(d, "aquisicao") ?? {};
+                      const sc: any = pick(d, "segunda_compra") ?? {};
+                      const fi: any = pick(d, "fieis") ?? {};
                       celulas.push(
-                        <div
-                          key={i}
-                          className="rounded-md border p-1.5 text-left"
-                          style={{ backgroundColor: `rgba(5, 150, 105, ${alpha})` }}
-                        >
-                          <div className="text-[11px] font-semibold">{diaNum}</div>
-                          <div className="text-[10px] opacity-80">{pct(peso, 2)}</div>
-                          <div className="text-[10px] font-medium">
-                            {brl(pick(d, "investimento"))}
-                          </div>
-                        </div>,
+                        <Tooltip key={i}>
+                          <TooltipTrigger asChild>
+                            <div
+                              className={cn(
+                                "rounded-md border p-1.5 text-left text-white",
+                                foco === "aquisicao" && "bg-sky-500",
+                                foco === "base" && "bg-emerald-600",
+                                foco !== "aquisicao" && foco !== "base" && "bg-amber-500",
+                              )}
+                            >
+                              <div className="text-[11px] font-semibold">{diaNum}</div>
+                              <div className="text-[10px] opacity-90">{pct(peso, 2)}</div>
+                              <div className="text-[10px] font-medium">
+                                {brl(pick(d, "investimento"))}
+                              </div>
+                            </div>
+                          </TooltipTrigger>
+                          <TooltipContent className="space-y-1 text-xs">
+                            <p className="font-medium">
+                              {dataStr ? dataBR(dataStr) : `Dia ${diaNum}`} · foco {foco}
+                            </p>
+                            <p>
+                              Investimento {brl(pick(d, "investimento"))} · aquisição{" "}
+                              {brl(pick(d, "investimento_aquisicao"))} · base{" "}
+                              {brl(pick(d, "investimento_base"))}
+                            </p>
+                            <p>
+                              Novos {num(pick(aq, "pedidos"))} ped ({pct(pick(aq, "pct"))})
+                            </p>
+                            <p>2ª compra {num(pick(sc, "pedidos"))} ped</p>
+                            <p>
+                              Fiéis {num(pick(fi, "pedidos"))} ped ({pct(pick(fi, "pct"))})
+                            </p>
+                          </TooltipContent>
+                        </Tooltip>,
                       );
                     });
                     return celulas;
@@ -695,7 +732,49 @@ export default function PlanoComercial() {
                 </p>
               </CardContent>
             </Card>
+
+            <div className="grid gap-4 md:grid-cols-2">
+              {[
+                { titulo: "Onde colocar a verba de prospecção", lista: topDiasAquisicao, campo: "investimento_aquisicao" },
+                { titulo: "Onde acionar a base", lista: topDiasBase, campo: "investimento_base" },
+              ].map((bloco) => (
+                <Card key={bloco.titulo}>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-base">{bloco.titulo}</CardTitle>
+                    {bloco.titulo === "Onde acionar a base" && (
+                      <p className="text-xs text-muted-foreground">
+                        CRM e remarketing, não mídia fria.
+                      </p>
+                    )}
+                  </CardHeader>
+                  <CardContent className="space-y-1.5">
+                    {!bloco.lista.length && (
+                      <p className="text-sm text-muted-foreground">Sem dias listados.</p>
+                    )}
+                    {bloco.lista.map((d: any, i: number) => {
+                      const dt = String(pick(d, "data") ?? "");
+                      return (
+                        <div key={i} className="flex justify-between text-sm">
+                          <span>
+                            {dt ? dataBR(dt) : `Dia ${num(pick(d, "dia"))}`}
+                            {dt && (
+                              <span className="ml-1 text-xs text-muted-foreground">
+                                {DOW_CURTO[new Date(`${dt.slice(0, 10)}T12:00:00`).getDay()]}
+                              </span>
+                            )}
+                          </span>
+                          <span className="font-medium">
+                            {brl(pick(d, bloco.campo, "investimento"))}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
           </TabsContent>
+
 
           {/* 4. aquisição */}
           <TabsContent value="aquisicao" className="mt-4 space-y-4">
