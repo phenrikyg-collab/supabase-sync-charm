@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/hooks/use-toast";
 import { AlertTriangle, Check, Loader2, MessageCircle, X } from "lucide-react";
 import { dataBRCompleta } from "@/lib/rh";
@@ -51,7 +52,10 @@ export function EnviarWhatsAppDialog({
   const [itens, setItens] = useState<ItemEnvio[]>([]);
   const [numeroTeste, setNumeroTeste] = useState("");
   const [enviando, setEnviando] = useState(false);
+  const [progressoTexto, setProgressoTexto] = useState("");
+  const [progressoValor, setProgressoValor] = useState(0);
   const [resultado, setResultado] = useState<ResultadoItem[] | null>(null);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const { data: destinatario } = useQuery({
     queryKey: ["rh-wa-destinatario", funcionarioId],
@@ -74,11 +78,61 @@ export function EnviarWhatsAppDialog({
     if (!open) return;
     setResultado(null);
     setNumeroTeste("");
+    setProgressoTexto("");
+    setProgressoValor(0);
     const iniciais: ItemEnvio[] = ["holerite"];
     if (podeComprovante) iniciais.push("comprovante");
     if (podeCiencia) iniciais.push("ciencia");
     setItens(iniciais);
   }, [open, podeComprovante, podeCiencia]);
+
+  useEffect(() => {
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
+    if (!enviando) {
+      setProgressoTexto("");
+      setProgressoValor(0);
+      return;
+    }
+
+    const total = Math.max(itens.length, 1);
+    let etapa = 0;
+    setProgressoTexto("preparando documentos...");
+    setProgressoValor(5);
+
+    const avancar = () => {
+      etapa += 1;
+      if (etapa === 1) {
+        setProgressoTexto(`enviando (1 de ${total})`);
+        setProgressoValor(Math.round((1 / total) * 100));
+      } else if (etapa < total) {
+        setProgressoTexto(`enviando (${etapa} de ${total})`);
+        setProgressoValor(Math.round((etapa / total) * 100));
+      } else {
+        setProgressoTexto("aguardando confirmação...");
+        setProgressoValor(95);
+      }
+    };
+
+    const t1 = setTimeout(avancar, 1200);
+    timerRef.current = setInterval(() => {
+      etapa += 1;
+      if (etapa >= total) {
+        setProgressoTexto("aguardando confirmação...");
+        setProgressoValor(95);
+      } else {
+        setProgressoTexto(`enviando (${etapa + 1} de ${total})`);
+        setProgressoValor(Math.round(((etapa + 1) / total) * 100));
+      }
+    }, 2200);
+
+    return () => {
+      clearTimeout(t1);
+      if (timerRef.current) clearInterval(timerRef.current);
+    };
+  }, [enviando, itens.length]);
 
   const alternar = (item: ItemEnvio) =>
     setItens((s) => (s.includes(item) ? s.filter((i) => i !== item) : [...s, item]));
@@ -89,6 +143,8 @@ export function EnviarWhatsAppDialog({
   const enviar = async () => {
     setEnviando(true);
     setResultado(null);
+    setProgressoTexto("preparando documentos...");
+    setProgressoValor(5);
     const { data, erro } = await chamarWhatsapp<RespostaEnvio>({
       acao: "enviar",
       holerite_id: holeriteId,
@@ -96,6 +152,10 @@ export function EnviarWhatsAppDialog({
       ...(numeroTeste.trim() ? { numero_teste: numeroTeste.replace(/\D/g, "") } : {}),
     });
     setEnviando(false);
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
     if (erro) {
       toast({ title: "Envio não concluído", description: erro, variant: "destructive" });
       return;
@@ -199,8 +259,18 @@ export function EnviarWhatsAppDialog({
             </div>
           )}
 
+          {enviando && (
+            <div className="space-y-1.5">
+              <Progress value={progressoValor} />
+              <p className="text-xs text-muted-foreground flex items-center gap-2">
+                <Loader2 className="h-3 w-3 animate-spin" />
+                {progressoTexto || "enviando..."}
+              </p>
+            </div>
+          )}
+
           <div className="flex justify-end gap-2">
-            <Button variant="outline" onClick={() => onOpenChange(false)}>
+            <Button variant="outline" onClick={() => onOpenChange(false)} disabled={enviando}>
               Fechar
             </Button>
             <Button

@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/hooks/use-toast";
-import { AlertTriangle, Check, Loader2, MessageCircle, X } from "lucide-react";
+import { AlertTriangle, Check, Clock, Loader2, MessageCircle, X } from "lucide-react";
 import {
   chamarWhatsapp,
   ehAviso,
@@ -19,6 +19,7 @@ import {
 import { AvisoEvolution } from "./AvisoEvolution";
 
 const LOTE_MAX = 40;
+const SEGUNDOS_POR_PESSOA = 8;
 
 type Linha = {
   f: FilaItem;
@@ -42,13 +43,21 @@ export function EnviarLoteWhatsAppDialog({
   const [enviando, setEnviando] = useState(false);
   const [progresso, setProgresso] = useState(0);
   const [resultados, setResultados] = useState<ResultadoEnvio[] | null>(null);
+  const [tempoDecorrido, setTempoDecorrido] = useState(0);
 
   useEffect(() => {
-    if (open) {
-      setResultados(null);
-      setProgresso(0);
-    }
+    if (!open) return;
+    setResultados(null);
+    setProgresso(0);
+    setTempoDecorrido(0);
   }, [open]);
+
+  useEffect(() => {
+    if (!enviando) return;
+    const inicio = Date.now();
+    const id = setInterval(() => setTempoDecorrido(Math.floor((Date.now() - inicio) / 1000)), 1000);
+    return () => clearInterval(id);
+  }, [enviando]);
 
   const linhas: Linha[] = useMemo(
     () =>
@@ -78,6 +87,25 @@ export function EnviarLoteWhatsAppDialog({
   const aEnviar = linhas.filter((l) => l.itens.length);
   const deFora = linhas.filter((l) => !l.itens.length);
 
+  const tempoEstimadoSegundos = useMemo(
+    () => Math.max(1, aEnviar.length * SEGUNDOS_POR_PESSOA),
+    [aEnviar.length],
+  );
+
+  const formatarTempo = (segundos: number) => {
+    if (segundos < 60) return `${segundos}s`;
+    const m = Math.floor(segundos / 60);
+    const s = segundos % 60;
+    return s > 0 ? `${m}m ${s.toString().padStart(2, "0")}s` : `${m} min`;
+  };
+
+  const estimativaTexto = useMemo(() => {
+    const s = tempoEstimadoSegundos;
+    if (s < 60) return `cerca de ${s} segundos`;
+    const min = Math.ceil(s / 60);
+    return min === 1 ? "cerca de 1 minuto" : `cerca de ${min} minutos`;
+  }, [tempoEstimadoSegundos]);
+
   const alternar = (item: ItemEnvio) =>
     setSelecionados((s) => (s.includes(item) ? s.filter((i) => i !== item) : [...s, item]));
 
@@ -85,6 +113,7 @@ export function EnviarLoteWhatsAppDialog({
     setEnviando(true);
     setResultados(null);
     setProgresso(0);
+    setTempoDecorrido(0);
 
     // agrupa por combinação de itens (a API aceita uma lista de itens por chamada)
     const grupos = new Map<string, Linha[]>();
@@ -199,13 +228,29 @@ export function EnviarLoteWhatsAppDialog({
             )}
           </div>
 
-          {enviando && (
-            <div className="space-y-1">
-              <Progress value={progresso} />
-              <p className="text-xs text-muted-foreground">
-                Enviando com intervalo entre as mensagens — pode levar mais de um minuto. Mantenha esta janela
-                aberta.
+          {aEnviar.length > 0 && !enviando && (
+            <div className="flex items-start gap-2 rounded-md border border-amber-200 bg-amber-50 p-2.5 text-xs text-amber-900">
+              <Clock className="h-4 w-4 shrink-0 mt-0.5" />
+              <p>
+                Isso leva {estimativaTexto} para {aEnviar.length} pessoa
+                {aEnviar.length > 1 ? "s" : ""}. As mensagens saem uma a uma com pausa entre elas — mantenha esta
+                janela aberta.
               </p>
+            </div>
+          )}
+
+          {enviando && (
+            <div className="space-y-1.5">
+              <Progress value={progresso} />
+              <div className="flex items-center justify-between text-xs text-muted-foreground">
+                <span className="flex items-center gap-2">
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                  Enviando com intervalo entre as mensagens
+                </span>
+                <span className="tabular-nums">
+                  {formatarTempo(tempoDecorrido)} / {formatarTempo(tempoEstimadoSegundos)}
+                </span>
+              </div>
             </div>
           )}
 
