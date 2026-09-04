@@ -145,6 +145,63 @@ export function HoleritesTab({
     [holerites, soPendentes],
   );
 
+  const [waAberto, setWaAberto] = useState<Holerite | null>(null);
+  const [waLoteAberto, setWaLoteAberto] = useState(false);
+
+  const { data: fila, refetch: refetchFila } = useQuery({
+    queryKey: ["rh-whatsapp-fila", competencia, tipo],
+    enabled: !!competencia,
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc("rh_whatsapp_fila" as any, {
+        p_competencia: competencia,
+        p_tipo: tipo,
+      });
+      if (error) throw error;
+      return (Array.isArray(data) ? data : []) as FilaItem[];
+    },
+  });
+
+  const filaPorHolerite = useMemo(() => {
+    const m = new Map<string, FilaItem>();
+    (fila ?? []).forEach((f) => f.holerite_id && m.set(f.holerite_id, f));
+    return m;
+  }, [fila]);
+
+  const filaVisivel = useMemo(
+    () => (fila ?? []).filter((f) => listaVisivel.some((h) => h.id === f.holerite_id)),
+    [fila, listaVisivel],
+  );
+
+  const aposEnvio = () => {
+    refetchFila();
+    refetch();
+  };
+
+  const ChipsEnvio = ({ h }: { h: Holerite }) => {
+    const f = h.id ? filaPorHolerite.get(h.id) : undefined;
+    if (!f) return null;
+    const chips: string[] = [];
+    if ((f.holerite_enviado ?? 0) > 0) chips.push("holerite enviado");
+    if ((f.comprovante_enviado ?? 0) > 0) chips.push("comprovante enviado");
+    if ((f.ciencia_enviada ?? 0) > 0) chips.push("link enviado");
+    if (!chips.length && !f.tem_numero)
+      return (
+        <span className="text-[10px] px-2 py-0.5 rounded-full bg-muted text-muted-foreground">
+          sem WhatsApp
+        </span>
+      );
+    return (
+      <>
+        {chips.map((c) => (
+          <span key={c} className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700">
+            {c}
+          </span>
+        ))}
+      </>
+    );
+  };
+
+
   const gerar = async () => {
     setGerando(true);
     const { error } = await supabase.rpc("rh_holerites_gerar", { p_competencia: competencia, p_tipo: tipo });
