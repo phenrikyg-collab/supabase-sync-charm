@@ -417,6 +417,7 @@ function LinhaFuncionario({
   f, competencia, aberto, onToggle, onSalvo, onVerHolerite,
 }: { f: FuncionarioFolha; competencia: string; aberto: boolean; onToggle: () => void; onSalvo: () => void; onVerHolerite?: () => void }) {
   const { toast } = useToast();
+  const funcId: string | undefined = f.id ?? (f as any).funcionario_id;
   const pags = f.pagamentos ?? {};
   const saldo = pags["saldo"];
   const [liquido, setLiquido] = useState<string>(saldo?.valor_liquido != null ? String(saldo.valor_liquido) : "");
@@ -435,9 +436,15 @@ function LinhaFuncionario({
   }, [f.faltas]);
 
   const salvarFaltas = async () => {
+    if (!funcId)
+      return toast({
+        title: "Erro ao registrar faltas",
+        description: "Funcionário não identificado. Recarregue a folha e tente novamente.",
+        variant: "destructive",
+      });
     setSalvandoFaltas(true);
     const { data, error } = await supabase.rpc("rh_faltas_registrar", {
-      p_funcionario_id: f.id,
+      p_funcionario_id: funcId,
       p_competencia: competencia,
       p_dias: Number(faltas) || 0,
       p_obs: obs || null,
@@ -572,7 +579,7 @@ function LinhaFuncionario({
               </div>
             </div>
 
-            <ValesSection funcionarioId={f.id} competencia={competencia} onMudou={onSalvo} />
+            <ValesSection funcionarioId={funcId} competencia={competencia} onMudou={onSalvo} />
 
             <div className="flex flex-wrap gap-2 mt-4">
               <Button size="sm" onClick={() => atualizar()} disabled={salvando || !saldo}>Salvar fechamento</Button>
