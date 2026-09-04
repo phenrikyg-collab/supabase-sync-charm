@@ -596,6 +596,34 @@ export function HoleritesTab({
         </DialogContent>
       </Dialog>
 
+      {waAberto && (
+        <EnviarWhatsAppDialog
+          open={!!waAberto}
+          onOpenChange={(o) => !o && setWaAberto(null)}
+          holeriteId={waAberto.id ?? ""}
+          funcionarioId={waAberto.funcionario_id}
+          nome={holeriteNome(waAberto)}
+          whatsapp={
+            waAberto.id ? filaPorHolerite.get(waAberto.id)?.whatsapp ?? null : null
+          }
+          ciente={waAberto.ciente}
+          cienciaEm={waAberto.ciencia_em}
+          pagamentoId={waAberto.pagamento_id}
+          onEnviado={aposEnvio}
+        />
+      )}
+
+      <EnviarLoteWhatsAppDialog
+        open={waLoteAberto}
+        onOpenChange={setWaLoteAberto}
+        fila={filaVisivel.length ? filaVisivel : fila ?? []}
+        onEnviado={aposEnvio}
+      />
+
+      <EnviosWhatsAppHistorico competencia={competencia} />
+
+
+
       {createPortal(
         <div id="rh-print-area" ref={areaRef} className="hidden">
           {imprimir.map((h, i) => (
