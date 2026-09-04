@@ -355,17 +355,20 @@ export function FolhaMesTab({
               </tr>
             </thead>
             <tbody>
-              {funcionarios.map((f) => (
-                <LinhaFuncionario
-                  key={f.id}
-                  f={f}
-                  competencia={competencia}
-                  aberto={aberto === f.id}
-                  onToggle={() => setAberto(aberto === f.id ? null : f.id)}
-                  onSalvo={() => refetch()}
-                  onVerHolerite={onVerHolerite}
-                />
-              ))}
+              {funcionarios.map((f) => {
+                const fid = f.id ?? (f as any).funcionario_id;
+                return (
+                  <LinhaFuncionario
+                    key={fid}
+                    f={f}
+                    competencia={competencia}
+                    aberto={aberto === fid}
+                    onToggle={() => setAberto(aberto === fid ? null : fid)}
+                    onSalvo={() => refetch()}
+                    onVerHolerite={onVerHolerite}
+                  />
+                );
+              })}
             </tbody>
 
             <tfoot>
@@ -524,6 +527,13 @@ function LinhaFuncionario({
           <td key={t} className="text-right px-3">
             <div className="flex flex-col items-end">
               <Celula p={pags[t]} nome={f.nome} competencia={competencia} tipo={t} onSalvo={onSalvo} />
+              {t === "va" && pags[t] && (
+                (pags[t].forma ?? f.va_forma ?? "pix") === "cartao" ? (
+                  <span className="mt-0.5 text-[9px] px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground">cartão</span>
+                ) : (
+                  <span className="mt-0.5 text-[9px] px-1.5 py-0.5 rounded-full bg-primary/15 text-primary">PIX</span>
+                )
+              )}
             </div>
           </td>
         ))}

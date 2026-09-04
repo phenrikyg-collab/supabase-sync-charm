@@ -17,6 +17,8 @@ export interface PagamentoFolha {
   editavel?: boolean | null;
   obs?: string | null;
   pagamento_id?: string | null;
+  entra_no_lote?: boolean;
+  forma?: string | null;
 }
 
 export interface ValeFolha {
@@ -39,6 +41,7 @@ export interface FuncionarioFolha {
   faltas?: number | null;
   vales?: number | null;
   vt_diaria?: number | null;
+  va_forma?: string | null;
   pagamentos?: Record<string, PagamentoFolha>;
 }
 
