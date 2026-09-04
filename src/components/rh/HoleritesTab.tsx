@@ -23,6 +23,11 @@ import {
   prefixoHolerite,
   prefixoHoleriteColetivo,
 } from "@/lib/rhDocumento";
+import { EnviarWhatsAppDialog } from "./EnviarWhatsAppDialog";
+import { EnviarLoteWhatsAppDialog } from "./EnviarLoteWhatsAppDialog";
+import { EnviosWhatsAppHistorico } from "./EnviosWhatsAppHistorico";
+import { FilaItem } from "@/lib/rhWhatsapp";
+
 
 
 export type TipoHolerite = "adiantamento" | "fechamento" | "vt" | "va";
