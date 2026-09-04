@@ -78,11 +78,61 @@ export function EnviarWhatsAppDialog({
     if (!open) return;
     setResultado(null);
     setNumeroTeste("");
+    setProgressoTexto("");
+    setProgressoValor(0);
     const iniciais: ItemEnvio[] = ["holerite"];
     if (podeComprovante) iniciais.push("comprovante");
     if (podeCiencia) iniciais.push("ciencia");
     setItens(iniciais);
   }, [open, podeComprovante, podeCiencia]);
+
+  useEffect(() => {
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
+    if (!enviando) {
+      setProgressoTexto("");
+      setProgressoValor(0);
+      return;
+    }
+
+    const total = Math.max(itens.length, 1);
+    let etapa = 0;
+    setProgressoTexto("preparando documentos...");
+    setProgressoValor(5);
+
+    const avancar = () => {
+      etapa += 1;
+      if (etapa === 1) {
+        setProgressoTexto(`enviando (1 de ${total})`);
+        setProgressoValor(Math.round((1 / total) * 100));
+      } else if (etapa < total) {
+        setProgressoTexto(`enviando (${etapa} de ${total})`);
+        setProgressoValor(Math.round((etapa / total) * 100));
+      } else {
+        setProgressoTexto("aguardando confirmação...");
+        setProgressoValor(95);
+      }
+    };
+
+    const t1 = setTimeout(avancar, 1200);
+    timerRef.current = setInterval(() => {
+      etapa += 1;
+      if (etapa >= total) {
+        setProgressoTexto("aguardando confirmação...");
+        setProgressoValor(95);
+      } else {
+        setProgressoTexto(`enviando (${etapa + 1} de ${total})`);
+        setProgressoValor(Math.round(((etapa + 1) / total) * 100));
+      }
+    }, 2200);
+
+    return () => {
+      clearTimeout(t1);
+      if (timerRef.current) clearInterval(timerRef.current);
+    };
+  }, [enviando, itens.length]);
 
   const alternar = (item: ItemEnvio) =>
     setItens((s) => (s.includes(item) ? s.filter((i) => i !== item) : [...s, item]));
@@ -93,6 +143,8 @@ export function EnviarWhatsAppDialog({
   const enviar = async () => {
     setEnviando(true);
     setResultado(null);
+    setProgressoTexto("preparando documentos...");
+    setProgressoValor(5);
     const { data, erro } = await chamarWhatsapp<RespostaEnvio>({
       acao: "enviar",
       holerite_id: holeriteId,
@@ -100,6 +152,10 @@ export function EnviarWhatsAppDialog({
       ...(numeroTeste.trim() ? { numero_teste: numeroTeste.replace(/\D/g, "") } : {}),
     });
     setEnviando(false);
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
     if (erro) {
       toast({ title: "Envio não concluído", description: erro, variant: "destructive" });
       return;
