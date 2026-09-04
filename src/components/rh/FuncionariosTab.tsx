@@ -16,6 +16,7 @@ import { brl, dataBRCompleta } from "@/lib/rh";
 import { cn } from "@/lib/utils";
 import { lerErroEdge } from "@/lib/edgeError";
 import { parseValorBR, LIMITE_SALARIO, LIMITE_DIARIA } from "@/lib/rhMoeda";
+import { mascaraTelefone, soDigitos, telefoneBonito } from "@/lib/rhWhatsapp";
 
 const RH_SUPABASE_URL = "https://ezdtulcrqzmgocamjwwl.supabase.co";
 const RH_ANON_KEY =
@@ -26,7 +27,7 @@ const TIPOS_CHAVE = ["cpf", "cnpj", "email", "telefone", "aleatoria"];
 const vazio = {
   id: null as string | null, nome: "", cpf: "", cargo: "", chave_pix: "", tipo_chave_pix: "cpf",
   ativo: true, observacao: "", admissao: "", salario_base: "", vt_mensal: "", va_mensal: "", cesta_valor: "",
-  registrada: false, vt_desconto_pct: "6", vt_diaria: "",
+  registrada: false, vt_desconto_pct: "6", vt_diaria: "", whatsapp: "",
 };
 
 
@@ -163,6 +164,7 @@ export function FuncionariosTab() {
             cesta_valor: f.cesta_valor != null ? String(f.cesta_valor) : "",
             registrada: !!f.registrada,
             vt_desconto_pct: f.vt_desconto_pct != null ? String(f.vt_desconto_pct) : "6",
+            whatsapp: f.whatsapp ? mascaraTelefone(String(f.whatsapp)) : "",
           }
         : { ...vazio }
     );
@@ -187,7 +189,7 @@ export function FuncionariosTab() {
       (Number(original?.salario_base ?? 0) !== Number(salario ?? 0) ||
         Number(original?.vt_diaria ?? 0) !== Number(diaria ?? 0));
 
-    const { error } = await supabase.rpc("rh_funcionario_salvar", {
+    const payload: Record<string, any> = {
       p_nome: edit.nome,
       p_chave_pix: edit.chave_pix,
       p_tipo_chave_pix: edit.tipo_chave_pix,
@@ -204,9 +206,25 @@ export function FuncionariosTab() {
       p_cesta_valor: num(edit.cesta_valor),
       p_registrada: edit.registrada,
       p_vt_desconto_pct: edit.registrada ? Math.min(6, Math.max(0, Number(num(edit.vt_desconto_pct) ?? 0))) : 0,
-    } as any);
+    };
+
+    const whatsapp = soDigitos(edit.whatsapp) || null;
+    let { error } = await supabase.rpc("rh_funcionario_salvar", { ...payload, p_whatsapp: whatsapp } as any);
+    let whatsappNaoSalvo = false;
+    if (error && (error as any).code === "PGRST202") {
+      // backend ainda sem o parâmetro p_whatsapp — salva o resto e avisa
+      whatsappNaoSalvo = true;
+      ({ error } = await supabase.rpc("rh_funcionario_salvar", payload as any));
+    }
 
     if (error) return toast({ title: "Erro ao salvar", description: erroRh(error).mensagem, variant: "destructive" });
+    if (whatsappNaoSalvo && whatsapp) {
+      toast({
+        title: "WhatsApp não foi salvo",
+        description: "O backend ainda não aceita o parâmetro p_whatsapp em rh_funcionario_salvar. Os demais dados foram salvos.",
+        variant: "destructive",
+      });
+    }
     toast({
       title: "Funcionário salvo",
       description: mudouValor
@@ -260,6 +278,15 @@ export function FuncionariosTab() {
                   <td className="py-2">
                     <div className="font-medium">{f.nome}</div>
                     <div className="text-xs text-muted-foreground">{f.cargo ?? "—"}</div>
+                    {f.whatsapp ? (
+                      <div className="text-[10px] text-muted-foreground tabular-nums">
+                        {telefoneBonito(f.whatsapp)}
+                      </div>
+                    ) : (
+                      <span className="mt-1 inline-block text-[10px] px-2 py-0.5 rounded-full bg-muted text-muted-foreground">
+                        sem WhatsApp
+                      </span>
+                    )}
                   </td>
                   <td className="px-3">{dataBRCompleta(f.admissao)}</td>
                   <td className="px-3 text-right tabular-nums">{brl(f.salario_base)}</td>
@@ -390,6 +417,16 @@ export function FuncionariosTab() {
                   </Select>
                 </Campo>
                 <Campo label="Chave PIX"><Input value={edit.chave_pix} onChange={(e) => setEdit({ ...edit, chave_pix: e.target.value })} /></Campo>
+                <Campo label="WhatsApp">
+                  <Input
+                    value={edit.whatsapp}
+                    onChange={(e) => setEdit({ ...edit, whatsapp: mascaraTelefone(e.target.value) })}
+                    placeholder="(11) 99999-9999"
+                  />
+                  <p className="text-[10px] text-muted-foreground mt-1">
+                    número que recebe holerite, recibo e comprovante
+                  </p>
+                </Campo>
                 <Campo label="Salário base"><Input value={edit.salario_base} onChange={(e) => setEdit({ ...edit, salario_base: e.target.value })} placeholder="0,00" /></Campo>
                 <Campo label="Passagem diária (R$)">
                   <Input value={edit.vt_diaria} onChange={(e) => setEdit({ ...edit, vt_diaria: e.target.value })} placeholder="0,00" />
