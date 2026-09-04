@@ -454,14 +454,17 @@ function LinhaFuncionario({
     setSalvandoFaltas(false);
     if (error) return toast({ title: "Erro ao registrar faltas", description: erroRh(error).mensagem, variant: "destructive" });
     const r: any = Array.isArray(data) ? data[0] : data;
-    toast({
-      title: "Faltas registradas",
-      description: r?.aviso
-        ? r.aviso
-        : r?.vt_recalculado != null
-          ? `VT recalculado: ${brl(r.vt_recalculado)}`
-          : undefined,
-    });
+    avisarRegeracao(
+      competencia,
+      "Faltas registradas",
+      `${
+        r?.aviso
+          ? r.aviso
+          : r?.vt_recalculado != null
+            ? `VT recalculado: ${brl(r.vt_recalculado)}. `
+            : ""
+      }Faltas descontam salário (evento 5078) e VT — regere o holerite de fechamento para atualizar o líquido do dia 5.`,
+    );
     onSalvo();
   };
 

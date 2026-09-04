@@ -226,12 +226,15 @@ export function FuncionariosTab() {
         variant: "destructive",
       });
     }
-    toast({
-      title: "Funcionário salvo",
-      description: mudouValor
-        ? "Rode 'Gerar lançamentos do mês' e regere os holerites para atualizar os valores da folha."
-        : undefined,
-    });
+    if (mudouValor) {
+      avisarRegeracao(
+        competenciaAtual(),
+        "Funcionário salvo",
+        "Salário ou diária de VT mudaram — rode 'Gerar lançamentos do mês' e regere o holerite de fechamento para atualizar o líquido.",
+      );
+    } else {
+      toast({ title: "Funcionário salvo" });
+    }
     setEdit(null);
     qc.invalidateQueries({ queryKey: ["rh-funcionarios"] });
   };
