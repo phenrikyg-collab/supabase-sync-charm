@@ -46,11 +46,6 @@ export function EnviarLoteWhatsAppDialog({
   const [tempoInicio, setTempoInicio] = useState<number | null>(null);
   const [tempoDecorrido, setTempoDecorrido] = useState(0);
 
-  const tempoEstimadoSegundos = useMemo(
-    () => Math.max(1, aEnviar.length * SEGUNDOS_POR_PESSOA),
-    [aEnviar.length],
-  );
-
   useEffect(() => {
     if (!open) return;
     setResultados(null);
