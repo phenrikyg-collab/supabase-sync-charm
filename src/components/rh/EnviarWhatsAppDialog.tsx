@@ -52,7 +52,10 @@ export function EnviarWhatsAppDialog({
   const [itens, setItens] = useState<ItemEnvio[]>([]);
   const [numeroTeste, setNumeroTeste] = useState("");
   const [enviando, setEnviando] = useState(false);
+  const [progressoTexto, setProgressoTexto] = useState("");
+  const [progressoValor, setProgressoValor] = useState(0);
   const [resultado, setResultado] = useState<ResultadoItem[] | null>(null);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const { data: destinatario } = useQuery({
     queryKey: ["rh-wa-destinatario", funcionarioId],
