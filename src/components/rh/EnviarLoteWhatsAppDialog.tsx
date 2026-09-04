@@ -113,7 +113,6 @@ export function EnviarLoteWhatsAppDialog({
     setEnviando(true);
     setResultados(null);
     setProgresso(0);
-    setTempoInicio(Date.now());
     setTempoDecorrido(0);
 
     // agrupa por combinação de itens (a API aceita uma lista de itens por chamada)
