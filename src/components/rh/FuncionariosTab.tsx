@@ -35,6 +35,7 @@ const vazio = {
 
 export function FuncionariosTab() {
   const { toast } = useToast();
+  const { avisarRegeracao } = useRegerarFechamento();
   const qc = useQueryClient();
   const [edit, setEdit] = useState<typeof vazio | null>(null);
   const [verificando, setVerificando] = useState<string | null>(null);
