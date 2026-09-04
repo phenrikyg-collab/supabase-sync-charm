@@ -43,13 +43,29 @@ export function EnviarLoteWhatsAppDialog({
   const [enviando, setEnviando] = useState(false);
   const [progresso, setProgresso] = useState(0);
   const [resultados, setResultados] = useState<ResultadoEnvio[] | null>(null);
+  const [tempoInicio, setTempoInicio] = useState<number | null>(null);
+  const [tempoDecorrido, setTempoDecorrido] = useState(0);
+
+  const tempoEstimadoSegundos = useMemo(
+    () => Math.max(1, aEnviar.length * SEGUNDOS_POR_PESSOA),
+    [aEnviar.length],
+  );
 
   useEffect(() => {
-    if (open) {
-      setResultados(null);
-      setProgresso(0);
-    }
+    if (!open) return;
+    setResultados(null);
+    setProgresso(0);
+    setTempoInicio(null);
+    setTempoDecorrido(0);
   }, [open]);
+
+  useEffect(() => {
+    if (!enviando) return;
+    const inicio = Date.now();
+    setTempoInicio(inicio);
+    const id = setInterval(() => setTempoDecorrido(Math.floor((Date.now() - inicio) / 1000)), 1000);
+    return () => clearInterval(id);
+  }, [enviando]);
 
   const linhas: Linha[] = useMemo(
     () =>
