@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/hooks/use-toast";
-import { AlertTriangle, Check, Loader2, MessageCircle, X } from "lucide-react";
+import { AlertTriangle, Check, Clock, Loader2, MessageCircle, X } from "lucide-react";
 import {
   chamarWhatsapp,
   ehAviso,
@@ -19,6 +19,7 @@ import {
 import { AvisoEvolution } from "./AvisoEvolution";
 
 const LOTE_MAX = 40;
+const SEGUNDOS_POR_PESSOA = 8;
 
 type Linha = {
   f: FilaItem;
