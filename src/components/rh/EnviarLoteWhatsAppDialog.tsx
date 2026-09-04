@@ -230,13 +230,29 @@ export function EnviarLoteWhatsAppDialog({
             )}
           </div>
 
-          {enviando && (
-            <div className="space-y-1">
-              <Progress value={progresso} />
-              <p className="text-xs text-muted-foreground">
-                Enviando com intervalo entre as mensagens — pode levar mais de um minuto. Mantenha esta janela
-                aberta.
+          {aEnviar.length > 0 && !enviando && (
+            <div className="flex items-start gap-2 rounded-md border border-amber-200 bg-amber-50 p-2.5 text-xs text-amber-900">
+              <Clock className="h-4 w-4 shrink-0 mt-0.5" />
+              <p>
+                Isso leva {estimativaTexto} para {aEnviar.length} pessoa
+                {aEnviar.length > 1 ? "s" : ""}. As mensagens saem uma a uma com pausa entre elas — mantenha esta
+                janela aberta.
               </p>
+            </div>
+          )}
+
+          {enviando && (
+            <div className="space-y-1.5">
+              <Progress value={progresso} />
+              <div className="flex items-center justify-between text-xs text-muted-foreground">
+                <span className="flex items-center gap-2">
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                  Enviando com intervalo entre as mensagens
+                </span>
+                <span className="tabular-nums">
+                  {formatarTempo(tempoDecorrido)} / {formatarTempo(tempoEstimadoSegundos)}
+                </span>
+              </div>
             </div>
           )}
 
