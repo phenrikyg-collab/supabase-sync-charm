@@ -88,7 +88,9 @@ function LotePixConteudo({ competencia }: { competencia: string }) {
 
   useEffect(() => {
     const iniciais: Record<string, boolean> = {};
-    pendentes.forEach((l) => { if (l.vencimento && l.vencimento.slice(0, 10) <= hojeISO()) iniciais[l.id] = true; });
+    pendentes.forEach((l) => {
+      if (l.entraNoLote && l.vencimento && l.vencimento.slice(0, 10) <= hojeISO()) iniciais[l.id] = true;
+    });
     setSel(iniciais);
   }, [pendentes.length, competencia]);
 
@@ -116,7 +118,7 @@ function LotePixConteudo({ competencia }: { competencia: string }) {
       <Card>
         <CardHeader>
           <CardTitle className="text-base font-serif">Pagamentos pendentes</CardTitle>
-          <p className="text-xs text-muted-foreground">VA não entra no lote — o pedido é feito na plataforma Ticket.</p>
+          <p className="text-xs text-muted-foreground">VA de cartão é pago fora do sistema; VA por PIX entra no lote normalmente.</p>
           {saldoSemHolerite && (
             <div className="mt-2 flex items-start gap-2 rounded-md border border-amber-300 bg-amber-50 p-2.5 text-xs text-amber-800">
               <Info className="h-3.5 w-3.5 mt-0.5 shrink-0" />
@@ -147,12 +149,28 @@ function LotePixConteudo({ competencia }: { competencia: string }) {
                   </thead>
                   <tbody>
                     {pendentes.map((l) => (
-                      <tr key={l.id} className="border-b">
+                      <tr key={l.id} className={cn("border-b", !l.entraNoLote && "opacity-50")}>
                         <td className="py-2">
-                          <Checkbox checked={!!sel[l.id]} onCheckedChange={(v) => setSel((s) => ({ ...s, [l.id]: !!v }))} />
+                          {l.entraNoLote ? (
+                            <Checkbox checked={!!sel[l.id]} onCheckedChange={(v) => setSel((s) => ({ ...s, [l.id]: !!v }))} />
+                          ) : (
+                            <span title="pago no cartão, fora do sistema">
+                              <Checkbox disabled checked={false} />
+                            </span>
+                          )}
                         </td>
                         <td className="px-3">{l.nome}</td>
-                        <td className="px-3">{l.descricao}</td>
+                        <td className="px-3">
+                          {l.descricao}
+                          {!l.entraNoLote && (
+                            <span
+                              title="pago no cartão, fora do sistema"
+                              className="ml-2 text-[9px] px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground"
+                            >
+                              cartão
+                            </span>
+                          )}
+                        </td>
                         <td className={cn("px-3", l.vencimento?.slice(0, 10) <= hojeISO() && "text-red-600")}>{dataBR(l.vencimento)}</td>
                         <td className="px-3 text-xs text-muted-foreground">{l.chave}</td>
                         <td className="px-3 text-right tabular-nums">{brl(l.valor)}</td>
