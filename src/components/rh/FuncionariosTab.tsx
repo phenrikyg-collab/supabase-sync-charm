@@ -28,7 +28,7 @@ const TIPOS_CHAVE = ["cpf", "cnpj", "email", "telefone", "aleatoria"];
 const vazio = {
   id: null as string | null, nome: "", cpf: "", cargo: "", chave_pix: "", tipo_chave_pix: "cpf",
   ativo: true, observacao: "", admissao: "", salario_base: "", vt_mensal: "", va_mensal: "", cesta_valor: "",
-  registrada: false, vt_desconto_pct: "6", vt_diaria: "", whatsapp: "",
+  registrada: false, vt_desconto_pct: "6", vt_diaria: "", whatsapp: "", va_forma: "pix",
 };
 
 
@@ -167,6 +167,7 @@ export function FuncionariosTab() {
             registrada: !!f.registrada,
             vt_desconto_pct: f.vt_desconto_pct != null ? String(f.vt_desconto_pct) : "6",
             whatsapp: f.whatsapp ? mascaraTelefone(String(f.whatsapp)) : "",
+            va_forma: f.va_forma === "cartao" ? "cartao" : "pix",
           }
         : { ...vazio }
     );
@@ -211,19 +212,23 @@ export function FuncionariosTab() {
     };
 
     const whatsapp = soDigitos(edit.whatsapp) || null;
-    let { error } = await supabase.rpc("rh_funcionario_salvar", { ...payload, p_whatsapp: whatsapp } as any);
-    let whatsappNaoSalvo = false;
+    let { error } = await supabase.rpc("rh_funcionario_salvar", {
+      ...payload,
+      p_whatsapp: whatsapp,
+      p_va_forma: edit.va_forma,
+    } as any);
+    let extrasNaoSalvos = false;
     if (error && (error as any).code === "PGRST202") {
-      // backend ainda sem o parâmetro p_whatsapp — salva o resto e avisa
-      whatsappNaoSalvo = true;
+      // backend ainda sem os parâmetros novos — salva o resto e avisa
+      extrasNaoSalvos = true;
       ({ error } = await supabase.rpc("rh_funcionario_salvar", payload as any));
     }
 
     if (error) return toast({ title: "Erro ao salvar", description: erroRh(error).mensagem, variant: "destructive" });
-    if (whatsappNaoSalvo && whatsapp) {
+    if (extrasNaoSalvos && (whatsapp || edit.va_forma !== "pix")) {
       toast({
-        title: "WhatsApp não foi salvo",
-        description: "O backend ainda não aceita o parâmetro p_whatsapp em rh_funcionario_salvar. Os demais dados foram salvos.",
+        title: "WhatsApp / forma do VA não foram salvos",
+        description: "O backend ainda não aceita os parâmetros p_whatsapp e p_va_forma em rh_funcionario_salvar. Os demais dados foram salvos.",
         variant: "destructive",
       });
     }
@@ -442,6 +447,16 @@ export function FuncionariosTab() {
                   <p className="text-[10px] text-muted-foreground">usado apenas se a passagem diária estiver zerada</p>
                 </Campo>
                 <Campo label="VA mensal (Ticket)"><Input value={edit.va_mensal} onChange={(e) => setEdit({ ...edit, va_mensal: e.target.value })} placeholder="0,00" /></Campo>
+                <Campo label="Vale alimentação pago por">
+                  <Select value={edit.va_forma} onValueChange={(v) => setEdit({ ...edit, va_forma: v })}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="pix">PIX</SelectItem>
+                      <SelectItem value="cartao">Cartão Ticket (fora do sistema)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <p className="text-[10px] text-muted-foreground mt-1">cartão não entra no lote PIX</p>
+                </Campo>
                 <Campo label="Cesta básica (R$)">
                   <Input value={edit.cesta_valor} onChange={(e) => setEdit({ ...edit, cesta_valor: e.target.value })} placeholder="0,00" />
                   <p className="text-[10px] text-muted-foreground">paga dentro do fechamento, como provento do holerite</p>
