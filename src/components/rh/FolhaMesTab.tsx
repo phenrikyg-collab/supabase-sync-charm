@@ -14,6 +14,7 @@ import { baixarDocumentoRh, nomeArquivo, prefixoComprovante } from "@/lib/rhDocu
 import { useFolhaMes, FuncionarioFolha, PagamentoFolha } from "./useFolha";
 import { parseValorBR, formatValorBR } from "@/lib/rhMoeda";
 import { ValesSection } from "./ValesSection";
+import { useRegerarFechamento } from "./useRegerarFechamento";
 import { cn } from "@/lib/utils";
 
 function StatusPagamento({ p }: { p?: PagamentoFolha }) {
@@ -417,6 +418,7 @@ function LinhaFuncionario({
   f, competencia, aberto, onToggle, onSalvo, onVerHolerite,
 }: { f: FuncionarioFolha; competencia: string; aberto: boolean; onToggle: () => void; onSalvo: () => void; onVerHolerite?: () => void }) {
   const { toast } = useToast();
+  const { avisarRegeracao } = useRegerarFechamento();
   const funcId: string | undefined = f.id ?? (f as any).funcionario_id;
   const pags = f.pagamentos ?? {};
   const saldo = pags["saldo"];
@@ -452,14 +454,17 @@ function LinhaFuncionario({
     setSalvandoFaltas(false);
     if (error) return toast({ title: "Erro ao registrar faltas", description: erroRh(error).mensagem, variant: "destructive" });
     const r: any = Array.isArray(data) ? data[0] : data;
-    toast({
-      title: "Faltas registradas",
-      description: r?.aviso
-        ? r.aviso
-        : r?.vt_recalculado != null
-          ? `VT recalculado: ${brl(r.vt_recalculado)}`
-          : undefined,
-    });
+    avisarRegeracao(
+      competencia,
+      "Faltas registradas",
+      `${
+        r?.aviso
+          ? r.aviso
+          : r?.vt_recalculado != null
+            ? `VT recalculado: ${brl(r.vt_recalculado)}. `
+            : ""
+      }Faltas descontam salário (evento 5078) e VT — regere o holerite de fechamento para atualizar o líquido do dia 5.`,
+    );
     onSalvo();
   };
 
