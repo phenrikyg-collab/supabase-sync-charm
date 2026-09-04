@@ -23,6 +23,11 @@ import {
   prefixoHolerite,
   prefixoHoleriteColetivo,
 } from "@/lib/rhDocumento";
+import { EnviarWhatsAppDialog } from "./EnviarWhatsAppDialog";
+import { EnviarLoteWhatsAppDialog } from "./EnviarLoteWhatsAppDialog";
+import { EnviosWhatsAppHistorico } from "./EnviosWhatsAppHistorico";
+import { FilaItem } from "@/lib/rhWhatsapp";
+
 
 
 export type TipoHolerite = "adiantamento" | "fechamento" | "vt" | "va";
@@ -139,6 +144,63 @@ export function HoleritesTab({
     () => (soPendentes ? holerites.filter((h) => !h.ciente) : holerites),
     [holerites, soPendentes],
   );
+
+  const [waAberto, setWaAberto] = useState<Holerite | null>(null);
+  const [waLoteAberto, setWaLoteAberto] = useState(false);
+
+  const { data: fila, refetch: refetchFila } = useQuery({
+    queryKey: ["rh-whatsapp-fila", competencia, tipo],
+    enabled: !!competencia,
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc("rh_whatsapp_fila" as any, {
+        p_competencia: competencia,
+        p_tipo: tipo,
+      });
+      if (error) throw error;
+      return (Array.isArray(data) ? data : []) as FilaItem[];
+    },
+  });
+
+  const filaPorHolerite = useMemo(() => {
+    const m = new Map<string, FilaItem>();
+    (fila ?? []).forEach((f) => f.holerite_id && m.set(f.holerite_id, f));
+    return m;
+  }, [fila]);
+
+  const filaVisivel = useMemo(
+    () => (fila ?? []).filter((f) => listaVisivel.some((h) => h.id === f.holerite_id)),
+    [fila, listaVisivel],
+  );
+
+  const aposEnvio = () => {
+    refetchFila();
+    refetch();
+  };
+
+  const ChipsEnvio = ({ h }: { h: Holerite }) => {
+    const f = h.id ? filaPorHolerite.get(h.id) : undefined;
+    if (!f) return null;
+    const chips: string[] = [];
+    if ((f.holerite_enviado ?? 0) > 0) chips.push("holerite enviado");
+    if ((f.comprovante_enviado ?? 0) > 0) chips.push("comprovante enviado");
+    if ((f.ciencia_enviada ?? 0) > 0) chips.push("link enviado");
+    if (!chips.length && !f.tem_numero)
+      return (
+        <span className="text-[10px] px-2 py-0.5 rounded-full bg-muted text-muted-foreground">
+          sem WhatsApp
+        </span>
+      );
+    return (
+      <>
+        {chips.map((c) => (
+          <span key={c} className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700">
+            {c}
+          </span>
+        ))}
+      </>
+    );
+  };
+
 
   const gerar = async () => {
     setGerando(true);
@@ -338,6 +400,10 @@ export function HoleritesTab({
             <Send className={cn("h-3.5 w-3.5 mr-2", gerandoLote && "animate-pulse")} />
             {gerandoLote ? "Gerando..." : "Enviar todos para ciência"}
           </Button>
+          <Button variant="outline" size="sm" onClick={() => setWaLoteAberto(true)} disabled={!fila?.length}>
+            <MessageCircle className="h-3.5 w-3.5 mr-2" />
+            Enviar tudo no WhatsApp
+          </Button>
           <Button size="sm" onClick={gerar} disabled={gerando}>
             <RefreshCw className={cn("h-3.5 w-3.5 mr-2", gerando && "animate-spin")} />
             Gerar da competência
@@ -369,7 +435,20 @@ export function HoleritesTab({
                   </p>
                 </div>
                 <p className="text-xl font-serif font-bold tabular-nums">{brl(h.liquido)}</p>
-                <div><ChipCiencia h={h} /></div>
+                {(h as any).ciencia_divergente && (
+                  <div className="rounded-md border border-amber-300 bg-amber-50 p-2 space-y-0.5">
+                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-200 text-amber-900">
+                      valor mudou depois da assinatura
+                    </span>
+                    <p className="text-[11px] text-amber-900 tabular-nums">
+                      assinado: {brl((h as any).liquido_assinado)} · atual: {brl(h.liquido)}
+                    </p>
+                  </div>
+                )}
+                <div className="flex flex-wrap gap-1.5">
+                  <ChipCiencia h={h} />
+                  <ChipsEnvio h={h} />
+                </div>
                 <div className="flex flex-wrap gap-2 pt-1">
                   <Button size="sm" variant="outline" onClick={() => setAberto(h)}>Visualizar</Button>
                   <Button size="sm" variant="ghost" onClick={() => disparar([h])} title="Imprimir">
@@ -393,9 +472,16 @@ export function HoleritesTab({
                     onClick={() => enviarCiencia(h)}
                   >
                     <Send className={cn("h-3.5 w-3.5 mr-1", gerandoLink === h.id && "animate-pulse")} />
-                    {h.ciente ? "Reenviar link" : "Enviar para ciência"}
+                    {h.ciente || (h as any).ciencia_divergente
+                      ? "Reenviar link de ciência"
+                      : "Enviar para ciência"}
+                  </Button>
+                  <Button size="sm" variant="ghost" onClick={() => setWaAberto(h)}>
+                    <MessageCircle className="h-3.5 w-3.5 mr-1" />
+                    Enviar no WhatsApp
                   </Button>
                 </div>
+
 
               </CardContent>
             </Card>
@@ -509,6 +595,34 @@ export function HoleritesTab({
           </div>
         </DialogContent>
       </Dialog>
+
+      {waAberto && (
+        <EnviarWhatsAppDialog
+          open={!!waAberto}
+          onOpenChange={(o) => !o && setWaAberto(null)}
+          holeriteId={waAberto.id ?? ""}
+          funcionarioId={waAberto.funcionario_id}
+          nome={holeriteNome(waAberto)}
+          whatsapp={
+            waAberto.id ? filaPorHolerite.get(waAberto.id)?.whatsapp ?? null : null
+          }
+          ciente={waAberto.ciente}
+          cienciaEm={waAberto.ciencia_em}
+          pagamentoId={waAberto.pagamento_id}
+          onEnviado={aposEnvio}
+        />
+      )}
+
+      <EnviarLoteWhatsAppDialog
+        open={waLoteAberto}
+        onOpenChange={setWaLoteAberto}
+        fila={filaVisivel.length ? filaVisivel : fila ?? []}
+        onEnviado={aposEnvio}
+      />
+
+      <EnviosWhatsAppHistorico competencia={competencia} />
+
+
 
       {createPortal(
         <div id="rh-print-area" ref={areaRef} className="hidden">
