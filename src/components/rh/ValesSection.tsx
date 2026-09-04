@@ -125,7 +125,7 @@ export function ValesSection({
             <RefreshCw className={`h-3.5 w-3.5 mr-2 ${regerando ? "animate-spin" : ""}`} />
             Regerar holerite de fechamento
           </Button>
-          <Button size="sm" onClick={() => setNovo(true)}>
+          <Button size="sm" onClick={() => { setValor(""); setMotivo(""); setData(hojeISO()); setNovo(true); }}>
             <Plus className="h-3.5 w-3.5 mr-2" />Registrar vale
           </Button>
         </div>
