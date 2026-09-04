@@ -60,13 +60,17 @@ function LotePixConteudo({ competencia }: { competencia: string }) {
     const linhas: any[] = [];
     (folha?.funcionarios ?? []).forEach((f) => {
       Object.entries(f.pagamentos ?? {}).forEach(([tipo, p]: any) => {
-        if (!p || tipo === "va" || (p.status ?? "pendente") !== "pendente") return;
+        if (!p || (p.status ?? "pendente") !== "pendente") return;
+        const entraNoLote = p.entra_no_lote !== false;
+        // VA de cartão é pago fora do sistema: aparece desabilitado, sem checkbox
+        if (!entraNoLote && tipo !== "va") return;
         linhas.push({
           id: p.id, tipo, nome: f.nome,
           descricao: p.descricao ?? TIPO_LABEL[tipo] ?? tipo,
           vencimento: p.vencimento,
           chave: `${f.tipo_chave_pix ?? "—"} · ${f.chave_pix ?? "—"}`,
           valor: p.valor_liquido ?? p.valor ?? p.valor_bruto ?? 0,
+          entraNoLote,
         });
       });
     });
@@ -88,7 +92,7 @@ function LotePixConteudo({ competencia }: { competencia: string }) {
     setSel(iniciais);
   }, [pendentes.length, competencia]);
 
-  const selecionados = pendentes.filter((l) => sel[l.id]);
+  const selecionados = pendentes.filter((l) => l.entraNoLote && sel[l.id]);
   const totalSel = selecionados.reduce((s, l) => s + Number(l.valor || 0), 0);
 
   const gerarLote = async () => {
