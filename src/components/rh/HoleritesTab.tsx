@@ -431,7 +431,20 @@ export function HoleritesTab({
                   </p>
                 </div>
                 <p className="text-xl font-serif font-bold tabular-nums">{brl(h.liquido)}</p>
-                <div><ChipCiencia h={h} /></div>
+                {(h as any).ciencia_divergente && (
+                  <div className="rounded-md border border-amber-300 bg-amber-50 p-2 space-y-0.5">
+                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-200 text-amber-900">
+                      valor mudou depois da assinatura
+                    </span>
+                    <p className="text-[11px] text-amber-900 tabular-nums">
+                      assinado: {brl((h as any).liquido_assinado)} · atual: {brl(h.liquido)}
+                    </p>
+                  </div>
+                )}
+                <div className="flex flex-wrap gap-1.5">
+                  <ChipCiencia h={h} />
+                  <ChipsEnvio h={h} />
+                </div>
                 <div className="flex flex-wrap gap-2 pt-1">
                   <Button size="sm" variant="outline" onClick={() => setAberto(h)}>Visualizar</Button>
                   <Button size="sm" variant="ghost" onClick={() => disparar([h])} title="Imprimir">
@@ -455,9 +468,16 @@ export function HoleritesTab({
                     onClick={() => enviarCiencia(h)}
                   >
                     <Send className={cn("h-3.5 w-3.5 mr-1", gerandoLink === h.id && "animate-pulse")} />
-                    {h.ciente ? "Reenviar link" : "Enviar para ciência"}
+                    {h.ciente || (h as any).ciencia_divergente
+                      ? "Reenviar link de ciência"
+                      : "Enviar para ciência"}
+                  </Button>
+                  <Button size="sm" variant="ghost" onClick={() => setWaAberto(h)}>
+                    <MessageCircle className="h-3.5 w-3.5 mr-1" />
+                    Enviar no WhatsApp
                   </Button>
                 </div>
+
 
               </CardContent>
             </Card>
