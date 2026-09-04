@@ -17,6 +17,7 @@ import { cn } from "@/lib/utils";
 import { lerErroEdge } from "@/lib/edgeError";
 import { parseValorBR, LIMITE_SALARIO, LIMITE_DIARIA } from "@/lib/rhMoeda";
 import { mascaraTelefone, soDigitos, telefoneBonito } from "@/lib/rhWhatsapp";
+import { competenciaAtual, useRegerarFechamento } from "./useRegerarFechamento";
 
 const RH_SUPABASE_URL = "https://ezdtulcrqzmgocamjwwl.supabase.co";
 const RH_ANON_KEY =

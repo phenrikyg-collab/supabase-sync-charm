@@ -14,6 +14,7 @@ import { baixarDocumentoRh, nomeArquivo, prefixoComprovante } from "@/lib/rhDocu
 import { useFolhaMes, FuncionarioFolha, PagamentoFolha } from "./useFolha";
 import { parseValorBR, formatValorBR } from "@/lib/rhMoeda";
 import { ValesSection } from "./ValesSection";
+import { useRegerarFechamento } from "./useRegerarFechamento";
 import { cn } from "@/lib/utils";
 
 function StatusPagamento({ p }: { p?: PagamentoFolha }) {
