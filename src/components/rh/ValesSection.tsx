@@ -17,7 +17,7 @@ export function ValesSection({
   competencia,
   onMudou,
 }: {
-  funcionarioId: string;
+  funcionarioId?: string;
   competencia: string;
   onMudou: () => void;
 }) {
