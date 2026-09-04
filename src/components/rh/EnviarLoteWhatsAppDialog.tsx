@@ -43,14 +43,12 @@ export function EnviarLoteWhatsAppDialog({
   const [enviando, setEnviando] = useState(false);
   const [progresso, setProgresso] = useState(0);
   const [resultados, setResultados] = useState<ResultadoEnvio[] | null>(null);
-  const [tempoInicio, setTempoInicio] = useState<number | null>(null);
   const [tempoDecorrido, setTempoDecorrido] = useState(0);
 
   useEffect(() => {
     if (!open) return;
     setResultados(null);
     setProgresso(0);
-    setTempoInicio(null);
     setTempoDecorrido(0);
   }, [open]);
 
