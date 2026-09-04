@@ -259,8 +259,18 @@ export function EnviarWhatsAppDialog({
             </div>
           )}
 
+          {enviando && (
+            <div className="space-y-1.5">
+              <Progress value={progressoValor} />
+              <p className="text-xs text-muted-foreground flex items-center gap-2">
+                <Loader2 className="h-3 w-3 animate-spin" />
+                {progressoTexto || "enviando..."}
+              </p>
+            </div>
+          )}
+
           <div className="flex justify-end gap-2">
-            <Button variant="outline" onClick={() => onOpenChange(false)}>
+            <Button variant="outline" onClick={() => onOpenChange(false)} disabled={enviando}>
               Fechar
             </Button>
             <Button
