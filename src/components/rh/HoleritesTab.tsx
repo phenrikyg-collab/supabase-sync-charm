@@ -400,6 +400,10 @@ export function HoleritesTab({
             <Send className={cn("h-3.5 w-3.5 mr-2", gerandoLote && "animate-pulse")} />
             {gerandoLote ? "Gerando..." : "Enviar todos para ciência"}
           </Button>
+          <Button variant="outline" size="sm" onClick={() => setWaLoteAberto(true)} disabled={!fila?.length}>
+            <MessageCircle className="h-3.5 w-3.5 mr-2" />
+            Enviar tudo no WhatsApp
+          </Button>
           <Button size="sm" onClick={gerar} disabled={gerando}>
             <RefreshCw className={cn("h-3.5 w-3.5 mr-2", gerando && "animate-spin")} />
             Gerar da competência
