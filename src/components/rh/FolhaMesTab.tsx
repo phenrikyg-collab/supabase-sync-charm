@@ -418,6 +418,7 @@ function LinhaFuncionario({
   f, competencia, aberto, onToggle, onSalvo, onVerHolerite,
 }: { f: FuncionarioFolha; competencia: string; aberto: boolean; onToggle: () => void; onSalvo: () => void; onVerHolerite?: () => void }) {
   const { toast } = useToast();
+  const { avisarRegeracao } = useRegerarFechamento();
   const funcId: string | undefined = f.id ?? (f as any).funcionario_id;
   const pags = f.pagamentos ?? {};
   const saldo = pags["saldo"];
