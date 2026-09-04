@@ -70,6 +70,12 @@ export function ValesSection({
   const registrar = async () => {
     const v = Number(String(valor).replace(",", "."));
     if (!v || v <= 0) return toast({ title: "Informe um valor válido", variant: "destructive" });
+    if (!funcionarioId)
+      return toast({
+        title: "Não foi possível registrar o vale",
+        description: "Funcionário não identificado. Recarregue a folha e tente novamente.",
+        variant: "destructive",
+      });
     setSalvando(true);
     const { data: r, error } = await supabase.rpc("rh_vale_registrar", {
       p_funcionario_id: funcionarioId,
