@@ -55,7 +55,6 @@ export function EnviarLoteWhatsAppDialog({
   useEffect(() => {
     if (!enviando) return;
     const inicio = Date.now();
-    setTempoInicio(inicio);
     const id = setInterval(() => setTempoDecorrido(Math.floor((Date.now() - inicio) / 1000)), 1000);
     return () => clearInterval(id);
   }, [enviando]);
