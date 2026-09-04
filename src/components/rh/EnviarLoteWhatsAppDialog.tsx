@@ -90,6 +90,25 @@ export function EnviarLoteWhatsAppDialog({
   const aEnviar = linhas.filter((l) => l.itens.length);
   const deFora = linhas.filter((l) => !l.itens.length);
 
+  const tempoEstimadoSegundos = useMemo(
+    () => Math.max(1, aEnviar.length * SEGUNDOS_POR_PESSOA),
+    [aEnviar.length],
+  );
+
+  const formatarTempo = (segundos: number) => {
+    if (segundos < 60) return `${segundos}s`;
+    const m = Math.floor(segundos / 60);
+    const s = segundos % 60;
+    return s > 0 ? `${m}m ${s.toString().padStart(2, "0")}s` : `${m} min`;
+  };
+
+  const estimativaTexto = useMemo(() => {
+    const s = tempoEstimadoSegundos;
+    if (s < 60) return `cerca de ${s} segundos`;
+    const min = Math.ceil(s / 60);
+    return min === 1 ? "cerca de 1 minuto" : `cerca de ${min} minutos`;
+  }, [tempoEstimadoSegundos]);
+
   const alternar = (item: ItemEnvio) =>
     setSelecionados((s) => (s.includes(item) ? s.filter((i) => i !== item) : [...s, item]));
 
