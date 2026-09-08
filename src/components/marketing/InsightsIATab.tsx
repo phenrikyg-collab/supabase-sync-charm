@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Sparkles, RefreshCw, ArrowUp, ArrowDown, CheckCircle2, AlertTriangle, Printer } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -204,7 +204,8 @@ const normalizarRelatorio = (value: any): Relatorio | null => {
 // (periodo_inicio, periodo_fim) — instagram_relatorios_mensais é só do mensal.
 const TABELA = 'instagram_relatorios_semanais';
 const COLUNAS =
-  'id, periodo_inicio, periodo_fim, gerado_em, dados_coletados_em, relatorio_ia, dados_raw, total_posts, alcance_total, engajamento_total, salvamentos, compartilhamentos, taxa_engajamento, formato_dominante';
+  'id, periodo_inicio, periodo_fim, gerado_em, dados_coletados_em, relatorio_ia, dados_raw, total_posts, alcance_total, engajamento_total, salvamentos, compartilhamentos, taxa_engajamento, formato_dominante, status, erro, iniciado_em';
+
 
 interface SemanaRow {
   id: string;
@@ -241,6 +242,11 @@ export default function InsightsIATab() {
   const [excluidos, setExcluidos] = useState<any>(null);
   const [semanas, setSemanas] = useState<SemanaRow[]>([]);
   const [semanaSel, setSemanaSel] = useState<string | null>(null);
+  const [gerando, setGerando] = useState(false);
+  const [erroGeracao, setErroGeracao] = useState('');
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const limiteRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
 
   const aplicarLinha = (row: any) => {
     const rel = normalizarRelatorio(row?.relatorio_ia);
@@ -265,8 +271,11 @@ export default function InsightsIATab() {
       .order('periodo_inicio', { ascending: false, nullsFirst: false })
       .order('gerado_em', { ascending: false, nullsFirst: false })
       .limit(30);
-    const rows = (data ?? []) as SemanaRow[];
+    const rows = ((data ?? []) as SemanaRow[]).filter(
+      (r: any) => (!r.status || r.status === 'pronto') && r.relatorio_ia,
+    );
     setSemanas(rows);
+
     const alvo = (selecionarId && rows.find((r) => r.id === selecionarId)) || rows[0];
     if (alvo) aplicarLinha(alvo);
     return rows;
@@ -343,68 +352,87 @@ export default function InsightsIATab() {
     return atualizado;
   };
 
-  // O gateway das Edge Functions corta em 504, mas a função termina e grava o
-  // relatório. Nesse caso esperamos e relemos o relatório mais recente.
-  const recuperarAposTimeout = async (clicadoEm: number): Promise<boolean> => {
-    await new Promise((r) => setTimeout(r, 15000));
-    try {
-      const rows = await carregarSemanas();
-      const recente = rows
-        .slice()
-        .sort((a, b) => new Date(b.gerado_em ?? 0).getTime() - new Date(a.gerado_em ?? 0).getTime())[0];
-      const geradoEmMs = recente?.gerado_em ? new Date(recente.gerado_em).getTime() : 0;
-      if (recente && geradoEmMs > clicadoEm && aplicarLinha(recente)) {
-        setCiclo((c) => c + 1);
-        return true;
-      }
-    } catch {
-      // segue para o erro
+  // A função responde 202 na hora e faz o trabalho depois. A tela acompanha o
+  // andamento lendo a linha do período em instagram_relatorios_semanais.
+  const pararPolling = () => {
+    if (pollRef.current) {
+      clearInterval(pollRef.current);
+      pollRef.current = null;
     }
-    return false;
+    if (limiteRef.current) {
+      clearTimeout(limiteRef.current);
+      limiteRef.current = null;
+    }
+  };
+
+  useEffect(() => pararPolling, []);
+
+  const acompanhar = (periodoInicio: string, periodoFim: string) => {
+    pararPolling();
+    setGerando(true);
+    setErroGeracao('');
+
+    const checar = async () => {
+      const { data } = await (supabase as any)
+        .from(TABELA)
+        .select(COLUNAS)
+        .eq('periodo_inicio', periodoInicio)
+        .eq('periodo_fim', periodoFim)
+        .maybeSingle();
+
+      if (!data) return;
+
+      if (data.status === 'erro') {
+        pararPolling();
+        setGerando(false);
+        setErroGeracao(data.erro || 'A geração falhou. Tente de novo.');
+        return;
+      }
+
+      if (data.status === 'pronto' || (!data.status && data.relatorio_ia)) {
+        if (aplicarLinha(data)) {
+          pararPolling();
+          setGerando(false);
+          setCiclo((c) => c + 1);
+          await carregarSemanas(data.id);
+        }
+      }
+    };
+
+    pollRef.current = setInterval(() => {
+      void checar();
+    }, 5000);
+
+    limiteRef.current = setTimeout(() => {
+      pararPolling();
+      setGerando(false);
+      setErroGeracao('Demorou mais que o esperado, tente de novo.');
+    }, 5 * 60 * 1000);
   };
 
   const gerarRelatorio = async () => {
     setLoading(true);
-    const clicadoEm = Date.now();
+    setErroGeracao('');
     try {
       const { data, error } = await supabase.functions.invoke('gerar-insights-semanal', { body: {} });
       if (error) throw error;
-      const rel: Relatorio = data?.relatorio || data;
-      if (!rel || !rel.metricas) throw new Error('Resposta inválida da função');
-      const janela = janelaDoRelatorio(rel, null, data);
-      setRelatorio(rel);
-      setGeradoEm(new Date().toLocaleString('pt-BR'));
-      setDadosRaw((data?.dados_raw ?? data?.dados ?? null) as DadosRaw | null);
-      setPeriodoSemana(fmtPeriodoSemana(janela.inicio, janela.fim));
-      setTipoSemana(janela.tipo);
-      setColetadoEm(fmtDateTime((rel as any)?.dados_coletados_em));
-      setColeta((rel as any)?.coleta ?? null);
-      setExcluidos((rel as any)?.excluidos_das_somas ?? null);
-      setCiclo((c) => c + 1);
-      try {
-        const salvo = await salvarRelatorio(rel, data);
-        setGeradoEm(fmtDateTime(salvo?.gerado_em) || new Date().toLocaleString('pt-BR'));
-        await carregarSemanas(salvo?.id);
-      } catch (e: any) {
-        toast({ title: 'Relatório gerado, mas não foi salvo', description: e.message, variant: 'destructive' });
+
+      const inicio = data?.periodo_inicio;
+      const fim = data?.periodo_fim;
+      if (!inicio || !fim) throw new Error('Resposta inválida da função');
+
+      acompanhar(inicio, fim);
+      if (data?.ja_em_andamento) {
+        toast({ title: 'Já estava gerando', description: 'Acompanhando a geração em andamento.' });
       }
     } catch (err: any) {
-      const status = err?.context?.status;
-      const msg = String(err?.message ?? '');
-      const talvezTimeout =
-        status === 504 || status === 502 || status === 408 || /504|timeout|timed out|gateway/i.test(msg);
-      if (talvezTimeout) {
-        const recuperado = await recuperarAposTimeout(clicadoEm);
-        if (recuperado) {
-          setLoading(false);
-          return;
-        }
-      }
+      setErroGeracao(err?.message || 'Não foi possível iniciar a geração.');
       toast({ title: 'Erro ao gerar relatório', description: err.message, variant: 'destructive' });
     } finally {
       setLoading(false);
     }
   };
+
 
   if (carregando) {
     return (
@@ -433,20 +461,34 @@ export default function InsightsIATab() {
           Relatório Semanal de Performance
         </h2>
         <p className="text-sm mb-6" style={{ color: C.textSec, fontFamily: 'DM Sans, sans-serif' }}>
-          Clique para gerar o relatório semanal com IA
+          {gerando
+            ? 'Gerando o relatório, leva cerca de 2 minutos'
+            : 'Clique para gerar o relatório semanal com IA'}
         </p>
+        {erroGeracao && (
+          <p className="text-sm mb-4 flex items-center justify-center gap-2" style={{ color: C.red }}>
+            <AlertTriangle size={14} /> {erroGeracao}
+          </p>
+        )}
         <button
           onClick={gerarRelatorio}
-          disabled={loading}
+          disabled={loading || gerando}
           className="inline-flex items-center gap-2 px-6 py-3 rounded-lg text-sm font-semibold transition disabled:opacity-60"
           style={{ background: C.text, color: C.gold, fontFamily: 'DM Sans, sans-serif' }}
         >
-          {loading ? <RefreshCw size={16} className="animate-spin" /> : <Sparkles size={16} />}
-          {loading ? 'Analisando sua semana…' : '✨ Gerar Relatório Semanal'}
+          {loading || gerando ? <RefreshCw size={16} className="animate-spin" /> : <Sparkles size={16} />}
+          {gerando
+            ? 'Gerando o relatório…'
+            : loading
+              ? 'Iniciando…'
+              : erroGeracao
+                ? '✨ Tentar de novo'
+                : '✨ Gerar Relatório Semanal'}
         </button>
       </div>
     );
   }
+
 
   return (
     <div className="space-y-6 relatorio-content relatorio-print" style={{ fontFamily: 'DM Sans, sans-serif' }}>
@@ -487,21 +529,34 @@ export default function InsightsIATab() {
           </button>
           <button
             onClick={gerarRelatorio}
-            disabled={loading}
+            disabled={loading || gerando}
             className="inline-flex items-center gap-2 px-3 py-2 rounded-lg text-xs transition disabled:opacity-60"
             style={{ background: 'transparent', color: C.bronze, border: `1px solid ${C.bronze}` }}
           >
-            <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
-            {loading ? 'Atualizando…' : 'Regenerar'}
+            <RefreshCw size={14} className={loading || gerando ? 'animate-spin' : ''} />
+            {gerando ? 'Gerando…' : loading ? 'Iniciando…' : 'Regenerar'}
           </button>
         </div>
       </div>
+
+      {gerando && (
+        <p className="text-xs flex items-center gap-2 no-print" style={{ color: C.bronze }}>
+          <RefreshCw size={13} className="animate-spin shrink-0" /> Gerando o relatório, leva cerca de 2 minutos
+        </p>
+      )}
+
+      {erroGeracao && !gerando && (
+        <p className="text-xs flex items-start gap-1.5 no-print" style={{ color: C.red }}>
+          <AlertTriangle size={13} className="mt-0.5 shrink-0" /> {erroGeracao}
+        </p>
+      )}
 
       {coleta && coleta.sincronizou_antes_de_gerar === false && coleta.detalhe && (
         <p className="text-xs flex items-start gap-1.5 no-print" style={{ color: C.bronze }}>
           <AlertTriangle size={13} className="mt-0.5 shrink-0" /> {coleta.detalhe}
         </p>
       )}
+
 
       {/* Seletor de semanas — histórico por (periodo_inicio, periodo_fim) */}
       {semanas.length > 1 && (
