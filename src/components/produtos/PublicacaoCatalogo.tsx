@@ -451,22 +451,50 @@ export default function PublicacaoCatalogo({ produtoId, nome, precoVenda, precoC
         <h3 className="font-serif font-bold text-foreground">Grade de cor e tamanho</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="space-y-2">
-            <Label className="text-xs">Cores</Label>
+            <Label className="text-xs">{rotuloCor}</Label>
             <div className="max-h-40 overflow-auto flex flex-wrap gap-2 rounded-md border border-border p-2">
-              {cores.map((c) => (
-                <Badge
-                  key={c.sigla}
-                  variant={coresSel.includes(c.nome) ? "default" : "outline"}
-                  className="cursor-pointer"
-                  onClick={() => alternar(coresSel, c.nome, setCoresSel)}
-                >
-                  {c.nome} · {c.sigla}
-                </Badge>
-              ))}
+              <TooltipProvider>
+                {cores.map((c) => {
+                  const semAmostra = c.na_loja === true && c.tray_color_id == null;
+                  const revisar = !!c.observacao && /revisar/i.test(c.observacao);
+                  return (
+                    <Badge
+                      key={c.sigla}
+                      variant={coresSel.includes(c.nome) ? "default" : "outline"}
+                      className="cursor-pointer inline-flex items-center gap-1"
+                      onClick={() => alternar(coresSel, c.nome, setCoresSel)}
+                    >
+                      {semAmostra ? (
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <span className="inline-flex h-3 w-3 items-center justify-center rounded-full border border-muted-foreground/50 text-[9px] leading-none text-muted-foreground">
+                              ?
+                            </span>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            sem amostra de cor na Tray: a variante nasce sem a bolinha na página
+                          </TooltipContent>
+                        </Tooltip>
+                      ) : (
+                        <span className="inline-block h-2.5 w-2.5 rounded-full bg-current opacity-60" />
+                      )}
+                      {c.nome} · {c.sigla}
+                      {revisar && (
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <AlertTriangle className="h-3 w-3 text-warning" />
+                          </TooltipTrigger>
+                          <TooltipContent>{c.observacao}</TooltipContent>
+                        </Tooltip>
+                      )}
+                    </Badge>
+                  );
+                })}
+              </TooltipProvider>
             </div>
           </div>
           <div className="space-y-2">
-            <Label className="text-xs">Tamanhos</Label>
+            <Label className="text-xs">{rotuloTamanho}</Label>
             <div className="flex flex-wrap gap-2 rounded-md border border-border p-2">
               {tamanhos.map((t) => (
                 <Badge
@@ -480,6 +508,20 @@ export default function PublicacaoCatalogo({ produtoId, nome, precoVenda, precoC
                 </Badge>
               ))}
             </div>
+            {tamanhosLegado.length > 0 && (
+              <details className="text-xs text-muted-foreground">
+                <summary className="cursor-pointer">
+                  {tamanhosLegado.length} tamanhos antigos da loja
+                </summary>
+                <div className="mt-1 flex flex-wrap gap-1">
+                  {tamanhosLegado.map((t) => (
+                    <Badge key={t.tray_property_value_id ?? t.nome} variant="secondary">
+                      {t.nome}
+                    </Badge>
+                  ))}
+                </div>
+              </details>
+            )}
           </div>
         </div>
         <Button type="button" variant="outline" onClick={gerarGrade} disabled={gerando || !catalogoId}>
