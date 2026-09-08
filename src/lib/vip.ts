@@ -277,6 +277,12 @@ export const vipMetricas = (calendarioId?: string | null) =>
 export const vipMetricasPeriodo = (inicio: string, fim: string) =>
   vipRpc<any>("vip_metricas_periodo", { p_inicio: inicio, p_fim: fim });
 
+/** Métricas abertas por grupo no mesmo período. */
+export const vipMetricasGrupos = (inicio: string, fim: string) =>
+  vipRpc<any>("vip_metricas_grupos", { p_inicio: inicio, p_fim: fim });
+
+
+
 
 export const vipEnqueteResultado = (mensagemId: string) =>
   vipRpc<any>("vip_enquete_resultado", { p_mensagem_id: mensagemId });
