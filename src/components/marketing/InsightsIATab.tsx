@@ -529,21 +529,34 @@ export default function InsightsIATab() {
           </button>
           <button
             onClick={gerarRelatorio}
-            disabled={loading}
+            disabled={loading || gerando}
             className="inline-flex items-center gap-2 px-3 py-2 rounded-lg text-xs transition disabled:opacity-60"
             style={{ background: 'transparent', color: C.bronze, border: `1px solid ${C.bronze}` }}
           >
-            <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
-            {loading ? 'Atualizando…' : 'Regenerar'}
+            <RefreshCw size={14} className={loading || gerando ? 'animate-spin' : ''} />
+            {gerando ? 'Gerando…' : loading ? 'Iniciando…' : 'Regenerar'}
           </button>
         </div>
       </div>
+
+      {gerando && (
+        <p className="text-xs flex items-center gap-2 no-print" style={{ color: C.bronze }}>
+          <RefreshCw size={13} className="animate-spin shrink-0" /> Gerando o relatório, leva cerca de 2 minutos
+        </p>
+      )}
+
+      {erroGeracao && !gerando && (
+        <p className="text-xs flex items-start gap-1.5 no-print" style={{ color: C.red }}>
+          <AlertTriangle size={13} className="mt-0.5 shrink-0" /> {erroGeracao}
+        </p>
+      )}
 
       {coleta && coleta.sincronizou_antes_de_gerar === false && coleta.detalhe && (
         <p className="text-xs flex items-start gap-1.5 no-print" style={{ color: C.bronze }}>
           <AlertTriangle size={13} className="mt-0.5 shrink-0" /> {coleta.detalhe}
         </p>
       )}
+
 
       {/* Seletor de semanas — histórico por (periodo_inicio, periodo_fim) */}
       {semanas.length > 1 && (
