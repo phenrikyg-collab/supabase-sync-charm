@@ -35,6 +35,7 @@ import {
   catalogoValidarProduto,
   chaveCatalogo,
 } from "@/lib/catalogo";
+import FotosCatalogo from "@/components/produtos/FotosCatalogo";
 
 interface Props {
   produtoId?: string;
