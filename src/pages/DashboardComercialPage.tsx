@@ -813,8 +813,10 @@ Alertas: ${alertas.map((a) => a.titulo).join(", ") || "nenhum"}.`,
           loading={carregando} titulo="Taxa de conversão" valor={fmtPct(conversaoPeriodo, 2)}
           pct={Number.isFinite(deltaConversaoPP) ? deltaConversaoPP : null}
           pctTexto={`${fmtNum(Math.abs(deltaConversaoPP), 2)} p.p.`}
-          spark={sparkConversao} selo={seloAnomalia}
+          spark={sparkConversao}
+          rodape={seloAnomalia ? <div className="pt-1">{seloAnomalia}</div> : undefined}
           sub={<>Pedidos captados ÷ sessões do período</>}
+
           ajuda="Mesma definição da decomposição: pedidos captados ÷ sessões da série composta."
         />
 
