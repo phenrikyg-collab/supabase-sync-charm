@@ -273,6 +273,10 @@ export const vipMetricas = (calendarioId?: string | null) =>
     ? vipRpc<any>("vip_metricas", { p_calendario_id: calendarioId })
     : vipRpc<any>("vip_metricas");
 
+/** Métricas por período — visão correta do canal (não por calendário). */
+export const vipMetricasPeriodo = (inicio: string, fim: string) =>
+  vipRpc<any>("vip_metricas_periodo", { p_inicio: inicio, p_fim: fim });
+
 
 export const vipEnqueteResultado = (mensagemId: string) =>
   vipRpc<any>("vip_enquete_resultado", { p_mensagem_id: mensagemId });
