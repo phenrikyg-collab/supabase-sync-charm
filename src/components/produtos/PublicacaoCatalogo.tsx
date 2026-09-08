@@ -93,6 +93,9 @@ export default function PublicacaoCatalogo({ produtoId, nome, precoVenda, precoC
   const [gerando, setGerando] = useState(false);
   const [publicando, setPublicando] = useState(false);
   const [resultado, setResultado] = useState<any>(null);
+  const [imagens, setImagens] = useState<string[]>([]);
+  const [imagensPorCor, setImagensPorCor] = useState<Record<string, string[]>>({});
+  const [imagensEnviadasEm, setImagensEnviadasEm] = useState<string | null>(null);
 
   const set = (campo: keyof FormCatalogo, valor: string) => setForm((f) => ({ ...f, [campo]: valor }));
 
