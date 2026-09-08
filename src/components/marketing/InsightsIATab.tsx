@@ -241,6 +241,11 @@ export default function InsightsIATab() {
   const [excluidos, setExcluidos] = useState<any>(null);
   const [semanas, setSemanas] = useState<SemanaRow[]>([]);
   const [semanaSel, setSemanaSel] = useState<string | null>(null);
+  const [gerando, setGerando] = useState(false);
+  const [erroGeracao, setErroGeracao] = useState('');
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const limiteRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
 
   const aplicarLinha = (row: any) => {
     const rel = normalizarRelatorio(row?.relatorio_ia);
