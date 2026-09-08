@@ -365,3 +365,79 @@ function Metrica({ titulo, valor, rodape }: { titulo: string; valor: string; rod
     </Card>
   );
 }
+
+function TabelaGrupos({ dados }: { dados: any }) {
+  const linhas: any[] = Array.isArray(dados?.grupos) ? dados.grupos : Array.isArray(dados) ? dados : [];
+  if (linhas.length === 0) return null;
+
+  const rpm = (g: any) =>
+    Number(g.receita_por_membro ?? (Number(g.membros ?? 0) > 0 ? Number(g.receita ?? 0) / Number(g.membros) : 0));
+  const ordenadas = [...linhas].sort((a, b) => rpm(b) - rpm(a));
+  const ultimo = ordenadas.length - 1;
+
+  return (
+    <Card>
+      <CardHeader className="pb-2">
+        <CardTitle className="text-sm">Por grupo</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-3 p-0 pb-4">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Grupo</TableHead>
+              <TableHead className="text-right">Membros</TableHead>
+              <TableHead className="text-right">Mensagens</TableHead>
+              <TableHead className="text-right">Cliques</TableHead>
+              <TableHead className="text-right">Pessoas</TableHead>
+              <TableHead className="text-right">% que clicou</TableHead>
+              <TableHead className="text-right">Pedidos</TableHead>
+              <TableHead className="text-right">Receita</TableHead>
+              <TableHead className="text-right">Receita por membro</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {ordenadas.map((g, i) => {
+              const semReceita = Number(g.receita ?? 0) === 0;
+              const destaque =
+                i === 0 ? "bg-primary/10 font-medium" : i === ultimo && ordenadas.length > 1 ? "bg-muted/50" : "";
+              return (
+                <TableRow key={g.grupo_id ?? g.id ?? g.nome ?? i} className={destaque}>
+                  <TableCell className={semReceita ? "text-muted-foreground" : ""}>
+                    {g.nome ?? g.grupo_nome ?? "—"}
+                  </TableCell>
+                  <TableCell className="text-right tabular-nums">{num(g.membros ?? 0)}</TableCell>
+                  <TableCell className="text-right tabular-nums">{num(g.mensagens ?? 0)}</TableCell>
+                  <TableCell className="text-right tabular-nums">{num(g.cliques ?? 0)}</TableCell>
+                  <TableCell className="text-right tabular-nums">{num(g.pessoas ?? g.visitantes ?? 0)}</TableCell>
+                  <TableCell className="text-right tabular-nums">
+                    {pctBr(g.pct_clicou ?? g.pct_que_clicou ?? g.ctr_pct ?? 0, 1)}
+                  </TableCell>
+                  <TableCell className="text-right tabular-nums">{num(g.pedidos ?? 0)}</TableCell>
+                  <TableCell className={`text-right tabular-nums ${semReceita ? "text-muted-foreground" : ""}`}>
+                    {brl(g.receita ?? 0)}
+                  </TableCell>
+                  <TableCell className={`text-right tabular-nums ${semReceita ? "text-muted-foreground" : ""}`}>
+                    {brl(rpm(g))}
+                  </TableCell>
+                </TableRow>
+              );
+            })}
+          </TableBody>
+        </Table>
+        <div className="space-y-1 px-6 text-xs text-muted-foreground">
+          <p>
+            {dados?.nota_soma ??
+              "A soma das linhas é maior que o total do canal: quem clicou no link de dois grupos aparece nos dois."}{" "}
+            No período o canal fez {num(dados?.pedidos_no_canal ?? 0)} pedidos e {brl(dados?.receita_no_canal ?? 0)},
+            contando cada pedido uma única vez.
+          </p>
+          {dados?.nota_atribuicao && <p>{dados.nota_atribuicao}</p>}
+          <p>
+            Estes valores são um piso: só enxergamos quem clicou no link e comprou no mesmo navegador. Quem lê no
+            celular e compra no computador não entra na conta.
+          </p>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
