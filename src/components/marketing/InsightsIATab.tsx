@@ -343,68 +343,87 @@ export default function InsightsIATab() {
     return atualizado;
   };
 
-  // O gateway das Edge Functions corta em 504, mas a função termina e grava o
-  // relatório. Nesse caso esperamos e relemos o relatório mais recente.
-  const recuperarAposTimeout = async (clicadoEm: number): Promise<boolean> => {
-    await new Promise((r) => setTimeout(r, 15000));
-    try {
-      const rows = await carregarSemanas();
-      const recente = rows
-        .slice()
-        .sort((a, b) => new Date(b.gerado_em ?? 0).getTime() - new Date(a.gerado_em ?? 0).getTime())[0];
-      const geradoEmMs = recente?.gerado_em ? new Date(recente.gerado_em).getTime() : 0;
-      if (recente && geradoEmMs > clicadoEm && aplicarLinha(recente)) {
-        setCiclo((c) => c + 1);
-        return true;
-      }
-    } catch {
-      // segue para o erro
+  // A função responde 202 na hora e faz o trabalho depois. A tela acompanha o
+  // andamento lendo a linha do período em instagram_relatorios_semanais.
+  const pararPolling = () => {
+    if (pollRef.current) {
+      clearInterval(pollRef.current);
+      pollRef.current = null;
     }
-    return false;
+    if (limiteRef.current) {
+      clearTimeout(limiteRef.current);
+      limiteRef.current = null;
+    }
+  };
+
+  useEffect(() => pararPolling, []);
+
+  const acompanhar = (periodoInicio: string, periodoFim: string) => {
+    pararPolling();
+    setGerando(true);
+    setErroGeracao('');
+
+    const checar = async () => {
+      const { data } = await (supabase as any)
+        .from(TABELA)
+        .select(COLUNAS)
+        .eq('periodo_inicio', periodoInicio)
+        .eq('periodo_fim', periodoFim)
+        .maybeSingle();
+
+      if (!data) return;
+
+      if (data.status === 'erro') {
+        pararPolling();
+        setGerando(false);
+        setErroGeracao(data.erro || 'A geração falhou. Tente de novo.');
+        return;
+      }
+
+      if (data.status === 'pronto' || (!data.status && data.relatorio_ia)) {
+        if (aplicarLinha(data)) {
+          pararPolling();
+          setGerando(false);
+          setCiclo((c) => c + 1);
+          await carregarSemanas(data.id);
+        }
+      }
+    };
+
+    pollRef.current = setInterval(() => {
+      void checar();
+    }, 5000);
+
+    limiteRef.current = setTimeout(() => {
+      pararPolling();
+      setGerando(false);
+      setErroGeracao('Demorou mais que o esperado, tente de novo.');
+    }, 5 * 60 * 1000);
   };
 
   const gerarRelatorio = async () => {
     setLoading(true);
-    const clicadoEm = Date.now();
+    setErroGeracao('');
     try {
       const { data, error } = await supabase.functions.invoke('gerar-insights-semanal', { body: {} });
       if (error) throw error;
-      const rel: Relatorio = data?.relatorio || data;
-      if (!rel || !rel.metricas) throw new Error('Resposta inválida da função');
-      const janela = janelaDoRelatorio(rel, null, data);
-      setRelatorio(rel);
-      setGeradoEm(new Date().toLocaleString('pt-BR'));
-      setDadosRaw((data?.dados_raw ?? data?.dados ?? null) as DadosRaw | null);
-      setPeriodoSemana(fmtPeriodoSemana(janela.inicio, janela.fim));
-      setTipoSemana(janela.tipo);
-      setColetadoEm(fmtDateTime((rel as any)?.dados_coletados_em));
-      setColeta((rel as any)?.coleta ?? null);
-      setExcluidos((rel as any)?.excluidos_das_somas ?? null);
-      setCiclo((c) => c + 1);
-      try {
-        const salvo = await salvarRelatorio(rel, data);
-        setGeradoEm(fmtDateTime(salvo?.gerado_em) || new Date().toLocaleString('pt-BR'));
-        await carregarSemanas(salvo?.id);
-      } catch (e: any) {
-        toast({ title: 'Relatório gerado, mas não foi salvo', description: e.message, variant: 'destructive' });
+
+      const inicio = data?.periodo_inicio;
+      const fim = data?.periodo_fim;
+      if (!inicio || !fim) throw new Error('Resposta inválida da função');
+
+      acompanhar(inicio, fim);
+      if (data?.ja_em_andamento) {
+        toast({ title: 'Já estava gerando', description: 'Acompanhando a geração em andamento.' });
       }
     } catch (err: any) {
-      const status = err?.context?.status;
-      const msg = String(err?.message ?? '');
-      const talvezTimeout =
-        status === 504 || status === 502 || status === 408 || /504|timeout|timed out|gateway/i.test(msg);
-      if (talvezTimeout) {
-        const recuperado = await recuperarAposTimeout(clicadoEm);
-        if (recuperado) {
-          setLoading(false);
-          return;
-        }
-      }
+      setErroGeracao(err?.message || 'Não foi possível iniciar a geração.');
       toast({ title: 'Erro ao gerar relatório', description: err.message, variant: 'destructive' });
     } finally {
       setLoading(false);
     }
   };
+
 
   if (carregando) {
     return (
