@@ -526,6 +526,17 @@ export default function PublicacaoCatalogo({ produtoId, nome, precoVenda, precoC
         )}
       </div>
 
+      {/* Fotos */}
+      <FotosCatalogo
+        catalogoId={catalogoId}
+        cores={coresDaGrade}
+        imagensIniciais={imagens}
+        imagensPorCorIniciais={imagensPorCor}
+        enviadasEm={imagensEnviadasEm}
+      />
+
+
+
       {/* Conteúdo e SEO */}
       <div className="space-y-3">
         <h3 className="font-serif font-bold text-foreground">Conteúdo e SEO</h3>
