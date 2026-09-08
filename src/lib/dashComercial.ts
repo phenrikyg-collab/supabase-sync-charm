@@ -154,9 +154,39 @@ async function paginado<T>(run: (from: number, to: number) => any, map: (r: any)
   return out;
 }
 
+/**
+ * Regra canônica de pedido pago: public.fn_tray_pedido_pago(status, raw_payload),
+ * materializada em public.vw_tray_vendas. Devolve o conjunto de ids pagos do
+ * período, ou null quando a view não estiver disponível (mantém a regra antiga).
+ */
+export async function fetchIdsPagos(ini: string, fim: string): Promise<Set<string> | null> {
+  const colunasId = ["id", "order_id", "pedido_id"];
+  const colunasData = ["date", "data", "date_purchase", "dia"];
+  for (const cid of colunasId) {
+    for (const cdt of colunasData) {
+      try {
+        const ids = await paginado<string | null>(
+          (from, to) =>
+            supabase
+              .from("vw_tray_vendas" as any)
+              .select(cid)
+              .gte(cdt, ini)
+              .lte(cdt, fim)
+              .range(from, to),
+          (r: any) => (r?.[cid] != null ? String(r[cid]) : null),
+        );
+        return new Set(ids.filter((x): x is string => !!x));
+      } catch {
+        /* tenta a próxima combinação de colunas */
+      }
+    }
+  }
+  return null;
+}
+
 /** 1.2 — fonte única de pedidos. */
 export async function fetchPedidos(ini: string, fim: string): Promise<Pedido[]> {
-  return paginado<Pedido>(
+  const lista = await paginado<Pedido>(
     (from, to) =>
       supabase
         .from("tray_orders" as any)
@@ -167,7 +197,58 @@ export async function fetchPedidos(ini: string, fim: string): Promise<Pedido[]> 
         .range(from, to),
     mapPedido,
   );
+
+  // Receita líquida e pedidos faturados seguem a regra canônica de pedido pago.
+  // Pedidos captados continuam contando tudo (base da taxa de aprovação).
+  const pagos = await fetchIdsPagos(ini, fim);
+  if (pagos && pagos.size) {
+    for (const p of lista) p.cancelado = !pagos.has(p.id);
+  }
+  return lista;
 }
+
+export interface MetaMes {
+  meta_mensal: number | null;
+  meta_ticket_medio: number | null;
+  fonte: "planejamento" | "fallback" | "nenhuma";
+}
+
+/** C — meta única: planejamento_mensal (tipo planejado), com queda para metas_financeiras. */
+export async function fetchMetaMes(mesRef: string): Promise<MetaMes> {
+  const ano = Number(mesRef.slice(0, 4));
+  const mes = Number(mesRef.slice(5, 7));
+  const oficial = await fetchMetaOficial(mesRef);
+  try {
+    const { data } = await supabase
+      .from("planejamento_mensal" as any)
+      .select("receita_faturada")
+      .eq("ano", ano)
+      .eq("mes", mes)
+      .eq("tipo", "planejado")
+      .limit(1);
+    const v = ((data ?? []) as any[])[0]?.receita_faturada;
+    if (v != null && Number(v) > 0) {
+      return { meta_mensal: Number(v), meta_ticket_medio: oficial.meta_ticket_medio, fonte: "planejamento" };
+    }
+  } catch {
+    /* sem linha planejada */
+  }
+  return {
+    meta_mensal: oficial.meta_mensal,
+    meta_ticket_medio: oficial.meta_ticket_medio,
+    fonte: oficial.meta_mensal != null ? "fallback" : "nenhuma",
+  };
+}
+
+export const MESES_PT = [
+  "janeiro", "fevereiro", "março", "abril", "maio", "junho",
+  "julho", "agosto", "setembro", "outubro", "novembro", "dezembro",
+];
+
+/** B — dias corridos restantes no mês (a loja vende sábado e domingo). */
+export const diasCorridosRestantes = (hoje: string, fimMes: string) =>
+  Math.max(diffDias(fimMes, hoje) + 1, 1);
+
 
 /** 1.3 — sessões oficiais (GA4). event_date é texto YYYYMMDD. */
 export async function fetchGa4(ini: string, fim: string): Promise<SessaoDia[]> {
