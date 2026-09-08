@@ -335,7 +335,8 @@ export default function PublicacaoCatalogo({ produtoId, nome, precoVenda, precoC
       <div className="flex items-start gap-2 rounded-md border border-warning/40 bg-warning/10 p-3 text-sm">
         <AlertTriangle className="h-4 w-4 mt-0.5 text-warning" />
         <span>
-          Fotos ainda são enviadas pelo admin da Tray. O envio por API está em análise com o suporte.
+          As fotos vão por API: até 350 KB e 2000x2000 por arquivo. O limite de 150 MB anunciado pela Tray
+          vale só para envio manual no painel dela.
         </span>
       </div>
 
