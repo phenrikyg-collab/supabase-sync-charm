@@ -204,7 +204,8 @@ const normalizarRelatorio = (value: any): Relatorio | null => {
 // (periodo_inicio, periodo_fim) — instagram_relatorios_mensais é só do mensal.
 const TABELA = 'instagram_relatorios_semanais';
 const COLUNAS =
-  'id, periodo_inicio, periodo_fim, gerado_em, dados_coletados_em, relatorio_ia, dados_raw, total_posts, alcance_total, engajamento_total, salvamentos, compartilhamentos, taxa_engajamento, formato_dominante';
+  'id, periodo_inicio, periodo_fim, gerado_em, dados_coletados_em, relatorio_ia, dados_raw, total_posts, alcance_total, engajamento_total, salvamentos, compartilhamentos, taxa_engajamento, formato_dominante, status, erro, iniciado_em';
+
 
 interface SemanaRow {
   id: string;
