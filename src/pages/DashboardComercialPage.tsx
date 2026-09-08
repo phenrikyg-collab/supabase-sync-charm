@@ -21,10 +21,11 @@ import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import { callClaude } from "@/lib/claudeApi";
 import {
-  aprovacaoCanceladosReais, ddmm, ddmmyyyy, diasUteis, diffDias, fetchDrivers, fetchGa4,
-  fetchItens, fetchMetaOficial, fetchMidia, fetchPedidos, fetchWindsor, fmtBRL, fmtNum, fmtPct, funilSessoes,
-  isoDia, listaDias, lmdi, pickNum, resumoMidia, resumoPeriodo, somaDias,
+  aprovacaoCanceladosReais, ddmm, ddmmyyyy, diasCorridosRestantes, diffDias, fetchDrivers, fetchGa4,
+  fetchItens, fetchMetaMes, fetchMidia, fetchPedidos, fetchWindsor, fmtBRL, fmtNum, fmtPct, funilSessoes,
+  isoDia, listaDias, lmdi, MESES_PT, pickNum, resumoMidia, resumoPeriodo, somaDias,
 } from "@/lib/dashComercial";
+
 import { SeloAviso, SkeletonBloco, SkeletonCard, Tile, variacaoPct } from "@/components/dash-comercial/ui";
 import { Waterfall } from "@/components/dash-comercial/Waterfall";
 import { DriverLinha, PlacarDrivers } from "@/components/dash-comercial/Drivers";
@@ -128,7 +129,7 @@ export default function DashboardComercialPage() {
     queryFn: () => fetchMidia(fetchIni, fetchFim),
     staleTime: 5 * 60_000,
   });
-  const qMeta = useQuery({ queryKey: ["dc2-meta", mesRef], queryFn: () => fetchMetaOficial(mesRef), staleTime: 10 * 60_000 });
+  const qMeta = useQuery({ queryKey: ["dc2-meta", mesRef], queryFn: () => fetchMetaMes(mesRef), staleTime: 10 * 60_000 });
   const qDrivers = useQuery({
     queryKey: ["dc2-drivers", mesRef],
     queryFn: () => fetchDrivers(Number(mesRef.slice(0, 4)), Number(mesRef.slice(5, 7))),
