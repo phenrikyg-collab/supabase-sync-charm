@@ -311,6 +311,13 @@ export default function PublicacaoCatalogo({ produtoId, nome, precoVenda, precoC
   const catBling = useMemo(() => categorias.filter((c) => c.canal === "bling"), [categorias]);
   const rotuloCat = (c: CatalogoCategoria) => (c.pai ? `${c.pai} > ${c.nome}` : c.nome);
 
+  const coresDaGrade = useMemo(() => {
+    const set = new Set<string>();
+    skus.forEach((s) => s.cor && set.add(s.cor));
+    coresSel.forEach((c) => set.add(c));
+    return Array.from(set);
+  }, [skus, coresSel]);
+
   const alternar = (lista: string[], valor: string, setter: (v: string[]) => void) =>
     setter(lista.includes(valor) ? lista.filter((x) => x !== valor) : [...lista, valor]);
 
