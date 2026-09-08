@@ -113,6 +113,30 @@ export function BotoesTab() {
     return null;
   };
 
+  // Grava um botão preservando o id: existente é atualizado, novo é inserido.
+  // Nunca apaga e recria — o histórico de cliques aponta para o id.
+  const gravarBotao = async (b: Botao, ordem: number, ativo = b.ativo) => {
+    const { error } = await supabase.rpc("linkbio_admin_upsert_botao" as any, {
+      p_id: b.id ?? null,
+      p_label: b.label,
+      p_url_destino: b.url_destino,
+      p_utm_source: b.utm_source || null,
+      p_utm_medium: b.utm_medium || null,
+      p_utm_campaign: b.utm_campaign || null,
+      p_icone: b.icone || null,
+      p_cor_destaque: b.cor_destaque || null,
+      p_destaque: b.destaque,
+      p_ativo: ativo,
+      p_ordem: ordem,
+    });
+    if (error) throw error;
+  };
+
+  // O histórico de cliques trava a exclusão física do botão (chave estrangeira).
+  const temHistoricoDeCliques = (e: any) =>
+    e?.code === "23503" ||
+    /foreign key|cliques/i.test(`${e?.message ?? ""} ${e?.details ?? ""}`);
+
   const salvarTudo = async () => {
     for (const b of itens) {
       const erro = validar(b);
@@ -121,26 +145,17 @@ export function BotoesTab() {
     setSalvando(true);
     try {
       for (const [i, b] of itens.entries()) {
-        const { error } = await supabase.rpc("linkbio_admin_upsert_botao" as any, {
-          p_id: b.id ?? null,
-          p_label: b.label,
-          p_url_destino: b.url_destino,
-          p_utm_source: b.utm_source || null,
-          p_utm_medium: b.utm_medium || null,
-          p_utm_campaign: b.utm_campaign || null,
-          p_icone: b.icone || null,
-          p_cor_destaque: b.cor_destaque || null,
-          p_destaque: b.destaque,
-          p_ativo: b.ativo,
-          p_ordem: i + 1,
-        });
-        if (error) throw error;
+        await gravarBotao(b, i + 1);
       }
       toast.success("Botões salvos com sucesso.");
       qc.invalidateQueries({ queryKey: ["linkbio-admin-botoes"] });
-    qc.invalidateQueries({ queryKey: ["linkbio-config"] });
+      qc.invalidateQueries({ queryKey: ["linkbio-config"] });
     } catch (e: any) {
-      toast.error(e.message ?? "Erro ao salvar botões.");
+      toast.error(
+        temHistoricoDeCliques(e)
+          ? "Não foi possível salvar sem mexer no histórico de cliques. Nada foi apagado."
+          : e.message ?? "Erro ao salvar botões.",
+      );
     } finally {
       setSalvando(false);
     }
@@ -155,8 +170,19 @@ export function BotoesTab() {
       return;
     }
     const { error } = await supabase.rpc("linkbio_admin_delete_botao" as any, { p_id: item.id });
-    if (error) return toast.error(error.message);
-    toast.success("Botão excluído.");
+    if (error) {
+      if (!temHistoricoDeCliques(error)) return toast.error(error.message);
+      // Botão com cliques registrados: desativa em vez de apagar, preservando o histórico.
+      try {
+        await gravarBotao(item, item.ordem, false);
+        setItens((prev) => prev.map((it, i) => (i === idx ? { ...it, ativo: false } : it)));
+        toast.success("Esse botão já tem cliques registrados. Ele saiu da página, e os números continuam guardados.");
+      } catch (e: any) {
+        return toast.error(e.message ?? "Erro ao desativar o botão.");
+      }
+    } else {
+      toast.success("Botão excluído.");
+    }
     qc.invalidateQueries({ queryKey: ["linkbio-admin-botoes"] });
     qc.invalidateQueries({ queryKey: ["linkbio-config"] });
   };
@@ -297,7 +323,8 @@ export function BotoesTab() {
           <AlertDialogHeader>
             <AlertDialogTitle>Excluir botão?</AlertDialogTitle>
             <AlertDialogDescription>
-              Esta ação não pode ser desfeita. O botão deixará de aparecer na página pública.
+              O botão deixará de aparecer na página pública. Se ele já recebeu cliques, será apenas
+              desativado, para não perder o histórico de cliques e métricas.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
