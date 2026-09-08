@@ -21,6 +21,8 @@ import {
 import { Search, Edit, Package, Download, Trash2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
+import { useEffect } from "react";
+import { catalogoProdutosListar, type CatalogoListaItem } from "@/lib/catalogo";
 
 function formatCurrency(v: number | null | undefined) {
   if (v == null) return "—";
