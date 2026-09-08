@@ -266,8 +266,13 @@ export const vipMensagemMarcarManual = (mensagemId: string, grupoIds: string[]) 
 export const vipLinksGerar = (mensagemId: string) =>
   vipRpc<any>("vip_links_gerar", { p_mensagem_id: mensagemId });
 
-export const vipMetricas = (calendarioId: string) =>
-  vipRpc<any>("vip_metricas", { p_calendario_id: calendarioId });
+// Sem calendário selecionado, chamar sem argumento nenhum: passar
+// { p_calendario_id: null } resolve para a versão uuid e volta 400.
+export const vipMetricas = (calendarioId?: string | null) =>
+  calendarioId
+    ? vipRpc<any>("vip_metricas", { p_calendario_id: calendarioId })
+    : vipRpc<any>("vip_metricas");
+
 
 export const vipEnqueteResultado = (mensagemId: string) =>
   vipRpc<any>("vip_enquete_resultado", { p_mensagem_id: mensagemId });

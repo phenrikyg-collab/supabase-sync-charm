@@ -36,13 +36,16 @@ export function MetricasTab() {
   }, []);
 
   useEffect(() => {
-    if (!id) return;
     setCarregando(true);
-    vipMetricas(id)
-      .then(setDados)
+    vipMetricas(id || undefined)
+      .then((d) => {
+        setDados(d);
+        if (!id && d?.calendario_id) setId(d.calendario_id);
+      })
       .catch((e) => toast.error(e.message))
       .finally(() => setCarregando(false));
   }, [id]);
+
 
   const linhas: any[] = useMemo(
     () => (Array.isArray(dados) ? dados : (dados?.mensagens ?? dados?.linhas ?? [])),
