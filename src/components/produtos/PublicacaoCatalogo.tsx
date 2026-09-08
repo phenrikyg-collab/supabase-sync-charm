@@ -536,8 +536,8 @@ export default function PublicacaoCatalogo({ produtoId, nome, precoVenda, precoC
             <TableHeader>
               <TableRow>
                 <TableHead>SKU</TableHead>
-                <TableHead>Cor</TableHead>
-                <TableHead>Tamanho</TableHead>
+                <TableHead>{rotuloCor}</TableHead>
+                <TableHead>{rotuloTamanho}</TableHead>
                 <TableHead className="text-right">Preço</TableHead>
                 <TableHead className="text-right">Custo</TableHead>
                 <TableHead>EAN</TableHead>
