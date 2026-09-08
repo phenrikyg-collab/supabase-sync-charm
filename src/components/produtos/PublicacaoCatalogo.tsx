@@ -35,6 +35,7 @@ import {
   catalogoValidarProduto,
   chaveCatalogo,
 } from "@/lib/catalogo";
+import FotosCatalogo from "@/components/produtos/FotosCatalogo";
 
 interface Props {
   produtoId?: string;
@@ -93,6 +94,9 @@ export default function PublicacaoCatalogo({ produtoId, nome, precoVenda, precoC
   const [gerando, setGerando] = useState(false);
   const [publicando, setPublicando] = useState(false);
   const [resultado, setResultado] = useState<any>(null);
+  const [imagens, setImagens] = useState<string[]>([]);
+  const [imagensPorCor, setImagensPorCor] = useState<Record<string, string[]>>({});
+  const [imagensEnviadasEm, setImagensEnviadasEm] = useState<string | null>(null);
 
   const set = (campo: keyof FormCatalogo, valor: string) => setForm((f) => ({ ...f, [campo]: valor }));
 
@@ -148,6 +152,13 @@ export default function PublicacaoCatalogo({ produtoId, nome, precoVenda, precoC
         descricao: p.descricao?.trim() ? p.descricao : DESCRICAO_MODELO,
       });
       setSkus(r?.skus ?? []);
+      setImagens(Array.isArray((p as any).imagens) ? ((p as any).imagens as string[]) : []);
+      setImagensPorCor(
+        (p as any).imagens_por_cor && typeof (p as any).imagens_por_cor === "object"
+          ? ((p as any).imagens_por_cor as Record<string, string[]>)
+          : {},
+      );
+      setImagensEnviadasEm((p as any).imagens_enviadas_em ?? null);
       validar(id);
       lerCustos(id);
     } catch (e: any) {
@@ -307,6 +318,13 @@ export default function PublicacaoCatalogo({ produtoId, nome, precoVenda, precoC
   const catBling = useMemo(() => categorias.filter((c) => c.canal === "bling"), [categorias]);
   const rotuloCat = (c: CatalogoCategoria) => (c.pai ? `${c.pai} > ${c.nome}` : c.nome);
 
+  const coresDaGrade = useMemo(() => {
+    const set = new Set<string>();
+    skus.forEach((s) => s.cor && set.add(s.cor));
+    coresSel.forEach((c) => set.add(c));
+    return Array.from(set);
+  }, [skus, coresSel]);
+
   const alternar = (lista: string[], valor: string, setter: (v: string[]) => void) =>
     setter(lista.includes(valor) ? lista.filter((x) => x !== valor) : [...lista, valor]);
 
@@ -317,7 +335,8 @@ export default function PublicacaoCatalogo({ produtoId, nome, precoVenda, precoC
       <div className="flex items-start gap-2 rounded-md border border-warning/40 bg-warning/10 p-3 text-sm">
         <AlertTriangle className="h-4 w-4 mt-0.5 text-warning" />
         <span>
-          Fotos ainda são enviadas pelo admin da Tray. O envio por API está em análise com o suporte.
+          As fotos vão por API: até 350 KB e 2000x2000 por arquivo. O limite de 150 MB anunciado pela Tray
+          vale só para envio manual no painel dela.
         </span>
       </div>
 
@@ -526,6 +545,17 @@ export default function PublicacaoCatalogo({ produtoId, nome, precoVenda, precoC
         )}
       </div>
 
+      {/* Fotos */}
+      <FotosCatalogo
+        catalogoId={catalogoId}
+        cores={coresDaGrade}
+        imagensIniciais={imagens}
+        imagensPorCorIniciais={imagensPorCor}
+        enviadasEm={imagensEnviadasEm}
+      />
+
+
+
       {/* Conteúdo e SEO */}
       <div className="space-y-3">
         <h3 className="font-serif font-bold text-foreground">Conteúdo e SEO</h3>
@@ -628,6 +658,17 @@ export default function PublicacaoCatalogo({ produtoId, nome, precoVenda, precoC
               <div key={etapa} className="rounded border border-border p-2">
                 <div className="flex items-center justify-between">
                   <strong className="capitalize">{etapa}</strong>
+                  {dado?.imagens && typeof dado.imagens === "object" && (
+                    <span className="text-xs text-muted-foreground">
+                      {Object.entries(dado.imagens as Record<string, number>)
+                        .map(([alvo, qtd]) =>
+                          alvo === "produto"
+                            ? `${qtd} ${qtd === 1 ? "foto" : "fotos"} no produto`
+                            : `${qtd} em ${alvo}`,
+                        )
+                        .join(", ")}
+                    </span>
+                  )}
                   <div className="flex gap-2">
                     {errosEtapa.length > 0 && (
                       <Button
