@@ -9,7 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { AlertTriangle, ChevronDown, ChevronRight, Copy } from "lucide-react";
 import { toast } from "sonner";
 import { brl, dataCurta, num, pctBr } from "@/lib/financeiroFormat";
-import { CORES_INTENCAO, copiar, vipEnqueteResultado, vipMetricasPeriodo } from "@/lib/vip";
+import { CORES_INTENCAO, copiar, vipEnqueteResultado, vipMetricasGrupos, vipMetricasPeriodo } from "@/lib/vip";
 
 type Preset = "7" | "30" | "90" | "mes" | "custom";
 
@@ -51,6 +51,7 @@ export function MetricasTab() {
   const [ini, setIni] = useState<string>(salvo?.inicio ?? iso(new Date()));
   const [fim, setFim] = useState<string>(salvo?.fim ?? iso(new Date()));
   const [dados, setDados] = useState<any>(null);
+  const [grupos, setGrupos] = useState<any>(null);
   const [carregando, setCarregando] = useState(false);
   const [expandida, setExpandida] = useState<string | null>(null);
   const [enquetes, setEnquetes] = useState<Record<string, any>>({});
@@ -68,7 +69,11 @@ export function MetricasTab() {
       .then((d) => setDados(d))
       .catch((e) => toast.error(e.message))
       .finally(() => setCarregando(false));
+    vipMetricasGrupos(faixa.inicio, faixa.fim)
+      .then((g) => setGrupos(g))
+      .catch(() => setGrupos(null));
   }, [faixa.inicio, faixa.fim]);
+
 
   const linhas: any[] = useMemo(
     () => (Array.isArray(dados) ? dados : (dados?.mensagens ?? dados?.linhas ?? [])),
@@ -141,8 +146,17 @@ export function MetricasTab() {
             />
             <Metrica titulo="CTR" valor={pctBr(resumo.ctr_pct ?? 0, 2)} />
             <Metrica titulo="Pedidos" valor={num(resumo.pedidos ?? 0)} />
-            <Metrica titulo="Receita" valor={brl(resumo.receita ?? 0)} />
+            <Metrica
+              titulo="Receita influenciada pelo VIP"
+              valor={brl(resumo.receita ?? 0)}
+              rodape={`piso: só quem clicou no link e comprou no mesmo navegador${
+                resumo.receita_originada != null || resumo.vip_aquisicao != null
+                  ? ` · receita originada (primeiro toque): ${brl(resumo.receita_originada ?? resumo.vip_aquisicao ?? 0)}`
+                  : ""
+              }`}
+            />
             <Metrica titulo="Conversão por visitante" valor={pctBr(resumo.conv_por_visitante_pct ?? 0, 2)} />
+
           </div>
 
           {avisos.length > 0 && (
@@ -195,6 +209,10 @@ export function MetricasTab() {
           )}
         </>
       )}
+
+      <TabelaGrupos dados={grupos} />
+
+
 
       <Card>
         <CardContent className="p-0">
@@ -343,6 +361,82 @@ function Metrica({ titulo, valor, rodape }: { titulo: string; valor: string; rod
       <CardContent>
         <div className="text-2xl font-semibold tabular-nums">{valor}</div>
         {rodape && <p className="mt-1 text-[11px] text-muted-foreground">{rodape}</p>}
+      </CardContent>
+    </Card>
+  );
+}
+
+function TabelaGrupos({ dados }: { dados: any }) {
+  const linhas: any[] = Array.isArray(dados?.grupos) ? dados.grupos : Array.isArray(dados) ? dados : [];
+  if (linhas.length === 0) return null;
+
+  const rpm = (g: any) =>
+    Number(g.receita_por_membro ?? (Number(g.membros ?? 0) > 0 ? Number(g.receita ?? 0) / Number(g.membros) : 0));
+  const ordenadas = [...linhas].sort((a, b) => rpm(b) - rpm(a));
+  const ultimo = ordenadas.length - 1;
+
+  return (
+    <Card>
+      <CardHeader className="pb-2">
+        <CardTitle className="text-sm">Por grupo</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-3 p-0 pb-4">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Grupo</TableHead>
+              <TableHead className="text-right">Membros</TableHead>
+              <TableHead className="text-right">Mensagens</TableHead>
+              <TableHead className="text-right">Cliques</TableHead>
+              <TableHead className="text-right">Pessoas</TableHead>
+              <TableHead className="text-right">% que clicou</TableHead>
+              <TableHead className="text-right">Pedidos</TableHead>
+              <TableHead className="text-right">Receita</TableHead>
+              <TableHead className="text-right">Receita por membro</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {ordenadas.map((g, i) => {
+              const semReceita = Number(g.receita ?? 0) === 0;
+              const destaque =
+                i === 0 ? "bg-primary/10 font-medium" : i === ultimo && ordenadas.length > 1 ? "bg-muted/50" : "";
+              return (
+                <TableRow key={g.grupo_id ?? g.id ?? g.nome ?? i} className={destaque}>
+                  <TableCell className={semReceita ? "text-muted-foreground" : ""}>
+                    {g.nome ?? g.grupo_nome ?? "—"}
+                  </TableCell>
+                  <TableCell className="text-right tabular-nums">{num(g.membros ?? 0)}</TableCell>
+                  <TableCell className="text-right tabular-nums">{num(g.mensagens ?? 0)}</TableCell>
+                  <TableCell className="text-right tabular-nums">{num(g.cliques ?? 0)}</TableCell>
+                  <TableCell className="text-right tabular-nums">{num(g.pessoas ?? g.visitantes ?? 0)}</TableCell>
+                  <TableCell className="text-right tabular-nums">
+                    {pctBr(g.pct_clicou ?? g.pct_que_clicou ?? g.ctr_pct ?? 0, 1)}
+                  </TableCell>
+                  <TableCell className="text-right tabular-nums">{num(g.pedidos ?? 0)}</TableCell>
+                  <TableCell className={`text-right tabular-nums ${semReceita ? "text-muted-foreground" : ""}`}>
+                    {brl(g.receita ?? 0)}
+                  </TableCell>
+                  <TableCell className={`text-right tabular-nums ${semReceita ? "text-muted-foreground" : ""}`}>
+                    {brl(rpm(g))}
+                  </TableCell>
+                </TableRow>
+              );
+            })}
+          </TableBody>
+        </Table>
+        <div className="space-y-1 px-6 text-xs text-muted-foreground">
+          <p>
+            {dados?.nota_soma ??
+              "A soma das linhas é maior que o total do canal: quem clicou no link de dois grupos aparece nos dois."}{" "}
+            No período o canal fez {num(dados?.pedidos_no_canal ?? 0)} pedidos e {brl(dados?.receita_no_canal ?? 0)},
+            contando cada pedido uma única vez.
+          </p>
+          {dados?.nota_atribuicao && <p>{dados.nota_atribuicao}</p>}
+          <p>
+            Estes valores são um piso: só enxergamos quem clicou no link e comprou no mesmo navegador. Quem lê no
+            celular e compra no computador não entra na conta.
+          </p>
+        </div>
       </CardContent>
     </Card>
   );
