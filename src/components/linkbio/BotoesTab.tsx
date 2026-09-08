@@ -323,7 +323,8 @@ export function BotoesTab() {
           <AlertDialogHeader>
             <AlertDialogTitle>Excluir botão?</AlertDialogTitle>
             <AlertDialogDescription>
-              Esta ação não pode ser desfeita. O botão deixará de aparecer na página pública.
+              O botão deixará de aparecer na página pública. Se ele já recebeu cliques, será apenas
+              desativado, para não perder o histórico de cliques e métricas.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
