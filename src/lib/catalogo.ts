@@ -18,6 +18,9 @@ export interface CatalogoCor {
   nome: string;
   sigla: string;
   tray_color_id: number | null;
+  tray_property_value_id?: number | null;
+  na_loja?: boolean;
+  observacao?: string | null;
 }
 
 export interface CatalogoTamanho {
@@ -25,6 +28,14 @@ export interface CatalogoTamanho {
   sigla: string;
   rotulo_numerico: string | null;
   ordem: number;
+  canonico?: boolean;
+  tray_property_value_id?: number | null;
+  na_loja?: boolean;
+}
+
+export interface CatalogoTamanhoLegado {
+  nome: string;
+  tray_property_value_id: number | null;
 }
 
 export interface CatalogoSku {
@@ -101,7 +112,13 @@ export interface CatalogoListaItem {
 export const catalogoCategorias = () => rpc<CatalogoCategoria[]>("catalogo_categorias_disponiveis");
 
 export const catalogoCoresTamanhos = () =>
-  rpc<{ cores: CatalogoCor[]; tamanhos: CatalogoTamanho[] }>("catalogo_cores_e_tamanhos");
+  rpc<{
+    caracteristica_cor?: string;
+    caracteristica_tamanho?: string;
+    cores: CatalogoCor[];
+    tamanhos: CatalogoTamanho[];
+    tamanhos_legado?: CatalogoTamanhoLegado[];
+  }>("catalogo_cores_e_tamanhos");
 
 export const catalogoSugerirNcm = (nome: string) =>
   rpc<CatalogoSugestaoNcm[]>("catalogo_sugerir_ncm", { p_nome: nome });
