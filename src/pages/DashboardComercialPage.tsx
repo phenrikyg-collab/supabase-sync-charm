@@ -21,10 +21,11 @@ import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import { callClaude } from "@/lib/claudeApi";
 import {
-  aprovacaoCanceladosReais, ddmm, ddmmyyyy, diasUteis, diffDias, fetchDrivers, fetchGa4,
-  fetchItens, fetchMetaOficial, fetchMidia, fetchPedidos, fetchWindsor, fmtBRL, fmtNum, fmtPct, funilSessoes,
-  isoDia, listaDias, lmdi, pickNum, resumoMidia, resumoPeriodo, somaDias,
+  aprovacaoCanceladosReais, ddmm, ddmmyyyy, diasCorridosRestantes, diffDias, fetchDrivers, fetchGa4,
+  fetchItens, fetchMetaMes, fetchMidia, fetchPedidos, fetchWindsor, fmtBRL, fmtNum, fmtPct, funilSessoes,
+  isoDia, listaDias, lmdi, MESES_PT, pickNum, resumoMidia, resumoPeriodo, somaDias,
 } from "@/lib/dashComercial";
+
 import { SeloAviso, SkeletonBloco, SkeletonCard, Tile, variacaoPct } from "@/components/dash-comercial/ui";
 import { Waterfall } from "@/components/dash-comercial/Waterfall";
 import { DriverLinha, PlacarDrivers } from "@/components/dash-comercial/Drivers";
@@ -128,7 +129,7 @@ export default function DashboardComercialPage() {
     queryFn: () => fetchMidia(fetchIni, fetchFim),
     staleTime: 5 * 60_000,
   });
-  const qMeta = useQuery({ queryKey: ["dc2-meta", mesRef], queryFn: () => fetchMetaOficial(mesRef), staleTime: 10 * 60_000 });
+  const qMeta = useQuery({ queryKey: ["dc2-meta", mesRef], queryFn: () => fetchMetaMes(mesRef), staleTime: 10 * 60_000 });
   const qDrivers = useQuery({
     queryKey: ["dc2-drivers", mesRef],
     queryFn: () => fetchDrivers(Number(mesRef.slice(0, 4)), Number(mesRef.slice(5, 7))),
@@ -217,8 +218,11 @@ export default function DashboardComercialPage() {
   const meta = qMeta.data;
   const pctMeta = meta?.meta_mensal ? (mtd.receita_liquida / meta.meta_mensal) * 100 : null;
   const faltante = meta?.meta_mensal ? Math.max(meta.meta_mensal - mtd.receita_liquida, 0) : null;
-  const uteisRestantes = Math.max(diasUteis([HOJE, mesIni].sort().slice(-1)[0], mesFim), 1);
-  const metaDiaria = faltante !== null ? faltante / uteisRestantes : null;
+  // B — a loja vende sábado e domingo: divisor é dias corridos restantes.
+  const restantes = diasCorridosRestantes([HOJE, mesIni].sort().slice(-1)[0], mesFim);
+  const metaDiaria = faltante !== null ? faltante / restantes : null;
+  const nomeMes = MESES_PT[Number(mesRef.slice(5, 7)) - 1];
+
 
   /* ------------------- Seção 3 — LMDI com janela ajustada ---------------- */
   const { resultado, avisoJanela } = useMemo(() => {
@@ -767,7 +771,12 @@ Alertas: ${alertas.map((a) => a.titulo).join(", ") || "nenhum"}.`,
       )}
 
       {/* Seção 2 — resumo executivo */}
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7">
+      {/* A1 — grade fluida: nunca menos de 200px por card, quebra em vez de espremer */}
+      <div
+        className="grid items-stretch gap-3"
+        style={{ gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))" }}
+      >
+
         <Tile
           loading={carregando} titulo="Receita líquida" valor={fmtBRL(resumo.receita_liquida)}
           pct={variacaoPct(resumo.receita_liquida, resumoComp.receita_liquida)} spark={sparkReceita}
@@ -784,26 +793,30 @@ Alertas: ${alertas.map((a) => a.titulo).join(", ") || "nenhum"}.`,
           pct={variacaoPct(sessoesPeriodo, sessoesPeriodoComp)} spark={sparkSessoes}
           sub={subFonteSessoes}
           selo={
-            <span className="ml-auto flex items-center gap-1">
-              {seloAnomalia}
-              <button
-                type="button" onClick={() => setDetalheSessoes(true)}
-                className="text-muted-foreground transition-colors hover:text-foreground"
-                aria-label="Expandir detalhe de sessões"
-              >
-                <Maximize2 className="h-3.5 w-3.5" />
-              </button>
-            </span>
+            <button
+              type="button" onClick={() => setDetalheSessoes(true)}
+              className="ml-auto text-muted-foreground transition-colors hover:text-foreground"
+              aria-label="Expandir detalhe de sessões"
+            >
+              <Maximize2 className="h-3.5 w-3.5" />
+            </button>
           }
-          rodape={badgeIntegridade ? <div className="pt-1">{badgeIntegridade}</div> : undefined}
+          rodape={
+            (seloAnomalia || badgeIntegridade) ? (
+              <div className="flex flex-wrap items-center gap-1.5 pt-1">{seloAnomalia}{badgeIntegridade}</div>
+            ) : undefined
+          }
+
           ajuda="Série composta GA4 + rastreamento próprio, por dia pela fonte oficial, com fallback quando a coleta quebra. Mesma base da decomposição “Por que a receita mudou”."
         />
         <Tile
           loading={carregando} titulo="Taxa de conversão" valor={fmtPct(conversaoPeriodo, 2)}
           pct={Number.isFinite(deltaConversaoPP) ? deltaConversaoPP : null}
           pctTexto={`${fmtNum(Math.abs(deltaConversaoPP), 2)} p.p.`}
-          spark={sparkConversao} selo={seloAnomalia}
+          spark={sparkConversao}
+          rodape={seloAnomalia ? <div className="pt-1">{seloAnomalia}</div> : undefined}
           sub={<>Pedidos captados ÷ sessões do período</>}
+
           ajuda="Mesma definição da decomposição: pedidos captados ÷ sessões da série composta."
         />
 
@@ -819,31 +832,48 @@ Alertas: ${alertas.map((a) => a.titulo).join(", ") || "nenhum"}.`,
           ajuda="Regra oficial de cancelados reais: cancelamento não conta como perda se o mesmo cliente comprou em ±7 dias. Regra simples daria a taxa menor."
           rodape={<p className="pt-1 text-[11px] text-muted-foreground">Regra simples: {fmtPct(aprov.taxa_simples, 2)}</p>}
         />
-        <Card>
-          <CardContent className="space-y-2 p-4">
-            <p className="flex items-center gap-1 text-[11px] uppercase tracking-wider text-muted-foreground">
+        <Card className="flex h-full flex-col">
+          <CardContent className="flex flex-1 flex-col gap-2 p-4">
+            <p className="flex flex-wrap items-center gap-1 text-[11px] uppercase tracking-wider text-muted-foreground">
               <Target className="h-3.5 w-3.5" /> Meta do mês
             </p>
             {meta?.meta_mensal ? (
               <>
-                <p className="font-serif text-2xl font-bold tabular-nums">{fmtPct(pctMeta ?? 0, 2)}</p>
+                <p
+                  className="font-serif font-bold tabular-nums"
+                  style={{ fontSize: "clamp(1.25rem, 2.2vw, 1.75rem)" }}
+                >
+                  {fmtPct(pctMeta ?? 0, 2)}
+                </p>
+                {meta.fonte === "fallback" && (
+                  <div><SeloAviso texto="meta de fallback" tom="warn" /></div>
+                )}
                 <Progress value={Math.min(pctMeta ?? 0, 100)} className="h-2" />
-                <p className="text-[11px] text-muted-foreground">
-                  MTD {fmtBRL(mtd.receita_liquida)} de {fmtBRL(meta.meta_mensal)} · faltam {fmtBRL(faltante ?? 0)}
-                </p>
-                <p className="text-[11px] font-medium">
-                  Meta diária necessária: {fmtBRL(metaDiaria ?? 0)} ({uteisRestantes} dias úteis restantes)
-                </p>
-                <p className="text-[11px] text-muted-foreground">Aprovação do mês: {fmtPct(aprovMes.taxa, 2)}</p>
+                <div
+                  className="space-y-1 text-[11px] text-muted-foreground"
+                  style={{ textWrap: "pretty", lineHeight: 1.35 } as React.CSSProperties}
+                >
+                  <p>MTD {fmtBRL(mtd.receita_liquida)} de {fmtBRL(meta.meta_mensal)} · faltam {fmtBRL(faltante ?? 0)}</p>
+                  <p className="font-medium text-foreground">
+                    Meta diária necessária: {fmtBRL(metaDiaria ?? 0)} ({restantes} dias restantes)
+                  </p>
+                  <p>Aprovação do mês: {fmtPct(aprovMes.taxa, 2)}</p>
+                  <p>
+                    {meta.fonte === "planejamento"
+                      ? `Meta de ${nomeMes}, Planejamento Mensal`
+                      : `Meta de ${nomeMes}, metas financeiras (fallback)`}
+                  </p>
+                </div>
               </>
             ) : (
               <>
                 <p className="font-serif text-2xl font-bold">—</p>
-                <SeloAviso texto="metas_financeiras sem meta para o mês" tom="neg" />
+                <div><SeloAviso texto="sem meta cadastrada para o mês" tom="neg" /></div>
               </>
             )}
           </CardContent>
         </Card>
+
       </div>
 
       {/* Seção 3 — decomposição do gap */}

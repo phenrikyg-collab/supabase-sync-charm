@@ -146,23 +146,37 @@ export function Tile({
 }) {
   if (loading) return <SkeletonCard />;
   return (
-    <Card className={cn("overflow-hidden", className)}>
-      <CardContent className="p-4 space-y-1.5">
-        <div className="flex items-center gap-1.5">
+    <Card className={cn("flex h-full flex-col", className)}>
+      <CardContent className="flex flex-1 flex-col gap-1.5 p-4">
+        <div className="flex flex-wrap items-center gap-1.5">
           <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">{titulo}</p>
           {ajuda && <Ajuda>{ajuda}</Ajuda>}
           {selo}
         </div>
-        <div className="flex items-end justify-between gap-2">
-          <p className="font-serif text-2xl font-bold leading-tight tabular-nums">{valor}</p>
+        {/* Valor e variação são uma unidade: quebram de linha em vez de cortar. */}
+        <div className="flex flex-wrap items-end gap-x-2 gap-y-1">
+          <p
+            className="font-serif font-bold leading-tight tabular-nums"
+            style={{ fontSize: "clamp(1.25rem, 2.2vw, 1.75rem)" }}
+          >
+            {valor}
+          </p>
           {pct !== undefined && <Variacao pct={pct ?? null} inverso={inverso} texto={pctTexto} />}
         </div>
-        {sub && <div className="text-xs text-muted-foreground">{sub}</div>}
+        {sub && (
+          <div
+            className="text-xs text-muted-foreground"
+            style={{ textWrap: "pretty", lineHeight: 1.35 } as React.CSSProperties}
+          >
+            {sub}
+          </div>
+        )}
         {spark && <Sparkline dados={spark} negativo={(pct ?? 0) < 0} />}
         {rodape}
       </CardContent>
     </Card>
   );
+
 }
 
 export function SkeletonCard({ h = "h-[122px]" }: { h?: string }) {
