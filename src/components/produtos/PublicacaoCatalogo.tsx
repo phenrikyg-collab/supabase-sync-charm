@@ -152,6 +152,13 @@ export default function PublicacaoCatalogo({ produtoId, nome, precoVenda, precoC
         descricao: p.descricao?.trim() ? p.descricao : DESCRICAO_MODELO,
       });
       setSkus(r?.skus ?? []);
+      setImagens(Array.isArray((p as any).imagens) ? ((p as any).imagens as string[]) : []);
+      setImagensPorCor(
+        (p as any).imagens_por_cor && typeof (p as any).imagens_por_cor === "object"
+          ? ((p as any).imagens_por_cor as Record<string, string[]>)
+          : {},
+      );
+      setImagensEnviadasEm((p as any).imagens_enviadas_em ?? null);
       validar(id);
       lerCustos(id);
     } catch (e: any) {
