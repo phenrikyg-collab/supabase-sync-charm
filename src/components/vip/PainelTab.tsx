@@ -404,7 +404,11 @@ export function PainelTab() {
               />
               <MiniStat label="Ticket médio" valor={brl(conv?.ticket_medio ?? 0)} />
               {conv?.custo_mensal ? (
-                <MiniStat label="ROI" valor={`${num(conv?.roi ?? 0, 1)}x`} hint={`Custo ${brl(conv?.custo_mensal)}`} />
+                <MiniStat
+                  label="Retorno sobre recompra"
+                  valor={`${num((Number(conv?.receita ?? 0) - Number(conv.custo_mensal)) / Number(conv.custo_mensal), 1)}x`}
+                  hint={`Custo ${brl(conv?.custo_mensal)} · receita de clientes que já compravam, não de clientes novos`}
+                />
               ) : (
                 <div className="rounded-lg border border-dashed p-3 text-[11px] text-muted-foreground">
                   Preencha o <strong>custo mensal</strong> na aba Grupos &gt; Configuração de envio para calcular o ROI.
