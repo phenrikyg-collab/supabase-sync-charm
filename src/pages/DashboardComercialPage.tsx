@@ -771,7 +771,12 @@ Alertas: ${alertas.map((a) => a.titulo).join(", ") || "nenhum"}.`,
       )}
 
       {/* Seção 2 — resumo executivo */}
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7">
+      {/* A1 — grade fluida: nunca menos de 200px por card, quebra em vez de espremer */}
+      <div
+        className="grid items-stretch gap-3"
+        style={{ gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))" }}
+      >
+
         <Tile
           loading={carregando} titulo="Receita líquida" valor={fmtBRL(resumo.receita_liquida)}
           pct={variacaoPct(resumo.receita_liquida, resumoComp.receita_liquida)} spark={sparkReceita}
@@ -788,18 +793,20 @@ Alertas: ${alertas.map((a) => a.titulo).join(", ") || "nenhum"}.`,
           pct={variacaoPct(sessoesPeriodo, sessoesPeriodoComp)} spark={sparkSessoes}
           sub={subFonteSessoes}
           selo={
-            <span className="ml-auto flex items-center gap-1">
-              {seloAnomalia}
-              <button
-                type="button" onClick={() => setDetalheSessoes(true)}
-                className="text-muted-foreground transition-colors hover:text-foreground"
-                aria-label="Expandir detalhe de sessões"
-              >
-                <Maximize2 className="h-3.5 w-3.5" />
-              </button>
-            </span>
+            <button
+              type="button" onClick={() => setDetalheSessoes(true)}
+              className="ml-auto text-muted-foreground transition-colors hover:text-foreground"
+              aria-label="Expandir detalhe de sessões"
+            >
+              <Maximize2 className="h-3.5 w-3.5" />
+            </button>
           }
-          rodape={badgeIntegridade ? <div className="pt-1">{badgeIntegridade}</div> : undefined}
+          rodape={
+            (seloAnomalia || badgeIntegridade) ? (
+              <div className="flex flex-wrap items-center gap-1.5 pt-1">{seloAnomalia}{badgeIntegridade}</div>
+            ) : undefined
+          }
+
           ajuda="Série composta GA4 + rastreamento próprio, por dia pela fonte oficial, com fallback quando a coleta quebra. Mesma base da decomposição “Por que a receita mudou”."
         />
         <Tile
