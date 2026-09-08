@@ -271,8 +271,11 @@ export default function InsightsIATab() {
       .order('periodo_inicio', { ascending: false, nullsFirst: false })
       .order('gerado_em', { ascending: false, nullsFirst: false })
       .limit(30);
-    const rows = (data ?? []) as SemanaRow[];
+    const rows = ((data ?? []) as SemanaRow[]).filter(
+      (r: any) => (!r.status || r.status === 'pronto') && r.relatorio_ia,
+    );
     setSemanas(rows);
+
     const alvo = (selecionarId && rows.find((r) => r.id === selecionarId)) || rows[0];
     if (alvo) aplicarLinha(alvo);
     return rows;
