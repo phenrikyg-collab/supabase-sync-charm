@@ -217,8 +217,11 @@ export default function DashboardComercialPage() {
   const meta = qMeta.data;
   const pctMeta = meta?.meta_mensal ? (mtd.receita_liquida / meta.meta_mensal) * 100 : null;
   const faltante = meta?.meta_mensal ? Math.max(meta.meta_mensal - mtd.receita_liquida, 0) : null;
-  const uteisRestantes = Math.max(diasUteis([HOJE, mesIni].sort().slice(-1)[0], mesFim), 1);
-  const metaDiaria = faltante !== null ? faltante / uteisRestantes : null;
+  // B — a loja vende sábado e domingo: divisor é dias corridos restantes.
+  const restantes = diasCorridosRestantes([HOJE, mesIni].sort().slice(-1)[0], mesFim);
+  const metaDiaria = faltante !== null ? faltante / restantes : null;
+  const nomeMes = MESES_PT[Number(mesRef.slice(5, 7)) - 1];
+
 
   /* ------------------- Seção 3 — LMDI com janela ajustada ---------------- */
   const { resultado, avisoJanela } = useMemo(() => {
