@@ -22,7 +22,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { useEffect, useState } from "react";
-import { Plus, Trash2, TrendingUp, DollarSign } from "lucide-react";
+import { Plus, Trash2, TrendingUp, DollarSign, ChevronDown } from "lucide-react";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import PublicacaoCatalogo from "@/components/produtos/PublicacaoCatalogo";
 
 interface ProdutoFormData {
   nome_do_produto: string;
@@ -121,6 +123,7 @@ export default function ProdutoForm() {
     },
   });
   const [aviItems, setAviItems] = useState<AviamentoItem[]>([]);
+  const [publicacaoAberta, setPublicacaoAberta] = useState(false);
 
   useEffect(() => {
     if (produto && isEdit) {
@@ -726,6 +729,29 @@ export default function ProdutoForm() {
             </div>
 
           </form>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardContent className="pt-6">
+          <Collapsible open={publicacaoAberta} onOpenChange={setPublicacaoAberta}>
+            <CollapsibleTrigger asChild>
+              <Button type="button" variant="ghost" className="w-full justify-between px-0">
+                <span className="font-serif font-bold text-lg text-foreground">
+                  Publicação em Tray e Bling
+                </span>
+                <ChevronDown className={`h-4 w-4 transition-transform ${publicacaoAberta ? "rotate-180" : ""}`} />
+              </Button>
+            </CollapsibleTrigger>
+            <CollapsibleContent className="pt-4">
+              <PublicacaoCatalogo
+                produtoId={isEdit ? id : undefined}
+                nome={watch("nome_do_produto") ?? ""}
+                precoVenda={precoVenda}
+                precoCusto={precoCusto}
+              />
+            </CollapsibleContent>
+          </Collapsible>
         </CardContent>
       </Card>
     </div>

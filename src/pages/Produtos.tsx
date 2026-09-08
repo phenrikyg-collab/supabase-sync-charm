@@ -21,6 +21,8 @@ import {
 import { Search, Edit, Package, Download, Trash2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
+import { useEffect } from "react";
+import { catalogoProdutosListar, type CatalogoListaItem } from "@/lib/catalogo";
 
 function formatCurrency(v: number | null | undefined) {
   if (v == null) return "—";
@@ -38,6 +40,19 @@ export default function Produtos() {
   const [statusFilter, setStatusFilter] = useState("todos");
   const [origemFilter, setOrigemFilter] = useState("todos");
   const navigate = useNavigate();
+  const [catalogo, setCatalogo] = useState<CatalogoListaItem[]>([]);
+
+  useEffect(() => {
+    catalogoProdutosListar(undefined, 50)
+      .then((r) => setCatalogo(Array.isArray(r) ? r : []))
+      .catch(() => setCatalogo([]));
+  }, []);
+
+  const selosPorNome = useMemo(() => {
+    const mapa = new Map<string, CatalogoListaItem>();
+    catalogo.forEach((c) => mapa.set((c.nome ?? "").trim().toLowerCase(), c));
+    return mapa;
+  }, [catalogo]);
 
   const rows: Row[] = useMemo(() => {
     const prodRows: Row[] = (produtos || [])
@@ -165,7 +180,24 @@ export default function Produtos() {
                 {filtered.map((r) => (
                   <TableRow key={r.id}>
                     <TableCell className="text-primary font-medium">{r.sku ?? "—"}</TableCell>
-                    <TableCell className="font-medium">{r.nome}</TableCell>
+                    <TableCell className="font-medium">
+                      {r.nome}
+                      {(() => {
+                        const c = selosPorNome.get((r.nome ?? "").trim().toLowerCase());
+                        if (!c) return null;
+                        return (
+                          <div className="flex flex-wrap gap-1 mt-1">
+                            <Badge variant="secondary" className="text-[10px]">Grade: {c.skus ?? 0}</Badge>
+                            <Badge variant="secondary" className="text-[10px]">
+                              Tray: {c.publicados_tray ?? 0}/{c.skus ?? 0}
+                            </Badge>
+                            <Badge variant="secondary" className="text-[10px]">
+                              Vínculo: {c.vinculados ?? 0}/{c.skus ?? 0}
+                            </Badge>
+                          </div>
+                        );
+                      })()}
+                    </TableCell>
                     <TableCell className="text-muted-foreground">{r.tecido ?? "—"}</TableCell>
                     <TableCell className="text-right">{formatCurrency(r.custo)}</TableCell>
                     <TableCell className="text-right">{formatCurrency(r.venda)}</TableCell>
