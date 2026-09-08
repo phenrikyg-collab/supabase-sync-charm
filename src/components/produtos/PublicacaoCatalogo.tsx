@@ -658,6 +658,17 @@ export default function PublicacaoCatalogo({ produtoId, nome, precoVenda, precoC
               <div key={etapa} className="rounded border border-border p-2">
                 <div className="flex items-center justify-between">
                   <strong className="capitalize">{etapa}</strong>
+                  {dado?.imagens && typeof dado.imagens === "object" && (
+                    <span className="text-xs text-muted-foreground">
+                      {Object.entries(dado.imagens as Record<string, number>)
+                        .map(([alvo, qtd]) =>
+                          alvo === "produto"
+                            ? `${qtd} ${qtd === 1 ? "foto" : "fotos"} no produto`
+                            : `${qtd} em ${alvo}`,
+                        )
+                        .join(", ")}
+                    </span>
+                  )}
                   <div className="flex gap-2">
                     {errosEtapa.length > 0 && (
                       <Button
