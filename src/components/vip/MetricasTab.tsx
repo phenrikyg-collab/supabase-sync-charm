@@ -146,8 +146,17 @@ export function MetricasTab() {
             />
             <Metrica titulo="CTR" valor={pctBr(resumo.ctr_pct ?? 0, 2)} />
             <Metrica titulo="Pedidos" valor={num(resumo.pedidos ?? 0)} />
-            <Metrica titulo="Receita" valor={brl(resumo.receita ?? 0)} />
+            <Metrica
+              titulo="Receita influenciada pelo VIP"
+              valor={brl(resumo.receita ?? 0)}
+              rodape={`piso: só quem clicou no link e comprou no mesmo navegador${
+                resumo.receita_originada != null || resumo.vip_aquisicao != null
+                  ? ` · receita originada (primeiro toque): ${brl(resumo.receita_originada ?? resumo.vip_aquisicao ?? 0)}`
+                  : ""
+              }`}
+            />
             <Metrica titulo="Conversão por visitante" valor={pctBr(resumo.conv_por_visitante_pct ?? 0, 2)} />
+
           </div>
 
           {avisos.length > 0 && (
