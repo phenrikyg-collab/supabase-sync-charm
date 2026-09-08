@@ -728,6 +728,29 @@ export default function ProdutoForm() {
           </form>
         </CardContent>
       </Card>
+
+      <Card>
+        <CardContent className="pt-6">
+          <Collapsible open={publicacaoAberta} onOpenChange={setPublicacaoAberta}>
+            <CollapsibleTrigger asChild>
+              <Button type="button" variant="ghost" className="w-full justify-between px-0">
+                <span className="font-serif font-bold text-lg text-foreground">
+                  Publicação em Tray e Bling
+                </span>
+                <ChevronDown className={`h-4 w-4 transition-transform ${publicacaoAberta ? "rotate-180" : ""}`} />
+              </Button>
+            </CollapsibleTrigger>
+            <CollapsibleContent className="pt-4">
+              <PublicacaoCatalogo
+                produtoId={isEdit ? id : undefined}
+                nome={watch("nome_do_produto") ?? ""}
+                precoVenda={precoVenda}
+                precoCusto={precoCusto}
+              />
+            </CollapsibleContent>
+          </Collapsible>
+        </CardContent>
+      </Card>
     </div>
   );
 }
