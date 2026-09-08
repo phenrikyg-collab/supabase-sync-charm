@@ -461,20 +461,34 @@ export default function InsightsIATab() {
           Relatório Semanal de Performance
         </h2>
         <p className="text-sm mb-6" style={{ color: C.textSec, fontFamily: 'DM Sans, sans-serif' }}>
-          Clique para gerar o relatório semanal com IA
+          {gerando
+            ? 'Gerando o relatório, leva cerca de 2 minutos'
+            : 'Clique para gerar o relatório semanal com IA'}
         </p>
+        {erroGeracao && (
+          <p className="text-sm mb-4 flex items-center justify-center gap-2" style={{ color: C.red }}>
+            <AlertTriangle size={14} /> {erroGeracao}
+          </p>
+        )}
         <button
           onClick={gerarRelatorio}
-          disabled={loading}
+          disabled={loading || gerando}
           className="inline-flex items-center gap-2 px-6 py-3 rounded-lg text-sm font-semibold transition disabled:opacity-60"
           style={{ background: C.text, color: C.gold, fontFamily: 'DM Sans, sans-serif' }}
         >
-          {loading ? <RefreshCw size={16} className="animate-spin" /> : <Sparkles size={16} />}
-          {loading ? 'Analisando sua semana…' : '✨ Gerar Relatório Semanal'}
+          {loading || gerando ? <RefreshCw size={16} className="animate-spin" /> : <Sparkles size={16} />}
+          {gerando
+            ? 'Gerando o relatório…'
+            : loading
+              ? 'Iniciando…'
+              : erroGeracao
+                ? '✨ Tentar de novo'
+                : '✨ Gerar Relatório Semanal'}
         </button>
       </div>
     );
   }
+
 
   return (
     <div className="space-y-6 relatorio-content relatorio-print" style={{ fontFamily: 'DM Sans, sans-serif' }}>
