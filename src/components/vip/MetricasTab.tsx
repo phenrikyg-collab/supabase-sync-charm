@@ -210,6 +210,10 @@ export function MetricasTab() {
         </>
       )}
 
+      <TabelaGrupos dados={grupos} />
+
+
+
       <Card>
         <CardContent className="p-0">
           <Table>
