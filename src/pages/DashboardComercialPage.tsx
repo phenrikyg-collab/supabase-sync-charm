@@ -823,31 +823,48 @@ Alertas: ${alertas.map((a) => a.titulo).join(", ") || "nenhum"}.`,
           ajuda="Regra oficial de cancelados reais: cancelamento não conta como perda se o mesmo cliente comprou em ±7 dias. Regra simples daria a taxa menor."
           rodape={<p className="pt-1 text-[11px] text-muted-foreground">Regra simples: {fmtPct(aprov.taxa_simples, 2)}</p>}
         />
-        <Card>
-          <CardContent className="space-y-2 p-4">
-            <p className="flex items-center gap-1 text-[11px] uppercase tracking-wider text-muted-foreground">
+        <Card className="flex h-full flex-col">
+          <CardContent className="flex flex-1 flex-col gap-2 p-4">
+            <p className="flex flex-wrap items-center gap-1 text-[11px] uppercase tracking-wider text-muted-foreground">
               <Target className="h-3.5 w-3.5" /> Meta do mês
             </p>
             {meta?.meta_mensal ? (
               <>
-                <p className="font-serif text-2xl font-bold tabular-nums">{fmtPct(pctMeta ?? 0, 2)}</p>
+                <p
+                  className="font-serif font-bold tabular-nums"
+                  style={{ fontSize: "clamp(1.25rem, 2.2vw, 1.75rem)" }}
+                >
+                  {fmtPct(pctMeta ?? 0, 2)}
+                </p>
+                {meta.fonte === "fallback" && (
+                  <div><SeloAviso texto="meta de fallback" tom="warn" /></div>
+                )}
                 <Progress value={Math.min(pctMeta ?? 0, 100)} className="h-2" />
-                <p className="text-[11px] text-muted-foreground">
-                  MTD {fmtBRL(mtd.receita_liquida)} de {fmtBRL(meta.meta_mensal)} · faltam {fmtBRL(faltante ?? 0)}
-                </p>
-                <p className="text-[11px] font-medium">
-                  Meta diária necessária: {fmtBRL(metaDiaria ?? 0)} ({uteisRestantes} dias úteis restantes)
-                </p>
-                <p className="text-[11px] text-muted-foreground">Aprovação do mês: {fmtPct(aprovMes.taxa, 2)}</p>
+                <div
+                  className="space-y-1 text-[11px] text-muted-foreground"
+                  style={{ textWrap: "pretty", lineHeight: 1.35 } as React.CSSProperties}
+                >
+                  <p>MTD {fmtBRL(mtd.receita_liquida)} de {fmtBRL(meta.meta_mensal)} · faltam {fmtBRL(faltante ?? 0)}</p>
+                  <p className="font-medium text-foreground">
+                    Meta diária necessária: {fmtBRL(metaDiaria ?? 0)} ({restantes} dias restantes)
+                  </p>
+                  <p>Aprovação do mês: {fmtPct(aprovMes.taxa, 2)}</p>
+                  <p>
+                    {meta.fonte === "planejamento"
+                      ? `Meta de ${nomeMes}, Planejamento Mensal`
+                      : `Meta de ${nomeMes}, metas financeiras (fallback)`}
+                  </p>
+                </div>
               </>
             ) : (
               <>
                 <p className="font-serif text-2xl font-bold">—</p>
-                <SeloAviso texto="metas_financeiras sem meta para o mês" tom="neg" />
+                <div><SeloAviso texto="sem meta cadastrada para o mês" tom="neg" /></div>
               </>
             )}
           </CardContent>
         </Card>
+
       </div>
 
       {/* Seção 3 — decomposição do gap */}
