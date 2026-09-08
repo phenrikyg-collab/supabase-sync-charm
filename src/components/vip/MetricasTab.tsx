@@ -9,7 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { AlertTriangle, ChevronDown, ChevronRight, Copy } from "lucide-react";
 import { toast } from "sonner";
 import { brl, dataCurta, num, pctBr } from "@/lib/financeiroFormat";
-import { CORES_INTENCAO, copiar, vipEnqueteResultado, vipMetricasPeriodo } from "@/lib/vip";
+import { CORES_INTENCAO, copiar, vipEnqueteResultado, vipMetricasGrupos, vipMetricasPeriodo } from "@/lib/vip";
 
 type Preset = "7" | "30" | "90" | "mes" | "custom";
 
@@ -51,6 +51,7 @@ export function MetricasTab() {
   const [ini, setIni] = useState<string>(salvo?.inicio ?? iso(new Date()));
   const [fim, setFim] = useState<string>(salvo?.fim ?? iso(new Date()));
   const [dados, setDados] = useState<any>(null);
+  const [grupos, setGrupos] = useState<any>(null);
   const [carregando, setCarregando] = useState(false);
   const [expandida, setExpandida] = useState<string | null>(null);
   const [enquetes, setEnquetes] = useState<Record<string, any>>({});
@@ -68,7 +69,11 @@ export function MetricasTab() {
       .then((d) => setDados(d))
       .catch((e) => toast.error(e.message))
       .finally(() => setCarregando(false));
+    vipMetricasGrupos(faixa.inicio, faixa.fim)
+      .then((g) => setGrupos(g))
+      .catch(() => setGrupos(null));
   }, [faixa.inicio, faixa.fim]);
+
 
   const linhas: any[] = useMemo(
     () => (Array.isArray(dados) ? dados : (dados?.mensagens ?? dados?.linhas ?? [])),
