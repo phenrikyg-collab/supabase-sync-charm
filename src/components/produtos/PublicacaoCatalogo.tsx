@@ -18,6 +18,7 @@ import {
   CatalogoSku,
   CatalogoSugestaoNcm,
   CatalogoTamanho,
+  CatalogoTamanhoLegado,
   CatalogoValidacao,
   DESCRICAO_MODELO,
   catalogoCategorias,
@@ -84,6 +85,9 @@ export default function PublicacaoCatalogo({ produtoId, nome, precoVenda, precoC
   const [categorias, setCategorias] = useState<CatalogoCategoria[]>([]);
   const [cores, setCores] = useState<CatalogoCor[]>([]);
   const [tamanhos, setTamanhos] = useState<CatalogoTamanho[]>([]);
+  const [tamanhosLegado, setTamanhosLegado] = useState<CatalogoTamanhoLegado[]>([]);
+  const [rotuloCor, setRotuloCor] = useState("Cor");
+  const [rotuloTamanho, setRotuloTamanho] = useState("Tamanho");
   const [coresSel, setCoresSel] = useState<string[]>([]);
   const [tamanhosSel, setTamanhosSel] = useState<string[]>([]);
   const [skus, setSkus] = useState<CatalogoSku[]>([]);
@@ -107,6 +111,9 @@ export default function PublicacaoCatalogo({ produtoId, nome, precoVenda, precoC
       .then((r) => {
         setCores(r?.cores ?? []);
         setTamanhos([...(r?.tamanhos ?? [])].sort((a, b) => (a.ordem ?? 0) - (b.ordem ?? 0)));
+        setTamanhosLegado(r?.tamanhos_legado ?? []);
+        if (r?.caracteristica_cor?.trim()) setRotuloCor(r.caracteristica_cor.trim());
+        if (r?.caracteristica_tamanho?.trim()) setRotuloTamanho(r.caracteristica_tamanho.trim());
       })
       .catch(() => undefined);
   }, []);
