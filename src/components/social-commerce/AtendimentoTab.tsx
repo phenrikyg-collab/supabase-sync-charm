@@ -17,7 +17,6 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import {
@@ -27,7 +26,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 import {
-  Bot, Check, ExternalLink, Loader2, Mail, MailCheck, MailOpen, MessageCircle, Pencil,
+  Bot, Check, ChevronLeft, ExternalLink, Loader2, Mail, MailCheck, MailOpen, MessageCircle, Pencil,
   SendHorizonal, PanelRightClose, PanelRightOpen, Trash2, AlertTriangle, Inbox, User, MousePointerClick,
 } from "lucide-react";
 
@@ -113,10 +112,26 @@ const FILTROS: { key: Filtro; label: string }[] = [
   { key: "todas", label: "Todas" },
 ];
 
-/** Fila de trabalho: 25 por vez, com scroll infinito. */
-const POR_PAGINA = 25;
+/** Fila de trabalho: 50 por vez, com scroll infinito dentro da coluna. */
+const POR_PAGINA = 50;
 /** Conversa longa abre com as 50 últimas; o resto vem sob demanda. */
 const POR_PAGINA_MSGS = 50;
+
+/** Abaixo de 900px mostramos uma coluna de cada vez (lista OU conversa). */
+function useTelaEstreita() {
+  const [estreita, setEstreita] = useState(
+    typeof window !== "undefined" ? window.matchMedia("(max-width: 899px)").matches : false,
+  );
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 899px)");
+    const onChange = () => setEstreita(mq.matches);
+    mq.addEventListener("change", onChange);
+    onChange();
+    return () => mq.removeEventListener("change", onChange);
+  }, []);
+  return estreita;
+}
+
 
 function ChipStatus({ status }: { status?: string | null }) {
   if (!status) return null;
@@ -192,6 +207,10 @@ export function AtendimentoTab() {
   const [marcandoTodas, setMarcandoTodas] = useState(false);
   const paginaRef = useRef(0);
   const sentinelaRef = useRef<HTMLDivElement | null>(null);
+  /** Contêiner das mensagens — só ele rola, nunca a página. */
+  const mensagensRef = useRef<HTMLDivElement | null>(null);
+  const estreita = useTelaEstreita();
+
   // Re-render a cada 30s para contagens regressivas e tempos relativos
   const [, tick] = useReducer((x: number) => x + 1, 0);
 
@@ -199,6 +218,14 @@ export function AtendimentoTab() {
     const i = setInterval(tick, 30_000);
     return () => clearInterval(i);
   }, []);
+
+  // Rola só o contêiner das mensagens até o fim (nunca a janela do navegador)
+  useEffect(() => {
+    const el = mensagensRef.current;
+    if (!el) return;
+    el.scrollTo({ top: el.scrollHeight });
+  }, [mensagens, selId]);
+
 
   /**
    * Lista sempre pela view: uma linha por conversa, com prévia pronta.
@@ -513,11 +540,16 @@ export function AtendimentoTab() {
     carregarConversas();
   };
 
+  const mostrarLista = !estreita || !conversaSel;
+  const mostrarChat = !estreita || !!conversaSel;
+
   return (
-    <div className="grid gap-4 lg:grid-cols-[340px_1fr]" style={{ minHeight: "calc(100vh - 240px)" }}>
+    <div className="h-full min-h-0 grid gap-4 grid-cols-1 min-[900px]:grid-cols-[340px_1fr]">
       {/* ============ Coluna esquerda: lista de conversas ============ */}
-      <Card className="flex flex-col overflow-hidden">
-        <div className="p-3 border-b flex flex-wrap gap-1.5">
+      {mostrarLista && (
+      <Card className="flex flex-col overflow-hidden min-h-0 h-full">
+        <div className="p-3 border-b flex flex-wrap gap-1.5 shrink-0">
+
           {FILTROS.map((f) => (
             <Button
               key={f.key}
@@ -565,7 +597,7 @@ export function AtendimentoTab() {
             </AlertDialog>
           )}
         </div>
-        <ScrollArea className="flex-1">
+        <div className="flex-1 overflow-y-auto min-h-0">
           {carregando ? (
             <div className="p-3 space-y-3">
               {Array.from({ length: 6 }).map((_, i) => (
@@ -696,12 +728,13 @@ export function AtendimentoTab() {
               </span>
             ) : null}
           </div>
-        </ScrollArea>
+        </div>
       </Card>
+      )}
 
       {/* ============ Coluna direita: conversa aberta ============ */}
-      {!conversaSel ? (
-        <Card className="flex items-center justify-center">
+      {mostrarChat && (!conversaSel ? (
+        <Card className="flex items-center justify-center h-full min-h-0">
           <div className="text-center text-muted-foreground p-8">
             <MessageCircle className="h-10 w-10 mx-auto mb-3 opacity-40" />
             <p className="text-sm">Selecione uma conversa para responder.</p>
@@ -709,10 +742,21 @@ export function AtendimentoTab() {
           </div>
         </Card>
       ) : (
-        <div className="flex gap-4 min-w-0">
-          <Card className="flex-1 flex flex-col overflow-hidden min-w-0">
+        <div className="flex gap-4 min-w-0 h-full min-h-0">
+          <Card className="flex-1 flex flex-col overflow-hidden min-w-0 min-h-0 h-full">
             {/* Header da conversa */}
-            <div className="p-3 border-b flex items-center justify-between gap-2">
+            <div className="p-3 border-b flex items-center justify-between gap-2 shrink-0">
+              {estreita && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 px-2 shrink-0"
+                  onClick={() => setSelId(null)}
+                >
+                  <ChevronLeft className="h-4 w-4 mr-1" /> Voltar
+                </Button>
+              )}
+
               <div className="flex items-center gap-2.5 min-w-0">
                 <AvatarConversa foto={conversaSel.foto_url} nome={conversaSel.nome} tamanho="h-10 w-10" />
                 <div className="min-w-0">
@@ -802,8 +846,9 @@ export function AtendimentoTab() {
               </div>
             </div>
 
-            {/* Histórico */}
-            <ScrollArea className="flex-1 p-4">
+            {/* Histórico — único trecho rolável da coluna */}
+            <div ref={mensagensRef} className="flex-1 overflow-y-auto min-h-0 p-4">
+
               {carregandoMsgs ? (
                 <div className="space-y-3">
                   {Array.from({ length: 5 }).map((_, i) => (
@@ -876,7 +921,11 @@ export function AtendimentoTab() {
                   })}
                 </div>
               )}
-            </ScrollArea>
+            </div>
+
+            {/* Rodapé fixo da coluna: rascunho da Anna + campo de resposta */}
+            <div className="shrink-0 border-t bg-card max-h-[50%] overflow-y-auto pt-2">
+
 
             {/* Sugestão da Anna — some quando uma consultora assumiu a conversa */}
             {sugestao && !emAtendimento && (
@@ -967,12 +1016,15 @@ export function AtendimentoTab() {
                 )}
               </div>
             </div>
+            </div>
           </Card>
+
 
           {/* Painel lateral de contexto */}
           {painelAberto && (
-            <Card className="w-64 shrink-0 hidden xl:block">
+            <Card className="w-64 shrink-0 hidden xl:block h-full min-h-0 overflow-y-auto">
               <CardContent className="p-4 space-y-3 text-sm">
+
                 <p className="font-semibold text-xs uppercase tracking-widest text-muted-foreground">
                   Contexto
                 </p>
@@ -1018,7 +1070,8 @@ export function AtendimentoTab() {
             </Card>
           )}
         </div>
-      )}
+      ))}
     </div>
+
   );
 }
