@@ -494,7 +494,7 @@ export default function InsightsIATab() {
           </p>
         )}
         <button
-          onClick={gerarRelatorio}
+          onClick={() => void gerarRelatorio(false)}
           disabled={loading || gerando}
           className="inline-flex items-center gap-2 px-6 py-3 rounded-lg text-sm font-semibold transition disabled:opacity-60"
           style={{ background: C.text, color: C.gold, fontFamily: 'DM Sans, sans-serif' }}
@@ -551,7 +551,7 @@ export default function InsightsIATab() {
             <Printer size={14} /> Imprimir
           </button>
           <button
-            onClick={gerarRelatorio}
+            onClick={() => void gerarRelatorio(true)}
             disabled={loading || gerando}
             className="inline-flex items-center gap-2 px-3 py-2 rounded-lg text-xs transition disabled:opacity-60"
             style={{ background: 'transparent', color: C.bronze, border: `1px solid ${C.bronze}` }}
