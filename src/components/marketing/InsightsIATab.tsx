@@ -410,15 +410,37 @@ export default function InsightsIATab() {
     }, 5 * 60 * 1000);
   };
 
-  const gerarRelatorio = async () => {
+  const gerarRelatorio = async (forcar = false) => {
     setLoading(true);
     setErroGeracao('');
     try {
-      const { data, error } = await supabase.functions.invoke('gerar-insights-semanal', { body: {} });
+      const { data, error } = await supabase.functions.invoke('gerar-insights-semanal', {
+        body: forcar ? { forcar: true } : {},
+      });
       if (error) throw error;
 
       const inicio = data?.periodo_inicio;
       const fim = data?.periodo_fim;
+
+      // Caminho rápido: o período já tem relatório e vem pronto na resposta.
+      if (data?.status === 'pronto') {
+        const rel = normalizarRelatorio(data?.relatorio?.relatorio_ia ?? data?.relatorio);
+        if (rel) {
+          pararPolling();
+          setGerando(false);
+          const linha = data?.relatorio?.relatorio_ia ? data.relatorio : { relatorio_ia: rel, gerado_em: data?.gerado_em };
+          aplicarLinha(linha);
+          setCiclo((c) => c + 1);
+          await carregarSemanas(linha?.id);
+          return;
+        }
+        if (inicio && fim) {
+          // Sem corpo utilizável: busca a linha pronta na tabela.
+          acompanhar(inicio, fim);
+          return;
+        }
+      }
+
       if (!inicio || !fim) throw new Error('Resposta inválida da função');
 
       acompanhar(inicio, fim);
@@ -432,6 +454,7 @@ export default function InsightsIATab() {
       setLoading(false);
     }
   };
+
 
 
   if (carregando) {
@@ -471,7 +494,7 @@ export default function InsightsIATab() {
           </p>
         )}
         <button
-          onClick={gerarRelatorio}
+          onClick={() => void gerarRelatorio(false)}
           disabled={loading || gerando}
           className="inline-flex items-center gap-2 px-6 py-3 rounded-lg text-sm font-semibold transition disabled:opacity-60"
           style={{ background: C.text, color: C.gold, fontFamily: 'DM Sans, sans-serif' }}
@@ -528,7 +551,7 @@ export default function InsightsIATab() {
             <Printer size={14} /> Imprimir
           </button>
           <button
-            onClick={gerarRelatorio}
+            onClick={() => void gerarRelatorio(true)}
             disabled={loading || gerando}
             className="inline-flex items-center gap-2 px-3 py-2 rounded-lg text-xs transition disabled:opacity-60"
             style={{ background: 'transparent', color: C.bronze, border: `1px solid ${C.bronze}` }}
