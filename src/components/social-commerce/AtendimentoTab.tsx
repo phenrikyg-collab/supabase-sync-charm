@@ -598,7 +598,7 @@ export function AtendimentoTab() {
             </AlertDialog>
           )}
         </div>
-        <ScrollArea className="flex-1">
+        <div className="flex-1 overflow-y-auto min-h-0">
           {carregando ? (
             <div className="p-3 space-y-3">
               {Array.from({ length: 6 }).map((_, i) => (
