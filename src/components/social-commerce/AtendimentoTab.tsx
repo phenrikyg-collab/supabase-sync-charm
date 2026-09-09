@@ -1017,7 +1017,9 @@ export function AtendimentoTab() {
                 )}
               </div>
             </div>
+            </div>
           </Card>
+
 
           {/* Painel lateral de contexto */}
           {painelAberto && (
