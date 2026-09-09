@@ -208,6 +208,10 @@ export function AtendimentoTab() {
   const [marcandoTodas, setMarcandoTodas] = useState(false);
   const paginaRef = useRef(0);
   const sentinelaRef = useRef<HTMLDivElement | null>(null);
+  /** Contêiner das mensagens — só ele rola, nunca a página. */
+  const mensagensRef = useRef<HTMLDivElement | null>(null);
+  const estreita = useTelaEstreita();
+
   // Re-render a cada 30s para contagens regressivas e tempos relativos
   const [, tick] = useReducer((x: number) => x + 1, 0);
 
