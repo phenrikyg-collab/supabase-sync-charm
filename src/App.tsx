@@ -86,6 +86,7 @@ import DashboardProdutos from "./pages/DashboardProdutos";
 import PlanejamentoConteudoMensal from "./pages/PlanejamentoConteudoMensal";
 import Tendencias from "./pages/Tendencias";
 import LinkNaBio from "./pages/LinkNaBio";
+import VitrineVideos from "./pages/VitrineVideos";
 import Atendimento from "./pages/Atendimento";
 import Audiencia from "./pages/Audiencia";
 import CarrinhoAbandonado from "./pages/CarrinhoAbandonado";
@@ -283,6 +284,7 @@ const AppRoutes = () => {
               <Route path="/planejamento" element={<Navigate to="/planejamento-conteudo-mensal" replace />} />
               <Route path="/tendencias" element={<Tendencias />} />
               <Route path="/link-na-bio" element={<LinkNaBio />} />
+              <Route path="/vitrine-videos" element={<VitrineVideos />} />
               <Route path="/atendimento" element={<Atendimento />} />
               <Route path="/audiencia" element={<Audiencia />} />
               <Route path="/carrinho-abandonado" element={<CarrinhoAbandonado />} />

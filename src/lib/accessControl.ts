@@ -41,6 +41,7 @@ export const ROUTE_ACCESS: Record<string, Requirement> = {
   "/link-na-bio": ["marketing"],
   "/prova-social": ["marketing"],
   "/social-commerce": ["marketing"],
+  "/vitrine-videos": ["marketing"],
 
   // CRM & Relacionamento
   "/email-marketing": ["crm"],

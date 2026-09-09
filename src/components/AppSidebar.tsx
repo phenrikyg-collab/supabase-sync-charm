@@ -10,6 +10,7 @@ import {
   Zap,
   Repeat,
   Search,
+  Film,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useAuth } from "@/contexts/AuthContext";
@@ -81,6 +82,7 @@ const moduleGroups: ModuleGroup[] = [
       { title: "Analytics Instagram", url: "/marketing-analytics", icon: Sparkles },
       { title: "SEO & Blog", url: "/seo-blog", icon: Search },
       { title: "Social Commerce", url: "/social-commerce", icon: Instagram },
+      { title: "Vitrine de Vídeos", url: "/vitrine-videos", icon: Film },
       { title: "Grupo VIP", url: "/grupo-vip", icon: Users },
       { title: "Matriz Criativa", url: "/marketing/matriz-criativa", icon: Sparkles },
       { title: "Planejamento de Conteúdo", url: "/planejamento-conteudo-mensal", icon: CalendarDays },
