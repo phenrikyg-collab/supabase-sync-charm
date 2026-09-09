@@ -53,27 +53,28 @@ export default function SocialCommerce() {
           <AtendimentoTab />
         </TabsContent>
 
-        <TabsContent value="funil" className="mt-4">
+        <TabsContent value="funil" className="mt-4 flex-1 min-h-0 overflow-y-auto">
           <FunilLeadsTab />
         </TabsContent>
-        <TabsContent value="comentarios" className="mt-4">
+        <TabsContent value="comentarios" className="mt-4 flex-1 min-h-0 overflow-y-auto">
           <ComentariosTab />
         </TabsContent>
-        <TabsContent value="kits" className="mt-4">
+        <TabsContent value="kits" className="mt-4 flex-1 min-h-0 overflow-y-auto">
           <KitsTab />
         </TabsContent>
-        <TabsContent value="live" className="mt-4">
+        <TabsContent value="live" className="mt-4 flex-1 min-h-0 overflow-y-auto">
           <LiveTab />
         </TabsContent>
 
-        <TabsContent value="publicacoes" className="mt-4 space-y-4">
+        <TabsContent value="publicacoes" className="mt-4 space-y-4 flex-1 min-h-0 overflow-y-auto">
           <BufferConexaoCard />
           <PublicacoesTab />
         </TabsContent>
 
-        <TabsContent value="produtos" className="mt-4">
+        <TabsContent value="produtos" className="mt-4 flex-1 min-h-0 overflow-y-auto">
           <ProdutosPostTab />
         </TabsContent>
+
       </Tabs>
     </div>
   );
