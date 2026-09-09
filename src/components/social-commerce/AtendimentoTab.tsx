@@ -27,7 +27,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 import {
-  Bot, Check, ExternalLink, Loader2, Mail, MailCheck, MailOpen, MessageCircle, Pencil,
+  Bot, Check, ChevronLeft, ExternalLink, Loader2, Mail, MailCheck, MailOpen, MessageCircle, Pencil,
   SendHorizonal, PanelRightClose, PanelRightOpen, Trash2, AlertTriangle, Inbox, User, MousePointerClick,
 } from "lucide-react";
 
