@@ -1023,8 +1023,9 @@ export function AtendimentoTab() {
 
           {/* Painel lateral de contexto */}
           {painelAberto && (
-            <Card className="w-64 shrink-0 hidden xl:block">
+            <Card className="w-64 shrink-0 hidden xl:block h-full min-h-0 overflow-y-auto">
               <CardContent className="p-4 space-y-3 text-sm">
+
                 <p className="font-semibold text-xs uppercase tracking-widest text-muted-foreground">
                   Contexto
                 </p>
