@@ -541,11 +541,16 @@ export function AtendimentoTab() {
     carregarConversas();
   };
 
+  const mostrarLista = !estreita || !conversaSel;
+  const mostrarChat = !estreita || !!conversaSel;
+
   return (
-    <div className="grid gap-4 lg:grid-cols-[340px_1fr]" style={{ minHeight: "calc(100vh - 240px)" }}>
+    <div className="h-full min-h-0 grid gap-4 grid-cols-1 min-[900px]:grid-cols-[340px_1fr]">
       {/* ============ Coluna esquerda: lista de conversas ============ */}
-      <Card className="flex flex-col overflow-hidden">
-        <div className="p-3 border-b flex flex-wrap gap-1.5">
+      {mostrarLista && (
+      <Card className="flex flex-col overflow-hidden min-h-0 h-full">
+        <div className="p-3 border-b flex flex-wrap gap-1.5 shrink-0">
+
           {FILTROS.map((f) => (
             <Button
               key={f.key}
