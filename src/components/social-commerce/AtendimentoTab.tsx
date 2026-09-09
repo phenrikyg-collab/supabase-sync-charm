@@ -847,8 +847,9 @@ export function AtendimentoTab() {
               </div>
             </div>
 
-            {/* Histórico */}
-            <ScrollArea className="flex-1 p-4">
+            {/* Histórico — único trecho rolável da coluna */}
+            <div ref={mensagensRef} className="flex-1 overflow-y-auto min-h-0 p-4">
+
               {carregandoMsgs ? (
                 <div className="space-y-3">
                   {Array.from({ length: 5 }).map((_, i) => (
