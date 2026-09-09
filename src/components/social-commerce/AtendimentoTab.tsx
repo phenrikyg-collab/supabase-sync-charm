@@ -220,6 +220,14 @@ export function AtendimentoTab() {
     return () => clearInterval(i);
   }, []);
 
+  // Rola só o contêiner das mensagens até o fim (nunca a janela do navegador)
+  useEffect(() => {
+    const el = mensagensRef.current;
+    if (!el) return;
+    el.scrollTo({ top: el.scrollHeight });
+  }, [mensagens, selId]);
+
+
   /**
    * Lista sempre pela view: uma linha por conversa, com prévia pronta.
    * Nunca consultar instagram_mensagens aqui — era isso que empilhava a página.
