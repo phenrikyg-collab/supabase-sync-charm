@@ -1071,7 +1071,8 @@ export function AtendimentoTab() {
             </Card>
           )}
         </div>
-      )}
+      ))}
     </div>
+
   );
 }
