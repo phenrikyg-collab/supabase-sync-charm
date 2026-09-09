@@ -729,12 +729,13 @@ export function AtendimentoTab() {
               </span>
             ) : null}
           </div>
-        </ScrollArea>
+        </div>
       </Card>
+      )}
 
       {/* ============ Coluna direita: conversa aberta ============ */}
-      {!conversaSel ? (
-        <Card className="flex items-center justify-center">
+      {mostrarChat && (!conversaSel ? (
+        <Card className="flex items-center justify-center h-full min-h-0">
           <div className="text-center text-muted-foreground p-8">
             <MessageCircle className="h-10 w-10 mx-auto mb-3 opacity-40" />
             <p className="text-sm">Selecione uma conversa para responder.</p>
@@ -742,10 +743,21 @@ export function AtendimentoTab() {
           </div>
         </Card>
       ) : (
-        <div className="flex gap-4 min-w-0">
-          <Card className="flex-1 flex flex-col overflow-hidden min-w-0">
+        <div className="flex gap-4 min-w-0 h-full min-h-0">
+          <Card className="flex-1 flex flex-col overflow-hidden min-w-0 min-h-0 h-full">
             {/* Header da conversa */}
-            <div className="p-3 border-b flex items-center justify-between gap-2">
+            <div className="p-3 border-b flex items-center justify-between gap-2 shrink-0">
+              {estreita && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 px-2 shrink-0"
+                  onClick={() => setSelId(null)}
+                >
+                  <ChevronLeft className="h-4 w-4 mr-1" /> Voltar
+                </Button>
+              )}
+
               <div className="flex items-center gap-2.5 min-w-0">
                 <AvatarConversa foto={conversaSel.foto_url} nome={conversaSel.nome} tamanho="h-10 w-10" />
                 <div className="min-w-0">
