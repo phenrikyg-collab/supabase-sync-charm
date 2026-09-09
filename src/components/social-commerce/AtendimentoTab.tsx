@@ -113,10 +113,26 @@ const FILTROS: { key: Filtro; label: string }[] = [
   { key: "todas", label: "Todas" },
 ];
 
-/** Fila de trabalho: 25 por vez, com scroll infinito. */
-const POR_PAGINA = 25;
+/** Fila de trabalho: 50 por vez, com scroll infinito dentro da coluna. */
+const POR_PAGINA = 50;
 /** Conversa longa abre com as 50 últimas; o resto vem sob demanda. */
 const POR_PAGINA_MSGS = 50;
+
+/** Abaixo de 900px mostramos uma coluna de cada vez (lista OU conversa). */
+function useTelaEstreita() {
+  const [estreita, setEstreita] = useState(
+    typeof window !== "undefined" ? window.matchMedia("(max-width: 899px)").matches : false,
+  );
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 899px)");
+    const onChange = () => setEstreita(mq.matches);
+    mq.addEventListener("change", onChange);
+    onChange();
+    return () => mq.removeEventListener("change", onChange);
+  }, []);
+  return estreita;
+}
+
 
 function ChipStatus({ status }: { status?: string | null }) {
   if (!status) return null;
