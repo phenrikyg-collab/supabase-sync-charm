@@ -922,7 +922,11 @@ export function AtendimentoTab() {
                   })}
                 </div>
               )}
-            </ScrollArea>
+            </div>
+
+            {/* Rodapé fixo da coluna: rascunho da Anna + campo de resposta */}
+            <div className="shrink-0 border-t bg-card max-h-[50%] overflow-y-auto pt-2">
+
 
             {/* Sugestão da Anna — some quando uma consultora assumiu a conversa */}
             {sugestao && !emAtendimento && (
