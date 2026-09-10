@@ -3,8 +3,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { AlertTriangle } from "lucide-react";
-import { listarVideos, type VideoLinha } from "@/lib/videosVitrine";
+import { AlertTriangle, ChevronRight } from "lucide-react";
+import {
+  listarVideos, produtosPorIds, videosConfigLer,
+  type ProdutoPai, type VideoLinha, type VideosConfig,
+} from "@/lib/videosVitrine";
+import { OrdemPecaDialog } from "./OrdemPecaDialog";
 
 interface Destino {
   tipo: string;
