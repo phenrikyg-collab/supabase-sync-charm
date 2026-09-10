@@ -8,7 +8,8 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useToast } from "@/hooks/use-toast";
-import { ExternalLink, Info, Search } from "lucide-react";
+import { ExternalLink, Info, Search, Tag } from "lucide-react";
+import { PecasVideoDialog } from "./PecasVideoDialog";
 import {
   videosCandidatos,
   marcarNoSite,
@@ -55,6 +56,7 @@ export function CuradoriaTab() {
   const [carregando, setCarregando] = useState(true);
   const [selecionados, setSelecionados] = useState<string[]>([]);
   const [produtos, setProdutos] = useState<Record<string, ProdutoPai>>({});
+  const [pecas, setPecas] = useState<CandidatoVideo | null>(null);
 
   const carregar = async () => {
     setCarregando(true);
@@ -171,6 +173,22 @@ export function CuradoriaTab() {
                     </Badge>
                   ))}
                 </div>
+                {c.video_id ? (
+                  <Button size="sm" variant="outline" className="h-7 w-full gap-1 text-xs" onClick={() => setPecas(c)}>
+                    <Tag className="h-3 w-3" /> Marcar peças
+                  </Button>
+                ) : (
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <span className="block">
+                        <Button size="sm" variant="outline" className="h-7 w-full gap-1 text-xs" disabled>
+                          <Tag className="h-3 w-3" /> Marcar peças
+                        </Button>
+                      </span>
+                    </TooltipTrigger>
+                    <TooltipContent>Marque "usar no site" primeiro para poder vincular peças.</TooltipContent>
+                  </Tooltip>
+                )}
                 <div className="flex items-center justify-between pt-1">
                   <div className="flex items-center gap-2">
                     <Switch
@@ -195,6 +213,18 @@ export function CuradoriaTab() {
           ))}
         </div>
       )}
+
+      <PecasVideoDialog
+        aberto={!!pecas}
+        videoId={pecas?.video_id ?? null}
+        produtosIniciais={(pecas?.produtos ?? []).map((pid, i) => ({
+          tray_product_id: String(pid),
+          principal: i === 0,
+          ordem: i,
+        }))}
+        onFechar={() => setPecas(null)}
+        onSalvo={carregar}
+      />
     </div>
   );
 }
