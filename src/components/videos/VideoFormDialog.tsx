@@ -193,6 +193,13 @@ export function VideoFormDialog({ aberto, onFechar, video, onSalvo }: Props) {
             />
           )}
 
+          {!videoUrl && (
+            <p className="rounded-md border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-300">
+              Este vídeo ainda não tem arquivo e não aparece na loja até o cache chegar.
+            </p>
+          )}
+
+
           <div className="space-y-1.5">
             <Label>Título</Label>
             <Input value={titulo} onChange={(e) => setTitulo(e.target.value)} />
