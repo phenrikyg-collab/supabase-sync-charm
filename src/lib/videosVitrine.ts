@@ -32,7 +32,7 @@ export interface ProdutoPai {
 }
 
 export type PlacementTipo = "home" | "produto" | "categoria" | "url" | "global";
-export type PlacementFormato = "carrossel" | "bolha" | "inline" | "banner";
+export type PlacementFormato = "carrossel" | "bolha" | "inline" | "banner" | "galeria";
 
 export interface Placement {
   id?: string;

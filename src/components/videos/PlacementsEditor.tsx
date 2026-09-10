@@ -16,7 +16,7 @@ import {
 } from "@/lib/videosVitrine";
 
 const TIPOS: PlacementTipo[] = ["home", "produto", "categoria", "url", "global"];
-const FORMATOS: PlacementFormato[] = ["carrossel", "bolha", "inline", "banner"];
+const FORMATOS: PlacementFormato[] = ["carrossel", "bolha", "inline", "banner", "galeria"];
 
 function BuscaProduto({ valor, onChange }: { valor: string | null; onChange: (v: string) => void }) {
   const [termo, setTermo] = useState("");
@@ -118,6 +118,12 @@ export function PlacementsEditor({ valor, onChange }: Props) {
               </SelectContent>
             </Select>
           </div>
+          {p.formato === "galeria" && (
+            <p className="text-[11px] text-muted-foreground md:col-span-12">
+              galeria entra como slide na galeria de fotos do produto
+            </p>
+          )}
+
 
           <div className="md:col-span-1">
             <Label className="text-xs">Ordem</Label>
