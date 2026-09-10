@@ -136,6 +136,44 @@ export async function produtosPorIds(ids: string[]): Promise<Record<string, Prod
   return mapa;
 }
 
+/* ─────────── peças do vídeo ─────────── */
+
+export interface ProdutoBusca {
+  tray_product_id: string;
+  nome: string;
+  preco: number | null;
+  preco_cheio: number | null;
+  estoque: number | null;
+  imagem: string | null;
+  link: string | null;
+  categoria: string | null;
+}
+
+export async function produtosBuscar(termo: string, limite = 20): Promise<ProdutoBusca[]> {
+  const { data, error } = await db.rpc("produtos_buscar", {
+    p_busca: termo.trim() || null,
+    p_limite: limite,
+  });
+  if (error) throw error;
+  return ((data ?? []) as ProdutoBusca[]).map((p) => ({
+    ...p,
+    tray_product_id: String(p.tray_product_id),
+  }));
+}
+
+export async function videoProdutosDefinir(videoId: string, produtos: VideoProduto[]) {
+  const { data, error } = await db.rpc("video_produtos_definir", {
+    p_video_id: videoId,
+    p_produtos: produtos.map((p, i) => ({
+      tray_product_id: String(p.tray_product_id),
+      principal: !!p.principal,
+      ordem: i,
+    })),
+  });
+  if (error) throw error;
+  return data;
+}
+
 /* ─────────── métricas ─────────── */
 
 export interface MetricaVideo {
