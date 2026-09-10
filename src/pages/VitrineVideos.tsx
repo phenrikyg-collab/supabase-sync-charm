@@ -3,7 +3,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { CuradoriaTab } from "@/components/videos/CuradoriaTab";
 import { VideosTab } from "@/components/videos/VideosTab";
 import { OndeApareceTab } from "@/components/videos/OndeApareceTab";
-import { Film, LayoutGrid, MapPin } from "lucide-react";
+import { MetricasVideosTab } from "@/components/videos/MetricasVideosTab";
+import { BarChart3, Film, LayoutGrid, MapPin } from "lucide-react";
 
 export default function VitrineVideos() {
   const [params, setParams] = useSearchParams();
