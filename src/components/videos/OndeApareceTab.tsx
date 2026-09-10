@@ -136,6 +136,46 @@ export function OndeApareceTab() {
           </Card>
         ))
       )}
+
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base">Ordem por peça</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-2">
+          {pecas.length === 0 ? (
+            <p className="py-6 text-center text-sm text-muted-foreground">
+              Nenhuma peça com vídeo ainda.
+            </p>
+          ) : (
+            pecas.map(([id, quantos]) => {
+              const p = produtos[id];
+              return (
+                <button
+                  key={id}
+                  onClick={() => setPeca({ id, nome: p?.nome ?? id })}
+                  className="flex w-full items-center gap-3 rounded-md border p-2 text-left transition hover:bg-muted/50"
+                >
+                  {p?.imagem
+                    ? <img src={p.imagem} alt="" className="h-12 w-12 rounded object-cover" />
+                    : <div className="h-12 w-12 rounded bg-muted" />}
+                  <span className="min-w-0 flex-1 truncate text-sm">{p?.nome ?? id}</span>
+                  <span className="text-sm text-muted-foreground">
+                    {quantos} {quantos === 1 ? "vídeo" : "vídeos"}
+                  </span>
+                  <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                </button>
+              );
+            })
+          )}
+        </CardContent>
+      </Card>
+
+      <OrdemPecaDialog
+        aberto={!!peca}
+        trayProductId={peca?.id ?? null}
+        nomeProduto={peca?.nome}
+        onFechar={() => setPeca(null)}
+      />
     </div>
   );
 }
