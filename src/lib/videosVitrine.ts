@@ -206,6 +206,58 @@ export async function metricasPorVideo(desde: string): Promise<Record<string, Me
   return mapa;
 }
 
+export interface VideosMetricasResumo {
+  videos_no_ar: number;
+  impressoes: number;
+  plays: number;
+  tela_cheia: number;
+  concluiu: number;
+  cliques: number;
+  visitantes: number;
+  pct_play: number;
+  pct_clique: number;
+  pedidos: number;
+  receita: number;
+}
+
+export interface VideosMetricasVideo {
+  video_id: string;
+  titulo: string | null;
+  poster_url: string | null;
+  som_liberado: boolean;
+  tem_audio: boolean;
+  impressoes: number;
+  plays: number;
+  meio: number;
+  concluiu: number;
+  tela_cheia: number;
+  cliques: number;
+  visitantes: number;
+  pct_play: number;
+  pct_clique: number;
+  pct_conclusao: number;
+  pedidos: number;
+  receita: number;
+  produtos: unknown;
+}
+
+export interface VideosMetricas {
+  dias: number;
+  desde: string;
+  gerado_em: string;
+  resumo: VideosMetricasResumo;
+  por_dia: { dia: string; impressoes: number; plays: number; tela_cheia: number; cliques: number }[];
+  por_superficie: { onde: string; plays: number }[];
+  por_video: VideosMetricasVideo[];
+  por_produto: { tray_product_id: string; nome: string | null; cliques: number }[];
+}
+
+export async function videosMetricas(dias: number): Promise<VideosMetricas> {
+  const { data, error } = await db.rpc("videos_metricas", { p_dias: dias });
+  if (error) throw error;
+  return data as VideosMetricas;
+}
+
 /* ─────────── upload ─────────── */
 
 export async function subirArquivo(file: File, ext: string): Promise<{ url: string; path: string }> {
