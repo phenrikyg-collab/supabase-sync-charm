@@ -11,8 +11,9 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Trash2, Pencil } from "lucide-react";
+import { Plus, Trash2, Pencil, Tag } from "lucide-react";
 import { VideoFormDialog } from "./VideoFormDialog";
+import { PecasVideoDialog } from "./PecasVideoDialog";
 import {
   listarVideos, excluirVideo, metricasPorVideo, produtosPorIds, pct,
   type MetricaVideo, type ProdutoPai, type VideoLinha,
@@ -34,6 +35,7 @@ export function VideosTab() {
   const [metricas, setMetricas] = useState<Record<string, MetricaVideo>>({});
   const [form, setForm] = useState<{ aberto: boolean; video: VideoLinha | null }>({ aberto: false, video: null });
   const [excluir, setExcluir] = useState<VideoLinha | null>(null);
+  const [pecas, setPecas] = useState<VideoLinha | null>(null);
 
   const carregar = async () => {
     setCarregando(true);
@@ -126,6 +128,9 @@ export function VideosTab() {
                   <TableCell className="text-sm">{v.ativo ? "sim" : "não"}</TableCell>
                   <TableCell>
                     <div className="flex gap-1">
+                      <Button size="icon" variant="ghost" title="Marcar peças" onClick={() => setPecas(v)}>
+                        <Tag className="h-4 w-4" />
+                      </Button>
                       <Button size="icon" variant="ghost" onClick={() => setForm({ aberto: true, video: v })}>
                         <Pencil className="h-4 w-4" />
                       </Button>
@@ -183,6 +188,14 @@ export function VideosTab() {
           )}
         </CardContent>
       </Card>
+
+      <PecasVideoDialog
+        aberto={!!pecas}
+        videoId={pecas?.id ?? null}
+        produtosIniciais={pecas?.videos_produtos ?? []}
+        onFechar={() => setPecas(null)}
+        onSalvo={carregar}
+      />
 
       <VideoFormDialog
         aberto={form.aberto}
