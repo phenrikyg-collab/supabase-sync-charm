@@ -105,8 +105,10 @@ export function VideoFormDialog({ aberto, onFechar, video, onSalvo }: Props) {
       return;
     }
     if (!videoUrl) {
-      toast({ title: "Falta o arquivo do vídeo", variant: "destructive" });
-      return;
+      toast({
+        title: "Este vídeo ainda não tem arquivo",
+        description: "Ele não aparece na loja até o cache chegar.",
+      });
     }
     if (!posterUrl) {
       toast({
@@ -190,6 +192,13 @@ export function VideoFormDialog({ aberto, onFechar, video, onSalvo }: Props) {
               className="max-h-64 rounded-lg border"
             />
           )}
+
+          {!videoUrl && (
+            <p className="rounded-md border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-300">
+              Este vídeo ainda não tem arquivo e não aparece na loja até o cache chegar.
+            </p>
+          )}
+
 
           <div className="space-y-1.5">
             <Label>Título</Label>

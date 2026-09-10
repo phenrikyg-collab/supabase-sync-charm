@@ -16,7 +16,7 @@ import {
 } from "@/lib/videosVitrine";
 
 const TIPOS: PlacementTipo[] = ["home", "produto", "categoria", "url", "global"];
-const FORMATOS: PlacementFormato[] = ["carrossel", "bolha", "inline", "banner"];
+const FORMATOS: PlacementFormato[] = ["carrossel", "bolha", "inline", "banner", "galeria"];
 
 function BuscaProduto({ valor, onChange }: { valor: string | null; onChange: (v: string) => void }) {
   const [termo, setTermo] = useState("");
@@ -118,6 +118,12 @@ export function PlacementsEditor({ valor, onChange }: Props) {
               </SelectContent>
             </Select>
           </div>
+          {p.formato === "galeria" && (
+            <p className="text-[11px] text-muted-foreground md:col-span-12">
+              galeria entra como slide na galeria de fotos do produto
+            </p>
+          )}
+
 
           <div className="md:col-span-1">
             <Label className="text-xs">Ordem</Label>
@@ -162,6 +168,13 @@ export function PlacementsEditor({ valor, onChange }: Props) {
           </div>
         </div>
       ))}
+
+      {valor.length === 0 && (
+        <p className="rounded-md border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-300">
+          Definir onde aparece substitui o padrão da loja. Se quiser carrossel e galeria, crie as
+          duas linhas.
+        </p>
+      )}
 
       <Button type="button" variant="outline" size="sm" onClick={adicionar}>
         <Plus className="mr-1 h-4 w-4" /> Adicionar onde aparece
