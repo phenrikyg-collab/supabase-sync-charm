@@ -17,16 +17,39 @@ interface Destino {
   quantos: number;
 }
 
+const simNao = (v: unknown) => (v ? "sim" : "não");
+
 export function OndeApareceTab() {
   const [videos, setVideos] = useState<VideoLinha[]>([]);
   const [carregando, setCarregando] = useState(true);
+  const [config, setConfig] = useState<VideosConfig | null>(null);
+  const [produtos, setProdutos] = useState<Record<string, ProdutoPai>>({});
+  const [peca, setPeca] = useState<{ id: string; nome: string } | null>(null);
 
-  useEffect(() => {
+  const carregar = () => {
     listarVideos()
-      .then(setVideos)
+      .then(async (lista) => {
+        setVideos(lista);
+        const ids = lista.flatMap((v) => (v.videos_produtos ?? []).map((p) => String(p.tray_product_id)));
+        if (ids.length) setProdutos(await produtosPorIds(ids).catch(() => ({})));
+      })
       .catch(() => setVideos([]))
       .finally(() => setCarregando(false));
-  }, []);
+    videosConfigLer().then(setConfig).catch(() => setConfig(null));
+  };
+
+  useEffect(carregar, []);
+
+  const pecas = useMemo(() => {
+    const mapa: Record<string, number> = {};
+    for (const v of videos) {
+      for (const p of v.videos_produtos ?? []) {
+        const id = String(p.tray_product_id);
+        mapa[id] = (mapa[id] ?? 0) + 1;
+      }
+    }
+    return Object.entries(mapa).sort((a, b) => b[1] - a[1]);
+  }, [videos]);
 
   const porTipo = useMemo(() => {
     const mapa: Record<string, Record<string, Destino>> = {};
