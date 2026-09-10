@@ -71,11 +71,34 @@ export function OndeApareceTab() {
   const tipos = Object.keys(porTipo);
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base">Padrão da loja</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-2 text-sm">
+          {!config ? (
+            <p className="text-muted-foreground">Padrão da loja ainda não configurado.</p>
+          ) : (
+            <ul className="space-y-1">
+              <li>Galeria de fotos do produto: <strong>{simNao(config.galeria_ativa)}</strong></li>
+              <li>Posição do vídeo na galeria: <strong>{config.galeria_posicao ?? "—"}</strong></li>
+              <li>Carrossel abaixo da descrição: <strong>{simNao(config.carrossel_ativo)}</strong></li>
+              <li>Título do bloco: <strong>{config.titulo_bloco || "—"}</strong></li>
+              <li>Quantos vídeos entram na galeria: <strong>{config.max_galeria ?? "—"}</strong></li>
+            </ul>
+          )}
+          <p className="pt-1 text-xs text-muted-foreground">
+            Todo vídeo com peça marcada segue este padrão. A lista abaixo é só para as exceções.
+          </p>
+        </CardContent>
+      </Card>
+
       <p className="text-sm text-muted-foreground">
         Cada vídeo escolhe onde aparece dentro do próprio cadastro, na aba Vídeos. Aqui você vê o
         resumo de quantos vídeos caem em cada destino hoje.
       </p>
+
 
       {tipos.length === 0 ? (
         <p className="py-10 text-center text-sm text-muted-foreground">
