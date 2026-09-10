@@ -169,6 +169,13 @@ export function PlacementsEditor({ valor, onChange }: Props) {
         </div>
       ))}
 
+      {valor.length === 0 && (
+        <p className="rounded-md border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-300">
+          Definir onde aparece substitui o padrão da loja. Se quiser carrossel e galeria, crie as
+          duas linhas.
+        </p>
+      )}
+
       <Button type="button" variant="outline" size="sm" onClick={adicionar}>
         <Plus className="mr-1 h-4 w-4" /> Adicionar onde aparece
       </Button>

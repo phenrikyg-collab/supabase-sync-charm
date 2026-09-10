@@ -105,8 +105,10 @@ export function VideoFormDialog({ aberto, onFechar, video, onSalvo }: Props) {
       return;
     }
     if (!videoUrl) {
-      toast({ title: "Falta o arquivo do vídeo", variant: "destructive" });
-      return;
+      toast({
+        title: "Este vídeo ainda não tem arquivo",
+        description: "Ele não aparece na loja até o cache chegar.",
+      });
     }
     if (!posterUrl) {
       toast({
