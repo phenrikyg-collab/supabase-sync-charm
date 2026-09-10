@@ -128,6 +128,9 @@ export function VideosTab() {
                   <TableCell className="text-sm">{v.ativo ? "sim" : "não"}</TableCell>
                   <TableCell>
                     <div className="flex gap-1">
+                      <Button size="icon" variant="ghost" title="Marcar peças" onClick={() => setPecas(v)}>
+                        <Tag className="h-4 w-4" />
+                      </Button>
                       <Button size="icon" variant="ghost" onClick={() => setForm({ aberto: true, video: v })}>
                         <Pencil className="h-4 w-4" />
                       </Button>
@@ -185,6 +188,14 @@ export function VideosTab() {
           )}
         </CardContent>
       </Card>
+
+      <PecasVideoDialog
+        aberto={!!pecas}
+        videoId={pecas?.id ?? null}
+        produtosIniciais={pecas?.videos_produtos ?? []}
+        onFechar={() => setPecas(null)}
+        onSalvo={carregar}
+      />
 
       <VideoFormDialog
         aberto={form.aberto}
