@@ -174,6 +174,50 @@ export async function videoProdutosDefinir(videoId: string, produtos: VideoProdu
   return data;
 }
 
+/* ─────────── padrão da loja e ordem por peça ─────────── */
+
+export interface VideosConfig {
+  galeria_ativa?: boolean | null;
+  galeria_posicao?: number | null;
+  carrossel_ativo?: boolean | null;
+  titulo_bloco?: string | null;
+  max_galeria?: number | null;
+  [k: string]: unknown;
+}
+
+export async function videosConfigLer(): Promise<VideosConfig | null> {
+  const { data, error } = await db.from("videos_config").select("*").limit(1).maybeSingle();
+  if (error) throw error;
+  return (data ?? null) as VideosConfig | null;
+}
+
+export interface ProdutoVideoLinha {
+  video_id: string;
+  titulo: string | null;
+  poster_url: string | null;
+  ordem_vitrine: number | null;
+  eh_principal: boolean;
+  tem_arquivo: boolean;
+  ativo: boolean;
+}
+
+export async function produtoVideosListar(trayProductId: string): Promise<ProdutoVideoLinha[]> {
+  const { data, error } = await db.rpc("produto_videos_listar", {
+    p_tray_product_id: String(trayProductId),
+  });
+  if (error) throw error;
+  return (data ?? []) as ProdutoVideoLinha[];
+}
+
+export async function produtoVideosOrdenar(trayProductId: string, videoIds: string[]) {
+  const { data, error } = await db.rpc("produto_videos_ordenar", {
+    p_tray_product_id: String(trayProductId),
+    p_videos: videoIds,
+  });
+  if (error) throw error;
+  return data;
+}
+
 /* ─────────── métricas ─────────── */
 
 export interface MetricaVideo {
