@@ -27,6 +27,9 @@ export default function VitrineVideos() {
           <TabsTrigger value="videos" className="gap-1.5">
             <LayoutGrid className="h-4 w-4" /> Vídeos
           </TabsTrigger>
+          <TabsTrigger value="metricas" className="gap-1.5">
+            <BarChart3 className="h-4 w-4" /> Métricas
+          </TabsTrigger>
           <TabsTrigger value="onde" className="gap-1.5">
             <MapPin className="h-4 w-4" /> Onde aparece
           </TabsTrigger>
@@ -34,6 +37,9 @@ export default function VitrineVideos() {
 
         <TabsContent value="curadoria" className="mt-4"><CuradoriaTab /></TabsContent>
         <TabsContent value="videos" className="mt-4"><VideosTab /></TabsContent>
+        <TabsContent value="metricas" className="mt-4">
+          <MetricasVideosTab onAbrirVideo={() => setParams({ tab: "videos" }, { replace: true })} />
+        </TabsContent>
         <TabsContent value="onde" className="mt-4"><OndeApareceTab /></TabsContent>
       </Tabs>
     </div>
