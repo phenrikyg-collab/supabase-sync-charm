@@ -294,6 +294,7 @@ const AppRoutes = () => {
               <Route path="/funil-whatsapp" element={<FunilWhatsApp />} />
               <Route path="/kpis-conversao" element={<KpisConversao />} />
               <Route path="/provador-virtual" element={<ProvadorVirtual />} />
+              <Route path="/provador" element={<Provador />} />
               <Route path="/cupons" element={<Cupons />} />
               <Route path="/propor-carrinho" element={<ProporCarrinhoPage />} />
               <Route path="/vendas-ao-vivo" element={<VendasAoVivo />} />
