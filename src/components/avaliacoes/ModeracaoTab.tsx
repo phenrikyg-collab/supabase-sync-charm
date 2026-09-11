@@ -70,7 +70,7 @@ export function ModeracaoTab() {
     ...textosGerais,
     ...textosProduto.map((t) => ({ ...t, tipo: t.tipo ?? "produto" })),
     ...textosLoja.map((t) => ({ ...t, tipo: t.tipo ?? "loja" })),
-  ];
+  ] as Array<Record<string, any>>;
 
   const vazio = !carregando && !fotos.length && !textos.length;
 
