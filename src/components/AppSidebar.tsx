@@ -11,6 +11,7 @@ import {
   Repeat,
   Search,
   Film,
+  RefreshCw,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useAuth } from "@/contexts/AuthContext";
@@ -200,6 +201,7 @@ const moduleGroups: ModuleGroup[] = [
       { title: "Provador", url: "/provador", icon: Sparkles },
       { title: "Vitrine de Vídeos", url: "/vitrine-videos", icon: Film },
       { title: "Prova Social", url: "/prova-social", icon: BellRing },
+      { title: "Trocas e Devoluções", url: "/trocas-site", icon: RefreshCw },
     ],
   },
   {
