@@ -46,6 +46,7 @@ import NotFound from "./pages/NotFound";
 import Ciencia from "./pages/Ciencia";
 import TrocaDevolucao from "./pages/TrocaDevolucao";
 import TrocasSite from "./pages/TrocasSite";
+import Avaliacoes from "./pages/Avaliacoes";
 import TVInterna from "./pages/TVInterna";
 import AdminTVInterna from "./pages/AdminTVInterna";
 import Bonificacao from "./pages/Bonificacao";
