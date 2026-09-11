@@ -339,7 +339,32 @@ export function FolhaMesTab({
   const [obsVa, setObsVa] = useState("");
 
   const funcionarios = data?.funcionarios ?? [];
-  const tiles = data?.tiles ?? {};
+  const pagamentosFolha = useMemo(
+    () => funcionarios.flatMap((f) => Object.entries(f.pagamentos ?? {}).map(([tipo, pagamento]) => ({ tipo, pagamento }))),
+    [funcionarios],
+  );
+  const tilesBackend = data?.tiles ?? {};
+  const tiles = useMemo(() => {
+    const pendentesVencidos = pagamentosFolha.filter(({ pagamento }) =>
+      (pagamento.status ?? "pendente") === "pendente" &&
+      !!pagamento.vencimento &&
+      pagamento.vencimento.slice(0, 10) <= hojeISO(),
+    );
+    return {
+      ...tilesBackend,
+      a_pagar: pagamentosFolha
+        .filter(({ pagamento }) => pagamento.status !== "pago")
+        .reduce((s, { pagamento }) => s + valorPagamento(pagamento), 0),
+      pago: pagamentosFolha
+        .filter(({ pagamento }) => pagamento.status === "pago")
+        .reduce((s, { pagamento }) => s + valorPagamento(pagamento), 0),
+      beneficios: pagamentosFolha
+        .filter(({ tipo }) => ["vt", "va", "cesta"].includes(tipo))
+        .reduce((s, { pagamento }) => s + valorPagamento(pagamento), 0),
+      vencendo_qtd: pendentesVencidos.length,
+      vencendo_valor: pendentesVencidos.reduce((s, { pagamento }) => s + valorPagamento(pagamento), 0),
+    };
+  }, [pagamentosFolha, tilesBackend]);
   const totais = useMemo(() => {
     const resultado: Record<string, number> = {};
     funcionarios.forEach((f) => {
@@ -532,7 +557,7 @@ export function FolhaMesTab({
                       <p className="font-medium">{l.funcionario ?? l.nome ?? "—"}</p>
                       <p className="text-xs text-muted-foreground">{l.forma ?? "—"}</p>
                     </div>
-                    <span className="tabular-nums">{brl(valorPagamento(l))}</span>
+                    <span className="tabular-nums">{brl(l.valor ?? valorPagamento(l))}</span>
                   </div>
                 ))}
               </div>
@@ -658,15 +683,6 @@ function LinhaFuncionario({
     setSalvando(false);
     if (error) return toast({ title: "Erro ao salvar", description: erroRh(error).mensagem, variant: "destructive" });
     toast({ title: "Atualizado" });
-    onSalvo();
-  };
-
-  const marcarPago = async (p: PagamentoFolha) => {
-    const { error } = await supabase.rpc("rh_folha_pagamento_atualizar", {
-      p_id: p.id, p_valor_liquido: null, p_status: "pago", p_pago_em: hojeISO(), p_obs: null,
-    });
-    if (error) return toast({ title: "Erro", description: erroRh(error).mensagem, variant: "destructive" });
-    toast({ title: "Pagamento marcado como pago" });
     onSalvo();
   };
 
