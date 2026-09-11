@@ -80,7 +80,7 @@ function ConfirmacaoManual({ p, onSalvo }: { p: PagamentoFolha; onSalvo: () => v
       </Button>
     );
   }
-  if (status !== "pendente") return null;
+  if (status !== "pendente" || p.lote_id) return null;
 
   return (
     <Popover open={aberto} onOpenChange={setAberto}>
