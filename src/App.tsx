@@ -95,6 +95,7 @@ import Rastreamento from "./pages/Rastreamento";
 import KpisConversao from "./pages/KpisConversao";
 import FunilWhatsApp from "./pages/FunilWhatsApp";
 import ProvadorVirtual from "./pages/ProvadorVirtual";
+import Provador from "./pages/Provador";
 import Cupons from "./pages/Cupons";
 import ProporCarrinhoPage from "./pages/ProporCarrinhoPage";
 import VendasAoVivo from "./pages/VendasAoVivo";
@@ -293,6 +294,7 @@ const AppRoutes = () => {
               <Route path="/funil-whatsapp" element={<FunilWhatsApp />} />
               <Route path="/kpis-conversao" element={<KpisConversao />} />
               <Route path="/provador-virtual" element={<ProvadorVirtual />} />
+              <Route path="/provador" element={<Provador />} />
               <Route path="/cupons" element={<Cupons />} />
               <Route path="/propor-carrinho" element={<ProporCarrinhoPage />} />
               <Route path="/vendas-ao-vivo" element={<VendasAoVivo />} />

@@ -39,6 +39,8 @@ interface MenuItem {
 
 interface ModuleGroup {
   key?: AppModule;
+  /** Grupos liberados por qualquer um dos módulos listados. */
+  keys?: AppModule[];
   adminOnly?: boolean;
   label: string;
   icon: React.ComponentType<{ className?: string }>;
@@ -191,6 +193,14 @@ const moduleGroups: ModuleGroup[] = [
     ],
   },
   {
+    keys: ["marketing", "atendimento", "gestao"],
+    label: "Ferramentas do site",
+    icon: Wrench,
+    items: [
+      { title: "Provador", url: "/provador", icon: Sparkles },
+    ],
+  },
+  {
     adminOnly: true,
     label: "Acessos",
     icon: Users,
@@ -238,7 +248,11 @@ export function AppSidebar() {
 
   const visibleGroups = isAdmin
     ? moduleGroups
-    : moduleGroups.filter((g) => !g.adminOnly && !!g.key && modules.includes(g.key));
+    : moduleGroups.filter((g) => {
+        if (g.adminOnly) return false;
+        if (g.keys?.length) return g.keys.some((k) => modules.includes(k));
+        return !!g.key && modules.includes(g.key);
+      });
 
   return (
     <Sidebar collapsible="icon">
