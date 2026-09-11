@@ -193,6 +193,14 @@ const moduleGroups: ModuleGroup[] = [
     ],
   },
   {
+    keys: ["marketing", "atendimento", "gestao"],
+    label: "Ferramentas do site",
+    icon: Wrench,
+    items: [
+      { title: "Provador", url: "/provador", icon: Sparkles },
+    ],
+  },
+  {
     adminOnly: true,
     label: "Acessos",
     icon: Users,
