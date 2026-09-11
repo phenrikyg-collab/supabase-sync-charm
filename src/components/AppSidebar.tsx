@@ -11,6 +11,7 @@ import {
   Repeat,
   Search,
   Film,
+  RefreshCw,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useAuth } from "@/contexts/AuthContext";
