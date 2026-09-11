@@ -44,6 +44,7 @@ import Login from "./pages/Login";
 import Home from "./pages/Home";
 import NotFound from "./pages/NotFound";
 import Ciencia from "./pages/Ciencia";
+import TrocaDevolucao from "./pages/TrocaDevolucao";
 import TVInterna from "./pages/TVInterna";
 import AdminTVInterna from "./pages/AdminTVInterna";
 import Bonificacao from "./pages/Bonificacao";
@@ -202,6 +203,8 @@ const AppRoutes = () => {
     <Routes>
       <Route path="/" element={<Home />} />
       <Route path="/ciencia" element={<Ciencia />} />
+      <Route path="/troca" element={<TrocaDevolucao />} />
+      <Route path="/trocas" element={<Navigate to="/troca" replace />} />
       <Route path="/login" element={user ? <HomeRedirect /> : <Login />} />
       <Route path="/tv-interna" element={<ProtectedRoute><TVInterna /></ProtectedRoute>} />
       <Route path="/conteudo" element={<ProtectedRoute><ModuleGuard><ContentCalendar /></ModuleGuard></ProtectedRoute>} />
