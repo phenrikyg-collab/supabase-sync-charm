@@ -200,6 +200,7 @@ const moduleGroups: ModuleGroup[] = [
       { title: "Provador", url: "/provador", icon: Sparkles },
       { title: "Vitrine de Vídeos", url: "/vitrine-videos", icon: Film },
       { title: "Prova Social", url: "/prova-social", icon: BellRing },
+      { title: "Trocas e Devoluções", url: "/trocas-site", icon: RefreshCw },
     ],
   },
   {

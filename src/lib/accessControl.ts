@@ -63,6 +63,7 @@ export const ROUTE_ACCESS: Record<string, Requirement> = {
 
   // Ferramentas do site
   "/provador": ["marketing", "atendimento", "gestao"],
+  "/trocas-site": ["marketing", "atendimento", "gestao", "logistica"],
 
   // Produção & Estoque (Ordens de Produção também está em Comercial)
   "/ordens-producao": ["producao", "comercial"],
