@@ -15,7 +15,7 @@ import { lerErroEdge } from "@/lib/edgeError";
 
 
 import { RefreshCw, Info, Archive, ArchiveRestore } from "lucide-react";
-import { brl, dataBR, hojeISO, competenciaLabel, LOTE_STATUS, ITEM_STATUS, TIPO_LABEL } from "@/lib/rh";
+import { brl, dataBR, hojeISO, competenciaLabel, LOTE_STATUS, ITEM_STATUS, TIPO_LABEL, valorPagamento } from "@/lib/rh";
 import { useFolhaMes } from "./useFolha";
 import { cn } from "@/lib/utils";
 
@@ -69,7 +69,7 @@ function LotePixConteudo({ competencia }: { competencia: string }) {
           descricao: p.descricao ?? TIPO_LABEL[tipo] ?? tipo,
           vencimento: p.vencimento,
           chave: `${f.tipo_chave_pix ?? "—"} · ${f.chave_pix ?? "—"}`,
-          valor: p.valor_liquido ?? p.valor ?? p.valor_bruto ?? 0,
+          valor: valorPagamento(p),
           entraNoLote,
         });
       });

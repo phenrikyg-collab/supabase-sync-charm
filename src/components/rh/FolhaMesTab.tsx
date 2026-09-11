@@ -7,9 +7,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { AlertTriangle, ChevronDown, RefreshCw, Wallet, Users, Gift, Coins, Download, Pencil, Check, X, RotateCcw } from "lucide-react";
-import { brl, dataBR, dataBRCompleta, hojeISO, TIPOS_ORDEM } from "@/lib/rh";
+import { brl, dataBR, dataBRCompleta, hojeISO, valorPagamento } from "@/lib/rh";
 import { baixarDocumentoRh, nomeArquivo, prefixoComprovante } from "@/lib/rhDocumento";
 import { useFolhaMes, FuncionarioFolha, PagamentoFolha } from "./useFolha";
 import { parseValorBR, formatValorBR } from "@/lib/rhMoeda";
@@ -28,6 +30,85 @@ function StatusPagamento({ p }: { p?: PagamentoFolha }) {
     <span className="text-[10px] text-red-600">vencido {dataBR(p.vencimento)}</span>
   ) : (
     <span className="text-[10px] text-amber-600">vence {dataBR(p.vencimento)}</span>
+  );
+}
+
+function ConfirmacaoManual({ p, onSalvo }: { p: PagamentoFolha; onSalvo: () => void }) {
+  const { toast } = useToast();
+  const [aberto, setAberto] = useState(false);
+  const [data, setData] = useState(hojeISO());
+  const [observacao, setObservacao] = useState("");
+  const [salvando, setSalvando] = useState(false);
+  const status = p.status ?? "pendente";
+
+  const confirmar = async () => {
+    setSalvando(true);
+    const { error } = await supabase.rpc("rh_folha_marcar_pago" as any, {
+      p_ids: [p.id],
+      p_pago_em: data,
+      p_obs: observacao || null,
+    });
+    setSalvando(false);
+    if (error) return toast({ title: "Erro ao confirmar pagamento", description: erroRh(error).mensagem, variant: "destructive" });
+    setAberto(false);
+    toast({ title: "Pagamento confirmado" });
+    onSalvo();
+  };
+
+  const desfazer = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setSalvando(true);
+    const { error } = await supabase.rpc("rh_folha_desmarcar_pago" as any, { p_ids: [p.id] });
+    setSalvando(false);
+    if (error) return toast({ title: "Erro ao desfazer pagamento", description: erroRh(error).mensagem, variant: "destructive" });
+    toast({ title: "Confirmação desfeita" });
+    onSalvo();
+  };
+
+  if (status === "em_lote") return null;
+  if (status === "pago" && !p.lote_id) {
+    return (
+      <Button
+        type="button"
+        variant="ghost"
+        size="sm"
+        className="h-5 px-1 text-[10px] opacity-0 transition-opacity group-hover/payment:opacity-100 focus:opacity-100"
+        disabled={salvando}
+        onClick={desfazer}
+      >
+        desfazer
+      </Button>
+    );
+  }
+  if (status !== "pendente" || p.lote_id) return null;
+
+  return (
+    <Popover open={aberto} onOpenChange={setAberto}>
+      <PopoverTrigger asChild>
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          className="h-6 px-1.5 text-[10px]"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <Check className="mr-1 h-3 w-3" /> confirmar pago
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent align="end" className="space-y-3" onClick={(e) => e.stopPropagation()}>
+        <div className="space-y-1.5">
+          <Label htmlFor={`data-pagamento-${p.id}`} className="text-xs">Data do pagamento</Label>
+          <Input id={`data-pagamento-${p.id}`} type="date" value={data} onChange={(e) => setData(e.target.value)} />
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor={`obs-pagamento-${p.id}`} className="text-xs">Observação (opcional)</Label>
+          <Input id={`obs-pagamento-${p.id}`} value={observacao} onChange={(e) => setObservacao(e.target.value)} />
+        </div>
+        <Button size="sm" className="w-full" disabled={salvando || !data} onClick={confirmar}>
+          {salvando ? "Confirmando..." : "Confirmar pagamento"}
+        </Button>
+      </PopoverContent>
+    </Popover>
   );
 }
 
@@ -106,7 +187,7 @@ function ValorEditavel({
   onSalvo: () => void;
 }) {
   const { toast } = useToast();
-  const valor = p.valor_liquido ?? p.valor ?? p.valor_bruto ?? 0;
+  const valor = valorPagamento(p);
   const [editando, setEditando] = useState(false);
   const [texto, setTexto] = useState(formatValorBR(valor));
   const [salvando, setSalvando] = useState(false);
@@ -218,9 +299,10 @@ function Celula({
   if (!p) return <span className="text-muted-foreground">—</span>;
   const comprovanteId = p.pagamento_id ?? null;
   return (
-    <div className="leading-tight">
+    <div className="group/payment leading-tight">
       <ValorEditavel p={p} competencia={competencia} tipo={tipo} onSalvo={onSalvo} />
       <StatusPagamento p={p} />
+      <ConfirmacaoManual p={p} onSalvo={onSalvo} />
       {p.status === "pago" && comprovanteId && (
         <div><BotaoComprovante pagamentoId={comprovanteId} nome={nome} competencia={competencia} tipo={tipo} /></div>
       )}
@@ -250,10 +332,72 @@ export function FolhaMesTab({
   const qc = useQueryClient();
   const [gerando, setGerando] = useState(false);
   const [aberto, setAberto] = useState<string | null>(null);
+  const [simulandoVa, setSimulandoVa] = useState(false);
+  const [confirmandoVa, setConfirmandoVa] = useState(false);
+  const [confirmacaoVa, setConfirmacaoVa] = useState<any | null>(null);
+  const [dataVa, setDataVa] = useState(hojeISO());
+  const [obsVa, setObsVa] = useState("");
 
   const funcionarios = data?.funcionarios ?? [];
-  const tiles = data?.tiles ?? {};
-  const totais = data?.totais_por_tipo ?? {};
+  const pagamentosFolha = useMemo(
+    () => funcionarios.flatMap((f) => Object.entries(f.pagamentos ?? {}).map(([tipo, pagamento]) => ({ tipo, pagamento }))),
+    [funcionarios],
+  );
+  const tilesBackend = data?.tiles ?? {};
+  const tiles = useMemo(() => {
+    const pendentesVencidos = pagamentosFolha.filter(({ pagamento }) =>
+      (pagamento.status ?? "pendente") === "pendente" &&
+      !!pagamento.vencimento &&
+      pagamento.vencimento.slice(0, 10) <= hojeISO(),
+    );
+    return {
+      ...tilesBackend,
+      a_pagar: pagamentosFolha
+        .filter(({ pagamento }) => pagamento.status !== "pago")
+        .reduce((s, { pagamento }) => s + valorPagamento(pagamento), 0),
+      pago: pagamentosFolha
+        .filter(({ pagamento }) => pagamento.status === "pago")
+        .reduce((s, { pagamento }) => s + valorPagamento(pagamento), 0),
+      beneficios: pagamentosFolha
+        .filter(({ tipo }) => ["vt", "va", "cesta"].includes(tipo))
+        .reduce((s, { pagamento }) => s + valorPagamento(pagamento), 0),
+      vencendo_qtd: pendentesVencidos.length,
+      vencendo_valor: pendentesVencidos.reduce((s, { pagamento }) => s + valorPagamento(pagamento), 0),
+    };
+  }, [pagamentosFolha, tilesBackend]);
+  const totais = useMemo(() => {
+    const resultado: Record<string, number> = {};
+    funcionarios.forEach((f) => {
+      Object.entries(f.pagamentos ?? {}).forEach(([tipo, pagamento]) => {
+        resultado[tipo] = (resultado[tipo] ?? 0) + valorPagamento(pagamento);
+      });
+    });
+    return resultado;
+  }, [funcionarios]);
+
+  const executarConfirmacaoVa = async (simular: boolean) => {
+    simular ? setSimulandoVa(true) : setConfirmandoVa(true);
+    const { data: retorno, error } = await supabase.rpc("rh_folha_confirmar_tipo" as any, {
+      p_competencia: competencia,
+      p_tipo: "va",
+      p_pago_em: dataVa,
+      p_obs: obsVa || null,
+      p_simular: simular,
+    });
+    simular ? setSimulandoVa(false) : setConfirmandoVa(false);
+    if (error) {
+      toast({ title: simular ? "Erro ao preparar confirmação" : "Erro ao confirmar VA", description: erroRh(error).mensagem, variant: "destructive" });
+      return;
+    }
+    const resultado = Array.isArray(retorno) ? retorno[0] : retorno;
+    if (simular) {
+      setConfirmacaoVa(resultado ?? {});
+      return;
+    }
+    setConfirmacaoVa(null);
+    toast({ title: "Pagamentos de VA confirmados" });
+    refetch();
+  };
 
   const gerar = async () => {
     setGerando(true);
@@ -340,7 +484,13 @@ export function FolhaMesTab({
       </div>
 
       <Card>
-        <CardHeader><CardTitle className="text-base font-serif">Folha por funcionário</CardTitle></CardHeader>
+        <CardHeader className="flex-row items-center justify-between space-y-0 gap-3">
+          <CardTitle className="text-base font-serif">Folha por funcionário</CardTitle>
+          <Button variant="outline" size="sm" disabled={simulandoVa} onClick={() => executarConfirmacaoVa(true)}>
+            <Check className="mr-2 h-3.5 w-3.5" />
+            {simulandoVa ? "Conferindo..." : "Confirmar VA do mês"}
+          </Button>
+        </CardHeader>
         <CardContent className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
@@ -384,6 +534,53 @@ export function FolhaMesTab({
           </table>
         </CardContent>
       </Card>
+
+      <Dialog open={!!confirmacaoVa} onOpenChange={(open) => !open && !confirmandoVa && setConfirmacaoVa(null)}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Confirmar VA do mês</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <p className="text-sm">
+              Confirmar <strong>{confirmacaoVa?.a_confirmar ?? 0}</strong> pagamentos de VA, total <strong>{brl(confirmacaoVa?.valor_total)}</strong>?
+            </p>
+            {(confirmacaoVa?.em_lote_ignorados ?? 0) > 0 && (
+              <div className="rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+                {confirmacaoVa.em_lote_ignorados} lançamento(s) em lote PIX não serão alterados aqui.
+              </div>
+            )}
+            {Array.isArray(confirmacaoVa?.lancamentos) && confirmacaoVa.lancamentos.length > 0 && (
+              <div className="max-h-56 overflow-y-auto rounded-md border">
+                {confirmacaoVa.lancamentos.map((l: any, indice: number) => (
+                  <div key={l.id ?? `${l.funcionario}-${indice}`} className="flex items-center justify-between gap-3 border-b px-3 py-2 text-sm last:border-b-0">
+                    <div>
+                      <p className="font-medium">{l.funcionario ?? l.nome ?? "—"}</p>
+                      <p className="text-xs text-muted-foreground">{l.forma ?? "—"}</p>
+                    </div>
+                    <span className="tabular-nums">{brl(l.valor ?? valorPagamento(l))}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="space-y-1.5">
+                <Label htmlFor="data-va-mes">Data do pagamento</Label>
+                <Input id="data-va-mes" type="date" value={dataVa} onChange={(e) => setDataVa(e.target.value)} />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="obs-va-mes">Observação (opcional)</Label>
+                <Input id="obs-va-mes" value={obsVa} onChange={(e) => setObsVa(e.target.value)} />
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" disabled={confirmandoVa} onClick={() => setConfirmacaoVa(null)}>Cancelar</Button>
+            <Button disabled={confirmandoVa || !dataVa || (confirmacaoVa?.a_confirmar ?? 0) === 0} onClick={() => executarConfirmacaoVa(false)}>
+              {confirmandoVa ? "Confirmando..." : "Confirmar pagamentos"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -489,15 +686,6 @@ function LinhaFuncionario({
     onSalvo();
   };
 
-  const marcarPago = async (p: PagamentoFolha) => {
-    const { error } = await supabase.rpc("rh_folha_pagamento_atualizar", {
-      p_id: p.id, p_valor_liquido: null, p_status: "pago", p_pago_em: hojeISO(), p_obs: null,
-    });
-    if (error) return toast({ title: "Erro", description: erroRh(error).mensagem, variant: "destructive" });
-    toast({ title: "Pagamento marcado como pago" });
-    onSalvo();
-  };
-
   return (
     <>
       <tr className="border-b cursor-pointer hover:bg-muted/40" onClick={onToggle}>
@@ -592,22 +780,19 @@ function LinhaFuncionario({
                 </div>
                 <p className="text-[10px] text-muted-foreground">Cada falta reduz um dia de VT do mês.</p>
               </div>
+              {pags.cesta && (
+                <div className="space-y-1">
+                  <Label className="text-xs">Cesta</Label>
+                  <Celula p={pags.cesta} nome={f.nome} competencia={competencia} tipo="cesta" onSalvo={onSalvo} />
+                </div>
+              )}
             </div>
 
             <ValesSection funcionarioId={funcId} competencia={competencia} onMudou={onSalvo} />
 
             <div className="flex flex-wrap gap-2 mt-4">
               <Button size="sm" onClick={() => atualizar()} disabled={salvando || !saldo}>Salvar fechamento</Button>
-              {TIPOS_ORDEM.map((t) => {
-                const p = pags[t];
-                if (!p || p.status === "pago") return null;
-                return (
-                  <Button key={t} size="sm" variant="outline" onClick={() => marcarPago(p)}>
-                    {t === "va" ? "Marcar pedido feito (VA)" : `Marcar ${t} pago`}
-                  </Button>
-                );
-              })}
-              {TIPOS_ORDEM.map((t) => {
+              {["adiantamento", "saldo", "vt", "va", "cesta"].map((t) => {
                 const p = pags[t];
                 if (!p?.pagamento_id || p.status !== "pago") return null;
                 return (

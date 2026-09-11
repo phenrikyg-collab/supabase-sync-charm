@@ -19,6 +19,12 @@ export const dataBRCompleta = (d: string | null | undefined) => {
 
 export const hojeISO = () => new Date().toISOString().slice(0, 10);
 
+export const valorPagamento = (p: {
+  valor_override?: number | null;
+  valor_liquido?: number | null;
+  valor_bruto?: number | null;
+} | null | undefined) => Number(p?.valor_override ?? p?.valor_liquido ?? p?.valor_bruto ?? 0);
+
 export const TIPO_LABEL: Record<string, string> = {
   adiantamento: "Adiant. 40%",
   saldo: "Saldo 60%",
