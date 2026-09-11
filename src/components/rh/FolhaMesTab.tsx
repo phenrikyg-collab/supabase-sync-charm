@@ -332,10 +332,47 @@ export function FolhaMesTab({
   const qc = useQueryClient();
   const [gerando, setGerando] = useState(false);
   const [aberto, setAberto] = useState<string | null>(null);
+  const [simulandoVa, setSimulandoVa] = useState(false);
+  const [confirmandoVa, setConfirmandoVa] = useState(false);
+  const [confirmacaoVa, setConfirmacaoVa] = useState<any | null>(null);
+  const [dataVa, setDataVa] = useState(hojeISO());
+  const [obsVa, setObsVa] = useState("");
 
   const funcionarios = data?.funcionarios ?? [];
   const tiles = data?.tiles ?? {};
-  const totais = data?.totais_por_tipo ?? {};
+  const totais = useMemo(() => {
+    const resultado: Record<string, number> = {};
+    funcionarios.forEach((f) => {
+      Object.entries(f.pagamentos ?? {}).forEach(([tipo, pagamento]) => {
+        resultado[tipo] = (resultado[tipo] ?? 0) + valorPagamento(pagamento);
+      });
+    });
+    return resultado;
+  }, [funcionarios]);
+
+  const executarConfirmacaoVa = async (simular: boolean) => {
+    simular ? setSimulandoVa(true) : setConfirmandoVa(true);
+    const { data: retorno, error } = await supabase.rpc("rh_folha_confirmar_tipo" as any, {
+      p_competencia: competencia,
+      p_tipo: "va",
+      p_pago_em: dataVa,
+      p_obs: obsVa || null,
+      p_simular: simular,
+    });
+    simular ? setSimulandoVa(false) : setConfirmandoVa(false);
+    if (error) {
+      toast({ title: simular ? "Erro ao preparar confirmação" : "Erro ao confirmar VA", description: erroRh(error).mensagem, variant: "destructive" });
+      return;
+    }
+    const resultado = Array.isArray(retorno) ? retorno[0] : retorno;
+    if (simular) {
+      setConfirmacaoVa(resultado ?? {});
+      return;
+    }
+    setConfirmacaoVa(null);
+    toast({ title: "Pagamentos de VA confirmados" });
+    refetch();
+  };
 
   const gerar = async () => {
     setGerando(true);
@@ -422,7 +459,13 @@ export function FolhaMesTab({
       </div>
 
       <Card>
-        <CardHeader><CardTitle className="text-base font-serif">Folha por funcionário</CardTitle></CardHeader>
+        <CardHeader className="flex-row items-center justify-between space-y-0 gap-3">
+          <CardTitle className="text-base font-serif">Folha por funcionário</CardTitle>
+          <Button variant="outline" size="sm" disabled={simulandoVa} onClick={() => executarConfirmacaoVa(true)}>
+            <Check className="mr-2 h-3.5 w-3.5" />
+            {simulandoVa ? "Conferindo..." : "Confirmar VA do mês"}
+          </Button>
+        </CardHeader>
         <CardContent className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
@@ -466,6 +509,53 @@ export function FolhaMesTab({
           </table>
         </CardContent>
       </Card>
+
+      <Dialog open={!!confirmacaoVa} onOpenChange={(open) => !open && !confirmandoVa && setConfirmacaoVa(null)}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Confirmar VA do mês</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <p className="text-sm">
+              Confirmar <strong>{confirmacaoVa?.a_confirmar ?? 0}</strong> pagamentos de VA, total <strong>{brl(confirmacaoVa?.valor_total)}</strong>?
+            </p>
+            {(confirmacaoVa?.em_lote_ignorados ?? 0) > 0 && (
+              <div className="rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+                {confirmacaoVa.em_lote_ignorados} lançamento(s) em lote PIX não serão alterados aqui.
+              </div>
+            )}
+            {Array.isArray(confirmacaoVa?.lancamentos) && confirmacaoVa.lancamentos.length > 0 && (
+              <div className="max-h-56 overflow-y-auto rounded-md border">
+                {confirmacaoVa.lancamentos.map((l: any, indice: number) => (
+                  <div key={l.id ?? `${l.funcionario}-${indice}`} className="flex items-center justify-between gap-3 border-b px-3 py-2 text-sm last:border-b-0">
+                    <div>
+                      <p className="font-medium">{l.funcionario ?? l.nome ?? "—"}</p>
+                      <p className="text-xs text-muted-foreground">{l.forma ?? "—"}</p>
+                    </div>
+                    <span className="tabular-nums">{brl(valorPagamento(l))}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="space-y-1.5">
+                <Label htmlFor="data-va-mes">Data do pagamento</Label>
+                <Input id="data-va-mes" type="date" value={dataVa} onChange={(e) => setDataVa(e.target.value)} />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="obs-va-mes">Observação (opcional)</Label>
+                <Input id="obs-va-mes" value={obsVa} onChange={(e) => setObsVa(e.target.value)} />
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" disabled={confirmandoVa} onClick={() => setConfirmacaoVa(null)}>Cancelar</Button>
+            <Button disabled={confirmandoVa || !dataVa || (confirmacaoVa?.a_confirmar ?? 0) === 0} onClick={() => executarConfirmacaoVa(false)}>
+              {confirmandoVa ? "Confirmando..." : "Confirmar pagamentos"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -674,22 +764,19 @@ function LinhaFuncionario({
                 </div>
                 <p className="text-[10px] text-muted-foreground">Cada falta reduz um dia de VT do mês.</p>
               </div>
+              {pags.cesta && (
+                <div className="space-y-1">
+                  <Label className="text-xs">Cesta</Label>
+                  <Celula p={pags.cesta} nome={f.nome} competencia={competencia} tipo="cesta" onSalvo={onSalvo} />
+                </div>
+              )}
             </div>
 
             <ValesSection funcionarioId={funcId} competencia={competencia} onMudou={onSalvo} />
 
             <div className="flex flex-wrap gap-2 mt-4">
               <Button size="sm" onClick={() => atualizar()} disabled={salvando || !saldo}>Salvar fechamento</Button>
-              {TIPOS_ORDEM.map((t) => {
-                const p = pags[t];
-                if (!p || p.status === "pago") return null;
-                return (
-                  <Button key={t} size="sm" variant="outline" onClick={() => marcarPago(p)}>
-                    {t === "va" ? "Marcar pedido feito (VA)" : `Marcar ${t} pago`}
-                  </Button>
-                );
-              })}
-              {TIPOS_ORDEM.map((t) => {
+              {["adiantamento", "saldo", "vt", "va", "cesta"].map((t) => {
                 const p = pags[t];
                 if (!p?.pagamento_id || p.status !== "pago") return null;
                 return (
