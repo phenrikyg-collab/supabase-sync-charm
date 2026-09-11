@@ -17,6 +17,7 @@ export interface PagamentoFolha {
   editavel?: boolean | null;
   obs?: string | null;
   pagamento_id?: string | null;
+  lote_id?: string | null;
   entra_no_lote?: boolean;
   forma?: string | null;
 }
