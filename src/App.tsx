@@ -95,6 +95,7 @@ import Rastreamento from "./pages/Rastreamento";
 import KpisConversao from "./pages/KpisConversao";
 import FunilWhatsApp from "./pages/FunilWhatsApp";
 import ProvadorVirtual from "./pages/ProvadorVirtual";
+import Provador from "./pages/Provador";
 import Cupons from "./pages/Cupons";
 import ProporCarrinhoPage from "./pages/ProporCarrinhoPage";
 import VendasAoVivo from "./pages/VendasAoVivo";
