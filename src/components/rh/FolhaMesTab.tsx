@@ -7,9 +7,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { AlertTriangle, ChevronDown, RefreshCw, Wallet, Users, Gift, Coins, Download, Pencil, Check, X, RotateCcw } from "lucide-react";
-import { brl, dataBR, dataBRCompleta, hojeISO, TIPOS_ORDEM } from "@/lib/rh";
+import { brl, dataBR, dataBRCompleta, hojeISO, valorPagamento } from "@/lib/rh";
 import { baixarDocumentoRh, nomeArquivo, prefixoComprovante } from "@/lib/rhDocumento";
 import { useFolhaMes, FuncionarioFolha, PagamentoFolha } from "./useFolha";
 import { parseValorBR, formatValorBR } from "@/lib/rhMoeda";
@@ -28,6 +30,85 @@ function StatusPagamento({ p }: { p?: PagamentoFolha }) {
     <span className="text-[10px] text-red-600">vencido {dataBR(p.vencimento)}</span>
   ) : (
     <span className="text-[10px] text-amber-600">vence {dataBR(p.vencimento)}</span>
+  );
+}
+
+function ConfirmacaoManual({ p, onSalvo }: { p: PagamentoFolha; onSalvo: () => void }) {
+  const { toast } = useToast();
+  const [aberto, setAberto] = useState(false);
+  const [data, setData] = useState(hojeISO());
+  const [observacao, setObservacao] = useState("");
+  const [salvando, setSalvando] = useState(false);
+  const status = p.status ?? "pendente";
+
+  const confirmar = async () => {
+    setSalvando(true);
+    const { error } = await supabase.rpc("rh_folha_marcar_pago" as any, {
+      p_ids: [p.id],
+      p_pago_em: data,
+      p_obs: observacao || null,
+    });
+    setSalvando(false);
+    if (error) return toast({ title: "Erro ao confirmar pagamento", description: erroRh(error).mensagem, variant: "destructive" });
+    setAberto(false);
+    toast({ title: "Pagamento confirmado" });
+    onSalvo();
+  };
+
+  const desfazer = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setSalvando(true);
+    const { error } = await supabase.rpc("rh_folha_desmarcar_pago" as any, { p_ids: [p.id] });
+    setSalvando(false);
+    if (error) return toast({ title: "Erro ao desfazer pagamento", description: erroRh(error).mensagem, variant: "destructive" });
+    toast({ title: "Confirmação desfeita" });
+    onSalvo();
+  };
+
+  if (status === "em_lote") return null;
+  if (status === "pago" && !p.lote_id) {
+    return (
+      <Button
+        type="button"
+        variant="ghost"
+        size="sm"
+        className="h-5 px-1 text-[10px] opacity-0 transition-opacity group-hover/payment:opacity-100 focus:opacity-100"
+        disabled={salvando}
+        onClick={desfazer}
+      >
+        desfazer
+      </Button>
+    );
+  }
+  if (status !== "pendente") return null;
+
+  return (
+    <Popover open={aberto} onOpenChange={setAberto}>
+      <PopoverTrigger asChild>
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          className="h-6 px-1.5 text-[10px]"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <Check className="mr-1 h-3 w-3" /> confirmar pago
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent align="end" className="space-y-3" onClick={(e) => e.stopPropagation()}>
+        <div className="space-y-1.5">
+          <Label htmlFor={`data-pagamento-${p.id}`} className="text-xs">Data do pagamento</Label>
+          <Input id={`data-pagamento-${p.id}`} type="date" value={data} onChange={(e) => setData(e.target.value)} />
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor={`obs-pagamento-${p.id}`} className="text-xs">Observação (opcional)</Label>
+          <Input id={`obs-pagamento-${p.id}`} value={observacao} onChange={(e) => setObservacao(e.target.value)} />
+        </div>
+        <Button size="sm" className="w-full" disabled={salvando || !data} onClick={confirmar}>
+          {salvando ? "Confirmando..." : "Confirmar pagamento"}
+        </Button>
+      </PopoverContent>
+    </Popover>
   );
 }
 
@@ -106,7 +187,7 @@ function ValorEditavel({
   onSalvo: () => void;
 }) {
   const { toast } = useToast();
-  const valor = p.valor_liquido ?? p.valor ?? p.valor_bruto ?? 0;
+  const valor = valorPagamento(p);
   const [editando, setEditando] = useState(false);
   const [texto, setTexto] = useState(formatValorBR(valor));
   const [salvando, setSalvando] = useState(false);
@@ -218,9 +299,10 @@ function Celula({
   if (!p) return <span className="text-muted-foreground">—</span>;
   const comprovanteId = p.pagamento_id ?? null;
   return (
-    <div className="leading-tight">
+    <div className="group/payment leading-tight">
       <ValorEditavel p={p} competencia={competencia} tipo={tipo} onSalvo={onSalvo} />
       <StatusPagamento p={p} />
+      <ConfirmacaoManual p={p} onSalvo={onSalvo} />
       {p.status === "pago" && comprovanteId && (
         <div><BotaoComprovante pagamentoId={comprovanteId} nome={nome} competencia={competencia} tipo={tipo} /></div>
       )}
