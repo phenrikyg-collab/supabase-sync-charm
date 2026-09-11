@@ -354,8 +354,8 @@ export default function Provador() {
               </CardHeader>
               <CardContent className="space-y-4">
                 {(() => {
-                  const com = d.uplift?.com_provador ?? {};
-                  const sem = d.uplift?.sem_provador ?? {};
+                  const com: any = d.uplift?.com_provador ?? {};
+                  const sem: any = d.uplift?.sem_provador ?? {};
                   const maior = Math.max(n0(com.taxa) ?? 0, n0(sem.taxa) ?? 0, 1);
                   const barra = (rot: string, taxa: any, visitantes: any, cor: string) => (
                     <div className="flex-1 space-y-1">
