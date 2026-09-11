@@ -46,6 +46,7 @@ import NotFound from "./pages/NotFound";
 import Ciencia from "./pages/Ciencia";
 import TrocaDevolucao from "./pages/TrocaDevolucao";
 import TrocasSite from "./pages/TrocasSite";
+import Avaliacoes from "./pages/Avaliacoes";
 import TVInterna from "./pages/TVInterna";
 import AdminTVInterna from "./pages/AdminTVInterna";
 import Bonificacao from "./pages/Bonificacao";
@@ -300,6 +301,7 @@ const AppRoutes = () => {
               <Route path="/provador-virtual" element={<ProvadorVirtual />} />
               <Route path="/provador" element={<Provador />} />
               <Route path="/trocas-site" element={<TrocasSite />} />
+              <Route path="/avaliacoes" element={<Avaliacoes />} />
               <Route path="/cupons" element={<Cupons />} />
               <Route path="/propor-carrinho" element={<ProporCarrinhoPage />} />
               <Route path="/vendas-ao-vivo" element={<VendasAoVivo />} />
