@@ -39,6 +39,8 @@ interface MenuItem {
 
 interface ModuleGroup {
   key?: AppModule;
+  /** Grupos liberados por qualquer um dos módulos listados. */
+  keys?: AppModule[];
   adminOnly?: boolean;
   label: string;
   icon: React.ComponentType<{ className?: string }>;
