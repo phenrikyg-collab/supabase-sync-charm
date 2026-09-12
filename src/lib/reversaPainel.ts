@@ -121,7 +121,7 @@ export async function urlFoto(caminho: string): Promise<string> {
   return data.signedUrl;
 }
 
-export const traco = "—";
+export const traco = "-";
 
 export function formatarData(valor?: string | null) {
   if (!valor) return traco;
