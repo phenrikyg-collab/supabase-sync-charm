@@ -86,6 +86,10 @@ export const cancelarSolicitacao = (p_id: string, p_motivo: string) =>
 export const painelCriar = (p_payload: Record<string, any>) =>
   rpc<Record<string, any>>("reversa_painel_criar", { p_payload });
 
+/** Busca interna do painel: mesmo formato do portal, sem limite por IP. */
+export const painelBuscarPedido = (p_pedido: string, p_identificador: string) =>
+  rpc<any>("reversa_painel_buscar_pedido", { p_pedido, p_identificador });
+
 export const configListar = () => rpc<any>("reversa_config_listar");
 
 export const configSalvar = (p_chave: string, p_valor: any) =>
@@ -121,7 +125,7 @@ export async function urlFoto(caminho: string): Promise<string> {
   return data.signedUrl;
 }
 
-export const traco = "—";
+export const traco = "-";
 
 export function formatarData(valor?: string | null) {
   if (!valor) return traco;

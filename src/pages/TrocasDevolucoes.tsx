@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import PecasEmRetorno from "@/components/trocas/PecasEmRetorno";
@@ -91,6 +92,11 @@ const ESTAGIO_CHIP: Record<string, string> = {
 /* ────────────────────────── página ────────────────────────── */
 
 export default function TrocasDevolucoes() {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const aba = searchParams.get("tab") === "reembolsos" ? "reembolsos" : "painel";
+  const trocarAba = (v: string) =>
+    setSearchParams(v === "reembolsos" ? { tab: v } : {}, { replace: true });
+
   const [chave, setChave] = useState<string | null>(null);
   const [inicio, setInicio] = useState(isoMenos(90));
   const [fim, setFim] = useState(isoHoje());
@@ -259,6 +265,12 @@ export default function TrocasDevolucoes() {
           </div>
         </div>
 
+        <Tabs value={aba} onValueChange={trocarAba} className="space-y-4">
+          <TabsList>
+            <TabsTrigger value="painel">Painel</TabsTrigger>
+            <TabsTrigger value="reembolsos">Reembolsos</TabsTrigger>
+          </TabsList>
+          <TabsContent value="painel" className="space-y-6">
         {dash.isLoading ? (
           <div className="grid gap-4 md:grid-cols-3 lg:grid-cols-6">
             {Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-28" />)}
@@ -817,8 +829,97 @@ export default function TrocasDevolucoes() {
             </Card>
           </div>
         )}
+          </TabsContent>
+          <TabsContent value="reembolsos">
+            <ReembolsosTab />
+          </TabsContent>
+        </Tabs>
       </div>
     </TooltipProvider>
+  );
+}
+
+/* ────────────────────────── aba reembolsos ────────────────────────── */
+
+function ReembolsosTab() {
+  const q = useQuery({
+    queryKey: ["trocas-reembolsos"],
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc("fn_trocas_reembolsos" as any);
+      if (error) throw error;
+      return data as any;
+    },
+  });
+
+  const linhas: any[] = Array.isArray(q.data)
+    ? q.data
+    : Array.isArray(q.data?.linhas)
+      ? q.data.linhas
+      : [];
+
+  if (q.isLoading) {
+    return <div className="space-y-2">{Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-12" />)}</div>;
+  }
+  if (q.isError) {
+    return (
+      <Card className="border-destructive">
+        <CardContent className="flex items-center gap-2 p-6 text-destructive">
+          <AlertTriangle className="h-4 w-4" />
+          {(q.error as any)?.message ?? "Erro ao carregar os reembolsos."}
+        </CardContent>
+      </Card>
+    );
+  }
+  if (!linhas.length) {
+    return (
+      <Card>
+        <CardContent className="p-6">
+          <Vazio texto="Nenhum reembolso pendente ou registrado" />
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Reembolsos <span className="text-sm font-normal text-muted-foreground">({linhas.length})</span></CardTitle>
+      </CardHeader>
+      <CardContent>
+        <div className="overflow-x-auto">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Cliente</TableHead>
+                <TableHead>Pedido</TableHead>
+                <TableHead>Protocolo</TableHead>
+                <TableHead className="text-right">Valor</TableHead>
+                <TableHead>Método</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Criado em</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {linhas.map((r: any, i: number) => (
+                <TableRow key={r.id ?? r.reembolso_id ?? r.solicitacao_id ?? i}>
+                  <TableCell className="text-sm">{r.cliente ?? r.nome ?? "—"}</TableCell>
+                  <TableCell className="text-xs">{r.pedido ?? r.numero_pedido ?? "—"}</TableCell>
+                  <TableCell className="text-xs">{r.protocolo ?? "—"}</TableCell>
+                  <TableCell className="text-right text-sm">{brl(r.valor ?? r.valor_reembolso)}</TableCell>
+                  <TableCell className="text-xs">{r.metodo_rotulo ?? r.metodo ?? r.metodo_pago ?? "—"}</TableCell>
+                  <TableCell>
+                    <Badge variant="outline" className="text-[10px]">
+                      {r.status_rotulo ?? r.status ?? "—"}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="text-xs">{dataBR(r.criado_em ?? r.created_at)}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      </CardContent>
+    </Card>
   );
 }
 

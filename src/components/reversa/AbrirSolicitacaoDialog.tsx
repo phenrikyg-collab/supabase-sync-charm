@@ -12,8 +12,8 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { moeda, painelCriar, texto } from "@/lib/reversaPainel";
-import { reversa, chaveMotivo, chavePreferencia, type RespostaBuscar } from "@/lib/reversaPortal";
+import { moeda, painelBuscarPedido, painelCriar, texto } from "@/lib/reversaPainel";
+import { chaveMotivo, chavePreferencia, type RespostaBuscar } from "@/lib/reversaPortal";
 
 /**
  * Abertura pelo atendimento: repete o fluxo do portal, mas sem travar prazo.
@@ -51,7 +51,7 @@ export function AbrirSolicitacaoDialog({
   async function buscar() {
     setOcupado(true);
     try {
-      const r = await reversa<RespostaBuscar>({ acao: "buscar", pedido, identificador });
+      const r = await painelBuscarPedido(pedido, identificador);
       setDados(r);
       setCelular(r.cliente?.celular ?? r.cliente?.telefone ?? "");
     } catch (e: any) {
@@ -127,6 +127,16 @@ export function AbrirSolicitacaoDialog({
 
         {dados && (
           <div className="space-y-4 pt-2">
+            {Array.isArray((dados as any).solicitacoes) && (dados as any).solicitacoes.length > 0 && (
+              <div className="rounded-lg border border-amber-500/50 bg-amber-500/10 p-3 text-sm">
+                Este pedido já tem {(dados as any).solicitacoes.length} solicitação(ões) aberta(s)
+                {(dados as any).solicitacoes.some((s: any) => s?.protocolo) && (
+                  <span className="block text-xs text-muted-foreground">
+                    Protocolos: {(dados as any).solicitacoes.map((s: any) => s?.protocolo).filter(Boolean).join(", ")}
+                  </span>
+                )}
+              </div>
+            )}
             <div className="space-y-2">
               {(dados.itens ?? []).map((it) => {
                 const id = String(it.tray_item_id);
