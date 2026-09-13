@@ -210,6 +210,52 @@ export function PainelSolicitacao({
 
             <Separator />
 
+            {/* Escolha da troca */}
+            <section>
+              <h3 className="font-serif text-base mb-2">O que a cliente quer no lugar</h3>
+              <div className="rounded-lg border border-border p-3 space-y-2">
+                {!escolha || escolha.tipo === "indeciso" ? (
+                  <p className="text-muted-foreground">A cliente ainda nao escolheu</p>
+                ) : escolha.tipo === "cupom" ? (
+                  <div className="space-y-1">
+                    <p>Cliente prefere cupom de {texto(escolha.credito_br)}</p>
+                    <p className="text-xs text-muted-foreground">Válido por 7 dias</p>
+                  </div>
+                ) : (
+                  <div className="flex gap-3">
+                    {escolha.imagem && (
+                      <img
+                        src={escolha.imagem}
+                        alt=""
+                        className="h-20 w-16 rounded object-cover"
+                      />
+                    )}
+                    <div className="min-w-0 flex-1">
+                      <p className="font-medium">{texto(escolha.produto)}</p>
+                      <p className="text-muted-foreground">{texto(escolha.cor)}</p>
+                      <p className="text-lg font-semibold">{texto(escolha.tamanho)}</p>
+                      <p className="text-xs text-muted-foreground">
+                        Peça {texto(escolha.preco_br)} · Crédito {texto(escolha.credito_br)}
+                      </p>
+                      <DiferencaBadge sentido={escolha.diferenca_sentido} valor={escolha.diferenca_br} />
+                    </div>
+                  </div>
+                )}
+                {escolha?.observacao && (
+                  <blockquote className="border-l-2 border-border pl-3 text-sm italic text-muted-foreground">
+                    Recado da cliente: {texto(escolha.observacao)}
+                  </blockquote>
+                )}
+                {escolha?.escolhido_em_br && (
+                  <p className="text-xs text-muted-foreground pt-1">
+                    Escolhido em {texto(escolha.escolhido_em_br)}
+                  </p>
+                )}
+              </div>
+            </section>
+
+            <Separator />
+
             {/* Postagem */}
             <section>
               <h3 className="font-serif text-base mb-2">Postagem</h3>
