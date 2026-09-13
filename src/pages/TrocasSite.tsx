@@ -174,6 +174,7 @@ export default function TrocasSite() {
                       "Pedido",
                       "Peças",
                       "Preferência",
+                      "Escolha",
                       "Status",
                       "Código / rastreio",
                       "Dias",
@@ -188,14 +189,14 @@ export default function TrocasSite() {
                 <tbody>
                   {carregando && (
                     <tr>
-                      <td colSpan={9} className="py-16 text-center">
+                      <td colSpan={10} className="py-16 text-center">
                         <Loader2 className="mx-auto h-6 w-6 animate-spin text-primary" />
                       </td>
                     </tr>
                   )}
                   {!carregando && !linhas.length && (
                     <tr>
-                      <td colSpan={9} className="py-16 text-center text-muted-foreground">
+                      <td colSpan={10} className="py-16 text-center text-muted-foreground">
                         Nenhuma solicitação neste filtro.
                       </td>
                     </tr>
