@@ -124,6 +124,7 @@ export function PainelSolicitacao({
   const eventos: any[] = s.linha_do_tempo ?? s.eventos ?? [];
   const ehTroca = /troc/i.test(String(s.preferencia ?? ""));
   const chegou = Boolean(s.chegou ?? /entregue|recebid|conferi/i.test(String(s.status ?? "")));
+  const escolha: Record<string, any> | null = s.escolha_troca ?? null;
 
   return (
     <Sheet open={aberto} onOpenChange={(v) => !v && aoFechar()}>
