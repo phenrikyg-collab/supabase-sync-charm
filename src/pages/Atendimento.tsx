@@ -518,12 +518,18 @@ export default function Atendimento() {
         </p>
       </div>
 
-      <Tabs value={abaPagina} onValueChange={(v) => setAbaPagina(v as "conversas" | "cobrancas" | "consulta")}>
+      <Tabs value={abaPagina} onValueChange={(v) => setAbaPagina(v as typeof abaPagina)}>
         <TabsList>
           <TabsTrigger value="conversas">Conversas</TabsTrigger>
+          <TabsTrigger value="abandonadas">Abandonadas</TabsTrigger>
           <TabsTrigger value="cobrancas">Cobranças</TabsTrigger>
           <TabsTrigger value="consulta">Consultar Transação</TabsTrigger>
         </TabsList>
+
+        <TabsContent value="abandonadas" className="mt-4">
+          <AbandonadasTab />
+        </TabsContent>
+
 
         <TabsContent value="cobrancas" className="mt-4 space-y-4">
           <LinkPagamentoCard />
@@ -581,6 +587,7 @@ export default function Atendimento() {
                 { v: "todas", label: "Todas" },
                 { v: "nao_lidas", label: `Não lidas${totalNaoLidas ? ` (${totalNaoLidas})` : ""}` },
                 { v: "lidas", label: "Lidas" },
+                { v: "atencao", label: `Precisam de atenção${totalAtencao ? ` (${totalAtencao})` : ""}` },
               ] as const).map((f) => (
                 <Button
                   key={f.v}
