@@ -48,10 +48,12 @@ export function MensagemMidia({ tipo, mediaUrl, conteudo }: Props) {
     return (
       <div className="mb-1 space-y-1">
         <video
-          controls
-          preload="metadata"
           src={mediaUrl}
-          className="rounded-md w-full max-w-[320px]"
+          controls
+          playsInline
+          preload="metadata"
+          className="rounded-lg bg-black"
+          style={{ maxWidth: 280, maxHeight: 420, width: "auto", height: "auto", objectFit: "contain" }}
         />
         <a
           href={mediaUrl}
