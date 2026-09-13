@@ -124,6 +124,7 @@ export function PainelSolicitacao({
   const eventos: any[] = s.linha_do_tempo ?? s.eventos ?? [];
   const ehTroca = /troc/i.test(String(s.preferencia ?? ""));
   const chegou = Boolean(s.chegou ?? /entregue|recebid|conferi/i.test(String(s.status ?? "")));
+  const escolha: Record<string, any> | null = s.escolha_troca ?? null;
 
   return (
     <Sheet open={aberto} onOpenChange={(v) => !v && aoFechar()}>
@@ -205,6 +206,52 @@ export function PainelSolicitacao({
                   </div>
                 ))}
                 {!itens.length && <p className="text-muted-foreground">{traco}</p>}
+              </div>
+            </section>
+
+            <Separator />
+
+            {/* Escolha da troca */}
+            <section>
+              <h3 className="font-serif text-base mb-2">O que a cliente quer no lugar</h3>
+              <div className="rounded-lg border border-border p-3 space-y-2">
+                {!escolha || escolha.tipo === "indeciso" ? (
+                  <p className="text-muted-foreground">A cliente ainda nao escolheu</p>
+                ) : escolha.tipo === "cupom" ? (
+                  <div className="space-y-1">
+                    <p>Cliente prefere cupom de {texto(escolha.credito_br)}</p>
+                    <p className="text-xs text-muted-foreground">Válido por 7 dias</p>
+                  </div>
+                ) : (
+                  <div className="flex gap-3">
+                    {escolha.imagem && (
+                      <img
+                        src={escolha.imagem}
+                        alt=""
+                        className="h-20 w-16 rounded object-cover"
+                      />
+                    )}
+                    <div className="min-w-0 flex-1">
+                      <p className="font-medium">{texto(escolha.produto)}</p>
+                      <p className="text-muted-foreground">{texto(escolha.cor)}</p>
+                      <p className="text-lg font-semibold">{texto(escolha.tamanho)}</p>
+                      <p className="text-xs text-muted-foreground">
+                        Peça {texto(escolha.preco_br)} · Crédito {texto(escolha.credito_br)}
+                      </p>
+                      <DiferencaBadge sentido={escolha.diferenca_sentido} valor={escolha.diferenca_br} />
+                    </div>
+                  </div>
+                )}
+                {escolha?.observacao && (
+                  <blockquote className="border-l-2 border-border pl-3 text-sm italic text-muted-foreground">
+                    Recado da cliente: {texto(escolha.observacao)}
+                  </blockquote>
+                )}
+                {escolha?.escolhido_em_br && (
+                  <p className="text-xs text-muted-foreground pt-1">
+                    Escolhido em {texto(escolha.escolhido_em_br)}
+                  </p>
+                )}
               </div>
             </section>
 
@@ -525,4 +572,26 @@ function Info({ rotulo, valor }: { rotulo: string; valor: string }) {
 export function ChipStatus({ valor }: { valor?: string | null }) {
   if (!valor) return <span className="text-muted-foreground">{traco}</span>;
   return <Badge variant="secondary">{valor}</Badge>;
+}
+
+function DiferencaBadge({ sentido, valor }: { sentido?: string; valor?: string }) {
+  if (sentido === "cliente_paga") {
+    return (
+      <span className="inline-flex items-center rounded-full border border-warning/20 bg-warning/10 px-2.5 py-0.5 text-xs font-semibold text-warning">
+        Cliente paga {texto(valor)}
+      </span>
+    );
+  }
+  if (sentido === "sobra_credito") {
+    return (
+      <span className="inline-flex items-center rounded-full border border-info/20 bg-info/10 px-2.5 py-0.5 text-xs font-semibold text-info">
+        Sobra {texto(valor)} de crédito
+      </span>
+    );
+  }
+  return (
+    <span className="inline-flex items-center rounded-full border border-border bg-muted px-2.5 py-0.5 text-xs font-semibold text-muted-foreground">
+      Valor igual ao crédito
+    </span>
+  );
 }

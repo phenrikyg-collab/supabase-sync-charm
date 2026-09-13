@@ -174,6 +174,7 @@ export default function TrocasSite() {
                       "Pedido",
                       "Peças",
                       "Preferência",
+                      "Escolha",
                       "Status",
                       "Código / rastreio",
                       "Dias",
@@ -188,14 +189,14 @@ export default function TrocasSite() {
                 <tbody>
                   {carregando && (
                     <tr>
-                      <td colSpan={9} className="py-16 text-center">
+                      <td colSpan={10} className="py-16 text-center">
                         <Loader2 className="mx-auto h-6 w-6 animate-spin text-primary" />
                       </td>
                     </tr>
                   )}
                   {!carregando && !linhas.length && (
                     <tr>
-                      <td colSpan={9} className="py-16 text-center text-muted-foreground">
+                      <td colSpan={10} className="py-16 text-center text-muted-foreground">
                         Nenhuma solicitação neste filtro.
                       </td>
                     </tr>
@@ -233,6 +234,9 @@ export default function TrocasSite() {
                           </td>
                           <td className="whitespace-nowrap px-3 py-2">
                             {texto(l.preferencia_rotulo ?? l.preferencia)}
+                          </td>
+                          <td className="whitespace-nowrap px-3 py-2">
+                            <EscolhaBadge escolha={l.escolha_troca} />
                           </td>
                           <td className="whitespace-nowrap px-3 py-2">
                             <Badge variant="secondary">{texto(l.status_rotulo ?? l.status)}</Badge>
@@ -282,3 +286,16 @@ export default function TrocasSite() {
     </div>
   );
 }
+
+function EscolhaBadge({ escolha }: { escolha?: Record<string, any> | null }) {
+  if (!escolha || escolha.tipo === "indeciso") {
+    return <span className="text-xs text-muted-foreground">Sem escolha</span>;
+  }
+  if (escolha.tipo === "cupom") {
+    return <Badge variant="outline">Cupom</Badge>;
+  }
+  const tamanho = texto(escolha.tamanho);
+  const label = tamanho ? `Peça · ${tamanho}` : "Peça";
+  return <Badge variant="outline">{label}</Badge>;
+}
+
