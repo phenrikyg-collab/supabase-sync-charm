@@ -573,3 +573,25 @@ export function ChipStatus({ valor }: { valor?: string | null }) {
   if (!valor) return <span className="text-muted-foreground">{traco}</span>;
   return <Badge variant="secondary">{valor}</Badge>;
 }
+
+function DiferencaBadge({ sentido, valor }: { sentido?: string; valor?: string }) {
+  if (sentido === "cliente_paga") {
+    return (
+      <span className="inline-flex items-center rounded-full border border-warning/20 bg-warning/10 px-2.5 py-0.5 text-xs font-semibold text-warning">
+        Cliente paga {texto(valor)}
+      </span>
+    );
+  }
+  if (sentido === "sobra_credito") {
+    return (
+      <span className="inline-flex items-center rounded-full border border-info/20 bg-info/10 px-2.5 py-0.5 text-xs font-semibold text-info">
+        Sobra {texto(valor)} de crédito
+      </span>
+    );
+  }
+  return (
+    <span className="inline-flex items-center rounded-full border border-border bg-muted px-2.5 py-0.5 text-xs font-semibold text-muted-foreground">
+      Valor igual ao crédito
+    </span>
+  );
+}
