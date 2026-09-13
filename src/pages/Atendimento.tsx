@@ -650,13 +650,16 @@ export default function Atendimento() {
               const ativa = String(c.id) === selecionada;
               const prio = (c.prioridade ?? "").toLowerCase();
               const naoLida = !!c.nao_lida;
+              const atencao = atencaoDe(c);
+              const bordaAtencao = classeBordaNivel(atencao?.nivel);
               return (
                 <button
                   key={String(c.id)}
                   onClick={() => abrirConversa(c)}
                   className={cn(
                     "w-full text-left px-4 py-3 border-b border-border/60 border-l-4 transition-colors hover:bg-accent/60",
-                    prio === "alta" ? "border-l-danger" : prio === "media" ? "border-l-warning" : "border-l-transparent",
+                    bordaAtencao ??
+                      (prio === "alta" ? "border-l-danger" : prio === "media" ? "border-l-warning" : "border-l-transparent"),
                     ativa && "bg-accent",
                     naoLida && !ativa && "bg-primary/5",
                   )}
