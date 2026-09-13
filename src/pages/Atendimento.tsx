@@ -730,6 +730,7 @@ export default function Atendimento() {
                     <h2 className="font-medium truncate">{nomeConversa(conversaAtual)}</h2>
                     {nomeSoDoWhatsApp(conversaAtual) && <BadgeViaWhatsApp />}
                     <StatusPill status={conversaAtual.status} />
+                    {conversaAtual.status === "escalado" && <SeloFila conversaId={conversaAtual.id} />}
                     {ehSite(conversaAtual) && conversaAtual.telefone_real && (
                       <span className="inline-flex items-center gap-1 rounded-full border border-success/20 bg-success/10 px-2 py-0.5 text-[10px] text-success">
                         <Phone className="h-3 w-3" />
@@ -900,6 +901,13 @@ export default function Atendimento() {
                     <Button size="icon" variant="outline" onClick={() => fileRef.current?.click()} title="Enviar imagem">
                       <ImagePlus className="h-4 w-4" />
                     </Button>
+                    {!ehSite(conversaAtual) && (
+                      <SeletorFigurinhas
+                        telefone={telefoneIdentificado}
+                        conversaId={conversaAtual.id}
+                        onEnviada={invalidarThread}
+                      />
+                    )}
                     <Button size="sm" variant="outline" onClick={() => setCatalogoAberto(true)}>
                       <LayoutGrid className="h-4 w-4 mr-2" />
                       Catálogo
