@@ -680,6 +680,7 @@ export default function Atendimento() {
                           {nomeSoDoWhatsApp(c) && <BadgeViaWhatsApp />}
                         </p>
                         <p className="text-xs text-muted-foreground">{identificadorConversa(c)}</p>
+                        <ChipsMotivos motivos={atencao?.motivos} />
                         {site && c.telefone_real && (
                           <span className="mt-1 inline-flex items-center gap-1 rounded-full border border-success/20 bg-success/10 px-2 py-0.5 text-[10px] text-success">
                             <Phone className="h-3 w-3" />
