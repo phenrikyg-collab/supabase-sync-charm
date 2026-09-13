@@ -800,7 +800,9 @@ export default function Atendimento() {
                     const bot = saida && m.origem === "bot";
                     const tipo = (m.tipo ?? "").toLowerCase();
                     const sticker = tipo === "sticker" && !!m.media_url;
-                    const imagem = !sticker && !!m.media_url && ["imagem", "image", "photo", "foto"].includes(tipo);
+                    const midia = !!m.media_url;
+                    const mostrarTexto =
+                      !!m.conteudo && !sticker && !["video", "audio", "documento", "document", "arquivo"].includes(tipo);
                     return (
                       <div
                         key={m.id != null ? String(m.id) : `${m.criada_em ?? m.criado_em ?? ""}-${idx}`}
@@ -808,37 +810,25 @@ export default function Atendimento() {
                       >
                         <div
                           className={cn(
-                            "max-w-[70%] rounded-lg px-3 py-2 text-sm border",
-                            !saida && "bg-muted text-foreground border-border",
-                            saida && bot && "bg-info/10 text-foreground border-info/30",
-                            saida && !bot && "bg-primary/10 text-foreground border-primary/30",
+                            "max-w-[70%] text-sm",
+                            sticker
+                              ? "bg-transparent border-0 p-0"
+                              : cn(
+                                  "rounded-lg px-3 py-2 border",
+                                  !saida && "bg-muted text-foreground border-border",
+                                  saida && bot && "bg-info/10 text-foreground border-info/30",
+                                  saida && !bot && "bg-primary/10 text-foreground border-primary/30",
+                                ),
                           )}
                         >
-                          {saida && (
+                          {saida && !sticker && (
                             <div className="flex items-center gap-1 text-[10px] uppercase tracking-wider text-muted-foreground mb-1">
                               {bot ? <Bot className="h-3 w-3" /> : <User className="h-3 w-3" />}
                               {bot ? "Bot" : "Atendente"}
                             </div>
                           )}
-                          {imagem && (
-                            <a href={m.media_url!} target="_blank" rel="noreferrer">
-                              <img
-                                src={m.media_url!}
-                                alt={m.conteudo || "Imagem enviada"}
-                                className="rounded-md max-h-64 w-auto object-contain mb-1"
-                                loading="lazy"
-                              />
-                            </a>
-                          )}
-                          {sticker && (
-                            <img
-                              src={m.media_url!}
-                              alt="Sticker"
-                              className="mb-1 h-28 w-28 object-contain"
-                              loading="lazy"
-                            />
-                          )}
-                          {!!m.conteudo && <p className="whitespace-pre-wrap break-words">{m.conteudo}</p>}
+                          {midia && <MensagemMidia tipo={m.tipo} mediaUrl={m.media_url} conteudo={m.conteudo} />}
+                          {mostrarTexto && <p className="whitespace-pre-wrap break-words">{m.conteudo}</p>}
                           <div className="flex items-center justify-end gap-1 mt-1">
                             <span className="text-[10px] text-muted-foreground">
                               {horaCurta(m.criada_em ?? m.criado_em ?? m.enviado_em)}
