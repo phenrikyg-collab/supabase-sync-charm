@@ -30,6 +30,10 @@ import { ProporCarrinhoDialog, PropostaDaConversa } from "@/components/atendimen
 import { EnviarTemplateDialog } from "@/components/atendimento/EnviarTemplate";
 
 import { ConsultarTransacaoTab } from "@/components/atendimento/ConsultarTransacao";
+import { MensagemMidia } from "@/components/atendimento/MensagemMidia";
+import { SeletorFigurinhas } from "@/components/atendimento/SeletorFigurinhas";
+import { AbandonadasTab } from "@/components/atendimento/AbandonadasTab";
+import { useConversasAtencao, classeBordaNivel, ChipsMotivos, SeloFila } from "@/components/atendimento/atencao";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 
@@ -180,7 +184,7 @@ export default function Atendimento() {
   const [selecionada, setSelecionada] = useState<string | null>(null);
   const [busca, setBusca] = useState("");
   const [aba, setAba] = useState<"whatsapp" | "site">("whatsapp");
-  const [abaPagina, setAbaPagina] = useState<"conversas" | "cobrancas" | "consulta">("conversas");
+  const [abaPagina, setAbaPagina] = useState<"conversas" | "cobrancas" | "consulta" | "abandonadas">("conversas");
   const [cobrancaAberta, setCobrancaAberta] = useState(false);
   const [linkPagamentoAberto, setLinkPagamentoAberto] = useState(false);
   const [freteAberto, setFreteAberto] = useState(false);
@@ -190,7 +194,7 @@ export default function Atendimento() {
 
 
 
-  const [filtroLeitura, setFiltroLeitura] = useState<"todas" | "nao_lidas" | "lidas">("todas");
+  const [filtroLeitura, setFiltroLeitura] = useState<"todas" | "nao_lidas" | "lidas" | "atencao">("todas");
   const [tagsFiltro, setTagsFiltro] = useState<string[]>([]);
   const [erroJanela, setErroJanela] = useState<string | null>(null);
   const [texto, setTexto] = useState("");
@@ -218,6 +222,8 @@ export default function Atendimento() {
   });
 
   const conversaAtual = conversas.find((c) => String(c.id) === selecionada) ?? null;
+
+  const { mapaAtencao } = useConversasAtencao();
 
   // Deep link: /atendimento?telefone=5511...
   useEffect(() => {
@@ -468,24 +474,32 @@ export default function Atendimento() {
 
   const daAba = (c: Conversa) => (ehSite(c) ? "site" : "whatsapp") === aba;
 
-  const filtradas = conversas.filter((c) => {
-    if (!daAba(c)) return false;
-    if (filtroLeitura === "nao_lidas" && !c.nao_lida) return false;
-    if (filtroLeitura === "lidas" && c.nao_lida) return false;
-    if (tagsFiltro.length > 0) {
-      const ids = (c.tags ?? []).map((t) => String(t.id));
-      if (!tagsFiltro.some((t) => ids.includes(t))) return false;
-    }
-    if (!busca.trim()) return true;
-    const t = busca.toLowerCase();
-    const nome = nomeConversa(c).toLowerCase();
-    const tel = ehSite(c) ? (c.telefone_real ?? "") : (c.telefone ?? "");
-    return nome.includes(t) || tel.toLowerCase().includes(t);
-  });
+  const atencaoDe = (c: Conversa) => mapaAtencao.get(String(c.id));
+  const nivelDe = (c: Conversa) => (atencaoDe(c)?.nivel ?? "normal").toLowerCase();
+  const scoreDe = (c: Conversa) => Number(atencaoDe(c)?.score ?? 0);
+
+  const filtradas = conversas
+    .filter((c) => {
+      if (!daAba(c)) return false;
+      if (filtroLeitura === "nao_lidas" && !c.nao_lida) return false;
+      if (filtroLeitura === "lidas" && c.nao_lida) return false;
+      if (filtroLeitura === "atencao" && nivelDe(c) === "normal") return false;
+      if (tagsFiltro.length > 0) {
+        const ids = (c.tags ?? []).map((t) => String(t.id));
+        if (!tagsFiltro.some((t) => ids.includes(t))) return false;
+      }
+      if (!busca.trim()) return true;
+      const t = busca.toLowerCase();
+      const nome = nomeConversa(c).toLowerCase();
+      const tel = ehSite(c) ? (c.telefone_real ?? "") : (c.telefone ?? "");
+      return nome.includes(t) || tel.toLowerCase().includes(t);
+    })
+    .sort((a, b) => scoreDe(b) - scoreDe(a));
 
   const naoLidasWhatsapp = conversas.filter((c) => c.nao_lida && !ehSite(c)).length;
   const naoLidasSite = conversas.filter((c) => c.nao_lida && ehSite(c)).length;
   const totalNaoLidas = aba === "site" ? naoLidasSite : naoLidasWhatsapp;
+  const totalAtencao = conversas.filter((c) => daAba(c) && nivelDe(c) !== "normal").length;
 
   const telefoneIdentificado = conversaAtual
     ? (ehSite(conversaAtual) ? conversaAtual.telefone_real : conversaAtual.telefone) || null
@@ -504,12 +518,18 @@ export default function Atendimento() {
         </p>
       </div>
 
-      <Tabs value={abaPagina} onValueChange={(v) => setAbaPagina(v as "conversas" | "cobrancas" | "consulta")}>
+      <Tabs value={abaPagina} onValueChange={(v) => setAbaPagina(v as typeof abaPagina)}>
         <TabsList>
           <TabsTrigger value="conversas">Conversas</TabsTrigger>
+          <TabsTrigger value="abandonadas">Abandonadas</TabsTrigger>
           <TabsTrigger value="cobrancas">Cobranças</TabsTrigger>
           <TabsTrigger value="consulta">Consultar Transação</TabsTrigger>
         </TabsList>
+
+        <TabsContent value="abandonadas" className="mt-4">
+          <AbandonadasTab />
+        </TabsContent>
+
 
         <TabsContent value="cobrancas" className="mt-4 space-y-4">
           <LinkPagamentoCard />
@@ -567,6 +587,7 @@ export default function Atendimento() {
                 { v: "todas", label: "Todas" },
                 { v: "nao_lidas", label: `Não lidas${totalNaoLidas ? ` (${totalNaoLidas})` : ""}` },
                 { v: "lidas", label: "Lidas" },
+                { v: "atencao", label: `Precisam de atenção${totalAtencao ? ` (${totalAtencao})` : ""}` },
               ] as const).map((f) => (
                 <Button
                   key={f.v}
@@ -629,13 +650,16 @@ export default function Atendimento() {
               const ativa = String(c.id) === selecionada;
               const prio = (c.prioridade ?? "").toLowerCase();
               const naoLida = !!c.nao_lida;
+              const atencao = atencaoDe(c);
+              const bordaAtencao = classeBordaNivel(atencao?.nivel);
               return (
                 <button
                   key={String(c.id)}
                   onClick={() => abrirConversa(c)}
                   className={cn(
                     "w-full text-left px-4 py-3 border-b border-border/60 border-l-4 transition-colors hover:bg-accent/60",
-                    prio === "alta" ? "border-l-danger" : prio === "media" ? "border-l-warning" : "border-l-transparent",
+                    bordaAtencao ??
+                      (prio === "alta" ? "border-l-danger" : prio === "media" ? "border-l-warning" : "border-l-transparent"),
                     ativa && "bg-accent",
                     naoLida && !ativa && "bg-primary/5",
                   )}
@@ -656,6 +680,7 @@ export default function Atendimento() {
                           {nomeSoDoWhatsApp(c) && <BadgeViaWhatsApp />}
                         </p>
                         <p className="text-xs text-muted-foreground">{identificadorConversa(c)}</p>
+                        <ChipsMotivos motivos={atencao?.motivos} />
                         {site && c.telefone_real && (
                           <span className="mt-1 inline-flex items-center gap-1 rounded-full border border-success/20 bg-success/10 px-2 py-0.5 text-[10px] text-success">
                             <Phone className="h-3 w-3" />
@@ -705,6 +730,7 @@ export default function Atendimento() {
                     <h2 className="font-medium truncate">{nomeConversa(conversaAtual)}</h2>
                     {nomeSoDoWhatsApp(conversaAtual) && <BadgeViaWhatsApp />}
                     <StatusPill status={conversaAtual.status} />
+                    {conversaAtual.status === "escalado" && <SeloFila conversaId={conversaAtual.id} />}
                     {ehSite(conversaAtual) && conversaAtual.telefone_real && (
                       <span className="inline-flex items-center gap-1 rounded-full border border-success/20 bg-success/10 px-2 py-0.5 text-[10px] text-success">
                         <Phone className="h-3 w-3" />
@@ -775,7 +801,9 @@ export default function Atendimento() {
                     const bot = saida && m.origem === "bot";
                     const tipo = (m.tipo ?? "").toLowerCase();
                     const sticker = tipo === "sticker" && !!m.media_url;
-                    const imagem = !sticker && !!m.media_url && ["imagem", "image", "photo", "foto"].includes(tipo);
+                    const midia = !!m.media_url;
+                    const mostrarTexto =
+                      !!m.conteudo && !sticker && !["video", "audio", "documento", "document", "arquivo"].includes(tipo);
                     return (
                       <div
                         key={m.id != null ? String(m.id) : `${m.criada_em ?? m.criado_em ?? ""}-${idx}`}
@@ -783,37 +811,25 @@ export default function Atendimento() {
                       >
                         <div
                           className={cn(
-                            "max-w-[70%] rounded-lg px-3 py-2 text-sm border",
-                            !saida && "bg-muted text-foreground border-border",
-                            saida && bot && "bg-info/10 text-foreground border-info/30",
-                            saida && !bot && "bg-primary/10 text-foreground border-primary/30",
+                            "max-w-[70%] text-sm",
+                            sticker
+                              ? "bg-transparent border-0 p-0"
+                              : cn(
+                                  "rounded-lg px-3 py-2 border",
+                                  !saida && "bg-muted text-foreground border-border",
+                                  saida && bot && "bg-info/10 text-foreground border-info/30",
+                                  saida && !bot && "bg-primary/10 text-foreground border-primary/30",
+                                ),
                           )}
                         >
-                          {saida && (
+                          {saida && !sticker && (
                             <div className="flex items-center gap-1 text-[10px] uppercase tracking-wider text-muted-foreground mb-1">
                               {bot ? <Bot className="h-3 w-3" /> : <User className="h-3 w-3" />}
                               {bot ? "Bot" : "Atendente"}
                             </div>
                           )}
-                          {imagem && (
-                            <a href={m.media_url!} target="_blank" rel="noreferrer">
-                              <img
-                                src={m.media_url!}
-                                alt={m.conteudo || "Imagem enviada"}
-                                className="rounded-md max-h-64 w-auto object-contain mb-1"
-                                loading="lazy"
-                              />
-                            </a>
-                          )}
-                          {sticker && (
-                            <img
-                              src={m.media_url!}
-                              alt="Sticker"
-                              className="mb-1 h-28 w-28 object-contain"
-                              loading="lazy"
-                            />
-                          )}
-                          {!!m.conteudo && <p className="whitespace-pre-wrap break-words">{m.conteudo}</p>}
+                          {midia && <MensagemMidia tipo={m.tipo} mediaUrl={m.media_url} conteudo={m.conteudo} />}
+                          {mostrarTexto && <p className="whitespace-pre-wrap break-words">{m.conteudo}</p>}
                           <div className="flex items-center justify-end gap-1 mt-1">
                             <span className="text-[10px] text-muted-foreground">
                               {horaCurta(m.criada_em ?? m.criado_em ?? m.enviado_em)}
@@ -885,6 +901,13 @@ export default function Atendimento() {
                     <Button size="icon" variant="outline" onClick={() => fileRef.current?.click()} title="Enviar imagem">
                       <ImagePlus className="h-4 w-4" />
                     </Button>
+                    {!ehSite(conversaAtual) && (
+                      <SeletorFigurinhas
+                        telefone={telefoneIdentificado}
+                        conversaId={conversaAtual.id}
+                        onEnviada={invalidarThread}
+                      />
+                    )}
                     <Button size="sm" variant="outline" onClick={() => setCatalogoAberto(true)}>
                       <LayoutGrid className="h-4 w-4 mr-2" />
                       Catálogo
