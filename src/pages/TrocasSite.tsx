@@ -286,3 +286,16 @@ export default function TrocasSite() {
     </div>
   );
 }
+
+function EscolhaBadge({ escolha }: { escolha?: Record<string, any> | null }) {
+  if (!escolha || escolha.tipo === "indeciso") {
+    return <span className="text-xs text-muted-foreground">Sem escolha</span>;
+  }
+  if (escolha.tipo === "cupom") {
+    return <Badge variant="outline">Cupom</Badge>;
+  }
+  const tamanho = texto(escolha.tamanho);
+  const label = tamanho ? `Peça · ${tamanho}` : "Peça";
+  return <Badge variant="outline">{label}</Badge>;
+}
+
