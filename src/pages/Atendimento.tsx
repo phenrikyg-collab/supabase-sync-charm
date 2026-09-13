@@ -184,7 +184,7 @@ export default function Atendimento() {
   const [selecionada, setSelecionada] = useState<string | null>(null);
   const [busca, setBusca] = useState("");
   const [aba, setAba] = useState<"whatsapp" | "site">("whatsapp");
-  const [abaPagina, setAbaPagina] = useState<"conversas" | "cobrancas" | "consulta">("conversas");
+  const [abaPagina, setAbaPagina] = useState<"conversas" | "cobrancas" | "consulta" | "abandonadas">("conversas");
   const [cobrancaAberta, setCobrancaAberta] = useState(false);
   const [linkPagamentoAberto, setLinkPagamentoAberto] = useState(false);
   const [freteAberto, setFreteAberto] = useState(false);
@@ -194,7 +194,7 @@ export default function Atendimento() {
 
 
 
-  const [filtroLeitura, setFiltroLeitura] = useState<"todas" | "nao_lidas" | "lidas">("todas");
+  const [filtroLeitura, setFiltroLeitura] = useState<"todas" | "nao_lidas" | "lidas" | "atencao">("todas");
   const [tagsFiltro, setTagsFiltro] = useState<string[]>([]);
   const [erroJanela, setErroJanela] = useState<string | null>(null);
   const [texto, setTexto] = useState("");
@@ -222,6 +222,8 @@ export default function Atendimento() {
   });
 
   const conversaAtual = conversas.find((c) => String(c.id) === selecionada) ?? null;
+
+  const { mapaAtencao } = useConversasAtencao();
 
   // Deep link: /atendimento?telefone=5511...
   useEffect(() => {
