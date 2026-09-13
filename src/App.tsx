@@ -97,6 +97,7 @@ import PedidosCancelados from "./pages/PedidosCancelados";
 import Rastreamento from "./pages/Rastreamento";
 import KpisConversao from "./pages/KpisConversao";
 import FunilWhatsApp from "./pages/FunilWhatsApp";
+import FunilKanban from "./pages/FunilKanban";
 import ProvadorVirtual from "./pages/ProvadorVirtual";
 import Provador from "./pages/Provador";
 import Cupons from "./pages/Cupons";
@@ -297,6 +298,7 @@ const AppRoutes = () => {
               <Route path="/pedidos-cancelados" element={<PedidosCancelados />} />
               <Route path="/rastreamento" element={<Rastreamento />} />
               <Route path="/funil-whatsapp" element={<FunilWhatsApp />} />
+              <Route path="/funil-kanban" element={<FunilKanban />} />
               <Route path="/kpis-conversao" element={<KpisConversao />} />
               <Route path="/provador-virtual" element={<ProvadorVirtual />} />
               <Route path="/provador" element={<Provador />} />
