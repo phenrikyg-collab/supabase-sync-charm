@@ -474,24 +474,32 @@ export default function Atendimento() {
 
   const daAba = (c: Conversa) => (ehSite(c) ? "site" : "whatsapp") === aba;
 
-  const filtradas = conversas.filter((c) => {
-    if (!daAba(c)) return false;
-    if (filtroLeitura === "nao_lidas" && !c.nao_lida) return false;
-    if (filtroLeitura === "lidas" && c.nao_lida) return false;
-    if (tagsFiltro.length > 0) {
-      const ids = (c.tags ?? []).map((t) => String(t.id));
-      if (!tagsFiltro.some((t) => ids.includes(t))) return false;
-    }
-    if (!busca.trim()) return true;
-    const t = busca.toLowerCase();
-    const nome = nomeConversa(c).toLowerCase();
-    const tel = ehSite(c) ? (c.telefone_real ?? "") : (c.telefone ?? "");
-    return nome.includes(t) || tel.toLowerCase().includes(t);
-  });
+  const atencaoDe = (c: Conversa) => mapaAtencao.get(String(c.id));
+  const nivelDe = (c: Conversa) => (atencaoDe(c)?.nivel ?? "normal").toLowerCase();
+  const scoreDe = (c: Conversa) => Number(atencaoDe(c)?.score ?? 0);
+
+  const filtradas = conversas
+    .filter((c) => {
+      if (!daAba(c)) return false;
+      if (filtroLeitura === "nao_lidas" && !c.nao_lida) return false;
+      if (filtroLeitura === "lidas" && c.nao_lida) return false;
+      if (filtroLeitura === "atencao" && nivelDe(c) === "normal") return false;
+      if (tagsFiltro.length > 0) {
+        const ids = (c.tags ?? []).map((t) => String(t.id));
+        if (!tagsFiltro.some((t) => ids.includes(t))) return false;
+      }
+      if (!busca.trim()) return true;
+      const t = busca.toLowerCase();
+      const nome = nomeConversa(c).toLowerCase();
+      const tel = ehSite(c) ? (c.telefone_real ?? "") : (c.telefone ?? "");
+      return nome.includes(t) || tel.toLowerCase().includes(t);
+    })
+    .sort((a, b) => scoreDe(b) - scoreDe(a));
 
   const naoLidasWhatsapp = conversas.filter((c) => c.nao_lida && !ehSite(c)).length;
   const naoLidasSite = conversas.filter((c) => c.nao_lida && ehSite(c)).length;
   const totalNaoLidas = aba === "site" ? naoLidasSite : naoLidasWhatsapp;
+  const totalAtencao = conversas.filter((c) => daAba(c) && nivelDe(c) !== "normal").length;
 
   const telefoneIdentificado = conversaAtual
     ? (ehSite(conversaAtual) ? conversaAtual.telefone_real : conversaAtual.telefone) || null
