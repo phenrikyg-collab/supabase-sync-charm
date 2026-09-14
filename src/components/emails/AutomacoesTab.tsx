@@ -112,13 +112,9 @@ function PainelConfig({
           ))}
 
           <div className="space-y-1.5 border-t pt-4">
-            <div className="flex items-center gap-2">
-              <p className="text-sm font-medium">Template</p>
-              <Badge variant="outline" className="text-[10px]">em breve</Badge>
-            </div>
+            <p className="text-sm font-medium">Template</p>
             <p className="text-xs text-muted-foreground">
-              O conteúdo deste e-mail ainda é montado em código, porque depende das peças que a cliente viu. A escolha
-              fica gravada e passa a valer quando o motor aprender a ler o template.
+              O motor usa este template para montar o e-mail desta automação.
             </p>
             <Select value={templateId} onValueChange={setTemplateId}>
               <SelectTrigger><SelectValue placeholder="Selecione um template" /></SelectTrigger>
@@ -129,6 +125,7 @@ function PainelConfig({
               </SelectContent>
             </Select>
           </div>
+
 
           <Button className="w-full" onClick={() => salvar.mutate()} disabled={salvar.isPending}>
             Salvar configuração
@@ -142,7 +139,7 @@ function PainelConfig({
   );
 }
 
-export function AutomacoesTab() {
+export function AutomacoesTab({ onAbrirTemplate }: { onAbrirTemplate?: (slug: string) => void } = {}) {
   const queryClient = useQueryClient();
   const [configurando, setConfigurando] = useState<any | null>(null);
   const [confirmarDesligar, setConfirmarDesligar] = useState<any | null>(null);
@@ -151,6 +148,12 @@ export function AutomacoesTab() {
     queryKey: ["emails-automacoes"],
     queryFn: async () => (await rpcEmails<any>("emails_automacoes_listar")) ?? [],
   });
+
+  const { data: config } = useQuery({
+    queryKey: ["emails-config"],
+    queryFn: () => rpcEmails<any>("emails_config_get"),
+  });
+  const varreduraPausada = config ? !config.envio_ativo : false;
 
   const alternar = useMutation({
     mutationFn: ({ slug, ativo }: { slug: string; ativo: boolean }) =>
@@ -165,6 +168,12 @@ export function AutomacoesTab() {
 
   return (
     <div className="space-y-4">
+      {varreduraPausada && (
+        <Card className="bg-muted/50 p-3 text-sm text-muted-foreground">
+          Varredura pausada. As automações voltam a detectar quando o envio for ligado.
+        </Card>
+      )}
+
       {isLoading && <p className="text-sm text-muted-foreground">Carregando automações…</p>}
       {!isLoading && lista.length === 0 && (
         <Card className="p-6 text-sm text-muted-foreground">Nenhuma automação cadastrada ainda.</Card>
@@ -174,7 +183,9 @@ export function AutomacoesTab() {
         {lista.map((a: any) => {
           const badge = estadoBadge(a);
           const h = horasDesde(a.ultima_execucao);
-          const atrasada = a.ativo && h != null && h > 2;
+          const atrasada = !varreduraPausada && a.ativo && h != null && h > 2;
+          const templateSlug = a.template_slug ?? a.template?.slug;
+          const templateNome = a.template_nome ?? a.template?.nome;
           return (
             <Card key={a.slug} className="space-y-4 p-5">
               <div className="flex items-start justify-between gap-3">
@@ -193,6 +204,21 @@ export function AutomacoesTab() {
                   }}
                 />
               </div>
+
+              <p className="text-xs text-muted-foreground">
+                Template em uso:{" "}
+                {templateNome ? (
+                  <button
+                    type="button"
+                    className="font-medium text-primary underline-offset-2 hover:underline"
+                    onClick={() => templateSlug && onAbrirTemplate?.(templateSlug)}
+                  >
+                    {templateNome}
+                  </button>
+                ) : (
+                  "sem template escolhido"
+                )}
+              </p>
 
               <div className="grid grid-cols-4 gap-2 text-center">
                 {[
@@ -221,6 +247,7 @@ export function AutomacoesTab() {
           );
         })}
       </div>
+
 
       <PainelConfig automacao={configurando} aberto={!!configurando} onFechar={() => setConfigurando(null)} />
 

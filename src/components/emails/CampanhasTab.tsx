@@ -13,9 +13,11 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import { toast } from "@/hooks/use-toast";
-import { ArrowLeft, Loader2, Monitor, Plus, Smartphone } from "lucide-react";
+import { ArrowLeft, Loader2, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { brl, inteiro, pct1, rpcEmails } from "@/lib/emails";
+import { ControlesPrevia, IframePrevia, usePreviaTemplate } from "./PreviaTemplate";
+
 
 const CLASSE_STATUS: Record<string, string> = {
   rascunho: "bg-muted text-muted-foreground",
@@ -58,7 +60,7 @@ function NovaCampanha({ aberto, onFechar }: { aberto: boolean; onFechar: () => v
   });
 
   const templateEscolhido = (templates as any[]).find((t: any) => String(t.id) === templateId);
-  const htmlPreview = html.trim() || templateEscolhido?.html || templateEscolhido?.html_renderizado || "";
+  const { data: previa } = usePreviaTemplate(templateEscolhido?.slug);
 
   const bloqueados =
     simulacao?.bloqueados_teto ??
@@ -66,11 +68,17 @@ function NovaCampanha({ aberto, onFechar }: { aberto: boolean; onFechar: () => v
 
   const preparar = useMutation({
     mutationFn: async () => {
+      let idTemplate = templateId ? Number(templateId) : null;
+      if (!idTemplate && html.trim()) {
+        const novoTemplate = await rpcEmails<any>("emails_template_salvar", {
+          p_patch: { nome: `${nome} (template da campanha)`, tipo: "campanha", assunto, preheader, html: html.trim() },
+        });
+        idTemplate = Number(novoTemplate?.id ?? novoTemplate);
+      }
       const salvo = await rpcEmails<any>("emails_campanha_salvar", {
         p_patch: {
           nome, assunto, preheader,
-          template_id: templateId ? Number(templateId) : null,
-          html: html.trim() || null,
+          template_id: idTemplate,
           segmento_slug: segmento,
         },
       });
@@ -80,6 +88,7 @@ function NovaCampanha({ aberto, onFechar }: { aberto: boolean; onFechar: () => v
     onSuccess: () => {
       toast({ title: "Campanha preparada", description: "Ela entrou na fila e o motor envia dentro da janela de horário." });
       queryClient.invalidateQueries({ queryKey: ["emails-painel-resumo"] });
+      queryClient.invalidateQueries({ queryKey: ["emails-templates"] });
       onFechar();
       setPasso(1);
     },
@@ -88,6 +97,7 @@ function NovaCampanha({ aberto, onFechar }: { aberto: boolean; onFechar: () => v
 
   const podeAvancar =
     passo === 1 ? !!nome.trim() && !!assunto.trim() && (!!templateId || !!html.trim()) : passo === 2 ? !!segmento : true;
+
 
   return (
     <Dialog open={aberto} onOpenChange={(v) => !v && onFechar()}>
@@ -121,34 +131,31 @@ function NovaCampanha({ aberto, onFechar }: { aberto: boolean; onFechar: () => v
                     ))}
                   </SelectContent>
                 </Select>
+                <p className="text-xs text-muted-foreground">
+                  A campanha aponta para o template. Editar o template muda o que ainda não foi enviado.
+                </p>
               </div>
               <div className="space-y-1.5">
                 <label className="text-sm font-medium">Ou cole o HTML</label>
                 <Textarea rows={6} className="font-mono text-xs" value={html} onChange={(e) => setHtml(e.target.value)} />
+                <p className="text-xs text-muted-foreground">
+                  O HTML colado vira um template novo do tipo campanha, e a campanha aponta para ele.
+                </p>
               </div>
             </div>
             <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <p className="text-sm font-medium">Prévia</p>
-                <div className="flex gap-1">
-                  <Button size="sm" variant={mobile ? "outline" : "secondary"} onClick={() => setMobile(false)}>
-                    <Monitor className="h-3.5 w-3.5" />
-                  </Button>
-                  <Button size="sm" variant={mobile ? "secondary" : "outline"} onClick={() => setMobile(true)}>
-                    <Smartphone className="h-3.5 w-3.5" />
-                  </Button>
-                </div>
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="text-sm font-medium">Prévia renderizada</p>
+                <ControlesPrevia mobile={mobile} onMobile={setMobile} />
               </div>
-              <div className="rounded-lg border bg-muted/40 p-2">
-                <iframe
-                  title="Prévia da campanha"
-                  sandbox=""
-                  srcDoc={htmlPreview || "<p style='font-family:sans-serif;color:#888'>Escolha um template ou cole um HTML.</p>"}
-                  className="mx-auto h-[420px] w-full rounded bg-white"
-                  style={mobile ? { width: 400 } : undefined}
-                />
-              </div>
+              <IframePrevia
+                titulo="Prévia da campanha"
+                mobile={mobile}
+                altura={420}
+                html={previa?.html}
+              />
             </div>
+
           </div>
         )}
 

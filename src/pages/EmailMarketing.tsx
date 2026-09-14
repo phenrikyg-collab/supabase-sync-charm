@@ -12,6 +12,8 @@ const PERIODOS = [7, 30, 90];
 export default function EmailMarketing() {
   const [aba, setAba] = useState("visao-geral");
   const [dias, setDias] = useState(30);
+  const [slugTemplate, setSlugTemplate] = useState<string | null>(null);
+
 
   return (
     <div className="space-y-6 p-6">
@@ -31,7 +33,7 @@ export default function EmailMarketing() {
         </div>
       </div>
 
-      <Tabs value={aba} onValueChange={setAba}>
+      <Tabs value={aba} onValueChange={(v) => { setAba(v); if (v !== "templates") setSlugTemplate(null); }}>
         <TabsList className="flex-wrap">
           <TabsTrigger value="visao-geral">Visão geral</TabsTrigger>
           <TabsTrigger value="automacoes">Automações</TabsTrigger>
@@ -43,11 +45,14 @@ export default function EmailMarketing() {
         <TabsContent value="visao-geral" className="mt-6">
           <VisaoGeralTab dias={dias} onAbrirCampanha={() => setAba("campanhas")} />
         </TabsContent>
-        <TabsContent value="automacoes" className="mt-6"><AutomacoesTab /></TabsContent>
+        <TabsContent value="automacoes" className="mt-6">
+          <AutomacoesTab onAbrirTemplate={(slug) => { setSlugTemplate(slug); setAba("templates"); }} />
+        </TabsContent>
         <TabsContent value="campanhas" className="mt-6"><CampanhasTab dias={dias} /></TabsContent>
-        <TabsContent value="templates" className="mt-6"><TemplatesTab /></TabsContent>
+        <TabsContent value="templates" className="mt-6"><TemplatesTab slugInicial={slugTemplate} /></TabsContent>
         <TabsContent value="base" className="mt-6"><BaseSaudeTab dias={dias} /></TabsContent>
       </Tabs>
+
     </div>
   );
 }

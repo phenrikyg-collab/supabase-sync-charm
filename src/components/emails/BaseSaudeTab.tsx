@@ -225,8 +225,12 @@ export function BaseSaudeTab({ dias }: { dias: number }) {
                 <p className="text-xs text-muted-foreground">Nenhum endereço de teste cadastrado.</p>
               )}
             </div>
+            <p className="text-xs text-muted-foreground">
+              Em modo teste todo e-mail vai para estes endereços, e o assunto ganha o prefixo [TESTE endereço-real].
+            </p>
           </div>
         )}
+
       </Card>
 
       {/* Bloco 4 */}
