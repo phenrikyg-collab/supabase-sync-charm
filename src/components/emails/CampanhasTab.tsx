@@ -13,9 +13,11 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import { toast } from "@/hooks/use-toast";
-import { ArrowLeft, Loader2, Monitor, Plus, Smartphone } from "lucide-react";
+import { ArrowLeft, Loader2, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { brl, inteiro, pct1, rpcEmails } from "@/lib/emails";
+import { ControlesPrevia, IframePrevia, usePreviaTemplate } from "./PreviaTemplate";
+
 
 const CLASSE_STATUS: Record<string, string> = {
   rascunho: "bg-muted text-muted-foreground",
@@ -58,7 +60,7 @@ function NovaCampanha({ aberto, onFechar }: { aberto: boolean; onFechar: () => v
   });
 
   const templateEscolhido = (templates as any[]).find((t: any) => String(t.id) === templateId);
-  const htmlPreview = html.trim() || templateEscolhido?.html || templateEscolhido?.html_renderizado || "";
+  const { data: previa } = usePreviaTemplate(templateEscolhido?.slug);
 
   const bloqueados =
     simulacao?.bloqueados_teto ??
@@ -66,11 +68,17 @@ function NovaCampanha({ aberto, onFechar }: { aberto: boolean; onFechar: () => v
 
   const preparar = useMutation({
     mutationFn: async () => {
+      let idTemplate = templateId ? Number(templateId) : null;
+      if (!idTemplate && html.trim()) {
+        const novoTemplate = await rpcEmails<any>("emails_template_salvar", {
+          p_patch: { nome: `${nome} (template da campanha)`, tipo: "campanha", assunto, preheader, html: html.trim() },
+        });
+        idTemplate = Number(novoTemplate?.id ?? novoTemplate);
+      }
       const salvo = await rpcEmails<any>("emails_campanha_salvar", {
         p_patch: {
           nome, assunto, preheader,
-          template_id: templateId ? Number(templateId) : null,
-          html: html.trim() || null,
+          template_id: idTemplate,
           segmento_slug: segmento,
         },
       });
@@ -80,6 +88,7 @@ function NovaCampanha({ aberto, onFechar }: { aberto: boolean; onFechar: () => v
     onSuccess: () => {
       toast({ title: "Campanha preparada", description: "Ela entrou na fila e o motor envia dentro da janela de horário." });
       queryClient.invalidateQueries({ queryKey: ["emails-painel-resumo"] });
+      queryClient.invalidateQueries({ queryKey: ["emails-templates"] });
       onFechar();
       setPasso(1);
     },
@@ -88,6 +97,7 @@ function NovaCampanha({ aberto, onFechar }: { aberto: boolean; onFechar: () => v
 
   const podeAvancar =
     passo === 1 ? !!nome.trim() && !!assunto.trim() && (!!templateId || !!html.trim()) : passo === 2 ? !!segmento : true;
+
 
   return (
     <Dialog open={aberto} onOpenChange={(v) => !v && onFechar()}>
