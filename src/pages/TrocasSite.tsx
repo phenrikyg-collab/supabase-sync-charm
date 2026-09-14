@@ -10,13 +10,16 @@ import { useUserRole } from "@/hooks/useUserRole";
 import { PainelSolicitacao } from "@/components/reversa/PainelSolicitacao";
 import { AbrirSolicitacaoDialog } from "@/components/reversa/AbrirSolicitacaoDialog";
 import { PoliticaReversa } from "@/components/reversa/PoliticaReversa";
+import { CartaoGrupoCliente } from "@/components/reversa/CartaoGrupoCliente";
 import {
   ALERTAS,
   codigoVencendo,
   formatarData,
+  painelGrupos,
   painelLista,
   texto,
   traco,
+  type GrupoCliente,
   type LinhaFila,
   type RespostaLista,
 } from "@/lib/reversaPainel";
