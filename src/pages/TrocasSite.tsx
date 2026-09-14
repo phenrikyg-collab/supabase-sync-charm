@@ -11,6 +11,7 @@ import { PainelSolicitacao } from "@/components/reversa/PainelSolicitacao";
 import { AbrirSolicitacaoDialog } from "@/components/reversa/AbrirSolicitacaoDialog";
 import { PoliticaReversa } from "@/components/reversa/PoliticaReversa";
 import { CartaoGrupoCliente } from "@/components/reversa/CartaoGrupoCliente";
+import { PecasRetornoTab } from "@/components/reversa/PecasRetornoTab";
 import {
   ALERTAS,
   codigoVencendo,
