@@ -55,7 +55,51 @@ type Conversa = {
   prioridade?: string | null;
   tags?: Tag[] | null;
   nao_lida?: boolean | null;
+  urgencia?: "perdendo" | "quente" | "atencao" | "normal" | string | null;
+  sinais?: string[] | null;
+  ordem?: number | null;
+  aguardando_resposta?: boolean | null;
+  pix_aberto_valor?: number | null;
+  link_pendente?: boolean | null;
 };
+
+type Urgencia = "perdendo" | "quente" | "atencao" | "normal";
+
+const urgenciaDe = (c: Conversa): Urgencia => {
+  const u = (c.urgencia ?? "normal").toLowerCase();
+  return u === "perdendo" || u === "quente" || u === "atencao" ? u : "normal";
+};
+
+const URGENCIA_ESTILO: Record<Exclude<Urgencia, "normal">, { borda: string; badgeFundo: string; badgeTexto: string }> = {
+  perdendo: { borda: "#EF4444", badgeFundo: "#FEE2E2", badgeTexto: "#991B1B" },
+  quente: { borda: "#F59E0B", badgeFundo: "#FEF3C7", badgeTexto: "#92400E" },
+  atencao: { borda: "#E8CD7E", badgeFundo: "#F5F5F5", badgeTexto: "#8B6914" },
+};
+
+function BadgeSinal({ conversa }: { conversa: Conversa }) {
+  const sinais = conversa.sinais ?? [];
+  if (sinais.length === 0) return null;
+  const urg = urgenciaDe(conversa);
+  if (urg === "normal") return null;
+  const estilo = URGENCIA_ESTILO[urg];
+  const primeiro = sinais[0];
+  const demais = sinais.slice(1);
+  return (
+    <span className="mt-1 inline-flex items-center gap-1.5">
+      {urg === "quente" && primeiro === "respondendo agora" && (
+        <span className="h-1.5 w-1.5 rounded-full animate-pulse" style={{ backgroundColor: "#F59E0B" }} />
+      )}
+      <span
+        className="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold whitespace-nowrap"
+        style={{ backgroundColor: estilo.badgeFundo, color: estilo.badgeTexto }}
+        title={demais.length > 0 ? demais.join("\n") : undefined}
+      >
+        {primeiro}
+        {demais.length > 0 ? ` +${demais.length}` : ""}
+      </span>
+    </span>
+  );
+}
 
 const ehSite = (c?: Conversa | null) =>
   (c?.canal ?? "").toLowerCase() === "site" || String(c?.telefone ?? "").startsWith("site:");
@@ -211,14 +255,17 @@ export default function Atendimento() {
   const { data: conversas = [], isLoading: carregandoConversas } = useQuery({
     queryKey: ["whatsapp-conversas"],
     queryFn: async () => {
-      const { data, error } = await supabase.rpc("whatsapp_listar_conversas" as any);
+      // vw_conversas_painel já vem ordenada por urgência: renderizar na ordem exata do banco
+      const { data, error } = await supabase.from("vw_conversas_painel" as any).select("*");
       if (error) throw error;
       return ((data ?? []) as any[]).map((c) => ({
         ...c,
-        id: c.id ?? c.conversa_id,
+        id: c.conversa_id ?? c.id,
+        cliente_nome: c.cliente_nome ?? c.nome ?? null,
+        ultima_mensagem: c.ultima_mensagem ?? c.ultima_mensagem_texto ?? null,
       })) as Conversa[];
     },
-    refetchInterval: 15000,
+    refetchInterval: 30000,
   });
 
   const conversaAtual = conversas.find((c) => String(c.id) === selecionada) ?? null;
