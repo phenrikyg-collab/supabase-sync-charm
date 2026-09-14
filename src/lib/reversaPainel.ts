@@ -186,3 +186,55 @@ export function codigoVencendo(valido_ate?: string | null) {
   limite.setDate(limite.getDate() + 2);
   return d.getTime() <= limite.getTime();
 }
+
+export interface EventoCorreio {
+  descricao?: string | null;
+  local?: string | null;
+  quando_br?: string | null;
+}
+
+export interface LinhaFluxo {
+  id?: string | number;
+  protocolo?: string;
+  pedido?: string;
+  cliente_nome?: string;
+  celular?: string;
+  preferencia_rotulo?: string;
+  status_rotulo?: string;
+  valor_br?: string;
+  pecas?: number;
+  fotos?: string[];
+  codigo?: string;
+  rastreio?: string;
+  servico?: string;
+  valido_ate_br?: string;
+  eventos?: EventoCorreio[];
+  consultado_em_br?: string;
+  postado_em_br?: string;
+  entregue_em_br?: string;
+  conferida_em_br?: string;
+  criado_em_br?: string;
+  pendencias?: string[];
+  escolha?: {
+    tipo?: string;
+    produto?: string;
+    tamanho?: string;
+    credito_br?: string;
+    diferenca_br?: string;
+  } | null;
+  nf_status?: string;
+  nf_numero?: string;
+  parado_ha_dias?: number;
+  postagem_compartilhada?: boolean;
+  protocolo_da_postagem?: string;
+}
+
+export async function painelFluxo(aba: "transito" | "tratamento", limite = 100) {
+  const { data, error } = await supabase.rpc("reversa_painel_fluxo", { p_aba: aba, p_limite: limite });
+  if (error) throw error;
+  return data as {
+    linhas?: LinhaFluxo[];
+    aba?: string;
+    contagens?: { transito?: number; tratamento?: number };
+  };
+}
