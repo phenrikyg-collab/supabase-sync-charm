@@ -92,7 +92,17 @@ function NovaCampanha({ aberto, onFechar }: { aberto: boolean; onFechar: () => v
       onFechar();
       setPasso(1);
     },
-    onError: (e: any) => toast({ title: "Não deu para preparar", description: e.message, variant: "destructive" }),
+    onError: (e: any) => {
+      const bruto = String(e?.message ?? "");
+      const rascunho = /rascunho/i.test(bruto) || /status/i.test(bruto);
+      const segmentoRuim = /segmento/i.test(bruto);
+      const descricao = rascunho
+        ? "Esta campanha já saiu do rascunho e não pode mais ser editada."
+        : segmentoRuim
+        ? "O segmento escolhido não existe mais. Selecione outro no passo 2."
+        : bruto;
+      toast({ title: "Não deu para preparar", description: descricao, variant: "destructive" });
+    },
   });
 
   const podeAvancar =
