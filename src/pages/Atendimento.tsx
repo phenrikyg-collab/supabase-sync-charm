@@ -55,7 +55,51 @@ type Conversa = {
   prioridade?: string | null;
   tags?: Tag[] | null;
   nao_lida?: boolean | null;
+  urgencia?: "perdendo" | "quente" | "atencao" | "normal" | string | null;
+  sinais?: string[] | null;
+  ordem?: number | null;
+  aguardando_resposta?: boolean | null;
+  pix_aberto_valor?: number | null;
+  link_pendente?: boolean | null;
 };
+
+type Urgencia = "perdendo" | "quente" | "atencao" | "normal";
+
+const urgenciaDe = (c: Conversa): Urgencia => {
+  const u = (c.urgencia ?? "normal").toLowerCase();
+  return u === "perdendo" || u === "quente" || u === "atencao" ? u : "normal";
+};
+
+const URGENCIA_ESTILO: Record<Exclude<Urgencia, "normal">, { borda: string; badgeFundo: string; badgeTexto: string }> = {
+  perdendo: { borda: "#EF4444", badgeFundo: "#FEE2E2", badgeTexto: "#991B1B" },
+  quente: { borda: "#F59E0B", badgeFundo: "#FEF3C7", badgeTexto: "#92400E" },
+  atencao: { borda: "#E8CD7E", badgeFundo: "#F5F5F5", badgeTexto: "#8B6914" },
+};
+
+function BadgeSinal({ conversa }: { conversa: Conversa }) {
+  const sinais = conversa.sinais ?? [];
+  if (sinais.length === 0) return null;
+  const urg = urgenciaDe(conversa);
+  if (urg === "normal") return null;
+  const estilo = URGENCIA_ESTILO[urg];
+  const primeiro = sinais[0];
+  const demais = sinais.slice(1);
+  return (
+    <span className="mt-1 inline-flex items-center gap-1.5">
+      {urg === "quente" && primeiro === "respondendo agora" && (
+        <span className="h-1.5 w-1.5 rounded-full animate-pulse" style={{ backgroundColor: "#F59E0B" }} />
+      )}
+      <span
+        className="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold whitespace-nowrap"
+        style={{ backgroundColor: estilo.badgeFundo, color: estilo.badgeTexto }}
+        title={demais.length > 0 ? demais.join("\n") : undefined}
+      >
+        {primeiro}
+        {demais.length > 0 ? ` +${demais.length}` : ""}
+      </span>
+    </span>
+  );
+}
 
 const ehSite = (c?: Conversa | null) =>
   (c?.canal ?? "").toLowerCase() === "site" || String(c?.telefone ?? "").startsWith("site:");
@@ -211,14 +255,17 @@ export default function Atendimento() {
   const { data: conversas = [], isLoading: carregandoConversas } = useQuery({
     queryKey: ["whatsapp-conversas"],
     queryFn: async () => {
-      const { data, error } = await supabase.rpc("whatsapp_listar_conversas" as any);
+      // vw_conversas_painel já vem ordenada por urgência: renderizar na ordem exata do banco
+      const { data, error } = await supabase.from("vw_conversas_painel" as any).select("*");
       if (error) throw error;
       return ((data ?? []) as any[]).map((c) => ({
         ...c,
-        id: c.id ?? c.conversa_id,
+        id: c.conversa_id ?? c.id,
+        cliente_nome: c.cliente_nome ?? c.nome ?? null,
+        ultima_mensagem: c.ultima_mensagem ?? c.ultima_mensagem_texto ?? null,
       })) as Conversa[];
     },
-    refetchInterval: 15000,
+    refetchInterval: 30000,
   });
 
   const conversaAtual = conversas.find((c) => String(c.id) === selecionada) ?? null;
@@ -475,15 +522,13 @@ export default function Atendimento() {
   const daAba = (c: Conversa) => (ehSite(c) ? "site" : "whatsapp") === aba;
 
   const atencaoDe = (c: Conversa) => mapaAtencao.get(String(c.id));
-  const nivelDe = (c: Conversa) => (atencaoDe(c)?.nivel ?? "normal").toLowerCase();
-  const scoreDe = (c: Conversa) => Number(atencaoDe(c)?.score ?? 0);
 
   const filtradas = conversas
     .filter((c) => {
       if (!daAba(c)) return false;
       if (filtroLeitura === "nao_lidas" && !c.nao_lida) return false;
       if (filtroLeitura === "lidas" && c.nao_lida) return false;
-      if (filtroLeitura === "atencao" && nivelDe(c) === "normal") return false;
+      if (filtroLeitura === "atencao" && !["perdendo", "quente", "atencao"].includes(urgenciaDe(c))) return false;
       if (tagsFiltro.length > 0) {
         const ids = (c.tags ?? []).map((t) => String(t.id));
         if (!tagsFiltro.some((t) => ids.includes(t))) return false;
@@ -493,13 +538,15 @@ export default function Atendimento() {
       const nome = nomeConversa(c).toLowerCase();
       const tel = ehSite(c) ? (c.telefone_real ?? "") : (c.telefone ?? "");
       return nome.includes(t) || tel.toLowerCase().includes(t);
-    })
-    .sort((a, b) => scoreDe(b) - scoreDe(a));
+    });
+  // Sem reordenação no cliente: a view vw_conversas_painel já vem ordenada por urgência
 
   const naoLidasWhatsapp = conversas.filter((c) => c.nao_lida && !ehSite(c)).length;
   const naoLidasSite = conversas.filter((c) => c.nao_lida && ehSite(c)).length;
   const totalNaoLidas = aba === "site" ? naoLidasSite : naoLidasWhatsapp;
-  const totalAtencao = conversas.filter((c) => daAba(c) && nivelDe(c) !== "normal").length;
+  const totalAtencao = conversas.filter(
+    (c) => daAba(c) && ["perdendo", "quente", "atencao"].includes(urgenciaDe(c)),
+  ).length;
 
   const telefoneIdentificado = conversaAtual
     ? (ehSite(conversaAtual) ? conversaAtual.telefone_real : conversaAtual.telefone) || null
@@ -644,21 +691,45 @@ export default function Atendimento() {
             {!carregandoConversas && filtradas.length === 0 && (
               <p className="p-4 text-sm text-muted-foreground">Nenhuma conversa encontrada.</p>
             )}
-            {filtradas.map((c) => {
+            {(() => {
+              const qtdDestaque = filtradas.filter((c) => ["perdendo", "quente"].includes(urgenciaDe(c))).length;
+              let cabecalhoDestaqueFeito = false;
+              let cabecalhoDemaisFeito = false;
+              return filtradas.map((c) => {
               const nome = nomeConversa(c);
               const site = ehSite(c);
               const ativa = String(c.id) === selecionada;
               const prio = (c.prioridade ?? "").toLowerCase();
               const naoLida = !!c.nao_lida;
               const atencao = atencaoDe(c);
-              const bordaAtencao = classeBordaNivel(atencao?.nivel);
+              const urg = urgenciaDe(c);
+              const ehDestaque = urg === "perdendo" || urg === "quente";
+              const estiloUrg = urg === "normal" ? null : URGENCIA_ESTILO[urg];
+              let cabecalho: JSX.Element | null = null;
+              if (qtdDestaque > 0 && ehDestaque && !cabecalhoDestaqueFeito) {
+                cabecalhoDestaqueFeito = true;
+                cabecalho = (
+                  <div className="px-4 pt-3 pb-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                    Precisam de atenção agora ({qtdDestaque})
+                  </div>
+                );
+              } else if (qtdDestaque > 0 && !ehDestaque && !cabecalhoDemaisFeito) {
+                cabecalhoDemaisFeito = true;
+                cabecalho = (
+                  <div className="px-4 pt-3 pb-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                    Demais conversas
+                  </div>
+                );
+              }
               return (
+                <div key={String(c.id)}>
+                {cabecalho}
                 <button
-                  key={String(c.id)}
                   onClick={() => abrirConversa(c)}
+                  style={estiloUrg ? { borderLeftColor: estiloUrg.borda } : undefined}
                   className={cn(
                     "w-full text-left px-4 py-3 border-b border-border/60 border-l-4 transition-colors hover:bg-accent/60",
-                    bordaAtencao ??
+                    !estiloUrg &&
                       (prio === "alta" ? "border-l-danger" : prio === "media" ? "border-l-warning" : "border-l-transparent"),
                     ativa && "bg-accent",
                     naoLida && !ativa && "bg-primary/5",
@@ -670,7 +741,7 @@ export default function Atendimento() {
                       {prio === "alta" && <span className="h-2 w-2 rounded-full bg-danger shrink-0" />}
                       {prio === "media" && <span className="h-2 w-2 rounded-full bg-warning shrink-0" />}
                       <div className="min-w-0">
-                        <p className={cn("text-sm truncate flex items-center gap-1.5", naoLida ? "font-bold" : "font-medium")}>
+                        <p className={cn("text-sm truncate flex items-center gap-1.5", naoLida || urg === "perdendo" ? "font-bold" : "font-medium")}>
                           {site ? (
                             <Globe className="h-3.5 w-3.5 shrink-0 text-primary" aria-label="Chat do site" />
                           ) : (
@@ -680,6 +751,7 @@ export default function Atendimento() {
                           {nomeSoDoWhatsApp(c) && <BadgeViaWhatsApp />}
                         </p>
                         <p className="text-xs text-muted-foreground">{identificadorConversa(c)}</p>
+                        <BadgeSinal conversa={c} />
                         <ChipsMotivos motivos={atencao?.motivos} />
                         {site && c.telefone_real && (
                           <span className="mt-1 inline-flex items-center gap-1 rounded-full border border-success/20 bg-success/10 px-2 py-0.5 text-[10px] text-success">
@@ -704,8 +776,10 @@ export default function Atendimento() {
                     ))}
                   </div>
                 </button>
+                </div>
               );
-            })}
+              });
+            })()}
           </ScrollArea>
         </Card>
 
