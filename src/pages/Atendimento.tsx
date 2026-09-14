@@ -522,8 +522,6 @@ export default function Atendimento() {
   const daAba = (c: Conversa) => (ehSite(c) ? "site" : "whatsapp") === aba;
 
   const atencaoDe = (c: Conversa) => mapaAtencao.get(String(c.id));
-  const nivelDe = (c: Conversa) => (atencaoDe(c)?.nivel ?? "normal").toLowerCase();
-  const scoreDe = (c: Conversa) => Number(atencaoDe(c)?.score ?? 0);
 
   const filtradas = conversas
     .filter((c) => {
