@@ -298,13 +298,25 @@ export default function TrocasSite() {
                             <Badge variant="secondary">{texto(l.status_rotulo ?? l.status)}</Badge>
                           </td>
                           <td className="px-3 py-2">
-                            <div className="whitespace-nowrap">
+                            <div className="flex flex-wrap items-center gap-1 whitespace-nowrap">
                               {texto(l.codigo_autorizacao ?? l.postagem?.codigo_autorizacao)}
+                              {l.postagem_compartilhada && (
+                                <Badge variant="outline" className="text-[10px] px-1 py-0 h-4">
+                                  mesma caixa
+                                </Badge>
+                              )}
                             </div>
                             <div className="whitespace-nowrap text-xs text-muted-foreground">
                               {texto(l.rastreio ?? l.postagem?.rastreio)}
                               {l.valido_ate ? ` · até ${formatarData(l.valido_ate)}` : ""}
                             </div>
+                            {l.rastreio_evento && (
+                              <div className="whitespace-nowrap text-[11px] text-muted-foreground/70">
+                                {texto(l.rastreio_evento)}
+                                {l.rastreio_local ? ` · ${texto(l.rastreio_local)}` : ""}
+                                {l.rastreio_em_br ? ` · ${texto(l.rastreio_em_br)}` : ""}
+                              </div>
+                            )}
                           </td>
                           <td className="px-3 py-2 tabular-nums">{texto(l.dias)}</td>
                           <td className="px-3 py-2">{texto(l.consultora)}</td>

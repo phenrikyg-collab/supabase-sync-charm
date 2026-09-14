@@ -85,6 +85,13 @@ export function CartaoGrupoCliente({
                   ) : (
                     <span className="text-xs text-muted-foreground">{texto(l.codigo)}</span>
                   )}
+                  {l.rastreio_evento && (
+                    <div className="mt-0.5 whitespace-nowrap text-[11px] text-muted-foreground/70">
+                      {texto(l.rastreio_evento)}
+                      {l.rastreio_local ? ` · ${texto(l.rastreio_local)}` : ""}
+                      {l.rastreio_em_br ? ` · ${texto(l.rastreio_em_br)}` : ""}
+                    </div>
+                  )}
                 </td>
               </tr>
             ))}
