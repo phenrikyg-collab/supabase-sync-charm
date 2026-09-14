@@ -691,21 +691,45 @@ export default function Atendimento() {
             {!carregandoConversas && filtradas.length === 0 && (
               <p className="p-4 text-sm text-muted-foreground">Nenhuma conversa encontrada.</p>
             )}
-            {filtradas.map((c) => {
+            {(() => {
+              const qtdDestaque = filtradas.filter((c) => ["perdendo", "quente"].includes(urgenciaDe(c))).length;
+              let cabecalhoDestaqueFeito = false;
+              let cabecalhoDemaisFeito = false;
+              return filtradas.map((c) => {
               const nome = nomeConversa(c);
               const site = ehSite(c);
               const ativa = String(c.id) === selecionada;
               const prio = (c.prioridade ?? "").toLowerCase();
               const naoLida = !!c.nao_lida;
               const atencao = atencaoDe(c);
-              const bordaAtencao = classeBordaNivel(atencao?.nivel);
+              const urg = urgenciaDe(c);
+              const ehDestaque = urg === "perdendo" || urg === "quente";
+              const estiloUrg = urg === "normal" ? null : URGENCIA_ESTILO[urg];
+              let cabecalho: JSX.Element | null = null;
+              if (qtdDestaque > 0 && ehDestaque && !cabecalhoDestaqueFeito) {
+                cabecalhoDestaqueFeito = true;
+                cabecalho = (
+                  <div className="px-4 pt-3 pb-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                    Precisam de atenção agora ({qtdDestaque})
+                  </div>
+                );
+              } else if (qtdDestaque > 0 && !ehDestaque && !cabecalhoDemaisFeito) {
+                cabecalhoDemaisFeito = true;
+                cabecalho = (
+                  <div className="px-4 pt-3 pb-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                    Demais conversas
+                  </div>
+                );
+              }
               return (
+                <div key={String(c.id)}>
+                {cabecalho}
                 <button
-                  key={String(c.id)}
                   onClick={() => abrirConversa(c)}
+                  style={estiloUrg ? { borderLeftColor: estiloUrg.borda } : undefined}
                   className={cn(
                     "w-full text-left px-4 py-3 border-b border-border/60 border-l-4 transition-colors hover:bg-accent/60",
-                    bordaAtencao ??
+                    !estiloUrg &&
                       (prio === "alta" ? "border-l-danger" : prio === "media" ? "border-l-warning" : "border-l-transparent"),
                     ativa && "bg-accent",
                     naoLida && !ativa && "bg-primary/5",
