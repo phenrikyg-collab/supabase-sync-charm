@@ -102,7 +102,7 @@ const moduleGroups: ModuleGroup[] = [
     label: "CRM & Relacionamento",
     icon: Mail,
     items: [
-      { title: "E-mail: Listas, Templates e Campanhas", url: "/email-marketing", icon: Mail },
+      { title: "E-mail", url: "/email-marketing", icon: Mail },
       { title: "Cupons", url: "/cupons", icon: Ticket },
       { title: "Conteúdo & CRM", url: "/conteudo", icon: CalendarDays },
       { title: "Fluxos", url: "/automacoes", icon: Workflow },
