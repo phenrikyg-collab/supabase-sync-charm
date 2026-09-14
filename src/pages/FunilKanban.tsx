@@ -31,6 +31,8 @@ type CardFunil = {
   conversa_id: string | number | null;
   etapa: Etapa | string;
   ordem: number | null;
+  ordem_coluna: number | null;
+  prioridade: number | null;
   nome: string | null;
   titulo: string | null;
   detalhe: string | null;
@@ -122,8 +124,8 @@ export default function FunilKanban() {
   );
 
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex flex-wrap items-start justify-between gap-4">
+    <div className="h-screen flex flex-col p-6 gap-6 overflow-hidden">
+      <div className="flex flex-wrap items-start justify-between gap-4 shrink-0">
         <div>
           <h1 className="text-3xl font-heading">Kanban do Funil</h1>
           <p className="text-muted-foreground text-sm">
