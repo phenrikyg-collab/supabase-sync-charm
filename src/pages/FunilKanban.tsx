@@ -59,7 +59,7 @@ const bordaNivel = (nivel?: string | null) => {
   const n = (nivel ?? "").toLowerCase();
   if (n === "quente") return "border-l-4 border-l-danger";
   if (n === "atencao") return "border-l-4 border-l-warning";
-  return "border-l-4 border-l-transparent";
+  return "";
 };
 
 export default function FunilKanban() {
@@ -162,7 +162,7 @@ export default function FunilKanban() {
       </div>
 
       {loading ? (
-        <div className="flex items-center justify-center h-48">
+        <div className="flex-1 flex items-center justify-center">
           <Loader2 className="h-6 w-6 animate-spin text-primary" />
         </div>
       ) : (
@@ -244,7 +244,14 @@ function CardKanban({
       )}
     >
       <div className="flex items-start justify-between gap-1">
-        <p className="text-sm font-medium truncate">{card.nome || "Sem nome"}</p>
+        <p
+          className={cn(
+            "text-sm font-medium truncate",
+            (card.nivel ?? "").toLowerCase() === "quente" && "font-bold",
+          )}
+        >
+          {card.nome || "Sem nome"}
+        </p>
         {(card.origem ?? "").toLowerCase() === "site" && (
           <Badge variant="outline" className="text-[10px] shrink-0">site</Badge>
         )}
