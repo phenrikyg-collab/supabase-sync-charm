@@ -530,7 +530,7 @@ export default function Atendimento() {
       if (!daAba(c)) return false;
       if (filtroLeitura === "nao_lidas" && !c.nao_lida) return false;
       if (filtroLeitura === "lidas" && c.nao_lida) return false;
-      if (filtroLeitura === "atencao" && nivelDe(c) === "normal") return false;
+      if (filtroLeitura === "atencao" && !["perdendo", "quente", "atencao"].includes(urgenciaDe(c))) return false;
       if (tagsFiltro.length > 0) {
         const ids = (c.tags ?? []).map((t) => String(t.id));
         if (!tagsFiltro.some((t) => ids.includes(t))) return false;
@@ -540,13 +540,15 @@ export default function Atendimento() {
       const nome = nomeConversa(c).toLowerCase();
       const tel = ehSite(c) ? (c.telefone_real ?? "") : (c.telefone ?? "");
       return nome.includes(t) || tel.toLowerCase().includes(t);
-    })
-    .sort((a, b) => scoreDe(b) - scoreDe(a));
+    });
+  // Sem reordenação no cliente: a view vw_conversas_painel já vem ordenada por urgência
 
   const naoLidasWhatsapp = conversas.filter((c) => c.nao_lida && !ehSite(c)).length;
   const naoLidasSite = conversas.filter((c) => c.nao_lida && ehSite(c)).length;
   const totalNaoLidas = aba === "site" ? naoLidasSite : naoLidasWhatsapp;
-  const totalAtencao = conversas.filter((c) => daAba(c) && nivelDe(c) !== "normal").length;
+  const totalAtencao = conversas.filter(
+    (c) => daAba(c) && ["perdendo", "quente", "atencao"].includes(urgenciaDe(c)),
+  ).length;
 
   const telefoneIdentificado = conversaAtual
     ? (ehSite(conversaAtual) ? conversaAtual.telefone_real : conversaAtual.telefone) || null
