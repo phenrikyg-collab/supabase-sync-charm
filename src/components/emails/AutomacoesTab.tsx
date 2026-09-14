@@ -112,13 +112,9 @@ function PainelConfig({
           ))}
 
           <div className="space-y-1.5 border-t pt-4">
-            <div className="flex items-center gap-2">
-              <p className="text-sm font-medium">Template</p>
-              <Badge variant="outline" className="text-[10px]">em breve</Badge>
-            </div>
+            <p className="text-sm font-medium">Template</p>
             <p className="text-xs text-muted-foreground">
-              O conteúdo deste e-mail ainda é montado em código, porque depende das peças que a cliente viu. A escolha
-              fica gravada e passa a valer quando o motor aprender a ler o template.
+              O motor usa este template para montar o e-mail desta automação.
             </p>
             <Select value={templateId} onValueChange={setTemplateId}>
               <SelectTrigger><SelectValue placeholder="Selecione um template" /></SelectTrigger>
@@ -129,6 +125,7 @@ function PainelConfig({
               </SelectContent>
             </Select>
           </div>
+
 
           <Button className="w-full" onClick={() => salvar.mutate()} disabled={salvar.isPending}>
             Salvar configuração
