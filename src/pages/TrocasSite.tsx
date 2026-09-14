@@ -202,6 +202,19 @@ export default function TrocasSite() {
             </Button>
           </div>
 
+          {!carregando && gruposVisiveis.length > 0 && (
+            <div className="space-y-3">
+              {gruposVisiveis.map(({ grupo, linhas: doGrupo }) => (
+                <CartaoGrupoCliente
+                  key={grupo.chave}
+                  grupo={grupo}
+                  linhas={doGrupo}
+                  aoAbrir={(l) => l.id && setSelecionado(String(l.id))}
+                />
+              ))}
+            </div>
+          )}
+
           <Card className="overflow-hidden">
             <div className="h-[560px] overflow-auto">
               <table className="w-full text-sm">
