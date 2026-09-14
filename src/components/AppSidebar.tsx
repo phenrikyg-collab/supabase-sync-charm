@@ -123,6 +123,7 @@ const moduleGroups: ModuleGroup[] = [
       { title: "Visitantes ao Vivo", url: "/rastreamento", icon: Radar },
       { title: "Audiência", url: "/audiencia", icon: UserSquare2 },
       { title: "Provador Virtual", url: "/provador-virtual", icon: Sparkles },
+      { title: "Cashback", url: "/cashback", icon: BadgeDollarSign },
     ],
   },
   {

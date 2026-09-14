@@ -48,6 +48,7 @@ import TrocaDevolucao from "./pages/TrocaDevolucao";
 import TrocasSite from "./pages/TrocasSite";
 import Avaliacoes from "./pages/Avaliacoes";
 import AviseMe from "./pages/AviseMe";
+import Cashback from "./pages/Cashback";
 import TVInterna from "./pages/TVInterna";
 import AdminTVInterna from "./pages/AdminTVInterna";
 import Bonificacao from "./pages/Bonificacao";
@@ -306,6 +307,7 @@ const AppRoutes = () => {
               <Route path="/trocas-site" element={<TrocasSite />} />
               <Route path="/avaliacoes" element={<Avaliacoes />} />
               <Route path="/avise-me" element={<AviseMe />} />
+              <Route path="/cashback" element={<Cashback />} />
               <Route path="/cupons" element={<Cupons />} />
               <Route path="/propor-carrinho" element={<ProporCarrinhoPage />} />
               <Route path="/vendas-ao-vivo" element={<VendasAoVivo />} />
