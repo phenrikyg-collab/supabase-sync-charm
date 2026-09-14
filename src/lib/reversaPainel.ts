@@ -61,6 +61,20 @@ export const painelLista = (args: {
   p_offset?: number;
 }) => rpc<RespostaLista>("reversa_painel_lista", args);
 
+export type GrupoCliente = {
+  cliente?: string;
+  chave: string;
+  solicitacoes?: number;
+  enderecos_diferentes?: boolean;
+  codigos_distintos?: number;
+  desde_br?: string;
+  lista?: LinhaFila[];
+};
+
+/** Fila agrupada por cliente (uma entrada por cliente com solicitações abertas). */
+export const painelGrupos = (p_limite = 50) =>
+  rpc<GrupoCliente[]>("reversa_painel_grupos", { p_limite });
+
 export const painelDetalhe = (p_id: string) =>
   rpc<Record<string, any>>("reversa_painel_detalhe", { p_id });
 
