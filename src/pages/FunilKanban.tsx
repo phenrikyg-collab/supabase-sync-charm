@@ -138,7 +138,7 @@ export default function FunilKanban() {
         </Button>
       </div>
 
-      <div className="grid gap-3 md:grid-cols-4 sm:grid-cols-2">
+      <div className="grid gap-3 md:grid-cols-4 sm:grid-cols-2 shrink-0">
         <Card>
           <CardContent className="p-4">
             <p className="text-xs text-muted-foreground">Cards no board</p>
@@ -166,11 +166,18 @@ export default function FunilKanban() {
           <Loader2 className="h-6 w-6 animate-spin text-primary" />
         </div>
       ) : (
-        <div className="grid gap-3 xl:grid-cols-6 lg:grid-cols-3 sm:grid-cols-2">
+        <div className="flex-1 min-h-0 flex gap-3 overflow-x-auto pb-2">
           {COLUNAS.map((col) => {
             const lista = cards
               .filter((c) => c.etapa === col.key)
-              .sort((a, b) => (Number(a.ordem) || 0) - (Number(b.ordem) || 0));
+              .sort((a, b) => {
+                const oc = (Number(a.ordem_coluna) || 0) - (Number(b.ordem_coluna) || 0);
+                if (oc !== 0) return oc;
+                return (Number(b.prioridade) || 0) - (Number(a.prioridade) || 0);
+              });
+            const quentes = lista.filter(
+              (c) => (c.nivel ?? "").toLowerCase() === "quente",
+            ).length;
             return (
               <div
                 key={col.key}
@@ -181,27 +188,34 @@ export default function FunilKanban() {
                   if (card) mover(card, col.key);
                 }}
                 className={cn(
-                  "rounded-lg border border-t-4 bg-muted/30 p-2 min-h-[240px] space-y-2",
+                  "rounded-lg border border-t-4 bg-muted/30 flex flex-col w-72 shrink-0 min-h-0",
                   col.topo,
                 )}
               >
-                <div className="flex items-center justify-between px-1">
+                <div className="flex items-center justify-between px-3 py-2 shrink-0">
                   <span className="text-sm font-medium">{col.label}</span>
-                  <Badge variant="secondary">{lista.length}</Badge>
+                  <div className="flex items-center gap-1">
+                    <Badge variant="secondary">{lista.length}</Badge>
+                    {quentes > 0 && (
+                      <Badge variant="destructive">{quentes} quente{quentes > 1 ? "s" : ""}</Badge>
+                    )}
+                  </div>
                 </div>
-                {lista.map((card) => (
-                  <CardKanban
-                    key={String(card.card_id)}
-                    card={card}
-                    onDragStart={() => setArrastando(String(card.card_id))}
-                    onAbrirConversa={() =>
-                      card.conversa_id && navigate(`/atendimento?conversa=${card.conversa_id}`)
-                    }
-                  />
-                ))}
-                {lista.length === 0 && (
-                  <p className="text-xs text-muted-foreground px-1 py-6 text-center">Vazio</p>
-                )}
+                <div className="flex-1 min-h-0 overflow-y-auto p-2 pt-0 space-y-2">
+                  {lista.map((card) => (
+                    <CardKanban
+                      key={String(card.card_id)}
+                      card={card}
+                      onDragStart={() => setArrastando(String(card.card_id))}
+                      onAbrirConversa={() =>
+                        card.conversa_id && navigate(`/atendimento?conversa=${card.conversa_id}`)
+                      }
+                    />
+                  ))}
+                  {lista.length === 0 && (
+                    <p className="text-xs text-muted-foreground px-1 py-6 text-center">Vazio</p>
+                  )}
+                </div>
               </div>
             );
           })}
