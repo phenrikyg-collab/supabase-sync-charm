@@ -75,6 +75,17 @@ export type GrupoCliente = {
 export const painelGrupos = (p_limite = 50) =>
   rpc<GrupoCliente[]>("reversa_painel_grupos", { p_limite });
 
+export type RespostaPecasRetorno = {
+  linhas?: Record<string, any>[];
+  resumo?: Record<string, { linhas?: number; pecas?: number }>;
+  horas_alerta?: number;
+  etapas?: { chave: string; rotulo: string }[];
+};
+
+/** Acompanhamento peça a peça, da postagem até voltar a vender na Tray. */
+export const pecasRetorno = (p_filtro: Record<string, any>) =>
+  rpc<RespostaPecasRetorno>("reversa_pecas_retorno", { p_filtro });
+
 export const painelDetalhe = (p_id: string) =>
   rpc<Record<string, any>>("reversa_painel_detalhe", { p_id });
 
