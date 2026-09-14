@@ -316,6 +316,10 @@ export default function TrocasSite() {
           </Card>
         </TabsContent>
 
+        <TabsContent value="pecas" className="pt-4">
+          <PecasRetornoTab aoAbrirSolicitacao={(id) => setSelecionado(id)} />
+        </TabsContent>
+
         {isAdmin && (
           <TabsContent value="politica" className="pt-4">
             <PoliticaReversa />
