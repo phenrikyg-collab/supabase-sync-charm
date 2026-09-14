@@ -127,6 +127,7 @@ export default function TrocasSite() {
       <Tabs defaultValue="fila">
         <TabsList>
           <TabsTrigger value="fila">Fila</TabsTrigger>
+          <TabsTrigger value="pecas">Peças em retorno</TabsTrigger>
           {isAdmin && <TabsTrigger value="politica">Política</TabsTrigger>}
         </TabsList>
 
