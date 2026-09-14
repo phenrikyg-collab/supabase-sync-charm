@@ -11,6 +11,7 @@ import { PainelSolicitacao } from "@/components/reversa/PainelSolicitacao";
 import { AbrirSolicitacaoDialog } from "@/components/reversa/AbrirSolicitacaoDialog";
 import { PoliticaReversa } from "@/components/reversa/PoliticaReversa";
 import { CartaoGrupoCliente } from "@/components/reversa/CartaoGrupoCliente";
+import { PecasRetornoTab } from "@/components/reversa/PecasRetornoTab";
 import {
   ALERTAS,
   codigoVencendo,
@@ -127,6 +128,7 @@ export default function TrocasSite() {
       <Tabs defaultValue="fila">
         <TabsList>
           <TabsTrigger value="fila">Fila</TabsTrigger>
+          <TabsTrigger value="pecas">Peças em retorno</TabsTrigger>
           {isAdmin && <TabsTrigger value="politica">Política</TabsTrigger>}
         </TabsList>
 
@@ -313,6 +315,10 @@ export default function TrocasSite() {
               </table>
             </div>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="pecas" className="pt-4">
+          <PecasRetornoTab aoAbrirSolicitacao={(id) => setSelecionado(id)} />
         </TabsContent>
 
         {isAdmin && (
