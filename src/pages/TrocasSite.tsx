@@ -246,15 +246,17 @@ export default function TrocasSite() {
                       </td>
                     </tr>
                   )}
-                  {!carregando && !linhas.length && (
+                  {!carregando && !linhasSoltas.length && (
                     <tr>
                       <td colSpan={10} className="py-16 text-center text-muted-foreground">
-                        Nenhuma solicitação neste filtro.
+                        {gruposVisiveis.length
+                          ? "As solicitações deste filtro estão agrupadas por cliente acima."
+                          : "Nenhuma solicitação neste filtro."}
                       </td>
                     </tr>
                   )}
                   {!carregando &&
-                    linhas.map((l) => {
+                    linhasSoltas.map((l) => {
                       const alerta2 = codigoVencendo(l.valido_ate ?? l.postagem?.valido_ate);
                       return (
                         <tr
