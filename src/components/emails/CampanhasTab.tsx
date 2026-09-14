@@ -131,34 +131,31 @@ function NovaCampanha({ aberto, onFechar }: { aberto: boolean; onFechar: () => v
                     ))}
                   </SelectContent>
                 </Select>
+                <p className="text-xs text-muted-foreground">
+                  A campanha aponta para o template. Editar o template muda o que ainda não foi enviado.
+                </p>
               </div>
               <div className="space-y-1.5">
                 <label className="text-sm font-medium">Ou cole o HTML</label>
                 <Textarea rows={6} className="font-mono text-xs" value={html} onChange={(e) => setHtml(e.target.value)} />
+                <p className="text-xs text-muted-foreground">
+                  O HTML colado vira um template novo do tipo campanha, e a campanha aponta para ele.
+                </p>
               </div>
             </div>
             <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <p className="text-sm font-medium">Prévia</p>
-                <div className="flex gap-1">
-                  <Button size="sm" variant={mobile ? "outline" : "secondary"} onClick={() => setMobile(false)}>
-                    <Monitor className="h-3.5 w-3.5" />
-                  </Button>
-                  <Button size="sm" variant={mobile ? "secondary" : "outline"} onClick={() => setMobile(true)}>
-                    <Smartphone className="h-3.5 w-3.5" />
-                  </Button>
-                </div>
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="text-sm font-medium">Prévia renderizada</p>
+                <ControlesPrevia mobile={mobile} onMobile={setMobile} />
               </div>
-              <div className="rounded-lg border bg-muted/40 p-2">
-                <iframe
-                  title="Prévia da campanha"
-                  sandbox=""
-                  srcDoc={htmlPreview || "<p style='font-family:sans-serif;color:#888'>Escolha um template ou cole um HTML.</p>"}
-                  className="mx-auto h-[420px] w-full rounded bg-white"
-                  style={mobile ? { width: 400 } : undefined}
-                />
-              </div>
+              <IframePrevia
+                titulo="Prévia da campanha"
+                mobile={mobile}
+                altura={420}
+                html={previa?.html}
+              />
             </div>
+
           </div>
         )}
 

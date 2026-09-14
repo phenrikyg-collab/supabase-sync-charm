@@ -12,6 +12,8 @@ const PERIODOS = [7, 30, 90];
 export default function EmailMarketing() {
   const [aba, setAba] = useState("visao-geral");
   const [dias, setDias] = useState(30);
+  const [slugTemplate, setSlugTemplate] = useState<string | null>(null);
+
 
   return (
     <div className="space-y-6 p-6">
