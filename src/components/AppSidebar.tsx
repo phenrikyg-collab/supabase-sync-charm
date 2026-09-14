@@ -205,6 +205,7 @@ const moduleGroups: ModuleGroup[] = [
       { title: "Prova Social", url: "/prova-social", icon: BellRing },
       { title: "Trocas e Devoluções", url: "/trocas-site", icon: RefreshCw },
       { title: "Avaliações", url: "/avaliacoes", icon: Star },
+      { title: "Avise-me", url: "/avise-me", icon: BellRing },
     ],
   },
   {
