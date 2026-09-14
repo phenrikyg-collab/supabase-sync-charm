@@ -741,7 +741,7 @@ export default function Atendimento() {
                       {prio === "alta" && <span className="h-2 w-2 rounded-full bg-danger shrink-0" />}
                       {prio === "media" && <span className="h-2 w-2 rounded-full bg-warning shrink-0" />}
                       <div className="min-w-0">
-                        <p className={cn("text-sm truncate flex items-center gap-1.5", naoLida ? "font-bold" : "font-medium")}>
+                        <p className={cn("text-sm truncate flex items-center gap-1.5", naoLida || urg === "perdendo" ? "font-bold" : "font-medium")}>
                           {site ? (
                             <Globe className="h-3.5 w-3.5 shrink-0 text-primary" aria-label="Chat do site" />
                           ) : (
@@ -751,6 +751,7 @@ export default function Atendimento() {
                           {nomeSoDoWhatsApp(c) && <BadgeViaWhatsApp />}
                         </p>
                         <p className="text-xs text-muted-foreground">{identificadorConversa(c)}</p>
+                        <BadgeSinal conversa={c} />
                         <ChipsMotivos motivos={atencao?.motivos} />
                         {site && c.telefone_real && (
                           <span className="mt-1 inline-flex items-center gap-1 rounded-full border border-success/20 bg-success/10 px-2 py-0.5 text-[10px] text-success">
@@ -775,8 +776,10 @@ export default function Atendimento() {
                     ))}
                   </div>
                 </button>
+                </div>
               );
-            })}
+              });
+            })()}
           </ScrollArea>
         </Card>
 
