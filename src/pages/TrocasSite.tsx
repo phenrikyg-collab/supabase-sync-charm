@@ -30,6 +30,7 @@ export default function TrocasSite() {
   const { toast } = useToast();
   const { isAdmin } = useUserRole();
   const [dados, setDados] = useState<RespostaLista | null>(null);
+  const [grupos, setGrupos] = useState<GrupoCliente[]>([]);
   const [carregando, setCarregando] = useState(true);
   const [status, setStatus] = useState<string | null>(null);
   const [alerta, setAlerta] = useState<string | null>(null);
@@ -53,6 +54,11 @@ export default function TrocasSite() {
     } finally {
       setCarregando(false);
     }
+    try {
+      setGrupos((await painelGrupos(50)) ?? []);
+    } catch {
+      setGrupos([]);
+    }
   }
 
   useEffect(() => {
@@ -61,6 +67,36 @@ export default function TrocasSite() {
   }, [status, alerta, buscaAtiva]);
 
   const linhas: LinhaFila[] = useMemo(() => dados?.itens ?? dados?.linhas ?? [], [dados]);
+
+  // Os filtros e a busca continuam no servidor: o agrupamento só reaproveita
+  // as solicitações que passaram pelo filtro atual.
+  const { gruposVisiveis, linhasSoltas } = useMemo(() => {
+    const porProtocolo = new Map<string, LinhaFila>();
+    for (const l of linhas) {
+      const p = l.protocolo != null ? String(l.protocolo) : null;
+      if (p) porProtocolo.set(p, l);
+    }
+    const agrupados: { grupo: GrupoCliente; linhas: LinhaFila[] }[] = [];
+    const usados = new Set<string>();
+    for (const g of grupos) {
+      const dentro = (g.lista ?? [])
+        .map((item) => {
+          const p = item.protocolo != null ? String(item.protocolo) : null;
+          const daLista = p ? porProtocolo.get(p) : undefined;
+          return daLista ? { ...item, id: item.id ?? daLista.id } : null;
+        })
+        .filter(Boolean) as LinhaFila[];
+      if (dentro.length > 1) {
+        agrupados.push({ grupo: g, linhas: dentro });
+        dentro.forEach((d) => usados.add(String(d.protocolo)));
+      }
+    }
+    return {
+      gruposVisiveis: agrupados,
+      linhasSoltas: linhas.filter((l) => !usados.has(String(l.protocolo))),
+    };
+  }, [linhas, grupos]);
+
   const contagens = dados?.contagens ?? {};
   const alertas = dados?.alertas ?? {};
   const chipsStatus =
