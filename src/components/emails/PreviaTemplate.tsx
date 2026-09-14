@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Monitor, Smartphone } from "lucide-react";
@@ -20,6 +21,33 @@ export function usePreviaTemplate(slug?: string | null, enabled = true) {
     queryKey: ["emails-template-previa", slug],
     queryFn: () => rpcEmails<Previa>("emails_template_previa", { p_slug: slug }),
     enabled: !!slug && enabled,
+  });
+}
+
+/** Confere o HTML que está sendo digitado, sem precisar salvar. */
+export function useConferirTemplate(html: string, assunto: string, atrasoMs = 500) {
+  const [htmlLento, setHtmlLento] = useState(html);
+  const [assuntoLento, setAssuntoLento] = useState(assunto);
+
+  useEffect(() => {
+    const t = setTimeout(() => {
+      setHtmlLento(html);
+      setAssuntoLento(assunto);
+    }, atrasoMs);
+    return () => clearTimeout(t);
+  }, [html, assunto, atrasoMs]);
+
+  return useQuery({
+    queryKey: ["emails-template-conferir", htmlLento, assuntoLento],
+    queryFn: () =>
+      rpcEmails<Previa>("emails_template_conferir", {
+        p_html: htmlLento,
+        p_assunto: assuntoLento,
+        p_nome: null,
+        p_cupom: null,
+        p_valor: null,
+      }),
+    enabled: !!htmlLento.trim(),
   });
 }
 
