@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { toast } from "@/hooks/use-toast";
 import { AlertTriangle, ArrowLeft, Plus, Send, XCircle } from "lucide-react";
 import { dataBr, rpcEmails } from "@/lib/emails";
-import { ControlesPrevia, IframePrevia, usePreviaTemplate, useVariaveisDisponiveis } from "./PreviaTemplate";
+import { ControlesPrevia, IframePrevia, useConferirTemplate, usePreviaTemplate, useVariaveisDisponiveis } from "./PreviaTemplate";
 
 type Conferencia = { tipo: "erro" | "aviso"; texto: string };
 
@@ -64,7 +64,7 @@ function Editor({ template, onVoltar }: { template: any; onVoltar: () => void })
   const [mobile, setMobile] = useState(false);
   const [semCupom, setSemCupom] = useState(false);
 
-  const { data: previa } = usePreviaTemplate(template?.slug);
+  const { data: previa } = useConferirTemplate(html, assunto);
   const { data: variaveis = [] } = useVariaveisDisponiveis();
 
   const conferencias = lerChecagem(previa?.checagem);
@@ -147,7 +147,7 @@ function Editor({ template, onVoltar }: { template: any; onVoltar: () => void })
 
           <Card className="space-y-2 p-4">
             <p className="text-sm font-medium">Conferência antes de salvar</p>
-            {!previa && <p className="text-xs text-muted-foreground">A conferência aparece depois do primeiro salvamento.</p>}
+            {!previa && <p className="text-xs text-muted-foreground">Escreva o HTML para a conferência aparecer.</p>}
             {previa && conferencias.length === 0 && (
               <p className="text-xs text-success">Tudo certo com as regras de Gmail e Tray.</p>
             )}
