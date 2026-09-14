@@ -10,13 +10,16 @@ import { useUserRole } from "@/hooks/useUserRole";
 import { PainelSolicitacao } from "@/components/reversa/PainelSolicitacao";
 import { AbrirSolicitacaoDialog } from "@/components/reversa/AbrirSolicitacaoDialog";
 import { PoliticaReversa } from "@/components/reversa/PoliticaReversa";
+import { CartaoGrupoCliente } from "@/components/reversa/CartaoGrupoCliente";
 import {
   ALERTAS,
   codigoVencendo,
   formatarData,
+  painelGrupos,
   painelLista,
   texto,
   traco,
+  type GrupoCliente,
   type LinhaFila,
   type RespostaLista,
 } from "@/lib/reversaPainel";
@@ -27,6 +30,7 @@ export default function TrocasSite() {
   const { toast } = useToast();
   const { isAdmin } = useUserRole();
   const [dados, setDados] = useState<RespostaLista | null>(null);
+  const [grupos, setGrupos] = useState<GrupoCliente[]>([]);
   const [carregando, setCarregando] = useState(true);
   const [status, setStatus] = useState<string | null>(null);
   const [alerta, setAlerta] = useState<string | null>(null);
@@ -50,6 +54,11 @@ export default function TrocasSite() {
     } finally {
       setCarregando(false);
     }
+    try {
+      setGrupos((await painelGrupos(50)) ?? []);
+    } catch {
+      setGrupos([]);
+    }
   }
 
   useEffect(() => {
@@ -58,6 +67,36 @@ export default function TrocasSite() {
   }, [status, alerta, buscaAtiva]);
 
   const linhas: LinhaFila[] = useMemo(() => dados?.itens ?? dados?.linhas ?? [], [dados]);
+
+  // Os filtros e a busca continuam no servidor: o agrupamento só reaproveita
+  // as solicitações que passaram pelo filtro atual.
+  const { gruposVisiveis, linhasSoltas } = useMemo(() => {
+    const porProtocolo = new Map<string, LinhaFila>();
+    for (const l of linhas) {
+      const p = l.protocolo != null ? String(l.protocolo) : null;
+      if (p) porProtocolo.set(p, l);
+    }
+    const agrupados: { grupo: GrupoCliente; linhas: LinhaFila[] }[] = [];
+    const usados = new Set<string>();
+    for (const g of grupos) {
+      const dentro = (g.lista ?? [])
+        .map((item) => {
+          const p = item.protocolo != null ? String(item.protocolo) : null;
+          const daLista = p ? porProtocolo.get(p) : undefined;
+          return daLista ? { ...item, id: item.id ?? daLista.id } : null;
+        })
+        .filter(Boolean) as LinhaFila[];
+      if (dentro.length > 1) {
+        agrupados.push({ grupo: g, linhas: dentro });
+        dentro.forEach((d) => usados.add(String(d.protocolo)));
+      }
+    }
+    return {
+      gruposVisiveis: agrupados,
+      linhasSoltas: linhas.filter((l) => !usados.has(String(l.protocolo))),
+    };
+  }, [linhas, grupos]);
+
   const contagens = dados?.contagens ?? {};
   const alertas = dados?.alertas ?? {};
   const chipsStatus =
@@ -163,6 +202,19 @@ export default function TrocasSite() {
             </Button>
           </div>
 
+          {!carregando && gruposVisiveis.length > 0 && (
+            <div className="space-y-3">
+              {gruposVisiveis.map(({ grupo, linhas: doGrupo }) => (
+                <CartaoGrupoCliente
+                  key={grupo.chave}
+                  grupo={grupo}
+                  linhas={doGrupo}
+                  aoAbrir={(l) => l.id && setSelecionado(String(l.id))}
+                />
+              ))}
+            </div>
+          )}
+
           <Card className="overflow-hidden">
             <div className="h-[560px] overflow-auto">
               <table className="w-full text-sm">
@@ -194,15 +246,17 @@ export default function TrocasSite() {
                       </td>
                     </tr>
                   )}
-                  {!carregando && !linhas.length && (
+                  {!carregando && !linhasSoltas.length && (
                     <tr>
                       <td colSpan={10} className="py-16 text-center text-muted-foreground">
-                        Nenhuma solicitação neste filtro.
+                        {gruposVisiveis.length
+                          ? "As solicitações deste filtro estão agrupadas por cliente acima."
+                          : "Nenhuma solicitação neste filtro."}
                       </td>
                     </tr>
                   )}
                   {!carregando &&
-                    linhas.map((l) => {
+                    linhasSoltas.map((l) => {
                       const alerta2 = codigoVencendo(l.valido_ate ?? l.postagem?.valido_ate);
                       return (
                         <tr
