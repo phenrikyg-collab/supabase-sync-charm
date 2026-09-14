@@ -186,10 +186,17 @@ export function PecasRetornoTab({ aoAbrirSolicitacao }: Props) {
                         </span>
                       ) : null}
                     </p>
-                    <p className="truncate text-xs text-muted-foreground">SKU {texto(l.sku)}</p>
+                  <p className="truncate text-xs text-muted-foreground">SKU {texto(l.sku)}</p>
+                  {l.rastreio_evento && (
                     <p className="truncate text-xs text-muted-foreground">
-                      {texto(l.cliente_nome)} · {texto(l.protocolo)}
+                      {texto(l.rastreio_evento)}
+                      {l.rastreio_local ? ` · ${texto(l.rastreio_local)}` : ""}
+                      {l.rastreio_em_br ? ` · ${texto(l.rastreio_em_br)}` : ""}
                     </p>
+                  )}
+                  <p className="truncate text-xs text-muted-foreground">
+                    {texto(l.cliente_nome)} · {texto(l.protocolo)}
+                  </p>
                     {l.alerta && l.aviso && (
                       <p className="mt-1 flex items-center gap-1 text-xs font-medium text-warning">
                         <AlertTriangle className="h-3 w-3" />
@@ -332,6 +339,21 @@ function DetalhePeca({
             <Linha rotulo="Código de postagem" valor={l.codigo_postagem} />
             <Linha rotulo="Rastreio" valor={l.rastreio} />
             <Linha rotulo="Válido até" valor={l.valido_ate_br} />
+            {l.rastreio_evento && (
+              <div className="flex justify-between gap-4 py-1 text-sm">
+                <span className="text-muted-foreground">Último evento</span>
+                <div className="text-right">
+                  <span>
+                    {texto(l.rastreio_evento)}
+                    {l.rastreio_local ? ` · ${texto(l.rastreio_local)}` : ""}
+                    {l.rastreio_em_br ? ` · ${texto(l.rastreio_em_br)}` : ""}
+                  </span>
+                  <p className="text-[10px] text-muted-foreground">
+                    consultado em {texto(l.rastreio_visto_em_br)}
+                  </p>
+                </div>
+              </div>
+            )}
           </section>
 
           <section>
