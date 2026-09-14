@@ -12,6 +12,7 @@ import { AbrirSolicitacaoDialog } from "@/components/reversa/AbrirSolicitacaoDia
 import { PoliticaReversa } from "@/components/reversa/PoliticaReversa";
 import { CartaoGrupoCliente } from "@/components/reversa/CartaoGrupoCliente";
 import { PecasRetornoTab } from "@/components/reversa/PecasRetornoTab";
+import { FluxoTab } from "@/components/reversa/FluxoTab";
 import {
   ALERTAS,
   codigoVencendo,
@@ -39,6 +40,7 @@ export default function TrocasSite() {
   const [buscaAtiva, setBuscaAtiva] = useState("");
   const [selecionado, setSelecionado] = useState<string | null>(null);
   const [abrindo, setAbrindo] = useState(false);
+  const [fluxoContagens, setFluxoContagens] = useState<{ transito: number; tratamento: number } | null>(null);
 
   async function carregar() {
     setCarregando(true);
@@ -128,6 +130,14 @@ export default function TrocasSite() {
       <Tabs defaultValue="fila">
         <TabsList>
           <TabsTrigger value="fila">Fila</TabsTrigger>
+          <TabsTrigger value="transito">
+            A caminho da loja
+            {fluxoContagens != null && ` (${fluxoContagens.transito})`}
+          </TabsTrigger>
+          <TabsTrigger value="tratamento">
+            Em tratamento
+            {fluxoContagens != null && ` (${fluxoContagens.tratamento})`}
+          </TabsTrigger>
           <TabsTrigger value="pecas">Peças em retorno</TabsTrigger>
           {isAdmin && <TabsTrigger value="politica">Política</TabsTrigger>}
         </TabsList>
@@ -327,6 +337,22 @@ export default function TrocasSite() {
               </table>
             </div>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="transito" className="pt-4">
+          <FluxoTab
+            aba="transito"
+            aoAbrirSolicitacao={(id) => setSelecionado(id)}
+            aoContagens={setFluxoContagens}
+          />
+        </TabsContent>
+
+        <TabsContent value="tratamento" className="pt-4">
+          <FluxoTab
+            aba="tratamento"
+            aoAbrirSolicitacao={(id) => setSelecionado(id)}
+            aoContagens={setFluxoContagens}
+          />
         </TabsContent>
 
         <TabsContent value="pecas" className="pt-4">
