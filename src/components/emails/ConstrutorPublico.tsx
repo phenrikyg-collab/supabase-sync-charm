@@ -345,11 +345,12 @@ function CondicaoLinha({
 }
 
 function GrupoEditor({
-  no, campos, nivel, onChange, onRemover,
+  no, campos, nivel, empilhado, onChange, onRemover,
 }: {
   no: { e: No[] } | { ou: No[] };
   campos: CampoPublico[];
   nivel: number;
+  empilhado: boolean;
   onChange: (n: No) => void;
   onRemover?: () => void;
 }) {
@@ -412,6 +413,7 @@ function GrupoEditor({
               cond={interno}
               campos={campos}
               negada={negada}
+              empilhado={empilhado}
               onChange={(c) => trocar(negada ? { nao: c } : c)}
               onNegar={(v) => trocar(v ? { nao: interno } : interno)}
               onRemover={remover}
@@ -427,6 +429,7 @@ function GrupoEditor({
                 no={interno as any}
                 campos={campos}
                 nivel={nivel + 1}
+                empilhado={empilhado}
                 onChange={(n) => trocar(negada ? { nao: n } : n)}
                 onRemover={remover}
               />
