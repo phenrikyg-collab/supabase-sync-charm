@@ -391,8 +391,6 @@ export default function Atendimento() {
     });
   }, [conversasBrutas, tiposInteracao]);
 
-  const conversaAtual = conversas.find((c) => String(c.id) === selecionada) ?? null;
-
   const { mapaAtencao } = useConversasAtencao();
 
   // Busca por nome ou telefone com debounce de 300ms
