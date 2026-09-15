@@ -632,12 +632,14 @@ export function ProvadorVirtualConteudo({
   nomeInicial = "",
   telefoneInicial = "",
   onAbrirConversa,
+  onContagem,
 }: {
   semCabecalho?: boolean;
   conversaId?: string | null;
   nomeInicial?: string;
   telefoneInicial?: string;
   onAbrirConversa?: AbrirConversaProvador;
+  onContagem?: (n: number) => void;
 }) {
   const [aba, setAba] = useState(conversaId ? "gerar" : "funil");
 
@@ -655,7 +657,7 @@ export function ProvadorVirtualConteudo({
           <TabsTrigger value="gerar">Gerar Prova</TabsTrigger>
         </TabsList>
         <TabsContent value="funil" className="mt-6">
-          <FunilLeads onAbrirConversa={onAbrirConversa} />
+          <FunilLeads onAbrirConversa={onAbrirConversa} onContagem={onContagem} />
         </TabsContent>
         <TabsContent value="gerar" className="mt-6">
           <GerarProva conversaId={conversaId} nomeInicial={nomeInicial} telefoneInicial={telefoneInicial} />
