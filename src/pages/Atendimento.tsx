@@ -275,6 +275,7 @@ export default function Atendimento() {
 
 
 
+  const [grupoAba, setGrupoAba] = useState<"conversa" | "clique" | "so_envio">("conversa");
   const [filtroLeitura, setFiltroLeitura] = useState<"todas" | "nao_lidas" | "lidas" | "atencao">("todas");
   const [tagsFiltro, setTagsFiltro] = useState<string[]>([]);
   const [erroJanela, setErroJanela] = useState<string | null>(null);
