@@ -424,6 +424,7 @@ export default function Atendimento() {
     if (!selecionada) return null;
     const carregada = conversas.find((c) => String(c.id) === selecionada);
     if (carregada) return carregada;
+    if (conversaAvulsa) return conversaAvulsa;
     const achada = resultadoBusca?.conversas?.find((r) => String(r.conversa_id) === selecionada);
     if (!achada) return null;
     return {
