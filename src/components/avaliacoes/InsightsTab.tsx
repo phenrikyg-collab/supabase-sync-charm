@@ -167,6 +167,18 @@ function BlocoVisaoGeral({ dias }: { dias: number }) {
 
 /* ---------------- Bloco 2 ---------------- */
 
+const MESES_CURTOS = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"];
+
+function periodoCurto(v: any, gran: "mes" | "semana"): string {
+  const s = String(v ?? "");
+  const d = new Date(s);
+  if (Number.isNaN(d.getTime())) return s;
+  if (gran === "mes") {
+    return `${MESES_CURTOS[d.getMonth()]}/${String(d.getFullYear()).slice(-2)}`;
+  }
+  return `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}`;
+}
+
 function BlocoEvolucao({ dias }: { dias: number }) {
   const [gran, setGran] = useState<"mes" | "semana">("mes");
   const { data, isLoading } = useQuery({
