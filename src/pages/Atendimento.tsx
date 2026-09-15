@@ -41,6 +41,7 @@ import { ConsultarTransacaoTab } from "@/components/atendimento/ConsultarTransac
 import { MensagemMidia, ehTipoMidia } from "@/components/atendimento/MensagemMidia";
 import { SeletorFigurinhas } from "@/components/atendimento/SeletorFigurinhas";
 import { AbandonadasTab } from "@/components/atendimento/AbandonadasTab";
+import { AprendizadoAnnaTab } from "@/components/atendimento/AprendizadoAnna";
 import { useConversasAtencao, classeBordaNivel, ChipsMotivos, SeloFila } from "@/components/atendimento/atencao";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { NovaConversaDialog, formatarTelefone, soDigitos } from "@/components/atendimento/NovaConversa";
@@ -270,7 +271,7 @@ export default function Atendimento() {
   const [selecionada, setSelecionada] = useState<string | null>(null);
   const [busca, setBusca] = useState("");
   const [aba, setAba] = useState<"whatsapp" | "site">("whatsapp");
-  const [abaPagina, setAbaPagina] = useState<"conversas" | "cobrancas" | "consulta" | "abandonadas">("conversas");
+  const [abaPagina, setAbaPagina] = useState<"conversas" | "cobrancas" | "consulta" | "abandonadas" | "rapidas" | "aprendizado">("conversas");
   const [cobrancaAberta, setCobrancaAberta] = useState(false);
   const [linkPagamentoAberto, setLinkPagamentoAberto] = useState(false);
   const [freteAberto, setFreteAberto] = useState(false);
@@ -799,6 +800,7 @@ export default function Atendimento() {
             <TabsTrigger value="cobrancas" className="h-8 text-xs">Cobranças</TabsTrigger>
             <TabsTrigger value="consulta" className="h-8 text-xs">Consultar Transação</TabsTrigger>
             <TabsTrigger value="rapidas" className="h-8 text-xs">Mensagens rápidas</TabsTrigger>
+            <TabsTrigger value="aprendizado" className="h-8 text-xs">Aprendizado da Anna</TabsTrigger>
           </TabsList>
         </div>
 
@@ -819,6 +821,11 @@ export default function Atendimento() {
         <TabsContent value="rapidas" className="m-0 min-h-0 flex-1 overflow-auto p-4">
           <MensagensRapidasTab />
         </TabsContent>
+
+        <TabsContent value="aprendizado" className="m-0 min-h-0 flex-1 overflow-auto p-4">
+          <AprendizadoAnnaTab />
+        </TabsContent>
+
 
         <TabsContent value="conversas" className="m-0 min-h-0 flex-1 overflow-hidden data-[state=active]:flex">
       <div className="relative flex w-full min-w-0 flex-1 overflow-hidden">
