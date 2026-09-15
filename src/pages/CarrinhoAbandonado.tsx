@@ -97,6 +97,9 @@ export default function CarrinhoAbandonado({
     data_criacao: (l) => `${l.data_criacao ?? ""}T${String(l.hora_criacao ?? "00:00:00")}`,
   });
 
+  const { contatoDe } = useContatoPorTelefones(useMemo(() => ordenadas.map((l) => l.telefone), [ordenadas]));
+
+
   const totalValor = filtradas.reduce((s, l) => s + Number(l.total ?? 0), 0);
   const ticket = filtradas.length ? totalValor / filtradas.length : 0;
 
