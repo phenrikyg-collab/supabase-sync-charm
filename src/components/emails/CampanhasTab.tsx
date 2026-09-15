@@ -337,6 +337,9 @@ function NovaCampanha({ aberto, onFechar }: { aberto: boolean; onFechar: () => v
                     </Card>
                   ))}
                 </div>
+                <p className="text-[11px] text-muted-foreground">
+                  Este público se refaz a cada consulta. {textoConsulta(simuladoEm)}.
+                </p>
                 <Card className="border-warning/40 bg-warning/5 p-4">
                   <p className="text-xs uppercase tracking-wider text-warning">Bloqueados pelo teto</p>
                   <p className="font-serif text-2xl text-warning">{inteiro(bloqueados)}</p>
