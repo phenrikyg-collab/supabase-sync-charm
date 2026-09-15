@@ -304,13 +304,7 @@ export function TemplatesTab({ slugInicial }: { slugInicial?: string | null } = 
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         {lista.map((t: any) => (
-          <CartaoTemplate
-            key={t.id}
-            t={t}
-            testando={enviarTeste.isPending}
-            onAbrir={() => setEditando(t)}
-            onTeste={() => enviarTeste.mutate(t)}
-          />
+          <CartaoTemplate key={t.id} t={t} onAbrir={() => setEditando(t)} />
         ))}
       </div>
     </div>
