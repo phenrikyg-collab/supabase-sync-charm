@@ -855,7 +855,7 @@ export function InsightsTab({ aoAbrirPendentes }: { aoAbrirPendentes?: () => voi
         </p>
       </div>
 
-      <BlocoVisaoGeral dias={dias} />
+      <BlocoVisaoGeral dias={dias} aoAbrirPendentes={aoAbrirPendentes} />
       <BlocoEvolucao dias={dias} />
       <BlocoProdutos dias={dias} />
       <BlocoCaimento dias={dias} />
