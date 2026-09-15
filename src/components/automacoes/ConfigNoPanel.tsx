@@ -179,7 +179,9 @@ export function ConfigNoPanel({
 
   const templatesEmail = catalogo?.templates_email ?? [];
   const nosEnvio = nosDoFluxo.filter((n) => ["enviar_email", "whatsapp_template", "whatsapp_janela"].includes(n.tipo));
-  const noEventoEscolhido = nosEnvio.find((n) => n.ref === String(config.no_id));
+  const refDoNo = (valor: any) =>
+    valor == null || valor === "" ? "" : /^\d+$/.test(String(valor)) ? `db-${valor}` : String(valor);
+  const noEventoEscolhido = nosEnvio.find((n) => n.ref === refDoNo(config.no_id));
   const eventosDisponiveis =
     noEventoEscolhido?.tipo === "enviar_email"
       ? catalogo?.eventos?.email ?? []
