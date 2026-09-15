@@ -93,6 +93,28 @@ function NovaCampanha({
 
   const { data: campos = [] } = usePublicoCampos(aberto);
 
+  // Carrega a campanha em rascunho para continuar de onde parou.
+  const { data: salva } = useQuery({
+    queryKey: ["emails-campanha-get", campanhaId],
+    queryFn: () => rpcEmails<any>("emails_campanha_get", { p_campanha_id: campanhaId }),
+    enabled: aberto && campanhaId != null,
+  });
+
+  useEffect(() => {
+    if (!aberto) { setCarregada(false); return; }
+    if (!salva || carregada) return;
+    if (salva.editavel === false) { onNaoEditavel?.(salva.id); return; }
+    setNome(String(salva.nome ?? ""));
+    setAssunto(String(salva.assunto ?? ""));
+    setPreheader(String(salva.preheader ?? ""));
+    setTemplateId(salva.template_id != null ? String(salva.template_id) : "");
+    const porFiltroSalvo = salva.modo_publico === "filtro" || (!salva.segmento_slug && !!salva.publico_filtro);
+    setModoPublico(porFiltroSalvo ? "filtro" : "segmento");
+    setSegmento(String(salva.segmento_slug ?? ""));
+    if (salva.publico_filtro) setFiltro(salva.publico_filtro as No);
+    setCarregada(true);
+  }, [aberto, salva, carregada, onNaoEditavel]);
+
   const totalCondicoes = contarCondicoes(filtro);
 
   // Debounce da simulação do filtro montado.
