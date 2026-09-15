@@ -437,6 +437,7 @@ export function AutomacoesTab({ onAbrirTemplate }: { onAbrirTemplate?: (slug: st
 
 
       <PainelConfig automacao={configurando} aberto={!!configurando} onFechar={() => setConfigurando(null)} />
+      <PainelSimulacao automacao={simulando} aberto={!!simulando} onFechar={() => setSimulando(null)} />
 
       <AlertDialog open={!!confirmarDesligar} onOpenChange={(v) => !v && setConfirmarDesligar(null)}>
         <AlertDialogContent>
