@@ -283,12 +283,6 @@ export function TemplatesTab({ slugInicial }: { slugInicial?: string | null } = 
     queryFn: async () => (await rpcEmails<any>("emails_templates_listar", { p_tipo: null })) ?? [],
   });
 
-  const enviarTeste = useMutation({
-    mutationFn: (t: any) => rpcEmails("emails_template_salvar", { p_patch: { id: t.id, enviar_teste: true } }),
-    onSuccess: () => toast({ title: "Teste enviado", description: "Confira a caixa de entrada de teste." }),
-    onError: (e: any) => toast({ title: "Não deu para enviar o teste", description: e.message, variant: "destructive" }),
-  });
-
   const lista = Array.isArray(templates) ? templates : [];
   const alvo = slugInicial ? lista.find((t: any) => t.slug === slugInicial) : null;
   const aberto = editando ?? alvo;
