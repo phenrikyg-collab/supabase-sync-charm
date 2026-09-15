@@ -175,6 +175,7 @@ function NovaCampanha({
       }
       const salvo = await rpcEmails<any>("emails_campanha_salvar", {
         p_patch: {
+          ...(campanhaId != null ? { id: campanhaId } : {}),
           nome, assunto, preheader,
           template_id: idTemplate,
           ...(porFiltro ? { publico_filtro: filtro } : { segmento_slug: segmento }),
