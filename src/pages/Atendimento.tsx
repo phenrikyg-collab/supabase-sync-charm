@@ -711,7 +711,7 @@ export default function Atendimento() {
       <div className="grid w-full max-w-full min-w-0 grid-cols-1 lg:grid-cols-[minmax(0,320px)_minmax(0,1fr)] xl:grid-cols-[minmax(0,320px)_minmax(0,1fr)_minmax(0,340px)] gap-4 h-[calc(100vh-260px)] min-h-[520px]">
 
         {/* Lista de conversas */}
-        <Card className="flex min-w-0 flex-col overflow-hidden">
+        <Card className="flex min-w-0 max-w-full flex-col overflow-hidden">
           <div className="p-3 border-b border-border space-y-2">
             <Button size="sm" className="w-full" onClick={() => abrirNovaConversa(null)}>
               <Plus className="h-4 w-4 mr-2" />
@@ -1022,9 +1022,9 @@ export default function Atendimento() {
               <PropostaDaConversa conversaId={conversaAtual.id} propostaId={propostaId} />
               <CobrancasDaConversa conversaId={conversaAtual.id} />
 
-              <ScrollArea className="flex-1 p-4">
+              <ScrollArea className="min-w-0 max-w-full flex-1 overflow-x-hidden p-4 [&_[data-radix-scroll-area-viewport]]:!overflow-x-hidden">
                 {carregandoMensagens && <p className="text-sm text-muted-foreground">Carregando mensagens…</p>}
-                <div className="space-y-3">
+                <div className="min-w-0 max-w-full space-y-3 overflow-x-hidden">
                   {mensagens.map((m, idx) => {
                     const saida = m.direcao === "saida";
                     const bot = saida && m.origem === "bot";
@@ -1036,11 +1036,11 @@ export default function Atendimento() {
                     return (
                       <div
                         key={m.id != null ? String(m.id) : `${m.criada_em ?? m.criado_em ?? ""}-${idx}`}
-                        className={cn("flex", saida ? "justify-end" : "justify-start")}
+                        className={cn("flex min-w-0 max-w-full overflow-hidden", saida ? "justify-end" : "justify-start")}
                       >
                         <div
                           className={cn(
-                            "max-w-[70%] min-w-0 text-sm break-words [overflow-wrap:anywhere]",
+                            "min-w-0 max-w-[75%] overflow-hidden text-sm break-words [overflow-wrap:anywhere] [word-break:break-word]",
                             sticker
                               ? "bg-transparent border-0 p-0"
                               : cn(
@@ -1058,7 +1058,7 @@ export default function Atendimento() {
                             </div>
                           )}
                           {midia && <MensagemMidia tipo={m.tipo} mediaUrl={m.media_url} conteudo={m.conteudo} />}
-                          {mostrarTexto && <p className="whitespace-pre-wrap break-words">{m.conteudo}</p>}
+                          {mostrarTexto && <p className="max-w-full whitespace-pre-wrap break-words [overflow-wrap:anywhere] [word-break:break-word]">{m.conteudo}</p>}
                           <div className="flex items-center justify-end gap-1 mt-1">
                             <span className="text-[10px] text-muted-foreground">
                               {horaCurta(m.criada_em ?? m.criado_em ?? m.enviado_em)}

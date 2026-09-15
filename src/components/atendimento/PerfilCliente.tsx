@@ -312,12 +312,12 @@ export function PerfilCliente({
   const end = perfil?.endereco;
 
   return (
-    <Card className="flex flex-col overflow-hidden">
+    <Card className="flex min-w-0 max-w-full flex-col overflow-hidden">
       <div className="p-3 border-b border-border">
         <h3 className="text-sm font-semibold">Perfil da cliente</h3>
       </div>
-      <ScrollArea className="flex-1">
-        <div className="p-3 space-y-4">
+      <ScrollArea className="min-w-0 max-w-full flex-1 overflow-x-hidden [&_[data-radix-scroll-area-viewport]]:!overflow-x-hidden">
+        <div className="min-w-0 max-w-full p-3 space-y-4 overflow-x-hidden">
           {isLoading && <p className="text-xs text-muted-foreground">Carregando perfil…</p>}
 
           {!isLoading && !perfil?.vinculado && (
@@ -374,7 +374,7 @@ export function PerfilCliente({
                     <Sparkles className="h-3.5 w-3.5" />
                     Sugestões pra ela
                   </p>
-                  <div className="grid grid-cols-3 gap-2">
+                  <div className="grid min-w-0 grid-cols-3 gap-2">
                     {perfil.sugestoes_estoque.map((pr, i) => (
                       <button
                         key={String(pr.produto_id ?? i)}
@@ -382,16 +382,16 @@ export function PerfilCliente({
                         onClick={() => enviarSugestao(pr)}
                         disabled={enviandoId === String(pr.produto_id ?? pr.nome ?? "")}
                         title="Enviar para a cliente no WhatsApp"
-                        className="text-left border border-border rounded-md overflow-hidden transition-colors hover:border-primary disabled:opacity-60"
+                        className="flex h-auto min-w-0 flex-col overflow-hidden rounded-md border border-border text-left transition-colors hover:border-primary disabled:opacity-60"
                       >
                         <div className="aspect-square bg-muted">
                           {pr.imagem && (
                             <img src={pr.imagem} alt={pr.nome ?? "Produto"} className="w-full h-full object-cover" loading="lazy" />
                           )}
                         </div>
-                        <div className="p-1">
-                          <p className="text-[10px] line-clamp-2">{pr.nome}</p>
-                          <p className="text-[10px] font-semibold">{formatarPreco(pr.preco)}</p>
+                        <div className="flex min-w-0 flex-1 flex-col p-1.5">
+                          <p className="line-clamp-2 min-h-8 break-words text-[10px] leading-4 [overflow-wrap:anywhere]">{pr.nome}</p>
+                          <p className="mt-auto whitespace-nowrap text-[10px] font-semibold leading-4">{formatarPreco(pr.preco)}</p>
                         </div>
                       </button>
                     ))}
