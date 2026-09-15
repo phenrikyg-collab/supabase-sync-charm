@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Smile, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { ScrollArea } from "@/components/ui/scroll-area";
+
 import { supabase } from "@/integrations/supabase/client";
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from "@/lib/edgeFunctions";
 import { toast } from "@/hooks/use-toast";
@@ -112,13 +112,13 @@ export function SeletorFigurinhas({
           <Smile className="h-4 w-4" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-80 p-0" align="start">
+      <PopoverContent className="max-h-[70vh] w-80 overflow-hidden p-0" align="start">
         {janelaFechada && (
           <p className="m-3 rounded-md border border-warning/40 bg-warning/10 p-2 text-xs text-foreground">
             Passou de 24h desde a última mensagem da cliente, só dá para reabrir por template
           </p>
         )}
-        <ScrollArea className="max-h-80">
+        <div className="max-h-[22rem] overflow-y-auto overscroll-contain">
           <div className="p-3 space-y-4">
             {isLoading && <p className="text-xs text-muted-foreground">Carregando figurinhas…</p>}
             {!isLoading && grupos.length === 0 && (
@@ -156,7 +156,7 @@ export function SeletorFigurinhas({
               </div>
             ))}
           </div>
-        </ScrollArea>
+        </div>
       </PopoverContent>
     </Popover>
   );
