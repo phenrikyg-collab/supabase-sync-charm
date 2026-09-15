@@ -551,6 +551,7 @@ export function CampanhasTab({ dias }: { dias: number }) {
               <TableHead className="text-right">Abertura</TableHead>
               <TableHead className="text-right">CTOR</TableHead>
               <TableHead className="text-right">Receita</TableHead>
+              <TableHead />
             </TableRow>
           </TableHeader>
           <TableBody>
