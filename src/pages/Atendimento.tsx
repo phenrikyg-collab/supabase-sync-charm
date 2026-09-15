@@ -46,6 +46,7 @@ import { useConversasAtencao, classeBordaNivel, ChipsMotivos, SeloFila, rotuloAu
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { NovaConversaDialog, formatarTelefone, soDigitos } from "@/components/atendimento/NovaConversa";
 import { OportunidadesTab } from "@/components/atendimento/OportunidadesTab";
+import { ProvadorVirtualConteudo } from "@/pages/ProvadorVirtual";
 import { CarrinhoAbandonadoConteudo } from "@/pages/CarrinhoAbandonado";
 import { PedidosCanceladosConteudo } from "@/pages/PedidosCancelados";
 import { FunilWhatsAppConteudo } from "@/pages/FunilWhatsApp";
@@ -285,6 +286,7 @@ export default function Atendimento() {
     | "rapidas"
     | "aprendizado"
     | "oportunidades"
+    | "provador"
     | "carrinhos"
     | "cancelados"
     | "funil"
@@ -821,6 +823,7 @@ export default function Atendimento() {
           <TabsList className="h-8 w-max flex-nowrap bg-transparent p-0">
             <TabsTrigger value="conversas" className="h-8 shrink-0 text-xs">Conversas</TabsTrigger>
             <TabsTrigger value="oportunidades" className="h-8 shrink-0 text-xs">Oportunidades</TabsTrigger>
+            <TabsTrigger value="provador" className="h-8 shrink-0 text-xs">Provador</TabsTrigger>
             <TabsTrigger value="abandonadas" className="h-8 shrink-0 text-xs">Abandonadas</TabsTrigger>
             <TabsTrigger value="cobrancas" className="h-8 shrink-0 text-xs">Cobranças</TabsTrigger>
             <TabsTrigger value="consulta" className="h-8 shrink-0 text-xs">Consultar Transação</TabsTrigger>
@@ -841,6 +844,10 @@ export default function Atendimento() {
               setAbaPagina("conversas");
             }}
           />
+        </TabsContent>
+
+        <TabsContent value="provador" className="m-0 min-h-0 w-full min-w-0 flex-1 overflow-auto p-4">
+          <ProvadorVirtualConteudo semCabecalho />
         </TabsContent>
 
         <TabsContent value="carrinhos" className="m-0 min-h-0 w-full min-w-0 flex-1 overflow-auto p-4">
