@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -105,6 +105,8 @@ export default function CarrinhoAbandonado({
 
 
   const totalValor = filtradas.reduce((s, l) => s + Number(l.total ?? 0), 0);
+  useEffect(() => { onContagem?.(ordenadas.length); }, [ordenadas.length, onContagem]);
+
   const ticket = filtradas.length ? totalValor / filtradas.length : 0;
 
   return (
