@@ -987,8 +987,16 @@ export default function Atendimento() {
                     </span>
                   </div>
                   <p className={cn("text-xs mt-1 line-clamp-1", naoLida ? "text-foreground font-medium" : "text-muted-foreground")}>
-                    {c.ultima_mensagem ?? "—"}
+                    {c.ultima_mensagem ?? ""}
                   </p>
+                  {grupoAba === "clique" && (
+                    <p className="mt-1 text-[11px]">
+                      <span className="text-muted-foreground">Botão tocado: </span>
+                      <span className="font-medium">
+                        {c.ultima_entrada_texto ?? c.ultima_mensagem ?? "sem registro"}
+                      </span>
+                    </p>
+                  )}
                   <div className="mt-2 flex items-center gap-1.5 flex-wrap">
                     <StatusPill status={c.status} aguardandoDesde={c.aguardando_desde} />
                     {(c.tags ?? []).map((t) => (
