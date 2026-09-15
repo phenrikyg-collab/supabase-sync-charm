@@ -1519,7 +1519,7 @@ export default function Atendimento() {
         )}
 
         <Sheet open={perfilSheet} onOpenChange={setPerfilSheet}>
-          <SheetContent side="right" className="w-[92vw] max-w-[380px] overflow-y-auto p-3">
+          <SheetContent side="right" className="w-[92vw] max-w-[380px] overflow-y-auto p-3 pb-8">
             <SheetTitle className="mb-2 text-sm">Perfil da cliente</SheetTitle>
             {conversaAtual ? (
               <div className="space-y-3">
