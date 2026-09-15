@@ -526,8 +526,58 @@ function NovaCampanha({
             <p className="rounded-lg border bg-muted/40 p-3 text-xs leading-relaxed text-muted-foreground">
               Preparar não dispara. A campanha entra na fila e o motor envia dentro da janela de horário configurada.
             </p>
+            {!testeEnviadoNestaSessao && (
+              <p className="flex items-start gap-2 rounded-lg border border-warning/40 bg-warning/5 p-3 text-xs text-warning">
+                <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                Você ainda não mandou um teste. Vale conferir como o e-mail chega antes de preparar o envio
+                para {inteiro(simulacao?.passam_teto ?? simulacao?.passam_no_teto ?? 0)} contatos.
+              </p>
+            )}
           </div>
         )}
+
+        <div className="space-y-1.5 rounded-lg border bg-muted/30 p-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <Input
+              value={testePara}
+              onChange={(e) => { setTesteTocado(true); setTestePara(e.target.value); setTesteErroCampo(null); }}
+              placeholder="alguem@exemplo.com"
+              className={cn("h-9 flex-1 min-w-[200px]", testeErroCampo && "border-danger focus-visible:ring-danger")}
+            />
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-9"
+              disabled={!temConteudoTeste || testeEnviando}
+              title={!temConteudoTeste ? "Escolha um template ou cole o conteúdo no passo 1" : undefined}
+              onClick={enviarTeste}
+            >
+              {testeEnviando
+                ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" />
+                : <Send className="mr-1 h-3.5 w-3.5" />}
+              Enviar teste
+            </Button>
+            {testeEstado?.fase === "aguardando" && (
+              <span className="text-xs text-muted-foreground">Enviando para {testeEstado.para}…</span>
+            )}
+            {testeEstado?.fase === "ok" && (
+              <span className="text-xs text-success">Enviado para {testeEstado.para} às {testeEstado.hora}</span>
+            )}
+            {testeEstado?.fase === "erro" && (
+              <span className="text-xs text-danger">{testeEstado.texto}</span>
+            )}
+            {testeRestantes != null && testeRestantes < 10 && (
+              <span className="text-xs text-warning">Restam {testeRestantes} testes nesta hora.</span>
+            )}
+          </div>
+          {testeErroCampo && <p className="text-xs text-danger">{testeErroCampo}</p>}
+          {!temConteudoTeste && (
+            <p className="text-xs text-muted-foreground">Escolha um template ou cole o conteúdo no passo 1.</p>
+          )}
+          <p className="text-[11px] text-muted-foreground">
+            O teste não conta nas métricas, os links dele não são rastreados, e o link de sair não funciona de propósito.
+          </p>
+        </div>
 
         <DialogFooter>
           {passo > 1 && (
