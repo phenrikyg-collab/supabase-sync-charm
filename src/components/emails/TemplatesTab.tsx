@@ -127,7 +127,19 @@ function Editor({ template, onVoltar }: { template: any; onVoltar: () => void })
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-2">
         <Button variant="ghost" size="sm" onClick={onVoltar}><ArrowLeft className="mr-1 h-4 w-4" /> Voltar</Button>
-        <Button className="ml-auto" disabled={bloqueado || salvar.isPending} onClick={() => salvar.mutate()}>
+        <div className="flex overflow-hidden rounded-md border">
+          {([["completo", "HTML completo"], ["miolo", "Só o miolo"]] as const).map(([v, r]) => (
+            <button
+              key={v}
+              type="button"
+              onClick={() => trocarModo(v)}
+              className={cn("px-3 py-1.5 text-xs transition-colors", modo === v ? "bg-primary text-primary-foreground" : "hover:bg-muted")}
+            >
+              {r}
+            </button>
+          ))}
+        </div>
+        <Button className="ml-auto" disabled={bloqueado || salvarTemplate.isPending} onClick={() => salvarTemplate.mutate()}>
           Salvar template
         </Button>
       </div>
