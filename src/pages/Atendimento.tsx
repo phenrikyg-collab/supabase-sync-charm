@@ -675,6 +675,26 @@ export default function Atendimento() {
 
   const atencaoDe = (c: Conversa) => mapaAtencao.get(String(c.id));
 
+  /** Alguém pedindo atendente entra em Conversas sempre, seja qual for o tipo */
+  const grupoDe = (c: Conversa): "conversa" | "clique" | "so_envio" => {
+    if (c.status === "escalado" || c.status === "em_atendimento") return "conversa";
+    const t = (c.tipo_interacao ?? "conversa").toLowerCase();
+    if (t === "clique") return "clique";
+    if (t === "so_envio") return "so_envio";
+    return "conversa";
+  };
+
+  const contagemGrupos = useMemo(() => {
+    const base = { conversa: 0, clique: 0, so_envio: 0 };
+    for (const c of conversas) {
+      if (!daAba(c)) continue;
+      base[grupoDe(c)] += 1;
+    }
+    return base;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [conversas, aba]);
+
+
   const filtradas = useMemo(() => {
     if (buscaAtiva) {
       const achadas = resultadoBusca?.conversas ?? [];
