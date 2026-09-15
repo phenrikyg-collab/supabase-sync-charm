@@ -253,6 +253,9 @@ export default function Atendimento() {
   const [proporCarrinhoAberto, setProporCarrinhoAberto] = useState(false);
   const [templateAberto, setTemplateAberto] = useState(false);
   const [propostaId, setPropostaId] = useState<string | number | null>(null);
+  const [novaConversaAberta, setNovaConversaAberta] = useState(false);
+  const [telefoneNovaConversa, setTelefoneNovaConversa] = useState<string | null>(null);
+  const [termoBusca, setTermoBusca] = useState("");
 
 
 
