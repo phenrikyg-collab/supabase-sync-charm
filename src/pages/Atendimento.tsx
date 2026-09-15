@@ -285,6 +285,7 @@ export default function Atendimento() {
     | "rapidas"
     | "aprendizado"
     | "oportunidades"
+    | "provador"
     | "carrinhos"
     | "cancelados"
     | "funil"
