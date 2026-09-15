@@ -303,6 +303,36 @@ function CondicaoLinha({
         </div>
       </div>
       {campo?.descricao && <p className="px-1 text-[11px] text-muted-foreground">{campo.descricao}</p>}
+      {campo?.congela_publico && (
+        <div className="flex flex-wrap items-center gap-2 rounded-md border border-warning/40 bg-warning/5 px-2 py-1.5">
+          <AlertTriangle className="h-3.5 w-3.5 shrink-0 text-warning" />
+          <p className="text-[11px] text-warning">
+            Data fixa: este público não se atualiza sozinho.
+            {campo.equivalente_vivo_rotulo
+              ? ` Para ele acompanhar o calendário, use ${campo.equivalente_vivo_rotulo}.`
+              : ""}
+          </p>
+          {campo.equivalente_vivo && (
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              className="ml-auto h-7 px-2 text-[11px]"
+              onClick={() => {
+                const novo = campos.find((c) => c.campo === campo.equivalente_vivo);
+                const opsNovas = OPS_POR_TIPO[novo?.tipo ?? "texto"] ?? OPS_POR_TIPO.texto;
+                onChange({
+                  campo: campo.equivalente_vivo as string,
+                  op: opsNovas.includes(cond.op) ? cond.op : opsNovas[0],
+                  valor: undefined,
+                });
+              }}
+            >
+              Trocar
+            </Button>
+          )}
+        </div>
+      )}
     </div>
   );
 }
