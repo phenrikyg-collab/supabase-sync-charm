@@ -338,6 +338,62 @@ export default function Atendimento() {
     },
   });
 
+  // Tempo real: mensagens novas, transcrição de áudio e mudanças de conversa
+  const selecionadaRef = useRef<string | null>(null);
+  selecionadaRef.current = selecionada;
+
+  useEffect(() => {
+    const invalidarLista = () =>
+      queryClient.invalidateQueries({ queryKey: ["whatsapp-conversas"] });
+
+    const mesmaConversa = (linha: any) =>
+      selecionadaRef.current != null && String(linha?.conversa_id) === String(selecionadaRef.current);
+
+    const canal = supabase
+      .channel("atendimento-tempo-real")
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "whatsapp", table: "mensagens" },
+        ({ new: nova }: any) => {
+          if (mesmaConversa(nova)) {
+            queryClient.setQueryData<Mensagem[]>(
+              ["whatsapp-mensagens", selecionadaRef.current],
+              (atuais) => {
+                const lista = atuais ?? [];
+                if (nova?.id != null && lista.some((m) => String(m.id) === String(nova.id))) return lista;
+                return [...lista, nova as Mensagem];
+              },
+            );
+          }
+          invalidarLista();
+        },
+      )
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "whatsapp", table: "mensagens" },
+        ({ new: atualizada }: any) => {
+          if (!mesmaConversa(atualizada) || atualizada?.id == null) return;
+          queryClient.setQueryData<Mensagem[]>(
+            ["whatsapp-mensagens", selecionadaRef.current],
+            (atuais) =>
+              (atuais ?? []).map((m) =>
+                String(m.id) === String(atualizada.id) ? { ...m, ...(atualizada as Mensagem) } : m,
+              ),
+          );
+        },
+      )
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "whatsapp", table: "conversas" },
+        () => invalidarLista(),
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(canal);
+    };
+  }, [queryClient]);
+
   const { data: todasTags = [] } = useQuery({
     queryKey: ["whatsapp-tags"],
     queryFn: async () => {
