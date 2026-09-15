@@ -17,6 +17,7 @@ type Resumo = {
 } | null;
 
 type Oportunidade = {
+  conversa_id?: string | number | null;
   tipo: string | null;
   prioridade: number | null;
   titulo: string | null;
@@ -55,7 +56,17 @@ function linkWhatsApp(tel: string) {
   return `https://wa.me/${full}`;
 }
 
-export function OportunidadesAoVivo({ refreshKey }: { refreshKey?: number }) {
+export function OportunidadesAoVivo({
+  refreshKey,
+  intervaloMs,
+  onAbrirConversa,
+}: {
+  refreshKey?: number;
+  /** Quando informado, o bloco se atualiza sozinho nesse intervalo. */
+  intervaloMs?: number;
+  /** Quando a oportunidade já tem conversa, abrir dentro do próprio painel. */
+  onAbrirConversa?: (conversaId: string) => void;
+}) {
   const [resumo, setResumo] = useState<Resumo>(null);
   const [lista, setLista] = useState<Oportunidade[]>([]);
   const [loading, setLoading] = useState(true);
@@ -74,6 +85,12 @@ export function OportunidadesAoVivo({ refreshKey }: { refreshKey?: number }) {
   }, []);
 
   useEffect(() => { carregar(); }, [carregar, refreshKey]);
+
+  useEffect(() => {
+    if (!intervaloMs) return;
+    const t = window.setInterval(() => carregar(), intervaloMs);
+    return () => window.clearInterval(t);
+  }, [carregar, intervaloMs]);
 
   const partes: string[] = [];
   if ((resumo?.quentes ?? 0) > 0) partes.push(`${resumo!.quentes} quentes agora`);
@@ -147,13 +164,21 @@ export function OportunidadesAoVivo({ refreshKey }: { refreshKey?: number }) {
                     {o.acao_sugerida && (
                       <span className="text-xs text-foreground/80 flex-1 min-w-[8rem]">{o.acao_sugerida}</span>
                     )}
-                    {o.telefone && isWhats && (
+                    {isWhats && o.conversa_id && onAbrirConversa ? (
+                      <Button
+                        size="sm"
+                        className="h-7 gap-1 bg-green-600 hover:bg-green-700 text-white"
+                        onClick={() => onAbrirConversa(String(o.conversa_id))}
+                      >
+                        <MessageCircle className="h-3 w-3" /> Abrir conversa
+                      </Button>
+                    ) : o.telefone && isWhats ? (
                       <Button asChild size="sm" className="h-7 gap-1 bg-green-600 hover:bg-green-700 text-white">
                         <a href={linkWhatsApp(o.telefone)} target="_blank" rel="noreferrer">
                           <Phone className="h-3 w-3" /> {o.telefone}
                         </a>
                       </Button>
-                    )}
+                    ) : null}
                     {o.telefone && !isWhats && (
                       <span className="text-xs text-muted-foreground">{o.telefone}</span>
                     )}
