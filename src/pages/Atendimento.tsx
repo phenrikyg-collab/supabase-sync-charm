@@ -289,7 +289,7 @@ export default function Atendimento() {
 
   const autor = user?.email ?? "Atendente";
 
-  const { data: conversas = [], isLoading: carregandoConversas } = useQuery({
+  const { data: conversasBrutas = [], isLoading: carregandoConversas } = useQuery({
     queryKey: ["whatsapp-conversas"],
     queryFn: async () => {
       // vw_conversas_painel já vem ordenada por urgência: renderizar na ordem exata do banco
