@@ -42,14 +42,16 @@ export default function Cashback({ semCabecalho }: { semCabecalho?: boolean } = 
     .filter((s: any) => typeof s === "string" && s.startsWith("auto-cashback"));
 
   return (
-    <div className="space-y-6 p-4 md:p-6">
+    <div className={semCabecalho ? "space-y-6" : "space-y-6 p-4 md:p-6"}>
       <header className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <h1 className="font-serif text-2xl">Cashback</h1>
-          <p className="text-sm text-muted-foreground">
-            Cupons de cashback, filas do motor, régua de avisos e regras do programa.
-          </p>
-        </div>
+        {!semCabecalho && (
+          <div>
+            <h1 className="font-serif text-2xl">Cashback</h1>
+            <p className="text-sm text-muted-foreground">
+              Cupons de cashback, filas do motor, régua de avisos e regras do programa.
+            </p>
+          </div>
+        )}
         <div className="flex gap-1.5">
           {PERIODOS.map((d) => (
             <Button
