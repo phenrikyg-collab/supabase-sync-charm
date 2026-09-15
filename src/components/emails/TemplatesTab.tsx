@@ -19,8 +19,7 @@ type Conferencia = { tipo: "erro" | "aviso"; texto: string };
 const AJUDA_ACENTO =
   "Corpo do e-mail: entidade HTML (voc&ecirc;). Assunto: acento de verdade (você). Cabeçalho de e-mail não decodifica entidade.";
 
-const AVISO_TESTE =
-  "Não clique no link de descadastro do e-mail de teste. O e-mail chega para você, mas o token é da destinatária real.";
+const AVISO_TESTE = "O link de sair não funciona no teste, é de propósito.";
 
 /** Lê o bloco de conferência que vem pronto do banco. */
 export function lerChecagem(checagem: any): Conferencia[] {
