@@ -11,6 +11,8 @@ export type ConversaAtencao = {
   dono?: "humana" | "automacao" | "bot" | string | null;
   automacao?: "avaliacao" | "cashback" | string | null;
   fluxo_avaliacao?: boolean | null;
+  ultima_entrada?: string | null;
+  ultima_saida?: string | null;
 };
 
 /** Rótulo discreto da régua em andamento, para o selo do header do chat. */
