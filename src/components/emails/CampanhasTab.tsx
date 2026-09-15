@@ -138,7 +138,14 @@ function NovaCampanha({
 
   const segmentoEscolhido = (segmentos as any[]).find((s) => String(s.slug) === segmento);
   const templateEscolhido = (templates as any[]).find((t: any) => String(t.id) === templateId);
-  const { data: previa } = usePreviaTemplate(templateEscolhido?.slug);
+  const { data: previaTemplate } = usePreviaTemplate(templateEscolhido?.slug);
+  // Sem template escolhido, a prévia vem do HTML colado, conferido pelo banco.
+  const { data: previaColada } = useConferirTemplate(
+    templateEscolhido ? "" : html, assunto, modoHtml, preheader || null, 600,
+  );
+  const previa = templateEscolhido ? previaTemplate : previaColada;
+  const conferencias = templateEscolhido ? [] : lerChecagem(previaColada?.checagem);
+  const htmlBloqueado = conferencias.some((c) => c.tipo === "erro");
 
   const bloqueados =
     simulacao?.bloqueados_teto ??
