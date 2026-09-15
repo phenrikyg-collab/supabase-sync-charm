@@ -496,6 +496,7 @@ export default function Atendimento() {
 
   const abrirConversa = async (c: Conversa) => {
     setSelecionada(String(c.id));
+    setListaSheet(false);
     setErroJanela(null);
     if (!c.nao_lida) return;
     const { error } = await supabase.rpc("whatsapp_marcar_lida" as any, {
@@ -955,7 +956,7 @@ export default function Atendimento() {
               </Popover>
             </div>
           </div>
-          <ScrollArea className="flex-1">
+          <ScrollArea className="min-h-0 flex-1">
             {carregandoConversas && (
               <p className="p-4 text-sm text-muted-foreground">Carregando conversas…</p>
             )}
