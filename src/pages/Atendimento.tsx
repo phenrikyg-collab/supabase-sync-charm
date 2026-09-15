@@ -42,7 +42,7 @@ import { MensagemMidia, ehTipoMidia } from "@/components/atendimento/MensagemMid
 import { SeletorFigurinhas } from "@/components/atendimento/SeletorFigurinhas";
 import { AbandonadasTab } from "@/components/atendimento/AbandonadasTab";
 import { AprendizadoAnnaTab } from "@/components/atendimento/AprendizadoAnna";
-import { useConversasAtencao, classeBordaNivel, ChipsMotivos, SeloFila } from "@/components/atendimento/atencao";
+import { useConversasAtencao, classeBordaNivel, ChipsMotivos, SeloFila, rotuloAutomacao } from "@/components/atendimento/atencao";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { NovaConversaDialog, formatarTelefone, soDigitos } from "@/components/atendimento/NovaConversa";
 
@@ -97,9 +97,10 @@ type Conversa = {
 
 type Urgencia = "perdendo" | "quente" | "atencao" | "normal";
 
-const urgenciaDe = (c: Conversa): Urgencia => {
-  const u = (c.urgencia ?? "normal").toLowerCase();
-  return u === "perdendo" || u === "quente" || u === "atencao" ? u : "normal";
+/** Nível de urgência vem de vw_conversas_atencao.nivel: quente/atencao pintam; normal e automacao não. */
+const urgenciaDeNivel = (nivel?: string | null): Urgencia => {
+  const n = (nivel ?? "").toLowerCase();
+  return n === "perdendo" || n === "quente" || n === "atencao" ? n : "normal";
 };
 
 const URGENCIA_ESTILO: Record<Exclude<Urgencia, "normal">, { borda: string; badgeFundo: string; badgeTexto: string }> = {
@@ -108,10 +109,9 @@ const URGENCIA_ESTILO: Record<Exclude<Urgencia, "normal">, { borda: string; badg
   atencao: { borda: "#E8CD7E", badgeFundo: "#F5F5F5", badgeTexto: "#8B6914" },
 };
 
-function BadgeSinal({ conversa }: { conversa: Conversa }) {
+function BadgeSinal({ conversa, urg }: { conversa: Conversa; urg: Urgencia }) {
   const sinais = conversa.sinais ?? [];
   if (sinais.length === 0) return null;
-  const urg = urgenciaDe(conversa);
   if (urg === "normal") return null;
   const estilo = URGENCIA_ESTILO[urg];
   const primeiro = sinais[0];
@@ -285,7 +285,7 @@ export default function Atendimento() {
 
 
   const [grupoAba, setGrupoAba] = useState<"conversa" | "clique" | "so_envio">("conversa");
-  const [filtroLeitura, setFiltroLeitura] = useState<"todas" | "nao_lidas" | "lidas" | "atencao">("todas");
+  const [filtroLeitura, setFiltroLeitura] = useState<"todas" | "nao_lidas" | "lidas" | "atencao" | "automacao">("todas");
   const [tagsFiltro, setTagsFiltro] = useState<string[]>([]);
   const [erroJanela, setErroJanela] = useState<string | null>(null);
   const [texto, setTexto] = useState("");
@@ -752,7 +752,8 @@ export default function Atendimento() {
       if (grupoDe(c) !== grupoAba) return false;
       if (filtroLeitura === "nao_lidas" && !c.nao_lida) return false;
       if (filtroLeitura === "lidas" && c.nao_lida) return false;
-      if (filtroLeitura === "atencao" && !["perdendo", "quente", "atencao"].includes(urgenciaDe(c))) return false;
+      if (filtroLeitura === "atencao" && !["quente", "atencao"].includes(urgenciaDeNivel(atencaoDe(c)?.nivel))) return false;
+      if (filtroLeitura === "automacao" && atencaoDe(c)?.dono !== "automacao") return false;
       if (tagsFiltro.length > 0) {
         const ids = (c.tags ?? []).map((t) => String(t.id));
         if (!tagsFiltro.some((t) => ids.includes(t))) return false;
@@ -773,9 +774,13 @@ export default function Atendimento() {
   const naoLidasWhatsapp = conversas.filter((c) => c.nao_lida && !ehSite(c)).length;
   const naoLidasSite = conversas.filter((c) => c.nao_lida && ehSite(c)).length;
   const totalNaoLidas = aba === "site" ? naoLidasSite : naoLidasWhatsapp;
-  // "Precisam de atenção" conta só a aba Conversas
+  // "Precisam de atenção" conta só a aba Conversas, apenas niveis quente/atencao (nunca automacao)
   const totalAtencao = conversas.filter(
-    (c) => daAba(c) && grupoDe(c) === "conversa" && ["perdendo", "quente", "atencao"].includes(urgenciaDe(c)),
+    (c) => daAba(c) && grupoDe(c) === "conversa" && ["quente", "atencao"].includes(urgenciaDeNivel(atencaoDe(c)?.nivel)),
+  ).length;
+  // "Automações": conversas conduzidas por régua (avaliação/cashback) no grupo atual
+  const totalAutomacoes = conversas.filter(
+    (c) => daAba(c) && grupoDe(c) === grupoAba && atencaoDe(c)?.dono === "automacao",
   ).length;
 
   const telefoneIdentificado = conversaAtual
@@ -914,6 +919,7 @@ export default function Atendimento() {
                 { v: "nao_lidas", label: `Não lidas${totalNaoLidas ? ` (${totalNaoLidas})` : ""}` },
                 { v: "lidas", label: "Lidas" },
                 { v: "atencao", label: `Precisam de atenção${totalAtencao ? ` (${totalAtencao})` : ""}` },
+                { v: "automacao", label: `Automações${totalAutomacoes ? ` (${totalAutomacoes})` : ""}` },
               ] as const).map((f) => (
                 <Button
                   key={f.v}
@@ -971,7 +977,7 @@ export default function Atendimento() {
               <p className="p-4 text-sm text-muted-foreground">Nenhuma conversa encontrada.</p>
             )}
             {(() => {
-              const qtdDestaque = filtradas.filter((c) => ["perdendo", "quente"].includes(urgenciaDe(c))).length;
+              const qtdDestaque = filtradas.filter((c) => ["quente", "atencao"].includes(urgenciaDeNivel(atencaoDe(c)?.nivel))).length;
               let cabecalhoDestaqueFeito = false;
               let cabecalhoDemaisFeito = false;
               return filtradas.map((c) => {
@@ -981,8 +987,8 @@ export default function Atendimento() {
               const prio = (c.prioridade ?? "").toLowerCase();
               const naoLida = !!c.nao_lida;
               const atencao = atencaoDe(c);
-              const urg = urgenciaDe(c);
-              const ehDestaque = urg === "perdendo" || urg === "quente";
+              const urg = urgenciaDeNivel(atencao?.nivel);
+              const ehDestaque = urg === "quente" || urg === "atencao";
               const estiloUrg = urg === "normal" ? null : URGENCIA_ESTILO[urg];
               let cabecalho: JSX.Element | null = null;
               if (qtdDestaque > 0 && ehDestaque && !cabecalhoDestaqueFeito) {
@@ -1020,7 +1026,7 @@ export default function Atendimento() {
                       {prio === "alta" && <span className="h-2 w-2 rounded-full bg-danger shrink-0" />}
                       {prio === "media" && <span className="h-2 w-2 rounded-full bg-warning shrink-0" />}
                       <div className="min-w-0">
-                        <p className={cn("text-sm truncate flex items-center gap-1.5", naoLida || urg === "perdendo" ? "font-bold" : "font-medium")}>
+                        <p className={cn("text-sm truncate flex items-center gap-1.5", naoLida || urg === "quente" ? "font-bold" : "font-medium")}>
                           {site ? (
                             <Globe className="h-3.5 w-3.5 shrink-0 text-primary" aria-label="Chat do site" />
                           ) : (
@@ -1030,7 +1036,7 @@ export default function Atendimento() {
                           {nomeSoDoWhatsApp(c) && <BadgeViaWhatsApp />}
                         </p>
                         <p className="text-xs text-muted-foreground">{identificadorConversa(c)}</p>
-                        <BadgeSinal conversa={c} />
+                        <BadgeSinal conversa={c} urg={urg} />
                         <ChipsMotivos motivos={atencao?.motivos} />
                         {site && c.telefone_real && (
                           <span className="mt-1 inline-flex items-center gap-1 rounded-full border border-success/20 bg-success/10 px-2 py-0.5 text-[10px] text-success">
@@ -1135,6 +1141,11 @@ export default function Atendimento() {
                   </span>
                   {nomeSoDoWhatsApp(conversaAtual) && <BadgeViaWhatsApp />}
                   <StatusPill status={conversaAtual.status} aguardandoDesde={conversaAtual.aguardando_desde} />
+                  {rotuloAutomacao(atencaoDe(conversaAtual)) && (
+                    <span className="inline-flex shrink-0 items-center rounded-full border border-border bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground whitespace-nowrap">
+                      {rotuloAutomacao(atencaoDe(conversaAtual))}
+                    </span>
+                  )}
                   {conversaAtual.status === "escalado" && conversaAtual.aguardando_desde && (
                     <SeloFila conversaId={conversaAtual.id} />
                   )}

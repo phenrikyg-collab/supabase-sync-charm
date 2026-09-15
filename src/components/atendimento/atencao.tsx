@@ -8,7 +8,18 @@ export type ConversaAtencao = {
   nivel?: string | null;
   motivos?: string[] | null;
   min_desde_cliente?: number | null;
+  dono?: "humana" | "automacao" | "bot" | string | null;
+  automacao?: "avaliacao" | "cashback" | string | null;
+  fluxo_avaliacao?: boolean | null;
 };
+
+/** Rótulo discreto da régua em andamento, para o selo do header do chat. */
+export function rotuloAutomacao(a?: ConversaAtencao | null): string | null {
+  if (!a || a.dono !== "automacao") return null;
+  if (a.automacao === "avaliacao") return "Régua de avaliação em andamento";
+  if (a.automacao === "cashback") return "Cashback automático em andamento";
+  return "Automação em andamento";
+}
 
 /** Lê vw_conversas_atencao e devolve um mapa por conversa_id. */
 export function useConversasAtencao() {
