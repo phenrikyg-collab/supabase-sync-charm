@@ -208,8 +208,18 @@ function NovaCampanha({
   });
 
   const publicoPronto = porFiltro ? totalCondicoes > 0 && !!simulacao : !!segmento;
-  const podeAvancar =
-    passo === 1 ? !!nome.trim() && !!assunto.trim() && (!!templateId || !!html.trim()) : passo === 2 ? publicoPronto : true;
+
+  const pendencias: string[] = [];
+  if (passo === 1) {
+    if (!nome.trim()) pendencias.push("Falta: nome");
+    if (!assunto.trim()) pendencias.push("Falta: assunto");
+    if (!templateId && !html.trim()) pendencias.push("Falta: template ou HTML");
+    if (htmlBloqueado) pendencias.push("Corrija a conferência do HTML");
+  } else if (passo === 2 && !publicoPronto) {
+    pendencias.push(porFiltro ? "Monte ao menos uma condição" : "Escolha um segmento");
+  }
+
+  const podeAvancar = pendencias.length === 0;
 
   const textoErroSimulacao = erroSimulacao ? mensagemErroPublico(String((erroSimulacao as any)?.message ?? "")) : null;
 
