@@ -77,6 +77,11 @@ type Conversa = {
   sinais?: string[] | null;
   ordem?: number | null;
   aguardando_resposta?: boolean | null;
+  aguardando_desde?: string | null;
+  tipo_interacao?: "conversa" | "clique" | "so_envio" | string | null;
+  ultima_entrada_texto?: string | null;
+  digitadas?: number | null;
+  cliques?: number | null;
   pix_aberto_valor?: number | null;
   link_pendente?: boolean | null;
 };
@@ -904,7 +909,7 @@ export default function Atendimento() {
                     {c.ultima_mensagem ?? "—"}
                   </p>
                   <div className="mt-2 flex items-center gap-1.5 flex-wrap">
-                    <StatusPill status={c.status} />
+                    <StatusPill status={c.status} aguardandoDesde={c.aguardando_desde} />
                     {(c.tags ?? []).map((t) => (
                       <TagChip key={String(t.id)} tag={t} />
                     ))}
@@ -968,8 +973,10 @@ export default function Atendimento() {
                     )}
                     <h2 className="font-medium truncate">{nomeConversa(conversaAtual)}</h2>
                     {nomeSoDoWhatsApp(conversaAtual) && <BadgeViaWhatsApp />}
-                    <StatusPill status={conversaAtual.status} />
-                    {conversaAtual.status === "escalado" && <SeloFila conversaId={conversaAtual.id} />}
+                    <StatusPill status={conversaAtual.status} aguardandoDesde={conversaAtual.aguardando_desde} />
+                    {conversaAtual.status === "escalado" && conversaAtual.aguardando_desde && (
+                      <SeloFila conversaId={conversaAtual.id} />
+                    )}
                     {ehSite(conversaAtual) && conversaAtual.telefone_real && (
                       <span className="inline-flex items-center gap-1 rounded-full border border-success/20 bg-success/10 px-2 py-0.5 text-[10px] text-success">
                         <Phone className="h-3 w-3" />
