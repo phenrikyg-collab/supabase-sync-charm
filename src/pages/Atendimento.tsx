@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -15,7 +15,7 @@ import { ptBR } from "date-fns/locale";
 import {
   AlertTriangle, Bot, Check, CheckCheck, CheckCircle2, Globe, ImagePlus, LayoutGrid, Lock, MessageCircle,
   RotateCcw, Search, Send, User, X, UserCheck, Phone, QrCode, Link2,
-  Truck, ShoppingCart,
+  Truck, ShoppingCart, Plus,
 } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -35,6 +35,24 @@ import { SeletorFigurinhas } from "@/components/atendimento/SeletorFigurinhas";
 import { AbandonadasTab } from "@/components/atendimento/AbandonadasTab";
 import { useConversasAtencao, classeBordaNivel, ChipsMotivos, SeloFila } from "@/components/atendimento/atencao";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { NovaConversaDialog, formatarTelefone, soDigitos } from "@/components/atendimento/NovaConversa";
+
+type BuscaConversa = {
+  conversa_id: number | string;
+  telefone?: string | null;
+  nome?: string | null;
+  status?: string | null;
+  ultima_mensagem_em?: string | null;
+  tray_customer_id?: string | null;
+  janela_aberta?: boolean | null;
+};
+
+type BuscaCliente = {
+  tray_customer_id?: string | null;
+  nome?: string | null;
+  telefone?: string | null;
+  email?: string | null;
+};
 
 
 
@@ -122,7 +140,8 @@ function BadgeViaWhatsApp() {
   );
 }
 
-const identificadorConversa = (c: Conversa) => (ehSite(c) ? "Chat do site" : c.telefone);
+const identificadorConversa = (c: Conversa) =>
+  ehSite(c) ? "Chat do site" : formatarTelefone(c.telefone) || c.telefone;
 
 
 
@@ -235,6 +254,9 @@ export default function Atendimento() {
   const [proporCarrinhoAberto, setProporCarrinhoAberto] = useState(false);
   const [templateAberto, setTemplateAberto] = useState(false);
   const [propostaId, setPropostaId] = useState<string | number | null>(null);
+  const [novaConversaAberta, setNovaConversaAberta] = useState(false);
+  const [telefoneNovaConversa, setTelefoneNovaConversa] = useState<string | null>(null);
+  const [termoBusca, setTermoBusca] = useState("");
 
 
 
@@ -265,12 +287,35 @@ export default function Atendimento() {
         ultima_mensagem: c.ultima_mensagem ?? c.ultima_mensagem_texto ?? null,
       })) as Conversa[];
     },
-    refetchInterval: 30000,
+    // rede de segurança curta: o tempo real cuida do resto
+    refetchInterval: 10000,
   });
 
   const conversaAtual = conversas.find((c) => String(c.id) === selecionada) ?? null;
 
   const { mapaAtencao } = useConversasAtencao();
+
+  // Busca por nome ou telefone com debounce de 300ms
+  useEffect(() => {
+    const t = setTimeout(() => setTermoBusca(busca.trim()), 300);
+    return () => clearTimeout(t);
+  }, [busca]);
+
+  const buscaAtiva = termoBusca.length >= 2;
+
+  const { data: resultadoBusca } = useQuery({
+    queryKey: ["whatsapp-busca", termoBusca],
+    enabled: buscaAtiva,
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc("whatsapp_buscar" as any, { p_termo: termoBusca });
+      if (error) throw error;
+      const r = (data ?? {}) as any;
+      return {
+        conversas: (r.conversas ?? []) as BuscaConversa[],
+        clientes: (r.clientes ?? []) as BuscaCliente[],
+      };
+    },
+  });
 
   // Deep link: /atendimento?telefone=5511...
   useEffect(() => {
@@ -284,7 +329,7 @@ export default function Atendimento() {
   const { data: mensagens = [], isLoading: carregandoMensagens } = useQuery({
     queryKey: ["whatsapp-mensagens", selecionada],
     enabled: !!selecionada,
-    refetchInterval: 15000,
+    refetchInterval: 10000,
     queryFn: async () => {
       const { data, error } = await supabase.rpc("whatsapp_get_mensagens_conversa" as any, {
         p_conversa_id: Number.isNaN(Number(selecionada)) ? selecionada : Number(selecionada),
@@ -293,6 +338,62 @@ export default function Atendimento() {
       return (data ?? []) as Mensagem[];
     },
   });
+
+  // Tempo real: mensagens novas, transcrição de áudio e mudanças de conversa
+  const selecionadaRef = useRef<string | null>(null);
+  selecionadaRef.current = selecionada;
+
+  useEffect(() => {
+    const invalidarLista = () =>
+      queryClient.invalidateQueries({ queryKey: ["whatsapp-conversas"] });
+
+    const mesmaConversa = (linha: any) =>
+      selecionadaRef.current != null && String(linha?.conversa_id) === String(selecionadaRef.current);
+
+    const canal = supabase
+      .channel("atendimento-tempo-real")
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "whatsapp", table: "mensagens" },
+        ({ new: nova }: any) => {
+          if (mesmaConversa(nova)) {
+            queryClient.setQueryData<Mensagem[]>(
+              ["whatsapp-mensagens", selecionadaRef.current],
+              (atuais) => {
+                const lista = atuais ?? [];
+                if (nova?.id != null && lista.some((m) => String(m.id) === String(nova.id))) return lista;
+                return [...lista, nova as Mensagem];
+              },
+            );
+          }
+          invalidarLista();
+        },
+      )
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "whatsapp", table: "mensagens" },
+        ({ new: atualizada }: any) => {
+          if (!mesmaConversa(atualizada) || atualizada?.id == null) return;
+          queryClient.setQueryData<Mensagem[]>(
+            ["whatsapp-mensagens", selecionadaRef.current],
+            (atuais) =>
+              (atuais ?? []).map((m) =>
+                String(m.id) === String(atualizada.id) ? { ...m, ...(atualizada as Mensagem) } : m,
+              ),
+          );
+        },
+      )
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "whatsapp", table: "conversas" },
+        () => invalidarLista(),
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(canal);
+    };
+  }, [queryClient]);
 
   const { data: todasTags = [] } = useQuery({
     queryKey: ["whatsapp-tags"],
@@ -523,8 +624,22 @@ export default function Atendimento() {
 
   const atencaoDe = (c: Conversa) => mapaAtencao.get(String(c.id));
 
-  const filtradas = conversas
-    .filter((c) => {
+  const filtradas = useMemo(() => {
+    if (buscaAtiva) {
+      const achadas = resultadoBusca?.conversas ?? [];
+      return achadas.map((r) => {
+        const carregada = conversas.find((c) => String(c.id) === String(r.conversa_id));
+        if (carregada) return carregada;
+        return {
+          id: r.conversa_id,
+          telefone: r.telefone ?? "",
+          cliente_nome: r.nome ?? null,
+          status: r.status ?? "",
+          ultima_mensagem_em: r.ultima_mensagem_em ?? null,
+        } as Conversa;
+      });
+    }
+    return conversas.filter((c) => {
       if (!daAba(c)) return false;
       if (filtroLeitura === "nao_lidas" && !c.nao_lida) return false;
       if (filtroLeitura === "lidas" && c.nao_lida) return false;
@@ -533,12 +648,17 @@ export default function Atendimento() {
         const ids = (c.tags ?? []).map((t) => String(t.id));
         if (!tagsFiltro.some((t) => ids.includes(t))) return false;
       }
-      if (!busca.trim()) return true;
-      const t = busca.toLowerCase();
-      const nome = nomeConversa(c).toLowerCase();
-      const tel = ehSite(c) ? (c.telefone_real ?? "") : (c.telefone ?? "");
-      return nome.includes(t) || tel.toLowerCase().includes(t);
+      return true;
     });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [conversas, buscaAtiva, resultadoBusca, aba, filtroLeitura, tagsFiltro]);
+
+  const clientesSemConversa = buscaAtiva ? (resultadoBusca?.clientes ?? []) : [];
+
+  const abrirNovaConversa = (telefone?: string | null) => {
+    setTelefoneNovaConversa(telefone ?? null);
+    setNovaConversaAberta(true);
+  };
   // Sem reordenação no cliente: a view vw_conversas_painel já vem ordenada por urgência
 
   const naoLidasWhatsapp = conversas.filter((c) => c.nao_lida && !ehSite(c)).length;
@@ -593,6 +713,10 @@ export default function Atendimento() {
         {/* Lista de conversas */}
         <Card className="flex flex-col overflow-hidden">
           <div className="p-3 border-b border-border space-y-2">
+            <Button size="sm" className="w-full" onClick={() => abrirNovaConversa(null)}>
+              <Plus className="h-4 w-4 mr-2" />
+              Nova conversa
+            </Button>
             <div className="grid grid-cols-2 gap-1 rounded-md bg-muted p-1">
               {([
                 { v: "whatsapp", label: "WhatsApp", icon: MessageCircle, nao: naoLidasWhatsapp },
@@ -756,7 +880,7 @@ export default function Atendimento() {
                         {site && c.telefone_real && (
                           <span className="mt-1 inline-flex items-center gap-1 rounded-full border border-success/20 bg-success/10 px-2 py-0.5 text-[10px] text-success">
                             <Phone className="h-3 w-3" />
-                            {c.telefone_real}
+                            {formatarTelefone(c.telefone_real)}
                           </span>
                         )}
                       </div>
@@ -780,6 +904,37 @@ export default function Atendimento() {
               );
               });
             })()}
+
+            {clientesSemConversa.length > 0 && (
+              <>
+                <div className="px-4 pt-3 pb-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                  Sem conversa ainda
+                </div>
+                {clientesSemConversa.map((cl, i) => (
+                  <div
+                    key={String(cl.tray_customer_id ?? cl.telefone ?? i)}
+                    className="px-4 py-3 border-b border-border/60 flex items-start justify-between gap-2"
+                  >
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium truncate">{cl.nome || "Sem nome"}</p>
+                      <p className="text-xs text-muted-foreground">{formatarTelefone(cl.telefone)}</p>
+                      {cl.email && (
+                        <p className="text-[11px] text-muted-foreground truncate">{cl.email}</p>
+                      )}
+                    </div>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-7 px-2 text-[11px] shrink-0"
+                      disabled={!soDigitos(cl.telefone)}
+                      onClick={() => abrirNovaConversa(cl.telefone)}
+                    >
+                      Iniciar conversa
+                    </Button>
+                  </div>
+                ))}
+              </>
+            )}
           </ScrollArea>
         </Card>
 
@@ -808,7 +963,7 @@ export default function Atendimento() {
                     {ehSite(conversaAtual) && conversaAtual.telefone_real && (
                       <span className="inline-flex items-center gap-1 rounded-full border border-success/20 bg-success/10 px-2 py-0.5 text-[10px] text-success">
                         <Phone className="h-3 w-3" />
-                        {conversaAtual.telefone_real}
+                        {formatarTelefone(conversaAtual.telefone_real)}
                       </span>
                     )}
                   </div>
@@ -1038,6 +1193,17 @@ export default function Atendimento() {
       </Tabs>
 
       <CatalogoDialog open={catalogoAberto} onOpenChange={setCatalogoAberto} onSelecionar={enviarProduto} />
+      <NovaConversaDialog
+        open={novaConversaAberta}
+        onOpenChange={setNovaConversaAberta}
+        telefoneInicial={telefoneNovaConversa}
+        onConversaPronta={(id) => {
+          setBusca("");
+          setTermoBusca("");
+          setSelecionada(String(id));
+          queryClient.invalidateQueries({ queryKey: ["whatsapp-conversas"] });
+        }}
+      />
       {conversaAtual && (
         <CobrancaPixDialog
           open={cobrancaAberta}
