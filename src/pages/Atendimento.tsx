@@ -328,7 +328,7 @@ export default function Atendimento() {
   const { data: mensagens = [], isLoading: carregandoMensagens } = useQuery({
     queryKey: ["whatsapp-mensagens", selecionada],
     enabled: !!selecionada,
-    refetchInterval: 15000,
+    refetchInterval: 10000,
     queryFn: async () => {
       const { data, error } = await supabase.rpc("whatsapp_get_mensagens_conversa" as any, {
         p_conversa_id: Number.isNaN(Number(selecionada)) ? selecionada : Number(selecionada),
