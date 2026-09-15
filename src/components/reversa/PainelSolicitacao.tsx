@@ -23,8 +23,10 @@ import {
   conferir,
   consultoraContato,
   correios,
+  definirDocumento,
   formatarData,
   formatarDataHora,
+  mascararDocumento,
   moeda,
   painelDetalhe,
   prepararReembolso,
@@ -58,6 +60,7 @@ export function PainelSolicitacao({
   const [pedidoNovo, setPedidoNovo] = useState("");
   const [credito, setCredito] = useState("");
   const [motivoCancelar, setMotivoCancelar] = useState("");
+  const [documento, setDocumento] = useState("");
 
   async function carregar() {
     if (!id) return;
