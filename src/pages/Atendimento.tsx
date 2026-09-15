@@ -483,6 +483,7 @@ export default function Atendimento() {
   useEffect(() => {
     const invalidarLista = () =>
       queryClient.invalidateQueries({ queryKey: ["whatsapp-conversas"] });
+      queryClient.invalidateQueries({ queryKey: ["whatsapp-conversa"] });
 
     const mesmaConversa = (linha: any) =>
       selecionadaRef.current != null && String(linha?.conversa_id) === String(selecionadaRef.current);
@@ -563,6 +564,7 @@ export default function Atendimento() {
       p_conversa_id: Number.isNaN(Number(c.id)) ? c.id : Number(c.id),
     });
     if (!error) queryClient.invalidateQueries({ queryKey: ["whatsapp-conversas"] });
+      queryClient.invalidateQueries({ queryKey: ["whatsapp-conversa"] });
   };
 
 
@@ -579,6 +581,7 @@ export default function Atendimento() {
   const invalidarThread = () => {
     queryClient.invalidateQueries({ queryKey: ["whatsapp-mensagens", selecionada] });
     queryClient.invalidateQueries({ queryKey: ["whatsapp-conversas"] });
+      queryClient.invalidateQueries({ queryKey: ["whatsapp-conversa"] });
   };
 
   const extrairErroJanela = async (error: any): Promise<string | null> => {
@@ -719,6 +722,7 @@ export default function Atendimento() {
     onSuccess: () => {
       toast({ title: "Conversa assumida" });
       queryClient.invalidateQueries({ queryKey: ["whatsapp-conversas"] });
+      queryClient.invalidateQueries({ queryKey: ["whatsapp-conversa"] });
     },
     onError: (e: any) => toast({ title: "Erro ao assumir conversa", description: e.message, variant: "destructive" }),
   });
@@ -742,6 +746,7 @@ export default function Atendimento() {
     onSuccess: () => {
       toast({ title: "Bot reativado" });
       queryClient.invalidateQueries({ queryKey: ["whatsapp-conversas"] });
+      queryClient.invalidateQueries({ queryKey: ["whatsapp-conversa"] });
     },
     onError: (e: any) => toast({ title: "Erro ao reativar bot", description: e.message, variant: "destructive" }),
   });
@@ -765,6 +770,7 @@ export default function Atendimento() {
     onSuccess: () => {
       toast({ title: "Conversa marcada como resolvida" });
       queryClient.invalidateQueries({ queryKey: ["whatsapp-conversas"] });
+      queryClient.invalidateQueries({ queryKey: ["whatsapp-conversa"] });
     },
     onError: (e: any, _v, ctx: any) => {
       if (ctx?.anterior) queryClient.setQueryData(["whatsapp-conversas"], ctx.anterior);
@@ -1682,6 +1688,7 @@ export default function Atendimento() {
           setTermoBusca("");
           setSelecionada(String(id));
           queryClient.invalidateQueries({ queryKey: ["whatsapp-conversas"] });
+      queryClient.invalidateQueries({ queryKey: ["whatsapp-conversa"] });
         }}
       />
       {conversaAtual && (
