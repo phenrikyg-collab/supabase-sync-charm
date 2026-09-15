@@ -123,6 +123,23 @@ export const configSalvar = (p_chave: string, p_valor: any) =>
 export const prepararReembolso = (p_solicitacao_id: string) =>
   rpc("fn_reembolso_preparar_reversa", { p_solicitacao_id });
 
+/** Grava CPF/CNPJ da cliente para a pré-postagem sair com rastreio. */
+export const definirDocumento = (p_solicitacao_id: string, p_documento: string) =>
+  rpc<{ ok?: boolean; protocolo?: string }>("reversa_definir_documento", {
+    p_solicitacao_id,
+    p_documento,
+  });
+
+/** Máscara de CPF (11 dígitos) ou CNPJ (14). Fora isso, devolve como veio. */
+export function mascararDocumento(valor?: string | null) {
+  const dig = String(valor ?? "").replace(/\D/g, "");
+  if (dig.length === 11)
+    return dig.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, "$1.$2.$3-$4");
+  if (dig.length === 14)
+    return dig.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/, "$1.$2.$3/$4-$5");
+  return texto(valor);
+}
+
 /** Ações dos Correios sempre pela edge function — nunca chamada direta do front. */
 export async function correios(acao: "autorizar" | "revalidar" | "cancelar", solicitacao_id: string) {
   const { data, error } = await supabase.functions.invoke("reversa-correios", {
