@@ -46,6 +46,7 @@ import { useConversasAtencao, classeBordaNivel, ChipsMotivos, SeloFila, rotuloAu
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { NovaConversaDialog, formatarTelefone, soDigitos } from "@/components/atendimento/NovaConversa";
 import { OportunidadesTab } from "@/components/atendimento/OportunidadesTab";
+import { ProvadorVirtualConteudo } from "@/pages/ProvadorVirtual";
 import { CarrinhoAbandonadoConteudo } from "@/pages/CarrinhoAbandonado";
 import { PedidosCanceladosConteudo } from "@/pages/PedidosCancelados";
 import { FunilWhatsAppConteudo } from "@/pages/FunilWhatsApp";
