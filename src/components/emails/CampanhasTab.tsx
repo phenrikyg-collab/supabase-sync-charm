@@ -56,9 +56,17 @@ function Alternador<T extends string>({
   );
 }
 
-function NovaCampanha({ aberto, onFechar }: { aberto: boolean; onFechar: () => void }) {
+function NovaCampanha({
+  aberto, onFechar, campanhaId, onNaoEditavel,
+}: {
+  aberto: boolean;
+  onFechar: () => void;
+  campanhaId?: any;
+  onNaoEditavel?: (id: any) => void;
+}) {
   const queryClient = useQueryClient();
   const [passo, setPasso] = useState(1);
+  const [carregada, setCarregada] = useState(false);
   const [nome, setNome] = useState("");
   const [assunto, setAssunto] = useState("");
   const [preheader, setPreheader] = useState("");
