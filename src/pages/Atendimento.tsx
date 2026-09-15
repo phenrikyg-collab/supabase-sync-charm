@@ -808,26 +808,11 @@ export default function Atendimento() {
     return !!c.aguardando_resposta;
   };
 
-  /** Peso do grupo dentro da seção: 1 quem espera resposta/escalado, 2 em atendimento, 3 bot/demais, 4 resolvidas. */
-  const pesoConversa = (c: Conversa) => {
-    if (ehResolvida(c)) return 4;
-    if (c.status === "escalado" || aguardandoResposta(c)) return 1;
-    if (c.status === "em_atendimento") return 2;
-    return 3;
-  };
-
   const chaveData = (c: Conversa) => c.ultima_mensagem_em ?? c.atualizado_em ?? "";
 
-  /** Ordena no painel: destaque primeiro, depois por peso do grupo e última mensagem mais recente. */
-  const compararConversas = (a: Conversa, b: Conversa) => {
-    const da = ["quente", "atencao"].includes(urgenciaDeNivel(atencaoDe(a)?.nivel)) ? 0 : 1;
-    const db = ["quente", "atencao"].includes(urgenciaDeNivel(atencaoDe(b)?.nivel)) ? 0 : 1;
-    if (da !== db) return da - db;
-    const pa = pesoConversa(a);
-    const pb = pesoConversa(b);
-    if (pa !== pb) return pa - pb;
-    return chaveData(b).localeCompare(chaveData(a));
-  };
+  /** Ordem simples: mensagem mais recente primeiro. */
+  const compararConversas = (a: Conversa, b: Conversa) =>
+    chaveData(b).localeCompare(chaveData(a));
 
   const contagemGrupos = useMemo(() => {
     const base = { conversa: 0, clique: 0, so_envio: 0 };
@@ -841,23 +826,29 @@ export default function Atendimento() {
 
 
   const modoFila = abaPagina === "em_atendimento";
-  // Fila de trabalho: só conversas assumidas por uma pessoa
-  const ehAssumida = (c: Conversa) => ["em_atendimento", "escalado"].includes((c.status ?? "").toLowerCase());
-  const totalEmAtendimento = conversas.filter(ehAssumida).length;
+
+  // Fila de trabalho: a RPC já devolve só as conversas assumidas, na ordem de espera
+  const { data: emAtendimento = [] } = useQuery({
+    queryKey: ["whatsapp-em-atendimento"],
+    refetchInterval: 30000,
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc("whatsapp_conversas_em_atendimento" as any, { p_horas: 72 });
+      if (error) throw error;
+      return ((Array.isArray(data) ? data : []) as any[]).map((c) => ({
+        ...c,
+        id: c.conversa_id ?? c.id,
+        cliente_nome: c.cliente_nome ?? c.nome ?? null,
+        ultima_mensagem: c.ultima_mensagem ?? c.ultima_mensagem_texto ?? null,
+      })) as Conversa[];
+    },
+  });
+  const totalEmAtendimento = emAtendimento.length;
 
   const filtradas = useMemo(() => {
     let base: Conversa[];
     if (modoFila) {
-      // Espera mais antiga primeiro: quem tem cliente aguardando resposta vem na frente
-      base = conversas.filter(ehAssumida);
-      return [...base].sort((a, b) => {
-        const espA = aguardandoResposta(a) ? 0 : 1;
-        const espB = aguardandoResposta(b) ? 0 : 1;
-        if (espA !== espB) return espA - espB;
-        const da = new Date(atencaoDe(a)?.ultima_entrada ?? a.ultima_mensagem_em ?? 0).getTime();
-        const db = new Date(atencaoDe(b)?.ultima_entrada ?? b.ultima_mensagem_em ?? 0).getTime();
-        return da - db;
-      });
+      // Renderiza na ordem exata da RPC
+      return emAtendimento;
     }
     if (buscaAtiva) {
       const achadas = resultadoBusca?.conversas ?? [];
@@ -889,7 +880,8 @@ export default function Atendimento() {
     }
     return [...base].sort(compararConversas);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [conversas, buscaAtiva, resultadoBusca, aba, grupoAba, filtroLeitura, tagsFiltro, mapaAtencao, modoFila]);
+  }, [conversas, emAtendimento, buscaAtiva, resultadoBusca, aba, grupoAba, filtroLeitura, tagsFiltro, mapaAtencao, modoFila]);
+
 
   const clientesSemConversa = buscaAtiva ? (resultadoBusca?.clientes ?? []) : [];
 
