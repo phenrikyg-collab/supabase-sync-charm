@@ -376,8 +376,10 @@ function NovaCampanha({ aberto, onFechar }: { aberto: boolean; onFechar: () => v
               <span className="text-muted-foreground">Público:</span>{" "}
               {porFiltro ? descreverFiltro(filtro, campos as any[]) : (segmentoEscolhido?.nome ?? segmento)}
             </p>
+            {porFiltro && <SeloPublicoVivo filtro={filtroLento} enabled={aberto} />}
             <p><span className="text-muted-foreground">Vai para a fila:</span>{" "}
-              <strong>{inteiro(simulacao?.passam_teto ?? simulacao?.passam_no_teto ?? 0)}</strong> contatos</p>
+              <strong>{inteiro(simulacao?.passam_teto ?? simulacao?.passam_no_teto ?? 0)}</strong> contatos{" "}
+              <span className="text-xs text-muted-foreground">({textoConsulta(simuladoEm)})</span></p>
             <p className="rounded-lg border bg-muted/40 p-3 text-xs leading-relaxed text-muted-foreground">
               Preparar não dispara. A campanha entra na fila e o motor envia dentro da janela de horário configurada.
             </p>
