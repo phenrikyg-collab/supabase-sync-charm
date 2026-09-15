@@ -226,10 +226,15 @@ function BlocoEvolucao({ dias }: { dias: number }) {
           <ResponsiveContainer width="100%" height="100%">
             <ComposedChart data={serie}>
               <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-              <XAxis dataKey="periodo" tick={{ fontSize: 12 }} />
+              <XAxis
+                dataKey="periodo"
+                tick={{ fontSize: 12 }}
+                tickFormatter={(v: any) => periodoCurto(v, gran)}
+              />
               <YAxis yAxisId="esq" tick={{ fontSize: 12 }} />
               <YAxis yAxisId="dir" orientation="right" domain={[0, 5]} tick={{ fontSize: 12 }} />
               <Tooltip
+                labelFormatter={(v: any) => periodoCurto(v, gran)}
                 formatter={(v: any, nome: any) =>
                   nome === "Nota média" ? dec(v, 2) : num(v)
                 }
