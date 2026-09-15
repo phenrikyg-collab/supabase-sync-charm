@@ -179,7 +179,9 @@ export function ConfigNoPanel({
 
   const templatesEmail = catalogo?.templates_email ?? [];
   const nosEnvio = nosDoFluxo.filter((n) => ["enviar_email", "whatsapp_template", "whatsapp_janela"].includes(n.tipo));
-  const noEventoEscolhido = nosEnvio.find((n) => n.ref === String(config.no_id));
+  const refDoNo = (valor: any) =>
+    valor == null || valor === "" ? "" : /^\d+$/.test(String(valor)) ? `db-${valor}` : String(valor);
+  const noEventoEscolhido = nosEnvio.find((n) => n.ref === refDoNo(config.no_id));
   const eventosDisponiveis =
     noEventoEscolhido?.tipo === "enviar_email"
       ? catalogo?.eventos?.email ?? []
@@ -265,7 +267,7 @@ export function ConfigNoPanel({
               <div className="space-y-2">
                 <div className="space-y-1">
                   <Label className="text-xs">Passo de envio</Label>
-                  <Select value={config.no_id ? String(config.no_id) : ""} onValueChange={(v) => patch({ no_id: v })}>
+                  <Select value={refDoNo(config.no_id)} onValueChange={(v) => patch({ no_id: v })}>
                     <SelectTrigger><SelectValue placeholder="Escolha o envio" /></SelectTrigger>
                     <SelectContent>
                       {nosEnvio.map((n) => (
@@ -383,7 +385,7 @@ export function ConfigNoPanel({
               <div className="space-y-1">
                 <Label className="text-xs">E-mail de origem do cupom</Label>
                 <Select
-                  value={config.cupom_de_no ? String(config.cupom_de_no) : ""}
+                  value={refDoNo(config.cupom_de_no)}
                   onValueChange={(v) => patch({ cupom_de_no: v })}
                 >
                   <SelectTrigger><SelectValue placeholder="Escolha o e-mail anterior" /></SelectTrigger>

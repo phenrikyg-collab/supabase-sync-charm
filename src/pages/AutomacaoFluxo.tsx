@@ -34,6 +34,21 @@ import { rpcFluxos, useCatalogoFluxos, useFluxo, dataHoraBR, type Validacao } fr
 let contador = 1;
 const novoRef = () => `novo-${Date.now()}-${contador++}`;
 
+/** Ids numéricos do banco viram o ref usado no canvas (35 vira db-35). */
+const paraRef = (valor: any) => {
+  if (valor == null || valor === "") return valor;
+  if (typeof valor === "number") return `db-${valor}`;
+  if (typeof valor === "string" && /^\d+$/.test(valor)) return `db-${valor}`;
+  return valor;
+};
+
+const configComRefs = (config: Record<string, any>) => {
+  const c = { ...(config ?? {}) };
+  if (c.no_id != null) c.no_id = paraRef(c.no_id);
+  if (c.cupom_de_no != null) c.cupom_de_no = paraRef(c.cupom_de_no);
+  return c;
+};
+
 type Aba = "canvas" | "pessoas" | "config";
 
 function Editor({ fluxoId }: { fluxoId: string }) {
@@ -80,7 +95,7 @@ function Editor({ fluxoId }: { fluxoId: string }) {
         data: {
           tipo: (n.tipo ?? "fim") as TipoNo,
           rotulo: n.rotulo ?? "",
-          config: n.config ?? {},
+          config: configComRefs(n.config ?? {}),
           bancoId: n.id ?? null,
           gatilhoRotulo: data.fluxo?.gatilho_rotulo,
           metricas: metricasNos[String(n.id)] ?? null,
@@ -268,6 +283,32 @@ function Editor({ fluxoId }: { fluxoId: string }) {
     onSuccess: (d) => {
       toast({ title: "Fluxo salvo" });
       if (d?.validacao) setValidacao(d.validacao);
+
+      // Passa os nós novos a usar o ref definitivo do banco, para não duplicar em um segundo salvamento
+      const mapa: Record<string, any> = d?.mapa ?? {};
+      const novoRefPorAntigo = new Map<string, string>();
+      for (const [ref, id] of Object.entries(mapa)) {
+        if (id == null) continue;
+        novoRefPorAntigo.set(ref, `db-${id}`);
+      }
+      if (novoRefPorAntigo.size > 0) {
+        setNodes((ns) =>
+          ns.map((n) => {
+            const id = mapa[n.id];
+            if (id == null) return n;
+            return { ...n, id: `db-${id}`, data: { ...(n.data as any), bancoId: id } };
+          }),
+        );
+        setEdges((es) =>
+          es.map((e) => ({
+            ...e,
+            source: novoRefPorAntigo.get(e.source) ?? e.source,
+            target: novoRefPorAntigo.get(e.target) ?? e.target,
+          })),
+        );
+        setSelecionado((s) => (s ? novoRefPorAntigo.get(s) ?? s : s));
+      }
+
       setSujo(false);
       queryClient.invalidateQueries({ queryKey: ["fluxo", fluxoId] });
     },
@@ -576,7 +617,7 @@ function Editor({ fluxoId }: { fluxoId: string }) {
 
             {resultadoTeste?.timeline && (
               <div className="space-y-1 rounded-md border border-border p-2">
-                {(resultadoTeste.timeline ?? []).map((p: any, i: number) => (
+                {(resultadoTeste.timeline?.passos ?? []).map((p: any, i: number) => (
                   <p key={i} className="text-xs text-muted-foreground">
                     {dataHoraBR(p.em)} {p.no ?? p.tipo}: {p.acao}
                   </p>
