@@ -276,7 +276,9 @@ function CondicaoLinha({
             onChange({ campo: v, op: opsNovas.includes(cond.op) ? cond.op : opsNovas[0], valor: undefined });
           }}
         >
-          <SelectTrigger className="h-9"><SelectValue placeholder="Campo" /></SelectTrigger>
+          <SelectTrigger className="h-auto min-h-9 w-full items-start py-1.5 text-left [&>span]:whitespace-normal [&>span]:break-words [&>span]:text-left">
+            <SelectValue placeholder="Campo" />
+          </SelectTrigger>
           <SelectContent>
             {grupos.map(([g, itens]) => (
               <SelectGroup key={g}>
@@ -294,32 +296,20 @@ function CondicaoLinha({
           </SelectContent>
         </Select>
 
-        <Select value={cond.op} onValueChange={(v) => onChange({ ...cond, op: v, valor: undefined })}>
-          <SelectTrigger className="h-9"><SelectValue placeholder="Operador" /></SelectTrigger>
-          <SelectContent>
-            {ops.map((o) => <SelectItem key={o} value={o}>{ROTULO_OP[o] ?? o}</SelectItem>)}
-          </SelectContent>
-        </Select>
+        <div className="grid min-w-0 gap-2 [grid-template-columns:minmax(6.5rem,1fr)_1.6fr]">
+          <Select value={cond.op} onValueChange={(v) => onChange({ ...cond, op: v, valor: undefined })}>
+            <SelectTrigger className="h-9 min-w-0"><SelectValue placeholder="Operador" /></SelectTrigger>
+            <SelectContent>
+              {ops.map((o) => <SelectItem key={o} value={o}>{ROTULO_OP[o] ?? o}</SelectItem>)}
+            </SelectContent>
+          </Select>
 
-        <ValorWidget campo={campo} cond={cond} onChange={(v) => onChange({ ...cond, valor: v })} />
-
-        <div className="flex items-center gap-1">
-          <Button
-            type="button"
-            size="sm"
-            variant={negada ? "secondary" : "ghost"}
-            className="h-8 px-2 text-[11px]"
-            onClick={() => onNegar(!negada)}
-            title="Inverter esta condição"
-          >
-            não
-          </Button>
-          <Button type="button" size="icon" variant="ghost" className="h-8 w-8" onClick={onRemover}>
-            <X className="h-4 w-4" />
-          </Button>
+          <div className="min-w-0">
+            <ValorWidget campo={campo} cond={cond} onChange={(v) => onChange({ ...cond, valor: v })} />
+          </div>
         </div>
       </div>
-      {campo?.descricao && <p className="px-1 text-[11px] text-muted-foreground">{campo.descricao}</p>}
+      {campo?.descricao && <p className="mt-2 px-0.5 text-[11px] leading-relaxed text-muted-foreground">{campo.descricao}</p>}
       {campo?.congela_publico && (
         <div className="flex flex-wrap items-center gap-2 rounded-md border border-warning/40 bg-warning/5 px-2 py-1.5">
           <AlertTriangle className="h-3.5 w-3.5 shrink-0 text-warning" />
