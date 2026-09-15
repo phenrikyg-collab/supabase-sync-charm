@@ -712,6 +712,7 @@ export default function Atendimento() {
     }
     return conversas.filter((c) => {
       if (!daAba(c)) return false;
+      if (grupoDe(c) !== grupoAba) return false;
       if (filtroLeitura === "nao_lidas" && !c.nao_lida) return false;
       if (filtroLeitura === "lidas" && c.nao_lida) return false;
       if (filtroLeitura === "atencao" && !["perdendo", "quente", "atencao"].includes(urgenciaDe(c))) return false;
