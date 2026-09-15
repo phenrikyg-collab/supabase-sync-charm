@@ -99,7 +99,13 @@ function CardKpi({
 
 /* ---------------- Bloco 1 ---------------- */
 
-function BlocoVisaoGeral({ dias }: { dias: number }) {
+function BlocoVisaoGeral({
+  dias,
+  aoAbrirPendentes,
+}: {
+  dias: number;
+  aoAbrirPendentes?: () => void;
+}) {
   const { data, isLoading, isError } = useQuery({
     queryKey: ["aval-insights-resumo", dias],
     queryFn: () => insightsResumo(dias),
