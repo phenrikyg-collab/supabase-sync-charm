@@ -50,7 +50,8 @@ import { OportunidadesTab } from "@/components/atendimento/OportunidadesTab";
 import { ProvadorVirtualConteudo } from "@/pages/ProvadorVirtual";
 import { CarrinhoAbandonadoConteudo } from "@/pages/CarrinhoAbandonado";
 import { PedidosCanceladosConteudo } from "@/pages/PedidosCancelados";
-import { FunilWhatsAppConteudo } from "@/pages/FunilWhatsApp";
+import { DashboardFunil } from "@/pages/FunilWhatsApp";
+import { FilaFollowups, TemplatesFollowup } from "@/components/funil/FollowUps";
 import { FunilKanbanConteudo } from "@/pages/FunilKanban";
 import { CashbackConteudo } from "@/pages/Cashback";
 
