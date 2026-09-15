@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "@/hooks/use-toast";
-import { Settings2 } from "lucide-react";
+import { FlaskConical, Settings2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { dataBrHora, horasDesde, inteiro, rpcEmails, textoDesde } from "@/lib/emails";
 import {
