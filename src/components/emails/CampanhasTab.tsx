@@ -78,6 +78,18 @@ function NovaCampanha({
   const [filtro, setFiltro] = useState<No>(filtroVazio());
   const [filtroLento, setFiltroLento] = useState<No | null>(null);
   const [mobile, setMobile] = useState(false);
+  const [testePara, setTestePara] = useState("");
+  const [testeTocado, setTesteTocado] = useState(false);
+  const [testeErroCampo, setTesteErroCampo] = useState<string | null>(null);
+  const [testeEnviando, setTesteEnviando] = useState(false);
+  const [testeEstado, setTesteEstado] = useState<
+    | null
+    | { fase: "aguardando"; para: string }
+    | { fase: "ok"; para: string; hora: string }
+    | { fase: "erro"; para: string; texto: string }
+  >(null);
+  const [testeRestantes, setTesteRestantes] = useState<number | null>(null);
+  const [testeEnviadoNestaSessao, setTesteEnviadoNestaSessao] = useState(false);
 
   const { data: templates = [] } = useQuery({
     queryKey: ["emails-templates", "campanha"],
