@@ -93,6 +93,7 @@ export function PainelSolicitacao({
       setPedidoNovo("");
       setCredito("");
       setMotivoCancelar("");
+      setDocumento("");
       carregar();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -128,6 +129,8 @@ export function PainelSolicitacao({
   const ehTroca = /troc/i.test(String(s.preferencia ?? ""));
   const chegou = Boolean(s.chegou ?? /entregue|recebid|conferi/i.test(String(s.status ?? "")));
   const escolha: Record<string, any> | null = s.escolha_troca ?? null;
+  const docCliente = String(s.cliente_documento ?? "").replace(/\D/g, "");
+  const semDocumento = !docCliente;
 
   return (
     <Sheet open={aberto} onOpenChange={(v) => !v && aoFechar()}>
