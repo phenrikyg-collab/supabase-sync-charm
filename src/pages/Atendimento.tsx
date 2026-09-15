@@ -817,6 +817,27 @@ export default function Atendimento() {
                 );
               })}
             </div>
+            <div className="grid grid-cols-3 gap-1 rounded-md bg-muted p-1">
+              {([
+                { v: "conversa", label: "Conversas", n: contagemGrupos.conversa },
+                { v: "clique", label: "Cliques", n: contagemGrupos.clique },
+                { v: "so_envio", label: "Só envios", n: contagemGrupos.so_envio },
+              ] as const).map((g) => (
+                <button
+                  key={g.v}
+                  onClick={() => setGrupoAba(g.v)}
+                  className={cn(
+                    "inline-flex items-center justify-center gap-1 rounded-sm px-1.5 py-1.5 text-[11px] font-medium transition-colors",
+                    grupoAba === g.v
+                      ? "bg-card shadow-sm text-foreground"
+                      : "text-muted-foreground hover:text-foreground",
+                  )}
+                >
+                  {g.label}
+                  <span className="text-[10px] opacity-70">{g.n}</span>
+                </button>
+              ))}
+            </div>
             <div className="relative">
 
               <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
