@@ -814,6 +814,7 @@ export default function Atendimento() {
   }, [conversas, aba]);
 
 
+  const modoFila = abaPagina === "em_atendimento";
   // Fila de trabalho: só conversas assumidas por uma pessoa
   const ehAssumida = (c: Conversa) => ["em_atendimento", "escalado"].includes((c.status ?? "").toLowerCase());
   const totalEmAtendimento = conversas.filter(ehAssumida).length;
