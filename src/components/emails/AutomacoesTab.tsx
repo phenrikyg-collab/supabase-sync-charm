@@ -105,10 +105,62 @@ function PainelConfig({
         <SheetHeader><SheetTitle className="font-serif">{automacao?.nome}</SheetTitle></SheetHeader>
 
         <div className="mt-6 space-y-5">
-          {Object.keys(config).length === 0 && (
+          {porFiltro && (
+            <div className="space-y-4">
+              <div className="space-y-1">
+                <p className="text-sm font-medium">Público</p>
+                <p className="text-xs text-muted-foreground">
+                  O público é refeito a cada rodada. Quem entrar no critério amanhã entra amanhã, quem sair sai.
+                </p>
+              </div>
+              <ConstrutorPublico filtro={filtro} campos={campos as any[]} onChange={setFiltro} />
+              <div className="space-y-2 rounded-lg border bg-muted/40 p-3">
+                <SeloPublicoVivo filtro={filtro} enabled={aberto} />
+                <p className="text-xs text-muted-foreground">{descreverFiltro(filtro, campos as any[])}</p>
+              </div>
+
+              <div className="flex items-center justify-between gap-3 border-t pt-4">
+                <p className="text-sm font-medium">Pode mandar de novo para a mesma pessoa</p>
+                <Switch
+                  checked={!!config.repetir}
+                  onCheckedChange={(v) => setConfig((p) => ({ ...p, repetir: v }))}
+                />
+              </div>
+
+              {config.repetir && (
+                <div className="space-y-1.5">
+                  <p className="text-sm font-medium">Esperar quantos dias antes de repetir</p>
+                  <Input
+                    type="number"
+                    min={0}
+                    value={config.intervalo_contato_dias ?? 0}
+                    onChange={(e) =>
+                      setConfig((p) => ({ ...p, intervalo_contato_dias: Number(e.target.value) }))
+                    }
+                  />
+                </div>
+              )}
+
+              <div className="space-y-1.5">
+                <p className="text-sm font-medium">Máximo por rodada</p>
+                <p className="text-xs text-muted-foreground">
+                  A automação roda de hora em hora. Com o lote em 200 e 2.945 pessoas no público, leva umas 15
+                  horas para passar por todas.
+                </p>
+                <Input
+                  type="number"
+                  min={1}
+                  value={config.lote_max ?? 0}
+                  onChange={(e) => setConfig((p) => ({ ...p, lote_max: Number(e.target.value) }))}
+                />
+              </div>
+            </div>
+          )}
+
+          {!porFiltro && Object.keys(config).length === 0 && (
             <p className="text-sm text-muted-foreground">Esta automação não tem ajustes configuráveis.</p>
           )}
-          {Object.entries(config).map(([chave, valor]) => (
+          {!porFiltro && Object.entries(config).map(([chave, valor]) => (
             <div key={chave} className="space-y-1.5">
               <div className="flex items-center justify-between gap-3">
                 <div>
