@@ -13,6 +13,7 @@ export const ROUTE_ACCESS: Record<string, Requirement> = {
   "/gestao/planejamento": ["gestao"],
   "/gestao/midia-paga": ["gestao"],
   "/gestao/analises": ["gestao"],
+  "/gestao/registro-acoes": ["gestao"],
   "/dashboard-comercial": ["gestao"],
   "/google-ads": ["gestao"],
   "/jornada-compra": ["gestao"],

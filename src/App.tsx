@@ -82,6 +82,7 @@ import Aviamentos from "./pages/Aviamentos";
 import Gestao from "./pages/Gestao";
 import GestaoPlanejamento from "./pages/GestaoPlanejamento";
 import GestaoMidiaPaga from "./pages/GestaoMidiaPaga";
+import RegistroAcoes from "./pages/RegistroAcoes";
 import GestaoAnalisesDiarias from "./pages/GestaoAnalisesDiarias";
 import JornadaCompra from "./pages/JornadaCompra";
 import GoogleAds from "./pages/GoogleAds";
@@ -285,6 +286,7 @@ const AppRoutes = () => {
               <Route path="/gestao/planejamento" element={<GestaoPlanejamento />} />
               <Route path="/gestao/midia-paga" element={<GestaoMidiaPaga />} />
               <Route path="/gestao/analises" element={<GestaoAnalisesDiarias />} />
+              <Route path="/gestao/registro-acoes" element={<RegistroAcoes />} />
               <Route path="/jornada-compra" element={<JornadaCompra />} />
               <Route path="/google-ads" element={<GoogleAds />} />
               <Route path="/dashboard-rfm" element={<DashboardRFM />} />
