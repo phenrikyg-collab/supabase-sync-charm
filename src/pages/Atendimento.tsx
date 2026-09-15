@@ -342,6 +342,22 @@ export default function Atendimento() {
   const fimRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const textoRef = useRef<HTMLTextAreaElement>(null);
+  const buscaRef = useRef<HTMLInputElement>(null);
+
+  // Tecla "/" fora de um campo leva o cursor direto para a busca de conversas
+  useEffect(() => {
+    const aoTeclar = (e: KeyboardEvent) => {
+      if (e.key !== "/" || e.ctrlKey || e.metaKey || e.altKey) return;
+      const alvo = e.target as HTMLElement | null;
+      const tag = (alvo?.tagName ?? "").toLowerCase();
+      if (tag === "input" || tag === "textarea" || alvo?.isContentEditable) return;
+      e.preventDefault();
+      buscaRef.current?.focus();
+    };
+    document.addEventListener("keydown", aoTeclar);
+    return () => document.removeEventListener("keydown", aoTeclar);
+  }, []);
+
 
   // painéis laterais estilo WhatsApp Web
   const [perfilAberto, setPerfilAberto] = useState(true);
