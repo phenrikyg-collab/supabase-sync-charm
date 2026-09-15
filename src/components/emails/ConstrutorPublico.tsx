@@ -265,7 +265,12 @@ function CondicaoLinha({
               <SelectGroup key={g}>
                 <SelectLabel>{g}</SelectLabel>
                 {itens.map((c) => (
-                  <SelectItem key={c.campo} value={c.campo}>{c.rotulo}</SelectItem>
+                  <SelectItem key={c.campo} value={c.campo}>
+                    <span className="flex items-center gap-1.5">
+                      {c.rotulo}
+                      {c.congela_publico && <AlertTriangle className="h-3 w-3 text-warning" />}
+                    </span>
+                  </SelectItem>
                 ))}
               </SelectGroup>
             ))}
