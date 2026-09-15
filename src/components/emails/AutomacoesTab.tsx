@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "@/hooks/use-toast";
-import { FlaskConical, Settings2 } from "lucide-react";
+import { FlaskConical, List, Settings2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { dataBrHora, horasDesde, inteiro, rpcEmails, textoDesde } from "@/lib/emails";
 import {
@@ -456,6 +456,7 @@ export function AutomacoesTab({ onAbrirTemplate }: { onAbrirTemplate?: (slug: st
   const queryClient = useQueryClient();
   const [configurando, setConfigurando] = useState<any | null>(null);
   const [simulando, setSimulando] = useState<any | null>(null);
+  const [vendoLista, setVendoLista] = useState<any | null>(null);
   const [simulados, setSimulados] = useState<string[]>([]);
   const [confirmarDesligar, setConfirmarDesligar] = useState<any | null>(null);
 
@@ -574,6 +575,11 @@ export function AutomacoesTab({ onAbrirTemplate }: { onAbrirTemplate?: (slug: st
                       title="Simular não grava nada"
                     >
                       <FlaskConical className="mr-1 h-3.5 w-3.5" /> Simular, sem gravar nada
+                    </Button>
+                  )}
+                  {ehPublicoVivo(a) && (
+                    <Button size="sm" variant="outline" onClick={() => setVendoLista(a)}>
+                      <List className="mr-1 h-3.5 w-3.5" /> Ver a lista
                     </Button>
                   )}
                   <Button size="sm" variant="outline" onClick={() => setConfigurando(a)}>
