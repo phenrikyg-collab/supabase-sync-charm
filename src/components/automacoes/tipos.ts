@@ -130,9 +130,23 @@ export function resumoNo(tipo: TipoNo, config: Record<string, any> = {}, catalog
       if (modo === "comprou") return "Comprou desde que entrou?";
       if (modo === "janela_whatsapp") return "Janela de 24h aberta?";
       if (modo === "evento") return `Reação ao envio: ${config.evento ?? "sem evento"}`;
+      if (modo === "cashback_avisado") {
+        const rotulos: Record<string, string> = {
+          novo_cupom: "cupom novo",
+          vence_7d: "vence em 7 dias",
+          vence_2d: "vence em 2 dias",
+        };
+        const aviso = rotulos[String(config.aviso_tipo ?? "")] ?? "aviso não escolhido";
+        return `Já recebeu pela régua antiga: ${aviso}`;
+      }
       return "Dados da cliente";
     }
     case "espera": {
+      if (config.referencia === "cashback_validade") {
+        const dias = Number(config.dias_antes ?? 7);
+        const hora = config.ate_hora ?? 10;
+        return `${dias} dias antes de vencer, às ${hora}h`;
+      }
       const partes: string[] = [];
       if (Number(config.dias)) partes.push(`${config.dias} dias`);
       if (Number(config.horas)) partes.push(`${config.horas} h`);
