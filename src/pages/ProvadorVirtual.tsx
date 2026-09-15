@@ -514,21 +514,29 @@ function GerarProva({
   );
 }
 
-/* ---------------- Página ---------------- */
+/* ---------------- Conteúdo compartilhado ---------------- */
 
-export default function ProvadorVirtual() {
-  const [params] = useSearchParams();
-  const conversaId = params.get("conversa_id");
-  const nomeInicial = params.get("nome") ?? "";
-  const telefoneInicial = params.get("telefone") ?? "";
+export function ProvadorVirtualConteudo({
+  semCabecalho = false,
+  conversaId = null,
+  nomeInicial = "",
+  telefoneInicial = "",
+}: {
+  semCabecalho?: boolean;
+  conversaId?: string | null;
+  nomeInicial?: string;
+  telefoneInicial?: string;
+}) {
   const [aba, setAba] = useState(conversaId ? "gerar" : "funil");
 
   return (
-    <div className="space-y-6 p-6">
-      <div>
-        <h1 className="text-3xl font-bold">Provador Virtual</h1>
-        <p className="text-muted-foreground">Funil de leads e geração manual de provas virtuais.</p>
-      </div>
+    <div className={semCabecalho ? "space-y-6" : "space-y-6 p-6"}>
+      {!semCabecalho && (
+        <div>
+          <h1 className="text-3xl font-bold">Provador Virtual</h1>
+          <p className="text-muted-foreground">Funil de leads e geração manual de provas virtuais.</p>
+        </div>
+      )}
       <Tabs value={aba} onValueChange={setAba}>
         <TabsList>
           <TabsTrigger value="funil">Funil de Leads</TabsTrigger>
@@ -542,5 +550,18 @@ export default function ProvadorVirtual() {
         </TabsContent>
       </Tabs>
     </div>
+  );
+}
+
+/* ---------------- Página ---------------- */
+
+export default function ProvadorVirtual() {
+  const [params] = useSearchParams();
+  return (
+    <ProvadorVirtualConteudo
+      conversaId={params.get("conversa_id")}
+      nomeInicial={params.get("nome") ?? ""}
+      telefoneInicial={params.get("telefone") ?? ""}
+    />
   );
 }
