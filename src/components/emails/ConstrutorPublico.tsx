@@ -267,7 +267,7 @@ function CondicaoLinha({
         </Button>
       </div>
 
-      <div className={cn("grid gap-2", !empilhado && "sm:grid-cols-[1.4fr_1fr_1.4fr] sm:items-start")}>
+      <div className={cn("grid min-w-0 gap-2", !empilhado && "sm:grid-cols-[1.2fr_1.6fr] sm:items-start")}>
         <Select
           value={cond.campo}
           onValueChange={(v) => {
