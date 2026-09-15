@@ -60,33 +60,58 @@ function Editor({ template, onVoltar }: { template: any; onVoltar: () => void })
   const [assunto, setAssunto] = useState(template?.assunto ?? "");
   const [preheader, setPreheader] = useState(template?.preheader ?? "");
   const [tipo, setTipo] = useState(template?.tipo ?? "campanha");
-  const [html, setHtml] = useState(template?.html ?? "");
+  const [modo, setModo] = useState<ModoTemplate>("miolo");
+  const [texto, setTexto] = useState("");
+  const [carregado, setCarregado] = useState(!template?.slug);
   const [mobile, setMobile] = useState(false);
   const [semCupom, setSemCupom] = useState(false);
 
-  const { data: previa } = useConferirTemplate(html, assunto);
+  const { data: salvo } = usePreviaTemplate(template?.slug);
+
+  // Abre o template no modo em que ele foi escrito, com o conteúdo daquele modo.
+  useEffect(() => {
+    if (!salvo || carregado) return;
+    const modoSalvo: ModoTemplate = salvo.modo === "miolo" ? "miolo" : "completo";
+    setModo(modoSalvo);
+    setTexto(modoSalvo === "miolo" ? String(salvo.miolo ?? "") : String(salvo.html ?? ""));
+    if (salvo.preheader != null) setPreheader(salvo.preheader);
+    setCarregado(true);
+  }, [salvo, carregado]);
+
+  const { data: previa } = useConferirTemplate(texto, assunto, modo, preheader || null);
   const { data: variaveis = [] } = useVariaveisDisponiveis();
 
   const conferencias = lerChecagem(previa?.checagem);
   const bloqueado = conferencias.some((c) => c.tipo === "erro");
 
+  const trocarModo = (novo: ModoTemplate) => {
+    if (novo === modo) return;
+    if (texto.trim() && !window.confirm("Trocar o modo troca o que está no editor. Quer continuar?")) return;
+    setTexto("");
+    setModo(novo);
+  };
+
   const inserirTag = (tag: string) => {
     const area = areaRef.current;
-    if (!area) { setHtml((h) => h + tag); return; }
-    const ini = area.selectionStart ?? html.length;
-    const fim = area.selectionEnd ?? html.length;
-    const novo = html.slice(0, ini) + tag + html.slice(fim);
-    setHtml(novo);
+    if (!area) { setTexto((h) => h + tag); return; }
+    const ini = area.selectionStart ?? texto.length;
+    const fim = area.selectionEnd ?? texto.length;
+    const novo = texto.slice(0, ini) + tag + texto.slice(fim);
+    setTexto(novo);
     requestAnimationFrame(() => {
       area.focus();
       area.setSelectionRange(ini + tag.length, ini + tag.length);
     });
   };
 
-  const salvar = useMutation({
+  const salvarTemplate = useMutation({
     mutationFn: () =>
       rpcEmails("emails_template_salvar", {
-        p_patch: { id: template?.id ?? null, nome, assunto, preheader, tipo, html },
+        p_patch: {
+          id: template?.id ?? null,
+          nome, assunto, preheader, tipo, modo,
+          ...(modo === "miolo" ? { miolo: texto } : { html: texto }),
+        },
       }),
     onSuccess: () => {
       toast({ title: "Template salvo" });
