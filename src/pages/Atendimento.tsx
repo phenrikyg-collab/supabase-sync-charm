@@ -15,10 +15,18 @@ import { ptBR } from "date-fns/locale";
 import {
   AlertTriangle, Bot, Check, CheckCheck, CheckCircle2, Globe, ImagePlus, LayoutGrid, Lock, MessageCircle,
   RotateCcw, Search, Send, User, X, UserCheck, Phone, QrCode, Link2,
-  Truck, ShoppingCart, Plus,
+  Truck, ShoppingCart, Plus, MoreHorizontal, PanelRight, Menu,
 } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Checkbox } from "@/components/ui/checkbox";
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
+import {
+  BotaoRespostasRapidas, ListaRespostas, MensagensRapidasTab, filtrarRespostas,
+  registrarUso, useRespostasRapidas, type RespostaRapida,
+} from "@/components/atendimento/RespostasRapidas";
 import { TagsConversa, TagChip, type Tag } from "@/components/atendimento/TagsConversa";
 import { CatalogoDialog, formatarPreco, legendaProduto, type ProdutoCatalogo, type EscolhaProduto } from "@/components/atendimento/CatalogoDialog";
 import { PerfilCliente } from "@/components/atendimento/PerfilCliente";
@@ -287,6 +295,31 @@ export default function Atendimento() {
   const [enviandoImagem, setEnviandoImagem] = useState(false);
   const fimRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  const textoRef = useRef<HTMLTextAreaElement>(null);
+
+  // painéis laterais estilo WhatsApp Web
+  const [perfilAberto, setPerfilAberto] = useState(true);
+  const [perfilSheet, setPerfilSheet] = useState(false);
+  const [listaSheet, setListaSheet] = useState(false);
+
+  // mensagens rápidas pelo atalho "/"
+  const { data: respostasRapidas = [] } = useRespostasRapidas(false);
+  const [indiceRapida, setIndiceRapida] = useState(0);
+  const slashAtivo = texto.startsWith("/") && !texto.includes("\n");
+  const rapidasFiltradas = useMemo(
+    () => (slashAtivo ? filtrarRespostas(respostasRapidas, texto.slice(1)) : []),
+    [slashAtivo, respostasRapidas, texto],
+  );
+  const listaRapidaAberta = slashAtivo && rapidasFiltradas.length > 0;
+  useEffect(() => {
+    setIndiceRapida(0);
+  }, [texto]);
+
+  const inserirResposta = (r: RespostaRapida) => {
+    setTexto(r.texto);
+    registrarUso(r.id);
+    setTimeout(() => textoRef.current?.focus(), 0);
+  };
 
   const autor = user?.email ?? "Atendente";
 
@@ -463,6 +496,7 @@ export default function Atendimento() {
 
   const abrirConversa = async (c: Conversa) => {
     setSelecionada(String(c.id));
+    setListaSheet(false);
     setErroJanela(null);
     if (!c.nao_lida) return;
     const { error } = await supabase.rpc("whatsapp_marcar_lida" as any, {
@@ -752,42 +786,60 @@ export default function Atendimento() {
   const podeResponder = status === "escalado" || status === "em_atendimento";
 
   return (
-    <div className="w-full max-w-[1700px] min-w-0 overflow-x-hidden p-6 mx-auto space-y-4">
-      <div>
-        <h1 className="font-serif text-4xl text-foreground">Atendimento</h1>
-        <p className="text-muted-foreground text-sm mt-1">
-          Conversas de WhatsApp — assuma o atendimento quando o bot escalar.
-        </p>
-      </div>
+    <div className="-m-6 flex h-[calc(100dvh-3.5rem)] w-[calc(100%+3rem)] min-w-0 flex-col overflow-hidden">
+      <Tabs
+        value={abaPagina}
+        onValueChange={(v) => setAbaPagina(v as typeof abaPagina)}
+        className="flex min-h-0 flex-1 flex-col"
+      >
+        <div className="flex h-11 shrink-0 items-center gap-2 border-b border-border px-3">
+          <TabsList className="h-8 bg-transparent p-0">
+            <TabsTrigger value="conversas" className="h-8 text-xs">Conversas</TabsTrigger>
+            <TabsTrigger value="abandonadas" className="h-8 text-xs">Abandonadas</TabsTrigger>
+            <TabsTrigger value="cobrancas" className="h-8 text-xs">Cobranças</TabsTrigger>
+            <TabsTrigger value="consulta" className="h-8 text-xs">Consultar Transação</TabsTrigger>
+            <TabsTrigger value="rapidas" className="h-8 text-xs">Mensagens rápidas</TabsTrigger>
+          </TabsList>
+        </div>
 
-      <Tabs value={abaPagina} onValueChange={(v) => setAbaPagina(v as typeof abaPagina)}>
-        <TabsList>
-          <TabsTrigger value="conversas">Conversas</TabsTrigger>
-          <TabsTrigger value="abandonadas">Abandonadas</TabsTrigger>
-          <TabsTrigger value="cobrancas">Cobranças</TabsTrigger>
-          <TabsTrigger value="consulta">Consultar Transação</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="abandonadas" className="mt-4">
+        <TabsContent value="abandonadas" className="m-0 min-h-0 flex-1 overflow-auto p-4">
           <AbandonadasTab />
         </TabsContent>
 
 
-        <TabsContent value="cobrancas" className="mt-4 space-y-4">
+        <TabsContent value="cobrancas" className="m-0 min-h-0 flex-1 space-y-4 overflow-auto p-4">
           <LinkPagamentoCard />
           <CobrancasTab />
         </TabsContent>
 
-        <TabsContent value="consulta" className="mt-4">
+        <TabsContent value="consulta" className="m-0 min-h-0 flex-1 overflow-auto p-4">
           <ConsultarTransacaoTab />
         </TabsContent>
 
-        <TabsContent value="conversas" className="mt-4">
-      <div className="grid w-full max-w-full min-w-0 grid-cols-1 lg:grid-cols-[minmax(0,280px)_minmax(0,1fr)] xl:grid-cols-[minmax(0,260px)_minmax(360px,1fr)_minmax(0,280px)] 2xl:grid-cols-[minmax(0,320px)_minmax(0,1fr)_minmax(0,340px)] gap-4 h-[calc(100vh-260px)] min-h-[520px] overflow-x-hidden">
+        <TabsContent value="rapidas" className="m-0 min-h-0 flex-1 overflow-auto p-4">
+          <MensagensRapidasTab />
+        </TabsContent>
+
+        <TabsContent value="conversas" className="m-0 min-h-0 flex-1 overflow-hidden data-[state=active]:flex">
+      <div className="relative flex w-full min-w-0 flex-1 overflow-hidden">
+
+        {listaSheet && (
+          <div
+            className="fixed inset-0 z-30 bg-black/40 md:hidden"
+            onClick={() => setListaSheet(false)}
+            aria-hidden
+          />
+        )}
 
         {/* Lista de conversas */}
-        <Card className="flex min-w-0 max-w-full flex-col overflow-hidden">
-          <div className="p-3 border-b border-border space-y-2">
+        <aside
+          className={cn(
+            "fixed inset-y-0 left-0 z-40 flex w-[85vw] max-w-[360px] min-w-0 flex-col border-r border-border bg-card transition-transform",
+            "md:static md:z-auto md:w-[360px] md:max-w-none md:shrink-0 md:translate-x-0",
+            listaSheet ? "translate-x-0" : "-translate-x-full",
+          )}
+        >
+          <div className="shrink-0 border-b border-border p-3 space-y-2">
             <Button size="sm" className="w-full" onClick={() => abrirNovaConversa(null)}>
               <Plus className="h-4 w-4 mr-2" />
               Nova conversa
@@ -904,7 +956,7 @@ export default function Atendimento() {
               </Popover>
             </div>
           </div>
-          <ScrollArea className="flex-1">
+          <ScrollArea className="min-h-0 flex-1">
             {carregandoConversas && (
               <p className="p-4 text-sm text-muted-foreground">Carregando conversas…</p>
             )}
@@ -1040,10 +1092,10 @@ export default function Atendimento() {
               </>
             )}
           </ScrollArea>
-        </Card>
+        </aside>
 
         {/* Thread */}
-        <Card className="flex min-w-0 flex-col overflow-hidden">
+        <section className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
           {!conversaAtual ? (
             <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground gap-2">
               <MessageCircle className="h-10 w-10 opacity-40" />
@@ -1052,83 +1104,127 @@ export default function Atendimento() {
 
           ) : (
             <>
-              <div className="p-4 flex items-start justify-between gap-4 border-b border-border">
-                <div className="min-w-0 space-y-1.5">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    {ehSite(conversaAtual) ? (
-                      <Globe className="h-4 w-4 text-primary shrink-0" aria-label="Chat do site" />
-                    ) : (
-                      <MessageCircle className="h-4 w-4 text-success shrink-0" aria-label="WhatsApp" />
-                    )}
-                    <h2 className="font-medium truncate">{nomeConversa(conversaAtual)}</h2>
-                    {nomeSoDoWhatsApp(conversaAtual) && <BadgeViaWhatsApp />}
-                    <StatusPill status={conversaAtual.status} aguardandoDesde={conversaAtual.aguardando_desde} />
-                    {conversaAtual.status === "escalado" && conversaAtual.aguardando_desde && (
-                      <SeloFila conversaId={conversaAtual.id} />
-                    )}
-                    {ehSite(conversaAtual) && conversaAtual.telefone_real && (
-                      <span className="inline-flex items-center gap-1 rounded-full border border-success/20 bg-success/10 px-2 py-0.5 text-[10px] text-success">
-                        <Phone className="h-3 w-3" />
-                        {formatarTelefone(conversaAtual.telefone_real)}
-                      </span>
-                    )}
-                  </div>
-                  <p className="text-xs text-muted-foreground">{identificadorConversa(conversaAtual)}</p>
-
-                  <TagsConversa conversaId={conversaAtual.id} aplicadas={conversaAtual.tags ?? []} />
+              <div className="flex h-14 shrink-0 items-center gap-3 border-b border-border px-3">
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  className="h-8 w-8 shrink-0 md:hidden"
+                  onClick={() => setListaSheet(true)}
+                  title="Ver conversas"
+                >
+                  <Menu className="h-4 w-4" />
+                </Button>
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-accent">
+                  {ehSite(conversaAtual) ? (
+                    <Globe className="h-4 w-4 text-primary" aria-label="Chat do site" />
+                  ) : (
+                    <MessageCircle className="h-4 w-4 text-primary" aria-label="WhatsApp" />
+                  )}
+                </span>
+                <div className="flex min-w-0 flex-1 items-center gap-2">
+                  <h2 className="truncate text-sm font-semibold">{nomeConversa(conversaAtual)}</h2>
+                  <span className="hidden shrink-0 text-xs text-muted-foreground sm:inline">
+                    {identificadorConversa(conversaAtual)}
+                  </span>
+                  {nomeSoDoWhatsApp(conversaAtual) && <BadgeViaWhatsApp />}
+                  <StatusPill status={conversaAtual.status} aguardandoDesde={conversaAtual.aguardando_desde} />
+                  {conversaAtual.status === "escalado" && conversaAtual.aguardando_desde && (
+                    <SeloFila conversaId={conversaAtual.id} />
+                  )}
+                  {ehSite(conversaAtual) && conversaAtual.telefone_real && (
+                    <span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-border bg-muted px-2 py-0.5 text-[10px] text-muted-foreground">
+                      <Phone className="h-3 w-3" />
+                      {formatarTelefone(conversaAtual.telefone_real)}
+                    </span>
+                  )}
                 </div>
-                <div className="flex items-center gap-2 flex-wrap justify-end">
-                  <Button size="sm" variant="outline" onClick={() => setCobrancaAberta(true)}>
-                    <QrCode className="h-4 w-4 mr-2" />
-                    Gerar cobrança Pix
-                  </Button>
-                  <Button size="sm" variant="outline" onClick={() => setLinkPagamentoAberto(true)}>
-                    <Link2 className="h-4 w-4 mr-2" />
-                    Gerar link de pagamento
-                  </Button>
-                  <Button size="sm" variant="outline" onClick={() => setProporCarrinhoAberto(true)}>
-                    <ShoppingCart className="h-4 w-4 mr-2" />
-                    Propor carrinho
-                  </Button>
-                  <Button size="sm" variant="outline" onClick={() => setFreteAberto(true)}>
-                    <Truck className="h-4 w-4 mr-2" />
-                    Calcular frete
-                  </Button>
-
-                  <Button size="sm" variant="default" onClick={() => assumir.mutate()} disabled={assumir.isPending}>
-                    <UserCheck className="h-4 w-4 mr-2" />
+                <div className="flex shrink-0 items-center gap-1.5">
+                  <Button size="sm" onClick={() => assumir.mutate()} disabled={assumir.isPending}>
+                    <UserCheck className="mr-2 h-4 w-4" />
                     Assumir conversa
                   </Button>
-
                   {(status === "escalado" || status === "em_atendimento") && (
                     <Button
                       size="sm"
                       variant="outline"
+                      className="hidden xl:inline-flex"
                       onClick={() => resolver.mutate()}
                       disabled={resolver.isPending}
                     >
-                      <CheckCircle2 className="h-4 w-4 mr-2" />
+                      <CheckCircle2 className="mr-2 h-4 w-4" />
                       Marcar como resolvido
                     </Button>
                   )}
-                  {status !== "bot_ativo" && (
-                    <Button
-                      size="sm"
-                      variant="secondary"
-                      onClick={() => reativarBot.mutate()}
-                      disabled={reativarBot.isPending}
-                    >
-                      <RotateCcw className="h-4 w-4 mr-2" />
-                      Reativar bot
-                    </Button>
-                  )}
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button size="icon" variant="ghost" className="h-9 w-9" title="Mais ações">
+                        <MoreHorizontal className="h-4 w-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-56">
+                      <DropdownMenuItem onSelect={() => setCobrancaAberta(true)}>
+                        <QrCode className="mr-2 h-4 w-4" />
+                        Gerar cobrança Pix
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onSelect={() => setLinkPagamentoAberto(true)}>
+                        <Link2 className="mr-2 h-4 w-4" />
+                        Gerar link de pagamento
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onSelect={() => setProporCarrinhoAberto(true)}>
+                        <ShoppingCart className="mr-2 h-4 w-4" />
+                        Propor carrinho
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onSelect={() => setFreteAberto(true)}>
+                        <Truck className="mr-2 h-4 w-4" />
+                        Calcular frete
+                      </DropdownMenuItem>
+                      {(status === "escalado" || status === "em_atendimento") && (
+                        <DropdownMenuItem
+                          className="xl:hidden"
+                          onSelect={() => resolver.mutate()}
+                          disabled={resolver.isPending}
+                        >
+                          <CheckCircle2 className="mr-2 h-4 w-4" />
+                          Marcar como resolvido
+                        </DropdownMenuItem>
+                      )}
+                      {status !== "bot_ativo" && (
+                        <DropdownMenuItem onSelect={() => reativarBot.mutate()} disabled={reativarBot.isPending}>
+                          <RotateCcw className="mr-2 h-4 w-4" />
+                          Reativar bot
+                        </DropdownMenuItem>
+                      )}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="hidden h-9 w-9 lg:inline-flex"
+                    onClick={() => setPerfilAberto((v) => !v)}
+                    title={perfilAberto ? "Esconder perfil da cliente" : "Mostrar perfil da cliente"}
+                  >
+                    <PanelRight className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="h-9 w-9 lg:hidden"
+                    onClick={() => setPerfilSheet(true)}
+                    title="Perfil da cliente"
+                  >
+                    <PanelRight className="h-4 w-4" />
+                  </Button>
                 </div>
+              </div>
+
+              <div className="shrink-0 border-b border-border px-3 py-1.5">
+                <TagsConversa conversaId={conversaAtual.id} aplicadas={conversaAtual.tags ?? []} />
               </div>
 
               <PropostaDaConversa conversaId={conversaAtual.id} propostaId={propostaId} />
               <CobrancasDaConversa conversaId={conversaAtual.id} />
 
-              <ScrollArea className="min-w-0 max-w-full flex-1 overflow-x-hidden p-4 [&_[data-radix-scroll-area-viewport]]:!overflow-x-hidden">
+              <ScrollArea className="min-h-0 min-w-0 max-w-full flex-1 overflow-x-hidden p-4 [&_[data-radix-scroll-area-viewport]]:!overflow-x-hidden">
                 {carregandoMensagens && <p className="text-sm text-muted-foreground">Carregando mensagens…</p>}
                 <div className="min-w-0 max-w-full space-y-3 overflow-x-hidden">
                   {mensagens.map((m, idx) => {
@@ -1196,7 +1292,7 @@ export default function Atendimento() {
                   </div>
                 </div>
               ) : podeResponder ? (
-                <div className="p-3 space-y-2">
+                <div className="shrink-0 border-t border-border p-3 space-y-2">
                   {erroJanela && (
                     <div className="flex items-start gap-2 rounded-md border border-danger/40 bg-danger/10 p-3">
                       <AlertTriangle className="h-4 w-4 text-danger mt-0.5 shrink-0" />
@@ -1225,7 +1321,20 @@ export default function Atendimento() {
                       </div>
                     </div>
                   )}
-                  <div className="flex min-w-0 max-w-full items-end gap-2 overflow-hidden">
+                  <div className="relative flex min-w-0 max-w-full items-end gap-1 overflow-visible">
+                    {listaRapidaAberta && (
+                      <div className="absolute bottom-full left-0 z-50 mb-2 w-full max-w-md rounded-md border border-border bg-popover shadow-lg">
+                        <p className="border-b border-border px-3 py-1.5 text-[11px] text-muted-foreground">
+                          Mensagens rápidas: setas para escolher, Enter para inserir, Esc para fechar
+                        </p>
+                        <ListaRespostas
+                          itens={rapidasFiltradas}
+                          indice={indiceRapida}
+                          onIndice={setIndiceRapida}
+                          onEscolher={inserirResposta}
+                        />
+                      </div>
+                    )}
                     <input
                       ref={fileRef}
                       type="file"
@@ -1233,7 +1342,13 @@ export default function Atendimento() {
                       className="hidden"
                       onChange={(e) => selecionarArquivo(e.target.files?.[0] ?? null)}
                     />
-                    <Button size="icon" variant="outline" onClick={() => fileRef.current?.click()} title="Enviar imagem">
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="h-9 w-9 shrink-0"
+                      onClick={() => fileRef.current?.click()}
+                      title="Enviar imagem"
+                    >
                       <ImagePlus className="h-4 w-4" />
                     </Button>
                     {!ehSite(conversaAtual) && (
@@ -1243,17 +1358,47 @@ export default function Atendimento() {
                         onEnviada={invalidarThread}
                       />
                     )}
-                    <Button size="sm" variant="outline" onClick={() => setCatalogoAberto(true)}>
-                      <LayoutGrid className="h-4 w-4 mr-2" />
-                      Catálogo
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="h-9 w-9 shrink-0"
+                      onClick={() => setCatalogoAberto(true)}
+                      title="Catálogo"
+                    >
+                      <LayoutGrid className="h-4 w-4" />
                     </Button>
+                    <BotaoRespostasRapidas onEscolher={inserirResposta} />
                     <Textarea
+                      ref={textoRef}
                       value={texto}
                       onChange={(e) => setTexto(e.target.value)}
-                      placeholder="Escreva sua resposta…"
-                      rows={2}
-                      className="min-w-0 flex-1 resize-none"
+                      placeholder="Escreva sua resposta ou digite / para as mensagens rápidas"
+                      rows={1}
+                      className="min-h-9 min-w-0 flex-1 resize-none py-2"
                       onKeyDown={(e) => {
+                        if (listaRapidaAberta) {
+                          if (e.key === "ArrowDown") {
+                            e.preventDefault();
+                            setIndiceRapida((i) => (i + 1) % rapidasFiltradas.length);
+                            return;
+                          }
+                          if (e.key === "ArrowUp") {
+                            e.preventDefault();
+                            setIndiceRapida((i) => (i - 1 + rapidasFiltradas.length) % rapidasFiltradas.length);
+                            return;
+                          }
+                          if (e.key === "Escape") {
+                            e.preventDefault();
+                            setTexto("");
+                            return;
+                          }
+                          if (e.key === "Enter" && !e.shiftKey) {
+                            e.preventDefault();
+                            const escolhida = rapidasFiltradas[indiceRapida];
+                            if (escolhida) inserirResposta(escolhida);
+                            return;
+                          }
+                        }
                         if (e.key === "Enter" && !e.shiftKey) {
                           e.preventDefault();
                           if (texto.trim()) enviar.mutate(texto.trim());
@@ -1261,11 +1406,13 @@ export default function Atendimento() {
                       }}
                     />
                     <Button
+                      size="icon"
+                      className="h-9 w-9 shrink-0 rounded-full"
                       onClick={() => texto.trim() && enviar.mutate(texto.trim())}
                       disabled={!texto.trim() || enviar.isPending}
+                      title="Enviar"
                     >
-                      <Send className="h-4 w-4 mr-2" />
-                      Enviar
+                      <Send className="h-4 w-4" />
                     </Button>
                   </div>
                 </div>
@@ -1278,21 +1425,29 @@ export default function Atendimento() {
               )}
             </>
           )}
-        </Card>
+        </section>
 
         {/* Painel lateral direito */}
-        <div className="hidden xl:flex min-w-0 flex-col gap-4 overflow-y-auto overflow-x-hidden">
-          {conversaAtual ? (
-            <>
-              <PerfilCliente conversaId={conversaAtual.id} autor={autor} telefone={conversaAtual.telefone} />
-              {telefoneIdentificado && <AtividadesRecentes telefone={telefoneIdentificado} />}
-            </>
-          ) : (
-            <Card className="flex-1 flex items-center justify-center text-sm text-muted-foreground">
-              Nenhuma conversa selecionada
-            </Card>
-          )}
-        </div>
+        {perfilAberto && conversaAtual && (
+          <aside className="hidden w-[340px] shrink-0 min-w-0 flex-col gap-3 overflow-y-auto overflow-x-hidden border-l border-border p-3 lg:flex">
+            <PerfilCliente conversaId={conversaAtual.id} autor={autor} telefone={conversaAtual.telefone} />
+            {telefoneIdentificado && <AtividadesRecentes telefone={telefoneIdentificado} />}
+          </aside>
+        )}
+
+        <Sheet open={perfilSheet} onOpenChange={setPerfilSheet}>
+          <SheetContent side="right" className="w-[92vw] max-w-[380px] overflow-y-auto p-3">
+            <SheetTitle className="mb-2 text-sm">Perfil da cliente</SheetTitle>
+            {conversaAtual ? (
+              <div className="space-y-3">
+                <PerfilCliente conversaId={conversaAtual.id} autor={autor} telefone={conversaAtual.telefone} />
+                {telefoneIdentificado && <AtividadesRecentes telefone={telefoneIdentificado} />}
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">Nenhuma conversa selecionada</p>
+            )}
+          </SheetContent>
+        </Sheet>
 
       </div>
         </TabsContent>
