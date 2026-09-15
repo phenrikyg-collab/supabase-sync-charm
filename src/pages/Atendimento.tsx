@@ -910,6 +910,25 @@ export default function Atendimento() {
   const status = conversaAtual?.status ?? "";
   const podeResponder = status === "escalado" || status === "em_atendimento";
 
+  const abrirDoPainel = (id: string, textoPronto?: string, leadId?: string) => {
+    setSelecionada(id);
+    setAbaPagina("conversas");
+    if (textoPronto) setTexto(textoPronto);
+    setLeadProvador(leadId ? { leadId, conversaId: id } : null);
+    if (textoPronto) setTimeout(() => textoRef.current?.focus(), 0);
+  };
+
+  const rotuloComContagem = (label: string, n?: number) => (
+    <>
+      {label}
+      {!!n && n > 0 && (
+        <span className="ml-1 rounded-full bg-primary px-1.5 text-[10px] font-bold text-primary-foreground">
+          {n}
+        </span>
+      )}
+    </>
+  );
+
   return (
     <div className="-m-6 flex h-[calc(100dvh-3.5rem)] w-[calc(100%+3rem)] max-w-[calc(100%+3rem)] min-w-0 flex-col overflow-x-hidden overflow-y-hidden">
       <Tabs
@@ -919,25 +938,29 @@ export default function Atendimento() {
       >
         <div className="flex h-11 w-full min-w-0 shrink-0 items-center gap-2 overflow-x-auto border-b border-border px-3">
           <TabsList className="h-8 w-max flex-nowrap bg-transparent p-0">
-            <TabsTrigger value="conversas" className="h-8 shrink-0 text-xs">Conversas</TabsTrigger>
-            <TabsTrigger value="em_atendimento" className="h-8 shrink-0 text-xs">
-              Em atendimento
-              {totalEmAtendimento > 0 && (
-                <span className="ml-1 rounded-full bg-primary px-1.5 text-[10px] font-bold text-primary-foreground">
-                  {totalEmAtendimento}
-                </span>
-              )}
+            <TabsTrigger value="conversas" className="h-8 shrink-0 text-xs">
+              {rotuloComContagem("Conversas", contagemGrupos.conversa)}
             </TabsTrigger>
-            <TabsTrigger value="oportunidades" className="h-8 shrink-0 text-xs">Oportunidades</TabsTrigger>
-            <TabsTrigger value="provador" className="h-8 shrink-0 text-xs">Provador</TabsTrigger>
+            <TabsTrigger value="em_atendimento" className="h-8 shrink-0 text-xs">
+              {rotuloComContagem("Em atendimento", totalEmAtendimento)}
+            </TabsTrigger>
+            <TabsTrigger value="oportunidades" className="h-8 shrink-0 text-xs">
+              {rotuloComContagem("Oportunidades", contagens.oportunidades)}
+            </TabsTrigger>
+            <TabsTrigger value="provador" className="h-8 shrink-0 text-xs">
+              {rotuloComContagem("Provador", contagens.provador)}
+            </TabsTrigger>
             <TabsTrigger value="abandonadas" className="h-8 shrink-0 text-xs">Abandonadas</TabsTrigger>
             <TabsTrigger value="cobrancas" className="h-8 shrink-0 text-xs">Cobranças</TabsTrigger>
             <TabsTrigger value="consulta" className="h-8 shrink-0 text-xs">Consultar Transação</TabsTrigger>
             <TabsTrigger value="rapidas" className="h-8 shrink-0 text-xs">Mensagens rápidas</TabsTrigger>
             <TabsTrigger value="aprendizado" className="h-8 shrink-0 text-xs">Aprendizado da Anna</TabsTrigger>
-            <TabsTrigger value="carrinhos" className="h-8 shrink-0 text-xs">Carrinhos abandonados</TabsTrigger>
-            <TabsTrigger value="cancelados" className="h-8 shrink-0 text-xs">Pedidos cancelados</TabsTrigger>
-            <TabsTrigger value="funil" className="h-8 shrink-0 text-xs">Funil do WhatsApp</TabsTrigger>
+            <TabsTrigger value="carrinhos" className="h-8 shrink-0 text-xs">
+              {rotuloComContagem("Carrinhos abandonados", contagens.carrinhos)}
+            </TabsTrigger>
+            <TabsTrigger value="cancelados" className="h-8 shrink-0 text-xs">
+              {rotuloComContagem("Pedidos cancelados", contagens.cancelados)}
+            </TabsTrigger>
             <TabsTrigger value="kanban" className="h-8 shrink-0 text-xs">Kanban do funil</TabsTrigger>
             <TabsTrigger value="cashback" className="h-8 shrink-0 text-xs">Cashback</TabsTrigger>
           </TabsList>
@@ -945,31 +968,54 @@ export default function Atendimento() {
 
         <TabsContent value="oportunidades" className="m-0 min-h-0 w-full min-w-0 flex-1 overflow-auto p-4">
           <OportunidadesTab
-            onAbrirConversa={(id) => {
-              setSelecionada(id);
-              setAbaPagina("conversas");
-            }}
+            onAbrirConversa={(id) => abrirDoPainel(id)}
+            onContagem={(n) => setContagem("oportunidades", n)}
           />
         </TabsContent>
 
         <TabsContent value="provador" className="m-0 min-h-0 w-full min-w-0 flex-1 overflow-auto p-4">
-          <ProvadorVirtualConteudo semCabecalho />
+          <ProvadorVirtualConteudo
+            semCabecalho
+            onAbrirConversa={abrirDoPainel}
+            onContagem={(n) => setContagem("provador", n)}
+          />
         </TabsContent>
 
         <TabsContent value="carrinhos" className="m-0 min-h-0 w-full min-w-0 flex-1 overflow-auto p-4">
-          <CarrinhoAbandonadoConteudo />
+          <CarrinhoAbandonadoConteudo
+            onAbrirConversa={(id) => abrirDoPainel(id)}
+            onContagem={(n) => setContagem("carrinhos", n)}
+          />
         </TabsContent>
 
         <TabsContent value="cancelados" className="m-0 min-h-0 w-full min-w-0 flex-1 overflow-auto p-4">
-          <PedidosCanceladosConteudo />
-        </TabsContent>
-
-        <TabsContent value="funil" className="m-0 min-h-0 w-full min-w-0 flex-1 overflow-auto p-4">
-          <FunilWhatsAppConteudo />
+          <PedidosCanceladosConteudo
+            onAbrirConversa={(id) => abrirDoPainel(id)}
+            onContagem={(n) => setContagem("cancelados", n)}
+          />
         </TabsContent>
 
         <TabsContent value="kanban" className="m-0 min-h-0 w-full min-w-0 flex-1 overflow-auto p-4">
-          <FunilKanbanConteudo />
+          <Tabs value={abaKanban} onValueChange={(v) => setAbaKanban(v as typeof abaKanban)} className="space-y-4">
+            <TabsList>
+              <TabsTrigger value="kanban">Kanban</TabsTrigger>
+              <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
+              <TabsTrigger value="followups">Follow-ups</TabsTrigger>
+              <TabsTrigger value="templates">Templates</TabsTrigger>
+            </TabsList>
+            <TabsContent value="kanban" className="m-0">
+              <FunilKanbanConteudo onAbrirConversa={(id) => abrirDoPainel(id)} />
+            </TabsContent>
+            <TabsContent value="dashboard" className="m-0">
+              <DashboardFunil />
+            </TabsContent>
+            <TabsContent value="followups" className="m-0">
+              <FilaFollowups />
+            </TabsContent>
+            <TabsContent value="templates" className="m-0">
+              <TemplatesFollowup />
+            </TabsContent>
+          </Tabs>
         </TabsContent>
 
         <TabsContent value="cashback" className="m-0 min-h-0 w-full min-w-0 flex-1 overflow-auto p-4">
