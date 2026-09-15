@@ -117,6 +117,9 @@ function FunilLeads({
     },
   });
 
+  useEffect(() => { onContagem?.(leads.length); }, [leads.length, onContagem]);
+
+
   const mover = useMutation({
     mutationFn: async ({ id, status }: { id: string; status: string }) => {
       const { error } = await (supabase as any).rpc("provador_atualizar_status_funil", {
