@@ -11,7 +11,11 @@ import { rpcCashback, objetoDe, listaDe } from "@/lib/cashback";
 
 const PERIODOS = [7, 30, 90];
 
-export default function Cashback() {
+export function CashbackConteudo() {
+  return <Cashback semCabecalho />;
+}
+
+export default function Cashback({ semCabecalho }: { semCabecalho?: boolean } = {}) {
   const [dias, setDias] = useState(30);
   const [resumo, setResumo] = useState<Record<string, any>>({});
   const [carregando, setCarregando] = useState(true);

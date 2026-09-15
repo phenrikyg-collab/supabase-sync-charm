@@ -99,15 +99,21 @@ const dataCurta = (s: string) => {
   return m && d ? `${d}/${m}` : s;
 };
 
-export default function FunilWhatsApp() {
+export function FunilWhatsAppConteudo() {
+  return <FunilWhatsApp semCabecalho />;
+}
+
+export default function FunilWhatsApp({ semCabecalho }: { semCabecalho?: boolean } = {}) {
   return (
-    <div className="p-6 space-y-6">
-      <div>
-        <h1 className="text-3xl font-heading">Funil WhatsApp</h1>
-        <p className="text-muted-foreground text-sm">
-          Acompanhe o atendimento do dia e a conversão do canal.
-        </p>
-      </div>
+    <div className={semCabecalho ? "space-y-6" : "p-6 space-y-6"}>
+      {!semCabecalho && (
+        <div>
+          <h1 className="text-3xl font-heading">Funil WhatsApp</h1>
+          <p className="text-muted-foreground text-sm">
+            Acompanhe o atendimento do dia e a conversão do canal.
+          </p>
+        </div>
+      )}
 
       <Tabs defaultValue="funil">
         <TabsList>

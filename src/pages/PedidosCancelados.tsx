@@ -31,7 +31,11 @@ type PedidoCancelado = {
 
 type Chave = "nome" | "telefone" | "total_amount" | "date_purchase" | "dias_desde_cancelamento" | "segmento_rfm";
 
-export default function PedidosCancelados() {
+export function PedidosCanceladosConteudo() {
+  return <PedidosCancelados semCabecalho />;
+}
+
+export default function PedidosCancelados({ semCabecalho }: { semCabecalho?: boolean } = {}) {
   const [periodo, setPeriodo] = useState<Periodo>({ inicio: null, fim: null });
   const [segmento, setSegmento] = useState("todos");
   const [valorMin, setValorMin] = useState("");
@@ -83,10 +87,12 @@ export default function PedidosCancelados() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="font-serif text-2xl font-bold">Pedidos Cancelados</h1>
-        <p className="text-sm text-muted-foreground">Pedidos cancelados com dados da cliente para recuperação.</p>
-      </div>
+      {!semCabecalho && (
+        <div>
+          <h1 className="font-serif text-2xl font-bold">Pedidos Cancelados</h1>
+          <p className="text-sm text-muted-foreground">Pedidos cancelados com dados da cliente para recuperação.</p>
+        </div>
+      )}
 
       <Card>
         <CardContent className="pt-6">
