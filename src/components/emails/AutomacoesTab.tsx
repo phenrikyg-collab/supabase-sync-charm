@@ -375,7 +375,13 @@ export function AutomacoesTab({ onAbrirTemplate }: { onAbrirTemplate?: (slug: st
                   checked={!!a.ativo}
                   onCheckedChange={(v) => {
                     if (!v && a.ativo) setConfirmarDesligar(a);
-                    else alternar.mutate({ slug: a.slug, ativo: v });
+                    else if (v && ehPublicoVivo(a) && !simulados.includes(a.slug)) {
+                      toast({
+                        title: "Simule antes de ligar",
+                        description: "Veja quem entraria nesta rodada e depois ligue a automação.",
+                      });
+                      setSimulando(a);
+                    } else alternar.mutate({ slug: a.slug, ativo: v });
                   }}
                 />
               </div>
