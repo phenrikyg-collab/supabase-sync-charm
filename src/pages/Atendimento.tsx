@@ -1223,9 +1223,7 @@ export default function Atendimento() {
               <p className="p-4 text-sm text-muted-foreground">Nenhuma conversa encontrada.</p>
             )}
             {(() => {
-              const qtdDestaque = filtradas.filter((c) => ["quente", "atencao"].includes(urgenciaDeNivel(atencaoDe(c)?.nivel))).length;
-              let cabecalhoDestaqueFeito = false;
-              let cabecalhoDemaisFeito = false;
+              let grupoAnterior: string | null = null;
               return filtradas.map((c) => {
               const nome = nomeConversa(c);
               const site = ehSite(c);
@@ -1234,21 +1232,14 @@ export default function Atendimento() {
               const naoLida = !!c.nao_lida;
               const atencao = atencaoDe(c);
               const urg = urgenciaDeNivel(atencao?.nivel);
-              const ehDestaque = urg === "quente" || urg === "atencao";
-              const estiloUrg = urg === "normal" ? null : URGENCIA_ESTILO[urg];
+              const faixa = classeFaixa(c);
+              const grupo = modoFila ? null : grupoDia(chaveData(c));
               let cabecalho: JSX.Element | null = null;
-              if (qtdDestaque > 0 && ehDestaque && !cabecalhoDestaqueFeito) {
-                cabecalhoDestaqueFeito = true;
+              if (grupo && grupo !== grupoAnterior) {
+                grupoAnterior = grupo;
                 cabecalho = (
                   <div className="px-4 pt-3 pb-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                    Precisam de atenção agora ({qtdDestaque})
-                  </div>
-                );
-              } else if (qtdDestaque > 0 && !ehDestaque && !cabecalhoDemaisFeito) {
-                cabecalhoDemaisFeito = true;
-                cabecalho = (
-                  <div className="px-4 pt-3 pb-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                    Demais conversas
+                    {grupo}
                   </div>
                 );
               }
@@ -1257,11 +1248,9 @@ export default function Atendimento() {
                 {cabecalho}
                 <button
                   onClick={() => abrirConversa(c)}
-                  style={estiloUrg ? { borderLeftColor: estiloUrg.borda } : undefined}
                   className={cn(
-                    "w-full text-left px-4 py-3 border-b border-border/60 border-l-4 transition-colors hover:bg-accent/60",
-                    !estiloUrg &&
-                      (prio === "alta" ? "border-l-danger" : prio === "media" ? "border-l-warning" : "border-l-transparent"),
+                    "w-full text-left px-4 py-3 border-b border-border/60 border-l-[3px] transition-colors hover:bg-accent/60",
+                    faixa,
                     ativa && "bg-accent",
                     naoLida && !ativa && "bg-primary/5",
                   )}
