@@ -602,10 +602,19 @@ export default function Atendimento() {
 
   const reativarBot = useMutation({
     mutationFn: async () => {
-      const { error } = await supabase.rpc("whatsapp_reativar_bot" as any, {
-        p_conversa_id: Number.isNaN(Number(selecionada)) ? selecionada : Number(selecionada),
-      });
+      const id = Number.isNaN(Number(selecionada)) ? selecionada : Number(selecionada);
+      const { error } = await supabase.rpc("whatsapp_reativar_bot" as any, { p_conversa_id: id });
       if (error) throw error;
+      // tira a conversa da fila humana junto com o status
+      try {
+        await (supabase as any)
+          .schema("whatsapp")
+          .from("conversas")
+          .update({ aguardando_desde: null, fila_posicao_avisada: null })
+          .eq("id", id);
+      } catch {
+        /* a RPC pode já ter limpado; ignorar */
+      }
     },
     onSuccess: () => {
       toast({ title: "Bot reativado" });
