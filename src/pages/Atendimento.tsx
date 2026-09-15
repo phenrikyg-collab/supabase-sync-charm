@@ -663,6 +663,14 @@ export default function Atendimento() {
       setTexto("");
       setErroJanela(null);
       invalidarThread();
+      // Lead do provador aberto com mensagem pronta: registra o contato no funil
+      if (leadProvador && leadProvador.conversaId === selecionada) {
+        const { leadId } = leadProvador;
+        setLeadProvador(null);
+        (supabase as any)
+          .rpc("provador_atualizar_status_funil", { p_id: leadId, p_status: "contatado" })
+          .then(() => queryClient.invalidateQueries({ queryKey: ["provador-leads"] }));
+      }
     },
     onError: async (e: any) => {
       const janela = await extrairErroJanela(e);
