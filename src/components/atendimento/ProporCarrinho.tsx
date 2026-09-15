@@ -977,9 +977,22 @@ export function PropostaDaConversa({
         }
         throw new Error(msgErro || "Não foi possível gerar a cobrança.");
       }
-      toast({
-        title: formaPagamento === "pix" ? "Pix enviado" : "Link de pagamento enviado",
-      });
+      const enviado = corpo?.enviado === true;
+      const motivo = corpo?.motivo ?? null;
+      if (formaPagamento === "cartao") {
+        setLinkCobranca(typeof corpo?.link_pagamento === "string" && corpo.link_pagamento ? corpo.link_pagamento : null);
+      }
+      if (enviado) {
+        toast({
+          title: formaPagamento === "pix" ? "Pix enviado" : "Link de pagamento enviado",
+        });
+      } else {
+        toast({
+          title: "Cobrança gerada, mas não foi enviada",
+          description: motivo || "A cobrança foi criada, mas a mensagem não chegou na cliente.",
+          variant: "destructive",
+        });
+      }
       recarregar();
     } catch (e: any) {
       toast({ title: e?.message || "Não foi possível gerar a cobrança.", variant: "destructive" });
@@ -988,7 +1001,18 @@ export function PropostaDaConversa({
     }
   }
 
+  async function copiarLink() {
+    if (!linkCobranca) return;
+    try {
+      await navigator.clipboard.writeText(linkCobranca);
+      toast({ title: "Link copiado" });
+    } catch {
+      toast({ title: "Não foi possível copiar o link.", variant: "destructive" });
+    }
+  }
+
   return (
+    <>
     <div
       className={`flex flex-wrap items-center justify-between gap-2 border-b border-border px-4 py-2 text-xs ${
         confirmado ? "bg-success/5 text-success" : "bg-muted/40 text-muted-foreground"
