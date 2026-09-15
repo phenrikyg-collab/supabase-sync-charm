@@ -11,7 +11,9 @@ import { EnviarWhatsAppInline } from "@/components/rfm/EnviarWhatsAppInline";
 import { FiltroPeriodo, Periodo, limiteInicio, limiteFim } from "@/components/recuperacao/FiltroPeriodo";
 import { SegmentoBadge, CelulaItens, moeda } from "@/components/recuperacao/comum";
 import { formatarData } from "@/utils/formatters";
-import { Loader2, PackageX, TrendingDown } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { BadgesContato, useContatoPorTelefones } from "@/components/atendimento/contatoTelefones";
+import { Loader2, PackageX, TrendingDown, MessageCircle } from "lucide-react";
 
 type PedidoCancelado = {
   tray_order_id: string;
