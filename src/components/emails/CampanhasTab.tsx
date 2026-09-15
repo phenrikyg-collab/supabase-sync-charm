@@ -237,7 +237,9 @@ function NovaCampanha({
     <Dialog open={aberto} onOpenChange={(v) => !v && onFechar()}>
       <DialogContent className="max-h-[88vh] max-w-4xl overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="font-serif">Nova campanha · passo {passo} de 3</DialogTitle>
+          <DialogTitle className="font-serif">
+            {campanhaId != null ? "Continuar campanha" : "Nova campanha"} · passo {passo} de 3
+          </DialogTitle>
         </DialogHeader>
 
         {passo === 1 && (
