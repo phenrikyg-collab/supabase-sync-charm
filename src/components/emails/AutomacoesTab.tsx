@@ -413,9 +413,21 @@ export function AutomacoesTab({ onAbrirTemplate }: { onAbrirTemplate?: (slug: st
                   Última execução: {dataBrHora(a.ultima_execucao)} · {a.ultimo_resultado ?? "sem registro"}
                   {atrasada && ` · sem rodar há ${textoDesde(a.ultima_execucao)}`}
                 </p>
-                <Button size="sm" variant="outline" onClick={() => setConfigurando(a)}>
-                  <Settings2 className="mr-1 h-3.5 w-3.5" /> Configurar
-                </Button>
+                <div className="flex flex-wrap items-center gap-2">
+                  {ehPublicoVivo(a) && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setSimulando(a)}
+                      title="Simular não grava nada"
+                    >
+                      <FlaskConical className="mr-1 h-3.5 w-3.5" /> Simular, sem gravar nada
+                    </Button>
+                  )}
+                  <Button size="sm" variant="outline" onClick={() => setConfigurando(a)}>
+                    <Settings2 className="mr-1 h-3.5 w-3.5" /> Configurar
+                  </Button>
+                </div>
               </div>
             </Card>
           );
