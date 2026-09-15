@@ -754,6 +754,37 @@ export default function Atendimento() {
     return "conversa";
   };
 
+  /** Conversa encerrada: status resolvido ou desfecho preenchido. */
+  const ehResolvida = (c: Conversa) => c.status === "resolvido" || !!c.desfecho;
+
+  /** Cliente falou por último e ninguém respondeu (vw_conversas_atencao, com fallback na conversa). */
+  const aguardandoResposta = (c: Conversa) => {
+    const a = atencaoDe(c);
+    if (a?.ultima_entrada) return !a.ultima_saida || a.ultima_entrada > a.ultima_saida;
+    return !!c.aguardando_resposta;
+  };
+
+  /** Peso do grupo dentro da seção: 1 quem espera resposta/escalado, 2 em atendimento, 3 bot/demais, 4 resolvidas. */
+  const pesoConversa = (c: Conversa) => {
+    if (ehResolvida(c)) return 4;
+    if (c.status === "escalado" || aguardandoResposta(c)) return 1;
+    if (c.status === "em_atendimento") return 2;
+    return 3;
+  };
+
+  const chaveData = (c: Conversa) => c.ultima_mensagem_em ?? c.atualizado_em ?? "";
+
+  /** Ordena no painel: destaque primeiro, depois por peso do grupo e última mensagem mais recente. */
+  const compararConversas = (a: Conversa, b: Conversa) => {
+    const da = ["quente", "atencao"].includes(urgenciaDeNivel(atencaoDe(a)?.nivel)) ? 0 : 1;
+    const db = ["quente", "atencao"].includes(urgenciaDeNivel(atencaoDe(b)?.nivel)) ? 0 : 1;
+    if (da !== db) return da - db;
+    const pa = pesoConversa(a);
+    const pb = pesoConversa(b);
+    if (pa !== pb) return pa - pb;
+    return chaveData(b).localeCompare(chaveData(a));
+  };
+
   const contagemGrupos = useMemo(() => {
     const base = { conversa: 0, clique: 0, so_envio: 0 };
     for (const c of conversas) {
@@ -804,36 +835,6 @@ export default function Atendimento() {
   const abrirNovaConversa = (telefone?: string | null) => {
     setTelefoneNovaConversa(telefone ?? null);
     setNovaConversaAberta(true);
-  };
-  /** Conversa encerrada: status resolvido ou desfecho preenchido. */
-  const ehResolvida = (c: Conversa) => c.status === "resolvido" || !!c.desfecho;
-
-  /** Cliente falou por último e ninguém respondeu (vw_conversas_atencao, com fallback na conversa). */
-  const aguardandoResposta = (c: Conversa) => {
-    const a = atencaoDe(c);
-    if (a?.ultima_entrada) return !a.ultima_saida || a.ultima_entrada > a.ultima_saida;
-    return !!c.aguardando_resposta;
-  };
-
-  /** Peso do grupo dentro da seção: 1 quem espera resposta/escalado, 2 em atendimento, 3 bot/demais, 4 resolvidas. */
-  const pesoConversa = (c: Conversa) => {
-    if (ehResolvida(c)) return 4;
-    if (c.status === "escalado" || aguardandoResposta(c)) return 1;
-    if (c.status === "em_atendimento") return 2;
-    return 3;
-  };
-
-  const chaveData = (c: Conversa) => c.ultima_mensagem_em ?? c.atualizado_em ?? "";
-
-  /** Ordena no painel: destaque primeiro, depois por peso do grupo e última mensagem mais recente. */
-  const compararConversas = (a: Conversa, b: Conversa) => {
-    const da = ["quente", "atencao"].includes(urgenciaDeNivel(atencaoDe(a)?.nivel)) ? 0 : 1;
-    const db = ["quente", "atencao"].includes(urgenciaDeNivel(atencaoDe(b)?.nivel)) ? 0 : 1;
-    if (da !== db) return da - db;
-    const pa = pesoConversa(a);
-    const pb = pesoConversa(b);
-    if (pa !== pb) return pa - pb;
-    return chaveData(b).localeCompare(chaveData(a));
   };
 
   const naoLidasWhatsapp = conversas.filter((c) => c.nao_lida && !ehSite(c)).length;
