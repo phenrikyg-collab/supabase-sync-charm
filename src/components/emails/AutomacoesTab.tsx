@@ -86,6 +86,10 @@ function PainelConfig({
                 repetir: !!config.repetir,
                 intervalo_contato_dias: Number(config.intervalo_contato_dias ?? 0),
                 lote_max: Number(config.lote_max ?? 0),
+                hora_do_dia:
+                  config.hora_do_dia === null || config.hora_do_dia === undefined || config.hora_do_dia === ""
+                    ? null
+                    : Number(config.hora_do_dia),
               },
               template_id: templateId ? Number(templateId) : null,
             }
@@ -113,7 +117,7 @@ function PainelConfig({
                   O público é refeito a cada rodada. Quem entrar no critério amanhã entra amanhã, quem sair sai.
                 </p>
               </div>
-              <ConstrutorPublico filtro={filtro} campos={campos as any[]} onChange={setFiltro} />
+              <ConstrutorPublico filtro={filtro} campos={campos as any[]} empilhado onChange={setFiltro} />
               <div className="space-y-2 rounded-lg border bg-muted/40 p-3">
                 <SeloPublicoVivo filtro={filtro} enabled={aberto} />
                 <p className="text-xs text-muted-foreground">{descreverFiltro(filtro, campos as any[])}</p>
