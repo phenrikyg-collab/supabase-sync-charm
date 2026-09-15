@@ -316,6 +316,11 @@ export function PainelSolicitacao({
                   {ocupado === "autorizar" && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                   Gerar código
                 </Button>
+                {semDocumento && (
+                  <p className="w-full text-xs font-medium text-amber-800">
+                    Sem CPF, o código sai sem rastreio
+                  </p>
+                )}
                 <Button
                   size="sm"
                   variant="outline"
