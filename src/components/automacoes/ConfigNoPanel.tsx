@@ -165,16 +165,21 @@ function PreviaEmailDialog({ slug, open, onOpenChange }: { slug?: string | null;
 }
 
 export function ConfigNoPanel({
-  data, catalogo, nosDoFluxo, onChange, onRemover, onFechar, onIrConfiguracoes,
+  data, catalogo, nosDoFluxo, gatilhoTipo, onChange, onRemover, onFechar, onIrConfiguracoes,
 }: {
   data: NoData;
   catalogo?: Catalogo;
   nosDoFluxo: NoLista[];
+  gatilhoTipo?: string | null;
   onChange: (patch: { rotulo?: string; config?: Record<string, any> }) => void;
   onRemover: () => void;
   onFechar: () => void;
   onIrConfiguracoes: () => void;
 }) {
+  const ehCashback = gatilhoTipo === "cashback";
+  const referenciasEspera = ehCashback ? catalogo?.espera_referencias ?? [] : [];
+  const referenciaEspera = data.config?.referencia ? String(data.config.referencia) : "fixo";
+  const modosExtra = ehCashback ? catalogo?.condicao_modos_extra ?? [] : [];
   const meta = TIPOS_NO[data.tipo] ?? TIPOS_NO.fim;
   const config = data.config ?? {};
   const { data: campos = [] } = usePublicoCampos();
