@@ -267,11 +267,9 @@ function CartaoTemplate({ t, onAbrir }: any) {
         <p className="text-xs text-muted-foreground">Atualizado em {dataBr(t.updated_at ?? t.atualizado_em)}</p>
         <div className="flex flex-wrap items-center gap-2">
           <Button size="sm" variant="outline" onClick={onAbrir}>Abrir</Button>
-          <Button size="sm" variant="ghost" disabled={testando} onClick={onTeste}>
-            <Send className="mr-1 h-3.5 w-3.5" /> Enviar teste para mim
-          </Button>
+          <BotaoEnviarTeste montarPayload={() => ({ p_slug: t.slug })} />
         </div>
-        <p className="text-[11px] text-warning">{AVISO_TESTE}</p>
+        <p className="text-[11px] text-muted-foreground">{AVISO_TESTE}</p>
       </div>
     </Card>
   );
