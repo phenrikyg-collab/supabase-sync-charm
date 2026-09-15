@@ -712,6 +712,10 @@ export default function Atendimento() {
         {/* Lista de conversas */}
         <Card className="flex flex-col overflow-hidden">
           <div className="p-3 border-b border-border space-y-2">
+            <Button size="sm" className="w-full" onClick={() => abrirNovaConversa(null)}>
+              <Plus className="h-4 w-4 mr-2" />
+              Nova conversa
+            </Button>
             <div className="grid grid-cols-2 gap-1 rounded-md bg-muted p-1">
               {([
                 { v: "whatsapp", label: "WhatsApp", icon: MessageCircle, nao: naoLidasWhatsapp },
