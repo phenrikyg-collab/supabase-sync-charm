@@ -36,6 +36,9 @@ export default function Avaliacoes() {
         <TabsContent value="config">
           <ConfigReguaTab />
         </TabsContent>
+        <TabsContent value="insights">
+          <InsightsTab />
+        </TabsContent>
       </Tabs>
     </div>
   );
