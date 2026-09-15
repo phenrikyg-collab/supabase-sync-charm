@@ -156,11 +156,45 @@ export function PainelSolicitacao({
                 rotulo="Contato"
                 valor={texto(s.celular ?? s.cliente?.celular ?? s.email ?? s.cliente?.email)}
               />
+              <Info
+                rotulo="CPF/CNPJ"
+                valor={semDocumento ? traco : mascararDocumento(s.cliente_documento)}
+              />
               <Info rotulo="Pedido" valor={texto(s.pedido)} />
               <Info rotulo="Preferência" valor={texto(s.preferencia_rotulo ?? s.preferencia)} />
               <Info rotulo="Status" valor={texto(s.status_rotulo ?? s.status)} />
               <Info rotulo="Valor" valor={moeda(s.valor ?? s.valor_total)} />
             </div>
+
+            {semDocumento && (
+              <div className="rounded-lg border border-amber-300 bg-amber-50 p-3 space-y-2">
+                <p className="text-xs font-medium text-amber-800">
+                  Sem CPF, a etiqueta sai sem rastreio
+                </p>
+                <div className="flex gap-2">
+                  <Input
+                    value={documento}
+                    onChange={(e) => setDocumento(e.target.value)}
+                    placeholder="CPF ou CNPJ da cliente"
+                    className="bg-white"
+                  />
+                  <Button
+                    size="sm"
+                    disabled={!!ocupado || !documento.trim()}
+                    onClick={() =>
+                      acao(
+                        "documento",
+                        () => definirDocumento(s.id, documento.trim()),
+                        "Documento salvo",
+                      )
+                    }
+                  >
+                    {ocupado === "documento" && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    Salvar
+                  </Button>
+                </div>
+              </div>
+            )}
 
             <Separator />
 
