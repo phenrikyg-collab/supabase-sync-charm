@@ -283,6 +283,32 @@ function Editor({ fluxoId }: { fluxoId: string }) {
     onSuccess: (d) => {
       toast({ title: "Fluxo salvo" });
       if (d?.validacao) setValidacao(d.validacao);
+
+      // Passa os nós novos a usar o ref definitivo do banco, para não duplicar em um segundo salvamento
+      const mapa: Record<string, any> = d?.mapa ?? {};
+      const novoRefPorAntigo = new Map<string, string>();
+      for (const [ref, id] of Object.entries(mapa)) {
+        if (id == null) continue;
+        novoRefPorAntigo.set(ref, `db-${id}`);
+      }
+      if (novoRefPorAntigo.size > 0) {
+        setNodes((ns) =>
+          ns.map((n) => {
+            const id = mapa[n.id];
+            if (id == null) return n;
+            return { ...n, id: `db-${id}`, data: { ...(n.data as any), bancoId: id } };
+          }),
+        );
+        setEdges((es) =>
+          es.map((e) => ({
+            ...e,
+            source: novoRefPorAntigo.get(e.source) ?? e.source,
+            target: novoRefPorAntigo.get(e.target) ?? e.target,
+          })),
+        );
+        setSelecionado((s) => (s ? novoRefPorAntigo.get(s) ?? s : s));
+      }
+
       setSujo(false);
       queryClient.invalidateQueries({ queryKey: ["fluxo", fluxoId] });
     },
