@@ -32,6 +32,7 @@ import { CatalogoDialog, formatarPreco, legendaProduto, type ProdutoCatalogo, ty
 import { PerfilCliente } from "@/components/atendimento/PerfilCliente";
 import { AtividadesRecentes } from "@/components/atendimento/AtividadesRecentes";
 import { CobrancaPixDialog, CobrancasTab, CobrancasDaConversa } from "@/components/atendimento/CobrancaPix";
+import { LinksPagamentoTab, LinksDaConversa } from "@/components/atendimento/LinksPagamento";
 import { LinkPagamentoCard, LinkPagamentoDialog } from "@/components/atendimento/LinkPagamento";
 import { CalcularFreteDialog } from "@/components/atendimento/CalcularFrete";
 import { ProporCarrinhoDialog, PropostaDaConversa } from "@/components/atendimento/ProporCarrinho";
@@ -281,6 +282,7 @@ export default function Atendimento() {
   const [aba, setAba] = useState<"whatsapp" | "site">("whatsapp");
   const [abaPagina, setAbaPagina] = useState<
     | "conversas"
+    | "em_atendimento"
     | "cobrancas"
     | "consulta"
     | "abandonadas"
@@ -295,6 +297,7 @@ export default function Atendimento() {
     | "cashback"
   >("conversas");
   const [cobrancaAberta, setCobrancaAberta] = useState(false);
+  const [abaCobranca, setAbaCobranca] = useState<"pix" | "links">("pix");
   const [linkPagamentoAberto, setLinkPagamentoAberto] = useState(false);
   const [freteAberto, setFreteAberto] = useState(false);
   const [proporCarrinhoAberto, setProporCarrinhoAberto] = useState(false);
@@ -415,12 +418,31 @@ export default function Atendimento() {
     },
   });
 
-  // Resolve a conversa aberta: primeiro na lista carregada; se não estiver nela
-  // (caso de conversa antiga encontrada pela busca), usa o item sintético da busca.
+  // Conversa aberta que não está na lista carregada: busca os dados completos por id.
+  const foraDaLista = !!selecionada && !conversas.some((c) => String(c.id) === selecionada);
+  const { data: conversaAvulsa = null } = useQuery({
+    queryKey: ["whatsapp-conversa", selecionada],
+    enabled: foraDaLista,
+    refetchInterval: foraDaLista ? 30000 : false,
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc("whatsapp_conversa_por_id" as any, {
+        p_conversa_id: Number.isNaN(Number(selecionada)) ? selecionada : Number(selecionada),
+      });
+      if (error) throw error;
+      const bruto = Array.isArray(data) ? data[0] : data;
+      if (!bruto) return null;
+      const c = bruto as any;
+      return { ...c, id: c.id ?? c.conversa_id, cliente_nome: c.cliente_nome ?? c.nome ?? null } as Conversa;
+    },
+  });
+
+  // Resolve a conversa aberta: primeiro na lista carregada; depois a consulta por id;
+  // por último o item sintético da busca, para a tela abrir na hora.
   const conversaAtual = useMemo<Conversa | null>(() => {
     if (!selecionada) return null;
     const carregada = conversas.find((c) => String(c.id) === selecionada);
     if (carregada) return carregada;
+    if (conversaAvulsa) return conversaAvulsa;
     const achada = resultadoBusca?.conversas?.find((r) => String(r.conversa_id) === selecionada);
     if (!achada) return null;
     return {
@@ -461,6 +483,7 @@ export default function Atendimento() {
   useEffect(() => {
     const invalidarLista = () =>
       queryClient.invalidateQueries({ queryKey: ["whatsapp-conversas"] });
+      queryClient.invalidateQueries({ queryKey: ["whatsapp-conversa"] });
 
     const mesmaConversa = (linha: any) =>
       selecionadaRef.current != null && String(linha?.conversa_id) === String(selecionadaRef.current);
@@ -541,6 +564,7 @@ export default function Atendimento() {
       p_conversa_id: Number.isNaN(Number(c.id)) ? c.id : Number(c.id),
     });
     if (!error) queryClient.invalidateQueries({ queryKey: ["whatsapp-conversas"] });
+      queryClient.invalidateQueries({ queryKey: ["whatsapp-conversa"] });
   };
 
 
@@ -557,6 +581,7 @@ export default function Atendimento() {
   const invalidarThread = () => {
     queryClient.invalidateQueries({ queryKey: ["whatsapp-mensagens", selecionada] });
     queryClient.invalidateQueries({ queryKey: ["whatsapp-conversas"] });
+      queryClient.invalidateQueries({ queryKey: ["whatsapp-conversa"] });
   };
 
   const extrairErroJanela = async (error: any): Promise<string | null> => {
@@ -697,6 +722,7 @@ export default function Atendimento() {
     onSuccess: () => {
       toast({ title: "Conversa assumida" });
       queryClient.invalidateQueries({ queryKey: ["whatsapp-conversas"] });
+      queryClient.invalidateQueries({ queryKey: ["whatsapp-conversa"] });
     },
     onError: (e: any) => toast({ title: "Erro ao assumir conversa", description: e.message, variant: "destructive" }),
   });
@@ -720,6 +746,7 @@ export default function Atendimento() {
     onSuccess: () => {
       toast({ title: "Bot reativado" });
       queryClient.invalidateQueries({ queryKey: ["whatsapp-conversas"] });
+      queryClient.invalidateQueries({ queryKey: ["whatsapp-conversa"] });
     },
     onError: (e: any) => toast({ title: "Erro ao reativar bot", description: e.message, variant: "destructive" }),
   });
@@ -743,6 +770,7 @@ export default function Atendimento() {
     onSuccess: () => {
       toast({ title: "Conversa marcada como resolvida" });
       queryClient.invalidateQueries({ queryKey: ["whatsapp-conversas"] });
+      queryClient.invalidateQueries({ queryKey: ["whatsapp-conversa"] });
     },
     onError: (e: any, _v, ctx: any) => {
       if (ctx?.anterior) queryClient.setQueryData(["whatsapp-conversas"], ctx.anterior);
@@ -811,8 +839,25 @@ export default function Atendimento() {
   }, [conversas, aba]);
 
 
+  const modoFila = abaPagina === "em_atendimento";
+  // Fila de trabalho: só conversas assumidas por uma pessoa
+  const ehAssumida = (c: Conversa) => ["em_atendimento", "escalado"].includes((c.status ?? "").toLowerCase());
+  const totalEmAtendimento = conversas.filter(ehAssumida).length;
+
   const filtradas = useMemo(() => {
     let base: Conversa[];
+    if (modoFila) {
+      // Espera mais antiga primeiro: quem tem cliente aguardando resposta vem na frente
+      base = conversas.filter(ehAssumida);
+      return [...base].sort((a, b) => {
+        const espA = aguardandoResposta(a) ? 0 : 1;
+        const espB = aguardandoResposta(b) ? 0 : 1;
+        if (espA !== espB) return espA - espB;
+        const da = new Date(atencaoDe(a)?.ultima_entrada ?? a.ultima_mensagem_em ?? 0).getTime();
+        const db = new Date(atencaoDe(b)?.ultima_entrada ?? b.ultima_mensagem_em ?? 0).getTime();
+        return da - db;
+      });
+    }
     if (buscaAtiva) {
       const achadas = resultadoBusca?.conversas ?? [];
       base = achadas.map((r) => {
@@ -843,7 +888,7 @@ export default function Atendimento() {
     }
     return [...base].sort(compararConversas);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [conversas, buscaAtiva, resultadoBusca, aba, grupoAba, filtroLeitura, tagsFiltro, mapaAtencao]);
+  }, [conversas, buscaAtiva, resultadoBusca, aba, grupoAba, filtroLeitura, tagsFiltro, mapaAtencao, modoFila]);
 
   const clientesSemConversa = buscaAtiva ? (resultadoBusca?.clientes ?? []) : [];
 
@@ -882,6 +927,14 @@ export default function Atendimento() {
         <div className="flex h-11 w-full min-w-0 shrink-0 items-center gap-2 overflow-x-auto border-b border-border px-3">
           <TabsList className="h-8 w-max flex-nowrap bg-transparent p-0">
             <TabsTrigger value="conversas" className="h-8 shrink-0 text-xs">Conversas</TabsTrigger>
+            <TabsTrigger value="em_atendimento" className="h-8 shrink-0 text-xs">
+              Em atendimento
+              {totalEmAtendimento > 0 && (
+                <span className="ml-1 rounded-full bg-primary px-1.5 text-[10px] font-bold text-primary-foreground">
+                  {totalEmAtendimento}
+                </span>
+              )}
+            </TabsTrigger>
             <TabsTrigger value="oportunidades" className="h-8 shrink-0 text-xs">Oportunidades</TabsTrigger>
             <TabsTrigger value="provador" className="h-8 shrink-0 text-xs">Provador</TabsTrigger>
             <TabsTrigger value="abandonadas" className="h-8 shrink-0 text-xs">Abandonadas</TabsTrigger>
@@ -936,8 +989,36 @@ export default function Atendimento() {
 
 
         <TabsContent value="cobrancas" className="m-0 min-h-0 flex-1 space-y-4 overflow-auto p-4">
-          <LinkPagamentoCard />
-          <CobrancasTab />
+          <div className="flex flex-wrap gap-1 rounded-md bg-muted p-1 w-fit">
+            {([
+              ["pix", "Pix (Inter)"],
+              ["links", "Links (cartão)"],
+            ] as const).map(([v, label]) => (
+              <button
+                key={v}
+                onClick={() => setAbaCobranca(v)}
+                className={cn(
+                  "rounded-sm px-3 py-1.5 text-xs font-medium transition-colors",
+                  abaCobranca === v ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground",
+                )}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          {abaCobranca === "pix" ? (
+            <>
+              <LinkPagamentoCard />
+              <CobrancasTab />
+            </>
+          ) : (
+            <LinksPagamentoTab
+              onAbrirConversa={(id) => {
+                setSelecionada(id);
+                setAbaPagina("conversas");
+              }}
+            />
+          )}
         </TabsContent>
 
         <TabsContent value="consulta" className="m-0 min-h-0 flex-1 overflow-auto p-4">
@@ -953,7 +1034,7 @@ export default function Atendimento() {
         </TabsContent>
 
 
-        <TabsContent value="conversas" className="m-0 min-h-0 w-full min-w-0 max-w-full flex-1 overflow-hidden data-[state=active]:flex">
+        <TabsContent value={modoFila ? "em_atendimento" : "conversas"} className="m-0 min-h-0 w-full min-w-0 max-w-full flex-1 overflow-hidden data-[state=active]:flex">
       <div className="relative flex min-h-0 w-full min-w-0 max-w-full flex-1 overflow-hidden">
 
         {listaSheet && (
@@ -1366,6 +1447,7 @@ export default function Atendimento() {
                 telefone={conversaAtual.telefone_real || conversaAtual.telefone}
               />
               <CobrancasDaConversa conversaId={conversaAtual.id} />
+              <LinksDaConversa conversaId={conversaAtual.id} />
 
               <ScrollArea className="min-h-0 min-w-0 max-w-full flex-1 overflow-x-hidden p-4 [&_[data-radix-scroll-area-viewport]]:!overflow-x-hidden">
                 {carregandoMensagens && <p className="text-sm text-muted-foreground">Carregando mensagens…</p>}
@@ -1606,6 +1688,7 @@ export default function Atendimento() {
           setTermoBusca("");
           setSelecionada(String(id));
           queryClient.invalidateQueries({ queryKey: ["whatsapp-conversas"] });
+      queryClient.invalidateQueries({ queryKey: ["whatsapp-conversa"] });
         }}
       />
       {conversaAtual && (
