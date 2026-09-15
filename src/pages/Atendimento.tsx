@@ -665,10 +665,10 @@ export default function Atendimento() {
       invalidarThread();
       // Lead do provador aberto com mensagem pronta: registra o contato no funil
       if (leadProvador && leadProvador.conversaId === selecionada) {
-        const { leadId } = leadProvador;
+        const { leadId, conversaId } = leadProvador;
         setLeadProvador(null);
         (supabase as any)
-          .rpc("provador_atualizar_status_funil", { p_id: leadId, p_status: "contatado" })
+          .rpc("provador_registrar_contato", { p_id: leadId, p_conversa_id: conversaId ?? null })
           .then(() => queryClient.invalidateQueries({ queryKey: ["provador-leads"] }));
       }
     },
