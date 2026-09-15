@@ -129,7 +129,7 @@ export function PainelSolicitacao({
   const ehTroca = /troc/i.test(String(s.preferencia ?? ""));
   const chegou = Boolean(s.chegou ?? /entregue|recebid|conferi/i.test(String(s.status ?? "")));
   const escolha: Record<string, any> | null = s.escolha_troca ?? null;
-  const docCliente = String(s.cliente_documento ?? "").replace(/\D/g, "");
+  const docCliente = String(s.cliente?.documento ?? s.cliente_documento ?? "").replace(/\D/g, "");
   const semDocumento = !docCliente;
 
   return (
@@ -158,7 +158,7 @@ export function PainelSolicitacao({
               />
               <Info
                 rotulo="CPF/CNPJ"
-                valor={semDocumento ? traco : mascararDocumento(s.cliente_documento)}
+                valor={semDocumento ? traco : mascararDocumento(s.cliente?.documento ?? s.cliente_documento)}
               />
               <Info rotulo="Pedido" valor={texto(s.pedido)} />
               <Info rotulo="Preferência" valor={texto(s.preferencia_rotulo ?? s.preferencia)} />
