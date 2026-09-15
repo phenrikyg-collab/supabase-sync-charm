@@ -170,6 +170,21 @@ function BlocoVisaoGeral({
           </div>
         )}
       </Card>
+      </div>
+      <p className="text-xs text-muted-foreground">
+        {num(p.proprias)} de {num(p.total)} avaliações vieram do fluxo próprio · {num(p.com_foto)} têm foto ·{" "}
+        {pendentes > 0 ? (
+          <button
+            type="button"
+            onClick={aoAbrirPendentes}
+            className="font-medium text-amber-700 underline decoration-amber-400 underline-offset-2 hover:text-amber-800"
+          >
+            {num(pendentes)} aguardando moderação
+          </button>
+        ) : (
+          <span>{num(pendentes)} aguardando moderação</span>
+        )}
+      </p>
     </div>
   );
 }
