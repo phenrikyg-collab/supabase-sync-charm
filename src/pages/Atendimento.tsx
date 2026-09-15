@@ -418,8 +418,26 @@ export default function Atendimento() {
     },
   });
 
-  // Resolve a conversa aberta: primeiro na lista carregada; se não estiver nela
-  // (caso de conversa antiga encontrada pela busca), usa o item sintético da busca.
+  // Conversa aberta que não está na lista carregada: busca os dados completos por id.
+  const foraDaLista = !!selecionada && !conversas.some((c) => String(c.id) === selecionada);
+  const { data: conversaAvulsa = null } = useQuery({
+    queryKey: ["whatsapp-conversa", selecionada],
+    enabled: foraDaLista,
+    refetchInterval: foraDaLista ? 30000 : false,
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc("whatsapp_conversa_por_id" as any, {
+        p_conversa_id: Number.isNaN(Number(selecionada)) ? selecionada : Number(selecionada),
+      });
+      if (error) throw error;
+      const bruto = Array.isArray(data) ? data[0] : data;
+      if (!bruto) return null;
+      const c = bruto as any;
+      return { ...c, id: c.id ?? c.conversa_id, cliente_nome: c.cliente_nome ?? c.nome ?? null } as Conversa;
+    },
+  });
+
+  // Resolve a conversa aberta: primeiro na lista carregada; depois a consulta por id;
+  // por último o item sintético da busca, para a tela abrir na hora.
   const conversaAtual = useMemo<Conversa | null>(() => {
     if (!selecionada) return null;
     const carregada = conversas.find((c) => String(c.id) === selecionada);
