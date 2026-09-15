@@ -880,7 +880,7 @@ export default function Atendimento() {
                         {site && c.telefone_real && (
                           <span className="mt-1 inline-flex items-center gap-1 rounded-full border border-success/20 bg-success/10 px-2 py-0.5 text-[10px] text-success">
                             <Phone className="h-3 w-3" />
-                            {c.telefone_real}
+                            {formatarTelefone(c.telefone_real)}
                           </span>
                         )}
                       </div>
