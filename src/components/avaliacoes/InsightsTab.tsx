@@ -99,7 +99,13 @@ function CardKpi({
 
 /* ---------------- Bloco 1 ---------------- */
 
-function BlocoVisaoGeral({ dias }: { dias: number }) {
+function BlocoVisaoGeral({
+  dias,
+  aoAbrirPendentes,
+}: {
+  dias: number;
+  aoAbrirPendentes?: () => void;
+}) {
   const { data, isLoading, isError } = useQuery({
     queryKey: ["aval-insights-resumo", dias],
     queryFn: () => insightsResumo(dias),
@@ -114,8 +120,11 @@ function BlocoVisaoGeral({ dias }: { dias: number }) {
   const dist = p.distribuicao ?? {};
   const totalDist = [5, 4, 3, 2, 1].reduce((s, n) => s + Number(dist[String(n)] ?? 0), 0);
 
+  const pendentes = Number(data.moderacao_pendente ?? 0);
+
   return (
-    <div className="grid gap-4 lg:grid-cols-3">
+    <div className="space-y-3">
+      <div className="grid gap-4 lg:grid-cols-3">
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4 lg:col-span-2">
         <CardKpi
           rotulo="Nota média do produto"
@@ -161,11 +170,38 @@ function BlocoVisaoGeral({ dias }: { dias: number }) {
           </div>
         )}
       </Card>
+      </div>
+      <p className="text-xs text-muted-foreground">
+        {num(p.proprias)} de {num(p.total)} avaliações vieram do fluxo próprio · {num(p.com_foto)} têm foto ·{" "}
+        {pendentes > 0 ? (
+          <button
+            type="button"
+            onClick={aoAbrirPendentes}
+            className="font-medium text-amber-700 underline decoration-amber-400 underline-offset-2 hover:text-amber-800"
+          >
+            {num(pendentes)} aguardando moderação
+          </button>
+        ) : (
+          <span>{num(pendentes)} aguardando moderação</span>
+        )}
+      </p>
     </div>
   );
 }
 
 /* ---------------- Bloco 2 ---------------- */
+
+const MESES_CURTOS = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"];
+
+function periodoCurto(v: any, gran: "mes" | "semana"): string {
+  const s = String(v ?? "");
+  const d = new Date(s);
+  if (Number.isNaN(d.getTime())) return s;
+  if (gran === "mes") {
+    return `${MESES_CURTOS[d.getMonth()]}/${String(d.getFullYear()).slice(-2)}`;
+  }
+  return `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}`;
+}
 
 function BlocoEvolucao({ dias }: { dias: number }) {
   const [gran, setGran] = useState<"mes" | "semana">("mes");
@@ -214,10 +250,15 @@ function BlocoEvolucao({ dias }: { dias: number }) {
           <ResponsiveContainer width="100%" height="100%">
             <ComposedChart data={serie}>
               <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-              <XAxis dataKey="periodo" tick={{ fontSize: 12 }} />
+              <XAxis
+                dataKey="periodo"
+                tick={{ fontSize: 12 }}
+                tickFormatter={(v: any) => periodoCurto(v, gran)}
+              />
               <YAxis yAxisId="esq" tick={{ fontSize: 12 }} />
               <YAxis yAxisId="dir" orientation="right" domain={[0, 5]} tick={{ fontSize: 12 }} />
               <Tooltip
+                labelFormatter={(v: any) => periodoCurto(v, gran)}
                 formatter={(v: any, nome: any) =>
                   nome === "Nota média" ? dec(v, 2) : num(v)
                 }
@@ -523,7 +564,13 @@ function BlocoProdutos({ dias }: { dias: number }) {
                     <Variacao valor={p.variacao} />
                   </TableCell>
                   <TableCell className="text-right tabular-nums">{pct(p.pct_5)}</TableCell>
-                  <TableCell className="text-right tabular-nums">{pct(p.pct_ate_3)}</TableCell>
+                  <TableCell
+                    className={`text-right tabular-nums ${
+                      Number(p.pct_ate_3) > 0 ? "font-medium text-amber-700" : ""
+                    }`}
+                  >
+                    {pct(p.pct_ate_3)}
+                  </TableCell>
                   <TableCell className="text-right tabular-nums">{num(p.com_texto)}</TableCell>
                 </TableRow>
               ))}
@@ -781,7 +828,7 @@ function BlocoTemas({ dias }: { dias: number }) {
 
 /* ---------------- Aba ---------------- */
 
-export function InsightsTab() {
+export function InsightsTab({ aoAbrirPendentes }: { aoAbrirPendentes?: () => void }) {
   const [dias, setDias] = useState(90);
   const { data: resumo } = useQuery({
     queryKey: ["aval-insights-resumo", dias],
@@ -808,7 +855,7 @@ export function InsightsTab() {
         </p>
       </div>
 
-      <BlocoVisaoGeral dias={dias} />
+      <BlocoVisaoGeral dias={dias} aoAbrirPendentes={aoAbrirPendentes} />
       <BlocoEvolucao dias={dias} />
       <BlocoProdutos dias={dias} />
       <BlocoCaimento dias={dias} />

@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { VisaoGeralTab } from "@/components/avaliacoes/VisaoGeralTab";
 import { ModeracaoTab } from "@/components/avaliacoes/ModeracaoTab";
@@ -6,6 +7,8 @@ import { ConfigReguaTab } from "@/components/avaliacoes/ConfigReguaTab";
 import { InsightsTab } from "@/components/avaliacoes/InsightsTab";
 
 export default function Avaliacoes() {
+  const [aba, setAba] = useState("moderacao");
+
   return (
     <div className="space-y-6 p-4 md:p-6">
       <header>
@@ -15,7 +18,7 @@ export default function Avaliacoes() {
         </p>
       </header>
 
-      <Tabs defaultValue="moderacao">
+      <Tabs value={aba} onValueChange={setAba}>
         <TabsList>
           <TabsTrigger value="visao">Visão geral</TabsTrigger>
           <TabsTrigger value="moderacao">Moderação</TabsTrigger>
@@ -37,7 +40,7 @@ export default function Avaliacoes() {
           <ConfigReguaTab />
         </TabsContent>
         <TabsContent value="insights">
-          <InsightsTab />
+          <InsightsTab aoAbrirPendentes={() => setAba("moderacao")} />
         </TabsContent>
       </Tabs>
     </div>
