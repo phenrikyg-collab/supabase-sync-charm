@@ -306,6 +306,33 @@ export default function Atendimento() {
     refetchInterval: 10000,
   });
 
+  // Tipo de interação por conversa: conversa de verdade, só clique em botão ou só disparo nosso
+  const { data: tiposInteracao = [] } = useQuery({
+    queryKey: ["whatsapp-conversas-tipo"],
+    refetchInterval: 30000,
+    queryFn: async () => {
+      const { data, error } = await supabase.from("vw_conversas_tipo" as any).select("*");
+      if (error) throw error;
+      return (data ?? []) as any[];
+    },
+  });
+
+  const conversas = useMemo(() => {
+    const mapa = new Map<string, any>();
+    for (const t of tiposInteracao) mapa.set(String(t.conversa_id), t);
+    return conversasBrutas.map((c) => {
+      const t = mapa.get(String(c.id));
+      return t
+        ? {
+            ...c,
+            tipo_interacao: t.tipo_interacao ?? null,
+            digitadas: t.digitadas ?? null,
+            cliques: t.cliques ?? null,
+          }
+        : c;
+    });
+  }, [conversasBrutas, tiposInteracao]);
+
   const conversaAtual = conversas.find((c) => String(c.id) === selecionada) ?? null;
 
   const { mapaAtencao } = useConversasAtencao();
