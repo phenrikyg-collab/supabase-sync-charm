@@ -911,6 +911,11 @@ export function PropostaDaConversa({
   const queryClient = useQueryClient();
   const [gerando, setGerando] = useState<"cartao" | "pix" | null>(null);
   const [confirmar, setConfirmar] = useState<"cartao" | "pix" | null>(null);
+  const [linkCobranca, setLinkCobranca] = useState<string | null>(null);
+
+  useEffect(() => {
+    setLinkCobranca(null);
+  }, [conversaId]);
 
   const { data: proposta } = useQuery({
     queryKey: ["proposta-carrinho", String(id ?? "")],
