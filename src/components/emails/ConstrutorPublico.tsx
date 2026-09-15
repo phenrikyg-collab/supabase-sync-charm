@@ -471,3 +471,55 @@ export function mensagemErroPublico(bruto: string): string {
     return "Este filtro está corrompido. Limpe o filtro e monte as condições de novo.";
   return bruto;
 }
+
+export type DiagnosticoFiltro = {
+  campos?: string[];
+  vivo?: boolean;
+  congelam?: { campo: string; rotulo: string; troque_por: string; troque_por_rotulo: string }[];
+};
+
+/** Diz se o público se refaz sozinho a cada execução ou se é uma foto congelada. */
+export function useDiagnosticoFiltro(filtro: No | null, enabled = true) {
+  const chave = filtro ? JSON.stringify(filtro) : "";
+  return useQuery({
+    queryKey: ["emails-filtro-diagnostico", chave],
+    queryFn: async () =>
+      (await rpcEmails<DiagnosticoFiltro>("emails_filtro_diagnostico", { p_filtro: filtro })) ?? {},
+    enabled: enabled && !!filtro && contarCondicoes(filtro) > 0,
+  });
+}
+
+export function SeloPublicoVivo({ filtro, enabled = true }: { filtro: No | null; enabled?: boolean }) {
+  const { data } = useDiagnosticoFiltro(filtro, enabled);
+  if (!data || data.vivo == null) return null;
+  const vivo = !!data.vivo;
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      <Badge
+        variant="outline"
+        className={cn(
+          "text-[11px]",
+          vivo
+            ? "border-success/30 bg-success/15 text-success"
+            : "border-warning/30 bg-warning/15 text-warning",
+        )}
+      >
+        {vivo ? "Público vivo" : "Público fixo"}
+      </Badge>
+      {!vivo && (data.congelam ?? []).length > 0 && (
+        <span className="text-[11px] text-muted-foreground">
+          Datas fixas em: {(data.congelam ?? []).map((c) => c.rotulo).join(", ")}
+        </span>
+      )}
+    </div>
+  );
+}
+
+/** "consultado agora" nos primeiros instantes, depois "consultado às HH:MM". */
+export function textoConsulta(quando: Date | number | null | undefined): string {
+  if (!quando) return "";
+  const d = quando instanceof Date ? quando : new Date(quando);
+  if (Number.isNaN(d.getTime())) return "";
+  if (Date.now() - d.getTime() < 60000) return "consultado agora";
+  return `consultado às ${d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}`;
+}
