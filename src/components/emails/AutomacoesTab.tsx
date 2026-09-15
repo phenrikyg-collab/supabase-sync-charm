@@ -12,9 +12,13 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "@/hooks/use-toast";
-import { Settings2 } from "lucide-react";
+import { FlaskConical, Settings2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { dataBrHora, horasDesde, inteiro, rpcEmails, textoDesde } from "@/lib/emails";
+import {
+  ConstrutorPublico, descreverFiltro, filtroVazio, mensagemErroPublico,
+  SeloPublicoVivo, textoConsulta, usePublicoCampos, type No,
+} from "./ConstrutorPublico";
 
 const AJUDA_CONFIG: Record<string, string> = {
   min_visualizacoes: "Quantas vezes precisa ver a mesma peça",
@@ -46,16 +50,23 @@ function estadoBadge(a: any) {
   return { texto: "Planejado", classe: "bg-muted text-muted-foreground" };
 }
 
+const ehPublicoVivo = (a: any) => a?.gatilho === "filtro";
+
 function PainelConfig({
   automacao, aberto, onFechar,
 }: { automacao: any | null; aberto: boolean; onFechar: () => void }) {
   const queryClient = useQueryClient();
   const [config, setConfig] = useState<Record<string, any>>({});
   const [templateId, setTemplateId] = useState<string>("");
+  const [filtro, setFiltro] = useState<No>(filtroVazio());
+
+  const porFiltro = ehPublicoVivo(automacao);
+  const { data: campos = [] } = usePublicoCampos(aberto && porFiltro);
 
   useEffect(() => {
     setConfig({ ...(automacao?.config ?? {}) });
     setTemplateId(automacao?.template_id ? String(automacao.template_id) : "");
+    setFiltro((automacao?.publico_filtro as No) ?? filtroVazio());
   }, [automacao]);
 
   const { data: templates = [] } = useQuery({
@@ -68,7 +79,17 @@ function PainelConfig({
     mutationFn: () =>
       rpcEmails("emails_automacao_salvar", {
         p_slug: automacao.slug,
-        p_patch: { config, template_id: templateId ? Number(templateId) : null },
+        p_patch: porFiltro
+          ? {
+              publico_filtro: filtro,
+              config: {
+                repetir: !!config.repetir,
+                intervalo_contato_dias: Number(config.intervalo_contato_dias ?? 0),
+                lote_max: Number(config.lote_max ?? 0),
+              },
+              template_id: templateId ? Number(templateId) : null,
+            }
+          : { config, template_id: templateId ? Number(templateId) : null },
       }),
     onSuccess: () => {
       toast({ title: "Configuração salva", description: "Vale a partir da próxima varredura." });
@@ -84,10 +105,62 @@ function PainelConfig({
         <SheetHeader><SheetTitle className="font-serif">{automacao?.nome}</SheetTitle></SheetHeader>
 
         <div className="mt-6 space-y-5">
-          {Object.keys(config).length === 0 && (
+          {porFiltro && (
+            <div className="space-y-4">
+              <div className="space-y-1">
+                <p className="text-sm font-medium">Público</p>
+                <p className="text-xs text-muted-foreground">
+                  O público é refeito a cada rodada. Quem entrar no critério amanhã entra amanhã, quem sair sai.
+                </p>
+              </div>
+              <ConstrutorPublico filtro={filtro} campos={campos as any[]} onChange={setFiltro} />
+              <div className="space-y-2 rounded-lg border bg-muted/40 p-3">
+                <SeloPublicoVivo filtro={filtro} enabled={aberto} />
+                <p className="text-xs text-muted-foreground">{descreverFiltro(filtro, campos as any[])}</p>
+              </div>
+
+              <div className="flex items-center justify-between gap-3 border-t pt-4">
+                <p className="text-sm font-medium">Pode mandar de novo para a mesma pessoa</p>
+                <Switch
+                  checked={!!config.repetir}
+                  onCheckedChange={(v) => setConfig((p) => ({ ...p, repetir: v }))}
+                />
+              </div>
+
+              {config.repetir && (
+                <div className="space-y-1.5">
+                  <p className="text-sm font-medium">Esperar quantos dias antes de repetir</p>
+                  <Input
+                    type="number"
+                    min={0}
+                    value={config.intervalo_contato_dias ?? 0}
+                    onChange={(e) =>
+                      setConfig((p) => ({ ...p, intervalo_contato_dias: Number(e.target.value) }))
+                    }
+                  />
+                </div>
+              )}
+
+              <div className="space-y-1.5">
+                <p className="text-sm font-medium">Máximo por rodada</p>
+                <p className="text-xs text-muted-foreground">
+                  A automação roda de hora em hora. Com o lote em 200 e 2.945 pessoas no público, leva umas 15
+                  horas para passar por todas.
+                </p>
+                <Input
+                  type="number"
+                  min={1}
+                  value={config.lote_max ?? 0}
+                  onChange={(e) => setConfig((p) => ({ ...p, lote_max: Number(e.target.value) }))}
+                />
+              </div>
+            </div>
+          )}
+
+          {!porFiltro && Object.keys(config).length === 0 && (
             <p className="text-sm text-muted-foreground">Esta automação não tem ajustes configuráveis.</p>
           )}
-          {Object.entries(config).map(([chave, valor]) => (
+          {!porFiltro && Object.entries(config).map(([chave, valor]) => (
             <div key={chave} className="space-y-1.5">
               <div className="flex items-center justify-between gap-3">
                 <div>
@@ -131,8 +204,104 @@ function PainelConfig({
             Salvar configuração
           </Button>
           <p className="text-xs text-muted-foreground">
-            Mudança aqui vale na próxima varredura, que roda a cada 15 minutos.
+            {porFiltro
+              ? "Mudança aqui vale na próxima rodada, que acontece de hora em hora."
+              : "Mudança aqui vale na próxima varredura, que roda a cada 15 minutos."}
           </p>
+        </div>
+      </SheetContent>
+    </Sheet>
+  );
+}
+
+function PainelSimulacao({
+  automacao, aberto, onFechar,
+}: { automacao: any | null; aberto: boolean; onFechar: () => void }) {
+  const { data, isFetching, error, dataUpdatedAt, refetch } = useQuery({
+    queryKey: ["emails-simular-automacao", automacao?.slug],
+    queryFn: () =>
+      rpcEmails<any>("emails_detectar_por_filtro", { p_slug: automacao.slug, p_simular: true }),
+    enabled: aberto && !!automacao?.slug,
+    retry: false,
+  });
+
+  const linhas: [string, any][] = data
+    ? [
+        ["No público agora", inteiro(data.no_publico)],
+        ["Vão para a fila nesta rodada", inteiro(data.enfileirados)],
+        ["Já receberam antes", inteiro(data.ja_receberam)],
+        ["Bloqueados pelo teto de frequência", inteiro(data.bloqueados_teto)],
+      ]
+    : [];
+
+  return (
+    <Sheet open={aberto} onOpenChange={(v) => !v && onFechar()}>
+      <SheetContent className="w-full overflow-y-auto sm:max-w-md">
+        <SheetHeader>
+          <SheetTitle className="font-serif">Simulação de {automacao?.nome}</SheetTitle>
+        </SheetHeader>
+
+        <div className="mt-6 space-y-4">
+          {isFetching && <p className="text-sm text-muted-foreground">Consultando o público…</p>}
+
+          {error && (
+            <Card className="space-y-2 border-danger/40 bg-danger/5 p-3">
+              <p className="text-sm text-danger">{mensagemErroPublico((error as any).message ?? "")}</p>
+              <Button size="sm" variant="outline" onClick={() => refetch()}>Tentar de novo</Button>
+            </Card>
+          )}
+
+          {data && (
+            <>
+              <div className="space-y-2">
+                {linhas.map(([r, v]) => (
+                  <div key={r} className="flex items-baseline justify-between gap-3 rounded-lg border p-3">
+                    <span className="text-xs text-muted-foreground">{r}</span>
+                    <span className="font-serif text-xl">{v}</span>
+                  </div>
+                ))}
+              </div>
+
+              <p className="text-[11px] text-muted-foreground">{textoConsulta(dataUpdatedAt)}</p>
+
+              {data.bateu_no_lote && (
+                <p className="rounded-lg border border-warning/40 bg-warning/5 p-3 text-xs text-warning">
+                  O lote de {inteiro(data.lote_max)} encheu. Faltam {inteiro(data.faltam_para_a_proxima)} para as
+                  próximas rodadas.
+                </p>
+              )}
+
+              <div className="space-y-2">
+                <p className="text-sm font-medium">Exemplos de quem entraria agora</p>
+                {(data.amostra ?? []).length === 0 ? (
+                  <p className="text-xs text-muted-foreground">Ninguém entraria nesta rodada.</p>
+                ) : (
+                  <table className="w-full text-xs">
+                    <thead>
+                      <tr className="text-left text-muted-foreground">
+                        <th className="py-1 font-normal">E-mail</th>
+                        <th className="py-1 font-normal">RFM</th>
+                        <th className="py-1 text-right font-normal">Dias sem comprar</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {(data.amostra ?? []).slice(0, 5).map((p: any, i: number) => (
+                        <tr key={i} className="border-t">
+                          <td className="max-w-[160px] truncate py-1">{p.email}</td>
+                          <td className="py-1">{p.rfm ?? "sem RFM"}</td>
+                          <td className="py-1 text-right">{inteiro(p.dias_sem_comprar)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+              </div>
+
+              <p className="text-xs text-muted-foreground">
+                Simular não grava nada. O envio continua com o motor, de hora em hora.
+              </p>
+            </>
+          )}
         </div>
       </SheetContent>
     </Sheet>
@@ -142,6 +311,8 @@ function PainelConfig({
 export function AutomacoesTab({ onAbrirTemplate }: { onAbrirTemplate?: (slug: string) => void } = {}) {
   const queryClient = useQueryClient();
   const [configurando, setConfigurando] = useState<any | null>(null);
+  const [simulando, setSimulando] = useState<any | null>(null);
+  const [simulados, setSimulados] = useState<string[]>([]);
   const [confirmarDesligar, setConfirmarDesligar] = useState<any | null>(null);
 
   const { data: automacoes = [], isLoading } = useQuery({
@@ -193,6 +364,11 @@ export function AutomacoesTab({ onAbrirTemplate }: { onAbrirTemplate?: (slug: st
                   <div className="flex items-center gap-2">
                     <h3 className="font-serif text-lg">{a.nome}</h3>
                     <Badge variant="outline" className={badge.classe}>{badge.texto}</Badge>
+                    {ehPublicoVivo(a) && (
+                      <Badge variant="outline" className="border-success/30 bg-success/15 text-[11px] text-success">
+                        Público vivo
+                      </Badge>
+                    )}
                   </div>
                   <p className="text-xs text-muted-foreground">{a.descricao}</p>
                 </div>
@@ -200,7 +376,13 @@ export function AutomacoesTab({ onAbrirTemplate }: { onAbrirTemplate?: (slug: st
                   checked={!!a.ativo}
                   onCheckedChange={(v) => {
                     if (!v && a.ativo) setConfirmarDesligar(a);
-                    else alternar.mutate({ slug: a.slug, ativo: v });
+                    else if (v && ehPublicoVivo(a) && !simulados.includes(a.slug)) {
+                      toast({
+                        title: "Simule antes de ligar",
+                        description: "Veja quem entraria nesta rodada e depois ligue a automação.",
+                      });
+                      setSimulando(a);
+                    } else alternar.mutate({ slug: a.slug, ativo: v });
                   }}
                 />
               </div>
@@ -239,9 +421,21 @@ export function AutomacoesTab({ onAbrirTemplate }: { onAbrirTemplate?: (slug: st
                   Última execução: {dataBrHora(a.ultima_execucao)} · {a.ultimo_resultado ?? "sem registro"}
                   {atrasada && ` · sem rodar há ${textoDesde(a.ultima_execucao)}`}
                 </p>
-                <Button size="sm" variant="outline" onClick={() => setConfigurando(a)}>
-                  <Settings2 className="mr-1 h-3.5 w-3.5" /> Configurar
-                </Button>
+                <div className="flex flex-wrap items-center gap-2">
+                  {ehPublicoVivo(a) && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setSimulando(a)}
+                      title="Simular não grava nada"
+                    >
+                      <FlaskConical className="mr-1 h-3.5 w-3.5" /> Simular, sem gravar nada
+                    </Button>
+                  )}
+                  <Button size="sm" variant="outline" onClick={() => setConfigurando(a)}>
+                    <Settings2 className="mr-1 h-3.5 w-3.5" /> Configurar
+                  </Button>
+                </div>
               </div>
             </Card>
           );
@@ -250,6 +444,14 @@ export function AutomacoesTab({ onAbrirTemplate }: { onAbrirTemplate?: (slug: st
 
 
       <PainelConfig automacao={configurando} aberto={!!configurando} onFechar={() => setConfigurando(null)} />
+      <PainelSimulacao
+        automacao={simulando}
+        aberto={!!simulando}
+        onFechar={() => {
+          if (simulando?.slug) setSimulados((p) => (p.includes(simulando.slug) ? p : [...p, simulando.slug]));
+          setSimulando(null);
+        }}
+      />
 
       <AlertDialog open={!!confirmarDesligar} onOpenChange={(v) => !v && setConfirmarDesligar(null)}>
         <AlertDialogContent>

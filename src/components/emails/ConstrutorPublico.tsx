@@ -7,7 +7,7 @@ import {
   Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Plus, X } from "lucide-react";
+import { AlertTriangle, Plus, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { rpcEmails } from "@/lib/emails";
 
@@ -17,6 +17,9 @@ export type CampoPublico = {
   tipo: "numero" | "dias" | "data" | "texto" | "booleano" | "array" | string;
   grupo?: string | null;
   descricao?: string | null;
+  congela_publico?: boolean | null;
+  equivalente_vivo?: string | null;
+  equivalente_vivo_rotulo?: string | null;
 };
 
 export type Condicao = { campo: string; op: string; valor?: any };
@@ -262,7 +265,12 @@ function CondicaoLinha({
               <SelectGroup key={g}>
                 <SelectLabel>{g}</SelectLabel>
                 {itens.map((c) => (
-                  <SelectItem key={c.campo} value={c.campo}>{c.rotulo}</SelectItem>
+                  <SelectItem key={c.campo} value={c.campo}>
+                    <span className="flex items-center gap-1.5">
+                      {c.rotulo}
+                      {c.congela_publico && <AlertTriangle className="h-3 w-3 text-warning" />}
+                    </span>
+                  </SelectItem>
                 ))}
               </SelectGroup>
             ))}
@@ -295,6 +303,36 @@ function CondicaoLinha({
         </div>
       </div>
       {campo?.descricao && <p className="px-1 text-[11px] text-muted-foreground">{campo.descricao}</p>}
+      {campo?.congela_publico && (
+        <div className="flex flex-wrap items-center gap-2 rounded-md border border-warning/40 bg-warning/5 px-2 py-1.5">
+          <AlertTriangle className="h-3.5 w-3.5 shrink-0 text-warning" />
+          <p className="text-[11px] text-warning">
+            Data fixa: este público não se atualiza sozinho.
+            {campo.equivalente_vivo_rotulo
+              ? ` Para ele acompanhar o calendário, use ${campo.equivalente_vivo_rotulo}.`
+              : ""}
+          </p>
+          {campo.equivalente_vivo && (
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              className="ml-auto h-7 px-2 text-[11px]"
+              onClick={() => {
+                const novo = campos.find((c) => c.campo === campo.equivalente_vivo);
+                const opsNovas = OPS_POR_TIPO[novo?.tipo ?? "texto"] ?? OPS_POR_TIPO.texto;
+                onChange({
+                  campo: campo.equivalente_vivo as string,
+                  op: opsNovas.includes(cond.op) ? cond.op : opsNovas[0],
+                  valor: undefined,
+                });
+              }}
+            >
+              Trocar
+            </Button>
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -432,4 +470,56 @@ export function mensagemErroPublico(bruto: string): string {
   if (/campo de p[uú]blico desconhecido/i.test(bruto))
     return "Este filtro está corrompido. Limpe o filtro e monte as condições de novo.";
   return bruto;
+}
+
+export type DiagnosticoFiltro = {
+  campos?: string[];
+  vivo?: boolean;
+  congelam?: { campo: string; rotulo: string; troque_por: string; troque_por_rotulo: string }[];
+};
+
+/** Diz se o público se refaz sozinho a cada execução ou se é uma foto congelada. */
+export function useDiagnosticoFiltro(filtro: No | null, enabled = true) {
+  const chave = filtro ? JSON.stringify(filtro) : "";
+  return useQuery({
+    queryKey: ["emails-filtro-diagnostico", chave],
+    queryFn: async () =>
+      (await rpcEmails<DiagnosticoFiltro>("emails_filtro_diagnostico", { p_filtro: filtro })) ?? {},
+    enabled: enabled && !!filtro && contarCondicoes(filtro) > 0,
+  });
+}
+
+export function SeloPublicoVivo({ filtro, enabled = true }: { filtro: No | null; enabled?: boolean }) {
+  const { data } = useDiagnosticoFiltro(filtro, enabled);
+  if (!data || data.vivo == null) return null;
+  const vivo = !!data.vivo;
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      <Badge
+        variant="outline"
+        className={cn(
+          "text-[11px]",
+          vivo
+            ? "border-success/30 bg-success/15 text-success"
+            : "border-warning/30 bg-warning/15 text-warning",
+        )}
+      >
+        {vivo ? "Público vivo" : "Público fixo"}
+      </Badge>
+      {!vivo && (data.congelam ?? []).length > 0 && (
+        <span className="text-[11px] text-muted-foreground">
+          Datas fixas em: {(data.congelam ?? []).map((c) => c.rotulo).join(", ")}
+        </span>
+      )}
+    </div>
+  );
+}
+
+/** "consultado agora" nos primeiros instantes, depois "consultado às HH:MM". */
+export function textoConsulta(quando: Date | number | null | undefined): string {
+  if (!quando) return "";
+  const d = quando instanceof Date ? quando : new Date(quando);
+  if (Number.isNaN(d.getTime())) return "";
+  if (Date.now() - d.getTime() < 60000) return "consultado agora";
+  return `consultado às ${d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}`;
 }

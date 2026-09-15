@@ -20,7 +20,7 @@ import type { ModoTemplate } from "./PreviaTemplate";
 import { ControlesPrevia, IframePrevia, usePreviaTemplate } from "./PreviaTemplate";
 import {
   ConstrutorPublico, contarCondicoes, descreverFiltro, filtroVazio,
-  mensagemErroPublico, usePublicoCampos, type No,
+  mensagemErroPublico, SeloPublicoVivo, textoConsulta, usePublicoCampos, type No,
 } from "./ConstrutorPublico";
 
 
@@ -94,7 +94,7 @@ function NovaCampanha({ aberto, onFechar }: { aberto: boolean; onFechar: () => v
 
   const porFiltro = modoPublico === "filtro";
   const {
-    data: simulacao, isFetching: simulando, error: erroSimulacao,
+    data: simulacao, isFetching: simulando, error: erroSimulacao, dataUpdatedAt: simuladoEm,
   } = useQuery({
     queryKey: ["emails-simular", porFiltro ? filtroLento : segmento],
     queryFn: () =>
@@ -306,9 +306,12 @@ function NovaCampanha({ aberto, onFechar }: { aberto: boolean; onFechar: () => v
                   )}
                 </div>
                 {totalCondicoes > 0 && (
-                  <p className="rounded-lg border bg-muted/40 p-3 text-xs text-muted-foreground">
-                    {descreverFiltro(filtro, campos as any[])}
-                  </p>
+                  <div className="space-y-2 rounded-lg border bg-muted/40 p-3">
+                    <SeloPublicoVivo filtro={filtroLento} enabled={aberto} />
+                    <p className="text-xs text-muted-foreground">
+                      {descreverFiltro(filtro, campos as any[])}
+                    </p>
+                  </div>
                 )}
               </div>
             )}
@@ -334,6 +337,9 @@ function NovaCampanha({ aberto, onFechar }: { aberto: boolean; onFechar: () => v
                     </Card>
                   ))}
                 </div>
+                <p className="text-[11px] text-muted-foreground">
+                  Este público se refaz a cada consulta. {textoConsulta(simuladoEm)}.
+                </p>
                 <Card className="border-warning/40 bg-warning/5 p-4">
                   <p className="text-xs uppercase tracking-wider text-warning">Bloqueados pelo teto</p>
                   <p className="font-serif text-2xl text-warning">{inteiro(bloqueados)}</p>
@@ -370,8 +376,10 @@ function NovaCampanha({ aberto, onFechar }: { aberto: boolean; onFechar: () => v
               <span className="text-muted-foreground">Público:</span>{" "}
               {porFiltro ? descreverFiltro(filtro, campos as any[]) : (segmentoEscolhido?.nome ?? segmento)}
             </p>
+            {porFiltro && <SeloPublicoVivo filtro={filtroLento} enabled={aberto} />}
             <p><span className="text-muted-foreground">Vai para a fila:</span>{" "}
-              <strong>{inteiro(simulacao?.passam_teto ?? simulacao?.passam_no_teto ?? 0)}</strong> contatos</p>
+              <strong>{inteiro(simulacao?.passam_teto ?? simulacao?.passam_no_teto ?? 0)}</strong> contatos{" "}
+              <span className="text-xs text-muted-foreground">({textoConsulta(simuladoEm)})</span></p>
             <p className="rounded-lg border bg-muted/40 p-3 text-xs leading-relaxed text-muted-foreground">
               Preparar não dispara. A campanha entra na fila e o motor envia dentro da janela de horário configurada.
             </p>
