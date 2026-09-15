@@ -37,7 +37,7 @@ export function MensagemMidia({ tipo, mediaUrl, conteudo }: Props) {
       <img
         src={mediaUrl}
         alt="Figurinha"
-        className="mb-1 max-h-40 max-w-[160px] w-auto h-auto object-contain bg-transparent"
+        className="mb-1 block h-auto max-h-40 max-w-full object-contain bg-transparent"
         loading="lazy"
       />
     );
@@ -46,17 +46,17 @@ export function MensagemMidia({ tipo, mediaUrl, conteudo }: Props) {
   if (["imagem", "image", "photo", "foto"].includes(t)) {
     const legenda = (conteudo ?? "").trim();
     return (
-      <div className="mb-1 space-y-1">
-        <a href={mediaUrl} target="_blank" rel="noreferrer">
+      <div className="mb-1 min-w-0 max-w-full space-y-1 overflow-hidden">
+        <a href={mediaUrl} target="_blank" rel="noreferrer" className="block max-w-full overflow-hidden">
           <img
             src={mediaUrl}
             alt={legenda || "Imagem enviada"}
-            className="rounded-md max-h-64 w-auto object-contain"
+            className="block h-auto max-h-64 max-w-full rounded-md object-contain"
             loading="lazy"
           />
         </a>
         {legenda && legenda !== SEM_TRANSCRICAO && (
-          <p className="whitespace-pre-wrap break-words text-xs">{legenda}</p>
+          <p className="whitespace-pre-wrap break-words [overflow-wrap:anywhere] text-xs">{legenda}</p>
         )}
       </div>
     );
@@ -64,14 +64,13 @@ export function MensagemMidia({ tipo, mediaUrl, conteudo }: Props) {
 
   if (t === "video") {
     return (
-      <div className="mb-1 space-y-1">
+      <div className="mb-1 min-w-0 max-w-full space-y-1 overflow-hidden">
         <video
           src={mediaUrl}
           controls
           playsInline
           preload="metadata"
-          className="rounded-lg bg-black"
-          style={{ maxWidth: 280, maxHeight: 420, width: "auto", height: "auto", objectFit: "contain" }}
+          className="block h-auto max-h-[420px] max-w-full rounded-lg bg-foreground object-contain"
         />
         <a
           href={mediaUrl}
@@ -91,12 +90,12 @@ export function MensagemMidia({ tipo, mediaUrl, conteudo }: Props) {
     const transcricao = (conteudo ?? "").trim();
     const semTranscricao = !transcricao || transcricao === SEM_TRANSCRICAO;
     return (
-      <div className="mb-1 space-y-1">
-        <audio controls preload="metadata" src={mediaUrl} className="w-full max-w-[280px]" />
+      <div className="mb-1 min-w-0 max-w-full space-y-1 overflow-hidden">
+        <audio controls preload="metadata" src={mediaUrl} className="block w-full max-w-full" />
         {!semTranscricao && (
           <div className="min-w-0">
             <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Transcrição</p>
-            <p className="whitespace-pre-wrap break-words text-xs">{transcricao}</p>
+            <p className="whitespace-pre-wrap break-words [overflow-wrap:anywhere] text-xs">{transcricao}</p>
           </div>
         )}
       </div>
