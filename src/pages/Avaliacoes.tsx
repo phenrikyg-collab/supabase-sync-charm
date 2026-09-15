@@ -21,6 +21,7 @@ export default function Avaliacoes() {
           <TabsTrigger value="moderacao">Moderação</TabsTrigger>
           <TabsTrigger value="todas">Todas as avaliações</TabsTrigger>
           <TabsTrigger value="config">Configuração da régua</TabsTrigger>
+          <TabsTrigger value="insights">Insights</TabsTrigger>
         </TabsList>
 
         <TabsContent value="visao">
