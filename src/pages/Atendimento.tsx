@@ -271,7 +271,20 @@ export default function Atendimento() {
   const [selecionada, setSelecionada] = useState<string | null>(null);
   const [busca, setBusca] = useState("");
   const [aba, setAba] = useState<"whatsapp" | "site">("whatsapp");
-  const [abaPagina, setAbaPagina] = useState<"conversas" | "cobrancas" | "consulta" | "abandonadas" | "rapidas" | "aprendizado">("conversas");
+  const [abaPagina, setAbaPagina] = useState<
+    | "conversas"
+    | "cobrancas"
+    | "consulta"
+    | "abandonadas"
+    | "rapidas"
+    | "aprendizado"
+    | "oportunidades"
+    | "carrinhos"
+    | "cancelados"
+    | "funil"
+    | "kanban"
+    | "cashback"
+  >("conversas");
   const [cobrancaAberta, setCobrancaAberta] = useState(false);
   const [linkPagamentoAberto, setLinkPagamentoAberto] = useState(false);
   const [freteAberto, setFreteAberto] = useState(false);
@@ -792,22 +805,57 @@ export default function Atendimento() {
   const podeResponder = status === "escalado" || status === "em_atendimento";
 
   return (
-    <div className="-m-6 flex h-[calc(100dvh-3.5rem)] w-[calc(100%+3rem)] min-w-0 flex-col overflow-hidden">
+    <div className="-m-6 flex h-[calc(100dvh-3.5rem)] w-[calc(100%+3rem)] max-w-[calc(100%+3rem)] min-w-0 flex-col overflow-x-hidden overflow-y-hidden">
       <Tabs
         value={abaPagina}
         onValueChange={(v) => setAbaPagina(v as typeof abaPagina)}
-        className="flex min-h-0 flex-1 flex-col"
+        className="flex min-h-0 w-full min-w-0 flex-1 flex-col overflow-hidden"
       >
-        <div className="flex h-11 shrink-0 items-center gap-2 border-b border-border px-3">
-          <TabsList className="h-8 bg-transparent p-0">
-            <TabsTrigger value="conversas" className="h-8 text-xs">Conversas</TabsTrigger>
-            <TabsTrigger value="abandonadas" className="h-8 text-xs">Abandonadas</TabsTrigger>
-            <TabsTrigger value="cobrancas" className="h-8 text-xs">Cobranças</TabsTrigger>
-            <TabsTrigger value="consulta" className="h-8 text-xs">Consultar Transação</TabsTrigger>
-            <TabsTrigger value="rapidas" className="h-8 text-xs">Mensagens rápidas</TabsTrigger>
-            <TabsTrigger value="aprendizado" className="h-8 text-xs">Aprendizado da Anna</TabsTrigger>
+        <div className="flex h-11 w-full min-w-0 shrink-0 items-center gap-2 overflow-x-auto border-b border-border px-3">
+          <TabsList className="h-8 w-max flex-nowrap bg-transparent p-0">
+            <TabsTrigger value="conversas" className="h-8 shrink-0 text-xs">Conversas</TabsTrigger>
+            <TabsTrigger value="oportunidades" className="h-8 shrink-0 text-xs">Oportunidades</TabsTrigger>
+            <TabsTrigger value="abandonadas" className="h-8 shrink-0 text-xs">Abandonadas</TabsTrigger>
+            <TabsTrigger value="cobrancas" className="h-8 shrink-0 text-xs">Cobranças</TabsTrigger>
+            <TabsTrigger value="consulta" className="h-8 shrink-0 text-xs">Consultar Transação</TabsTrigger>
+            <TabsTrigger value="rapidas" className="h-8 shrink-0 text-xs">Mensagens rápidas</TabsTrigger>
+            <TabsTrigger value="aprendizado" className="h-8 shrink-0 text-xs">Aprendizado da Anna</TabsTrigger>
+            <TabsTrigger value="carrinhos" className="h-8 shrink-0 text-xs">Carrinhos abandonados</TabsTrigger>
+            <TabsTrigger value="cancelados" className="h-8 shrink-0 text-xs">Pedidos cancelados</TabsTrigger>
+            <TabsTrigger value="funil" className="h-8 shrink-0 text-xs">Funil do WhatsApp</TabsTrigger>
+            <TabsTrigger value="kanban" className="h-8 shrink-0 text-xs">Kanban do funil</TabsTrigger>
+            <TabsTrigger value="cashback" className="h-8 shrink-0 text-xs">Cashback</TabsTrigger>
           </TabsList>
         </div>
+
+        <TabsContent value="oportunidades" className="m-0 min-h-0 w-full min-w-0 flex-1 overflow-auto p-4">
+          <OportunidadesTab
+            onAbrirConversa={(id) => {
+              setSelecionada(id);
+              setAbaPagina("conversas");
+            }}
+          />
+        </TabsContent>
+
+        <TabsContent value="carrinhos" className="m-0 min-h-0 w-full min-w-0 flex-1 overflow-auto p-4">
+          <CarrinhoAbandonadoConteudo />
+        </TabsContent>
+
+        <TabsContent value="cancelados" className="m-0 min-h-0 w-full min-w-0 flex-1 overflow-auto p-4">
+          <PedidosCanceladosConteudo />
+        </TabsContent>
+
+        <TabsContent value="funil" className="m-0 min-h-0 w-full min-w-0 flex-1 overflow-auto p-4">
+          <FunilWhatsAppConteudo />
+        </TabsContent>
+
+        <TabsContent value="kanban" className="m-0 min-h-0 w-full min-w-0 flex-1 overflow-auto p-4">
+          <FunilKanbanConteudo />
+        </TabsContent>
+
+        <TabsContent value="cashback" className="m-0 min-h-0 w-full min-w-0 flex-1 overflow-auto p-4">
+          <CashbackConteudo />
+        </TabsContent>
 
         <TabsContent value="abandonadas" className="m-0 min-h-0 flex-1 overflow-auto p-4">
           <AbandonadasTab />
