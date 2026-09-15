@@ -564,7 +564,13 @@ function BlocoProdutos({ dias }: { dias: number }) {
                     <Variacao valor={p.variacao} />
                   </TableCell>
                   <TableCell className="text-right tabular-nums">{pct(p.pct_5)}</TableCell>
-                  <TableCell className="text-right tabular-nums">{pct(p.pct_ate_3)}</TableCell>
+                  <TableCell
+                    className={`text-right tabular-nums ${
+                      Number(p.pct_ate_3) > 0 ? "font-medium text-amber-700" : ""
+                    }`}
+                  >
+                    {pct(p.pct_ate_3)}
+                  </TableCell>
                   <TableCell className="text-right tabular-nums">{num(p.com_texto)}</TableCell>
                 </TableRow>
               ))}
