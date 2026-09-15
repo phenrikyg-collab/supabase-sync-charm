@@ -17,6 +17,7 @@ type Resumo = {
 } | null;
 
 type Oportunidade = {
+  conversa_id?: string | number | null;
   tipo: string | null;
   prioridade: number | null;
   titulo: string | null;
@@ -55,7 +56,17 @@ function linkWhatsApp(tel: string) {
   return `https://wa.me/${full}`;
 }
 
-export function OportunidadesAoVivo({ refreshKey }: { refreshKey?: number }) {
+export function OportunidadesAoVivo({
+  refreshKey,
+  intervaloMs,
+  onAbrirConversa,
+}: {
+  refreshKey?: number;
+  /** Quando informado, o bloco se atualiza sozinho nesse intervalo. */
+  intervaloMs?: number;
+  /** Quando a oportunidade já tem conversa, abrir dentro do próprio painel. */
+  onAbrirConversa?: (conversaId: string) => void;
+}) {
   const [resumo, setResumo] = useState<Resumo>(null);
   const [lista, setLista] = useState<Oportunidade[]>([]);
   const [loading, setLoading] = useState(true);
