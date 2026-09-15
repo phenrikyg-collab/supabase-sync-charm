@@ -1103,77 +1103,121 @@ export default function Atendimento() {
 
           ) : (
             <>
-              <div className="p-4 flex items-start justify-between gap-4 border-b border-border">
-                <div className="min-w-0 space-y-1.5">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    {ehSite(conversaAtual) ? (
-                      <Globe className="h-4 w-4 text-primary shrink-0" aria-label="Chat do site" />
-                    ) : (
-                      <MessageCircle className="h-4 w-4 text-success shrink-0" aria-label="WhatsApp" />
-                    )}
-                    <h2 className="font-medium truncate">{nomeConversa(conversaAtual)}</h2>
-                    {nomeSoDoWhatsApp(conversaAtual) && <BadgeViaWhatsApp />}
-                    <StatusPill status={conversaAtual.status} aguardandoDesde={conversaAtual.aguardando_desde} />
-                    {conversaAtual.status === "escalado" && conversaAtual.aguardando_desde && (
-                      <SeloFila conversaId={conversaAtual.id} />
-                    )}
-                    {ehSite(conversaAtual) && conversaAtual.telefone_real && (
-                      <span className="inline-flex items-center gap-1 rounded-full border border-success/20 bg-success/10 px-2 py-0.5 text-[10px] text-success">
-                        <Phone className="h-3 w-3" />
-                        {formatarTelefone(conversaAtual.telefone_real)}
-                      </span>
-                    )}
-                  </div>
-                  <p className="text-xs text-muted-foreground">{identificadorConversa(conversaAtual)}</p>
-
-                  <TagsConversa conversaId={conversaAtual.id} aplicadas={conversaAtual.tags ?? []} />
+              <div className="flex h-14 shrink-0 items-center gap-3 border-b border-border px-3">
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  className="h-8 w-8 shrink-0 md:hidden"
+                  onClick={() => setListaSheet(true)}
+                  title="Ver conversas"
+                >
+                  <Menu className="h-4 w-4" />
+                </Button>
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-accent">
+                  {ehSite(conversaAtual) ? (
+                    <Globe className="h-4 w-4 text-primary" aria-label="Chat do site" />
+                  ) : (
+                    <MessageCircle className="h-4 w-4 text-primary" aria-label="WhatsApp" />
+                  )}
+                </span>
+                <div className="flex min-w-0 flex-1 items-center gap-2">
+                  <h2 className="truncate text-sm font-semibold">{nomeConversa(conversaAtual)}</h2>
+                  <span className="hidden shrink-0 text-xs text-muted-foreground sm:inline">
+                    {identificadorConversa(conversaAtual)}
+                  </span>
+                  {nomeSoDoWhatsApp(conversaAtual) && <BadgeViaWhatsApp />}
+                  <StatusPill status={conversaAtual.status} aguardandoDesde={conversaAtual.aguardando_desde} />
+                  {conversaAtual.status === "escalado" && conversaAtual.aguardando_desde && (
+                    <SeloFila conversaId={conversaAtual.id} />
+                  )}
+                  {ehSite(conversaAtual) && conversaAtual.telefone_real && (
+                    <span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-border bg-muted px-2 py-0.5 text-[10px] text-muted-foreground">
+                      <Phone className="h-3 w-3" />
+                      {formatarTelefone(conversaAtual.telefone_real)}
+                    </span>
+                  )}
                 </div>
-                <div className="flex items-center gap-2 flex-wrap justify-end">
-                  <Button size="sm" variant="outline" onClick={() => setCobrancaAberta(true)}>
-                    <QrCode className="h-4 w-4 mr-2" />
-                    Gerar cobrança Pix
-                  </Button>
-                  <Button size="sm" variant="outline" onClick={() => setLinkPagamentoAberto(true)}>
-                    <Link2 className="h-4 w-4 mr-2" />
-                    Gerar link de pagamento
-                  </Button>
-                  <Button size="sm" variant="outline" onClick={() => setProporCarrinhoAberto(true)}>
-                    <ShoppingCart className="h-4 w-4 mr-2" />
-                    Propor carrinho
-                  </Button>
-                  <Button size="sm" variant="outline" onClick={() => setFreteAberto(true)}>
-                    <Truck className="h-4 w-4 mr-2" />
-                    Calcular frete
-                  </Button>
-
-                  <Button size="sm" variant="default" onClick={() => assumir.mutate()} disabled={assumir.isPending}>
-                    <UserCheck className="h-4 w-4 mr-2" />
+                <div className="flex shrink-0 items-center gap-1.5">
+                  <Button size="sm" onClick={() => assumir.mutate()} disabled={assumir.isPending}>
+                    <UserCheck className="mr-2 h-4 w-4" />
                     Assumir conversa
                   </Button>
-
                   {(status === "escalado" || status === "em_atendimento") && (
                     <Button
                       size="sm"
                       variant="outline"
+                      className="hidden xl:inline-flex"
                       onClick={() => resolver.mutate()}
                       disabled={resolver.isPending}
                     >
-                      <CheckCircle2 className="h-4 w-4 mr-2" />
+                      <CheckCircle2 className="mr-2 h-4 w-4" />
                       Marcar como resolvido
                     </Button>
                   )}
-                  {status !== "bot_ativo" && (
-                    <Button
-                      size="sm"
-                      variant="secondary"
-                      onClick={() => reativarBot.mutate()}
-                      disabled={reativarBot.isPending}
-                    >
-                      <RotateCcw className="h-4 w-4 mr-2" />
-                      Reativar bot
-                    </Button>
-                  )}
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button size="icon" variant="ghost" className="h-9 w-9" title="Mais ações">
+                        <MoreHorizontal className="h-4 w-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-56">
+                      <DropdownMenuItem onSelect={() => setCobrancaAberta(true)}>
+                        <QrCode className="mr-2 h-4 w-4" />
+                        Gerar cobrança Pix
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onSelect={() => setLinkPagamentoAberto(true)}>
+                        <Link2 className="mr-2 h-4 w-4" />
+                        Gerar link de pagamento
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onSelect={() => setProporCarrinhoAberto(true)}>
+                        <ShoppingCart className="mr-2 h-4 w-4" />
+                        Propor carrinho
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onSelect={() => setFreteAberto(true)}>
+                        <Truck className="mr-2 h-4 w-4" />
+                        Calcular frete
+                      </DropdownMenuItem>
+                      {(status === "escalado" || status === "em_atendimento") && (
+                        <DropdownMenuItem
+                          className="xl:hidden"
+                          onSelect={() => resolver.mutate()}
+                          disabled={resolver.isPending}
+                        >
+                          <CheckCircle2 className="mr-2 h-4 w-4" />
+                          Marcar como resolvido
+                        </DropdownMenuItem>
+                      )}
+                      {status !== "bot_ativo" && (
+                        <DropdownMenuItem onSelect={() => reativarBot.mutate()} disabled={reativarBot.isPending}>
+                          <RotateCcw className="mr-2 h-4 w-4" />
+                          Reativar bot
+                        </DropdownMenuItem>
+                      )}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="hidden h-9 w-9 lg:inline-flex"
+                    onClick={() => setPerfilAberto((v) => !v)}
+                    title={perfilAberto ? "Esconder perfil da cliente" : "Mostrar perfil da cliente"}
+                  >
+                    <PanelRight className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="h-9 w-9 lg:hidden"
+                    onClick={() => setPerfilSheet(true)}
+                    title="Perfil da cliente"
+                  >
+                    <PanelRight className="h-4 w-4" />
+                  </Button>
                 </div>
+              </div>
+
+              <div className="shrink-0 border-b border-border px-3 py-1.5">
+                <TagsConversa conversaId={conversaAtual.id} aplicadas={conversaAtual.tags ?? []} />
               </div>
 
               <PropostaDaConversa conversaId={conversaAtual.id} propostaId={propostaId} />
