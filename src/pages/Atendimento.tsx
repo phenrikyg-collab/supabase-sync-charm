@@ -1291,7 +1291,7 @@ export default function Atendimento() {
                   </div>
                 </div>
               ) : podeResponder ? (
-                <div className="p-3 space-y-2">
+                <div className="shrink-0 border-t border-border p-3 space-y-2">
                   {erroJanela && (
                     <div className="flex items-start gap-2 rounded-md border border-danger/40 bg-danger/10 p-3">
                       <AlertTriangle className="h-4 w-4 text-danger mt-0.5 shrink-0" />
@@ -1320,7 +1320,20 @@ export default function Atendimento() {
                       </div>
                     </div>
                   )}
-                  <div className="flex min-w-0 max-w-full items-end gap-2 overflow-hidden">
+                  <div className="relative flex min-w-0 max-w-full items-end gap-1 overflow-visible">
+                    {listaRapidaAberta && (
+                      <div className="absolute bottom-full left-0 z-50 mb-2 w-full max-w-md rounded-md border border-border bg-popover shadow-lg">
+                        <p className="border-b border-border px-3 py-1.5 text-[11px] text-muted-foreground">
+                          Mensagens rápidas: setas para escolher, Enter para inserir, Esc para fechar
+                        </p>
+                        <ListaRespostas
+                          itens={rapidasFiltradas}
+                          indice={indiceRapida}
+                          onIndice={setIndiceRapida}
+                          onEscolher={inserirResposta}
+                        />
+                      </div>
+                    )}
                     <input
                       ref={fileRef}
                       type="file"
@@ -1328,7 +1341,13 @@ export default function Atendimento() {
                       className="hidden"
                       onChange={(e) => selecionarArquivo(e.target.files?.[0] ?? null)}
                     />
-                    <Button size="icon" variant="outline" onClick={() => fileRef.current?.click()} title="Enviar imagem">
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="h-9 w-9 shrink-0"
+                      onClick={() => fileRef.current?.click()}
+                      title="Enviar imagem"
+                    >
                       <ImagePlus className="h-4 w-4" />
                     </Button>
                     {!ehSite(conversaAtual) && (
@@ -1338,17 +1357,47 @@ export default function Atendimento() {
                         onEnviada={invalidarThread}
                       />
                     )}
-                    <Button size="sm" variant="outline" onClick={() => setCatalogoAberto(true)}>
-                      <LayoutGrid className="h-4 w-4 mr-2" />
-                      Catálogo
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="h-9 w-9 shrink-0"
+                      onClick={() => setCatalogoAberto(true)}
+                      title="Catálogo"
+                    >
+                      <LayoutGrid className="h-4 w-4" />
                     </Button>
+                    <BotaoRespostasRapidas onEscolher={inserirResposta} />
                     <Textarea
+                      ref={textoRef}
                       value={texto}
                       onChange={(e) => setTexto(e.target.value)}
-                      placeholder="Escreva sua resposta…"
-                      rows={2}
-                      className="min-w-0 flex-1 resize-none"
+                      placeholder="Escreva sua resposta ou digite / para as mensagens rápidas"
+                      rows={1}
+                      className="min-h-9 min-w-0 flex-1 resize-none py-2"
                       onKeyDown={(e) => {
+                        if (listaRapidaAberta) {
+                          if (e.key === "ArrowDown") {
+                            e.preventDefault();
+                            setIndiceRapida((i) => (i + 1) % rapidasFiltradas.length);
+                            return;
+                          }
+                          if (e.key === "ArrowUp") {
+                            e.preventDefault();
+                            setIndiceRapida((i) => (i - 1 + rapidasFiltradas.length) % rapidasFiltradas.length);
+                            return;
+                          }
+                          if (e.key === "Escape") {
+                            e.preventDefault();
+                            setTexto("");
+                            return;
+                          }
+                          if (e.key === "Enter" && !e.shiftKey) {
+                            e.preventDefault();
+                            const escolhida = rapidasFiltradas[indiceRapida];
+                            if (escolhida) inserirResposta(escolhida);
+                            return;
+                          }
+                        }
                         if (e.key === "Enter" && !e.shiftKey) {
                           e.preventDefault();
                           if (texto.trim()) enviar.mutate(texto.trim());
@@ -1356,11 +1405,13 @@ export default function Atendimento() {
                       }}
                     />
                     <Button
+                      size="icon"
+                      className="h-9 w-9 shrink-0 rounded-full"
                       onClick={() => texto.trim() && enviar.mutate(texto.trim())}
                       disabled={!texto.trim() || enviar.isPending}
+                      title="Enviar"
                     >
-                      <Send className="h-4 w-4 mr-2" />
-                      Enviar
+                      <Send className="h-4 w-4" />
                     </Button>
                   </div>
                 </div>
