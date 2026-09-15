@@ -863,7 +863,7 @@ export default function Atendimento() {
     }
     return [...base].sort(compararConversas);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [conversas, buscaAtiva, resultadoBusca, aba, grupoAba, filtroLeitura, tagsFiltro, mapaAtencao]);
+  }, [conversas, buscaAtiva, resultadoBusca, aba, grupoAba, filtroLeitura, tagsFiltro, mapaAtencao, modoFila]);
 
   const clientesSemConversa = buscaAtiva ? (resultadoBusca?.clientes ?? []) : [];
 
