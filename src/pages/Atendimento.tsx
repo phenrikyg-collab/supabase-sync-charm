@@ -936,8 +936,36 @@ export default function Atendimento() {
 
 
         <TabsContent value="cobrancas" className="m-0 min-h-0 flex-1 space-y-4 overflow-auto p-4">
-          <LinkPagamentoCard />
-          <CobrancasTab />
+          <div className="flex flex-wrap gap-1 rounded-md bg-muted p-1 w-fit">
+            {([
+              ["pix", "Pix (Inter)"],
+              ["links", "Links (cartão)"],
+            ] as const).map(([v, label]) => (
+              <button
+                key={v}
+                onClick={() => setAbaCobranca(v)}
+                className={cn(
+                  "rounded-sm px-3 py-1.5 text-xs font-medium transition-colors",
+                  abaCobranca === v ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground",
+                )}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          {abaCobranca === "pix" ? (
+            <>
+              <LinkPagamentoCard />
+              <CobrancasTab />
+            </>
+          ) : (
+            <LinksPagamentoTab
+              onAbrirConversa={(id) => {
+                setSelecionada(id);
+                setAbaPagina("conversas");
+              }}
+            />
+          )}
         </TabsContent>
 
         <TabsContent value="consulta" className="m-0 min-h-0 flex-1 overflow-auto p-4">
