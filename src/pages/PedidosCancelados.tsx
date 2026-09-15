@@ -97,6 +97,8 @@ export default function PedidosCancelados({
 
   const totalPerdido = filtradas.reduce((s, l) => s + Number(l.total_amount ?? 0), 0);
 
+  const { contatoDe } = useContatoPorTelefones(useMemo(() => ordenadas.map((l) => l.telefone), [ordenadas]));
+
   return (
     <div className="space-y-6">
       {!semCabecalho && (
