@@ -607,7 +607,7 @@ export default function Atendimento() {
 
   const enviarProduto = async (p: ProdutoCatalogo, escolha?: EscolhaProduto) => {
     try {
-      await enviarImagem(p.imagem ?? "", legendaProduto(p, escolha));
+      await enviarImagem(escolha?.imagem || p.imagem || "", legendaProduto(p, escolha));
       setCatalogoAberto(false);
       toast({ title: "Produto enviado" });
     } catch (e: any) {

@@ -27,13 +27,13 @@ type Perfil = {
     total?: number;
     data?: string;
     cupom?: string | null;
-    produtos?: { nome?: string; quantidade?: number }[] | null;
+    produtos?: { nome?: string; quantidade?: number; cor?: string | null; tamanho?: string | null }[] | null;
     transportadora?: string | null;
     codigo_rastreio?: string | null;
     url_rastreio?: string | null;
     previsao_entrega?: string | null;
   }[] | null;
-  produtos_comprados?: { imagem?: string; nome?: string; data_compra?: string }[] | null;
+  produtos_comprados?: { imagem?: string; nome?: string; cor?: string | null; tamanho?: string | null; data_compra?: string }[] | null;
   tamanho_favorito?: string | null;
   forma_pagamento_preferida?: { forma?: string | null; quantidade?: number | null } | null;
   sugestoes_estoque?: { produto_id?: string | number; nome?: string; preco?: number; imagem?: string }[] | null;
@@ -157,6 +157,13 @@ function CupomBadge({ cupom }: { cupom?: string | null }) {
   );
 }
 
+function nomeComVariacao(p: { nome?: string; cor?: string | null; tamanho?: string | null }) {
+  const partes: string[] = [];
+  if (p.cor) partes.push(p.cor);
+  if (p.tamanho) partes.push(`tam. ${p.tamanho}`);
+  return partes.length ? `${p.nome ?? ""} (${partes.join(", ")})` : (p.nome ?? "");
+}
+
 function ListaProdutos({ produtos }: { produtos?: Pedido["produtos"] }) {
   if (!produtos?.length) return null;
   return (
@@ -164,7 +171,7 @@ function ListaProdutos({ produtos }: { produtos?: Pedido["produtos"] }) {
       {produtos.map((pr, i) => (
         <li key={i} className="text-[10px] text-muted-foreground">
           • {(pr.quantidade ?? 1) > 1 ? `${pr.quantidade}x ` : ""}
-          {pr.nome}
+          {nomeComVariacao(pr)}
         </li>
       ))}
     </ul>
@@ -435,7 +442,7 @@ export function PerfilCliente({
                           {pr.imagem && <img src={pr.imagem} alt={pr.nome ?? "Produto"} className="w-full h-full object-cover" loading="lazy" />}
                         </div>
                         <div className="p-1">
-                          <p className="text-[10px] line-clamp-2">{pr.nome}</p>
+                          <p className="text-[10px] line-clamp-2">{nomeComVariacao(pr)}</p>
                           <p className="text-[9px] text-muted-foreground">{dataCurta(pr.data_compra)}</p>
                         </div>
                       </div>
