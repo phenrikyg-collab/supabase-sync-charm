@@ -30,7 +30,7 @@ import { ProporCarrinhoDialog, PropostaDaConversa } from "@/components/atendimen
 import { EnviarTemplateDialog } from "@/components/atendimento/EnviarTemplate";
 
 import { ConsultarTransacaoTab } from "@/components/atendimento/ConsultarTransacao";
-import { MensagemMidia } from "@/components/atendimento/MensagemMidia";
+import { MensagemMidia, ehTipoMidia } from "@/components/atendimento/MensagemMidia";
 import { SeletorFigurinhas } from "@/components/atendimento/SeletorFigurinhas";
 import { AbandonadasTab } from "@/components/atendimento/AbandonadasTab";
 import { useConversasAtencao, classeBordaNivel, ChipsMotivos, SeloFila } from "@/components/atendimento/atencao";
@@ -1030,9 +1030,9 @@ export default function Atendimento() {
                     const bot = saida && m.origem === "bot";
                     const tipo = (m.tipo ?? "").toLowerCase();
                     const sticker = tipo === "sticker" && !!m.media_url;
-                    const midia = !!m.media_url;
-                    const mostrarTexto =
-                      !!m.conteudo && !sticker && !["video", "audio", "documento", "document", "arquivo"].includes(tipo);
+                    const tipoMidia = ehTipoMidia(tipo);
+                    const midia = tipoMidia || !!m.media_url;
+                    const mostrarTexto = !!m.conteudo && !sticker && !tipoMidia;
                     return (
                       <div
                         key={m.id != null ? String(m.id) : `${m.criada_em ?? m.criado_em ?? ""}-${idx}`}
