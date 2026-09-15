@@ -103,6 +103,9 @@ export default function PedidosCancelados({
 
   const { contatoDe } = useContatoPorTelefones(useMemo(() => ordenadas.map((l) => l.telefone), [ordenadas]));
 
+  useEffect(() => { onContagem?.(ordenadas.length); }, [ordenadas.length, onContagem]);
+
+
   return (
     <div className="space-y-6">
       {!semCabecalho && (
