@@ -42,7 +42,7 @@ import { MensagemMidia, ehTipoMidia } from "@/components/atendimento/MensagemMid
 import { SeletorFigurinhas } from "@/components/atendimento/SeletorFigurinhas";
 import { AbandonadasTab } from "@/components/atendimento/AbandonadasTab";
 import { AprendizadoAnnaTab } from "@/components/atendimento/AprendizadoAnna";
-import { useConversasAtencao, classeBordaNivel, ChipsMotivos, SeloFila } from "@/components/atendimento/atencao";
+import { useConversasAtencao, classeBordaNivel, ChipsMotivos, SeloFila, rotuloAutomacao } from "@/components/atendimento/atencao";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { NovaConversaDialog, formatarTelefone, soDigitos } from "@/components/atendimento/NovaConversa";
 
@@ -97,9 +97,10 @@ type Conversa = {
 
 type Urgencia = "perdendo" | "quente" | "atencao" | "normal";
 
-const urgenciaDe = (c: Conversa): Urgencia => {
-  const u = (c.urgencia ?? "normal").toLowerCase();
-  return u === "perdendo" || u === "quente" || u === "atencao" ? u : "normal";
+/** Nível de urgência vem de vw_conversas_atencao.nivel: quente/atencao pintam; normal e automacao não. */
+const urgenciaDeNivel = (nivel?: string | null): Urgencia => {
+  const n = (nivel ?? "").toLowerCase();
+  return n === "perdendo" || n === "quente" || n === "atencao" ? n : "normal";
 };
 
 const URGENCIA_ESTILO: Record<Exclude<Urgencia, "normal">, { borda: string; badgeFundo: string; badgeTexto: string }> = {
@@ -108,10 +109,9 @@ const URGENCIA_ESTILO: Record<Exclude<Urgencia, "normal">, { borda: string; badg
   atencao: { borda: "#E8CD7E", badgeFundo: "#F5F5F5", badgeTexto: "#8B6914" },
 };
 
-function BadgeSinal({ conversa }: { conversa: Conversa }) {
+function BadgeSinal({ conversa, urg }: { conversa: Conversa; urg: Urgencia }) {
   const sinais = conversa.sinais ?? [];
   if (sinais.length === 0) return null;
-  const urg = urgenciaDe(conversa);
   if (urg === "normal") return null;
   const estilo = URGENCIA_ESTILO[urg];
   const primeiro = sinais[0];
@@ -285,7 +285,7 @@ export default function Atendimento() {
 
 
   const [grupoAba, setGrupoAba] = useState<"conversa" | "clique" | "so_envio">("conversa");
-  const [filtroLeitura, setFiltroLeitura] = useState<"todas" | "nao_lidas" | "lidas" | "atencao">("todas");
+  const [filtroLeitura, setFiltroLeitura] = useState<"todas" | "nao_lidas" | "lidas" | "atencao" | "automacao">("todas");
   const [tagsFiltro, setTagsFiltro] = useState<string[]>([]);
   const [erroJanela, setErroJanela] = useState<string | null>(null);
   const [texto, setTexto] = useState("");
