@@ -105,6 +105,22 @@ function NovaCampanha({
 
   const { data: campos = [] } = usePublicoCampos(aberto);
 
+  const { data: configTeste } = useQuery({
+    queryKey: ["emails-config"],
+    queryFn: () => rpcEmails<any>("emails_config_get"),
+    enabled: aberto,
+  });
+
+  useEffect(() => {
+    if (!aberto) { setTesteTocado(false); setTesteEstado(null); setTesteEnviadoNestaSessao(false); return; }
+  }, [aberto]);
+
+  useEffect(() => {
+    if (testeTocado) return;
+    const padrao = (configTeste?.emails_teste ?? [])[0];
+    if (padrao) setTestePara(String(padrao));
+  }, [configTeste, testeTocado]);
+
   // Carrega a campanha em rascunho para continuar de onde parou.
   const { data: salva } = useQuery({
     queryKey: ["emails-campanha-get", campanhaId],
