@@ -140,7 +140,18 @@ function Editor({ template, onVoltar }: { template: any; onVoltar: () => void })
             </button>
           ))}
         </div>
-        <Button className="ml-auto" disabled={bloqueado || salvarTemplate.isPending} onClick={() => salvarTemplate.mutate()}>
+        <div className="ml-auto">
+          <BotaoEnviarTeste
+            variante="outline"
+            montarPayload={() => ({
+              p_html: texto,
+              p_modo: modo,
+              p_assunto: assunto || null,
+              p_preheader: preheader || null,
+            })}
+          />
+        </div>
+        <Button disabled={bloqueado || salvarTemplate.isPending} onClick={() => salvarTemplate.mutate()}>
           Salvar template
         </Button>
       </div>
