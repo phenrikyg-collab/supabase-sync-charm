@@ -35,6 +35,24 @@ import { SeletorFigurinhas } from "@/components/atendimento/SeletorFigurinhas";
 import { AbandonadasTab } from "@/components/atendimento/AbandonadasTab";
 import { useConversasAtencao, classeBordaNivel, ChipsMotivos, SeloFila } from "@/components/atendimento/atencao";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { NovaConversaDialog, formatarTelefone, soDigitos } from "@/components/atendimento/NovaConversa";
+
+type BuscaConversa = {
+  conversa_id: number | string;
+  telefone?: string | null;
+  nome?: string | null;
+  status?: string | null;
+  ultima_mensagem_em?: string | null;
+  tray_customer_id?: string | null;
+  janela_aberta?: boolean | null;
+};
+
+type BuscaCliente = {
+  tray_customer_id?: string | null;
+  nome?: string | null;
+  telefone?: string | null;
+  email?: string | null;
+};
 
 
 
