@@ -15,6 +15,10 @@ import { toast } from "@/hooks/use-toast";
 import { Settings2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { dataBrHora, horasDesde, inteiro, rpcEmails, textoDesde } from "@/lib/emails";
+import {
+  ConstrutorPublico, descreverFiltro, filtroVazio, mensagemErroPublico,
+  SeloPublicoVivo, textoConsulta, usePublicoCampos, type No,
+} from "./ConstrutorPublico";
 
 const AJUDA_CONFIG: Record<string, string> = {
   min_visualizacoes: "Quantas vezes precisa ver a mesma peça",
