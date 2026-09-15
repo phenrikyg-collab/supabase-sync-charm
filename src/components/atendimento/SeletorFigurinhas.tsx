@@ -156,7 +156,7 @@ export function SeletorFigurinhas({
               </div>
             ))}
           </div>
-        </ScrollArea>
+        </div>
       </PopoverContent>
     </Popover>
   );
