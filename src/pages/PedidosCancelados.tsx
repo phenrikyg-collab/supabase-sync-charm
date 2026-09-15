@@ -192,27 +192,35 @@ export default function PedidosCancelados({
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {ordenadas.map((l) => (
+                  {ordenadas.map((l) => {
+                    const contato = contatoDe(l.telefone);
+                    return (
                     <TableRow key={l.tray_order_id}>
                       <TableCell className="font-medium">
                         {l.nome?.trim() || <span className="text-muted-foreground">Cliente não identificado</span>}
                         <div className="text-[11px] text-muted-foreground">#{l.tray_order_id}</div>
+                        <BadgesContato contato={contato} className="mt-1" />
                       </TableCell>
-                      <TableCell className="text-xs">{l.telefone || "—"}</TableCell>
+                      <TableCell className="text-xs">{l.telefone || "sem telefone"}</TableCell>
                       <TableCell className="text-right font-semibold">{moeda(l.total_amount)}</TableCell>
                       <TableCell><CelulaItens itens={l.itens} /></TableCell>
                       <TableCell className="text-xs">{formatarData(l.date_purchase)}</TableCell>
-                      <TableCell className="text-right">{l.dias_desde_cancelamento ?? "—"}</TableCell>
+                      <TableCell className="text-right">{l.dias_desde_cancelamento ?? "sem dados"}</TableCell>
                       <TableCell><SegmentoBadge segmento={l.segmento_rfm} /></TableCell>
                       <TableCell>
-                        {l.telefone ? (
+                        {contato?.conversa_id && onAbrirConversa ? (
+                          <Button size="sm" variant="outline" className="h-8" onClick={() => onAbrirConversa(String(contato.conversa_id))}>
+                            <MessageCircle className="mr-1.5 h-3.5 w-3.5" /> Abrir conversa
+                          </Button>
+                        ) : l.telefone ? (
                           <EnviarWhatsAppInline telefone={l.telefone} placeholder="Mensagem de recuperação..." mostrarAviso />
                         ) : (
                           <span className="text-xs text-muted-foreground">Cliente não identificado</span>
                         )}
                       </TableCell>
                     </TableRow>
-                  ))}
+                    );
+                  })}
                 </TableBody>
               </Table>
             </div>
