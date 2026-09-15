@@ -885,6 +885,14 @@ export default function Atendimento() {
         <div className="flex h-11 w-full min-w-0 shrink-0 items-center gap-2 overflow-x-auto border-b border-border px-3">
           <TabsList className="h-8 w-max flex-nowrap bg-transparent p-0">
             <TabsTrigger value="conversas" className="h-8 shrink-0 text-xs">Conversas</TabsTrigger>
+            <TabsTrigger value="em_atendimento" className="h-8 shrink-0 text-xs">
+              Em atendimento
+              {totalEmAtendimento > 0 && (
+                <span className="ml-1 rounded-full bg-primary px-1.5 text-[10px] font-bold text-primary-foreground">
+                  {totalEmAtendimento}
+                </span>
+              )}
+            </TabsTrigger>
             <TabsTrigger value="oportunidades" className="h-8 shrink-0 text-xs">Oportunidades</TabsTrigger>
             <TabsTrigger value="provador" className="h-8 shrink-0 text-xs">Provador</TabsTrigger>
             <TabsTrigger value="abandonadas" className="h-8 shrink-0 text-xs">Abandonadas</TabsTrigger>
