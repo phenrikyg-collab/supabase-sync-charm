@@ -53,19 +53,19 @@ const OPS_POR_TIPO: Record<string, string[]> = {
 };
 
 const ROTULO_OP: Record<string, string> = {
-  "=": "é igual a",
-  "<>": "é diferente de",
-  ">": "é maior que",
-  ">=": "é maior ou igual a",
-  "<": "é menor que",
-  "<=": "é menor ou igual a",
-  entre: "está entre",
+  "=": "igual a",
+  "<>": "diferente de",
+  ">": "maior que",
+  ">=": "maior ou igual a",
+  "<": "menor que",
+  "<=": "menor ou igual a",
+  entre: "entre",
   contem: "contém",
   nao_contem: "não contém",
-  em: "é um destes",
-  nao_em: "não é nenhum destes",
-  vazio: "está vazio",
-  nao_vazio: "não está vazio",
+  em: "está em",
+  nao_em: "não está em",
+  vazio: "vazio",
+  nao_vazio: "não vazio",
 };
 
 const SEM_VALOR = new Set(["vazio", "nao_vazio"]);
