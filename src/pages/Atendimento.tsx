@@ -1193,6 +1193,17 @@ export default function Atendimento() {
       </Tabs>
 
       <CatalogoDialog open={catalogoAberto} onOpenChange={setCatalogoAberto} onSelecionar={enviarProduto} />
+      <NovaConversaDialog
+        open={novaConversaAberta}
+        onOpenChange={setNovaConversaAberta}
+        telefoneInicial={telefoneNovaConversa}
+        onConversaPronta={(id) => {
+          setBusca("");
+          setTermoBusca("");
+          setSelecionada(String(id));
+          queryClient.invalidateQueries({ queryKey: ["whatsapp-conversas"] });
+        }}
+      />
       {conversaAtual && (
         <CobrancaPixDialog
           open={cobrancaAberta}
