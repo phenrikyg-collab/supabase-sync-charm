@@ -282,6 +282,7 @@ export default function Atendimento() {
   const [aba, setAba] = useState<"whatsapp" | "site">("whatsapp");
   const [abaPagina, setAbaPagina] = useState<
     | "conversas"
+    | "em_atendimento"
     | "cobrancas"
     | "consulta"
     | "abandonadas"
