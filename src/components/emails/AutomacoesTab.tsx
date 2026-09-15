@@ -46,16 +46,23 @@ function estadoBadge(a: any) {
   return { texto: "Planejado", classe: "bg-muted text-muted-foreground" };
 }
 
+const ehPublicoVivo = (a: any) => a?.gatilho === "filtro";
+
 function PainelConfig({
   automacao, aberto, onFechar,
 }: { automacao: any | null; aberto: boolean; onFechar: () => void }) {
   const queryClient = useQueryClient();
   const [config, setConfig] = useState<Record<string, any>>({});
   const [templateId, setTemplateId] = useState<string>("");
+  const [filtro, setFiltro] = useState<No>(filtroVazio());
+
+  const porFiltro = ehPublicoVivo(automacao);
+  const { data: campos = [] } = usePublicoCampos(aberto && porFiltro);
 
   useEffect(() => {
     setConfig({ ...(automacao?.config ?? {}) });
     setTemplateId(automacao?.template_id ? String(automacao.template_id) : "");
+    setFiltro((automacao?.publico_filtro as No) ?? filtroVazio());
   }, [automacao]);
 
   const { data: templates = [] } = useQuery({
