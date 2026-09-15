@@ -79,7 +79,17 @@ function PainelConfig({
     mutationFn: () =>
       rpcEmails("emails_automacao_salvar", {
         p_slug: automacao.slug,
-        p_patch: { config, template_id: templateId ? Number(templateId) : null },
+        p_patch: porFiltro
+          ? {
+              publico_filtro: filtro,
+              config: {
+                repetir: !!config.repetir,
+                intervalo_contato_dias: Number(config.intervalo_contato_dias ?? 0),
+                lote_max: Number(config.lote_max ?? 0),
+              },
+              template_id: templateId ? Number(templateId) : null,
+            }
+          : { config, template_id: templateId ? Number(templateId) : null },
       }),
     onSuccess: () => {
       toast({ title: "Configuração salva", description: "Vale a partir da próxima varredura." });
