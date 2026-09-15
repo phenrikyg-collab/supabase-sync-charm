@@ -822,6 +822,7 @@ export default function Atendimento() {
           <TabsList className="h-8 w-max flex-nowrap bg-transparent p-0">
             <TabsTrigger value="conversas" className="h-8 shrink-0 text-xs">Conversas</TabsTrigger>
             <TabsTrigger value="oportunidades" className="h-8 shrink-0 text-xs">Oportunidades</TabsTrigger>
+            <TabsTrigger value="provador" className="h-8 shrink-0 text-xs">Provador</TabsTrigger>
             <TabsTrigger value="abandonadas" className="h-8 shrink-0 text-xs">Abandonadas</TabsTrigger>
             <TabsTrigger value="cobrancas" className="h-8 shrink-0 text-xs">Cobranças</TabsTrigger>
             <TabsTrigger value="consulta" className="h-8 shrink-0 text-xs">Consultar Transação</TabsTrigger>
