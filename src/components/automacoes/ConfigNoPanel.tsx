@@ -389,6 +389,8 @@ export function ConfigNoPanel({
             <p className="text-[11px] text-muted-foreground">
               Antes desse horário espera até ele; das 20h em diante passa para o dia seguinte.
             </p>
+            </>
+            )}
           </div>
         )}
 
