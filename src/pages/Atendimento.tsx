@@ -286,12 +286,35 @@ export default function Atendimento() {
         ultima_mensagem: c.ultima_mensagem ?? c.ultima_mensagem_texto ?? null,
       })) as Conversa[];
     },
-    refetchInterval: 30000,
+    // rede de segurança curta: o tempo real cuida do resto
+    refetchInterval: 10000,
   });
 
   const conversaAtual = conversas.find((c) => String(c.id) === selecionada) ?? null;
 
   const { mapaAtencao } = useConversasAtencao();
+
+  // Busca por nome ou telefone com debounce de 300ms
+  useEffect(() => {
+    const t = setTimeout(() => setTermoBusca(busca.trim()), 300);
+    return () => clearTimeout(t);
+  }, [busca]);
+
+  const buscaAtiva = termoBusca.length >= 2;
+
+  const { data: resultadoBusca } = useQuery({
+    queryKey: ["whatsapp-busca", termoBusca],
+    enabled: buscaAtiva,
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc("whatsapp_buscar" as any, { p_termo: termoBusca });
+      if (error) throw error;
+      const r = (data ?? {}) as any;
+      return {
+        conversas: (r.conversas ?? []) as BuscaConversa[],
+        clientes: (r.clientes ?? []) as BuscaCliente[],
+      };
+    },
+  });
 
   // Deep link: /atendimento?telefone=5511...
   useEffect(() => {
