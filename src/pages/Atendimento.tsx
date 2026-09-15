@@ -30,7 +30,7 @@ import { ProporCarrinhoDialog, PropostaDaConversa } from "@/components/atendimen
 import { EnviarTemplateDialog } from "@/components/atendimento/EnviarTemplate";
 
 import { ConsultarTransacaoTab } from "@/components/atendimento/ConsultarTransacao";
-import { MensagemMidia } from "@/components/atendimento/MensagemMidia";
+import { MensagemMidia, ehTipoMidia } from "@/components/atendimento/MensagemMidia";
 import { SeletorFigurinhas } from "@/components/atendimento/SeletorFigurinhas";
 import { AbandonadasTab } from "@/components/atendimento/AbandonadasTab";
 import { useConversasAtencao, classeBordaNivel, ChipsMotivos, SeloFila } from "@/components/atendimento/atencao";
