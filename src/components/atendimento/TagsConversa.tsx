@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -45,40 +45,85 @@ export function TagsConversa({
     },
   });
 
-  const aplicadasIds = new Set(aplicadas.map((t) => String(t.id)));
+  const idParam = Number.isNaN(Number(conversaId)) ? conversaId : Number(conversaId);
+  const chaveConversa = ["whatsapp-tags-conversa", String(conversaId)];
 
-  const toggle = async (tag: Tag, adicionar: boolean) => {
-    const { error } = await supabase.rpc("whatsapp_toggle_tag_conversa" as any, {
-      p_conversa_id: Number.isNaN(Number(conversaId)) ? conversaId : Number(conversaId),
-      p_tag_id: Number.isNaN(Number(tag.id)) ? tag.id : Number(tag.id),
-      p_adicionar: adicionar,
-    });
-    if (error) {
-      toast({ title: "Erro ao atualizar tag", description: error.message, variant: "destructive" });
-      return;
-    }
-    queryClient.invalidateQueries({ queryKey: ["whatsapp-conversas"] });
-  };
+  const { data: aplicadasAtuais = [] } = useQuery({
+    queryKey: chaveConversa,
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc("whatsapp_tags_da_conversa" as any, {
+        p_conversa_id: idParam,
+      });
+      if (error) throw error;
+      return (data ?? []) as Tag[];
+    },
+    placeholderData: aplicadas,
+  });
+
+  const aplicadasIds = new Set(aplicadasAtuais.map((t) => String(t.id)));
+
+  const toggleMutation = useMutation({
+    mutationFn: async ({ tag, adicionar }: { tag: Tag; adicionar: boolean }) => {
+      const { error } = await supabase.rpc("whatsapp_toggle_tag_conversa" as any, {
+        p_conversa_id: idParam,
+        p_tag_id: Number.isNaN(Number(tag.id)) ? tag.id : Number(tag.id),
+        p_adicionar: adicionar,
+      });
+      if (error) throw error;
+    },
+    onMutate: async ({ tag, adicionar }) => {
+      await queryClient.cancelQueries({ queryKey: chaveConversa });
+      const anterior = queryClient.getQueryData<Tag[]>(chaveConversa) ?? aplicadasAtuais;
+      const novo = adicionar
+        ? anterior.some((t) => String(t.id) === String(tag.id))
+          ? anterior
+          : [...anterior, tag]
+        : anterior.filter((t) => String(t.id) !== String(tag.id));
+      queryClient.setQueryData(chaveConversa, novo);
+      return { anterior };
+    },
+    onError: (error: any, _vars, context) => {
+      if (context?.anterior) queryClient.setQueryData(chaveConversa, context.anterior);
+      toast({ title: "Erro ao atualizar tag", description: error?.message, variant: "destructive" });
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: chaveConversa });
+      queryClient.invalidateQueries({ queryKey: ["whatsapp-conversas"] });
+    },
+  });
+
+  const toggle = (tag: Tag, adicionar: boolean) => toggleMutation.mutate({ tag, adicionar });
 
   const criarTag = async () => {
     if (!novoNome.trim()) return;
+    const nome = novoNome.trim();
     setCriando(true);
-    const { error } = await supabase.rpc("whatsapp_criar_tag" as any, {
-      p_nome: novoNome.trim(),
+    const { data, error } = await supabase.rpc("whatsapp_criar_tag" as any, {
+      p_nome: nome,
       p_cor: novaCor,
     });
-    setCriando(false);
     if (error) {
+      setCriando(false);
       toast({ title: "Erro ao criar tag", description: error.message, variant: "destructive" });
       return;
     }
     setNovoNome("");
-    queryClient.invalidateQueries({ queryKey: ["whatsapp-tags"] });
+    await queryClient.invalidateQueries({ queryKey: ["whatsapp-tags"] });
+
+    const bruto: any = Array.isArray(data) ? data[0] : data;
+    let nova: Tag | null =
+      bruto && bruto.id != null ? { id: bruto.id, nome: bruto.nome ?? nome, cor: bruto.cor ?? novaCor } : null;
+    if (!nova) {
+      const lista = queryClient.getQueryData<Tag[]>(["whatsapp-tags"]) ?? [];
+      nova = lista.find((t) => t.nome === nome) ?? null;
+    }
+    setCriando(false);
+    if (nova) toggleMutation.mutate({ tag: nova, adicionar: true });
   };
 
   return (
     <div className="flex items-center gap-1.5 flex-wrap">
-      {aplicadas.map((t) => (
+      {aplicadasAtuais.map((t) => (
         <TagChip key={String(t.id)} tag={t} />
       ))}
       <Popover>
@@ -88,7 +133,7 @@ export function TagsConversa({
             Tags
           </Button>
         </PopoverTrigger>
-        <PopoverContent className="w-64 p-3 space-y-3" align="start">
+        <PopoverContent className="z-50 w-64 p-3 space-y-3" align="start">
           <div className="space-y-2 max-h-52 overflow-auto">
             {tags.length === 0 && <p className="text-xs text-muted-foreground">Nenhuma tag cadastrada.</p>}
             {tags.map((t) => (
