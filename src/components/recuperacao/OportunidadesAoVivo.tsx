@@ -96,6 +96,9 @@ export function OportunidadesAoVivo({
     return () => window.clearInterval(t);
   }, [carregar, intervaloMs]);
 
+  useEffect(() => { onContagem?.(lista.length); }, [lista.length, onContagem]);
+
+
   const telefones = useMemo(() => lista.map((o) => o.telefone), [lista]);
   const { contatoDe } = useContatoPorTelefones(telefones);
 
