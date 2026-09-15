@@ -62,6 +62,7 @@ const moduleGroups: ModuleGroup[] = [
       { title: "Dashboard GA4", url: "/marketing", icon: BarChart3 },
       { title: "Dashboard RFM", url: "/dashboard-rfm", icon: UserSquare2 },
       { title: "Dashboard de Produtos", url: "/dashboard-produtos", icon: Boxes },
+      { title: "Registro de Ações", url: "/gestao/registro-acoes", icon: ClipboardList },
       { title: "Meta Mensal", url: "/metas", icon: Target },
     ],
   },
