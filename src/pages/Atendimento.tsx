@@ -391,8 +391,6 @@ export default function Atendimento() {
     });
   }, [conversasBrutas, tiposInteracao]);
 
-  const conversaAtual = conversas.find((c) => String(c.id) === selecionada) ?? null;
-
   const { mapaAtencao } = useConversasAtencao();
 
   // Busca por nome ou telefone com debounce de 300ms
@@ -416,6 +414,23 @@ export default function Atendimento() {
       };
     },
   });
+
+  // Resolve a conversa aberta: primeiro na lista carregada; se não estiver nela
+  // (caso de conversa antiga encontrada pela busca), usa o item sintético da busca.
+  const conversaAtual = useMemo<Conversa | null>(() => {
+    if (!selecionada) return null;
+    const carregada = conversas.find((c) => String(c.id) === selecionada);
+    if (carregada) return carregada;
+    const achada = resultadoBusca?.conversas?.find((r) => String(r.conversa_id) === selecionada);
+    if (!achada) return null;
+    return {
+      id: achada.conversa_id,
+      telefone: achada.telefone ?? "",
+      cliente_nome: achada.nome ?? null,
+      status: achada.status ?? "",
+      ultima_mensagem_em: achada.ultima_mensagem_em ?? null,
+    } as Conversa;
+  }, [conversas, resultadoBusca, selecionada]);
 
   // Deep link: /atendimento?telefone=5511...
   useEffect(() => {
