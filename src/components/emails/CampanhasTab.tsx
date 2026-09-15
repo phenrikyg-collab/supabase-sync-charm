@@ -19,6 +19,7 @@ import { brl, inteiro, pct1, rpcEmails } from "@/lib/emails";
 import type { ModoTemplate } from "./PreviaTemplate";
 import { ControlesPrevia, IframePrevia, useConferirTemplate, usePreviaTemplate } from "./PreviaTemplate";
 import { lerChecagem } from "./TemplatesTab";
+import { BotaoEnviarTeste } from "./EnviarTeste";
 import {
   ConstrutorPublico, contarCondicoes, descreverFiltro, filtroVazio,
   mensagemErroPublico, SeloPublicoVivo, textoConsulta, usePublicoCampos, type No,
@@ -276,11 +277,26 @@ function NovaCampanha({
                   <label className="text-sm font-medium">
                     {modoHtml === "miolo" ? "Ou cole o conteúdo do e-mail" : "Ou cole o HTML"}
                   </label>
-                  <Alternador
-                    valor={modoHtml}
-                    opcoes={[["completo", "HTML completo"], ["miolo", "Só o miolo"]] as const}
-                    onChange={trocarModoHtml}
-                  />
+                  <div className="flex items-center gap-2">
+                    <Alternador
+                      valor={modoHtml}
+                      opcoes={[["completo", "HTML completo"], ["miolo", "Só o miolo"]] as const}
+                      onChange={trocarModoHtml}
+                    />
+                    <BotaoEnviarTeste
+                      variante="outline"
+                      montarPayload={() =>
+                        html.trim()
+                          ? {
+                              p_html: html,
+                              p_modo: modoHtml,
+                              p_assunto: assunto || null,
+                              p_preheader: preheader || null,
+                            }
+                          : { p_slug: templateEscolhido?.slug ?? null, p_assunto: assunto || null }
+                      }
+                    />
+                  </div>
                 </div>
                 <Textarea rows={6} className="font-mono text-xs" value={html} onChange={(e) => setHtml(e.target.value)} />
                 <p className="text-xs text-muted-foreground">

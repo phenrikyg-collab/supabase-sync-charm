@@ -7,7 +7,8 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "@/hooks/use-toast";
-import { AlertTriangle, ArrowLeft, Plus, Send, XCircle } from "lucide-react";
+import { AlertTriangle, ArrowLeft, Plus, XCircle } from "lucide-react";
+import { BotaoEnviarTeste } from "./EnviarTeste";
 import { dataBr, rpcEmails } from "@/lib/emails";
 import { cn } from "@/lib/utils";
 import type { ModoTemplate } from "./PreviaTemplate";
@@ -18,8 +19,7 @@ type Conferencia = { tipo: "erro" | "aviso"; texto: string };
 const AJUDA_ACENTO =
   "Corpo do e-mail: entidade HTML (voc&ecirc;). Assunto: acento de verdade (você). Cabeçalho de e-mail não decodifica entidade.";
 
-const AVISO_TESTE =
-  "Não clique no link de descadastro do e-mail de teste. O e-mail chega para você, mas o token é da destinatária real.";
+const AVISO_TESTE = "O link de sair não funciona no teste, é de propósito.";
 
 /** Lê o bloco de conferência que vem pronto do banco. */
 export function lerChecagem(checagem: any): Conferencia[] {
@@ -140,7 +140,18 @@ function Editor({ template, onVoltar }: { template: any; onVoltar: () => void })
             </button>
           ))}
         </div>
-        <Button className="ml-auto" disabled={bloqueado || salvarTemplate.isPending} onClick={() => salvarTemplate.mutate()}>
+        <div className="ml-auto">
+          <BotaoEnviarTeste
+            variante="outline"
+            montarPayload={() => ({
+              p_html: texto,
+              p_modo: modo,
+              p_assunto: assunto || null,
+              p_preheader: preheader || null,
+            })}
+          />
+        </div>
+        <Button disabled={bloqueado || salvarTemplate.isPending} onClick={() => salvarTemplate.mutate()}>
           Salvar template
         </Button>
       </div>
@@ -249,7 +260,7 @@ function Editor({ template, onVoltar }: { template: any; onVoltar: () => void })
   );
 }
 
-function CartaoTemplate({ t, onAbrir, onTeste, testando }: any) {
+function CartaoTemplate({ t, onAbrir }: any) {
   const { data: previa } = usePreviaTemplate(t.slug);
   return (
     <Card className="overflow-hidden">
@@ -267,11 +278,9 @@ function CartaoTemplate({ t, onAbrir, onTeste, testando }: any) {
         <p className="text-xs text-muted-foreground">Atualizado em {dataBr(t.updated_at ?? t.atualizado_em)}</p>
         <div className="flex flex-wrap items-center gap-2">
           <Button size="sm" variant="outline" onClick={onAbrir}>Abrir</Button>
-          <Button size="sm" variant="ghost" disabled={testando} onClick={onTeste}>
-            <Send className="mr-1 h-3.5 w-3.5" /> Enviar teste para mim
-          </Button>
+          <BotaoEnviarTeste montarPayload={() => ({ p_slug: t.slug })} />
         </div>
-        <p className="text-[11px] text-warning">{AVISO_TESTE}</p>
+        <p className="text-[11px] text-muted-foreground">{AVISO_TESTE}</p>
       </div>
     </Card>
   );
@@ -283,12 +292,6 @@ export function TemplatesTab({ slugInicial }: { slugInicial?: string | null } = 
   const { data: templates = [], isLoading } = useQuery({
     queryKey: ["emails-templates", "todos"],
     queryFn: async () => (await rpcEmails<any>("emails_templates_listar", { p_tipo: null })) ?? [],
-  });
-
-  const enviarTeste = useMutation({
-    mutationFn: (t: any) => rpcEmails("emails_template_salvar", { p_patch: { id: t.id, enviar_teste: true } }),
-    onSuccess: () => toast({ title: "Teste enviado", description: "Confira a caixa de entrada de teste." }),
-    onError: (e: any) => toast({ title: "Não deu para enviar o teste", description: e.message, variant: "destructive" }),
   });
 
   const lista = Array.isArray(templates) ? templates : [];
@@ -312,13 +315,7 @@ export function TemplatesTab({ slugInicial }: { slugInicial?: string | null } = 
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         {lista.map((t: any) => (
-          <CartaoTemplate
-            key={t.id}
-            t={t}
-            testando={enviarTeste.isPending}
-            onAbrir={() => setEditando(t)}
-            onTeste={() => enviarTeste.mutate(t)}
-          />
+          <CartaoTemplate key={t.id} t={t} onAbrir={() => setEditando(t)} />
         ))}
       </div>
     </div>
