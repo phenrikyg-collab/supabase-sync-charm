@@ -20,10 +20,10 @@ import {
 const PERIODOS = [7, 30, 90];
 
 const CARDS: { chave: string[]; rotulo: string; tipo?: "num" | "pct" | "media" }[] = [
-  { chave: ["pedidos_fila", "fila"], rotulo: "Pedidos na fila" },
+  { chave: ["pedidos_na_fila", "pedidos_fila", "fila"], rotulo: "Pedidos na fila" },
   { chave: ["enviadas"], rotulo: "Enviadas" },
   { chave: ["respondidas"], rotulo: "Respondidas" },
-  { chave: ["taxa_resposta"], rotulo: "Taxa de resposta", tipo: "pct" },
+  { chave: ["taxa_resposta_pct", "taxa_resposta"], rotulo: "Taxa de resposta", tipo: "pct" },
   { chave: ["avaliacoes_novas", "novas"], rotulo: "Avaliações novas" },
   { chave: ["media_novas"], rotulo: "Média das novas", tipo: "media" },
   { chave: ["com_foto"], rotulo: "Com foto" },
