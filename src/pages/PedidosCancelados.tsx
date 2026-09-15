@@ -35,18 +35,22 @@ type Chave = "nome" | "telefone" | "total_amount" | "date_purchase" | "dias_desd
 
 export function PedidosCanceladosConteudo({
   onAbrirConversa,
+  onContagem,
 }: {
   onAbrirConversa?: (conversaId: string) => void;
+  onContagem?: (n: number) => void;
 } = {}) {
-  return <PedidosCancelados semCabecalho onAbrirConversa={onAbrirConversa} />;
+  return <PedidosCancelados semCabecalho onAbrirConversa={onAbrirConversa} onContagem={onContagem} />;
 }
 
 export default function PedidosCancelados({
   semCabecalho,
   onAbrirConversa,
+  onContagem,
 }: {
   semCabecalho?: boolean;
   onAbrirConversa?: (conversaId: string) => void;
+  onContagem?: (n: number) => void;
 } = {}) {
   const [periodo, setPeriodo] = useState<Periodo>({ inicio: null, fim: null });
   const [segmento, setSegmento] = useState("todos");
