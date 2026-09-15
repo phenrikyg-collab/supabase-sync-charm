@@ -271,7 +271,7 @@ export default function Atendimento() {
   const [selecionada, setSelecionada] = useState<string | null>(null);
   const [busca, setBusca] = useState("");
   const [aba, setAba] = useState<"whatsapp" | "site">("whatsapp");
-  const [abaPagina, setAbaPagina] = useState<"conversas" | "cobrancas" | "consulta" | "abandonadas">("conversas");
+  const [abaPagina, setAbaPagina] = useState<"conversas" | "cobrancas" | "consulta" | "abandonadas" | "rapidas" | "aprendizado">("conversas");
   const [cobrancaAberta, setCobrancaAberta] = useState(false);
   const [linkPagamentoAberto, setLinkPagamentoAberto] = useState(false);
   const [freteAberto, setFreteAberto] = useState(false);
