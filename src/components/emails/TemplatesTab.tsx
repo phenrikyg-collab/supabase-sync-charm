@@ -249,7 +249,7 @@ function Editor({ template, onVoltar }: { template: any; onVoltar: () => void })
   );
 }
 
-function CartaoTemplate({ t, onAbrir, onTeste, testando }: any) {
+function CartaoTemplate({ t, onAbrir }: any) {
   const { data: previa } = usePreviaTemplate(t.slug);
   return (
     <Card className="overflow-hidden">
