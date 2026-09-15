@@ -94,7 +94,7 @@ function NovaCampanha({ aberto, onFechar }: { aberto: boolean; onFechar: () => v
 
   const porFiltro = modoPublico === "filtro";
   const {
-    data: simulacao, isFetching: simulando, error: erroSimulacao,
+    data: simulacao, isFetching: simulando, error: erroSimulacao, dataUpdatedAt: simuladoEm,
   } = useQuery({
     queryKey: ["emails-simular", porFiltro ? filtroLento : segmento],
     queryFn: () =>
