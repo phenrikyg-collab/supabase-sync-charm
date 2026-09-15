@@ -140,7 +140,8 @@ function BadgeViaWhatsApp() {
   );
 }
 
-const identificadorConversa = (c: Conversa) => (ehSite(c) ? "Chat do site" : c.telefone);
+const identificadorConversa = (c: Conversa) =>
+  ehSite(c) ? "Chat do site" : formatarTelefone(c.telefone) || c.telefone;
 
 
 
