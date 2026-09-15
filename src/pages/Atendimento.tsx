@@ -20,7 +20,7 @@ import {
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Checkbox } from "@/components/ui/checkbox";
 import { TagsConversa, TagChip, type Tag } from "@/components/atendimento/TagsConversa";
-import { CatalogoDialog, formatarPreco, legendaProduto, type ProdutoCatalogo } from "@/components/atendimento/CatalogoDialog";
+import { CatalogoDialog, formatarPreco, legendaProduto, type ProdutoCatalogo, type EscolhaProduto } from "@/components/atendimento/CatalogoDialog";
 import { PerfilCliente } from "@/components/atendimento/PerfilCliente";
 import { AtividadesRecentes } from "@/components/atendimento/AtividadesRecentes";
 import { CobrancaPixDialog, CobrancasTab, CobrancasDaConversa } from "@/components/atendimento/CobrancaPix";
@@ -561,9 +561,9 @@ export default function Atendimento() {
     }
   };
 
-  const enviarProduto = async (p: ProdutoCatalogo) => {
+  const enviarProduto = async (p: ProdutoCatalogo, escolha?: EscolhaProduto) => {
     try {
-      await enviarImagem(p.imagem ?? "", legendaProduto(p));
+      await enviarImagem(p.imagem ?? "", legendaProduto(p, escolha));
       setCatalogoAberto(false);
       toast({ title: "Produto enviado" });
     } catch (e: any) {
