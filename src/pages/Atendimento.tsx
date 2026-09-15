@@ -716,18 +716,29 @@ export default function Atendimento() {
       });
       if (error) throw error;
     },
+    onMutate: async () => {
+      // Otimista: marca como resolvida na hora para a conversa descer ao fim da lista.
+      await queryClient.cancelQueries({ queryKey: ["whatsapp-conversas"] });
+      const anterior = queryClient.getQueryData<Conversa[]>(["whatsapp-conversas"]);
+      queryClient.setQueryData<Conversa[]>(["whatsapp-conversas"], (lista) =>
+        (lista ?? []).map((c) => (String(c.id) === String(selecionada) ? { ...c, status: "resolvido" } : c)),
+      );
+      return { anterior };
+    },
     onSuccess: () => {
       toast({ title: "Conversa marcada como resolvida" });
       queryClient.invalidateQueries({ queryKey: ["whatsapp-conversas"] });
     },
-    onError: (e: any) =>
+    onError: (e: any, _v, ctx: any) => {
+      if (ctx?.anterior) queryClient.setQueryData(["whatsapp-conversas"], ctx.anterior);
       toast({
         title: "Não foi possível resolver",
         description: e.message?.includes("does not exist")
           ? "A função whatsapp_marcar_resolvido ainda não existe no banco."
           : e.message,
         variant: "destructive",
-      }),
+      });
+    },
   });
 
   const daAba = (c: Conversa) => (ehSite(c) ? "site" : "whatsapp") === aba;
@@ -755,9 +766,10 @@ export default function Atendimento() {
 
 
   const filtradas = useMemo(() => {
+    let base: Conversa[];
     if (buscaAtiva) {
       const achadas = resultadoBusca?.conversas ?? [];
-      return achadas.map((r) => {
+      base = achadas.map((r) => {
         const carregada = conversas.find((c) => String(c.id) === String(r.conversa_id));
         if (carregada) return carregada;
         return {
@@ -768,22 +780,24 @@ export default function Atendimento() {
           ultima_mensagem_em: r.ultima_mensagem_em ?? null,
         } as Conversa;
       });
+    } else {
+      base = conversas.filter((c) => {
+        if (!daAba(c)) return false;
+        if (grupoDe(c) !== grupoAba) return false;
+        if (filtroLeitura === "nao_lidas" && !c.nao_lida) return false;
+        if (filtroLeitura === "lidas" && c.nao_lida) return false;
+        if (filtroLeitura === "atencao" && !["quente", "atencao"].includes(urgenciaDeNivel(atencaoDe(c)?.nivel))) return false;
+        if (filtroLeitura === "automacao" && atencaoDe(c)?.dono !== "automacao") return false;
+        if (tagsFiltro.length > 0) {
+          const ids = (c.tags ?? []).map((t) => String(t.id));
+          if (!tagsFiltro.some((t) => ids.includes(t))) return false;
+        }
+        return true;
+      });
     }
-    return conversas.filter((c) => {
-      if (!daAba(c)) return false;
-      if (grupoDe(c) !== grupoAba) return false;
-      if (filtroLeitura === "nao_lidas" && !c.nao_lida) return false;
-      if (filtroLeitura === "lidas" && c.nao_lida) return false;
-      if (filtroLeitura === "atencao" && !["quente", "atencao"].includes(urgenciaDeNivel(atencaoDe(c)?.nivel))) return false;
-      if (filtroLeitura === "automacao" && atencaoDe(c)?.dono !== "automacao") return false;
-      if (tagsFiltro.length > 0) {
-        const ids = (c.tags ?? []).map((t) => String(t.id));
-        if (!tagsFiltro.some((t) => ids.includes(t))) return false;
-      }
-      return true;
-    });
+    return [...base].sort(compararConversas);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [conversas, buscaAtiva, resultadoBusca, aba, grupoAba, filtroLeitura, tagsFiltro]);
+  }, [conversas, buscaAtiva, resultadoBusca, aba, grupoAba, filtroLeitura, tagsFiltro, mapaAtencao]);
 
   const clientesSemConversa = buscaAtiva ? (resultadoBusca?.clientes ?? []) : [];
 
@@ -791,7 +805,36 @@ export default function Atendimento() {
     setTelefoneNovaConversa(telefone ?? null);
     setNovaConversaAberta(true);
   };
-  // Sem reordenação no cliente: a view vw_conversas_painel já vem ordenada por urgência
+  /** Conversa encerrada: status resolvido ou desfecho preenchido. */
+  const ehResolvida = (c: Conversa) => c.status === "resolvido" || !!c.desfecho;
+
+  /** Cliente falou por último e ninguém respondeu (vw_conversas_atencao, com fallback na conversa). */
+  const aguardandoResposta = (c: Conversa) => {
+    const a = atencaoDe(c);
+    if (a?.ultima_entrada) return !a.ultima_saida || a.ultima_entrada > a.ultima_saida;
+    return !!c.aguardando_resposta;
+  };
+
+  /** Peso do grupo dentro da seção: 1 quem espera resposta/escalado, 2 em atendimento, 3 bot/demais, 4 resolvidas. */
+  const pesoConversa = (c: Conversa) => {
+    if (ehResolvida(c)) return 4;
+    if (c.status === "escalado" || aguardandoResposta(c)) return 1;
+    if (c.status === "em_atendimento") return 2;
+    return 3;
+  };
+
+  const chaveData = (c: Conversa) => c.ultima_mensagem_em ?? c.atualizado_em ?? "";
+
+  /** Ordena no painel: destaque primeiro, depois por peso do grupo e última mensagem mais recente. */
+  const compararConversas = (a: Conversa, b: Conversa) => {
+    const da = ["quente", "atencao"].includes(urgenciaDeNivel(atencaoDe(a)?.nivel)) ? 0 : 1;
+    const db = ["quente", "atencao"].includes(urgenciaDeNivel(atencaoDe(b)?.nivel)) ? 0 : 1;
+    if (da !== db) return da - db;
+    const pa = pesoConversa(a);
+    const pb = pesoConversa(b);
+    if (pa !== pb) return pa - pb;
+    return chaveData(b).localeCompare(chaveData(a));
+  };
 
   const naoLidasWhatsapp = conversas.filter((c) => c.nao_lida && !ehSite(c)).length;
   const naoLidasSite = conversas.filter((c) => c.nao_lida && ehSite(c)).length;
