@@ -15,10 +15,18 @@ import { ptBR } from "date-fns/locale";
 import {
   AlertTriangle, Bot, Check, CheckCheck, CheckCircle2, Globe, ImagePlus, LayoutGrid, Lock, MessageCircle,
   RotateCcw, Search, Send, User, X, UserCheck, Phone, QrCode, Link2,
-  Truck, ShoppingCart, Plus,
+  Truck, ShoppingCart, Plus, MoreHorizontal, PanelRight, Menu,
 } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Checkbox } from "@/components/ui/checkbox";
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
+import {
+  BotaoRespostasRapidas, ListaRespostas, MensagensRapidasTab, filtrarRespostas,
+  registrarUso, useRespostasRapidas, type RespostaRapida,
+} from "@/components/atendimento/RespostasRapidas";
 import { TagsConversa, TagChip, type Tag } from "@/components/atendimento/TagsConversa";
 import { CatalogoDialog, formatarPreco, legendaProduto, type ProdutoCatalogo, type EscolhaProduto } from "@/components/atendimento/CatalogoDialog";
 import { PerfilCliente } from "@/components/atendimento/PerfilCliente";
