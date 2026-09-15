@@ -1422,6 +1422,7 @@ export default function Atendimento() {
                 telefone={conversaAtual.telefone_real || conversaAtual.telefone}
               />
               <CobrancasDaConversa conversaId={conversaAtual.id} />
+              <LinksDaConversa conversaId={conversaAtual.id} />
 
               <ScrollArea className="min-h-0 min-w-0 max-w-full flex-1 overflow-x-hidden p-4 [&_[data-radix-scroll-area-viewport]]:!overflow-x-hidden">
                 {carregandoMensagens && <p className="text-sm text-muted-foreground">Carregando mensagens…</p>}
