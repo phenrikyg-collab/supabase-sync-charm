@@ -204,8 +204,104 @@ function PainelConfig({
             Salvar configuração
           </Button>
           <p className="text-xs text-muted-foreground">
-            Mudança aqui vale na próxima varredura, que roda a cada 15 minutos.
+            {porFiltro
+              ? "Mudança aqui vale na próxima rodada, que acontece de hora em hora."
+              : "Mudança aqui vale na próxima varredura, que roda a cada 15 minutos."}
           </p>
+        </div>
+      </SheetContent>
+    </Sheet>
+  );
+}
+
+function PainelSimulacao({
+  automacao, aberto, onFechar,
+}: { automacao: any | null; aberto: boolean; onFechar: () => void }) {
+  const { data, isFetching, error, dataUpdatedAt, refetch } = useQuery({
+    queryKey: ["emails-simular-automacao", automacao?.slug],
+    queryFn: () =>
+      rpcEmails<any>("emails_detectar_por_filtro", { p_slug: automacao.slug, p_simular: true }),
+    enabled: aberto && !!automacao?.slug,
+    retry: false,
+  });
+
+  const linhas: [string, any][] = data
+    ? [
+        ["No público agora", inteiro(data.no_publico)],
+        ["Vão para a fila nesta rodada", inteiro(data.enfileirados)],
+        ["Já receberam antes", inteiro(data.ja_receberam)],
+        ["Bloqueados pelo teto de frequência", inteiro(data.bloqueados_teto)],
+      ]
+    : [];
+
+  return (
+    <Sheet open={aberto} onOpenChange={(v) => !v && onFechar()}>
+      <SheetContent className="w-full overflow-y-auto sm:max-w-md">
+        <SheetHeader>
+          <SheetTitle className="font-serif">Simulação de {automacao?.nome}</SheetTitle>
+        </SheetHeader>
+
+        <div className="mt-6 space-y-4">
+          {isFetching && <p className="text-sm text-muted-foreground">Consultando o público…</p>}
+
+          {error && (
+            <Card className="space-y-2 border-danger/40 bg-danger/5 p-3">
+              <p className="text-sm text-danger">{mensagemErroPublico((error as any).message ?? "")}</p>
+              <Button size="sm" variant="outline" onClick={() => refetch()}>Tentar de novo</Button>
+            </Card>
+          )}
+
+          {data && (
+            <>
+              <div className="space-y-2">
+                {linhas.map(([r, v]) => (
+                  <div key={r} className="flex items-baseline justify-between gap-3 rounded-lg border p-3">
+                    <span className="text-xs text-muted-foreground">{r}</span>
+                    <span className="font-serif text-xl">{v}</span>
+                  </div>
+                ))}
+              </div>
+
+              <p className="text-[11px] text-muted-foreground">{textoConsulta(dataUpdatedAt)}</p>
+
+              {data.bateu_no_lote && (
+                <p className="rounded-lg border border-warning/40 bg-warning/5 p-3 text-xs text-warning">
+                  O lote de {inteiro(data.lote_max)} encheu. Faltam {inteiro(data.faltam_para_a_proxima)} para as
+                  próximas rodadas.
+                </p>
+              )}
+
+              <div className="space-y-2">
+                <p className="text-sm font-medium">Exemplos de quem entraria agora</p>
+                {(data.amostra ?? []).length === 0 ? (
+                  <p className="text-xs text-muted-foreground">Ninguém entraria nesta rodada.</p>
+                ) : (
+                  <table className="w-full text-xs">
+                    <thead>
+                      <tr className="text-left text-muted-foreground">
+                        <th className="py-1 font-normal">E-mail</th>
+                        <th className="py-1 font-normal">RFM</th>
+                        <th className="py-1 text-right font-normal">Dias sem comprar</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {(data.amostra ?? []).slice(0, 5).map((p: any, i: number) => (
+                        <tr key={i} className="border-t">
+                          <td className="max-w-[160px] truncate py-1">{p.email}</td>
+                          <td className="py-1">{p.rfm ?? "sem RFM"}</td>
+                          <td className="py-1 text-right">{inteiro(p.dias_sem_comprar)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+              </div>
+
+              <p className="text-xs text-muted-foreground">
+                Simular não grava nada. O envio continua com o motor, de hora em hora.
+              </p>
+            </>
+          )}
         </div>
       </SheetContent>
     </Sheet>
