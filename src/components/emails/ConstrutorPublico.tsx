@@ -457,10 +457,24 @@ function GrupoEditor({
   );
 }
 
+/** Aceita condição solta na raiz envolvendo em um grupo "e". */
+export function normalizarFiltro(filtro: any): No | null {
+  if (ehGrupo(filtro)) return filtro as No;
+  if (ehCondicao(filtro)) return { e: [filtro] };
+  if (ehNao(filtro)) return { e: [filtro as any] };
+  return null;
+}
+
 export function ConstrutorPublico({
-  filtro, campos, onChange,
-}: { filtro: No; campos: CampoPublico[]; onChange: (n: No) => void }) {
-  if (!ehGrupo(filtro)) {
+  filtro, campos, empilhado = false, onChange,
+}: {
+  filtro: No;
+  campos: CampoPublico[];
+  empilhado?: boolean;
+  onChange: (n: No) => void;
+}) {
+  const normalizado = normalizarFiltro(filtro);
+  if (!normalizado) {
     return (
       <div className="space-y-2 rounded-xl border border-danger/40 bg-danger/5 p-3">
         <p className="text-sm text-danger">Este filtro está corrompido e não pode ser editado.</p>
@@ -470,7 +484,15 @@ export function ConstrutorPublico({
       </div>
     );
   }
-  return <GrupoEditor no={filtro as any} campos={campos} nivel={0} onChange={onChange} />;
+  return (
+    <GrupoEditor
+      no={normalizado as any}
+      campos={campos}
+      nivel={0}
+      empilhado={empilhado}
+      onChange={onChange}
+    />
+  );
 }
 
 /** Deixa a mensagem crua do banco legível para quem está montando o público. */
