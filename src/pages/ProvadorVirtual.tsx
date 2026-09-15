@@ -97,7 +97,13 @@ function BadgeTemperatura({ lead }: { lead: Lead }) {
   );
 }
 
-function FunilLeads({ onAbrirConversa }: { onAbrirConversa?: AbrirConversaProvador }) {
+function FunilLeads({
+  onAbrirConversa,
+  onContagem,
+}: {
+  onAbrirConversa?: AbrirConversaProvador;
+  onContagem?: (n: number) => void;
+}) {
   const qc = useQueryClient();
   const [fotoAberta, setFotoAberta] = useState<string | null>(null);
   const [preparando, setPreparando] = useState<string | null>(null);
