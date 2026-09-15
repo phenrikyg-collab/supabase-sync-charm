@@ -845,6 +845,10 @@ export default function Atendimento() {
           />
         </TabsContent>
 
+        <TabsContent value="provador" className="m-0 min-h-0 w-full min-w-0 flex-1 overflow-auto p-4">
+          <ProvadorVirtualConteudo semCabecalho />
+        </TabsContent>
+
         <TabsContent value="carrinhos" className="m-0 min-h-0 w-full min-w-0 flex-1 overflow-auto p-4">
           <CarrinhoAbandonadoConteudo />
         </TabsContent>
