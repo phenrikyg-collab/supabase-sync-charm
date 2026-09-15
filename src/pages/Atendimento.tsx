@@ -1501,7 +1501,7 @@ export default function Atendimento() {
 
         {/* Painel lateral direito */}
         {perfilAberto && conversaAtual && (
-          <aside className="hidden w-[340px] shrink-0 min-w-0 flex-col gap-3 overflow-y-auto overflow-x-hidden border-l border-border p-3 lg:flex">
+          <aside className="hidden min-h-0 w-[340px] min-w-[340px] shrink-0 flex-col gap-3 overflow-y-auto overflow-x-hidden overscroll-contain border-l border-border p-3 lg:flex">
             <PerfilCliente conversaId={conversaAtual.id} autor={autor} telefone={conversaAtual.telefone} />
             {telefoneIdentificado && <AtividadesRecentes telefone={telefoneIdentificado} />}
           </aside>
