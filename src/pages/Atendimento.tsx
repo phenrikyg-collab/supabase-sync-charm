@@ -963,7 +963,7 @@ export default function Atendimento() {
                     {ehSite(conversaAtual) && conversaAtual.telefone_real && (
                       <span className="inline-flex items-center gap-1 rounded-full border border-success/20 bg-success/10 px-2 py-0.5 text-[10px] text-success">
                         <Phone className="h-3 w-3" />
-                        {conversaAtual.telefone_real}
+                        {formatarTelefone(conversaAtual.telefone_real)}
                       </span>
                     )}
                   </div>
