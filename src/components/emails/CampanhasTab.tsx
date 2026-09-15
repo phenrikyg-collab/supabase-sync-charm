@@ -437,12 +437,10 @@ export function CampanhasTab({ dias }: { dias: number }) {
   const [nova, setNova] = useState(false);
   const [aberta, setAberta] = useState<any | null>(null);
 
-  const { data: painel, isLoading } = useQuery({
-    queryKey: ["emails-painel-resumo", dias],
-    queryFn: () => rpcEmails<any>("emails_painel_resumo", { p_dias: dias }),
+  const { data: campanhas = [], isLoading } = useQuery({
+    queryKey: ["emails-campanhas", dias],
+    queryFn: async () => (await rpcEmails<any[]>("emails_campanhas_listar", { p_dias: dias })) ?? [],
   });
-
-  const campanhas: any[] = painel?.campanhas ?? [];
 
   if (aberta) return <ResumoCampanha id={aberta} onVoltar={() => setAberta(null)} />;
 
