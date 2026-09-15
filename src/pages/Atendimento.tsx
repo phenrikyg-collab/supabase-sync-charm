@@ -100,6 +100,7 @@ type Conversa = {
   cliques?: number | null;
   pix_aberto_valor?: number | null;
   link_pendente?: boolean | null;
+  desfecho?: string | null;
 };
 
 type Urgencia = "perdendo" | "quente" | "atencao" | "normal";
