@@ -303,6 +303,57 @@ export function ConfigNoPanel({
 
         {data.tipo === "espera" && (
           <div className="space-y-3">
+            {referenciasEspera.length > 0 && (
+              <div className="space-y-1">
+                <Label className="text-xs">Contar a partir de</Label>
+                <Select
+                  value={referenciaEspera}
+                  onValueChange={(v) =>
+                    patch(
+                      v === "fixo"
+                        ? { referencia: null, dias_antes: null }
+                        : { referencia: v, dias_antes: config.dias_antes ?? 7, ate_hora: config.ate_hora ?? 10 },
+                    )
+                  }
+                >
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="fixo">Tempo fixo</SelectItem>
+                    {referenciasEspera.map((o) => (
+                      <SelectItem key={o.valor} value={o.valor}>{o.rotulo}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
+            {referenciaEspera !== "fixo" ? (
+              <div className="space-y-3">
+                <div className="space-y-1">
+                  <Label className="text-xs">Quantos dias antes de vencer</Label>
+                  <Input
+                    type="number"
+                    min={0}
+                    value={config.dias_antes ?? 7}
+                    onChange={(e) => patch({ dias_antes: Number(e.target.value) })}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Hora (0 a 23)</Label>
+                  <Input
+                    type="number"
+                    min={0}
+                    max={23}
+                    value={config.ate_hora ?? 10}
+                    onChange={(e) => patch({ ate_hora: Number(e.target.value) })}
+                  />
+                </div>
+                <p className="text-[11px] text-muted-foreground">
+                  A espera termina esse tanto de dias antes do cashback vencer, no horário escolhido.
+                </p>
+              </div>
+            ) : (
+            <>
             <div className="grid grid-cols-3 gap-2">
               {[["dias", "Dias"], ["horas", "Horas"], ["minutos", "Minutos"]].map(([k, r]) => (
                 <div key={k} className="space-y-1">
