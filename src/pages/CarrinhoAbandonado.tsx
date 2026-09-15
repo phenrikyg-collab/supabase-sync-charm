@@ -223,23 +223,29 @@ export default function CarrinhoAbandonado({
                 <TableBody>
                   {ordenadas.map((l) => {
                     const identificado = !!l.telefone || !!l.tray_customer_id;
+                    const contato = contatoDe(l.telefone);
                     return (
                       <TableRow key={l.session_id}>
                         <TableCell className="font-medium">
                           {l.nome?.trim() || <span className="text-muted-foreground">Cliente não identificado</span>}
                           {l.email && <div className="text-[11px] text-muted-foreground">{l.email}</div>}
+                          <BadgesContato contato={contato} className="mt-1" />
                         </TableCell>
-                        <TableCell className="text-xs">{l.telefone || "—"}</TableCell>
+                        <TableCell className="text-xs">{l.telefone || "sem telefone"}</TableCell>
                         <TableCell className="text-right font-semibold">{moeda(l.total)}</TableCell>
                         <TableCell><CelulaItens itens={l.itens} /></TableCell>
-                        <TableCell className="text-right">{l.dias_desde_abandono ?? "—"}</TableCell>
+                        <TableCell className="text-right">{l.dias_desde_abandono ?? "sem dados"}</TableCell>
                         <TableCell className="text-xs">
                           {formatarData(l.data_criacao)}
                           {l.hora_criacao && <span className="text-muted-foreground"> {String(l.hora_criacao).slice(0, 5)}</span>}
                         </TableCell>
                         <TableCell><SegmentoBadge segmento={l.segmento_rfm} /></TableCell>
                         <TableCell>
-                          {identificado && l.telefone ? (
+                          {contato?.conversa_id && onAbrirConversa ? (
+                            <Button size="sm" variant="outline" className="h-8" onClick={() => onAbrirConversa(String(contato.conversa_id))}>
+                              <MessageCircle className="mr-1.5 h-3.5 w-3.5" /> Abrir conversa
+                            </Button>
+                          ) : identificado && l.telefone ? (
                             <EnviarWhatsAppInline telefone={l.telefone} placeholder="Mensagem de recuperação..." mostrarAviso />
                           ) : (
                             <span className="text-xs text-muted-foreground">Cliente não identificado</span>
