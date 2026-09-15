@@ -17,7 +17,7 @@ import {
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
-import { formatarData } from "@/lib/utils";
+import { formatarData } from "@/utils/formatters";
 import { Info, Pencil, Search, Star, Trash2 } from "lucide-react";
 
 type Exemplo = {
