@@ -246,15 +246,15 @@ function NovaCampanha({
           <div className="grid gap-5 md:grid-cols-2">
             <div className="space-y-3">
               <div className="space-y-1.5">
-                <label className="text-sm font-medium">Nome</label>
+                <label className="text-sm font-medium">Nome *</label>
                 <Input value={nome} onChange={(e) => setNome(e.target.value)} />
               </div>
               <div className="space-y-1.5">
-                <label className="text-sm font-medium">Assunto</label>
+                <label className="text-sm font-medium">Assunto *</label>
                 <Input value={assunto} onChange={(e) => setAssunto(e.target.value)} />
               </div>
               <div className="space-y-1.5">
-                <label className="text-sm font-medium">Preheader</label>
+                <label className="text-sm font-medium">Preheader (opcional)</label>
                 <Input value={preheader} onChange={(e) => setPreheader(e.target.value)} />
               </div>
               <div className="space-y-1.5">
