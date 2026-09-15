@@ -3,6 +3,7 @@ import { VisaoGeralTab } from "@/components/avaliacoes/VisaoGeralTab";
 import { ModeracaoTab } from "@/components/avaliacoes/ModeracaoTab";
 import { TodasTab } from "@/components/avaliacoes/TodasTab";
 import { ConfigReguaTab } from "@/components/avaliacoes/ConfigReguaTab";
+import { InsightsTab } from "@/components/avaliacoes/InsightsTab";
 
 export default function Avaliacoes() {
   return (
@@ -20,6 +21,7 @@ export default function Avaliacoes() {
           <TabsTrigger value="moderacao">Moderação</TabsTrigger>
           <TabsTrigger value="todas">Todas as avaliações</TabsTrigger>
           <TabsTrigger value="config">Configuração da régua</TabsTrigger>
+          <TabsTrigger value="insights">Insights</TabsTrigger>
         </TabsList>
 
         <TabsContent value="visao">
@@ -33,6 +35,9 @@ export default function Avaliacoes() {
         </TabsContent>
         <TabsContent value="config">
           <ConfigReguaTab />
+        </TabsContent>
+        <TabsContent value="insights">
+          <InsightsTab />
         </TabsContent>
       </Tabs>
     </div>
