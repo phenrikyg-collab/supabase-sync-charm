@@ -1181,9 +1181,10 @@ export default function Atendimento() {
 
               <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
               <Input
+                ref={buscaRef}
                 value={busca}
                 onChange={(e) => setBusca(e.target.value)}
-                placeholder="Buscar por nome ou telefone"
+                placeholder="Buscar por nome ou telefone (tecle /)"
                 className="pl-8"
               />
             </div>
