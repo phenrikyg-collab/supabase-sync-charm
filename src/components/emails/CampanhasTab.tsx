@@ -401,7 +401,7 @@ function NovaCampanha({ aberto, onFechar }: { aberto: boolean; onFechar: () => v
 function ResumoCampanha({ id, onVoltar }: { id: any; onVoltar: () => void }) {
   const { data: resumo, isLoading } = useQuery({
     queryKey: ["emails-campanha-resumo", id],
-    queryFn: () => rpcEmails<any>("emails_campanha_resumo", { p_id: id }),
+    queryFn: () => rpcEmails<any>("emails_campanha_resumo", { p_campanha_id: id }),
   });
 
   return (
