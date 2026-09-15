@@ -35,18 +35,22 @@ type Chave = "nome" | "telefone" | "total" | "dias_desde_abandono" | "segmento_r
 
 export function CarrinhoAbandonadoConteudo({
   onAbrirConversa,
+  onContagem,
 }: {
   onAbrirConversa?: (conversaId: string) => void;
+  onContagem?: (n: number) => void;
 } = {}) {
-  return <CarrinhoAbandonado semCabecalho onAbrirConversa={onAbrirConversa} />;
+  return <CarrinhoAbandonado semCabecalho onAbrirConversa={onAbrirConversa} onContagem={onContagem} />;
 }
 
 export default function CarrinhoAbandonado({
   semCabecalho,
   onAbrirConversa,
+  onContagem,
 }: {
   semCabecalho?: boolean;
   onAbrirConversa?: (conversaId: string) => void;
+  onContagem?: (n: number) => void;
 } = {}) {
   const [periodo, setPeriodo] = useState<Periodo>({ inicio: null, fim: null });
   const [segmento, setSegmento] = useState("todos");
