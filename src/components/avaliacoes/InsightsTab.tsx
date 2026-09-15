@@ -828,7 +828,7 @@ function BlocoTemas({ dias }: { dias: number }) {
 
 /* ---------------- Aba ---------------- */
 
-export function InsightsTab() {
+export function InsightsTab({ aoAbrirPendentes }: { aoAbrirPendentes?: () => void }) {
   const [dias, setDias] = useState(90);
   const { data: resumo } = useQuery({
     queryKey: ["aval-insights-resumo", dias],
