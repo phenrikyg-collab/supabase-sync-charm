@@ -1300,7 +1300,11 @@ export default function Atendimento() {
                 <TagsConversa conversaId={conversaAtual.id} aplicadas={conversaAtual.tags ?? []} />
               </div>
 
-              <PropostaDaConversa conversaId={conversaAtual.id} propostaId={propostaId} />
+              <PropostaDaConversa
+                conversaId={conversaAtual.id}
+                propostaId={propostaId}
+                telefone={conversaAtual.telefone_real || conversaAtual.telefone}
+              />
               <CobrancasDaConversa conversaId={conversaAtual.id} />
 
               <ScrollArea className="min-h-0 min-w-0 max-w-full flex-1 overflow-x-hidden p-4 [&_[data-radix-scroll-area-viewport]]:!overflow-x-hidden">

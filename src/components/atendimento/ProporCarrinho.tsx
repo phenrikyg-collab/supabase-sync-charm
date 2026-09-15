@@ -1,5 +1,15 @@
 import { useEffect, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -891,11 +901,16 @@ type Proposta = {
 export function PropostaDaConversa({
   conversaId,
   propostaId,
+  telefone,
 }: {
   conversaId: string | number;
   propostaId?: string | number | null;
+  telefone?: string | null;
 }) {
   const id = propostaId ?? lerPropostaDaConversa(conversaId);
+  const queryClient = useQueryClient();
+  const [gerando, setGerando] = useState<"cartao" | "pix" | null>(null);
+  const [confirmar, setConfirmar] = useState<"cartao" | "pix" | null>(null);
 
   const { data: proposta } = useQuery({
     queryKey: ["proposta-carrinho", String(id ?? "")],
@@ -924,6 +939,50 @@ export function PropostaDaConversa({
         : "Confirmado — Link de pagamento gerado"
       : `Proposta: ${status || "sem status"}`;
 
+  const valorDe = (f: "cartao" | "pix") =>
+    moeda(Number((f === "pix" ? proposta.total_pix : proposta.total_cartao) ?? 0));
+
+  const recarregar = () => {
+    queryClient.invalidateQueries({ queryKey: ["proposta-carrinho", String(id)] });
+    queryClient.invalidateQueries({ queryKey: ["whatsapp-mensagens"] });
+  };
+
+  async function gerar(formaPagamento: "cartao" | "pix") {
+    setGerando(formaPagamento);
+    try {
+      const resp = await fetch(`${EXTERNAL_SUPABASE_URL}/functions/v1/confirmar-proposta-carrinho`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ proposta_id: id, forma_pagamento: formaPagamento, telefone }),
+      });
+      const texto = await resp.text();
+      let corpo: any = null;
+      try {
+        corpo = texto ? JSON.parse(texto) : null;
+      } catch {
+        corpo = { erro: texto };
+      }
+      const msgErro = corpo?.erro ?? corpo?.error ?? corpo?.message;
+      if (!resp.ok || corpo?.ok === false) {
+        if (String(msgErro ?? "").toLowerCase().includes("ja processada") ||
+            String(msgErro ?? "").toLowerCase().includes("já processada")) {
+          toast({ title: "Essa proposta já foi confirmada", variant: "destructive" });
+          recarregar();
+          return;
+        }
+        throw new Error(msgErro || "Não foi possível gerar a cobrança.");
+      }
+      toast({
+        title: formaPagamento === "pix" ? "Pix enviado" : "Link de pagamento enviado",
+      });
+      recarregar();
+    } catch (e: any) {
+      toast({ title: e?.message || "Não foi possível gerar a cobrança.", variant: "destructive" });
+    } finally {
+      setGerando(null);
+    }
+  }
+
   return (
     <div
       className={`flex flex-wrap items-center justify-between gap-2 border-b border-border px-4 py-2 text-xs ${
@@ -934,9 +993,60 @@ export function PropostaDaConversa({
         {confirmado ? <CheckCircle2 className="h-3.5 w-3.5" /> : <Clock className="h-3.5 w-3.5" />}
         {rotulo}
       </span>
-      <span className="text-[11px]">
-        Cartão {moeda(Number(proposta.total_cartao ?? 0))} · Pix {moeda(Number(proposta.total_pix ?? 0))}
+      <span className="flex flex-wrap items-center gap-2 text-[11px]">
+        <span>
+          Cartão {moeda(Number(proposta.total_cartao ?? 0))} · Pix {moeda(Number(proposta.total_pix ?? 0))}
+        </span>
+        {aguardando && (
+          <>
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-7 px-2 text-[11px]"
+              disabled={gerando !== null}
+              onClick={() => setConfirmar("cartao")}
+            >
+              {gerando === "cartao" && <Loader2 className="mr-1 h-3 w-3 animate-spin" />}
+              Gerar link (cartão)
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-7 px-2 text-[11px]"
+              disabled={gerando !== null}
+              onClick={() => setConfirmar("pix")}
+            >
+              {gerando === "pix" && <Loader2 className="mr-1 h-3 w-3 animate-spin" />}
+              Gerar Pix
+            </Button>
+          </>
+        )}
       </span>
+
+      <AlertDialog open={confirmar !== null} onOpenChange={(v) => !v && setConfirmar(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirmar cobrança</AlertDialogTitle>
+            <AlertDialogDescription>
+              {confirmar === "pix"
+                ? `Gerar Pix de ${valorDe("pix")} e enviar para a cliente?`
+                : `Gerar link de pagamento no cartão de ${valorDe("cartao")} e enviar para a cliente?`}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                const f = confirmar;
+                setConfirmar(null);
+                if (f) gerar(f);
+              }}
+            >
+              Gerar e enviar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
