@@ -257,7 +257,7 @@ function NovaCampanha({ aberto, onFechar }: { aberto: boolean; onFechar: () => v
 
         {passo === 2 && (
           <div className="space-y-4">
-            <Alternador
+            <Alternador<"segmento" | "filtro">
               valor={modoPublico}
               opcoes={[["segmento", "Segmento salvo"], ["filtro", "Montar filtro"]] as const}
               onChange={setModoPublico}
