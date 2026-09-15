@@ -55,6 +55,20 @@ import { FilaFollowups, TemplatesFollowup } from "@/components/funil/FollowUps";
 import { FunilKanbanConteudo } from "@/pages/FunilKanban";
 import { CashbackConteudo } from "@/pages/Cashback";
 
+/** Separador de data da lista de conversas. */
+function grupoDia(valor?: string | null): string {
+  if (!valor) return "Mais antigas";
+  const d = new Date(valor);
+  if (Number.isNaN(d.getTime())) return "Mais antigas";
+  const hoje = new Date();
+  const dia = (x: Date) => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();
+  const diff = Math.round((dia(hoje) - dia(d)) / 86400000);
+  if (diff <= 0) return "Hoje";
+  if (diff === 1) return "Ontem";
+  if (diff < 7) return "Esta semana";
+  return "Mais antigas";
+}
+
 type BuscaConversa = {
   conversa_id: number | string;
   telefone?: string | null;
