@@ -93,10 +93,14 @@ export function OportunidadesAoVivo({
     return () => window.clearInterval(t);
   }, [carregar, intervaloMs]);
 
+  const telefones = useMemo(() => lista.map((o) => o.telefone), [lista]);
+  const { contatoDe } = useContatoPorTelefones(telefones);
+
   const partes: string[] = [];
   if ((resumo?.quentes ?? 0) > 0) partes.push(`${resumo!.quentes} quentes agora`);
   if ((resumo?.contactaveis ?? 0) > 0) partes.push(`${resumo!.contactaveis} com contato`);
   if ((resumo?.valor_em_jogo ?? 0) > 0) partes.push(`${brl(resumo!.valor_em_jogo)} em carrinho neste momento`);
+
 
   return (
     <section>
