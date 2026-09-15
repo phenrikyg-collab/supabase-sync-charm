@@ -227,11 +227,12 @@ function ValorWidget({
 }
 
 function CondicaoLinha({
-  cond, campos, negada, onChange, onNegar, onRemover,
+  cond, campos, negada, empilhado, onChange, onNegar, onRemover,
 }: {
   cond: Condicao;
   campos: CampoPublico[];
   negada: boolean;
+  empilhado: boolean;
   onChange: (c: Condicao) => void;
   onNegar: (v: boolean) => void;
   onRemover: () => void;
