@@ -517,7 +517,13 @@ function ResumoCampanha({ id, onVoltar }: { id: any; onVoltar: () => void }) {
 
 export function CampanhasTab({ dias }: { dias: number }) {
   const [nova, setNova] = useState(false);
+  const [editando, setEditando] = useState<any | null>(null);
   const [aberta, setAberta] = useState<any | null>(null);
+
+  const abrirLinha = (c: any) => {
+    if (String(c.status ?? "rascunho").toLowerCase() === "rascunho") setEditando(c.id);
+    else setAberta(c.id);
+  };
 
   const { data: campanhas = [], isLoading } = useQuery({
     queryKey: ["emails-campanhas", dias],
