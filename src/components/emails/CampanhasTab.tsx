@@ -556,17 +556,17 @@ export function CampanhasTab({ dias }: { dias: number }) {
           </TableHeader>
           <TableBody>
             {isLoading && (
-              <TableRow><TableCell colSpan={9} className="text-center text-sm text-muted-foreground">Carregando…</TableCell></TableRow>
+              <TableRow><TableCell colSpan={10} className="text-center text-sm text-muted-foreground">Carregando…</TableCell></TableRow>
             )}
             {!isLoading && campanhas.length === 0 && (
               <TableRow>
-                <TableCell colSpan={9} className="py-8 text-center text-sm text-muted-foreground">
+                <TableCell colSpan={10} className="py-8 text-center text-sm text-muted-foreground">
                   Nenhuma campanha criada ainda. Comece pelo botão "Nova campanha".
                 </TableCell>
               </TableRow>
             )}
             {campanhas.map((c: any) => (
-              <TableRow key={c.id} className="cursor-pointer" onClick={() => setAberta(c.id)}>
+              <TableRow key={c.id} className="cursor-pointer" onClick={() => abrirLinha(c)}>
                 <TableCell className="font-medium">{c.nome}</TableCell>
                 <TableCell className="text-sm text-muted-foreground">{c.segmento ?? c.segmento_slug}</TableCell>
                 <TableCell>
@@ -580,6 +580,17 @@ export function CampanhasTab({ dias }: { dias: number }) {
                 <TableCell className="text-right">{pct1(c.taxa_abertura_pct)}</TableCell>
                 <TableCell className="text-right">{pct1(c.ctor_pct)}</TableCell>
                 <TableCell className="text-right">{brl(c.receita_atribuida)}</TableCell>
+                <TableCell className="text-right">
+                  {String(c.status ?? "rascunho").toLowerCase() === "rascunho" && (
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={(e) => { e.stopPropagation(); setEditando(c.id); }}
+                    >
+                      Continuar
+                    </Button>
+                  )}
+                </TableCell>
               </TableRow>
             ))}
           </TableBody>
@@ -587,6 +598,15 @@ export function CampanhasTab({ dias }: { dias: number }) {
       </Card>
 
       <NovaCampanha aberto={nova} onFechar={() => setNova(false)} />
+      {editando != null && (
+        <NovaCampanha
+          key={String(editando)}
+          aberto
+          campanhaId={editando}
+          onFechar={() => setEditando(null)}
+          onNaoEditavel={(id) => { setEditando(null); setAberta(id); }}
+        />
+      )}
     </div>
   );
 }
