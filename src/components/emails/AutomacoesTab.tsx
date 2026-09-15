@@ -148,8 +148,7 @@ function PainelConfig({
               <div className="space-y-1.5">
                 <p className="text-sm font-medium">Máximo por rodada</p>
                 <p className="text-xs text-muted-foreground">
-                  A automação roda de hora em hora. Com o lote em 200 e 2.945 pessoas no público, leva umas 15
-                  horas para passar por todas.
+                  Teto de pessoas por rodada. Serve para o primeiro disparo não sair todo de uma vez.
                 </p>
                 <Input
                   type="number"
@@ -157,6 +156,41 @@ function PainelConfig({
                   value={config.lote_max ?? 0}
                   onChange={(e) => setConfig((p) => ({ ...p, lote_max: Number(e.target.value) }))}
                 />
+              </div>
+
+              <div className="space-y-1.5">
+                <p className="text-sm font-medium">Quando rodar</p>
+                <p className="text-xs text-muted-foreground">
+                  Público de aniversário muda uma vez por dia. Rodar de hora em hora só repete varredura sem
+                  achar gente nova.
+                </p>
+                <Select
+                  value={config.hora_do_dia == null || config.hora_do_dia === "" ? "hora" : "dia"}
+                  onValueChange={(v) =>
+                    setConfig((p) => ({ ...p, hora_do_dia: v === "hora" ? null : Number(p.hora_do_dia ?? 10) }))
+                  }
+                >
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="hora">De hora em hora</SelectItem>
+                    <SelectItem value="dia">Uma vez por dia</SelectItem>
+                  </SelectContent>
+                </Select>
+                {config.hora_do_dia != null && config.hora_do_dia !== "" && (
+                  <div className="space-y-1">
+                    <p className="text-xs text-muted-foreground">Hora de Brasília (0 a 23)</p>
+                    <Input
+                      type="number"
+                      min={0}
+                      max={23}
+                      value={config.hora_do_dia ?? 10}
+                      onChange={(e) => {
+                        const n = Math.min(23, Math.max(0, Number(e.target.value)));
+                        setConfig((p) => ({ ...p, hora_do_dia: Number.isNaN(n) ? 0 : n }));
+                      }}
+                    />
+                  </div>
+                )}
               </div>
             </div>
           )}
