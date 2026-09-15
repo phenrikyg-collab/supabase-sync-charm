@@ -282,19 +282,6 @@ function NovaCampanha({
                       opcoes={[["completo", "HTML completo"], ["miolo", "Só o miolo"]] as const}
                       onChange={trocarModoHtml}
                     />
-                    <BotaoEnviarTeste
-                      variante="outline"
-                      montarPayload={() =>
-                        html.trim()
-                          ? {
-                              p_html: html,
-                              p_modo: modoHtml,
-                              p_assunto: assunto || null,
-                              p_preheader: preheader || null,
-                            }
-                          : { p_slug: templateEscolhido?.slug ?? null, p_assunto: assunto || null }
-                      }
-                    />
                   </div>
                 </div>
                 <Textarea rows={6} className="font-mono text-xs" value={html} onChange={(e) => setHtml(e.target.value)} />
