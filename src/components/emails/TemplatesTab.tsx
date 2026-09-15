@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { toast } from "@/hooks/use-toast";
 import { AlertTriangle, ArrowLeft, Plus, Send, XCircle } from "lucide-react";
 import { dataBr, rpcEmails } from "@/lib/emails";
+import { cn } from "@/lib/utils";
 import type { ModoTemplate } from "./PreviaTemplate";
 import { ControlesPrevia, IframePrevia, useConferirTemplate, usePreviaTemplate, useVariaveisDisponiveis } from "./PreviaTemplate";
 
