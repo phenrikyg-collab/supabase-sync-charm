@@ -1424,21 +1424,29 @@ export default function Atendimento() {
               )}
             </>
           )}
-        </Card>
+        </section>
 
         {/* Painel lateral direito */}
-        <div className="hidden xl:flex min-w-0 flex-col gap-4 overflow-y-auto overflow-x-hidden">
-          {conversaAtual ? (
-            <>
-              <PerfilCliente conversaId={conversaAtual.id} autor={autor} telefone={conversaAtual.telefone} />
-              {telefoneIdentificado && <AtividadesRecentes telefone={telefoneIdentificado} />}
-            </>
-          ) : (
-            <Card className="flex-1 flex items-center justify-center text-sm text-muted-foreground">
-              Nenhuma conversa selecionada
-            </Card>
-          )}
-        </div>
+        {perfilAberto && conversaAtual && (
+          <aside className="hidden w-[340px] shrink-0 min-w-0 flex-col gap-3 overflow-y-auto overflow-x-hidden border-l border-border p-3 lg:flex">
+            <PerfilCliente conversaId={conversaAtual.id} autor={autor} telefone={conversaAtual.telefone} />
+            {telefoneIdentificado && <AtividadesRecentes telefone={telefoneIdentificado} />}
+          </aside>
+        )}
+
+        <Sheet open={perfilSheet} onOpenChange={setPerfilSheet}>
+          <SheetContent side="right" className="w-[92vw] max-w-[380px] overflow-y-auto p-3">
+            <SheetTitle className="mb-2 text-sm">Perfil da cliente</SheetTitle>
+            {conversaAtual ? (
+              <div className="space-y-3">
+                <PerfilCliente conversaId={conversaAtual.id} autor={autor} telefone={conversaAtual.telefone} />
+                {telefoneIdentificado && <AtividadesRecentes telefone={telefoneIdentificado} />}
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">Nenhuma conversa selecionada</p>
+            )}
+          </SheetContent>
+        </Sheet>
 
       </div>
         </TabsContent>
