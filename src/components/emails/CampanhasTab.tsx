@@ -13,13 +13,12 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import { toast } from "@/hooks/use-toast";
-import { AlertTriangle, ArrowLeft, Loader2, Plus, XCircle } from "lucide-react";
+import { AlertTriangle, ArrowLeft, Loader2, Plus, Send, XCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { brl, inteiro, pct1, rpcEmails } from "@/lib/emails";
 import type { ModoTemplate } from "./PreviaTemplate";
 import { ControlesPrevia, IframePrevia, useConferirTemplate, usePreviaTemplate } from "./PreviaTemplate";
 import { lerChecagem } from "./TemplatesTab";
-import { BotaoEnviarTeste } from "./EnviarTeste";
 import {
   ConstrutorPublico, contarCondicoes, descreverFiltro, filtroVazio,
   mensagemErroPublico, SeloPublicoVivo, textoConsulta, usePublicoCampos, type No,
@@ -79,6 +78,18 @@ function NovaCampanha({
   const [filtro, setFiltro] = useState<No>(filtroVazio());
   const [filtroLento, setFiltroLento] = useState<No | null>(null);
   const [mobile, setMobile] = useState(false);
+  const [testePara, setTestePara] = useState("");
+  const [testeTocado, setTesteTocado] = useState(false);
+  const [testeErroCampo, setTesteErroCampo] = useState<string | null>(null);
+  const [testeEnviando, setTesteEnviando] = useState(false);
+  const [testeEstado, setTesteEstado] = useState<
+    | null
+    | { fase: "aguardando"; para: string }
+    | { fase: "ok"; para: string; hora: string }
+    | { fase: "erro"; para: string; texto: string }
+  >(null);
+  const [testeRestantes, setTesteRestantes] = useState<number | null>(null);
+  const [testeEnviadoNestaSessao, setTesteEnviadoNestaSessao] = useState(false);
 
   const { data: templates = [] } = useQuery({
     queryKey: ["emails-templates", "campanha"],
@@ -93,6 +104,22 @@ function NovaCampanha({
   });
 
   const { data: campos = [] } = usePublicoCampos(aberto);
+
+  const { data: configTeste } = useQuery({
+    queryKey: ["emails-config"],
+    queryFn: () => rpcEmails<any>("emails_config_get"),
+    enabled: aberto,
+  });
+
+  useEffect(() => {
+    if (!aberto) { setTesteTocado(false); setTesteEstado(null); setTesteEnviadoNestaSessao(false); return; }
+  }, [aberto]);
+
+  useEffect(() => {
+    if (testeTocado) return;
+    const padrao = (configTeste?.emails_teste ?? [])[0];
+    if (padrao) setTestePara(String(padrao));
+  }, [configTeste, testeTocado]);
 
   // Carrega a campanha em rascunho para continuar de onde parou.
   const { data: salva } = useQuery({
@@ -224,6 +251,50 @@ function NovaCampanha({
 
   const textoErroSimulacao = erroSimulacao ? mensagemErroPublico(String((erroSimulacao as any)?.message ?? "")) : null;
 
+  const temConteudoTeste = !!html.trim() || !!templateEscolhido;
+
+  const enviarTeste = async () => {
+    const destino = testePara.trim();
+    setTesteErroCampo(null);
+    if (!destino) { setTesteErroCampo("Informe o endereço de teste."); return; }
+    setTesteEnviando(true);
+    try {
+      const payload = html.trim()
+        ? { p_html: html, p_modo: modoHtml, p_assunto: assunto || null, p_preheader: preheader || null }
+        : { p_slug: templateEscolhido?.slug ?? null, p_assunto: assunto || null, p_preheader: preheader || null };
+      const r = await rpcEmails<any>("emails_teste_enviar", { p_para: destino, ...payload });
+      if (typeof r?.restantes_na_hora === "number") setTesteRestantes(r.restantes_na_hora);
+      setTesteEstado({ fase: "aguardando", para: String(r?.para ?? destino) });
+      setTesteEnviadoNestaSessao(true);
+      setTesteEnviando(false);
+      setTimeout(async () => {
+        try {
+          const s = await rpcEmails<any>("emails_teste_status", { p_teste_id: r?.teste_id });
+          if (s?.entregue_ao_ses)
+            setTesteEstado({
+              fase: "ok",
+              para: String(s?.para ?? destino),
+              hora: new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }),
+            });
+          else
+            setTesteEstado({
+              fase: "erro",
+              para: String(s?.para ?? destino),
+              texto: typeof s?.resposta === "string" ? s.resposta : "A AWS não aceitou a mensagem.",
+            });
+        } catch (e: any) {
+          setTesteEstado({ fase: "erro", para: destino, texto: e?.message ?? "Não deu para conferir o envio." });
+        }
+      }, 2000);
+    } catch (e: any) {
+      setTesteEnviando(false);
+      const msg = String(e?.message ?? "Não deu para enviar o teste.");
+      if (/endere[cç]o de teste inv[aá]lido/i.test(msg)) { setTesteErroCampo(msg); return; }
+      setTesteEstado(null);
+      toast({ title: "Não deu para enviar o teste", description: msg, variant: "destructive" });
+    }
+  };
+
   const cardsSimulacao = useMemo(() => {
     if (!simulacao) return [];
     return [
@@ -282,19 +353,6 @@ function NovaCampanha({
                       valor={modoHtml}
                       opcoes={[["completo", "HTML completo"], ["miolo", "Só o miolo"]] as const}
                       onChange={trocarModoHtml}
-                    />
-                    <BotaoEnviarTeste
-                      variante="outline"
-                      montarPayload={() =>
-                        html.trim()
-                          ? {
-                              p_html: html,
-                              p_modo: modoHtml,
-                              p_assunto: assunto || null,
-                              p_preheader: preheader || null,
-                            }
-                          : { p_slug: templateEscolhido?.slug ?? null, p_assunto: assunto || null }
-                      }
                     />
                   </div>
                 </div>
@@ -468,8 +526,58 @@ function NovaCampanha({
             <p className="rounded-lg border bg-muted/40 p-3 text-xs leading-relaxed text-muted-foreground">
               Preparar não dispara. A campanha entra na fila e o motor envia dentro da janela de horário configurada.
             </p>
+            {!testeEnviadoNestaSessao && (
+              <p className="flex items-start gap-2 rounded-lg border border-warning/40 bg-warning/5 p-3 text-xs text-warning">
+                <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                Você ainda não mandou um teste. Vale conferir como o e-mail chega antes de preparar o envio
+                para {inteiro(simulacao?.passam_teto ?? simulacao?.passam_no_teto ?? 0)} contatos.
+              </p>
+            )}
           </div>
         )}
+
+        <div className="space-y-1.5 rounded-lg border bg-muted/30 p-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <Input
+              value={testePara}
+              onChange={(e) => { setTesteTocado(true); setTestePara(e.target.value); setTesteErroCampo(null); }}
+              placeholder="alguem@exemplo.com"
+              className={cn("h-9 flex-1 min-w-[200px]", testeErroCampo && "border-danger focus-visible:ring-danger")}
+            />
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-9"
+              disabled={!temConteudoTeste || testeEnviando}
+              title={!temConteudoTeste ? "Escolha um template ou cole o conteúdo no passo 1" : undefined}
+              onClick={enviarTeste}
+            >
+              {testeEnviando
+                ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" />
+                : <Send className="mr-1 h-3.5 w-3.5" />}
+              Enviar teste
+            </Button>
+            {testeEstado?.fase === "aguardando" && (
+              <span className="text-xs text-muted-foreground">Enviando para {testeEstado.para}…</span>
+            )}
+            {testeEstado?.fase === "ok" && (
+              <span className="text-xs text-success">Enviado para {testeEstado.para} às {testeEstado.hora}</span>
+            )}
+            {testeEstado?.fase === "erro" && (
+              <span className="text-xs text-danger">{testeEstado.texto}</span>
+            )}
+            {testeRestantes != null && testeRestantes < 10 && (
+              <span className="text-xs text-warning">Restam {testeRestantes} testes nesta hora.</span>
+            )}
+          </div>
+          {testeErroCampo && <p className="text-xs text-danger">{testeErroCampo}</p>}
+          {!temConteudoTeste && (
+            <p className="text-xs text-muted-foreground">Escolha um template ou cole o conteúdo no passo 1.</p>
+          )}
+          <p className="text-[11px] text-muted-foreground">
+            O teste não conta nas métricas, os links dele não são rastreados, e o link de sair não funciona de propósito.
+          </p>
+        </div>
 
         <DialogFooter>
           {passo > 1 && (
