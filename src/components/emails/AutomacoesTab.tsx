@@ -346,6 +346,112 @@ function PainelSimulacao({
   );
 }
 
+const horaCurta = (v: any) => {
+  const d = v ? new Date(v) : new Date();
+  if (Number.isNaN(d.getTime())) return new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+  return d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+};
+
+function PainelPublico({
+  automacao, aberto, onFechar,
+}: { automacao: any | null; aberto: boolean; onFechar: () => void }) {
+  const [limite, setLimite] = useState(100);
+
+  const { data, isFetching, error, refetch } = useQuery({
+    queryKey: ["emails-automacao-publico", automacao?.slug, limite],
+    queryFn: () =>
+      rpcEmails<any>("emails_automacao_publico", { p_slug: automacao.slug, p_limite: limite }),
+    enabled: aberto && !!automacao?.slug,
+    retry: false,
+  });
+
+  const pessoas: any[] = data?.pessoas ?? [];
+
+  return (
+    <Sheet open={aberto} onOpenChange={(v) => !v && onFechar()}>
+      <SheetContent className="w-full overflow-y-auto sm:max-w-lg">
+        <SheetHeader>
+          <SheetTitle className="font-serif">Quem entraria agora em {automacao?.nome}</SheetTitle>
+        </SheetHeader>
+
+        <div className="mt-6 space-y-4">
+          <p className="text-xs text-muted-foreground">
+            Lista consultada às {horaCurta(data?.consultado_em)}. Ela se refaz a cada consulta.
+          </p>
+
+          <div className="flex flex-wrap items-end gap-2">
+            <div className="space-y-1">
+              <p className="text-xs text-muted-foreground">Quantas pessoas mostrar (até 500)</p>
+              <Input
+                type="number"
+                min={1}
+                max={500}
+                className="h-9 w-32"
+                value={limite}
+                onChange={(e) => setLimite(Math.min(500, Math.max(1, Number(e.target.value) || 1)))}
+              />
+            </div>
+            <Button size="sm" variant="outline" onClick={() => refetch()}>Atualizar lista</Button>
+          </div>
+
+          {isFetching && <p className="text-sm text-muted-foreground">Consultando o público…</p>}
+
+          {error && (
+            <Card className="space-y-2 border-danger/40 bg-danger/5 p-3">
+              <p className="text-sm text-danger">{mensagemErroPublico((error as any).message ?? "")}</p>
+              <Button size="sm" variant="outline" onClick={() => refetch()}>Tentar de novo</Button>
+            </Card>
+          )}
+
+          {data && !isFetching && (
+            <>
+              <p className="text-xs text-muted-foreground">
+                Mostrando {inteiro(data.mostrando ?? pessoas.length)} de um público que muda a cada consulta.
+              </p>
+              {pessoas.length === 0 ? (
+                <p className="text-sm text-muted-foreground">Ninguém no público neste momento.</p>
+              ) : (
+                <table className="w-full text-xs">
+                  <thead>
+                    <tr className="text-left text-muted-foreground">
+                      <th className="py-1 font-normal">Pessoa</th>
+                      <th className="py-1 font-normal">RFM</th>
+                      <th className="py-1 text-right font-normal">Dias sem comprar</th>
+                      <th className="py-1 text-right font-normal">Situação</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {pessoas.map((p: any, i: number) => (
+                      <tr key={`${p.email}-${i}`} className="border-t align-top">
+                        <td className="py-1.5">
+                          <p className="max-w-[180px] truncate">{p.email}</p>
+                          {p.nome && <p className="max-w-[180px] truncate text-muted-foreground">{p.nome}</p>}
+                        </td>
+                        <td className="py-1.5">{p.rfm ?? "sem RFM"}</td>
+                        <td className="py-1.5 text-right">{inteiro(p.dias_sem_comprar)}</td>
+                        <td className="py-1.5 text-right">
+                          <span
+                            className={cn(
+                              "whitespace-nowrap",
+                              p.situacao === "entra" ? "text-success" : "text-muted-foreground",
+                            )}
+                          >
+                            {p.situacao ?? "sem situação"}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </>
+          )}
+        </div>
+      </SheetContent>
+    </Sheet>
+  );
+}
+
 export function AutomacoesTab({ onAbrirTemplate }: { onAbrirTemplate?: (slug: string) => void } = {}) {
   const queryClient = useQueryClient();
   const [configurando, setConfigurando] = useState<any | null>(null);
