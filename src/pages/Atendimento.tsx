@@ -297,6 +297,7 @@ export default function Atendimento() {
     | "cashback"
   >("conversas");
   const [cobrancaAberta, setCobrancaAberta] = useState(false);
+  const [abaCobranca, setAbaCobranca] = useState<"pix" | "links">("pix");
   const [linkPagamentoAberto, setLinkPagamentoAberto] = useState(false);
   const [freteAberto, setFreteAberto] = useState(false);
   const [proporCarrinhoAberto, setProporCarrinhoAberto] = useState(false);
