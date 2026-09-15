@@ -708,7 +708,7 @@ export default function Atendimento() {
         </TabsContent>
 
         <TabsContent value="conversas" className="mt-4">
-      <div className="grid w-full max-w-full min-w-0 grid-cols-1 lg:grid-cols-[minmax(0,320px)_minmax(0,1fr)] xl:grid-cols-[minmax(0,320px)_minmax(0,1fr)_minmax(0,340px)] gap-4 h-[calc(100vh-260px)] min-h-[520px]">
+      <div className="grid w-full max-w-full min-w-0 grid-cols-1 lg:grid-cols-[minmax(0,280px)_minmax(0,1fr)] xl:grid-cols-[minmax(0,260px)_minmax(360px,1fr)_minmax(0,280px)] 2xl:grid-cols-[minmax(0,320px)_minmax(0,1fr)_minmax(0,340px)] gap-4 h-[calc(100vh-260px)] min-h-[520px] overflow-x-hidden">
 
         {/* Lista de conversas */}
         <Card className="flex min-w-0 max-w-full flex-col overflow-hidden">
@@ -1119,7 +1119,7 @@ export default function Atendimento() {
                       </div>
                     </div>
                   )}
-                  <div className="flex items-end gap-2">
+                  <div className="flex min-w-0 max-w-full items-end gap-2 overflow-hidden">
                     <input
                       ref={fileRef}
                       type="file"
@@ -1146,7 +1146,7 @@ export default function Atendimento() {
                       onChange={(e) => setTexto(e.target.value)}
                       placeholder="Escreva sua resposta…"
                       rows={2}
-                      className="resize-none"
+                      className="min-w-0 flex-1 resize-none"
                       onKeyDown={(e) => {
                         if (e.key === "Enter" && !e.shiftKey) {
                           e.preventDefault();

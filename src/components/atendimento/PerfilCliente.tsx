@@ -374,7 +374,7 @@ export function PerfilCliente({
                     <Sparkles className="h-3.5 w-3.5" />
                     Sugestões pra ela
                   </p>
-                  <div className="grid min-w-0 grid-cols-3 gap-2">
+                  <div className="grid min-w-0 grid-cols-2 gap-2 2xl:grid-cols-3">
                     {perfil.sugestoes_estoque.map((pr, i) => (
                       <button
                         key={String(pr.produto_id ?? i)}
