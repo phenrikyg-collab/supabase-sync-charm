@@ -87,7 +87,7 @@ export default function Cashback({ semCabecalho }: { semCabecalho?: boolean } = 
             <CuponsTab onAbrirCliente={(c) => c && setCliente(c)} />
           </TabsContent>
           <TabsContent value="regua">
-            <ReguaTab resumo={resumo} templatesEmail={templatesEmail} onAtualizar={carregar} />
+            <ReguaTab />
           </TabsContent>
           <TabsContent value="config">
             <ConfigTab resumo={resumo} onAtualizar={carregar} />
