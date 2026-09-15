@@ -251,6 +251,50 @@ function NovaCampanha({
 
   const textoErroSimulacao = erroSimulacao ? mensagemErroPublico(String((erroSimulacao as any)?.message ?? "")) : null;
 
+  const temConteudoTeste = !!html.trim() || !!templateEscolhido;
+
+  const enviarTeste = async () => {
+    const destino = testePara.trim();
+    setTesteErroCampo(null);
+    if (!destino) { setTesteErroCampo("Informe o endereço de teste."); return; }
+    setTesteEnviando(true);
+    try {
+      const payload = html.trim()
+        ? { p_html: html, p_modo: modoHtml, p_assunto: assunto || null, p_preheader: preheader || null }
+        : { p_slug: templateEscolhido?.slug ?? null, p_assunto: assunto || null, p_preheader: preheader || null };
+      const r = await rpcEmails<any>("emails_teste_enviar", { p_para: destino, ...payload });
+      if (typeof r?.restantes_na_hora === "number") setTesteRestantes(r.restantes_na_hora);
+      setTesteEstado({ fase: "aguardando", para: String(r?.para ?? destino) });
+      setTesteEnviadoNestaSessao(true);
+      setTesteEnviando(false);
+      setTimeout(async () => {
+        try {
+          const s = await rpcEmails<any>("emails_teste_status", { p_teste_id: r?.teste_id });
+          if (s?.entregue_ao_ses)
+            setTesteEstado({
+              fase: "ok",
+              para: String(s?.para ?? destino),
+              hora: new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }),
+            });
+          else
+            setTesteEstado({
+              fase: "erro",
+              para: String(s?.para ?? destino),
+              texto: typeof s?.resposta === "string" ? s.resposta : "A AWS não aceitou a mensagem.",
+            });
+        } catch (e: any) {
+          setTesteEstado({ fase: "erro", para: destino, texto: e?.message ?? "Não deu para conferir o envio." });
+        }
+      }, 2000);
+    } catch (e: any) {
+      setTesteEnviando(false);
+      const msg = String(e?.message ?? "Não deu para enviar o teste.");
+      if (/endere[cç]o de teste inv[aá]lido/i.test(msg)) { setTesteErroCampo(msg); return; }
+      setTesteEstado(null);
+      toast({ title: "Não deu para enviar o teste", description: msg, variant: "destructive" });
+    }
+  };
+
   const cardsSimulacao = useMemo(() => {
     if (!simulacao) return [];
     return [
