@@ -12,7 +12,9 @@ import { EnviarWhatsAppInline } from "@/components/rfm/EnviarWhatsAppInline";
 import { FiltroPeriodo, Periodo, limiteInicio, limiteFim } from "@/components/recuperacao/FiltroPeriodo";
 import { SegmentoBadge, CelulaItens, moeda } from "@/components/recuperacao/comum";
 import { formatarData } from "@/utils/formatters";
-import { Loader2, ShoppingCart, Wallet, Receipt } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { BadgesContato, useContatoPorTelefones } from "@/components/atendimento/contatoTelefones";
+import { Loader2, ShoppingCart, Wallet, Receipt, MessageCircle } from "lucide-react";
 
 type Carrinho = {
   session_id: string;
