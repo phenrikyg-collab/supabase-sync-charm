@@ -86,6 +86,12 @@ export function OportunidadesAoVivo({
 
   useEffect(() => { carregar(); }, [carregar, refreshKey]);
 
+  useEffect(() => {
+    if (!intervaloMs) return;
+    const t = window.setInterval(() => carregar(), intervaloMs);
+    return () => window.clearInterval(t);
+  }, [carregar, intervaloMs]);
+
   const partes: string[] = [];
   if ((resumo?.quentes ?? 0) > 0) partes.push(`${resumo!.quentes} quentes agora`);
   if ((resumo?.contactaveis ?? 0) > 0) partes.push(`${resumo!.contactaveis} com contato`);
