@@ -250,8 +250,24 @@ function CondicaoLinha({
   }, [campos]);
 
   return (
-    <div className="space-y-1 rounded-lg border bg-background p-2">
-      <div className="grid items-center gap-2 md:grid-cols-[1.2fr_1fr_1.4fr_auto]">
+    <div className="relative space-y-2 rounded-lg border bg-background p-2.5 pr-9">
+      <div className="absolute right-1.5 top-1.5 flex items-center gap-1">
+        <Button
+          type="button"
+          size="sm"
+          variant={negada ? "secondary" : "ghost"}
+          className="h-7 px-2 text-[11px]"
+          onClick={() => onNegar(!negada)}
+          title="Inverter esta condição"
+        >
+          não
+        </Button>
+        <Button type="button" size="icon" variant="ghost" className="h-7 w-7" onClick={onRemover}>
+          <X className="h-4 w-4" />
+        </Button>
+      </div>
+
+      <div className={cn("grid gap-2", !empilhado && "sm:grid-cols-[1.4fr_1fr_1.4fr] sm:items-start")}>
         <Select
           value={cond.campo}
           onValueChange={(v) => {
