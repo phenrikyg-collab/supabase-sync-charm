@@ -462,7 +462,12 @@ function NovaCampanha({
             </Button>
           )}
           {passo < 3 && (
-            <Button disabled={!podeAvancar} onClick={() => setPasso(passo + 1)}>Continuar</Button>
+            <div className="flex items-center gap-2">
+              {!podeAvancar && (
+                <span className="text-xs text-muted-foreground">{pendencias.join(", ")}</span>
+              )}
+              <Button disabled={!podeAvancar} onClick={() => setPasso(passo + 1)}>Continuar</Button>
+            </div>
           )}
           {passo === 3 && (
             <Button disabled={preparar.isPending} onClick={() => preparar.mutate()}>
