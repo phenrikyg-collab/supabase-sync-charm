@@ -13,11 +13,12 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import { toast } from "@/hooks/use-toast";
-import { ArrowLeft, Loader2, Plus } from "lucide-react";
+import { AlertTriangle, ArrowLeft, Loader2, Plus, XCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { brl, inteiro, pct1, rpcEmails } from "@/lib/emails";
 import type { ModoTemplate } from "./PreviaTemplate";
-import { ControlesPrevia, IframePrevia, usePreviaTemplate } from "./PreviaTemplate";
+import { ControlesPrevia, IframePrevia, useConferirTemplate, usePreviaTemplate } from "./PreviaTemplate";
+import { lerChecagem } from "./TemplatesTab";
 import {
   ConstrutorPublico, contarCondicoes, descreverFiltro, filtroVazio,
   mensagemErroPublico, SeloPublicoVivo, textoConsulta, usePublicoCampos, type No,
@@ -55,9 +56,17 @@ function Alternador<T extends string>({
   );
 }
 
-function NovaCampanha({ aberto, onFechar }: { aberto: boolean; onFechar: () => void }) {
+function NovaCampanha({
+  aberto, onFechar, campanhaId, onNaoEditavel,
+}: {
+  aberto: boolean;
+  onFechar: () => void;
+  campanhaId?: any;
+  onNaoEditavel?: (id: any) => void;
+}) {
   const queryClient = useQueryClient();
   const [passo, setPasso] = useState(1);
+  const [carregada, setCarregada] = useState(false);
   const [nome, setNome] = useState("");
   const [assunto, setAssunto] = useState("");
   const [preheader, setPreheader] = useState("");
@@ -84,6 +93,28 @@ function NovaCampanha({ aberto, onFechar }: { aberto: boolean; onFechar: () => v
 
   const { data: campos = [] } = usePublicoCampos(aberto);
 
+  // Carrega a campanha em rascunho para continuar de onde parou.
+  const { data: salva } = useQuery({
+    queryKey: ["emails-campanha-get", campanhaId],
+    queryFn: () => rpcEmails<any>("emails_campanha_get", { p_campanha_id: campanhaId }),
+    enabled: aberto && campanhaId != null,
+  });
+
+  useEffect(() => {
+    if (!aberto) { setCarregada(false); return; }
+    if (!salva || carregada) return;
+    if (salva.editavel === false) { onNaoEditavel?.(salva.id); return; }
+    setNome(String(salva.nome ?? ""));
+    setAssunto(String(salva.assunto ?? ""));
+    setPreheader(String(salva.preheader ?? ""));
+    setTemplateId(salva.template_id != null ? String(salva.template_id) : "");
+    const porFiltroSalvo = salva.modo_publico === "filtro" || (!salva.segmento_slug && !!salva.publico_filtro);
+    setModoPublico(porFiltroSalvo ? "filtro" : "segmento");
+    setSegmento(String(salva.segmento_slug ?? ""));
+    if (salva.publico_filtro) setFiltro(salva.publico_filtro as No);
+    setCarregada(true);
+  }, [aberto, salva, carregada, onNaoEditavel]);
+
   const totalCondicoes = contarCondicoes(filtro);
 
   // Debounce da simulação do filtro montado.
@@ -107,7 +138,14 @@ function NovaCampanha({ aberto, onFechar }: { aberto: boolean; onFechar: () => v
 
   const segmentoEscolhido = (segmentos as any[]).find((s) => String(s.slug) === segmento);
   const templateEscolhido = (templates as any[]).find((t: any) => String(t.id) === templateId);
-  const { data: previa } = usePreviaTemplate(templateEscolhido?.slug);
+  const { data: previaTemplate } = usePreviaTemplate(templateEscolhido?.slug);
+  // Sem template escolhido, a prévia vem do HTML colado, conferido pelo banco.
+  const { data: previaColada } = useConferirTemplate(
+    templateEscolhido ? "" : html, assunto, modoHtml, preheader || null, 600,
+  );
+  const previa = templateEscolhido ? previaTemplate : previaColada;
+  const conferencias = templateEscolhido ? [] : lerChecagem(previaColada?.checagem);
+  const htmlBloqueado = conferencias.some((c) => c.tipo === "erro");
 
   const bloqueados =
     simulacao?.bloqueados_teto ??
@@ -137,6 +175,7 @@ function NovaCampanha({ aberto, onFechar }: { aberto: boolean; onFechar: () => v
       }
       const salvo = await rpcEmails<any>("emails_campanha_salvar", {
         p_patch: {
+          ...(campanhaId != null ? { id: campanhaId } : {}),
           nome, assunto, preheader,
           template_id: idTemplate,
           ...(porFiltro ? { publico_filtro: filtro } : { segmento_slug: segmento }),
@@ -169,8 +208,18 @@ function NovaCampanha({ aberto, onFechar }: { aberto: boolean; onFechar: () => v
   });
 
   const publicoPronto = porFiltro ? totalCondicoes > 0 && !!simulacao : !!segmento;
-  const podeAvancar =
-    passo === 1 ? !!nome.trim() && !!assunto.trim() && (!!templateId || !!html.trim()) : passo === 2 ? publicoPronto : true;
+
+  const pendencias: string[] = [];
+  if (passo === 1) {
+    if (!nome.trim()) pendencias.push("Falta: nome");
+    if (!assunto.trim()) pendencias.push("Falta: assunto");
+    if (!templateId && !html.trim()) pendencias.push("Falta: template ou HTML");
+    if (htmlBloqueado) pendencias.push("Corrija a conferência do HTML");
+  } else if (passo === 2 && !publicoPronto) {
+    pendencias.push(porFiltro ? "Monte ao menos uma condição" : "Escolha um segmento");
+  }
+
+  const podeAvancar = pendencias.length === 0;
 
   const textoErroSimulacao = erroSimulacao ? mensagemErroPublico(String((erroSimulacao as any)?.message ?? "")) : null;
 
@@ -188,22 +237,24 @@ function NovaCampanha({ aberto, onFechar }: { aberto: boolean; onFechar: () => v
     <Dialog open={aberto} onOpenChange={(v) => !v && onFechar()}>
       <DialogContent className="max-h-[88vh] max-w-4xl overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="font-serif">Nova campanha · passo {passo} de 3</DialogTitle>
+          <DialogTitle className="font-serif">
+            {campanhaId != null ? "Continuar campanha" : "Nova campanha"} · passo {passo} de 3
+          </DialogTitle>
         </DialogHeader>
 
         {passo === 1 && (
           <div className="grid gap-5 md:grid-cols-2">
             <div className="space-y-3">
               <div className="space-y-1.5">
-                <label className="text-sm font-medium">Nome</label>
+                <label className="text-sm font-medium">Nome *</label>
                 <Input value={nome} onChange={(e) => setNome(e.target.value)} />
               </div>
               <div className="space-y-1.5">
-                <label className="text-sm font-medium">Assunto</label>
+                <label className="text-sm font-medium">Assunto *</label>
                 <Input value={assunto} onChange={(e) => setAssunto(e.target.value)} />
               </div>
               <div className="space-y-1.5">
-                <label className="text-sm font-medium">Preheader</label>
+                <label className="text-sm font-medium">Preheader (opcional)</label>
                 <Input value={preheader} onChange={(e) => setPreheader(e.target.value)} />
               </div>
               <div className="space-y-1.5">
@@ -250,7 +301,25 @@ function NovaCampanha({ aberto, onFechar }: { aberto: boolean; onFechar: () => v
                 altura={420}
                 html={previa?.html}
               />
+              {!templateEscolhido && html.trim() && (
+                <Card className="space-y-1.5 p-3">
+                  <p className="text-sm font-medium">Conferência do conteúdo</p>
+                  {!previaColada && <p className="text-xs text-muted-foreground">Conferindo o conteúdo colado…</p>}
+                  {previaColada && conferencias.length === 0 && (
+                    <p className="text-xs text-success">Tudo certo com as regras de Gmail e Tray.</p>
+                  )}
+                  {conferencias.map((c, i) => (
+                    <div key={i} className="flex gap-2 text-xs">
+                      {c.tipo === "erro"
+                        ? <XCircle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-danger" />
+                        : <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-warning" />}
+                      <span className={c.tipo === "erro" ? "text-danger" : "text-muted-foreground"}>{c.texto}</span>
+                    </div>
+                  ))}
+                </Card>
+              )}
             </div>
+
 
           </div>
         )}
@@ -393,7 +462,12 @@ function NovaCampanha({ aberto, onFechar }: { aberto: boolean; onFechar: () => v
             </Button>
           )}
           {passo < 3 && (
-            <Button disabled={!podeAvancar} onClick={() => setPasso(passo + 1)}>Continuar</Button>
+            <div className="flex items-center gap-2">
+              {!podeAvancar && (
+                <span className="text-xs text-muted-foreground">{pendencias.join(", ")}</span>
+              )}
+              <Button disabled={!podeAvancar} onClick={() => setPasso(passo + 1)}>Continuar</Button>
+            </div>
           )}
           {passo === 3 && (
             <Button disabled={preparar.isPending} onClick={() => preparar.mutate()}>
@@ -443,7 +517,13 @@ function ResumoCampanha({ id, onVoltar }: { id: any; onVoltar: () => void }) {
 
 export function CampanhasTab({ dias }: { dias: number }) {
   const [nova, setNova] = useState(false);
+  const [editando, setEditando] = useState<any | null>(null);
   const [aberta, setAberta] = useState<any | null>(null);
+
+  const abrirLinha = (c: any) => {
+    if (String(c.status ?? "rascunho").toLowerCase() === "rascunho") setEditando(c.id);
+    else setAberta(c.id);
+  };
 
   const { data: campanhas = [], isLoading } = useQuery({
     queryKey: ["emails-campanhas", dias],
@@ -471,21 +551,22 @@ export function CampanhasTab({ dias }: { dias: number }) {
               <TableHead className="text-right">Abertura</TableHead>
               <TableHead className="text-right">CTOR</TableHead>
               <TableHead className="text-right">Receita</TableHead>
+              <TableHead />
             </TableRow>
           </TableHeader>
           <TableBody>
             {isLoading && (
-              <TableRow><TableCell colSpan={9} className="text-center text-sm text-muted-foreground">Carregando…</TableCell></TableRow>
+              <TableRow><TableCell colSpan={10} className="text-center text-sm text-muted-foreground">Carregando…</TableCell></TableRow>
             )}
             {!isLoading && campanhas.length === 0 && (
               <TableRow>
-                <TableCell colSpan={9} className="py-8 text-center text-sm text-muted-foreground">
+                <TableCell colSpan={10} className="py-8 text-center text-sm text-muted-foreground">
                   Nenhuma campanha criada ainda. Comece pelo botão "Nova campanha".
                 </TableCell>
               </TableRow>
             )}
             {campanhas.map((c: any) => (
-              <TableRow key={c.id} className="cursor-pointer" onClick={() => setAberta(c.id)}>
+              <TableRow key={c.id} className="cursor-pointer" onClick={() => abrirLinha(c)}>
                 <TableCell className="font-medium">{c.nome}</TableCell>
                 <TableCell className="text-sm text-muted-foreground">{c.segmento ?? c.segmento_slug}</TableCell>
                 <TableCell>
@@ -499,6 +580,17 @@ export function CampanhasTab({ dias }: { dias: number }) {
                 <TableCell className="text-right">{pct1(c.taxa_abertura_pct)}</TableCell>
                 <TableCell className="text-right">{pct1(c.ctor_pct)}</TableCell>
                 <TableCell className="text-right">{brl(c.receita_atribuida)}</TableCell>
+                <TableCell className="text-right">
+                  {String(c.status ?? "rascunho").toLowerCase() === "rascunho" && (
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={(e) => { e.stopPropagation(); setEditando(c.id); }}
+                    >
+                      Continuar
+                    </Button>
+                  )}
+                </TableCell>
               </TableRow>
             ))}
           </TableBody>
@@ -506,6 +598,15 @@ export function CampanhasTab({ dias }: { dias: number }) {
       </Card>
 
       <NovaCampanha aberto={nova} onFechar={() => setNova(false)} />
+      {editando != null && (
+        <NovaCampanha
+          key={String(editando)}
+          aberto
+          campanhaId={editando}
+          onFechar={() => setEditando(null)}
+          onNaoEditavel={(id) => { setEditando(null); setAberta(id); }}
+        />
+      )}
     </div>
   );
 }
