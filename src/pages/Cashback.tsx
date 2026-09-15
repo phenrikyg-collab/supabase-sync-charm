@@ -7,7 +7,7 @@ import { ReguaTab } from "@/components/cashback/ReguaTab";
 import { ConfigTab } from "@/components/cashback/ConfigTab";
 import { PainelCliente } from "@/components/cashback/PainelCliente";
 import { CarregandoBloco, EstadoErro } from "@/components/cashback/Estados";
-import { rpcCashback, objetoDe, listaDe } from "@/lib/cashback";
+import { rpcCashback, objetoDe } from "@/lib/cashback";
 
 const PERIODOS = [7, 30, 90];
 
@@ -37,9 +37,6 @@ export default function Cashback({ semCabecalho }: { semCabecalho?: boolean } = 
 
   useEffect(() => { carregar(); }, [carregar]);
 
-  const templatesEmail = listaDe(resumo.templates_email)
-    .map((t: any) => (typeof t === "string" ? t : t.slug))
-    .filter((s: any) => typeof s === "string" && s.startsWith("auto-cashback"));
 
   return (
     <div className={semCabecalho ? "space-y-6" : "space-y-6 p-4 md:p-6"}>
