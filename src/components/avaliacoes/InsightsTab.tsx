@@ -120,8 +120,11 @@ function BlocoVisaoGeral({
   const dist = p.distribuicao ?? {};
   const totalDist = [5, 4, 3, 2, 1].reduce((s, n) => s + Number(dist[String(n)] ?? 0), 0);
 
+  const pendentes = Number(data.moderacao_pendente ?? 0);
+
   return (
-    <div className="grid gap-4 lg:grid-cols-3">
+    <div className="space-y-3">
+      <div className="grid gap-4 lg:grid-cols-3">
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4 lg:col-span-2">
         <CardKpi
           rotulo="Nota média do produto"
