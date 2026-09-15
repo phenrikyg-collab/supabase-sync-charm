@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { toast } from "@/hooks/use-toast";
 import { AlertTriangle, ArrowLeft, Plus, Send, XCircle } from "lucide-react";
 import { dataBr, rpcEmails } from "@/lib/emails";
+import type { ModoTemplate } from "./PreviaTemplate";
 import { ControlesPrevia, IframePrevia, useConferirTemplate, usePreviaTemplate, useVariaveisDisponiveis } from "./PreviaTemplate";
 
 type Conferencia = { tipo: "erro" | "aviso"; texto: string };
