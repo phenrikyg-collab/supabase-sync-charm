@@ -123,7 +123,7 @@ export function TagsConversa({
 
   return (
     <div className="flex items-center gap-1.5 flex-wrap">
-      {aplicadas.map((t) => (
+      {aplicadasAtuais.map((t) => (
         <TagChip key={String(t.id)} tag={t} />
       ))}
       <Popover>
