@@ -814,8 +814,24 @@ export default function Atendimento() {
   }, [conversas, aba]);
 
 
+  // Fila de trabalho: só conversas assumidas por uma pessoa
+  const ehAssumida = (c: Conversa) => ["em_atendimento", "escalado"].includes((c.status ?? "").toLowerCase());
+  const totalEmAtendimento = conversas.filter(ehAssumida).length;
+
   const filtradas = useMemo(() => {
     let base: Conversa[];
+    if (modoFila) {
+      // Espera mais antiga primeiro: quem tem cliente aguardando resposta vem na frente
+      base = conversas.filter(ehAssumida);
+      return [...base].sort((a, b) => {
+        const espA = aguardandoResposta(a) ? 0 : 1;
+        const espB = aguardandoResposta(b) ? 0 : 1;
+        if (espA !== espB) return espA - espB;
+        const da = new Date(atencaoDe(a)?.ultima_entrada ?? a.ultima_mensagem_em ?? 0).getTime();
+        const db = new Date(atencaoDe(b)?.ultima_entrada ?? b.ultima_mensagem_em ?? 0).getTime();
+        return da - db;
+      });
+    }
     if (buscaAtiva) {
       const achadas = resultadoBusca?.conversas ?? [];
       base = achadas.map((r) => {
