@@ -20,7 +20,7 @@ import type { ModoTemplate } from "./PreviaTemplate";
 import { ControlesPrevia, IframePrevia, usePreviaTemplate } from "./PreviaTemplate";
 import {
   ConstrutorPublico, contarCondicoes, descreverFiltro, filtroVazio,
-  mensagemErroPublico, usePublicoCampos, type No,
+  mensagemErroPublico, SeloPublicoVivo, textoConsulta, usePublicoCampos, type No,
 } from "./ConstrutorPublico";
 
 
