@@ -311,6 +311,7 @@ function PainelSimulacao({
 export function AutomacoesTab({ onAbrirTemplate }: { onAbrirTemplate?: (slug: string) => void } = {}) {
   const queryClient = useQueryClient();
   const [configurando, setConfigurando] = useState<any | null>(null);
+  const [simulando, setSimulando] = useState<any | null>(null);
   const [confirmarDesligar, setConfirmarDesligar] = useState<any | null>(null);
 
   const { data: automacoes = [], isLoading } = useQuery({
