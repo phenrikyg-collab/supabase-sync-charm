@@ -362,6 +362,11 @@ export function AutomacoesTab({ onAbrirTemplate }: { onAbrirTemplate?: (slug: st
                   <div className="flex items-center gap-2">
                     <h3 className="font-serif text-lg">{a.nome}</h3>
                     <Badge variant="outline" className={badge.classe}>{badge.texto}</Badge>
+                    {ehPublicoVivo(a) && (
+                      <Badge variant="outline" className="border-success/30 bg-success/15 text-[11px] text-success">
+                        Público vivo
+                      </Badge>
+                    )}
                   </div>
                   <p className="text-xs text-muted-foreground">{a.descricao}</p>
                 </div>
