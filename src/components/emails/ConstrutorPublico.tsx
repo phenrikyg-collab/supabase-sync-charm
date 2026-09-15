@@ -7,7 +7,7 @@ import {
   Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Plus, X } from "lucide-react";
+import { AlertTriangle, Plus, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { rpcEmails } from "@/lib/emails";
 
@@ -17,6 +17,9 @@ export type CampoPublico = {
   tipo: "numero" | "dias" | "data" | "texto" | "booleano" | "array" | string;
   grupo?: string | null;
   descricao?: string | null;
+  congela_publico?: boolean | null;
+  equivalente_vivo?: string | null;
+  equivalente_vivo_rotulo?: string | null;
 };
 
 export type Condicao = { campo: string; op: string; valor?: any };
