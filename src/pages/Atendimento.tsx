@@ -1091,10 +1091,10 @@ export default function Atendimento() {
               </>
             )}
           </ScrollArea>
-        </Card>
+        </aside>
 
         {/* Thread */}
-        <Card className="flex min-w-0 flex-col overflow-hidden">
+        <section className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
           {!conversaAtual ? (
             <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground gap-2">
               <MessageCircle className="h-10 w-10 opacity-40" />
