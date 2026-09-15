@@ -79,6 +79,11 @@ function CamposWhatsAppTemplate({
             ))}
           </SelectContent>
         </Select>
+        {escolhido?.copiar_cupom && (
+          <Badge variant="outline" className="border-success/40 bg-success/10 text-[10px] text-success">
+            Cupom no botão Copiar
+          </Badge>
+        )}
         {escolhido?.corpo && (
           <p className="whitespace-pre-wrap rounded-md bg-muted/40 p-2 text-[11px] text-muted-foreground">
             {escolhido.corpo}
@@ -160,16 +165,21 @@ function PreviaEmailDialog({ slug, open, onOpenChange }: { slug?: string | null;
 }
 
 export function ConfigNoPanel({
-  data, catalogo, nosDoFluxo, onChange, onRemover, onFechar, onIrConfiguracoes,
+  data, catalogo, nosDoFluxo, gatilhoTipo, onChange, onRemover, onFechar, onIrConfiguracoes,
 }: {
   data: NoData;
   catalogo?: Catalogo;
   nosDoFluxo: NoLista[];
+  gatilhoTipo?: string | null;
   onChange: (patch: { rotulo?: string; config?: Record<string, any> }) => void;
   onRemover: () => void;
   onFechar: () => void;
   onIrConfiguracoes: () => void;
 }) {
+  const ehCashback = gatilhoTipo === "cashback";
+  const referenciasEspera = ehCashback ? catalogo?.espera_referencias ?? [] : [];
+  const referenciaEspera = data.config?.referencia ? String(data.config.referencia) : "fixo";
+  const modosExtra = ehCashback ? catalogo?.condicao_modos_extra ?? [] : [];
   const meta = TIPOS_NO[data.tipo] ?? TIPOS_NO.fim;
   const config = data.config ?? {};
   const { data: campos = [] } = usePublicoCampos();
@@ -243,6 +253,7 @@ export function ConfigNoPanel({
                 ["evento", "Reação a um envio anterior"],
                 ["comprou", "Comprou desde que entrou"],
                 ["janela_whatsapp", "Janela de 24h do WhatsApp aberta"],
+                ...modosExtra.map((o) => [o.valor, o.rotulo] as [string, string]),
               ].map(([v, r]) => (
                 <div key={v} className="flex items-center gap-2">
                   <RadioGroupItem value={v} id={`modo-${v}`} />
@@ -290,6 +301,26 @@ export function ConfigNoPanel({
               </div>
             )}
 
+            {config.modo === "cashback_avisado" && (
+              <div className="space-y-2">
+                <div className="space-y-1">
+                  <Label className="text-xs">Qual aviso da régua antiga</Label>
+                  <Select value={config.aviso_tipo ?? ""} onValueChange={(v) => patch({ aviso_tipo: v })}>
+                    <SelectTrigger><SelectValue placeholder="Escolha o aviso" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="novo_cupom">Cupom novo</SelectItem>
+                      <SelectItem value="vence_7d">Vence em 7 dias</SelectItem>
+                      <SelectItem value="vence_2d">Vence em 2 dias</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <p className="text-[11px] text-muted-foreground">
+                  Modo de transição. Só faz sentido durante a migração da régua antiga, para não avisar duas vezes quem
+                  já recebeu. Depois que a régua antiga sair do ar, pode remover este passo.
+                </p>
+              </div>
+            )}
+
             <p className="text-[11px] text-muted-foreground">
               Coloque uma Espera antes de conferir abertura, leitura ou resposta.
             </p>
@@ -298,6 +329,57 @@ export function ConfigNoPanel({
 
         {data.tipo === "espera" && (
           <div className="space-y-3">
+            {referenciasEspera.length > 0 && (
+              <div className="space-y-1">
+                <Label className="text-xs">Contar a partir de</Label>
+                <Select
+                  value={referenciaEspera}
+                  onValueChange={(v) =>
+                    patch(
+                      v === "fixo"
+                        ? { referencia: null, dias_antes: null }
+                        : { referencia: v, dias_antes: config.dias_antes ?? 7, ate_hora: config.ate_hora ?? 10 },
+                    )
+                  }
+                >
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="fixo">Tempo fixo</SelectItem>
+                    {referenciasEspera.map((o) => (
+                      <SelectItem key={o.valor} value={o.valor}>{o.rotulo}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
+            {referenciaEspera !== "fixo" ? (
+              <div className="space-y-3">
+                <div className="space-y-1">
+                  <Label className="text-xs">Quantos dias antes de vencer</Label>
+                  <Input
+                    type="number"
+                    min={0}
+                    value={config.dias_antes ?? 7}
+                    onChange={(e) => patch({ dias_antes: Number(e.target.value) })}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Hora (0 a 23)</Label>
+                  <Input
+                    type="number"
+                    min={0}
+                    max={23}
+                    value={config.ate_hora ?? 10}
+                    onChange={(e) => patch({ ate_hora: Number(e.target.value) })}
+                  />
+                </div>
+                <p className="text-[11px] text-muted-foreground">
+                  A espera termina esse tanto de dias antes do cashback vencer, no horário escolhido.
+                </p>
+              </div>
+            ) : (
+            <>
             <div className="grid grid-cols-3 gap-2">
               {[["dias", "Dias"], ["horas", "Horas"], ["minutos", "Minutos"]].map(([k, r]) => (
                 <div key={k} className="space-y-1">
@@ -333,6 +415,8 @@ export function ConfigNoPanel({
             <p className="text-[11px] text-muted-foreground">
               Antes desse horário espera até ele; das 20h em diante passa para o dia seguinte.
             </p>
+            </>
+            )}
           </div>
         )}
 

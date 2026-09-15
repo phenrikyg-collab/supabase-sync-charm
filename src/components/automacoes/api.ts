@@ -41,8 +41,29 @@ export type TemplateWpp = {
   categoria?: string | null;
   corpo?: string | null;
   variaveis?: number | null;
+  copiar_cupom?: boolean | null;
 };
 export type TagCatalogo = { id: number | string; nome: string; cor?: string | null };
+
+/** Item de lista do catálogo que pode vir como texto puro ou objeto com rótulo. */
+export type OpcaoCatalogo = { valor: string; rotulo: string; descricao?: string | null };
+
+export function normalizarOpcoes(lista: any): OpcaoCatalogo[] {
+  if (!Array.isArray(lista)) return [];
+  return lista
+    .map((item: any) => {
+      if (typeof item === "string") return { valor: item, rotulo: item };
+      if (!item || typeof item !== "object") return null;
+      const valor = String(item.valor ?? item.tipo ?? item.chave ?? item.id ?? "");
+      if (!valor) return null;
+      return {
+        valor,
+        rotulo: String(item.rotulo ?? item.nome ?? item.label ?? valor),
+        descricao: item.descricao ?? null,
+      };
+    })
+    .filter(Boolean) as OpcaoCatalogo[];
+}
 
 export type Catalogo = {
   gatilhos: Gatilho[];
@@ -53,6 +74,8 @@ export type Catalogo = {
   grupos: string[];
   variaveis_texto: string[];
   eventos: { email: string[]; whatsapp: string[] };
+  espera_referencias: OpcaoCatalogo[];
+  condicao_modos_extra: OpcaoCatalogo[];
 };
 
 export type NoFluxo = {
@@ -97,6 +120,8 @@ export function useCatalogoFluxos() {
         grupos: d?.grupos ?? [],
         variaveis_texto: d?.variaveis_texto ?? [],
         eventos: d?.eventos ?? { email: [], whatsapp: [] },
+        espera_referencias: normalizarOpcoes((d as any)?.espera_referencias),
+        condicao_modos_extra: normalizarOpcoes((d as any)?.condicao_modos_extra),
       } as Catalogo;
     },
   });

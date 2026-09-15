@@ -527,6 +527,7 @@ function Editor({ fluxoId }: { fluxoId: string }) {
                   data={noSelecionado.data as unknown as NoData}
                   catalogo={catalogo}
                   nosDoFluxo={nosDoFluxo}
+                  gatilhoTipo={fluxo.gatilho_tipo}
                   onChange={atualizarNo}
                   onRemover={removerNo}
                   onFechar={() => setSelecionado(null)}
