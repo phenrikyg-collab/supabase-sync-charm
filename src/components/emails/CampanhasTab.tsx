@@ -301,7 +301,25 @@ function NovaCampanha({
                 altura={420}
                 html={previa?.html}
               />
+              {!templateEscolhido && html.trim() && (
+                <Card className="space-y-1.5 p-3">
+                  <p className="text-sm font-medium">Conferência do conteúdo</p>
+                  {!previaColada && <p className="text-xs text-muted-foreground">Conferindo o conteúdo colado…</p>}
+                  {previaColada && conferencias.length === 0 && (
+                    <p className="text-xs text-success">Tudo certo com as regras de Gmail e Tray.</p>
+                  )}
+                  {conferencias.map((c, i) => (
+                    <div key={i} className="flex gap-2 text-xs">
+                      {c.tipo === "erro"
+                        ? <XCircle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-danger" />
+                        : <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-warning" />}
+                      <span className={c.tipo === "erro" ? "text-danger" : "text-muted-foreground"}>{c.texto}</span>
+                    </div>
+                  ))}
+                </Card>
+              )}
             </div>
+
 
           </div>
         )}
