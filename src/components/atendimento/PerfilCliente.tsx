@@ -455,8 +455,7 @@ export function PerfilCliente({
           <div className="border-t border-border pt-3">
             <NotasInternas conversaId={conversaId} autor={autor} />
           </div>
-        </div>
-      </ScrollArea>
+      </div>
     </Card>
   );
 }
