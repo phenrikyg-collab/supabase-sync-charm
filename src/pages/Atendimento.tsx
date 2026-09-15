@@ -20,7 +20,7 @@ import {
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Checkbox } from "@/components/ui/checkbox";
 import { TagsConversa, TagChip, type Tag } from "@/components/atendimento/TagsConversa";
-import { CatalogoDialog, formatarPreco, legendaProduto, type ProdutoCatalogo } from "@/components/atendimento/CatalogoDialog";
+import { CatalogoDialog, formatarPreco, legendaProduto, type ProdutoCatalogo, type EscolhaProduto } from "@/components/atendimento/CatalogoDialog";
 import { PerfilCliente } from "@/components/atendimento/PerfilCliente";
 import { AtividadesRecentes } from "@/components/atendimento/AtividadesRecentes";
 import { CobrancaPixDialog, CobrancasTab, CobrancasDaConversa } from "@/components/atendimento/CobrancaPix";
@@ -77,6 +77,11 @@ type Conversa = {
   sinais?: string[] | null;
   ordem?: number | null;
   aguardando_resposta?: boolean | null;
+  aguardando_desde?: string | null;
+  tipo_interacao?: "conversa" | "clique" | "so_envio" | string | null;
+  ultima_entrada_texto?: string | null;
+  digitadas?: number | null;
+  cliques?: number | null;
   pix_aberto_valor?: number | null;
   link_pendente?: boolean | null;
 };
@@ -166,7 +171,17 @@ const STATUS_META: Record<string, { label: string; className: string }> = {
   resolvido: { label: "Resolvido", className: "bg-success/10 text-success border-success/20" },
 };
 
-function StatusPill({ status, className }: { status: string; className?: string }) {
+function StatusPill({
+  status,
+  aguardandoDesde,
+  className,
+}: {
+  status: string;
+  aguardandoDesde?: string | null;
+  className?: string;
+}) {
+  // A tarja "Aguardando atendimento" só vale quando a conversa está mesmo na fila humana
+  if (status === "escalado" && !aguardandoDesde) return null;
   const meta = STATUS_META[status] ?? {
     label: status,
     className: "bg-muted text-muted-foreground border-border",
@@ -260,6 +275,7 @@ export default function Atendimento() {
 
 
 
+  const [grupoAba, setGrupoAba] = useState<"conversa" | "clique" | "so_envio">("conversa");
   const [filtroLeitura, setFiltroLeitura] = useState<"todas" | "nao_lidas" | "lidas" | "atencao">("todas");
   const [tagsFiltro, setTagsFiltro] = useState<string[]>([]);
   const [erroJanela, setErroJanela] = useState<string | null>(null);
@@ -274,7 +290,7 @@ export default function Atendimento() {
 
   const autor = user?.email ?? "Atendente";
 
-  const { data: conversas = [], isLoading: carregandoConversas } = useQuery({
+  const { data: conversasBrutas = [], isLoading: carregandoConversas } = useQuery({
     queryKey: ["whatsapp-conversas"],
     queryFn: async () => {
       // vw_conversas_painel já vem ordenada por urgência: renderizar na ordem exata do banco
@@ -290,6 +306,34 @@ export default function Atendimento() {
     // rede de segurança curta: o tempo real cuida do resto
     refetchInterval: 10000,
   });
+
+  // Tipo de interação por conversa: conversa de verdade, só clique em botão ou só disparo nosso
+  const { data: tiposInteracao = [] } = useQuery({
+    queryKey: ["whatsapp-conversas-tipo"],
+    refetchInterval: 30000,
+    queryFn: async () => {
+      const { data, error } = await supabase.from("vw_conversas_tipo" as any).select("*");
+      if (error) throw error;
+      return (data ?? []) as any[];
+    },
+  });
+
+  const conversas = useMemo(() => {
+    const mapa = new Map<string, any>();
+    for (const t of tiposInteracao) mapa.set(String(t.conversa_id), t);
+    return conversasBrutas.map((c) => {
+      const t = mapa.get(String(c.id));
+      return t
+        ? {
+            ...c,
+            tipo_interacao: t.tipo_interacao ?? null,
+            ultima_entrada_texto: t.ultima_entrada_texto ?? t.ultima_entrada ?? t.ultimo_clique ?? null,
+            digitadas: t.digitadas ?? null,
+            cliques: t.cliques ?? null,
+          }
+        : c;
+    });
+  }, [conversasBrutas, tiposInteracao]);
 
   const conversaAtual = conversas.find((c) => String(c.id) === selecionada) ?? null;
 
@@ -561,9 +605,9 @@ export default function Atendimento() {
     }
   };
 
-  const enviarProduto = async (p: ProdutoCatalogo) => {
+  const enviarProduto = async (p: ProdutoCatalogo, escolha?: EscolhaProduto) => {
     try {
-      await enviarImagem(p.imagem ?? "", legendaProduto(p));
+      await enviarImagem(p.imagem ?? "", legendaProduto(p, escolha));
       setCatalogoAberto(false);
       toast({ title: "Produto enviado" });
     } catch (e: any) {
@@ -587,10 +631,19 @@ export default function Atendimento() {
 
   const reativarBot = useMutation({
     mutationFn: async () => {
-      const { error } = await supabase.rpc("whatsapp_reativar_bot" as any, {
-        p_conversa_id: Number.isNaN(Number(selecionada)) ? selecionada : Number(selecionada),
-      });
+      const id = Number.isNaN(Number(selecionada)) ? selecionada : Number(selecionada);
+      const { error } = await supabase.rpc("whatsapp_reativar_bot" as any, { p_conversa_id: id });
       if (error) throw error;
+      // tira a conversa da fila humana junto com o status
+      try {
+        await (supabase as any)
+          .schema("whatsapp")
+          .from("conversas")
+          .update({ aguardando_desde: null, fila_posicao_avisada: null })
+          .eq("id", id);
+      } catch {
+        /* a RPC pode já ter limpado; ignorar */
+      }
     },
     onSuccess: () => {
       toast({ title: "Bot reativado" });
@@ -624,6 +677,26 @@ export default function Atendimento() {
 
   const atencaoDe = (c: Conversa) => mapaAtencao.get(String(c.id));
 
+  /** Alguém pedindo atendente entra em Conversas sempre, seja qual for o tipo */
+  const grupoDe = (c: Conversa): "conversa" | "clique" | "so_envio" => {
+    if (c.status === "escalado" || c.status === "em_atendimento") return "conversa";
+    const t = (c.tipo_interacao ?? "conversa").toLowerCase();
+    if (t === "clique") return "clique";
+    if (t === "so_envio") return "so_envio";
+    return "conversa";
+  };
+
+  const contagemGrupos = useMemo(() => {
+    const base = { conversa: 0, clique: 0, so_envio: 0 };
+    for (const c of conversas) {
+      if (!daAba(c)) continue;
+      base[grupoDe(c)] += 1;
+    }
+    return base;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [conversas, aba]);
+
+
   const filtradas = useMemo(() => {
     if (buscaAtiva) {
       const achadas = resultadoBusca?.conversas ?? [];
@@ -641,6 +714,7 @@ export default function Atendimento() {
     }
     return conversas.filter((c) => {
       if (!daAba(c)) return false;
+      if (grupoDe(c) !== grupoAba) return false;
       if (filtroLeitura === "nao_lidas" && !c.nao_lida) return false;
       if (filtroLeitura === "lidas" && c.nao_lida) return false;
       if (filtroLeitura === "atencao" && !["perdendo", "quente", "atencao"].includes(urgenciaDe(c))) return false;
@@ -651,7 +725,7 @@ export default function Atendimento() {
       return true;
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [conversas, buscaAtiva, resultadoBusca, aba, filtroLeitura, tagsFiltro]);
+  }, [conversas, buscaAtiva, resultadoBusca, aba, grupoAba, filtroLeitura, tagsFiltro]);
 
   const clientesSemConversa = buscaAtiva ? (resultadoBusca?.clientes ?? []) : [];
 
@@ -664,8 +738,9 @@ export default function Atendimento() {
   const naoLidasWhatsapp = conversas.filter((c) => c.nao_lida && !ehSite(c)).length;
   const naoLidasSite = conversas.filter((c) => c.nao_lida && ehSite(c)).length;
   const totalNaoLidas = aba === "site" ? naoLidasSite : naoLidasWhatsapp;
+  // "Precisam de atenção" conta só a aba Conversas
   const totalAtencao = conversas.filter(
-    (c) => daAba(c) && ["perdendo", "quente", "atencao"].includes(urgenciaDe(c)),
+    (c) => daAba(c) && grupoDe(c) === "conversa" && ["perdendo", "quente", "atencao"].includes(urgenciaDe(c)),
   ).length;
 
   const telefoneIdentificado = conversaAtual
@@ -742,6 +817,27 @@ export default function Atendimento() {
                   </button>
                 );
               })}
+            </div>
+            <div className="grid grid-cols-3 gap-1 rounded-md bg-muted p-1">
+              {([
+                { v: "conversa", label: "Conversas", n: contagemGrupos.conversa },
+                { v: "clique", label: "Cliques", n: contagemGrupos.clique },
+                { v: "so_envio", label: "Só envios", n: contagemGrupos.so_envio },
+              ] as const).map((g) => (
+                <button
+                  key={g.v}
+                  onClick={() => setGrupoAba(g.v)}
+                  className={cn(
+                    "inline-flex items-center justify-center gap-1 rounded-sm px-1.5 py-1.5 text-[11px] font-medium transition-colors",
+                    grupoAba === g.v
+                      ? "bg-card shadow-sm text-foreground"
+                      : "text-muted-foreground hover:text-foreground",
+                  )}
+                >
+                  {g.label}
+                  <span className="text-[10px] opacity-70">{g.n}</span>
+                </button>
+              ))}
             </div>
             <div className="relative">
 
@@ -891,10 +987,18 @@ export default function Atendimento() {
                     </span>
                   </div>
                   <p className={cn("text-xs mt-1 line-clamp-1", naoLida ? "text-foreground font-medium" : "text-muted-foreground")}>
-                    {c.ultima_mensagem ?? "—"}
+                    {c.ultima_mensagem ?? ""}
                   </p>
+                  {grupoAba === "clique" && (
+                    <p className="mt-1 text-[11px]">
+                      <span className="text-muted-foreground">Botão tocado: </span>
+                      <span className="font-medium">
+                        {c.ultima_entrada_texto ?? c.ultima_mensagem ?? "sem registro"}
+                      </span>
+                    </p>
+                  )}
                   <div className="mt-2 flex items-center gap-1.5 flex-wrap">
-                    <StatusPill status={c.status} />
+                    <StatusPill status={c.status} aguardandoDesde={c.aguardando_desde} />
                     {(c.tags ?? []).map((t) => (
                       <TagChip key={String(t.id)} tag={t} />
                     ))}
@@ -958,8 +1062,10 @@ export default function Atendimento() {
                     )}
                     <h2 className="font-medium truncate">{nomeConversa(conversaAtual)}</h2>
                     {nomeSoDoWhatsApp(conversaAtual) && <BadgeViaWhatsApp />}
-                    <StatusPill status={conversaAtual.status} />
-                    {conversaAtual.status === "escalado" && <SeloFila conversaId={conversaAtual.id} />}
+                    <StatusPill status={conversaAtual.status} aguardandoDesde={conversaAtual.aguardando_desde} />
+                    {conversaAtual.status === "escalado" && conversaAtual.aguardando_desde && (
+                      <SeloFila conversaId={conversaAtual.id} />
+                    )}
                     {ehSite(conversaAtual) && conversaAtual.telefone_real && (
                       <span className="inline-flex items-center gap-1 rounded-full border border-success/20 bg-success/10 px-2 py-0.5 text-[10px] text-success">
                         <Phone className="h-3 w-3" />
