@@ -992,7 +992,7 @@ export default function Atendimento() {
         </TabsContent>
 
 
-        <TabsContent value="conversas" className="m-0 min-h-0 w-full min-w-0 max-w-full flex-1 overflow-hidden data-[state=active]:flex">
+        <TabsContent value={modoFila ? "em_atendimento" : "conversas"} className="m-0 min-h-0 w-full min-w-0 max-w-full flex-1 overflow-hidden data-[state=active]:flex">
       <div className="relative flex min-h-0 w-full min-w-0 max-w-full flex-1 overflow-hidden">
 
         {listaSheet && (
