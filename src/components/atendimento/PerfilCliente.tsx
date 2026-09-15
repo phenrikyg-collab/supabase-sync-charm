@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { ScrollArea } from "@/components/ui/scroll-area";
+
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
@@ -323,8 +323,7 @@ export function PerfilCliente({
       <div className="p-3 border-b border-border">
         <h3 className="text-sm font-semibold">Perfil da cliente</h3>
       </div>
-      <ScrollArea className="min-w-0 max-w-full flex-1 overflow-x-hidden [&_[data-radix-scroll-area-viewport]]:!overflow-x-hidden">
-        <div className="min-w-0 max-w-full p-3 space-y-4 overflow-x-hidden">
+      <div className="min-w-0 max-w-full p-3 space-y-4 overflow-x-hidden">
           {isLoading && <p className="text-xs text-muted-foreground">Carregando perfil…</p>}
 
           {!isLoading && !perfil?.vinculado && (
