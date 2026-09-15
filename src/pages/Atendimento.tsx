@@ -295,6 +295,31 @@ export default function Atendimento() {
   const [enviandoImagem, setEnviandoImagem] = useState(false);
   const fimRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  const textoRef = useRef<HTMLTextAreaElement>(null);
+
+  // painéis laterais estilo WhatsApp Web
+  const [perfilAberto, setPerfilAberto] = useState(true);
+  const [perfilSheet, setPerfilSheet] = useState(false);
+  const [listaSheet, setListaSheet] = useState(false);
+
+  // mensagens rápidas pelo atalho "/"
+  const { data: respostasRapidas = [] } = useRespostasRapidas(false);
+  const [indiceRapida, setIndiceRapida] = useState(0);
+  const slashAtivo = texto.startsWith("/") && !texto.includes("\n");
+  const rapidasFiltradas = useMemo(
+    () => (slashAtivo ? filtrarRespostas(respostasRapidas, texto.slice(1)) : []),
+    [slashAtivo, respostasRapidas, texto],
+  );
+  const listaRapidaAberta = slashAtivo && rapidasFiltradas.length > 0;
+  useEffect(() => {
+    setIndiceRapida(0);
+  }, [texto]);
+
+  const inserirResposta = (r: RespostaRapida) => {
+    setTexto(r.texto);
+    registrarUso(r.id);
+    setTimeout(() => textoRef.current?.focus(), 0);
+  };
 
   const autor = user?.email ?? "Atendente";
 
