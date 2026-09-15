@@ -903,6 +903,37 @@ export default function Atendimento() {
               );
               });
             })()}
+
+            {clientesSemConversa.length > 0 && (
+              <>
+                <div className="px-4 pt-3 pb-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                  Sem conversa ainda
+                </div>
+                {clientesSemConversa.map((cl, i) => (
+                  <div
+                    key={String(cl.tray_customer_id ?? cl.telefone ?? i)}
+                    className="px-4 py-3 border-b border-border/60 flex items-start justify-between gap-2"
+                  >
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium truncate">{cl.nome || "Sem nome"}</p>
+                      <p className="text-xs text-muted-foreground">{formatarTelefone(cl.telefone)}</p>
+                      {cl.email && (
+                        <p className="text-[11px] text-muted-foreground truncate">{cl.email}</p>
+                      )}
+                    </div>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-7 px-2 text-[11px] shrink-0"
+                      disabled={!soDigitos(cl.telefone)}
+                      onClick={() => abrirNovaConversa(cl.telefone)}
+                    >
+                      Iniciar conversa
+                    </Button>
+                  </div>
+                ))}
+              </>
+            )}
           </ScrollArea>
         </Card>
 
