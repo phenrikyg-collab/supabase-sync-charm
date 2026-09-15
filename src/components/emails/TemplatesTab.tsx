@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -9,6 +9,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { toast } from "@/hooks/use-toast";
 import { AlertTriangle, ArrowLeft, Plus, Send, XCircle } from "lucide-react";
 import { dataBr, rpcEmails } from "@/lib/emails";
+import { cn } from "@/lib/utils";
+import type { ModoTemplate } from "./PreviaTemplate";
 import { ControlesPrevia, IframePrevia, useConferirTemplate, usePreviaTemplate, useVariaveisDisponiveis } from "./PreviaTemplate";
 
 type Conferencia = { tipo: "erro" | "aviso"; texto: string };
@@ -60,33 +62,58 @@ function Editor({ template, onVoltar }: { template: any; onVoltar: () => void })
   const [assunto, setAssunto] = useState(template?.assunto ?? "");
   const [preheader, setPreheader] = useState(template?.preheader ?? "");
   const [tipo, setTipo] = useState(template?.tipo ?? "campanha");
-  const [html, setHtml] = useState(template?.html ?? "");
+  const [modo, setModo] = useState<ModoTemplate>("miolo");
+  const [texto, setTexto] = useState("");
+  const [carregado, setCarregado] = useState(!template?.slug);
   const [mobile, setMobile] = useState(false);
   const [semCupom, setSemCupom] = useState(false);
 
-  const { data: previa } = useConferirTemplate(html, assunto);
+  const { data: salvo } = usePreviaTemplate(template?.slug);
+
+  // Abre o template no modo em que ele foi escrito, com o conteúdo daquele modo.
+  useEffect(() => {
+    if (!salvo || carregado) return;
+    const modoSalvo: ModoTemplate = salvo.modo === "miolo" ? "miolo" : "completo";
+    setModo(modoSalvo);
+    setTexto(modoSalvo === "miolo" ? String(salvo.miolo ?? "") : String(salvo.html ?? ""));
+    if (salvo.preheader != null) setPreheader(salvo.preheader);
+    setCarregado(true);
+  }, [salvo, carregado]);
+
+  const { data: previa } = useConferirTemplate(texto, assunto, modo, preheader || null);
   const { data: variaveis = [] } = useVariaveisDisponiveis();
 
   const conferencias = lerChecagem(previa?.checagem);
   const bloqueado = conferencias.some((c) => c.tipo === "erro");
 
+  const trocarModo = (novo: ModoTemplate) => {
+    if (novo === modo) return;
+    if (texto.trim() && !window.confirm("Trocar o modo troca o que está no editor. Quer continuar?")) return;
+    setTexto("");
+    setModo(novo);
+  };
+
   const inserirTag = (tag: string) => {
     const area = areaRef.current;
-    if (!area) { setHtml((h) => h + tag); return; }
-    const ini = area.selectionStart ?? html.length;
-    const fim = area.selectionEnd ?? html.length;
-    const novo = html.slice(0, ini) + tag + html.slice(fim);
-    setHtml(novo);
+    if (!area) { setTexto((h) => h + tag); return; }
+    const ini = area.selectionStart ?? texto.length;
+    const fim = area.selectionEnd ?? texto.length;
+    const novo = texto.slice(0, ini) + tag + texto.slice(fim);
+    setTexto(novo);
     requestAnimationFrame(() => {
       area.focus();
       area.setSelectionRange(ini + tag.length, ini + tag.length);
     });
   };
 
-  const salvar = useMutation({
+  const salvarTemplate = useMutation({
     mutationFn: () =>
       rpcEmails("emails_template_salvar", {
-        p_patch: { id: template?.id ?? null, nome, assunto, preheader, tipo, html },
+        p_patch: {
+          id: template?.id ?? null,
+          nome, assunto, preheader, tipo, modo,
+          ...(modo === "miolo" ? { miolo: texto } : { html: texto }),
+        },
       }),
     onSuccess: () => {
       toast({ title: "Template salvo" });
@@ -101,7 +128,19 @@ function Editor({ template, onVoltar }: { template: any; onVoltar: () => void })
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-2">
         <Button variant="ghost" size="sm" onClick={onVoltar}><ArrowLeft className="mr-1 h-4 w-4" /> Voltar</Button>
-        <Button className="ml-auto" disabled={bloqueado || salvar.isPending} onClick={() => salvar.mutate()}>
+        <div className="flex overflow-hidden rounded-md border">
+          {([["completo", "HTML completo"], ["miolo", "Só o miolo"]] as const).map(([v, r]) => (
+            <button
+              key={v}
+              type="button"
+              onClick={() => trocarModo(v)}
+              className={cn("px-3 py-1.5 text-xs transition-colors", modo === v ? "bg-primary text-primary-foreground" : "hover:bg-muted")}
+            >
+              {r}
+            </button>
+          ))}
+        </div>
+        <Button className="ml-auto" disabled={bloqueado || salvarTemplate.isPending} onClick={() => salvarTemplate.mutate()}>
           Salvar template
         </Button>
       </div>
@@ -135,14 +174,23 @@ function Editor({ template, onVoltar }: { template: any; onVoltar: () => void })
             <Input value={preheader} onChange={(e) => setPreheader(e.target.value)} />
           </div>
           <div className="space-y-1.5">
-            <label className="text-sm font-medium">HTML</label>
+            <label className="text-sm font-medium">{modo === "miolo" ? "Conteúdo do e-mail" : "HTML"}</label>
             <Textarea
               ref={areaRef}
               rows={18}
               className="font-mono text-xs"
-              value={html}
-              onChange={(e) => setHtml(e.target.value)}
+              value={texto}
+              onChange={(e) => setTexto(e.target.value)}
             />
+            {modo === "miolo" ? (
+              <p className="text-xs text-muted-foreground">
+                Cole só o conteúdo. O logo, as regras de celular e o rodapé com descadastro entram sozinhos.
+              </p>
+            ) : (
+              <p className="text-xs text-muted-foreground">
+                Cole o e-mail inteiro, com doctype, head e body. Mobile, rodapé e descadastro ficam por sua conta.
+              </p>
+            )}
           </div>
 
           <Card className="space-y-2 p-4">

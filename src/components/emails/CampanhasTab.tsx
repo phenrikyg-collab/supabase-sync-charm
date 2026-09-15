@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -16,7 +16,12 @@ import { toast } from "@/hooks/use-toast";
 import { ArrowLeft, Loader2, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { brl, inteiro, pct1, rpcEmails } from "@/lib/emails";
+import type { ModoTemplate } from "./PreviaTemplate";
 import { ControlesPrevia, IframePrevia, usePreviaTemplate } from "./PreviaTemplate";
+import {
+  ConstrutorPublico, contarCondicoes, descreverFiltro, filtroVazio,
+  mensagemErroPublico, usePublicoCampos, type No,
+} from "./ConstrutorPublico";
 
 
 const CLASSE_STATUS: Record<string, string> = {
@@ -28,6 +33,28 @@ const CLASSE_STATUS: Record<string, string> = {
   cancelada: "bg-muted text-muted-foreground line-through",
 };
 
+function Alternador<T extends string>({
+  valor, opcoes, onChange,
+}: { valor: T; opcoes: readonly (readonly [T, string])[]; onChange: (v: T) => void }) {
+  return (
+    <div className="flex overflow-hidden rounded-md border">
+      {opcoes.map(([v, rotulo]) => (
+        <button
+          key={v}
+          type="button"
+          onClick={() => onChange(v)}
+          className={cn(
+            "px-3 py-1.5 text-xs transition-colors",
+            valor === v ? "bg-primary text-primary-foreground" : "hover:bg-muted",
+          )}
+        >
+          {rotulo}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 function NovaCampanha({ aberto, onFechar }: { aberto: boolean; onFechar: () => void }) {
   const queryClient = useQueryClient();
   const [passo, setPasso] = useState(1);
@@ -35,8 +62,12 @@ function NovaCampanha({ aberto, onFechar }: { aberto: boolean; onFechar: () => v
   const [assunto, setAssunto] = useState("");
   const [preheader, setPreheader] = useState("");
   const [templateId, setTemplateId] = useState("");
+  const [modoHtml, setModoHtml] = useState<ModoTemplate>("miolo");
   const [html, setHtml] = useState("");
+  const [modoPublico, setModoPublico] = useState<"segmento" | "filtro">("segmento");
   const [segmento, setSegmento] = useState("");
+  const [filtro, setFiltro] = useState<No>(filtroVazio());
+  const [filtroLento, setFiltroLento] = useState<No | null>(null);
   const [mobile, setMobile] = useState(false);
 
   const { data: templates = [] } = useQuery({
@@ -45,20 +76,36 @@ function NovaCampanha({ aberto, onFechar }: { aberto: boolean; onFechar: () => v
     enabled: aberto,
   });
 
-  const { data: painel } = useQuery({
-    queryKey: ["emails-painel-resumo", 30],
-    queryFn: () => rpcEmails<any>("emails_painel_resumo", { p_dias: 30 }),
+  const { data: segmentos = [] } = useQuery({
+    queryKey: ["emails-segmentos"],
+    queryFn: async () => (await rpcEmails<any[]>("emails_segmentos_listar")) ?? [],
     enabled: aberto,
   });
 
-  const segmentos: any[] = painel?.segmentos ?? painel?.config?.segmentos ?? [];
+  const { data: campos = [] } = usePublicoCampos(aberto);
 
-  const { data: simulacao, isFetching: simulando } = useQuery({
-    queryKey: ["emails-simular", segmento],
-    queryFn: () => rpcEmails<any>("emails_campanha_simular", { p_slug_segmento: segmento }),
-    enabled: aberto && !!segmento,
+  const totalCondicoes = contarCondicoes(filtro);
+
+  // Debounce da simulação do filtro montado.
+  useEffect(() => {
+    const t = setTimeout(() => setFiltroLento(filtro), 600);
+    return () => clearTimeout(t);
+  }, [filtro]);
+
+  const porFiltro = modoPublico === "filtro";
+  const {
+    data: simulacao, isFetching: simulando, error: erroSimulacao,
+  } = useQuery({
+    queryKey: ["emails-simular", porFiltro ? filtroLento : segmento],
+    queryFn: () =>
+      porFiltro
+        ? rpcEmails<any>("emails_campanha_simular", { p_filtro: filtroLento })
+        : rpcEmails<any>("emails_campanha_simular", { p_slug: segmento }),
+    enabled: aberto && (porFiltro ? totalCondicoes > 0 && !!filtroLento : !!segmento),
+    retry: false,
   });
 
+  const segmentoEscolhido = (segmentos as any[]).find((s) => String(s.slug) === segmento);
   const templateEscolhido = (templates as any[]).find((t: any) => String(t.id) === templateId);
   const { data: previa } = usePreviaTemplate(templateEscolhido?.slug);
 
@@ -66,12 +113,25 @@ function NovaCampanha({ aberto, onFechar }: { aberto: boolean; onFechar: () => v
     simulacao?.bloqueados_teto ??
     (simulacao ? Math.max(0, Number(simulacao.alvo_total ?? 0) - Number(simulacao.passam_teto ?? 0)) : 0);
 
+  const trocarModoHtml = (novo: ModoTemplate) => {
+    if (novo === modoHtml) return;
+    if (html.trim() && !window.confirm("Trocar o modo troca o que está no editor. Quer continuar?")) return;
+    setHtml("");
+    setModoHtml(novo);
+  };
+
   const preparar = useMutation({
     mutationFn: async () => {
       let idTemplate = templateId ? Number(templateId) : null;
       if (!idTemplate && html.trim()) {
         const novoTemplate = await rpcEmails<any>("emails_template_salvar", {
-          p_patch: { nome: `${nome} (template da campanha)`, tipo: "campanha", assunto, preheader, html: html.trim() },
+          p_patch: {
+            nome: `${nome} (template da campanha)`,
+            tipo: "campanha",
+            assunto, preheader,
+            modo: modoHtml,
+            ...(modoHtml === "miolo" ? { miolo: html.trim() } : { html: html.trim() }),
+          },
         });
         idTemplate = Number(novoTemplate?.id ?? novoTemplate);
       }
@@ -79,14 +139,15 @@ function NovaCampanha({ aberto, onFechar }: { aberto: boolean; onFechar: () => v
         p_patch: {
           nome, assunto, preheader,
           template_id: idTemplate,
-          segmento_slug: segmento,
+          ...(porFiltro ? { publico_filtro: filtro } : { segmento_slug: segmento }),
         },
       });
       const id = salvo?.id ?? salvo?.campanha_id ?? salvo;
-      await rpcEmails("emails_campanha_preparar", { p_id: id });
+      await rpcEmails("emails_campanha_preparar", { p_campanha_id: id });
     },
     onSuccess: () => {
       toast({ title: "Campanha preparada", description: "Ela entrou na fila e o motor envia dentro da janela de horário." });
+      queryClient.invalidateQueries({ queryKey: ["emails-campanhas"] });
       queryClient.invalidateQueries({ queryKey: ["emails-painel-resumo"] });
       queryClient.invalidateQueries({ queryKey: ["emails-templates"] });
       onFechar();
@@ -95,23 +156,37 @@ function NovaCampanha({ aberto, onFechar }: { aberto: boolean; onFechar: () => v
     onError: (e: any) => {
       const bruto = String(e?.message ?? "");
       const rascunho = /rascunho/i.test(bruto) || /status/i.test(bruto);
-      const segmentoRuim = /segmento/i.test(bruto);
-      const descricao = rascunho
+      const legivel = mensagemErroPublico(bruto);
+      const descricao = legivel !== bruto
+        ? legivel
+        : rascunho
         ? "Esta campanha já saiu do rascunho e não pode mais ser editada."
-        : segmentoRuim
+        : /segmento/i.test(bruto)
         ? "O segmento escolhido não existe mais. Selecione outro no passo 2."
         : bruto;
       toast({ title: "Não deu para preparar", description: descricao, variant: "destructive" });
     },
   });
 
+  const publicoPronto = porFiltro ? totalCondicoes > 0 && !!simulacao : !!segmento;
   const podeAvancar =
-    passo === 1 ? !!nome.trim() && !!assunto.trim() && (!!templateId || !!html.trim()) : passo === 2 ? !!segmento : true;
+    passo === 1 ? !!nome.trim() && !!assunto.trim() && (!!templateId || !!html.trim()) : passo === 2 ? publicoPronto : true;
 
+  const textoErroSimulacao = erroSimulacao ? mensagemErroPublico(String((erroSimulacao as any)?.message ?? "")) : null;
+
+  const cardsSimulacao = useMemo(() => {
+    if (!simulacao) return [];
+    return [
+      { rotulo: "Alvo total", valor: inteiro(simulacao.alvo_total ?? simulacao.alvo ?? simulacao.total) },
+      { rotulo: "Clientes", valor: inteiro(simulacao.clientes) },
+      { rotulo: "Leads sem compra", valor: inteiro(simulacao.sem_compra) },
+      { rotulo: "Passam no teto", valor: inteiro(simulacao.passam_teto ?? simulacao.passam_no_teto) },
+    ];
+  }, [simulacao]);
 
   return (
     <Dialog open={aberto} onOpenChange={(v) => !v && onFechar()}>
-      <DialogContent className="max-w-4xl">
+      <DialogContent className="max-h-[88vh] max-w-4xl overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="font-serif">Nova campanha · passo {passo} de 3</DialogTitle>
         </DialogHeader>
@@ -146,10 +221,21 @@ function NovaCampanha({ aberto, onFechar }: { aberto: boolean; onFechar: () => v
                 </p>
               </div>
               <div className="space-y-1.5">
-                <label className="text-sm font-medium">Ou cole o HTML</label>
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <label className="text-sm font-medium">
+                    {modoHtml === "miolo" ? "Ou cole o conteúdo do e-mail" : "Ou cole o HTML"}
+                  </label>
+                  <Alternador
+                    valor={modoHtml}
+                    opcoes={[["completo", "HTML completo"], ["miolo", "Só o miolo"]] as const}
+                    onChange={trocarModoHtml}
+                  />
+                </div>
                 <Textarea rows={6} className="font-mono text-xs" value={html} onChange={(e) => setHtml(e.target.value)} />
                 <p className="text-xs text-muted-foreground">
-                  O HTML colado vira um template novo do tipo campanha, e a campanha aponta para ele.
+                  {modoHtml === "miolo"
+                    ? "Cole só o conteúdo. O logo, as regras de celular e o rodapé com descadastro entram sozinhos."
+                    : "O HTML colado vira um template novo do tipo campanha, e a campanha aponta para ele."}
                 </p>
               </div>
             </div>
@@ -171,40 +257,91 @@ function NovaCampanha({ aberto, onFechar }: { aberto: boolean; onFechar: () => v
 
         {passo === 2 && (
           <div className="space-y-4">
-            <div className="space-y-1.5">
-              <label className="text-sm font-medium">Segmento</label>
-              <Select value={segmento} onValueChange={setSegmento}>
-                <SelectTrigger><SelectValue placeholder="Selecione o segmento" /></SelectTrigger>
-                <SelectContent>
-                  {segmentos.map((s: any) => (
-                    <SelectItem key={s.slug ?? s} value={String(s.slug ?? s)}>{s.nome ?? s.slug ?? s}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            <Alternador<"segmento" | "filtro">
+              valor={modoPublico}
+              opcoes={[["segmento", "Segmento salvo"], ["filtro", "Montar filtro"]] as const}
+              onChange={setModoPublico}
+            />
+
+            {modoPublico === "segmento" ? (
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium">Segmento</label>
+                <Select value={segmento} onValueChange={setSegmento}>
+                  <SelectTrigger><SelectValue placeholder="Selecione o segmento" /></SelectTrigger>
+                  <SelectContent>
+                    {(segmentos as any[]).map((s: any) => (
+                      <SelectItem key={s.slug} value={String(s.slug)}>{s.nome ?? s.slug}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {(segmentos as any[]).length === 0 && (
+                  <p className="text-xs text-muted-foreground">
+                    Nenhum segmento salvo ainda. Use "Montar filtro" para escolher o público na mão.
+                  </p>
+                )}
+                {segmentoEscolhido && (
+                  <Card className="space-y-1 p-3">
+                    {segmentoEscolhido.descricao && (
+                      <p className="text-xs text-muted-foreground">{segmentoEscolhido.descricao}</p>
+                    )}
+                    <p className="text-xs">
+                      <span className="text-muted-foreground">Quem entra: </span>
+                      {descreverFiltro(segmentoEscolhido.filtro, campos as any[])}
+                    </p>
+                  </Card>
+                )}
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <ConstrutorPublico filtro={filtro} campos={campos as any[]} onChange={setFiltro} />
+                <div className="flex flex-wrap items-center gap-2">
+                  <Button size="sm" variant="outline" disabled title="em breve">
+                    Salvar como segmento
+                  </Button>
+                  <span className="text-xs text-muted-foreground">em breve</span>
+                  {totalCondicoes > 0 && (
+                    <Button size="sm" variant="ghost" onClick={() => setFiltro(filtroVazio())}>
+                      Limpar filtro
+                    </Button>
+                  )}
+                </div>
+                {totalCondicoes > 0 && (
+                  <p className="rounded-lg border bg-muted/40 p-3 text-xs text-muted-foreground">
+                    {descreverFiltro(filtro, campos as any[])}
+                  </p>
+                )}
+              </div>
+            )}
 
             {simulando && <p className="text-sm text-muted-foreground">Simulando o público…</p>}
 
+            {textoErroSimulacao && (
+              <Card className="space-y-2 border-danger/40 bg-danger/5 p-3">
+                <p className="text-sm text-danger">{textoErroSimulacao}</p>
+                <Button size="sm" variant="outline" onClick={() => setFiltro(filtroVazio())}>
+                  Limpar e recomeçar
+                </Button>
+              </Card>
+            )}
+
             {simulacao && (
               <div className="space-y-4">
-                <div className="grid gap-3 sm:grid-cols-3">
-                  <Card className="p-4">
-                    <p className="text-xs uppercase tracking-wider text-muted-foreground">Alvo total</p>
-                    <p className="font-serif text-2xl">{inteiro(simulacao.alvo_total)}</p>
-                  </Card>
-                  <Card className="p-4">
-                    <p className="text-xs uppercase tracking-wider text-muted-foreground">Passam no teto</p>
-                    <p className="font-serif text-2xl">{inteiro(simulacao.passam_teto)}</p>
-                  </Card>
-                  <Card className="border-warning/40 bg-warning/5 p-4">
-                    <p className="text-xs uppercase tracking-wider text-warning">Bloqueados pelo teto</p>
-                    <p className="font-serif text-2xl text-warning">{inteiro(bloqueados)}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {inteiro(bloqueados)} contatos não vão receber porque já atingiram o limite de e-mails do
-                      segmento deles neste período.
-                    </p>
-                  </Card>
+                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                  {cardsSimulacao.map((c) => (
+                    <Card key={c.rotulo} className="p-4">
+                      <p className="text-xs uppercase tracking-wider text-muted-foreground">{c.rotulo}</p>
+                      <p className="font-serif text-2xl">{c.valor}</p>
+                    </Card>
+                  ))}
                 </div>
+                <Card className="border-warning/40 bg-warning/5 p-4">
+                  <p className="text-xs uppercase tracking-wider text-warning">Bloqueados pelo teto</p>
+                  <p className="font-serif text-2xl text-warning">{inteiro(bloqueados)}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {inteiro(bloqueados)} contatos não vão receber porque já atingiram o limite de e-mails do
+                    segmento deles neste período.
+                  </p>
+                </Card>
                 <div className="grid gap-4 sm:grid-cols-2">
                   {[
                     ["Por segmento RFM", simulacao.por_rfm],
@@ -229,9 +366,12 @@ function NovaCampanha({ aberto, onFechar }: { aberto: boolean; onFechar: () => v
         {passo === 3 && (
           <div className="space-y-3 text-sm">
             <p><span className="text-muted-foreground">Assunto:</span> {assunto}</p>
-            <p><span className="text-muted-foreground">Segmento:</span> {segmento}</p>
+            <p>
+              <span className="text-muted-foreground">Público:</span>{" "}
+              {porFiltro ? descreverFiltro(filtro, campos as any[]) : (segmentoEscolhido?.nome ?? segmento)}
+            </p>
             <p><span className="text-muted-foreground">Vai para a fila:</span>{" "}
-              <strong>{inteiro(simulacao?.passam_teto ?? 0)}</strong> contatos</p>
+              <strong>{inteiro(simulacao?.passam_teto ?? simulacao?.passam_no_teto ?? 0)}</strong> contatos</p>
             <p className="rounded-lg border bg-muted/40 p-3 text-xs leading-relaxed text-muted-foreground">
               Preparar não dispara. A campanha entra na fila e o motor envia dentro da janela de horário configurada.
             </p>
@@ -261,7 +401,7 @@ function NovaCampanha({ aberto, onFechar }: { aberto: boolean; onFechar: () => v
 function ResumoCampanha({ id, onVoltar }: { id: any; onVoltar: () => void }) {
   const { data: resumo, isLoading } = useQuery({
     queryKey: ["emails-campanha-resumo", id],
-    queryFn: () => rpcEmails<any>("emails_campanha_resumo", { p_id: id }),
+    queryFn: () => rpcEmails<any>("emails_campanha_resumo", { p_campanha_id: id }),
   });
 
   return (
@@ -297,12 +437,10 @@ export function CampanhasTab({ dias }: { dias: number }) {
   const [nova, setNova] = useState(false);
   const [aberta, setAberta] = useState<any | null>(null);
 
-  const { data: painel, isLoading } = useQuery({
-    queryKey: ["emails-painel-resumo", dias],
-    queryFn: () => rpcEmails<any>("emails_painel_resumo", { p_dias: dias }),
+  const { data: campanhas = [], isLoading } = useQuery({
+    queryKey: ["emails-campanhas", dias],
+    queryFn: async () => (await rpcEmails<any[]>("emails_campanhas_listar", { p_dias: dias })) ?? [],
   });
-
-  const campanhas: any[] = painel?.campanhas ?? [];
 
   if (aberta) return <ResumoCampanha id={aberta} onVoltar={() => setAberta(null)} />;
 
