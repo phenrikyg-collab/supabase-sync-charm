@@ -724,7 +724,7 @@ export default function Atendimento() {
       return true;
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [conversas, buscaAtiva, resultadoBusca, aba, filtroLeitura, tagsFiltro]);
+  }, [conversas, buscaAtiva, resultadoBusca, aba, grupoAba, filtroLeitura, tagsFiltro]);
 
   const clientesSemConversa = buscaAtiva ? (resultadoBusca?.clientes ?? []) : [];
 
@@ -737,8 +737,9 @@ export default function Atendimento() {
   const naoLidasWhatsapp = conversas.filter((c) => c.nao_lida && !ehSite(c)).length;
   const naoLidasSite = conversas.filter((c) => c.nao_lida && ehSite(c)).length;
   const totalNaoLidas = aba === "site" ? naoLidasSite : naoLidasWhatsapp;
+  // "Precisam de atenção" conta só a aba Conversas
   const totalAtencao = conversas.filter(
-    (c) => daAba(c) && ["perdendo", "quente", "atencao"].includes(urgenciaDe(c)),
+    (c) => daAba(c) && grupoDe(c) === "conversa" && ["perdendo", "quente", "atencao"].includes(urgenciaDe(c)),
   ).length;
 
   const telefoneIdentificado = conversaAtual
