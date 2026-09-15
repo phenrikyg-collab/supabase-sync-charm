@@ -301,6 +301,26 @@ export function ConfigNoPanel({
               </div>
             )}
 
+            {config.modo === "cashback_avisado" && (
+              <div className="space-y-2">
+                <div className="space-y-1">
+                  <Label className="text-xs">Qual aviso da régua antiga</Label>
+                  <Select value={config.aviso_tipo ?? ""} onValueChange={(v) => patch({ aviso_tipo: v })}>
+                    <SelectTrigger><SelectValue placeholder="Escolha o aviso" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="novo_cupom">Cupom novo</SelectItem>
+                      <SelectItem value="vence_7d">Vence em 7 dias</SelectItem>
+                      <SelectItem value="vence_2d">Vence em 2 dias</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <p className="text-[11px] text-muted-foreground">
+                  Modo de transição. Só faz sentido durante a migração da régua antiga, para não avisar duas vezes quem
+                  já recebeu. Depois que a régua antiga sair do ar, pode remover este passo.
+                </p>
+              </div>
+            )}
+
             <p className="text-[11px] text-muted-foreground">
               Coloque uma Espera antes de conferir abertura, leitura ou resposta.
             </p>
