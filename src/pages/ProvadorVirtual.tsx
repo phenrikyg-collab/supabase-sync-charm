@@ -17,6 +17,31 @@ import {
 
 const SUPABASE_URL = "https://ezdtulcrqzmgocamjwwl.supabase.co";
 
+const COLUNAS: { status: string; titulo: string; proximo?: string }[] = [
+  { status: "provou", titulo: "Provou", proximo: "em_contato" },
+  { status: "em_contato", titulo: "Em Contato", proximo: "convertido" },
+  { status: "convertido", titulo: "Convertido" },
+];
+
+function tempoDesde(iso: string) {
+  const ms = Date.now() - new Date(iso).getTime();
+  const min = Math.floor(ms / 60000);
+  if (min < 1) return "agora";
+  if (min < 60) return `há ${min} min`;
+  const h = Math.floor(min / 60);
+  if (h < 24) return `há ${h}h`;
+  const d = Math.floor(h / 24);
+  return `há ${d}d`;
+}
+
+function CanalIcone({ canal }: { canal: string | null }) {
+  if (canal === "whatsapp") return <MessageCircle className="h-3.5 w-3.5 text-success" />;
+  if (canal === "site") return <Globe className="h-3.5 w-3.5 text-info" />;
+  return <Sparkles className="h-3.5 w-3.5 text-muted-foreground" />;
+}
+
+
+
 type Lead = {
   id: string;
   nome: string | null;
