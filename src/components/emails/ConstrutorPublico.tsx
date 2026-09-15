@@ -53,19 +53,19 @@ const OPS_POR_TIPO: Record<string, string[]> = {
 };
 
 const ROTULO_OP: Record<string, string> = {
-  "=": "é igual a",
-  "<>": "é diferente de",
-  ">": "é maior que",
-  ">=": "é maior ou igual a",
-  "<": "é menor que",
-  "<=": "é menor ou igual a",
-  entre: "está entre",
+  "=": "igual a",
+  "<>": "diferente de",
+  ">": "maior que",
+  ">=": "maior ou igual a",
+  "<": "menor que",
+  "<=": "menor ou igual a",
+  entre: "entre",
   contem: "contém",
   nao_contem: "não contém",
-  em: "é um destes",
-  nao_em: "não é nenhum destes",
-  vazio: "está vazio",
-  nao_vazio: "não está vazio",
+  em: "está em",
+  nao_em: "não está em",
+  vazio: "vazio",
+  nao_vazio: "não vazio",
 };
 
 const SEM_VALOR = new Set(["vazio", "nao_vazio"]);
@@ -227,11 +227,12 @@ function ValorWidget({
 }
 
 function CondicaoLinha({
-  cond, campos, negada, onChange, onNegar, onRemover,
+  cond, campos, negada, empilhado, onChange, onNegar, onRemover,
 }: {
   cond: Condicao;
   campos: CampoPublico[];
   negada: boolean;
+  empilhado: boolean;
   onChange: (c: Condicao) => void;
   onNegar: (v: boolean) => void;
   onRemover: () => void;
@@ -249,8 +250,24 @@ function CondicaoLinha({
   }, [campos]);
 
   return (
-    <div className="space-y-1 rounded-lg border bg-background p-2">
-      <div className="grid items-center gap-2 md:grid-cols-[1.2fr_1fr_1.4fr_auto]">
+    <div className="relative space-y-2 rounded-lg border bg-background p-2.5 pr-9">
+      <div className="absolute right-1.5 top-1.5 flex items-center gap-1">
+        <Button
+          type="button"
+          size="sm"
+          variant={negada ? "secondary" : "ghost"}
+          className="h-7 px-2 text-[11px]"
+          onClick={() => onNegar(!negada)}
+          title="Inverter esta condição"
+        >
+          não
+        </Button>
+        <Button type="button" size="icon" variant="ghost" className="h-7 w-7" onClick={onRemover}>
+          <X className="h-4 w-4" />
+        </Button>
+      </div>
+
+      <div className={cn("grid min-w-0 gap-2", !empilhado && "sm:grid-cols-[1.2fr_1.6fr] sm:items-start")}>
         <Select
           value={cond.campo}
           onValueChange={(v) => {
@@ -259,7 +276,9 @@ function CondicaoLinha({
             onChange({ campo: v, op: opsNovas.includes(cond.op) ? cond.op : opsNovas[0], valor: undefined });
           }}
         >
-          <SelectTrigger className="h-9"><SelectValue placeholder="Campo" /></SelectTrigger>
+          <SelectTrigger className="h-auto min-h-9 w-full items-start py-1.5 text-left [&>span]:whitespace-normal [&>span]:break-words [&>span]:text-left">
+            <SelectValue placeholder="Campo" />
+          </SelectTrigger>
           <SelectContent>
             {grupos.map(([g, itens]) => (
               <SelectGroup key={g}>
@@ -277,32 +296,20 @@ function CondicaoLinha({
           </SelectContent>
         </Select>
 
-        <Select value={cond.op} onValueChange={(v) => onChange({ ...cond, op: v, valor: undefined })}>
-          <SelectTrigger className="h-9"><SelectValue placeholder="Operador" /></SelectTrigger>
-          <SelectContent>
-            {ops.map((o) => <SelectItem key={o} value={o}>{ROTULO_OP[o] ?? o}</SelectItem>)}
-          </SelectContent>
-        </Select>
+        <div className="grid min-w-0 gap-2 [grid-template-columns:minmax(6.5rem,1fr)_1.6fr]">
+          <Select value={cond.op} onValueChange={(v) => onChange({ ...cond, op: v, valor: undefined })}>
+            <SelectTrigger className="h-9 min-w-0"><SelectValue placeholder="Operador" /></SelectTrigger>
+            <SelectContent>
+              {ops.map((o) => <SelectItem key={o} value={o}>{ROTULO_OP[o] ?? o}</SelectItem>)}
+            </SelectContent>
+          </Select>
 
-        <ValorWidget campo={campo} cond={cond} onChange={(v) => onChange({ ...cond, valor: v })} />
-
-        <div className="flex items-center gap-1">
-          <Button
-            type="button"
-            size="sm"
-            variant={negada ? "secondary" : "ghost"}
-            className="h-8 px-2 text-[11px]"
-            onClick={() => onNegar(!negada)}
-            title="Inverter esta condição"
-          >
-            não
-          </Button>
-          <Button type="button" size="icon" variant="ghost" className="h-8 w-8" onClick={onRemover}>
-            <X className="h-4 w-4" />
-          </Button>
+          <div className="min-w-0">
+            <ValorWidget campo={campo} cond={cond} onChange={(v) => onChange({ ...cond, valor: v })} />
+          </div>
         </div>
       </div>
-      {campo?.descricao && <p className="px-1 text-[11px] text-muted-foreground">{campo.descricao}</p>}
+      {campo?.descricao && <p className="mt-2 px-0.5 text-[11px] leading-relaxed text-muted-foreground">{campo.descricao}</p>}
       {campo?.congela_publico && (
         <div className="flex flex-wrap items-center gap-2 rounded-md border border-warning/40 bg-warning/5 px-2 py-1.5">
           <AlertTriangle className="h-3.5 w-3.5 shrink-0 text-warning" />
@@ -338,11 +345,12 @@ function CondicaoLinha({
 }
 
 function GrupoEditor({
-  no, campos, nivel, onChange, onRemover,
+  no, campos, nivel, empilhado, onChange, onRemover,
 }: {
   no: { e: No[] } | { ou: No[] };
   campos: CampoPublico[];
   nivel: number;
+  empilhado: boolean;
   onChange: (n: No) => void;
   onRemover?: () => void;
 }) {
@@ -405,6 +413,7 @@ function GrupoEditor({
               cond={interno}
               campos={campos}
               negada={negada}
+              empilhado={empilhado}
               onChange={(c) => trocar(negada ? { nao: c } : c)}
               onNegar={(v) => trocar(v ? { nao: interno } : interno)}
               onRemover={remover}
@@ -420,6 +429,7 @@ function GrupoEditor({
                 no={interno as any}
                 campos={campos}
                 nivel={nivel + 1}
+                empilhado={empilhado}
                 onChange={(n) => trocar(negada ? { nao: n } : n)}
                 onRemover={remover}
               />
@@ -447,10 +457,24 @@ function GrupoEditor({
   );
 }
 
+/** Aceita condição solta na raiz envolvendo em um grupo "e". */
+export function normalizarFiltro(filtro: any): No | null {
+  if (ehGrupo(filtro)) return filtro as No;
+  if (ehCondicao(filtro)) return { e: [filtro] };
+  if (ehNao(filtro)) return { e: [filtro as any] };
+  return null;
+}
+
 export function ConstrutorPublico({
-  filtro, campos, onChange,
-}: { filtro: No; campos: CampoPublico[]; onChange: (n: No) => void }) {
-  if (!ehGrupo(filtro)) {
+  filtro, campos, empilhado = false, onChange,
+}: {
+  filtro: No;
+  campos: CampoPublico[];
+  empilhado?: boolean;
+  onChange: (n: No) => void;
+}) {
+  const normalizado = normalizarFiltro(filtro);
+  if (!normalizado) {
     return (
       <div className="space-y-2 rounded-xl border border-danger/40 bg-danger/5 p-3">
         <p className="text-sm text-danger">Este filtro está corrompido e não pode ser editado.</p>
@@ -460,7 +484,15 @@ export function ConstrutorPublico({
       </div>
     );
   }
-  return <GrupoEditor no={filtro as any} campos={campos} nivel={0} onChange={onChange} />;
+  return (
+    <GrupoEditor
+      no={normalizado as any}
+      campos={campos}
+      nivel={0}
+      empilhado={empilhado}
+      onChange={onChange}
+    />
+  );
 }
 
 /** Deixa a mensagem crua do banco legível para quem está montando o público. */

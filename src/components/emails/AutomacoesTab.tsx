@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "@/hooks/use-toast";
-import { FlaskConical, Settings2 } from "lucide-react";
+import { FlaskConical, List, Settings2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { dataBrHora, horasDesde, inteiro, rpcEmails, textoDesde } from "@/lib/emails";
 import {
@@ -86,6 +86,10 @@ function PainelConfig({
                 repetir: !!config.repetir,
                 intervalo_contato_dias: Number(config.intervalo_contato_dias ?? 0),
                 lote_max: Number(config.lote_max ?? 0),
+                hora_do_dia:
+                  config.hora_do_dia === null || config.hora_do_dia === undefined || config.hora_do_dia === ""
+                    ? null
+                    : Number(config.hora_do_dia),
               },
               template_id: templateId ? Number(templateId) : null,
             }
@@ -113,7 +117,7 @@ function PainelConfig({
                   O público é refeito a cada rodada. Quem entrar no critério amanhã entra amanhã, quem sair sai.
                 </p>
               </div>
-              <ConstrutorPublico filtro={filtro} campos={campos as any[]} onChange={setFiltro} />
+              <ConstrutorPublico filtro={filtro} campos={campos as any[]} empilhado onChange={setFiltro} />
               <div className="space-y-2 rounded-lg border bg-muted/40 p-3">
                 <SeloPublicoVivo filtro={filtro} enabled={aberto} />
                 <p className="text-xs text-muted-foreground">{descreverFiltro(filtro, campos as any[])}</p>
@@ -144,8 +148,7 @@ function PainelConfig({
               <div className="space-y-1.5">
                 <p className="text-sm font-medium">Máximo por rodada</p>
                 <p className="text-xs text-muted-foreground">
-                  A automação roda de hora em hora. Com o lote em 200 e 2.945 pessoas no público, leva umas 15
-                  horas para passar por todas.
+                  Teto de pessoas por rodada. Serve para o primeiro disparo não sair todo de uma vez.
                 </p>
                 <Input
                   type="number"
@@ -153,6 +156,41 @@ function PainelConfig({
                   value={config.lote_max ?? 0}
                   onChange={(e) => setConfig((p) => ({ ...p, lote_max: Number(e.target.value) }))}
                 />
+              </div>
+
+              <div className="space-y-1.5">
+                <p className="text-sm font-medium">Quando rodar</p>
+                <p className="text-xs text-muted-foreground">
+                  Público de aniversário muda uma vez por dia. Rodar de hora em hora só repete varredura sem
+                  achar gente nova.
+                </p>
+                <Select
+                  value={config.hora_do_dia == null || config.hora_do_dia === "" ? "hora" : "dia"}
+                  onValueChange={(v) =>
+                    setConfig((p) => ({ ...p, hora_do_dia: v === "hora" ? null : Number(p.hora_do_dia ?? 10) }))
+                  }
+                >
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="hora">De hora em hora</SelectItem>
+                    <SelectItem value="dia">Uma vez por dia</SelectItem>
+                  </SelectContent>
+                </Select>
+                {config.hora_do_dia != null && config.hora_do_dia !== "" && (
+                  <div className="space-y-1">
+                    <p className="text-xs text-muted-foreground">Hora de Brasília (0 a 23)</p>
+                    <Input
+                      type="number"
+                      min={0}
+                      max={23}
+                      value={config.hora_do_dia ?? 10}
+                      onChange={(e) => {
+                        const n = Math.min(23, Math.max(0, Number(e.target.value)));
+                        setConfig((p) => ({ ...p, hora_do_dia: Number.isNaN(n) ? 0 : n }));
+                      }}
+                    />
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -308,10 +346,117 @@ function PainelSimulacao({
   );
 }
 
+const horaCurta = (v: any) => {
+  const d = v ? new Date(v) : new Date();
+  if (Number.isNaN(d.getTime())) return new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+  return d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+};
+
+function PainelPublico({
+  automacao, aberto, onFechar,
+}: { automacao: any | null; aberto: boolean; onFechar: () => void }) {
+  const [limite, setLimite] = useState(100);
+
+  const { data, isFetching, error, refetch } = useQuery({
+    queryKey: ["emails-automacao-publico", automacao?.slug, limite],
+    queryFn: () =>
+      rpcEmails<any>("emails_automacao_publico", { p_slug: automacao.slug, p_limite: limite }),
+    enabled: aberto && !!automacao?.slug,
+    retry: false,
+  });
+
+  const pessoas: any[] = data?.pessoas ?? [];
+
+  return (
+    <Sheet open={aberto} onOpenChange={(v) => !v && onFechar()}>
+      <SheetContent className="w-full overflow-y-auto sm:max-w-lg">
+        <SheetHeader>
+          <SheetTitle className="font-serif">Quem entraria agora em {automacao?.nome}</SheetTitle>
+        </SheetHeader>
+
+        <div className="mt-6 space-y-4">
+          <p className="text-xs text-muted-foreground">
+            Lista consultada às {horaCurta(data?.consultado_em)}. Ela se refaz a cada consulta.
+          </p>
+
+          <div className="flex flex-wrap items-end gap-2">
+            <div className="space-y-1">
+              <p className="text-xs text-muted-foreground">Quantas pessoas mostrar (até 500)</p>
+              <Input
+                type="number"
+                min={1}
+                max={500}
+                className="h-9 w-32"
+                value={limite}
+                onChange={(e) => setLimite(Math.min(500, Math.max(1, Number(e.target.value) || 1)))}
+              />
+            </div>
+            <Button size="sm" variant="outline" onClick={() => refetch()}>Atualizar lista</Button>
+          </div>
+
+          {isFetching && <p className="text-sm text-muted-foreground">Consultando o público…</p>}
+
+          {error && (
+            <Card className="space-y-2 border-danger/40 bg-danger/5 p-3">
+              <p className="text-sm text-danger">{mensagemErroPublico((error as any).message ?? "")}</p>
+              <Button size="sm" variant="outline" onClick={() => refetch()}>Tentar de novo</Button>
+            </Card>
+          )}
+
+          {data && !isFetching && (
+            <>
+              <p className="text-xs text-muted-foreground">
+                Mostrando {inteiro(data.mostrando ?? pessoas.length)} de um público que muda a cada consulta.
+              </p>
+              {pessoas.length === 0 ? (
+                <p className="text-sm text-muted-foreground">Ninguém no público neste momento.</p>
+              ) : (
+                <table className="w-full text-xs">
+                  <thead>
+                    <tr className="text-left text-muted-foreground">
+                      <th className="py-1 font-normal">Pessoa</th>
+                      <th className="py-1 font-normal">RFM</th>
+                      <th className="py-1 text-right font-normal">Dias sem comprar</th>
+                      <th className="py-1 text-right font-normal">Situação</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {pessoas.map((p: any, i: number) => (
+                      <tr key={`${p.email}-${i}`} className="border-t align-top">
+                        <td className="py-1.5">
+                          <p className="max-w-[180px] truncate">{p.email}</p>
+                          {p.nome && <p className="max-w-[180px] truncate text-muted-foreground">{p.nome}</p>}
+                        </td>
+                        <td className="py-1.5">{p.rfm ?? "sem RFM"}</td>
+                        <td className="py-1.5 text-right">{inteiro(p.dias_sem_comprar)}</td>
+                        <td className="py-1.5 text-right">
+                          <span
+                            className={cn(
+                              "whitespace-nowrap",
+                              p.situacao === "entra" ? "text-success" : "text-muted-foreground",
+                            )}
+                          >
+                            {p.situacao ?? "sem situação"}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </>
+          )}
+        </div>
+      </SheetContent>
+    </Sheet>
+  );
+}
+
 export function AutomacoesTab({ onAbrirTemplate }: { onAbrirTemplate?: (slug: string) => void } = {}) {
   const queryClient = useQueryClient();
   const [configurando, setConfigurando] = useState<any | null>(null);
   const [simulando, setSimulando] = useState<any | null>(null);
+  const [vendoLista, setVendoLista] = useState<any | null>(null);
   const [simulados, setSimulados] = useState<string[]>([]);
   const [confirmarDesligar, setConfirmarDesligar] = useState<any | null>(null);
 
@@ -432,6 +577,11 @@ export function AutomacoesTab({ onAbrirTemplate }: { onAbrirTemplate?: (slug: st
                       <FlaskConical className="mr-1 h-3.5 w-3.5" /> Simular, sem gravar nada
                     </Button>
                   )}
+                  {ehPublicoVivo(a) && (
+                    <Button size="sm" variant="outline" onClick={() => setVendoLista(a)}>
+                      <List className="mr-1 h-3.5 w-3.5" /> Ver a lista
+                    </Button>
+                  )}
                   <Button size="sm" variant="outline" onClick={() => setConfigurando(a)}>
                     <Settings2 className="mr-1 h-3.5 w-3.5" /> Configurar
                   </Button>
@@ -451,6 +601,11 @@ export function AutomacoesTab({ onAbrirTemplate }: { onAbrirTemplate?: (slug: st
           if (simulando?.slug) setSimulados((p) => (p.includes(simulando.slug) ? p : [...p, simulando.slug]));
           setSimulando(null);
         }}
+      />
+      <PainelPublico
+        automacao={vendoLista}
+        aberto={!!vendoLista}
+        onFechar={() => setVendoLista(null)}
       />
 
       <AlertDialog open={!!confirmarDesligar} onOpenChange={(v) => !v && setConfirmarDesligar(null)}>
