@@ -89,6 +89,7 @@ export function TagsConversa({
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: chaveConversa });
       queryClient.invalidateQueries({ queryKey: ["whatsapp-conversas"] });
+      queryClient.invalidateQueries({ queryKey: ["whatsapp-conversa"] });
     },
   });
 
