@@ -31,7 +31,11 @@ type Carrinho = {
 
 type Chave = "nome" | "telefone" | "total" | "dias_desde_abandono" | "segmento_rfm" | "data_criacao";
 
-export default function CarrinhoAbandonado() {
+export function CarrinhoAbandonadoConteudo() {
+  return <CarrinhoAbandonado semCabecalho />;
+}
+
+export default function CarrinhoAbandonado({ semCabecalho }: { semCabecalho?: boolean } = {}) {
   const [periodo, setPeriodo] = useState<Periodo>({ inicio: null, fim: null });
   const [segmento, setSegmento] = useState("todos");
   const [valorMin, setValorMin] = useState("");
@@ -86,10 +90,12 @@ export default function CarrinhoAbandonado() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="font-serif text-2xl font-bold">Carrinho Abandonado</h1>
-        <p className="text-sm text-muted-foreground">Carrinhos que não viraram pedido — oportunidade de recuperação.</p>
-      </div>
+      {!semCabecalho && (
+        <div>
+          <h1 className="font-serif text-2xl font-bold">Carrinho Abandonado</h1>
+          <p className="text-sm text-muted-foreground">Carrinhos que não viraram pedido, oportunidade de recuperação.</p>
+        </div>
+      )}
 
       <Card>
         <CardContent className="pt-6">

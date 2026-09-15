@@ -62,7 +62,11 @@ const bordaNivel = (nivel?: string | null) => {
   return "";
 };
 
-export default function FunilKanban() {
+export function FunilKanbanConteudo() {
+  return <FunilKanban semCabecalho />;
+}
+
+export default function FunilKanban({ semCabecalho }: { semCabecalho?: boolean } = {}) {
   const navigate = useNavigate();
   const { user } = useAuth();
   const atendente =
@@ -124,14 +128,21 @@ export default function FunilKanban() {
   );
 
   return (
-    <div className="h-screen flex flex-col p-6 gap-6 overflow-hidden">
+    <div
+      className={cn(
+        "flex flex-col gap-6 overflow-hidden",
+        semCabecalho ? "h-full min-h-0" : "h-screen p-6",
+      )}
+    >
       <div className="flex flex-wrap items-start justify-between gap-4 shrink-0">
-        <div>
-          <h1 className="text-3xl font-heading">Kanban do Funil</h1>
-          <p className="text-muted-foreground text-sm">
-            Oportunidades de hoje no WhatsApp e no site.
-          </p>
-        </div>
+        {!semCabecalho && (
+          <div>
+            <h1 className="text-3xl font-heading">Kanban do Funil</h1>
+            <p className="text-muted-foreground text-sm">
+              Oportunidades de hoje no WhatsApp e no site.
+            </p>
+          </div>
+        )}
         <Button variant="outline" size="sm" onClick={() => carregar()} disabled={loading}>
           <RefreshCw className={cn("h-4 w-4 mr-2", loading && "animate-spin")} />
           Atualizar
