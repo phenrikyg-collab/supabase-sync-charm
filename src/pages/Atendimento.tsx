@@ -1030,9 +1030,9 @@ export default function Atendimento() {
                     const bot = saida && m.origem === "bot";
                     const tipo = (m.tipo ?? "").toLowerCase();
                     const sticker = tipo === "sticker" && !!m.media_url;
-                    const midia = !!m.media_url;
-                    const mostrarTexto =
-                      !!m.conteudo && !sticker && !["video", "audio", "documento", "document", "arquivo"].includes(tipo);
+                    const tipoMidia = ehTipoMidia(tipo);
+                    const midia = tipoMidia || !!m.media_url;
+                    const mostrarTexto = !!m.conteudo && !sticker && !tipoMidia;
                     return (
                       <div
                         key={m.id != null ? String(m.id) : `${m.criada_em ?? m.criado_em ?? ""}-${idx}`}
