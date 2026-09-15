@@ -128,6 +128,8 @@ export function OportunidadesAoVivo({
             const canal = (o.canal_sugerido ?? "").trim();
             const canalKey = canal.toLowerCase();
             const isWhats = canalKey.includes("whats");
+            const contato = contatoDe(o.telefone);
+            const idConversa = o.conversa_id ?? contato?.conversa_id ?? null;
             return (
               <Card
                 key={`${o.tipo}-${i}`}
@@ -155,6 +157,7 @@ export function OportunidadesAoVivo({
                     {o.segmento_rfm && (
                       <Badge variant="outline" className="text-[10px] px-1.5 py-0">{o.segmento_rfm}</Badge>
                     )}
+                    <BadgesContato contato={contato} />
                   </div>
 
                   <div className="flex flex-wrap items-center gap-2 pt-1 border-t">
@@ -169,11 +172,11 @@ export function OportunidadesAoVivo({
                     {o.acao_sugerida && (
                       <span className="text-xs text-foreground/80 flex-1 min-w-[8rem]">{o.acao_sugerida}</span>
                     )}
-                    {isWhats && o.conversa_id && onAbrirConversa ? (
+                    {idConversa && onAbrirConversa ? (
                       <Button
                         size="sm"
                         className="h-7 gap-1 bg-green-600 hover:bg-green-700 text-white"
-                        onClick={() => onAbrirConversa(String(o.conversa_id))}
+                        onClick={() => onAbrirConversa(String(idConversa))}
                       >
                         <MessageCircle className="h-3 w-3" /> Abrir conversa
                       </Button>
