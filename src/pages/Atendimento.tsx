@@ -677,7 +677,7 @@ export default function Atendimento() {
   const podeResponder = status === "escalado" || status === "em_atendimento";
 
   return (
-    <div className="p-6 max-w-[1700px] mx-auto space-y-4">
+    <div className="w-full max-w-[1700px] min-w-0 overflow-x-hidden p-6 mx-auto space-y-4">
       <div>
         <h1 className="font-serif text-4xl text-foreground">Atendimento</h1>
         <p className="text-muted-foreground text-sm mt-1">
@@ -708,10 +708,10 @@ export default function Atendimento() {
         </TabsContent>
 
         <TabsContent value="conversas" className="mt-4">
-      <div className="grid grid-cols-1 lg:grid-cols-[340px_1fr] xl:grid-cols-[340px_1fr_340px] gap-4 h-[calc(100vh-260px)] min-h-[520px]">
+      <div className="grid w-full max-w-full min-w-0 grid-cols-1 lg:grid-cols-[minmax(0,320px)_minmax(0,1fr)] xl:grid-cols-[minmax(0,320px)_minmax(0,1fr)_minmax(0,340px)] gap-4 h-[calc(100vh-260px)] min-h-[520px]">
 
         {/* Lista de conversas */}
-        <Card className="flex flex-col overflow-hidden">
+        <Card className="flex min-w-0 flex-col overflow-hidden">
           <div className="p-3 border-b border-border space-y-2">
             <Button size="sm" className="w-full" onClick={() => abrirNovaConversa(null)}>
               <Plus className="h-4 w-4 mr-2" />
@@ -939,7 +939,7 @@ export default function Atendimento() {
         </Card>
 
         {/* Thread */}
-        <Card className="flex flex-col overflow-hidden">
+        <Card className="flex min-w-0 flex-col overflow-hidden">
           {!conversaAtual ? (
             <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground gap-2">
               <MessageCircle className="h-10 w-10 opacity-40" />
@@ -1040,7 +1040,7 @@ export default function Atendimento() {
                       >
                         <div
                           className={cn(
-                            "max-w-[70%] text-sm",
+                            "max-w-[70%] min-w-0 text-sm break-words [overflow-wrap:anywhere]",
                             sticker
                               ? "bg-transparent border-0 p-0"
                               : cn(
@@ -1175,7 +1175,7 @@ export default function Atendimento() {
         </Card>
 
         {/* Painel lateral direito */}
-        <div className="hidden xl:flex flex-col gap-4 overflow-y-auto">
+        <div className="hidden xl:flex min-w-0 flex-col gap-4 overflow-y-auto overflow-x-hidden">
           {conversaAtual ? (
             <>
               <PerfilCliente conversaId={conversaAtual.id} autor={autor} telefone={conversaAtual.telefone} />
