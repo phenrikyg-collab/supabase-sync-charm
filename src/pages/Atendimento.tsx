@@ -1141,6 +1141,11 @@ export default function Atendimento() {
                   </span>
                   {nomeSoDoWhatsApp(conversaAtual) && <BadgeViaWhatsApp />}
                   <StatusPill status={conversaAtual.status} aguardandoDesde={conversaAtual.aguardando_desde} />
+                  {rotuloAutomacao(atencaoDe(conversaAtual)) && (
+                    <span className="inline-flex shrink-0 items-center rounded-full border border-border bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground whitespace-nowrap">
+                      {rotuloAutomacao(atencaoDe(conversaAtual))}
+                    </span>
+                  )}
                   {conversaAtual.status === "escalado" && conversaAtual.aguardando_desde && (
                     <SeloFila conversaId={conversaAtual.id} />
                   )}
