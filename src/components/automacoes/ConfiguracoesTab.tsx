@@ -110,8 +110,16 @@ export function ConfiguracoesTab({
         {gatilhoTipo === "lead_novo" && (
           <CampoNumero rotulo="Horas no máximo" valor={gc.horas_max} onChange={(v) => setGc({ horas_max: v })} />
         )}
-        {["aniversario", "aniversario_cliente", "cashback"].includes(gatilhoTipo) && (
+        {["aniversario", "aniversario_cliente"].includes(gatilhoTipo) && (
           <CampoNumero rotulo="Dias antes" valor={gc.dias_antes} onChange={(v) => setGc({ dias_antes: v })} />
+        )}
+        {gatilhoTipo === "cashback" && (
+          <CampoNumero
+            rotulo="Avisar quantos dias depois do pedido"
+            valor={gc.dias_apos_pedido ?? 5}
+            ajuda="Uma execução por cupom. Sai sozinha quando o cupom é usado, cancelado ou vence."
+            onChange={(v) => setGc({ dias_apos_pedido: v })}
+          />
         )}
 
         {gatilhoTipo === "agendado" && (

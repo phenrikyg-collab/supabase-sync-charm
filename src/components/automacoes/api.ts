@@ -120,6 +120,8 @@ export function useCatalogoFluxos() {
         grupos: d?.grupos ?? [],
         variaveis_texto: d?.variaveis_texto ?? [],
         eventos: d?.eventos ?? { email: [], whatsapp: [] },
+        espera_referencias: normalizarOpcoes((d as any)?.espera_referencias),
+        condicao_modos_extra: normalizarOpcoes((d as any)?.condicao_modos_extra),
       } as Catalogo;
     },
   });
