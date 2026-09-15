@@ -13,13 +13,12 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import { toast } from "@/hooks/use-toast";
-import { AlertTriangle, ArrowLeft, Loader2, Plus, XCircle } from "lucide-react";
+import { AlertTriangle, ArrowLeft, Loader2, Plus, Send, XCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { brl, inteiro, pct1, rpcEmails } from "@/lib/emails";
 import type { ModoTemplate } from "./PreviaTemplate";
 import { ControlesPrevia, IframePrevia, useConferirTemplate, usePreviaTemplate } from "./PreviaTemplate";
 import { lerChecagem } from "./TemplatesTab";
-import { BotaoEnviarTeste } from "./EnviarTeste";
 import {
   ConstrutorPublico, contarCondicoes, descreverFiltro, filtroVazio,
   mensagemErroPublico, SeloPublicoVivo, textoConsulta, usePublicoCampos, type No,
