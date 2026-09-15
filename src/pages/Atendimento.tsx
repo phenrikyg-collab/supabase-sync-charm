@@ -166,7 +166,17 @@ const STATUS_META: Record<string, { label: string; className: string }> = {
   resolvido: { label: "Resolvido", className: "bg-success/10 text-success border-success/20" },
 };
 
-function StatusPill({ status, className }: { status: string; className?: string }) {
+function StatusPill({
+  status,
+  aguardandoDesde,
+  className,
+}: {
+  status: string;
+  aguardandoDesde?: string | null;
+  className?: string;
+}) {
+  // A tarja "Aguardando atendimento" só vale quando a conversa está mesmo na fila humana
+  if (status === "escalado" && !aguardandoDesde) return null;
   const meta = STATUS_META[status] ?? {
     label: status,
     className: "bg-muted text-muted-foreground border-border",
