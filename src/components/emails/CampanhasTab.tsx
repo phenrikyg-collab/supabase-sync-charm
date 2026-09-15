@@ -306,9 +306,12 @@ function NovaCampanha({ aberto, onFechar }: { aberto: boolean; onFechar: () => v
                   )}
                 </div>
                 {totalCondicoes > 0 && (
-                  <p className="rounded-lg border bg-muted/40 p-3 text-xs text-muted-foreground">
-                    {descreverFiltro(filtro, campos as any[])}
-                  </p>
+                  <div className="space-y-2 rounded-lg border bg-muted/40 p-3">
+                    <SeloPublicoVivo filtro={filtroLento} enabled={aberto} />
+                    <p className="text-xs text-muted-foreground">
+                      {descreverFiltro(filtro, campos as any[])}
+                    </p>
+                  </div>
                 )}
               </div>
             )}
