@@ -19,6 +19,7 @@ import { brl, inteiro, pct1, rpcEmails } from "@/lib/emails";
 import type { ModoTemplate } from "./PreviaTemplate";
 import { ControlesPrevia, IframePrevia, useConferirTemplate, usePreviaTemplate } from "./PreviaTemplate";
 import { lerChecagem } from "./TemplatesTab";
+import { BotaoEnviarTeste } from "./EnviarTeste";
 import {
   ConstrutorPublico, contarCondicoes, descreverFiltro, filtroVazio,
   mensagemErroPublico, SeloPublicoVivo, textoConsulta, usePublicoCampos, type No,
