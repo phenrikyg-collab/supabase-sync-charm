@@ -293,10 +293,15 @@ export default function Atendimento() {
     | "provador"
     | "carrinhos"
     | "cancelados"
-    | "funil"
     | "kanban"
     | "cashback"
   >("conversas");
+  const [abaKanban, setAbaKanban] = useState<"kanban" | "dashboard" | "followups" | "templates">("kanban");
+  const [contagens, setContagens] = useState<Record<string, number>>({});
+  const setContagem = (chave: string, n: number) =>
+    setContagens((prev) => (prev[chave] === n ? prev : { ...prev, [chave]: n }));
+  /** Lead do provador que recebeu mensagem pronta: registra o contato depois do envio. */
+  const [leadProvador, setLeadProvador] = useState<{ leadId: string; conversaId: string } | null>(null);
   const [cobrancaAberta, setCobrancaAberta] = useState(false);
   const [abaCobranca, setAbaCobranca] = useState<"pix" | "links">("pix");
   const [linkPagamentoAberto, setLinkPagamentoAberto] = useState(false);
