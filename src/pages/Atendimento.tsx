@@ -1512,14 +1512,14 @@ export default function Atendimento() {
 
         {/* Painel lateral direito */}
         {perfilAberto && conversaAtual && (
-          <aside className="hidden min-h-0 w-[340px] min-w-[340px] shrink-0 flex-col gap-3 overflow-y-auto overflow-x-hidden overscroll-contain border-l border-border p-3 lg:flex">
+          <aside className="hidden min-h-0 w-[340px] min-w-[340px] shrink-0 flex-col gap-3 overflow-y-auto overflow-x-hidden overscroll-contain border-l border-border p-3 pb-8 lg:flex">
             <PerfilCliente conversaId={conversaAtual.id} autor={autor} telefone={conversaAtual.telefone} />
             {telefoneIdentificado && <AtividadesRecentes telefone={telefoneIdentificado} />}
           </aside>
         )}
 
         <Sheet open={perfilSheet} onOpenChange={setPerfilSheet}>
-          <SheetContent side="right" className="w-[92vw] max-w-[380px] overflow-y-auto p-3">
+          <SheetContent side="right" className="w-[92vw] max-w-[380px] overflow-y-auto p-3 pb-8">
             <SheetTitle className="mb-2 text-sm">Perfil da cliente</SheetTitle>
             {conversaAtual ? (
               <div className="space-y-3">
