@@ -623,8 +623,22 @@ export default function Atendimento() {
 
   const atencaoDe = (c: Conversa) => mapaAtencao.get(String(c.id));
 
-  const filtradas = conversas
-    .filter((c) => {
+  const filtradas = useMemo(() => {
+    if (buscaAtiva) {
+      const achadas = resultadoBusca?.conversas ?? [];
+      return achadas.map((r) => {
+        const carregada = conversas.find((c) => String(c.id) === String(r.conversa_id));
+        if (carregada) return carregada;
+        return {
+          id: r.conversa_id,
+          telefone: r.telefone ?? "",
+          cliente_nome: r.nome ?? null,
+          status: r.status ?? "",
+          ultima_mensagem_em: r.ultima_mensagem_em ?? null,
+        } as Conversa;
+      });
+    }
+    return conversas.filter((c) => {
       if (!daAba(c)) return false;
       if (filtroLeitura === "nao_lidas" && !c.nao_lida) return false;
       if (filtroLeitura === "lidas" && c.nao_lida) return false;
@@ -633,12 +647,17 @@ export default function Atendimento() {
         const ids = (c.tags ?? []).map((t) => String(t.id));
         if (!tagsFiltro.some((t) => ids.includes(t))) return false;
       }
-      if (!busca.trim()) return true;
-      const t = busca.toLowerCase();
-      const nome = nomeConversa(c).toLowerCase();
-      const tel = ehSite(c) ? (c.telefone_real ?? "") : (c.telefone ?? "");
-      return nome.includes(t) || tel.toLowerCase().includes(t);
+      return true;
     });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [conversas, buscaAtiva, resultadoBusca, aba, filtroLeitura, tagsFiltro]);
+
+  const clientesSemConversa = buscaAtiva ? (resultadoBusca?.clientes ?? []) : [];
+
+  const abrirNovaConversa = (telefone?: string | null) => {
+    setTelefoneNovaConversa(telefone ?? null);
+    setNovaConversaAberta(true);
+  };
   // Sem reordenação no cliente: a view vw_conversas_painel já vem ordenada por urgência
 
   const naoLidasWhatsapp = conversas.filter((c) => c.nao_lida && !ehSite(c)).length;
