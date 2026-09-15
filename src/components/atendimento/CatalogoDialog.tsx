@@ -127,6 +127,7 @@ function EscolherVariacao({
 
   const precisaCor = cores.length > 1;
   const podeEnviar = !precisaCor || !!cor;
+  const imagemSelecionada = (cor ? cores.find((c) => c.cor === cor)?.imagem : null) || produto.imagem || null;
 
   return (
     <div className="space-y-3">
@@ -136,8 +137,8 @@ function EscolherVariacao({
       </Button>
       <div className="flex gap-3">
         <div className="h-28 w-28 shrink-0 overflow-hidden rounded bg-muted">
-          {produto.imagem ? (
-            <img src={produto.imagem} alt={produto.nome} className="h-full w-full object-cover" />
+          {imagemSelecionada ? (
+            <img src={imagemSelecionada} alt={produto.nome} className="h-full w-full object-cover" />
           ) : null}
         </div>
         <div className="min-w-0 space-y-1">
@@ -206,7 +207,7 @@ function EscolherVariacao({
         <p className="whitespace-pre-wrap text-xs">{legendaProduto(produto, { cor, tamanho })}</p>
       </div>
 
-      <Button className="w-full" disabled={!podeEnviar} onClick={() => onEnviar({ cor, tamanho })}>
+      <Button className="w-full" disabled={!podeEnviar} onClick={() => onEnviar({ cor, tamanho, imagem: imagemSelecionada })}>
         Enviar para a cliente
       </Button>
       {!podeEnviar && (
