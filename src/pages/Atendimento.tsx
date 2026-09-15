@@ -785,42 +785,60 @@ export default function Atendimento() {
   const podeResponder = status === "escalado" || status === "em_atendimento";
 
   return (
-    <div className="w-full max-w-[1700px] min-w-0 overflow-x-hidden p-6 mx-auto space-y-4">
-      <div>
-        <h1 className="font-serif text-4xl text-foreground">Atendimento</h1>
-        <p className="text-muted-foreground text-sm mt-1">
-          Conversas de WhatsApp — assuma o atendimento quando o bot escalar.
-        </p>
-      </div>
+    <div className="-m-6 flex h-[calc(100dvh-3.5rem)] w-[calc(100%+3rem)] min-w-0 flex-col overflow-hidden">
+      <Tabs
+        value={abaPagina}
+        onValueChange={(v) => setAbaPagina(v as typeof abaPagina)}
+        className="flex min-h-0 flex-1 flex-col"
+      >
+        <div className="flex h-11 shrink-0 items-center gap-2 border-b border-border px-3">
+          <TabsList className="h-8 bg-transparent p-0">
+            <TabsTrigger value="conversas" className="h-8 text-xs">Conversas</TabsTrigger>
+            <TabsTrigger value="abandonadas" className="h-8 text-xs">Abandonadas</TabsTrigger>
+            <TabsTrigger value="cobrancas" className="h-8 text-xs">Cobranças</TabsTrigger>
+            <TabsTrigger value="consulta" className="h-8 text-xs">Consultar Transação</TabsTrigger>
+            <TabsTrigger value="rapidas" className="h-8 text-xs">Mensagens rápidas</TabsTrigger>
+          </TabsList>
+        </div>
 
-      <Tabs value={abaPagina} onValueChange={(v) => setAbaPagina(v as typeof abaPagina)}>
-        <TabsList>
-          <TabsTrigger value="conversas">Conversas</TabsTrigger>
-          <TabsTrigger value="abandonadas">Abandonadas</TabsTrigger>
-          <TabsTrigger value="cobrancas">Cobranças</TabsTrigger>
-          <TabsTrigger value="consulta">Consultar Transação</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="abandonadas" className="mt-4">
+        <TabsContent value="abandonadas" className="m-0 min-h-0 flex-1 overflow-auto p-4">
           <AbandonadasTab />
         </TabsContent>
 
 
-        <TabsContent value="cobrancas" className="mt-4 space-y-4">
+        <TabsContent value="cobrancas" className="m-0 min-h-0 flex-1 space-y-4 overflow-auto p-4">
           <LinkPagamentoCard />
           <CobrancasTab />
         </TabsContent>
 
-        <TabsContent value="consulta" className="mt-4">
+        <TabsContent value="consulta" className="m-0 min-h-0 flex-1 overflow-auto p-4">
           <ConsultarTransacaoTab />
         </TabsContent>
 
-        <TabsContent value="conversas" className="mt-4">
-      <div className="grid w-full max-w-full min-w-0 grid-cols-1 lg:grid-cols-[minmax(0,280px)_minmax(0,1fr)] xl:grid-cols-[minmax(0,260px)_minmax(360px,1fr)_minmax(0,280px)] 2xl:grid-cols-[minmax(0,320px)_minmax(0,1fr)_minmax(0,340px)] gap-4 h-[calc(100vh-260px)] min-h-[520px] overflow-x-hidden">
+        <TabsContent value="rapidas" className="m-0 min-h-0 flex-1 overflow-auto p-4">
+          <MensagensRapidasTab />
+        </TabsContent>
+
+        <TabsContent value="conversas" className="m-0 min-h-0 flex-1 overflow-hidden data-[state=active]:flex">
+      <div className="relative flex w-full min-w-0 flex-1 overflow-hidden">
+
+        {listaSheet && (
+          <div
+            className="fixed inset-0 z-30 bg-black/40 md:hidden"
+            onClick={() => setListaSheet(false)}
+            aria-hidden
+          />
+        )}
 
         {/* Lista de conversas */}
-        <Card className="flex min-w-0 max-w-full flex-col overflow-hidden">
-          <div className="p-3 border-b border-border space-y-2">
+        <aside
+          className={cn(
+            "fixed inset-y-0 left-0 z-40 flex w-[85vw] max-w-[360px] min-w-0 flex-col border-r border-border bg-card transition-transform",
+            "md:static md:z-auto md:w-[360px] md:max-w-none md:shrink-0 md:translate-x-0",
+            listaSheet ? "translate-x-0" : "-translate-x-full",
+          )}
+        >
+          <div className="shrink-0 border-b border-border p-3 space-y-2">
             <Button size="sm" className="w-full" onClick={() => abrirNovaConversa(null)}>
               <Plus className="h-4 w-4 mr-2" />
               Nova conversa
