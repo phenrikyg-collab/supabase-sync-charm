@@ -911,6 +911,11 @@ export function PropostaDaConversa({
   const queryClient = useQueryClient();
   const [gerando, setGerando] = useState<"cartao" | "pix" | null>(null);
   const [confirmar, setConfirmar] = useState<"cartao" | "pix" | null>(null);
+  const [linkCobranca, setLinkCobranca] = useState<string | null>(null);
+
+  useEffect(() => {
+    setLinkCobranca(null);
+  }, [conversaId]);
 
   const { data: proposta } = useQuery({
     queryKey: ["proposta-carrinho", String(id ?? "")],
@@ -972,9 +977,22 @@ export function PropostaDaConversa({
         }
         throw new Error(msgErro || "Não foi possível gerar a cobrança.");
       }
-      toast({
-        title: formaPagamento === "pix" ? "Pix enviado" : "Link de pagamento enviado",
-      });
+      const enviado = corpo?.enviado === true;
+      const motivo = corpo?.motivo ?? null;
+      if (formaPagamento === "cartao") {
+        setLinkCobranca(typeof corpo?.link_pagamento === "string" && corpo.link_pagamento ? corpo.link_pagamento : null);
+      }
+      if (enviado) {
+        toast({
+          title: formaPagamento === "pix" ? "Pix enviado" : "Link de pagamento enviado",
+        });
+      } else {
+        toast({
+          title: "Cobrança gerada, mas não foi enviada",
+          description: motivo || "A cobrança foi criada, mas a mensagem não chegou na cliente.",
+          variant: "destructive",
+        });
+      }
       recarregar();
     } catch (e: any) {
       toast({ title: e?.message || "Não foi possível gerar a cobrança.", variant: "destructive" });
@@ -983,7 +1001,18 @@ export function PropostaDaConversa({
     }
   }
 
+  async function copiarLink() {
+    if (!linkCobranca) return;
+    try {
+      await navigator.clipboard.writeText(linkCobranca);
+      toast({ title: "Link copiado" });
+    } catch {
+      toast({ title: "Não foi possível copiar o link.", variant: "destructive" });
+    }
+  }
+
   return (
+    <>
     <div
       className={`flex flex-wrap items-center justify-between gap-2 border-b border-border px-4 py-2 text-xs ${
         confirmado ? "bg-success/5 text-success" : "bg-muted/40 text-muted-foreground"
@@ -1048,5 +1077,18 @@ export function PropostaDaConversa({
         </AlertDialogContent>
       </AlertDialog>
     </div>
+
+    {linkCobranca && (
+      <div className="flex flex-wrap items-center gap-2 border-b border-border bg-muted/20 px-4 py-2 text-xs">
+        <span className="text-muted-foreground">Link gerado (envie manualmente):</span>
+        <code className="min-w-0 flex-1 truncate rounded bg-muted px-2 py-1 font-mono text-[11px]">
+          {linkCobranca}
+        </code>
+        <Button size="sm" variant="outline" className="h-7 px-2 text-[11px]" onClick={copiarLink}>
+          Copiar link
+        </Button>
+      </div>
+    )}
+    </>
   );
 }
