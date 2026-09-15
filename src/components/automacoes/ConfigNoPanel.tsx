@@ -79,6 +79,11 @@ function CamposWhatsAppTemplate({
             ))}
           </SelectContent>
         </Select>
+        {escolhido?.copiar_cupom && (
+          <Badge variant="outline" className="border-success/40 bg-success/10 text-[10px] text-success">
+            Cupom no botão Copiar
+          </Badge>
+        )}
         {escolhido?.corpo && (
           <p className="whitespace-pre-wrap rounded-md bg-muted/40 p-2 text-[11px] text-muted-foreground">
             {escolhido.corpo}
