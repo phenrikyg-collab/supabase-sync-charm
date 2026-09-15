@@ -61,12 +61,15 @@ export function OportunidadesAoVivo({
   refreshKey,
   intervaloMs,
   onAbrirConversa,
+  onContagem,
 }: {
   refreshKey?: number;
   /** Quando informado, o bloco se atualiza sozinho nesse intervalo. */
   intervaloMs?: number;
   /** Quando a oportunidade já tem conversa, abrir dentro do próprio painel. */
   onAbrirConversa?: (conversaId: string) => void;
+  /** Informa quantas oportunidades estão na lista, para a contagem da aba. */
+  onContagem?: (n: number) => void;
 }) {
   const [resumo, setResumo] = useState<Resumo>(null);
   const [lista, setLista] = useState<Oportunidade[]>([]);
