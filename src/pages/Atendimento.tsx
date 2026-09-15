@@ -886,8 +886,8 @@ export default function Atendimento() {
         </TabsContent>
 
 
-        <TabsContent value="conversas" className="m-0 min-h-0 flex-1 overflow-hidden data-[state=active]:flex">
-      <div className="relative flex w-full min-w-0 flex-1 overflow-hidden">
+        <TabsContent value="conversas" className="m-0 min-h-0 w-full min-w-0 max-w-full flex-1 overflow-hidden data-[state=active]:flex">
+      <div className="relative flex min-h-0 w-full min-w-0 max-w-full flex-1 overflow-hidden">
 
         {listaSheet && (
           <div
@@ -900,8 +900,8 @@ export default function Atendimento() {
         {/* Lista de conversas */}
         <aside
           className={cn(
-            "fixed inset-y-0 left-0 z-40 flex w-[85vw] max-w-[360px] min-w-0 flex-col border-r border-border bg-card transition-transform",
-            "md:static md:z-auto md:w-[360px] md:max-w-none md:shrink-0 md:translate-x-0",
+            "fixed inset-y-0 left-0 z-40 flex min-h-0 w-[85vw] max-w-[360px] min-w-0 flex-col overflow-hidden border-r border-border bg-card transition-transform",
+            "md:static md:z-auto md:w-[320px] md:max-w-none md:shrink-0 md:translate-x-0 lg:w-[340px]",
             listaSheet ? "translate-x-0" : "-translate-x-full",
           )}
         >
