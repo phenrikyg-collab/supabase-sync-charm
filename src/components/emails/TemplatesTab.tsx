@@ -174,14 +174,23 @@ function Editor({ template, onVoltar }: { template: any; onVoltar: () => void })
             <Input value={preheader} onChange={(e) => setPreheader(e.target.value)} />
           </div>
           <div className="space-y-1.5">
-            <label className="text-sm font-medium">HTML</label>
+            <label className="text-sm font-medium">{modo === "miolo" ? "Conteúdo do e-mail" : "HTML"}</label>
             <Textarea
               ref={areaRef}
               rows={18}
               className="font-mono text-xs"
-              value={html}
-              onChange={(e) => setHtml(e.target.value)}
+              value={texto}
+              onChange={(e) => setTexto(e.target.value)}
             />
+            {modo === "miolo" ? (
+              <p className="text-xs text-muted-foreground">
+                Cole só o conteúdo. O logo, as regras de celular e o rodapé com descadastro entram sozinhos.
+              </p>
+            ) : (
+              <p className="text-xs text-muted-foreground">
+                Cole o e-mail inteiro, com doctype, head e body. Mobile, rodapé e descadastro ficam por sua conta.
+              </p>
+            )}
           </div>
 
           <Card className="space-y-2 p-4">
