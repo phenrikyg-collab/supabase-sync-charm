@@ -253,6 +253,7 @@ export function ConfigNoPanel({
                 ["evento", "Reação a um envio anterior"],
                 ["comprou", "Comprou desde que entrou"],
                 ["janela_whatsapp", "Janela de 24h do WhatsApp aberta"],
+                ...modosExtra.map((o) => [o.valor, o.rotulo] as [string, string]),
               ].map(([v, r]) => (
                 <div key={v} className="flex items-center gap-2">
                   <RadioGroupItem value={v} id={`modo-${v}`} />
