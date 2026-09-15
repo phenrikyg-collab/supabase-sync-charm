@@ -312,6 +312,7 @@ export function AutomacoesTab({ onAbrirTemplate }: { onAbrirTemplate?: (slug: st
   const queryClient = useQueryClient();
   const [configurando, setConfigurando] = useState<any | null>(null);
   const [simulando, setSimulando] = useState<any | null>(null);
+  const [simulados, setSimulados] = useState<string[]>([]);
   const [confirmarDesligar, setConfirmarDesligar] = useState<any | null>(null);
 
   const { data: automacoes = [], isLoading } = useQuery({
