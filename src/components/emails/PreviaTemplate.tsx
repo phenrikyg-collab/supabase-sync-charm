@@ -4,11 +4,15 @@ import { Button } from "@/components/ui/button";
 import { Monitor, Smartphone } from "lucide-react";
 import { rpcEmails } from "@/lib/emails";
 
+export type ModoTemplate = "completo" | "miolo";
+
 export type Previa = {
   slug?: string;
   nome?: string;
   assunto?: string;
   preheader?: string | null;
+  modo?: ModoTemplate;
+  miolo?: string | null;
   html?: string;
   html_sem_cupom?: string;
   variaveis_encontradas?: string[];
@@ -25,29 +29,30 @@ export function usePreviaTemplate(slug?: string | null, enabled = true) {
 }
 
 /** Confere o HTML que está sendo digitado, sem precisar salvar. */
-export function useConferirTemplate(html: string, assunto: string, atrasoMs = 500) {
-  const [htmlLento, setHtmlLento] = useState(html);
-  const [assuntoLento, setAssuntoLento] = useState(assunto);
+export function useConferirTemplate(
+  html: string,
+  assunto: string,
+  modo: ModoTemplate = "completo",
+  preheader: string | null = null,
+  atrasoMs = 500,
+) {
+  const [lento, setLento] = useState({ html, assunto, modo, preheader });
 
   useEffect(() => {
-    const t = setTimeout(() => {
-      setHtmlLento(html);
-      setAssuntoLento(assunto);
-    }, atrasoMs);
+    const t = setTimeout(() => setLento({ html, assunto, modo, preheader }), atrasoMs);
     return () => clearTimeout(t);
-  }, [html, assunto, atrasoMs]);
+  }, [html, assunto, modo, preheader, atrasoMs]);
 
   return useQuery({
-    queryKey: ["emails-template-conferir", htmlLento, assuntoLento],
+    queryKey: ["emails-template-conferir", lento],
     queryFn: () =>
       rpcEmails<Previa>("emails_template_conferir", {
-        p_html: htmlLento,
-        p_assunto: assuntoLento,
-        p_nome: null,
-        p_cupom: null,
-        p_valor: null,
+        p_html: lento.html,
+        p_assunto: lento.assunto,
+        p_modo: lento.modo,
+        p_preheader: lento.preheader,
       }),
-    enabled: !!htmlLento.trim(),
+    enabled: !!lento.html.trim(),
   });
 }
 
