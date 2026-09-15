@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -12,7 +12,9 @@ import { EnviarWhatsAppInline } from "@/components/rfm/EnviarWhatsAppInline";
 import { FiltroPeriodo, Periodo, limiteInicio, limiteFim } from "@/components/recuperacao/FiltroPeriodo";
 import { SegmentoBadge, CelulaItens, moeda } from "@/components/recuperacao/comum";
 import { formatarData } from "@/utils/formatters";
-import { Loader2, ShoppingCart, Wallet, Receipt } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { BadgesContato, useContatoPorTelefones } from "@/components/atendimento/contatoTelefones";
+import { Loader2, ShoppingCart, Wallet, Receipt, MessageCircle } from "lucide-react";
 
 type Carrinho = {
   session_id: string;
@@ -31,11 +33,25 @@ type Carrinho = {
 
 type Chave = "nome" | "telefone" | "total" | "dias_desde_abandono" | "segmento_rfm" | "data_criacao";
 
-export function CarrinhoAbandonadoConteudo() {
-  return <CarrinhoAbandonado semCabecalho />;
+export function CarrinhoAbandonadoConteudo({
+  onAbrirConversa,
+  onContagem,
+}: {
+  onAbrirConversa?: (conversaId: string) => void;
+  onContagem?: (n: number) => void;
+} = {}) {
+  return <CarrinhoAbandonado semCabecalho onAbrirConversa={onAbrirConversa} onContagem={onContagem} />;
 }
 
-export default function CarrinhoAbandonado({ semCabecalho }: { semCabecalho?: boolean } = {}) {
+export default function CarrinhoAbandonado({
+  semCabecalho,
+  onAbrirConversa,
+  onContagem,
+}: {
+  semCabecalho?: boolean;
+  onAbrirConversa?: (conversaId: string) => void;
+  onContagem?: (n: number) => void;
+} = {}) {
   const [periodo, setPeriodo] = useState<Periodo>({ inicio: null, fim: null });
   const [segmento, setSegmento] = useState("todos");
   const [valorMin, setValorMin] = useState("");
@@ -85,7 +101,12 @@ export default function CarrinhoAbandonado({ semCabecalho }: { semCabecalho?: bo
     data_criacao: (l) => `${l.data_criacao ?? ""}T${String(l.hora_criacao ?? "00:00:00")}`,
   });
 
+  const { contatoDe } = useContatoPorTelefones(useMemo(() => ordenadas.map((l) => l.telefone), [ordenadas]));
+
+
   const totalValor = filtradas.reduce((s, l) => s + Number(l.total ?? 0), 0);
+  useEffect(() => { onContagem?.(ordenadas.length); }, [ordenadas.length, onContagem]);
+
   const ticket = filtradas.length ? totalValor / filtradas.length : 0;
 
   return (
@@ -208,23 +229,29 @@ export default function CarrinhoAbandonado({ semCabecalho }: { semCabecalho?: bo
                 <TableBody>
                   {ordenadas.map((l) => {
                     const identificado = !!l.telefone || !!l.tray_customer_id;
+                    const contato = contatoDe(l.telefone);
                     return (
                       <TableRow key={l.session_id}>
                         <TableCell className="font-medium">
                           {l.nome?.trim() || <span className="text-muted-foreground">Cliente não identificado</span>}
                           {l.email && <div className="text-[11px] text-muted-foreground">{l.email}</div>}
+                          <BadgesContato contato={contato} className="mt-1" />
                         </TableCell>
-                        <TableCell className="text-xs">{l.telefone || "—"}</TableCell>
+                        <TableCell className="text-xs">{l.telefone || "sem telefone"}</TableCell>
                         <TableCell className="text-right font-semibold">{moeda(l.total)}</TableCell>
                         <TableCell><CelulaItens itens={l.itens} /></TableCell>
-                        <TableCell className="text-right">{l.dias_desde_abandono ?? "—"}</TableCell>
+                        <TableCell className="text-right">{l.dias_desde_abandono ?? "sem dados"}</TableCell>
                         <TableCell className="text-xs">
                           {formatarData(l.data_criacao)}
                           {l.hora_criacao && <span className="text-muted-foreground"> {String(l.hora_criacao).slice(0, 5)}</span>}
                         </TableCell>
                         <TableCell><SegmentoBadge segmento={l.segmento_rfm} /></TableCell>
                         <TableCell>
-                          {identificado && l.telefone ? (
+                          {contato?.conversa_id && onAbrirConversa ? (
+                            <Button size="sm" variant="outline" className="h-8" onClick={() => onAbrirConversa(String(contato.conversa_id))}>
+                              <MessageCircle className="mr-1.5 h-3.5 w-3.5" /> Abrir conversa
+                            </Button>
+                          ) : identificado && l.telefone ? (
                             <EnviarWhatsAppInline telefone={l.telefone} placeholder="Mensagem de recuperação..." mostrarAviso />
                           ) : (
                             <span className="text-xs text-muted-foreground">Cliente não identificado</span>

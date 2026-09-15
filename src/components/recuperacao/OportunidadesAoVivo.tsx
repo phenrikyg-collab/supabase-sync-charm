@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { brl } from "@/lib/financeiroFormat";
 import { Card, CardContent } from "@/components/ui/card";
@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Flame, MessageCircle, Mail, Megaphone, MessagesSquare, Phone } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { BadgesContato, useContatoPorTelefones } from "@/components/atendimento/contatoTelefones";
 
 type Resumo = {
   total: number;
@@ -60,12 +61,15 @@ export function OportunidadesAoVivo({
   refreshKey,
   intervaloMs,
   onAbrirConversa,
+  onContagem,
 }: {
   refreshKey?: number;
   /** Quando informado, o bloco se atualiza sozinho nesse intervalo. */
   intervaloMs?: number;
   /** Quando a oportunidade já tem conversa, abrir dentro do próprio painel. */
   onAbrirConversa?: (conversaId: string) => void;
+  /** Informa quantas oportunidades estão na lista, para a contagem da aba. */
+  onContagem?: (n: number) => void;
 }) {
   const [resumo, setResumo] = useState<Resumo>(null);
   const [lista, setLista] = useState<Oportunidade[]>([]);
@@ -92,10 +96,17 @@ export function OportunidadesAoVivo({
     return () => window.clearInterval(t);
   }, [carregar, intervaloMs]);
 
+  useEffect(() => { onContagem?.(lista.length); }, [lista.length, onContagem]);
+
+
+  const telefones = useMemo(() => lista.map((o) => o.telefone), [lista]);
+  const { contatoDe } = useContatoPorTelefones(telefones);
+
   const partes: string[] = [];
   if ((resumo?.quentes ?? 0) > 0) partes.push(`${resumo!.quentes} quentes agora`);
   if ((resumo?.contactaveis ?? 0) > 0) partes.push(`${resumo!.contactaveis} com contato`);
   if ((resumo?.valor_em_jogo ?? 0) > 0) partes.push(`${brl(resumo!.valor_em_jogo)} em carrinho neste momento`);
+
 
   return (
     <section>
@@ -123,6 +134,8 @@ export function OportunidadesAoVivo({
             const canal = (o.canal_sugerido ?? "").trim();
             const canalKey = canal.toLowerCase();
             const isWhats = canalKey.includes("whats");
+            const contato = contatoDe(o.telefone);
+            const idConversa = o.conversa_id ?? contato?.conversa_id ?? null;
             return (
               <Card
                 key={`${o.tipo}-${i}`}
@@ -150,6 +163,7 @@ export function OportunidadesAoVivo({
                     {o.segmento_rfm && (
                       <Badge variant="outline" className="text-[10px] px-1.5 py-0">{o.segmento_rfm}</Badge>
                     )}
+                    <BadgesContato contato={contato} />
                   </div>
 
                   <div className="flex flex-wrap items-center gap-2 pt-1 border-t">
@@ -164,11 +178,11 @@ export function OportunidadesAoVivo({
                     {o.acao_sugerida && (
                       <span className="text-xs text-foreground/80 flex-1 min-w-[8rem]">{o.acao_sugerida}</span>
                     )}
-                    {isWhats && o.conversa_id && onAbrirConversa ? (
+                    {idConversa && onAbrirConversa ? (
                       <Button
                         size="sm"
                         className="h-7 gap-1 bg-green-600 hover:bg-green-700 text-white"
-                        onClick={() => onAbrirConversa(String(o.conversa_id))}
+                        onClick={() => onAbrirConversa(String(idConversa))}
                       >
                         <MessageCircle className="h-3 w-3" /> Abrir conversa
                       </Button>

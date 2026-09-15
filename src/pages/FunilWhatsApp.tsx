@@ -419,7 +419,7 @@ function ModalEtapa({
 
 type Preset = "hoje" | "7" | "30" | "custom";
 
-function DashboardFunil() {
+export function DashboardFunil() {
   const [preset, setPreset] = useState<Preset>("30");
   const [inicio, setInicio] = useState(diasAtras(29));
   const [fim, setFim] = useState(hoje());

@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -11,7 +11,9 @@ import { EnviarWhatsAppInline } from "@/components/rfm/EnviarWhatsAppInline";
 import { FiltroPeriodo, Periodo, limiteInicio, limiteFim } from "@/components/recuperacao/FiltroPeriodo";
 import { SegmentoBadge, CelulaItens, moeda } from "@/components/recuperacao/comum";
 import { formatarData } from "@/utils/formatters";
-import { Loader2, PackageX, TrendingDown } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { BadgesContato, useContatoPorTelefones } from "@/components/atendimento/contatoTelefones";
+import { Loader2, PackageX, TrendingDown, MessageCircle } from "lucide-react";
 
 type PedidoCancelado = {
   tray_order_id: string;
@@ -31,11 +33,25 @@ type PedidoCancelado = {
 
 type Chave = "nome" | "telefone" | "total_amount" | "date_purchase" | "dias_desde_cancelamento" | "segmento_rfm";
 
-export function PedidosCanceladosConteudo() {
-  return <PedidosCancelados semCabecalho />;
+export function PedidosCanceladosConteudo({
+  onAbrirConversa,
+  onContagem,
+}: {
+  onAbrirConversa?: (conversaId: string) => void;
+  onContagem?: (n: number) => void;
+} = {}) {
+  return <PedidosCancelados semCabecalho onAbrirConversa={onAbrirConversa} onContagem={onContagem} />;
 }
 
-export default function PedidosCancelados({ semCabecalho }: { semCabecalho?: boolean } = {}) {
+export default function PedidosCancelados({
+  semCabecalho,
+  onAbrirConversa,
+  onContagem,
+}: {
+  semCabecalho?: boolean;
+  onAbrirConversa?: (conversaId: string) => void;
+  onContagem?: (n: number) => void;
+} = {}) {
   const [periodo, setPeriodo] = useState<Periodo>({ inicio: null, fim: null });
   const [segmento, setSegmento] = useState("todos");
   const [valorMin, setValorMin] = useState("");
@@ -84,6 +100,11 @@ export default function PedidosCancelados({ semCabecalho }: { semCabecalho?: boo
   });
 
   const totalPerdido = filtradas.reduce((s, l) => s + Number(l.total_amount ?? 0), 0);
+
+  const { contatoDe } = useContatoPorTelefones(useMemo(() => ordenadas.map((l) => l.telefone), [ordenadas]));
+
+  useEffect(() => { onContagem?.(ordenadas.length); }, [ordenadas.length, onContagem]);
+
 
   return (
     <div className="space-y-6">
@@ -178,27 +199,35 @@ export default function PedidosCancelados({ semCabecalho }: { semCabecalho?: boo
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {ordenadas.map((l) => (
+                  {ordenadas.map((l) => {
+                    const contato = contatoDe(l.telefone);
+                    return (
                     <TableRow key={l.tray_order_id}>
                       <TableCell className="font-medium">
                         {l.nome?.trim() || <span className="text-muted-foreground">Cliente não identificado</span>}
                         <div className="text-[11px] text-muted-foreground">#{l.tray_order_id}</div>
+                        <BadgesContato contato={contato} className="mt-1" />
                       </TableCell>
-                      <TableCell className="text-xs">{l.telefone || "—"}</TableCell>
+                      <TableCell className="text-xs">{l.telefone || "sem telefone"}</TableCell>
                       <TableCell className="text-right font-semibold">{moeda(l.total_amount)}</TableCell>
                       <TableCell><CelulaItens itens={l.itens} /></TableCell>
                       <TableCell className="text-xs">{formatarData(l.date_purchase)}</TableCell>
-                      <TableCell className="text-right">{l.dias_desde_cancelamento ?? "—"}</TableCell>
+                      <TableCell className="text-right">{l.dias_desde_cancelamento ?? "sem dados"}</TableCell>
                       <TableCell><SegmentoBadge segmento={l.segmento_rfm} /></TableCell>
                       <TableCell>
-                        {l.telefone ? (
+                        {contato?.conversa_id && onAbrirConversa ? (
+                          <Button size="sm" variant="outline" className="h-8" onClick={() => onAbrirConversa(String(contato.conversa_id))}>
+                            <MessageCircle className="mr-1.5 h-3.5 w-3.5" /> Abrir conversa
+                          </Button>
+                        ) : l.telefone ? (
                           <EnviarWhatsAppInline telefone={l.telefone} placeholder="Mensagem de recuperação..." mostrarAviso />
                         ) : (
                           <span className="text-xs text-muted-foreground">Cliente não identificado</span>
                         )}
                       </TableCell>
                     </TableRow>
-                  ))}
+                    );
+                  })}
                 </TableBody>
               </Table>
             </div>

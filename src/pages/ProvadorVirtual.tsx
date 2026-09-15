@@ -17,19 +17,6 @@ import {
 
 const SUPABASE_URL = "https://ezdtulcrqzmgocamjwwl.supabase.co";
 
-type Lead = {
-  id: string;
-  nome: string | null;
-  telefone: string | null;
-  produto_id: string | null;
-  produto_nome: string | null;
-  status_funil: string | null;
-  canal: string | null;
-  foto_resultado_url: string | null;
-  criado_em: string;
-  tray_customer_id: string | number | null;
-};
-
 const COLUNAS: { status: string; titulo: string; proximo?: string }[] = [
   { status: "provou", titulo: "Provou", proximo: "em_contato" },
   { status: "em_contato", titulo: "Em Contato", proximo: "convertido" },
@@ -53,11 +40,73 @@ function CanalIcone({ canal }: { canal: string | null }) {
   return <Sparkles className="h-3.5 w-3.5 text-muted-foreground" />;
 }
 
-/* ---------------- Tela 1 — Funil de Leads ---------------- */
 
-function FunilLeads() {
+
+type Lead = {
+  id: string;
+  nome: string | null;
+  telefone: string | null;
+  produto_id: string | null;
+  produto_nome: string | null;
+  status_funil: string | null;
+  canal: string | null;
+  foto_resultado_url: string | null;
+  criado_em: string;
+  tray_customer_id: string | number | null;
+  tamanho_indicado?: string | null;
+  temperatura?: "checkout" | "carrinho" | "comprou" | "respondeu" | "provou" | string | null;
+  score?: number | null;
+  carrinho_status?: string | null;
+  carrinho_valor?: number | null;
+  carrinho_itens?: unknown;
+  checkout_em?: string | null;
+  houve_contato?: boolean | null;
+  houve_contato_humano?: boolean | null;
+  ultima_saida?: string | null;
+  conversa_id?: string | number | null;
+};
+
+/** Abre a conversa no painel; quando vem texto, ele entra pronto no campo de mensagem. */
+export type AbrirConversaProvador = (
+  conversaId: string,
+  texto?: string,
+  leadId?: string,
+) => void;
+
+const brlProvador = (v?: number | null) =>
+  (Number(v) || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+
+function BadgeTemperatura({ lead }: { lead: Lead }) {
+  const t = (lead.temperatura ?? "").toLowerCase();
+  const mapa: Record<string, { texto: string; classe: string }> = {
+    checkout: { texto: "Chegou no checkout", classe: "border-danger/30 bg-danger/10 text-danger" },
+    carrinho: {
+      texto: `Está no carrinho (${brlProvador(lead.carrinho_valor)})`,
+      classe: "border-warning/30 bg-warning/10 text-warning",
+    },
+    comprou: { texto: "Comprou", classe: "border-success/30 bg-success/10 text-success" },
+    respondeu: { texto: "Respondeu", classe: "border-info/30 bg-info/10 text-info" },
+    provou: { texto: "Só provou", classe: "border-border bg-muted text-muted-foreground" },
+  };
+  const m = mapa[t];
+  if (!m) return null;
+  return (
+    <span className={cn("inline-flex rounded-full border px-2 py-0.5 text-[10px] font-semibold", m.classe)}>
+      {m.texto}
+    </span>
+  );
+}
+
+function FunilLeads({
+  onAbrirConversa,
+  onContagem,
+}: {
+  onAbrirConversa?: AbrirConversaProvador;
+  onContagem?: (n: number) => void;
+}) {
   const qc = useQueryClient();
   const [fotoAberta, setFotoAberta] = useState<string | null>(null);
+  const [preparando, setPreparando] = useState<string | null>(null);
 
   const { data: leads = [], isLoading } = useQuery({
     queryKey: ["provador-leads"],
@@ -67,6 +116,9 @@ function FunilLeads() {
       return (data ?? []) as Lead[];
     },
   });
+
+  useEffect(() => { onContagem?.(leads.length); }, [leads.length, onContagem]);
+
 
   const mover = useMutation({
     mutationFn: async ({ id, status }: { id: string; status: string }) => {
@@ -83,14 +135,32 @@ function FunilLeads() {
     onError: (e: any) => toast.error(e.message || "Não foi possível mover o lead"),
   });
 
+  async function mensagemPronta(lead: Lead) {
+    setPreparando(lead.id);
+    try {
+      const { data, error } = await (supabase as any).rpc("provador_texto_abordagem", { p_id: lead.id });
+      if (error) throw error;
+      const texto = typeof data === "string" ? data : data?.texto ?? String(data ?? "");
+      if (!texto.trim()) throw new Error("A mensagem veio vazia");
+      if (lead.conversa_id && onAbrirConversa) {
+        onAbrirConversa(String(lead.conversa_id), texto, lead.id);
+      } else {
+        await navigator.clipboard.writeText(texto);
+        toast.success("Mensagem copiada. Esta cliente ainda não tem conversa aberta.");
+      }
+    } catch (e: any) {
+      toast.error(e.message || "Não foi possível montar a mensagem");
+    } finally {
+      setPreparando(null);
+    }
+  }
+
+  // A RPC já devolve ordenada por score: mantemos a ordem recebida dentro de cada coluna.
   const porStatus = useMemo(() => {
     const mapa: Record<string, Lead[]> = { provou: [], em_contato: [], convertido: [] };
     for (const l of leads) {
       const s = (l.status_funil || "provou").toLowerCase();
       (mapa[s] ??= []).push(l);
-    }
-    for (const k of Object.keys(mapa)) {
-      mapa[k].sort((a, b) => +new Date(b.criado_em) - +new Date(a.criado_em));
     }
     return mapa;
   }, [leads]);
@@ -153,23 +223,63 @@ function FunilLeads() {
                         )}
                         <div className="min-w-0 flex-1 space-y-1">
                           <p className="truncate text-sm font-semibold">{lead.nome || "Sem nome"}</p>
-                          <p className="truncate text-xs text-muted-foreground">{lead.telefone || "—"}</p>
-                          <p className="truncate text-xs">{lead.produto_nome || "—"}</p>
+                          <p className="truncate text-xs text-muted-foreground">{lead.telefone || "sem telefone"}</p>
+                          <p className="truncate text-xs">{lead.produto_nome || "sem produto"}</p>
+                          {lead.tamanho_indicado && (
+                            <p className="text-xs text-muted-foreground">
+                              Tamanho indicado: <span className="font-medium text-foreground">{lead.tamanho_indicado}</span>
+                            </p>
+                          )}
                           <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                             <CanalIcone canal={lead.canal} />
                             <span>{tempoDesde(lead.criado_em)}</span>
                           </div>
-                          {lead.tray_customer_id && (
-                            <span className="inline-flex rounded-full border border-success/30 bg-success/10 px-2 py-0.5 text-[10px] font-semibold text-success">
-                              Cliente conhecida
-                            </span>
-                          )}
+                          <div className="flex flex-wrap gap-1">
+                            <BadgeTemperatura lead={lead} />
+                            {lead.houve_contato_humano && (
+                              <span className="inline-flex rounded-full border border-warning/30 bg-warning/10 px-2 py-0.5 text-[10px] font-semibold text-warning">
+                                Você já falou
+                              </span>
+                            )}
+                            {lead.tray_customer_id && (
+                              <span className="inline-flex rounded-full border border-success/30 bg-success/10 px-2 py-0.5 text-[10px] font-semibold text-success">
+                                Cliente conhecida
+                              </span>
+                            )}
+                          </div>
                         </div>
                       </button>
+
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        {lead.conversa_id && onAbrirConversa && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="flex-1"
+                            onClick={() => onAbrirConversa(String(lead.conversa_id))}
+                          >
+                            <MessageCircle className="mr-1.5 h-3.5 w-3.5" /> Abrir conversa
+                          </Button>
+                        )}
+                        <Button
+                          size="sm"
+                          className="flex-1"
+                          disabled={preparando === lead.id}
+                          onClick={() => mensagemPronta(lead)}
+                        >
+                          {preparando === lead.id ? (
+                            <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                          ) : (
+                            <Send className="mr-1.5 h-3.5 w-3.5" />
+                          )}
+                          Mensagem pronta
+                        </Button>
+                      </div>
+
                       {col.proximo && (
                         <Button
                           size="sm"
-                          variant="outline"
+                          variant="ghost"
                           className="mt-2 w-full"
                           disabled={mover.isPending}
                           onClick={() => mover.mutate({ id: lead.id, status: col.proximo! })}
@@ -521,11 +631,15 @@ export function ProvadorVirtualConteudo({
   conversaId = null,
   nomeInicial = "",
   telefoneInicial = "",
+  onAbrirConversa,
+  onContagem,
 }: {
   semCabecalho?: boolean;
   conversaId?: string | null;
   nomeInicial?: string;
   telefoneInicial?: string;
+  onAbrirConversa?: AbrirConversaProvador;
+  onContagem?: (n: number) => void;
 }) {
   const [aba, setAba] = useState(conversaId ? "gerar" : "funil");
 
@@ -543,7 +657,7 @@ export function ProvadorVirtualConteudo({
           <TabsTrigger value="gerar">Gerar Prova</TabsTrigger>
         </TabsList>
         <TabsContent value="funil" className="mt-6">
-          <FunilLeads />
+          <FunilLeads onAbrirConversa={onAbrirConversa} onContagem={onContagem} />
         </TabsContent>
         <TabsContent value="gerar" className="mt-6">
           <GerarProva conversaId={conversaId} nomeInicial={nomeInicial} telefoneInicial={telefoneInicial} />

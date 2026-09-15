@@ -6,8 +6,16 @@ import { OportunidadesAoVivo } from "@/components/recuperacao/OportunidadesAoViv
  */
 export function OportunidadesTab({
   onAbrirConversa,
+  onContagem,
 }: {
   onAbrirConversa?: (conversaId: string) => void;
+  onContagem?: (n: number) => void;
 }) {
-  return <OportunidadesAoVivo intervaloMs={60000} onAbrirConversa={onAbrirConversa} />;
+  return (
+    <OportunidadesAoVivo
+      intervaloMs={60000}
+      onAbrirConversa={onAbrirConversa}
+      onContagem={onContagem}
+    />
+  );
 }

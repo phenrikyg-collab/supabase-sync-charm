@@ -50,9 +50,24 @@ import { OportunidadesTab } from "@/components/atendimento/OportunidadesTab";
 import { ProvadorVirtualConteudo } from "@/pages/ProvadorVirtual";
 import { CarrinhoAbandonadoConteudo } from "@/pages/CarrinhoAbandonado";
 import { PedidosCanceladosConteudo } from "@/pages/PedidosCancelados";
-import { FunilWhatsAppConteudo } from "@/pages/FunilWhatsApp";
+import { DashboardFunil } from "@/pages/FunilWhatsApp";
+import { FilaFollowups, TemplatesFollowup } from "@/components/funil/FollowUps";
 import { FunilKanbanConteudo } from "@/pages/FunilKanban";
 import { CashbackConteudo } from "@/pages/Cashback";
+
+/** Separador de data da lista de conversas. */
+function grupoDia(valor?: string | null): string {
+  if (!valor) return "Mais antigas";
+  const d = new Date(valor);
+  if (Number.isNaN(d.getTime())) return "Mais antigas";
+  const hoje = new Date();
+  const dia = (x: Date) => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();
+  const diff = Math.round((dia(hoje) - dia(d)) / 86400000);
+  if (diff <= 0) return "Hoje";
+  if (diff === 1) return "Ontem";
+  if (diff < 7) return "Esta semana";
+  return "Mais antigas";
+}
 
 type BuscaConversa = {
   conversa_id: number | string;
@@ -292,10 +307,15 @@ export default function Atendimento() {
     | "provador"
     | "carrinhos"
     | "cancelados"
-    | "funil"
     | "kanban"
     | "cashback"
   >("conversas");
+  const [abaKanban, setAbaKanban] = useState<"kanban" | "dashboard" | "followups" | "templates">("kanban");
+  const [contagens, setContagens] = useState<Record<string, number>>({});
+  const setContagem = (chave: string, n: number) =>
+    setContagens((prev) => (prev[chave] === n ? prev : { ...prev, [chave]: n }));
+  /** Lead do provador que recebeu mensagem pronta: registra o contato depois do envio. */
+  const [leadProvador, setLeadProvador] = useState<{ leadId: string; conversaId: string } | null>(null);
   const [cobrancaAberta, setCobrancaAberta] = useState(false);
   const [abaCobranca, setAbaCobranca] = useState<"pix" | "links">("pix");
   const [linkPagamentoAberto, setLinkPagamentoAberto] = useState(false);
@@ -322,6 +342,22 @@ export default function Atendimento() {
   const fimRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const textoRef = useRef<HTMLTextAreaElement>(null);
+  const buscaRef = useRef<HTMLInputElement>(null);
+
+  // Tecla "/" fora de um campo leva o cursor direto para a busca de conversas
+  useEffect(() => {
+    const aoTeclar = (e: KeyboardEvent) => {
+      if (e.key !== "/" || e.ctrlKey || e.metaKey || e.altKey) return;
+      const alvo = e.target as HTMLElement | null;
+      const tag = (alvo?.tagName ?? "").toLowerCase();
+      if (tag === "input" || tag === "textarea" || alvo?.isContentEditable) return;
+      e.preventDefault();
+      buscaRef.current?.focus();
+    };
+    document.addEventListener("keydown", aoTeclar);
+    return () => document.removeEventListener("keydown", aoTeclar);
+  }, []);
+
 
   // painéis laterais estilo WhatsApp Web
   const [perfilAberto, setPerfilAberto] = useState(true);
@@ -627,6 +663,14 @@ export default function Atendimento() {
       setTexto("");
       setErroJanela(null);
       invalidarThread();
+      // Lead do provador aberto com mensagem pronta: registra o contato no funil
+      if (leadProvador && leadProvador.conversaId === selecionada) {
+        const { leadId } = leadProvador;
+        setLeadProvador(null);
+        (supabase as any)
+          .rpc("provador_atualizar_status_funil", { p_id: leadId, p_status: "contatado" })
+          .then(() => queryClient.invalidateQueries({ queryKey: ["provador-leads"] }));
+      }
     },
     onError: async (e: any) => {
       const janela = await extrairErroJanela(e);
@@ -807,26 +851,25 @@ export default function Atendimento() {
     return !!c.aguardando_resposta;
   };
 
-  /** Peso do grupo dentro da seção: 1 quem espera resposta/escalado, 2 em atendimento, 3 bot/demais, 4 resolvidas. */
-  const pesoConversa = (c: Conversa) => {
-    if (ehResolvida(c)) return 4;
-    if (c.status === "escalado" || aguardandoResposta(c)) return 1;
-    if (c.status === "em_atendimento") return 2;
-    return 3;
-  };
-
   const chaveData = (c: Conversa) => c.ultima_mensagem_em ?? c.atualizado_em ?? "";
 
-  /** Ordena no painel: destaque primeiro, depois por peso do grupo e última mensagem mais recente. */
-  const compararConversas = (a: Conversa, b: Conversa) => {
-    const da = ["quente", "atencao"].includes(urgenciaDeNivel(atencaoDe(a)?.nivel)) ? 0 : 1;
-    const db = ["quente", "atencao"].includes(urgenciaDeNivel(atencaoDe(b)?.nivel)) ? 0 : 1;
-    if (da !== db) return da - db;
-    const pa = pesoConversa(a);
-    const pb = pesoConversa(b);
-    if (pa !== pb) return pa - pb;
-    return chaveData(b).localeCompare(chaveData(a));
+  /**
+   * Faixa colorida na borda esquerda do card:
+   * cinza quando já foi resolvida, vermelha quando a cliente espera há mais de 30 minutos,
+   * âmbar quando espera há menos de 30 minutos e verde quando já foi respondida.
+   */
+  const classeFaixa = (c: Conversa) => {
+    if (ehResolvida(c)) return "border-l-muted-foreground/30";
+    if (!aguardandoResposta(c)) return "border-l-emerald-500/70";
+    const a = atencaoDe(c);
+    const desde = a?.ultima_entrada ?? c.ultima_mensagem_em ?? c.atualizado_em;
+    const min = a?.min_desde_cliente ?? (desde ? (Date.now() - new Date(desde).getTime()) / 60000 : 0);
+    return min > 30 ? "border-l-danger" : "border-l-warning";
   };
+
+  /** Ordem simples: mensagem mais recente primeiro. */
+  const compararConversas = (a: Conversa, b: Conversa) =>
+    chaveData(b).localeCompare(chaveData(a));
 
   const contagemGrupos = useMemo(() => {
     const base = { conversa: 0, clique: 0, so_envio: 0 };
@@ -840,23 +883,29 @@ export default function Atendimento() {
 
 
   const modoFila = abaPagina === "em_atendimento";
-  // Fila de trabalho: só conversas assumidas por uma pessoa
-  const ehAssumida = (c: Conversa) => ["em_atendimento", "escalado"].includes((c.status ?? "").toLowerCase());
-  const totalEmAtendimento = conversas.filter(ehAssumida).length;
+
+  // Fila de trabalho: a RPC já devolve só as conversas assumidas, na ordem de espera
+  const { data: emAtendimento = [] } = useQuery({
+    queryKey: ["whatsapp-em-atendimento"],
+    refetchInterval: 30000,
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc("whatsapp_conversas_em_atendimento" as any, { p_horas: 72 });
+      if (error) throw error;
+      return ((Array.isArray(data) ? data : []) as any[]).map((c) => ({
+        ...c,
+        id: c.conversa_id ?? c.id,
+        cliente_nome: c.cliente_nome ?? c.nome ?? null,
+        ultima_mensagem: c.ultima_mensagem ?? c.ultima_mensagem_texto ?? null,
+      })) as Conversa[];
+    },
+  });
+  const totalEmAtendimento = emAtendimento.length;
 
   const filtradas = useMemo(() => {
     let base: Conversa[];
     if (modoFila) {
-      // Espera mais antiga primeiro: quem tem cliente aguardando resposta vem na frente
-      base = conversas.filter(ehAssumida);
-      return [...base].sort((a, b) => {
-        const espA = aguardandoResposta(a) ? 0 : 1;
-        const espB = aguardandoResposta(b) ? 0 : 1;
-        if (espA !== espB) return espA - espB;
-        const da = new Date(atencaoDe(a)?.ultima_entrada ?? a.ultima_mensagem_em ?? 0).getTime();
-        const db = new Date(atencaoDe(b)?.ultima_entrada ?? b.ultima_mensagem_em ?? 0).getTime();
-        return da - db;
-      });
+      // Renderiza na ordem exata da RPC
+      return emAtendimento;
     }
     if (buscaAtiva) {
       const achadas = resultadoBusca?.conversas ?? [];
@@ -888,7 +937,8 @@ export default function Atendimento() {
     }
     return [...base].sort(compararConversas);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [conversas, buscaAtiva, resultadoBusca, aba, grupoAba, filtroLeitura, tagsFiltro, mapaAtencao, modoFila]);
+  }, [conversas, emAtendimento, buscaAtiva, resultadoBusca, aba, grupoAba, filtroLeitura, tagsFiltro, mapaAtencao, modoFila]);
+
 
   const clientesSemConversa = buscaAtiva ? (resultadoBusca?.clientes ?? []) : [];
 
@@ -917,6 +967,25 @@ export default function Atendimento() {
   const status = conversaAtual?.status ?? "";
   const podeResponder = status === "escalado" || status === "em_atendimento";
 
+  const abrirDoPainel = (id: string, textoPronto?: string, leadId?: string) => {
+    setSelecionada(id);
+    setAbaPagina("conversas");
+    if (textoPronto) setTexto(textoPronto);
+    setLeadProvador(leadId ? { leadId, conversaId: id } : null);
+    if (textoPronto) setTimeout(() => textoRef.current?.focus(), 0);
+  };
+
+  const rotuloComContagem = (label: string, n?: number) => (
+    <>
+      {label}
+      {!!n && n > 0 && (
+        <span className="ml-1 rounded-full bg-primary px-1.5 text-[10px] font-bold text-primary-foreground">
+          {n}
+        </span>
+      )}
+    </>
+  );
+
   return (
     <div className="-m-6 flex h-[calc(100dvh-3.5rem)] w-[calc(100%+3rem)] max-w-[calc(100%+3rem)] min-w-0 flex-col overflow-x-hidden overflow-y-hidden">
       <Tabs
@@ -926,25 +995,29 @@ export default function Atendimento() {
       >
         <div className="flex h-11 w-full min-w-0 shrink-0 items-center gap-2 overflow-x-auto border-b border-border px-3">
           <TabsList className="h-8 w-max flex-nowrap bg-transparent p-0">
-            <TabsTrigger value="conversas" className="h-8 shrink-0 text-xs">Conversas</TabsTrigger>
-            <TabsTrigger value="em_atendimento" className="h-8 shrink-0 text-xs">
-              Em atendimento
-              {totalEmAtendimento > 0 && (
-                <span className="ml-1 rounded-full bg-primary px-1.5 text-[10px] font-bold text-primary-foreground">
-                  {totalEmAtendimento}
-                </span>
-              )}
+            <TabsTrigger value="conversas" className="h-8 shrink-0 text-xs">
+              {rotuloComContagem("Conversas", contagemGrupos.conversa)}
             </TabsTrigger>
-            <TabsTrigger value="oportunidades" className="h-8 shrink-0 text-xs">Oportunidades</TabsTrigger>
-            <TabsTrigger value="provador" className="h-8 shrink-0 text-xs">Provador</TabsTrigger>
+            <TabsTrigger value="em_atendimento" className="h-8 shrink-0 text-xs">
+              {rotuloComContagem("Em atendimento", totalEmAtendimento)}
+            </TabsTrigger>
+            <TabsTrigger value="oportunidades" className="h-8 shrink-0 text-xs">
+              {rotuloComContagem("Oportunidades", contagens.oportunidades)}
+            </TabsTrigger>
+            <TabsTrigger value="provador" className="h-8 shrink-0 text-xs">
+              {rotuloComContagem("Provador", contagens.provador)}
+            </TabsTrigger>
             <TabsTrigger value="abandonadas" className="h-8 shrink-0 text-xs">Abandonadas</TabsTrigger>
             <TabsTrigger value="cobrancas" className="h-8 shrink-0 text-xs">Cobranças</TabsTrigger>
             <TabsTrigger value="consulta" className="h-8 shrink-0 text-xs">Consultar Transação</TabsTrigger>
             <TabsTrigger value="rapidas" className="h-8 shrink-0 text-xs">Mensagens rápidas</TabsTrigger>
             <TabsTrigger value="aprendizado" className="h-8 shrink-0 text-xs">Aprendizado da Anna</TabsTrigger>
-            <TabsTrigger value="carrinhos" className="h-8 shrink-0 text-xs">Carrinhos abandonados</TabsTrigger>
-            <TabsTrigger value="cancelados" className="h-8 shrink-0 text-xs">Pedidos cancelados</TabsTrigger>
-            <TabsTrigger value="funil" className="h-8 shrink-0 text-xs">Funil do WhatsApp</TabsTrigger>
+            <TabsTrigger value="carrinhos" className="h-8 shrink-0 text-xs">
+              {rotuloComContagem("Carrinhos abandonados", contagens.carrinhos)}
+            </TabsTrigger>
+            <TabsTrigger value="cancelados" className="h-8 shrink-0 text-xs">
+              {rotuloComContagem("Pedidos cancelados", contagens.cancelados)}
+            </TabsTrigger>
             <TabsTrigger value="kanban" className="h-8 shrink-0 text-xs">Kanban do funil</TabsTrigger>
             <TabsTrigger value="cashback" className="h-8 shrink-0 text-xs">Cashback</TabsTrigger>
           </TabsList>
@@ -952,31 +1025,54 @@ export default function Atendimento() {
 
         <TabsContent value="oportunidades" className="m-0 min-h-0 w-full min-w-0 flex-1 overflow-auto p-4">
           <OportunidadesTab
-            onAbrirConversa={(id) => {
-              setSelecionada(id);
-              setAbaPagina("conversas");
-            }}
+            onAbrirConversa={(id) => abrirDoPainel(id)}
+            onContagem={(n) => setContagem("oportunidades", n)}
           />
         </TabsContent>
 
         <TabsContent value="provador" className="m-0 min-h-0 w-full min-w-0 flex-1 overflow-auto p-4">
-          <ProvadorVirtualConteudo semCabecalho />
+          <ProvadorVirtualConteudo
+            semCabecalho
+            onAbrirConversa={abrirDoPainel}
+            onContagem={(n) => setContagem("provador", n)}
+          />
         </TabsContent>
 
         <TabsContent value="carrinhos" className="m-0 min-h-0 w-full min-w-0 flex-1 overflow-auto p-4">
-          <CarrinhoAbandonadoConteudo />
+          <CarrinhoAbandonadoConteudo
+            onAbrirConversa={(id) => abrirDoPainel(id)}
+            onContagem={(n) => setContagem("carrinhos", n)}
+          />
         </TabsContent>
 
         <TabsContent value="cancelados" className="m-0 min-h-0 w-full min-w-0 flex-1 overflow-auto p-4">
-          <PedidosCanceladosConteudo />
-        </TabsContent>
-
-        <TabsContent value="funil" className="m-0 min-h-0 w-full min-w-0 flex-1 overflow-auto p-4">
-          <FunilWhatsAppConteudo />
+          <PedidosCanceladosConteudo
+            onAbrirConversa={(id) => abrirDoPainel(id)}
+            onContagem={(n) => setContagem("cancelados", n)}
+          />
         </TabsContent>
 
         <TabsContent value="kanban" className="m-0 min-h-0 w-full min-w-0 flex-1 overflow-auto p-4">
-          <FunilKanbanConteudo />
+          <Tabs value={abaKanban} onValueChange={(v) => setAbaKanban(v as typeof abaKanban)} className="space-y-4">
+            <TabsList>
+              <TabsTrigger value="kanban">Kanban</TabsTrigger>
+              <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
+              <TabsTrigger value="followups">Follow-ups</TabsTrigger>
+              <TabsTrigger value="templates">Templates</TabsTrigger>
+            </TabsList>
+            <TabsContent value="kanban" className="m-0">
+              <FunilKanbanConteudo onAbrirConversa={(id) => abrirDoPainel(id)} />
+            </TabsContent>
+            <TabsContent value="dashboard" className="m-0">
+              <DashboardFunil />
+            </TabsContent>
+            <TabsContent value="followups" className="m-0">
+              <FilaFollowups />
+            </TabsContent>
+            <TabsContent value="templates" className="m-0">
+              <TemplatesFollowup />
+            </TabsContent>
+          </Tabs>
         </TabsContent>
 
         <TabsContent value="cashback" className="m-0 min-h-0 w-full min-w-0 flex-1 overflow-auto p-4">
@@ -1109,9 +1205,10 @@ export default function Atendimento() {
 
               <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
               <Input
+                ref={buscaRef}
                 value={busca}
                 onChange={(e) => setBusca(e.target.value)}
-                placeholder="Buscar por nome ou telefone"
+                placeholder="Buscar por nome ou telefone (tecle /)"
                 className="pl-8"
               />
             </div>
@@ -1179,9 +1276,7 @@ export default function Atendimento() {
               <p className="p-4 text-sm text-muted-foreground">Nenhuma conversa encontrada.</p>
             )}
             {(() => {
-              const qtdDestaque = filtradas.filter((c) => ["quente", "atencao"].includes(urgenciaDeNivel(atencaoDe(c)?.nivel))).length;
-              let cabecalhoDestaqueFeito = false;
-              let cabecalhoDemaisFeito = false;
+              let grupoAnterior: string | null = null;
               return filtradas.map((c) => {
               const nome = nomeConversa(c);
               const site = ehSite(c);
@@ -1190,21 +1285,14 @@ export default function Atendimento() {
               const naoLida = !!c.nao_lida;
               const atencao = atencaoDe(c);
               const urg = urgenciaDeNivel(atencao?.nivel);
-              const ehDestaque = urg === "quente" || urg === "atencao";
-              const estiloUrg = urg === "normal" ? null : URGENCIA_ESTILO[urg];
+              const faixa = classeFaixa(c);
+              const grupo = modoFila ? null : grupoDia(chaveData(c));
               let cabecalho: JSX.Element | null = null;
-              if (qtdDestaque > 0 && ehDestaque && !cabecalhoDestaqueFeito) {
-                cabecalhoDestaqueFeito = true;
+              if (grupo && grupo !== grupoAnterior) {
+                grupoAnterior = grupo;
                 cabecalho = (
                   <div className="px-4 pt-3 pb-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                    Precisam de atenção agora ({qtdDestaque})
-                  </div>
-                );
-              } else if (qtdDestaque > 0 && !ehDestaque && !cabecalhoDemaisFeito) {
-                cabecalhoDemaisFeito = true;
-                cabecalho = (
-                  <div className="px-4 pt-3 pb-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                    Demais conversas
+                    {grupo}
                   </div>
                 );
               }
@@ -1213,11 +1301,9 @@ export default function Atendimento() {
                 {cabecalho}
                 <button
                   onClick={() => abrirConversa(c)}
-                  style={estiloUrg ? { borderLeftColor: estiloUrg.borda } : undefined}
                   className={cn(
-                    "w-full text-left px-4 py-3 border-b border-border/60 border-l-4 transition-colors hover:bg-accent/60",
-                    !estiloUrg &&
-                      (prio === "alta" ? "border-l-danger" : prio === "media" ? "border-l-warning" : "border-l-transparent"),
+                    "w-full text-left px-4 py-3 border-b border-border/60 border-l-[3px] transition-colors hover:bg-accent/60",
+                    faixa,
                     ativa && "bg-accent",
                     naoLida && !ativa && "bg-primary/5",
                   )}
