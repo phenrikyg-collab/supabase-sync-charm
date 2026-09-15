@@ -815,6 +815,20 @@ export default function Atendimento() {
 
   const chaveData = (c: Conversa) => c.ultima_mensagem_em ?? c.atualizado_em ?? "";
 
+  /**
+   * Faixa colorida na borda esquerda do card:
+   * cinza quando já foi resolvida, vermelha quando a cliente espera há mais de 30 minutos,
+   * âmbar quando espera há menos de 30 minutos e verde quando já foi respondida.
+   */
+  const classeFaixa = (c: Conversa) => {
+    if (ehResolvida(c)) return "border-l-muted-foreground/30";
+    if (!aguardandoResposta(c)) return "border-l-emerald-500/70";
+    const a = atencaoDe(c);
+    const desde = a?.ultima_entrada ?? c.ultima_mensagem_em ?? c.atualizado_em;
+    const min = a?.min_desde_cliente ?? (desde ? (Date.now() - new Date(desde).getTime()) / 60000 : 0);
+    return min > 30 ? "border-l-danger" : "border-l-warning";
+  };
+
   /** Ordem simples: mensagem mais recente primeiro. */
   const compararConversas = (a: Conversa, b: Conversa) =>
     chaveData(b).localeCompare(chaveData(a));
