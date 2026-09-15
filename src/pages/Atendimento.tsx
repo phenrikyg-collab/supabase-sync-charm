@@ -327,6 +327,7 @@ export default function Atendimento() {
         ? {
             ...c,
             tipo_interacao: t.tipo_interacao ?? null,
+            ultima_entrada_texto: t.ultima_entrada_texto ?? t.ultima_entrada ?? t.ultimo_clique ?? null,
             digitadas: t.digitadas ?? null,
             cliques: t.cliques ?? null,
           }
