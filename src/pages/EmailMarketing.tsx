@@ -46,7 +46,7 @@ export default function EmailMarketing() {
           <VisaoGeralTab dias={dias} onAbrirCampanha={() => setAba("campanhas")} />
         </TabsContent>
         <TabsContent value="automacoes" className="mt-6">
-          <AutomacoesTab onAbrirTemplate={(slug) => { setSlugTemplate(slug); setAba("templates"); }} />
+          <AutomacoesTab />
         </TabsContent>
         <TabsContent value="campanhas" className="mt-6"><CampanhasTab dias={dias} /></TabsContent>
         <TabsContent value="templates" className="mt-6"><TemplatesTab slugInicial={slugTemplate} /></TabsContent>
