@@ -32,6 +32,7 @@ import { CatalogoDialog, formatarPreco, legendaProduto, type ProdutoCatalogo, ty
 import { PerfilCliente } from "@/components/atendimento/PerfilCliente";
 import { AtividadesRecentes } from "@/components/atendimento/AtividadesRecentes";
 import { CobrancaPixDialog, CobrancasTab, CobrancasDaConversa } from "@/components/atendimento/CobrancaPix";
+import { LinksPagamentoTab, LinksDaConversa } from "@/components/atendimento/LinksPagamento";
 import { LinkPagamentoCard, LinkPagamentoDialog } from "@/components/atendimento/LinkPagamento";
 import { CalcularFreteDialog } from "@/components/atendimento/CalcularFrete";
 import { ProporCarrinhoDialog, PropostaDaConversa } from "@/components/atendimento/ProporCarrinho";
