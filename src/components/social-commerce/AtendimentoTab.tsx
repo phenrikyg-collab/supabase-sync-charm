@@ -408,6 +408,17 @@ export function AtendimentoTab() {
     };
   }, [selId, carregarConversas, carregarMensagens]);
 
+  /** Link vindo de outra tela: ?conversa=123 abre direto essa conversa. */
+  const paramConversa = new URLSearchParams(window.location.search).get("conversa");
+  useEffect(() => {
+    if (!paramConversa) return;
+    const id = Number(paramConversa);
+    if (!Number.isFinite(id) || selId === id) return;
+    setSelId(id);
+    carregarMensagens(id, POR_PAGINA_MSGS);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [paramConversa]);
+
   const abrirConversa = async (c: Conversa) => {
     setSelId(c.id);
     setTexto("");
