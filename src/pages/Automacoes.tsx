@@ -129,6 +129,21 @@ export default function Automacoes() {
         ))}
       </div>
 
+      <Card className="flex flex-wrap items-center justify-between gap-3 p-4">
+        <div className="flex items-start gap-3">
+          <Mail className="mt-0.5 h-5 w-5 text-primary" />
+          <div>
+            <h2 className="font-medium">Mensagens de trocas e devoluções</h2>
+            <p className="text-xs text-muted-foreground">
+              Textos dos e-mails que a reversa manda para a cliente. Salvar já muda o próximo envio.
+            </p>
+          </div>
+        </div>
+        <Button asChild variant="outline" size="sm">
+          <Link to="/trocas-site?aba=mensagens">Abrir mensagens</Link>
+        </Button>
+      </Card>
+
       {isLoading && <p className="text-sm text-muted-foreground">Carregando fluxos…</p>}
       {!isLoading && lista.length === 0 && (
         <Card className="p-10 text-center text-muted-foreground">
