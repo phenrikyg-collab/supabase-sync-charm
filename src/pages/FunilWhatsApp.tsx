@@ -492,6 +492,8 @@ export function DashboardFunil({ onAbrirConversa }: { onAbrirConversa?: (convers
         </div>
       ) : (
         <>
+          <CsatBloco onAbrirConversa={onAbrirConversa} />
+
           <div className="grid gap-3 md:grid-cols-5 sm:grid-cols-2">
             <Resumo titulo="Atendimentos" valor={String(t.atendimentos || 0)} icone={<MessageCircle className="h-4 w-4" />} />
             <Resumo titulo="Conversão geral" valor={pct(taxas.conversao_geral)} />
