@@ -816,18 +816,21 @@ export default function Atendimento() {
       );
       return { anterior };
     },
-    onSuccess: () => {
-      toast({ title: "Conversa marcada como resolvida" });
+    onSuccess: (data) => {
+      toast(
+        data?.csat?.abriu
+          ? { title: "Conversa encerrada. Pesquisa de satisfação a caminho" }
+          : { title: "Conversa marcada como resolvida" },
+      );
       queryClient.invalidateQueries({ queryKey: ["whatsapp-conversas"] });
       queryClient.invalidateQueries({ queryKey: ["whatsapp-conversa"] });
+      queryClient.invalidateQueries({ queryKey: ["whatsapp-tags-conversa", String(selecionada)] });
     },
     onError: (e: any, _v, ctx: any) => {
       if (ctx?.anterior) queryClient.setQueryData(["whatsapp-conversas"], ctx.anterior);
       toast({
         title: "Não foi possível resolver",
-        description: e.message?.includes("does not exist")
-          ? "A função whatsapp_marcar_resolvido ainda não existe no banco."
-          : e.message,
+        description: e.message,
         variant: "destructive",
       });
     },
