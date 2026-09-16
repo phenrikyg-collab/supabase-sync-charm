@@ -11,6 +11,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Trash2, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { popupsApi, type Popup } from "@/lib/popups";
+import { SeletorFigurinha } from "./SeletorFigurinha";
+import { CampoCor } from "./campos";
 
 const DIAS = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
 
@@ -431,6 +433,16 @@ export function AbaRegras({ popup, mudar }: { popup: Popup; mudar: (patch: Parti
               <Label className="text-xs">Cor do texto</Label>
               <Input value={r.teaser?.cor_texto ?? ""} onChange={(e) => setR("teaser", { cor_texto: e.target.value })} />
             </div>
+          </div>
+          <SeletorFigurinha
+            rotulo="Imagem da aba"
+            valor={r.teaser?.imagem ?? ""}
+            popupId={popup.id ?? "novo"}
+            aoMudar={(url) => setR("teaser", { imagem: url })}
+          />
+          <div className="grid grid-cols-2 gap-3">
+            <CampoCor rotulo="Cor da borda" valor={r.teaser?.cor_borda ?? ""} aoMudar={(v) => setR("teaser", { cor_borda: v })} />
+            <CampoCor rotulo="Cor atrás da imagem" valor={r.teaser?.cor_avatar ?? ""} aoMudar={(v) => setR("teaser", { cor_avatar: v })} />
           </div>
           <p className="text-[11px] text-muted-foreground">
             Quem fecha sem converter vê uma aba pequena no canto. Tocar reabre o popup.

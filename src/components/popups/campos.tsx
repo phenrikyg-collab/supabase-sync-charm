@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
-import { AJUDA_VARIAVEIS, TEM_TRAVESSAO, enviarImagem } from "@/lib/popups";
+import { AJUDA_VARIAVEIS, PALETA_MARCA, TEM_TRAVESSAO, enviarImagem } from "@/lib/popups";
 import { cn } from "@/lib/utils";
 
 export function Campo({ rotulo, dica, children }: { rotulo?: string; dica?: string; children: React.ReactNode }) {
@@ -60,6 +60,21 @@ export function CampoCor({ rotulo, valor, aoMudar }: { rotulo: string; valor: st
           className="h-9 w-10 cursor-pointer rounded border border-input bg-background"
         />
         <Input value={valor ?? ""} onChange={(e) => aoMudar(e.target.value)} placeholder="#000000" />
+      </div>
+      <div className="flex flex-wrap gap-1.5 pt-0.5">
+        {PALETA_MARCA.map((c) => (
+          <button
+            key={c.cor}
+            type="button"
+            title={`${c.nome} ${c.cor}`}
+            onClick={() => aoMudar(c.cor)}
+            className={cn(
+              "h-5 w-5 rounded-full border border-border transition hover:scale-110",
+              (valor ?? "").toUpperCase() === c.cor && "ring-2 ring-primary ring-offset-1"
+            )}
+            style={{ background: c.cor }}
+          />
+        ))}
       </div>
     </div>
   );

@@ -19,14 +19,32 @@ export type ElementoPopup = {
     | "campo"
     | "consentimento"
     | "cupom"
-    | "aviso";
+    | "aviso"
+    | "assinatura"
+    | "nota";
   [k: string]: any;
+};
+
+export type FiguraEtapa = {
+  src: string;
+  largura?: number;
+  largura_mobile?: number;
 };
 
 export type EtapaPopup = {
   id: string;
   nome: string;
   elementos: ElementoPopup[];
+  /** Figurinha que sai pelo topo do cartão. */
+  figura?: FiguraEtapa;
+};
+
+export type Figurinha = {
+  nome: string;
+  pasta?: string;
+  animada?: boolean;
+  url: string;
+  bytes?: number;
 };
 
 export type Popup = {
@@ -136,8 +154,44 @@ export const popupsApi = {
   modelos: () => chamar<Modelo[]>("popups_modelos"),
   criarDeModelo: (chave: string, nome?: string) =>
     chamar<Popup>("popups_criar_de_modelo", { p_chave: chave, ...(nome ? { p_nome: nome } : {}) }),
+  figurinhas: () => chamar<Figurinha[]>("popups_figurinhas"),
   diagnostico: (p: Popup) =>
     chamar<{ validacao: Validacao; diagnostico: Diagnostico }>("popups_diagnostico", { p }),
+};
+
+/* ============ Identidade Mariana Cardoso ============ */
+
+/** Amostras de cor da marca, mostradas em todo seletor de cor do popup. */
+export const PALETA_MARCA: { cor: string; nome: string }[] = [
+  { cor: "#1D1D1B", nome: "Quase preto" },
+  { cor: "#E8CD7E", nome: "Champanhe" },
+  { cor: "#8B6914", nome: "Bronze" },
+  { cor: "#FAF8F3", nome: "Creme" },
+  { cor: "#FFFFFF", nome: "Branco" },
+  { cor: "#E6DCC5", nome: "Areia" },
+];
+
+export const FONTE_TITULO_MARCA = "'EB Garamond', Georgia, serif";
+export const FONTE_GOOGLE_MARCA = "EB Garamond:ital,wght@1,500;1,600";
+
+/** Design da identidade da marca, aplicado sem mexer em textos e etapas. */
+export const IDENTIDADE_MC = {
+  fundo: "#FAF8F3",
+  cor_texto: "#1D1D1B",
+  cor_destaque: "#1D1D1B",
+  cor_destaque_texto: "#FAF8F3",
+  fonte: "herdar",
+  fonte_titulo: FONTE_TITULO_MARCA,
+  fontes: [FONTE_GOOGLE_MARCA],
+  raio: 24,
+  espacamento: 30,
+  moldura: { cor: "#E8CD7E", distancia: 10, largura: 1 },
+  overlay: { ativo: true, cor: "#1D1D1B", opacidade: 0.5, fechar_ao_clicar: true },
+  campos: { estilo: "caixa", fundo: "#FFFFFF", borda: "#E6DCC5", placeholder: "#9A9187", texto: "#1D1D1B", raio: 12 },
+  botao_raio: 40,
+  botao_estilo: { caixa_alta: true, espacamento: 0.12 },
+  botao_fechar: { fundo: "rgba(29,29,27,.06)", cor: "#1D1D1B" },
+  cupom: { estilo: "ticket", borda: "#8B6914", fundo: "#FFFFFF", texto: "#1D1D1B", botao_fundo: "#E8CD7E", botao_texto: "#1D1D1B" },
 };
 
 export const ERRO_CONFLITO = "Este popup foi alterado por outra pessoa. Recarregue antes de salvar.";

@@ -30,6 +30,7 @@ import { NotaCirculo } from "@/components/popups/NotaCirculo";
 import { BoasPraticas } from "@/components/popups/BoasPraticas";
 import { ConfigPopup, PropsElemento } from "@/components/popups/PainelPropriedades";
 import { AbaRegras } from "@/components/popups/AbaRegras";
+import { SeletorFigurinha } from "@/components/popups/SeletorFigurinha";
 import { AbaResultados } from "@/components/popups/AbaResultados";
 
 const PALETA: { grupo: string; itens: { tipo: string; nome: string; base?: any }[] }[] = [
@@ -45,6 +46,8 @@ const PALETA: { grupo: string; itens: { tipo: string; nome: string; base?: any }
       { tipo: "espaco", nome: "Espaço", base: { altura: 16 } },
       { tipo: "divisor", nome: "Divisor" },
       { tipo: "timer", nome: "Timer", base: { modo: "fim_campanha", rotulo: "Termina em" } },
+      { tipo: "assinatura", nome: "Assinatura", base: { texto: "Com carinho, Mari 💛", tamanho: 21, alinhar: "center" } },
+      { tipo: "nota", nome: "Nota", base: { texto: "Presente válido na primeira compra, uma vez por cliente.", alinhar: "center" } },
     ],
   },
   {
@@ -391,6 +394,53 @@ export default function PopupEditor() {
               >
                 <Plus className="mr-2 h-4 w-4" />Etapa
               </Button>
+
+              <div className="mt-4 space-y-2 rounded-md border border-border p-2">
+                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Figurinha da Mari</p>
+                <p className="text-[11px] leading-snug text-muted-foreground">
+                  Sai pelo topo do cartão na etapa {etapaSel + 1}.
+                </p>
+                <SeletorFigurinha
+                  rotulo="Figurinha"
+                  valor={etapa?.figura?.src ?? ""}
+                  popupId={popup.id ?? "novo"}
+                  aoMudar={(url) =>
+                    setEtapas(
+                      etapas.map((x, j) =>
+                        j === etapaSel
+                          ? { ...x, figura: url ? { ...(x.figura ?? {}), src: url } : undefined }
+                          : x
+                      )
+                    )
+                  }
+                />
+                {etapa?.figura?.src && (
+                  <div className="space-y-2">
+                    <Label className="text-[11px]">Largura no computador</Label>
+                    <Input
+                      type="number" min={60} max={260}
+                      value={etapa.figura.largura ?? 140}
+                      onChange={(e) =>
+                        setEtapas(etapas.map((x, j) => j === etapaSel
+                          ? { ...x, figura: { ...(x.figura ?? { src: "" }), largura: Math.min(260, Math.max(60, Number(e.target.value) || 0)) } }
+                          : x))
+                      }
+                      className="h-8"
+                    />
+                    <Label className="text-[11px]">Largura no celular</Label>
+                    <Input
+                      type="number" min={50} max={200}
+                      value={etapa.figura.largura_mobile ?? 110}
+                      onChange={(e) =>
+                        setEtapas(etapas.map((x, j) => j === etapaSel
+                          ? { ...x, figura: { ...(x.figura ?? { src: "" }), largura_mobile: Math.min(200, Math.max(50, Number(e.target.value) || 0)) } }
+                          : x))
+                      }
+                      className="h-8"
+                    />
+                  </div>
+                )}
+              </div>
 
               <div className="mt-4 space-y-2 rounded-md border border-border p-2">
                 <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Fluxo depois de enviar</p>

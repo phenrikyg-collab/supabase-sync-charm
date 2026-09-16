@@ -8,6 +8,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { ChevronDown, AlertTriangle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { ElementoPopup, EtapaPopup, Popup } from "@/lib/popups";
+import { FONTE_GOOGLE_MARCA, FONTE_TITULO_MARCA, IDENTIDADE_MC } from "@/lib/popups";
 import { Campo, CampoCor, CampoImagem, CampoNumero, CampoTexto } from "./campos";
 
 const FORMATOS = [
@@ -55,6 +56,16 @@ export function ConfigPopup({
 
   return (
     <div className="space-y-3">
+      <Secao titulo="Identidade">
+        <p className="text-[11px] leading-snug text-muted-foreground">
+          Deixa o popup com a cara da marca: papel creme, moldura dourada, título em serifa e cupom em ticket.
+          Textos e etapas continuam como estão.
+        </p>
+        <Button className="w-full" onClick={() => setD({ ...IDENTIDADE_MC })}>
+          Aplicar identidade Mariana Cardoso
+        </Button>
+      </Secao>
+
       <OfertaBloco popup={popup} mudar={mudar} />
 
       <Secao titulo="Formato">
@@ -143,6 +154,51 @@ export function ConfigPopup({
             <Input className="mt-2" value={d.fonte ?? ""} onChange={(e) => setD({ fonte: e.target.value })} placeholder="Poppins, sans-serif" />
           )}
         </Campo>
+        <Campo
+          rotulo="Fonte do título"
+          dica="Cormorant Garamond não serve: o acento de 'você' fica deslocado nessa fonte."
+        >
+          <Select
+            value={
+              !d.fonte_titulo ? "mesma" : d.fonte_titulo === FONTE_TITULO_MARCA ? "marca" : "livre"
+            }
+            onValueChange={(v) => {
+              if (v === "mesma") return setD({ fonte_titulo: "" });
+              if (v === "marca") {
+                const fontes = Array.from(new Set([...(d.fontes ?? []), FONTE_GOOGLE_MARCA]));
+                return setD({ fonte_titulo: FONTE_TITULO_MARCA, fontes });
+              }
+              setD({ fonte_titulo: " " });
+            }}
+          >
+            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="mesma">Mesma do texto</SelectItem>
+              <SelectItem value="marca">EB Garamond (marca)</SelectItem>
+              <SelectItem value="livre">Livre</SelectItem>
+            </SelectContent>
+          </Select>
+          {!!d.fonte_titulo && d.fonte_titulo !== FONTE_TITULO_MARCA && (
+            <Input
+              className="mt-2"
+              value={String(d.fonte_titulo ?? "").trim()}
+              onChange={(e) => setD({ fonte_titulo: e.target.value })}
+              placeholder="'EB Garamond', Georgia, serif"
+            />
+          )}
+        </Campo>
+      </Secao>
+
+      <Secao titulo="Moldura" aberta={false}>
+        <p className="text-[11px] leading-snug text-muted-foreground">
+          Linha fina por dentro do cartão. Sem cor, o popup fica sem moldura.
+        </p>
+        <CampoCor rotulo="Cor da moldura" valor={d.moldura?.cor ?? ""} aoMudar={(v) => setSub("moldura", { cor: v })} />
+        <CampoNumero rotulo="Distância da borda" min={0} max={30} valor={d.moldura?.distancia ?? 10} aoMudar={(v) => setSub("moldura", { distancia: v })} />
+        <CampoNumero rotulo="Espessura" min={0} max={4} valor={d.moldura?.largura ?? 1} aoMudar={(v) => setSub("moldura", { largura: v })} />
+        {!!d.moldura?.cor && (
+          <Button variant="ghost" size="sm" onClick={() => setD({ moldura: {} })}>Tirar a moldura</Button>
+        )}
       </Secao>
 
       <Secao titulo="Fundo escuro atrás" aberta={false}>
@@ -150,6 +206,7 @@ export function ConfigPopup({
           <Label className="text-xs">Escurecer o site atrás</Label>
           <Switch checked={!!d.overlay?.ativo} onCheckedChange={(v) => setSub("overlay", { ativo: v })} />
         </div>
+        <CampoCor rotulo="Cor do fundo escuro" valor={d.overlay?.cor ?? ""} aoMudar={(v) => setSub("overlay", { cor: v })} />
         <CampoNumero
           rotulo="Opacidade" min={0} max={0.95} passo={0.05}
           valor={d.overlay?.opacidade ?? 0.5} aoMudar={(v) => setSub("overlay", { opacidade: v })}
@@ -161,11 +218,29 @@ export function ConfigPopup({
       </Secao>
 
       <Secao titulo="Campos e botões" aberta={false}>
+        <Campo rotulo="Estilo do campo">
+          <Select value={d.campos?.estilo ?? "caixa"} onValueChange={(v) => setSub("campos", { estilo: v })}>
+            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="caixa">Caixa</SelectItem>
+              <SelectItem value="linha">Só linha embaixo</SelectItem>
+            </SelectContent>
+          </Select>
+        </Campo>
         <CampoCor rotulo="Fundo do campo" valor={d.campos?.fundo ?? ""} aoMudar={(v) => setSub("campos", { fundo: v })} />
         <CampoCor rotulo="Borda do campo" valor={d.campos?.borda ?? ""} aoMudar={(v) => setSub("campos", { borda: v })} />
         <CampoCor rotulo="Cor do placeholder" valor={d.campos?.placeholder ?? ""} aoMudar={(v) => setSub("campos", { placeholder: v })} />
         <CampoNumero rotulo="Arredondamento do campo" min={0} max={40} valor={d.campos?.raio ?? 8} aoMudar={(v) => setSub("campos", { raio: v })} />
+        <CampoCor rotulo="Cor do texto do campo" valor={d.campos?.texto ?? ""} aoMudar={(v) => setSub("campos", { texto: v })} />
         <CampoNumero rotulo="Arredondamento do botão" min={0} max={40} valor={d.botao_raio ?? 8} aoMudar={(v) => setD({ botao_raio: v })} />
+        <div className="flex items-center justify-between">
+          <Label className="text-xs">Botão em caixa alta</Label>
+          <Switch checked={!!d.botao_estilo?.caixa_alta} onCheckedChange={(v) => setSub("botao_estilo", { caixa_alta: v })} />
+        </div>
+        <CampoNumero
+          rotulo="Espaçamento entre letras do botão" min={0} max={0.3} passo={0.01}
+          valor={d.botao_estilo?.espacamento ?? 0} aoMudar={(v) => setSub("botao_estilo", { espacamento: v })}
+        />
         <div className="flex items-center justify-between">
           <Label className="text-xs">Esconder o botão X</Label>
           <Switch checked={!!d.botao_fechar?.oculto} onCheckedChange={(v) => setSub("botao_fechar", { oculto: v })} />
@@ -173,6 +248,23 @@ export function ConfigPopup({
         {d.botao_fechar?.oculto && <Aviso texto="Sem X visível, quem não acha como fechar sai do site." />}
         <CampoCor rotulo="Fundo do X" valor={d.botao_fechar?.fundo ?? ""} aoMudar={(v) => setSub("botao_fechar", { fundo: v })} />
         <CampoCor rotulo="Cor do X" valor={d.botao_fechar?.cor ?? ""} aoMudar={(v) => setSub("botao_fechar", { cor: v })} />
+      </Secao>
+
+      <Secao titulo="Cupom" aberta={false}>
+        <Campo rotulo="Estilo do cupom">
+          <Select value={d.cupom?.estilo ?? "simples"} onValueChange={(v) => setSub("cupom", { estilo: v })}>
+            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="simples">Simples</SelectItem>
+              <SelectItem value="ticket">Ticket</SelectItem>
+            </SelectContent>
+          </Select>
+        </Campo>
+        <CampoCor rotulo="Cor da borda" valor={d.cupom?.borda ?? ""} aoMudar={(v) => setSub("cupom", { borda: v })} />
+        <CampoCor rotulo="Fundo" valor={d.cupom?.fundo ?? ""} aoMudar={(v) => setSub("cupom", { fundo: v })} />
+        <CampoCor rotulo="Texto" valor={d.cupom?.texto ?? ""} aoMudar={(v) => setSub("cupom", { texto: v })} />
+        <CampoCor rotulo="Fundo do botão Copiar" valor={d.cupom?.botao_fundo ?? ""} aoMudar={(v) => setSub("cupom", { botao_fundo: v })} />
+        <CampoCor rotulo="Texto do botão Copiar" valor={d.cupom?.botao_texto ?? ""} aoMudar={(v) => setSub("cupom", { botao_texto: v })} />
       </Secao>
 
       <Secao titulo="Imagem lateral" aberta={false}>
@@ -319,9 +411,21 @@ export function PropsElemento({
   const e = elemento;
   const alinhar = (
     <Campo rotulo="Alinhamento">
-      <Select value={e.alinhar ?? "left"} onValueChange={(v) => mudar({ alinhar: v })}>
+      <Select value={e.alinhar ?? "center"} onValueChange={(v) => mudar({ alinhar: v })}>
         <SelectTrigger><SelectValue /></SelectTrigger>
         <SelectContent>{ALINHAR.map((a) => <SelectItem key={a.v} value={a.v}>{a.n}</SelectItem>)}</SelectContent>
+      </Select>
+    </Campo>
+  );
+
+  const estilo = (
+    <Campo rotulo="Estilo">
+      <Select value={e.estilo ?? "normal"} onValueChange={(v) => mudar({ estilo: v })}>
+        <SelectTrigger><SelectValue /></SelectTrigger>
+        <SelectContent>
+          <SelectItem value="normal">Normal</SelectItem>
+          <SelectItem value="italico">Itálico</SelectItem>
+        </SelectContent>
       </Select>
     </Campo>
   );
@@ -335,6 +439,7 @@ export function PropsElemento({
           <CampoNumero rotulo="Tamanho no celular (px)" min={12} max={60} valor={e.tamanho_mobile ?? 22} aoMudar={(v) => mudar({ tamanho_mobile: v })} />
           <CampoNumero rotulo="Peso" min={400} max={800} passo={100} valor={e.peso ?? 700} aoMudar={(v) => mudar({ peso: v })} />
           <CampoCor rotulo="Cor" valor={e.cor ?? ""} aoMudar={(v) => mudar({ cor: v })} />
+          {estilo}
           {alinhar}
         </>
       )}
@@ -345,6 +450,7 @@ export function PropsElemento({
           <CampoNumero rotulo="Tamanho (px)" min={10} max={32} valor={e.tamanho ?? 15} aoMudar={(v) => mudar({ tamanho: v })} />
           <CampoNumero rotulo="Peso" min={400} max={800} passo={100} valor={e.peso ?? 400} aoMudar={(v) => mudar({ peso: v })} />
           <CampoCor rotulo="Cor" valor={e.cor ?? ""} aoMudar={(v) => mudar({ cor: v })} />
+          {estilo}
           {alinhar}
         </>
       )}
@@ -499,6 +605,22 @@ export function PropsElemento({
 
       {e.tipo === "espaco" && (
         <CampoNumero rotulo="Altura" min={0} max={120} valor={e.altura ?? 16} aoMudar={(v) => mudar({ altura: v })} />
+      )}
+
+      {e.tipo === "assinatura" && (
+        <>
+          <CampoTexto rotulo="Texto" valor={e.texto ?? ""} aoMudar={(v) => mudar({ texto: v })} />
+          <CampoNumero rotulo="Tamanho (px)" min={12} max={40} valor={e.tamanho ?? 21} aoMudar={(v) => mudar({ tamanho: v })} />
+          <CampoCor rotulo="Cor" valor={e.cor ?? ""} aoMudar={(v) => mudar({ cor: v })} />
+          {alinhar}
+        </>
+      )}
+
+      {e.tipo === "nota" && (
+        <>
+          <CampoTexto rotulo="Texto" valor={e.texto ?? ""} aoMudar={(v) => mudar({ texto: v })} multilinha />
+          {alinhar}
+        </>
       )}
 
       {(e.tipo === "divisor" || e.tipo === "aviso") && (
