@@ -38,7 +38,8 @@ async function sessaoExpirada(): Promise<void> {
  * mais uma vez. Se não houver como renovar, limpa a sessão e manda
  * para a tela de login. Qualquer outro erro volta como antes.
  */
-export async function chamarRpc<T = unknown>(
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export async function chamarRpc<T = any>(
   nome: string,
   params?: Record<string, unknown>,
 ): Promise<{ data: T | null; error: ErroComCodigo | null }> {
