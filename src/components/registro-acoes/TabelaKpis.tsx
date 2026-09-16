@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { Fragment, useMemo } from "react";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
@@ -74,9 +74,11 @@ export default function TabelaKpis({
         if (!mapa.has(g)) mapa.set(g, []);
         mapa.get(g)!.push(k);
       });
-    return [...mapa.entries()].sort(
-      (a, b) => (ordemGrupo.indexOf(a[0]) + 99) % 99 - (ordemGrupo.indexOf(b[0]) + 99) % 99,
-    );
+    const idx = (g: string) => {
+      const i = ordemGrupo.indexOf(g);
+      return i < 0 ? 99 : i;
+    };
+    return [...mapa.entries()].sort((a, b) => idx(a[0]) - idx(b[0]));
   }, [kpis]);
 
   const seletor = (
@@ -169,8 +171,8 @@ export default function TabelaKpis({
             </tr>
 
             {grupos.map(([grupo, lista]) => (
-              <>
-                <tr key={grupo}>
+              <Fragment key={grupo}>
+                <tr>
                   <td
                     className="sticky left-0 z-10 bg-muted/60 p-1.5 font-medium"
                     colSpan={1}
@@ -219,7 +221,7 @@ export default function TabelaKpis({
                     </tr>
                   );
                 })}
-              </>
+              </Fragment>
             ))}
           </tbody>
         </table>
