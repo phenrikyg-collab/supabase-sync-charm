@@ -946,7 +946,7 @@ export default function Atendimento() {
     }
     return [...base].sort(compararConversas);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [conversas, emAtendimento, buscaAtiva, resultadoBusca, aba, grupoAba, filtroLeitura, tagsFiltro, mapaAtencao, modoFila]);
+  }, [conversas, emAtendimento, buscaAtiva, resultadoBusca, aba, grupoAba, filtroLeitura, filtroFila, tagsFiltro, mapaAtencao, modoFila]);
 
 
   const clientesSemConversa = buscaAtiva ? (resultadoBusca?.clientes ?? []) : [];
@@ -1226,15 +1226,39 @@ export default function Atendimento() {
                 { v: "todas", label: "Todas" },
                 { v: "nao_lidas", label: `Não lidas${totalNaoLidas ? ` (${totalNaoLidas})` : ""}` },
                 { v: "lidas", label: "Lidas" },
-                { v: "atencao", label: `Precisam de atenção${totalAtencao ? ` (${totalAtencao})` : ""}` },
-                { v: "automacao", label: `Automações${totalAutomacoes ? ` (${totalAutomacoes})` : ""}` },
               ] as const).map((f) => (
                 <Button
                   key={f.v}
                   size="sm"
-                  variant={filtroLeitura === f.v ? "default" : "outline"}
+                  variant={filtroLeitura === f.v && !filtroFila ? "default" : filtroLeitura === f.v && filtroFila === "em_atendimento" ? "default" : "outline"}
                   className="h-7 px-2.5 text-[11px]"
-                  onClick={() => setFiltroLeitura(f.v)}
+                  onClick={() => {
+                    setFiltroLeitura(f.v);
+                    if (f.v === "todas") setFiltroFila(null);
+                    else if (filtroFila !== "em_atendimento") setFiltroFila(null);
+                  }}
+                >
+                  {f.label}
+                </Button>
+              ))}
+              {([
+                { v: "atencao", label: `Precisam de atenção${totalAtencao ? ` (${totalAtencao})` : ""}` },
+                { v: "automacao", label: `Automações${totalAutomacoes ? ` (${totalAutomacoes})` : ""}` },
+                { v: "em_atendimento", label: `Em atendimento${totalEmAtendimento ? ` (${totalEmAtendimento})` : ""}` },
+              ] as const).map((f) => (
+                <Button
+                  key={f.v}
+                  size="sm"
+                  variant={filtroFila === f.v ? "default" : "outline"}
+                  className="h-7 px-2.5 text-[11px]"
+                  onClick={() => {
+                    if (filtroFila === f.v) {
+                      setFiltroFila(null);
+                      return;
+                    }
+                    setFiltroFila(f.v);
+                    if (f.v !== "em_atendimento") setFiltroLeitura("todas");
+                  }}
                 >
                   {f.label}
                 </Button>
