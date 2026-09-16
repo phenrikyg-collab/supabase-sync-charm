@@ -131,7 +131,14 @@ export default function TrocasSite() {
         </div>
       </header>
 
-      <Tabs defaultValue="fila">
+      <Tabs
+        value={aba}
+        onValueChange={(v) => {
+          const p = new URLSearchParams(params);
+          p.set("aba", v);
+          setParams(p, { replace: true });
+        }}
+      >
         <TabsList>
           <TabsTrigger value="fila">Fila</TabsTrigger>
           <TabsTrigger value="transito">
