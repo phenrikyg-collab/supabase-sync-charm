@@ -80,6 +80,7 @@ export const ROUTE_ACCESS: Record<string, Requirement> = {
 
   // Logística
   "/bonificacao-expedicao": ["logistica"],
+  "/envios": ["logistica", "atendimento", "gestao"],
 
   // Financeiro
   "/dashboard-financeiro": ["financeiro"],
