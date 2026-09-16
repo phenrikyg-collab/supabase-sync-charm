@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Loader2, RefreshCw, Star } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { avalModerar, avalPendentes, texto, type PainelPendentes } from "@/lib/avaliacoes";
+import { avalModerar, avalPendentes, texto, formatarData, type PainelPendentes } from "@/lib/avaliacoes";
 
 function Estrelas({ nota }: { nota: any }) {
   const n = Number(nota ?? 0);
