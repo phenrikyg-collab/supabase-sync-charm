@@ -43,6 +43,8 @@ export default function TrocasSite() {
   const [selecionado, setSelecionado] = useState<string | null>(null);
   const [abrindo, setAbrindo] = useState(false);
   const [fluxoContagens, setFluxoContagens] = useState<{ transito: number; tratamento: number } | null>(null);
+  const [params, setParams] = useSearchParams();
+  const aba = params.get("aba") ?? "fila";
 
   async function carregar() {
     setCarregando(true);
