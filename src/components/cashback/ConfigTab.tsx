@@ -24,11 +24,13 @@ export function ConfigTab({ resumo, onAtualizar }: { resumo: Record<string, any>
   useEffect(() => {
     setPercentual(String(config.percentual ?? ""));
     setValidade(String(config.validade_dias ?? ""));
-    setUsoMaximo(String(config.uso_maximo_pct ?? config.uso_maximo ?? ""));
+    setUsoMaximo(String(config.uso_max_pct ?? ""));
     setDataInicio(String(config.data_inicio ?? "").slice(0, 10));
   }, [resumo]);
 
-  const gatilhos: Record<string, any> = objetoDe(config.gatilhos ?? config.status_gatilho ?? {});
+  const gatilhos: string[] = Array.isArray(config.gatilho_status)
+    ? config.gatilho_status.map((g: any) => String(g))
+    : [];
 
   function montarPatch() {
     return {
