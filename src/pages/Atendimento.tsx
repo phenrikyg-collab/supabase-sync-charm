@@ -1227,7 +1227,7 @@ export default function Atendimento() {
                 <Button
                   key={f.v}
                   size="sm"
-                  variant={filtroLeitura === f.v && !filtroFila ? "default" : filtroLeitura === f.v && filtroFila === "em_atendimento" ? "default" : "outline"}
+                  variant={filtroLeitura === f.v && (f.v !== "todas" || !filtroFila) ? "default" : "outline"}
                   className="h-7 px-2.5 text-[11px]"
                   onClick={() => {
                     setFiltroLeitura(f.v);
