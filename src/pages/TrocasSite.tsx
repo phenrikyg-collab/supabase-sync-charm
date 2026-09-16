@@ -150,6 +150,7 @@ export default function TrocasSite() {
             {fluxoContagens != null && ` (${fluxoContagens.tratamento})`}
           </TabsTrigger>
           <TabsTrigger value="pecas">Peças em retorno</TabsTrigger>
+          <TabsTrigger value="mensagens">Mensagens</TabsTrigger>
           {isAdmin && <TabsTrigger value="politica">Política</TabsTrigger>}
         </TabsList>
 
