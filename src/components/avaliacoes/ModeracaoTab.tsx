@@ -208,6 +208,55 @@ export function ModeracaoTab() {
         </section>
       )}
 
+      {!carregando && lojas.length > 0 && (
+        <section className="space-y-3">
+          <h3 className="font-serif text-lg">Avaliações da loja</h3>
+          <div className="space-y-3">
+            {lojas.map((l, i) => {
+              const id = l.id;
+              return (
+                <Card key={`loja-${String(id ?? i)}`} className="p-4">
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div className="min-w-0 flex-1 space-y-1.5">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Estrelas nota={l.nota} />
+                        <span className="text-xs text-muted-foreground">
+                          {texto(l.cliente)}
+                          {l.data ? ` · ${formatarData(l.data)}` : ""}
+                        </span>
+                      </div>
+                      {!!(l.texto ?? "").toString().trim() && (
+                        <p className="text-sm">{texto(l.texto)}</p>
+                      )}
+                      {l.motivo ? (
+                        <p className="text-xs text-muted-foreground">{texto(l.motivo)}</p>
+                      ) : null}
+                    </div>
+                    <div className="flex gap-2">
+                      <Button
+                        size="sm"
+                        disabled={!!agindo}
+                        onClick={() => moderar(id, "loja", "publicada")}
+                      >
+                        Publicar
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        disabled={!!agindo}
+                        onClick={() => moderar(id, "loja", "rejeitada")}
+                      >
+                        Rejeitar
+                      </Button>
+                    </div>
+                  </div>
+                </Card>
+              );
+            })}
+          </div>
+        </section>
+      )}
+
       <Dialog open={!!foto} onOpenChange={(o) => !o && setFoto(null)}>
         <DialogContent className="max-w-3xl p-2">
           {foto && <img src={foto} alt="Foto da avaliação" className="max-h-[80vh] w-full object-contain" />}
