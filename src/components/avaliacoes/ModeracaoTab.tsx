@@ -71,8 +71,9 @@ export function ModeracaoTab() {
     ...textosProduto.map((t) => ({ ...t, tipo: t.tipo ?? "produto" })),
     ...textosLoja.map((t) => ({ ...t, tipo: t.tipo ?? "loja" })),
   ] as Array<Record<string, any>>;
+  const lojas = (dados.loja ?? []) as Array<Record<string, any>>;
 
-  const vazio = !carregando && !fotos.length && !textos.length;
+  const vazio = !carregando && !fotos.length && !textos.length && !lojas.length;
 
   return (
     <div className="space-y-5 pt-4">
