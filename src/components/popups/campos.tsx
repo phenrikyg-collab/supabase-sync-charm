@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
-import { AJUDA_VARIAVEIS, TEM_TRAVESSAO, enviarImagem } from "@/lib/popups";
+import { AJUDA_VARIAVEIS, PALETA_MARCA, TEM_TRAVESSAO, enviarImagem } from "@/lib/popups";
 import { cn } from "@/lib/utils";
 
 export function Campo({ rotulo, dica, children }: { rotulo?: string; dica?: string; children: React.ReactNode }) {
