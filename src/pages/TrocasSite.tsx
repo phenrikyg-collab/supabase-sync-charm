@@ -13,6 +13,8 @@ import { PoliticaReversa } from "@/components/reversa/PoliticaReversa";
 import { CartaoGrupoCliente } from "@/components/reversa/CartaoGrupoCliente";
 import { PecasRetornoTab } from "@/components/reversa/PecasRetornoTab";
 import { FluxoTab } from "@/components/reversa/FluxoTab";
+import { MensagensTab } from "@/components/reversa/MensagensTab";
+import { useSearchParams } from "react-router-dom";
 import {
   ALERTAS,
   codigoVencendo,
