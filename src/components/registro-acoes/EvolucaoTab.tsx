@@ -9,11 +9,16 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import {
-  acoesEvolucao, brl, isNil, n, rotuloSemana, valorPorUnidade, type AcoesOpcoes,
+  acoesEvolucao, acoesKpisSemanais, brl, ddmm, isNil, n, rotuloSemana, valorPorUnidade,
+  valorPorUnidadeKpi, type AcoesOpcoes,
 } from "@/lib/registroAcoes";
+import TabelaKpis, { type KpiMeta } from "@/components/registro-acoes/TabelaKpis";
 
-export default function EvolucaoTab({ opcoes }: { opcoes: AcoesOpcoes }) {
+export default function EvolucaoTab({
+  opcoes, onAbrirAcao,
+}: { opcoes: AcoesOpcoes; onAbrirAcao: (a: any) => void }) {
   const [driver, setDriver] = useState(opcoes.drivers[0]?.valor ?? "");
+  const [semanasKpi, setSemanasKpi] = useState(12);
 
   const { data, isLoading, error } = useQuery({
     queryKey: ["acoes", "evolucao"],
@@ -24,9 +29,48 @@ export default function EvolucaoTab({ opcoes }: { opcoes: AcoesOpcoes }) {
     },
   });
 
-  const meta = opcoes.drivers.find((d) => d.valor === driver);
+  const kpisQuery = useQuery({
+    queryKey: ["acoes", "kpis-semanais", semanasKpi],
+    queryFn: async () => {
+      const d = await acoesKpisSemanais(semanasKpi);
+      return (Array.isArray(d) ? d[0] ?? {} : d ?? {}) as any;
+    },
+  });
+
+  const listaKpis: KpiMeta[] = kpisQuery.data?.kpis ?? [];
+  const kpiMeta = listaKpis.find((k) => k.codigo === driver);
+  const driverMeta = opcoes.drivers.find((d) => d.valor === driver);
+  const meta = driverMeta
+    ? { rotulo: driverMeta.rotulo, unidade: driverMeta.unidade, kpi: false }
+    : kpiMeta
+      ? { rotulo: kpiMeta.nome, unidade: kpiMeta.unidade, kpi: true }
+      : { rotulo: "", unidade: undefined, kpi: false };
+
+  const semanasKpiOrdenadas = useMemo(
+    () =>
+      [...(kpisQuery.data?.semanas ?? [])].sort((a: any, b: any) =>
+        String(a.semana_inicio).localeCompare(String(b.semana_inicio)),
+      ),
+    [kpisQuery.data],
+  );
 
   const serie = useMemo(() => {
+    if (meta.kpi) {
+      return semanasKpiOrdenadas.map((s: any) => {
+        const v = s.valores?.[driver]?.valor;
+        const receita = s.valores?.receita_faturada?.valor;
+        return {
+          semana: String(s.semana_inicio),
+          rotulo: `${ddmm(s.semana_inicio)} a ${ddmm(s.semana_fim)}`,
+          parcial: !!s.parcial,
+          receita: n(receita),
+          valor: isNil(v) ? null : n(v),
+          temAcoes: (s.acoes_comerciais ?? []).length > 0,
+          acoes_titulos: (s.acoes_comerciais ?? []).map((a: any) => a.titulo),
+          bruto: s.valores,
+        };
+      });
+    }
     return (data ?? []).map((s: any) => {
       const valores = s.drivers ?? s.valores ?? s;
       return {
@@ -40,7 +84,7 @@ export default function EvolucaoTab({ opcoes }: { opcoes: AcoesOpcoes }) {
         bruto: valores,
       };
     });
-  }, [data, driver]);
+  }, [data, driver, meta.kpi, semanasKpiOrdenadas]);
 
   const serieFirme = serie.map((p) => ({ ...p, valorFirme: p.parcial ? null : p.valor }));
   const serieParcial = serie.map((p, i) => ({
@@ -79,23 +123,54 @@ export default function EvolucaoTab({ opcoes }: { opcoes: AcoesOpcoes }) {
     return "";
   };
 
-  if (isLoading) return <Skeleton className="h-96 w-full" />;
-  if (error) return <Card className="p-6 text-sm text-destructive">Não deu para carregar: {(error as Error).message}</Card>;
+  const tabela = (
+    <TabelaKpis
+      dados={kpisQuery.data}
+      isLoading={kpisQuery.isLoading}
+      error={kpisQuery.error}
+      semanas={semanasKpi}
+      onSemanas={setSemanasKpi}
+      onSelecionarKpi={setDriver}
+      kpiSelecionado={driver}
+      onAbrirAcao={onAbrirAcao}
+    />
+  );
+
+  if (isLoading) return <div className="space-y-6">{tabela}<Skeleton className="h-96 w-full" /></div>;
+  if (error) {
+    return (
+      <div className="space-y-6">
+        {tabela}
+        <Card className="p-6 text-sm text-destructive">Não deu para carregar: {(error as Error).message}</Card>
+      </div>
+    );
+  }
   if (!dados.length) {
-    return <Card className="p-8 text-center text-sm text-muted-foreground border-dashed">Ainda não há semanas para mostrar.</Card>;
+    return (
+      <div className="space-y-6">
+        {tabela}
+        <Card className="p-8 text-center text-sm text-muted-foreground border-dashed">Ainda não há semanas para mostrar.</Card>
+      </div>
+    );
   }
 
   return (
     <div className="space-y-6">
+      {tabela}
+
       <div className="flex items-center gap-3">
-        <span className="text-sm text-muted-foreground">Driver</span>
+        <span className="text-sm text-muted-foreground">Indicador</span>
         <Select value={driver} onValueChange={setDriver}>
           <SelectTrigger className="w-64"><SelectValue /></SelectTrigger>
           <SelectContent>
             {opcoes.drivers.map((d) => <SelectItem key={d.valor} value={d.valor}>{d.rotulo}</SelectItem>)}
+            {listaKpis
+              .filter((k) => !opcoes.drivers.some((d) => d.valor === k.codigo))
+              .map((k) => <SelectItem key={k.codigo} value={k.codigo}>{k.nome}</SelectItem>)}
           </SelectContent>
         </Select>
       </div>
+
 
       <Card className="p-4">
         <ResponsiveContainer width="100%" height={320}>
@@ -115,7 +190,7 @@ export default function EvolucaoTab({ opcoes }: { opcoes: AcoesOpcoes }) {
                 return (
                   <div className="rounded-md border bg-background p-2 text-xs shadow-sm space-y-1">
                     <div className="font-medium">{p.rotulo}{p.parcial ? " (parcial)" : ""}</div>
-                    <div>{meta?.rotulo}: {valorPorUnidade(p.valor, meta?.unidade)}</div>
+                    <div>{meta.rotulo}: {meta.kpi ? valorPorUnidadeKpi(p.valor, meta.unidade) : valorPorUnidade(p.valor, meta.unidade)}</div>
                     <div>Receita faturada: {brl(p.receita)}</div>
                     {p.acoes_titulos.length > 0 && (
                       <div className="pt-1 border-t">
@@ -128,7 +203,7 @@ export default function EvolucaoTab({ opcoes }: { opcoes: AcoesOpcoes }) {
             />
             <Legend wrapperStyle={{ fontSize: 11 }} />
             <Bar yAxisId="right" dataKey="receita" name="Receita faturada" fill="hsl(var(--muted-foreground))" opacity={0.2} />
-            <Line yAxisId="left" type="monotone" dataKey="valorFirme" name={meta?.rotulo ?? "Driver"} stroke="hsl(var(--primary))" strokeWidth={2} connectNulls dot={{ r: 3 }} />
+            <Line yAxisId="left" type="monotone" dataKey="valorFirme" name={meta.rotulo || "Indicador"} stroke="hsl(var(--primary))" strokeWidth={2} connectNulls dot={{ r: 3 }} />
             <Line yAxisId="left" type="monotone" dataKey="valorParcial" name="Semana parcial" stroke="hsl(var(--primary))" strokeWidth={2} strokeDasharray="5 5" connectNulls dot={false} legendType="none" />
           </ComposedChart>
         </ResponsiveContainer>

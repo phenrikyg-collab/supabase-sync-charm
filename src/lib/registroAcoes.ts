@@ -180,6 +180,39 @@ export const acoesAprendizados = () => chamar("acoes_aprendizados");
 
 export const acoesEvolucao = (p_semanas = 16) => chamar("acoes_evolucao", { p_semanas });
 
+export const acoesComerciais = (p_inicio: string, p_fim: string) =>
+  chamar("acoes_comerciais", { p_inicio, p_fim });
+
+export const acoesKpisSemanais = (p_semanas = 12) =>
+  chamar("acoes_kpis_semanais", { p_semanas });
+
+/* ---------------- frentes comerciais ---------------- */
+
+export const ROTULO_FRENTE: Record<string, string> = {
+  lancamento: "Lançamento",
+  acao_comercial: "Ação comercial",
+  oferta_preco: "Oferta e preço",
+  live: "Live",
+};
+
+export const CLASSE_FRENTE: Record<string, string> = {
+  lancamento: "bg-purple-100 text-purple-800 border-purple-200",
+  acao_comercial: "bg-blue-100 text-blue-800 border-blue-200",
+  oferta_preco: "bg-emerald-100 text-emerald-800 border-emerald-200",
+  live: "bg-pink-100 text-pink-800 border-pink-200",
+  incidente: "bg-amber-100 text-amber-800 border-amber-200",
+};
+
+/** Formata um valor conforme a unidade dos KPIs semanais. */
+export const valorPorUnidadeKpi = (valor: any, unidade?: string): string => {
+  if (isNil(valor)) return "sem dados";
+  const u = String(unidade || "").toLowerCase();
+  if (u === "reais") return brl(valor);
+  if (u === "inteiro") return inteiro(valor);
+  if (u === "pct") return pct(valor, 2);
+  return dec(valor, 2);
+};
+
 /* ---------------- sinais ---------------- */
 
 export const CLASSE_SINAL: Record<string, string> = {
