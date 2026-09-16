@@ -906,8 +906,15 @@ export default function Atendimento() {
   const filtradas = useMemo(() => {
     let base: Conversa[];
     if (modoFila) {
-      // Renderiza na ordem exata da RPC
-      return emAtendimento;
+      // Chip "Em atendimento": renderiza na ordem exata da RPC, sem reordenar no front.
+      base = emAtendimento;
+      if (buscaAtiva) {
+        const ids = new Set((resultadoBusca?.conversas ?? []).map((r) => String(r.conversa_id)));
+        base = base.filter((c) => ids.has(String(c.id)));
+      }
+      if (filtroLeitura === "nao_lidas") base = base.filter((c) => !!c.nao_lida);
+      if (filtroLeitura === "lidas") base = base.filter((c) => !c.nao_lida);
+      return base;
     }
     if (buscaAtiva) {
       const achadas = resultadoBusca?.conversas ?? [];
@@ -928,8 +935,8 @@ export default function Atendimento() {
         if (grupoDe(c) !== grupoAba) return false;
         if (filtroLeitura === "nao_lidas" && !c.nao_lida) return false;
         if (filtroLeitura === "lidas" && c.nao_lida) return false;
-        if (filtroLeitura === "atencao" && !["quente", "atencao"].includes(urgenciaDeNivel(atencaoDe(c)?.nivel))) return false;
-        if (filtroLeitura === "automacao" && atencaoDe(c)?.dono !== "automacao") return false;
+        if (filtroFila === "atencao" && !["quente", "atencao"].includes(urgenciaDeNivel(atencaoDe(c)?.nivel))) return false;
+        if (filtroFila === "automacao" && atencaoDe(c)?.dono !== "automacao") return false;
         if (tagsFiltro.length > 0) {
           const ids = (c.tags ?? []).map((t) => String(t.id));
           if (!tagsFiltro.some((t) => ids.includes(t))) return false;
