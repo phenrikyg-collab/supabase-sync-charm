@@ -420,7 +420,7 @@ function ModalEtapa({
 
 type Preset = "hoje" | "7" | "30" | "custom";
 
-export function DashboardFunil() {
+export function DashboardFunil({ onAbrirConversa }: { onAbrirConversa?: (conversaId: string) => void } = {}) {
   const [preset, setPreset] = useState<Preset>("30");
   const [inicio, setInicio] = useState(diasAtras(29));
   const [fim, setFim] = useState(hoje());
