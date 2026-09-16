@@ -1077,7 +1077,7 @@ export default function Atendimento() {
               <FunilKanbanConteudo onAbrirConversa={(id) => abrirDoPainel(id)} />
             </TabsContent>
             <TabsContent value="dashboard" className="m-0">
-              <DashboardFunil />
+              <DashboardFunil onAbrirConversa={(id) => abrirDoPainel(id)} />
             </TabsContent>
             <TabsContent value="followups" className="m-0">
               <FilaFollowups />
