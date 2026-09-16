@@ -1007,9 +1007,6 @@ export default function Atendimento() {
             <TabsTrigger value="conversas" className="h-8 shrink-0 text-xs">
               {rotuloComContagem("Conversas", contagemGrupos.conversa)}
             </TabsTrigger>
-            <TabsTrigger value="em_atendimento" className="h-8 shrink-0 text-xs">
-              {rotuloComContagem("Em atendimento", totalEmAtendimento)}
-            </TabsTrigger>
             <TabsTrigger value="oportunidades" className="h-8 shrink-0 text-xs">
               {rotuloComContagem("Oportunidades", contagens.oportunidades)}
             </TabsTrigger>
@@ -1139,7 +1136,7 @@ export default function Atendimento() {
         </TabsContent>
 
 
-        <TabsContent value={modoFila ? "em_atendimento" : "conversas"} className="m-0 min-h-0 w-full min-w-0 max-w-full flex-1 overflow-hidden data-[state=active]:flex">
+        <TabsContent value="conversas" className="m-0 min-h-0 w-full min-w-0 max-w-full flex-1 overflow-hidden data-[state=active]:flex">
       <div className="relative flex min-h-0 w-full min-w-0 max-w-full flex-1 overflow-hidden">
 
         {listaSheet && (
