@@ -24,17 +24,19 @@ export function ConfigTab({ resumo, onAtualizar }: { resumo: Record<string, any>
   useEffect(() => {
     setPercentual(String(config.percentual ?? ""));
     setValidade(String(config.validade_dias ?? ""));
-    setUsoMaximo(String(config.uso_maximo_pct ?? config.uso_maximo ?? ""));
+    setUsoMaximo(String(config.uso_max_pct ?? ""));
     setDataInicio(String(config.data_inicio ?? "").slice(0, 10));
   }, [resumo]);
 
-  const gatilhos: Record<string, any> = objetoDe(config.gatilhos ?? config.status_gatilho ?? {});
+  const gatilhos: string[] = Array.isArray(config.gatilho_status)
+    ? config.gatilho_status.map((g: any) => String(g))
+    : [];
 
   function montarPatch() {
     return {
       percentual: numero(percentual),
       validade_dias: Math.round(numero(validade)),
-      uso_maximo_pct: numero(usoMaximo),
+      uso_max_pct: numero(usoMaximo),
       data_inicio: dataInicio || null,
     };
   }
@@ -98,16 +100,17 @@ export function ConfigTab({ resumo, onAtualizar }: { resumo: Record<string, any>
           <div className="md:col-span-2 space-y-1.5">
             <Label className="text-xs text-muted-foreground">Status de gatilho</Label>
             <div className="flex flex-wrap gap-2">
-              {Object.keys(gatilhos).length === 0 ? (
+              {gatilhos.length === 0 ? (
                 <span className="text-xs text-muted-foreground">Nenhum gatilho configurado.</span>
               ) : (
-                Object.entries(gatilhos).map(([chave, valor]) => (
-                  <Badge key={chave} variant="outline">
-                    {chave}: {Array.isArray(valor) ? valor.join(", ") : String(valor)}
-                  </Badge>
+                gatilhos.map((g) => (
+                  <Badge key={g} variant="outline">{g}</Badge>
                 ))
               )}
             </div>
+            <p className="text-xs text-muted-foreground">
+              Pedido em qualquer um destes status gera o cupom.
+            </p>
           </div>
 
           <div className="md:col-span-2">
