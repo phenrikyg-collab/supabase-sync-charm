@@ -27,6 +27,8 @@ import VindiYapay from "./pages/VindiYapay";
 import BancoInter from "./pages/BancoInter";
 import ConciliacaoPixWhatsApp from "./pages/ConciliacaoPixWhatsApp";
 import ProvaSocial from "./pages/ProvaSocial";
+import Popups from "./pages/Popups";
+import PopupEditor from "./pages/PopupEditor";
 import SocialCommerce from "./pages/SocialCommerce";
 import GrupoVip from "./pages/GrupoVip";
 import ContasPagar from "./pages/ContasPagar";
@@ -251,6 +253,8 @@ const AppRoutes = () => {
               <Route path="/banco-inter" element={<BancoInter />} />
               <Route path="/conciliacao-pix-whatsapp" element={<ConciliacaoPixWhatsApp />} />
               <Route path="/prova-social" element={<ProvaSocial />} />
+              <Route path="/popups" element={<Popups />} />
+              <Route path="/popups/:id" element={<PopupEditor />} />
               <Route path="/social-commerce" element={<SocialCommerce />} />
               <Route path="/grupo-vip" element={<GrupoVip />} />
               <Route path="/fluxo-caixa" element={<FluxoCaixa />} />
