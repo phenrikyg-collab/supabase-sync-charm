@@ -390,8 +390,8 @@ export default function Atendimento() {
   const { data: conversasBrutas = [], isLoading: carregandoConversas } = useQuery({
     queryKey: ["whatsapp-conversas"],
     queryFn: async () => {
-      // vw_conversas_painel já vem ordenada por urgência: renderizar na ordem exata do banco
-      const { data, error } = await supabase.from("vw_conversas_painel" as any).select("*");
+      // vw_conversas_painel_com_tags já vem ordenada por urgência: renderizar na ordem exata do banco
+      const { data, error } = await supabase.from("vw_conversas_painel_com_tags" as any).select("*");
       if (error) throw error;
       return ((data ?? []) as any[]).map((c) => ({
         ...c,
