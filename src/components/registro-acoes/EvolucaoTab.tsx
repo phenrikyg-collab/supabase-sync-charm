@@ -123,23 +123,54 @@ export default function EvolucaoTab({
     return "";
   };
 
-  if (isLoading) return <Skeleton className="h-96 w-full" />;
-  if (error) return <Card className="p-6 text-sm text-destructive">Não deu para carregar: {(error as Error).message}</Card>;
+  const tabela = (
+    <TabelaKpis
+      dados={kpisQuery.data}
+      isLoading={kpisQuery.isLoading}
+      error={kpisQuery.error}
+      semanas={semanasKpi}
+      onSemanas={setSemanasKpi}
+      onSelecionarKpi={setDriver}
+      kpiSelecionado={driver}
+      onAbrirAcao={onAbrirAcao}
+    />
+  );
+
+  if (isLoading) return <div className="space-y-6">{tabela}<Skeleton className="h-96 w-full" /></div>;
+  if (error) {
+    return (
+      <div className="space-y-6">
+        {tabela}
+        <Card className="p-6 text-sm text-destructive">Não deu para carregar: {(error as Error).message}</Card>
+      </div>
+    );
+  }
   if (!dados.length) {
-    return <Card className="p-8 text-center text-sm text-muted-foreground border-dashed">Ainda não há semanas para mostrar.</Card>;
+    return (
+      <div className="space-y-6">
+        {tabela}
+        <Card className="p-8 text-center text-sm text-muted-foreground border-dashed">Ainda não há semanas para mostrar.</Card>
+      </div>
+    );
   }
 
   return (
     <div className="space-y-6">
+      {tabela}
+
       <div className="flex items-center gap-3">
-        <span className="text-sm text-muted-foreground">Driver</span>
+        <span className="text-sm text-muted-foreground">Indicador</span>
         <Select value={driver} onValueChange={setDriver}>
           <SelectTrigger className="w-64"><SelectValue /></SelectTrigger>
           <SelectContent>
             {opcoes.drivers.map((d) => <SelectItem key={d.valor} value={d.valor}>{d.rotulo}</SelectItem>)}
+            {listaKpis
+              .filter((k) => !opcoes.drivers.some((d) => d.valor === k.codigo))
+              .map((k) => <SelectItem key={k.codigo} value={k.codigo}>{k.nome}</SelectItem>)}
           </SelectContent>
         </Select>
       </div>
+
 
       <Card className="p-4">
         <ResponsiveContainer width="100%" height={320}>
