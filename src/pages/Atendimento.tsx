@@ -799,10 +799,13 @@ export default function Atendimento() {
 
   const resolver = useMutation({
     mutationFn: async () => {
-      const { error } = await chamarRpc("whatsapp_marcar_resolvido" as any, {
+      const { data, error } = await chamarRpc("whatsapp_update_conversa_status" as any, {
         p_conversa_id: Number.isNaN(Number(selecionada)) ? selecionada : Number(selecionada),
+        p_status: "resolvido",
+        p_atendente: user?.email ?? null,
       });
       if (error) throw error;
+      return data as { status?: string; csat?: { abriu?: boolean; csat_id?: number; motivo?: string } } | null;
     },
     onMutate: async () => {
       // Otimista: marca como resolvida na hora para a conversa descer ao fim da lista.
