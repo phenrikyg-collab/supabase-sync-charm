@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Loader2, RefreshCw, Star } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { avalModerar, avalPendentes, texto, type PainelPendentes } from "@/lib/avaliacoes";
+import { avalModerar, avalPendentes, texto, formatarData, type PainelPendentes } from "@/lib/avaliacoes";
 
 function Estrelas({ nota }: { nota: any }) {
   const n = Number(nota ?? 0);
@@ -71,8 +71,9 @@ export function ModeracaoTab() {
     ...textosProduto.map((t) => ({ ...t, tipo: t.tipo ?? "produto" })),
     ...textosLoja.map((t) => ({ ...t, tipo: t.tipo ?? "loja" })),
   ] as Array<Record<string, any>>;
+  const lojas = (dados.loja ?? []) as Array<Record<string, any>>;
 
-  const vazio = !carregando && !fotos.length && !textos.length;
+  const vazio = !carregando && !fotos.length && !textos.length && !lojas.length;
 
   return (
     <div className="space-y-5 pt-4">
@@ -195,6 +196,55 @@ export function ModeracaoTab() {
                         variant="outline"
                         disabled={!!agindo}
                         onClick={() => moderar(id, tipo, "rejeitada")}
+                      >
+                        Rejeitar
+                      </Button>
+                    </div>
+                  </div>
+                </Card>
+              );
+            })}
+          </div>
+        </section>
+      )}
+
+      {!carregando && lojas.length > 0 && (
+        <section className="space-y-3">
+          <h3 className="font-serif text-lg">Avaliações da loja</h3>
+          <div className="space-y-3">
+            {lojas.map((l, i) => {
+              const id = l.id;
+              return (
+                <Card key={`loja-${String(id ?? i)}`} className="p-4">
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div className="min-w-0 flex-1 space-y-1.5">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Estrelas nota={l.nota} />
+                        <span className="text-xs text-muted-foreground">
+                          {texto(l.cliente)}
+                          {l.data ? ` · ${formatarData(l.data)}` : ""}
+                        </span>
+                      </div>
+                      {!!(l.texto ?? "").toString().trim() && (
+                        <p className="text-sm">{texto(l.texto)}</p>
+                      )}
+                      {l.motivo ? (
+                        <p className="text-xs text-muted-foreground">{texto(l.motivo)}</p>
+                      ) : null}
+                    </div>
+                    <div className="flex gap-2">
+                      <Button
+                        size="sm"
+                        disabled={!!agindo}
+                        onClick={() => moderar(id, "loja", "publicada")}
+                      >
+                        Publicar
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        disabled={!!agindo}
+                        onClick={() => moderar(id, "loja", "rejeitada")}
                       >
                         Rejeitar
                       </Button>

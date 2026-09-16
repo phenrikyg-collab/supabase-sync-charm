@@ -74,6 +74,7 @@ export type PainelPendentes = {
   textos?: Array<Record<string, any>> | null;
   textos_produto?: Array<Record<string, any>> | null;
   textos_loja?: Array<Record<string, any>> | null;
+  loja?: Array<Record<string, any>> | null;
 };
 
 export async function avalPendentes(): Promise<PainelPendentes> {
