@@ -23,6 +23,7 @@ import { cn } from "@/lib/utils";
 import { FilaFollowups, ResumoFollowups, TemplatesFollowup } from "@/components/funil/FollowUps";
 import { Loader2, MoreVertical, RefreshCw, MessageCircle, TrendingDown } from "lucide-react";
 import { chamarRpc } from "@/lib/supabaseRpc";
+import { CsatBloco } from "@/components/atendimento/CsatBloco";
 
 type Etapa = "atendimento" | "interesse" | "pagamento_enviado" | "pago" | "perdido";
 
