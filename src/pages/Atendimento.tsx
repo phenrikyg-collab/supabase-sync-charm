@@ -883,7 +883,8 @@ export default function Atendimento() {
   }, [conversas, aba]);
 
 
-  const modoFila = abaPagina === "em_atendimento";
+  /** Chip "Em atendimento" ativo: a lista passa a vir da RPC, já ordenada. */
+  const modoFila = filtroFila === "em_atendimento";
 
   // Fila de trabalho: a RPC já devolve só as conversas assumidas, na ordem de espera
   const { data: emAtendimento = [] } = useQuery({
