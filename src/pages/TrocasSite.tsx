@@ -13,6 +13,8 @@ import { PoliticaReversa } from "@/components/reversa/PoliticaReversa";
 import { CartaoGrupoCliente } from "@/components/reversa/CartaoGrupoCliente";
 import { PecasRetornoTab } from "@/components/reversa/PecasRetornoTab";
 import { FluxoTab } from "@/components/reversa/FluxoTab";
+import { MensagensTab } from "@/components/reversa/MensagensTab";
+import { useSearchParams } from "react-router-dom";
 import {
   ALERTAS,
   codigoVencendo,
@@ -41,6 +43,8 @@ export default function TrocasSite() {
   const [selecionado, setSelecionado] = useState<string | null>(null);
   const [abrindo, setAbrindo] = useState(false);
   const [fluxoContagens, setFluxoContagens] = useState<{ transito: number; tratamento: number } | null>(null);
+  const [params, setParams] = useSearchParams();
+  const aba = params.get("aba") ?? "fila";
 
   async function carregar() {
     setCarregando(true);
@@ -127,7 +131,14 @@ export default function TrocasSite() {
         </div>
       </header>
 
-      <Tabs defaultValue="fila">
+      <Tabs
+        value={aba}
+        onValueChange={(v) => {
+          const p = new URLSearchParams(params);
+          p.set("aba", v);
+          setParams(p, { replace: true });
+        }}
+      >
         <TabsList>
           <TabsTrigger value="fila">Fila</TabsTrigger>
           <TabsTrigger value="transito">
@@ -139,6 +150,7 @@ export default function TrocasSite() {
             {fluxoContagens != null && ` (${fluxoContagens.tratamento})`}
           </TabsTrigger>
           <TabsTrigger value="pecas">Peças em retorno</TabsTrigger>
+          <TabsTrigger value="mensagens">Mensagens</TabsTrigger>
           {isAdmin && <TabsTrigger value="politica">Política</TabsTrigger>}
         </TabsList>
 
@@ -357,6 +369,10 @@ export default function TrocasSite() {
 
         <TabsContent value="pecas" className="pt-4">
           <PecasRetornoTab aoAbrirSolicitacao={(id) => setSelecionado(id)} />
+        </TabsContent>
+
+        <TabsContent value="mensagens" className="pt-4">
+          <MensagensTab />
         </TabsContent>
 
         {isAdmin && (
