@@ -24,6 +24,7 @@ import {
   nomeCampanhaEmUso, avisoDestino, botoesUrl, slugDaUrl, CrmPorta,
 } from "@/lib/crmLinks";
 import { chamarRpc } from "@/lib/supabaseRpc";
+import NovaCampanha from "@/components/whatsapp-marketing/nova-campanha/NovaCampanha";
 
 type Campanha = {
   id: number | string;
@@ -147,174 +148,6 @@ function BlocoLink({
         </Alert>
       )}
     </div>
-  );
-}
-
-function NovaCampanhaDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (v: boolean) => void }) {
-  const queryClient = useQueryClient();
-  const [nome, setNome] = useState("");
-  const [templateId, setTemplateId] = useState("");
-  const [listaId, setListaId] = useState("");
-  const [variaveis, setVariaveis] = useState<string[]>([]);
-  const [slug, setSlug] = useState("");
-  const [destino, setDestino] = useState("");
-  const [conflito, setConflito] = useState<string | null>(null);
-
-  const { data: templates = [] } = useQuery({
-    queryKey: ["wpp-templates"],
-    queryFn: async () => {
-      const { data, error } = await chamarRpc("whatsapp_templates_listar" as any);
-      if (error) throw error;
-      return (data ?? []) as any[];
-    },
-    enabled: open,
-  });
-
-  const { data: portas = [] } = useQuery({
-    queryKey: ["crm-portas"],
-    queryFn: crmDestinosListar,
-    enabled: open,
-  });
-
-  const aprovados = templates.filter(
-    (t: any) => (t.status_aprovacao ?? "").toLowerCase() === "aprovado"
-  );
-
-  const template = aprovados.find((t: any) => String(t.id) === templateId);
-  const botoes = useMemo(() => botoesUrl(template?.botoes), [template]);
-  const temBotao = botoes.length > 0;
-  const portaTravada = botoes.length === 1;
-
-  // Pré-seleciona a porta escrita no template aprovado.
-  useEffect(() => {
-    if (!temBotao) { setSlug(""); return; }
-    const s = slugDaUrl(botoes[0].url ?? "", portas);
-    if (s) setSlug(s);
-  }, [templateId, temBotao, portas]);
-
-  const { data: listas = [] } = useQuery({
-    queryKey: ["wpp-listas"],
-    queryFn: async () => {
-      const { data, error } = await chamarRpc("listas_listar" as any);
-      if (error) throw error;
-      return (data ?? []) as any[];
-    },
-    enabled: open,
-  });
-
-  const criar = useMutation({
-    mutationFn: async () => {
-      const variaveis_fixas: Record<string, string> = {};
-      variaveis.forEach((v, i) => {
-        if (v.trim() !== "") variaveis_fixas[String(i + 2)] = v;
-      });
-      const { error } = await chamarRpc("campanhas_whatsapp_criar" as any, {
-        p_nome: nome,
-        p_template_id: templateId,
-        p_lista_id: listaId,
-        p_variaveis_fixas: variaveis_fixas,
-        p_link_slug: temBotao ? slug || null : null,
-        p_link_destino: temBotao ? destino || null : null,
-      });
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      toast({ title: "Campanha criada" });
-      queryClient.invalidateQueries({ queryKey: ["wpp-campanhas"] });
-      onOpenChange(false);
-      setNome(""); setTemplateId(""); setListaId(""); setVariaveis([]);
-      setSlug(""); setDestino("");
-    },
-    onError: (e: any) => toast({ title: "Erro ao criar", description: e.message, variant: "destructive" }),
-  });
-
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
-        <DialogHeader><DialogTitle>Nova campanha</DialogTitle></DialogHeader>
-        <div className="space-y-4">
-          <div>
-            <Label>Nome</Label>
-            <Input value={nome} onChange={(e) => setNome(e.target.value)} />
-          </div>
-          <div>
-            <Label>Template aprovado</Label>
-            {aprovados.length === 0 ? (
-              <p className="text-sm text-destructive flex items-center gap-2 mt-1">
-                <AlertTriangle className="h-4 w-4" /> Nenhum template aprovado ainda
-              </p>
-            ) : (
-              <Select value={templateId} onValueChange={setTemplateId}>
-                <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
-                <SelectContent>
-                  {aprovados.map((t: any) => (
-                    <SelectItem key={t.id} value={String(t.id)}>{t.nome}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            )}
-          </div>
-          <div>
-            <Label>Lista / segmento</Label>
-            <Select value={listaId} onValueChange={setListaId}>
-              <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
-              <SelectContent>
-                {listas.map((l: any) => (
-                  <SelectItem key={l.id} value={String(l.id)}>
-                    {l.nome} ({l.total_membros ?? 0})
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          {temBotao && (
-            <BlocoLink
-              portas={portas}
-              slug={slug}
-              setSlug={setSlug}
-              destino={destino}
-              setDestino={setDestino}
-              travado={portaTravada}
-              campanhaId={null}
-              onConflito={setConflito}
-            />
-          )}
-
-          <div>
-            <Label>Variáveis fixas extras (opcional)</Label>
-            <p className="text-xs text-muted-foreground mb-2">
-              {"{{1}}"} é sempre o primeiro nome do cliente, preenchido automaticamente. Preencha
-              aqui apenas {"{{2}}"}, {"{{3}}"}... com o mesmo valor para todos.
-            </p>
-            <div className="space-y-2">
-              {variaveis.map((v, i) => (
-                <Input
-                  key={i}
-                  value={v}
-                  placeholder={`Valor para {{${i + 2}}}`}
-                  onChange={(e) =>
-                    setVariaveis((prev) => prev.map((x, idx) => (idx === i ? e.target.value : x)))
-                  }
-                />
-              ))}
-              <Button variant="outline" size="sm" onClick={() => setVariaveis((p) => [...p, ""])}>
-                <Plus className="h-4 w-4 mr-1" /> Adicionar variável
-              </Button>
-            </div>
-          </div>
-        </div>
-        <DialogFooter>
-          <Button
-            onClick={() => criar.mutate()}
-            disabled={!nome || !templateId || !listaId || criar.isPending || (temBotao && !destino)}
-          >
-            {criar.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-            Criar campanha
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
   );
 }
 
@@ -537,6 +370,8 @@ export function CampanhasWppTab() {
     onError: (e: any) => toast({ title: "Erro ao disparar", description: e.message, variant: "destructive" }),
   });
 
+  if (nova) return <NovaCampanha onVoltar={() => setNova(false)} />;
+
   return (
     <div className="space-y-4">
       <div className="flex justify-end">
@@ -627,7 +462,6 @@ export function CampanhasWppTab() {
         )}
       </Card>
 
-      <NovaCampanhaDialog open={nova} onOpenChange={setNova} />
       <EditarLinkDialog campanha={linkDe} onOpenChange={(v) => !v && setLinkDe(null)} />
       <MetricasDialog campanha={metricasDe} onOpenChange={(v) => !v && setMetricasDe(null)} />
       <FalhasDialog campanha={falhasDe} onOpenChange={(v) => !v && setFalhasDe(null)} />
