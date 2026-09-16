@@ -14,6 +14,7 @@ import SemanaTab from "@/components/registro-acoes/SemanaTab";
 import HistoricoTab from "@/components/registro-acoes/HistoricoTab";
 import AprendizadosTab from "@/components/registro-acoes/AprendizadosTab";
 import EvolucaoTab from "@/components/registro-acoes/EvolucaoTab";
+import ComercialTab from "@/components/registro-acoes/ComercialTab";
 import AcaoPainel from "@/components/registro-acoes/AcaoPainel";
 import AcaoFormDialog from "@/components/registro-acoes/AcaoFormDialog";
 
@@ -115,14 +116,18 @@ export default function RegistroAcoes() {
         </div>
       </div>
 
-      <Tabs defaultValue="semana" className="space-y-5">
+      <Tabs defaultValue="comercial" className="space-y-5">
         <TabsList className="flex-wrap h-auto">
+          <TabsTrigger value="comercial">Comercial &amp; Lançamentos</TabsTrigger>
           <TabsTrigger value="semana">Semana</TabsTrigger>
           <TabsTrigger value="historico">Histórico</TabsTrigger>
           <TabsTrigger value="funciona">O que funciona</TabsTrigger>
           <TabsTrigger value="evolucao">Evolução</TabsTrigger>
         </TabsList>
 
+        <TabsContent value="comercial">
+          <ComercialTab opcoes={opcoes} onAbrirAcao={setPainel} onNovaAcao={abrirNova} />
+        </TabsContent>
         <TabsContent value="semana">
           <SemanaTab
             semana={semana}
@@ -139,7 +144,7 @@ export default function RegistroAcoes() {
           <AprendizadosTab opcoes={opcoes} />
         </TabsContent>
         <TabsContent value="evolucao">
-          <EvolucaoTab opcoes={opcoes} />
+          <EvolucaoTab opcoes={opcoes} onAbrirAcao={setPainel} />
         </TabsContent>
       </Tabs>
 

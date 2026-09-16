@@ -190,7 +190,7 @@ export default function EvolucaoTab({
                 return (
                   <div className="rounded-md border bg-background p-2 text-xs shadow-sm space-y-1">
                     <div className="font-medium">{p.rotulo}{p.parcial ? " (parcial)" : ""}</div>
-                    <div>{meta?.rotulo}: {valorPorUnidade(p.valor, meta?.unidade)}</div>
+                    <div>{meta.rotulo}: {meta.kpi ? valorPorUnidadeKpi(p.valor, meta.unidade) : valorPorUnidade(p.valor, meta.unidade)}</div>
                     <div>Receita faturada: {brl(p.receita)}</div>
                     {p.acoes_titulos.length > 0 && (
                       <div className="pt-1 border-t">
@@ -203,7 +203,7 @@ export default function EvolucaoTab({
             />
             <Legend wrapperStyle={{ fontSize: 11 }} />
             <Bar yAxisId="right" dataKey="receita" name="Receita faturada" fill="hsl(var(--muted-foreground))" opacity={0.2} />
-            <Line yAxisId="left" type="monotone" dataKey="valorFirme" name={meta?.rotulo ?? "Driver"} stroke="hsl(var(--primary))" strokeWidth={2} connectNulls dot={{ r: 3 }} />
+            <Line yAxisId="left" type="monotone" dataKey="valorFirme" name={meta.rotulo || "Indicador"} stroke="hsl(var(--primary))" strokeWidth={2} connectNulls dot={{ r: 3 }} />
             <Line yAxisId="left" type="monotone" dataKey="valorParcial" name="Semana parcial" stroke="hsl(var(--primary))" strokeWidth={2} strokeDasharray="5 5" connectNulls dot={false} legendType="none" />
           </ComposedChart>
         </ResponsiveContainer>
