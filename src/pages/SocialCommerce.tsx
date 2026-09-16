@@ -7,9 +7,10 @@ import { ProdutosPostTab } from "@/components/social-commerce/ProdutosPostTab";
 import { FunilLeadsTab } from "@/components/social-commerce/FunilLeadsTab";
 import { KitsTab } from "@/components/social-commerce/KitsTab";
 import { LiveTab } from "@/components/social-commerce/LiveTab";
+import { StoriesTab } from "@/components/social-commerce/stories/StoriesTab";
 import { BufferConexaoCard } from "@/components/social-commerce/BufferConexaoCard";
 
-import { MessageCircle, MessagesSquare, CalendarDays, ShoppingBag, Filter, Package, Radio } from "lucide-react";
+import { MessageCircle, MessagesSquare, CalendarDays, ShoppingBag, Filter, Package, Radio, Clapperboard } from "lucide-react";
 
 const ABAS = [
   { valor: "atendimento", label: "Atendimento (DM)", icone: MessageCircle },
@@ -17,6 +18,7 @@ const ABAS = [
   { valor: "comentarios", label: "Comentários", icone: MessagesSquare },
   { valor: "kits", label: "Kits", icone: Package },
   { valor: "live", label: "Live", icone: Radio },
+  { valor: "stories", label: "Roteiro de Stories", icone: Clapperboard },
   { valor: "publicacoes", label: "Publicações", icone: CalendarDays },
   { valor: "produtos", label: "Produtos do Post", icone: ShoppingBag },
 ];
@@ -64,6 +66,10 @@ export default function SocialCommerce() {
         </TabsContent>
         <TabsContent value="live" className="mt-4 flex-1 min-h-0 overflow-y-auto">
           <LiveTab />
+        </TabsContent>
+
+        <TabsContent value="stories" className="mt-4 flex-1 min-h-0 overflow-hidden">
+          <StoriesTab />
         </TabsContent>
 
         <TabsContent value="publicacoes" className="mt-4 space-y-4 flex-1 min-h-0 overflow-y-auto">
