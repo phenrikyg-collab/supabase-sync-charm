@@ -9,11 +9,16 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import {
-  acoesEvolucao, brl, isNil, n, rotuloSemana, valorPorUnidade, type AcoesOpcoes,
+  acoesEvolucao, acoesKpisSemanais, brl, ddmm, isNil, n, rotuloSemana, valorPorUnidade,
+  valorPorUnidadeKpi, type AcoesOpcoes,
 } from "@/lib/registroAcoes";
+import TabelaKpis, { type KpiMeta } from "@/components/registro-acoes/TabelaKpis";
 
-export default function EvolucaoTab({ opcoes }: { opcoes: AcoesOpcoes }) {
+export default function EvolucaoTab({
+  opcoes, onAbrirAcao,
+}: { opcoes: AcoesOpcoes; onAbrirAcao: (a: any) => void }) {
   const [driver, setDriver] = useState(opcoes.drivers[0]?.valor ?? "");
+  const [semanasKpi, setSemanasKpi] = useState(12);
 
   const { data, isLoading, error } = useQuery({
     queryKey: ["acoes", "evolucao"],
@@ -24,9 +29,48 @@ export default function EvolucaoTab({ opcoes }: { opcoes: AcoesOpcoes }) {
     },
   });
 
-  const meta = opcoes.drivers.find((d) => d.valor === driver);
+  const kpisQuery = useQuery({
+    queryKey: ["acoes", "kpis-semanais", semanasKpi],
+    queryFn: async () => {
+      const d = await acoesKpisSemanais(semanasKpi);
+      return (Array.isArray(d) ? d[0] ?? {} : d ?? {}) as any;
+    },
+  });
+
+  const listaKpis: KpiMeta[] = kpisQuery.data?.kpis ?? [];
+  const kpiMeta = listaKpis.find((k) => k.codigo === driver);
+  const driverMeta = opcoes.drivers.find((d) => d.valor === driver);
+  const meta = driverMeta
+    ? { rotulo: driverMeta.rotulo, unidade: driverMeta.unidade, kpi: false }
+    : kpiMeta
+      ? { rotulo: kpiMeta.nome, unidade: kpiMeta.unidade, kpi: true }
+      : { rotulo: "", unidade: undefined, kpi: false };
+
+  const semanasKpiOrdenadas = useMemo(
+    () =>
+      [...(kpisQuery.data?.semanas ?? [])].sort((a: any, b: any) =>
+        String(a.semana_inicio).localeCompare(String(b.semana_inicio)),
+      ),
+    [kpisQuery.data],
+  );
 
   const serie = useMemo(() => {
+    if (meta.kpi) {
+      return semanasKpiOrdenadas.map((s: any) => {
+        const v = s.valores?.[driver]?.valor;
+        const receita = s.valores?.receita_faturada?.valor;
+        return {
+          semana: String(s.semana_inicio),
+          rotulo: `${ddmm(s.semana_inicio)} a ${ddmm(s.semana_fim)}`,
+          parcial: !!s.parcial,
+          receita: n(receita),
+          valor: isNil(v) ? null : n(v),
+          temAcoes: (s.acoes_comerciais ?? []).length > 0,
+          acoes_titulos: (s.acoes_comerciais ?? []).map((a: any) => a.titulo),
+          bruto: s.valores,
+        };
+      });
+    }
     return (data ?? []).map((s: any) => {
       const valores = s.drivers ?? s.valores ?? s;
       return {
@@ -40,7 +84,7 @@ export default function EvolucaoTab({ opcoes }: { opcoes: AcoesOpcoes }) {
         bruto: valores,
       };
     });
-  }, [data, driver]);
+  }, [data, driver, meta.kpi, semanasKpiOrdenadas]);
 
   const serieFirme = serie.map((p) => ({ ...p, valorFirme: p.parcial ? null : p.valor }));
   const serieParcial = serie.map((p, i) => ({
