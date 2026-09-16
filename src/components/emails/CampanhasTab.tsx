@@ -604,42 +604,7 @@ function NovaCampanha({
   );
 }
 
-function ResumoCampanha({ id, onVoltar }: { id: any; onVoltar: () => void }) {
-  const { data: resumo, isLoading } = useQuery({
-    queryKey: ["emails-campanha-resumo", id],
-    queryFn: () => rpcEmails<any>("emails_campanha_resumo", { p_campanha_id: id }),
-  });
-
-  return (
-    <div className="space-y-4">
-      <Button variant="ghost" size="sm" onClick={onVoltar}>
-        <ArrowLeft className="mr-1 h-4 w-4" /> Voltar para a lista
-      </Button>
-      {isLoading && <p className="text-sm text-muted-foreground">Carregando relatório…</p>}
-      {resumo && (
-        <>
-          <h3 className="font-serif text-xl">{resumo.nome}</h3>
-          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
-            {[
-              ["Enviados", inteiro(resumo.enviados)],
-              ["Erros", inteiro(resumo.erros)],
-              ["Aberturas únicas", inteiro(resumo.aberturas_unicas)],
-              ["Cliques únicos", inteiro(resumo.cliques_unicos)],
-              ["Descadastros", inteiro(resumo.descadastros)],
-            ].map(([r, v]) => (
-              <Card key={r} className="p-4">
-                <p className="text-xs uppercase tracking-wider text-muted-foreground">{r}</p>
-                <p className="font-serif text-2xl">{v}</p>
-              </Card>
-            ))}
-          </div>
-        </>
-      )}
-    </div>
-  );
-}
-
-export function CampanhasTab({ dias }: { dias: number }) {
+export function CampanhasTab({ dias, onAbrirTemplate }: { dias: number; onAbrirTemplate?: (slug: string) => void }) {
   const [nova, setNova] = useState(false);
   const [editando, setEditando] = useState<any | null>(null);
   const [aberta, setAberta] = useState<any | null>(null);
@@ -654,7 +619,9 @@ export function CampanhasTab({ dias }: { dias: number }) {
     queryFn: async () => (await rpcEmails<any[]>("emails_campanhas_listar", { p_dias: dias })) ?? [],
   });
 
-  if (aberta) return <ResumoCampanha id={aberta} onVoltar={() => setAberta(null)} />;
+  if (aberta != null)
+    return <CampanhaDetalhe id={aberta} onVoltar={() => setAberta(null)} onAbrirTemplate={onAbrirTemplate} />;
+
 
   return (
     <div className="space-y-4">
