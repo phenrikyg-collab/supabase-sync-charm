@@ -1,10 +1,12 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
@@ -17,7 +19,10 @@ import { ArrowLeft, AlertTriangle, Loader2, Send, X } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { chamarRpc } from "@/lib/supabaseRpc";
 import BalaoWhats from "./BalaoWhats";
-import ConstrutorPublicoWpp, { montarFiltro, type Regra, type Simulacao } from "./ConstrutorPublicoWpp";
+import {
+  BlocoSimulacao, EditorRegras, filtroOuNulo, montarFiltro,
+  type Regra, type Simulacao,
+} from "./ConstrutorPublicoWpp";
 
 /** Campos que mudam de cliente para cliente. */
 const CAMPOS_CLIENTE = [
@@ -61,6 +66,10 @@ export default function NovaCampanha({ onVoltar }: { onVoltar: () => void }) {
   const [templateId, setTemplateId] = useState("");
   const [spec, setSpec] = useState<ItemSpec[]>([]);
   const [regras, setRegras] = useState<Regra[]>([]);
+  const [usarExcluir, setUsarExcluir] = useState(false);
+  const [regrasExcluir, setRegrasExcluir] = useState<Regra[]>([]);
+  const [diasSemCampanha, setDiasSemCampanha] = useState<string>("");
+  const [somenteJanelaAberta, setSomenteJanelaAberta] = useState(false);
   const [simulacao, setSimulacao] = useState<Simulacao | null>(null);
   const [amostras, setAmostras] = useState<any[] | null>(null);
   const [slug, setSlug] = useState("");
@@ -69,6 +78,18 @@ export default function NovaCampanha({ onVoltar }: { onVoltar: () => void }) {
   const [disparada, setDisparada] = useState(false);
 
   const filtro = useMemo(() => montarFiltro(regras), [regras]);
+  const excluirFiltro = useMemo(
+    () => (usarExcluir ? filtroOuNulo(regrasExcluir) : null),
+    [usarExcluir, regrasExcluir],
+  );
+  const dias = diasSemCampanha.trim() === "" ? null : Number(diasSemCampanha);
+
+  /** Parâmetros de público compartilhados pelas três RPCs. */
+  const paramsPublico = {
+    p_excluir_filtro: excluirFiltro ?? null,
+    p_dias_sem_campanha: dias ?? null,
+    p_somente_janela_aberta: somenteJanelaAberta ?? false,
+  };
 
   /* ---------- passo 1 ---------- */
   const { data: templates = [] } = useQuery({
@@ -80,9 +101,9 @@ export default function NovaCampanha({ onVoltar }: { onVoltar: () => void }) {
     },
   });
 
-  const aprovados = templates.filter(
-    (t: any) => String(t.status_aprovacao ?? "").toLowerCase() === "aprovado",
-  );
+  const status = (t: any) => String(t.status_aprovacao ?? "").toLowerCase();
+  const aprovados = templates.filter((t: any) => status(t) === "aprovado");
+  const pendentes = templates.filter((t: any) => status(t) === "pendente");
 
   const { data: detalhe, isFetching: carregandoDetalhe } = useQuery({
     queryKey: ["wpp-template-variaveis", templateId],
@@ -93,15 +114,13 @@ export default function NovaCampanha({ onVoltar }: { onVoltar: () => void }) {
       });
       if (error) throw error;
       const raiz = (Array.isArray(data) ? data[0] ?? {} : data ?? {}) as DetalheTemplate;
-      setSpec(
-        (raiz.variaveis ?? []).map(() => ({ tipo: "texto", valor: "" }) as ItemSpec),
-      );
+      setSpec((raiz.variaveis ?? []).map(() => ({ tipo: "texto", valor: "" }) as ItemSpec));
       setAmostras(null);
       return raiz;
     },
   });
 
-  const variaveis = detalhe?.variaveis ?? [];
+  const variaveis = useMemo(() => detalhe?.variaveis ?? [], [detalhe]);
   const botoesUrl = (detalhe?.botoes ?? []).filter((b) => String(b.type).toUpperCase() === "URL");
   const temBotaoUrl = botoesUrl.length > 0;
   const marketing = String(detalhe?.categoria ?? "").toUpperCase() === "MARKETING";
@@ -126,13 +145,26 @@ export default function NovaCampanha({ onVoltar }: { onVoltar: () => void }) {
   /* ---------- passo 3 ---------- */
   const simular = useMutation({
     mutationFn: async () => {
-      const { data, error } = await chamarRpc("campanhas_whatsapp_simular" as any, { p_filtro: filtro });
+      const { data, error } = await chamarRpc("campanhas_whatsapp_simular" as any, {
+        p_filtro: filtro,
+        ...paramsPublico,
+      });
       if (error) throw error;
       return (Array.isArray(data) ? data[0] ?? {} : data ?? {}) as Simulacao;
     },
     onSuccess: setSimulacao,
     onError: (e: any) => toast({ title: "Erro ao conferir público", description: e.message, variant: "destructive" }),
   });
+
+  /** Os controles de público refazem a conta sozinhos, com uma pausa curta. */
+  const simularRef = useRef(simular);
+  simularRef.current = simular;
+  const chave = JSON.stringify([filtro, excluirFiltro, dias, somenteJanelaAberta]);
+  useEffect(() => {
+    setAmostras(null);
+    const t = setTimeout(() => simularRef.current.mutate(), 500);
+    return () => clearTimeout(t);
+  }, [chave]);
 
   /* ---------- passo 4 ---------- */
   const previa = useMutation({
@@ -142,6 +174,7 @@ export default function NovaCampanha({ onVoltar }: { onVoltar: () => void }) {
         p_spec: spec,
         p_filtro: filtro,
         p_quantos: 3,
+        ...paramsPublico,
       });
       if (error) throw error;
       const raiz = (Array.isArray(data) ? data[0] ?? {} : data ?? {}) as any;
@@ -162,6 +195,7 @@ export default function NovaCampanha({ onVoltar }: { onVoltar: () => void }) {
         p_link_destino: temBotaoUrl ? destino || null : null,
         p_publico_filtro: filtro,
         p_permite_fim_semana: false,
+        ...paramsPublico,
       });
       if (error) throw error;
       const campanhaId = Array.isArray(id) ? id[0] : id;
@@ -210,7 +244,7 @@ export default function NovaCampanha({ onVoltar }: { onVoltar: () => void }) {
           </div>
           <div>
             <Label className="text-xs">Template aprovado</Label>
-            {aprovados.length === 0 ? (
+            {aprovados.length === 0 && pendentes.length === 0 ? (
               <p className="text-sm text-destructive flex items-center gap-2 mt-1">
                 <AlertTriangle className="h-4 w-4" /> Nenhum template aprovado ainda
               </p>
@@ -220,6 +254,11 @@ export default function NovaCampanha({ onVoltar }: { onVoltar: () => void }) {
                 <SelectContent>
                   {aprovados.map((t: any) => (
                     <SelectItem key={t.id} value={String(t.id)}>{t.nome}</SelectItem>
+                  ))}
+                  {pendentes.map((t: any) => (
+                    <SelectItem key={t.id} value={String(t.id)} disabled className="text-muted-foreground">
+                      {t.nome} — aguardando aprovação da Meta
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -304,15 +343,65 @@ export default function NovaCampanha({ onVoltar }: { onVoltar: () => void }) {
       </Card>
 
       {/* passo 3 */}
-      <Card className="p-4">
+      <Card className="p-4 space-y-4">
         <TituloPasso n={3} titulo="Público" />
-        <ConstrutorPublicoWpp
-          regras={regras}
-          onRegras={(r) => { setRegras(r); setSimulacao(null); setAmostras(null); }}
-          simulacao={simulacao}
-          onSimular={() => simular.mutate()}
-          simulando={simular.isPending}
-        />
+
+        <EditorRegras regras={regras} onRegras={setRegras} />
+        {regras.length === 0 && (
+          <p className="text-sm text-muted-foreground">
+            Sem nenhuma regra, a campanha vai para todo o público com telefone válido.
+          </p>
+        )}
+
+        <div className="rounded-md border p-3 space-y-3">
+          <div className="flex items-center justify-between gap-3">
+            <Label className="text-sm">Excluir quem está neste outro público</Label>
+            <Switch checked={usarExcluir} onCheckedChange={setUsarExcluir} />
+          </div>
+          {usarExcluir && (
+            <EditorRegras
+              regras={regrasExcluir}
+              onRegras={setRegrasExcluir}
+              rotuloAdicionar="Adicionar regra de exclusão"
+            />
+          )}
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div>
+            <Label className="text-xs">Não enviar para quem já recebeu campanha nos últimos N dias</Label>
+            <Input
+              type="number" min={0}
+              value={diasSemCampanha}
+              onChange={(e) => setDiasSemCampanha(e.target.value)}
+              placeholder="15"
+            />
+          </div>
+          <div className="flex items-start gap-2 pt-5">
+            <Checkbox
+              id="janela-aberta"
+              checked={somenteJanelaAberta}
+              onCheckedChange={(v) => setSomenteJanelaAberta(v === true)}
+            />
+            <div>
+              <Label htmlFor="janela-aberta" className="text-sm">
+                Somente contatos com janela aberta (últimas 24h)
+              </Label>
+              <p className="text-xs text-muted-foreground">
+                Quem mandou mensagem nas últimas 24h recebe sem custo de template.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2">
+          <Button size="sm" variant="outline" onClick={() => simular.mutate()} disabled={simular.isPending}>
+            {simular.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+            Conferir público
+          </Button>
+        </div>
+
+        <BlocoSimulacao simulacao={simulacao} carregando={simular.isPending} />
       </Card>
 
       {/* passo 4 */}

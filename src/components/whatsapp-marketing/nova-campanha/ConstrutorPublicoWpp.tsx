@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -33,25 +33,30 @@ const LISTA = ["em", "nao_em"];
 
 export type Simulacao = {
   no_publico?: number;
-  com_telefone_valido?: number;
   sem_telefone?: number;
+  cadastros_duplicados?: number;
+  contatos_unicos?: number;
   opt_out?: number;
   alvo?: number;
+  descartados?: number;
 };
 
 export function montarFiltro(regras: Regra[]) {
   return { e: regras.filter((r) => r.campo && r.op) };
 }
 
-export default function ConstrutorPublicoWpp({
-  regras, onRegras, simulacao, onSimular, simulando,
-}: {
-  regras: Regra[];
-  onRegras: (r: Regra[]) => void;
-  simulacao: Simulacao | null;
-  onSimular: () => void;
-  simulando: boolean;
-}) {
+/** Filtro só vale quando tem pelo menos uma regra completa. */
+export function filtroOuNulo(regras: Regra[]) {
+  const f = montarFiltro(regras);
+  return f.e.length > 0 ? f : null;
+}
+
+const num = (v: any) => Number(v ?? 0).toLocaleString("pt-BR");
+
+/** Construtor de regras, usado no público principal e no público de exclusão. */
+export function EditorRegras({
+  regras, onRegras, rotuloAdicionar = "Adicionar regra",
+}: { regras: Regra[]; onRegras: (r: Regra[]) => void; rotuloAdicionar?: string }) {
   const { data: campos = [] } = useQuery({
     queryKey: ["publico-campos-whatsapp"],
     queryFn: async () => {
@@ -76,12 +81,6 @@ export default function ConstrutorPublicoWpp({
 
   return (
     <div className="space-y-3">
-      {regras.length === 0 && (
-        <p className="text-sm text-muted-foreground">
-          Sem nenhuma regra, a campanha vai para todo o público com telefone válido.
-        </p>
-      )}
-
       {regras.map((r, i) => {
         const campo = campos.find((c) => c.campo === r.campo);
         const numerico = ["numero", "inteiro", "decimal", "moeda", "data"].includes(String(campo?.tipo ?? ""));
@@ -165,32 +164,39 @@ export default function ConstrutorPublicoWpp({
         );
       })}
 
-      <div className="flex flex-wrap gap-2">
-        <Button
-          variant="outline" size="sm"
-          onClick={() => onRegras([...regras, { campo: "", op: "=", valor: "" }])}
-        >
-          <Plus className="h-4 w-4 mr-1" /> Adicionar regra
-        </Button>
-        <Button size="sm" onClick={onSimular} disabled={simulando}>
-          {simulando && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-          Conferir público
-        </Button>
-      </div>
-
-      {simulacao && (
-        <Card className="p-4 space-y-2">
-          <p className="text-2xl font-serif">
-            {Number(simulacao.alvo ?? 0).toLocaleString("pt-BR")} clientes vão receber
-          </p>
-          <div className="flex flex-wrap gap-x-6 gap-y-1 text-xs text-muted-foreground">
-            <span>No público: {Number(simulacao.no_publico ?? 0).toLocaleString("pt-BR")}</span>
-            <span>Com telefone válido: {Number(simulacao.com_telefone_valido ?? 0).toLocaleString("pt-BR")}</span>
-            <span>Sem telefone: {Number(simulacao.sem_telefone ?? 0).toLocaleString("pt-BR")}</span>
-            <span>Saíram da lista: {Number(simulacao.opt_out ?? 0).toLocaleString("pt-BR")}</span>
-          </div>
-        </Card>
-      )}
+      <Button
+        variant="outline" size="sm"
+        onClick={() => onRegras([...regras, { campo: "", op: "=", valor: "" }])}
+      >
+        <Plus className="h-4 w-4 mr-1" /> {rotuloAdicionar}
+      </Button>
     </div>
+  );
+}
+
+/** Funil do público: alvo em destaque e as perdas explicadas embaixo. */
+export function BlocoSimulacao({ simulacao, carregando }: { simulacao: Simulacao | null; carregando: boolean }) {
+  if (!simulacao && !carregando) return null;
+  const s = simulacao ?? {};
+  const linhas: string[] = [];
+  if (Number(s.no_publico ?? 0) > 0) linhas.push(`de ${num(s.no_publico)} no público`);
+  if (Number(s.sem_telefone ?? 0) > 0) linhas.push(`${num(s.sem_telefone)} sem telefone válido`);
+  if (Number(s.cadastros_duplicados ?? 0) > 0)
+    linhas.push(`${num(s.cadastros_duplicados)} cadastros duplicados (mesma cliente, dois cadastros)`);
+  if (Number(s.opt_out ?? 0) > 0) linhas.push(`${num(s.opt_out)} pediram para não receber`);
+
+  return (
+    <Card className="p-4 space-y-2">
+      <div className="flex items-center gap-2">
+        <p className="text-2xl font-serif">{num(s.alvo)} clientes vão receber</p>
+        {carregando && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
+      </div>
+      <div className="space-y-0.5 text-xs text-muted-foreground">
+        {linhas.map((l, i) => <p key={i}>{l}</p>)}
+      </div>
+      <p className="text-[11px] text-muted-foreground">
+        Esse é o número que vai sair: a conferência e o preparo do envio leem a mesma conta no banco.
+      </p>
+    </Card>
   );
 }
