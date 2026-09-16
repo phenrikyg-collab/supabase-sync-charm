@@ -11,6 +11,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Trash2, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { popupsApi, type Popup } from "@/lib/popups";
+import { SeletorFigurinha } from "./SeletorFigurinha";
+import { CampoCor } from "./campos";
 
 const DIAS = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
 
