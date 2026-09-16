@@ -13,6 +13,7 @@ import {
   Film,
   RefreshCw,
   Star,
+  MessageSquareDashed,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useAuth } from "@/contexts/AuthContext";
@@ -205,6 +206,7 @@ const moduleGroups: ModuleGroup[] = [
       { title: "Provador", url: "/provador", icon: Sparkles },
       { title: "Vitrine de Vídeos", url: "/vitrine-videos", icon: Film },
       { title: "Prova Social", url: "/prova-social", icon: BellRing },
+      { title: "Popups", url: "/popups", icon: MessageSquareDashed },
       { title: "Trocas e Devoluções", url: "/trocas-site", icon: RefreshCw },
       { title: "Avaliações", url: "/avaliacoes", icon: Star },
       { title: "Avise-me", url: "/avise-me", icon: BellRing },
