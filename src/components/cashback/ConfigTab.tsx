@@ -100,16 +100,17 @@ export function ConfigTab({ resumo, onAtualizar }: { resumo: Record<string, any>
           <div className="md:col-span-2 space-y-1.5">
             <Label className="text-xs text-muted-foreground">Status de gatilho</Label>
             <div className="flex flex-wrap gap-2">
-              {Object.keys(gatilhos).length === 0 ? (
+              {gatilhos.length === 0 ? (
                 <span className="text-xs text-muted-foreground">Nenhum gatilho configurado.</span>
               ) : (
-                Object.entries(gatilhos).map(([chave, valor]) => (
-                  <Badge key={chave} variant="outline">
-                    {chave}: {Array.isArray(valor) ? valor.join(", ") : String(valor)}
-                  </Badge>
+                gatilhos.map((g) => (
+                  <Badge key={g} variant="outline">{g}</Badge>
                 ))
               )}
             </div>
+            <p className="text-xs text-muted-foreground">
+              Pedido em qualquer um destes status gera o cupom.
+            </p>
           </div>
 
           <div className="md:col-span-2">
