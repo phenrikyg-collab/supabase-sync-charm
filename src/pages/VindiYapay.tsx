@@ -18,6 +18,7 @@ import {
   Tooltip as RTooltip,
   Legend,
 } from "recharts";
+import { chamarRpc } from "@/lib/supabaseRpc";
 
 type Row = Record<string, any>;
 
@@ -102,7 +103,7 @@ export default function VindiYapay() {
   const { data, isLoading } = useQuery({
     queryKey: ["vindi_kpis", dias],
     queryFn: async () => {
-      const { data, error } = await supabase.rpc("vindi_kpis" as any, { p_dias: dias });
+      const { data, error } = await chamarRpc("vindi_kpis" as any, { p_dias: dias });
       if (error) throw error;
       return (data ?? {}) as VindiKpis;
     },

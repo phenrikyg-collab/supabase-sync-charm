@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
 import { brl, dataBR, num, pct, pick } from "@/lib/coortes";
+import { chamarRpc } from "@/lib/supabaseRpc";
 
 const PERIODOS = [30, 60, 90, 180, 365];
 
@@ -36,7 +37,7 @@ export default function RepresentatividadeTamanho() {
   const carregar = useCallback(async () => {
     setLoading(true);
     setErro(null);
-    const { data, error } = await supabase.rpc("representatividade_tamanho", {
+    const { data, error } = await chamarRpc("representatividade_tamanho", {
       p_dias: dias,
       p_classes_abc: ["A"],
     } as any);

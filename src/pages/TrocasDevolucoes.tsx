@@ -23,6 +23,7 @@ import {
   Bar, BarChart, CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip as RTooltip,
   XAxis, YAxis,
 } from "recharts";
+import { chamarRpc } from "@/lib/supabaseRpc";
 
 /* ────────────────────────── helpers ────────────────────────── */
 
@@ -120,7 +121,7 @@ export default function TrocasDevolucoes() {
   const periodos = useQuery({
     queryKey: ["trocas-periodos"],
     queryFn: async () => {
-      const { data, error } = await supabase.rpc("fn_trocas_periodos" as any);
+      const { data, error } = await chamarRpc("fn_trocas_periodos" as any);
       if (error) throw error;
       return (data ?? {}) as any;
     },
@@ -162,7 +163,7 @@ export default function TrocasDevolucoes() {
   const dash = useQuery({
     queryKey: ["trocas-dashboard", inicio, fim],
     queryFn: async () => {
-      const { data, error } = await supabase.rpc("fn_trocas_dashboard" as any, {
+      const { data, error } = await chamarRpc("fn_trocas_dashboard" as any, {
         p_inicio: inicio,
         p_fim: fim,
       });
@@ -184,7 +185,7 @@ export default function TrocasDevolucoes() {
         p_offset: pagina * LIMIT,
       };
       if (preferencia) params.p_preferencia = preferencia;
-      const { data, error } = await supabase.rpc("fn_trocas_solicitacoes" as any, params);
+      const { data, error } = await chamarRpc("fn_trocas_solicitacoes" as any, params);
       if (error) throw error;
       return (data ?? {}) as any;
     },
@@ -845,7 +846,7 @@ function ReembolsosTab() {
   const q = useQuery({
     queryKey: ["trocas-reembolsos"],
     queryFn: async () => {
-      const { data, error } = await supabase.rpc("fn_trocas_reembolsos" as any);
+      const { data, error } = await chamarRpc("fn_trocas_reembolsos" as any);
       if (error) throw error;
       return data as any;
     },

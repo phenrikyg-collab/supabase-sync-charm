@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/tooltip";
 import { brl, dec, ddmm, int, num, pct } from "@/lib/gestaoFormat";
 import { cn } from "@/lib/utils";
+import { chamarRpc } from "@/lib/supabaseRpc";
 
 const CPA_PISO = 131.46;
 
@@ -23,7 +24,7 @@ export default function MetaAdsDiario() {
   const { data: linhas = [], isLoading } = useQuery({
     queryKey: ["gestao-meta-diario", dias],
     queryFn: async () => {
-      const { data, error } = await supabase.rpc("meta_acompanhamento_diario" as any, { p_dias: Number(dias) });
+      const { data, error } = await chamarRpc("meta_acompanhamento_diario" as any, { p_dias: Number(dias) });
       if (error) throw error;
       const arr = Array.isArray(data) ? data : [];
       return [...arr].sort((a: any, b: any) => String(b.data).localeCompare(String(a.data)));

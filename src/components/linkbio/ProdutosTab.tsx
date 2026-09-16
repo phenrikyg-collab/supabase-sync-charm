@@ -16,6 +16,7 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { chamarRpc } from "@/lib/supabaseRpc";
 
 type Produto = {
   id?: string;
@@ -66,7 +67,7 @@ export function ProdutosTab() {
   const { data, isLoading } = useQuery({
     queryKey: ["linkbio-admin-produtos-destaque"],
     queryFn: async () => {
-      const { data, error } = await supabase.rpc("linkbio_admin_listar_produtos_destaque" as any);
+      const { data, error } = await chamarRpc("linkbio_admin_listar_produtos_destaque" as any);
       if (error) throw error;
       return data as any;
     },
@@ -95,7 +96,7 @@ export function ProdutosTab() {
   }, [data]);
 
   const salvarProduto = async (p: Produto, ordem: number) => {
-    const { error } = await supabase.rpc("linkbio_admin_upsert_produto_destaque" as any, {
+    const { error } = await chamarRpc("linkbio_admin_upsert_produto_destaque" as any, {
       p_id: p.id ?? null,
       p_badge: p.badge || null,
       p_titulo: p.titulo,
@@ -133,7 +134,7 @@ export function ProdutosTab() {
 
   const confirmarExclusao = async () => {
     if (!excluir?.id) { setExcluir(null); return; }
-    const { error } = await supabase.rpc("linkbio_admin_delete_produto_destaque" as any, { p_id: excluir.id });
+    const { error } = await chamarRpc("linkbio_admin_delete_produto_destaque" as any, { p_id: excluir.id });
     setExcluir(null);
     if (error) return toast.error(error.message);
     toast.success("Produto excluído.");

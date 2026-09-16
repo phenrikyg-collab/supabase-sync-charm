@@ -10,6 +10,7 @@ import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { ChevronDown, Clock, CreditCard, Package, Scissors, Sparkles, StickyNote, Tag, UserX } from "lucide-react";
 import { formatarPreco } from "./CatalogoDialog";
+import { chamarRpc } from "@/lib/supabaseRpc";
 
 type Perfil = {
   vinculado?: boolean;
@@ -86,7 +87,7 @@ function NotasInternas({ conversaId, autor }: { conversaId: number | string; aut
   const { data: notas = [] } = useQuery({
     queryKey: ["whatsapp-notas", String(conversaId)],
     queryFn: async () => {
-      const { data, error } = await supabase.rpc("whatsapp_listar_notas" as any, { p_conversa_id: pId });
+      const { data, error } = await chamarRpc("whatsapp_listar_notas" as any, { p_conversa_id: pId });
       if (error) throw error;
       return (data ?? []) as Nota[];
     },
@@ -95,7 +96,7 @@ function NotasInternas({ conversaId, autor }: { conversaId: number | string; aut
   const adicionar = async () => {
     if (!texto.trim()) return;
     setSalvando(true);
-    const { error } = await supabase.rpc("whatsapp_criar_nota" as any, {
+    const { error } = await chamarRpc("whatsapp_criar_nota" as any, {
       p_conversa_id: pId,
       p_autor: autor,
       p_conteudo: texto.trim(),
@@ -307,7 +308,7 @@ export function PerfilCliente({
   const { data: perfil, isLoading } = useQuery({
     queryKey: ["whatsapp-perfil", String(conversaId)],
     queryFn: async () => {
-      const { data, error } = await supabase.rpc("whatsapp_get_perfil_cliente" as any, { p_conversa_id: pId });
+      const { data, error } = await chamarRpc("whatsapp_get_perfil_cliente" as any, { p_conversa_id: pId });
       if (error) throw error;
       const row = Array.isArray(data) ? data[0] : data;
       return (row ?? null) as Perfil | null;

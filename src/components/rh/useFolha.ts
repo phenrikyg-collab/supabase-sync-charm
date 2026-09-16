@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { chamarRpc } from "@/lib/supabaseRpc";
 
 export interface PagamentoFolha {
   id: string;
@@ -69,7 +70,7 @@ export function useFolhaMes(competencia: string) {
   return useQuery({
     queryKey: ["rh-folha-mes", competencia],
     queryFn: async (): Promise<FolhaMes> => {
-      const { data, error } = await supabase.rpc("rh_folha_mes", { p_competencia: competencia });
+      const { data, error } = await chamarRpc("rh_folha_mes", { p_competencia: competencia });
       if (error) throw error;
       return (data ?? {}) as FolhaMes;
     },

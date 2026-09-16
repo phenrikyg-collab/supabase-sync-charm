@@ -85,6 +85,7 @@ import {
   AlertTriangle, CalendarDays, Check, ChevronLeft, ChevronRight, Copy, Eye, List, Loader2,
   Megaphone, Plus, Sparkles, Upload, Zap, ZapOff,
 } from "lucide-react";
+import { chamarRpc } from "@/lib/supabaseRpc";
 
 type Publicacao = {
   id?: string | number;
@@ -805,7 +806,7 @@ export function PublicacoesTab() {
           tiktok: { ativo: false },
         };
 
-        const { data, error } = await supabase.rpc("fn_publicacao_salvar", { p });
+        const { data, error } = await chamarRpc("fn_publicacao_salvar", { p });
         // Mensagens do banco vêm em português e específicas — mostrar como vieram.
         if (error) throw new Error(error.message);
         if (data?.ok === false) throw new Error(data.erro ?? "Falha ao salvar");

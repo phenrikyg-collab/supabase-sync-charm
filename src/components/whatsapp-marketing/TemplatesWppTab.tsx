@@ -20,6 +20,7 @@ import { Plus, Send, Loader2, X, Link2, AlertTriangle } from "lucide-react";
 import {
   crmDestinosListar, botoesUrl, corpoTemUrl, removerUrlDoCorpo,
 } from "@/lib/crmLinks";
+import { chamarRpc } from "@/lib/supabaseRpc";
 
 type Template = {
   id: number | string;
@@ -80,7 +81,7 @@ function NovoTemplateDialog({ open, onOpenChange }: { open: boolean; onOpenChang
       const p_botoes = botaoAtivo && portaEscolhida?.url
         ? [{ type: "URL", text: botaoTexto, url: portaEscolhida.url }]
         : null;
-      const { error } = await supabase.rpc("whatsapp_templates_salvar_rascunho" as any, {
+      const { error } = await chamarRpc("whatsapp_templates_salvar_rascunho" as any, {
         p_nome: nome,
         p_categoria: categoria,
         p_idioma: idioma,
@@ -262,7 +263,7 @@ export function TemplatesWppTab() {
   const { data: templates = [], isLoading } = useQuery({
     queryKey: ["wpp-templates"],
     queryFn: async () => {
-      const { data, error } = await supabase.rpc("whatsapp_templates_listar" as any);
+      const { data, error } = await chamarRpc("whatsapp_templates_listar" as any);
       if (error) throw error;
       return (data ?? []) as Template[];
     },

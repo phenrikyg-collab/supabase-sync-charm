@@ -18,6 +18,7 @@ import { parseValorBR, formatValorBR } from "@/lib/rhMoeda";
 import { ValesSection } from "./ValesSection";
 import { useRegerarFechamento } from "./useRegerarFechamento";
 import { cn } from "@/lib/utils";
+import { chamarRpc } from "@/lib/supabaseRpc";
 
 function StatusPagamento({ p }: { p?: PagamentoFolha }) {
   if (!p) return null;
@@ -43,7 +44,7 @@ function ConfirmacaoManual({ p, onSalvo }: { p: PagamentoFolha; onSalvo: () => v
 
   const confirmar = async () => {
     setSalvando(true);
-    const { error } = await supabase.rpc("rh_folha_marcar_pago" as any, {
+    const { error } = await chamarRpc("rh_folha_marcar_pago" as any, {
       p_ids: [p.id],
       p_pago_em: data,
       p_obs: observacao || null,
@@ -58,7 +59,7 @@ function ConfirmacaoManual({ p, onSalvo }: { p: PagamentoFolha; onSalvo: () => v
   const desfazer = async (e: React.MouseEvent) => {
     e.stopPropagation();
     setSalvando(true);
-    const { error } = await supabase.rpc("rh_folha_desmarcar_pago" as any, { p_ids: [p.id] });
+    const { error } = await chamarRpc("rh_folha_desmarcar_pago" as any, { p_ids: [p.id] });
     setSalvando(false);
     if (error) return toast({ title: "Erro ao desfazer pagamento", description: erroRh(error).mensagem, variant: "destructive" });
     toast({ title: "Confirmação desfeita" });
@@ -206,7 +207,7 @@ function ValorEditavel({
     }
     setSalvando(true);
     const { data: sess } = await supabase.auth.getUser();
-    const { data, error } = await supabase.rpc("rh_folha_valor_definir" as any, {
+    const { data, error } = await chamarRpc("rh_folha_valor_definir" as any, {
       p_id: p.id,
       p_valor: novo,
       p_por: sess?.user?.email ?? "",
@@ -223,7 +224,7 @@ function ValorEditavel({
   const limpar = async (e: React.MouseEvent) => {
     e.stopPropagation();
     setSalvando(true);
-    const { error } = await supabase.rpc("rh_folha_valor_limpar" as any, { p_id: p.id });
+    const { error } = await chamarRpc("rh_folha_valor_limpar" as any, { p_id: p.id });
     setSalvando(false);
     if (error) return toast({ title: "Erro", description: erroRh(error).mensagem, variant: "destructive" });
     toast({ title: "Voltou ao cálculo automático" });
@@ -377,7 +378,7 @@ export function FolhaMesTab({
 
   const executarConfirmacaoVa = async (simular: boolean) => {
     simular ? setSimulandoVa(true) : setConfirmandoVa(true);
-    const { data: retorno, error } = await supabase.rpc("rh_folha_confirmar_tipo" as any, {
+    const { data: retorno, error } = await chamarRpc("rh_folha_confirmar_tipo" as any, {
       p_competencia: competencia,
       p_tipo: "va",
       p_pago_em: dataVa,
@@ -401,7 +402,7 @@ export function FolhaMesTab({
 
   const gerar = async () => {
     setGerando(true);
-    const { error } = await supabase.rpc("rh_folha_gerar", { p_competencia: competencia });
+    const { error } = await chamarRpc("rh_folha_gerar", { p_competencia: competencia });
     setGerando(false);
     if (error) return toast({ title: "Erro ao gerar folha", description: erroRh(error).mensagem, variant: "destructive" });
     toast({ title: "Lançamentos gerados" });
@@ -645,7 +646,7 @@ function LinhaFuncionario({
         variant: "destructive",
       });
     setSalvandoFaltas(true);
-    const { data, error } = await supabase.rpc("rh_faltas_registrar", {
+    const { data, error } = await chamarRpc("rh_faltas_registrar", {
       p_funcionario_id: funcId,
       p_competencia: competencia,
       p_dias: Number(faltas) || 0,
@@ -672,7 +673,7 @@ function LinhaFuncionario({
   const atualizar = async (extra: Record<string, any> = {}) => {
     if (!saldo?.id) return;
     setSalvando(true);
-    const { error } = await supabase.rpc("rh_folha_pagamento_atualizar", {
+    const { error } = await chamarRpc("rh_folha_pagamento_atualizar", {
       p_id: saldo.id,
       p_valor_liquido: parseValorBR(liquido),
       p_status: null,

@@ -7,6 +7,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "@/hooks/use-toast";
 import { Plus, Tag as TagIcon } from "lucide-react";
+import { chamarRpc } from "@/lib/supabaseRpc";
 
 export type Tag = { id: number | string; nome: string; cor?: string | null };
 
@@ -39,7 +40,7 @@ export function TagsConversa({
   const { data: tags = [] } = useQuery({
     queryKey: ["whatsapp-tags"],
     queryFn: async () => {
-      const { data, error } = await supabase.rpc("whatsapp_listar_tags" as any);
+      const { data, error } = await chamarRpc("whatsapp_listar_tags" as any);
       if (error) throw error;
       return (data ?? []) as Tag[];
     },
@@ -51,7 +52,7 @@ export function TagsConversa({
   const { data: aplicadasAtuais = [] } = useQuery({
     queryKey: chaveConversa,
     queryFn: async () => {
-      const { data, error } = await supabase.rpc("whatsapp_tags_da_conversa" as any, {
+      const { data, error } = await chamarRpc("whatsapp_tags_da_conversa" as any, {
         p_conversa_id: idParam,
       });
       if (error) throw error;
@@ -64,7 +65,7 @@ export function TagsConversa({
 
   const toggleMutation = useMutation({
     mutationFn: async ({ tag, adicionar }: { tag: Tag; adicionar: boolean }) => {
-      const { error } = await supabase.rpc("whatsapp_toggle_tag_conversa" as any, {
+      const { error } = await chamarRpc("whatsapp_toggle_tag_conversa" as any, {
         p_conversa_id: idParam,
         p_tag_id: Number.isNaN(Number(tag.id)) ? tag.id : Number(tag.id),
         p_adicionar: adicionar,
@@ -99,7 +100,7 @@ export function TagsConversa({
     if (!novoNome.trim()) return;
     const nome = novoNome.trim();
     setCriando(true);
-    const { data, error } = await supabase.rpc("whatsapp_criar_tag" as any, {
+    const { data, error } = await chamarRpc("whatsapp_criar_tag" as any, {
       p_nome: nome,
       p_cor: novaCor,
     });

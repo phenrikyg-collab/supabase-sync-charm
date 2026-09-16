@@ -22,6 +22,7 @@ import {
   telefoneValido,
 } from "@/lib/rhWhatsapp";
 import { AvisoEvolution } from "./AvisoEvolution";
+import { chamarRpc } from "@/lib/supabaseRpc";
 
 export function EnviarWhatsAppDialog({
   open,
@@ -61,7 +62,7 @@ export function EnviarWhatsAppDialog({
     queryKey: ["rh-wa-destinatario", funcionarioId],
     enabled: open && !!funcionarioId && !whatsapp,
     queryFn: async () => {
-      const { data, error } = await supabase.rpc("rh_whatsapp_destinatario" as any, {
+      const { data, error } = await chamarRpc("rh_whatsapp_destinatario" as any, {
         p_funcionario_id: funcionarioId,
       });
       if (error) throw error;

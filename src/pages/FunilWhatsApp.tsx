@@ -22,6 +22,7 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { FilaFollowups, ResumoFollowups, TemplatesFollowup } from "@/components/funil/FollowUps";
 import { Loader2, MoreVertical, RefreshCw, MessageCircle, TrendingDown } from "lucide-react";
+import { chamarRpc } from "@/lib/supabaseRpc";
 
 type Etapa = "atendimento" | "interesse" | "pagamento_enviado" | "pago" | "perdido";
 
@@ -157,7 +158,7 @@ function FunilDoDia() {
 
   const carregar = useCallback(async (silencioso = false) => {
     if (!silencioso) setLoading(true);
-    const { data: rows, error } = await supabase.rpc("funil_atendimentos_lista", {
+    const { data: rows, error } = await chamarRpc("funil_atendimentos_lista", {
       p_inicio: data,
       p_fim: data,
       p_canal: "whatsapp",
@@ -193,7 +194,7 @@ function FunilDoDia() {
       if (extras?.valor !== undefined) params.p_valor = extras.valor;
       if (extras?.motivo) params.p_motivo = extras.motivo;
 
-      const { error } = await supabase.rpc("funil_set_etapa", params as never);
+      const { error } = await chamarRpc("funil_set_etapa", params as never);
       if (error) {
         setItens(anterior);
         toast.error("Não foi possível mover: " + error.message);
@@ -437,7 +438,7 @@ export function DashboardFunil() {
     let ativo = true;
     (async () => {
       setLoading(true);
-      const { data, error } = await supabase.rpc("funil_dashboard", { p_inicio: inicio, p_fim: fim });
+      const { data, error } = await chamarRpc("funil_dashboard", { p_inicio: inicio, p_fim: fim });
       if (!ativo) return;
       if (error) toast.error("Erro ao carregar dashboard: " + error.message);
       else setDados((data as unknown) as Dashboard);

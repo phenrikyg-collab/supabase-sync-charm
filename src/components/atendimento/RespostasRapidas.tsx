@@ -18,6 +18,7 @@ import {
 import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { Pencil, Plus, Search, Trash2, Zap } from "lucide-react";
+import { chamarRpc } from "@/lib/supabaseRpc";
 
 export type RespostaRapida = {
   id: string | number;
@@ -33,7 +34,7 @@ export function useRespostasRapidas(incluirInativas = false) {
   return useQuery({
     queryKey: ["whatsapp-respostas-rapidas", incluirInativas],
     queryFn: async () => {
-      const { data, error } = await supabase.rpc("whatsapp_respostas_rapidas" as any, {
+      const { data, error } = await chamarRpc("whatsapp_respostas_rapidas" as any, {
         p_busca: null,
         p_incluir_inativas: incluirInativas,
       });
@@ -52,7 +53,7 @@ export function filtrarRespostas(lista: RespostaRapida[], termo: string) {
 }
 
 export async function registrarUso(id: string | number) {
-  await supabase.rpc("whatsapp_usar_resposta_rapida" as any, { p_id: id });
+  await chamarRpc("whatsapp_usar_resposta_rapida" as any, { p_id: id });
 }
 
 /** Lista navegável usada tanto pelo atalho "/" quanto pelo botão do compositor */
@@ -165,7 +166,7 @@ function DialogResposta({
 
   const salvar = useMutation({
     mutationFn: async () => {
-      const { data, error } = await supabase.rpc("whatsapp_salvar_resposta_rapida" as any, {
+      const { data, error } = await chamarRpc("whatsapp_salvar_resposta_rapida" as any, {
         p_titulo: titulo.trim(),
         p_texto: texto.trim(),
         p_atalho: atalho.trim() || null,
@@ -249,7 +250,7 @@ export function MensagensRapidasTab() {
 
   const alternarAtivo = useMutation({
     mutationFn: async (r: RespostaRapida) => {
-      const { data, error } = await supabase.rpc("whatsapp_salvar_resposta_rapida" as any, {
+      const { data, error } = await chamarRpc("whatsapp_salvar_resposta_rapida" as any, {
         p_titulo: r.titulo,
         p_texto: r.texto,
         p_atalho: r.atalho,
@@ -267,7 +268,7 @@ export function MensagensRapidasTab() {
 
   const apagar = useMutation({
     mutationFn: async (id: string | number) => {
-      const { error } = await supabase.rpc("whatsapp_excluir_resposta_rapida" as any, { p_id: id });
+      const { error } = await chamarRpc("whatsapp_excluir_resposta_rapida" as any, { p_id: id });
       if (error) throw error;
     },
     onSuccess: () => {

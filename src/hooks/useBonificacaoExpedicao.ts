@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useMemo } from "react";
 import { startOfMonth, endOfMonth, format, parse } from "date-fns";
+import { chamarRpc } from "@/lib/supabaseRpc";
 
 async function fetchAll<T = any>(
   table: string,
@@ -175,7 +176,7 @@ export function useTopAtrasados(limit = 15) {
   return useQuery<PedidoAtrasado[]>({
     queryKey: ["expedicao-top-atrasados", limit],
     queryFn: async () => {
-      const { data, error } = await supabase.rpc("expedicao_top_atrasados", { p_limit: limit });
+      const { data, error } = await chamarRpc("expedicao_top_atrasados", { p_limit: limit });
       if (error) throw error;
       return (data ?? []) as unknown as PedidoAtrasado[];
     },
@@ -186,7 +187,7 @@ export function useRecalcularExpedicao() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (mes: string | null) => {
-      const { error } = await supabase.rpc("calcular_bonificacao_expedicao", { p_mes: mes });
+      const { error } = await chamarRpc("calcular_bonificacao_expedicao", { p_mes: mes });
       if (error) throw error;
     },
     onSuccess: () => {
@@ -256,7 +257,7 @@ export function useResumoAbertos() {
   return useQuery<ResumoAbertos>({
     queryKey: ["expedicao-resumo-abertos"],
     queryFn: async () => {
-      const { data, error } = await supabase.rpc("expedicao_resumo_pedidos_abertos");
+      const { data, error } = await chamarRpc("expedicao_resumo_pedidos_abertos");
       if (error) throw error;
       const row = Array.isArray(data) ? data[0] : data;
       return (row ?? {
@@ -286,7 +287,7 @@ export function useProdutosParados(limit = 200) {
   return useQuery<ProdutoParado[]>({
     queryKey: ["expedicao-produtos-parados", limit],
     queryFn: async () => {
-      const { data, error } = await supabase.rpc("expedicao_produtos_parados", { p_limit: limit });
+      const { data, error } = await chamarRpc("expedicao_produtos_parados", { p_limit: limit });
       if (error) throw error;
       return (data ?? []) as unknown as ProdutoParado[];
     },

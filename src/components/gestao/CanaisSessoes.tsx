@@ -15,6 +15,7 @@ import {
 } from "recharts";
 import { brl, dec, ddmm, int, num, pct } from "@/lib/gestaoFormat";
 import { cn } from "@/lib/utils";
+import { chamarRpc } from "@/lib/supabaseRpc";
 
 function Seta({ v }: { v: number | null }) {
   if (v === null || !Number.isFinite(v)) return <span className="text-xs text-muted-foreground">—</span>;
@@ -33,7 +34,7 @@ export default function CanaisSessoes() {
   const { data: canais = [], isLoading } = useQuery({
     queryKey: ["gestao-canais", dias],
     queryFn: async () => {
-      const { data, error } = await supabase.rpc("canais_desempenho" as any, { p_dias: Number(dias) });
+      const { data, error } = await chamarRpc("canais_desempenho" as any, { p_dias: Number(dias) });
       if (error) throw error;
       return (Array.isArray(data) ? data : []) as any[];
     },
@@ -42,7 +43,7 @@ export default function CanaisSessoes() {
   const { data: sessoes = [] } = useQuery({
     queryKey: ["gestao-sessoes-comparativo"],
     queryFn: async () => {
-      const { data, error } = await supabase.rpc("sessoes_comparativo_diario" as any, { p_dias: 14 });
+      const { data, error } = await chamarRpc("sessoes_comparativo_diario" as any, { p_dias: 14 });
       if (error) throw error;
       return (Array.isArray(data) ? data : []) as any[];
     },

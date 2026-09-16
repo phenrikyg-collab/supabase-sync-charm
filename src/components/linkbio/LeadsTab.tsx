@@ -14,6 +14,7 @@ import {
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
+import { chamarRpc } from "@/lib/supabaseRpc";
 
 const PAGE_SIZE = 50;
 
@@ -51,7 +52,7 @@ export function LeadsTab() {
   const { data: comparativo, isLoading: loadingComparativo } = useQuery({
     queryKey: ["linkbio-comparativo-semanal", semanas],
     queryFn: async () => {
-      const { data, error } = await supabase.rpc("linkbio_admin_comparativo_semanal" as any, {
+      const { data, error } = await chamarRpc("linkbio_admin_comparativo_semanal" as any, {
         p_semanas: Number(semanas),
       });
       if (error) throw error;
@@ -82,7 +83,7 @@ export function LeadsTab() {
   const { data: metricas, isLoading: loadingMetricas } = useQuery({
     queryKey: ["linkbio-metricas", dias],
     queryFn: async () => {
-      const { data, error } = await supabase.rpc("linkbio_admin_metricas" as any, { p_dias: Number(dias) });
+      const { data, error } = await chamarRpc("linkbio_admin_metricas" as any, { p_dias: Number(dias) });
       if (error) throw error;
       return (Array.isArray(data) ? data[0] : data) as any;
     },
@@ -91,7 +92,7 @@ export function LeadsTab() {
   const { data: leads = [], isLoading: loadingLeads } = useQuery({
     queryKey: ["linkbio-leads", pagina],
     queryFn: async () => {
-      const { data, error } = await supabase.rpc("linkbio_admin_list_leads" as any, {
+      const { data, error } = await chamarRpc("linkbio_admin_list_leads" as any, {
         p_limit: PAGE_SIZE,
         p_offset: pagina * PAGE_SIZE,
       });

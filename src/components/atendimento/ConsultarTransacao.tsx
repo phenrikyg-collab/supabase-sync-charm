@@ -10,6 +10,7 @@ import { formatarData } from "@/utils/formatters";
 import { ExternalLink, Loader2, Search } from "lucide-react";
 import { statusPagamentoClasses, rotuloStatusPagamento } from "@/lib/statusPagamento";
 import { ListaTransacoesAtendimento } from "@/components/atendimento/ListaTransacoes";
+import { chamarRpc } from "@/lib/supabaseRpc";
 
 interface ResultadoConsulta {
   pedido_id: string | number;
@@ -36,7 +37,7 @@ export function ConsultarTransacaoTab() {
     if (!pedido.trim() && !telefone.trim()) return;
     setCarregando(true);
     try {
-      const { data, error } = await supabase.rpc("atendimento_consultar_transacao" as any, {
+      const { data, error } = await chamarRpc("atendimento_consultar_transacao" as any, {
         p_pedido_id: pedido.trim() || null,
         p_telefone: telefone.replace(/\D/g, "") || null,
       });

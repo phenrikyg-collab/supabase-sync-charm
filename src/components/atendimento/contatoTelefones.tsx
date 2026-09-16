@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { chamarRpc } from "@/lib/supabaseRpc";
 
 export type ContatoTelefone = {
   telefone_in: string | null;
@@ -48,7 +49,7 @@ export function useContatoPorTelefones(telefones: (string | null | undefined)[])
     enabled: lista.length > 0,
     staleTime: 60000,
     queryFn: async () => {
-      const { data, error } = await supabase.rpc("whatsapp_contato_por_telefones" as any, {
+      const { data, error } = await chamarRpc("whatsapp_contato_por_telefones" as any, {
         p_telefones: lista,
       });
       if (error) throw error;

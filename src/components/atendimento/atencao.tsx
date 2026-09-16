@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
+import { chamarRpc } from "@/lib/supabaseRpc";
 
 export type ConversaAtencao = {
   conversa_id: string | number;
@@ -72,7 +73,7 @@ export function SeloFila({ conversaId }: { conversaId: string | number }) {
     queryKey: ["fila-posicao", String(conversaId)],
     refetchInterval: 30000,
     queryFn: async () => {
-      const { data, error } = await supabase.rpc("fila_posicao" as any, {
+      const { data, error } = await chamarRpc("fila_posicao" as any, {
         conversa_id: Number.isNaN(Number(conversaId)) ? conversaId : Number(conversaId),
       });
       if (error) throw error;

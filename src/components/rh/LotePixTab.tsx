@@ -18,6 +18,7 @@ import { RefreshCw, Info, Archive, ArchiveRestore } from "lucide-react";
 import { brl, dataBR, hojeISO, competenciaLabel, LOTE_STATUS, ITEM_STATUS, TIPO_LABEL, valorPagamento } from "@/lib/rh";
 import { useFolhaMes } from "./useFolha";
 import { cn } from "@/lib/utils";
+import { chamarRpc } from "@/lib/supabaseRpc";
 
 class LoteErrorBoundary extends Component<{ children: ReactNode }, { erro: Error | null }> {
   state = { erro: null as Error | null };
@@ -99,7 +100,7 @@ function LotePixConteudo({ competencia }: { competencia: string }) {
 
   const gerarLote = async () => {
     setGerando(true);
-    const { error } = await supabase.rpc("rh_folha_lote_gerar", {
+    const { error } = await chamarRpc("rh_folha_lote_gerar", {
       p_ids: selecionados.map((l) => l.id),
       p_descricao: `Folha ${competenciaLabel(competencia)}`,
       p_criado_por: emailUsuario || "—",
@@ -209,7 +210,7 @@ function ListaLotes() {
   const { data: lotes, isLoading, refetch, isFetching } = useQuery({
     queryKey: ["rh-lotes", mostrarArquivados],
     queryFn: async () => {
-      const { data, error } = await supabase.rpc("rh_lotes_listar", {
+      const { data, error } = await chamarRpc("rh_lotes_listar", {
         p_limite: 20,
         p_incluir_arquivados: mostrarArquivados,
       } as any);
@@ -219,7 +220,7 @@ function ListaLotes() {
   });
 
   const cancelar = async (id: string) => {
-    const { error } = await supabase.rpc("rh_lote_cancelar", { p_lote_id: id });
+    const { error } = await chamarRpc("rh_lote_cancelar", { p_lote_id: id });
     if (error) return toast({ title: "Erro", description: erroRh(error).mensagem, variant: "destructive" });
     toast({ title: "Lote cancelado" });
     qc.invalidateQueries({ queryKey: ["rh-lotes"] });
@@ -228,7 +229,7 @@ function ListaLotes() {
 
   const arquivar = async (l: any, arquivar: boolean) => {
     if (arquivar && !window.confirm("Arquivar este lote? O histórico bancário é preservado.")) return;
-    const { error } = await supabase.rpc("rh_lote_arquivar" as any, { p_lote_id: l.id, p_arquivar: arquivar });
+    const { error } = await chamarRpc("rh_lote_arquivar" as any, { p_lote_id: l.id, p_arquivar: arquivar });
     if (error) return toast({ title: "Erro", description: erroRh(error).mensagem, variant: "destructive" });
     toast({ title: arquivar ? "Lote arquivado" : "Lote desarquivado" });
     qc.invalidateQueries({ queryKey: ["rh-lotes"] });
@@ -366,7 +367,7 @@ function useLoteDetalhe(loteId?: string) {
   return useQuery({
     queryKey: ["rh-lote-detalhe", loteId],
     queryFn: async () => {
-      const { data, error } = await supabase.rpc("rh_lote_detalhe", { p_lote_id: loteId });
+      const { data, error } = await chamarRpc("rh_lote_detalhe", { p_lote_id: loteId });
       if (error) throw error;
       return normalizarDetalhe(data);
     },
@@ -484,7 +485,7 @@ function AprovarLoteDialog({ lote, onClose, aprovadoPor }: { lote: any | null; o
       return toast({ title: "Valor inválido", description: "Digite o total no formato 1.234,56.", variant: "destructive" });
     }
     setSalvando(true);
-    const { error } = await supabase.rpc("rh_lote_aprovar", {
+    const { error } = await chamarRpc("rh_lote_aprovar", {
       p_lote_id: lote.id,
       p_total_conferido: Number(totalDigitado.toFixed(2)),
       p_aprovado_por: aprovadoPor || "—",

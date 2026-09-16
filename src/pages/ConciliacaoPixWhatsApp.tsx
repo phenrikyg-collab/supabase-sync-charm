@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils";
 import { SeletorDias } from "@/components/financeiro/SeletorDias";
 import { brl, num, dataBr } from "@/lib/financeiroFormat";
 import { AlertCircle, CheckCircle2 } from "lucide-react";
+import { chamarRpc } from "@/lib/supabaseRpc";
 
 type Row = Record<string, any>;
 
@@ -88,7 +89,7 @@ export default function ConciliacaoPixWhatsApp() {
   const { data, isLoading } = useQuery({
     queryKey: ["conciliacao_pix_whatsapp", dias],
     queryFn: async () => {
-      const { data, error } = await supabase.rpc("conciliacao_pix_whatsapp" as any, { p_dias: dias });
+      const { data, error } = await chamarRpc("conciliacao_pix_whatsapp" as any, { p_dias: dias });
       if (error) throw error;
       return (data ?? {}) as ConciliacaoPayload;
     },

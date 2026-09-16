@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AlertTriangle, Loader2 } from "lucide-react";
+import { chamarRpc } from "@/lib/supabaseRpc";
 
 /* ───────── helpers ───────── */
 
@@ -57,7 +58,7 @@ export function AcoesDoPainel({ requestId }: { requestId: any }) {
   const q = useQuery({
     queryKey: ["trocas-acoes", requestId],
     queryFn: async () => {
-      const { data, error } = await supabase.rpc("fn_trocas_acoes" as any, { p_request_id: requestId });
+      const { data, error } = await chamarRpc("fn_trocas_acoes" as any, { p_request_id: requestId });
       if (error) throw error;
       return data as any;
     },

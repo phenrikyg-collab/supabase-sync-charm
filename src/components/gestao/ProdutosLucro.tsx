@@ -17,6 +17,7 @@ import {
   BadgeClassificacao, CardMargemContribuicao, CelulaMargemContrib, Variacao, corClassificacao, fundoClassificacao,
 } from "@/components/gestao/margemContribuicao";
 import { cn } from "@/lib/utils";
+import { chamarRpc } from "@/lib/supabaseRpc";
 
 const PERIODOS = [7, 30, 90];
 
@@ -52,7 +53,7 @@ export default function ProdutosLucro() {
   const { data, isLoading } = useQuery({
     queryKey: ["produtos-lucro", dias, canal],
     queryFn: async () => {
-      const { data, error } = await supabase.rpc("produtos_lucro" as any, {
+      const { data, error } = await chamarRpc("produtos_lucro" as any, {
         p_dias: dias,
         p_canal: canal === "todos" ? null : canal,
       });

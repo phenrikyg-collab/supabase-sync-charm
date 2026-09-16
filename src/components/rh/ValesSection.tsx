@@ -11,6 +11,7 @@ import { Plus, Trash2, RefreshCw } from "lucide-react";
 import { brl, dataBRCompleta, hojeISO } from "@/lib/rh";
 import { erroRh } from "./useRhAuth";
 import type { ValeFolha } from "./useFolha";
+import { chamarRpc } from "@/lib/supabaseRpc";
 
 export function ValesSection({
   funcionarioId,
@@ -32,7 +33,7 @@ export function ValesSection({
   const { data: vales, isLoading, refetch } = useQuery({
     queryKey: ["rh-vales", competencia, funcionarioId],
     queryFn: async (): Promise<ValeFolha[]> => {
-      const { data, error } = await supabase.rpc("rh_vales_listar", {
+      const { data, error } = await chamarRpc("rh_vales_listar", {
         p_competencia: competencia,
         p_funcionario_id: funcionarioId,
       } as any);
@@ -45,7 +46,7 @@ export function ValesSection({
 
   const regerar = async () => {
     setRegerando(true);
-    const { error } = await supabase.rpc("rh_holerites_gerar", {
+    const { error } = await chamarRpc("rh_holerites_gerar", {
       p_competencia: competencia,
       p_tipo: "fechamento",
     } as any);
@@ -77,7 +78,7 @@ export function ValesSection({
         variant: "destructive",
       });
     setSalvando(true);
-    const { data: r, error } = await supabase.rpc("rh_vale_registrar", {
+    const { data: r, error } = await chamarRpc("rh_vale_registrar", {
       p_funcionario_id: funcionarioId,
       p_competencia: competencia,
       p_valor: v,
@@ -98,7 +99,7 @@ export function ValesSection({
   };
 
   const remover = async (id: string) => {
-    const { data: r, error } = await supabase.rpc("rh_vale_remover", { p_id: id } as any);
+    const { data: r, error } = await chamarRpc("rh_vale_remover", { p_id: id } as any);
     if (error)
       return toast({ title: "Erro ao excluir vale", description: erroRh(error).mensagem, variant: "destructive" });
     const res: any = Array.isArray(r) ? r[0] : r;

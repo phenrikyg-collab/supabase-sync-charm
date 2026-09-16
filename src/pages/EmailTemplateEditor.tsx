@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "@/hooks/use-toast";
 import { ArrowLeft, Save, Loader2 } from "lucide-react";
+import { chamarRpc } from "@/lib/supabaseRpc";
 
 export default function EmailTemplateEditor() {
   const { id } = useParams();
@@ -23,7 +24,7 @@ export default function EmailTemplateEditor() {
   const { data: templateExistente } = useQuery({
     queryKey: ["email-template", id],
     queryFn: async () => {
-      const { data, error } = await supabase.rpc("templates_listar" as any);
+      const { data, error } = await chamarRpc("templates_listar" as any);
       if (error) throw error;
       return ((data ?? []) as any[]).find((t) => String(t.id) === String(id)) ?? null;
     },
@@ -54,7 +55,7 @@ export default function EmailTemplateEditor() {
     setSalvando(true);
     editor.exportHtml(async (data: any) => {
       const { design, html } = data;
-      const { error } = await supabase.rpc("templates_salvar" as any, {
+      const { error } = await chamarRpc("templates_salvar" as any, {
         p_id: novo ? null : id,
         p_nome: nome,
         p_design_json: design,

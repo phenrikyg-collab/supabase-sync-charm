@@ -14,6 +14,7 @@ import { formatarData } from "@/utils/formatters";
 import { format, subDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { CalendarIcon, TrendingUp, TrendingDown, Loader2, AlertTriangle } from "lucide-react";
+import { chamarRpc } from "@/lib/supabaseRpc";
 
 const fmtBRL = (n: number | null | undefined) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Number(n ?? 0));
@@ -70,7 +71,7 @@ export default function AnaliseDiariaTab() {
   const analise = useQuery({
     queryKey: ["kpis_analise_diaria", dataParam],
     queryFn: async () => {
-      const { data, error } = await supabase.rpc("kpis_analise_diaria", { p_data: dataParam });
+      const { data, error } = await chamarRpc("kpis_analise_diaria", { p_data: dataParam });
       if (error) throw error;
       return (data ?? null) as AnaliseDiariaResponse | null;
     },

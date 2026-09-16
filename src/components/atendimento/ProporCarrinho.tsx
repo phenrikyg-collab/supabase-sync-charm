@@ -28,6 +28,7 @@ import {
 } from "lucide-react";
 import { BuscaProduto, ProdutoPagamento, moedaBR, precoProduto } from "@/components/atendimento/BuscaProduto";
 import { SeletorVariante } from "@/components/atendimento/SeletorVariante";
+import { chamarRpc } from "@/lib/supabaseRpc";
 
 const EXTERNAL_SUPABASE_URL = "https://ezdtulcrqzmgocamjwwl.supabase.co";
 const PROPOR_CARRINHO_URL = `${EXTERNAL_SUPABASE_URL}/functions/v1/propor-carrinho`;
@@ -922,7 +923,7 @@ export function PropostaDaConversa({
     enabled: !!id,
     refetchInterval: 20000,
     queryFn: async () => {
-      const { data, error } = await supabase.rpc("pagamentos_buscar_proposta" as any, { p_id: id });
+      const { data, error } = await chamarRpc("pagamentos_buscar_proposta" as any, { p_id: id });
       if (error) throw error;
       const item = Array.isArray(data) ? data[0] : data;
       return (item ?? null) as Proposta | null;

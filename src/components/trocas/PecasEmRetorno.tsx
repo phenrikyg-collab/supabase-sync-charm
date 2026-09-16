@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tooltip as UITooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip as RTooltip, XAxis, YAxis } from "recharts";
+import { chamarRpc } from "@/lib/supabaseRpc";
 
 const brl = (v: any) =>
   Number.isFinite(Number(v))
@@ -51,7 +52,7 @@ export default function PecasEmRetorno({ inicio, fim }: Props) {
   const q = useQuery({
     queryKey: ["trocas-produtos-retorno", estagio, ordem, periodoAtivo?.inicio, periodoAtivo?.fim],
     queryFn: async () => {
-      const { data, error } = await supabase.rpc("fn_trocas_produtos_retorno" as any, {
+      const { data, error } = await chamarRpc("fn_trocas_produtos_retorno" as any, {
         p_estagio: estagio,
         p_ordem: ordem,
         p_limit: LIMITE,

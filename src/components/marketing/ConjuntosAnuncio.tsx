@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils";
 import {
   ArrowDown, ArrowUp, AlertTriangle, ChevronDown, DollarSign, ShoppingBag, TrendingUp, Layers,
 } from "lucide-react";
+import { chamarRpc } from "@/lib/supabaseRpc";
 
 type Conjunto = {
   adset_name: string | null;
@@ -79,7 +80,7 @@ export function ConjuntosAnuncio() {
     let cancel = false;
     (async () => {
       setLoading(true);
-      const { data, error } = await supabase.rpc("meta_conjuntos_periodo" as never, { p_dias: dias } as never);
+      const { data, error } = await chamarRpc("meta_conjuntos_periodo" as never, { p_dias: dias } as never);
       if (cancel) return;
       if (error) console.error("meta_conjuntos_periodo", error);
       setDados(((data as Conjunto[] | null) ?? []) as Conjunto[]);

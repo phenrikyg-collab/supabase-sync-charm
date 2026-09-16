@@ -23,6 +23,7 @@ import {
   crmDestinosListar, crmPortaEmUso, crmCampanhaMetricas, campanhaLinkSalvar,
   nomeCampanhaEmUso, avisoDestino, botoesUrl, slugDaUrl, CrmPorta,
 } from "@/lib/crmLinks";
+import { chamarRpc } from "@/lib/supabaseRpc";
 
 type Campanha = {
   id: number | string;
@@ -162,7 +163,7 @@ function NovaCampanhaDialog({ open, onOpenChange }: { open: boolean; onOpenChang
   const { data: templates = [] } = useQuery({
     queryKey: ["wpp-templates"],
     queryFn: async () => {
-      const { data, error } = await supabase.rpc("whatsapp_templates_listar" as any);
+      const { data, error } = await chamarRpc("whatsapp_templates_listar" as any);
       if (error) throw error;
       return (data ?? []) as any[];
     },
@@ -194,7 +195,7 @@ function NovaCampanhaDialog({ open, onOpenChange }: { open: boolean; onOpenChang
   const { data: listas = [] } = useQuery({
     queryKey: ["wpp-listas"],
     queryFn: async () => {
-      const { data, error } = await supabase.rpc("listas_listar" as any);
+      const { data, error } = await chamarRpc("listas_listar" as any);
       if (error) throw error;
       return (data ?? []) as any[];
     },
@@ -207,7 +208,7 @@ function NovaCampanhaDialog({ open, onOpenChange }: { open: boolean; onOpenChang
       variaveis.forEach((v, i) => {
         if (v.trim() !== "") variaveis_fixas[String(i + 2)] = v;
       });
-      const { error } = await supabase.rpc("campanhas_whatsapp_criar" as any, {
+      const { error } = await chamarRpc("campanhas_whatsapp_criar" as any, {
         p_nome: nome,
         p_template_id: templateId,
         p_lista_id: listaId,
@@ -429,7 +430,7 @@ function FalhasDialog({ campanha, onOpenChange }: { campanha: Campanha | null; o
   const { data: falhas = [], isLoading } = useQuery({
     queryKey: ["wpp-campanha-falhas", campanha?.id],
     queryFn: async () => {
-      const { data, error } = await supabase.rpc("campanhas_whatsapp_listar_falhas" as any, {
+      const { data, error } = await chamarRpc("campanhas_whatsapp_listar_falhas" as any, {
         p_campanha_id: campanha!.id,
       });
       if (error) throw error;
@@ -503,7 +504,7 @@ export function CampanhasWppTab() {
   const { data: campanhas = [], isLoading } = useQuery({
     queryKey: ["wpp-campanhas"],
     queryFn: async () => {
-      const { data, error } = await supabase.rpc("campanhas_whatsapp_listar" as any);
+      const { data, error } = await chamarRpc("campanhas_whatsapp_listar" as any);
       if (error) throw error;
       return (data ?? []) as Campanha[];
     },
@@ -523,7 +524,7 @@ export function CampanhasWppTab() {
           );
         }
       }
-      const { error } = await supabase.rpc("campanhas_whatsapp_preparar_envio" as any, {
+      const { error } = await chamarRpc("campanhas_whatsapp_preparar_envio" as any, {
         p_campanha_id: c.id,
       });
       if (error) throw error;

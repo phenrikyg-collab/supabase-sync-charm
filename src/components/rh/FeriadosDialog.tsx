@@ -10,6 +10,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Trash2 } from "lucide-react";
 import { dataBRCompleta } from "@/lib/rh";
 import { erroRh } from "./useRhAuth";
+import { chamarRpc } from "@/lib/supabaseRpc";
 
 export function FeriadosDialog({
   open,
@@ -29,7 +30,7 @@ export function FeriadosDialog({
   const { data: feriados, isLoading } = useQuery({
     queryKey: ["rh-feriados", ano],
     queryFn: async () => {
-      const { data, error } = await supabase.rpc("rh_feriados_listar", { p_ano: ano } as any);
+      const { data, error } = await chamarRpc("rh_feriados_listar", { p_ano: ano } as any);
       if (error) throw error;
       return (data ?? []) as any[];
     },
@@ -44,7 +45,7 @@ export function FeriadosDialog({
   const adicionar = async () => {
     if (!data_ || !nome) return;
     setSalvando(true);
-    const { error } = await supabase.rpc("rh_feriado_salvar", { p_data: data_, p_nome: nome } as any);
+    const { error } = await chamarRpc("rh_feriado_salvar", { p_data: data_, p_nome: nome } as any);
     setSalvando(false);
     if (error) return toast({ title: "Erro ao salvar feriado", description: erroRh(error).mensagem, variant: "destructive" });
     toast({ title: "Feriado adicionado" });
@@ -54,7 +55,7 @@ export function FeriadosDialog({
   };
 
   const remover = async (d: string) => {
-    const { error } = await supabase.rpc("rh_feriado_remover", { p_data: String(d).slice(0, 10) } as any);
+    const { error } = await chamarRpc("rh_feriado_remover", { p_data: String(d).slice(0, 10) } as any);
     if (error) return toast({ title: "Erro ao remover", description: erroRh(error).mensagem, variant: "destructive" });
     toast({ title: "Feriado removido" });
     recarregar();

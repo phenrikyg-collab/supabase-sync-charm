@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Loader2, Users, Repeat, CalendarClock, ChevronDown, ChevronRight, ArrowRight, RefreshCw } from "lucide-react";
 import { int, dec, pct } from "@/lib/gestaoFormat";
 import { ddmmyyyy } from "@/lib/gestaoFormat";
+import { chamarRpc } from "@/lib/supabaseRpc";
 
 type Relacao = "mesma_peca" | "mesmo_modelo_cor_diferente" | "modelo_diferente";
 
@@ -234,7 +235,7 @@ export default function JornadaCompra() {
   const carregar = async () => {
     setLoading(true);
     setErro(null);
-    const { data: res, error } = await supabase.rpc("jornada_compra_produtos_cache" as any);
+    const { data: res, error } = await chamarRpc("jornada_compra_produtos_cache" as any);
     if (error) setErro(error.message);
     else setData(res as unknown as Jornada);
     setLoading(false);

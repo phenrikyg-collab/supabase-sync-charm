@@ -20,6 +20,7 @@ import {
 import { LineChart, Line, ResponsiveContainer, Tooltip } from "recharts";
 import { brl, dec, ddmm, ddmmyyyy, int, num, pct, varPct } from "@/lib/gestaoFormat";
 import { cn } from "@/lib/utils";
+import { chamarRpc } from "@/lib/supabaseRpc";
 
 const CPA_PISO = 131.46;
 
@@ -105,7 +106,7 @@ export default function ChecklistDiario() {
   const { data, isLoading, error } = useQuery({
     queryKey: ["gestao-checklist-diario"],
     queryFn: async () => {
-      const { data, error } = await supabase.rpc("gestao_checklist_diario" as any);
+      const { data, error } = await chamarRpc("gestao_checklist_diario" as any);
       if (error) throw error;
       return (data ?? {}) as any;
     },
@@ -114,7 +115,7 @@ export default function ChecklistDiario() {
   const { data: metaSerie = [] } = useQuery({
     queryKey: ["gestao-meta-diario-8"],
     queryFn: async () => {
-      const { data, error } = await supabase.rpc("meta_acompanhamento_diario" as any, { p_dias: 8 });
+      const { data, error } = await chamarRpc("meta_acompanhamento_diario" as any, { p_dias: 8 });
       if (error) throw error;
       return (Array.isArray(data) ? data : []) as any[];
     },
@@ -123,7 +124,7 @@ export default function ChecklistDiario() {
   const { data: snapshots = [], refetch: refetchSnapshots } = useQuery({
     queryKey: ["gestao-checklist-snapshots"],
     queryFn: async () => {
-      const { data, error } = await supabase.rpc("gestao_checklist_snapshots_listar" as any, { p_dias: 30 });
+      const { data, error } = await chamarRpc("gestao_checklist_snapshots_listar" as any, { p_dias: 30 });
       if (error) throw error;
       return (Array.isArray(data) ? data : []) as any[];
     },
@@ -192,7 +193,7 @@ export default function ChecklistDiario() {
   const gravarSnapshot = async () => {
     setGravando(true);
     try {
-      const { error } = await supabase.rpc("gestao_checklist_snapshot_gravar" as any);
+      const { error } = await chamarRpc("gestao_checklist_snapshot_gravar" as any);
       if (error) throw error;
       toast.success("Snapshot do dia gravado");
       refetchSnapshots();

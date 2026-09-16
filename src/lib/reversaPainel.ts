@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import { chamarRpc } from "@/lib/supabaseRpc";
 
 /** Chaves de alerta na ordem em que aparecem na tela. */
 export const ALERTAS: { chave: string; rotulo: string; tom: "vermelho" | "ambar" | "neutro" }[] = [
@@ -247,7 +248,7 @@ export interface LinhaFluxo {
 }
 
 export async function painelFluxo(aba: "transito" | "tratamento", limite = 100) {
-  const { data, error } = await supabase.rpc("reversa_painel_fluxo", { p_aba: aba, p_limite: limite });
+  const { data, error } = await chamarRpc("reversa_painel_fluxo", { p_aba: aba, p_limite: limite });
   if (error) throw error;
   return data as {
     linhas?: LinhaFluxo[];

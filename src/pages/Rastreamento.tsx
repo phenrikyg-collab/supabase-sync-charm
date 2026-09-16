@@ -17,6 +17,7 @@ import {
   Eye, Shirt, ShoppingBag, CreditCard, CheckCircle2, Globe, Instagram,
   Search, Radar, MousePointerClick, Loader2, Send, Flame,
 } from "lucide-react";
+import { chamarRpc } from "@/lib/supabaseRpc";
 
 type Classificacao = "quente" | "morno" | "frio";
 type EtapaFunil = "navegando" | "produto" | "carrinho" | "checkout";
@@ -155,7 +156,7 @@ export default function Rastreamento() {
   const conhecidosRef = useRef<Set<string>>(new Set());
 
   const carregar = useCallback(async () => {
-    const { data, error } = await supabase.rpc("rastreamento_visitantes_ativos_agora");
+    const { data, error } = await chamarRpc("rastreamento_visitantes_ativos_agora");
     if (!error && Array.isArray(data)) {
       const lista = (data as Visitante[]).filter(
         (v) => Date.now() - new Date(v.ultima_atividade).getTime() < JANELA_MS,
@@ -201,7 +202,7 @@ export default function Rastreamento() {
   const abrirTimeline = useCallback(async (v: Visitante) => {
     setSelecionado(v);
     setCarregandoTimeline(true);
-    const { data } = await supabase.rpc("rastreamento_timeline_visitante", {
+    const { data } = await chamarRpc("rastreamento_timeline_visitante", {
       p_visitante_id: v.visitante_id,
     });
     setTimeline(Array.isArray(data) ? (data as EventoTimeline[]) : []);
@@ -218,12 +219,12 @@ export default function Rastreamento() {
     if (!alvoMensagem || !texto.trim()) return;
     setEnviando(true);
     try {
-      const { data: conversa, error } = await supabase.rpc("chat_site_get_or_create_conversa" as any, {
+      const { data: conversa, error } = await chamarRpc("chat_site_get_or_create_conversa" as any, {
         p_visitante_id: alvoMensagem.visitante_id,
       });
       if (error) throw error;
       const conversaId = Array.isArray(conversa) ? (conversa[0] as any)?.id : (conversa as any)?.id ?? conversa;
-      const { error: erroMsg } = await supabase.rpc("whatsapp_registrar_mensagem_humana" as any, {
+      const { error: erroMsg } = await chamarRpc("whatsapp_registrar_mensagem_humana" as any, {
         p_conversa_id: conversaId,
         p_conteudo: texto.trim(),
       });

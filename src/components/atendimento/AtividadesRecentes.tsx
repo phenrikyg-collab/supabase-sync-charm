@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils";
 import {
   Eye, Shirt, ShoppingBag, CreditCard, CheckCircle2, MousePointerClick, Ticket, Activity,
 } from "lucide-react";
+import { chamarRpc } from "@/lib/supabaseRpc";
 
 export type EventoTimeline = {
   id?: string | number;
@@ -105,7 +106,7 @@ export function AtividadesRecentes({ telefone }: { telefone: string }) {
     queryKey: ["whatsapp-historico-cliente", telefone],
     enabled: !!telefone,
     queryFn: async () => {
-      const { data, error } = await supabase.rpc("whatsapp_get_historico_cliente" as any, {
+      const { data, error } = await chamarRpc("whatsapp_get_historico_cliente" as any, {
         p_telefone: telefone,
       });
       if (error) throw error;

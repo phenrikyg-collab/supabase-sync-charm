@@ -5,6 +5,7 @@ import { RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { competenciaLabel } from "@/lib/rh";
 import { telefoneBonito } from "@/lib/rhWhatsapp";
+import { chamarRpc } from "@/lib/supabaseRpc";
 
 type Envio = {
   nome: string | null;
@@ -39,7 +40,7 @@ export function EnviosWhatsAppHistorico({ competencia }: { competencia: string }
   const { data, isLoading, refetch, isFetching } = useQuery({
     queryKey: ["rh-envios-whatsapp", competencia],
     queryFn: async () => {
-      const { data, error } = await supabase.rpc("rh_envios_whatsapp_listar" as any, {
+      const { data, error } = await chamarRpc("rh_envios_whatsapp_listar" as any, {
         p_competencia: competencia,
         p_limite: 200,
       });

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Aviso, BlocoLoading, C, Card, SANS, SectionTitle, SemDado, Status, StatusChip, fmtInt, fmtNum } from './shared';
+import { chamarRpc } from "@/lib/supabaseRpc";
 
 interface Indicador {
   nome: string;
@@ -36,7 +37,7 @@ export function ClarezaComunicacao({ dias }: { dias: number }) {
   useEffect(() => {
     let ativo = true;
     setLoading(true);
-    supabase.rpc('fn_ig_clareza_comunicacao' as any, { p_dias: dias }).then(({ data }: any) => {
+    chamarRpc('fn_ig_clareza_comunicacao' as any, { p_dias: dias }).then(({ data }: any) => {
       if (!ativo) return;
       setData((data as Clareza) || null);
       setLoading(false);

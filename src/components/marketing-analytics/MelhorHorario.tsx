@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Aviso, BlocoLoading, C, Card, SANS, SectionTitle, SemDado, fmtInt, fmtNum } from './shared';
+import { chamarRpc } from "@/lib/supabaseRpc";
 
 interface Celula {
   dia: string;
@@ -41,7 +42,7 @@ export function MelhorHorario({ dias, formato = null }: { dias: number; formato?
     setLoading(true);
     const args: Record<string, unknown> = { p_dias: dias };
     if (formato) args.p_formato = formato;
-    supabase.rpc('fn_ig_melhor_horario' as any, args).then(({ data }: any) => {
+    chamarRpc('fn_ig_melhor_horario' as any, args).then(({ data }: any) => {
       if (!ativo) return;
       setData((data as MelhorHorarioResp) || null);
       setLoading(false);

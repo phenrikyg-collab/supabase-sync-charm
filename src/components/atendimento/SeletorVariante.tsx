@@ -9,6 +9,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { chamarRpc } from "@/lib/supabaseRpc";
 
 export type VarianteProduto = {
   variant_id: string | number;
@@ -33,7 +34,7 @@ export function SeletorVariante({
   const { data: variantes = [], isLoading } = useQuery({
     queryKey: ["pagamentos-variantes", String(produtoId)],
     queryFn: async () => {
-      const { data, error } = await supabase.rpc("pagamentos_listar_variantes_produto" as any, {
+      const { data, error } = await chamarRpc("pagamentos_listar_variantes_produto" as any, {
         p_produto_id: produtoId,
       });
       if (error) throw error;

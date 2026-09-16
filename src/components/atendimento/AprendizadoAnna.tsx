@@ -19,6 +19,7 @@ import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { formatarData } from "@/utils/formatters";
 import { Info, Pencil, Search, Star, Trash2 } from "lucide-react";
+import { chamarRpc } from "@/lib/supabaseRpc";
 
 type Exemplo = {
   id: string | number;
@@ -64,7 +65,7 @@ export function AprendizadoAnnaTab() {
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: ["whatsapp-exemplos-treinamento", filtro, busca],
     queryFn: async () => {
-      const { data, error } = await supabase.rpc("whatsapp_exemplos_treinamento" as any, {
+      const { data, error } = await chamarRpc("whatsapp_exemplos_treinamento" as any, {
         p_busca: busca || null,
         p_filtro: filtro,
         p_limite: 200,
@@ -94,7 +95,7 @@ export function AprendizadoAnnaTab() {
 
   const curarMutation = useMutation({
     mutationFn: async ({ id, curado }: { id: Exemplo["id"]; curado: boolean }) => {
-      const { error } = await supabase.rpc("whatsapp_curar_exemplo" as any, {
+      const { error } = await chamarRpc("whatsapp_curar_exemplo" as any, {
         p_id: id,
         p_curado: curado,
       });
@@ -109,7 +110,7 @@ export function AprendizadoAnnaTab() {
 
   const toggleMutation = useMutation({
     mutationFn: async ({ id, ativo }: { id: Exemplo["id"]; ativo: boolean }) => {
-      const { error } = await supabase.rpc("whatsapp_toggle_exemplo_treinamento" as any, {
+      const { error } = await chamarRpc("whatsapp_toggle_exemplo_treinamento" as any, {
         p_id: id,
         p_ativo: ativo,
       });
@@ -124,7 +125,7 @@ export function AprendizadoAnnaTab() {
 
   const editarMutation = useMutation({
     mutationFn: async ({ id, pergunta, resposta }: { id: Exemplo["id"]; pergunta: string; resposta: string }) => {
-      const { data, error } = await supabase.rpc("whatsapp_editar_exemplo" as any, {
+      const { data, error } = await chamarRpc("whatsapp_editar_exemplo" as any, {
         p_id: id,
         p_pergunta: pergunta,
         p_resposta: resposta,
@@ -143,7 +144,7 @@ export function AprendizadoAnnaTab() {
 
   const excluirMutation = useMutation({
     mutationFn: async (id: Exemplo["id"]) => {
-      const { error } = await supabase.rpc("whatsapp_excluir_exemplo" as any, { p_id: id });
+      const { error } = await chamarRpc("whatsapp_excluir_exemplo" as any, { p_id: id });
       if (error) throw error;
     },
     onSuccess: () => {

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Aviso, C, SANS, SERIF } from './shared';
 import type { FiltroGrade } from './GradeConteudo';
+import { chamarRpc } from "@/lib/supabaseRpc";
 
 export interface PadraoResumo {
   dimensao: string;
@@ -47,7 +48,7 @@ export function useResumoPerformance(formato: string | null, dias = 90) {
     // p_formato explícito: sem ele a função assume REELS e a leitura fica
     // restrita a metade do conteúdo publicado.
     const args: Record<string, unknown> = { p_dias: dias, p_formato: formato };
-    supabase.rpc('fn_ig_resumo_performance' as any, args).then(({ data }: any) => {
+    chamarRpc('fn_ig_resumo_performance' as any, args).then(({ data }: any) => {
       if (!ativo) return;
       setData((data as ResumoPerformance) || null);
       setLoading(false);

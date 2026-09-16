@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import { chamarRpc } from "@/lib/supabaseRpc";
 
 export const BLOCOS_DISPONIVEIS = [
   { id: "produto_destaque", nome: "Produto em Destaque" },
@@ -64,7 +65,7 @@ export function normalizarOrdem(ordem: unknown): string[] {
 }
 
 export async function carregarConfigGeral(): Promise<ConfigGeral> {
-  const { data, error } = await supabase.rpc("linkbio_get_config" as any);
+  const { data, error } = await chamarRpc("linkbio_get_config" as any);
   if (error) throw error;
   const raw: any = Array.isArray(data) ? data[0] : data;
   const cfg = raw?.config_geral ?? {};
@@ -93,7 +94,7 @@ export async function carregarConfigGeral(): Promise<ConfigGeral> {
 }
 
 export async function salvarConfigGeral(cfg: ConfigGeral) {
-  const { error } = await supabase.rpc("linkbio_admin_update_config_geral" as any, {
+  const { error } = await chamarRpc("linkbio_admin_update_config_geral" as any, {
     p_logo_url: cfg.logo_url || null,
     p_titulo: cfg.titulo || null,
     p_descricao: cfg.descricao || null,

@@ -4,12 +4,13 @@ import { supabase } from "@/integrations/supabase/client";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Loader2, Send } from "lucide-react";
+import { chamarRpc } from "@/lib/supabaseRpc";
 
 export const AVISO_JANELA_24H =
   "⚠️ Só funciona se a cliente falou com vocês nas últimas 24h. Fora disso, a Meta exige um template aprovado — a mensagem pode falhar.";
 
 export async function enviarWhatsApp(telefone: string, conteudo: string) {
-  const { data: conversa, error: erroConversa } = await supabase.rpc(
+  const { data: conversa, error: erroConversa } = await chamarRpc(
     "whatsapp_get_or_create_conversa" as any,
     { p_telefone: telefone }
   );

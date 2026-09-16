@@ -1,8 +1,9 @@
 import { supabase } from "@/integrations/supabase/client";
+import { chamarRpc } from "@/lib/supabaseRpc";
 
 /** Toda leitura e escrita do Avise-me passa por RPC. Nunca tabela direta. */
 export async function rpcAviseMe<T = any>(fn: string, args?: Record<string, any>): Promise<T> {
-  const { data, error } = await supabase.rpc(fn as any, (args ?? {}) as any);
+  const { data, error } = await chamarRpc(fn as any, (args ?? {}) as any);
   if (error) throw error;
   return data as T;
 }
