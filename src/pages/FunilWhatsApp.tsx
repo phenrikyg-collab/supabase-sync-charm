@@ -23,6 +23,7 @@ import { cn } from "@/lib/utils";
 import { FilaFollowups, ResumoFollowups, TemplatesFollowup } from "@/components/funil/FollowUps";
 import { Loader2, MoreVertical, RefreshCw, MessageCircle, TrendingDown } from "lucide-react";
 import { chamarRpc } from "@/lib/supabaseRpc";
+import { CsatBloco } from "@/components/atendimento/CsatBloco";
 
 type Etapa = "atendimento" | "interesse" | "pagamento_enviado" | "pago" | "perdido";
 
@@ -420,7 +421,7 @@ function ModalEtapa({
 
 type Preset = "hoje" | "7" | "30" | "custom";
 
-export function DashboardFunil() {
+export function DashboardFunil({ onAbrirConversa }: { onAbrirConversa?: (conversaId: string) => void } = {}) {
   const [preset, setPreset] = useState<Preset>("30");
   const [inicio, setInicio] = useState(diasAtras(29));
   const [fim, setFim] = useState(hoje());
@@ -492,6 +493,8 @@ export function DashboardFunil() {
         </div>
       ) : (
         <>
+          <CsatBloco onAbrirConversa={onAbrirConversa} />
+
           <div className="grid gap-3 md:grid-cols-5 sm:grid-cols-2">
             <Resumo titulo="Atendimentos" valor={String(t.atendimentos || 0)} icone={<MessageCircle className="h-4 w-4" />} />
             <Resumo titulo="Conversão geral" valor={pct(taxas.conversao_geral)} />
