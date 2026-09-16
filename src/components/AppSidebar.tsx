@@ -151,6 +151,7 @@ const moduleGroups: ModuleGroup[] = [
     icon: Truck,
     items: [
       { title: "Bonificação Expedição", url: "/bonificacao-expedicao", icon: Trophy },
+      { title: "Rastreio de Envios", url: "/envios", icon: Truck },
     ],
   },
   {
