@@ -8,7 +8,7 @@ import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { rpcCashback, numero } from "@/lib/cashback";
+import { rpcCashback, objetoDe, numero } from "@/lib/cashback";
 
 export function ConfigTab({ resumo, onAtualizar }: { resumo: Record<string, any>; onAtualizar: () => void }) {
   const config = objetoDe(resumo.config);
