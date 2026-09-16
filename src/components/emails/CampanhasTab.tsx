@@ -19,6 +19,7 @@ import { brl, inteiro, pct1, rpcEmails } from "@/lib/emails";
 import type { ModoTemplate } from "./PreviaTemplate";
 import { ControlesPrevia, IframePrevia, useConferirTemplate, usePreviaTemplate } from "./PreviaTemplate";
 import { lerChecagem } from "./TemplatesTab";
+import { CampanhaDetalhe } from "./CampanhaDetalhe";
 import {
   ConstrutorPublico, contarCondicoes, descreverFiltro, filtroVazio,
   mensagemErroPublico, SeloPublicoVivo, textoConsulta, usePublicoCampos, type No,
@@ -657,7 +658,7 @@ export function CampanhasTab({ dias, onAbrirTemplate }: { dias: number; onAbrirT
               </TableRow>
             )}
             {campanhas.map((c: any) => (
-              <TableRow key={c.id} className="cursor-pointer" onClick={() => abrirLinha(c)}>
+              <TableRow key={c.id} className="cursor-pointer transition-colors hover:bg-muted/60" onClick={() => abrirLinha(c)}>
                 <TableCell className="font-medium">{c.nome}</TableCell>
                 <TableCell className="text-sm text-muted-foreground">{c.segmento ?? c.segmento_slug}</TableCell>
                 <TableCell>
