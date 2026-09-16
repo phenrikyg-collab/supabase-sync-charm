@@ -36,7 +36,7 @@ export function ConfigTab({ resumo, onAtualizar }: { resumo: Record<string, any>
     return {
       percentual: numero(percentual),
       validade_dias: Math.round(numero(validade)),
-      uso_maximo_pct: numero(usoMaximo),
+      uso_max_pct: numero(usoMaximo),
       data_inicio: dataInicio || null,
     };
   }
