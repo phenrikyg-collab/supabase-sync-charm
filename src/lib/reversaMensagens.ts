@@ -60,19 +60,19 @@ export function nomeLegivelFigurinha(nome: string) {
 
 export async function listarTemplatesEmail() {
   const { data, error } = await chamarRpc("reversa_templates_email_painel", {});
-  if (error) throw error;
+  if (error) throw new Error(error.message);
   return (data ?? []) as TemplateEmail[];
 }
 
 export async function listarFigurinhasEmail() {
   const { data, error } = await chamarRpc("reversa_figurinhas_email", {});
-  if (error) throw error;
+  if (error) throw new Error(error.message);
   return (data ?? []) as FigurinhaEmail[];
 }
 
 export async function salvarTemplateEmail(p_gatilho: string, p_patch: Record<string, any>) {
   const { data, error } = await chamarRpc("reversa_template_email_salvar", { p_gatilho, p_patch });
-  if (error) throw error;
+  if (error) throw new Error(error.message);
   return data as { ok?: boolean; gatilho?: string; ativo?: boolean };
 }
 
