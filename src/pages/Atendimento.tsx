@@ -297,7 +297,6 @@ export default function Atendimento() {
   const [aba, setAba] = useState<"whatsapp" | "site">("whatsapp");
   const [abaPagina, setAbaPagina] = useState<
     | "conversas"
-    | "em_atendimento"
     | "cobrancas"
     | "consulta"
     | "abandonadas"
@@ -330,7 +329,9 @@ export default function Atendimento() {
 
 
   const [grupoAba, setGrupoAba] = useState<"conversa" | "clique" | "so_envio">("conversa");
-  const [filtroLeitura, setFiltroLeitura] = useState<"todas" | "nao_lidas" | "lidas" | "atencao" | "automacao">("todas");
+  const [filtroLeitura, setFiltroLeitura] = useState<"todas" | "nao_lidas" | "lidas">("todas");
+  /** Filtros especiais mutuamente exclusivos: atenção, automações e em atendimento. */
+  const [filtroFila, setFiltroFila] = useState<"atencao" | "automacao" | "em_atendimento" | null>(null);
   const [tagsFiltro, setTagsFiltro] = useState<string[]>([]);
   const [erroJanela, setErroJanela] = useState<string | null>(null);
   const [texto, setTexto] = useState("");
@@ -882,7 +883,8 @@ export default function Atendimento() {
   }, [conversas, aba]);
 
 
-  const modoFila = abaPagina === "em_atendimento";
+  /** Chip "Em atendimento" ativo: a lista passa a vir da RPC, já ordenada. */
+  const modoFila = filtroFila === "em_atendimento";
 
   // Fila de trabalho: a RPC já devolve só as conversas assumidas, na ordem de espera
   const { data: emAtendimento = [] } = useQuery({
@@ -904,8 +906,15 @@ export default function Atendimento() {
   const filtradas = useMemo(() => {
     let base: Conversa[];
     if (modoFila) {
-      // Renderiza na ordem exata da RPC
-      return emAtendimento;
+      // Chip "Em atendimento": renderiza na ordem exata da RPC, sem reordenar no front.
+      base = emAtendimento;
+      if (buscaAtiva) {
+        const ids = new Set((resultadoBusca?.conversas ?? []).map((r) => String(r.conversa_id)));
+        base = base.filter((c) => ids.has(String(c.id)));
+      }
+      if (filtroLeitura === "nao_lidas") base = base.filter((c) => !!c.nao_lida);
+      if (filtroLeitura === "lidas") base = base.filter((c) => !c.nao_lida);
+      return base;
     }
     if (buscaAtiva) {
       const achadas = resultadoBusca?.conversas ?? [];
@@ -926,8 +935,8 @@ export default function Atendimento() {
         if (grupoDe(c) !== grupoAba) return false;
         if (filtroLeitura === "nao_lidas" && !c.nao_lida) return false;
         if (filtroLeitura === "lidas" && c.nao_lida) return false;
-        if (filtroLeitura === "atencao" && !["quente", "atencao"].includes(urgenciaDeNivel(atencaoDe(c)?.nivel))) return false;
-        if (filtroLeitura === "automacao" && atencaoDe(c)?.dono !== "automacao") return false;
+        if (filtroFila === "atencao" && !["quente", "atencao"].includes(urgenciaDeNivel(atencaoDe(c)?.nivel))) return false;
+        if (filtroFila === "automacao" && atencaoDe(c)?.dono !== "automacao") return false;
         if (tagsFiltro.length > 0) {
           const ids = (c.tags ?? []).map((t) => String(t.id));
           if (!tagsFiltro.some((t) => ids.includes(t))) return false;
@@ -937,7 +946,7 @@ export default function Atendimento() {
     }
     return [...base].sort(compararConversas);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [conversas, emAtendimento, buscaAtiva, resultadoBusca, aba, grupoAba, filtroLeitura, tagsFiltro, mapaAtencao, modoFila]);
+  }, [conversas, emAtendimento, buscaAtiva, resultadoBusca, aba, grupoAba, filtroLeitura, filtroFila, tagsFiltro, mapaAtencao, modoFila]);
 
 
   const clientesSemConversa = buscaAtiva ? (resultadoBusca?.clientes ?? []) : [];
@@ -997,9 +1006,6 @@ export default function Atendimento() {
           <TabsList className="h-8 w-max flex-nowrap bg-transparent p-0">
             <TabsTrigger value="conversas" className="h-8 shrink-0 text-xs">
               {rotuloComContagem("Conversas", contagemGrupos.conversa)}
-            </TabsTrigger>
-            <TabsTrigger value="em_atendimento" className="h-8 shrink-0 text-xs">
-              {rotuloComContagem("Em atendimento", totalEmAtendimento)}
             </TabsTrigger>
             <TabsTrigger value="oportunidades" className="h-8 shrink-0 text-xs">
               {rotuloComContagem("Oportunidades", contagens.oportunidades)}
@@ -1130,7 +1136,7 @@ export default function Atendimento() {
         </TabsContent>
 
 
-        <TabsContent value={modoFila ? "em_atendimento" : "conversas"} className="m-0 min-h-0 w-full min-w-0 max-w-full flex-1 overflow-hidden data-[state=active]:flex">
+        <TabsContent value="conversas" className="m-0 min-h-0 w-full min-w-0 max-w-full flex-1 overflow-hidden data-[state=active]:flex">
       <div className="relative flex min-h-0 w-full min-w-0 max-w-full flex-1 overflow-hidden">
 
         {listaSheet && (
@@ -1217,15 +1223,39 @@ export default function Atendimento() {
                 { v: "todas", label: "Todas" },
                 { v: "nao_lidas", label: `Não lidas${totalNaoLidas ? ` (${totalNaoLidas})` : ""}` },
                 { v: "lidas", label: "Lidas" },
-                { v: "atencao", label: `Precisam de atenção${totalAtencao ? ` (${totalAtencao})` : ""}` },
-                { v: "automacao", label: `Automações${totalAutomacoes ? ` (${totalAutomacoes})` : ""}` },
               ] as const).map((f) => (
                 <Button
                   key={f.v}
                   size="sm"
-                  variant={filtroLeitura === f.v ? "default" : "outline"}
+                  variant={filtroLeitura === f.v && (f.v !== "todas" || !filtroFila) ? "default" : "outline"}
                   className="h-7 px-2.5 text-[11px]"
-                  onClick={() => setFiltroLeitura(f.v)}
+                  onClick={() => {
+                    setFiltroLeitura(f.v);
+                    if (f.v === "todas") setFiltroFila(null);
+                    else if (filtroFila !== "em_atendimento") setFiltroFila(null);
+                  }}
+                >
+                  {f.label}
+                </Button>
+              ))}
+              {([
+                { v: "atencao", label: `Precisam de atenção${totalAtencao ? ` (${totalAtencao})` : ""}` },
+                { v: "automacao", label: `Automações${totalAutomacoes ? ` (${totalAutomacoes})` : ""}` },
+                { v: "em_atendimento", label: `Em atendimento${totalEmAtendimento ? ` (${totalEmAtendimento})` : ""}` },
+              ] as const).map((f) => (
+                <Button
+                  key={f.v}
+                  size="sm"
+                  variant={filtroFila === f.v ? "default" : "outline"}
+                  className="h-7 px-2.5 text-[11px]"
+                  onClick={() => {
+                    if (filtroFila === f.v) {
+                      setFiltroFila(null);
+                      return;
+                    }
+                    setFiltroFila(f.v);
+                    if (f.v !== "em_atendimento") setFiltroLeitura("todas");
+                  }}
                 >
                   {f.label}
                 </Button>
