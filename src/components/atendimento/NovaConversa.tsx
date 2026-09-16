@@ -12,9 +12,6 @@ import { toast } from "@/hooks/use-toast";
 import { Loader2, Send, ArrowLeft, Lock, MessageCircle } from "lucide-react";
 import { chamarRpc } from "@/lib/supabaseRpc";
 
-const ENDPOINT =
-  "https://ezdtulcrqzmgocamjwwl.supabase.co/functions/v1/whatsapp-enviar-template";
-
 /** Mantém só os dígitos, que é o formato que o backend espera */
 export const soDigitos = (v?: string | null) => (v ?? "").replace(/\D/g, "");
 
@@ -142,19 +139,21 @@ export function NovaConversaDialog({
     if (!escolhido) return;
     setEnviando(true);
     try {
-      const resposta = await fetch(ENDPOINT, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          telefone: digitos,
-          conversa_id: conversaId,
-          nome_template: nomeTemplate(escolhido),
-          parametros: variaveis.map((n) => valores[n] ?? ""),
-        }),
-      });
-      const corpo = await resposta.json().catch(() => ({}));
-      if (!resposta.ok || corpo?.error) {
-        throw new Error(corpo?.error || corpo?.mensagem || `Falha no envio (${resposta.status})`);
+      const { data: corpo, error } = await supabase.functions.invoke(
+        "whatsapp-enviar-template",
+        {
+          body: {
+            telefone: digitos,
+            conversa_id: conversaId,
+            nome_template: nomeTemplate(escolhido),
+            parametros: variaveis.map((n) => valores[n] ?? ""),
+          },
+        },
+      );
+      if (error || (corpo as any)?.error) {
+        throw new Error(
+          (corpo as any)?.error || (corpo as any)?.mensagem || error?.message || "Falha no envio",
+        );
       }
       toast({ title: "Template enviado" });
       if (conversaId) onConversaPronta(conversaId);
