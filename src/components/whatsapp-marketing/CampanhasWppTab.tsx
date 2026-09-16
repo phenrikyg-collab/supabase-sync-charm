@@ -24,6 +24,7 @@ import {
   nomeCampanhaEmUso, avisoDestino, botoesUrl, slugDaUrl, CrmPorta,
 } from "@/lib/crmLinks";
 import { chamarRpc } from "@/lib/supabaseRpc";
+import NovaCampanha from "@/components/whatsapp-marketing/nova-campanha/NovaCampanha";
 
 type Campanha = {
   id: number | string;
@@ -537,6 +538,8 @@ export function CampanhasWppTab() {
     onError: (e: any) => toast({ title: "Erro ao disparar", description: e.message, variant: "destructive" }),
   });
 
+  if (nova) return <NovaCampanha onVoltar={() => setNova(false)} />;
+
   return (
     <div className="space-y-4">
       <div className="flex justify-end">
@@ -627,7 +630,6 @@ export function CampanhasWppTab() {
         )}
       </Card>
 
-      <NovaCampanhaDialog open={nova} onOpenChange={setNova} />
       <EditarLinkDialog campanha={linkDe} onOpenChange={(v) => !v && setLinkDe(null)} />
       <MetricasDialog campanha={metricasDe} onOpenChange={(v) => !v && setMetricasDe(null)} />
       <FalhasDialog campanha={falhasDe} onOpenChange={(v) => !v && setFalhasDe(null)} />
