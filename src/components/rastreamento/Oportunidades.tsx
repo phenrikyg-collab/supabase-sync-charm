@@ -13,6 +13,7 @@ import {
   Users, Target, DollarSign, Send, Shirt, TicketPercent, ShoppingCart,
   CreditCard, Megaphone, Copy,
 } from "lucide-react";
+import { chamarRpc } from "@/lib/supabaseRpc";
 
 const somenteDigitos = (telefone?: string | null) => {
   if (typeof telefone !== "string") return "";
@@ -288,8 +289,8 @@ export default function Oportunidades() {
     async (silencioso = false) => {
       if (!silencioso) setCarregando(true);
       const [feed, res] = await Promise.all([
-        supabase.rpc("rastreamento_oportunidades" as any, { p_horas: horas, p_limite: 60 }),
-        supabase.rpc("rastreamento_oportunidades_resumo" as any, { p_horas: horas }),
+        chamarRpc("rastreamento_oportunidades" as any, { p_horas: horas, p_limite: 60 }),
+        chamarRpc("rastreamento_oportunidades_resumo" as any, { p_horas: horas }),
       ]);
       if (!feed.error && Array.isArray(feed.data)) setItens(feed.data as Oportunidade[]);
       if (!res.error && res.data) {
@@ -334,7 +335,7 @@ export default function Oportunidades() {
     let cancelado = false;
     Promise.all(
       visitantes.map(async (id) => {
-        const { data, error } = await supabase.rpc("rastreamento_resumo_visitante" as any, {
+        const { data, error } = await chamarRpc("rastreamento_resumo_visitante" as any, {
           p_visitante_id: id,
         });
         if (error || !data) return { id, resumo: null };
@@ -361,10 +362,10 @@ export default function Oportunidades() {
     setCarregandoTimeline(true);
     setTimeline([]);
     const { data } = o.tray_customer_id
-      ? await supabase.rpc("rastreamento_timeline_cliente" as any, {
+      ? await chamarRpc("rastreamento_timeline_cliente" as any, {
           p_tray_customer_id: o.tray_customer_id,
         })
-      : await supabase.rpc("rastreamento_timeline_visitante" as any, {
+      : await chamarRpc("rastreamento_timeline_visitante" as any, {
           p_visitante_id: o.visitante_id,
         });
     setTimeline(Array.isArray(data) ? (data as EventoTimeline[]) : []);

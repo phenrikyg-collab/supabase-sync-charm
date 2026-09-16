@@ -14,6 +14,7 @@ import { Loader2, Search, AlertTriangle, PauseCircle, Info, Circle } from "lucid
 import { formatarData } from "@/utils/formatters";
 import { SortableHead, useSortable, useOrdenado } from "@/components/SortableHead";
 import { FiltroPeriodo, Periodo } from "@/components/recuperacao/FiltroPeriodo";
+import { chamarRpc } from "@/lib/supabaseRpc";
 
 
 type CurvaABC = {
@@ -121,7 +122,7 @@ export default function DashboardProdutos() {
     staleTime: 5 * 60 * 1000,
     refetchInterval: false,
     queryFn: async () => {
-      const { data, error } = await supabase.rpc("fn_curva_abc_produtos" as any, {
+      const { data, error } = await chamarRpc("fn_curva_abc_produtos" as any, {
         p_data_inicio: periodo.inicio,
         p_data_fim: periodo.fim,
       });

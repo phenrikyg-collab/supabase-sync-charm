@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils";
 import { formatarData } from "@/utils/formatters";
 import { statusPagamentoClasses, rotuloStatusPagamento } from "@/lib/statusPagamento";
 import { useState } from "react";
+import { chamarRpc } from "@/lib/supabaseRpc";
 
 interface LinhaTransacao {
   pedido_id: string | number;
@@ -28,7 +29,7 @@ export function ListaTransacoesAtendimento() {
   const { data, isLoading } = useQuery({
     queryKey: ["atendimento_listar_transacoes"],
     queryFn: async () => {
-      const { data, error } = await supabase.rpc("atendimento_listar_transacoes" as any, { p_limit: 100 });
+      const { data, error } = await chamarRpc("atendimento_listar_transacoes" as any, { p_limit: 100 });
       if (error) throw error;
       return (data ?? []) as unknown as LinhaTransacao[];
     },

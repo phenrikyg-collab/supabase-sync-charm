@@ -44,6 +44,7 @@ import {
   pct,
   pick,
 } from "@/lib/coortes";
+import { chamarRpc } from "@/lib/supabaseRpc";
 
 /* ------------------------------------------------------------------ */
 /* helpers                                                             */
@@ -110,18 +111,18 @@ export default function PlanoComercial() {
     setErroEstoque(null);
     try {
       const [r1, r2, r3] = await Promise.all([
-        supabase.rpc("plano_comercial_semanal", {
+        chamarRpc("plano_comercial_semanal", {
           p_ano: ano,
           p_mes: mes,
           p_meses_padrao: 6,
           p_pct_midia_aquisicao: pctAquisicao,
         }),
-        supabase.rpc("necessidade_estoque_plano", {
+        chamarRpc("necessidade_estoque_plano", {
           p_ano: ano,
           p_mes: mes,
           p_top_produtos: TOP_PRODUTOS,
         }),
-        supabase.rpc("padrao_pedidos", { p_meses: 6 }),
+        chamarRpc("padrao_pedidos", { p_meses: 6 }),
       ]);
       if (r1.error) throw r1.error;
       setPlano(r1.data ?? null);

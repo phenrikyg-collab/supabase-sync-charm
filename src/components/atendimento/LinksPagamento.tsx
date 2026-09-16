@@ -7,6 +7,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { Copy, ExternalLink, Loader2, MessageCircle, RefreshCw } from "lucide-react";
+import { chamarRpc } from "@/lib/supabaseRpc";
 
 const EXTERNAL_SUPABASE_URL = "https://ezdtulcrqzmgocamjwwl.supabase.co";
 const CONFERIR_LINK_URL = `${EXTERNAL_SUPABASE_URL}/functions/v1/pagamentos-conferir-link`;
@@ -133,7 +134,7 @@ export function LinksPagamentoTab({ onAbrirConversa }: { onAbrirConversa?: (conv
     queryKey: ["pagamentos-links"],
     refetchInterval: 60000,
     queryFn: async () => {
-      const { data, error } = await supabase.rpc("pagamentos_listar_links" as any, { p_limit: 100 });
+      const { data, error } = await chamarRpc("pagamentos_listar_links" as any, { p_limit: 100 });
       if (error) throw error;
       return (data ?? []) as LinkPagamentoRegistro[];
     },
@@ -269,7 +270,7 @@ export function LinksDaConversa({ conversaId }: { conversaId: string | number })
     refetchInterval: 30000,
     refetchOnWindowFocus: true,
     queryFn: async () => {
-      const { data, error } = await supabase.rpc("pagamentos_links_da_conversa" as any, {
+      const { data, error } = await chamarRpc("pagamentos_links_da_conversa" as any, {
         p_conversa_id: conversaId,
       });
       if (error) throw error;

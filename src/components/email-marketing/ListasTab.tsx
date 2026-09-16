@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/select";
 import { toast } from "@/hooks/use-toast";
 import { Plus, Users, Search, X, ArrowLeft, Loader2 } from "lucide-react";
+import { chamarRpc } from "@/lib/supabaseRpc";
 
 type Lista = {
   id: number | string;
@@ -55,7 +56,7 @@ function NovaListaDialog({ open, onOpenChange }: { open: boolean; onOpenChange: 
   const { data: tags = [] } = useQuery({
     queryKey: ["whatsapp-tags"],
     queryFn: async () => {
-      const { data, error } = await supabase.rpc("whatsapp_listar_tags" as any);
+      const { data, error } = await chamarRpc("whatsapp_listar_tags" as any);
       if (error) throw error;
       return (data ?? []) as any[];
     },
@@ -66,7 +67,7 @@ function NovaListaDialog({ open, onOpenChange }: { open: boolean; onOpenChange: 
     mutationFn: async () => {
       const criterio_config =
         tipo === "manual" ? {} : tipo === "rfm" ? { segmento } : { tag_id: Number(tagId) };
-      const { error } = await supabase.rpc("listas_criar" as any, {
+      const { error } = await chamarRpc("listas_criar" as any, {
         p_nome: nome,
         p_descricao: descricao || null,
         p_criterio_tipo: tipo,
@@ -153,7 +154,7 @@ function DetalheLista({ lista, onVoltar }: { lista: Lista; onVoltar: () => void 
   const { data: membros = [], isLoading: carregandoMembros } = useQuery({
     queryKey: ["email-lista-membros", lista.id],
     queryFn: async () => {
-      const { data, error } = await supabase.rpc("listas_listar_membros" as any, { p_lista_id: lista.id });
+      const { data, error } = await chamarRpc("listas_listar_membros" as any, { p_lista_id: lista.id });
       if (error) throw error;
       return (data ?? []) as any[];
     },
@@ -163,7 +164,7 @@ function DetalheLista({ lista, onVoltar }: { lista: Lista; onVoltar: () => void 
   const { data: resultados = [], isFetching: buscando } = useQuery({
     queryKey: ["email-lista-busca", busca],
     queryFn: async () => {
-      const { data, error } = await supabase.rpc("listas_buscar_clientes" as any, { p_busca: busca });
+      const { data, error } = await chamarRpc("listas_buscar_clientes" as any, { p_busca: busca });
       if (error) throw error;
       return (data ?? []) as any[];
     },
@@ -172,7 +173,7 @@ function DetalheLista({ lista, onVoltar }: { lista: Lista; onVoltar: () => void 
 
   const adicionar = useMutation({
     mutationFn: async (clienteId: any) => {
-      const { error } = await supabase.rpc("listas_adicionar_membro" as any, {
+      const { error } = await chamarRpc("listas_adicionar_membro" as any, {
         p_lista_id: lista.id,
         p_cliente_id: clienteId,
       });
@@ -187,7 +188,7 @@ function DetalheLista({ lista, onVoltar }: { lista: Lista; onVoltar: () => void 
 
   const remover = useMutation({
     mutationFn: async (clienteId: any) => {
-      const { error } = await supabase.rpc("listas_remover_membro" as any, {
+      const { error } = await chamarRpc("listas_remover_membro" as any, {
         p_lista_id: lista.id,
         p_cliente_id: clienteId,
       });
@@ -285,7 +286,7 @@ export function ListasTab() {
   const { data: listas = [], isLoading } = useQuery({
     queryKey: ["email-listas"],
     queryFn: async () => {
-      const { data, error } = await supabase.rpc("listas_listar" as any);
+      const { data, error } = await chamarRpc("listas_listar" as any);
       if (error) throw error;
       return (data ?? []) as Lista[];
     },

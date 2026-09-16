@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Search } from "lucide-react";
+import { chamarRpc } from "@/lib/supabaseRpc";
 
 export type ProdutoPagamento = {
   produto_id: string | number;
@@ -41,7 +42,7 @@ export function BuscaProduto({
     queryKey: ["pagamentos-buscar-produtos", debounced],
     enabled: debounced.length >= 2,
     queryFn: async () => {
-      const { data, error } = await supabase.rpc("pagamentos_buscar_produtos" as any, {
+      const { data, error } = await chamarRpc("pagamentos_buscar_produtos" as any, {
         p_palavra_chave: debounced,
       });
       if (error) throw error;

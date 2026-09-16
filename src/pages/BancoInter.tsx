@@ -22,6 +22,7 @@ import {
   Pie,
   Cell,
 } from "recharts";
+import { chamarRpc } from "@/lib/supabaseRpc";
 
 type Row = Record<string, any>;
 
@@ -102,7 +103,7 @@ export default function BancoInter() {
   const kpisQuery = useQuery({
     queryKey: ["inter_kpis", dias],
     queryFn: async () => {
-      const { data, error } = await supabase.rpc("inter_kpis" as any, { p_dias: dias });
+      const { data, error } = await chamarRpc("inter_kpis" as any, { p_dias: dias });
       if (error) throw error;
       return (data ?? {}) as InterKpis;
     },
@@ -111,7 +112,7 @@ export default function BancoInter() {
   const filaQuery = useQuery({
     queryKey: ["inter_fila_categorizacao"],
     queryFn: async () => {
-      const { data, error } = await supabase.rpc("inter_fila_categorizacao" as any, { p_dias: 60 });
+      const { data, error } = await chamarRpc("inter_fila_categorizacao" as any, { p_dias: 60 });
       if (error) throw error;
       return (data ?? []) as Row[];
     },
@@ -120,7 +121,7 @@ export default function BancoInter() {
   const categoriasQuery = useQuery({
     queryKey: ["categorias_para_selecao"],
     queryFn: async () => {
-      const { data, error } = await supabase.rpc("categorias_para_selecao" as any);
+      const { data, error } = await chamarRpc("categorias_para_selecao" as any);
       if (error) throw error;
       return (data ?? []) as Categoria[];
     },
@@ -129,7 +130,7 @@ export default function BancoInter() {
   const previsaoQuery = useQuery({
     queryKey: ["fluxo_caixa_previsto", 30],
     queryFn: async () => {
-      const { data, error } = await supabase.rpc("fluxo_caixa_previsto" as any, { p_dias: 30 });
+      const { data, error } = await chamarRpc("fluxo_caixa_previsto" as any, { p_dias: 30 });
       if (error) throw error;
       return (data ?? []) as Row[];
     },
@@ -187,7 +188,7 @@ export default function BancoInter() {
       return;
     }
     setSaindo((s) => new Set(s).add(String(r.id)));
-    const { error } = await supabase.rpc("inter_confirmar_categoria" as any, {
+    const { error } = await chamarRpc("inter_confirmar_categoria" as any, {
       p_id: r.id,
       p_categoria_id: categoriaId,
       p_criar_regra: true,
@@ -218,7 +219,7 @@ export default function BancoInter() {
     setProcessando(true);
     let ok = 0;
     for (const r of alvos) {
-      const { error } = await supabase.rpc("inter_confirmar_categoria" as any, {
+      const { error } = await chamarRpc("inter_confirmar_categoria" as any, {
         p_id: r.id,
         p_categoria_id: valorSelecionado(r),
         p_criar_regra: true,
@@ -233,7 +234,7 @@ export default function BancoInter() {
 
   async function aplicarAlta() {
     setProcessando(true);
-    const { data, error } = await supabase.rpc("inter_aplicar_sugestoes_alta" as any, { p_dias: 60 });
+    const { data, error } = await chamarRpc("inter_aplicar_sugestoes_alta" as any, { p_dias: 60 });
     setProcessando(false);
     if (error) {
       toast({ title: "Erro ao aplicar sugestões", description: error.message, variant: "destructive" });

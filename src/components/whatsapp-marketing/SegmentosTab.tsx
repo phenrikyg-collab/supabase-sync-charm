@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/select";
 import { toast } from "@/hooks/use-toast";
 import { Plus, Users, Loader2, Search } from "lucide-react";
+import { chamarRpc } from "@/lib/supabaseRpc";
 
 type Lista = {
   id: number | string;
@@ -68,7 +69,7 @@ function NovaListaDialog({ open, onOpenChange }: { open: boolean; onOpenChange: 
   const { data: tags = [] } = useQuery({
     queryKey: ["whatsapp-tags"],
     queryFn: async () => {
-      const { data, error } = await supabase.rpc("whatsapp_listar_tags" as any);
+      const { data, error } = await chamarRpc("whatsapp_listar_tags" as any);
       if (error) throw error;
       return (data ?? []) as any[];
     },
@@ -111,7 +112,7 @@ function NovaListaDialog({ open, onOpenChange }: { open: boolean; onOpenChange: 
 
   const previewMembros = useMutation({
     mutationFn: async () => {
-      const { data, error } = await supabase.rpc("listas_resolver_membros_avancado" as any, {
+      const { data, error } = await chamarRpc("listas_resolver_membros_avancado" as any, {
         p_criterio_config: montarCriterioAvancado(),
       });
       if (error) throw error;
@@ -128,7 +129,7 @@ function NovaListaDialog({ open, onOpenChange }: { open: boolean; onOpenChange: 
         : tipo === "rfm" ? { segmento }
         : tipo === "tag" ? { tag_id: Number(tagId) }
         : montarCriterioAvancado();
-      const { error } = await supabase.rpc("listas_criar" as any, {
+      const { error } = await chamarRpc("listas_criar" as any, {
         p_nome: nome,
         p_descricao: descricao || null,
         p_criterio_tipo: tipo,
@@ -299,7 +300,7 @@ export function SegmentosTab() {
   const { data: listas = [], isLoading } = useQuery({
     queryKey: ["wpp-listas"],
     queryFn: async () => {
-      const { data, error } = await supabase.rpc("listas_listar" as any);
+      const { data, error } = await chamarRpc("listas_listar" as any);
       if (error) throw error;
       return (data ?? []) as Lista[];
     },

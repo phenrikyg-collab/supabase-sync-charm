@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Aviso, BlocoLoading, C, Card, SANS, SectionTitle, SemDado, fmtNum } from './shared';
+import { chamarRpc } from "@/lib/supabaseRpc";
 
 export interface MetricaComparativa {
   nome: string;
@@ -29,7 +30,7 @@ function useComparativo(fn: string, args: Record<string, unknown>) {
   useEffect(() => {
     let ativo = true;
     setLoading(true);
-    supabase.rpc(fn as any, JSON.parse(chave)).then(({ data }: any) => {
+    chamarRpc(fn as any, JSON.parse(chave)).then(({ data }: any) => {
       if (!ativo) return;
       setData((data as Comparativo) || null);
       setLoading(false);

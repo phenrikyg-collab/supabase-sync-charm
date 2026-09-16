@@ -1,7 +1,8 @@
 import { supabase } from "@/integrations/supabase/client";
+import { chamarRpc } from "@/lib/supabaseRpc";
 
 export async function rpcEmails<T = any>(fn: string, args?: Record<string, any>): Promise<T> {
-  const { data, error } = await supabase.rpc(fn as any, (args ?? {}) as any);
+  const { data, error } = await chamarRpc(fn as any, (args ?? {}) as any);
   if (error) throw error;
   return data as T;
 }

@@ -3,6 +3,7 @@
  * Fonte única: RPC sessoes_comparativo_diario (a mesma da aba Canais e Sessões).
  */
 import { supabase } from "@/integrations/supabase/client";
+import { chamarRpc } from "@/lib/supabaseRpc";
 
 export type FonteSessao = "ga4" | "rastreamento";
 
@@ -32,7 +33,7 @@ function isoDaData(v: unknown): string {
 
 export async function fetchSessoesComparativo(dias: number): Promise<any[]> {
   const p = Math.max(14, Math.min(400, Math.ceil(dias)));
-  const { data, error } = await supabase.rpc("sessoes_comparativo_diario" as any, { p_dias: p });
+  const { data, error } = await chamarRpc("sessoes_comparativo_diario" as any, { p_dias: p });
   if (error) throw error;
   return Array.isArray(data) ? data : [];
 }

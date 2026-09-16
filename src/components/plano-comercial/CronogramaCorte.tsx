@@ -23,6 +23,7 @@ import { cn } from "@/lib/utils";
 import { brl, num, pct, pick } from "@/lib/coortes";
 import RepresentatividadeTamanho from "./RepresentatividadeTamanho";
 import OportunidadesSeo from "./OportunidadesSeo";
+import { chamarRpc } from "@/lib/supabaseRpc";
 
 const TAMANHOS = ["P", "M", "G", "GG", "EG"];
 
@@ -82,7 +83,7 @@ export default function CronogramaCorte({ ano, mes }: { ano: number; mes: number
   const carregar = useCallback(async () => {
     setLoading(true);
     setErro(null);
-    const { data, error } = await supabase.rpc("plano_corte_producao", {
+    const { data, error } = await chamarRpc("plano_corte_producao", {
       p_ano: ano,
       p_mes: mes,
       p_top_produtos: 12,

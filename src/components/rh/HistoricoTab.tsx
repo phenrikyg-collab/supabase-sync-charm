@@ -6,6 +6,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { brl, dataBRCompleta, LOTE_STATUS, ITEM_STATUS } from "@/lib/rh";
 import { cn } from "@/lib/utils";
+import { chamarRpc } from "@/lib/supabaseRpc";
 
 export function HistoricoTab() {
   const [loteId, setLoteId] = useState<string | null>(null);
@@ -13,7 +14,7 @@ export function HistoricoTab() {
   const { data, isLoading } = useQuery({
     queryKey: ["rh-historico"],
     queryFn: async () => {
-      const { data, error } = await supabase.rpc("rh_folha_historico", { p_meses: 6 });
+      const { data, error } = await chamarRpc("rh_folha_historico", { p_meses: 6 });
       if (error) throw error;
       return (Array.isArray(data) ? data : (data as any)?.eventos ?? []) as any[];
     },
@@ -22,7 +23,7 @@ export function HistoricoTab() {
   const { data: itens, isLoading: carregandoItens } = useQuery({
     queryKey: ["rh-lote-detalhe", loteId],
     queryFn: async () => {
-      const { data, error } = await supabase.rpc("rh_lote_detalhe", { p_lote_id: loteId });
+      const { data, error } = await chamarRpc("rh_lote_detalhe", { p_lote_id: loteId });
       if (error) throw error;
       return (data ?? []) as any[];
     },

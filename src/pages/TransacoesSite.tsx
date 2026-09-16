@@ -14,6 +14,7 @@ import {
   type Periodo,
 } from "@/components/recuperacao/FiltroPeriodo";
 import { Zap, CreditCard, ExternalLink, Inbox, ChevronLeft, ChevronRight } from "lucide-react";
+import { chamarRpc } from "@/lib/supabaseRpc";
 
 const PAGE_SIZE = 25;
 
@@ -189,7 +190,7 @@ export default function TransacoesSite() {
   const kpisQuery = useQuery({
     queryKey: ["kpis_transacoes_site", periodo.inicio, periodo.fim],
     queryFn: async () => {
-      const { data, error } = await supabase.rpc("kpis_transacoes_site" as any, {
+      const { data, error } = await chamarRpc("kpis_transacoes_site" as any, {
         p_data_inicio: periodo.inicio || null,
         p_data_fim: periodo.fim || null,
       });

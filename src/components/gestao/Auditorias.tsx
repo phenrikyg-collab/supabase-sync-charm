@@ -8,6 +8,7 @@ import {
 } from "@/components/ui/table";
 import { ddmmyyyy } from "@/lib/gestaoFormat";
 import { cn } from "@/lib/utils";
+import { chamarRpc } from "@/lib/supabaseRpc";
 
 const urgenciaCor: Record<string, string> = {
   alta: "bg-red-500/15 text-red-600 border-red-500/30",
@@ -25,7 +26,7 @@ export default function Auditorias() {
   const { data: auditorias = [], isLoading } = useQuery({
     queryKey: ["gestao-auditorias"],
     queryFn: async () => {
-      const { data, error } = await supabase.rpc("gestao_auditorias_listar" as any);
+      const { data, error } = await chamarRpc("gestao_auditorias_listar" as any);
       if (error) throw error;
       return (Array.isArray(data) ? data : []) as any[];
     },

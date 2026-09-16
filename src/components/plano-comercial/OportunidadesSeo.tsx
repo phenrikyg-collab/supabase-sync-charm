@@ -23,6 +23,7 @@ import {
 } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
 import { dataBR, num, pct, pick } from "@/lib/coortes";
+import { chamarRpc } from "@/lib/supabaseRpc";
 
 const PERIODOS = [7, 14, 30];
 
@@ -53,7 +54,7 @@ export default function OportunidadesSeo() {
   const carregar = useCallback(async () => {
     setLoading(true);
     setErro(null);
-    const { data, error } = await supabase.rpc("oportunidades_seo_sem_estoque", {
+    const { data, error } = await chamarRpc("oportunidades_seo_sem_estoque", {
       p_dias: dias,
       p_classes_abc: ["A"],
       p_min_impressoes: minImpressoes,

@@ -27,6 +27,7 @@ import { EnviarWhatsAppDialog } from "./EnviarWhatsAppDialog";
 import { EnviarLoteWhatsAppDialog } from "./EnviarLoteWhatsAppDialog";
 import { EnviosWhatsAppHistorico } from "./EnviosWhatsAppHistorico";
 import { FilaItem } from "@/lib/rhWhatsapp";
+import { chamarRpc } from "@/lib/supabaseRpc";
 
 
 
@@ -127,7 +128,7 @@ export function HoleritesTab({
   const { data, isLoading, refetch } = useQuery({
     queryKey: ["rh-holerites", competencia, tipo],
     queryFn: async () => {
-      const { data, error } = await supabase.rpc("rh_holerites_listar", {
+      const { data, error } = await chamarRpc("rh_holerites_listar", {
         p_competencia: competencia,
         p_tipo: tipo,
       });
@@ -152,7 +153,7 @@ export function HoleritesTab({
     queryKey: ["rh-whatsapp-fila", competencia, tipo],
     enabled: !!competencia,
     queryFn: async () => {
-      const { data, error } = await supabase.rpc("rh_whatsapp_fila" as any, {
+      const { data, error } = await chamarRpc("rh_whatsapp_fila" as any, {
         p_competencia: competencia,
         p_tipo: tipo,
       });
@@ -204,7 +205,7 @@ export function HoleritesTab({
 
   const gerar = async () => {
     setGerando(true);
-    const { error } = await supabase.rpc("rh_holerites_gerar", { p_competencia: competencia, p_tipo: tipo });
+    const { error } = await chamarRpc("rh_holerites_gerar", { p_competencia: competencia, p_tipo: tipo });
     setGerando(false);
     if (error) return toast({ title: "Erro ao gerar holerites", description: erroRh(error).mensagem, variant: "destructive" });
     toast({ title: "Holerites gerados" });
@@ -216,7 +217,7 @@ export function HoleritesTab({
       toast({ title: "Recibo sem identificador", variant: "destructive" });
       return null;
     }
-    const { data, error } = await supabase.rpc("rh_holerite_link" as any, {
+    const { data, error } = await chamarRpc("rh_holerite_link" as any, {
       p_holerite_id: h.id,
       p_dias: 30,
     });

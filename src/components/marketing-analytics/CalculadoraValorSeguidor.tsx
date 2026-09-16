@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Aviso, BlocoLoading, C, Card, SANS, SectionTitle, SemDado, fmtInt, fmtNum } from './shared';
+import { chamarRpc } from "@/lib/supabaseRpc";
 
 interface ValorSeguidor {
   saldo: number | null;
@@ -52,7 +53,7 @@ export function CalculadoraValorSeguidor({ dias }: { dias: number }) {
     setLoading(true);
     const args: Record<string, unknown> = { p_dias: dias, p_usar_mes_fechado: mesFechado };
     if (receitaAplicada !== null) args.p_receita_social = receitaAplicada;
-    supabase.rpc('fn_ig_valor_seguidor' as any, args).then(({ data }: any) => {
+    chamarRpc('fn_ig_valor_seguidor' as any, args).then(({ data }: any) => {
       if (!ativo) return;
       setData((data as ValorSeguidor) || null);
       setLoading(false);

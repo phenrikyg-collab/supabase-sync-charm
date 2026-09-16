@@ -2,6 +2,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { ToastAction } from "@/components/ui/toast";
 import { erroRh } from "./useRhAuth";
+import { chamarRpc } from "@/lib/supabaseRpc";
 
 /** Competência do mês corrente no formato usado pela folha (YYYY-MM-01). */
 export function competenciaAtual(): string {
@@ -18,7 +19,7 @@ export function useRegerarFechamento() {
   const { toast } = useToast();
 
   const regerar = async (competencia: string) => {
-    const { error } = await supabase.rpc("rh_holerites_gerar", {
+    const { error } = await chamarRpc("rh_holerites_gerar", {
       p_competencia: competencia,
       p_tipo: "fechamento",
     } as any);

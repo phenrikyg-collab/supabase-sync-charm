@@ -13,6 +13,7 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { chamarRpc } from "@/lib/supabaseRpc";
 
 export type Botao = {
   id?: string;
@@ -55,7 +56,7 @@ export function BotoesTab() {
   const { data, isLoading } = useQuery({
     queryKey: ["linkbio-admin-botoes"],
     queryFn: async () => {
-      const { data, error } = await supabase.rpc("linkbio_admin_listar_botoes" as any);
+      const { data, error } = await chamarRpc("linkbio_admin_listar_botoes" as any);
       if (error) throw error;
       return data as any;
     },
@@ -116,7 +117,7 @@ export function BotoesTab() {
   // Grava um botão preservando o id: existente é atualizado, novo é inserido.
   // Nunca apaga e recria — o histórico de cliques aponta para o id.
   const gravarBotao = async (b: Botao, ordem: number, ativo = b.ativo) => {
-    const { error } = await supabase.rpc("linkbio_admin_upsert_botao" as any, {
+    const { error } = await chamarRpc("linkbio_admin_upsert_botao" as any, {
       p_id: b.id ?? null,
       p_label: b.label,
       p_url_destino: b.url_destino,
@@ -169,7 +170,7 @@ export function BotoesTab() {
       setItens((prev) => prev.filter((_, i) => i !== idx));
       return;
     }
-    const { error } = await supabase.rpc("linkbio_admin_delete_botao" as any, { p_id: item.id });
+    const { error } = await chamarRpc("linkbio_admin_delete_botao" as any, { p_id: item.id });
     if (error) {
       if (!temHistoricoDeCliques(error)) return toast.error(error.message);
       // Botão com cliques registrados: desativa em vez de apagar, preservando o histórico.

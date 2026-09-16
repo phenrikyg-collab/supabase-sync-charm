@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/select";
 import { toast } from "@/hooks/use-toast";
 import { Plus, Send, Loader2 } from "lucide-react";
+import { chamarRpc } from "@/lib/supabaseRpc";
 
 type Campanha = {
   id: number | string;
@@ -47,7 +48,7 @@ function NovaCampanhaDialog({ open, onOpenChange }: { open: boolean; onOpenChang
   const { data: templates = [] } = useQuery({
     queryKey: ["email-templates"],
     queryFn: async () => {
-      const { data, error } = await supabase.rpc("templates_listar" as any);
+      const { data, error } = await chamarRpc("templates_listar" as any);
       if (error) throw error;
       return (data ?? []) as any[];
     },
@@ -57,7 +58,7 @@ function NovaCampanhaDialog({ open, onOpenChange }: { open: boolean; onOpenChang
   const { data: listas = [] } = useQuery({
     queryKey: ["email-listas"],
     queryFn: async () => {
-      const { data, error } = await supabase.rpc("listas_listar" as any);
+      const { data, error } = await chamarRpc("listas_listar" as any);
       if (error) throw error;
       return (data ?? []) as any[];
     },
@@ -66,7 +67,7 @@ function NovaCampanhaDialog({ open, onOpenChange }: { open: boolean; onOpenChang
 
   const criar = useMutation({
     mutationFn: async () => {
-      const { error } = await supabase.rpc("campanhas_criar" as any, {
+      const { error } = await chamarRpc("campanhas_criar" as any, {
         p_nome: nome,
         p_assunto: assunto,
         p_template_id: templateId,
@@ -143,7 +144,7 @@ export function CampanhasTab() {
   const { data: campanhas = [], isLoading } = useQuery({
     queryKey: ["email-campanhas"],
     queryFn: async () => {
-      const { data, error } = await supabase.rpc("campanhas_listar" as any);
+      const { data, error } = await chamarRpc("campanhas_listar" as any);
       if (error) throw error;
       return (data ?? []) as Campanha[];
     },
@@ -156,7 +157,7 @@ export function CampanhasTab() {
 
   const enviar = useMutation({
     mutationFn: async (id: Campanha["id"]) => {
-      const { error } = await supabase.rpc("campanhas_preparar_envio" as any, { p_campanha_id: id });
+      const { error } = await chamarRpc("campanhas_preparar_envio" as any, { p_campanha_id: id });
       if (error) throw error;
     },
     onSuccess: () => {

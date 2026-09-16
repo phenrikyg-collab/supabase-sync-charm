@@ -14,6 +14,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import {
   Tooltip as UITooltip, TooltipContent, TooltipProvider, TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { chamarRpc } from "@/lib/supabaseRpc";
 
 /**
  * SEO & Blog — leitura pura de `fn_seo_blog_painel`.
@@ -117,7 +118,7 @@ export default function SeoBlog() {
   const { data, isLoading, error } = useQuery({
     queryKey: ["seo-blog-painel", dias],
     queryFn: async () => {
-      const { data, error } = await supabase.rpc("fn_seo_blog_painel" as any, { dias: Number(dias) });
+      const { data, error } = await chamarRpc("fn_seo_blog_painel" as any, { dias: Number(dias) });
       if (error) throw error;
       return (data ?? {}) as Painel;
     },

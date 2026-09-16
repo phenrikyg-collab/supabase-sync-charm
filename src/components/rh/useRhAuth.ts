@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import type { Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
+import { chamarRpc } from "@/lib/supabaseRpc";
 
 export interface OperadorInfo {
   nome?: string | null;
@@ -52,7 +53,7 @@ export function useRhAuth() {
   }, []);
 
   const carregarOperador = useCallback(async () => {
-    const { data, error } = await supabase.rpc("rh_operador_atual_info");
+    const { data, error } = await chamarRpc("rh_operador_atual_info");
     if (error) {
       const e = erroRh(error);
       setOperador(null);

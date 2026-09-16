@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/dialog";
 import { toast } from "@/hooks/use-toast";
 import { Loader2, Send, ArrowLeft, Lock, MessageCircle } from "lucide-react";
+import { chamarRpc } from "@/lib/supabaseRpc";
 
 const ENDPOINT =
   "https://ezdtulcrqzmgocamjwwl.supabase.co/functions/v1/whatsapp-enviar-template";
@@ -103,7 +104,7 @@ export function NovaConversaDialog({
     if (!telefoneValido) return;
     setBuscando(true);
     try {
-      const { data, error } = await supabase.rpc("whatsapp_get_or_create_conversa" as any, {
+      const { data, error } = await chamarRpc("whatsapp_get_or_create_conversa" as any, {
         p_telefone: digitos,
       });
       if (error) throw error;
@@ -113,7 +114,7 @@ export function NovaConversaDialog({
       setConversaId(id);
       setNomeCliente(conversa?.nome ?? conversa?.cliente_nome ?? conversa?.nome_cliente ?? null);
 
-      const { data: janela, error: erroJanela } = await supabase.rpc(
+      const { data: janela, error: erroJanela } = await chamarRpc(
         "whatsapp_dentro_janela_24h" as any,
         { p_conversa_id: id },
       );

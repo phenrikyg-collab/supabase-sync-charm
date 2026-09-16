@@ -54,6 +54,7 @@ import { DashboardFunil } from "@/pages/FunilWhatsApp";
 import { FilaFollowups, TemplatesFollowup } from "@/components/funil/FollowUps";
 import { FunilKanbanConteudo } from "@/pages/FunilKanban";
 import { CashbackConteudo } from "@/pages/Cashback";
+import { chamarRpc } from "@/lib/supabaseRpc";
 
 /** Separador de data da lista de conversas. */
 function grupoDia(valor?: string | null): string {
@@ -445,7 +446,7 @@ export default function Atendimento() {
     queryKey: ["whatsapp-busca", termoBusca],
     enabled: buscaAtiva,
     queryFn: async () => {
-      const { data, error } = await supabase.rpc("whatsapp_buscar" as any, { p_termo: termoBusca });
+      const { data, error } = await chamarRpc("whatsapp_buscar" as any, { p_termo: termoBusca });
       if (error) throw error;
       const r = (data ?? {}) as any;
       return {
@@ -462,7 +463,7 @@ export default function Atendimento() {
     enabled: foraDaLista,
     refetchInterval: foraDaLista ? 30000 : false,
     queryFn: async () => {
-      const { data, error } = await supabase.rpc("whatsapp_conversa_por_id" as any, {
+      const { data, error } = await chamarRpc("whatsapp_conversa_por_id" as any, {
         p_conversa_id: Number.isNaN(Number(selecionada)) ? selecionada : Number(selecionada),
       });
       if (error) throw error;
@@ -505,7 +506,7 @@ export default function Atendimento() {
     enabled: !!selecionada,
     refetchInterval: 10000,
     queryFn: async () => {
-      const { data, error } = await supabase.rpc("whatsapp_get_mensagens_conversa" as any, {
+      const { data, error } = await chamarRpc("whatsapp_get_mensagens_conversa" as any, {
         p_conversa_id: Number.isNaN(Number(selecionada)) ? selecionada : Number(selecionada),
       });
       if (error) throw error;
@@ -573,7 +574,7 @@ export default function Atendimento() {
   const { data: todasTags = [] } = useQuery({
     queryKey: ["whatsapp-tags"],
     queryFn: async () => {
-      const { data, error } = await supabase.rpc("whatsapp_listar_tags" as any);
+      const { data, error } = await chamarRpc("whatsapp_listar_tags" as any);
       if (error) throw error;
       return (data ?? []) as Tag[];
     },
@@ -584,7 +585,7 @@ export default function Atendimento() {
     enabled: !!selecionada && !ehSite(conversaAtual),
     refetchInterval: 60000,
     queryFn: async () => {
-      const { data, error } = await supabase.rpc("whatsapp_dentro_janela_24h" as any, {
+      const { data, error } = await chamarRpc("whatsapp_dentro_janela_24h" as any, {
         p_conversa_id: Number.isNaN(Number(selecionada)) ? selecionada : Number(selecionada),
       });
       if (error) throw error;
@@ -597,7 +598,7 @@ export default function Atendimento() {
     setListaSheet(false);
     setErroJanela(null);
     if (!c.nao_lida) return;
-    const { error } = await supabase.rpc("whatsapp_marcar_lida" as any, {
+    const { error } = await chamarRpc("whatsapp_marcar_lida" as any, {
       p_conversa_id: Number.isNaN(Number(c.id)) ? c.id : Number(c.id),
     });
     if (!error) queryClient.invalidateQueries({ queryKey: ["whatsapp-conversas"] });
@@ -643,7 +644,7 @@ export default function Atendimento() {
     mutationFn: async (conteudo: string) => {
       if (!conversaAtual) throw new Error("Nenhuma conversa selecionada");
       if (ehSite(conversaAtual)) {
-        const { data, error } = await supabase.rpc("whatsapp_registrar_mensagem_humana" as any, {
+        const { data, error } = await chamarRpc("whatsapp_registrar_mensagem_humana" as any, {
           p_conversa_id: conversaAtual.id,
           p_conteudo: conteudo,
         });
@@ -759,7 +760,7 @@ export default function Atendimento() {
 
   const assumir = useMutation({
     mutationFn: async () => {
-      const { error } = await supabase.rpc("whatsapp_assumir_conversa" as any, {
+      const { error } = await chamarRpc("whatsapp_assumir_conversa" as any, {
         p_conversa_id: Number.isNaN(Number(selecionada)) ? selecionada : Number(selecionada),
       });
       if (error) throw error;
@@ -775,7 +776,7 @@ export default function Atendimento() {
   const reativarBot = useMutation({
     mutationFn: async () => {
       const id = Number.isNaN(Number(selecionada)) ? selecionada : Number(selecionada);
-      const { error } = await supabase.rpc("whatsapp_reativar_bot" as any, { p_conversa_id: id });
+      const { error } = await chamarRpc("whatsapp_reativar_bot" as any, { p_conversa_id: id });
       if (error) throw error;
       // tira a conversa da fila humana junto com o status
       try {
@@ -798,7 +799,7 @@ export default function Atendimento() {
 
   const resolver = useMutation({
     mutationFn: async () => {
-      const { error } = await supabase.rpc("whatsapp_marcar_resolvido" as any, {
+      const { error } = await chamarRpc("whatsapp_marcar_resolvido" as any, {
         p_conversa_id: Number.isNaN(Number(selecionada)) ? selecionada : Number(selecionada),
       });
       if (error) throw error;
@@ -891,7 +892,7 @@ export default function Atendimento() {
     queryKey: ["whatsapp-em-atendimento"],
     refetchInterval: 30000,
     queryFn: async () => {
-      const { data, error } = await supabase.rpc("whatsapp_conversas_em_atendimento" as any, { p_horas: 72 });
+      const { data, error } = await chamarRpc("whatsapp_conversas_em_atendimento" as any, { p_horas: 72 });
       if (error) throw error;
       return ((Array.isArray(data) ? data : []) as any[]).map((c) => ({
         ...c,

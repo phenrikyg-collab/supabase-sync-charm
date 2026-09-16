@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { ArrowLeft, Search } from "lucide-react";
+import { chamarRpc } from "@/lib/supabaseRpc";
 
 export type TamanhoDisponivel = { tamanho: string; estoque: number };
 
@@ -65,7 +66,7 @@ function useVariantes(produtoId: string, ativo: boolean) {
     enabled: ativo && !!produtoId,
     staleTime: 5 * 60 * 1000,
     queryFn: async () => {
-      const { data, error } = await supabase.rpc("catalogo_produto_variantes" as any, {
+      const { data, error } = await chamarRpc("catalogo_produto_variantes" as any, {
         p_produto_id: produtoId,
       });
       if (error) throw error;
@@ -239,7 +240,7 @@ export function CatalogoDialog({
     queryKey: ["catalogo-opcoes-filtro"],
     enabled: open,
     queryFn: async () => {
-      const { data, error } = await supabase.rpc("catalogo_opcoes_filtro" as any);
+      const { data, error } = await chamarRpc("catalogo_opcoes_filtro" as any);
       if (error) throw error;
       const raw = (Array.isArray(data) ? data[0] : data) as
         | { cores?: string[]; tamanhos?: string[] }
@@ -252,7 +253,7 @@ export function CatalogoDialog({
     queryKey: ["catalogo-buscar-produtos", busca, cor, tamanho],
     enabled: open,
     queryFn: async () => {
-      const { data, error } = await supabase.rpc("catalogo_buscar_produtos" as any, {
+      const { data, error } = await chamarRpc("catalogo_buscar_produtos" as any, {
         p_palavra_chave: busca.trim() || null,
         p_cor: cor,
         p_tamanho: tamanho,

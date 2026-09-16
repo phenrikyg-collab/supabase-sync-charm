@@ -18,6 +18,7 @@ import { lerErroEdge } from "@/lib/edgeError";
 import { parseValorBR, LIMITE_SALARIO, LIMITE_DIARIA } from "@/lib/rhMoeda";
 import { mascaraTelefone, soDigitos, telefoneBonito } from "@/lib/rhWhatsapp";
 import { competenciaAtual, useRegerarFechamento } from "./useRegerarFechamento";
+import { chamarRpc } from "@/lib/supabaseRpc";
 
 const RH_SUPABASE_URL = "https://ezdtulcrqzmgocamjwwl.supabase.co";
 const RH_ANON_KEY =
@@ -48,7 +49,7 @@ export function FuncionariosTab() {
   const { data, isLoading } = useQuery({
     queryKey: ["rh-funcionarios"],
     queryFn: async () => {
-      const { data, error } = await supabase.rpc("rh_funcionarios_listar", { p_incluir_inativos: true });
+      const { data, error } = await chamarRpc("rh_funcionarios_listar", { p_incluir_inativos: true });
       if (error) throw error;
       return (data ?? []) as any[];
     },
@@ -57,7 +58,7 @@ export function FuncionariosTab() {
   const { data: pendentes } = useQuery({
     queryKey: ["rh-chaves-pendentes"],
     queryFn: async () => {
-      const { data, error } = await supabase.rpc("rh_chaves_pendentes_confirmacao" as any);
+      const { data, error } = await chamarRpc("rh_chaves_pendentes_confirmacao" as any);
       if (error) throw error;
       return (data ?? []) as any[];
     },
@@ -134,7 +135,7 @@ export function FuncionariosTab() {
       if (!ok) return;
     }
     setConfirmando(f.id);
-    const { error } = await supabase.rpc("rh_chave_confirmar" as any, {
+    const { error } = await chamarRpc("rh_chave_confirmar" as any, {
       p_funcionario_id: f.id,
       p_titular: r.titular,
     });
@@ -212,7 +213,7 @@ export function FuncionariosTab() {
     };
 
     const whatsapp = soDigitos(edit.whatsapp) || null;
-    let { error } = await supabase.rpc("rh_funcionario_salvar", {
+    let { error } = await chamarRpc("rh_funcionario_salvar", {
       ...payload,
       p_whatsapp: whatsapp,
       p_va_forma: edit.va_forma,
@@ -221,7 +222,7 @@ export function FuncionariosTab() {
     if (error && (error as any).code === "PGRST202") {
       // backend ainda sem os parâmetros novos — salva o resto e avisa
       extrasNaoSalvos = true;
-      ({ error } = await supabase.rpc("rh_funcionario_salvar", payload as any));
+      ({ error } = await chamarRpc("rh_funcionario_salvar", payload as any));
     }
 
     if (error) return toast({ title: "Erro ao salvar", description: erroRh(error).mensagem, variant: "destructive" });

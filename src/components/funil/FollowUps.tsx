@@ -16,6 +16,7 @@ import { cn } from "@/lib/utils";
 import {
   Loader2, RefreshCw, MessageCircle, ChevronDown, ChevronUp, ExternalLink, SkipForward, Check, Copy,
 } from "lucide-react";
+import { chamarRpc } from "@/lib/supabaseRpc";
 
 export type FollowupTipo =
   | "interesse" | "pagamento_pendente" | "carrinho_abandonado" | "pedido_cancelado";
@@ -180,7 +181,7 @@ export function FilaFollowups() {
 
   const carregar = useCallback(async (silencioso = false) => {
     if (!silencioso) setLoading(true);
-    const { data, error } = await supabase.rpc("funil_followups_fila", {
+    const { data, error } = await chamarRpc("funil_followups_fila", {
       p_tipo: tipo,
       p_incluir_futuros: false,
     });
@@ -200,7 +201,7 @@ export function FilaFollowups() {
 
   const regenerar = async () => {
     setGerando(true);
-    const { error } = await supabase.rpc("funil_followups_gerar");
+    const { error } = await chamarRpc("funil_followups_gerar");
     setGerando(false);
     if (error) toast.error("Erro ao gerar fila: " + error.message);
     else { toast.success("Fila atualizada"); carregar(true); }
@@ -289,7 +290,7 @@ function CardFollowup({
 
   const concluir = async () => {
     setSalvando(true);
-    const { error } = await supabase.rpc("funil_followup_concluir", {
+    const { error } = await chamarRpc("funil_followup_concluir", {
       p_followup_id: item.followup_id,
       p_atendente: atendente,
       p_resultado: resultado || null,
@@ -301,7 +302,7 @@ function CardFollowup({
 
   const pular = async () => {
     setSalvando(true);
-    const { error } = await supabase.rpc("funil_followup_pular", {
+    const { error } = await chamarRpc("funil_followup_pular", {
       p_followup_id: item.followup_id,
       p_atendente: atendente,
       p_motivo: motivo || null,
@@ -444,7 +445,7 @@ export function ResumoFollowups({ inicio, fim }: { inicio: string; fim: string }
     let ativo = true;
     (async () => {
       setLoading(true);
-      const { data, error } = await supabase.rpc("funil_followups_resumo", {
+      const { data, error } = await chamarRpc("funil_followups_resumo", {
         p_inicio: inicio, p_fim: fim,
       });
       if (!ativo) return;
@@ -543,7 +544,7 @@ export function TemplatesFollowup() {
 
   const carregar = useCallback(async () => {
     setLoading(true);
-    const { data, error } = await supabase.rpc("funil_followup_templates");
+    const { data, error } = await chamarRpc("funil_followup_templates");
     if (error) toast.error("Erro ao carregar templates: " + error.message);
     else setItens(((data as unknown) as Template[]) || []);
     setLoading(false);
@@ -553,7 +554,7 @@ export function TemplatesFollowup() {
 
   const salvar = async (t: Template) => {
     setSalvando(t.id);
-    const { error } = await supabase.rpc("funil_followup_template_editar", {
+    const { error } = await chamarRpc("funil_followup_template_editar", {
       p_id: t.id,
       p_corpo: rascunhos[t.id] ?? t.corpo ?? "",
     });

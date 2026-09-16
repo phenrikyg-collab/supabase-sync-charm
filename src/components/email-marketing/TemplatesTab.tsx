@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Plus, Pencil, Mail } from "lucide-react";
+import { chamarRpc } from "@/lib/supabaseRpc";
 
 export type Template = {
   id: number | string;
@@ -20,7 +21,7 @@ export function TemplatesTab() {
   const { data: templates = [], isLoading } = useQuery({
     queryKey: ["email-templates"],
     queryFn: async () => {
-      const { data, error } = await supabase.rpc("templates_listar" as any);
+      const { data, error } = await chamarRpc("templates_listar" as any);
       if (error) throw error;
       return (data ?? []) as Template[];
     },

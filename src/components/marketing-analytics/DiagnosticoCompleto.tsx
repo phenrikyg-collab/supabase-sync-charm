@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Aviso, BlocoLoading, C, Card, SANS, SectionTitle, SemDado, SERIF, Status, StatusChip, fmtNum } from './shared';
+import { chamarRpc } from "@/lib/supabaseRpc";
 
 interface HealthDim {
   dimensao: string;
@@ -49,7 +50,7 @@ export function DiagnosticoCompleto({ dias }: { dias: number }) {
   useEffect(() => {
     let ativo = true;
     setLoading(true);
-    supabase.rpc('fn_ig_diagnostico_completo' as any, { p_dias: dias }).then(({ data }: any) => {
+    chamarRpc('fn_ig_diagnostico_completo' as any, { p_dias: dias }).then(({ data }: any) => {
       if (!ativo) return;
       setData((data as Diagnostico) || null);
       setLoading(false);

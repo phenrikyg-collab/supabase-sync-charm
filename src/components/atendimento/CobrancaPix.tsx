@@ -12,6 +12,7 @@ import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { Copy, Download, Image as ImageIcon, Loader2, QrCode, RefreshCw } from "lucide-react";
 import QRCode from "qrcode";
+import { chamarRpc } from "@/lib/supabaseRpc";
 
 const EXTERNAL_SUPABASE_URL = "https://ezdtulcrqzmgocamjwwl.supabase.co";
 const GERAR_PIX_URL = `${EXTERNAL_SUPABASE_URL}/functions/v1/inter-gerar-cobranca-pix`;
@@ -165,7 +166,7 @@ export async function atualizarStatusCobranca(codigoSolicitacao: string) {
   const resposta = await fetch(`${CONSULTA_PIX_URL}?txid=${encodeURIComponent(codigoSolicitacao)}`);
   const data = await resposta.json().catch(() => ({}));
   if (!resposta.ok || !data?.status) throw new Error("Não foi possível consultar o status agora");
-  const { error } = await supabase.rpc("banco_inter_atualizar_situacao" as any, {
+  const { error } = await chamarRpc("banco_inter_atualizar_situacao" as any, {
     p_codigo_solicitacao: codigoSolicitacao,
     p_situacao: data.status,
   });
@@ -345,7 +346,7 @@ export function CobrancasTab() {
   const { data: cobrancas = [], isLoading } = useQuery({
     queryKey: ["inter-cobrancas"],
     queryFn: async () => {
-      const { data, error } = await supabase.rpc("banco_inter_listar_cobrancas" as any, { p_limit: 50 });
+      const { data, error } = await chamarRpc("banco_inter_listar_cobrancas" as any, { p_limit: 50 });
       if (error) throw error;
       return (data ?? []) as CobrancaPix[];
     },
@@ -545,7 +546,7 @@ export function CobrancasDaConversa({ conversaId }: { conversaId: string | numbe
   const { data: cobrancas = [] } = useQuery({
     queryKey: ["inter-cobrancas-conversa", String(conversaId)],
     queryFn: async () => {
-      const { data, error } = await supabase.rpc("banco_inter_cobrancas_da_conversa" as any, {
+      const { data, error } = await chamarRpc("banco_inter_cobrancas_da_conversa" as any, {
         p_conversa_id: conversaId,
       });
       if (error) throw error;

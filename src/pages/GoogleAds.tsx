@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/tooltip";
 import { brl, dec, ddmm, int, num, pct } from "@/lib/gestaoFormat";
 import { cn } from "@/lib/utils";
+import { chamarRpc } from "@/lib/supabaseRpc";
 
 type Linha = {
   data: string;
@@ -109,7 +110,7 @@ export default function GoogleAds() {
   const { data: googleStatus } = useQuery({
     queryKey: ["google-ads-status"],
     queryFn: async () => {
-      const { data, error } = await supabase.rpc("gestao_checklist_diario" as any);
+      const { data, error } = await chamarRpc("gestao_checklist_diario" as any);
       if (error) return null;
       return (data as any)?.midia?.google ?? null;
     },

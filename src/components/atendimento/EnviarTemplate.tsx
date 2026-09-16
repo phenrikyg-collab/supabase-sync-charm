@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/dialog";
 import { toast } from "@/hooks/use-toast";
 import { Loader2, Send, ArrowLeft } from "lucide-react";
+import { chamarRpc } from "@/lib/supabaseRpc";
 
 type Template = {
   id: number | string;
@@ -52,7 +53,7 @@ export function EnviarTemplateDialog({
     queryKey: ["wpp-templates-aprovados"],
     enabled: open,
     queryFn: async () => {
-      const { data, error } = await supabase.rpc("whatsapp_templates_listar" as any);
+      const { data, error } = await chamarRpc("whatsapp_templates_listar" as any);
       if (error) throw error;
       return (data ?? []) as Template[];
     },

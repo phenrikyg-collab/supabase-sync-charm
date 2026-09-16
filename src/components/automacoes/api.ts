@@ -1,9 +1,10 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { chamarRpc } from "@/lib/supabaseRpc";
 
 /** Chamada simples de RPC no schema public, sempre conferindo o erro. */
 export async function rpcFluxos<T = any>(nome: string, params?: Record<string, any>): Promise<T> {
-  const { data, error } = await supabase.rpc(nome as any, params as any);
+  const { data, error } = await chamarRpc(nome as any, params as any);
   if (error) throw new Error(error.message);
   return data as T;
 }

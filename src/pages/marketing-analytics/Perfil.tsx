@@ -14,6 +14,7 @@ import {
   Aviso, BlocoLoading, C, Card, KpiCard, MALayout, SANS, SectionTitle, SemDado,
   dataInicioISO, fmtCompact, fmtInt, fmtNum, media, useDias,
 } from '@/components/marketing-analytics/shared';
+import { chamarRpc } from "@/lib/supabaseRpc";
 
 interface TotalItem { atual: number | null; anterior: number | null; variacao_pct?: number | null }
 interface Funil {
@@ -41,7 +42,7 @@ function useFunil(dias: number) {
   useEffect(() => {
     let ativo = true;
     setLoading(true);
-    supabase.rpc('fn_ig_funil' as any, { p_dias: dias }).then(({ data }: any) => {
+    chamarRpc('fn_ig_funil' as any, { p_dias: dias }).then(({ data }: any) => {
       if (!ativo) return;
       setData((data as Funil) || null);
       setLoading(false);
