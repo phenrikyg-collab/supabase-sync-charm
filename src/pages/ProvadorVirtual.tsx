@@ -160,11 +160,31 @@ function ChipsSinal({ lead }: { lead: Lead }) {
     });
   }
   if (lead.template_enviado_em) {
-    chips.push({
-      chave: "prova",
-      texto: `Prova enviada ${tempoRel(lead.template_enviado_em)}`,
-      classe: "border-primary/40 bg-primary/10 text-primary",
-    });
+    if (lead.template_entrega === "falhou") {
+      chips.push({
+        chave: "prova",
+        texto: "Prova não entregue",
+        classe: "border-danger/40 bg-danger/10 text-danger",
+      });
+    } else if (lead.template_entrega === "lido") {
+      chips.push({
+        chave: "prova",
+        texto: `Prova lida ${tempoRel(lead.template_enviado_em)}`,
+        classe: "border-primary/40 bg-primary/10 text-primary",
+      });
+    } else if (lead.template_entrega === "entregue") {
+      chips.push({
+        chave: "prova",
+        texto: `Prova entregue ${tempoRel(lead.template_enviado_em)}`,
+        classe: "border-primary/40 bg-primary/10 text-primary",
+      });
+    } else {
+      chips.push({
+        chave: "prova",
+        texto: `Prova enviada ${tempoRel(lead.template_enviado_em)}`,
+        classe: "border-primary/40 bg-primary/10 text-primary",
+      });
+    }
   }
   if (lead.houve_contato && !lead.template_enviado_em) {
     chips.push({
