@@ -268,18 +268,21 @@ export async function listarSlides(roteiroId: number): Promise<Slide[]> {
 }
 
 /** Contagem de slides e se existe slide com erro, por roteiro. */
-export async function resumoSlides(): Promise<Record<number, { total: number; comErro: number }>> {
+export async function resumoSlides(): Promise<Record<number, { total: number; falhas: number; avisos: number }>> {
   const { data, error } = await db
     .from("instagram_stories_slides")
-    .select("roteiro_id, erro")
+    .select("roteiro_id, erro, status")
     .limit(5000);
   if (error) throw new Error(error.message);
-  const mapa: Record<number, { total: number; comErro: number }> = {};
+  const mapa: Record<number, { total: number; falhas: number; avisos: number }> = {};
   (data ?? []).forEach((s: any) => {
     const k = Number(s.roteiro_id);
-    if (!mapa[k]) mapa[k] = { total: 0, comErro: 0 };
+    if (!mapa[k]) mapa[k] = { total: 0, falhas: 0, avisos: 0 };
     mapa[k].total += 1;
-    if (s.erro) mapa[k].comErro += 1;
+    if (s.erro?.trim()) {
+      if (s.status === "falhou") mapa[k].falhas += 1;
+      else mapa[k].avisos += 1;
+    }
   });
   return mapa;
 }
@@ -325,7 +328,8 @@ export async function enqueteDoSlide(slideId: number): Promise<Enquete> {
 
 /** Slide inválido para agendar: tem erro gravado, ou não é manual e está sem mídia. */
 export function slideInvalido(s: Slide): boolean {
-  if (s.erro) return true;
+  if (s.status === "falhou") return true;
+  if (s.erro && /jpeg|mp4|mov|formato|m[ií]dia.*recusa|limite do instagram|m[ií]nimo do story|corta em 60/i.test(s.erro)) return true;
   if (!s.manual && !s.midia_url) return true;
   return false;
 }

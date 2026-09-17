@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
-import { AlertTriangle, BarChart3, Plus } from "lucide-react";
+import { AlertTriangle, BarChart3, Info, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -18,7 +18,7 @@ const TODOS = "__todos__";
 
 export function StoriesTab() {
   const [roteiros, setRoteiros] = useState<Roteiro[]>([]);
-  const [resumo, setResumo] = useState<Record<number, { total: number; comErro: number }>>({});
+  const [resumo, setResumo] = useState<Record<number, { total: number; falhas: number; avisos: number }>>({});
   const [carregando, setCarregando] = useState(true);
   const [filtro, setFiltro] = useState(TODOS);
   const [editando, setEditando] = useState<Roteiro | null>(null);
@@ -95,11 +95,17 @@ export function StoriesTab() {
           </Card>
         )}
         {filtrados.map((r) => {
-          const info = resumo[Number(r.id)] ?? { total: 0, comErro: 0 };
+          const info = resumo[Number(r.id)] ?? { total: 0, falhas: 0, avisos: 0 };
+          const roteiroFalhou = r.status === "falhou" && !!r.erro?.trim();
+          const roteiroAviso = r.status !== "falhou" && !!r.erro?.trim();
           return (
             <Card
               key={r.id}
-              className={cn("p-3 flex flex-wrap items-center gap-3 cursor-pointer", info.comErro > 0 && "border-destructive")}
+              className={cn(
+                "p-3 flex flex-wrap items-center gap-3 cursor-pointer",
+                (info.falhas > 0 || roteiroFalhou) && "border-destructive",
+                info.falhas === 0 && !roteiroFalhou && (info.avisos > 0 || roteiroAviso) && "border-warning",
+              )}
               onClick={() => setEditando(r)}
             >
               <div className="min-w-0 flex-1">
@@ -115,10 +121,21 @@ export function StoriesTab() {
               <span className="text-xs text-muted-foreground">
                 {info.total} {info.total === 1 ? "slide" : "slides"}
               </span>
-              {info.comErro > 0 && (
+              {info.falhas > 0 && (
                 <span className="text-xs text-destructive flex items-center gap-1">
                   <AlertTriangle className="h-3.5 w-3.5" />
-                  {info.comErro} com problema de mídia
+                  {info.falhas} {info.falhas === 1 ? "falhou" : "falharam"}
+                </span>
+              )}
+              {info.avisos > 0 && (
+                <span className="text-xs text-warning flex items-center gap-1">
+                  <Info className="h-3.5 w-3.5" />
+                  {info.avisos} {info.avisos === 1 ? "aviso" : "avisos"}
+                </span>
+              )}
+              {r.erro?.trim() && (
+                <span className={cn("max-w-xs truncate text-xs", roteiroFalhou ? "text-destructive" : "text-warning")} title={r.erro}>
+                  {roteiroFalhou ? "Falhou" : r.status === "publicado" ? "Publicado com um aviso" : "Aviso"}: {r.erro}
                 </span>
               )}
               <Button

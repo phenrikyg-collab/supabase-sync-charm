@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
-import { Loader2, Upload, X } from "lucide-react";
+import { AlertTriangle, Info, Loader2, Upload, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -8,6 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { cn } from "@/lib/utils";
 import {
   converterParaJpeg, duracaoDoVideo, ehVideo, subirMidiaStory, validarDuracao, validarMidia,
   type Slide,
@@ -66,6 +67,7 @@ export default function PainelSlide({
   const inputRef = useRef<HTMLInputElement>(null);
   const [produtos, setProdutos] = useState<ProdutoPai[]>([]);
   const [buscaProduto, setBuscaProduto] = useState("");
+  const ehFalha = slide.status === "falhou";
 
   useEffect(() => {
     carregarProdutosPai().then(setProdutos).catch(() => setProdutos([]));
@@ -142,9 +144,13 @@ export default function PainelSlide({
       </div>
 
       {slide.erro && (
-        <p className="rounded-md border border-destructive bg-destructive/10 p-2 text-xs text-destructive">
-          {slide.erro}
-        </p>
+        <div className={cn(
+          "flex items-start gap-2 rounded-md border p-2 text-xs",
+          ehFalha ? "border-destructive bg-destructive/10 text-destructive" : "border-warning bg-warning/10 text-warning",
+        )}>
+          {ehFalha ? <AlertTriangle className="h-4 w-4 shrink-0" /> : <Info className="h-4 w-4 shrink-0" />}
+          <p><strong>{ehFalha ? "Falhou" : "Aviso"}:</strong> {ehFalha ? slide.erro : `${slide.status === "publicado" ? "Publicado" : "O slide segue no fluxo"} com um aviso: ${slide.erro}`}</p>
+        </div>
       )}
 
       <div className="space-y-2">
