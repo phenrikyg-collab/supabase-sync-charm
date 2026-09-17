@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { SortableHead, useSortable, useOrdenado } from "@/components/SortableHead";
 import { EnviarWhatsAppInline } from "@/components/rfm/EnviarWhatsAppInline";
 import { FiltroPeriodo, Periodo, limiteInicio, limiteFim } from "@/components/recuperacao/FiltroPeriodo";
+import { BotaoTemplatePadrao, SeletorTemplatePadrao, useTemplatesContexto } from "@/components/recuperacao/TemplatePadrao";
 import { SegmentoBadge, CelulaItens, moeda } from "@/components/recuperacao/comum";
 import { formatarData } from "@/utils/formatters";
 import { Button } from "@/components/ui/button";
@@ -58,6 +59,8 @@ export default function PedidosCancelados({
   const [segmento, setSegmento] = useState("todos");
   const [valorMin, setValorMin] = useState("");
   const [valorMax, setValorMax] = useState("");
+  const [contatados, setContatados] = useState<Set<string>>(new Set());
+  const { templates, padrao } = useTemplatesContexto("pedido_cancelado");
 
   const { data: linhas = [], isLoading, error } = useQuery({
     queryKey: ["vw_pedidos_cancelados_recuperacao", periodo.inicio, periodo.fim],
@@ -170,8 +173,9 @@ export default function PedidosCancelados({
             </div>
             <div className="space-y-1">
               <Label className="text-xs text-muted-foreground">Valor máximo</Label>
-              <Input type="number" className="h-9 w-[130px]" value={valorMax} onChange={(e) => setValorMax(e.target.value)} placeholder="R$ —" />
+              <Input type="number" className="h-9 w-[130px]" value={valorMax} onChange={(e) => setValorMax(e.target.value)} placeholder="R$ 0" />
             </div>
+            <SeletorTemplatePadrao contexto="pedido_cancelado" templates={templates} padrao={padrao} />
           </div>
         </CardHeader>
         <CardContent>
@@ -222,7 +226,18 @@ export default function PedidosCancelados({
                             <MessageCircle className="mr-1.5 h-3.5 w-3.5" /> Abrir conversa
                           </Button>
                         ) : l.telefone ? (
-                          <EnviarWhatsAppInline telefone={l.telefone} placeholder="Mensagem de recuperação..." mostrarAviso />
+                          <div className="space-y-1">
+                            <EnviarWhatsAppInline telefone={l.telefone} placeholder="Mensagem de recuperação..." mostrarAviso />
+                            <BotaoTemplatePadrao
+                              telefone={l.telefone}
+                              nome={l.nome}
+                              conversaId={contato?.conversa_id ?? null}
+                              padrao={padrao}
+                              rotulo="Enviar mensagem de recuperação"
+                              contatada={contatados.has(l.tray_order_id)}
+                              onContatada={() => setContatados((p) => new Set(p).add(l.tray_order_id))}
+                            />
+                          </div>
                         ) : (
                           <span className="text-xs text-muted-foreground">Cliente não identificado</span>
                         )}

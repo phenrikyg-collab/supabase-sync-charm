@@ -1,6 +1,10 @@
+import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { AlertTriangle } from "lucide-react";
+import { AlertTriangle, Loader2 } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { Button } from "@/components/ui/button";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { chamarRpc } from "@/lib/supabaseRpc";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -114,5 +118,82 @@ export function SeletorTemplatePadrao({
         </p>
       )}
     </div>
+  );
+}
+
+/** Envio do template padrão do contexto para uma cliente da lista. */
+export function BotaoTemplatePadrao({
+  telefone,
+  nome,
+  conversaId,
+  padrao,
+  rotulo,
+  contatada,
+  onContatada,
+}: {
+  telefone: string | null;
+  nome: string | null;
+  conversaId?: string | number | null;
+  padrao: TemplateContexto | null;
+  rotulo: string;
+  contatada: boolean;
+  onContatada: () => void;
+}) {
+  const [enviando, setEnviando] = useState(false);
+  if (!telefone) return null;
+
+  const primeiro = () => {
+    const limpo = String(nome ?? "").trim();
+    if (!limpo || limpo.toLowerCase() === "desconhecido") return "tudo bem";
+    return limpo.split(/\s+/)[0];
+  };
+
+  const enviar = async () => {
+    if (!padrao?.nome) return;
+    setEnviando(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("whatsapp-enviar-template", {
+        body: {
+          telefone,
+          conversa_id: conversaId ?? null,
+          nome_template: padrao.nome,
+          parametros: [primeiro()],
+        },
+      });
+      if (error || (data as any)?.error) {
+        throw new Error((data as any)?.error || (data as any)?.mensagem || error?.message || "Falha no envio");
+      }
+      toast.success("Template enviado");
+      onContatada();
+    } catch (e: any) {
+      toast.error("Falha ao enviar template", { description: e?.message, duration: 8000 });
+    } finally {
+      setEnviando(false);
+    }
+  };
+
+  const botao = (
+    <span className="inline-block">
+      <Button
+        size="sm"
+        variant="outline"
+        className="h-8 text-xs"
+        disabled={enviando || contatada || !padrao?.nome}
+        onClick={enviar}
+      >
+        {enviando ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : null}
+        {contatada ? "Já contatada" : rotulo}
+      </Button>
+    </span>
+  );
+
+  if (padrao?.nome || contatada) return botao;
+  return (
+    <TooltipProvider>
+      <Tooltip>
+        <TooltipTrigger asChild>{botao}</TooltipTrigger>
+        <TooltipContent>Escolha um template padrão no topo da tela</TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
   );
 }
