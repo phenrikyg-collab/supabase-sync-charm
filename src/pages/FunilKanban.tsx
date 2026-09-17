@@ -214,7 +214,7 @@ export default function FunilKanban({
       ) : (
         <div className="flex-1 min-h-0 flex gap-3 overflow-x-auto pb-2">
           {COLUNAS.map((col) => {
-            const lista = cards.filter((c) => (c.etapa ?? "") === col.etapa);
+            const lista = visiveis.filter((c) => (c.etapa ?? "") === col.etapa);
             return (
               <div
                 key={col.etapa}
@@ -250,6 +250,7 @@ export default function FunilKanban({
                           )}
                         />
                         <p className="text-sm font-medium truncate flex-1">{card.nome || "Sem nome"}</p>
+                        <SeloOrigem origem={card.etapa_origem} />
                         {card.sac && (
                           <Badge variant="outline" className="text-[10px] shrink-0">SAC</Badge>
                         )}
