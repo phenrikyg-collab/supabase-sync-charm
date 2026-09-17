@@ -56,6 +56,76 @@ import { FunilKanbanConteudo } from "@/pages/FunilKanban";
 import { CashbackConteudo } from "@/pages/Cashback";
 import { chamarRpc } from "@/lib/supabaseRpc";
 
+import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
+import type { ImperativePanelGroupHandle } from "react-resizable-panels";
+import { ProvadorBloco } from "@/components/atendimento/ProvadorBloco";
+
+/** Telas largas ganham colunas arrastáveis; no celular o layout continua igual. */
+function useTelaLarga() {
+  const [larga, setLarga] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia("(min-width: 1024px)");
+    const aplicar = () => setLarga(mq.matches);
+    aplicar();
+    mq.addEventListener("change", aplicar);
+    return () => mq.removeEventListener("change", aplicar);
+  }, []);
+  return larga;
+}
+
+function Colunas({
+  ajustavel,
+  grupoRef,
+  className,
+  children,
+}: {
+  ajustavel: boolean;
+  grupoRef: React.RefObject<ImperativePanelGroupHandle>;
+  className?: string;
+  children: React.ReactNode;
+}) {
+  if (!ajustavel) return <div className={className}>{children}</div>;
+  return (
+    <ResizablePanelGroup
+      ref={grupoRef}
+      direction="horizontal"
+      autoSaveId="atendimento-colunas"
+      className={className}
+    >
+      {children}
+    </ResizablePanelGroup>
+  );
+}
+
+function Coluna({
+  ajustavel,
+  id,
+  order,
+  defaultSize,
+  minSize,
+  children,
+}: {
+  ajustavel: boolean;
+  id: string;
+  order: number;
+  defaultSize: number;
+  minSize: number;
+  children: React.ReactNode;
+}) {
+  if (!ajustavel) return <>{children}</>;
+  return (
+    <ResizablePanel
+      id={id}
+      order={order}
+      defaultSize={defaultSize}
+      minSize={minSize}
+      className="flex min-h-0 min-w-0 flex-col overflow-hidden"
+    >
+      {children}
+    </ResizablePanel>
+  );
+}
+
 /** Separador de data da lista de conversas. */
 function grupoDia(valor?: string | null): string {
   if (!valor) return "Mais antigas";
