@@ -73,6 +73,7 @@ type Lead = {
   conversa_nao_lida?: boolean | null;
   conversa_aberta?: boolean | null;
   template_enviado_em?: string | null;
+  template_entrega?: string | null;
   template_nome?: string | null;
   msgs_saida?: number | null;
   msgs_entrada?: number | null;
@@ -159,11 +160,31 @@ function ChipsSinal({ lead }: { lead: Lead }) {
     });
   }
   if (lead.template_enviado_em) {
-    chips.push({
-      chave: "prova",
-      texto: `Prova enviada ${tempoRel(lead.template_enviado_em)}`,
-      classe: "border-primary/40 bg-primary/10 text-primary",
-    });
+    if (lead.template_entrega === "falhou") {
+      chips.push({
+        chave: "prova",
+        texto: "Prova não entregue",
+        classe: "border-danger/40 bg-danger/10 text-danger",
+      });
+    } else if (lead.template_entrega === "lido") {
+      chips.push({
+        chave: "prova",
+        texto: `Prova lida ${tempoRel(lead.template_enviado_em)}`,
+        classe: "border-primary/40 bg-primary/10 text-primary",
+      });
+    } else if (lead.template_entrega === "entregue") {
+      chips.push({
+        chave: "prova",
+        texto: `Prova entregue ${tempoRel(lead.template_enviado_em)}`,
+        classe: "border-primary/40 bg-primary/10 text-primary",
+      });
+    } else {
+      chips.push({
+        chave: "prova",
+        texto: `Prova enviada ${tempoRel(lead.template_enviado_em)}`,
+        classe: "border-primary/40 bg-primary/10 text-primary",
+      });
+    }
   }
   if (lead.houve_contato && !lead.template_enviado_em) {
     chips.push({
@@ -273,6 +294,10 @@ function FunilLeads({
         }
         if (corpo?.error === "ja_enviado") {
           setConflito(corpo.mensagem || "Esta prova já foi enviada para a cliente.");
+          return;
+        }
+        if (corpo?.error === "bloqueada") {
+          toast.error(corpo.mensagem || "Envio bloqueado: verifique o número da cliente.");
           return;
         }
         toast.error(corpo?.mensagem || error.message || "Não foi possível enviar", {
@@ -470,13 +495,15 @@ function FunilLeads({
                               <span className="flex-1">
                                 <Button
                                   size="sm"
-                                  variant={lead.template_enviado_em ? "outline" : "default"}
+                                  variant={lead.template_enviado_em && lead.template_entrega !== "falhou" ? "outline" : "default"}
                                   className="w-full"
                                   disabled={!templateAprovado}
                                   onClick={() => { setConflito(null); setLeadEnvio(lead); }}
                                 >
                                   <Send className="mr-1.5 h-3.5 w-3.5" />
-                                  {lead.template_enviado_em ? "Reenviar prova" : "Enviar prova por WhatsApp"}
+                                  {lead.template_enviado_em && lead.template_entrega !== "falhou"
+                                    ? "Reenviar prova"
+                                    : "Enviar prova por WhatsApp"}
                                 </Button>
                               </span>
                             </TooltipTrigger>
