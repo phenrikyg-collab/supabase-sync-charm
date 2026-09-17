@@ -519,14 +519,44 @@ function FunilLeads({
   }
 
   // A RPC já devolve ordenada por score: mantemos a ordem recebida dentro de cada coluna.
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(CHAVE_FILTROS_FUNIL, JSON.stringify(filtros));
+    } catch {
+      // sem localStorage disponível: segue sem persistir
+    }
+  }, [filtros]);
+
+  const pecasDisponiveis = useMemo(() => {
+    const conjunto = new Set<string>();
+    for (const l of leads) {
+      const nome = (l.produto_nome || "").trim();
+      if (nome) conjunto.add(nome);
+    }
+    return Array.from(conjunto).sort((a, b) => a.localeCompare(b, "pt-BR"));
+  }, [leads]);
+
+  const leadsFiltrados = useMemo(() => filtrarLeads(leads, filtros), [leads, filtros]);
+
   const porStatus = useMemo(() => {
     const mapa: Record<string, Lead[]> = { provou: [], em_contato: [], convertido: [] };
-    for (const l of leads) {
+    for (const l of leadsFiltrados) {
       const s = (l.status_funil || "provou").toLowerCase();
       (mapa[s] ??= []).push(l);
     }
     return mapa;
-  }, [leads]);
+  }, [leadsFiltrados]);
+
+  const temFiltroAtivo = filtrosAtivos(filtros);
+
+  function alternarTemperatura(valor: string) {
+    setFiltros((f) => ({
+      ...f,
+      temperaturas: f.temperaturas.includes(valor)
+        ? f.temperaturas.filter((t) => t !== valor)
+        : [...f.temperaturas, valor],
+    }));
+  }
 
   if (isLoading) {
     return (
@@ -538,6 +568,95 @@ function FunilLeads({
 
   return (
     <>
+      <div className="mb-4 space-y-2 rounded-lg border bg-card p-3">
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="relative min-w-[200px] flex-1 sm:max-w-xs">
+            <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              value={filtros.busca}
+              onChange={(e) => setFiltros((f) => ({ ...f, busca: e.target.value }))}
+              placeholder="Nome, telefone ou peça"
+              className="h-8 pl-8 text-xs"
+            />
+          </div>
+          <div className="flex flex-wrap items-center gap-1.5">
+            {OPCOES_PERIODO.map((op) => (
+              <ChipFiltro
+                key={op.valor}
+                ativo={filtros.periodo === op.valor}
+                onClick={() => setFiltros((f) => ({ ...f, periodo: op.valor }))}
+              >
+                {op.rotulo}
+              </ChipFiltro>
+            ))}
+          </div>
+          <span className="ml-auto text-xs text-muted-foreground">
+            {leadsFiltrados.length} de {leads.length} leads
+          </span>
+          {temFiltroAtivo && (
+            <Button
+              size="sm"
+              variant="ghost"
+              className="h-8 px-2 text-xs"
+              onClick={() => setFiltros(FILTROS_PADRAO)}
+            >
+              <FilterX className="mr-1 h-3.5 w-3.5" />
+              Limpar filtros
+            </Button>
+          )}
+        </div>
+        <div className="flex flex-wrap items-center gap-1.5">
+          {OPCOES_TEMPERATURA.map((op) => (
+            <ChipFiltro
+              key={op.valor}
+              ativo={filtros.temperaturas.includes(op.valor)}
+              onClick={() => alternarTemperatura(op.valor)}
+            >
+              {op.rotulo}
+            </ChipFiltro>
+          ))}
+          <span className="mx-1 hidden h-4 w-px bg-border sm:block" />
+          {OPCOES_CONTATO.map((op) => (
+            <ChipFiltro
+              key={op.valor}
+              ativo={filtros.contato === op.valor}
+              onClick={() => setFiltros((f) => ({ ...f, contato: op.valor }))}
+            >
+              {op.rotulo}
+            </ChipFiltro>
+          ))}
+          <span className="mx-1 hidden h-4 w-px bg-border sm:block" />
+          <Select
+            value={filtros.peca}
+            onValueChange={(v) => setFiltros((f) => ({ ...f, peca: v }))}
+          >
+            <SelectTrigger className="h-8 w-[180px] text-xs">
+              <SelectValue placeholder="Peça" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="todas">Todas as peças</SelectItem>
+              {pecasDisponiveis.map((p) => (
+                <SelectItem key={p} value={p}>{p}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select
+            value={filtros.tamanho}
+            onValueChange={(v) => setFiltros((f) => ({ ...f, tamanho: v }))}
+          >
+            <SelectTrigger className="h-8 w-[130px] text-xs">
+              <SelectValue placeholder="Tamanho" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="todos">Todos os tamanhos</SelectItem>
+              {OPCOES_TAMANHO.map((t) => (
+                <SelectItem key={t} value={t}>{t}</SelectItem>
+              ))}
+              <SelectItem value="sem">Sem tamanho</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
       <div className="grid gap-4 md:grid-cols-3">
         {COLUNAS.map((col) => {
           const itens = porStatus[col.status] ?? [];
