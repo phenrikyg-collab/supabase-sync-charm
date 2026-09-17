@@ -218,14 +218,9 @@ function FunilLeads({
     queryKey: ["provador-template-status"],
     queryFn: async () => {
       try {
-        const { data, error } = await (supabase as any)
-          .schema("whatsapp")
-          .from("templates_mensagem")
-          .select("status_aprovacao")
-          .eq("nome", "provador_prova_pronta")
-          .maybeSingle();
+        const { data, error } = await supabase.rpc("provador_template_status");
         if (error) return false;
-        return data?.status_aprovacao === "aprovado";
+        return (data as any)?.aprovado === true;
       } catch {
         return false;
       }
