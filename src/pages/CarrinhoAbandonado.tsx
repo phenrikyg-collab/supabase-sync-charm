@@ -90,6 +90,11 @@ export default function CarrinhoAbandonado({
     [linhas]
   );
 
+  const caminhoDaLinha = (l: Carrinho): Caminho => {
+    const info = caminhoDe(l.telefone);
+    return info?.caminho ?? (info?.janela_aberta ? "janela_aberta" : "sem_sinal");
+  };
+
   const filtradas = useMemo(() => {
     const min = valorMin ? Number(valorMin) : null;
     const max = valorMax ? Number(valorMax) : null;
@@ -101,9 +106,24 @@ export default function CarrinhoAbandonado({
       }
       if (min != null && v < min) return false;
       if (max != null && v > max) return false;
+      if (filtroCaminho && caminhoDaLinha(l) !== filtroCaminho) return false;
       return true;
     });
-  }, [linhas, segmento, valorMin, valorMax]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [linhas, segmento, valorMin, valorMax, filtroCaminho, caminhoDe]);
+
+  const contagemCaminhos = useMemo(() => {
+    const base: Record<Caminho, number> = {
+      janela_aberta: 0,
+      pedido_pendente: 0,
+      atrito_no_site: 0,
+      sem_sinal: 0,
+    };
+    for (const l of linhas) base[caminhoDaLinha(l)] += 1;
+    return base;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [linhas, caminhoDe]);
+
 
   const { sort, alternar } = useSortable<Chave>({ key: "total", dir: "desc" });
   const ordenadas = useOrdenado<Carrinho, Chave>(filtradas, sort, {
