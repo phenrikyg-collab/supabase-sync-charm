@@ -183,6 +183,30 @@ export default function FunilKanban({
         </div>
       </div>
 
+      <div className="flex flex-wrap items-center justify-between gap-3 shrink-0">
+        <p className="text-xs text-muted-foreground max-w-3xl">
+          A automação preenche as etapas sozinha a cada 20 minutos. Assim que você move um card, aquela conversa passa a ser sua e a automação não mexe mais nela. A única exceção é pedido pago, que sempre marca Fechado.
+        </p>
+        <div className="flex items-center gap-1">
+          <span className="text-xs text-muted-foreground mr-1">Origem da etapa:</span>
+          {([
+            { valor: "todas", rotulo: "Todas" },
+            { valor: "auto", rotulo: "Só automáticas" },
+            { valor: "manual", rotulo: "Só manuais" },
+          ] as { valor: FiltroOrigem; rotulo: string }[]).map((op) => (
+            <Button
+              key={op.valor}
+              variant={filtroOrigem === op.valor ? "default" : "outline"}
+              size="sm"
+              className="h-7 px-2.5 text-xs"
+              onClick={() => setFiltroOrigem(op.valor)}
+            >
+              {op.rotulo}
+            </Button>
+          ))}
+        </div>
+      </div>
+
       {loading ? (
         <div className="flex-1 flex items-center justify-center py-16">
           <Loader2 className="h-6 w-6 animate-spin text-primary" />
