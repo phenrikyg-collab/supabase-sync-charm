@@ -222,10 +222,11 @@ export function CelulaRecuperar({
   }
 
   const ehPedido = caminho === "pedido_pendente";
-  const nomeTemplate = info?.template_sugerido ?? (ehPedido ? "pedido_aguardando_pagamento" : "ajuda_dificuldade_site");
+  const nomeTemplate = templatePadrao ?? null;
   const rotulo = ehPedido ? "Enviar lembrete de pagamento" : "Perguntar se teve problema";
-  const aprovado = templateAprovado(nomeTemplate);
-  const desabilitado = enviando || contatada || !aprovado;
+  const aprovado = !!nomeTemplate && templateAprovado(nomeTemplate);
+  const semPadrao = !nomeTemplate;
+  const desabilitado = enviando || contatada || semPadrao || !aprovado;
 
   const botao = (
     <span className="inline-block">
@@ -234,7 +235,7 @@ export function CelulaRecuperar({
         variant="outline"
         className="h-8 text-xs"
         disabled={desabilitado}
-        onClick={() => enviarTemplate(nomeTemplate)}
+        onClick={() => nomeTemplate && enviarTemplate(nomeTemplate)}
       >
         {enviando ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : null}
         {contatada ? "Já contatada" : rotulo}
@@ -242,14 +243,20 @@ export function CelulaRecuperar({
     </span>
   );
 
+  const aviso = semPadrao
+    ? "Escolha um template padrão no topo da tela"
+    : !aprovado
+      ? "Template aguardando aprovação da Meta"
+      : null;
+
   return (
     <div className="min-w-[210px] space-y-1">
       <SeloCaminho caminho={caminho} />
-      {!aprovado && !contatada ? (
+      {aviso && !contatada ? (
         <TooltipProvider>
           <Tooltip>
             <TooltipTrigger asChild>{botao}</TooltipTrigger>
-            <TooltipContent>Template aguardando aprovação da Meta</TooltipContent>
+            <TooltipContent>{aviso}</TooltipContent>
           </Tooltip>
         </TooltipProvider>
       ) : (
