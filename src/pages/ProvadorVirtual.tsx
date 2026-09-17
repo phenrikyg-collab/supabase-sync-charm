@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -12,11 +12,14 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
 } from "@/components/ui/dialog";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from "@/components/ui/select";
 
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import {
-  Loader2, MessageCircle, Globe, Sparkles, Download, Search, Upload, Send, RefreshCw,
+  Loader2, MessageCircle, Globe, Sparkles, Download, Search, Upload, Send, RefreshCw, FilterX,
 } from "lucide-react";
 
 const SUPABASE_URL = "https://ezdtulcrqzmgocamjwwl.supabase.co";
@@ -208,8 +211,161 @@ function ChipsSinal({ lead }: { lead: Lead }) {
     </div>
   );
 }
+/* ---------------- Filtros do funil ---------------- */
 
+type PeriodoFunil = "todos" | "hoje" | "7" | "30";
+type ContatoFunil = "todos" | "sem_contato" | "prova_enviada" | "nao_entregue" | "respondeu" | "conversa_aberta";
 
+type FiltrosFunil = {
+  busca: string;
+  periodo: PeriodoFunil;
+  temperaturas: string[];
+  contato: ContatoFunil;
+  peca: string;
+  tamanho: string;
+};
+
+const FILTROS_PADRAO: FiltrosFunil = {
+  busca: "",
+  periodo: "todos",
+  temperaturas: [],
+  contato: "todos",
+  peca: "todas",
+  tamanho: "todos",
+};
+
+const CHAVE_FILTROS_FUNIL = "provador_funil_filtros";
+
+function lerFiltrosSalvos(): FiltrosFunil {
+  try {
+    const raw = window.localStorage.getItem(CHAVE_FILTROS_FUNIL);
+    if (!raw) return FILTROS_PADRAO;
+    const salvo = JSON.parse(raw);
+    return {
+      busca: typeof salvo.busca === "string" ? salvo.busca : "",
+      periodo: ["todos", "hoje", "7", "30"].includes(salvo.periodo) ? salvo.periodo : "todos",
+      temperaturas: Array.isArray(salvo.temperaturas) ? salvo.temperaturas.filter((t: unknown) => typeof t === "string") : [],
+      contato: ["todos", "sem_contato", "prova_enviada", "nao_entregue", "respondeu", "conversa_aberta"].includes(salvo.contato) ? salvo.contato : "todos",
+      peca: typeof salvo.peca === "string" ? salvo.peca : "todas",
+      tamanho: typeof salvo.tamanho === "string" ? salvo.tamanho : "todos",
+    };
+  } catch {
+    return FILTROS_PADRAO;
+  }
+}
+
+function filtrosAtivos(f: FiltrosFunil) {
+  return (
+    f.busca.trim() !== "" ||
+    f.periodo !== "todos" ||
+    f.temperaturas.length > 0 ||
+    f.contato !== "todos" ||
+    f.peca !== "todas" ||
+    f.tamanho !== "todos"
+  );
+}
+
+function passaPeriodo(iso: string, periodo: PeriodoFunil) {
+  if (periodo === "todos") return true;
+  const data = new Date(iso).getTime();
+  if (periodo === "hoje") {
+    const hoje = new Date();
+    hoje.setHours(0, 0, 0, 0);
+    return data >= hoje.getTime();
+  }
+  const dias = periodo === "7" ? 7 : 30;
+  return data >= Date.now() - dias * 24 * 3600 * 1000;
+}
+
+function passaContato(lead: Lead, contato: ContatoFunil) {
+  switch (contato) {
+    case "todos": return true;
+    case "sem_contato": return !lead.houve_contato && !lead.template_enviado_em;
+    case "prova_enviada": return !!lead.template_enviado_em;
+    case "nao_entregue": return lead.template_entrega === "falhou";
+    case "respondeu": return !!lead.ultima_entrada;
+    case "conversa_aberta": return !!lead.conversa_aberta;
+  }
+}
+
+function filtrarLeads(leads: Lead[], f: FiltrosFunil) {
+  const busca = f.busca.trim().toLowerCase();
+  const buscaDigitos = f.busca.replace(/\D/g, "");
+  return leads.filter((lead) => {
+    if (busca) {
+      const nome = (lead.nome || "").toLowerCase();
+      const peca = (lead.produto_nome || "").toLowerCase();
+      const telDigitos = (lead.telefone || "").replace(/\D/g, "");
+      const bateu =
+        nome.includes(busca) ||
+        peca.includes(busca) ||
+        (buscaDigitos.length > 0 && telDigitos.includes(buscaDigitos));
+      if (!bateu) return false;
+    }
+    if (!passaPeriodo(lead.criado_em, f.periodo)) return false;
+    if (f.temperaturas.length > 0 && !f.temperaturas.includes((lead.temperatura ?? "").toLowerCase())) return false;
+    if (!passaContato(lead, f.contato)) return false;
+    if (f.peca !== "todas" && (lead.produto_nome || "") !== f.peca) return false;
+    if (f.tamanho !== "todos") {
+      const t = (lead.tamanho_indicado || "").trim().toUpperCase();
+      if (f.tamanho === "sem") {
+        if (t !== "") return false;
+      } else if (t !== f.tamanho) return false;
+    }
+    return true;
+  });
+}
+
+function ChipFiltro({
+  ativo,
+  onClick,
+  children,
+}: {
+  ativo: boolean;
+  onClick: () => void;
+  children: ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        "rounded-full border px-2.5 py-1 text-xs font-semibold transition-colors",
+        ativo
+          ? "border-primary/40 bg-primary/10 text-primary"
+          : "border-border bg-muted/40 text-muted-foreground hover:bg-muted"
+      )}
+    >
+      {children}
+    </button>
+  );
+}
+
+const OPCOES_PERIODO: { valor: PeriodoFunil; rotulo: string }[] = [
+  { valor: "hoje", rotulo: "Hoje" },
+  { valor: "7", rotulo: "7 dias" },
+  { valor: "30", rotulo: "30 dias" },
+  { valor: "todos", rotulo: "Todos" },
+];
+
+const OPCOES_TEMPERATURA: { valor: string; rotulo: string }[] = [
+  { valor: "checkout", rotulo: "Checkout" },
+  { valor: "carrinho", rotulo: "Carrinho" },
+  { valor: "respondeu", rotulo: "Respondeu" },
+  { valor: "comprou", rotulo: "Comprou" },
+  { valor: "provou", rotulo: "Provou" },
+];
+
+const OPCOES_CONTATO: { valor: ContatoFunil; rotulo: string }[] = [
+  { valor: "todos", rotulo: "Todos" },
+  { valor: "sem_contato", rotulo: "Sem contato" },
+  { valor: "prova_enviada", rotulo: "Prova enviada" },
+  { valor: "nao_entregue", rotulo: "Não entregue" },
+  { valor: "respondeu", rotulo: "Respondeu" },
+  { valor: "conversa_aberta", rotulo: "Conversa aberta" },
+];
+
+const OPCOES_TAMANHO = ["PP", "P", "M", "G", "GG", "EG"];
 
 function FunilLeads({
   onAbrirConversa,
@@ -219,6 +375,7 @@ function FunilLeads({
   onContagem?: (n: number) => void;
 }) {
   const qc = useQueryClient();
+  const [filtros, setFiltros] = useState<FiltrosFunil>(lerFiltrosSalvos);
   const [fotoAberta, setFotoAberta] = useState<string | null>(null);
   const [preparando, setPreparando] = useState<string | null>(null);
   const [abrindo, setAbrindo] = useState<string | null>(null);
@@ -362,14 +519,44 @@ function FunilLeads({
   }
 
   // A RPC já devolve ordenada por score: mantemos a ordem recebida dentro de cada coluna.
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(CHAVE_FILTROS_FUNIL, JSON.stringify(filtros));
+    } catch {
+      // sem localStorage disponível: segue sem persistir
+    }
+  }, [filtros]);
+
+  const pecasDisponiveis = useMemo(() => {
+    const conjunto = new Set<string>();
+    for (const l of leads) {
+      const nome = (l.produto_nome || "").trim();
+      if (nome) conjunto.add(nome);
+    }
+    return Array.from(conjunto).sort((a, b) => a.localeCompare(b, "pt-BR"));
+  }, [leads]);
+
+  const leadsFiltrados = useMemo(() => filtrarLeads(leads, filtros), [leads, filtros]);
+
   const porStatus = useMemo(() => {
     const mapa: Record<string, Lead[]> = { provou: [], em_contato: [], convertido: [] };
-    for (const l of leads) {
+    for (const l of leadsFiltrados) {
       const s = (l.status_funil || "provou").toLowerCase();
       (mapa[s] ??= []).push(l);
     }
     return mapa;
-  }, [leads]);
+  }, [leadsFiltrados]);
+
+  const temFiltroAtivo = filtrosAtivos(filtros);
+
+  function alternarTemperatura(valor: string) {
+    setFiltros((f) => ({
+      ...f,
+      temperaturas: f.temperaturas.includes(valor)
+        ? f.temperaturas.filter((t) => t !== valor)
+        : [...f.temperaturas, valor],
+    }));
+  }
 
   if (isLoading) {
     return (
@@ -381,6 +568,95 @@ function FunilLeads({
 
   return (
     <>
+      <div className="mb-4 space-y-2 rounded-lg border bg-card p-3">
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="relative min-w-[200px] flex-1 sm:max-w-xs">
+            <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              value={filtros.busca}
+              onChange={(e) => setFiltros((f) => ({ ...f, busca: e.target.value }))}
+              placeholder="Nome, telefone ou peça"
+              className="h-8 pl-8 text-xs"
+            />
+          </div>
+          <div className="flex flex-wrap items-center gap-1.5">
+            {OPCOES_PERIODO.map((op) => (
+              <ChipFiltro
+                key={op.valor}
+                ativo={filtros.periodo === op.valor}
+                onClick={() => setFiltros((f) => ({ ...f, periodo: op.valor }))}
+              >
+                {op.rotulo}
+              </ChipFiltro>
+            ))}
+          </div>
+          <span className="ml-auto text-xs text-muted-foreground">
+            {leadsFiltrados.length} de {leads.length} leads
+          </span>
+          {temFiltroAtivo && (
+            <Button
+              size="sm"
+              variant="ghost"
+              className="h-8 px-2 text-xs"
+              onClick={() => setFiltros(FILTROS_PADRAO)}
+            >
+              <FilterX className="mr-1 h-3.5 w-3.5" />
+              Limpar filtros
+            </Button>
+          )}
+        </div>
+        <div className="flex flex-wrap items-center gap-1.5">
+          {OPCOES_TEMPERATURA.map((op) => (
+            <ChipFiltro
+              key={op.valor}
+              ativo={filtros.temperaturas.includes(op.valor)}
+              onClick={() => alternarTemperatura(op.valor)}
+            >
+              {op.rotulo}
+            </ChipFiltro>
+          ))}
+          <span className="mx-1 hidden h-4 w-px bg-border sm:block" />
+          {OPCOES_CONTATO.map((op) => (
+            <ChipFiltro
+              key={op.valor}
+              ativo={filtros.contato === op.valor}
+              onClick={() => setFiltros((f) => ({ ...f, contato: op.valor }))}
+            >
+              {op.rotulo}
+            </ChipFiltro>
+          ))}
+          <span className="mx-1 hidden h-4 w-px bg-border sm:block" />
+          <Select
+            value={filtros.peca}
+            onValueChange={(v) => setFiltros((f) => ({ ...f, peca: v }))}
+          >
+            <SelectTrigger className="h-8 w-[180px] text-xs">
+              <SelectValue placeholder="Peça" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="todas">Todas as peças</SelectItem>
+              {pecasDisponiveis.map((p) => (
+                <SelectItem key={p} value={p}>{p}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select
+            value={filtros.tamanho}
+            onValueChange={(v) => setFiltros((f) => ({ ...f, tamanho: v }))}
+          >
+            <SelectTrigger className="h-8 w-[130px] text-xs">
+              <SelectValue placeholder="Tamanho" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="todos">Todos os tamanhos</SelectItem>
+              {OPCOES_TAMANHO.map((t) => (
+                <SelectItem key={t} value={t}>{t}</SelectItem>
+              ))}
+              <SelectItem value="sem">Sem tamanho</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
       <div className="grid gap-4 md:grid-cols-3">
         {COLUNAS.map((col) => {
           const itens = porStatus[col.status] ?? [];
