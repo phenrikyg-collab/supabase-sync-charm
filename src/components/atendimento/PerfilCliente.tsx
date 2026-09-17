@@ -307,6 +307,7 @@ export function PerfilCliente({
           conversa_id: conversaId,
           telefone,
           conteudo: `${pr.nome ?? "Produto"} — ${formatarPreco(pr.preco)}`,
+          autor: autor ?? null,
           tipo: "imagem",
           media_url: pr.imagem ?? "",
         },

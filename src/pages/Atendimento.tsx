@@ -56,6 +56,76 @@ import { FunilKanbanConteudo } from "@/pages/FunilKanban";
 import { CashbackConteudo } from "@/pages/Cashback";
 import { chamarRpc } from "@/lib/supabaseRpc";
 
+import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
+import type { ImperativePanelGroupHandle } from "react-resizable-panels";
+import { ProvadorBloco } from "@/components/atendimento/ProvadorBloco";
+
+/** Telas largas ganham colunas arrastáveis; no celular o layout continua igual. */
+function useTelaLarga() {
+  const [larga, setLarga] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia("(min-width: 1024px)");
+    const aplicar = () => setLarga(mq.matches);
+    aplicar();
+    mq.addEventListener("change", aplicar);
+    return () => mq.removeEventListener("change", aplicar);
+  }, []);
+  return larga;
+}
+
+function Colunas({
+  ajustavel,
+  grupoRef,
+  className,
+  children,
+}: {
+  ajustavel: boolean;
+  grupoRef: React.RefObject<ImperativePanelGroupHandle>;
+  className?: string;
+  children: React.ReactNode;
+}) {
+  if (!ajustavel) return <div className={className}>{children}</div>;
+  return (
+    <ResizablePanelGroup
+      ref={grupoRef}
+      direction="horizontal"
+      autoSaveId="atendimento-colunas"
+      className={className}
+    >
+      {children}
+    </ResizablePanelGroup>
+  );
+}
+
+function Coluna({
+  ajustavel,
+  id,
+  order,
+  defaultSize,
+  minSize,
+  children,
+}: {
+  ajustavel: boolean;
+  id: string;
+  order: number;
+  defaultSize: number;
+  minSize: number;
+  children: React.ReactNode;
+}) {
+  if (!ajustavel) return <>{children}</>;
+  return (
+    <ResizablePanel
+      id={id}
+      order={order}
+      defaultSize={defaultSize}
+      minSize={minSize}
+      className="flex min-h-0 min-w-0 flex-col overflow-hidden"
+    >
+      {children}
+    </ResizablePanel>
+  );
+}
+
 /** Separador de data da lista de conversas. */
 function grupoDia(valor?: string | null): string {
   if (!valor) return "Mais antigas";
@@ -394,6 +464,23 @@ export default function Atendimento() {
 
   const autor = user?.email ?? "Atendente";
 
+  const colunasAjustaveis = useTelaLarga();
+  const grupoColunasRef = useRef<ImperativePanelGroupHandle>(null);
+  const restaurarLarguras = () => {
+    try {
+      localStorage.removeItem("react-resizable-panels:atendimento-colunas");
+    } catch {
+      /* armazenamento indisponível */
+    }
+    grupoColunasRef.current?.setLayout([24, 52, 24]);
+  };
+
+  /** Preenche o campo de resposta com um texto pronto, sem enviar. */
+  const usarTextoPronto = (t: string) => {
+    setTexto(t);
+    setTimeout(() => textoRef.current?.focus(), 0);
+  };
+
   const { data: conversasBrutas = [], isLoading: carregandoConversas } = useQuery({
     queryKey: ["whatsapp-conversas"],
     queryFn: async () => {
@@ -663,6 +750,7 @@ export default function Atendimento() {
           conversa_id: conversaAtual.id,
           telefone: conversaAtual.telefone,
           conteudo,
+          autor: user?.email ?? null,
         },
       });
       if (error) throw error;
@@ -1041,6 +1129,16 @@ export default function Atendimento() {
             <TabsTrigger value="kanban" className="h-8 shrink-0 text-sm">Kanban do funil</TabsTrigger>
             <TabsTrigger value="cashback" className="h-8 shrink-0 text-sm">Cashback</TabsTrigger>
           </TabsList>
+          {abaPagina === "conversas" && colunasAjustaveis && (
+            <Button
+              size="sm"
+              variant="ghost"
+              className="ml-auto h-7 shrink-0 text-xs text-muted-foreground"
+              onClick={restaurarLarguras}
+            >
+              Restaurar larguras
+            </Button>
+          )}
         </div>
 
         <TabsContent value="oportunidades" className="m-0 min-h-0 w-full min-w-0 flex-1 overflow-auto p-4">
@@ -1151,7 +1249,11 @@ export default function Atendimento() {
 
 
         <TabsContent value="conversas" className="m-0 min-h-0 w-full min-w-0 max-w-full flex-1 overflow-hidden data-[state=active]:flex">
-      <div className="relative flex min-h-0 w-full min-w-0 max-w-full flex-1 overflow-hidden">
+      <Colunas
+        ajustavel={colunasAjustaveis}
+        grupoRef={grupoColunasRef}
+        className="relative flex min-h-0 w-full min-w-0 max-w-full flex-1 overflow-hidden"
+      >
 
         {listaSheet && (
           <div
@@ -1162,10 +1264,12 @@ export default function Atendimento() {
         )}
 
         {/* Lista de conversas */}
+        <Coluna ajustavel={colunasAjustaveis} id="lista" order={1} defaultSize={24} minSize={14}>
         <aside
           className={cn(
             "fixed inset-y-0 left-0 z-40 flex min-h-0 w-[85vw] max-w-[360px] min-w-0 flex-col overflow-hidden border-r border-border bg-card transition-transform",
             "md:static md:z-auto md:w-[320px] md:max-w-none md:shrink-0 md:translate-x-0 lg:w-[340px]",
+            colunasAjustaveis && "lg:w-full",
             listaSheet ? "translate-x-0" : "-translate-x-full",
           )}
         >
@@ -1438,8 +1542,11 @@ export default function Atendimento() {
             )}
           </ScrollArea>
         </aside>
+        </Coluna>
+        {colunasAjustaveis && <ResizableHandle withHandle />}
 
         {/* Thread */}
+        <Coluna ajustavel={colunasAjustaveis} id="thread" order={2} defaultSize={52} minSize={30}>
         <section className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
           {!conversaAtual ? (
             <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground gap-2">
@@ -1781,15 +1888,24 @@ export default function Atendimento() {
             </>
           )}
         </section>
+        </Coluna>
 
         {/* Painel lateral direito */}
         {perfilAberto && conversaAtual && (
-           <aside className="hidden min-h-0 w-[340px] min-w-[340px] shrink-0 flex-col overflow-hidden border-l border-border p-3 pb-8 lg:flex">
-             <Card className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain">
-               <PerfilCliente conversaId={conversaAtual.id} autor={autor} telefone={conversaAtual.telefone} />
-               {telefoneIdentificado && <AtividadesRecentes telefone={telefoneIdentificado} />}
-             </Card>
-          </aside>
+          <>
+            {colunasAjustaveis && <ResizableHandle withHandle />}
+            <Coluna ajustavel={colunasAjustaveis} id="painel" order={3} defaultSize={24} minSize={16}>
+              <aside className="hidden min-h-0 w-full min-w-0 shrink-0 flex-col overflow-hidden border-l border-border p-3 pb-8 lg:flex">
+                <Card className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain">
+                  <PerfilCliente conversaId={conversaAtual.id} autor={autor} telefone={conversaAtual.telefone} />
+                  {telefoneIdentificado && (
+                    <ProvadorBloco telefone={telefoneIdentificado} onUsarTexto={usarTextoPronto} />
+                  )}
+                  {telefoneIdentificado && <AtividadesRecentes telefone={telefoneIdentificado} />}
+                </Card>
+              </aside>
+            </Coluna>
+          </>
         )}
 
         <Sheet open={perfilSheet} onOpenChange={setPerfilSheet}>
@@ -1806,7 +1922,7 @@ export default function Atendimento() {
           </SheetContent>
         </Sheet>
 
-      </div>
+      </Colunas>
         </TabsContent>
       </Tabs>
 
