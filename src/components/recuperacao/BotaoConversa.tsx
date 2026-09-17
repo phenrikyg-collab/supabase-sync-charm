@@ -15,15 +15,20 @@ export function BotaoConversa({
   telefone,
   onAbrirConversa,
   onAberta,
+  textoPronto,
+  rotulo,
   className,
   size = "sm",
   variant = "outline",
 }: {
   conversaId?: string | number | null;
   telefone?: string | null;
-  onAbrirConversa?: (conversaId: string) => void;
+  onAbrirConversa?: (conversaId: string, ...resto: any[]) => void;
   /** Avisa que a conversa foi aberta a partir deste botão. */
   onAberta?: () => void;
+  /** Preenche o campo de resposta do chat com este texto, sem enviar. */
+  textoPronto?: string | null;
+  rotulo?: string;
   className?: string;
   size?: "sm" | "default";
   variant?: "outline" | "default" | "ghost";
@@ -34,10 +39,16 @@ export function BotaoConversa({
   const temTelefone = !!String(telefone ?? "").trim();
   if (!conversaId && !temTelefone) return null;
 
+  const abrir = (id: string | number) => {
+    const pronto = String(textoPronto ?? "").trim();
+    if (pronto) abrirConversa(id, pronto);
+    else abrirConversa(id);
+    onAberta?.();
+  };
+
   const clicar = async () => {
     if (conversaId) {
-      abrirConversa(conversaId);
-      onAberta?.();
+      abrir(conversaId);
       return;
     }
     setCriando(true);
@@ -49,8 +60,7 @@ export function BotaoConversa({
       const conversa = Array.isArray(data) ? data[0] : data;
       const id = conversa?.id ?? conversa?.conversa_id;
       if (!id) throw new Error("Não foi possível abrir a conversa");
-      abrirConversa(id);
-      onAberta?.();
+      abrir(id);
     } catch (e: any) {
       toast.error(e?.message || "Não foi possível abrir a conversa");
     } finally {
