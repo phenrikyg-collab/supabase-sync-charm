@@ -247,16 +247,28 @@ export default function CarrinhoAbandonado({
                         </TableCell>
                         <TableCell><SegmentoBadge segmento={l.segmento_rfm} /></TableCell>
                         <TableCell>
-                          {contato?.conversa_id && onAbrirConversa ? (
-                            <Button size="sm" variant="outline" className="h-8" onClick={() => onAbrirConversa(String(contato.conversa_id))}>
+                          <CelulaRecuperar
+                            telefone={l.telefone}
+                            nome={l.nome}
+                            info={caminhoDe(l.telefone)}
+                            templateAprovado={aprovado}
+                            contatada={contatadas.has(l.session_id)}
+                            onContatada={() =>
+                              setContatadas((p) => new Set(p).add(l.session_id))
+                            }
+                          />
+                          {contato?.conversa_id && onAbrirConversa && (
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="mt-1 h-7 px-2 text-xs"
+                              onClick={() => onAbrirConversa(String(contato.conversa_id))}
+                            >
                               <MessageCircle className="mr-1.5 h-3.5 w-3.5" /> Abrir conversa
                             </Button>
-                          ) : identificado && l.telefone ? (
-                            <EnviarWhatsAppInline telefone={l.telefone} placeholder="Mensagem de recuperação..." mostrarAviso />
-                          ) : (
-                            <span className="text-xs text-muted-foreground">Cliente não identificado</span>
                           )}
                         </TableCell>
+
                       </TableRow>
                     );
                   })}
