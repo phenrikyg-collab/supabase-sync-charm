@@ -8,7 +8,15 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { SortableHead, useSortable, useOrdenado } from "@/components/SortableHead";
-import { EnviarWhatsAppInline } from "@/components/rfm/EnviarWhatsAppInline";
+import {
+  CelulaRecuperar,
+  useCaminhosContato,
+  useStatusTemplates,
+  ROTULO_CAMINHO,
+  ICONE_CAMINHO,
+  type Caminho,
+} from "@/components/recuperacao/CaminhoContato";
+
 import { FiltroPeriodo, Periodo, limiteInicio, limiteFim } from "@/components/recuperacao/FiltroPeriodo";
 import { SegmentoBadge, CelulaItens, moeda } from "@/components/recuperacao/comum";
 import { formatarData } from "@/utils/formatters";
