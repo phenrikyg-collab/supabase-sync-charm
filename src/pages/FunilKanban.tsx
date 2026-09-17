@@ -58,9 +58,11 @@ export default function FunilKanban({
   onAbrirConversa?: (conversaId: string) => void;
 } = {}) {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [cards, setCards] = useState<CardTag[]>([]);
   const [loading, setLoading] = useState(true);
   const [arrastando, setArrastando] = useState<string | null>(null);
+  const [filtroOrigem, setFiltroOrigem] = useState<FiltroOrigem>("todas");
 
   const carregar = useCallback(async (silencioso = false) => {
     if (!silencioso) setLoading(true);
@@ -95,6 +97,8 @@ export default function FunilKanban({
       const { error } = await (supabase as any).rpc("whatsapp_mover_etapa_tag", {
         p_conversa_id: card.conversa_id,
         p_etapa: etapa,
+        p_origem: "manual",
+        p_por: user?.email ?? null,
       });
       if (error) {
         setCards(anterior);
