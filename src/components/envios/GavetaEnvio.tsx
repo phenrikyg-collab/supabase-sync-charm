@@ -8,8 +8,9 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { toast } from "sonner";
-import { MessageCircle, ExternalLink, Copy, RefreshCw, ChevronDown } from "lucide-react";
-import { SeloSituacao, linkWhatsApp } from "./comum";
+import { ExternalLink, Copy, RefreshCw, ChevronDown } from "lucide-react";
+import { SeloSituacao } from "./comum";
+import { BotaoConversa } from "@/components/recuperacao/BotaoConversa";
 
 type Alerta = {
   alerta_id: number;
@@ -98,7 +99,6 @@ export function GavetaEnvio({
   const d = (data ?? {}) as any;
   const pedidoObj = d.pedido && typeof d.pedido === "object" ? d.pedido : d.pedido_info;
   const numeroPedido = typeof d.pedido === "object" ? d.pedido?.numero : d.pedido;
-  const zap = linkWhatsApp(d.cliente?.telefone);
 
   async function resolverAlerta(alertaId: number) {
     const { data: resposta, error } = await chamarRpc<{ ok?: boolean; erro?: string | null }>(
@@ -159,14 +159,7 @@ export function GavetaEnvio({
         ) : (
           <div className="mt-4 space-y-5">
             <div className="flex flex-wrap gap-2">
-              {zap && (
-                <Button size="sm" variant="outline" asChild>
-                  <a href={zap} target="_blank" rel="noreferrer">
-                    <MessageCircle className="mr-1.5 h-4 w-4" />
-                    WhatsApp da cliente
-                  </a>
-                </Button>
-              )}
+              <BotaoConversa conversaId={d.conversa_id ?? null} telefone={d.cliente?.telefone} />
               {d.link_transportadora && (
                 <Button size="sm" variant="outline" asChild>
                   <a href={d.link_transportadora} target="_blank" rel="noreferrer">
