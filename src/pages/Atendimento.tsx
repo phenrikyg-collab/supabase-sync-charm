@@ -1584,7 +1584,7 @@ export default function Atendimento() {
         )}
 
         {/* Thread */}
-        <Coluna ajustavel={colunasAjustaveis} id="thread" order={2} defaultSize={52} minSize={30}>
+        <Coluna ajustavel={colunasAjustaveis} id="thread" order={2} defaultSize={largurasIniciais[1]} minSize={30}>
         <section className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
           {!conversaAtual ? (
             <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground gap-2">
@@ -1931,8 +1931,13 @@ export default function Atendimento() {
         {/* Painel lateral direito */}
         {perfilAberto && conversaAtual && (
           <>
-            {colunasAjustaveis && <ResizableHandle withHandle />}
-            <Coluna ajustavel={colunasAjustaveis} id="painel" order={3} defaultSize={24} minSize={16}>
+            {colunasAjustaveis && (
+              <ResizableHandle
+                withHandle
+                className="cursor-col-resize transition-colors hover:bg-accent data-[resize-handle-state=drag]:bg-primary/50"
+              />
+            )}
+            <Coluna ajustavel={colunasAjustaveis} id="painel" order={3} defaultSize={largurasIniciais[2]} minSize={18} maxSize={45}>
               <aside className="hidden min-h-0 w-full min-w-0 shrink-0 flex-col overflow-hidden border-l border-border p-3 pb-8 lg:flex">
                 <Card className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain">
                   <PerfilCliente conversaId={conversaAtual.id} autor={autor} telefone={conversaAtual.telefone} />
