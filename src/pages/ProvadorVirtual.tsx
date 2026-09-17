@@ -64,6 +64,17 @@ type Lead = {
   houve_contato_humano?: boolean | null;
   ultima_saida?: string | null;
   conversa_id?: string | number | null;
+  ultima_entrada?: string | null;
+  conversa_status?: string | null;
+  conversa_nao_lida?: boolean | null;
+  conversa_aberta?: boolean | null;
+  template_enviado_em?: string | null;
+  template_nome?: string | null;
+  msgs_saida?: number | null;
+  msgs_entrada?: number | null;
+  ultima_msg_em?: string | null;
+  ultima_msg_texto?: string | null;
+
 };
 
 /** Abre a conversa no painel; quando vem texto, ele entra pronto no campo de mensagem. */
