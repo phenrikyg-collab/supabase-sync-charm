@@ -1,4 +1,4 @@
-import { AlertTriangle, GripVertical, Smartphone, Trash2, Video } from "lucide-react";
+import { AlertTriangle, GripVertical, Info, Smartphone, Trash2, Video } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -22,6 +22,8 @@ export default function SlideCard({
 }: Props) {
   const invalido = slideInvalido(slide);
   const status = String(slide.status ?? "pendente");
+  const temTexto = !!slide.erro?.trim();
+  const ehFalha = status === "falhou";
 
   return (
     <div
@@ -34,7 +36,7 @@ export default function SlideCard({
       className={cn(
         "flex gap-3 rounded-lg border p-2 cursor-pointer bg-card scroll-mt-4",
         selecionado && "ring-2 ring-primary",
-        invalido && "border-destructive",
+        ehFalha ? "border-destructive" : temTexto ? "border-warning" : invalido && "border-destructive",
       )}
     >
       <div className="flex flex-col items-center justify-center text-muted-foreground">
@@ -52,9 +54,9 @@ export default function SlideCard({
         ) : (
           <Smartphone className="h-5 w-5 text-muted-foreground" />
         )}
-        {invalido && (
-          <span className="absolute inset-0 flex items-center justify-center bg-destructive/25">
-            <AlertTriangle className="h-5 w-5 text-destructive" />
+        {(invalido || temTexto) && (
+          <span className={cn("absolute inset-0 flex items-center justify-center", ehFalha ? "bg-destructive/25" : "bg-warning/20")}>
+            {ehFalha ? <AlertTriangle className="h-5 w-5 text-destructive" /> : <Info className="h-5 w-5 text-warning" />}
           </span>
         )}
       </div>
@@ -80,7 +82,10 @@ export default function SlideCard({
         </p>
 
         {slide.erro && (
-          <p className="text-xs text-destructive break-words">{slide.erro}</p>
+          <p className={cn("text-xs break-words", ehFalha ? "text-destructive" : "text-warning")}>
+            <strong>{ehFalha ? "Falhou" : "Aviso"}:</strong>{" "}
+            {ehFalha ? slide.erro : `${status === "publicado" ? "Publicado" : "Continua na fila"} com um aviso: ${slide.erro}`}
+          </p>
         )}
         {!slide.erro && !slide.manual && !slide.midia_url && (
           <p className="text-xs text-destructive">Sem mídia. Suba um JPEG ou um MP4, ou marque como manual.</p>

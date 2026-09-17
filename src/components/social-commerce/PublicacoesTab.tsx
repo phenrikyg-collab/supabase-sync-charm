@@ -82,7 +82,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { toast } from "sonner";
 import {
-  AlertTriangle, CalendarDays, Check, ChevronLeft, ChevronRight, Copy, Eye, List, Loader2,
+  AlertTriangle, CalendarDays, Check, ChevronLeft, ChevronRight, Copy, Eye, Info, List, Loader2,
   Megaphone, Plus, Sparkles, Upload, Zap, ZapOff,
 } from "lucide-react";
 import { chamarRpc } from "@/lib/supabaseRpc";
@@ -144,6 +144,47 @@ function chipStatus(status?: string | null) {
   return STATUS_COR[s] ?? STATUS_COR.rascunho;
 }
 
+function nivelMensagem(status?: string | null, erro?: string | null): "erro" | "aviso" | null {
+  if (!erro?.trim()) return null;
+  return status === "falhou" ? "erro" : "aviso";
+}
+
+function AvisoPublicacao({ publicacao, compacto = false }: { publicacao: Publicacao; compacto?: boolean }) {
+  const nivel = nivelMensagem(publicacao.status, publicacao.erro);
+  if (!nivel) return null;
+  const falhou = nivel === "erro";
+  const Icone = falhou ? AlertTriangle : Info;
+  const publicado = publicacao.status === "publicado";
+  const texto = falhou
+    ? publicacao.erro
+    : `${publicado ? "Publicado com um aviso" : "Aviso"}: ${publicacao.erro}`;
+
+  if (compacto) {
+    return (
+      <span
+        className={cn("inline-flex max-w-[300px] items-center gap-1 text-xs", falhou ? "text-destructive" : "text-warning")}
+        title={texto ?? undefined}
+      >
+        <span className={cn("h-2 w-2 shrink-0 rounded-full", falhou ? "bg-destructive" : "bg-warning")} />
+        <span className="truncate">{texto}</span>
+      </span>
+    );
+  }
+
+  return (
+    <div className={cn(
+      "flex items-start gap-2 rounded-md border p-3 text-sm",
+      falhou ? "border-destructive/30 bg-destructive/10 text-destructive" : "border-warning/30 bg-warning/10 text-warning",
+    )}>
+      <Icone className="mt-0.5 h-4 w-4 shrink-0" />
+      <div>
+        <p className="font-semibold">{falhou ? "Falhou" : "Aviso"}</p>
+        <p>{texto}</p>
+      </div>
+    </div>
+  );
+}
+
 function diaKey(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
@@ -196,7 +237,7 @@ const FORM_VAZIO: FormState = {
   cupomValidade: "",
   capaUrl: "",
   capaOffsetMs: null,
-  marcarProdutos: true,
+  marcarProdutos: false,
 };
 
 const MODOS = [
@@ -544,7 +585,7 @@ export function PublicacoesTab() {
       cupomValidade: p.cupom_validade ?? "",
       capaUrl: p.capa_url ?? "",
       capaOffsetMs: p.capa_offset_ms ?? null,
-      marcarProdutos: p.marcar_produtos ?? true,
+      marcarProdutos: (p.produto_ids?.length ?? 0) > 0 && !!p.marcar_produtos,
     });
     setModalAberto(true);
   };
@@ -786,7 +827,7 @@ export function PublicacoesTab() {
           agendado_para: opcoes?.publicarAgora ? new Date().toISOString() : agendadoIso,
           status: opcoes?.publicarAgora ? "agendado" : statusFila,
           produto_ids: form.produtoIds,
-          marcar_produtos: form.marcarProdutos,
+          marcar_produtos: form.produtoIds.length > 0 && form.marcarProdutos,
           capa_url: mostrarCapa ? form.capaUrl || null : null,
           capa_offset_ms: mostrarCapa ? form.capaOffsetMs : null,
           objetivo: form.objetivo,
@@ -814,6 +855,24 @@ export function PublicacoesTab() {
         // A partir do primeiro salvamento, o formulário edita esse agendamento:
         // as próximas chamadas mandam o id e atualizam a mesma linha.
         if (!editando && idSalvo != null) setEditando({ id: idSalvo });
+
+        if (idSalvo != null) {
+          const { data: confirmada, error: erroReleitura } = await db
+            .from("instagram_publicacoes")
+            .select("*")
+            .eq("id", idSalvo)
+            .maybeSingle();
+          if (erroReleitura) throw erroReleitura;
+          if (confirmada) {
+            const atualizada = confirmada as Publicacao;
+            setEditando(atualizada);
+            setForm((atual) => ({
+              ...atual,
+              produtoIds: atualizada.produto_ids ?? [],
+              marcarProdutos: (atualizada.produto_ids?.length ?? 0) > 0 && !!atualizada.marcar_produtos,
+            }));
+          }
+        }
       }
 
       // ===== Buffer: uma linha por destino, todas com o mesmo grupo_id. =====
@@ -1024,16 +1083,7 @@ export function PublicacoesTab() {
                       <p className="text-sm truncate">{p.legenda || <span className="text-muted-foreground">(sem legenda)</span>}</p>
                       <p className="text-[10px] text-muted-foreground mt-0.5">{dataHoraBR(p.agendado_para)}</p>
                     </div>
-                    {p.erro && (
-                      <p
-                        className={`text-xs max-w-[280px] truncate ${
-                          p.status === "falhou" ? "text-danger" : "text-amber-600"
-                        }`}
-                        title={p.erro}
-                      >
-                        {p.erro}
-                      </p>
-                    )}
+                    <AvisoPublicacao publicacao={p} compacto />
                     <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold shrink-0 ${chipStatus(p.status)}`}>
                       {p.status ?? "rascunho"}
                     </span>
@@ -1111,6 +1161,7 @@ export function PublicacoesTab() {
           </DialogHeader>
           <div className="max-h-[calc(90vh-140px)] overflow-y-auto pr-4">
             <div className="space-y-6 pb-4">
+              {editando && <AvisoPublicacao publicacao={editando} />}
               {/* CONTEÚDO */}
               <section className="space-y-4">
                 <div className="flex items-center justify-between flex-wrap gap-2">
@@ -1208,20 +1259,28 @@ export function PublicacoesTab() {
                   <SeletorProdutos
                     produtos={produtos}
                     selecionados={form.produtoIds}
-                    onToggle={(id, marcado) =>
-                      setForm({
-                        ...form,
-                        produtoIds: marcado
-                          ? [...form.produtoIds, id]
-                          : form.produtoIds.filter((x) => x !== id),
-                      })
-                    }
+                    onToggle={(id, marcado) => {
+                      const produtoIds = marcado
+                        ? [...form.produtoIds, id]
+                        : form.produtoIds.filter((x) => x !== id);
+                      const desligou = produtoIds.length === 0 && form.marcarProdutos;
+                      setForm({ ...form, produtoIds, marcarProdutos: desligou ? false : form.marcarProdutos });
+                      if (desligou) {
+                        toast.info("Marcação de produto desligada: a publicação não tem mais nenhuma peça vinculada.");
+                      }
+                    }}
                     altura="h-60"
                   />
                   <ListaProdutosOrdenada
                     ids={form.produtoIds}
                     produtos={produtos}
-                    onChange={(ids) => setForm({ ...form, produtoIds: ids })}
+                    onChange={(ids) => {
+                      const desligou = ids.length === 0 && form.marcarProdutos;
+                      setForm({ ...form, produtoIds: ids, marcarProdutos: desligou ? false : form.marcarProdutos });
+                      if (desligou) {
+                        toast.info("Marcação de produto desligada: a publicação não tem mais nenhuma peça vinculada.");
+                      }
+                    }}
                   />
                   <div className="flex items-start justify-between gap-3 rounded-lg border p-3">
                     <div className="space-y-0.5">
@@ -1229,14 +1288,16 @@ export function PublicacoesTab() {
                         Marcar produtos na publicação
                       </Label>
                       <p className="text-xs text-muted-foreground">
-                        As peças aparecem com etiqueta de preço no post, e a cliente compra tocando na foto.
-                        Precisa ter produto vinculado acima.
+                        {form.produtoIds.length === 0
+                          ? "Vincule uma peça para poder marcar produto no post."
+                          : "As peças aparecem com etiqueta de preço no post, e a cliente compra tocando na foto."}
                       </p>
                     </div>
                     <Switch
                       id="marcar-produtos"
-                      checked={form.marcarProdutos}
-                      onCheckedChange={(v) => setForm({ ...form, marcarProdutos: v })}
+                      checked={form.produtoIds.length > 0 && form.marcarProdutos}
+                      disabled={form.produtoIds.length === 0}
+                      onCheckedChange={(v) => setForm({ ...form, marcarProdutos: !!v })}
                     />
                   </div>
                 </div>
