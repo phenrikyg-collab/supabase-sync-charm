@@ -1785,12 +1785,20 @@ export default function Atendimento() {
 
         {/* Painel lateral direito */}
         {perfilAberto && conversaAtual && (
-           <aside className="hidden min-h-0 w-[340px] min-w-[340px] shrink-0 flex-col overflow-hidden border-l border-border p-3 pb-8 lg:flex">
-             <Card className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain">
-               <PerfilCliente conversaId={conversaAtual.id} autor={autor} telefone={conversaAtual.telefone} />
-               {telefoneIdentificado && <AtividadesRecentes telefone={telefoneIdentificado} />}
-             </Card>
-          </aside>
+          <>
+            {colunasAjustaveis && <ResizableHandle withHandle />}
+            <Coluna ajustavel={colunasAjustaveis} id="painel" order={3} defaultSize={24} minSize={16}>
+              <aside className="hidden min-h-0 w-full min-w-0 shrink-0 flex-col overflow-hidden border-l border-border p-3 pb-8 lg:flex">
+                <Card className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain">
+                  <PerfilCliente conversaId={conversaAtual.id} autor={autor} telefone={conversaAtual.telefone} />
+                  {telefoneIdentificado && (
+                    <ProvadorBloco telefone={telefoneIdentificado} onUsarTexto={usarTextoPronto} />
+                  )}
+                  {telefoneIdentificado && <AtividadesRecentes telefone={telefoneIdentificado} />}
+                </Card>
+              </aside>
+            </Coluna>
+          </>
         )}
 
         <Sheet open={perfilSheet} onOpenChange={setPerfilSheet}>
