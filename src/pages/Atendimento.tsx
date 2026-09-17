@@ -73,15 +73,36 @@ function useTelaLarga() {
   return larga;
 }
 
+/** Larguras padrão das três colunas: lista, chat e perfil. */
+const LARGURAS_PADRAO: [number, number, number] = [22, 53, 25];
+const CHAVE_LARGURAS = "atendimento-larguras-paineis";
+
+function lerLargurasSalvas(): [number, number, number] {
+  try {
+    const bruto = localStorage.getItem(CHAVE_LARGURAS);
+    if (bruto) {
+      const l = JSON.parse(bruto);
+      if (Array.isArray(l) && l.length === 3 && l.every((n) => typeof n === "number")) {
+        return l as [number, number, number];
+      }
+    }
+  } catch {
+    /* armazenamento indisponível */
+  }
+  return LARGURAS_PADRAO;
+}
+
 function Colunas({
   ajustavel,
   grupoRef,
   className,
+  onLayout,
   children,
 }: {
   ajustavel: boolean;
   grupoRef: React.RefObject<ImperativePanelGroupHandle>;
   className?: string;
+  onLayout?: (layout: number[]) => void;
   children: React.ReactNode;
 }) {
   if (!ajustavel) return <div className={className}>{children}</div>;
@@ -89,7 +110,7 @@ function Colunas({
     <ResizablePanelGroup
       ref={grupoRef}
       direction="horizontal"
-      autoSaveId="atendimento-colunas"
+      onLayout={onLayout}
       className={className}
     >
       {children}
@@ -103,6 +124,7 @@ function Coluna({
   order,
   defaultSize,
   minSize,
+  maxSize,
   children,
 }: {
   ajustavel: boolean;
@@ -110,6 +132,7 @@ function Coluna({
   order: number;
   defaultSize: number;
   minSize: number;
+  maxSize?: number;
   children: React.ReactNode;
 }) {
   if (!ajustavel) return <>{children}</>;
@@ -119,6 +142,7 @@ function Coluna({
       order={order}
       defaultSize={defaultSize}
       minSize={minSize}
+      maxSize={maxSize}
       className="flex min-h-0 min-w-0 flex-col overflow-hidden"
     >
       {children}
