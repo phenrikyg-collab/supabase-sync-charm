@@ -495,13 +495,15 @@ function FunilLeads({
                               <span className="flex-1">
                                 <Button
                                   size="sm"
-                                  variant={lead.template_enviado_em ? "outline" : "default"}
+                                  variant={lead.template_enviado_em && lead.template_entrega !== "falhou" ? "outline" : "default"}
                                   className="w-full"
                                   disabled={!templateAprovado}
                                   onClick={() => { setConflito(null); setLeadEnvio(lead); }}
                                 >
                                   <Send className="mr-1.5 h-3.5 w-3.5" />
-                                  {lead.template_enviado_em ? "Reenviar prova" : "Enviar prova por WhatsApp"}
+                                  {lead.template_enviado_em && lead.template_entrega !== "falhou"
+                                    ? "Reenviar prova"
+                                    : "Enviar prova por WhatsApp"}
                                 </Button>
                               </span>
                             </TooltipTrigger>
