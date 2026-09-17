@@ -19,6 +19,7 @@ import {
 } from "@/components/recuperacao/CaminhoContato";
 
 import { FiltroPeriodo, Periodo, limiteInicio, limiteFim } from "@/components/recuperacao/FiltroPeriodo";
+import { SeletorTemplatePadrao, useTemplatesContexto } from "@/components/recuperacao/TemplatePadrao";
 import { SegmentoBadge, CelulaItens, moeda } from "@/components/recuperacao/comum";
 import { formatarData } from "@/utils/formatters";
 import { Button } from "@/components/ui/button";
@@ -70,8 +71,17 @@ export default function CarrinhoAbandonado({
   const [filtroCaminho, setFiltroCaminho] = useState<Caminho | null>(null);
   const [contatadas, setContatadas] = useState<Set<string>>(new Set());
 
-  const { caminhoDe } = useCaminhosContato(30);
+  // Os contadores precisam olhar a mesma janela do filtro; "Tudo" usa 365 dias.
+  const diasCaminho = useMemo(() => {
+    if (!periodo.inicio) return 365;
+    const inicio = new Date(`${periodo.inicio}T00:00:00`);
+    const dias = Math.ceil((Date.now() - inicio.getTime()) / 86400000);
+    return Math.min(365, Math.max(1, dias));
+  }, [periodo.inicio]);
+
+  const { caminhoDe } = useCaminhosContato(diasCaminho);
   const { aprovado } = useStatusTemplates();
+  const { templates, padrao } = useTemplatesContexto("carrinho_abandonado");
 
 
   const { data: linhas = [], isLoading } = useQuery({
@@ -261,6 +271,7 @@ export default function CarrinhoAbandonado({
                 placeholder="R$ —"
               />
             </div>
+            <SeletorTemplatePadrao contexto="carrinho_abandonado" templates={templates} padrao={padrao} />
             <div className="flex items-center gap-2 pb-1">
               <Checkbox
                 id="somente-identificados"
@@ -319,6 +330,7 @@ export default function CarrinhoAbandonado({
                             nome={l.nome}
                             info={caminhoDe(l.telefone)}
                             templateAprovado={aprovado}
+                            templatePadrao={padrao?.nome ?? null}
                             contatada={contatadas.has(l.session_id)}
                             onContatada={() =>
                               setContatadas((p) => new Set(p).add(l.session_id))
