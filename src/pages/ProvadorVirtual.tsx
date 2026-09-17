@@ -8,7 +8,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
+} from "@/components/ui/dialog";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import {
@@ -64,6 +68,17 @@ type Lead = {
   houve_contato_humano?: boolean | null;
   ultima_saida?: string | null;
   conversa_id?: string | number | null;
+  ultima_entrada?: string | null;
+  conversa_status?: string | null;
+  conversa_nao_lida?: boolean | null;
+  conversa_aberta?: boolean | null;
+  template_enviado_em?: string | null;
+  template_nome?: string | null;
+  msgs_saida?: number | null;
+  msgs_entrada?: number | null;
+  ultima_msg_em?: string | null;
+  ultima_msg_texto?: string | null;
+
 };
 
 /** Abre a conversa no painel; quando vem texto, ele entra pronto no campo de mensagem. */
@@ -97,6 +112,84 @@ function BadgeTemperatura({ lead }: { lead: Lead }) {
   );
 }
 
+function tempoRel(iso?: string | null) {
+  if (!iso) return "";
+  const ms = Date.now() - new Date(iso).getTime();
+  const min = Math.floor(ms / 60000);
+  if (min < 1) return "agora";
+  if (min < 60) return `há ${min} min`;
+  const h = Math.floor(min / 60);
+  if (h < 24) return `há ${h}h`;
+  const d = Math.floor(h / 24);
+  return d === 1 ? "há 1 dia" : `há ${d} dias`;
+}
+
+function primeiroNome(nome?: string | null) {
+  return (nome || "").trim().split(/\s+/)[0] || "cliente";
+}
+
+function textoPrevia(lead: Lead) {
+  const tamanho = lead.tamanho_indicado?.trim() || "vamos descobrir juntas por aqui";
+  return (
+    `Oi ${primeiroNome(lead.nome)}! Sua prova virtual da ${lead.produto_nome || "peça"} está pronta, é a imagem acima.\n\n` +
+    `Tamanho indicado: ${tamanho}.\n\n` +
+    `Qualquer dúvida sobre a peça ou o tamanho, é só responder por aqui.`
+  );
+}
+
+const CHIP = "inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-semibold";
+
+function ChipsSinal({ lead }: { lead: Lead }) {
+  const chips: { chave: string; texto: string; classe: string; ponto?: boolean }[] = [];
+
+  if (lead.conversa_aberta) {
+    const emAtendimento = lead.conversa_status === "em_atendimento" || lead.conversa_status === "escalado";
+    chips.push({
+      chave: "conversa",
+      texto: emAtendimento ? "Em atendimento" : "Conversa aberta",
+      classe: "border-success/30 bg-success/10 text-success",
+      ponto: !!lead.conversa_nao_lida,
+    });
+  }
+  if (lead.ultima_entrada) {
+    chips.push({
+      chave: "respondeu",
+      texto: `Respondeu ${tempoRel(lead.ultima_entrada)}`,
+      classe: "border-info/30 bg-info/10 text-info",
+    });
+  }
+  if (lead.template_enviado_em) {
+    chips.push({
+      chave: "prova",
+      texto: `Prova enviada ${tempoRel(lead.template_enviado_em)}`,
+      classe: "border-primary/40 bg-primary/10 text-primary",
+    });
+  }
+  if (lead.houve_contato && !lead.template_enviado_em) {
+    chips.push({
+      chave: "contato",
+      texto: `Já recebeu mensagem ${tempoRel(lead.ultima_saida)}`.trim(),
+      classe: "border-border bg-muted text-muted-foreground",
+    });
+  }
+  if (chips.length === 0) {
+    chips.push({ chave: "sem", texto: "Sem contato", classe: "border-border bg-muted text-muted-foreground" });
+  }
+
+  return (
+    <div className="flex flex-wrap gap-1">
+      {chips.map((c) => (
+        <span key={c.chave} className={cn(CHIP, c.classe)}>
+          {c.ponto && <span className="h-1.5 w-1.5 rounded-full bg-danger" />}
+          {c.texto}
+        </span>
+      ))}
+    </div>
+  );
+}
+
+
+
 function FunilLeads({
   onAbrirConversa,
   onContagem,
@@ -107,6 +200,10 @@ function FunilLeads({
   const qc = useQueryClient();
   const [fotoAberta, setFotoAberta] = useState<string | null>(null);
   const [preparando, setPreparando] = useState<string | null>(null);
+  const [abrindo, setAbrindo] = useState<string | null>(null);
+  const [leadEnvio, setLeadEnvio] = useState<Lead | null>(null);
+  const [conflito, setConflito] = useState<string | null>(null);
+  const [enviando, setEnviando] = useState(false);
 
   const { data: leads = [], isLoading } = useQuery({
     queryKey: ["provador-leads"],
@@ -117,7 +214,96 @@ function FunilLeads({
     },
   });
 
+  const { data: templateAprovado = false } = useQuery({
+    queryKey: ["provador-template-status"],
+    queryFn: async () => {
+      try {
+        const { data, error } = await (supabase as any)
+          .schema("whatsapp")
+          .from("templates_mensagem")
+          .select("status_aprovacao")
+          .eq("nome", "provador_prova_pronta")
+          .maybeSingle();
+        if (error) return false;
+        return data?.status_aprovacao === "aprovado";
+      } catch {
+        return false;
+      }
+    },
+  });
+
+  async function abrirChat(lead: Lead) {
+    if (lead.conversa_id) {
+      onAbrirConversa?.(String(lead.conversa_id));
+      return;
+    }
+    if (!lead.telefone) {
+      toast.error("Esta cliente não tem telefone cadastrado");
+      return;
+    }
+    setAbrindo(lead.id);
+    try {
+      const { data, error } = await (supabase as any).rpc("whatsapp_get_or_create_conversa", {
+        p_telefone: lead.telefone,
+      });
+      if (error) throw error;
+      const conversa = Array.isArray(data) ? data[0] : data;
+      const conversaId = conversa?.id;
+      if (!conversaId) throw new Error("Não foi possível abrir a conversa");
+      await (supabase as any).rpc("provador_registrar_contato", {
+        p_id: lead.id,
+        p_conversa_id: conversaId,
+      });
+      qc.invalidateQueries({ queryKey: ["provador-leads"] });
+      onAbrirConversa?.(String(conversaId));
+    } catch (e: any) {
+      toast.error(e.message || "Não foi possível abrir a conversa");
+    } finally {
+      setAbrindo(null);
+    }
+  }
+
+  async function enviarProva(lead: Lead, forcar: boolean) {
+    setEnviando(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("provador-enviar-template", {
+        body: forcar ? { prova_id: lead.id, forcar: true } : { prova_id: lead.id },
+      });
+      if (error) {
+        let corpo: any = null;
+        try {
+          corpo = await (error as any)?.context?.json?.();
+        } catch {
+          corpo = null;
+        }
+        if (corpo?.error === "ja_enviado") {
+          setConflito(corpo.mensagem || "Esta prova já foi enviada para a cliente.");
+          return;
+        }
+        toast.error(corpo?.mensagem || error.message || "Não foi possível enviar", {
+          description: corpo?.detalhe,
+        });
+        return;
+      }
+      if ((data as any)?.ok === false) {
+        toast.error((data as any)?.mensagem || "Não foi possível enviar", {
+          description: (data as any)?.detalhe,
+        });
+        return;
+      }
+      toast.success(`Prova enviada para ${lead.nome || "a cliente"}`);
+      setLeadEnvio(null);
+      setConflito(null);
+      qc.invalidateQueries({ queryKey: ["provador-leads"] });
+    } catch (e: any) {
+      toast.error(e.message || "Não foi possível enviar");
+    } finally {
+      setEnviando(false);
+    }
+  }
+
   useEffect(() => { onContagem?.(leads.length); }, [leads.length, onContagem]);
+
 
 
   const mover = useMutation({
@@ -224,6 +410,11 @@ function FunilLeads({
                         <div className="min-w-0 flex-1 space-y-1">
                           <p className="truncate text-sm font-semibold">{lead.nome || "Sem nome"}</p>
                           <p className="truncate text-xs text-muted-foreground">{lead.telefone || "sem telefone"}</p>
+                          <ChipsSinal lead={lead} />
+                          {lead.ultima_msg_texto && (
+                            <p className="truncate text-[11px] text-muted-foreground">{lead.ultima_msg_texto}</p>
+                          )}
+
                           <p className="truncate text-xs">{lead.produto_nome || "sem produto"}</p>
                           {lead.tamanho_indicado && (
                             <p className="text-xs text-muted-foreground">
@@ -251,16 +442,20 @@ function FunilLeads({
                       </button>
 
                       <div className="mt-2 flex flex-wrap gap-2">
-                        {lead.conversa_id && onAbrirConversa && (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="flex-1"
-                            onClick={() => onAbrirConversa(String(lead.conversa_id))}
-                          >
-                            <MessageCircle className="mr-1.5 h-3.5 w-3.5" /> Abrir conversa
-                          </Button>
-                        )}
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="flex-1"
+                          disabled={abrindo === lead.id}
+                          onClick={() => abrirChat(lead)}
+                        >
+                          {abrindo === lead.id ? (
+                            <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                          ) : (
+                            <MessageCircle className="mr-1.5 h-3.5 w-3.5" />
+                          )}
+                          Abrir chat
+                        </Button>
                         <Button
                           size="sm"
                           className="flex-1"
@@ -274,7 +469,29 @@ function FunilLeads({
                           )}
                           Mensagem pronta
                         </Button>
+                        {lead.foto_resultado_url && (
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <span className="flex-1">
+                                <Button
+                                  size="sm"
+                                  variant={lead.template_enviado_em ? "outline" : "default"}
+                                  className="w-full"
+                                  disabled={!templateAprovado}
+                                  onClick={() => { setConflito(null); setLeadEnvio(lead); }}
+                                >
+                                  <Send className="mr-1.5 h-3.5 w-3.5" />
+                                  {lead.template_enviado_em ? "Reenviar prova" : "Enviar prova por WhatsApp"}
+                                </Button>
+                              </span>
+                            </TooltipTrigger>
+                            {!templateAprovado && (
+                              <TooltipContent>Template em análise na Meta</TooltipContent>
+                            )}
+                          </Tooltip>
+                        )}
                       </div>
+
 
                       {col.proximo && (
                         <Button
@@ -303,6 +520,50 @@ function FunilLeads({
           )}
         </DialogContent>
       </Dialog>
+
+      <Dialog open={!!leadEnvio} onOpenChange={(o) => { if (!o) { setLeadEnvio(null); setConflito(null); } }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Enviar prova por WhatsApp</DialogTitle>
+            <DialogDescription>Confira como a cliente vai receber a mensagem.</DialogDescription>
+          </DialogHeader>
+          {leadEnvio && (
+            <div className="space-y-3">
+              {leadEnvio.foto_resultado_url && (
+                <img
+                  src={leadEnvio.foto_resultado_url}
+                  alt="Prévia da prova virtual"
+                  className="mx-auto max-h-[260px] rounded object-contain"
+                />
+              )}
+              <div className="whitespace-pre-line rounded-lg border bg-muted/40 p-3 text-sm">
+                {textoPrevia(leadEnvio)}
+              </div>
+              <Button variant="outline" size="sm" className="w-full" disabled>
+                Ver a peça
+              </Button>
+              {conflito && (
+                <p className="rounded-md border border-warning/30 bg-warning/10 p-2 text-xs text-warning">
+                  {conflito}
+                </p>
+              )}
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => { setLeadEnvio(null); setConflito(null); }}>
+              Cancelar
+            </Button>
+            <Button
+              disabled={enviando}
+              onClick={() => leadEnvio && enviarProva(leadEnvio, !!conflito)}
+            >
+              {enviando && <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />}
+              {conflito ? "Reenviar mesmo assim" : "Enviar"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
     </>
   );
 }
