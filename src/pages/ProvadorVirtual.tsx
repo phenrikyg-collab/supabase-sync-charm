@@ -224,6 +224,11 @@ function FunilLeads({
                         <div className="min-w-0 flex-1 space-y-1">
                           <p className="truncate text-sm font-semibold">{lead.nome || "Sem nome"}</p>
                           <p className="truncate text-xs text-muted-foreground">{lead.telefone || "sem telefone"}</p>
+                          <ChipsSinal lead={lead} />
+                          {lead.ultima_msg_texto && (
+                            <p className="truncate text-[11px] text-muted-foreground">{lead.ultima_msg_texto}</p>
+                          )}
+
                           <p className="truncate text-xs">{lead.produto_nome || "sem produto"}</p>
                           {lead.tamanho_indicado && (
                             <p className="text-xs text-muted-foreground">
