@@ -12,11 +12,14 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
 } from "@/components/ui/dialog";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from "@/components/ui/select";
 
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import {
-  Loader2, MessageCircle, Globe, Sparkles, Download, Search, Upload, Send, RefreshCw,
+  Loader2, MessageCircle, Globe, Sparkles, Download, Search, Upload, Send, RefreshCw, FilterX,
 } from "lucide-react";
 
 const SUPABASE_URL = "https://ezdtulcrqzmgocamjwwl.supabase.co";
