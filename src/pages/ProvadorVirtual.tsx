@@ -303,6 +303,50 @@ function FunilLeads({
           )}
         </DialogContent>
       </Dialog>
+
+      <Dialog open={!!leadEnvio} onOpenChange={(o) => { if (!o) { setLeadEnvio(null); setConflito(null); } }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Enviar prova por WhatsApp</DialogTitle>
+            <DialogDescription>Confira como a cliente vai receber a mensagem.</DialogDescription>
+          </DialogHeader>
+          {leadEnvio && (
+            <div className="space-y-3">
+              {leadEnvio.foto_resultado_url && (
+                <img
+                  src={leadEnvio.foto_resultado_url}
+                  alt="Prévia da prova virtual"
+                  className="mx-auto max-h-[260px] rounded object-contain"
+                />
+              )}
+              <div className="whitespace-pre-line rounded-lg border bg-muted/40 p-3 text-sm">
+                {textoPrevia(leadEnvio)}
+              </div>
+              <Button variant="outline" size="sm" className="w-full" disabled>
+                Ver a peça
+              </Button>
+              {conflito && (
+                <p className="rounded-md border border-warning/30 bg-warning/10 p-2 text-xs text-warning">
+                  {conflito}
+                </p>
+              )}
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => { setLeadEnvio(null); setConflito(null); }}>
+              Cancelar
+            </Button>
+            <Button
+              disabled={enviando}
+              onClick={() => leadEnvio && enviarProva(leadEnvio, !!conflito)}
+            >
+              {enviando && <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />}
+              {conflito ? "Reenviar mesmo assim" : "Enviar"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
     </>
   );
 }
