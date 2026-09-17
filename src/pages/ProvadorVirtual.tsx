@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useSearchParams } from "react-router-dom";
+import { useAbrirConversa } from "@/lib/abrirConversa";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -375,6 +376,7 @@ function FunilLeads({
   onContagem?: (n: number) => void;
 }) {
   const qc = useQueryClient();
+  const abrirConversa = useAbrirConversa(onAbrirConversa);
   const [filtros, setFiltros] = useState<FiltrosFunil>(lerFiltrosSalvos);
   const [fotoAberta, setFotoAberta] = useState<string | null>(null);
   const [preparando, setPreparando] = useState<string | null>(null);
@@ -407,7 +409,7 @@ function FunilLeads({
 
   async function abrirChat(lead: Lead) {
     if (lead.conversa_id) {
-      onAbrirConversa?.(String(lead.conversa_id));
+      abrirConversa(lead.conversa_id);
       return;
     }
     if (!lead.telefone) {
@@ -428,7 +430,7 @@ function FunilLeads({
         p_conversa_id: conversaId,
       });
       qc.invalidateQueries({ queryKey: ["provador-leads"] });
-      onAbrirConversa?.(String(conversaId));
+      abrirConversa(conversaId);
     } catch (e: any) {
       toast.error(e.message || "Não foi possível abrir a conversa");
     } finally {
@@ -505,8 +507,8 @@ function FunilLeads({
       if (error) throw error;
       const texto = typeof data === "string" ? data : data?.texto ?? String(data ?? "");
       if (!texto.trim()) throw new Error("A mensagem veio vazia");
-      if (lead.conversa_id && onAbrirConversa) {
-        onAbrirConversa(String(lead.conversa_id), texto, lead.id);
+      if (lead.conversa_id) {
+        abrirConversa(lead.conversa_id, texto, lead.id);
       } else {
         await navigator.clipboard.writeText(texto);
         toast.success("Mensagem copiada. Esta cliente ainda não tem conversa aberta.");
