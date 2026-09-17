@@ -624,14 +624,32 @@ export default function Atendimento() {
     } as Conversa;
   }, [conversas, resultadoBusca, selecionada]);
 
+  // Deep link: /atendimento?conversa=123 abre a conversa mesmo que ela não esteja
+  // na lista carregada (a consulta por id acima resolve os dados).
+  useEffect(() => {
+    const alvo = parametros.get("conversa");
+    if (!alvo) return;
+    setSelecionada(String(alvo));
+    setAbaPagina("conversas");
+    setListaSheet(false);
+    setPerfilSheet(false);
+    const restantes = new URLSearchParams(parametros);
+    restantes.delete("conversa");
+    setParametros(restantes, { replace: true });
+  }, [parametros, setParametros]);
+
   // Deep link: /atendimento?telefone=5511...
   useEffect(() => {
-    const alvo = new URLSearchParams(window.location.search).get("telefone");
+    const alvo = parametros.get("telefone");
     if (!alvo || selecionada || conversas.length === 0) return;
     const digitos = alvo.replace(/\D/g, "");
     const achou = conversas.find((c) => (c.telefone ?? "").replace(/\D/g, "").endsWith(digitos.slice(-8)));
-    if (achou) setSelecionada(String(achou.id));
-  }, [conversas, selecionada]);
+    if (achou) {
+      setSelecionada(String(achou.id));
+      setAbaPagina("conversas");
+      setListaSheet(false);
+    }
+  }, [conversas, selecionada, parametros]);
 
   const { data: mensagens = [], isLoading: carregandoMensagens } = useQuery({
     queryKey: ["whatsapp-mensagens", selecionada],
@@ -1146,10 +1164,12 @@ export default function Atendimento() {
   const podeResponder = status === "escalado" || status === "em_atendimento";
 
   const abrirDoPainel = (id: string, textoPronto?: string, leadId?: string) => {
-    setSelecionada(id);
+    setSelecionada(String(id));
     setAbaPagina("conversas");
+    setListaSheet(false);
+    setPerfilSheet(false);
     if (textoPronto) setTexto(textoPronto);
-    setLeadProvador(leadId ? { leadId, conversaId: id } : null);
+    setLeadProvador(leadId ? { leadId, conversaId: String(id) } : null);
     if (textoPronto) setTimeout(() => textoRef.current?.focus(), 0);
   };
 
