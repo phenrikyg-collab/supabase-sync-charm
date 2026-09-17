@@ -1782,6 +1782,7 @@ export default function Atendimento() {
             </>
           )}
         </section>
+        </Coluna>
 
         {/* Painel lateral direito */}
         {perfilAberto && conversaAtual && (
