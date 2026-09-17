@@ -236,12 +236,12 @@ export function LinksPagamentoTab({ onAbrirConversa }: { onAbrirConversa?: (conv
                           <ExternalLink className="h-3 w-3" />
                         </Button>
                       )}
-                      {l.conversa_id != null && onAbrirConversa && (
+                      {l.conversa_id != null && (
                         <Button
                           size="sm"
                           variant="outline"
                           className="h-7 px-2 text-[11px]"
-                          onClick={() => onAbrirConversa(String(l.conversa_id))}
+                          onClick={() => abrirConversa(l.conversa_id!)}
                         >
                           <MessageCircle className="mr-1 h-3 w-3" />
                           Abrir conversa

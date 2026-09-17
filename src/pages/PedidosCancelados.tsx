@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { useAbrirConversa } from "@/lib/abrirConversa";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -52,6 +53,7 @@ export default function PedidosCancelados({
   onAbrirConversa?: (conversaId: string) => void;
   onContagem?: (n: number) => void;
 } = {}) {
+  const abrirConversa = useAbrirConversa(onAbrirConversa);
   const [periodo, setPeriodo] = useState<Periodo>({ inicio: null, fim: null });
   const [segmento, setSegmento] = useState("todos");
   const [valorMin, setValorMin] = useState("");
@@ -215,8 +217,8 @@ export default function PedidosCancelados({
                       <TableCell className="text-right">{l.dias_desde_cancelamento ?? "sem dados"}</TableCell>
                       <TableCell><SegmentoBadge segmento={l.segmento_rfm} /></TableCell>
                       <TableCell>
-                        {contato?.conversa_id && onAbrirConversa ? (
-                          <Button size="sm" variant="outline" className="h-8" onClick={() => onAbrirConversa(String(contato.conversa_id))}>
+                        {contato?.conversa_id ? (
+                          <Button size="sm" variant="outline" className="h-8" onClick={() => abrirConversa(contato.conversa_id!)}>
                             <MessageCircle className="mr-1.5 h-3.5 w-3.5" /> Abrir conversa
                           </Button>
                         ) : l.telefone ? (

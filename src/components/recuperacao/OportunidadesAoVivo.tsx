@@ -8,6 +8,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Flame, MessageCircle, Mail, Megaphone, MessagesSquare, Phone } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { BadgesContato, useContatoPorTelefones } from "@/components/atendimento/contatoTelefones";
+import { useAbrirConversa } from "@/lib/abrirConversa";
 
 type Resumo = {
   total: number;
@@ -71,6 +72,7 @@ export function OportunidadesAoVivo({
   /** Informa quantas oportunidades estão na lista, para a contagem da aba. */
   onContagem?: (n: number) => void;
 }) {
+  const abrirConversa = useAbrirConversa(onAbrirConversa);
   const [resumo, setResumo] = useState<Resumo>(null);
   const [lista, setLista] = useState<Oportunidade[]>([]);
   const [loading, setLoading] = useState(true);
@@ -178,11 +180,11 @@ export function OportunidadesAoVivo({
                     {o.acao_sugerida && (
                       <span className="text-xs text-foreground/80 flex-1 min-w-[8rem]">{o.acao_sugerida}</span>
                     )}
-                    {idConversa && onAbrirConversa ? (
+                    {idConversa ? (
                       <Button
                         size="sm"
                         className="h-7 gap-1 bg-green-600 hover:bg-green-700 text-white"
-                        onClick={() => onAbrirConversa(String(idConversa))}
+                        onClick={() => abrirConversa(idConversa)}
                       >
                         <MessageCircle className="h-3 w-3" /> Abrir conversa
                       </Button>

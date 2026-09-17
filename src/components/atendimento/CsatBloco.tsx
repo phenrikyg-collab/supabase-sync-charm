@@ -216,7 +216,7 @@ export function CsatBloco({ onAbrirConversa }: { onAbrirConversa?: (conversaId: 
                         <tr
                           key={it.csat_id}
                           className={cn("border-t border-border/60", it.conversa_id != null && "cursor-pointer hover:bg-muted/50")}
-                          onClick={() => it.conversa_id != null && onAbrirConversa?.(String(it.conversa_id))}
+                          onClick={() => it.conversa_id != null && abrirConversa(it.conversa_id)}
                         >
                           <td className="py-1.5">{it.nome || it.telefone || "sem nome"}</td>
                           <td className="py-1.5">

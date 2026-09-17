@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { useAbrirConversa } from "@/lib/abrirConversa";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -322,12 +323,12 @@ export default function CarrinhoAbandonado({
                               setContatadas((p) => new Set(p).add(l.session_id))
                             }
                           />
-                          {contato?.conversa_id && onAbrirConversa && (
+                          {contato?.conversa_id && (
                             <Button
                               size="sm"
                               variant="ghost"
                               className="mt-1 h-7 px-2 text-xs"
-                              onClick={() => onAbrirConversa(String(contato.conversa_id))}
+                              onClick={() => abrirConversa(contato.conversa_id!)}
                             >
                               <MessageCircle className="mr-1.5 h-3.5 w-3.5" /> Abrir conversa
                             </Button>
