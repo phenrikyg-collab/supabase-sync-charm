@@ -22,6 +22,7 @@ import { useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { db } from "@/lib/socialCommerce";
 import { lerErroEdge } from "@/lib/edgeError";
+import { cn } from "@/lib/utils";
 import { CampoTags, dataHoraBR } from "./comum";
 import { SeletorProdutos, carregarProdutosPai, type ProdutoPai } from "./SeletorProdutos";
 import { BotaoGerarRespostas } from "./BotaoGerarRespostas";
@@ -925,12 +926,17 @@ export function PublicacoesTab() {
         if (erroEdge) {
           const det = await lerErroEdge(erroEdge, "Falha ao publicar agora.");
           toast.error(det.mensagem, { description: det.dica });
-        } else if (data?.ok === false || data?.erro || data?.error) {
+        } else if (data?.ok === false) {
           toast.error(String(data?.erro ?? data?.error ?? "O Instagram recusou a publicação."), {
             description: data?.detalhe ?? undefined,
           });
         } else {
-          toast.success("Publicado no Instagram");
+          const aviso = String(data?.erro ?? data?.error ?? "").trim();
+          if (aviso) {
+            toast.warning("Publicado com um aviso", { description: aviso, duration: 10000 });
+          } else {
+            toast.success("Publicado no Instagram");
+          }
           setModalAberto(false);
         }
       } else {
@@ -1021,6 +1027,15 @@ export function PublicacoesTab() {
                           }}
                           className={`w-full truncate rounded border px-1.5 py-0.5 text-left text-[10px] font-medium ${chipStatus(p.status)}`}
                         >
+                          {nivelMensagem(p.status, p.erro) && (
+                            <span
+                              className={cn(
+                                "mr-1 inline-block h-1.5 w-1.5 rounded-full align-middle",
+                                p.status === "falhou" ? "bg-destructive" : "bg-warning",
+                              )}
+                              aria-label={p.status === "falhou" ? "Falhou" : "Aviso"}
+                            />
+                          )}
                           {p.modo_resposta === "automatico" && <Zap className="inline h-2.5 w-2.5 mr-0.5" />}
                           {p.tipo} · {new Date(p.agendado_para!).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
                           {p.id != null &&
