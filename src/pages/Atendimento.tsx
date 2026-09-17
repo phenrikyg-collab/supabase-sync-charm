@@ -379,6 +379,13 @@ export default function Atendimento() {
     setIndiceRapida(0);
   }, [texto]);
 
+  useEffect(() => {
+    const campo = textoRef.current;
+    if (!campo) return;
+    campo.style.height = "auto";
+    campo.style.height = `${Math.min(campo.scrollHeight, 96)}px`;
+  }, [texto]);
+
   const inserirResposta = (r: RespostaRapida) => {
     setTexto(r.texto);
     registrarUso(r.id);
@@ -1011,28 +1018,28 @@ export default function Atendimento() {
       >
         <div className="flex h-11 w-full min-w-0 shrink-0 items-center gap-2 overflow-x-auto border-b border-border px-3">
           <TabsList className="h-8 w-max flex-nowrap bg-transparent p-0">
-            <TabsTrigger value="conversas" className="h-8 shrink-0 text-xs">
+            <TabsTrigger value="conversas" className="h-8 shrink-0 text-sm">
               {rotuloComContagem("Conversas", contagemGrupos.conversa)}
             </TabsTrigger>
-            <TabsTrigger value="oportunidades" className="h-8 shrink-0 text-xs">
+            <TabsTrigger value="oportunidades" className="h-8 shrink-0 text-sm">
               {rotuloComContagem("Oportunidades", contagens.oportunidades)}
             </TabsTrigger>
-            <TabsTrigger value="provador" className="h-8 shrink-0 text-xs">
+            <TabsTrigger value="provador" className="h-8 shrink-0 text-sm">
               {rotuloComContagem("Provador", contagens.provador)}
             </TabsTrigger>
-            <TabsTrigger value="abandonadas" className="h-8 shrink-0 text-xs">Abandonadas</TabsTrigger>
-            <TabsTrigger value="cobrancas" className="h-8 shrink-0 text-xs">Cobranças</TabsTrigger>
-            <TabsTrigger value="consulta" className="h-8 shrink-0 text-xs">Consultar Transação</TabsTrigger>
-            <TabsTrigger value="rapidas" className="h-8 shrink-0 text-xs">Mensagens rápidas</TabsTrigger>
-            <TabsTrigger value="aprendizado" className="h-8 shrink-0 text-xs">Aprendizado da Anna</TabsTrigger>
-            <TabsTrigger value="carrinhos" className="h-8 shrink-0 text-xs">
+            <TabsTrigger value="abandonadas" className="h-8 shrink-0 text-sm">Abandonadas</TabsTrigger>
+            <TabsTrigger value="cobrancas" className="h-8 shrink-0 text-sm">Cobranças</TabsTrigger>
+            <TabsTrigger value="consulta" className="h-8 shrink-0 text-sm">Consultar Transação</TabsTrigger>
+            <TabsTrigger value="rapidas" className="h-8 shrink-0 text-sm">Mensagens rápidas</TabsTrigger>
+            <TabsTrigger value="aprendizado" className="h-8 shrink-0 text-sm">Aprendizado da Anna</TabsTrigger>
+            <TabsTrigger value="carrinhos" className="h-8 shrink-0 text-sm">
               {rotuloComContagem("Carrinhos abandonados", contagens.carrinhos)}
             </TabsTrigger>
-            <TabsTrigger value="cancelados" className="h-8 shrink-0 text-xs">
+            <TabsTrigger value="cancelados" className="h-8 shrink-0 text-sm">
               {rotuloComContagem("Pedidos cancelados", contagens.cancelados)}
             </TabsTrigger>
-            <TabsTrigger value="kanban" className="h-8 shrink-0 text-xs">Kanban do funil</TabsTrigger>
-            <TabsTrigger value="cashback" className="h-8 shrink-0 text-xs">Cashback</TabsTrigger>
+            <TabsTrigger value="kanban" className="h-8 shrink-0 text-sm">Kanban do funil</TabsTrigger>
+            <TabsTrigger value="cashback" className="h-8 shrink-0 text-sm">Cashback</TabsTrigger>
           </TabsList>
         </div>
 
@@ -1178,7 +1185,7 @@ export default function Atendimento() {
                     key={t.v}
                     onClick={() => setAba(t.v)}
                     className={cn(
-                      "inline-flex items-center justify-center gap-1.5 rounded-sm px-2 py-1.5 text-xs font-medium transition-colors",
+                      "inline-flex items-center justify-center gap-1.5 rounded-sm px-2 py-1.5 text-sm font-medium transition-colors",
                       aba === t.v ? "bg-card shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground",
                     )}
                   >
@@ -1203,7 +1210,7 @@ export default function Atendimento() {
                   key={g.v}
                   onClick={() => setGrupoAba(g.v)}
                   className={cn(
-                    "inline-flex items-center justify-center gap-1 rounded-sm px-1.5 py-1.5 text-[11px] font-medium transition-colors",
+                    "inline-flex items-center justify-center gap-1 rounded-sm px-1.5 py-1.5 text-xs font-medium transition-colors",
                     grupoAba === g.v
                       ? "bg-card shadow-sm text-foreground"
                       : "text-muted-foreground hover:text-foreground",
@@ -1235,7 +1242,7 @@ export default function Atendimento() {
                   key={f.v}
                   size="sm"
                   variant={filtroLeitura === f.v && (f.v !== "todas" || !filtroFila) ? "default" : "outline"}
-                  className="h-7 px-2.5 text-[11px]"
+                   className="h-7 px-2.5 text-xs"
                   onClick={() => {
                     setFiltroLeitura(f.v);
                     if (f.v === "todas") setFiltroFila(null);
@@ -1254,7 +1261,7 @@ export default function Atendimento() {
                   key={f.v}
                   size="sm"
                   variant={filtroFila === f.v ? "default" : "outline"}
-                  className="h-7 px-2.5 text-[11px]"
+                   className="h-7 px-2.5 text-xs"
                   onClick={() => {
                     if (filtroFila === f.v) {
                       setFiltroFila(null);
@@ -1272,7 +1279,7 @@ export default function Atendimento() {
                   <Button
                     size="sm"
                     variant={tagsFiltro.length ? "secondary" : "outline"}
-                    className="h-7 px-2.5 text-[11px]"
+                     className="h-7 px-2.5 text-xs"
                   >
                     Tags{tagsFiltro.length ? ` (${tagsFiltro.length})` : ""}
                   </Button>
@@ -1351,7 +1358,7 @@ export default function Atendimento() {
                       {prio === "alta" && <span className="h-2 w-2 rounded-full bg-danger shrink-0" />}
                       {prio === "media" && <span className="h-2 w-2 rounded-full bg-warning shrink-0" />}
                       <div className="min-w-0">
-                        <p className={cn("text-sm truncate flex items-center gap-1.5", naoLida || urg === "quente" ? "font-bold" : "font-medium")}>
+                         <p className={cn("text-base truncate flex items-center gap-1.5", naoLida || urg === "quente" ? "font-bold" : "font-medium")}>
                           {site ? (
                             <Globe className="h-3.5 w-3.5 shrink-0 text-primary" aria-label="Chat do site" />
                           ) : (
@@ -1372,11 +1379,11 @@ export default function Atendimento() {
                       </div>
                     </div>
 
-                    <span className="text-[10px] text-muted-foreground whitespace-nowrap">
+                     <span className="text-xs text-muted-foreground whitespace-nowrap">
                       {tempoRelativo(c.ultima_mensagem_em ?? c.atualizado_em)}
                     </span>
                   </div>
-                  <p className={cn("text-xs mt-1 line-clamp-1", naoLida ? "text-foreground font-medium" : "text-muted-foreground")}>
+                   <p className={cn("text-sm mt-1 line-clamp-1", naoLida ? "text-foreground font-medium" : "text-muted-foreground")}>
                     {c.ultima_mensagem ?? ""}
                   </p>
                   {grupoAba === "clique" && (
@@ -1590,7 +1597,7 @@ export default function Atendimento() {
                       >
                         <div
                           className={cn(
-                            "min-w-0 max-w-[75%] overflow-hidden text-sm break-words [overflow-wrap:anywhere] [word-break:break-word]",
+                             "min-w-0 max-w-[75%] overflow-hidden text-base break-words [overflow-wrap:anywhere] [word-break:break-word]",
                             sticker
                               ? "bg-transparent border-0 p-0"
                               : cn(
@@ -1640,7 +1647,7 @@ export default function Atendimento() {
                   </div>
                 </div>
               ) : podeResponder ? (
-                <div className="shrink-0 border-t border-border p-3 space-y-2">
+                 <div className="shrink-0 border-t border-border px-2 py-1.5 space-y-1.5">
                   {erroJanela && (
                     <div className="flex items-start gap-2 rounded-md border border-danger/40 bg-danger/10 p-3">
                       <AlertTriangle className="h-4 w-4 text-danger mt-0.5 shrink-0" />
@@ -1693,7 +1700,7 @@ export default function Atendimento() {
                     <Button
                       size="icon"
                       variant="ghost"
-                      className="h-9 w-9 shrink-0"
+                       className="h-8 w-8 shrink-0"
                       onClick={() => fileRef.current?.click()}
                       title="Enviar imagem"
                     >
@@ -1709,7 +1716,7 @@ export default function Atendimento() {
                     <Button
                       size="icon"
                       variant="ghost"
-                      className="h-9 w-9 shrink-0"
+                       className="h-8 w-8 shrink-0"
                       onClick={() => setCatalogoAberto(true)}
                       title="Catálogo"
                     >
@@ -1722,7 +1729,7 @@ export default function Atendimento() {
                       onChange={(e) => setTexto(e.target.value)}
                       placeholder="Escreva sua resposta ou digite / para as mensagens rápidas"
                       rows={1}
-                      className="min-h-9 min-w-0 flex-1 resize-none py-2"
+                       className="min-h-8 max-h-24 min-w-0 flex-1 resize-none overflow-y-auto py-1.5"
                       onKeyDown={(e) => {
                         if (listaRapidaAberta) {
                           if (e.key === "ArrowDown") {
@@ -1755,7 +1762,7 @@ export default function Atendimento() {
                     />
                     <Button
                       size="icon"
-                      className="h-9 w-9 shrink-0 rounded-full"
+                       className="h-8 w-8 shrink-0 rounded-full"
                       onClick={() => texto.trim() && enviar.mutate(texto.trim())}
                       disabled={!texto.trim() || enviar.isPending}
                       title="Enviar"
@@ -1777,20 +1784,22 @@ export default function Atendimento() {
 
         {/* Painel lateral direito */}
         {perfilAberto && conversaAtual && (
-          <aside className="hidden min-h-0 w-[340px] min-w-[340px] shrink-0 flex-col gap-3 overflow-y-auto overflow-x-hidden overscroll-contain border-l border-border p-3 pb-8 lg:flex">
-            <PerfilCliente conversaId={conversaAtual.id} autor={autor} telefone={conversaAtual.telefone} />
-            {telefoneIdentificado && <AtividadesRecentes telefone={telefoneIdentificado} />}
+           <aside className="hidden min-h-0 w-[340px] min-w-[340px] shrink-0 flex-col overflow-hidden border-l border-border p-3 pb-8 lg:flex">
+             <Card className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain">
+               <PerfilCliente conversaId={conversaAtual.id} autor={autor} telefone={conversaAtual.telefone} />
+               {telefoneIdentificado && <AtividadesRecentes telefone={telefoneIdentificado} />}
+             </Card>
           </aside>
         )}
 
         <Sheet open={perfilSheet} onOpenChange={setPerfilSheet}>
-          <SheetContent side="right" className="w-[92vw] max-w-[380px] overflow-y-auto p-3 pb-8">
-            <SheetTitle className="mb-2 text-sm">Perfil da cliente</SheetTitle>
+           <SheetContent side="right" className="flex w-[92vw] max-w-[380px] flex-col overflow-hidden p-3 pb-8">
+             <SheetTitle className="sr-only">Perfil da cliente</SheetTitle>
             {conversaAtual ? (
-              <div className="space-y-3">
+               <Card className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain">
                 <PerfilCliente conversaId={conversaAtual.id} autor={autor} telefone={conversaAtual.telefone} />
                 {telefoneIdentificado && <AtividadesRecentes telefone={telefoneIdentificado} />}
-              </div>
+               </Card>
             ) : (
               <p className="text-sm text-muted-foreground">Nenhuma conversa selecionada</p>
             )}
