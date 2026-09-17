@@ -1807,7 +1807,7 @@ export default function Atendimento() {
           </SheetContent>
         </Sheet>
 
-      </div>
+      </Colunas>
         </TabsContent>
       </Tabs>
 
