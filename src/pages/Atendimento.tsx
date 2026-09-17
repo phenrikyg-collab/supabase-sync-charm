@@ -1163,10 +1163,12 @@ export default function Atendimento() {
         )}
 
         {/* Lista de conversas */}
+        <Coluna ajustavel={colunasAjustaveis} id="lista" order={1} defaultSize={24} minSize={14}>
         <aside
           className={cn(
             "fixed inset-y-0 left-0 z-40 flex min-h-0 w-[85vw] max-w-[360px] min-w-0 flex-col overflow-hidden border-r border-border bg-card transition-transform",
             "md:static md:z-auto md:w-[320px] md:max-w-none md:shrink-0 md:translate-x-0 lg:w-[340px]",
+            colunasAjustaveis && "lg:w-full",
             listaSheet ? "translate-x-0" : "-translate-x-full",
           )}
         >
