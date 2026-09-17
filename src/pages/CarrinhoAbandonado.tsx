@@ -65,6 +65,12 @@ export default function CarrinhoAbandonado({
   const [valorMin, setValorMin] = useState("");
   const [valorMax, setValorMax] = useState("");
   const [somenteIdentificados, setSomenteIdentificados] = useState(false);
+  const [filtroCaminho, setFiltroCaminho] = useState<Caminho | null>(null);
+  const [contatadas, setContatadas] = useState<Set<string>>(new Set());
+
+  const { caminhoDe } = useCaminhosContato(30);
+  const { aprovado } = useStatusTemplates();
+
 
   const { data: linhas = [], isLoading } = useQuery({
     queryKey: ["vw_carrinhos_abandonados", periodo.inicio, periodo.fim, somenteIdentificados],
