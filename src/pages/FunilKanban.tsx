@@ -1,12 +1,14 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import { Loader2, RefreshCw } from "lucide-react";
+import { Loader2, RefreshCw, Zap } from "lucide-react";
 
 const COLUNAS = [
   { etapa: "Novo Lead", topo: "border-t-muted-foreground/40" },
@@ -19,6 +21,7 @@ const COLUNAS = [
 type CardTag = {
   conversa_id: string | number;
   etapa: string | null;
+  etapa_origem: "auto" | "manual" | "inferida" | string | null;
   nome: string | null;
   telefone: string | null;
   ultima_mensagem_texto: string | null;
@@ -27,6 +30,8 @@ type CardTag = {
   aguardando_resposta: boolean | null;
   pix_aberto_valor: number | null;
 };
+
+type FiltroOrigem = "todas" | "auto" | "manual";
 
 const brl = (v?: number | null) =>
   (Number(v) || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
