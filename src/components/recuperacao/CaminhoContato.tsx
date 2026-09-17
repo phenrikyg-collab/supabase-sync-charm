@@ -120,6 +120,7 @@ export function CelulaRecuperar({
   nome,
   info,
   templateAprovado,
+  templatePadrao,
   contatada,
   onContatada,
 }: {
@@ -127,6 +128,8 @@ export function CelulaRecuperar({
   nome: string | null;
   info?: CaminhoContato;
   templateAprovado: (nome?: string | null) => boolean;
+  /** Template padrão configurado no topo da tela; sem ele o envio fica desabilitado. */
+  templatePadrao?: string | null;
   contatada: boolean;
   onContatada: () => void;
 }) {
