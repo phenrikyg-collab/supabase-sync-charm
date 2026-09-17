@@ -188,6 +188,37 @@ export default function CarrinhoAbandonado({
         </Card>
       </div>
 
+      <div className="flex flex-wrap gap-2">
+        {(Object.keys(ROTULO_CAMINHO) as Caminho[]).map((c) => {
+          const Icone = ICONE_CAMINHO[c];
+          const ativo = filtroCaminho === c;
+          return (
+            <button
+              key={c}
+              type="button"
+              onClick={() => setFiltroCaminho(ativo ? null : c)}
+              className={`inline-flex items-center gap-2 rounded-md border px-3 py-1.5 text-xs transition-colors ${
+                ativo ? "border-primary bg-primary/10 text-primary" : "border-border hover:bg-muted"
+              }`}
+            >
+              <Icone className="h-3.5 w-3.5" />
+              <span>{ROTULO_CAMINHO[c]}</span>
+              <span className="font-semibold">{contagemCaminhos[c]}</span>
+            </button>
+          );
+        })}
+        {filtroCaminho && (
+          <button
+            type="button"
+            onClick={() => setFiltroCaminho(null)}
+            className="text-xs text-muted-foreground underline"
+          >
+            Limpar filtro
+          </button>
+        )}
+      </div>
+
+
       <Card>
         <CardHeader className="pb-3">
           <div className="flex flex-wrap items-end gap-3">
