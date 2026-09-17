@@ -5,7 +5,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Flame, MessageCircle, Mail, Megaphone, MessagesSquare } from "lucide-react";
+import { Flame, MessageCircle, Mail, Megaphone, MessagesSquare, Bot, UserCheck } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { BadgesContato, useContatoPorTelefones } from "@/components/atendimento/contatoTelefones";
 import { BotaoConversa } from "@/components/recuperacao/BotaoConversa";
@@ -33,6 +33,12 @@ type Oportunidade = {
   email: string | null;
   segmento_rfm: string | null;
   ocorrido_em: string | null;
+  tray_customer_id?: string | number | null;
+  visitante_id?: string | number | null;
+  ja_contatada?: boolean | null;
+  contato_em?: string | null;
+  contato_tipo?: string | null;
+  minutos_desde_contato?: number | null;
 };
 
 const CANAL_STYLES: Record<string, string> = {
@@ -43,6 +49,71 @@ const CANAL_STYLES: Record<string, string> = {
   "anúncios": "bg-amber-100 text-amber-900 border-amber-300",
   anuncios: "bg-amber-100 text-amber-900 border-amber-300",
 };
+
+const TIPOS: { valor: string; rotulo: string }[] = [
+  { valor: "carrinho_ativo_agora", rotulo: "Carrinho ativo agora" },
+  { valor: "checkout_abandonado", rotulo: "Checkout abandonado" },
+  { valor: "carrinho_cliente_conhecida", rotulo: "Carrinho de cliente conhecida" },
+  { valor: "hesitacao_produto", rotulo: "Hesitação em produto" },
+  { valor: "vip_navegando", rotulo: "Cliente VIP navegando" },
+];
+
+const STATUS: { valor: string; rotulo: string }[] = [
+  { valor: "todas", rotulo: "Todas" },
+  { valor: "nao_contatadas", rotulo: "Não contatadas" },
+  { valor: "contatadas", rotulo: "Já contatadas" },
+  { valor: "automacao", rotulo: "Só automação respondeu" },
+];
+
+const PERIODOS: { horas: number; rotulo: string }[] = [
+  { horas: 6, rotulo: "6h" },
+  { horas: 24, rotulo: "24h" },
+  { horas: 48, rotulo: "48h" },
+  { horas: 168, rotulo: "7 dias" },
+];
+
+const CHAVE_FILTROS = "oportunidades-filtros";
+
+type Filtros = { status: string; tipo: string; soQuentes: boolean; horas: number };
+
+const FILTROS_PADRAO: Filtros = { status: "nao_contatadas", tipo: "todos", soQuentes: false, horas: 24 };
+
+function lerFiltros(): Filtros {
+  try {
+    const bruto = localStorage.getItem(CHAVE_FILTROS);
+    if (!bruto) return FILTROS_PADRAO;
+    const salvo = JSON.parse(bruto);
+    return {
+      status: typeof salvo?.status === "string" ? salvo.status : FILTROS_PADRAO.status,
+      tipo: typeof salvo?.tipo === "string" ? salvo.tipo : FILTROS_PADRAO.tipo,
+      soQuentes: salvo?.soQuentes === true,
+      horas: PERIODOS.some((p) => p.horas === salvo?.horas) ? salvo.horas : FILTROS_PADRAO.horas,
+    };
+  } catch {
+    return FILTROS_PADRAO;
+  }
+}
+
+function salvarFiltros(f: Filtros) {
+  try {
+    localStorage.setItem(CHAVE_FILTROS, JSON.stringify(f));
+  } catch {
+    /* espaço indisponível, segue sem salvar */
+  }
+}
+
+function tempoRelativo(minutos: number | null | undefined) {
+  const m = Number(minutos ?? 0);
+  if (!Number.isFinite(m) || m < 1) return "agora";
+  if (m < 60) return `${Math.round(m)} min`;
+  const horas = m / 60;
+  if (horas < 24) return `${Math.round(horas)}h`;
+  return `${Math.round(horas / 24)} dias`;
+}
+
+function chaveDa(o: Oportunidade) {
+  return `${o.tipo ?? ""}|${o.tray_customer_id ?? o.visitante_id ?? ""}`;
+}
 
 function IconeCanal({ canal }: { canal: string }) {
   const c = canal.toLowerCase();
@@ -69,19 +140,30 @@ export function OportunidadesAoVivo({
   const [resumo, setResumo] = useState<Resumo>(null);
   const [lista, setLista] = useState<Oportunidade[]>([]);
   const [loading, setLoading] = useState(true);
+  const [filtros, setFiltros] = useState<Filtros>(() => lerFiltros());
+  const [tratadas, setTratadas] = useState<Set<string>>(new Set());
+  const [saindo, setSaindo] = useState<Set<string>>(new Set());
+
+  const atualizarFiltros = useCallback((parcial: Partial<Filtros>) => {
+    setFiltros((atual) => {
+      const novo = { ...atual, ...parcial };
+      salvarFiltros(novo);
+      return novo;
+    });
+  }, []);
 
   const carregar = useCallback(async () => {
     try {
       const [r1, r2] = await Promise.all([
-        (supabase as any).rpc("rastreamento_oportunidades_resumo", { p_horas: 24 }),
-        (supabase as any).rpc("rastreamento_oportunidades", { p_horas: 24, p_limite: 15 }),
+        (supabase as any).rpc("rastreamento_oportunidades_resumo", { p_horas: filtros.horas }),
+        (supabase as any).rpc("rastreamento_oportunidades_status", { p_horas: filtros.horas, p_limite: 60 }),
       ]);
       if (!r1.error) setResumo((r1.data ?? null) as Resumo);
       if (!r2.error) setLista((Array.isArray(r2.data) ? r2.data : []) as Oportunidade[]);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [filtros.horas]);
 
   useEffect(() => { carregar(); }, [carregar, refreshKey]);
 
@@ -91,17 +173,59 @@ export function OportunidadesAoVivo({
     return () => window.clearInterval(t);
   }, [carregar, intervaloMs]);
 
-  useEffect(() => { onContagem?.(lista.length); }, [lista.length, onContagem]);
+  const marcarTratada = useCallback((chave: string) => {
+    setSaindo((atual) => new Set(atual).add(chave));
+    window.setTimeout(() => {
+      setTratadas((atual) => new Set(atual).add(chave));
+      setSaindo((atual) => {
+        const novo = new Set(atual);
+        novo.delete(chave);
+        return novo;
+      });
+      carregar();
+    }, 320);
+  }, [carregar]);
 
+  const porStatus = useCallback((o: Oportunidade) => {
+    const contatada = o.ja_contatada === true;
+    if (filtros.status === "nao_contatadas") return !contatada;
+    if (filtros.status === "contatadas") return contatada;
+    if (filtros.status === "automacao") return contatada && o.contato_tipo === "automacao";
+    return true;
+  }, [filtros.status]);
 
-  const telefones = useMemo(() => lista.map((o) => o.telefone), [lista]);
+  const visiveis = useMemo(() => {
+    return lista.filter((o) => {
+      const chave = chaveDa(o);
+      if (tratadas.has(chave)) return false;
+      if (!porStatus(o)) return false;
+      if (filtros.tipo !== "todos" && o.tipo !== filtros.tipo) return false;
+      if (filtros.soQuentes && o.quente !== true) return false;
+      return true;
+    });
+  }, [lista, tratadas, porStatus, filtros.tipo, filtros.soQuentes]);
+
+  useEffect(() => { onContagem?.(visiveis.length); }, [visiveis.length, onContagem]);
+
+  const contagemTipo = useMemo(() => {
+    const base = lista.filter((o) => {
+      if (tratadas.has(chaveDa(o))) return false;
+      if (!porStatus(o)) return false;
+      if (filtros.soQuentes && o.quente !== true) return false;
+      return true;
+    });
+    const mapa: Record<string, number> = { todos: base.length };
+    for (const t of TIPOS) mapa[t.valor] = base.filter((o) => o.tipo === t.valor).length;
+    return mapa;
+  }, [lista, tratadas, porStatus, filtros.soQuentes]);
+
+  const telefones = useMemo(() => visiveis.map((o) => o.telefone), [visiveis]);
   const { contatoDe } = useContatoPorTelefones(telefones);
 
   const partes: string[] = [];
   if ((resumo?.quentes ?? 0) > 0) partes.push(`${resumo!.quentes} quentes agora`);
   if ((resumo?.contactaveis ?? 0) > 0) partes.push(`${resumo!.contactaveis} com contato`);
   if ((resumo?.valor_em_jogo ?? 0) > 0) partes.push(`${brl(resumo!.valor_em_jogo)} em carrinho neste momento`);
-
 
   return (
     <section>
@@ -112,28 +236,116 @@ export function OportunidadesAoVivo({
         )}
       </div>
 
+      <div className="flex flex-wrap items-center gap-2 mb-3">
+        <div className="flex flex-wrap items-center gap-1">
+          {STATUS.map((s) => (
+            <Button
+              key={s.valor}
+              size="sm"
+              variant={filtros.status === s.valor ? "default" : "outline"}
+              className="h-7 text-xs"
+              onClick={() => atualizarFiltros({ status: s.valor })}
+            >
+              {s.rotulo}
+            </Button>
+          ))}
+        </div>
+
+        <span className="h-4 w-px bg-border" />
+
+        <div className="flex flex-wrap items-center gap-1">
+          <Button
+            size="sm"
+            variant={filtros.tipo === "todos" ? "default" : "outline"}
+            className="h-7 text-xs"
+            onClick={() => atualizarFiltros({ tipo: "todos" })}
+          >
+            Todos ({contagemTipo.todos ?? 0})
+          </Button>
+          {TIPOS.map((t) => (
+            <Button
+              key={t.valor}
+              size="sm"
+              variant={filtros.tipo === t.valor ? "default" : "outline"}
+              className="h-7 text-xs"
+              onClick={() => atualizarFiltros({ tipo: t.valor })}
+            >
+              {t.rotulo} ({contagemTipo[t.valor] ?? 0})
+            </Button>
+          ))}
+        </div>
+
+        <span className="h-4 w-px bg-border" />
+
+        <Button
+          size="sm"
+          variant={filtros.soQuentes ? "default" : "outline"}
+          className="h-7 gap-1 text-xs"
+          onClick={() => atualizarFiltros({ soQuentes: !filtros.soQuentes })}
+        >
+          <Flame className="h-3 w-3" /> Só quentes
+        </Button>
+
+        <span className="h-4 w-px bg-border" />
+
+        <div className="flex items-center gap-1">
+          {PERIODOS.map((p) => (
+            <Button
+              key={p.horas}
+              size="sm"
+              variant={filtros.horas === p.horas ? "default" : "outline"}
+              className="h-7 text-xs"
+              onClick={() => atualizarFiltros({ horas: p.horas })}
+            >
+              {p.rotulo}
+            </Button>
+          ))}
+        </div>
+
+        {tratadas.size > 0 && (
+          <span className="text-xs text-muted-foreground">
+            {tratadas.size} tratadas agora
+            <button
+              type="button"
+              className="ml-1 underline hover:text-foreground"
+              onClick={() => setTratadas(new Set())}
+            >
+              mostrar
+            </button>
+          </span>
+        )}
+      </div>
+
       {loading ? (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           {[0, 1, 2, 3].map((i) => <Skeleton key={i} className="h-24 rounded-lg" />)}
         </div>
-      ) : lista.length === 0 ? (
+      ) : visiveis.length === 0 ? (
         <Card>
           <CardContent className="p-6 text-sm text-muted-foreground text-center">
-            Nenhuma oportunidade nas últimas 24h
+            Nenhuma oportunidade com esses filtros
           </CardContent>
         </Card>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          {lista.map((o, i) => {
+          {visiveis.map((o, i) => {
             const quente = o.quente === true;
             const canal = (o.canal_sugerido ?? "").trim();
             const canalKey = canal.toLowerCase();
             const contato = contatoDe(o.telefone);
             const idConversa = o.conversa_id ?? contato?.conversa_id ?? null;
+            const chave = chaveDa(o);
+            const contatada = o.ja_contatada === true;
+            const porHumano = o.contato_tipo === "humano";
             return (
               <Card
-                key={`${o.tipo}-${i}`}
-                className={cn(quente && "border-orange-400 bg-orange-50 dark:bg-orange-950/20")}
+                key={`${chave}-${i}`}
+                className={cn(
+                  "transition-opacity duration-300",
+                  quente && "border-orange-400 bg-orange-50 dark:bg-orange-950/20",
+                  contatada && "opacity-60",
+                  saindo.has(chave) && "opacity-0",
+                )}
               >
                 <CardContent className="p-4 space-y-2">
                   <div className="flex items-start justify-between gap-2">
@@ -145,6 +357,22 @@ export function OportunidadesAoVivo({
                       {quente && (
                         <Badge className="bg-orange-500 text-white gap-1">
                           <Flame className="h-3 w-3" /> Agora
+                        </Badge>
+                      )}
+                      {contatada && (
+                        <Badge
+                          variant="outline"
+                          className={cn(
+                            "gap-1 text-[10px]",
+                            porHumano
+                              ? "bg-green-100 text-green-800 border-green-300"
+                              : "bg-muted text-muted-foreground",
+                          )}
+                        >
+                          {porHumano ? <UserCheck className="h-3 w-3" /> : <Bot className="h-3 w-3" />}
+                          {porHumano
+                            ? `falaram há ${tempoRelativo(o.minutos_desde_contato)}`
+                            : `automação respondeu há ${tempoRelativo(o.minutos_desde_contato)}`}
                         </Badge>
                       )}
                     </div>
@@ -177,6 +405,7 @@ export function OportunidadesAoVivo({
                         conversaId={idConversa}
                         telefone={o.telefone}
                         onAbrirConversa={onAbrirConversa}
+                        onAberta={() => marcarTratada(chave)}
                         className="h-7 text-xs"
                       />
                     )}
