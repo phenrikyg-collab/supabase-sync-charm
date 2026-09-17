@@ -1439,6 +1439,8 @@ export default function Atendimento() {
             )}
           </ScrollArea>
         </aside>
+        </Coluna>
+        {colunasAjustaveis && <ResizableHandle withHandle />}
 
         {/* Thread */}
         <Coluna ajustavel={colunasAjustaveis} id="thread" order={2} defaultSize={52} minSize={30}>
