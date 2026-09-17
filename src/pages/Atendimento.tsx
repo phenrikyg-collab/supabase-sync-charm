@@ -663,6 +663,7 @@ export default function Atendimento() {
           conversa_id: conversaAtual.id,
           telefone: conversaAtual.telefone,
           conteudo,
+          autor: user?.email ?? null,
         },
       });
       if (error) throw error;
