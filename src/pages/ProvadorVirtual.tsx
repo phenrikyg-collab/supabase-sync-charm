@@ -73,6 +73,7 @@ type Lead = {
   conversa_nao_lida?: boolean | null;
   conversa_aberta?: boolean | null;
   template_enviado_em?: string | null;
+  template_entrega?: string | null;
   template_nome?: string | null;
   msgs_saida?: number | null;
   msgs_entrada?: number | null;
