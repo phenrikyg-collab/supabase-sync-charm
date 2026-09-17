@@ -8,6 +8,7 @@ import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { chamarRpc } from "@/lib/supabaseRpc";
+import { useAbrirConversa } from "@/lib/abrirConversa";
 
 type Metricas = {
   dias: number;
@@ -61,6 +62,7 @@ const corDaNota = (nota?: number | null) => {
 const PERIODOS: number[] = [7, 30, 90];
 
 export function CsatBloco({ onAbrirConversa }: { onAbrirConversa?: (conversaId: string) => void }) {
+  const abrirConversa = useAbrirConversa(onAbrirConversa);
   const [dias, setDias] = useState(30);
   const [soRuins, setSoRuins] = useState(false);
   const [metricas, setMetricas] = useState<Metricas | null>(null);

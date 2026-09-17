@@ -61,6 +61,7 @@ export default function CarrinhoAbandonado({
   onAbrirConversa?: (conversaId: string) => void;
   onContagem?: (n: number) => void;
 } = {}) {
+  const abrirConversa = useAbrirConversa(onAbrirConversa);
   const [periodo, setPeriodo] = useState<Periodo>({ inicio: null, fim: null });
   const [segmento, setSegmento] = useState("todos");
   const [valorMin, setValorMin] = useState("");

@@ -8,6 +8,7 @@ import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { Copy, ExternalLink, Loader2, MessageCircle, RefreshCw } from "lucide-react";
 import { chamarRpc } from "@/lib/supabaseRpc";
+import { useAbrirConversa } from "@/lib/abrirConversa";
 
 const EXTERNAL_SUPABASE_URL = "https://ezdtulcrqzmgocamjwwl.supabase.co";
 const CONFERIR_LINK_URL = `${EXTERNAL_SUPABASE_URL}/functions/v1/pagamentos-conferir-link`;
@@ -128,6 +129,7 @@ function BotaoConferir({
 /** Lista geral dos links de pagamento gerados no cartão. */
 export function LinksPagamentoTab({ onAbrirConversa }: { onAbrirConversa?: (conversaId: string) => void }) {
   const queryClient = useQueryClient();
+  const abrirConversa = useAbrirConversa(onAbrirConversa);
   const [filtro, setFiltro] = useState<"todos" | "pendente" | "pago" | "outros">("todos");
 
   const { data: links = [], isLoading } = useQuery({
