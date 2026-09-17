@@ -464,6 +464,23 @@ export default function Atendimento() {
 
   const autor = user?.email ?? "Atendente";
 
+  const colunasAjustaveis = useTelaLarga();
+  const grupoColunasRef = useRef<ImperativePanelGroupHandle>(null);
+  const restaurarLarguras = () => {
+    try {
+      localStorage.removeItem("react-resizable-panels:atendimento-colunas");
+    } catch {
+      /* armazenamento indisponível */
+    }
+    grupoColunasRef.current?.setLayout([24, 52, 24]);
+  };
+
+  /** Preenche o campo de resposta com um texto pronto, sem enviar. */
+  const usarTextoPronto = (t: string) => {
+    setTexto(t);
+    setTimeout(() => textoRef.current?.focus(), 0);
+  };
+
   const { data: conversasBrutas = [], isLoading: carregandoConversas } = useQuery({
     queryKey: ["whatsapp-conversas"],
     queryFn: async () => {
