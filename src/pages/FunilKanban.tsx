@@ -1,12 +1,14 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import { Loader2, RefreshCw } from "lucide-react";
+import { Loader2, RefreshCw, Zap } from "lucide-react";
 
 const COLUNAS = [
   { etapa: "Novo Lead", topo: "border-t-muted-foreground/40" },
@@ -19,6 +21,7 @@ const COLUNAS = [
 type CardTag = {
   conversa_id: string | number;
   etapa: string | null;
+  etapa_origem: "auto" | "manual" | "inferida" | string | null;
   nome: string | null;
   telefone: string | null;
   ultima_mensagem_texto: string | null;
@@ -27,6 +30,8 @@ type CardTag = {
   aguardando_resposta: boolean | null;
   pix_aberto_valor: number | null;
 };
+
+type FiltroOrigem = "todas" | "auto" | "manual";
 
 const brl = (v?: number | null) =>
   (Number(v) || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -53,9 +58,11 @@ export default function FunilKanban({
   onAbrirConversa?: (conversaId: string) => void;
 } = {}) {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [cards, setCards] = useState<CardTag[]>([]);
   const [loading, setLoading] = useState(true);
   const [arrastando, setArrastando] = useState<string | null>(null);
+  const [filtroOrigem, setFiltroOrigem] = useState<FiltroOrigem>("todas");
 
   const carregar = useCallback(async (silencioso = false) => {
     if (!silencioso) setLoading(true);
@@ -90,6 +97,8 @@ export default function FunilKanban({
       const { error } = await (supabase as any).rpc("whatsapp_mover_etapa_tag", {
         p_conversa_id: card.conversa_id,
         p_etapa: etapa,
+        p_origem: "manual",
+        p_por: user?.email ?? null,
       });
       if (error) {
         setCards(anterior);
@@ -98,7 +107,7 @@ export default function FunilKanban({
         carregar(true);
       }
     },
-    [cards, carregar],
+    [cards, carregar, user?.email],
   );
 
   const totais = useMemo(() => {
@@ -106,6 +115,46 @@ export default function FunilKanban({
     const esperando = cards.filter((c) => c.aguardando_resposta).length;
     return { quentes, esperando };
   }, [cards]);
+
+  const visiveis = useMemo(() => {
+    if (filtroOrigem === "todas") return cards;
+    return cards.filter((c) => c.etapa_origem === filtroOrigem);
+  }, [cards, filtroOrigem]);
+
+  const SeloOrigem = ({ origem }: { origem: CardTag["etapa_origem"] }) => {
+    if (origem === "manual" || !origem) return null;
+    if (origem === "auto") {
+      return (
+        <TooltipProvider delayDuration={200}>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span className="inline-flex items-center gap-0.5 rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground shrink-0">
+                <Zap className="h-2.5 w-2.5" />
+                auto
+              </span>
+            </TooltipTrigger>
+            <TooltipContent side="top" className="max-w-52 text-xs">
+              Etapa aplicada pela automação. Mover o card assume o controle.
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      );
+    }
+    return (
+      <TooltipProvider delayDuration={200}>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <span className="inline-flex items-center rounded-full bg-muted/60 px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground/70 shrink-0">
+              sem etiqueta
+            </span>
+          </TooltipTrigger>
+          <TooltipContent side="top" className="max-w-52 text-xs">
+            Ainda sem etiqueta de etapa
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
+    );
+  };
 
   return (
     <div
@@ -134,6 +183,30 @@ export default function FunilKanban({
         </div>
       </div>
 
+      <div className="flex flex-wrap items-center justify-between gap-3 shrink-0">
+        <p className="text-xs text-muted-foreground max-w-3xl">
+          A automação preenche as etapas sozinha a cada 20 minutos. Assim que você move um card, aquela conversa passa a ser sua e a automação não mexe mais nela. A única exceção é pedido pago, que sempre marca Fechado.
+        </p>
+        <div className="flex items-center gap-1">
+          <span className="text-xs text-muted-foreground mr-1">Origem da etapa:</span>
+          {([
+            { valor: "todas", rotulo: "Todas" },
+            { valor: "auto", rotulo: "Só automáticas" },
+            { valor: "manual", rotulo: "Só manuais" },
+          ] as { valor: FiltroOrigem; rotulo: string }[]).map((op) => (
+            <Button
+              key={op.valor}
+              variant={filtroOrigem === op.valor ? "default" : "outline"}
+              size="sm"
+              className="h-7 px-2.5 text-xs"
+              onClick={() => setFiltroOrigem(op.valor)}
+            >
+              {op.rotulo}
+            </Button>
+          ))}
+        </div>
+      </div>
+
       {loading ? (
         <div className="flex-1 flex items-center justify-center py-16">
           <Loader2 className="h-6 w-6 animate-spin text-primary" />
@@ -141,7 +214,7 @@ export default function FunilKanban({
       ) : (
         <div className="flex-1 min-h-0 flex gap-3 overflow-x-auto pb-2">
           {COLUNAS.map((col) => {
-            const lista = cards.filter((c) => (c.etapa ?? "") === col.etapa);
+            const lista = visiveis.filter((c) => (c.etapa ?? "") === col.etapa);
             return (
               <div
                 key={col.etapa}
@@ -177,6 +250,7 @@ export default function FunilKanban({
                           )}
                         />
                         <p className="text-sm font-medium truncate flex-1">{card.nome || "Sem nome"}</p>
+                        <SeloOrigem origem={card.etapa_origem} />
                         {card.sac && (
                           <Badge variant="outline" className="text-[10px] shrink-0">SAC</Badge>
                         )}
