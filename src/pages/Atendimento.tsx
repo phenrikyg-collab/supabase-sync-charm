@@ -1441,6 +1441,7 @@ export default function Atendimento() {
         </aside>
 
         {/* Thread */}
+        <Coluna ajustavel={colunasAjustaveis} id="thread" order={2} defaultSize={52} minSize={30}>
         <section className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
           {!conversaAtual ? (
             <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground gap-2">
