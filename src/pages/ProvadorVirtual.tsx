@@ -107,6 +107,10 @@ function FunilLeads({
   const qc = useQueryClient();
   const [fotoAberta, setFotoAberta] = useState<string | null>(null);
   const [preparando, setPreparando] = useState<string | null>(null);
+  const [abrindo, setAbrindo] = useState<string | null>(null);
+  const [leadEnvio, setLeadEnvio] = useState<Lead | null>(null);
+  const [conflito, setConflito] = useState<string | null>(null);
+  const [enviando, setEnviando] = useState(false);
 
   const { data: leads = [], isLoading } = useQuery({
     queryKey: ["provador-leads"],
@@ -117,7 +121,96 @@ function FunilLeads({
     },
   });
 
+  const { data: templateAprovado = false } = useQuery({
+    queryKey: ["provador-template-status"],
+    queryFn: async () => {
+      try {
+        const { data, error } = await (supabase as any)
+          .schema("whatsapp")
+          .from("templates_mensagem")
+          .select("status_aprovacao")
+          .eq("nome", "provador_prova_pronta")
+          .maybeSingle();
+        if (error) return false;
+        return data?.status_aprovacao === "aprovado";
+      } catch {
+        return false;
+      }
+    },
+  });
+
+  async function abrirChat(lead: Lead) {
+    if (lead.conversa_id) {
+      onAbrirConversa?.(String(lead.conversa_id));
+      return;
+    }
+    if (!lead.telefone) {
+      toast.error("Esta cliente não tem telefone cadastrado");
+      return;
+    }
+    setAbrindo(lead.id);
+    try {
+      const { data, error } = await (supabase as any).rpc("whatsapp_get_or_create_conversa", {
+        p_telefone: lead.telefone,
+      });
+      if (error) throw error;
+      const conversa = Array.isArray(data) ? data[0] : data;
+      const conversaId = conversa?.id;
+      if (!conversaId) throw new Error("Não foi possível abrir a conversa");
+      await (supabase as any).rpc("provador_registrar_contato", {
+        p_id: lead.id,
+        p_conversa_id: conversaId,
+      });
+      qc.invalidateQueries({ queryKey: ["provador-leads"] });
+      onAbrirConversa?.(String(conversaId));
+    } catch (e: any) {
+      toast.error(e.message || "Não foi possível abrir a conversa");
+    } finally {
+      setAbrindo(null);
+    }
+  }
+
+  async function enviarProva(lead: Lead, forcar: boolean) {
+    setEnviando(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("provador-enviar-template", {
+        body: forcar ? { prova_id: lead.id, forcar: true } : { prova_id: lead.id },
+      });
+      if (error) {
+        let corpo: any = null;
+        try {
+          corpo = await (error as any)?.context?.json?.();
+        } catch {
+          corpo = null;
+        }
+        if (corpo?.error === "ja_enviado") {
+          setConflito(corpo.mensagem || "Esta prova já foi enviada para a cliente.");
+          return;
+        }
+        toast.error(corpo?.mensagem || error.message || "Não foi possível enviar", {
+          description: corpo?.detalhe,
+        });
+        return;
+      }
+      if ((data as any)?.ok === false) {
+        toast.error((data as any)?.mensagem || "Não foi possível enviar", {
+          description: (data as any)?.detalhe,
+        });
+        return;
+      }
+      toast.success(`Prova enviada para ${lead.nome || "a cliente"}`);
+      setLeadEnvio(null);
+      setConflito(null);
+      qc.invalidateQueries({ queryKey: ["provador-leads"] });
+    } catch (e: any) {
+      toast.error(e.message || "Não foi possível enviar");
+    } finally {
+      setEnviando(false);
+    }
+  }
+
   useEffect(() => { onContagem?.(leads.length); }, [leads.length, onContagem]);
+
 
 
   const mover = useMutation({
