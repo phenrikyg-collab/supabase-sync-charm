@@ -97,6 +97,84 @@ function BadgeTemperatura({ lead }: { lead: Lead }) {
   );
 }
 
+function tempoRel(iso?: string | null) {
+  if (!iso) return "";
+  const ms = Date.now() - new Date(iso).getTime();
+  const min = Math.floor(ms / 60000);
+  if (min < 1) return "agora";
+  if (min < 60) return `há ${min} min`;
+  const h = Math.floor(min / 60);
+  if (h < 24) return `há ${h}h`;
+  const d = Math.floor(h / 24);
+  return d === 1 ? "há 1 dia" : `há ${d} dias`;
+}
+
+function primeiroNome(nome?: string | null) {
+  return (nome || "").trim().split(/\s+/)[0] || "cliente";
+}
+
+function textoPrevia(lead: Lead) {
+  const tamanho = lead.tamanho_indicado?.trim() || "vamos descobrir juntas por aqui";
+  return (
+    `Oi ${primeiroNome(lead.nome)}! Sua prova virtual da ${lead.produto_nome || "peça"} está pronta, é a imagem acima.\n\n` +
+    `Tamanho indicado: ${tamanho}.\n\n` +
+    `Qualquer dúvida sobre a peça ou o tamanho, é só responder por aqui.`
+  );
+}
+
+const CHIP = "inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-semibold";
+
+function ChipsSinal({ lead }: { lead: Lead }) {
+  const chips: { chave: string; texto: string; classe: string; ponto?: boolean }[] = [];
+
+  if (lead.conversa_aberta) {
+    const emAtendimento = lead.conversa_status === "em_atendimento" || lead.conversa_status === "escalado";
+    chips.push({
+      chave: "conversa",
+      texto: emAtendimento ? "Em atendimento" : "Conversa aberta",
+      classe: "border-success/30 bg-success/10 text-success",
+      ponto: !!lead.conversa_nao_lida,
+    });
+  }
+  if (lead.ultima_entrada) {
+    chips.push({
+      chave: "respondeu",
+      texto: `Respondeu ${tempoRel(lead.ultima_entrada)}`,
+      classe: "border-info/30 bg-info/10 text-info",
+    });
+  }
+  if (lead.template_enviado_em) {
+    chips.push({
+      chave: "prova",
+      texto: `Prova enviada ${tempoRel(lead.template_enviado_em)}`,
+      classe: "border-primary/40 bg-primary/10 text-primary",
+    });
+  }
+  if (lead.houve_contato && !lead.template_enviado_em) {
+    chips.push({
+      chave: "contato",
+      texto: `Já recebeu mensagem ${tempoRel(lead.ultima_saida)}`.trim(),
+      classe: "border-border bg-muted text-muted-foreground",
+    });
+  }
+  if (chips.length === 0) {
+    chips.push({ chave: "sem", texto: "Sem contato", classe: "border-border bg-muted text-muted-foreground" });
+  }
+
+  return (
+    <div className="flex flex-wrap gap-1">
+      {chips.map((c) => (
+        <span key={c.chave} className={cn(CHIP, c.classe)}>
+          {c.ponto && <span className="h-1.5 w-1.5 rounded-full bg-danger" />}
+          {c.texto}
+        </span>
+      ))}
+    </div>
+  );
+}
+
+
+
 function FunilLeads({
   onAbrirConversa,
   onContagem,
