@@ -14,6 +14,7 @@ export function BotaoConversa({
   conversaId,
   telefone,
   onAbrirConversa,
+  onAberta,
   className,
   size = "sm",
   variant = "outline",
@@ -21,6 +22,8 @@ export function BotaoConversa({
   conversaId?: string | number | null;
   telefone?: string | null;
   onAbrirConversa?: (conversaId: string) => void;
+  /** Avisa que a conversa foi aberta a partir deste botão. */
+  onAberta?: () => void;
   className?: string;
   size?: "sm" | "default";
   variant?: "outline" | "default" | "ghost";
@@ -34,6 +37,7 @@ export function BotaoConversa({
   const clicar = async () => {
     if (conversaId) {
       abrirConversa(conversaId);
+      onAberta?.();
       return;
     }
     setCriando(true);
@@ -46,6 +50,7 @@ export function BotaoConversa({
       const id = conversa?.id ?? conversa?.conversa_id;
       if (!id) throw new Error("Não foi possível abrir a conversa");
       abrirConversa(id);
+      onAberta?.();
     } catch (e: any) {
       toast.error(e?.message || "Não foi possível abrir a conversa");
     } finally {
