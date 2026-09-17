@@ -2,7 +2,7 @@ import {
   LayoutDashboard, Package, Plus, Palette, Scissors, Factory,
   Truck, DollarSign, Target, FileText, Building2, LogOut, Users, Home, BarChart3, Upload, Layers,
   ShoppingBag, Undo2, Banknote, Wrench, CreditCard, PieChart, Monitor, Settings, Trophy, CalendarDays, TrendingUp, ClipboardList, Megaphone, Tag, Sparkles, Heart, LayoutGrid,
-  Compass, Boxes, UserSquare2, Link as LinkIcon, MessageCircle, Workflow, Mail, ShoppingCart, PackageX, Radar, Ticket,
+  Compass, Boxes, UserSquare2, Link as LinkIcon, MessageCircle, Workflow, Mail, ShoppingCart, PackageX, Radar, Ticket, Gauge,
   BellRing, Instagram,
   BadgeDollarSign,
   Filter,
@@ -116,6 +116,7 @@ const moduleGroups: ModuleGroup[] = [
     icon: MessageCircle,
     items: [
       { title: "WhatsApp", url: "/atendimento", icon: MessageCircle },
+      { title: "Painel do atendimento", url: "/painel-atendimento", icon: Gauge },
       { title: "Vendas ao Vivo", url: "/vendas-ao-vivo", icon: Zap },
       { title: "Funil WhatsApp", url: "/funil-whatsapp", icon: Filter },
       { title: "Kanban do Funil", url: "/funil-kanban", icon: Filter },

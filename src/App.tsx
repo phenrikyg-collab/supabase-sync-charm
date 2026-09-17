@@ -97,6 +97,7 @@ import Tendencias from "./pages/Tendencias";
 import LinkNaBio from "./pages/LinkNaBio";
 import VitrineVideos from "./pages/VitrineVideos";
 import Atendimento from "./pages/Atendimento";
+import PainelAtendimento from "./pages/PainelAtendimento";
 import Audiencia from "./pages/Audiencia";
 import CarrinhoAbandonado from "./pages/CarrinhoAbandonado";
 import PedidosCancelados from "./pages/PedidosCancelados";
@@ -303,6 +304,7 @@ const AppRoutes = () => {
               <Route path="/link-na-bio" element={<LinkNaBio />} />
               <Route path="/vitrine-videos" element={<VitrineVideos />} />
               <Route path="/atendimento" element={<Atendimento />} />
+              <Route path="/painel-atendimento" element={<PainelAtendimento />} />
               <Route path="/audiencia" element={<Audiencia />} />
               <Route path="/carrinho-abandonado" element={<CarrinhoAbandonado />} />
               <Route path="/pedidos-cancelados" element={<PedidosCancelados />} />
