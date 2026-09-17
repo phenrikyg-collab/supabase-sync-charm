@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 
@@ -61,7 +60,7 @@ function dataCurta(v?: string | null) {
 function Linha({ label, valor }: { label: string; valor?: string | null }) {
   if (!valor) return null;
   return (
-    <div className="flex justify-between gap-2 text-xs">
+    <div className="flex justify-between gap-2 text-sm">
       <span className="text-muted-foreground">{label}</span>
       <span className="font-medium text-right break-all">{valor}</span>
     </div>
@@ -71,7 +70,7 @@ function Linha({ label, valor }: { label: string; valor?: string | null }) {
 function MiniCard({ label, valor }: { label: string; valor: string }) {
   return (
     <div className="rounded-md border border-border p-2">
-      <p className="text-[10px] uppercase tracking-wider text-muted-foreground">{label}</p>
+      <p className="text-xs uppercase tracking-wider text-muted-foreground">{label}</p>
       <p className="text-sm font-semibold">{valor}</p>
     </div>
   );
@@ -112,7 +111,7 @@ function NotasInternas({ conversaId, autor }: { conversaId: number | string; aut
 
   return (
     <Collapsible open={aberto} onOpenChange={setAberto}>
-      <CollapsibleTrigger className="flex w-full items-center justify-between text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+      <CollapsibleTrigger className="flex w-full items-center justify-between text-sm font-semibold uppercase tracking-wider text-muted-foreground">
         <span className="flex items-center gap-1.5">
           <StickyNote className="h-3.5 w-3.5" />
           Notas internas
@@ -121,11 +120,11 @@ function NotasInternas({ conversaId, autor }: { conversaId: number | string; aut
       </CollapsibleTrigger>
       <CollapsibleContent className="space-y-2 pt-2">
         <div className="space-y-2">
-          {notas.length === 0 && <p className="text-xs text-muted-foreground">Nenhuma nota ainda.</p>}
+          {notas.length === 0 && <p className="text-sm text-muted-foreground">Nenhuma nota ainda.</p>}
           {notas.map((n) => (
             <div key={String(n.id)} className="rounded-md border border-warning/30 bg-warning/10 p-2">
-              <p className="text-xs whitespace-pre-wrap break-words">{n.conteudo}</p>
-              <p className="text-[10px] text-muted-foreground mt-1">
+              <p className="text-sm whitespace-pre-wrap break-words">{n.conteudo}</p>
+              <p className="text-xs text-muted-foreground mt-1">
                 {n.autor ?? "Atendente"} · {dataCurta(n.criado_em)}
               </p>
             </div>
@@ -136,7 +135,7 @@ function NotasInternas({ conversaId, autor }: { conversaId: number | string; aut
           onChange={(e) => setTexto(e.target.value)}
           rows={2}
           placeholder="Nota visível só para a equipe…"
-          className="resize-none text-xs"
+          className="resize-none text-sm"
         />
         <Button size="sm" className="w-full" onClick={adicionar} disabled={salvando || !texto.trim()}>
           Adicionar nota
@@ -170,7 +169,7 @@ function ListaProdutos({ produtos }: { produtos?: Pedido["produtos"] }) {
   return (
     <ul className="mt-1.5 space-y-0.5">
       {produtos.map((pr, i) => (
-        <li key={i} className="text-[10px] text-muted-foreground">
+        <li key={i} className="text-xs text-muted-foreground">
           • {(pr.quantidade ?? 1) > 1 ? `${pr.quantidade}x ` : ""}
           {nomeComVariacao(pr)}
         </li>
@@ -189,7 +188,7 @@ function LinhaRastreio({ pedido }: { pedido: Pedido }) {
       </span>
     );
     return (
-      <div className="mt-1 text-[10px]">
+      <div className="mt-1 text-xs">
         {pedido.url_rastreio ? (
           <a
             href={pedido.url_rastreio}
@@ -207,7 +206,7 @@ function LinhaRastreio({ pedido }: { pedido: Pedido }) {
   }
   if (pedido.previsao_entrega) {
     return (
-      <div className="mt-1 inline-flex items-center gap-1 text-[10px] text-muted-foreground">
+      <div className="mt-1 inline-flex items-center gap-1 text-xs text-muted-foreground">
         <Clock className="h-2.5 w-2.5 shrink-0" />
         Previsão de entrega: {dataCurta(pedido.previsao_entrega)}
       </div>
@@ -222,17 +221,17 @@ function SecaoPedidos({ pedidos }: { pedidos: Pedido[] }) {
 
   return (
     <section className="space-y-1.5">
-      <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Pedidos</p>
+      <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Pedidos</p>
 
       <div className="rounded-md border border-border p-2">
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0">
-            <p className="text-xs font-medium truncate">#{ultimo.id}</p>
-            <p className="text-[10px] text-muted-foreground">
+            <p className="text-sm font-medium truncate">#{ultimo.id}</p>
+            <p className="text-xs text-muted-foreground">
               {dataCurta(ultimo.data)} · {ultimo.status ?? "—"}
             </p>
           </div>
-          <span className="text-xs font-semibold whitespace-nowrap">{formatarPreco(ultimo.total)}</span>
+          <span className="text-sm font-semibold whitespace-nowrap">{formatarPreco(ultimo.total)}</span>
         </div>
         {ultimo.cupom && <div className="mt-1.5"><CupomBadge cupom={ultimo.cupom} /></div>}
         <LinhaRastreio pedido={ultimo} />
@@ -246,14 +245,14 @@ function SecaoPedidos({ pedidos }: { pedidos: Pedido[] }) {
               {demais.map((p) => (
                 <div key={String(p.id)} className="flex items-center justify-between gap-2 rounded-md border border-border px-2 py-1.5">
                   <div className="min-w-0">
-                    <p className="text-[11px] font-medium truncate">
+                    <p className="text-sm font-medium truncate">
                       #{p.id} · {dataCurta(p.data)}
                     </p>
-                    <p className="text-[10px] text-muted-foreground truncate">{p.status ?? "—"}</p>
+                    <p className="text-xs text-muted-foreground truncate">{p.status ?? "—"}</p>
                     {p.cupom && <div className="mt-1"><CupomBadge cupom={p.cupom} /></div>}
                     <LinhaRastreio pedido={p} />
                   </div>
-                  <span className="text-[11px] font-semibold whitespace-nowrap">{formatarPreco(p.total)}</span>
+                  <span className="text-sm font-semibold whitespace-nowrap">{formatarPreco(p.total)}</span>
                 </div>
               ))}
             </div>
@@ -261,7 +260,7 @@ function SecaoPedidos({ pedidos }: { pedidos: Pedido[] }) {
           <button
             type="button"
             onClick={() => setExpandido((v) => !v)}
-            className="w-full text-[11px] font-medium text-primary hover:underline"
+            className="w-full text-xs font-medium text-primary hover:underline"
           >
             {expandido ? "Ver menos" : `Ver todos os pedidos (${pedidos.length})`}
           </button>
@@ -282,6 +281,22 @@ export function PerfilCliente({
 }) {
   const pId = Number.isNaN(Number(conversaId)) ? conversaId : Number(conversaId);
   const [enviandoId, setEnviandoId] = useState<string | null>(null);
+  const [produtosAbertos, setProdutosAbertos] = useState(() => {
+    try {
+      return localStorage.getItem("atendimento-produtos-comprados-abertos") === "true";
+    } catch {
+      return false;
+    }
+  });
+
+  const alterarProdutosAbertos = (aberto: boolean) => {
+    setProdutosAbertos(aberto);
+    try {
+      localStorage.setItem("atendimento-produtos-comprados-abertos", String(aberto));
+    } catch {
+      /* armazenamento indisponível */
+    }
+  };
 
   const enviarSugestao = async (pr: { produto_id?: string | number; nome?: string; preco?: number; imagem?: string }) => {
     const chave = String(pr.produto_id ?? pr.nome ?? "");
@@ -318,26 +333,27 @@ export function PerfilCliente({
   const rfm = perfil?.rfm;
   const seg = (rfm?.segmento ?? "").toLowerCase();
   const end = perfil?.endereco;
+  const ultimoPedido = perfil?.pedidos?.[0];
 
   return (
-    <Card className="flex min-w-0 max-w-full flex-col overflow-hidden">
+    <section className="min-w-0 max-w-full">
       <div className="p-3 border-b border-border">
         <h3 className="text-sm font-semibold">Perfil da cliente</h3>
       </div>
       <div className="min-w-0 max-w-full p-3 space-y-4 overflow-x-hidden">
-          {isLoading && <p className="text-xs text-muted-foreground">Carregando perfil…</p>}
+          {isLoading && <p className="text-sm text-muted-foreground">Carregando perfil…</p>}
 
           {!isLoading && !perfil?.vinculado && (
             <div className="flex flex-col items-center text-center gap-2 py-6 text-muted-foreground">
               <UserX className="h-8 w-8 opacity-40" />
-              <p className="text-xs">Cliente não identificado no cadastro</p>
+              <p className="text-sm">Cliente não identificado no cadastro</p>
             </div>
           )}
 
           {!isLoading && perfil?.vinculado && (
             <>
               <section className="space-y-1">
-                <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Dados</p>
+                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Dados</p>
                 <Linha label="Nome" valor={perfil.cliente?.nome} />
                 <Linha label="E-mail" valor={perfil.cliente?.email} />
                 <Linha label="Telefone" valor={perfil.cliente?.telefone} />
@@ -345,14 +361,14 @@ export function PerfilCliente({
                 {perfil.tamanho_favorito && (
                   <div className="mt-2 flex items-center gap-2 rounded-md border border-primary/30 bg-primary/10 px-2 py-1.5">
                     <Scissors className="h-3.5 w-3.5 text-primary" />
-                    <span className="text-xs text-muted-foreground">Tamanho favorito</span>
-                    <span className="ml-auto text-xs font-semibold">{perfil.tamanho_favorito}</span>
+                    <span className="text-sm text-muted-foreground">Tamanho favorito</span>
+                    <span className="ml-auto text-sm font-semibold">{perfil.tamanho_favorito}</span>
                   </div>
                 )}
                 {perfil.forma_pagamento_preferida?.forma && (
                   <div className="mt-1.5 flex items-center gap-2 rounded-md border border-border bg-muted/50 px-2 py-1.5">
                     <CreditCard className="h-3.5 w-3.5 text-muted-foreground" />
-                    <span className="text-xs">
+                    <span className="text-sm">
                       Paga geralmente no <strong>{perfil.forma_pagamento_preferida.forma}</strong>
                       {perfil.forma_pagamento_preferida.quantidade
                         ? ` (${perfil.forma_pagamento_preferida.quantidade} pedidos)`
@@ -364,12 +380,12 @@ export function PerfilCliente({
 
               {end && (
                 <section className="space-y-1">
-                  <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Endereço</p>
-                  <p className="text-xs">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Endereço</p>
+                  <p className="text-sm">
                     {[end.rua, end.numero].filter(Boolean).join(", ")}
                     {end.bairro ? ` — ${end.bairro}` : ""}
                   </p>
-                  <p className="text-xs text-muted-foreground">
+                  <p className="text-sm text-muted-foreground">
                     {[end.cidade, end.estado].filter(Boolean).join(" / ")} {end.cep ? `· ${end.cep}` : ""}
                   </p>
                 </section>
@@ -377,7 +393,7 @@ export function PerfilCliente({
 
               {!!perfil.sugestoes_estoque?.length && (
                 <section className="space-y-1.5">
-                  <p className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                  <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                     <Sparkles className="h-3.5 w-3.5" />
                     Sugestões pra ela
                   </p>
@@ -397,8 +413,8 @@ export function PerfilCliente({
                           )}
                         </div>
                         <div className="flex min-w-0 flex-1 flex-col p-1.5">
-                          <p className="line-clamp-2 min-h-8 break-words text-[10px] leading-4 [overflow-wrap:anywhere]">{pr.nome}</p>
-                          <p className="mt-auto whitespace-nowrap text-[10px] font-semibold leading-4">{formatarPreco(pr.preco)}</p>
+                          <p className="line-clamp-2 min-h-8 break-words text-xs leading-4 [overflow-wrap:anywhere]">{pr.nome}</p>
+                          <p className="mt-auto whitespace-nowrap text-xs font-semibold leading-4">{formatarPreco(pr.preco)}</p>
                         </div>
                       </button>
                     ))}
@@ -409,7 +425,7 @@ export function PerfilCliente({
               {rfm && (
                 <section className="space-y-2">
                   <div className="flex items-center justify-between">
-                    <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Matriz RFM</p>
+                    <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Matriz RFM</p>
                     {rfm.segmento && (
                       <span
                         className={cn(
@@ -432,23 +448,41 @@ export function PerfilCliente({
 
               {!!perfil.pedidos?.length && <SecaoPedidos pedidos={perfil.pedidos} />}
 
-              {!!perfil.produtos_comprados?.length && (
-                <section className="space-y-1.5">
-                  <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Produtos comprados</p>
-                  <div className="grid grid-cols-3 gap-2">
-                    {perfil.produtos_comprados.map((pr, i) => (
-                      <div key={i} className="border border-border rounded-md overflow-hidden">
-                        <div className="aspect-square bg-muted">
-                          {pr.imagem && <img src={pr.imagem} alt={pr.nome ?? "Produto"} className="w-full h-full object-cover" loading="lazy" />}
-                        </div>
-                        <div className="p-1">
-                          <p className="text-[10px] line-clamp-2">{nomeComVariacao(pr)}</p>
-                          <p className="text-[9px] text-muted-foreground">{dataCurta(pr.data_compra)}</p>
-                        </div>
-                      </div>
-                    ))}
+              {ultimoPedido && (
+                <div className="rounded-md border border-primary/30 bg-primary/10 p-2.5">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Status do último pedido</p>
+                  <div className="mt-1 flex items-start justify-between gap-2 text-sm">
+                    <span className="font-semibold">#{ultimoPedido.id}</span>
+                    <span className="text-right font-medium">{ultimoPedido.status ?? "Sem status"}</span>
                   </div>
-                </section>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    Previsão de entrega: {ultimoPedido.previsao_entrega ? dataCurta(ultimoPedido.previsao_entrega) : "Não informada"}
+                  </p>
+                </div>
+              )}
+
+              {!!perfil.produtos_comprados?.length && (
+                <Collapsible open={produtosAbertos} onOpenChange={alterarProdutosAbertos}>
+                  <CollapsibleTrigger className="flex w-full items-center justify-between text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                    Produtos comprados ({perfil.produtos_comprados.length})
+                    <ChevronDown className={cn("h-4 w-4 transition-transform", produtosAbertos && "rotate-180")} />
+                  </CollapsibleTrigger>
+                  <CollapsibleContent className="pt-2">
+                    <div className="grid grid-cols-3 gap-2">
+                      {perfil.produtos_comprados.map((pr, i) => (
+                        <div key={i} className="border border-border rounded-md overflow-hidden">
+                          <div className="aspect-square bg-muted">
+                            {pr.imagem && <img src={pr.imagem} alt={pr.nome ?? "Produto"} className="w-full h-full object-cover" loading="lazy" />}
+                          </div>
+                          <div className="p-1">
+                            <p className="text-xs line-clamp-2">{nomeComVariacao(pr)}</p>
+                            <p className="text-xs text-muted-foreground">{dataCurta(pr.data_compra)}</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </CollapsibleContent>
+                </Collapsible>
               )}
             </>
           )}
@@ -457,6 +491,6 @@ export function PerfilCliente({
             <NotasInternas conversaId={conversaId} autor={autor} />
           </div>
       </div>
-    </Card>
+    </section>
   );
 }
