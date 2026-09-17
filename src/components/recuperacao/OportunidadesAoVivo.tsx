@@ -8,6 +8,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Flame, MessageCircle, Mail, Megaphone, MessagesSquare, Phone } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { BadgesContato, useContatoPorTelefones } from "@/components/atendimento/contatoTelefones";
+import { BotaoConversa } from "@/components/recuperacao/BotaoConversa";
 import { useAbrirConversa } from "@/lib/abrirConversa";
 
 type Resumo = {
@@ -50,12 +51,6 @@ function IconeCanal({ canal }: { canal: string }) {
   if (c.includes("mail")) return <Mail className="h-3.5 w-3.5" />;
   if (c.includes("an")) return <Megaphone className="h-3.5 w-3.5" />;
   return <MessagesSquare className="h-3.5 w-3.5" />;
-}
-
-function linkWhatsApp(tel: string) {
-  const d = tel.replace(/\D/g, "");
-  const full = d.length <= 11 ? `55${d}` : d;
-  return `https://wa.me/${full}`;
 }
 
 export function OportunidadesAoVivo({
@@ -180,22 +175,15 @@ export function OportunidadesAoVivo({
                     {o.acao_sugerida && (
                       <span className="text-xs text-foreground/80 flex-1 min-w-[8rem]">{o.acao_sugerida}</span>
                     )}
-                    {idConversa ? (
-                      <Button
-                        size="sm"
-                        className="h-7 gap-1 bg-green-600 hover:bg-green-700 text-white"
-                        onClick={() => abrirConversa(idConversa)}
-                      >
-                        <MessageCircle className="h-3 w-3" /> Abrir conversa
-                      </Button>
-                    ) : o.telefone && isWhats ? (
-                      <Button asChild size="sm" className="h-7 gap-1 bg-green-600 hover:bg-green-700 text-white">
-                        <a href={linkWhatsApp(o.telefone)} target="_blank" rel="noreferrer">
-                          <Phone className="h-3 w-3" /> {o.telefone}
-                        </a>
-                      </Button>
-                    ) : null}
-                    {o.telefone && !isWhats && (
+                    {(idConversa || o.telefone) && (
+                      <BotaoConversa
+                        conversaId={idConversa}
+                        telefone={o.telefone}
+                        onAbrirConversa={onAbrirConversa}
+                        className="h-7 text-xs"
+                      />
+                    )}
+                    {o.telefone && (
                       <span className="text-xs text-muted-foreground">{o.telefone}</span>
                     )}
                   </div>
