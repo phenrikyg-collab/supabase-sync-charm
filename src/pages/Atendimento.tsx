@@ -1284,6 +1284,7 @@ export default function Atendimento() {
       <Colunas
         ajustavel={colunasAjustaveis}
         grupoRef={grupoColunasRef}
+        onLayout={salvarLarguras}
         className="relative flex min-h-0 w-full min-w-0 max-w-full flex-1 overflow-hidden"
       >
 
@@ -1296,7 +1297,7 @@ export default function Atendimento() {
         )}
 
         {/* Lista de conversas */}
-        <Coluna ajustavel={colunasAjustaveis} id="lista" order={1} defaultSize={24} minSize={14}>
+        <Coluna ajustavel={colunasAjustaveis} id="lista" order={1} defaultSize={largurasIniciais[0]} minSize={15} maxSize={40}>
         <aside
           className={cn(
             "fixed inset-y-0 left-0 z-40 flex min-h-0 w-[85vw] max-w-[360px] min-w-0 flex-col overflow-hidden border-r border-border bg-card transition-transform",
@@ -1575,7 +1576,12 @@ export default function Atendimento() {
           </ScrollArea>
         </aside>
         </Coluna>
-        {colunasAjustaveis && <ResizableHandle withHandle />}
+        {colunasAjustaveis && (
+          <ResizableHandle
+            withHandle
+            className="cursor-col-resize transition-colors hover:bg-accent data-[resize-handle-state=drag]:bg-primary/50"
+          />
+        )}
 
         {/* Thread */}
         <Coluna ajustavel={colunasAjustaveis} id="thread" order={2} defaultSize={52} minSize={30}>
