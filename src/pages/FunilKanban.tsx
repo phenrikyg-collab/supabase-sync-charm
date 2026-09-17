@@ -107,7 +107,7 @@ export default function FunilKanban({
         carregar(true);
       }
     },
-    [cards, carregar],
+    [cards, carregar, user?.email],
   );
 
   const totais = useMemo(() => {
@@ -115,6 +115,46 @@ export default function FunilKanban({
     const esperando = cards.filter((c) => c.aguardando_resposta).length;
     return { quentes, esperando };
   }, [cards]);
+
+  const visiveis = useMemo(() => {
+    if (filtroOrigem === "todas") return cards;
+    return cards.filter((c) => c.etapa_origem === filtroOrigem);
+  }, [cards, filtroOrigem]);
+
+  const SeloOrigem = ({ origem }: { origem: CardTag["etapa_origem"] }) => {
+    if (origem === "manual" || !origem) return null;
+    if (origem === "auto") {
+      return (
+        <TooltipProvider delayDuration={200}>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span className="inline-flex items-center gap-0.5 rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground shrink-0">
+                <Zap className="h-2.5 w-2.5" />
+                auto
+              </span>
+            </TooltipTrigger>
+            <TooltipContent side="top" className="max-w-52 text-xs">
+              Etapa aplicada pela automação. Mover o card assume o controle.
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      );
+    }
+    return (
+      <TooltipProvider delayDuration={200}>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <span className="inline-flex items-center rounded-full bg-muted/60 px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground/70 shrink-0">
+              sem etiqueta
+            </span>
+          </TooltipTrigger>
+          <TooltipContent side="top" className="max-w-52 text-xs">
+            Ainda sem etiqueta de etapa
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
+    );
+  };
 
   return (
     <div
