@@ -1,5 +1,4 @@
 import { Component, useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
-import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -14,9 +13,10 @@ import {
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import {
-  Loader2, RefreshCw, MessageCircle, ChevronDown, ChevronUp, ExternalLink, SkipForward, Check, Copy,
+  Loader2, RefreshCw, MessageCircle, ChevronDown, ChevronUp, SkipForward, Check, Copy,
 } from "lucide-react";
 import { chamarRpc } from "@/lib/supabaseRpc";
+import { BotaoConversa } from "@/components/recuperacao/BotaoConversa";
 
 export type FollowupTipo =
   | "interesse" | "pagamento_pendente" | "carrinho_abandonado" | "pedido_cancelado";
@@ -73,12 +73,6 @@ const somenteDigitos = (telefone?: string | null) => {
 export const telefoneValido = (telefone?: string | null) =>
   /^\d{10,13}$/.test(somenteDigitos(telefone));
 
-const linkWhatsapp = (telefone?: string | null, mensagem?: string) => {
-  const num = somenteDigitos(telefone);
-  if (!/^\d{10,13}$/.test(num)) return "";
-  const comDdi = num.startsWith("55") ? num : `55${num}`;
-  return `https://wa.me/${comDdi}?text=${encodeURIComponent(mensagem || "")}`;
-};
 
 // Corrige moedas malformadas vindas do backend ("R$ ,50" -> "R$ 0,50")
 const corrigirMoeda = (texto?: string | null) =>
@@ -369,18 +363,14 @@ function CardFollowup({
             </div>
 
             <div className="flex flex-wrap gap-2">
-              {podeWhatsapp ? (
+              {podeWhatsapp || item.conversa_id ? (
                 <>
-                  <Button asChild size="sm">
-                    <a
-                      href={linkWhatsapp(item.telefone, mensagem)}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    >
-                      <MessageCircle className="h-4 w-4 mr-2" />
-                      Abrir WhatsApp
-                    </a>
-                  </Button>
+                  <BotaoConversa
+                    conversaId={item.conversa_id}
+                    telefone={item.telefone}
+                    textoPronto={mensagem}
+                    variant="default"
+                  />
                   <Button
                     size="sm"
                     variant="outline"
@@ -410,13 +400,6 @@ function CardFollowup({
               <Button size="sm" variant="outline" onClick={pular} disabled={salvando}>
                 <SkipForward className="h-4 w-4 mr-2" /> Pular
               </Button>
-              {item.conversa_id ? (
-                <Button asChild size="sm" variant="ghost">
-                  <Link to={`/atendimento?conversa=${item.conversa_id}`}>
-                    <ExternalLink className="h-4 w-4 mr-2" /> Ver conversa
-                  </Link>
-                </Button>
-              ) : null}
             </div>
           </div>
         )}

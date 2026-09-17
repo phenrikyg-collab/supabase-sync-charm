@@ -17,7 +17,9 @@ export function useAbrirConversa(
         onAbrirConversa(id, ...resto);
         return;
       }
-      navigate(`/atendimento?conversa=${encodeURIComponent(id)}`);
+      const textoPronto = typeof resto[0] === "string" ? resto[0] : "";
+      const extra = textoPronto ? `&texto=${encodeURIComponent(textoPronto)}` : "";
+      navigate(`/atendimento?conversa=${encodeURIComponent(id)}${extra}`);
     },
     [navigate, onAbrirConversa],
   );

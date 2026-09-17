@@ -10,10 +10,10 @@ import {
   ROTULO_RESULTADO,
   baixarCsv,
   dataHoraBR,
-  linkWhats,
   moedaBR,
   telefoneBR,
 } from "@/lib/popups";
+import { BotaoConversa } from "@/components/recuperacao/BotaoConversa";
 
 function corResultado(r: string) {
   if (r === "cupom_novo") return "bg-success/10 text-success border-success/20";
@@ -93,7 +93,6 @@ export function TabelaLeads({
           <TableBody>
             {leads.map((l: any, i: number) => {
               const tel = l.telefone ?? l.whatsapp;
-              const wa = linkWhats(tel);
               const resultado = l.resultado ?? "sem_oferta";
               return (
                 <TableRow key={l.id ?? i}>
@@ -102,13 +101,10 @@ export function TabelaLeads({
                   <TableCell className="text-xs">{l.nome ?? ""}</TableCell>
                   <TableCell className="text-xs">{l.email ?? ""}</TableCell>
                   <TableCell className="text-xs">
-                    {wa ? (
-                      <a className="text-primary hover:underline" href={wa} target="_blank" rel="noreferrer">
-                        {telefoneBR(tel)}
-                      </a>
-                    ) : (
-                      ""
-                    )}
+                    <div className="flex items-center gap-2 whitespace-nowrap">
+                      <span>{tel ? telefoneBR(tel) : ""}</span>
+                      <BotaoConversa telefone={tel} variant="ghost" className="h-7 px-2 text-xs" />
+                    </div>
                   </TableCell>
                   <TableCell>
                     {resultado === "erro" && l.erro ? (

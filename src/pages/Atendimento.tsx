@@ -635,8 +635,14 @@ export default function Atendimento() {
     setAbaPagina("conversas");
     setListaSheet(false);
     setPerfilSheet(false);
+    const textoPronto = parametros.get("texto");
+    if (textoPronto) {
+      setTexto(textoPronto);
+      setTimeout(() => textoRef.current?.focus(), 0);
+    }
     const restantes = new URLSearchParams(parametros);
     restantes.delete("conversa");
+    restantes.delete("texto");
     setParametros(restantes, { replace: true });
   }, [parametros, setParametros]);
 

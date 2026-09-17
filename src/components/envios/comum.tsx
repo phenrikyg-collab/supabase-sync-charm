@@ -38,12 +38,3 @@ export function inteiro(valor: number | null | undefined): string {
   return Number(valor).toLocaleString("pt-BR");
 }
 
-/** Monta o link do WhatsApp a partir do telefone da cliente. */
-export function linkWhatsApp(telefone?: string | null): string | null {
-  const digitos = String(telefone ?? "").replace(/\D/g, "");
-  if (digitos.startsWith("55") && (digitos.length === 12 || digitos.length === 13)) {
-    return `https://wa.me/${digitos}`;
-  }
-  if (digitos.length === 10 || digitos.length === 11) return `https://wa.me/55${digitos}`;
-  return null;
-}
