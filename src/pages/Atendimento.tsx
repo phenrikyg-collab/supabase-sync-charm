@@ -1129,6 +1129,16 @@ export default function Atendimento() {
             <TabsTrigger value="kanban" className="h-8 shrink-0 text-sm">Kanban do funil</TabsTrigger>
             <TabsTrigger value="cashback" className="h-8 shrink-0 text-sm">Cashback</TabsTrigger>
           </TabsList>
+          {abaPagina === "conversas" && colunasAjustaveis && (
+            <Button
+              size="sm"
+              variant="ghost"
+              className="ml-auto h-7 shrink-0 text-xs text-muted-foreground"
+              onClick={restaurarLarguras}
+            >
+              Restaurar larguras
+            </Button>
+          )}
         </div>
 
         <TabsContent value="oportunidades" className="m-0 min-h-0 w-full min-w-0 flex-1 overflow-auto p-4">
