@@ -251,16 +251,20 @@ function FunilLeads({
                       </button>
 
                       <div className="mt-2 flex flex-wrap gap-2">
-                        {lead.conversa_id && onAbrirConversa && (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="flex-1"
-                            onClick={() => onAbrirConversa(String(lead.conversa_id))}
-                          >
-                            <MessageCircle className="mr-1.5 h-3.5 w-3.5" /> Abrir conversa
-                          </Button>
-                        )}
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="flex-1"
+                          disabled={abrindo === lead.id}
+                          onClick={() => abrirChat(lead)}
+                        >
+                          {abrindo === lead.id ? (
+                            <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                          ) : (
+                            <MessageCircle className="mr-1.5 h-3.5 w-3.5" />
+                          )}
+                          Abrir chat
+                        </Button>
                         <Button
                           size="sm"
                           className="flex-1"
@@ -274,7 +278,29 @@ function FunilLeads({
                           )}
                           Mensagem pronta
                         </Button>
+                        {lead.foto_resultado_url && (
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <span className="flex-1">
+                                <Button
+                                  size="sm"
+                                  variant={lead.template_enviado_em ? "outline" : "default"}
+                                  className="w-full"
+                                  disabled={!templateAprovado}
+                                  onClick={() => { setConflito(null); setLeadEnvio(lead); }}
+                                >
+                                  <Send className="mr-1.5 h-3.5 w-3.5" />
+                                  {lead.template_enviado_em ? "Reenviar prova" : "Enviar prova por WhatsApp"}
+                                </Button>
+                              </span>
+                            </TooltipTrigger>
+                            {!templateAprovado && (
+                              <TooltipContent>Template em análise na Meta</TooltipContent>
+                            )}
+                          </Tooltip>
+                        )}
                       </div>
+
 
                       {col.proximo && (
                         <Button
