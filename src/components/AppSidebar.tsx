@@ -116,6 +116,7 @@ const moduleGroups: ModuleGroup[] = [
     icon: MessageCircle,
     items: [
       { title: "WhatsApp", url: "/atendimento", icon: MessageCircle },
+      { title: "Painel do atendimento", url: "/painel-atendimento", icon: Gauge },
       { title: "Vendas ao Vivo", url: "/vendas-ao-vivo", icon: Zap },
       { title: "Funil WhatsApp", url: "/funil-whatsapp", icon: Filter },
       { title: "Kanban do Funil", url: "/funil-kanban", icon: Filter },

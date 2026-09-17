@@ -97,6 +97,7 @@ import Tendencias from "./pages/Tendencias";
 import LinkNaBio from "./pages/LinkNaBio";
 import VitrineVideos from "./pages/VitrineVideos";
 import Atendimento from "./pages/Atendimento";
+import PainelAtendimento from "./pages/PainelAtendimento";
 import Audiencia from "./pages/Audiencia";
 import CarrinhoAbandonado from "./pages/CarrinhoAbandonado";
 import PedidosCancelados from "./pages/PedidosCancelados";
