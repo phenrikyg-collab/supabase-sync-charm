@@ -15,8 +15,12 @@ import { ptBR } from "date-fns/locale";
 import {
   AlertTriangle, Bot, Check, CheckCheck, CheckCircle2, Globe, ImagePlus, LayoutGrid, Lock, MessageCircle,
   RotateCcw, Search, Send, User, X, UserCheck, Phone, QrCode, Link2,
-  Truck, ShoppingCart, Plus, MoreHorizontal, PanelRight, Menu,
+  Truck, ShoppingCart, Plus, MoreHorizontal, PanelRight, Menu, Trash2,
 } from "lucide-react";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription,
+  AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -413,6 +417,8 @@ export default function Atendimento() {
   const [cobrancaAberta, setCobrancaAberta] = useState(false);
   const [abaCobranca, setAbaCobranca] = useState<"pix" | "links">("pix");
   const [linkPagamentoAberto, setLinkPagamentoAberto] = useState(false);
+  const [excluirAberta, setExcluirAberta] = useState(false);
+  const [motivoExclusao, setMotivoExclusao] = useState("");
   const [freteAberto, setFreteAberto] = useState(false);
   const [proporCarrinhoAberto, setProporCarrinhoAberto] = useState(false);
   const [templateAberto, setTemplateAberto] = useState(false);
@@ -922,6 +928,35 @@ export default function Atendimento() {
       queryClient.invalidateQueries({ queryKey: ["whatsapp-conversa"] });
     },
     onError: (e: any) => toast({ title: "Erro ao reativar bot", description: e.message, variant: "destructive" }),
+  });
+
+  const excluirConversa = useMutation({
+    mutationFn: async () => {
+      if (!conversaAtual) throw new Error("Nenhuma conversa aberta");
+      const id = Number.isNaN(Number(conversaAtual.id)) ? conversaAtual.id : Number(conversaAtual.id);
+      const { data, error } = await chamarRpc("whatsapp_excluir_conversa" as any, {
+        p_conversa_id: id,
+        p_motivo: motivoExclusao.trim() ? motivoExclusao.trim() : null,
+      });
+      if (error) throw new Error(error.message || "Erro ao excluir conversa");
+      return data as any;
+    },
+    onSuccess: (data: any) => {
+      if (data && data.ok === false) {
+        toast({ title: "Não foi possível excluir", description: data.erro ?? "Erro desconhecido", variant: "destructive" });
+        return;
+      }
+      toast({ title: "Conversa excluída" });
+      setExcluirAberta(false);
+      setMotivoExclusao("");
+      setSelecionada(null);
+      setListaSheet(false);
+      setPerfilSheet(false);
+      queryClient.invalidateQueries({ queryKey: ["whatsapp-conversas"] });
+      queryClient.invalidateQueries({ queryKey: ["whatsapp-conversas-tipo"] });
+      queryClient.invalidateQueries({ queryKey: ["whatsapp-em-atendimento"] });
+    },
+    onError: (e: any) => toast({ title: "Erro ao excluir conversa", description: e.message, variant: "destructive" }),
   });
 
   const resolver = useMutation({
@@ -1689,8 +1724,44 @@ export default function Atendimento() {
                           Reativar bot
                         </DropdownMenuItem>
                       )}
+                      <DropdownMenuItem
+                        className="text-destructive focus:text-destructive"
+                        onSelect={() => setExcluirAberta(true)}
+                      >
+                        <Trash2 className="mr-2 h-4 w-4" />
+                        Excluir conversa
+                      </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
+                  <AlertDialog open={excluirAberta} onOpenChange={setExcluirAberta}>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Excluir esta conversa?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          Apaga a conversa e todas as mensagens do painel. Uma cópia fica guardada e pode ser
+                          restaurada pelo suporte técnico. Se a cliente escrever de novo, uma conversa nova é criada.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <Input
+                        placeholder="Motivo (opcional)"
+                        value={motivoExclusao}
+                        onChange={(e) => setMotivoExclusao(e.target.value)}
+                      />
+                      <AlertDialogFooter>
+                        <AlertDialogCancel onClick={() => setMotivoExclusao("")}>Cancelar</AlertDialogCancel>
+                        <AlertDialogAction
+                          className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            excluirConversa.mutate();
+                          }}
+                          disabled={excluirConversa.isPending}
+                        >
+                          {excluirConversa.isPending ? "Excluindo..." : "Excluir"}
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
                   <Button
                     size="icon"
                     variant="ghost"
