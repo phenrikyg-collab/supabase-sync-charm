@@ -369,18 +369,14 @@ function CardFollowup({
             </div>
 
             <div className="flex flex-wrap gap-2">
-              {podeWhatsapp ? (
+              {podeWhatsapp || item.conversa_id ? (
                 <>
-                  <Button asChild size="sm">
-                    <a
-                      href={linkWhatsapp(item.telefone, mensagem)}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    >
-                      <MessageCircle className="h-4 w-4 mr-2" />
-                      Abrir WhatsApp
-                    </a>
-                  </Button>
+                  <BotaoConversa
+                    conversaId={item.conversa_id}
+                    telefone={item.telefone}
+                    textoPronto={mensagem}
+                    variant="default"
+                  />
                   <Button
                     size="sm"
                     variant="outline"
@@ -410,13 +406,6 @@ function CardFollowup({
               <Button size="sm" variant="outline" onClick={pular} disabled={salvando}>
                 <SkipForward className="h-4 w-4 mr-2" /> Pular
               </Button>
-              {item.conversa_id ? (
-                <Button asChild size="sm" variant="ghost">
-                  <Link to={`/atendimento?conversa=${item.conversa_id}`}>
-                    <ExternalLink className="h-4 w-4 mr-2" /> Ver conversa
-                  </Link>
-                </Button>
-              ) : null}
             </div>
           </div>
         )}

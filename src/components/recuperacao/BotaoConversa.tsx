@@ -71,7 +71,7 @@ export function BotaoConversa({
   return (
     <Button size={size} variant={variant} className={cn("gap-1.5", className)} onClick={clicar} disabled={criando}>
       {criando ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <MessageCircle className="h-3.5 w-3.5" />}
-      {conversaId ? "Abrir conversa" : "Iniciar conversa"}
+      {rotulo ?? (conversaId ? "Abrir conversa" : "Iniciar conversa")}
     </Button>
   );
 }
