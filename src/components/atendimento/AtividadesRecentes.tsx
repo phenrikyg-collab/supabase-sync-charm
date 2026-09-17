@@ -1,16 +1,18 @@
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import {
-  Eye, Shirt, ShoppingBag, CreditCard, CheckCircle2, MousePointerClick, Ticket, Activity,
+  Eye, Shirt, ShoppingBag, AlertTriangle, Sparkles, Ticket, Activity, MousePointerClick,
 } from "lucide-react";
 import { chamarRpc } from "@/lib/supabaseRpc";
 
 export type EventoTimeline = {
   id?: string | number;
   tipo?: string | null;
+  categoria?: string | null;
+  peso?: number | null;
+  descricao?: string | null;
   titulo_pagina?: string | null;
   url?: string | null;
   criada_em?: string | null;
@@ -28,37 +30,21 @@ export type CupomCliente = {
   valor_convertido_em_vendas?: number | null;
 };
 
-type Categoria = "todas" | "site" | "produtos" | "carrinho";
+type Categoria = "carrinho" | "provador" | "produto" | "atrito" | "navegacao";
 
-const FILTROS: { v: Categoria; label: string }[] = [
-  { v: "todas", label: "Todas" },
-  { v: "site", label: "Site e busca" },
-  { v: "produtos", label: "Produtos" },
-  { v: "carrinho", label: "Carrinho e checkout" },
-];
-
-const EVENTO_META: Record<
-  string,
-  { icon: typeof Eye; label: string; className: string; categoria: Exclude<Categoria, "todas"> }
-> = {
-  page_view: { icon: Eye, label: "Visualizou página", className: "text-muted-foreground", categoria: "site" },
-  search: { icon: Eye, label: "Buscou no site", className: "text-muted-foreground", categoria: "site" },
-  product_view: { icon: Shirt, label: "Viu produto", className: "text-primary", categoria: "produtos" },
-  cart_view: { icon: ShoppingBag, label: "Viu o carrinho", className: "text-warning", categoria: "carrinho" },
-  add_to_cart: { icon: ShoppingBag, label: "Adicionou ao carrinho", className: "text-warning", categoria: "carrinho" },
-  checkout_start: { icon: CreditCard, label: "Iniciou checkout", className: "text-warning", categoria: "carrinho" },
-  purchase: { icon: CheckCircle2, label: "Comprou", className: "text-success", categoria: "carrinho" },
+const CATEGORIA_META: Record<Categoria, { label: string; icon: typeof Eye; className: string }> = {
+  carrinho: { label: "Carrinho e checkout", icon: ShoppingBag, className: "text-warning" },
+  provador: { label: "Provador", icon: Sparkles, className: "text-primary" },
+  produto: { label: "Produtos", icon: Shirt, className: "text-primary" },
+  atrito: { label: "Atrito", icon: AlertTriangle, className: "text-danger" },
+  navegacao: { label: "Navegação", icon: Eye, className: "text-muted-foreground" },
 };
 
-function metaEvento(tipo?: string | null) {
-  return (
-    EVENTO_META[(tipo || "").toLowerCase()] ?? {
-      icon: MousePointerClick,
-      label: tipo || "Evento",
-      className: "text-muted-foreground",
-      categoria: "site" as const,
-    }
-  );
+const ORDEM: Categoria[] = ["carrinho", "provador", "produto", "atrito", "navegacao"];
+
+function categoriaDe(e: EventoTimeline): Categoria {
+  const c = (e.categoria || "").toLowerCase() as Categoria;
+  return CATEGORIA_META[c] ? c : "navegacao";
 }
 
 function tempoRelativo(iso?: string | null) {
@@ -99,7 +85,7 @@ function StatusCupom({ c }: { c: CupomCliente }) {
 }
 
 export function AtividadesRecentes({ telefone }: { telefone: string }) {
-  const [filtro, setFiltro] = useState<Categoria>("todas");
+  const [filtro, setFiltro] = useState<Categoria | "todas">("todas");
 
   const { data, isLoading } = useQuery({
     queryKey: ["whatsapp-historico-cliente", telefone],
@@ -117,13 +103,32 @@ export function AtividadesRecentes({ telefone }: { telefone: string }) {
     },
   });
 
-  const eventos = data?.eventos ?? [];
+  const eventos = useMemo(() => {
+    const lista = [...(data?.eventos ?? [])];
+    lista.sort((a, b) => new Date(b.criada_em ?? 0).getTime() - new Date(a.criada_em ?? 0).getTime());
+    return lista;
+  }, [data]);
+
   const cupons = data?.cupons ?? [];
 
+  const contagens = useMemo(() => {
+    const c: Record<string, number> = {};
+    for (const e of eventos) {
+      const k = categoriaDe(e);
+      c[k] = (c[k] ?? 0) + 1;
+    }
+    return c;
+  }, [eventos]);
+
   const filtrados = useMemo(
-    () => (filtro === "todas" ? eventos : eventos.filter((e) => metaEvento(e.tipo).categoria === filtro)),
+    () => (filtro === "todas" ? eventos : eventos.filter((e) => categoriaDe(e) === filtro)),
     [eventos, filtro],
   );
+
+  const abas: { v: Categoria | "todas"; label: string; n: number }[] = [
+    { v: "todas", label: "Todas", n: eventos.length },
+    ...ORDEM.map((c) => ({ v: c, label: CATEGORIA_META[c].label, n: contagens[c] ?? 0 })),
+  ];
 
   return (
     <section className="border-t border-border">
@@ -133,7 +138,7 @@ export function AtividadesRecentes({ telefone }: { telefone: string }) {
       </div>
 
       <div className="flex flex-wrap gap-1.5 p-3 pb-2">
-        {FILTROS.map((f) => (
+        {abas.map((f) => (
           <Button
             key={f.v}
             size="sm"
@@ -142,6 +147,7 @@ export function AtividadesRecentes({ telefone }: { telefone: string }) {
             onClick={() => setFiltro(f.v)}
           >
             {f.label}
+            <span className="ml-1 opacity-70">{f.n}</span>
           </Button>
         ))}
       </div>
@@ -160,20 +166,32 @@ export function AtividadesRecentes({ telefone }: { telefone: string }) {
           <ol className="relative space-y-3 pl-6">
             <span className="absolute left-[9px] bottom-2 top-2 w-px bg-border" aria-hidden />
             {filtrados.map((e, i) => {
-              const meta = metaEvento(e.tipo);
-              const Icone = meta.icon;
+              const cat = categoriaDe(e);
+              const meta = CATEGORIA_META[cat];
+              const Icone = meta.icon ?? MousePointerClick;
+              const decisivo = (e.peso ?? 0) >= 3;
               return (
                 <li key={String(e.id ?? i)} className="relative">
                   <span className="absolute -left-6 top-0.5 flex h-[19px] w-[19px] items-center justify-center rounded-full border border-border bg-card">
                     <Icone className={cn("h-3 w-3", meta.className)} />
                   </span>
                   <div className="flex items-baseline justify-between gap-2">
-                    <p className="text-sm font-medium">{meta.label}</p>
+                    <p className="flex items-center gap-1.5 text-sm font-medium">
+                      {decisivo && (
+                        <span
+                          className={cn("h-1.5 w-1.5 shrink-0 rounded-full", cat === "atrito" ? "bg-danger" : "bg-primary")}
+                          aria-hidden
+                        />
+                      )}
+                      {e.descricao || meta.label}
+                    </p>
                     <span className="shrink-0 text-xs text-muted-foreground">{tempoRelativo(e.criada_em)}</span>
                   </div>
-                  <p className="truncate text-sm text-muted-foreground">
-                    {e.produto_nome || e.titulo_pagina || e.url || "—"}
-                  </p>
+                  {(e.produto_nome || e.titulo_pagina || e.url) && (
+                    <p className="truncate text-sm text-muted-foreground">
+                      {e.produto_nome || e.titulo_pagina || e.url}
+                    </p>
+                  )}
                 </li>
               );
             })}
@@ -190,7 +208,6 @@ export function AtividadesRecentes({ telefone }: { telefone: string }) {
           <p className="text-sm text-muted-foreground">Nenhum cupom emitido</p>
         )}
         {cupons.map((c, i) => (
-
             <div key={`${c.codigo ?? i}`} className="rounded-md border border-border p-2">
               <div className="flex items-center justify-between gap-2">
                 <span className="font-mono text-sm font-semibold">{c.codigo ?? "—"}</span>
