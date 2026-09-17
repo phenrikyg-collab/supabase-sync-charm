@@ -490,13 +490,21 @@ export default function Atendimento() {
 
   const colunasAjustaveis = useTelaLarga();
   const grupoColunasRef = useRef<ImperativePanelGroupHandle>(null);
-  const restaurarLarguras = () => {
+  const [largurasIniciais] = useState<[number, number, number]>(lerLargurasSalvas);
+  const salvarLarguras = (layout: number[]) => {
     try {
-      localStorage.removeItem("react-resizable-panels:atendimento-colunas");
+      localStorage.setItem(CHAVE_LARGURAS, JSON.stringify(layout));
     } catch {
       /* armazenamento indisponível */
     }
-    grupoColunasRef.current?.setLayout([24, 52, 24]);
+  };
+  const restaurarLarguras = () => {
+    try {
+      localStorage.removeItem(CHAVE_LARGURAS);
+    } catch {
+      /* armazenamento indisponível */
+    }
+    grupoColunasRef.current?.setLayout([...LARGURAS_PADRAO]);
   };
 
   /** Preenche o campo de resposta com um texto pronto, sem enviar. */
