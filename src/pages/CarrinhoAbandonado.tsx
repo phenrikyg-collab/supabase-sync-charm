@@ -8,7 +8,15 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { SortableHead, useSortable, useOrdenado } from "@/components/SortableHead";
-import { EnviarWhatsAppInline } from "@/components/rfm/EnviarWhatsAppInline";
+import {
+  CelulaRecuperar,
+  useCaminhosContato,
+  useStatusTemplates,
+  ROTULO_CAMINHO,
+  ICONE_CAMINHO,
+  type Caminho,
+} from "@/components/recuperacao/CaminhoContato";
+
 import { FiltroPeriodo, Periodo, limiteInicio, limiteFim } from "@/components/recuperacao/FiltroPeriodo";
 import { SegmentoBadge, CelulaItens, moeda } from "@/components/recuperacao/comum";
 import { formatarData } from "@/utils/formatters";
@@ -57,6 +65,12 @@ export default function CarrinhoAbandonado({
   const [valorMin, setValorMin] = useState("");
   const [valorMax, setValorMax] = useState("");
   const [somenteIdentificados, setSomenteIdentificados] = useState(false);
+  const [filtroCaminho, setFiltroCaminho] = useState<Caminho | null>(null);
+  const [contatadas, setContatadas] = useState<Set<string>>(new Set());
+
+  const { caminhoDe } = useCaminhosContato(30);
+  const { aprovado } = useStatusTemplates();
+
 
   const { data: linhas = [], isLoading } = useQuery({
     queryKey: ["vw_carrinhos_abandonados", periodo.inicio, periodo.fim, somenteIdentificados],
@@ -76,6 +90,11 @@ export default function CarrinhoAbandonado({
     [linhas]
   );
 
+  const caminhoDaLinha = (l: Carrinho): Caminho => {
+    const info = caminhoDe(l.telefone);
+    return info?.caminho ?? (info?.janela_aberta ? "janela_aberta" : "sem_sinal");
+  };
+
   const filtradas = useMemo(() => {
     const min = valorMin ? Number(valorMin) : null;
     const max = valorMax ? Number(valorMax) : null;
@@ -87,9 +106,24 @@ export default function CarrinhoAbandonado({
       }
       if (min != null && v < min) return false;
       if (max != null && v > max) return false;
+      if (filtroCaminho && caminhoDaLinha(l) !== filtroCaminho) return false;
       return true;
     });
-  }, [linhas, segmento, valorMin, valorMax]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [linhas, segmento, valorMin, valorMax, filtroCaminho, caminhoDe]);
+
+  const contagemCaminhos = useMemo(() => {
+    const base: Record<Caminho, number> = {
+      janela_aberta: 0,
+      pedido_pendente: 0,
+      atrito_no_site: 0,
+      sem_sinal: 0,
+    };
+    for (const l of linhas) base[caminhoDaLinha(l)] += 1;
+    return base;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [linhas, caminhoDe]);
+
 
   const { sort, alternar } = useSortable<Chave>({ key: "total", dir: "desc" });
   const ordenadas = useOrdenado<Carrinho, Chave>(filtradas, sort, {
@@ -153,6 +187,37 @@ export default function CarrinhoAbandonado({
           </CardContent>
         </Card>
       </div>
+
+      <div className="flex flex-wrap gap-2">
+        {(Object.keys(ROTULO_CAMINHO) as Caminho[]).map((c) => {
+          const Icone = ICONE_CAMINHO[c];
+          const ativo = filtroCaminho === c;
+          return (
+            <button
+              key={c}
+              type="button"
+              onClick={() => setFiltroCaminho(ativo ? null : c)}
+              className={`inline-flex items-center gap-2 rounded-md border px-3 py-1.5 text-xs transition-colors ${
+                ativo ? "border-primary bg-primary/10 text-primary" : "border-border hover:bg-muted"
+              }`}
+            >
+              <Icone className="h-3.5 w-3.5" />
+              <span>{ROTULO_CAMINHO[c]}</span>
+              <span className="font-semibold">{contagemCaminhos[c]}</span>
+            </button>
+          );
+        })}
+        {filtroCaminho && (
+          <button
+            type="button"
+            onClick={() => setFiltroCaminho(null)}
+            className="text-xs text-muted-foreground underline"
+          >
+            Limpar filtro
+          </button>
+        )}
+      </div>
+
 
       <Card>
         <CardHeader className="pb-3">
@@ -247,16 +312,28 @@ export default function CarrinhoAbandonado({
                         </TableCell>
                         <TableCell><SegmentoBadge segmento={l.segmento_rfm} /></TableCell>
                         <TableCell>
-                          {contato?.conversa_id && onAbrirConversa ? (
-                            <Button size="sm" variant="outline" className="h-8" onClick={() => onAbrirConversa(String(contato.conversa_id))}>
+                          <CelulaRecuperar
+                            telefone={l.telefone}
+                            nome={l.nome}
+                            info={caminhoDe(l.telefone)}
+                            templateAprovado={aprovado}
+                            contatada={contatadas.has(l.session_id)}
+                            onContatada={() =>
+                              setContatadas((p) => new Set(p).add(l.session_id))
+                            }
+                          />
+                          {contato?.conversa_id && onAbrirConversa && (
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="mt-1 h-7 px-2 text-xs"
+                              onClick={() => onAbrirConversa(String(contato.conversa_id))}
+                            >
                               <MessageCircle className="mr-1.5 h-3.5 w-3.5" /> Abrir conversa
                             </Button>
-                          ) : identificado && l.telefone ? (
-                            <EnviarWhatsAppInline telefone={l.telefone} placeholder="Mensagem de recuperação..." mostrarAviso />
-                          ) : (
-                            <span className="text-xs text-muted-foreground">Cliente não identificado</span>
                           )}
                         </TableCell>
+
                       </TableRow>
                     );
                   })}
