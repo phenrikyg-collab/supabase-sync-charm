@@ -296,6 +296,10 @@ function FunilLeads({
           setConflito(corpo.mensagem || "Esta prova já foi enviada para a cliente.");
           return;
         }
+        if (corpo?.error === "bloqueada") {
+          toast.error(corpo.mensagem || "Envio bloqueado: verifique o número da cliente.");
+          return;
+        }
         toast.error(corpo?.mensagem || error.message || "Não foi possível enviar", {
           description: corpo?.detalhe,
         });
