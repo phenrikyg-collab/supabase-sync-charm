@@ -5,11 +5,10 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Flame, MessageCircle, Mail, Megaphone, MessagesSquare, Phone } from "lucide-react";
+import { Flame, MessageCircle, Mail, Megaphone, MessagesSquare } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { BadgesContato, useContatoPorTelefones } from "@/components/atendimento/contatoTelefones";
 import { BotaoConversa } from "@/components/recuperacao/BotaoConversa";
-import { useAbrirConversa } from "@/lib/abrirConversa";
 
 type Resumo = {
   total: number;
@@ -67,7 +66,6 @@ export function OportunidadesAoVivo({
   /** Informa quantas oportunidades estão na lista, para a contagem da aba. */
   onContagem?: (n: number) => void;
 }) {
-  const abrirConversa = useAbrirConversa(onAbrirConversa);
   const [resumo, setResumo] = useState<Resumo>(null);
   const [lista, setLista] = useState<Oportunidade[]>([]);
   const [loading, setLoading] = useState(true);
@@ -130,7 +128,6 @@ export function OportunidadesAoVivo({
             const quente = o.quente === true;
             const canal = (o.canal_sugerido ?? "").trim();
             const canalKey = canal.toLowerCase();
-            const isWhats = canalKey.includes("whats");
             const contato = contatoDe(o.telefone);
             const idConversa = o.conversa_id ?? contato?.conversa_id ?? null;
             return (

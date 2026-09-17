@@ -14,6 +14,7 @@ import {
   CreditCard, Megaphone, Copy,
 } from "lucide-react";
 import { chamarRpc } from "@/lib/supabaseRpc";
+import { BotaoConversa } from "@/components/recuperacao/BotaoConversa";
 
 const somenteDigitos = (telefone?: string | null) => {
   if (typeof telefone !== "string") return "";
@@ -480,16 +481,7 @@ export default function Oportunidades() {
                 <div className="mt-3 flex flex-wrap justify-end gap-2">
                   {telefoneValido(o.telefone) && (
                     <>
-                      <Button size="sm" variant="outline" asChild>
-                        <a
-                          href={`https://wa.me/55${somenteDigitos(o.telefone)}`}
-                          target="_blank"
-                          rel="noreferrer"
-                        >
-                          <MessageCircle className="mr-2 h-3.5 w-3.5" />
-                          Abrir no WhatsApp
-                        </a>
-                      </Button>
+                      <BotaoConversa conversaId={(o as any).conversa_id ?? null} telefone={o.telefone} />
                       <Button size="sm" variant="outline" onClick={() => copiarTelefone(o.telefone)}>
                         <Copy className="mr-2 h-3.5 w-3.5" />
                         Copiar WhatsApp
