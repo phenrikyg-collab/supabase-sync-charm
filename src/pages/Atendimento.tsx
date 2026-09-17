@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -391,6 +392,7 @@ function StatusEntrega({ status, erro }: { status?: string | null; erro?: string
 export default function Atendimento() {
   const queryClient = useQueryClient();
   const { user } = useAuth();
+  const [parametros, setParametros] = useSearchParams();
   const [selecionada, setSelecionada] = useState<string | null>(null);
   const [busca, setBusca] = useState("");
   const [aba, setAba] = useState<"whatsapp" | "site">("whatsapp");
