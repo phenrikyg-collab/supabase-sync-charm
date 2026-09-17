@@ -73,15 +73,36 @@ function useTelaLarga() {
   return larga;
 }
 
+/** Larguras padrão das três colunas: lista, chat e perfil. */
+const LARGURAS_PADRAO: [number, number, number] = [22, 53, 25];
+const CHAVE_LARGURAS = "atendimento-larguras-paineis";
+
+function lerLargurasSalvas(): [number, number, number] {
+  try {
+    const bruto = localStorage.getItem(CHAVE_LARGURAS);
+    if (bruto) {
+      const l = JSON.parse(bruto);
+      if (Array.isArray(l) && l.length === 3 && l.every((n) => typeof n === "number")) {
+        return l as [number, number, number];
+      }
+    }
+  } catch {
+    /* armazenamento indisponível */
+  }
+  return LARGURAS_PADRAO;
+}
+
 function Colunas({
   ajustavel,
   grupoRef,
   className,
+  onLayout,
   children,
 }: {
   ajustavel: boolean;
   grupoRef: React.RefObject<ImperativePanelGroupHandle>;
   className?: string;
+  onLayout?: (layout: number[]) => void;
   children: React.ReactNode;
 }) {
   if (!ajustavel) return <div className={className}>{children}</div>;
@@ -89,7 +110,7 @@ function Colunas({
     <ResizablePanelGroup
       ref={grupoRef}
       direction="horizontal"
-      autoSaveId="atendimento-colunas"
+      onLayout={onLayout}
       className={className}
     >
       {children}
@@ -103,6 +124,7 @@ function Coluna({
   order,
   defaultSize,
   minSize,
+  maxSize,
   children,
 }: {
   ajustavel: boolean;
@@ -110,6 +132,7 @@ function Coluna({
   order: number;
   defaultSize: number;
   minSize: number;
+  maxSize?: number;
   children: React.ReactNode;
 }) {
   if (!ajustavel) return <>{children}</>;
@@ -119,6 +142,7 @@ function Coluna({
       order={order}
       defaultSize={defaultSize}
       minSize={minSize}
+      maxSize={maxSize}
       className="flex min-h-0 min-w-0 flex-col overflow-hidden"
     >
       {children}
@@ -466,13 +490,21 @@ export default function Atendimento() {
 
   const colunasAjustaveis = useTelaLarga();
   const grupoColunasRef = useRef<ImperativePanelGroupHandle>(null);
-  const restaurarLarguras = () => {
+  const [largurasIniciais] = useState<[number, number, number]>(lerLargurasSalvas);
+  const salvarLarguras = (layout: number[]) => {
     try {
-      localStorage.removeItem("react-resizable-panels:atendimento-colunas");
+      localStorage.setItem(CHAVE_LARGURAS, JSON.stringify(layout));
     } catch {
       /* armazenamento indisponível */
     }
-    grupoColunasRef.current?.setLayout([24, 52, 24]);
+  };
+  const restaurarLarguras = () => {
+    try {
+      localStorage.removeItem(CHAVE_LARGURAS);
+    } catch {
+      /* armazenamento indisponível */
+    }
+    grupoColunasRef.current?.setLayout([...LARGURAS_PADRAO]);
   };
 
   /** Preenche o campo de resposta com um texto pronto, sem enviar. */
@@ -1252,6 +1284,7 @@ export default function Atendimento() {
       <Colunas
         ajustavel={colunasAjustaveis}
         grupoRef={grupoColunasRef}
+        onLayout={salvarLarguras}
         className="relative flex min-h-0 w-full min-w-0 max-w-full flex-1 overflow-hidden"
       >
 
@@ -1264,7 +1297,7 @@ export default function Atendimento() {
         )}
 
         {/* Lista de conversas */}
-        <Coluna ajustavel={colunasAjustaveis} id="lista" order={1} defaultSize={24} minSize={14}>
+        <Coluna ajustavel={colunasAjustaveis} id="lista" order={1} defaultSize={largurasIniciais[0]} minSize={15} maxSize={40}>
         <aside
           className={cn(
             "fixed inset-y-0 left-0 z-40 flex min-h-0 w-[85vw] max-w-[360px] min-w-0 flex-col overflow-hidden border-r border-border bg-card transition-transform",
@@ -1543,10 +1576,15 @@ export default function Atendimento() {
           </ScrollArea>
         </aside>
         </Coluna>
-        {colunasAjustaveis && <ResizableHandle withHandle />}
+        {colunasAjustaveis && (
+          <ResizableHandle
+            withHandle
+            className="cursor-col-resize transition-colors hover:bg-accent data-[resize-handle-state=drag]:bg-primary/50"
+          />
+        )}
 
         {/* Thread */}
-        <Coluna ajustavel={colunasAjustaveis} id="thread" order={2} defaultSize={52} minSize={30}>
+        <Coluna ajustavel={colunasAjustaveis} id="thread" order={2} defaultSize={largurasIniciais[1]} minSize={30}>
         <section className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
           {!conversaAtual ? (
             <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground gap-2">
@@ -1893,8 +1931,13 @@ export default function Atendimento() {
         {/* Painel lateral direito */}
         {perfilAberto && conversaAtual && (
           <>
-            {colunasAjustaveis && <ResizableHandle withHandle />}
-            <Coluna ajustavel={colunasAjustaveis} id="painel" order={3} defaultSize={24} minSize={16}>
+            {colunasAjustaveis && (
+              <ResizableHandle
+                withHandle
+                className="cursor-col-resize transition-colors hover:bg-accent data-[resize-handle-state=drag]:bg-primary/50"
+              />
+            )}
+            <Coluna ajustavel={colunasAjustaveis} id="painel" order={3} defaultSize={largurasIniciais[2]} minSize={18} maxSize={45}>
               <aside className="hidden min-h-0 w-full min-w-0 shrink-0 flex-col overflow-hidden border-l border-border p-3 pb-8 lg:flex">
                 <Card className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain">
                   <PerfilCliente conversaId={conversaAtual.id} autor={autor} telefone={conversaAtual.telefone} />
