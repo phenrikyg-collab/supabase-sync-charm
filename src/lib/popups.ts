@@ -252,11 +252,6 @@ export function telefoneBR(v: string | null | undefined) {
   return v ?? "";
 }
 
-export function linkWhats(v: string | null | undefined) {
-  const d = (v ?? "").replace(/\D/g, "");
-  if (!d) return null;
-  return `https://wa.me/${d.startsWith("55") ? d : `55${d}`}`;
-}
 
 /* ============ Rótulos ============ */
 

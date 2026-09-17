@@ -601,15 +601,7 @@ export default function Provador() {
                           </TableCell>
                           <TableCell>
                             {tel ? (
-                              <Button asChild size="sm" variant="outline">
-                                <a
-                                  href={`https://wa.me/55${tel.replace(/^55/, "")}?text=${encodeURIComponent(msg)}`}
-                                  target="_blank"
-                                  rel="noreferrer"
-                                >
-                                  <MessageCircle className="mr-1 h-4 w-4" /> WhatsApp
-                                </a>
-                              </Button>
+                              <BotaoConversa telefone={tel} textoPronto={msg} />
                             ) : (
                               traco
                             )}
