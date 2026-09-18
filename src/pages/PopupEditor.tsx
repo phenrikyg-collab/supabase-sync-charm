@@ -545,7 +545,24 @@ export default function PopupEditor() {
               </div>
 
               <div className="mt-4 space-y-3">
-                {PALETA.map((g) => (
+                {(ehApp
+                  ? PALETA.map((g) =>
+                      g.grupo === "Conteúdo"
+                        ? {
+                            ...g,
+                            itens: [
+                              ...g.itens,
+                              {
+                                tipo: "botao",
+                                nome: "Botão do app",
+                                base: { texto: "Ver meus pedidos", acao: "link", url: "#mc-app-meus_pedidos", largura: "total" },
+                              },
+                            ],
+                          }
+                        : g
+                    )
+                  : PALETA
+                ).map((g) => (
                   <div key={g.grupo}>
                     <p className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">{g.grupo}</p>
                     <div className="flex flex-wrap gap-1">
