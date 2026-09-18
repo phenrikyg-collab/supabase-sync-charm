@@ -28,6 +28,7 @@ type Conferencia = {
   escreveu_para_nos?: boolean | null;
   kora_forma_atual?: boolean | null;
   kora_forma_alternativa?: boolean | null;
+  formato_valido?: boolean | null;
   falhas?: number | null;
   ultima_falha?: string | null;
   ultimo_erro?: string | null;
@@ -119,8 +120,6 @@ export function ConferirNumeroDialog({
     if (open && data?.forma_atual) setValor(mascaraTelefone(String(data.forma_atual)));
   }, [open, data?.forma_atual]);
 
-  const qtdDigitos = useMemo(() => digitos(data?.forma_atual).length, [data?.forma_atual]);
-  const tamanhoEstranho = qtdDigitos > 0 && qtdDigitos !== 12 && qtdDigitos !== 13;
   const edicoes = Array.isArray(data?.edicoes) ? (data?.edicoes as Edicao[]) : [];
 
   const salvar = async () => {
