@@ -342,7 +342,7 @@ function NovoTemplateDialog({ open, onOpenChange }: { open: boolean; onOpenChang
           <Button
             onClick={() => salvar.mutate()}
             disabled={
-              !nome || nomeInvalido || !corpo || salvar.isPending ||
+              !nome || nomeInvalido || !corpo || salvar.isPending || faltando.length > 0 ||
               (botaoAtivo && (!botaoTexto.trim() || !botaoSlug))
             }
           >
