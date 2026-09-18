@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useInfiniteQuery, useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -421,6 +421,397 @@ function StatusEntrega({ status, erro }: { status?: string | null; erro?: string
   );
 }
 
+
+type ItemConversaProps = {
+  c: Conversa;
+  ativa: boolean;
+  modoHistorico: boolean;
+  mostrarClique: boolean;
+  atencao: any;
+  faixa: string;
+  menuAberto: boolean;
+  longPressRef: React.MutableRefObject<{ timer: ReturnType<typeof setTimeout> | null; disparado: boolean }>;
+  onAbrir: (c: Conversa) => void;
+  onMenuChange: (id: string | null) => void;
+  onMarcarLeitura: (id: string | number, naoLida: boolean) => void;
+};
+
+/** Uma linha da lista de conversas. Memoizada: só repinta quando os próprios dados mudam. */
+const ItemConversa = memo(function ItemConversa({
+  c, ativa, modoHistorico, mostrarClique, atencao, faixa, menuAberto, longPressRef,
+  onAbrir, onMenuChange, onMarcarLeitura,
+}: ItemConversaProps) {
+  const nome = nomeConversa(c);
+  const site = ehSite(c);
+  const prio = modoHistorico ? "" : (c.prioridade ?? "").toLowerCase();
+  const naoLida = !modoHistorico && !!c.nao_lida;
+  const urg = modoHistorico ? "normal" : urgenciaDeNivel(atencao?.nivel);
+  return (
+                  <button
+                  onClick={() => {
+                    if (longPressRef.current.disparado) {
+                      longPressRef.current.disparado = false;
+                      return;
+                    }
+                    onAbrir(c);
+                  }}
+                  onTouchStart={() => {
+                    if (modoHistorico) return;
+                    longPressRef.current.disparado = false;
+                    longPressRef.current.timer = setTimeout(() => {
+                      longPressRef.current.disparado = true;
+                      onMenuChange(String(c.id));
+                    }, 500);
+                  }}
+                  onTouchEnd={() => {
+                    if (longPressRef.current.timer) clearTimeout(longPressRef.current.timer);
+                  }}
+                  onTouchMove={() => {
+                    if (longPressRef.current.timer) clearTimeout(longPressRef.current.timer);
+                  }}
+                  className={cn(
+                    "group relative w-full text-left px-4 py-3 border-b border-border/60 border-l-[3px] transition-colors hover:bg-accent/60",
+                    faixa,
+                    ativa && "bg-accent",
+                    naoLida && !ativa && "bg-primary/5",
+                  )}
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0 flex items-center gap-1.5">
+                      {naoLida && <span className="h-2.5 w-2.5 rounded-full bg-success shrink-0" />}
+                      {prio === "alta" && <span className="h-2 w-2 rounded-full bg-danger shrink-0" />}
+                      {prio === "media" && <span className="h-2 w-2 rounded-full bg-warning shrink-0" />}
+                      <div className="min-w-0">
+                         <p className={cn("text-base truncate flex items-center gap-1.5", naoLida || urg === "quente" ? "font-bold" : "font-medium")}>
+                          {site ? (
+                            <Globe className="h-3.5 w-3.5 shrink-0 text-primary" aria-label="Chat do site" />
+                          ) : (
+                            <MessageCircle className="h-3.5 w-3.5 shrink-0 text-success" aria-label="WhatsApp" />
+                          )}
+                          <span className="truncate">{nome}</span>
+                          {nomeSoDoWhatsApp(c) && <BadgeViaWhatsApp />}
+                          {!modoHistorico && c.falha_envio && (
+                            <span className="inline-flex items-center gap-1 rounded-full border border-danger/30 bg-danger/10 px-1.5 py-0.5 text-[10px] font-semibold text-danger whitespace-nowrap">
+                              <AlertTriangle className="h-3 w-3" />
+                              Não enviada
+                            </span>
+                          )}
+
+                        </p>
+                        <p className="text-xs text-muted-foreground">{identificadorConversa(c)}</p>
+                        <BadgeSinal conversa={c} urg={urg} />
+                        <ChipsMotivos motivos={atencao?.motivos} />
+                        {site && c.telefone_real && (
+                          <span className="mt-1 inline-flex items-center gap-1 rounded-full border border-success/20 bg-success/10 px-2 py-0.5 text-[10px] text-success">
+                            <Phone className="h-3 w-3" />
+                            {formatarTelefone(c.telefone_real)}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                     <span className="flex items-center gap-1 shrink-0">
+                       {!modoHistorico && (
+                         <DropdownMenu
+                           open={menuAberto}
+                           onOpenChange={(aberto) => onMenuChange(aberto ? String(c.id) : null)}
+                         >
+                           <DropdownMenuTrigger asChild>
+                             <span
+                               role="button"
+                               aria-label={c.nao_lida ? "Marcar como lida" : "Marcar como não lida"}
+                               onClick={(e) => e.stopPropagation()}
+                               className={cn(
+                                 "h-6 w-6 items-center justify-center rounded-md text-muted-foreground transition-opacity hover:bg-accent hover:text-foreground",
+                                 menuAberto
+                                   ? "inline-flex opacity-100"
+                                   : "hidden opacity-0 group-hover:opacity-100 md:inline-flex",
+                               )}
+                             >
+                               <Mail className="h-3.5 w-3.5" />
+                             </span>
+                           </DropdownMenuTrigger>
+                           <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
+                             {c.nao_lida ? (
+                               <DropdownMenuItem onSelect={() => onMarcarLeitura(c.id, false)}>
+                                 <MailOpen className="mr-2 h-4 w-4" />
+                                 Marcar como lida
+                               </DropdownMenuItem>
+                             ) : (
+                               <DropdownMenuItem onSelect={() => onMarcarLeitura(c.id, true)}>
+                                 <Mail className="mr-2 h-4 w-4" />
+                                 Marcar como não lida
+                               </DropdownMenuItem>
+                             )}
+                           </DropdownMenuContent>
+                         </DropdownMenu>
+                       )}
+                       <span className="text-xs text-muted-foreground whitespace-nowrap">
+                         {tempoRelativo(c.ultima_mensagem_em ?? c.atualizado_em)}
+                       </span>
+                     </span>
+                  </div>
+                   {!modoHistorico && c.falha_envio ? (
+                    <p className="text-sm mt-1 line-clamp-1 font-medium text-danger">
+                      {`⚠ Não enviada: ${c.falha_envio_motivo ?? "a última mensagem não foi entregue."}`}
+                    </p>
+                  ) : (
+                    <p className={cn("text-sm mt-1 line-clamp-1", naoLida ? "text-foreground font-medium" : "text-muted-foreground")}>
+                      {c.ultima_mensagem ?? ""}
+                    </p>
+                  )}
+
+                   {!modoHistorico && mostrarClique && (
+                    <p className="mt-1 text-[11px]">
+                      <span className="text-muted-foreground">Botão tocado: </span>
+                      <span className="font-medium">
+                        {c.ultima_entrada_texto ?? c.ultima_mensagem ?? "sem registro"}
+                      </span>
+                    </p>
+                  )}
+                  <div className="mt-2 flex items-center gap-1.5 flex-wrap">
+                     {modoHistorico ? (
+                       <>
+                         <span className="inline-flex items-center rounded-full border border-border bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+                           Finalizada
+                         </span>
+                         {c.tem_kora && (
+                           <span className="inline-flex items-center rounded-full border border-border bg-card px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+                             Kora
+                           </span>
+                         )}
+                       </>
+                     ) : (
+                       <>
+                         <StatusPill status={c.status} aguardandoDesde={c.aguardando_desde} />
+                         {(c.tags ?? []).map((t) => (
+                           <TagChip key={String(t.id)} tag={t} />
+                         ))}
+                       </>
+                     )}
+                  </div>
+</button>
+  );
+});
+
+
+type BalaoMensagemProps = {
+  m: Mensagem;
+  divisorKora: boolean;
+  divisorProprio: boolean;
+  destacado: boolean;
+  menuAberto: boolean;
+  toqueRef: React.MutableRefObject<{ x: number; y: number; timer: ReturnType<typeof setTimeout> | null }>;
+  onRegistrarRef: (chave: string, el: HTMLDivElement | null) => void;
+  onResponder: (m: Mensagem) => void;
+  onCopiar: (texto: string) => void;
+  onAbrirMenu: (chave: string | null) => void;
+  onIrParaMensagem: (id?: number | string | null) => void;
+  onReenviar: (m: Mensagem) => void;
+  onDescartar: (id: number) => void;
+  onEnviarTemplate: () => void;
+};
+
+/** Um balão da conversa. Memoizado: só repinta quando a própria mensagem muda. */
+const BalaoMensagem = memo(function BalaoMensagem({
+  m, divisorKora, divisorProprio, destacado, menuAberto, toqueRef, onRegistrarRef,
+  onResponder, onCopiar, onAbrirMenu, onIrParaMensagem, onReenviar, onDescartar, onEnviarTemplate,
+}: BalaoMensagemProps) {
+                    const saida = m.direcao === "saida";
+                    const bot = saida && m.origem === "bot";
+                    const kora = m.origem === "kora";
+                    const tipo = (m.tipo ?? "").toLowerCase();
+                    const sticker = tipo === "sticker" && !!m.media_url;
+                    const tipoMidia = ehTipoMidia(tipo);
+                    const midia = tipoMidia || !!m.media_url;
+                    const mostrarTexto = !!m.conteudo && !sticker && !tipoMidia;
+                    const falhou = saida && m.status_entrega === "falhou" && !kora;
+                    const motivoFalha = m.erro_entrega ?? "Não foi possível entregar a mensagem.";
+                    const pedeTemplate = falhou && ehMotivoJanela(motivoFalha);
+                    const chaveBalao = m.id != null ? String(m.id) : "";
+                    const otimista = typeof m.id === "number" && m.id < 0;
+                    const podeCitar = !kora && !otimista && m.id != null;
+                    const temCitada = m.citada_id != null || !!m.citada_texto;
+                    
+
+                    return (
+                      <div>
+                        {divisorKora && (
+                          <div className="flex items-center gap-3 py-1.5 text-[11px] text-muted-foreground">
+                            <Separator className="flex-1" />
+                            <span className="shrink-0">Histórico importado da Kora</span>
+                            <Separator className="flex-1" />
+                          </div>
+                        )}
+                        {divisorProprio && (
+                          <div className="flex items-center gap-3 py-1.5 text-[11px] text-muted-foreground">
+                            <Separator className="flex-1" />
+                            <span className="shrink-0">Atendimento no sistema próprio</span>
+                            <Separator className="flex-1" />
+                          </div>
+                        )}
+                        <div className={cn("group relative flex min-w-0 max-w-full overflow-hidden", saida ? "justify-end" : "justify-start")}>
+                          {podeCitar && (
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              className={cn(
+                                "absolute top-0 hidden h-7 w-7 opacity-0 transition-opacity group-hover:opacity-100 lg:flex",
+                                saida ? "right-full mr-1" : "left-full ml-1",
+                              )}
+                              onClick={() => onResponder(m)}
+                              title="Responder"
+                            >
+                              <Reply className="h-3.5 w-3.5" />
+                            </Button>
+                          )}
+                          <div
+                            ref={(el) => onRegistrarRef(chaveBalao, el)}
+                            onTouchStart={(e) => {
+                              if (!podeCitar) return;
+                              const t = e.touches[0];
+                              toqueRef.current.x = t.clientX;
+                              toqueRef.current.y = t.clientY;
+                              if (toqueRef.current.timer) clearTimeout(toqueRef.current.timer);
+                              toqueRef.current.timer = setTimeout(() => onAbrirMenu(chaveBalao), 500);
+                            }}
+                            onTouchMove={(e) => {
+                              if (!podeCitar) return;
+                              const t = e.touches[0];
+                              const dx = t.clientX - toqueRef.current.x;
+                              const dy = Math.abs(t.clientY - toqueRef.current.y);
+                              if (Math.abs(dx) > 10 || dy > 10) {
+                                if (toqueRef.current.timer) clearTimeout(toqueRef.current.timer);
+                                toqueRef.current.timer = null;
+                              }
+                              if (dx > 60 && dy < 40) {
+                                toqueRef.current.x = t.clientX + 9999;
+                                onResponder(m);
+                              }
+                            }}
+                            onTouchEnd={() => {
+                              if (toqueRef.current.timer) clearTimeout(toqueRef.current.timer);
+                              toqueRef.current.timer = null;
+                            }}
+                            className={cn(
+                              "min-w-0 max-w-[75%] overflow-hidden text-base break-words [overflow-wrap:anywhere] [word-break:break-word]",
+                              destacado && "ring-2 ring-primary ring-offset-2 ring-offset-background transition-shadow",
+                              sticker && !falhou
+                                ? "bg-transparent border-0 p-0"
+                                : cn(
+                                    "rounded-lg px-3 py-2 border",
+                                    !saida && "bg-muted text-foreground border-border",
+                                    saida && bot && "bg-info/10 text-foreground border-info/30",
+                                    saida && !bot && !kora && "bg-primary/10 text-foreground border-primary/30",
+                                    saida && kora && "bg-muted text-foreground border-border",
+                                    falhou && "bg-danger/10 text-foreground border-danger/50",
+                                  ),
+                            )}
+
+                          >
+                            {saida && !sticker && (
+                              <div className={cn("flex items-center gap-1 text-[10px] uppercase tracking-wider mb-1", falhou ? "text-danger" : "text-muted-foreground")}>
+                                {falhou ? <AlertTriangle className="h-3 w-3" /> : bot ? <Bot className="h-3 w-3" /> : <User className="h-3 w-3" />}
+                                {kora ? "Kora" : bot ? "Bot" : "Atendente"}
+                              </div>
+                            )}
+
+                            {temCitada && (
+                              <button
+                                type="button"
+                                onClick={() => onIrParaMensagem(m.citada_id)}
+                                className="mb-1.5 flex w-full items-center gap-2 rounded-md bg-background/60 py-1 pl-0 pr-2 text-left"
+                              >
+                                <span className="h-8 w-1 shrink-0 rounded-full bg-primary" />
+                                <span className="min-w-0 flex-1">
+                                  <span className="block text-[11px] font-semibold text-primary">
+                                    {m.citada_direcao === "entrada" ? "Cliente" : "Você"}
+                                  </span>
+                                  <span className="line-clamp-2 block text-xs text-muted-foreground">
+                                    {m.citada_texto?.trim() || (m.citada_media_url ? "Imagem" : "Mensagem")}
+                                  </span>
+                                </span>
+                                {m.citada_media_url && (
+                                  <img src={m.citada_media_url} alt="Citada" className="h-9 w-9 shrink-0 rounded object-cover" />
+                                )}
+                              </button>
+                            )}
+
+                            {menuAberto && (
+                              <div className="mb-1.5 flex gap-1.5">
+                                <Button size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={() => onResponder(m)}>
+                                  <Reply className="mr-1 h-3 w-3" />
+                                  Responder
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  className="h-7 px-2 text-xs"
+                                  onClick={() => {
+                                    onCopiar(m.conteudo ?? "");
+                                    onAbrirMenu(null);
+                                  }}
+                                >
+                                  <Copy className="mr-1 h-3 w-3" />
+                                  Copiar texto
+                                </Button>
+                                <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => onAbrirMenu(null)} title="Fechar">
+                                  <X className="h-3 w-3" />
+                                </Button>
+                              </div>
+                            )}
+
+
+                            {midia && <MensagemMidia tipo={m.tipo} mediaUrl={m.media_url} conteudo={m.conteudo} />}
+                            {mostrarTexto && <p className="max-w-full whitespace-pre-wrap break-words [overflow-wrap:anywhere] [word-break:break-word]">{m.conteudo}</p>}
+                            {falhou && (
+                              <div className="mt-2 space-y-1.5">
+                                <p className="text-xs font-semibold text-danger">Não enviada</p>
+                                <p className="text-xs text-danger/90">{motivoFalha}</p>
+                                <div className="flex flex-wrap gap-1.5">
+                                  {pedeTemplate ? (
+                                    <Button size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={() => onEnviarTemplate()}>
+                                      Enviar template
+                                    </Button>
+                                  ) : (
+                                    <Button size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={() => onReenviar(m)}>
+                                      Tentar de novo
+                                    </Button>
+                                  )}
+                                  <Button size="sm" variant="ghost" className="h-7 px-2 text-xs" onClick={() => onCopiar(m.conteudo ?? "")}>
+                                    Copiar texto
+                                  </Button>
+                                  {m.falha_local && (
+                                    <Button
+                                      size="sm"
+                                      variant="ghost"
+                                      className="h-7 px-2 text-xs"
+                                      onClick={() => typeof m.id === "number" && onDescartar(m.id)}
+                                    >
+                                      Descartar
+                                    </Button>
+                                  )}
+                                </div>
+                              </div>
+                            )}
+
+                            <div className="flex items-center justify-end gap-1 mt-1">
+                              <span className="text-[10px] text-muted-foreground">
+                                {horaCurta(m.criada_em ?? m.criado_em ?? m.enviado_em)}
+                              </span>
+                              {saida && m.enviando && (
+                                <Clock className="h-3 w-3 text-muted-foreground" aria-label="Enviando" />
+                              )}
+                              {saida && !m.enviando && (
+                                <StatusEntrega status={m.status_entrega} erro={m.erro_entrega} />
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    );
+});
+
 export default function Atendimento() {
   const queryClient = useQueryClient();
   const { user } = useAuth();
@@ -828,7 +1219,7 @@ export default function Atendimento() {
     },
   });
 
-  const abrirConversa = async (c: Conversa) => {
+  const abrirConversa = useCallback(async (c: Conversa) => {
     setSelecionada(String(c.id));
     setListaSheet(false);
     setErroJanela(null);
@@ -838,9 +1229,9 @@ export default function Atendimento() {
     });
     if (!error) queryClient.invalidateQueries({ queryKey: ["whatsapp-conversas"] });
       queryClient.invalidateQueries({ queryKey: ["whatsapp-conversa"] });
-  };
+  }, [modoHistorico, queryClient]);
 
-  const marcarLeitura = async (id: string | number, naoLida: boolean): Promise<boolean> => {
+  const marcarLeitura = useCallback(async (id: string | number, naoLida: boolean): Promise<boolean> => {
     const idParam = Number.isNaN(Number(id)) ? id : Number(id);
     queryClient.setQueryData<Conversa[]>(["whatsapp-conversas"], (lista) =>
       (lista ?? []).map((cv) => (String(cv.id) === String(id) ? { ...cv, nao_lida: naoLida } : cv)),
@@ -855,7 +1246,7 @@ export default function Atendimento() {
       return false;
     }
     return true;
-  };
+  }, [queryClient]);
 
   const marcarNaoLidaEFechar = async () => {
     if (!selecionada) return;
@@ -883,17 +1274,21 @@ export default function Atendimento() {
   }, [citacao]);
 
   /** Rola até a mensagem original e dá um destaque rápido. */
-  const irParaMensagem = (id?: number | string | null) => {
+  const registrarBalaoRef = useCallback((chave: string, el: HTMLDivElement | null) => {
+    if (chave) balaoRefs.current[chave] = el;
+  }, []);
+
+  const irParaMensagem = useCallback((id?: number | string | null) => {
     if (id == null) return;
     const alvo = balaoRefs.current[String(id)];
     if (!alvo) return;
     alvo.scrollIntoView({ behavior: "smooth", block: "center" });
     setDestacada(String(id));
     setTimeout(() => setDestacada((atual) => (atual === String(id) ? null : atual)), 1400);
-  };
+  }, []);
 
   /** Prepara a barra de citação acima da caixa de texto. */
-  const responderCitando = (m: Mensagem) => {
+  const responderCitando = useCallback((m: Mensagem) => {
     if (m.id == null) return;
     setCitacao({
       id: m.id,
@@ -904,7 +1299,7 @@ export default function Atendimento() {
     });
     setMenuBalao(null);
     setTimeout(() => composerRef.current?.focar(), 0);
-  };
+  }, []);
 
   const invalidarThread = () => {
     queryClient.invalidateQueries({ queryKey: ["whatsapp-mensagens", selecionada] });
@@ -948,11 +1343,11 @@ export default function Atendimento() {
     return idTemp;
   };
 
-  const removerMensagemOtimista = (idTemp: number) => {
+  const removerMensagemOtimista = useCallback((idTemp: number) => {
     queryClient.setQueryData(["whatsapp-mensagens", selecionada], (antigas: Mensagem[] = []) =>
       (antigas ?? []).filter((m) => m.id !== idTemp),
     );
-  };
+  }, [queryClient, selecionada]);
 
   /** Transforma o balão otimista em balão de falha, com o motivo em português. */
   const marcarMensagemFalhou = (idTemp: number, motivo: string) => {
@@ -966,21 +1361,22 @@ export default function Atendimento() {
   };
 
   /** Reenvia o mesmo texto pelo fluxo normal de envio. */
-  const reenviarMensagem = (m: Mensagem) => {
+  const reenviarMensagem = useCallback((m: Mensagem) => {
     const conteudo = (m.conteudo ?? "").trim();
     if (!conteudo) return;
     if (typeof m.id === "number" && m.id < 0) removerMensagemOtimista(m.id);
     enviar.mutate(conteudo);
-  };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [removerMensagemOtimista]);
 
-  const copiarTextoMensagem = async (conteudo: string) => {
+  const copiarTextoMensagem = useCallback(async (conteudo: string) => {
     try {
       await navigator.clipboard.writeText(conteudo);
       toast({ title: "Texto copiado" });
     } catch {
       toast({ title: "Não foi possível copiar", variant: "destructive" });
     }
-  };
+  }, []);
 
 
   const enviar = useMutation({
@@ -1116,10 +1512,9 @@ export default function Atendimento() {
       return total.slice(0, MAX_IMAGENS);
     });
     // O texto já digitado vira a legenda da primeira imagem
-    setLegenda((atual) => {
-      if (atual.trim()) return atual;
-      return composerRef.current?.pegarELimpar().trim() ?? "";
-    });
+    const doCampo = composerRef.current?.obterTexto().trim() ?? "";
+    setLegenda((atual) => (atual.trim() ? atual : doCampo));
+    if (doCampo) composerRef.current?.definirTexto("");
   };
 
   const removerImagem = (chave: string) => {
@@ -1871,151 +2266,20 @@ export default function Atendimento() {
               }
               return (
                 <div key={String(c.id)}>
-                {cabecalho}
-                <button
-                  onClick={() => {
-                    if (longPressRef.current.disparado) {
-                      longPressRef.current.disparado = false;
-                      return;
-                    }
-                    abrirConversa(c);
-                  }}
-                  onTouchStart={() => {
-                    if (modoHistorico) return;
-                    longPressRef.current.disparado = false;
-                    longPressRef.current.timer = setTimeout(() => {
-                      longPressRef.current.disparado = true;
-                      setMenuLeituraAberto(String(c.id));
-                    }, 500);
-                  }}
-                  onTouchEnd={() => {
-                    if (longPressRef.current.timer) clearTimeout(longPressRef.current.timer);
-                  }}
-                  onTouchMove={() => {
-                    if (longPressRef.current.timer) clearTimeout(longPressRef.current.timer);
-                  }}
-                  className={cn(
-                    "group relative w-full text-left px-4 py-3 border-b border-border/60 border-l-[3px] transition-colors hover:bg-accent/60",
-                    faixa,
-                    ativa && "bg-accent",
-                    naoLida && !ativa && "bg-primary/5",
-                  )}
-                >
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="min-w-0 flex items-center gap-1.5">
-                      {naoLida && <span className="h-2.5 w-2.5 rounded-full bg-success shrink-0" />}
-                      {prio === "alta" && <span className="h-2 w-2 rounded-full bg-danger shrink-0" />}
-                      {prio === "media" && <span className="h-2 w-2 rounded-full bg-warning shrink-0" />}
-                      <div className="min-w-0">
-                         <p className={cn("text-base truncate flex items-center gap-1.5", naoLida || urg === "quente" ? "font-bold" : "font-medium")}>
-                          {site ? (
-                            <Globe className="h-3.5 w-3.5 shrink-0 text-primary" aria-label="Chat do site" />
-                          ) : (
-                            <MessageCircle className="h-3.5 w-3.5 shrink-0 text-success" aria-label="WhatsApp" />
-                          )}
-                          <span className="truncate">{nome}</span>
-                          {nomeSoDoWhatsApp(c) && <BadgeViaWhatsApp />}
-                          {!modoHistorico && c.falha_envio && (
-                            <span className="inline-flex items-center gap-1 rounded-full border border-danger/30 bg-danger/10 px-1.5 py-0.5 text-[10px] font-semibold text-danger whitespace-nowrap">
-                              <AlertTriangle className="h-3 w-3" />
-                              Não enviada
-                            </span>
-                          )}
-
-                        </p>
-                        <p className="text-xs text-muted-foreground">{identificadorConversa(c)}</p>
-                        <BadgeSinal conversa={c} urg={urg} />
-                        <ChipsMotivos motivos={atencao?.motivos} />
-                        {site && c.telefone_real && (
-                          <span className="mt-1 inline-flex items-center gap-1 rounded-full border border-success/20 bg-success/10 px-2 py-0.5 text-[10px] text-success">
-                            <Phone className="h-3 w-3" />
-                            {formatarTelefone(c.telefone_real)}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-
-                     <span className="flex items-center gap-1 shrink-0">
-                       {!modoHistorico && (
-                         <DropdownMenu
-                           open={menuLeituraAberto === String(c.id)}
-                           onOpenChange={(aberto) => setMenuLeituraAberto(aberto ? String(c.id) : null)}
-                         >
-                           <DropdownMenuTrigger asChild>
-                             <span
-                               role="button"
-                               aria-label={c.nao_lida ? "Marcar como lida" : "Marcar como não lida"}
-                               onClick={(e) => e.stopPropagation()}
-                               className={cn(
-                                 "h-6 w-6 items-center justify-center rounded-md text-muted-foreground transition-opacity hover:bg-accent hover:text-foreground",
-                                 menuLeituraAberto === String(c.id)
-                                   ? "inline-flex opacity-100"
-                                   : "hidden opacity-0 group-hover:opacity-100 md:inline-flex",
-                               )}
-                             >
-                               <Mail className="h-3.5 w-3.5" />
-                             </span>
-                           </DropdownMenuTrigger>
-                           <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
-                             {c.nao_lida ? (
-                               <DropdownMenuItem onSelect={() => marcarLeitura(c.id, false)}>
-                                 <MailOpen className="mr-2 h-4 w-4" />
-                                 Marcar como lida
-                               </DropdownMenuItem>
-                             ) : (
-                               <DropdownMenuItem onSelect={() => marcarLeitura(c.id, true)}>
-                                 <Mail className="mr-2 h-4 w-4" />
-                                 Marcar como não lida
-                               </DropdownMenuItem>
-                             )}
-                           </DropdownMenuContent>
-                         </DropdownMenu>
-                       )}
-                       <span className="text-xs text-muted-foreground whitespace-nowrap">
-                         {tempoRelativo(c.ultima_mensagem_em ?? c.atualizado_em)}
-                       </span>
-                     </span>
-                  </div>
-                   {!modoHistorico && c.falha_envio ? (
-                    <p className="text-sm mt-1 line-clamp-1 font-medium text-danger">
-                      {`⚠ Não enviada: ${c.falha_envio_motivo ?? "a última mensagem não foi entregue."}`}
-                    </p>
-                  ) : (
-                    <p className={cn("text-sm mt-1 line-clamp-1", naoLida ? "text-foreground font-medium" : "text-muted-foreground")}>
-                      {c.ultima_mensagem ?? ""}
-                    </p>
-                  )}
-
-                   {!modoHistorico && grupoAba === "clique" && (
-                    <p className="mt-1 text-[11px]">
-                      <span className="text-muted-foreground">Botão tocado: </span>
-                      <span className="font-medium">
-                        {c.ultima_entrada_texto ?? c.ultima_mensagem ?? "sem registro"}
-                      </span>
-                    </p>
-                  )}
-                  <div className="mt-2 flex items-center gap-1.5 flex-wrap">
-                     {modoHistorico ? (
-                       <>
-                         <span className="inline-flex items-center rounded-full border border-border bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
-                           Finalizada
-                         </span>
-                         {c.tem_kora && (
-                           <span className="inline-flex items-center rounded-full border border-border bg-card px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
-                             Kora
-                           </span>
-                         )}
-                       </>
-                     ) : (
-                       <>
-                         <StatusPill status={c.status} aguardandoDesde={c.aguardando_desde} />
-                         {(c.tags ?? []).map((t) => (
-                           <TagChip key={String(t.id)} tag={t} />
-                         ))}
-                       </>
-                     )}
-                  </div>
-                </button>
+                  {cabecalho}
+                  <ItemConversa
+                    c={c}
+                    ativa={ativa}
+                    modoHistorico={modoHistorico}
+                    mostrarClique={grupoAba === "clique"}
+                    atencao={atencao}
+                    faixa={faixa}
+                    menuAberto={menuLeituraAberto === String(c.id)}
+                    longPressRef={longPressRef}
+                    onAbrir={abrirConversa}
+                    onMenuChange={setMenuLeituraAberto}
+                    onMarcarLeitura={marcarLeitura}
+                  />
                 </div>
               );
               });
@@ -2309,200 +2573,25 @@ export default function Atendimento() {
                 {carregandoMensagens && <p className="text-sm text-muted-foreground">Carregando mensagens…</p>}
                 <div className="min-w-0 max-w-full space-y-3 overflow-x-hidden">
                   {mensagens.map((m, idx) => {
-                    const saida = m.direcao === "saida";
-                    const bot = saida && m.origem === "bot";
-                    const kora = m.origem === "kora";
-                    const tipo = (m.tipo ?? "").toLowerCase();
-                    const sticker = tipo === "sticker" && !!m.media_url;
-                    const tipoMidia = ehTipoMidia(tipo);
-                    const midia = tipoMidia || !!m.media_url;
-                    const mostrarTexto = !!m.conteudo && !sticker && !tipoMidia;
-                    const falhou = saida && m.status_entrega === "falhou" && !kora;
-                    const motivoFalha = m.erro_entrega ?? "Não foi possível entregar a mensagem.";
-                    const pedeTemplate = falhou && ehMotivoJanela(motivoFalha);
-                    const chaveBalao = m.id != null ? String(m.id) : "";
-                    const otimista = typeof m.id === "number" && m.id < 0;
-                    const podeCitar = !kora && !otimista && m.id != null;
-                    const temCitada = m.citada_id != null || !!m.citada_texto;
-                    const menuAberto = menuBalao === chaveBalao;
-
+                    const chave = m.id != null ? String(m.id) : `${m.criada_em ?? m.criado_em ?? ""}-${idx}`;
                     return (
-                      <div key={m.id != null ? String(m.id) : `${m.criada_em ?? m.criado_em ?? ""}-${idx}`}>
-                        {idx === primeiroIndiceKora && (
-                          <div className="flex items-center gap-3 py-1.5 text-[11px] text-muted-foreground">
-                            <Separator className="flex-1" />
-                            <span className="shrink-0">Histórico importado da Kora</span>
-                            <Separator className="flex-1" />
-                          </div>
-                        )}
-                        {idx === primeiroIndiceSistemaProprio && (
-                          <div className="flex items-center gap-3 py-1.5 text-[11px] text-muted-foreground">
-                            <Separator className="flex-1" />
-                            <span className="shrink-0">Atendimento no sistema próprio</span>
-                            <Separator className="flex-1" />
-                          </div>
-                        )}
-                        <div className={cn("group relative flex min-w-0 max-w-full overflow-hidden", saida ? "justify-end" : "justify-start")}>
-                          {podeCitar && (
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              className={cn(
-                                "absolute top-0 hidden h-7 w-7 opacity-0 transition-opacity group-hover:opacity-100 lg:flex",
-                                saida ? "right-full mr-1" : "left-full ml-1",
-                              )}
-                              onClick={() => responderCitando(m)}
-                              title="Responder"
-                            >
-                              <Reply className="h-3.5 w-3.5" />
-                            </Button>
-                          )}
-                          <div
-                            ref={(el) => {
-                              if (chaveBalao) balaoRefs.current[chaveBalao] = el;
-                            }}
-                            onTouchStart={(e) => {
-                              if (!podeCitar) return;
-                              const t = e.touches[0];
-                              toqueRef.current.x = t.clientX;
-                              toqueRef.current.y = t.clientY;
-                              if (toqueRef.current.timer) clearTimeout(toqueRef.current.timer);
-                              toqueRef.current.timer = setTimeout(() => setMenuBalao(chaveBalao), 500);
-                            }}
-                            onTouchMove={(e) => {
-                              if (!podeCitar) return;
-                              const t = e.touches[0];
-                              const dx = t.clientX - toqueRef.current.x;
-                              const dy = Math.abs(t.clientY - toqueRef.current.y);
-                              if (Math.abs(dx) > 10 || dy > 10) {
-                                if (toqueRef.current.timer) clearTimeout(toqueRef.current.timer);
-                                toqueRef.current.timer = null;
-                              }
-                              if (dx > 60 && dy < 40) {
-                                toqueRef.current.x = t.clientX + 9999;
-                                responderCitando(m);
-                              }
-                            }}
-                            onTouchEnd={() => {
-                              if (toqueRef.current.timer) clearTimeout(toqueRef.current.timer);
-                              toqueRef.current.timer = null;
-                            }}
-                            className={cn(
-                              "min-w-0 max-w-[75%] overflow-hidden text-base break-words [overflow-wrap:anywhere] [word-break:break-word]",
-                              destacada === chaveBalao && "ring-2 ring-primary ring-offset-2 ring-offset-background transition-shadow",
-                              sticker && !falhou
-                                ? "bg-transparent border-0 p-0"
-                                : cn(
-                                    "rounded-lg px-3 py-2 border",
-                                    !saida && "bg-muted text-foreground border-border",
-                                    saida && bot && "bg-info/10 text-foreground border-info/30",
-                                    saida && !bot && !kora && "bg-primary/10 text-foreground border-primary/30",
-                                    saida && kora && "bg-muted text-foreground border-border",
-                                    falhou && "bg-danger/10 text-foreground border-danger/50",
-                                  ),
-                            )}
-
-                          >
-                            {saida && !sticker && (
-                              <div className={cn("flex items-center gap-1 text-[10px] uppercase tracking-wider mb-1", falhou ? "text-danger" : "text-muted-foreground")}>
-                                {falhou ? <AlertTriangle className="h-3 w-3" /> : bot ? <Bot className="h-3 w-3" /> : <User className="h-3 w-3" />}
-                                {kora ? "Kora" : bot ? "Bot" : "Atendente"}
-                              </div>
-                            )}
-
-                            {temCitada && (
-                              <button
-                                type="button"
-                                onClick={() => irParaMensagem(m.citada_id)}
-                                className="mb-1.5 flex w-full items-center gap-2 rounded-md bg-background/60 py-1 pl-0 pr-2 text-left"
-                              >
-                                <span className="h-8 w-1 shrink-0 rounded-full bg-primary" />
-                                <span className="min-w-0 flex-1">
-                                  <span className="block text-[11px] font-semibold text-primary">
-                                    {m.citada_direcao === "entrada" ? "Cliente" : "Você"}
-                                  </span>
-                                  <span className="line-clamp-2 block text-xs text-muted-foreground">
-                                    {m.citada_texto?.trim() || (m.citada_media_url ? "Imagem" : "Mensagem")}
-                                  </span>
-                                </span>
-                                {m.citada_media_url && (
-                                  <img src={m.citada_media_url} alt="Citada" className="h-9 w-9 shrink-0 rounded object-cover" />
-                                )}
-                              </button>
-                            )}
-
-                            {menuAberto && (
-                              <div className="mb-1.5 flex gap-1.5">
-                                <Button size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={() => responderCitando(m)}>
-                                  <Reply className="mr-1 h-3 w-3" />
-                                  Responder
-                                </Button>
-                                <Button
-                                  size="sm"
-                                  variant="ghost"
-                                  className="h-7 px-2 text-xs"
-                                  onClick={() => {
-                                    copiarTextoMensagem(m.conteudo ?? "");
-                                    setMenuBalao(null);
-                                  }}
-                                >
-                                  <Copy className="mr-1 h-3 w-3" />
-                                  Copiar texto
-                                </Button>
-                                <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => setMenuBalao(null)} title="Fechar">
-                                  <X className="h-3 w-3" />
-                                </Button>
-                              </div>
-                            )}
-
-
-                            {midia && <MensagemMidia tipo={m.tipo} mediaUrl={m.media_url} conteudo={m.conteudo} />}
-                            {mostrarTexto && <p className="max-w-full whitespace-pre-wrap break-words [overflow-wrap:anywhere] [word-break:break-word]">{m.conteudo}</p>}
-                            {falhou && (
-                              <div className="mt-2 space-y-1.5">
-                                <p className="text-xs font-semibold text-danger">Não enviada</p>
-                                <p className="text-xs text-danger/90">{motivoFalha}</p>
-                                <div className="flex flex-wrap gap-1.5">
-                                  {pedeTemplate ? (
-                                    <Button size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={() => setTemplateAberto(true)}>
-                                      Enviar template
-                                    </Button>
-                                  ) : (
-                                    <Button size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={() => reenviarMensagem(m)}>
-                                      Tentar de novo
-                                    </Button>
-                                  )}
-                                  <Button size="sm" variant="ghost" className="h-7 px-2 text-xs" onClick={() => copiarTextoMensagem(m.conteudo ?? "")}>
-                                    Copiar texto
-                                  </Button>
-                                  {m.falha_local && (
-                                    <Button
-                                      size="sm"
-                                      variant="ghost"
-                                      className="h-7 px-2 text-xs"
-                                      onClick={() => typeof m.id === "number" && removerMensagemOtimista(m.id)}
-                                    >
-                                      Descartar
-                                    </Button>
-                                  )}
-                                </div>
-                              </div>
-                            )}
-
-                            <div className="flex items-center justify-end gap-1 mt-1">
-                              <span className="text-[10px] text-muted-foreground">
-                                {horaCurta(m.criada_em ?? m.criado_em ?? m.enviado_em)}
-                              </span>
-                              {saida && m.enviando && (
-                                <Clock className="h-3 w-3 text-muted-foreground" aria-label="Enviando" />
-                              )}
-                              {saida && !m.enviando && (
-                                <StatusEntrega status={m.status_entrega} erro={m.erro_entrega} />
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                      </div>
+                      <BalaoMensagem
+                        key={chave}
+                        m={m}
+                        divisorKora={idx === primeiroIndiceKora}
+                        divisorProprio={idx === primeiroIndiceSistemaProprio}
+                        destacado={destacada === (m.id != null ? String(m.id) : "")}
+                        menuAberto={menuBalao === (m.id != null ? String(m.id) : "")}
+                        toqueRef={toqueRef}
+                        onRegistrarRef={registrarBalaoRef}
+                        onResponder={responderCitando}
+                        onCopiar={copiarTextoMensagem}
+                        onAbrirMenu={setMenuBalao}
+                        onIrParaMensagem={irParaMensagem}
+                        onReenviar={reenviarMensagem}
+                        onDescartar={removerMensagemOtimista}
+                        onEnviarTemplate={abrirTemplate}
+                      />
                     );
                   })}
                   <div ref={fimRef} />
