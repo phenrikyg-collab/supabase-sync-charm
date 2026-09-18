@@ -17,6 +17,7 @@ import {
   AlertTriangle, Bot, Check, CheckCheck, CheckCircle2, Globe, ImagePlus, LayoutGrid, Lock, MessageCircle,
   RotateCcw, Search, Send, User, X, UserCheck, Phone, QrCode, Link2,
   Truck, ShoppingCart, Plus, MoreHorizontal, PanelRight, Menu, Trash2, FileText, Clock, Mail, MailOpen,
+  Reply, Copy,
 } from "lucide-react";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription,
@@ -291,8 +292,22 @@ const identificadorConversa = (c: Conversa) =>
 
 
 
+type Citacao = {
+  id: number | string;
+  direcao: "entrada" | "saida";
+  tipo?: string | null;
+  texto?: string | null;
+  media_url?: string | null;
+};
+
 type Mensagem = {
   id?: number | string;
+  wamid?: string | null;
+  citada_id?: number | string | null;
+  citada_direcao?: "entrada" | "saida" | null;
+  citada_tipo?: string | null;
+  citada_texto?: string | null;
+  citada_media_url?: string | null;
   conteudo: string;
   direcao: "entrada" | "saida";
   origem?: string | null;
@@ -458,9 +473,17 @@ export default function Atendimento() {
   const [erroJanela, setErroJanela] = useState<string | null>(null);
   const [texto, setTexto] = useState("");
   const [catalogoAberto, setCatalogoAberto] = useState(false);
-  const [arquivo, setArquivo] = useState<File | null>(null);
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [imagens, setImagens] = useState<{ chave: string; file: File; url: string }[]>([]);
   const [legenda, setLegenda] = useState("");
+  const [citacao, setCitacao] = useState<Citacao | null>(null);
+  const [arrastando, setArrastando] = useState(false);
+  const [menuBalao, setMenuBalao] = useState<string | null>(null);
+  const [destacada, setDestacada] = useState<string | null>(null);
+  const balaoRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  /** Guarda a citação usada no envio em curso (o estado é limpo na hora). */
+  const citacaoRef = useRef<Citacao | null>(null);
+  /** Controle do toque nos balões: arrastar para a direita responde, segurar abre o menu. */
+  const toqueRef = useRef<{ x: number; y: number; timer: ReturnType<typeof setTimeout> | null }>({ x: 0, y: 0, timer: null });
   const [enviandoImagem, setEnviandoImagem] = useState(false);
   const fimRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -857,11 +880,39 @@ export default function Atendimento() {
     fimRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [mensagens.length, selecionada]);
 
+  // Esc cancela a citação em andamento
   useEffect(() => {
-    return () => {
-      if (previewUrl) URL.revokeObjectURL(previewUrl);
+    if (!citacao) return;
+    const aoTeclar = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setCitacao(null);
     };
-  }, [previewUrl]);
+    document.addEventListener("keydown", aoTeclar);
+    return () => document.removeEventListener("keydown", aoTeclar);
+  }, [citacao]);
+
+  /** Rola até a mensagem original e dá um destaque rápido. */
+  const irParaMensagem = (id?: number | string | null) => {
+    if (id == null) return;
+    const alvo = balaoRefs.current[String(id)];
+    if (!alvo) return;
+    alvo.scrollIntoView({ behavior: "smooth", block: "center" });
+    setDestacada(String(id));
+    setTimeout(() => setDestacada((atual) => (atual === String(id) ? null : atual)), 1400);
+  };
+
+  /** Prepara a barra de citação acima da caixa de texto. */
+  const responderCitando = (m: Mensagem) => {
+    if (m.id == null) return;
+    setCitacao({
+      id: m.id,
+      direcao: m.direcao,
+      tipo: m.tipo,
+      texto: m.conteudo,
+      media_url: m.media_url,
+    });
+    setMenuBalao(null);
+    setTimeout(() => textoRef.current?.focus(), 0);
+  };
 
   const invalidarThread = () => {
     queryClient.invalidateQueries({ queryKey: ["whatsapp-mensagens", selecionada] });
@@ -957,6 +1008,7 @@ export default function Atendimento() {
           telefone: conversaAtual.telefone,
           conteudo,
           autor: user?.email ?? null,
+          responder_a_id: citacaoRef.current?.id ?? null,
         },
       });
       if (error) throw error;
@@ -965,7 +1017,21 @@ export default function Atendimento() {
     onMutate: (conteudo: string) => {
       setTexto("");
       setErroJanela(null);
-      return { idTemp: inserirMensagemOtimista({ conteudo, tipo: "texto" }), conteudo };
+      const citada = citacao;
+      citacaoRef.current = citada;
+      setCitacao(null);
+      return {
+        idTemp: inserirMensagemOtimista({
+          conteudo,
+          tipo: "texto",
+          citada_id: citada?.id ?? null,
+          citada_direcao: citada?.direcao ?? null,
+          citada_tipo: citada?.tipo ?? null,
+          citada_texto: citada?.texto ?? null,
+          citada_media_url: citada?.media_url ?? null,
+        }),
+        conteudo,
+      };
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["whatsapp-mensagens", selecionada] });
@@ -997,13 +1063,17 @@ export default function Atendimento() {
 
   });
 
-  const enviarImagem = async (mediaUrl: string, conteudo: string) => {
+  const MAX_IMAGENS = 10;
+  const MAX_BYTES = 16 * 1024 * 1024;
+
+  const enviarImagem = async (mediaUrl: string, conteudo: string, responderA?: number | string | null) => {
     if (!conversaAtual) throw new Error("Nenhuma conversa selecionada");
     const telefoneEnvio = conversaAtual.telefone_real || conversaAtual.telefone;
     const idTemp = inserirMensagemOtimista({
       conteudo,
       tipo: "imagem",
       media_url: mediaUrl,
+      citada_id: responderA ?? null,
     });
     try {
       const resposta = await fetch(
@@ -1016,6 +1086,8 @@ export default function Atendimento() {
             conversa_id: conversaAtual.id,
             imagem_url: mediaUrl,
             legenda: conteudo || "",
+            autor: user?.email ?? null,
+            responder_a_id: responderA ?? null,
           }),
         },
       );
@@ -1023,50 +1095,90 @@ export default function Atendimento() {
       if (!resposta.ok || corpo?.error) {
         throw new Error(corpo?.error || corpo?.mensagem || `Falha no envio (${resposta.status})`);
       }
-    } catch (e) {
-      removerMensagemOtimista(idTemp);
+    } catch (e: any) {
+      marcarMensagemFalhou(idTemp, e?.message ?? "Não foi possível enviar a imagem.");
       throw e;
     }
     queryClient.invalidateQueries({ queryKey: ["whatsapp-mensagens", selecionada] });
   };
 
-  const selecionarArquivo = (f: File | null) => {
-    if (!f) return;
-    if (!f.type.startsWith("image/")) {
-      toast({ title: "Selecione uma imagem", variant: "destructive" });
-      return;
+  /** Acrescenta imagens à faixa de pré-visualização, respeitando limites. */
+  const adicionarImagens = (lista: File[]) => {
+    const validas: { chave: string; file: File; url: string }[] = [];
+    for (const f of lista) {
+      if (!f.type.startsWith("image/")) continue;
+      if (f.size > MAX_BYTES) {
+        toast({ title: `A imagem ${f.name} passa de 16 MB`, variant: "destructive" });
+        continue;
+      }
+      validas.push({ chave: `${Date.now()}-${Math.random().toString(36).slice(2)}`, file: f, url: URL.createObjectURL(f) });
     }
-    if (previewUrl) URL.revokeObjectURL(previewUrl);
-    setArquivo(f);
-    setPreviewUrl(URL.createObjectURL(f));
-    setLegenda("");
+    if (validas.length === 0) return;
+    setImagens((atuais) => {
+      const total = [...atuais, ...validas];
+      if (total.length > MAX_IMAGENS) {
+        toast({ title: `Dá para enviar até ${MAX_IMAGENS} imagens por vez`, variant: "destructive" });
+        total.slice(MAX_IMAGENS).forEach((i) => URL.revokeObjectURL(i.url));
+      }
+      return total.slice(0, MAX_IMAGENS);
+    });
+    // O texto já digitado vira a legenda da primeira imagem
+    setLegenda((atual) => {
+      if (atual.trim()) return atual;
+      const doCampo = texto.trim();
+      if (doCampo) setTexto("");
+      return doCampo;
+    });
+  };
+
+  const removerImagem = (chave: string) => {
+    setImagens((atuais) => {
+      const alvo = atuais.find((i) => i.chave === chave);
+      if (alvo) URL.revokeObjectURL(alvo.url);
+      return atuais.filter((i) => i.chave !== chave);
+    });
   };
 
   const limparPreview = () => {
-    if (previewUrl) URL.revokeObjectURL(previewUrl);
-    setArquivo(null);
-    setPreviewUrl(null);
+    setImagens((atuais) => {
+      atuais.forEach((i) => URL.revokeObjectURL(i.url));
+      return [];
+    });
     setLegenda("");
     if (fileRef.current) fileRef.current.value = "";
   };
 
   const confirmarEnvioImagem = async () => {
-    if (!arquivo) return;
+    if (imagens.length === 0) return;
+    const fila = imagens;
+    const legendaAtual = legenda.trim();
+    const responderA = citacao?.id ?? null;
+    setCitacao(null);
+    limparPreview();
     setEnviandoImagem(true);
-    try {
-      const nome = arquivo.name.replace(/[^\w.\-]/g, "_");
-      const path = `enviadas/${Date.now()}-${nome}`;
-      const { error: upErr } = await supabase.storage
-        .from("whatsapp-media")
-        .upload(path, arquivo, { cacheControl: "31536000", upsert: false });
-      if (upErr) throw upErr;
-      const { data: pub } = supabase.storage.from("whatsapp-media").getPublicUrl(path);
-      await enviarImagem(pub.publicUrl, legenda.trim());
-      limparPreview();
-    } catch (e: any) {
-      toast({ title: "Erro ao enviar imagem", description: e.message, variant: "destructive" });
-    } finally {
-      setEnviandoImagem(false);
+    let falhas = 0;
+    for (let i = 0; i < fila.length; i++) {
+      const item = fila[i];
+      try {
+        const nome = item.file.name.replace(/[^\w.\-]/g, "_");
+        const path = `enviadas/${Date.now()}-${i}-${nome}`;
+        const { error: upErr } = await supabase.storage
+          .from("whatsapp-media")
+          .upload(path, item.file, { cacheControl: "31536000", upsert: false });
+        if (upErr) throw upErr;
+        const { data: pub } = supabase.storage.from("whatsapp-media").getPublicUrl(path);
+        await enviarImagem(pub.publicUrl, i === 0 ? legendaAtual : "", i === 0 ? responderA : null);
+      } catch (e: any) {
+        falhas += 1;
+      }
+    }
+    setEnviandoImagem(false);
+    if (falhas > 0) {
+      toast({
+        title: falhas === 1 ? "Uma imagem não foi enviada" : `${falhas} imagens não foram enviadas`,
+        variant: "destructive",
+        duration: 10000,
+      });
     }
   };
 
@@ -2163,7 +2275,30 @@ export default function Atendimento() {
               <CobrancasDaConversa conversaId={conversaAtual.id} />
               <LinksDaConversa conversaId={conversaAtual.id} />
 
-              <ScrollArea className="min-h-0 min-w-0 max-w-full flex-1 overflow-x-hidden p-4 [&_[data-radix-scroll-area-viewport]]:!overflow-x-hidden">
+              <ScrollArea
+                className="relative min-h-0 min-w-0 max-w-full flex-1 overflow-x-hidden p-4 [&_[data-radix-scroll-area-viewport]]:!overflow-x-hidden"
+                onDragOver={(e) => {
+                  if (!Array.from(e.dataTransfer?.types ?? []).includes("Files")) return;
+                  e.preventDefault();
+                  setArrastando(true);
+                }}
+                onDragLeave={(e) => {
+                  if (e.currentTarget.contains(e.relatedTarget as Node)) return;
+                  setArrastando(false);
+                }}
+                onDrop={(e) => {
+                  const arquivos = Array.from(e.dataTransfer?.files ?? []).filter((f) => f.type.startsWith("image/"));
+                  if (arquivos.length === 0) return;
+                  e.preventDefault();
+                  setArrastando(false);
+                  adicionarImagens(arquivos);
+                }}
+              >
+                {arrastando && (
+                  <div className="pointer-events-none absolute inset-2 z-20 flex items-center justify-center rounded-lg border-2 border-dashed border-primary bg-background/80 text-sm font-medium text-primary">
+                    Solte para enviar
+                  </div>
+                )}
                 {carregandoMensagens && <p className="text-sm text-muted-foreground">Carregando mensagens…</p>}
                 <div className="min-w-0 max-w-full space-y-3 overflow-x-hidden">
                   {mensagens.map((m, idx) => {
@@ -2178,6 +2313,11 @@ export default function Atendimento() {
                     const falhou = saida && m.status_entrega === "falhou" && !kora;
                     const motivoFalha = m.erro_entrega ?? "Não foi possível entregar a mensagem.";
                     const pedeTemplate = falhou && ehMotivoJanela(motivoFalha);
+                    const chaveBalao = m.id != null ? String(m.id) : "";
+                    const otimista = typeof m.id === "number" && m.id < 0;
+                    const podeCitar = !kora && !otimista && m.id != null;
+                    const temCitada = m.citada_id != null || !!m.citada_texto;
+                    const menuAberto = menuBalao === chaveBalao;
 
                     return (
                       <div key={m.id != null ? String(m.id) : `${m.criada_em ?? m.criado_em ?? ""}-${idx}`}>
@@ -2195,10 +2335,54 @@ export default function Atendimento() {
                             <Separator className="flex-1" />
                           </div>
                         )}
-                        <div className={cn("flex min-w-0 max-w-full overflow-hidden", saida ? "justify-end" : "justify-start")}>
+                        <div className={cn("group relative flex min-w-0 max-w-full overflow-hidden", saida ? "justify-end" : "justify-start")}>
+                          {podeCitar && (
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              className={cn(
+                                "absolute top-0 hidden h-7 w-7 opacity-0 transition-opacity group-hover:opacity-100 lg:flex",
+                                saida ? "right-full mr-1" : "left-full ml-1",
+                              )}
+                              onClick={() => responderCitando(m)}
+                              title="Responder"
+                            >
+                              <Reply className="h-3.5 w-3.5" />
+                            </Button>
+                          )}
                           <div
+                            ref={(el) => {
+                              if (chaveBalao) balaoRefs.current[chaveBalao] = el;
+                            }}
+                            onTouchStart={(e) => {
+                              if (!podeCitar) return;
+                              const t = e.touches[0];
+                              toqueRef.current.x = t.clientX;
+                              toqueRef.current.y = t.clientY;
+                              if (toqueRef.current.timer) clearTimeout(toqueRef.current.timer);
+                              toqueRef.current.timer = setTimeout(() => setMenuBalao(chaveBalao), 500);
+                            }}
+                            onTouchMove={(e) => {
+                              if (!podeCitar) return;
+                              const t = e.touches[0];
+                              const dx = t.clientX - toqueRef.current.x;
+                              const dy = Math.abs(t.clientY - toqueRef.current.y);
+                              if (Math.abs(dx) > 10 || dy > 10) {
+                                if (toqueRef.current.timer) clearTimeout(toqueRef.current.timer);
+                                toqueRef.current.timer = null;
+                              }
+                              if (dx > 60 && dy < 40) {
+                                toqueRef.current.x = t.clientX + 9999;
+                                responderCitando(m);
+                              }
+                            }}
+                            onTouchEnd={() => {
+                              if (toqueRef.current.timer) clearTimeout(toqueRef.current.timer);
+                              toqueRef.current.timer = null;
+                            }}
                             className={cn(
                               "min-w-0 max-w-[75%] overflow-hidden text-base break-words [overflow-wrap:anywhere] [word-break:break-word]",
+                              destacada === chaveBalao && "ring-2 ring-primary ring-offset-2 ring-offset-background transition-shadow",
                               sticker && !falhou
                                 ? "bg-transparent border-0 p-0"
                                 : cn(
@@ -2218,6 +2402,52 @@ export default function Atendimento() {
                                 {kora ? "Kora" : bot ? "Bot" : "Atendente"}
                               </div>
                             )}
+
+                            {temCitada && (
+                              <button
+                                type="button"
+                                onClick={() => irParaMensagem(m.citada_id)}
+                                className="mb-1.5 flex w-full items-center gap-2 rounded-md bg-background/60 py-1 pl-0 pr-2 text-left"
+                              >
+                                <span className="h-8 w-1 shrink-0 rounded-full bg-primary" />
+                                <span className="min-w-0 flex-1">
+                                  <span className="block text-[11px] font-semibold text-primary">
+                                    {m.citada_direcao === "entrada" ? "Cliente" : "Você"}
+                                  </span>
+                                  <span className="line-clamp-2 block text-xs text-muted-foreground">
+                                    {m.citada_texto?.trim() || (m.citada_media_url ? "Imagem" : "Mensagem")}
+                                  </span>
+                                </span>
+                                {m.citada_media_url && (
+                                  <img src={m.citada_media_url} alt="Citada" className="h-9 w-9 shrink-0 rounded object-cover" />
+                                )}
+                              </button>
+                            )}
+
+                            {menuAberto && (
+                              <div className="mb-1.5 flex gap-1.5">
+                                <Button size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={() => responderCitando(m)}>
+                                  <Reply className="mr-1 h-3 w-3" />
+                                  Responder
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  className="h-7 px-2 text-xs"
+                                  onClick={() => {
+                                    copiarTextoMensagem(m.conteudo ?? "");
+                                    setMenuBalao(null);
+                                  }}
+                                >
+                                  <Copy className="mr-1 h-3 w-3" />
+                                  Copiar texto
+                                </Button>
+                                <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => setMenuBalao(null)} title="Fechar">
+                                  <X className="h-3 w-3" />
+                                </Button>
+                              </div>
+                            )}
+
 
                             {midia && <MensagemMidia tipo={m.tipo} mediaUrl={m.media_url} conteudo={m.conteudo} />}
                             {mostrarTexto && <p className="max-w-full whitespace-pre-wrap break-words [overflow-wrap:anywhere] [word-break:break-word]">{m.conteudo}</p>}
@@ -2323,25 +2553,70 @@ export default function Atendimento() {
                       <p className="text-sm text-danger">{erroJanela}</p>
                     </div>
                   )}
-                  {previewUrl && (
-                    <div className="flex items-start gap-3 rounded-md border border-border p-2">
-                      <img src={previewUrl} alt="Prévia" className="h-20 w-20 rounded object-cover" />
-                      <div className="flex-1 space-y-2">
-                        <Input
-                          value={legenda}
-                          onChange={(e) => setLegenda(e.target.value)}
-                          placeholder="Legenda (opcional)"
-                          className="h-8 text-xs"
-                        />
-                        <div className="flex gap-2">
-                          <Button size="sm" onClick={confirmarEnvioImagem} disabled={enviandoImagem}>
-                            {enviandoImagem ? "Enviando…" : "Enviar imagem"}
-                          </Button>
-                          <Button size="sm" variant="ghost" onClick={limparPreview} disabled={enviandoImagem}>
-                            <X className="h-4 w-4 mr-1" />
-                            Cancelar
-                          </Button>
-                        </div>
+                  {citacao && (
+                    <div className="flex items-center gap-2 rounded-md border border-border bg-muted/50 py-1.5 pl-0 pr-2">
+                      <span className="h-8 w-1 shrink-0 rounded-full bg-primary" />
+                      <div className="min-w-0 flex-1">
+                        <p className="text-[11px] font-semibold text-primary">
+                          {citacao.direcao === "entrada" ? "Cliente" : "Você"}
+                        </p>
+                        <p className="line-clamp-1 text-xs text-muted-foreground">
+                          {citacao.texto?.trim() || (citacao.media_url ? "Imagem" : "Mensagem")}
+                        </p>
+                      </div>
+                      {citacao.media_url && (
+                        <img src={citacao.media_url} alt="Citada" className="h-8 w-8 shrink-0 rounded object-cover" />
+                      )}
+                      <Button size="icon" variant="ghost" className="h-6 w-6 shrink-0" onClick={() => setCitacao(null)} title="Cancelar citação">
+                        <X className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                  )}
+                  {imagens.length > 0 && (
+                    <div className="space-y-2 rounded-md border border-border p-2">
+                      <div className="flex flex-wrap items-center gap-2">
+                        {imagens.map((img) => (
+                          <div key={img.chave} className="relative">
+                            <img src={img.url} alt="Prévia" className="h-16 w-16 rounded object-cover" />
+                            <button
+                              type="button"
+                              className="absolute -right-1.5 -top-1.5 rounded-full border border-border bg-background p-0.5 shadow"
+                              onClick={() => removerImagem(img.chave)}
+                              title="Remover imagem"
+                            >
+                              <X className="h-3 w-3" />
+                            </button>
+                          </div>
+                        ))}
+                        {imagens.length < 10 && (
+                          <button
+                            type="button"
+                            className="flex h-16 w-16 items-center justify-center rounded border border-dashed border-border text-muted-foreground hover:bg-accent"
+                            onClick={() => fileRef.current?.click()}
+                            title="Adicionar mais imagens"
+                          >
+                            <Plus className="h-5 w-5" />
+                          </button>
+                        )}
+                      </div>
+                      <Input
+                        value={legenda}
+                        onChange={(e) => setLegenda(e.target.value)}
+                        placeholder="Legenda (opcional, vai só na primeira imagem)"
+                        className="h-8 text-xs"
+                      />
+                      <div className="flex gap-2">
+                        <Button size="sm" onClick={confirmarEnvioImagem} disabled={enviandoImagem}>
+                          {enviandoImagem
+                            ? "Enviando…"
+                            : imagens.length > 1
+                              ? `Enviar ${imagens.length} imagens`
+                              : "Enviar imagem"}
+                        </Button>
+                        <Button size="sm" variant="ghost" onClick={limparPreview} disabled={enviandoImagem}>
+                          <X className="h-4 w-4 mr-1" />
+                          Cancelar
+                        </Button>
                       </div>
                     </div>
                   )}
@@ -2363,8 +2638,12 @@ export default function Atendimento() {
                       ref={fileRef}
                       type="file"
                       accept="image/*"
+                      multiple
                       className="hidden"
-                      onChange={(e) => selecionarArquivo(e.target.files?.[0] ?? null)}
+                      onChange={(e) => {
+                        adicionarImagens(Array.from(e.target.files ?? []));
+                        if (fileRef.current) fileRef.current.value = "";
+                      }}
                     />
                     <Button
                       size="icon"
@@ -2405,6 +2684,16 @@ export default function Atendimento() {
                       ref={textoRef}
                       value={texto}
                       onChange={(e) => setTexto(e.target.value)}
+                      onPaste={(e) => {
+                        const itens = Array.from(e.clipboardData?.items ?? []);
+                        const arquivos = itens
+                          .filter((i) => i.kind === "file" && i.type.startsWith("image/"))
+                          .map((i) => i.getAsFile())
+                          .filter((f): f is File => !!f);
+                        if (arquivos.length === 0) return;
+                        e.preventDefault();
+                        adicionarImagens(arquivos);
+                      }}
                       placeholder="Escreva sua resposta ou digite / para as mensagens rápidas"
                       rows={1}
                        className="min-h-8 max-h-24 min-w-0 flex-1 resize-none overflow-y-auto py-1.5"
