@@ -1909,6 +1909,10 @@ export default function Atendimento() {
   });
   const totalEmAtendimento = emAtendimento.length;
 
+  // Filtro local instantâneo: filtra a lista carregada enquanto a pessoa digita.
+  const termoLocal = textoBusca(busca.trim());
+  const termoDigitos = digitosBusca(termoLocal);
+
   const filtradas = useMemo(() => {
     let base: Conversa[];
     if (modoHistorico) return conversasHistorico;
@@ -1923,22 +1927,20 @@ export default function Atendimento() {
       if (filtroLeitura === "lidas") base = base.filter((c) => !c.nao_lida);
       return base;
     }
-    if (buscaAtiva) {
-      const achadas = resultadoBusca?.conversas ?? [];
-      base = achadas.map((r) => {
-        const carregada = conversas.find((c) => String(c.id) === String(r.conversa_id));
-        if (carregada) return carregada;
-        return {
-          id: r.conversa_id,
-          telefone: r.telefone ?? "",
-          cliente_nome: r.nome ?? null,
-          status: r.status ?? "",
-          ultima_mensagem_em: r.ultima_mensagem_em ?? null,
-        } as Conversa;
-      });
-    } else {
-      base = conversas.filter((c) => {
-        if (!daAba(c)) return false;
+    base = conversas.filter((c) => {
+      if (termoLocal) {
+        const tel = (c.telefone ?? "").toLowerCase();
+        const telReal = (c.telefone_real ?? "").toLowerCase();
+        const casa =
+          textoBusca(c.cliente_nome).includes(termoLocal) ||
+          tel.includes(termoLocal) ||
+          telReal.includes(termoLocal) ||
+          (termoDigitos.length > 0 &&
+            (digitosBusca(c.telefone).includes(termoDigitos) ||
+              digitosBusca(c.telefone_real).includes(termoDigitos)));
+        if (!casa) return false;
+      }
+      if (!daAba(c)) return false;
         if (grupoDe(c) !== grupoAba) return false;
         if (filtroLeitura === "nao_lidas" && !c.nao_lida) return false;
         if (filtroLeitura === "lidas" && c.nao_lida) return false;
