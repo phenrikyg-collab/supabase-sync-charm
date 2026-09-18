@@ -117,6 +117,119 @@ export function AbaRegras({
 
   return (
     <div className="grid gap-4 p-4 lg:grid-cols-2">
+      {ehApp && (
+        <Card className="lg:col-span-2">
+          <CardHeader><CardTitle className="text-base">Quem vê no app</CardTitle></CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label className="text-xs">Instalação</Label>
+              <RadioGroup
+                value={r.app?.instalacao ?? "todos"}
+                onValueChange={(v) => setR("app", { instalacao: v })}
+                className="space-y-2"
+              >
+                {[
+                  { v: "todos", n: "Todas as visitantes do app" },
+                  { v: "instalado", n: "Só quem instalou" },
+                  { v: "nao_instalado", n: "Só quem ainda não instalou" },
+                ].map((o) => (
+                  <div key={o.v} className="flex items-center gap-2">
+                    <RadioGroupItem value={o.v} id={`app-inst-${o.v}`} />
+                    <Label htmlFor={`app-inst-${o.v}`} className="text-sm font-normal">{o.n}</Label>
+                  </div>
+                ))}
+              </RadioGroup>
+            </div>
+
+            <div className="space-y-2">
+              <Label className="text-xs">Aparelho</Label>
+              <div className="flex flex-wrap gap-4">
+                {PLATAFORMAS_APP.map((p) => {
+                  const atuais: string[] = r.app?.plataformas ?? ["android", "ios", "outro"];
+                  const marcado = atuais.includes(p.v);
+                  return (
+                    <div key={p.v} className="flex items-center gap-2">
+                      <Checkbox
+                        id={`app-plat-${p.v}`}
+                        checked={marcado}
+                        onCheckedChange={() =>
+                          setR("app", {
+                            plataformas: marcado ? atuais.filter((x) => x !== p.v) : [...atuais, p.v],
+                          })
+                        }
+                      />
+                      <Label htmlFor={`app-plat-${p.v}`} className="text-sm font-normal">{p.n}</Label>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label className="text-xs">CPF salvo no celular</Label>
+              <RadioGroup
+                value={r.app?.identificada ?? "todas"}
+                onValueChange={(v) => setR("app", { identificada: v })}
+                className="space-y-2"
+              >
+                {[
+                  { v: "todas", n: "Tanto faz" },
+                  { v: "sim", n: "Só quem já salvou" },
+                  { v: "nao", n: "Só quem não salvou" },
+                ].map((o) => (
+                  <div key={o.v} className="flex items-center gap-2">
+                    <RadioGroupItem value={o.v} id={`app-id-${o.v}`} />
+                    <Label htmlFor={`app-id-${o.v}`} className="text-sm font-normal">{o.n}</Label>
+                  </div>
+                ))}
+              </RadioGroup>
+            </div>
+
+            <div className="space-y-2">
+              <Label className="text-xs">Situação da cliente</Label>
+              <div className="grid gap-2 sm:grid-cols-2">
+                {SITUACOES_APP.map((s) => {
+                  const atuais: string[] = r.app?.situacoes ?? [];
+                  const marcado = atuais.includes(s.v);
+                  return (
+                    <div key={s.v} className="flex items-center gap-2">
+                      <Checkbox
+                        id={`app-sit-${s.v}`}
+                        checked={marcado}
+                        onCheckedChange={() =>
+                          setR("app", {
+                            situacoes: marcado ? atuais.filter((x) => x !== s.v) : [...atuais, s.v],
+                          })
+                        }
+                      />
+                      <Label htmlFor={`app-sit-${s.v}`} className="text-sm font-normal">{s.n}</Label>
+                    </div>
+                  );
+                })}
+              </div>
+              {(r.app?.situacoes ?? []).length >= 2 && (
+                <div className="flex items-center gap-3 pt-1">
+                  <Label className="text-xs">Precisa ter</Label>
+                  <Select
+                    value={r.app?.situacoes_modo ?? "qualquer"}
+                    onValueChange={(v) => setR("app", { situacoes_modo: v })}
+                  >
+                    <SelectTrigger className="w-56"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="qualquer">Qualquer uma</SelectItem>
+                      <SelectItem value="todas">Todas</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+              <p className="text-[11px] text-muted-foreground">
+                A situação vem do próprio app, com o CPF que a cliente salvou. Sem CPF salvo, a cliente não entra em popups com situação marcada.
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       <Card className="lg:col-span-2">
         <CardHeader><CardTitle className="text-base">Quando abrir</CardTitle></CardHeader>
         <CardContent className="space-y-4">
