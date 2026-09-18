@@ -2684,6 +2684,16 @@ export default function Atendimento() {
                       ref={textoRef}
                       value={texto}
                       onChange={(e) => setTexto(e.target.value)}
+                      onPaste={(e) => {
+                        const itens = Array.from(e.clipboardData?.items ?? []);
+                        const arquivos = itens
+                          .filter((i) => i.kind === "file" && i.type.startsWith("image/"))
+                          .map((i) => i.getAsFile())
+                          .filter((f): f is File => !!f);
+                        if (arquivos.length === 0) return;
+                        e.preventDefault();
+                        adicionarImagens(arquivos);
+                      }}
                       placeholder="Escreva sua resposta ou digite / para as mensagens rápidas"
                       rows={1}
                        className="min-h-8 max-h-24 min-w-0 flex-1 resize-none overflow-y-auto py-1.5"
