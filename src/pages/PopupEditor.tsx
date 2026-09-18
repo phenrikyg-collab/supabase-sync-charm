@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -50,6 +50,7 @@ const PALETA: { grupo: string; itens: { tipo: string; nome: string; base?: any }
       { tipo: "nota", nome: "Nota", base: { texto: "Presente válido na primeira compra, uma vez por cliente.", alinhar: "center" } },
     ],
   },
+
   {
     grupo: "Campos",
     itens: [
@@ -84,6 +85,7 @@ export default function PopupEditor() {
   const { id } = useParams();
   const popupId = Number(id);
   const navegar = useNavigate();
+  const local = useLocation();
   const qc = useQueryClient();
 
   const [popup, setPopup] = useState<Popup | null>(null);
@@ -124,6 +126,16 @@ export default function PopupEditor() {
     futuro.current = [];
   }, [original]);
 
+  const destino: "site" | "app" = popup?.destino === "app" ? "app" : "site";
+  const baseRota = destino === "app" ? "/marketing/popups-app" : "/popups";
+  const ehApp = destino === "app";
+
+  /* ---------- cada destino tem a sua rota ---------- */
+  useEffect(() => {
+    if (!popup?.id) return;
+    if (!local.pathname.startsWith(baseRota)) navegar(`${baseRota}/${popup.id}`, { replace: true });
+  }, [popup?.id, baseRota, local.pathname, navegar]);
+
   const mudar = useCallback((patch: Partial<Popup>) => {
     setPopup((atual) => {
       if (!atual) return atual;
@@ -133,6 +145,16 @@ export default function PopupEditor() {
       return { ...atual, ...patch };
     });
   }, []);
+
+  /* ---------- no app o popup vale para todas as telas ---------- */
+  useEffect(() => {
+    if (!ehApp || !popup) return;
+    const incluir = popup.regras?.paginas?.incluir ?? [];
+    if (incluir.length === 1 && incluir[0] === "*") return;
+    mudar({
+      regras: { ...(popup.regras ?? {}), paginas: { ...(popup.regras?.paginas ?? {}), incluir: ["*"] } },
+    });
+  }, [ehApp, popup, mudar]);
 
   /* ---------- autosave ---------- */
   useEffect(() => {
@@ -238,8 +260,12 @@ export default function PopupEditor() {
       qc.invalidateQueries({ queryKey: ["popups-listar"] });
       toast.success(
         status === "ativo"
-          ? "Popup ativado. Ele aparece no site em até 5 minutos."
-          : "Popup pausado. O site pode levar até 5 minutos para parar de mostrar."
+          ? ehApp
+            ? "Popup ativado. Ele aparece no app em até 5 minutos."
+            : "Popup ativado. Ele aparece no site em até 5 minutos."
+          : ehApp
+            ? "Popup pausado. O app pode levar até 5 minutos para parar de mostrar."
+            : "Popup pausado. O site pode levar até 5 minutos para parar de mostrar."
       );
     } catch (e: any) {
       toast.error(e.message);
@@ -263,7 +289,7 @@ export default function PopupEditor() {
       const copia = await popupsApi.duplicar(popupId);
       await popupsApi.salvar({ ...copia, teste_ab_grupo: grupo, peso: 50 });
       toast.success("Variação criada.");
-      navegar(`/popups/${copia.id}`);
+      navegar(`${baseRota}/${copia.id}`);
     } catch (e: any) {
       toast.error(e.message);
     }
@@ -279,7 +305,7 @@ export default function PopupEditor() {
     <div className="flex h-full min-h-0 flex-col">
       {/* Barra superior */}
       <div className="sticky top-0 z-20 flex flex-wrap items-center gap-2 border-b border-border bg-background px-4 py-2">
-        <Button variant="ghost" size="icon" onClick={() => navegar("/popups")}><ArrowLeft className="h-4 w-4" /></Button>
+        <Button variant="ghost" size="icon" onClick={() => navegar(baseRota)}><ArrowLeft className="h-4 w-4" /></Button>
         <Input
           value={popup.nome}
           onChange={(e) => mudar({ nome: e.target.value })}
@@ -297,9 +323,20 @@ export default function PopupEditor() {
           <Button variant="outline" size="sm" onClick={() => setHistoricoAberto(true)}>
             <History className="mr-2 h-4 w-4" />Histórico
           </Button>
-          <Button variant="outline" size="sm" onClick={abrirPrevia}>
-            <ExternalLink className="mr-2 h-4 w-4" />Prévia no site
-          </Button>
+          {ehApp ? (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="outline" size="sm" onClick={abrirPrevia}>
+                  <ExternalLink className="mr-2 h-4 w-4" />Prévia no app
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Funciona depois que o app Minha MC carregar os popups.</TooltipContent>
+            </Tooltip>
+          ) : (
+            <Button variant="outline" size="sm" onClick={abrirPrevia}>
+              <ExternalLink className="mr-2 h-4 w-4" />Prévia no site
+            </Button>
+          )}
           <Button variant="outline" size="sm" onClick={salvarAgora} disabled={salvando}>
             <Save className="mr-2 h-4 w-4" />Salvar
           </Button>
@@ -508,7 +545,24 @@ export default function PopupEditor() {
               </div>
 
               <div className="mt-4 space-y-3">
-                {PALETA.map((g) => (
+                {(ehApp
+                  ? PALETA.map((g) =>
+                      g.grupo === "Conteúdo"
+                        ? {
+                            ...g,
+                            itens: [
+                              ...g.itens,
+                              {
+                                tipo: "botao",
+                                nome: "Botão do app",
+                                base: { texto: "Ver meus pedidos", acao: "link", url: "#mc-app-meus_pedidos", largura: "total" },
+                              },
+                            ],
+                          }
+                        : g
+                    )
+                  : PALETA
+                ).map((g) => (
                   <div key={g.grupo}>
                     <p className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">{g.grupo}</p>
                     <div className="flex flex-wrap gap-1">
@@ -570,6 +624,7 @@ export default function PopupEditor() {
                     elemento={elemento}
                     etapas={etapas}
                     popupId={popup.id ?? "novo"}
+                    destino={destino}
                     mudar={(patch) =>
                       setElementos((etapa?.elementos ?? []).map((e) => (e.id === elemento.id ? { ...e, ...patch } : e)))
                     }
@@ -583,7 +638,7 @@ export default function PopupEditor() {
         </TabsContent>
 
         <TabsContent value="regras" className="min-h-0 flex-1 overflow-y-auto">
-          <AbaRegras popup={popup} mudar={mudar} />
+          <AbaRegras popup={popup} mudar={mudar} destino={destino} />
         </TabsContent>
 
         <TabsContent value="resultados" className="min-h-0 flex-1 overflow-y-auto">
@@ -622,7 +677,7 @@ export default function PopupEditor() {
           <AlertDialogHeader>
             <AlertDialogTitle>Ativar este popup?</AlertDialogTitle>
             <AlertDialogDescription>
-              Este popup vai aparecer para as clientes no site em até 5 minutos.
+              Este popup vai aparecer para as clientes {ehApp ? "no app" : "no site"} em até 5 minutos.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

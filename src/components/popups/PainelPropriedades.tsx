@@ -397,18 +397,31 @@ const ALINHAR = [
   { v: "right", n: "Direita" },
 ];
 
+export const ACOES_APP: { v: string; n: string }[] = [
+  { v: "instalar", n: "Instalar app" },
+  { v: "ativar_avisos", n: "Ativar avisos" },
+  { v: "meus_pedidos", n: "Meus pedidos" },
+  { v: "cashback", n: "Meu cashback" },
+  { v: "trocas", n: "Trocas e devoluções" },
+  { v: "whatsapp", n: "WhatsApp" },
+  { v: "loja", n: "Loja" },
+];
+
 export function PropsElemento({
   elemento,
   mudar,
   etapas,
   popupId,
+  destino = "site",
 }: {
   elemento: ElementoPopup;
   mudar: (patch: Partial<ElementoPopup>) => void;
   etapas: EtapaPopup[];
   popupId: number | string;
+  destino?: "site" | "app";
 }) {
   const e = elemento;
+  const ehAcaoApp = e.acao === "link" && String(e.url ?? "").startsWith("#mc-app-");
   const alinhar = (
     <Campo rotulo="Alinhamento">
       <Select value={e.alinhar ?? "center"} onValueChange={(v) => mudar({ alinhar: v })}>
@@ -489,7 +502,13 @@ export function PropsElemento({
             dicaExtra="Primeira pessoa e específico converte mais: Quero meu cupom, Liberar meu desconto."
           />
           <Campo rotulo="O que o botão faz">
-            <Select value={e.acao ?? "proxima"} onValueChange={(v) => mudar({ acao: v })}>
+            <Select
+              value={ehAcaoApp ? "app" : (e.acao ?? "proxima")}
+              onValueChange={(v) => {
+                if (v === "app") mudar({ acao: "link", url: "#mc-app-meus_pedidos" });
+                else mudar({ acao: v, ...(ehAcaoApp ? { url: "" } : {}) });
+              }}
+            >
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="proxima">Avançar etapa</SelectItem>
@@ -498,10 +517,24 @@ export function PropsElemento({
                 <SelectItem value="fechar">Fechar</SelectItem>
                 <SelectItem value="ir_etapa">Ir para etapa</SelectItem>
                 <SelectItem value="copiar_cupom">Copiar cupom</SelectItem>
+                {destino === "app" && <SelectItem value="app">Ação do app</SelectItem>}
               </SelectContent>
             </Select>
           </Campo>
-          {e.acao === "link" && (
+          {ehAcaoApp && (
+            <Campo rotulo="Ação do app" dica="O popup fecha sozinho depois do clique.">
+              <Select
+                value={String(e.url ?? "").replace("#mc-app-", "") || "meus_pedidos"}
+                onValueChange={(v) => mudar({ acao: "link", url: `#mc-app-${v}` })}
+              >
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {ACOES_APP.map((a) => <SelectItem key={a.v} value={a.v}>{a.n}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </Campo>
+          )}
+          {e.acao === "link" && !ehAcaoApp && (
             <>
               <Campo rotulo="Endereço">
                 <Input value={e.url ?? ""} onChange={(ev) => mudar({ url: ev.target.value })} placeholder="https://" />

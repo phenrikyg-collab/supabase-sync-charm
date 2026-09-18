@@ -84,7 +84,7 @@ export default function Popups() {
   });
 
   const linhas = useMemo(() => {
-    const itens = lista ?? [];
+    const itens = (lista ?? []).filter((p) => (p.destino ?? "site") === "site");
     const grupos = new Map<string, Popup[]>();
     for (const p of itens) {
       const g = p.status === "ativo" && p.teste_ab_grupo ? String(p.teste_ab_grupo) : "";
@@ -136,7 +136,7 @@ export default function Popups() {
 
           {isLoading ? (
             <Skeleton className="h-64 w-full" />
-          ) : !(lista ?? []).length ? (
+          ) : !linhas.length ? (
             <div className="rounded-lg border border-dashed border-border p-10 text-center text-sm text-muted-foreground">
               Nenhum popup ainda. Clique em Novo popup e escolha um modelo pronto.
             </div>

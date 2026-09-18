@@ -28,6 +28,7 @@ import BancoInter from "./pages/BancoInter";
 import ConciliacaoPixWhatsApp from "./pages/ConciliacaoPixWhatsApp";
 import ProvaSocial from "./pages/ProvaSocial";
 import Popups from "./pages/Popups";
+import PopupsApp from "./pages/PopupsApp";
 import PopupEditor from "./pages/PopupEditor";
 import SocialCommerce from "./pages/SocialCommerce";
 import GrupoVip from "./pages/GrupoVip";
@@ -258,6 +259,8 @@ const AppRoutes = () => {
               <Route path="/prova-social" element={<ProvaSocial />} />
               <Route path="/popups" element={<Popups />} />
               <Route path="/popups/:id" element={<PopupEditor />} />
+              <Route path="/marketing/popups-app" element={<PopupsApp />} />
+              <Route path="/marketing/popups-app/:id" element={<PopupEditor />} />
               <Route path="/social-commerce" element={<SocialCommerce />} />
               <Route path="/grupo-vip" element={<GrupoVip />} />
               <Route path="/fluxo-caixa" element={<FluxoCaixa />} />

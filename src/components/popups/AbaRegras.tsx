@@ -7,6 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Trash2, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -71,7 +72,30 @@ function resumoFrequencia(f: any) {
   return txt + ".";
 }
 
-export function AbaRegras({ popup, mudar }: { popup: Popup; mudar: (patch: Partial<Popup>) => void }) {
+const PLATAFORMAS_APP: { v: string; n: string }[] = [
+  { v: "android", n: "Android" },
+  { v: "ios", n: "iPhone" },
+  { v: "outro", n: "Outro" },
+];
+
+const SITUACOES_APP: { v: string; n: string }[] = [
+  { v: "pedido_em_transito", n: "Pedido a caminho" },
+  { v: "pedido_entregue_recente", n: "Pedido entregue há pouco" },
+  { v: "sem_pedido", n: "Sem pedido" },
+  { v: "cashback_disponivel", n: "Tem cashback disponível" },
+  { v: "troca_aberta", n: "Tem troca aberta" },
+];
+
+export function AbaRegras({
+  popup,
+  mudar,
+  destino = "site",
+}: {
+  popup: Popup;
+  mudar: (patch: Partial<Popup>) => void;
+  destino?: "site" | "app";
+}) {
+  const ehApp = destino === "app";
   const r = popup.regras ?? {};
   const setR = (chave: string, patch: any) => mudar({ regras: { ...r, [chave]: { ...(r[chave] ?? {}), ...patch } } });
   const setRaiz = (patch: any) => mudar({ regras: { ...r, ...patch } });
@@ -94,6 +118,119 @@ export function AbaRegras({ popup, mudar }: { popup: Popup; mudar: (patch: Parti
 
   return (
     <div className="grid gap-4 p-4 lg:grid-cols-2">
+      {ehApp && (
+        <Card className="lg:col-span-2">
+          <CardHeader><CardTitle className="text-base">Quem vê no app</CardTitle></CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label className="text-xs">Instalação</Label>
+              <RadioGroup
+                value={r.app?.instalacao ?? "todos"}
+                onValueChange={(v) => setR("app", { instalacao: v })}
+                className="space-y-2"
+              >
+                {[
+                  { v: "todos", n: "Todas as visitantes do app" },
+                  { v: "instalado", n: "Só quem instalou" },
+                  { v: "nao_instalado", n: "Só quem ainda não instalou" },
+                ].map((o) => (
+                  <div key={o.v} className="flex items-center gap-2">
+                    <RadioGroupItem value={o.v} id={`app-inst-${o.v}`} />
+                    <Label htmlFor={`app-inst-${o.v}`} className="text-sm font-normal">{o.n}</Label>
+                  </div>
+                ))}
+              </RadioGroup>
+            </div>
+
+            <div className="space-y-2">
+              <Label className="text-xs">Aparelho</Label>
+              <div className="flex flex-wrap gap-4">
+                {PLATAFORMAS_APP.map((p) => {
+                  const atuais: string[] = r.app?.plataformas ?? ["android", "ios", "outro"];
+                  const marcado = atuais.includes(p.v);
+                  return (
+                    <div key={p.v} className="flex items-center gap-2">
+                      <Checkbox
+                        id={`app-plat-${p.v}`}
+                        checked={marcado}
+                        onCheckedChange={() =>
+                          setR("app", {
+                            plataformas: marcado ? atuais.filter((x) => x !== p.v) : [...atuais, p.v],
+                          })
+                        }
+                      />
+                      <Label htmlFor={`app-plat-${p.v}`} className="text-sm font-normal">{p.n}</Label>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label className="text-xs">CPF salvo no celular</Label>
+              <RadioGroup
+                value={r.app?.identificada ?? "todas"}
+                onValueChange={(v) => setR("app", { identificada: v })}
+                className="space-y-2"
+              >
+                {[
+                  { v: "todas", n: "Tanto faz" },
+                  { v: "sim", n: "Só quem já salvou" },
+                  { v: "nao", n: "Só quem não salvou" },
+                ].map((o) => (
+                  <div key={o.v} className="flex items-center gap-2">
+                    <RadioGroupItem value={o.v} id={`app-id-${o.v}`} />
+                    <Label htmlFor={`app-id-${o.v}`} className="text-sm font-normal">{o.n}</Label>
+                  </div>
+                ))}
+              </RadioGroup>
+            </div>
+
+            <div className="space-y-2">
+              <Label className="text-xs">Situação da cliente</Label>
+              <div className="grid gap-2 sm:grid-cols-2">
+                {SITUACOES_APP.map((s) => {
+                  const atuais: string[] = r.app?.situacoes ?? [];
+                  const marcado = atuais.includes(s.v);
+                  return (
+                    <div key={s.v} className="flex items-center gap-2">
+                      <Checkbox
+                        id={`app-sit-${s.v}`}
+                        checked={marcado}
+                        onCheckedChange={() =>
+                          setR("app", {
+                            situacoes: marcado ? atuais.filter((x) => x !== s.v) : [...atuais, s.v],
+                          })
+                        }
+                      />
+                      <Label htmlFor={`app-sit-${s.v}`} className="text-sm font-normal">{s.n}</Label>
+                    </div>
+                  );
+                })}
+              </div>
+              {(r.app?.situacoes ?? []).length >= 2 && (
+                <div className="flex items-center gap-3 pt-1">
+                  <Label className="text-xs">Precisa ter</Label>
+                  <Select
+                    value={r.app?.situacoes_modo ?? "qualquer"}
+                    onValueChange={(v) => setR("app", { situacoes_modo: v })}
+                  >
+                    <SelectTrigger className="w-56"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="qualquer">Qualquer uma</SelectItem>
+                      <SelectItem value="todas">Todas</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+              <p className="text-[11px] text-muted-foreground">
+                A situação vem do próprio app, com o CPF que a cliente salvou. Sem CPF salvo, a cliente não entra em popups com situação marcada.
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       <Card className="lg:col-span-2">
         <CardHeader><CardTitle className="text-base">Quando abrir</CardTitle></CardHeader>
         <CardContent className="space-y-4">
@@ -174,7 +311,7 @@ export function AbaRegras({ popup, mudar }: { popup: Popup; mudar: (patch: Parti
         </CardContent>
       </Card>
 
-      <Card>
+      <Card className={ehApp ? "hidden" : undefined}>
         <CardHeader><CardTitle className="text-base">Onde</CardTitle></CardHeader>
         <CardContent className="space-y-3">
           <div className="space-y-1.5">
@@ -208,11 +345,14 @@ export function AbaRegras({ popup, mudar }: { popup: Popup; mudar: (patch: Parti
               </SelectContent>
             </Select>
           </div>
-          {[
-            ["excluir_clientes", "Excluir quem já comprou"],
-            ["excluir_identificadas", "Excluir quem já deixou e-mail ou WhatsApp"],
-            ["excluir_convertidas", "Excluir quem já converteu em algum popup"],
-          ].map(([k, n]) => (
+          {(ehApp
+            ? [["excluir_convertidas", "Excluir quem já converteu em algum popup"]]
+            : [
+                ["excluir_clientes", "Excluir quem já comprou"],
+                ["excluir_identificadas", "Excluir quem já deixou e-mail ou WhatsApp"],
+                ["excluir_convertidas", "Excluir quem já converteu em algum popup"],
+              ]
+          ).map(([k, n]) => (
             <div key={k} className="flex items-center justify-between">
               <Label className="text-xs">{n}</Label>
               <Switch checked={!!r.publico?.[k]} onCheckedChange={(v) => setR("publico", { [k]: v })} />
