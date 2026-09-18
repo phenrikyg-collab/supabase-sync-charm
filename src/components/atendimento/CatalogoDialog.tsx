@@ -77,13 +77,13 @@ function useVariantes(produtoId: string, ativo: boolean) {
   });
 }
 
-function CoresDoCard({ produtoId, ativo }: { produtoId: string; ativo: boolean }) {
-  const { data } = useVariantes(produtoId, ativo);
-  const cores = data?.cores ?? [];
-  if (cores.length === 0) return null;
+/** Chips de cor do card, a partir do campo que a própria busca já devolve. */
+function CoresDoCard({ cores }: { cores?: (string | CorDisponivel)[] | null }) {
+  const lista = (cores ?? []).map((c) => (typeof c === "string" ? { cor: c } : c)).filter((c) => !!c?.cor);
+  if (lista.length === 0) return null;
   return (
     <div className="flex flex-wrap gap-1 pt-0.5">
-      {cores.slice(0, 4).map((c) => (
+      {lista.slice(0, 4).map((c) => (
         <span
           key={c.cor}
           title={c.estoque != null ? `${c.estoque} em estoque` : undefined}
@@ -92,8 +92,8 @@ function CoresDoCard({ produtoId, ativo }: { produtoId: string; ativo: boolean }
           {c.cor}
         </span>
       ))}
-      {cores.length > 4 && (
-        <span className="text-[10px] text-muted-foreground">+{cores.length - 4}</span>
+      {lista.length > 4 && (
+        <span className="text-[10px] text-muted-foreground">+{lista.length - 4}</span>
       )}
     </div>
   );
