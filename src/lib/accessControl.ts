@@ -67,6 +67,7 @@ export const ROUTE_ACCESS: Record<string, Requirement> = {
   "/trocas-site": ["marketing", "atendimento", "gestao", "logistica"],
   "/avaliacoes": ["marketing", "atendimento", "gestao"],
   "/popups": ["marketing", "atendimento", "gestao"],
+  "/marketing/popups-app": ["marketing", "gestao"],
 
   // Produção & Estoque (Ordens de Produção também está em Comercial)
   "/ordens-producao": ["producao", "comercial"],

@@ -95,6 +95,7 @@ const moduleGroups: ModuleGroup[] = [
       { title: "Tendências", url: "/tendencias", icon: TrendingUp },
       { title: "Embaixadoras", url: "/embaixadoras", icon: Heart },
       { title: "Link na Bio", url: "/link-na-bio", icon: LinkIcon },
+      { title: "Popups do App", url: "/marketing/popups-app", icon: Smartphone },
       
       { title: "WhatsApp: Templates, Segmentos e Campanhas", url: "/marketing-whatsapp", icon: MessageCircle },
     ],
