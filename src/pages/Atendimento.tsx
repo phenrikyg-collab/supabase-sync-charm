@@ -1116,10 +1116,9 @@ export default function Atendimento() {
       return total.slice(0, MAX_IMAGENS);
     });
     // O texto já digitado vira a legenda da primeira imagem
-    setLegenda((atual) => {
-      if (atual.trim()) return atual;
-      return composerRef.current?.pegarELimpar().trim() ?? "";
-    });
+    const doCampo = composerRef.current?.obterTexto().trim() ?? "";
+    setLegenda((atual) => (atual.trim() ? atual : doCampo));
+    if (doCampo) composerRef.current?.definirTexto("");
   };
 
   const removerImagem = (chave: string) => {
