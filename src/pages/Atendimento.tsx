@@ -423,6 +423,15 @@ function StatusEntrega({ status, erro }: { status?: string | null; erro?: string
 }
 
 
+/** Normaliza texto para busca: minúsculas e sem acento. */
+function textoBusca(s?: string | null): string {
+  return (s ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+}
+/** Só os dígitos, para comparar pedaço de telefone. */
+function digitosBusca(s?: string | null): string {
+  return (s ?? "").replace(/\D/g, "");
+}
+
 type ItemConversaProps = {
   c: Conversa;
   ativa: boolean;
@@ -988,9 +997,14 @@ export default function Atendimento() {
 
   const { mapaAtencao } = useConversasAtencao();
 
-  // Busca por nome ou telefone com debounce de 300ms
+  // Busca por nome ou telefone: filtro local instantâneo + servidor com debounce de 350ms
   useEffect(() => {
-    const t = setTimeout(() => setTermoBusca(busca.trim()), 300);
+    const termo = busca.trim();
+    if (!termo) {
+      setTermoBusca("");
+      return;
+    }
+    const t = setTimeout(() => setTermoBusca(termo), 350);
     return () => clearTimeout(t);
   }, [busca]);
 
@@ -1007,6 +1021,23 @@ export default function Atendimento() {
         conversas: (r.conversas ?? []) as BuscaConversa[],
         clientes: (r.clientes ?? []) as BuscaCliente[],
       };
+    },
+  });
+
+  // Busca ampla no servidor: todas as conversas, por pedaço do nome ou do número
+  // em qualquer posição (aceita máscara, ignora o chat do site).
+  const buscaServidor = !modoHistorico && termoBusca.length >= 2;
+  const { data: outrasBrutas, isFetching: buscandoOutras } = useQuery({
+    queryKey: ["whatsapp-buscar-conversas", termoBusca],
+    enabled: buscaServidor,
+    staleTime: 30000,
+    queryFn: async () => {
+      const { data, error } = await chamarRpc("whatsapp_buscar_conversas" as any, {
+        p_termo: termoBusca,
+        p_limite: 30,
+      });
+      if (error) throw error;
+      return ((Array.isArray(data) ? data : []) as any[]);
     },
   });
 
