@@ -423,6 +423,15 @@ function StatusEntrega({ status, erro }: { status?: string | null; erro?: string
 }
 
 
+/** Normaliza texto para busca: minúsculas e sem acento. */
+function textoBusca(s?: string | null): string {
+  return (s ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+}
+/** Só os dígitos, para comparar pedaço de telefone. */
+function digitosBusca(s?: string | null): string {
+  return (s ?? "").replace(/\D/g, "");
+}
+
 type ItemConversaProps = {
   c: Conversa;
   ativa: boolean;
@@ -988,9 +997,14 @@ export default function Atendimento() {
 
   const { mapaAtencao } = useConversasAtencao();
 
-  // Busca por nome ou telefone com debounce de 300ms
+  // Busca por nome ou telefone: filtro local instantâneo + servidor com debounce de 350ms
   useEffect(() => {
-    const t = setTimeout(() => setTermoBusca(busca.trim()), 300);
+    const termo = busca.trim();
+    if (!termo) {
+      setTermoBusca("");
+      return;
+    }
+    const t = setTimeout(() => setTermoBusca(termo), 350);
     return () => clearTimeout(t);
   }, [busca]);
 
@@ -1007,6 +1021,23 @@ export default function Atendimento() {
         conversas: (r.conversas ?? []) as BuscaConversa[],
         clientes: (r.clientes ?? []) as BuscaCliente[],
       };
+    },
+  });
+
+  // Busca ampla no servidor: todas as conversas, por pedaço do nome ou do número
+  // em qualquer posição (aceita máscara, ignora o chat do site).
+  const buscaServidor = !modoHistorico && termoBusca.length >= 2;
+  const { data: outrasBrutas, isFetching: buscandoOutras } = useQuery({
+    queryKey: ["whatsapp-buscar-conversas", termoBusca],
+    enabled: buscaServidor,
+    staleTime: 30000,
+    queryFn: async () => {
+      const { data, error } = await chamarRpc("whatsapp_buscar_conversas" as any, {
+        p_termo: termoBusca,
+        p_limite: 30,
+      });
+      if (error) throw error;
+      return ((Array.isArray(data) ? data : []) as any[]);
     },
   });
 
@@ -1878,6 +1909,10 @@ export default function Atendimento() {
   });
   const totalEmAtendimento = emAtendimento.length;
 
+  // Filtro local instantâneo: filtra a lista carregada enquanto a pessoa digita.
+  const termoLocal = textoBusca(busca.trim());
+  const termoDigitos = digitosBusca(termoLocal);
+
   const filtradas = useMemo(() => {
     let base: Conversa[];
     if (modoHistorico) return conversasHistorico;
@@ -1892,40 +1927,55 @@ export default function Atendimento() {
       if (filtroLeitura === "lidas") base = base.filter((c) => !c.nao_lida);
       return base;
     }
-    if (buscaAtiva) {
-      const achadas = resultadoBusca?.conversas ?? [];
-      base = achadas.map((r) => {
-        const carregada = conversas.find((c) => String(c.id) === String(r.conversa_id));
-        if (carregada) return carregada;
-        return {
-          id: r.conversa_id,
-          telefone: r.telefone ?? "",
-          cliente_nome: r.nome ?? null,
-          status: r.status ?? "",
-          ultima_mensagem_em: r.ultima_mensagem_em ?? null,
-        } as Conversa;
-      });
-    } else {
-      base = conversas.filter((c) => {
-        if (!daAba(c)) return false;
-        if (grupoDe(c) !== grupoAba) return false;
-        if (filtroLeitura === "nao_lidas" && !c.nao_lida) return false;
-        if (filtroLeitura === "lidas" && c.nao_lida) return false;
-        if (filtroFila === "atencao" && !["quente", "atencao"].includes(urgenciaDeNivel(atencaoDe(c)?.nivel))) return false;
-        if (filtroFila === "automacao" && atencaoDe(c)?.dono !== "automacao") return false;
-        if (filtroFila === "falhas" && !c.falha_envio) return false;
+    base = conversas.filter((c) => {
+      if (termoLocal) {
+        const tel = (c.telefone ?? "").toLowerCase();
+        const telReal = (c.telefone_real ?? "").toLowerCase();
+        const casa =
+          textoBusca(c.cliente_nome).includes(termoLocal) ||
+          tel.includes(termoLocal) ||
+          telReal.includes(termoLocal) ||
+          (termoDigitos.length > 0 &&
+            (digitosBusca(c.telefone).includes(termoDigitos) ||
+              digitosBusca(c.telefone_real).includes(termoDigitos)));
+        if (!casa) return false;
+      }
+      if (!daAba(c)) return false;
+      if (grupoDe(c) !== grupoAba) return false;
+      if (filtroLeitura === "nao_lidas" && !c.nao_lida) return false;
+      if (filtroLeitura === "lidas" && c.nao_lida) return false;
+      if (filtroFila === "atencao" && !["quente", "atencao"].includes(urgenciaDeNivel(atencaoDe(c)?.nivel))) return false;
+      if (filtroFila === "automacao" && atencaoDe(c)?.dono !== "automacao") return false;
+      if (filtroFila === "falhas" && !c.falha_envio) return false;
 
-        if (tagsFiltro.length > 0) {
-          const ids = (c.tags ?? []).map((t) => String(t.id));
-          if (!tagsFiltro.some((t) => ids.includes(t))) return false;
-        }
-        return true;
-      });
-    }
+      if (tagsFiltro.length > 0) {
+        const ids = (c.tags ?? []).map((t) => String(t.id));
+        if (!tagsFiltro.some((t) => ids.includes(t))) return false;
+      }
+      return true;
+    });
     return [...base].sort(compararConversas);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [conversas, conversasHistorico, emAtendimento, buscaAtiva, resultadoBusca, aba, grupoAba, filtroLeitura, filtroFila, tagsFiltro, mapaAtencao, modoFila, modoHistorico]);
+  }, [conversas, conversasHistorico, emAtendimento, buscaAtiva, resultadoBusca, termoLocal, termoDigitos, aba, grupoAba, filtroLeitura, filtroFila, tagsFiltro, mapaAtencao, modoFila, modoHistorico]);
 
+
+  // Resultado do servidor que não está na lista carregada: seção "Outras conversas".
+  const idsNaLista = useMemo(() => new Set(conversas.map((c) => String(c.id))), [conversas]);
+  const outrasConversas = useMemo(() => {
+    if (!buscaServidor) return [];
+    return ((outrasBrutas ?? []) as any[])
+      .filter((r) => !idsNaLista.has(String(r.conversa_id)))
+      .map((r) => ({
+        id: r.conversa_id,
+        telefone: r.telefone ?? "",
+        cliente_nome: r.nome ?? null,
+        status: r.status ?? "",
+        nao_lida: !!r.nao_lida,
+        ultima_mensagem_em: r.ultima_mensagem_em ?? null,
+        ultima_mensagem: r.ultima_mensagem_texto ?? null,
+        canal: r.canal ?? null,
+      }) as Conversa);
+  }, [buscaServidor, outrasBrutas, idsNaLista]);
 
   const clientesSemConversa = buscaAtiva && !modoHistorico ? (resultadoBusca?.clientes ?? []) : [];
 
@@ -2394,6 +2444,35 @@ export default function Atendimento() {
               );
               });
             })()}
+
+            {buscaServidor && !modoFila && (
+              <>
+                <div className="px-4 pt-3 pb-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground flex items-center gap-1.5">
+                  Outras conversas
+                  {buscandoOutras && <Loader2 className="h-3 w-3 animate-spin" />}
+                </div>
+                {outrasConversas.length === 0 && !buscandoOutras && (
+                  <p className="px-4 pb-3 text-sm text-muted-foreground">Nenhuma outra conversa encontrada</p>
+                )}
+                {outrasConversas.map((c) => (
+                  <ItemConversa
+                    key={`outra-${String(c.id)}`}
+                    c={c}
+                    ativa={String(c.id) === selecionada}
+                    modoHistorico={false}
+                    mostrarClique={false}
+                    atencao={undefined}
+                    faixa="border-l-muted-foreground/30"
+                    menuAberto={menuLeituraAberto === String(c.id)}
+                    longPressRef={longPressRef}
+                    onAbrir={abrirConversa}
+                    onMenuChange={setMenuLeituraAberto}
+                    onMarcarLeitura={marcarLeitura}
+                  />
+                ))}
+              </>
+            )}
+
 
             {modoHistorico && temMaisHistorico && (
               <div className="p-3">
