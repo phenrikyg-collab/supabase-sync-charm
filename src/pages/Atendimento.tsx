@@ -2221,6 +2221,37 @@ export default function Atendimento() {
 
                             {midia && <MensagemMidia tipo={m.tipo} mediaUrl={m.media_url} conteudo={m.conteudo} />}
                             {mostrarTexto && <p className="max-w-full whitespace-pre-wrap break-words [overflow-wrap:anywhere] [word-break:break-word]">{m.conteudo}</p>}
+                            {falhou && (
+                              <div className="mt-2 space-y-1.5">
+                                <p className="text-xs font-semibold text-danger">Não enviada</p>
+                                <p className="text-xs text-danger/90">{motivoFalha}</p>
+                                <div className="flex flex-wrap gap-1.5">
+                                  {pedeTemplate ? (
+                                    <Button size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={() => setTemplateAberto(true)}>
+                                      Enviar template
+                                    </Button>
+                                  ) : (
+                                    <Button size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={() => reenviarMensagem(m)}>
+                                      Tentar de novo
+                                    </Button>
+                                  )}
+                                  <Button size="sm" variant="ghost" className="h-7 px-2 text-xs" onClick={() => copiarTextoMensagem(m.conteudo ?? "")}>
+                                    Copiar texto
+                                  </Button>
+                                  {m.falha_local && (
+                                    <Button
+                                      size="sm"
+                                      variant="ghost"
+                                      className="h-7 px-2 text-xs"
+                                      onClick={() => typeof m.id === "number" && removerMensagemOtimista(m.id)}
+                                    >
+                                      Descartar
+                                    </Button>
+                                  )}
+                                </div>
+                              </div>
+                            )}
+
                             <div className="flex items-center justify-end gap-1 mt-1">
                               <span className="text-[10px] text-muted-foreground">
                                 {horaCurta(m.criada_em ?? m.criado_em ?? m.enviado_em)}
