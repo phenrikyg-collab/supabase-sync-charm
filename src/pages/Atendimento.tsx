@@ -2859,6 +2859,15 @@ export default function Atendimento() {
         />
       )}
       {conversaAtual && (
+        <ConferirNumeroDialog
+          open={conferirNumero}
+          onOpenChange={setConferirNumero}
+          conversaId={conversaAtual.id}
+          autor={autor}
+          onAbrirConversa={(id) => abrirDoPainel(String(id))}
+        />
+      )}
+      {conversaAtual && (
         <CalcularFreteDialog
           open={freteAberto}
           onOpenChange={setFreteAberto}
