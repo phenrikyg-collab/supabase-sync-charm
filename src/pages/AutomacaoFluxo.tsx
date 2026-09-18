@@ -29,7 +29,9 @@ import { PessoasTab } from "@/components/automacoes/PessoasTab";
 import {
   TIPOS_ARRASTAVEIS, TIPOS_NO, ROTULO_STATUS_FLUXO, type NoData, type TipoNo,
 } from "@/components/automacoes/tipos";
-import { rpcFluxos, useCatalogoFluxos, useFluxo, dataHoraBR, type Validacao } from "@/components/automacoes/api";
+import {
+  rpcFluxos, useCatalogoFluxos, useFluxo, dataHoraBR, botoesRespostaDoTemplate, type Validacao,
+} from "@/components/automacoes/api";
 
 let contador = 1;
 const novoRef = () => `novo-${Date.now()}-${contador++}`;
@@ -552,6 +554,8 @@ function Editor({ fluxoId }: { fluxoId: string }) {
                   catalogo={catalogo}
                   nosDoFluxo={nosDoFluxo}
                   gatilhoTipo={fluxo.gatilho_tipo}
+                  botoesEntrada={botoesPorNo.get(noSelecionado.id)?.botoes ?? []}
+                  temTemplateAntes={!!botoesPorNo.get(noSelecionado.id)?.temTemplateAntes}
                   onChange={atualizarNo}
                   onRemover={removerNo}
                   onFechar={() => setSelecionado(null)}
