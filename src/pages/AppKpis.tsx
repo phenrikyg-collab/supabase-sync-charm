@@ -316,7 +316,7 @@ export default function AppKpis() {
 
           {data.visitantes === 0 && (
             <p className="text-center text-sm text-muted-foreground">
-              Ainda sem dados neste período. As números aparecem conforme as clientes usarem o app.
+              Ainda sem dados neste período. Os números aparecem conforme as clientes usarem o app.
             </p>
           )}
         </>
