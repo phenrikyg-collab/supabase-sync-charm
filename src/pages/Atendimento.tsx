@@ -451,7 +451,7 @@ export default function Atendimento() {
   const [menuLeituraAberto, setMenuLeituraAberto] = useState<string | null>(null);
   const longPressRef = useRef<{ timer: ReturnType<typeof setTimeout> | null; disparado: boolean }>({ timer: null, disparado: false });
   /** Filtros especiais mutuamente exclusivos: atenção, automações e em atendimento. */
-  const [filtroFila, setFiltroFila] = useState<"atencao" | "automacao" | "em_atendimento" | null>(null);
+  const [filtroFila, setFiltroFila] = useState<"atencao" | "automacao" | "em_atendimento" | "falhas" | null>(null);
   const [tagsFiltro, setTagsFiltro] = useState<string[]>([]);
   const [modoHistorico, setModoHistorico] = useState(false);
   const [soKora, setSoKora] = useState(false);
