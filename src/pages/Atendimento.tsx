@@ -654,10 +654,10 @@ export default function Atendimento() {
   // por último o item sintético da busca, para a tela abrir na hora.
   const conversaAtual = useMemo<Conversa | null>(() => {
     if (!selecionada) return null;
-    const carregada = conversas.find((c) => String(c.id) === selecionada);
-    if (carregada) return carregada;
     const historica = conversasHistorico.find((c) => String(c.id) === selecionada);
     if (historica) return historica;
+    const carregada = conversas.find((c) => String(c.id) === selecionada);
+    if (carregada) return carregada;
     if (conversaAvulsa) return conversaAvulsa;
     const achada = resultadoBusca?.conversas?.find((r) => String(r.conversa_id) === selecionada);
     if (!achada) return null;
@@ -1216,6 +1216,10 @@ export default function Atendimento() {
   const status = conversaAtual?.status ?? "";
   const conversaHistorica = conversaAtual?.historico === true;
   const podeResponder = conversaHistorica || status === "escalado" || status === "em_atendimento";
+  const primeiroIndiceKora = mensagens.findIndex((m) => m.origem === "kora");
+  const primeiroIndiceSistemaProprio = primeiroIndiceKora < 0
+    ? -1
+    : mensagens.findIndex((m, idx) => idx > primeiroIndiceKora && m.origem !== "kora");
 
   const abrirDoPainel = (id: string, textoPronto?: string, leadId?: string) => {
     setSelecionada(String(id));
@@ -1787,11 +1791,13 @@ export default function Atendimento() {
                   )}
                 </div>
                 <div className="flex shrink-0 items-center gap-1.5">
-                  <Button size="sm" onClick={() => assumir.mutate()} disabled={assumir.isPending}>
-                    <UserCheck className="mr-2 h-4 w-4" />
-                    Assumir conversa
-                  </Button>
-                  {(status === "escalado" || status === "em_atendimento") && (
+                  {!conversaHistorica && (
+                    <Button size="sm" onClick={() => assumir.mutate()} disabled={assumir.isPending}>
+                      <UserCheck className="mr-2 h-4 w-4" />
+                      Assumir conversa
+                    </Button>
+                  )}
+                  {!conversaHistorica && (status === "escalado" || status === "em_atendimento") && (
                     <Button
                       size="sm"
                       variant="outline"
@@ -1826,7 +1832,7 @@ export default function Atendimento() {
                         <Truck className="mr-2 h-4 w-4" />
                         Calcular frete
                       </DropdownMenuItem>
-                      {(status === "escalado" || status === "em_atendimento") && (
+                      {!conversaHistorica && (status === "escalado" || status === "em_atendimento") && (
                         <DropdownMenuItem
                           className="xl:hidden"
                           onSelect={() => resolver.mutate()}
@@ -1836,19 +1842,21 @@ export default function Atendimento() {
                           Marcar como resolvido
                         </DropdownMenuItem>
                       )}
-                      {status !== "bot_ativo" && (
+                      {!conversaHistorica && status !== "bot_ativo" && (
                         <DropdownMenuItem onSelect={() => reativarBot.mutate()} disabled={reativarBot.isPending}>
                           <RotateCcw className="mr-2 h-4 w-4" />
                           Reativar bot
                         </DropdownMenuItem>
                       )}
-                      <DropdownMenuItem
-                        className="text-destructive focus:text-destructive"
-                        onSelect={() => setExcluirAberta(true)}
-                      >
-                        <Trash2 className="mr-2 h-4 w-4" />
-                        Excluir conversa
-                      </DropdownMenuItem>
+                      {!conversaHistorica && (
+                        <DropdownMenuItem
+                          className="text-destructive focus:text-destructive"
+                          onSelect={() => setExcluirAberta(true)}
+                        >
+                          <Trash2 className="mr-2 h-4 w-4" />
+                          Excluir conversa
+                        </DropdownMenuItem>
+                      )}
                     </DropdownMenuContent>
                   </DropdownMenu>
                   <AlertDialog open={excluirAberta} onOpenChange={setExcluirAberta}>
@@ -1901,9 +1909,17 @@ export default function Atendimento() {
                 </div>
               </div>
 
-              <div className="shrink-0 border-b border-border px-3 py-1.5">
-                <TagsConversa conversaId={conversaAtual.id} aplicadas={conversaAtual.tags ?? []} />
-              </div>
+              {!conversaHistorica && (
+                <div className="shrink-0 border-b border-border px-3 py-1.5">
+                  <TagsConversa conversaId={conversaAtual.id} aplicadas={conversaAtual.tags ?? []} />
+                </div>
+              )}
+
+              {conversaHistorica && (
+                <div className="shrink-0 border-b border-border bg-muted/60 px-3 py-1 text-center text-xs text-muted-foreground">
+                  Conversa finalizada. Mostrando o histórico.
+                </div>
+              )}
 
               <PropostaDaConversa
                 conversaId={conversaAtual.id}
@@ -1919,43 +1935,59 @@ export default function Atendimento() {
                   {mensagens.map((m, idx) => {
                     const saida = m.direcao === "saida";
                     const bot = saida && m.origem === "bot";
+                    const kora = m.origem === "kora";
                     const tipo = (m.tipo ?? "").toLowerCase();
                     const sticker = tipo === "sticker" && !!m.media_url;
                     const tipoMidia = ehTipoMidia(tipo);
                     const midia = tipoMidia || !!m.media_url;
                     const mostrarTexto = !!m.conteudo && !sticker && !tipoMidia;
                     return (
-                      <div
-                        key={m.id != null ? String(m.id) : `${m.criada_em ?? m.criado_em ?? ""}-${idx}`}
-                        className={cn("flex min-w-0 max-w-full overflow-hidden", saida ? "justify-end" : "justify-start")}
-                      >
-                        <div
-                          className={cn(
-                             "min-w-0 max-w-[75%] overflow-hidden text-base break-words [overflow-wrap:anywhere] [word-break:break-word]",
-                            sticker
-                              ? "bg-transparent border-0 p-0"
-                              : cn(
-                                  "rounded-lg px-3 py-2 border",
-                                  !saida && "bg-muted text-foreground border-border",
-                                  saida && bot && "bg-info/10 text-foreground border-info/30",
-                                  saida && !bot && "bg-primary/10 text-foreground border-primary/30",
-                                ),
-                          )}
-                        >
-                          {saida && !sticker && (
-                            <div className="flex items-center gap-1 text-[10px] uppercase tracking-wider text-muted-foreground mb-1">
-                              {bot ? <Bot className="h-3 w-3" /> : <User className="h-3 w-3" />}
-                              {bot ? "Bot" : "Atendente"}
-                            </div>
-                          )}
-                          {midia && <MensagemMidia tipo={m.tipo} mediaUrl={m.media_url} conteudo={m.conteudo} />}
-                          {mostrarTexto && <p className="max-w-full whitespace-pre-wrap break-words [overflow-wrap:anywhere] [word-break:break-word]">{m.conteudo}</p>}
-                          <div className="flex items-center justify-end gap-1 mt-1">
-                            <span className="text-[10px] text-muted-foreground">
-                              {horaCurta(m.criada_em ?? m.criado_em ?? m.enviado_em)}
-                            </span>
-                            {saida && <StatusEntrega status={m.status_entrega} erro={m.erro_entrega} />}
+                      <div key={m.id != null ? String(m.id) : `${m.criada_em ?? m.criado_em ?? ""}-${idx}`}>
+                        {idx === primeiroIndiceKora && (
+                          <div className="flex items-center gap-3 py-1.5 text-[11px] text-muted-foreground">
+                            <Separator className="flex-1" />
+                            <span className="shrink-0">Histórico importado da Kora</span>
+                            <Separator className="flex-1" />
                           </div>
+                        )}
+                        {idx === primeiroIndiceSistemaProprio && (
+                          <div className="flex items-center gap-3 py-1.5 text-[11px] text-muted-foreground">
+                            <Separator className="flex-1" />
+                            <span className="shrink-0">Atendimento no sistema próprio</span>
+                            <Separator className="flex-1" />
+                          </div>
+                        )}
+                        <div className={cn("flex min-w-0 max-w-full overflow-hidden", saida ? "justify-end" : "justify-start")}>
+                          <div
+                            className={cn(
+                              "min-w-0 max-w-[75%] overflow-hidden text-base break-words [overflow-wrap:anywhere] [word-break:break-word]",
+                              sticker
+                                ? "bg-transparent border-0 p-0"
+                                : cn(
+                                    "rounded-lg px-3 py-2 border",
+                                    !saida && "bg-muted text-foreground border-border",
+                                    saida && bot && "bg-info/10 text-foreground border-info/30",
+                                    saida && !bot && !kora && "bg-primary/10 text-foreground border-primary/30",
+                                    saida && kora && "bg-muted text-foreground border-border",
+                                  ),
+                            )}
+                          >
+                            {saida && !sticker && (
+                              <div className="flex items-center gap-1 text-[10px] uppercase tracking-wider text-muted-foreground mb-1">
+                                {bot ? <Bot className="h-3 w-3" /> : <User className="h-3 w-3" />}
+                                {kora ? "Kora" : bot ? "Bot" : "Atendente"}
+                              </div>
+                            )}
+                            {midia && <MensagemMidia tipo={m.tipo} mediaUrl={m.media_url} conteudo={m.conteudo} />}
+                            {mostrarTexto && <p className="max-w-full whitespace-pre-wrap break-words [overflow-wrap:anywhere] [word-break:break-word]">{m.conteudo}</p>}
+                            <div className="flex items-center justify-end gap-1 mt-1">
+                              <span className="text-[10px] text-muted-foreground">
+                                {horaCurta(m.criada_em ?? m.criado_em ?? m.enviado_em)}
+                              </span>
+                              {saida && <StatusEntrega status={m.status_entrega} erro={m.erro_entrega} />}
+                            </div>
+                          </div>
+                        >
                         </div>
                       </div>
                     );
