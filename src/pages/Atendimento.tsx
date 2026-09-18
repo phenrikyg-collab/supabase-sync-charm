@@ -221,7 +221,11 @@ type Conversa = {
   so_kora?: boolean | null;
   tem_kora?: boolean | null;
   total_mensagens?: number | null;
+  falha_envio?: boolean | null;
+  falha_envio_motivo?: string | null;
+  falha_envio_em?: string | null;
 };
+
 
 type Urgencia = "perdendo" | "quente" | "atencao" | "normal";
 
@@ -300,7 +304,13 @@ type Mensagem = {
   status_entrega?: "enviado" | "entregue" | "lido" | "falhou" | string | null;
   erro_entrega?: string | null;
   enviando?: boolean;
+  /** Falha detectada no próprio envio (balão otimista), ainda não gravada no banco. */
+  falha_local?: boolean;
 };
+
+/** Motivos de falha ligados à janela de 24h pedem template, não nova tentativa. */
+const ehMotivoJanela = (motivo?: string | null) => /24\s*h|janela/i.test(motivo ?? "");
+
 
 const STATUS_META: Record<string, { label: string; className: string }> = {
   escalado: { label: "Aguardando atendimento", className: "bg-danger/10 text-danger border-danger/20" },
@@ -441,7 +451,7 @@ export default function Atendimento() {
   const [menuLeituraAberto, setMenuLeituraAberto] = useState<string | null>(null);
   const longPressRef = useRef<{ timer: ReturnType<typeof setTimeout> | null; disparado: boolean }>({ timer: null, disparado: false });
   /** Filtros especiais mutuamente exclusivos: atenção, automações e em atendimento. */
-  const [filtroFila, setFiltroFila] = useState<"atencao" | "automacao" | "em_atendimento" | null>(null);
+  const [filtroFila, setFiltroFila] = useState<"atencao" | "automacao" | "em_atendimento" | "falhas" | null>(null);
   const [tagsFiltro, setTagsFiltro] = useState<string[]>([]);
   const [modoHistorico, setModoHistorico] = useState(false);
   const [soKora, setSoKora] = useState(false);
@@ -901,6 +911,35 @@ export default function Atendimento() {
     );
   };
 
+  /** Transforma o balão otimista em balão de falha, com o motivo em português. */
+  const marcarMensagemFalhou = (idTemp: number, motivo: string) => {
+    queryClient.setQueryData(["whatsapp-mensagens", selecionada], (antigas: Mensagem[] = []) =>
+      (antigas ?? []).map((m) =>
+        m.id === idTemp
+          ? { ...m, enviando: false, status_entrega: "falhou", erro_entrega: motivo, falha_local: true }
+          : m,
+      ),
+    );
+  };
+
+  /** Reenvia o mesmo texto pelo fluxo normal de envio. */
+  const reenviarMensagem = (m: Mensagem) => {
+    const conteudo = (m.conteudo ?? "").trim();
+    if (!conteudo) return;
+    if (typeof m.id === "number" && m.id < 0) removerMensagemOtimista(m.id);
+    enviar.mutate(conteudo);
+  };
+
+  const copiarTextoMensagem = async (conteudo: string) => {
+    try {
+      await navigator.clipboard.writeText(conteudo);
+      toast({ title: "Texto copiado" });
+    } catch {
+      toast({ title: "Não foi possível copiar", variant: "destructive" });
+    }
+  };
+
+
   const enviar = useMutation({
     mutationFn: async (conteudo: string) => {
       if (!conversaAtual) throw new Error("Nenhuma conversa selecionada");
@@ -940,16 +979,22 @@ export default function Atendimento() {
       }
     },
     onError: async (e: any, _conteudo, contexto: any) => {
-      if (contexto?.idTemp) removerMensagemOtimista(contexto.idTemp);
-      if (contexto?.conteudo) setTexto((atual) => (atual.trim() ? atual : contexto.conteudo));
       const janela = await extrairErroJanela(e);
+      const motivo = janela ?? e?.message ?? "Não foi possível enviar a mensagem.";
+      if (contexto?.idTemp) marcarMensagemFalhou(contexto.idTemp, motivo);
+      if (contexto?.conteudo) setTexto((atual) => (atual.trim() ? atual : contexto.conteudo));
       if (janela) {
         setErroJanela(janela);
         queryClient.invalidateQueries({ queryKey: ["whatsapp-janela-24h", selecionada] });
-        return;
       }
-      toast({ title: "Erro ao enviar", description: e.message, variant: "destructive" });
+      toast({
+        title: "Mensagem não enviada",
+        description: motivo,
+        variant: "destructive",
+        duration: 10000,
+      });
     },
+
   });
 
   const enviarImagem = async (mediaUrl: string, conteudo: string) => {
@@ -1173,6 +1218,7 @@ export default function Atendimento() {
    * âmbar quando espera há menos de 30 minutos e verde quando já foi respondida.
    */
   const classeFaixa = (c: Conversa) => {
+    if (c.falha_envio) return "border-l-danger";
     if (ehResolvida(c)) return "border-l-muted-foreground/30";
     if (!aguardandoResposta(c)) return "border-l-emerald-500/70";
     const a = atencaoDe(c);
@@ -1181,9 +1227,17 @@ export default function Atendimento() {
     return min > 30 ? "border-l-danger" : "border-l-warning";
   };
 
-  /** Ordem simples: mensagem mais recente primeiro. */
+  /** Prioridade dentro do grupo: perdendo primeiro, depois falhas de envio, depois o resto. */
+  const pesoConversa = (c: Conversa) => {
+    if (urgenciaDeNivel(atencaoDe(c)?.nivel) === "perdendo") return 0;
+    if (c.falha_envio) return 1;
+    return 2;
+  };
+
+  /** Ordem: prioridade do grupo e, dentro dela, mensagem mais recente primeiro. */
   const compararConversas = (a: Conversa, b: Conversa) =>
-    chaveData(b).localeCompare(chaveData(a));
+    pesoConversa(a) - pesoConversa(b) || chaveData(b).localeCompare(chaveData(a));
+
 
   const contagemGrupos = useMemo(() => {
     const base = { conversa: 0, clique: 0, so_envio: 0 };
@@ -1251,6 +1305,8 @@ export default function Atendimento() {
         if (filtroLeitura === "lidas" && c.nao_lida) return false;
         if (filtroFila === "atencao" && !["quente", "atencao"].includes(urgenciaDeNivel(atencaoDe(c)?.nivel))) return false;
         if (filtroFila === "automacao" && atencaoDe(c)?.dono !== "automacao") return false;
+        if (filtroFila === "falhas" && !c.falha_envio) return false;
+
         if (tagsFiltro.length > 0) {
           const ids = (c.tags ?? []).map((t) => String(t.id));
           if (!tagsFiltro.some((t) => ids.includes(t))) return false;
@@ -1281,6 +1337,9 @@ export default function Atendimento() {
   const totalAutomacoes = conversas.filter(
     (c) => daAba(c) && grupoDe(c) === grupoAba && atencaoDe(c)?.dono === "automacao",
   ).length;
+  // "Não enviadas": última mensagem nossa falhou na entrega
+  const totalFalhas = conversas.filter((c) => daAba(c) && grupoDe(c) === grupoAba && !!c.falha_envio).length;
+
 
   const telefoneIdentificado = conversaAtual
     ? (ehSite(conversaAtual) ? conversaAtual.telefone_real : conversaAtual.telefone) || null
@@ -1576,7 +1635,31 @@ export default function Atendimento() {
                   {f.label}
                 </Button>
               ))}
+              {!modoHistorico && (
+                <Button
+                  size="sm"
+                  variant={filtroFila === "falhas" ? "default" : "outline"}
+                  className={cn(
+                    "h-7 px-2.5 text-xs gap-1",
+                    filtroFila === "falhas"
+                      ? "bg-danger text-white hover:bg-danger/90"
+                      : "border-danger/40 text-danger hover:text-danger",
+                  )}
+                  onClick={() => {
+                    if (filtroFila === "falhas") {
+                      setFiltroFila(null);
+                      return;
+                    }
+                    setFiltroFila("falhas");
+                    setFiltroLeitura("todas");
+                  }}
+                >
+                  <AlertTriangle className="h-3 w-3" />
+                  {`Não enviadas${totalFalhas ? ` (${totalFalhas})` : ""}`}
+                </Button>
+              )}
               {!modoHistorico && ([
+
                 { v: "atencao", label: `Precisam de atenção${totalAtencao ? ` (${totalAtencao})` : ""}` },
                 { v: "automacao", label: `Automações${totalAutomacoes ? ` (${totalAutomacoes})` : ""}` },
                 { v: "em_atendimento", label: `Em atendimento${totalEmAtendimento ? ` (${totalEmAtendimento})` : ""}` },
@@ -1725,6 +1808,13 @@ export default function Atendimento() {
                           )}
                           <span className="truncate">{nome}</span>
                           {nomeSoDoWhatsApp(c) && <BadgeViaWhatsApp />}
+                          {!modoHistorico && c.falha_envio && (
+                            <span className="inline-flex items-center gap-1 rounded-full border border-danger/30 bg-danger/10 px-1.5 py-0.5 text-[10px] font-semibold text-danger whitespace-nowrap">
+                              <AlertTriangle className="h-3 w-3" />
+                              Não enviada
+                            </span>
+                          )}
+
                         </p>
                         <p className="text-xs text-muted-foreground">{identificadorConversa(c)}</p>
                         <BadgeSinal conversa={c} urg={urg} />
@@ -1779,9 +1869,16 @@ export default function Atendimento() {
                        </span>
                      </span>
                   </div>
-                   <p className={cn("text-sm mt-1 line-clamp-1", naoLida ? "text-foreground font-medium" : "text-muted-foreground")}>
-                    {c.ultima_mensagem ?? ""}
-                  </p>
+                   {!modoHistorico && c.falha_envio ? (
+                    <p className="text-sm mt-1 line-clamp-1 font-medium text-danger">
+                      {`⚠ Não enviada: ${c.falha_envio_motivo ?? "a última mensagem não foi entregue."}`}
+                    </p>
+                  ) : (
+                    <p className={cn("text-sm mt-1 line-clamp-1", naoLida ? "text-foreground font-medium" : "text-muted-foreground")}>
+                      {c.ultima_mensagem ?? ""}
+                    </p>
+                  )}
+
                    {!modoHistorico && grupoAba === "clique" && (
                     <p className="mt-1 text-[11px]">
                       <span className="text-muted-foreground">Botão tocado: </span>
@@ -2078,6 +2175,10 @@ export default function Atendimento() {
                     const tipoMidia = ehTipoMidia(tipo);
                     const midia = tipoMidia || !!m.media_url;
                     const mostrarTexto = !!m.conteudo && !sticker && !tipoMidia;
+                    const falhou = saida && m.status_entrega === "falhou" && !kora;
+                    const motivoFalha = m.erro_entrega ?? "Não foi possível entregar a mensagem.";
+                    const pedeTemplate = falhou && ehMotivoJanela(motivoFalha);
+
                     return (
                       <div key={m.id != null ? String(m.id) : `${m.criada_em ?? m.criado_em ?? ""}-${idx}`}>
                         {idx === primeiroIndiceKora && (
@@ -2098,7 +2199,7 @@ export default function Atendimento() {
                           <div
                             className={cn(
                               "min-w-0 max-w-[75%] overflow-hidden text-base break-words [overflow-wrap:anywhere] [word-break:break-word]",
-                              sticker
+                              sticker && !falhou
                                 ? "bg-transparent border-0 p-0"
                                 : cn(
                                     "rounded-lg px-3 py-2 border",
@@ -2106,17 +2207,51 @@ export default function Atendimento() {
                                     saida && bot && "bg-info/10 text-foreground border-info/30",
                                     saida && !bot && !kora && "bg-primary/10 text-foreground border-primary/30",
                                     saida && kora && "bg-muted text-foreground border-border",
+                                    falhou && "bg-danger/10 text-foreground border-danger/50",
                                   ),
                             )}
+
                           >
                             {saida && !sticker && (
-                              <div className="flex items-center gap-1 text-[10px] uppercase tracking-wider text-muted-foreground mb-1">
-                                {bot ? <Bot className="h-3 w-3" /> : <User className="h-3 w-3" />}
+                              <div className={cn("flex items-center gap-1 text-[10px] uppercase tracking-wider mb-1", falhou ? "text-danger" : "text-muted-foreground")}>
+                                {falhou ? <AlertTriangle className="h-3 w-3" /> : bot ? <Bot className="h-3 w-3" /> : <User className="h-3 w-3" />}
                                 {kora ? "Kora" : bot ? "Bot" : "Atendente"}
                               </div>
                             )}
+
                             {midia && <MensagemMidia tipo={m.tipo} mediaUrl={m.media_url} conteudo={m.conteudo} />}
                             {mostrarTexto && <p className="max-w-full whitespace-pre-wrap break-words [overflow-wrap:anywhere] [word-break:break-word]">{m.conteudo}</p>}
+                            {falhou && (
+                              <div className="mt-2 space-y-1.5">
+                                <p className="text-xs font-semibold text-danger">Não enviada</p>
+                                <p className="text-xs text-danger/90">{motivoFalha}</p>
+                                <div className="flex flex-wrap gap-1.5">
+                                  {pedeTemplate ? (
+                                    <Button size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={() => setTemplateAberto(true)}>
+                                      Enviar template
+                                    </Button>
+                                  ) : (
+                                    <Button size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={() => reenviarMensagem(m)}>
+                                      Tentar de novo
+                                    </Button>
+                                  )}
+                                  <Button size="sm" variant="ghost" className="h-7 px-2 text-xs" onClick={() => copiarTextoMensagem(m.conteudo ?? "")}>
+                                    Copiar texto
+                                  </Button>
+                                  {m.falha_local && (
+                                    <Button
+                                      size="sm"
+                                      variant="ghost"
+                                      className="h-7 px-2 text-xs"
+                                      onClick={() => typeof m.id === "number" && removerMensagemOtimista(m.id)}
+                                    >
+                                      Descartar
+                                    </Button>
+                                  )}
+                                </div>
+                              </div>
+                            )}
+
                             <div className="flex items-center justify-end gap-1 mt-1">
                               <span className="text-[10px] text-muted-foreground">
                                 {horaCurta(m.criada_em ?? m.criado_em ?? m.enviado_em)}
@@ -2154,6 +2289,34 @@ export default function Atendimento() {
                 </div>
               ) : podeResponder ? (
                  <div className="shrink-0 border-t border-border px-2 py-1.5 space-y-1.5">
+                  {!modoHistorico && conversaAtual?.falha_envio && (
+                    <div className="flex items-center gap-2 rounded-md border border-danger/40 bg-danger/10 px-3 py-2">
+                      <AlertTriangle className="h-4 w-4 text-danger shrink-0" />
+                      <p className="flex-1 text-xs text-danger">
+                        {`A última mensagem não foi entregue. ${conversaAtual.falha_envio_motivo ?? ""}`.trim()}
+                      </p>
+                      {ehMotivoJanela(conversaAtual.falha_envio_motivo) ? (
+                        <Button size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={() => setTemplateAberto(true)}>
+                          Enviar template
+                        </Button>
+                      ) : (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-7 px-2 text-xs"
+                          onClick={() => {
+                            const ultima = [...(mensagens ?? [])]
+                              .reverse()
+                              .find((m: Mensagem) => m.direcao === "saida" && m.status_entrega === "falhou");
+                            if (ultima) reenviarMensagem(ultima);
+                          }}
+                        >
+                          Tentar de novo
+                        </Button>
+                      )}
+                    </div>
+                  )}
+
                   {erroJanela && (
                     <div className="flex items-start gap-2 rounded-md border border-danger/40 bg-danger/10 p-3">
                       <AlertTriangle className="h-4 w-4 text-danger mt-0.5 shrink-0" />
