@@ -1274,17 +1274,21 @@ export default function Atendimento() {
   }, [citacao]);
 
   /** Rola até a mensagem original e dá um destaque rápido. */
-  const irParaMensagem = (id?: number | string | null) => {
+  const registrarBalaoRef = useCallback((chave: string, el: HTMLDivElement | null) => {
+    if (chave) balaoRefs.current[chave] = el;
+  }, []);
+
+  const irParaMensagem = useCallback((id?: number | string | null) => {
     if (id == null) return;
     const alvo = balaoRefs.current[String(id)];
     if (!alvo) return;
     alvo.scrollIntoView({ behavior: "smooth", block: "center" });
     setDestacada(String(id));
     setTimeout(() => setDestacada((atual) => (atual === String(id) ? null : atual)), 1400);
-  };
+  }, []);
 
   /** Prepara a barra de citação acima da caixa de texto. */
-  const responderCitando = (m: Mensagem) => {
+  const responderCitando = useCallback((m: Mensagem) => {
     if (m.id == null) return;
     setCitacao({
       id: m.id,
@@ -1295,7 +1299,7 @@ export default function Atendimento() {
     });
     setMenuBalao(null);
     setTimeout(() => composerRef.current?.focar(), 0);
-  };
+  }, []);
 
   const invalidarThread = () => {
     queryClient.invalidateQueries({ queryKey: ["whatsapp-mensagens", selecionada] });
@@ -1339,11 +1343,11 @@ export default function Atendimento() {
     return idTemp;
   };
 
-  const removerMensagemOtimista = (idTemp: number) => {
+  const removerMensagemOtimista = useCallback((idTemp: number) => {
     queryClient.setQueryData(["whatsapp-mensagens", selecionada], (antigas: Mensagem[] = []) =>
       (antigas ?? []).filter((m) => m.id !== idTemp),
     );
-  };
+  }, [queryClient, selecionada]);
 
   /** Transforma o balão otimista em balão de falha, com o motivo em português. */
   const marcarMensagemFalhou = (idTemp: number, motivo: string) => {
@@ -1364,14 +1368,14 @@ export default function Atendimento() {
     enviar.mutate(conteudo);
   };
 
-  const copiarTextoMensagem = async (conteudo: string) => {
+  const copiarTextoMensagem = useCallback(async (conteudo: string) => {
     try {
       await navigator.clipboard.writeText(conteudo);
       toast({ title: "Texto copiado" });
     } catch {
       toast({ title: "Não foi possível copiar", variant: "destructive" });
     }
-  };
+  }, []);
 
 
   const enviar = useMutation({
