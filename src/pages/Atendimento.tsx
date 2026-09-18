@@ -291,8 +291,22 @@ const identificadorConversa = (c: Conversa) =>
 
 
 
+type Citacao = {
+  id: number | string;
+  direcao: "entrada" | "saida";
+  tipo?: string | null;
+  texto?: string | null;
+  media_url?: string | null;
+};
+
 type Mensagem = {
   id?: number | string;
+  wamid?: string | null;
+  citada_id?: number | string | null;
+  citada_direcao?: "entrada" | "saida" | null;
+  citada_tipo?: string | null;
+  citada_texto?: string | null;
+  citada_media_url?: string | null;
   conteudo: string;
   direcao: "entrada" | "saida";
   origem?: string | null;
