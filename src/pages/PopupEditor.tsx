@@ -677,7 +677,7 @@ export default function PopupEditor() {
           <AlertDialogHeader>
             <AlertDialogTitle>Ativar este popup?</AlertDialogTitle>
             <AlertDialogDescription>
-              Este popup vai aparecer para as clientes no site em até 5 minutos.
+              Este popup vai aparecer para as clientes {ehApp ? "no app" : "no site"} em até 5 minutos.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

@@ -84,7 +84,7 @@ export default function Popups() {
   });
 
   const linhas = useMemo(() => {
-    const itens = lista ?? [];
+    const itens = (lista ?? []).filter((p) => (p.destino ?? "site") === "site");
     const grupos = new Map<string, Popup[]>();
     for (const p of itens) {
       const g = p.status === "ativo" && p.teste_ab_grupo ? String(p.teste_ab_grupo) : "";
