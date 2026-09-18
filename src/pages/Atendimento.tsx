@@ -1001,7 +1001,7 @@ export default function Atendimento() {
     },
   });
 
-  const abrirConversa = async (c: Conversa) => {
+  const abrirConversa = useCallback(async (c: Conversa) => {
     setSelecionada(String(c.id));
     setListaSheet(false);
     setErroJanela(null);
@@ -1011,9 +1011,9 @@ export default function Atendimento() {
     });
     if (!error) queryClient.invalidateQueries({ queryKey: ["whatsapp-conversas"] });
       queryClient.invalidateQueries({ queryKey: ["whatsapp-conversa"] });
-  };
+  }, [modoHistorico, queryClient]);
 
-  const marcarLeitura = async (id: string | number, naoLida: boolean): Promise<boolean> => {
+  const marcarLeitura = useCallback(async (id: string | number, naoLida: boolean): Promise<boolean> => {
     const idParam = Number.isNaN(Number(id)) ? id : Number(id);
     queryClient.setQueryData<Conversa[]>(["whatsapp-conversas"], (lista) =>
       (lista ?? []).map((cv) => (String(cv.id) === String(id) ? { ...cv, nao_lida: naoLida } : cv)),
@@ -1028,7 +1028,7 @@ export default function Atendimento() {
       return false;
     }
     return true;
-  };
+  }, [queryClient]);
 
   const marcarNaoLidaEFechar = async () => {
     if (!selecionada) return;
