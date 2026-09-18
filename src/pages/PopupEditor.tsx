@@ -323,9 +323,20 @@ export default function PopupEditor() {
           <Button variant="outline" size="sm" onClick={() => setHistoricoAberto(true)}>
             <History className="mr-2 h-4 w-4" />Histórico
           </Button>
-          <Button variant="outline" size="sm" onClick={abrirPrevia}>
-            <ExternalLink className="mr-2 h-4 w-4" />Prévia no site
-          </Button>
+          {ehApp ? (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="outline" size="sm" onClick={abrirPrevia}>
+                  <ExternalLink className="mr-2 h-4 w-4" />Prévia no app
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Funciona depois que o app Minha MC carregar os popups.</TooltipContent>
+            </Tooltip>
+          ) : (
+            <Button variant="outline" size="sm" onClick={abrirPrevia}>
+              <ExternalLink className="mr-2 h-4 w-4" />Prévia no site
+            </Button>
+          )}
           <Button variant="outline" size="sm" onClick={salvarAgora} disabled={salvando}>
             <Save className="mr-2 h-4 w-4" />Salvar
           </Button>
