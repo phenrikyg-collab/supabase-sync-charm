@@ -1683,9 +1683,29 @@ export default function Atendimento() {
                 <div key={String(c.id)}>
                 {cabecalho}
                 <button
-                  onClick={() => abrirConversa(c)}
+                  onClick={() => {
+                    if (longPressRef.current.disparado) {
+                      longPressRef.current.disparado = false;
+                      return;
+                    }
+                    abrirConversa(c);
+                  }}
+                  onTouchStart={() => {
+                    if (modoHistorico) return;
+                    longPressRef.current.disparado = false;
+                    longPressRef.current.timer = setTimeout(() => {
+                      longPressRef.current.disparado = true;
+                      setMenuLeituraAberto(String(c.id));
+                    }, 500);
+                  }}
+                  onTouchEnd={() => {
+                    if (longPressRef.current.timer) clearTimeout(longPressRef.current.timer);
+                  }}
+                  onTouchMove={() => {
+                    if (longPressRef.current.timer) clearTimeout(longPressRef.current.timer);
+                  }}
                   className={cn(
-                    "w-full text-left px-4 py-3 border-b border-border/60 border-l-[3px] transition-colors hover:bg-accent/60",
+                    "group relative w-full text-left px-4 py-3 border-b border-border/60 border-l-[3px] transition-colors hover:bg-accent/60",
                     faixa,
                     ativa && "bg-accent",
                     naoLida && !ativa && "bg-primary/5",
