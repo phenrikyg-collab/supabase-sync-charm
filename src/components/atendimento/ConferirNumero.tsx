@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { chamarRpc } from "@/lib/supabaseRpc";
 import { Button } from "@/components/ui/button";
@@ -28,6 +28,7 @@ type Conferencia = {
   escreveu_para_nos?: boolean | null;
   kora_forma_atual?: boolean | null;
   kora_forma_alternativa?: boolean | null;
+  formato_valido?: boolean | null;
   falhas?: number | null;
   ultima_falha?: string | null;
   ultimo_erro?: string | null;
@@ -119,8 +120,6 @@ export function ConferirNumeroDialog({
     if (open && data?.forma_atual) setValor(mascaraTelefone(String(data.forma_atual)));
   }, [open, data?.forma_atual]);
 
-  const qtdDigitos = useMemo(() => digitos(data?.forma_atual).length, [data?.forma_atual]);
-  const tamanhoEstranho = qtdDigitos > 0 && qtdDigitos !== 12 && qtdDigitos !== 13;
   const edicoes = Array.isArray(data?.edicoes) ? (data?.edicoes as Edicao[]) : [];
 
   const salvar = async () => {
@@ -187,13 +186,10 @@ export function ConferirNumeroDialog({
                   A Meta entrega neste: {data.telefone_real}
                 </p>
               )}
-              <p className="text-xs text-muted-foreground">
-                {qtdDigitos} dígito{qtdDigitos === 1 ? "" : "s"} no número atual.
-              </p>
-              {tamanhoEstranho && (
+              {data.formato_valido === false && (
                 <p className="flex items-start gap-1.5 rounded-md border border-warning/30 bg-warning/10 px-2 py-1 text-xs text-warning">
                   <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-                  Número com {qtdDigitos} dígitos. O padrão é 12 ou 13 (55 + DDD + número). Provavelmente falta um dígito.
+                  Esse número não tem formato de telefone brasileiro. Costuma ser dígito faltando, DDD que não existe, ou celular sem o 9.
                 </p>
               )}
             </section>
