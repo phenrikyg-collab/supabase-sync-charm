@@ -2187,7 +2187,7 @@ export default function Atendimento() {
                       size="icon"
                        className="h-8 w-8 shrink-0 rounded-full"
                       onClick={() => texto.trim() && enviar.mutate(texto.trim())}
-                      disabled={!texto.trim() || enviar.isPending}
+                      disabled={!texto.trim()}
                       title="Enviar"
                     >
                       <Send className="h-4 w-4" />
