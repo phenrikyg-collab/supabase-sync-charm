@@ -260,8 +260,12 @@ export default function PopupEditor() {
       qc.invalidateQueries({ queryKey: ["popups-listar"] });
       toast.success(
         status === "ativo"
-          ? "Popup ativado. Ele aparece no site em até 5 minutos."
-          : "Popup pausado. O site pode levar até 5 minutos para parar de mostrar."
+          ? ehApp
+            ? "Popup ativado. Ele aparece no app em até 5 minutos."
+            : "Popup ativado. Ele aparece no site em até 5 minutos."
+          : ehApp
+            ? "Popup pausado. O app pode levar até 5 minutos para parar de mostrar."
+            : "Popup pausado. O site pode levar até 5 minutos para parar de mostrar."
       );
     } catch (e: any) {
       toast.error(e.message);
