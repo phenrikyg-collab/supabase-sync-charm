@@ -594,6 +594,224 @@ const ItemConversa = memo(function ItemConversa({
   );
 });
 
+
+type BalaoMensagemProps = {
+  m: Mensagem;
+  divisorKora: boolean;
+  divisorProprio: boolean;
+  destacado: boolean;
+  menuAberto: boolean;
+  toqueRef: React.MutableRefObject<{ x: number; y: number; timer: ReturnType<typeof setTimeout> | null }>;
+  onRegistrarRef: (chave: string, el: HTMLDivElement | null) => void;
+  onResponder: (m: Mensagem) => void;
+  onCopiar: (texto: string) => void;
+  onAbrirMenu: (chave: string | null) => void;
+  onIrParaMensagem: (id?: number | string | null) => void;
+  onReenviar: (m: Mensagem) => void;
+  onDescartar: (id: number) => void;
+  onEnviarTemplate: () => void;
+};
+
+/** Um balão da conversa. Memoizado: só repinta quando a própria mensagem muda. */
+const BalaoMensagem = memo(function BalaoMensagem({
+  m, divisorKora, divisorProprio, destacado, menuAberto, toqueRef, onRegistrarRef,
+  onResponder, onCopiar, onAbrirMenu, onIrParaMensagem, onReenviar, onDescartar, onEnviarTemplate,
+}: BalaoMensagemProps) {
+                    const saida = m.direcao === "saida";
+                    const bot = saida && m.origem === "bot";
+                    const kora = m.origem === "kora";
+                    const tipo = (m.tipo ?? "").toLowerCase();
+                    const sticker = tipo === "sticker" && !!m.media_url;
+                    const tipoMidia = ehTipoMidia(tipo);
+                    const midia = tipoMidia || !!m.media_url;
+                    const mostrarTexto = !!m.conteudo && !sticker && !tipoMidia;
+                    const falhou = saida && m.status_entrega === "falhou" && !kora;
+                    const motivoFalha = m.erro_entrega ?? "Não foi possível entregar a mensagem.";
+                    const pedeTemplate = falhou && ehMotivoJanela(motivoFalha);
+                    const chaveBalao = m.id != null ? String(m.id) : "";
+                    const otimista = typeof m.id === "number" && m.id < 0;
+                    const podeCitar = !kora && !otimista && m.id != null;
+                    const temCitada = m.citada_id != null || !!m.citada_texto;
+                    
+
+                    return (
+                      <div>
+                        {divisorKora && (
+                          <div className="flex items-center gap-3 py-1.5 text-[11px] text-muted-foreground">
+                            <Separator className="flex-1" />
+                            <span className="shrink-0">Histórico importado da Kora</span>
+                            <Separator className="flex-1" />
+                          </div>
+                        )}
+                        {divisorProprio && (
+                          <div className="flex items-center gap-3 py-1.5 text-[11px] text-muted-foreground">
+                            <Separator className="flex-1" />
+                            <span className="shrink-0">Atendimento no sistema próprio</span>
+                            <Separator className="flex-1" />
+                          </div>
+                        )}
+                        <div className={cn("group relative flex min-w-0 max-w-full overflow-hidden", saida ? "justify-end" : "justify-start")}>
+                          {podeCitar && (
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              className={cn(
+                                "absolute top-0 hidden h-7 w-7 opacity-0 transition-opacity group-hover:opacity-100 lg:flex",
+                                saida ? "right-full mr-1" : "left-full ml-1",
+                              )}
+                              onClick={() => onResponder(m)}
+                              title="Responder"
+                            >
+                              <Reply className="h-3.5 w-3.5" />
+                            </Button>
+                          )}
+                          <div
+                            ref={(el) => onRegistrarRef(chaveBalao, el)}
+                            onTouchStart={(e) => {
+                              if (!podeCitar) return;
+                              const t = e.touches[0];
+                              toqueRef.current.x = t.clientX;
+                              toqueRef.current.y = t.clientY;
+                              if (toqueRef.current.timer) clearTimeout(toqueRef.current.timer);
+                              toqueRef.current.timer = setTimeout(() => onAbrirMenu(chaveBalao), 500);
+                            }}
+                            onTouchMove={(e) => {
+                              if (!podeCitar) return;
+                              const t = e.touches[0];
+                              const dx = t.clientX - toqueRef.current.x;
+                              const dy = Math.abs(t.clientY - toqueRef.current.y);
+                              if (Math.abs(dx) > 10 || dy > 10) {
+                                if (toqueRef.current.timer) clearTimeout(toqueRef.current.timer);
+                                toqueRef.current.timer = null;
+                              }
+                              if (dx > 60 && dy < 40) {
+                                toqueRef.current.x = t.clientX + 9999;
+                                onResponder(m);
+                              }
+                            }}
+                            onTouchEnd={() => {
+                              if (toqueRef.current.timer) clearTimeout(toqueRef.current.timer);
+                              toqueRef.current.timer = null;
+                            }}
+                            className={cn(
+                              "min-w-0 max-w-[75%] overflow-hidden text-base break-words [overflow-wrap:anywhere] [word-break:break-word]",
+                              destacado && "ring-2 ring-primary ring-offset-2 ring-offset-background transition-shadow",
+                              sticker && !falhou
+                                ? "bg-transparent border-0 p-0"
+                                : cn(
+                                    "rounded-lg px-3 py-2 border",
+                                    !saida && "bg-muted text-foreground border-border",
+                                    saida && bot && "bg-info/10 text-foreground border-info/30",
+                                    saida && !bot && !kora && "bg-primary/10 text-foreground border-primary/30",
+                                    saida && kora && "bg-muted text-foreground border-border",
+                                    falhou && "bg-danger/10 text-foreground border-danger/50",
+                                  ),
+                            )}
+
+                          >
+                            {saida && !sticker && (
+                              <div className={cn("flex items-center gap-1 text-[10px] uppercase tracking-wider mb-1", falhou ? "text-danger" : "text-muted-foreground")}>
+                                {falhou ? <AlertTriangle className="h-3 w-3" /> : bot ? <Bot className="h-3 w-3" /> : <User className="h-3 w-3" />}
+                                {kora ? "Kora" : bot ? "Bot" : "Atendente"}
+                              </div>
+                            )}
+
+                            {temCitada && (
+                              <button
+                                type="button"
+                                onClick={() => onIrParaMensagem(m.citada_id)}
+                                className="mb-1.5 flex w-full items-center gap-2 rounded-md bg-background/60 py-1 pl-0 pr-2 text-left"
+                              >
+                                <span className="h-8 w-1 shrink-0 rounded-full bg-primary" />
+                                <span className="min-w-0 flex-1">
+                                  <span className="block text-[11px] font-semibold text-primary">
+                                    {m.citada_direcao === "entrada" ? "Cliente" : "Você"}
+                                  </span>
+                                  <span className="line-clamp-2 block text-xs text-muted-foreground">
+                                    {m.citada_texto?.trim() || (m.citada_media_url ? "Imagem" : "Mensagem")}
+                                  </span>
+                                </span>
+                                {m.citada_media_url && (
+                                  <img src={m.citada_media_url} alt="Citada" className="h-9 w-9 shrink-0 rounded object-cover" />
+                                )}
+                              </button>
+                            )}
+
+                            {menuAberto && (
+                              <div className="mb-1.5 flex gap-1.5">
+                                <Button size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={() => onResponder(m)}>
+                                  <Reply className="mr-1 h-3 w-3" />
+                                  Responder
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  className="h-7 px-2 text-xs"
+                                  onClick={() => {
+                                    onCopiar(m.conteudo ?? "");
+                                    onAbrirMenu(null);
+                                  }}
+                                >
+                                  <Copy className="mr-1 h-3 w-3" />
+                                  Copiar texto
+                                </Button>
+                                <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => onAbrirMenu(null)} title="Fechar">
+                                  <X className="h-3 w-3" />
+                                </Button>
+                              </div>
+                            )}
+
+
+                            {midia && <MensagemMidia tipo={m.tipo} mediaUrl={m.media_url} conteudo={m.conteudo} />}
+                            {mostrarTexto && <p className="max-w-full whitespace-pre-wrap break-words [overflow-wrap:anywhere] [word-break:break-word]">{m.conteudo}</p>}
+                            {falhou && (
+                              <div className="mt-2 space-y-1.5">
+                                <p className="text-xs font-semibold text-danger">Não enviada</p>
+                                <p className="text-xs text-danger/90">{motivoFalha}</p>
+                                <div className="flex flex-wrap gap-1.5">
+                                  {pedeTemplate ? (
+                                    <Button size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={() => onEnviarTemplate()}>
+                                      Enviar template
+                                    </Button>
+                                  ) : (
+                                    <Button size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={() => onReenviar(m)}>
+                                      Tentar de novo
+                                    </Button>
+                                  )}
+                                  <Button size="sm" variant="ghost" className="h-7 px-2 text-xs" onClick={() => onCopiar(m.conteudo ?? "")}>
+                                    Copiar texto
+                                  </Button>
+                                  {m.falha_local && (
+                                    <Button
+                                      size="sm"
+                                      variant="ghost"
+                                      className="h-7 px-2 text-xs"
+                                      onClick={() => typeof m.id === "number" && onDescartar(m.id)}
+                                    >
+                                      Descartar
+                                    </Button>
+                                  )}
+                                </div>
+                              </div>
+                            )}
+
+                            <div className="flex items-center justify-end gap-1 mt-1">
+                              <span className="text-[10px] text-muted-foreground">
+                                {horaCurta(m.criada_em ?? m.criado_em ?? m.enviado_em)}
+                              </span>
+                              {saida && m.enviando && (
+                                <Clock className="h-3 w-3 text-muted-foreground" aria-label="Enviando" />
+                              )}
+                              {saida && !m.enviando && (
+                                <StatusEntrega status={m.status_entrega} erro={m.erro_entrega} />
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    );
+});
+
 export default function Atendimento() {
   const queryClient = useQueryClient();
   const { user } = useAuth();
@@ -2350,201 +2568,27 @@ export default function Atendimento() {
                 {carregandoMensagens && <p className="text-sm text-muted-foreground">Carregando mensagens…</p>}
                 <div className="min-w-0 max-w-full space-y-3 overflow-x-hidden">
                   {mensagens.map((m, idx) => {
-                    const saida = m.direcao === "saida";
-                    const bot = saida && m.origem === "bot";
-                    const kora = m.origem === "kora";
-                    const tipo = (m.tipo ?? "").toLowerCase();
-                    const sticker = tipo === "sticker" && !!m.media_url;
-                    const tipoMidia = ehTipoMidia(tipo);
-                    const midia = tipoMidia || !!m.media_url;
-                    const mostrarTexto = !!m.conteudo && !sticker && !tipoMidia;
-                    const falhou = saida && m.status_entrega === "falhou" && !kora;
-                    const motivoFalha = m.erro_entrega ?? "Não foi possível entregar a mensagem.";
-                    const pedeTemplate = falhou && ehMotivoJanela(motivoFalha);
-                    const chaveBalao = m.id != null ? String(m.id) : "";
-                    const otimista = typeof m.id === "number" && m.id < 0;
-                    const podeCitar = !kora && !otimista && m.id != null;
-                    const temCitada = m.citada_id != null || !!m.citada_texto;
-                    const menuAberto = menuBalao === chaveBalao;
-
+                    const chave = m.id != null ? String(m.id) : `${m.criada_em ?? m.criado_em ?? ""}-${idx}`;
                     return (
-                      <div key={m.id != null ? String(m.id) : `${m.criada_em ?? m.criado_em ?? ""}-${idx}`}>
-                        {idx === primeiroIndiceKora && (
-                          <div className="flex items-center gap-3 py-1.5 text-[11px] text-muted-foreground">
-                            <Separator className="flex-1" />
-                            <span className="shrink-0">Histórico importado da Kora</span>
-                            <Separator className="flex-1" />
-                          </div>
-                        )}
-                        {idx === primeiroIndiceSistemaProprio && (
-                          <div className="flex items-center gap-3 py-1.5 text-[11px] text-muted-foreground">
-                            <Separator className="flex-1" />
-                            <span className="shrink-0">Atendimento no sistema próprio</span>
-                            <Separator className="flex-1" />
-                          </div>
-                        )}
-                        <div className={cn("group relative flex min-w-0 max-w-full overflow-hidden", saida ? "justify-end" : "justify-start")}>
-                          {podeCitar && (
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              className={cn(
-                                "absolute top-0 hidden h-7 w-7 opacity-0 transition-opacity group-hover:opacity-100 lg:flex",
-                                saida ? "right-full mr-1" : "left-full ml-1",
-                              )}
-                              onClick={() => responderCitando(m)}
-                              title="Responder"
-                            >
-                              <Reply className="h-3.5 w-3.5" />
-                            </Button>
-                          )}
-                          <div
-                            ref={(el) => {
-                              if (chaveBalao) balaoRefs.current[chaveBalao] = el;
-                            }}
-                            onTouchStart={(e) => {
-                              if (!podeCitar) return;
-                              const t = e.touches[0];
-                              toqueRef.current.x = t.clientX;
-                              toqueRef.current.y = t.clientY;
-                              if (toqueRef.current.timer) clearTimeout(toqueRef.current.timer);
-                              toqueRef.current.timer = setTimeout(() => setMenuBalao(chaveBalao), 500);
-                            }}
-                            onTouchMove={(e) => {
-                              if (!podeCitar) return;
-                              const t = e.touches[0];
-                              const dx = t.clientX - toqueRef.current.x;
-                              const dy = Math.abs(t.clientY - toqueRef.current.y);
-                              if (Math.abs(dx) > 10 || dy > 10) {
-                                if (toqueRef.current.timer) clearTimeout(toqueRef.current.timer);
-                                toqueRef.current.timer = null;
-                              }
-                              if (dx > 60 && dy < 40) {
-                                toqueRef.current.x = t.clientX + 9999;
-                                responderCitando(m);
-                              }
-                            }}
-                            onTouchEnd={() => {
-                              if (toqueRef.current.timer) clearTimeout(toqueRef.current.timer);
-                              toqueRef.current.timer = null;
-                            }}
-                            className={cn(
-                              "min-w-0 max-w-[75%] overflow-hidden text-base break-words [overflow-wrap:anywhere] [word-break:break-word]",
-                              destacada === chaveBalao && "ring-2 ring-primary ring-offset-2 ring-offset-background transition-shadow",
-                              sticker && !falhou
-                                ? "bg-transparent border-0 p-0"
-                                : cn(
-                                    "rounded-lg px-3 py-2 border",
-                                    !saida && "bg-muted text-foreground border-border",
-                                    saida && bot && "bg-info/10 text-foreground border-info/30",
-                                    saida && !bot && !kora && "bg-primary/10 text-foreground border-primary/30",
-                                    saida && kora && "bg-muted text-foreground border-border",
-                                    falhou && "bg-danger/10 text-foreground border-danger/50",
-                                  ),
-                            )}
-
-                          >
-                            {saida && !sticker && (
-                              <div className={cn("flex items-center gap-1 text-[10px] uppercase tracking-wider mb-1", falhou ? "text-danger" : "text-muted-foreground")}>
-                                {falhou ? <AlertTriangle className="h-3 w-3" /> : bot ? <Bot className="h-3 w-3" /> : <User className="h-3 w-3" />}
-                                {kora ? "Kora" : bot ? "Bot" : "Atendente"}
-                              </div>
-                            )}
-
-                            {temCitada && (
-                              <button
-                                type="button"
-                                onClick={() => irParaMensagem(m.citada_id)}
-                                className="mb-1.5 flex w-full items-center gap-2 rounded-md bg-background/60 py-1 pl-0 pr-2 text-left"
-                              >
-                                <span className="h-8 w-1 shrink-0 rounded-full bg-primary" />
-                                <span className="min-w-0 flex-1">
-                                  <span className="block text-[11px] font-semibold text-primary">
-                                    {m.citada_direcao === "entrada" ? "Cliente" : "Você"}
-                                  </span>
-                                  <span className="line-clamp-2 block text-xs text-muted-foreground">
-                                    {m.citada_texto?.trim() || (m.citada_media_url ? "Imagem" : "Mensagem")}
-                                  </span>
-                                </span>
-                                {m.citada_media_url && (
-                                  <img src={m.citada_media_url} alt="Citada" className="h-9 w-9 shrink-0 rounded object-cover" />
-                                )}
-                              </button>
-                            )}
-
-                            {menuAberto && (
-                              <div className="mb-1.5 flex gap-1.5">
-                                <Button size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={() => responderCitando(m)}>
-                                  <Reply className="mr-1 h-3 w-3" />
-                                  Responder
-                                </Button>
-                                <Button
-                                  size="sm"
-                                  variant="ghost"
-                                  className="h-7 px-2 text-xs"
-                                  onClick={() => {
-                                    copiarTextoMensagem(m.conteudo ?? "");
-                                    setMenuBalao(null);
-                                  }}
-                                >
-                                  <Copy className="mr-1 h-3 w-3" />
-                                  Copiar texto
-                                </Button>
-                                <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => setMenuBalao(null)} title="Fechar">
-                                  <X className="h-3 w-3" />
-                                </Button>
-                              </div>
-                            )}
-
-
-                            {midia && <MensagemMidia tipo={m.tipo} mediaUrl={m.media_url} conteudo={m.conteudo} />}
-                            {mostrarTexto && <p className="max-w-full whitespace-pre-wrap break-words [overflow-wrap:anywhere] [word-break:break-word]">{m.conteudo}</p>}
-                            {falhou && (
-                              <div className="mt-2 space-y-1.5">
-                                <p className="text-xs font-semibold text-danger">Não enviada</p>
-                                <p className="text-xs text-danger/90">{motivoFalha}</p>
-                                <div className="flex flex-wrap gap-1.5">
-                                  {pedeTemplate ? (
-                                    <Button size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={() => setTemplateAberto(true)}>
-                                      Enviar template
-                                    </Button>
-                                  ) : (
-                                    <Button size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={() => reenviarMensagem(m)}>
-                                      Tentar de novo
-                                    </Button>
-                                  )}
-                                  <Button size="sm" variant="ghost" className="h-7 px-2 text-xs" onClick={() => copiarTextoMensagem(m.conteudo ?? "")}>
-                                    Copiar texto
-                                  </Button>
-                                  {m.falha_local && (
-                                    <Button
-                                      size="sm"
-                                      variant="ghost"
-                                      className="h-7 px-2 text-xs"
-                                      onClick={() => typeof m.id === "number" && removerMensagemOtimista(m.id)}
-                                    >
-                                      Descartar
-                                    </Button>
-                                  )}
-                                </div>
-                              </div>
-                            )}
-
-                            <div className="flex items-center justify-end gap-1 mt-1">
-                              <span className="text-[10px] text-muted-foreground">
-                                {horaCurta(m.criada_em ?? m.criado_em ?? m.enviado_em)}
-                              </span>
-                              {saida && m.enviando && (
-                                <Clock className="h-3 w-3 text-muted-foreground" aria-label="Enviando" />
-                              )}
-                              {saida && !m.enviando && (
-                                <StatusEntrega status={m.status_entrega} erro={m.erro_entrega} />
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                      </div>
+                      <BalaoMensagem
+                        key={chave}
+                        m={m}
+                        divisorKora={idx === primeiroIndiceKora}
+                        divisorProprio={idx === primeiroIndiceSistemaProprio}
+                        destacado={destacada === (m.id != null ? String(m.id) : "")}
+                        menuAberto={menuBalao === (m.id != null ? String(m.id) : "")}
+                        toqueRef={toqueRef}
+                        onRegistrarRef={registrarBalaoRef}
+                        onResponder={responderCitando}
+                        onCopiar={copiarTextoMensagem}
+                        onAbrirMenu={setMenuBalao}
+                        onIrParaMensagem={irParaMensagem}
+                        onReenviar={reenviarMensagem}
+                        onDescartar={removerMensagemOtimista}
+                        onEnviarTemplate={abrirTemplate}
+                      />
                     );
+                  })}
                   })}
                   <div ref={fimRef} />
                 </div>
