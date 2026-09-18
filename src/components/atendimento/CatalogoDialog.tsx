@@ -229,6 +229,7 @@ export function CatalogoDialog({
   onSelecionar: (produto: ProdutoCatalogo, escolha?: EscolhaProduto) => void;
 }) {
   const [busca, setBusca] = useState("");
+  const [buscaAdiada, setBuscaAdiada] = useState("");
   const [cor, setCor] = useState<string | null>(null);
   const [tamanho, setTamanho] = useState<string | null>(null);
   const [aberto, setAberto] = useState<ProdutoCatalogo | null>(null);
@@ -237,9 +238,15 @@ export function CatalogoDialog({
     if (!open) setAberto(null);
   }, [open]);
 
+  useEffect(() => {
+    const t = setTimeout(() => setBuscaAdiada(busca), 300);
+    return () => clearTimeout(t);
+  }, [busca]);
+
   const { data: opcoes } = useQuery({
     queryKey: ["catalogo-opcoes-filtro"],
     enabled: open,
+    staleTime: 30 * 60 * 1000,
     queryFn: async () => {
       const { data, error } = await chamarRpc("catalogo_opcoes_filtro" as any);
       if (error) throw error;
@@ -251,11 +258,13 @@ export function CatalogoDialog({
   });
 
   const { data: produtos = [], isLoading } = useQuery({
-    queryKey: ["catalogo-buscar-produtos", busca, cor, tamanho],
+    queryKey: ["catalogo-buscar-produtos", buscaAdiada, cor, tamanho],
     enabled: open,
+    staleTime: 60 * 1000,
+    placeholderData: keepPreviousData,
     queryFn: async () => {
       const { data, error } = await chamarRpc("catalogo_buscar_produtos" as any, {
-        p_palavra_chave: busca.trim() || null,
+        p_palavra_chave: buscaAdiada.trim() || null,
         p_cor: cor,
         p_tamanho: tamanho,
         p_limit: 30,
