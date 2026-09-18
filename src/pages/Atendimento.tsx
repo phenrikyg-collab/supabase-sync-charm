@@ -1361,12 +1361,13 @@ export default function Atendimento() {
   };
 
   /** Reenvia o mesmo texto pelo fluxo normal de envio. */
-  const reenviarMensagem = (m: Mensagem) => {
+  const reenviarMensagem = useCallback((m: Mensagem) => {
     const conteudo = (m.conteudo ?? "").trim();
     if (!conteudo) return;
     if (typeof m.id === "number" && m.id < 0) removerMensagemOtimista(m.id);
     enviar.mutate(conteudo);
-  };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [removerMensagemOtimista]);
 
   const copiarTextoMensagem = useCallback(async (conteudo: string) => {
     try {
