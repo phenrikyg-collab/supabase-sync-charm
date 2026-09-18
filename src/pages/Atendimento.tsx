@@ -847,6 +847,30 @@ export default function Atendimento() {
     return null;
   };
 
+  /** Insere um balão temporário no cache da thread e devolve o id provisório. */
+  const inserirMensagemOtimista = (dados: Partial<Mensagem>) => {
+    const idTemp = -Date.now();
+    const chave = ["whatsapp-mensagens", selecionada];
+    queryClient.cancelQueries({ queryKey: chave });
+    queryClient.setQueryData(chave, (antigas: Mensagem[] = []) => [
+      ...(antigas ?? []),
+      {
+        id: idTemp,
+        direcao: "saida",
+        criada_em: new Date().toISOString(),
+        enviando: true,
+        ...dados,
+      } as Mensagem,
+    ]);
+    return idTemp;
+  };
+
+  const removerMensagemOtimista = (idTemp: number) => {
+    queryClient.setQueryData(["whatsapp-mensagens", selecionada], (antigas: Mensagem[] = []) =>
+      (antigas ?? []).filter((m) => m.id !== idTemp),
+    );
+  };
+
   const enviar = useMutation({
     mutationFn: async (conteudo: string) => {
       if (!conversaAtual) throw new Error("Nenhuma conversa selecionada");
@@ -869,10 +893,13 @@ export default function Atendimento() {
       if (error) throw error;
       return data;
     },
-    onSuccess: () => {
+    onMutate: (conteudo: string) => {
       setTexto("");
       setErroJanela(null);
-      invalidarThread();
+      return { idTemp: inserirMensagemOtimista({ conteudo, tipo: "texto" }), conteudo };
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["whatsapp-mensagens", selecionada] });
       // Lead do provador aberto com mensagem pronta: registra o contato no funil
       if (leadProvador && leadProvador.conversaId === selecionada) {
         const { leadId, conversaId } = leadProvador;
@@ -882,7 +909,9 @@ export default function Atendimento() {
           .then(() => queryClient.invalidateQueries({ queryKey: ["provador-leads"] }));
       }
     },
-    onError: async (e: any) => {
+    onError: async (e: any, _conteudo, contexto: any) => {
+      if (contexto?.idTemp) removerMensagemOtimista(contexto.idTemp);
+      if (contexto?.conteudo) setTexto((atual) => (atual.trim() ? atual : contexto.conteudo));
       const janela = await extrairErroJanela(e);
       if (janela) {
         setErroJanela(janela);
@@ -896,24 +925,34 @@ export default function Atendimento() {
   const enviarImagem = async (mediaUrl: string, conteudo: string) => {
     if (!conversaAtual) throw new Error("Nenhuma conversa selecionada");
     const telefoneEnvio = conversaAtual.telefone_real || conversaAtual.telefone;
-    const resposta = await fetch(
-      "https://ezdtulcrqzmgocamjwwl.supabase.co/functions/v1/whatsapp-enviar-imagem-humano",
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          telefone: telefoneEnvio,
-          conversa_id: conversaAtual.id,
-          imagem_url: mediaUrl,
-          legenda: conteudo || "",
-        }),
-      },
-    );
-    const corpo = await resposta.json().catch(() => ({}));
-    if (!resposta.ok || corpo?.error) {
-      throw new Error(corpo?.error || corpo?.mensagem || `Falha no envio (${resposta.status})`);
+    const idTemp = inserirMensagemOtimista({
+      conteudo,
+      tipo: "imagem",
+      media_url: mediaUrl,
+    });
+    try {
+      const resposta = await fetch(
+        "https://ezdtulcrqzmgocamjwwl.supabase.co/functions/v1/whatsapp-enviar-imagem-humano",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            telefone: telefoneEnvio,
+            conversa_id: conversaAtual.id,
+            imagem_url: mediaUrl,
+            legenda: conteudo || "",
+          }),
+        },
+      );
+      const corpo = await resposta.json().catch(() => ({}));
+      if (!resposta.ok || corpo?.error) {
+        throw new Error(corpo?.error || corpo?.mensagem || `Falha no envio (${resposta.status})`);
+      }
+    } catch (e) {
+      removerMensagemOtimista(idTemp);
+      throw e;
     }
-    invalidarThread();
+    queryClient.invalidateQueries({ queryKey: ["whatsapp-mensagens", selecionada] });
   };
 
   const selecionarArquivo = (f: File | null) => {
