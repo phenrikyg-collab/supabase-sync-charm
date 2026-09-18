@@ -43,7 +43,19 @@ export type TemplateWpp = {
   corpo?: string | null;
   variaveis?: number | null;
   copiar_cupom?: boolean | null;
+  botoes?: any;
+  botoes_resposta?: string[] | null;
+  variaveis_nomes?: string[] | null;
 };
+
+/** Textos dos botões de resposta rápida de um template do catálogo. */
+export function botoesRespostaDoTemplate(catalogo: any, templateId: any): string[] {
+  const t = (catalogo?.templates_whatsapp ?? []).find(
+    (x: any) => String(x.id) === String(templateId),
+  );
+  const lista = t?.botoes_resposta;
+  return Array.isArray(lista) ? lista.map((b: any) => String(b)).filter((b: string) => b !== "") : [];
+}
 export type TagCatalogo = { id: number | string; nome: string; cor?: string | null };
 
 /** Item de lista do catálogo que pode vir como texto puro ou objeto com rótulo. */
@@ -193,4 +205,20 @@ export const ROTULO_EVENTO: Record<string, string> = {
   entregue: "Foi entregue",
   lido: "Leu",
   respondeu: "Respondeu",
+};
+
+export const MOTIVOS_SAIDA: Record<string, string> = {
+  respondeu_texto: "Saiu: escreveu e a Anna assumiu",
+  botao_sem_resposta: "Saiu: não respondeu",
+};
+
+export const ROTULO_ORIGEM_BOTAO: Record<string, string> = {
+  sinonimo: "por palavra",
+  ia: "pela IA",
+};
+
+export const ROTULO_MODO_DIGITOU: Record<string, string> = {
+  anna: "a Anna assumiu",
+  caminho: "seguiu 'respondeu'",
+  esperar: "a Anna respondeu, segue esperando",
 };

@@ -152,6 +152,150 @@ function CamposWhatsAppTemplate({
   );
 }
 
+function CampoTags({
+  valores, onChange, placeholder,
+}: { valores: string[]; onChange: (v: string[]) => void; placeholder: string }) {
+  const [texto, setTexto] = useState("");
+  const adicionar = () => {
+    const v = texto.trim();
+    if (!v || valores.includes(v)) { setTexto(""); return; }
+    onChange([...valores, v]);
+    setTexto("");
+  };
+  return (
+    <div className="space-y-1">
+      <div className="flex flex-wrap gap-1">
+        {valores.map((v) => (
+          <Badge key={v} variant="secondary" className="gap-1 text-[10px]">
+            {v}
+            <button type="button" onClick={() => onChange(valores.filter((x) => x !== v))} aria-label={`Remover ${v}`}>
+              <X className="h-3 w-3" />
+            </button>
+          </Badge>
+        ))}
+      </div>
+      <Input
+        value={texto}
+        placeholder={placeholder}
+        onChange={(e) => setTexto(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") { e.preventDefault(); adicionar(); }
+        }}
+        onBlur={adicionar}
+      />
+    </div>
+  );
+}
+
+function CamposAguardarBotao({
+  config, botoes, temTemplateAntes, onChange,
+}: {
+  config: Record<string, any>;
+  botoes: string[];
+  temTemplateAntes: boolean;
+  onChange: (patch: Record<string, any>) => void;
+}) {
+  const sinonimos: Record<string, string[]> = config.sinonimos && typeof config.sinonimos === "object"
+    ? config.sinonimos
+    : {};
+
+  return (
+    <div className="space-y-4">
+      <div className="space-y-1">
+        <Label className="text-xs">Botões do template</Label>
+        {!temTemplateAntes ? (
+          <p className="text-[11px] text-warning">
+            Ligue este passo logo depois de um WhatsApp template com botões.
+          </p>
+        ) : botoes.length === 0 ? (
+          <p className="text-[11px] text-warning">O template anterior não tem botão de resposta rápida.</p>
+        ) : (
+          <div className="flex flex-wrap gap-1">
+            {botoes.map((b) => (
+              <Badge key={b} variant="outline" className="text-[10px]">{b}</Badge>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div className="space-y-1">
+        <Label className="text-xs">Prazo para responder (horas)</Label>
+        <Input
+          type="number"
+          min={1}
+          max={168}
+          value={config.timeout_horas ?? 24}
+          onChange={(e) => {
+            const n = Number(e.target.value);
+            onChange({ timeout_horas: Math.min(168, Math.max(1, Number.isFinite(n) ? n : 24)) });
+          }}
+        />
+        <p className="text-[11px] text-muted-foreground">
+          Depois disso, ela vai pela saída "sem resposta". Sem essa saída ligada, sai do fluxo.
+        </p>
+      </div>
+
+      <div className="space-y-1">
+        <Label className="text-xs">Se ela escrever em vez de tocar</Label>
+        <RadioGroup
+          value={config.se_digitar ?? "anna"}
+          onValueChange={(v) => onChange({ se_digitar: v })}
+          className="space-y-2"
+        >
+          {[
+            ["anna", "A Anna responde e o fluxo termina aqui",
+              "A Anna recebe o contexto desta mensagem e conduz a conversa. Ninguém recebe mensagem de 'sem resposta' depois."],
+            ["caminho", "Seguir o caminho 'respondeu'",
+              "Use para mandar uma mensagem sua. Exige a saída 'respondeu' ligada."],
+            ["esperar", "A Anna responde e o fluxo continua esperando o toque", ""],
+          ].map(([v, r, dica]) => (
+            <div key={v} className="flex items-start gap-2">
+              <RadioGroupItem value={v} id={`digitar-${v}`} className="mt-0.5" />
+              <div className="space-y-0.5">
+                <Label htmlFor={`digitar-${v}`} className="text-xs font-normal">{r}</Label>
+                {dica && <p className="text-[11px] text-muted-foreground">{dica}</p>}
+              </div>
+            </div>
+          ))}
+        </RadioGroup>
+      </div>
+
+      <div className="space-y-1">
+        <div className="flex items-center justify-between gap-2">
+          <Label className="text-xs">Entender o que ela escreveu (IA)</Label>
+          <Switch
+            checked={config.entender_texto !== false}
+            onCheckedChange={(v) => onChange({ entender_texto: v })}
+          />
+        </div>
+        <p className="text-[11px] text-muted-foreground">
+          Se ela escrever "quero sim", a IA entende como o botão de interesse e segue aquele caminho. Só escolhe
+          quando tiver certeza.
+        </p>
+      </div>
+
+      {botoes.length > 0 && (
+        <div className="space-y-2">
+          <Label className="text-xs">Palavras que valem como botão (opcional)</Label>
+          {botoes.map((b) => (
+            <div key={b} className="space-y-1 rounded-md border border-border p-2">
+              <p className="text-[11px] font-medium">{b}</p>
+              <CampoTags
+                valores={Array.isArray(sinonimos[b]) ? sinonimos[b] : []}
+                placeholder="Digite a palavra e aperte Enter"
+                onChange={(v) => onChange({ sinonimos: { ...sinonimos, [b]: v } })}
+              />
+            </div>
+          ))}
+          <p className="text-[11px] text-muted-foreground">
+            Casa só com a mensagem inteira igual à palavra, sem acento e sem maiúscula.
+          </p>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function PreviaEmailDialog({ slug, open, onOpenChange }: { slug?: string | null; open: boolean; onOpenChange: (v: boolean) => void }) {
   const { data } = usePreviaTemplate(slug ?? undefined, open && !!slug);
   return (
@@ -165,11 +309,14 @@ function PreviaEmailDialog({ slug, open, onOpenChange }: { slug?: string | null;
 }
 
 export function ConfigNoPanel({
-  data, catalogo, nosDoFluxo, gatilhoTipo, onChange, onRemover, onFechar, onIrConfiguracoes,
+  data, catalogo, nosDoFluxo, gatilhoTipo, botoesEntrada = [], temTemplateAntes = false,
+  onChange, onRemover, onFechar, onIrConfiguracoes,
 }: {
   data: NoData;
   catalogo?: Catalogo;
   nosDoFluxo: NoLista[];
+  botoesEntrada?: string[];
+  temTemplateAntes?: boolean;
   gatilhoTipo?: string | null;
   onChange: (patch: { rotulo?: string; config?: Record<string, any> }) => void;
   onRemover: () => void;
@@ -515,6 +662,15 @@ export function ConfigNoPanel({
 
         {data.tipo === "whatsapp_template" && (
           <CamposWhatsAppTemplate config={config} catalogo={catalogo} onChange={patch} />
+        )}
+
+        {data.tipo === "aguardar_botao" && (
+          <CamposAguardarBotao
+            config={config}
+            botoes={botoesEntrada}
+            temTemplateAntes={temTemplateAntes}
+            onChange={patch}
+          />
         )}
 
         {data.tipo === "whatsapp_janela" && (

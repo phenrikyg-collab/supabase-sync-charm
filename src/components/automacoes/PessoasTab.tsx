@@ -12,7 +12,10 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { toast } from "@/hooks/use-toast";
-import { dataHoraBR, rpcFluxos, MOTIVOS_PULO, ROTULO_STATUS_EXECUCAO } from "./api";
+import {
+  dataHoraBR, rpcFluxos, MOTIVOS_PULO, ROTULO_STATUS_EXECUCAO,
+  ROTULO_ORIGEM_BOTAO, ROTULO_MODO_DIGITOU, MOTIVOS_SAIDA,
+} from "./api";
 
 type Execucao = {
   id: number | string;
@@ -42,6 +45,17 @@ const ACOES: Record<string, (d: any) => string> = {
   pulado: (d) => `Pulado: ${MOTIVOS_PULO[d?.motivo] ?? d?.motivo ?? "sem motivo"}`,
   tag_aplicada: () => "Tag aplicada",
   saiu_comprou: () => "Saiu: comprou",
+  aguardando_botao: () => "Esperando ela tocar num botão",
+  botao_clicado: (d) => `Tocou em "${d?.botao ?? ""}"`,
+  botao_interpretado: (d) => {
+    const origem = ROTULO_ORIGEM_BOTAO[String(d?.origem ?? "")];
+    return `Escreveu "${d?.texto ?? ""}", entendido como "${d?.botao ?? ""}"${origem ? ` (${origem})` : ""}`;
+  },
+  respondeu_texto: (d) => {
+    const modo = ROTULO_MODO_DIGITOU[String(d?.modo ?? "")];
+    return `Escreveu "${d?.texto ?? ""}" em vez de tocar${modo ? `: ${modo}` : ""}`;
+  },
+  botao_sem_resposta: () => "Não respondeu no prazo",
   encerrada_manual: () => "Encerrada no painel",
   fim: () => "Fim",
   erro: (d) => `Erro: ${d?.erro ?? "sem detalhe"}`,
@@ -198,6 +212,9 @@ export function PessoasTab({ fluxoId }: { fluxoId: string }) {
                   <Badge variant="secondary" className="text-[10px]">
                     {ROTULO_STATUS_EXECUCAO[String(l.status)] ?? l.status}
                   </Badge>
+                  {l.motivo_saida && MOTIVOS_SAIDA[String(l.motivo_saida)] && (
+                    <p className="text-[11px] text-muted-foreground">{MOTIVOS_SAIDA[String(l.motivo_saida)]}</p>
+                  )}
                   {l.erro && <p className="text-[11px] text-danger">{l.erro}</p>}
                 </td>
                 <td className="p-2 text-xs">{l.no_atual ?? ""}</td>
