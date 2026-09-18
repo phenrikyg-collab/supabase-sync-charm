@@ -1808,6 +1808,13 @@ export default function Atendimento() {
                           )}
                           <span className="truncate">{nome}</span>
                           {nomeSoDoWhatsApp(c) && <BadgeViaWhatsApp />}
+                          {!modoHistorico && c.falha_envio && (
+                            <span className="inline-flex items-center gap-1 rounded-full border border-danger/30 bg-danger/10 px-1.5 py-0.5 text-[10px] font-semibold text-danger whitespace-nowrap">
+                              <AlertTriangle className="h-3 w-3" />
+                              Não enviada
+                            </span>
+                          )}
+
                         </p>
                         <p className="text-xs text-muted-foreground">{identificadorConversa(c)}</p>
                         <BadgeSinal conversa={c} urg={urg} />
