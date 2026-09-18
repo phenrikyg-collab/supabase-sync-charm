@@ -16,7 +16,7 @@ import { ptBR } from "date-fns/locale";
 import {
   AlertTriangle, Bot, Check, CheckCheck, CheckCircle2, Globe, ImagePlus, LayoutGrid, Lock, MessageCircle,
   RotateCcw, Search, Send, User, X, UserCheck, Phone, QrCode, Link2,
-  Truck, ShoppingCart, Plus, MoreHorizontal, PanelRight, Menu, Trash2, FileText,
+  Truck, ShoppingCart, Plus, MoreHorizontal, PanelRight, Menu, Trash2, FileText, Clock,
 } from "lucide-react";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription,
@@ -299,6 +299,7 @@ type Mensagem = {
   enviado_em?: string | null;
   status_entrega?: "enviado" | "entregue" | "lido" | "falhou" | string | null;
   erro_entrega?: string | null;
+  enviando?: boolean;
 };
 
 const STATUS_META: Record<string, { label: string; className: string }> = {
@@ -847,6 +848,30 @@ export default function Atendimento() {
     return null;
   };
 
+  /** Insere um balão temporário no cache da thread e devolve o id provisório. */
+  const inserirMensagemOtimista = (dados: Partial<Mensagem>) => {
+    const idTemp = -Date.now();
+    const chave = ["whatsapp-mensagens", selecionada];
+    queryClient.cancelQueries({ queryKey: chave });
+    queryClient.setQueryData(chave, (antigas: Mensagem[] = []) => [
+      ...(antigas ?? []),
+      {
+        id: idTemp,
+        direcao: "saida",
+        criada_em: new Date().toISOString(),
+        enviando: true,
+        ...dados,
+      } as Mensagem,
+    ]);
+    return idTemp;
+  };
+
+  const removerMensagemOtimista = (idTemp: number) => {
+    queryClient.setQueryData(["whatsapp-mensagens", selecionada], (antigas: Mensagem[] = []) =>
+      (antigas ?? []).filter((m) => m.id !== idTemp),
+    );
+  };
+
   const enviar = useMutation({
     mutationFn: async (conteudo: string) => {
       if (!conversaAtual) throw new Error("Nenhuma conversa selecionada");
@@ -869,10 +894,13 @@ export default function Atendimento() {
       if (error) throw error;
       return data;
     },
-    onSuccess: () => {
+    onMutate: (conteudo: string) => {
       setTexto("");
       setErroJanela(null);
-      invalidarThread();
+      return { idTemp: inserirMensagemOtimista({ conteudo, tipo: "texto" }), conteudo };
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["whatsapp-mensagens", selecionada] });
       // Lead do provador aberto com mensagem pronta: registra o contato no funil
       if (leadProvador && leadProvador.conversaId === selecionada) {
         const { leadId, conversaId } = leadProvador;
@@ -882,7 +910,9 @@ export default function Atendimento() {
           .then(() => queryClient.invalidateQueries({ queryKey: ["provador-leads"] }));
       }
     },
-    onError: async (e: any) => {
+    onError: async (e: any, _conteudo, contexto: any) => {
+      if (contexto?.idTemp) removerMensagemOtimista(contexto.idTemp);
+      if (contexto?.conteudo) setTexto((atual) => (atual.trim() ? atual : contexto.conteudo));
       const janela = await extrairErroJanela(e);
       if (janela) {
         setErroJanela(janela);
@@ -896,24 +926,34 @@ export default function Atendimento() {
   const enviarImagem = async (mediaUrl: string, conteudo: string) => {
     if (!conversaAtual) throw new Error("Nenhuma conversa selecionada");
     const telefoneEnvio = conversaAtual.telefone_real || conversaAtual.telefone;
-    const resposta = await fetch(
-      "https://ezdtulcrqzmgocamjwwl.supabase.co/functions/v1/whatsapp-enviar-imagem-humano",
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          telefone: telefoneEnvio,
-          conversa_id: conversaAtual.id,
-          imagem_url: mediaUrl,
-          legenda: conteudo || "",
-        }),
-      },
-    );
-    const corpo = await resposta.json().catch(() => ({}));
-    if (!resposta.ok || corpo?.error) {
-      throw new Error(corpo?.error || corpo?.mensagem || `Falha no envio (${resposta.status})`);
+    const idTemp = inserirMensagemOtimista({
+      conteudo,
+      tipo: "imagem",
+      media_url: mediaUrl,
+    });
+    try {
+      const resposta = await fetch(
+        "https://ezdtulcrqzmgocamjwwl.supabase.co/functions/v1/whatsapp-enviar-imagem-humano",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            telefone: telefoneEnvio,
+            conversa_id: conversaAtual.id,
+            imagem_url: mediaUrl,
+            legenda: conteudo || "",
+          }),
+        },
+      );
+      const corpo = await resposta.json().catch(() => ({}));
+      if (!resposta.ok || corpo?.error) {
+        throw new Error(corpo?.error || corpo?.mensagem || `Falha no envio (${resposta.status})`);
+      }
+    } catch (e) {
+      removerMensagemOtimista(idTemp);
+      throw e;
     }
-    invalidarThread();
+    queryClient.invalidateQueries({ queryKey: ["whatsapp-mensagens", selecionada] });
   };
 
   const selecionarArquivo = (f: File | null) => {
@@ -1989,7 +2029,12 @@ export default function Atendimento() {
                               <span className="text-[10px] text-muted-foreground">
                                 {horaCurta(m.criada_em ?? m.criado_em ?? m.enviado_em)}
                               </span>
-                              {saida && <StatusEntrega status={m.status_entrega} erro={m.erro_entrega} />}
+                              {saida && m.enviando && (
+                                <Clock className="h-3 w-3 text-muted-foreground" aria-label="Enviando" />
+                              )}
+                              {saida && !m.enviando && (
+                                <StatusEntrega status={m.status_entrega} erro={m.erro_entrega} />
+                              )}
                             </div>
                           </div>
                         </div>
@@ -2142,7 +2187,7 @@ export default function Atendimento() {
                       size="icon"
                        className="h-8 w-8 shrink-0 rounded-full"
                       onClick={() => texto.trim() && enviar.mutate(texto.trim())}
-                      disabled={!texto.trim() || enviar.isPending}
+                      disabled={!texto.trim()}
                       title="Enviar"
                     >
                       <Send className="h-4 w-4" />

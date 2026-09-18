@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -25,6 +25,7 @@ export type ProdutoCatalogo = {
   url?: string | null;
   disponivel?: boolean | null;
   tamanhos_disponiveis?: TamanhoDisponivel[] | null;
+  cores_disponiveis?: (string | CorDisponivel)[] | null;
 };
 
 export type EscolhaProduto = { cor?: string | null; tamanho?: string | null; imagem?: string | null };
@@ -76,13 +77,13 @@ function useVariantes(produtoId: string, ativo: boolean) {
   });
 }
 
-function CoresDoCard({ produtoId, ativo }: { produtoId: string; ativo: boolean }) {
-  const { data } = useVariantes(produtoId, ativo);
-  const cores = data?.cores ?? [];
-  if (cores.length === 0) return null;
+/** Chips de cor do card, a partir do campo que a própria busca já devolve. */
+function CoresDoCard({ cores }: { cores?: (string | CorDisponivel)[] | null }) {
+  const lista = (cores ?? []).map((c) => (typeof c === "string" ? { cor: c } : c)).filter((c) => !!c?.cor);
+  if (lista.length === 0) return null;
   return (
     <div className="flex flex-wrap gap-1 pt-0.5">
-      {cores.slice(0, 4).map((c) => (
+      {lista.slice(0, 4).map((c) => (
         <span
           key={c.cor}
           title={c.estoque != null ? `${c.estoque} em estoque` : undefined}
@@ -91,8 +92,8 @@ function CoresDoCard({ produtoId, ativo }: { produtoId: string; ativo: boolean }
           {c.cor}
         </span>
       ))}
-      {cores.length > 4 && (
-        <span className="text-[10px] text-muted-foreground">+{cores.length - 4}</span>
+      {lista.length > 4 && (
+        <span className="text-[10px] text-muted-foreground">+{lista.length - 4}</span>
       )}
     </div>
   );
@@ -228,6 +229,7 @@ export function CatalogoDialog({
   onSelecionar: (produto: ProdutoCatalogo, escolha?: EscolhaProduto) => void;
 }) {
   const [busca, setBusca] = useState("");
+  const [buscaAdiada, setBuscaAdiada] = useState("");
   const [cor, setCor] = useState<string | null>(null);
   const [tamanho, setTamanho] = useState<string | null>(null);
   const [aberto, setAberto] = useState<ProdutoCatalogo | null>(null);
@@ -236,9 +238,15 @@ export function CatalogoDialog({
     if (!open) setAberto(null);
   }, [open]);
 
+  useEffect(() => {
+    const t = setTimeout(() => setBuscaAdiada(busca), 300);
+    return () => clearTimeout(t);
+  }, [busca]);
+
   const { data: opcoes } = useQuery({
     queryKey: ["catalogo-opcoes-filtro"],
     enabled: open,
+    staleTime: 30 * 60 * 1000,
     queryFn: async () => {
       const { data, error } = await chamarRpc("catalogo_opcoes_filtro" as any);
       if (error) throw error;
@@ -250,11 +258,13 @@ export function CatalogoDialog({
   });
 
   const { data: produtos = [], isLoading } = useQuery({
-    queryKey: ["catalogo-buscar-produtos", busca, cor, tamanho],
+    queryKey: ["catalogo-buscar-produtos", buscaAdiada, cor, tamanho],
     enabled: open,
+    staleTime: 60 * 1000,
+    placeholderData: keepPreviousData,
     queryFn: async () => {
       const { data, error } = await chamarRpc("catalogo_buscar_produtos" as any, {
-        p_palavra_chave: busca.trim() || null,
+        p_palavra_chave: buscaAdiada.trim() || null,
         p_cor: cor,
         p_tamanho: tamanho,
         p_limit: 30,
@@ -348,13 +358,13 @@ export function CatalogoDialog({
                   >
                     <div className="aspect-square bg-muted overflow-hidden">
                       {p.imagem ? (
-                        <img src={p.imagem} alt={p.nome} className="w-full h-full object-cover" loading="lazy" />
+                        <img src={p.imagem} alt={p.nome} className="w-full h-full object-cover" loading="lazy" decoding="async" />
                       ) : null}
                     </div>
                     <div className="p-2 space-y-1">
                       <p className="text-xs font-medium line-clamp-2">{p.nome}</p>
                       <p className="text-sm font-bold">{formatarPreco(p.preco_cheio ?? p.preco)}</p>
-                      <CoresDoCard produtoId={idProduto(p)} ativo={open} />
+                      <CoresDoCard cores={p.cores_disponiveis} />
                       {p.preco_parcelado_5x != null && (
                         <p className="text-[11px] text-muted-foreground">
                           ou 5x de {formatarPreco(p.preco_parcelado_5x)} sem juros
