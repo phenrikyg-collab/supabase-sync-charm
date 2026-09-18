@@ -2289,6 +2289,34 @@ export default function Atendimento() {
                 </div>
               ) : podeResponder ? (
                  <div className="shrink-0 border-t border-border px-2 py-1.5 space-y-1.5">
+                  {!modoHistorico && conversaAtual?.falha_envio && (
+                    <div className="flex items-center gap-2 rounded-md border border-danger/40 bg-danger/10 px-3 py-2">
+                      <AlertTriangle className="h-4 w-4 text-danger shrink-0" />
+                      <p className="flex-1 text-xs text-danger">
+                        {`A última mensagem não foi entregue. ${conversaAtual.falha_envio_motivo ?? ""}`.trim()}
+                      </p>
+                      {ehMotivoJanela(conversaAtual.falha_envio_motivo) ? (
+                        <Button size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={() => setTemplateAberto(true)}>
+                          Enviar template
+                        </Button>
+                      ) : (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-7 px-2 text-xs"
+                          onClick={() => {
+                            const ultima = [...(mensagens ?? [])]
+                              .reverse()
+                              .find((m: Mensagem) => m.direcao === "saida" && m.status_entrega === "falhou");
+                            if (ultima) reenviarMensagem(ultima);
+                          }}
+                        >
+                          Tentar de novo
+                        </Button>
+                      )}
+                    </div>
+                  )}
+
                   {erroJanela && (
                     <div className="flex items-start gap-2 rounded-md border border-danger/40 bg-danger/10 p-3">
                       <AlertTriangle className="h-4 w-4 text-danger mt-0.5 shrink-0" />
