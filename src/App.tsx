@@ -30,6 +30,7 @@ import ProvaSocial from "./pages/ProvaSocial";
 import Popups from "./pages/Popups";
 import PopupsApp from "./pages/PopupsApp";
 import NotificacoesApp from "./pages/NotificacoesApp";
+import AppKpis from "./pages/AppKpis";
 import PopupEditor from "./pages/PopupEditor";
 import SocialCommerce from "./pages/SocialCommerce";
 import GrupoVip from "./pages/GrupoVip";
@@ -260,6 +261,7 @@ const AppRoutes = () => {
               <Route path="/prova-social" element={<ProvaSocial />} />
               <Route path="/popups" element={<Popups />} />
               <Route path="/popups/:id" element={<PopupEditor />} />
+              <Route path="/marketing/app-kpis" element={<AppKpis />} />
               <Route path="/marketing/popups-app" element={<PopupsApp />} />
               <Route path="/marketing/popups-app/:id" element={<PopupEditor />} />
               <Route path="/marketing/notificacoes-app" element={<NotificacoesApp />} />
