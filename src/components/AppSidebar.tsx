@@ -3,7 +3,7 @@ import {
   Truck, DollarSign, Target, FileText, Building2, LogOut, Users, Home, BarChart3, Upload, Layers,
   ShoppingBag, Undo2, Banknote, Wrench, CreditCard, PieChart, Monitor, Settings, Trophy, CalendarDays, TrendingUp, ClipboardList, Megaphone, Tag, Sparkles, Heart, LayoutGrid,
   Compass, Boxes, UserSquare2, Link as LinkIcon, MessageCircle, Workflow, Mail, ShoppingCart, PackageX, Radar, Ticket, Gauge,
-  BellRing, Instagram,
+  BellRing, Instagram, Smartphone,
   BadgeDollarSign,
   Filter,
   CheckCircle2,
@@ -95,7 +95,6 @@ const moduleGroups: ModuleGroup[] = [
       { title: "Tendências", url: "/tendencias", icon: TrendingUp },
       { title: "Embaixadoras", url: "/embaixadoras", icon: Heart },
       { title: "Link na Bio", url: "/link-na-bio", icon: LinkIcon },
-      { title: "Popups do App", url: "/marketing/popups-app", icon: Smartphone },
       
       { title: "WhatsApp: Templates, Segmentos e Campanhas", url: "/marketing-whatsapp", icon: MessageCircle },
     ],
