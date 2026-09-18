@@ -1337,6 +1337,9 @@ export default function Atendimento() {
   const totalAutomacoes = conversas.filter(
     (c) => daAba(c) && grupoDe(c) === grupoAba && atencaoDe(c)?.dono === "automacao",
   ).length;
+  // "Não enviadas": última mensagem nossa falhou na entrega
+  const totalFalhas = conversas.filter((c) => daAba(c) && grupoDe(c) === grupoAba && !!c.falha_envio).length;
+
 
   const telefoneIdentificado = conversaAtual
     ? (ehSite(conversaAtual) ? conversaAtual.telefone_real : conversaAtual.telefone) || null
