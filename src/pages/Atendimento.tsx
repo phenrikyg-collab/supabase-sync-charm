@@ -472,9 +472,13 @@ export default function Atendimento() {
   const [erroJanela, setErroJanela] = useState<string | null>(null);
   const [texto, setTexto] = useState("");
   const [catalogoAberto, setCatalogoAberto] = useState(false);
-  const [arquivo, setArquivo] = useState<File | null>(null);
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [imagens, setImagens] = useState<{ chave: string; file: File; url: string }[]>([]);
   const [legenda, setLegenda] = useState("");
+  const [citacao, setCitacao] = useState<Citacao | null>(null);
+  const [arrastando, setArrastando] = useState(false);
+  const [menuBalao, setMenuBalao] = useState<string | null>(null);
+  const [destacada, setDestacada] = useState<string | null>(null);
+  const balaoRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const [enviandoImagem, setEnviandoImagem] = useState(false);
   const fimRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
