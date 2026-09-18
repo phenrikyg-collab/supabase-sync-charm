@@ -911,6 +911,35 @@ export default function Atendimento() {
     );
   };
 
+  /** Transforma o balão otimista em balão de falha, com o motivo em português. */
+  const marcarMensagemFalhou = (idTemp: number, motivo: string) => {
+    queryClient.setQueryData(["whatsapp-mensagens", selecionada], (antigas: Mensagem[] = []) =>
+      (antigas ?? []).map((m) =>
+        m.id === idTemp
+          ? { ...m, enviando: false, status_entrega: "falhou", erro_entrega: motivo, falha_local: true }
+          : m,
+      ),
+    );
+  };
+
+  /** Reenvia o mesmo texto pelo fluxo normal de envio. */
+  const reenviarMensagem = (m: Mensagem) => {
+    const conteudo = (m.conteudo ?? "").trim();
+    if (!conteudo) return;
+    if (typeof m.id === "number" && m.id < 0) removerMensagemOtimista(m.id);
+    enviar.mutate(conteudo);
+  };
+
+  const copiarTextoMensagem = async (conteudo: string) => {
+    try {
+      await navigator.clipboard.writeText(conteudo);
+      toast({ title: "Texto copiado" });
+    } catch {
+      toast({ title: "Não foi possível copiar", variant: "destructive" });
+    }
+  };
+
+
   const enviar = useMutation({
     mutationFn: async (conteudo: string) => {
       if (!conversaAtual) throw new Error("Nenhuma conversa selecionada");
