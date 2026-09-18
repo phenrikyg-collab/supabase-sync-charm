@@ -127,7 +127,7 @@ function Editor({ fluxoId }: { fluxoId: string }) {
         id: `edge-${c.id ?? i}`,
         source,
         target,
-        sourceHandle: label === "sim" || label === "nao" ? label : null,
+        sourceHandle: label ? label : null,
         label: label ?? undefined,
         animated: true,
       } as Edge;
@@ -155,7 +155,10 @@ function Editor({ fluxoId }: { fluxoId: string }) {
     (c: Connection) => {
       marcarSujo();
       setEdges((eds) =>
-        addEdge({ ...c, animated: true, label: c.sourceHandle ?? undefined }, eds),
+        addEdge(
+          { ...c, animated: true, label: c.sourceHandle ?? undefined },
+          eds.filter((e) => !(e.source === c.source && (e.sourceHandle ?? null) === (c.sourceHandle ?? null))),
+        ),
       );
     },
     [setEdges],
@@ -224,6 +227,25 @@ function Editor({ fluxoId }: { fluxoId: string }) {
     );
   }, [validacao]);
 
+  /** Para cada nó "Aguardar botão", os botões do template que liga nele. */
+  const botoesPorNo = useMemo(() => {
+    const mapa = new Map<string, { botoes: string[]; temTemplateAntes: boolean }>();
+    for (const n of nodes) {
+      const d = n.data as unknown as NoData;
+      if (d.tipo !== "aguardar_botao") continue;
+      const anterior = edges
+        .filter((e) => e.target === n.id)
+        .map((e) => nodes.find((x) => x.id === e.source))
+        .find((x) => x && (x.data as unknown as NoData).tipo === "whatsapp_template");
+      const cfg = anterior ? (anterior.data as unknown as NoData).config ?? {} : {};
+      mapa.set(n.id, {
+        temTemplateAntes: !!anterior,
+        botoes: anterior ? botoesRespostaDoTemplate(catalogo, cfg.template_id) : [],
+      });
+    }
+    return mapa;
+  }, [nodes, edges, catalogo]);
+
   const nodesRenderizados = useMemo(
     () =>
       nodes.map((n) => {
@@ -236,10 +258,12 @@ function Editor({ fluxoId }: { fluxoId: string }) {
             catalogo,
             gatilhoRotulo: fluxo.gatilho_rotulo,
             comErro: rotulosComErro.has(rotulo),
+            botoesEntrada: botoesPorNo.get(n.id)?.botoes ?? [],
+            temTemplateAntes: !!botoesPorNo.get(n.id)?.temTemplateAntes,
           },
         };
       }),
-    [nodes, catalogo, fluxo.gatilho_rotulo, rotulosComErro],
+    [nodes, catalogo, fluxo.gatilho_rotulo, rotulosComErro, botoesPorNo],
   );
 
   const salvar = useMutation({
@@ -259,7 +283,7 @@ function Editor({ fluxoId }: { fluxoId: string }) {
       const pConexoes = edges.map((e) => ({
         origem: e.source,
         destino: e.target,
-        label: e.sourceHandle === "sim" || e.sourceHandle === "nao" ? e.sourceHandle : null,
+        label: e.sourceHandle ? e.sourceHandle : null,
       }));
       return rpcFluxos<any>("fluxo_salvar", {
         p_fluxo_id: fluxoId,
