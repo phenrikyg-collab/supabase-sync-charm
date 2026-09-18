@@ -126,6 +126,16 @@ export default function PopupEditor() {
     futuro.current = [];
   }, [original]);
 
+  const destino: "site" | "app" = popup?.destino === "app" ? "app" : "site";
+  const baseRota = destino === "app" ? "/marketing/popups-app" : "/popups";
+  const ehApp = destino === "app";
+
+  /* ---------- cada destino tem a sua rota ---------- */
+  useEffect(() => {
+    if (!popup?.id) return;
+    if (!local.pathname.startsWith(baseRota)) navegar(`${baseRota}/${popup.id}`, { replace: true });
+  }, [popup?.id, baseRota, local.pathname, navegar]);
+
   const mudar = useCallback((patch: Partial<Popup>) => {
     setPopup((atual) => {
       if (!atual) return atual;
