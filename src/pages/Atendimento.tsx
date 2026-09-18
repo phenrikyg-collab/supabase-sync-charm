@@ -2007,8 +2007,7 @@ export default function Atendimento() {
                   <Lock className="h-4 w-4 text-warning mt-0.5 shrink-0" />
                   <div className="flex-1 space-y-2">
                     <p className="text-sm text-foreground">
-                      Fora da janela de 24h — mensagem de texto livre é bloqueada pelo WhatsApp. Só um
-                      template aprovado reabre o contato.
+                      Fora da janela de 24h. Envie um template para retomar a conversa.
                     </p>
                     <Button size="sm" onClick={() => setTemplateAberto(true)}>
                       <Send className="h-4 w-4 mr-2" />
