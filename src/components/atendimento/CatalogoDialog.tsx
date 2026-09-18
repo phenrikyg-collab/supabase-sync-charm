@@ -25,6 +25,7 @@ export type ProdutoCatalogo = {
   url?: string | null;
   disponivel?: boolean | null;
   tamanhos_disponiveis?: TamanhoDisponivel[] | null;
+  cores_disponiveis?: (string | CorDisponivel)[] | null;
 };
 
 export type EscolhaProduto = { cor?: string | null; tamanho?: string | null; imagem?: string | null };
