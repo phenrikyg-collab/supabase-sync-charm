@@ -146,6 +146,16 @@ export default function PopupEditor() {
     });
   }, []);
 
+  /* ---------- no app o popup vale para todas as telas ---------- */
+  useEffect(() => {
+    if (!ehApp || !popup) return;
+    const incluir = popup.regras?.paginas?.incluir ?? [];
+    if (incluir.length === 1 && incluir[0] === "*") return;
+    mudar({
+      regras: { ...(popup.regras ?? {}), paginas: { ...(popup.regras?.paginas ?? {}), incluir: ["*"] } },
+    });
+  }, [ehApp, popup, mudar]);
+
   /* ---------- autosave ---------- */
   useEffect(() => {
     if (!popup || conflito) return;
