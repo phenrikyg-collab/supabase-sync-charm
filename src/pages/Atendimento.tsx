@@ -2175,6 +2175,10 @@ export default function Atendimento() {
                     const tipoMidia = ehTipoMidia(tipo);
                     const midia = tipoMidia || !!m.media_url;
                     const mostrarTexto = !!m.conteudo && !sticker && !tipoMidia;
+                    const falhou = saida && m.status_entrega === "falhou" && !kora;
+                    const motivoFalha = m.erro_entrega ?? "Não foi possível entregar a mensagem.";
+                    const pedeTemplate = falhou && ehMotivoJanela(motivoFalha);
+
                     return (
                       <div key={m.id != null ? String(m.id) : `${m.criada_em ?? m.criado_em ?? ""}-${idx}`}>
                         {idx === primeiroIndiceKora && (
