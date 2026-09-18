@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useInfiniteQuery, useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -44,6 +44,7 @@ import { CalcularFreteDialog } from "@/components/atendimento/CalcularFrete";
 import { ProporCarrinhoDialog, PropostaDaConversa } from "@/components/atendimento/ProporCarrinho";
 import { EnviarTemplateDialog } from "@/components/atendimento/EnviarTemplate";
 import { ConferirNumeroDialog } from "@/components/atendimento/ConferirNumero";
+import { Composer, type ComposerHandle } from "@/components/atendimento/Composer";
 
 import { ConsultarTransacaoTab } from "@/components/atendimento/ConsultarTransacao";
 import { MensagemMidia, ehTipoMidia } from "@/components/atendimento/MensagemMidia";
@@ -473,7 +474,8 @@ export default function Atendimento() {
   const [modoHistorico, setModoHistorico] = useState(false);
   const [soKora, setSoKora] = useState(false);
   const [erroJanela, setErroJanela] = useState<string | null>(null);
-  const [texto, setTexto] = useState("");
+  const composerRef = useRef<ComposerHandle>(null);
+  const [digitando, setDigitando] = useState(false);
   const [catalogoAberto, setCatalogoAberto] = useState(false);
   const [imagens, setImagens] = useState<{ chave: string; file: File; url: string }[]>([]);
   const [legenda, setLegenda] = useState("");
@@ -488,8 +490,6 @@ export default function Atendimento() {
   const toqueRef = useRef<{ x: number; y: number; timer: ReturnType<typeof setTimeout> | null }>({ x: 0, y: 0, timer: null });
   const [enviandoImagem, setEnviandoImagem] = useState(false);
   const fimRef = useRef<HTMLDivElement>(null);
-  const fileRef = useRef<HTMLInputElement>(null);
-  const textoRef = useRef<HTMLTextAreaElement>(null);
   const buscaRef = useRef<HTMLInputElement>(null);
 
   // Tecla "/" fora de um campo leva o cursor direto para a busca de conversas
@@ -512,31 +512,8 @@ export default function Atendimento() {
   const [perfilSheet, setPerfilSheet] = useState(false);
   const [listaSheet, setListaSheet] = useState(false);
 
-  // mensagens rápidas pelo atalho "/"
-  const { data: respostasRapidas = [] } = useRespostasRapidas(false);
-  const [indiceRapida, setIndiceRapida] = useState(0);
-  const slashAtivo = texto.startsWith("/") && !texto.includes("\n");
-  const rapidasFiltradas = useMemo(
-    () => (slashAtivo ? filtrarRespostas(respostasRapidas, texto.slice(1)) : []),
-    [slashAtivo, respostasRapidas, texto],
-  );
-  const listaRapidaAberta = slashAtivo && rapidasFiltradas.length > 0;
-  useEffect(() => {
-    setIndiceRapida(0);
-  }, [texto]);
-
-  useEffect(() => {
-    const campo = textoRef.current;
-    if (!campo) return;
-    campo.style.height = "auto";
-    campo.style.height = `${Math.min(campo.scrollHeight, 96)}px`;
-  }, [texto]);
-
-  const inserirResposta = (r: RespostaRapida) => {
-    setTexto(r.texto);
-    registrarUso(r.id);
-    setTimeout(() => textoRef.current?.focus(), 0);
-  };
+  const abrirCatalogo = useCallback(() => setCatalogoAberto(true), []);
+  const abrirTemplate = useCallback(() => setTemplateAberto(true), []);
 
   const autor = user?.email ?? "Atendente";
 
@@ -561,8 +538,7 @@ export default function Atendimento() {
 
   /** Preenche o campo de resposta com um texto pronto, sem enviar. */
   const usarTextoPronto = (t: string) => {
-    setTexto(t);
-    setTimeout(() => textoRef.current?.focus(), 0);
+    composerRef.current?.definirTexto(t);
   };
 
   const { data: conversasBrutas = [], isLoading: carregandoConversas } = useQuery({
@@ -578,8 +554,10 @@ export default function Atendimento() {
         ultima_mensagem: c.ultima_mensagem ?? c.ultima_mensagem_texto ?? null,
       })) as Conversa[];
     },
-    // rede de segurança curta: o tempo real cuida do resto
-    refetchInterval: 10000,
+    // rede de segurança: o tempo real cuida do resto. Pausa enquanto a consultora digita,
+    // porque recarregar a lista no meio da digitação faz a tela engasgar.
+    refetchInterval: digitando ? false : 15000,
+    refetchOnWindowFocus: true,
   });
 
   // Tipo de interação por conversa: conversa de verdade, só clique em botão ou só disparo nosso
@@ -724,8 +702,7 @@ export default function Atendimento() {
     setPerfilSheet(false);
     const textoPronto = parametros.get("texto");
     if (textoPronto) {
-      setTexto(textoPronto);
-      setTimeout(() => textoRef.current?.focus(), 0);
+      composerRef.current?.definirTexto(textoPronto);
     }
     const restantes = new URLSearchParams(parametros);
     restantes.delete("conversa");
@@ -749,7 +726,8 @@ export default function Atendimento() {
   const { data: mensagens = [], isLoading: carregandoMensagens } = useQuery({
     queryKey: ["whatsapp-mensagens", selecionada],
     enabled: !!selecionada,
-    refetchInterval: 10000,
+    refetchInterval: 15000,
+    refetchOnWindowFocus: true,
     queryFn: async () => {
       const { data, error } = await chamarRpc("whatsapp_get_mensagens_conversa" as any, {
         p_conversa_id: Number.isNaN(Number(selecionada)) ? selecionada : Number(selecionada),
@@ -925,7 +903,7 @@ export default function Atendimento() {
       media_url: m.media_url,
     });
     setMenuBalao(null);
-    setTimeout(() => textoRef.current?.focus(), 0);
+    setTimeout(() => composerRef.current?.focar(), 0);
   };
 
   const invalidarThread = () => {
@@ -1029,7 +1007,6 @@ export default function Atendimento() {
       return data;
     },
     onMutate: (conteudo: string) => {
-      setTexto("");
       setErroJanela(null);
       const citada = citacao;
       citacaoRef.current = citada;
@@ -1062,7 +1039,9 @@ export default function Atendimento() {
       const janela = await extrairErroJanela(e);
       const motivo = janela ?? e?.message ?? "Não foi possível enviar a mensagem.";
       if (contexto?.idTemp) marcarMensagemFalhou(contexto.idTemp, motivo);
-      if (contexto?.conteudo) setTexto((atual) => (atual.trim() ? atual : contexto.conteudo));
+      if (contexto?.conteudo && !composerRef.current?.obterTexto().trim()) {
+        composerRef.current?.definirTexto(contexto.conteudo);
+      }
       if (janela) {
         setErroJanela(janela);
         queryClient.invalidateQueries({ queryKey: ["whatsapp-janela-24h", selecionada] });
@@ -1139,9 +1118,7 @@ export default function Atendimento() {
     // O texto já digitado vira a legenda da primeira imagem
     setLegenda((atual) => {
       if (atual.trim()) return atual;
-      const doCampo = texto.trim();
-      if (doCampo) setTexto("");
-      return doCampo;
+      return composerRef.current?.pegarELimpar().trim() ?? "";
     });
   };
 
@@ -1159,7 +1136,7 @@ export default function Atendimento() {
       return [];
     });
     setLegenda("");
-    if (fileRef.current) fileRef.current.value = "";
+
   };
 
   const confirmarEnvioImagem = async () => {
@@ -1485,9 +1462,8 @@ export default function Atendimento() {
     setAbaPagina("conversas");
     setListaSheet(false);
     setPerfilSheet(false);
-    if (textoPronto) setTexto(textoPronto);
+    if (textoPronto) composerRef.current?.definirTexto(textoPronto);
     setLeadProvador(leadId ? { leadId, conversaId: String(id) } : null);
-    if (textoPronto) setTimeout(() => textoRef.current?.focus(), 0);
   };
 
   const rotuloComContagem = (label: string, n?: number) => (
@@ -2623,7 +2599,7 @@ export default function Atendimento() {
                           <button
                             type="button"
                             className="flex h-16 w-16 items-center justify-center rounded border border-dashed border-border text-muted-foreground hover:bg-accent"
-                            onClick={() => fileRef.current?.click()}
+                            onClick={() => composerRef.current?.abrirArquivos()}
                             title="Adicionar mais imagens"
                           >
                             <Plus className="h-5 w-5" />
@@ -2651,123 +2627,23 @@ export default function Atendimento() {
                       </div>
                     </div>
                   )}
-                  <div className="relative flex min-w-0 max-w-full items-end gap-1 overflow-visible">
-                    {listaRapidaAberta && (
-                      <div className="absolute bottom-full left-0 z-50 mb-2 w-full max-w-md rounded-md border border-border bg-popover shadow-lg">
-                        <p className="border-b border-border px-3 py-1.5 text-[11px] text-muted-foreground">
-                          Mensagens rápidas: setas para escolher, Enter para inserir, Esc para fechar
-                        </p>
-                        <ListaRespostas
-                          itens={rapidasFiltradas}
-                          indice={indiceRapida}
-                          onIndice={setIndiceRapida}
-                          onEscolher={inserirResposta}
+                  <Composer
+                    ref={composerRef}
+                    onEnviar={(t) => enviar.mutate(t)}
+                    onImagens={adicionarImagens}
+                    onAbrirCatalogo={abrirCatalogo}
+                    onAbrirTemplate={abrirTemplate}
+                    onDigitandoMudou={setDigitando}
+                    figurinhas={
+                      !ehSite(conversaAtual) ? (
+                        <SeletorFigurinhas
+                          telefone={telefoneIdentificado}
+                          conversaId={conversaAtual.id}
+                          onEnviada={invalidarThread}
                         />
-                      </div>
-                    )}
-                    <input
-                      ref={fileRef}
-                      type="file"
-                      accept="image/*"
-                      multiple
-                      className="hidden"
-                      onChange={(e) => {
-                        adicionarImagens(Array.from(e.target.files ?? []));
-                        if (fileRef.current) fileRef.current.value = "";
-                      }}
-                    />
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                       className="h-8 w-8 shrink-0"
-                      onClick={() => fileRef.current?.click()}
-                      title="Enviar imagem"
-                    >
-                      <ImagePlus className="h-4 w-4" />
-                    </Button>
-                    {!ehSite(conversaAtual) && (
-                      <SeletorFigurinhas
-                        telefone={telefoneIdentificado}
-                        conversaId={conversaAtual.id}
-                        onEnviada={invalidarThread}
-                      />
-                    )}
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                       className="h-8 w-8 shrink-0"
-                      onClick={() => setCatalogoAberto(true)}
-                      title="Catálogo"
-                    >
-                      <LayoutGrid className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                      className="h-8 w-8 shrink-0"
-                      onClick={() => setTemplateAberto(true)}
-                      title="Enviar template"
-                    >
-                      <FileText className="h-4 w-4" />
-                    </Button>
-                    <BotaoRespostasRapidas onEscolher={inserirResposta} />
-                    <Textarea
-                      ref={textoRef}
-                      value={texto}
-                      onChange={(e) => setTexto(e.target.value)}
-                      onPaste={(e) => {
-                        const itens = Array.from(e.clipboardData?.items ?? []);
-                        const arquivos = itens
-                          .filter((i) => i.kind === "file" && i.type.startsWith("image/"))
-                          .map((i) => i.getAsFile())
-                          .filter((f): f is File => !!f);
-                        if (arquivos.length === 0) return;
-                        e.preventDefault();
-                        adicionarImagens(arquivos);
-                      }}
-                      placeholder="Escreva sua resposta ou digite / para as mensagens rápidas"
-                      rows={1}
-                       className="min-h-8 max-h-24 min-w-0 flex-1 resize-none overflow-y-auto py-1.5"
-                      onKeyDown={(e) => {
-                        if (listaRapidaAberta) {
-                          if (e.key === "ArrowDown") {
-                            e.preventDefault();
-                            setIndiceRapida((i) => (i + 1) % rapidasFiltradas.length);
-                            return;
-                          }
-                          if (e.key === "ArrowUp") {
-                            e.preventDefault();
-                            setIndiceRapida((i) => (i - 1 + rapidasFiltradas.length) % rapidasFiltradas.length);
-                            return;
-                          }
-                          if (e.key === "Escape") {
-                            e.preventDefault();
-                            setTexto("");
-                            return;
-                          }
-                          if (e.key === "Enter" && !e.shiftKey) {
-                            e.preventDefault();
-                            const escolhida = rapidasFiltradas[indiceRapida];
-                            if (escolhida) inserirResposta(escolhida);
-                            return;
-                          }
-                        }
-                        if (e.key === "Enter" && !e.shiftKey) {
-                          e.preventDefault();
-                          if (texto.trim()) enviar.mutate(texto.trim());
-                        }
-                      }}
-                    />
-                    <Button
-                      size="icon"
-                       className="h-8 w-8 shrink-0 rounded-full"
-                      onClick={() => texto.trim() && enviar.mutate(texto.trim())}
-                      disabled={!texto.trim()}
-                      title="Enviar"
-                    >
-                      <Send className="h-4 w-4" />
-                    </Button>
-                  </div>
+                      ) : null
+                    }
+                  />
                 </div>
               ) : (
                 <div className="p-4 text-sm text-muted-foreground text-center">
