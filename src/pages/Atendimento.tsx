@@ -299,6 +299,7 @@ type Mensagem = {
   enviado_em?: string | null;
   status_entrega?: "enviado" | "entregue" | "lido" | "falhou" | string | null;
   erro_entrega?: string | null;
+  enviando?: boolean;
 };
 
 const STATUS_META: Record<string, { label: string; className: string }> = {
