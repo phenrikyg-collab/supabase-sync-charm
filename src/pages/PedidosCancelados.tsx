@@ -233,6 +233,11 @@ export default function PedidosCancelados({
                               nome={l.nome}
                               conversaId={contato?.conversa_id ?? null}
                               padrao={padrao}
+                              dados={{
+                                id_pedido: `#${l.tray_order_id}`,
+                                valor: moeda(l.total_amount),
+                                data: formatarData(l.date_purchase),
+                              }}
                               rotulo="Enviar mensagem de recuperação"
                               contatada={contatados.has(l.tray_order_id)}
                               onContatada={() => setContatados((p) => new Set(p).add(l.tray_order_id))}
