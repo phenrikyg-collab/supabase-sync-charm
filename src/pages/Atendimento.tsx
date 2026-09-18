@@ -2122,7 +2122,7 @@ export default function Atendimento() {
                       aria-label="Conferir número"
                       onClick={() => setConferirNumero(true)}
                     >
-                      <PhoneCog className="h-3.5 w-3.5" />
+                      <Pencil className="h-3.5 w-3.5" />
                     </Button>
                   )}
                   {nomeSoDoWhatsApp(conversaAtual) && <BadgeViaWhatsApp />}
