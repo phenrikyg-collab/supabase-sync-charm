@@ -397,18 +397,31 @@ const ALINHAR = [
   { v: "right", n: "Direita" },
 ];
 
+export const ACOES_APP: { v: string; n: string }[] = [
+  { v: "instalar", n: "Instalar app" },
+  { v: "ativar_avisos", n: "Ativar avisos" },
+  { v: "meus_pedidos", n: "Meus pedidos" },
+  { v: "cashback", n: "Meu cashback" },
+  { v: "trocas", n: "Trocas e devoluções" },
+  { v: "whatsapp", n: "WhatsApp" },
+  { v: "loja", n: "Loja" },
+];
+
 export function PropsElemento({
   elemento,
   mudar,
   etapas,
   popupId,
+  destino = "site",
 }: {
   elemento: ElementoPopup;
   mudar: (patch: Partial<ElementoPopup>) => void;
   etapas: EtapaPopup[];
   popupId: number | string;
+  destino?: "site" | "app";
 }) {
   const e = elemento;
+  const ehAcaoApp = e.acao === "link" && String(e.url ?? "").startsWith("#mc-app-");
   const alinhar = (
     <Campo rotulo="Alinhamento">
       <Select value={e.alinhar ?? "center"} onValueChange={(v) => mudar({ alinhar: v })}>
