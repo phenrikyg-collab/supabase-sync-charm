@@ -2333,10 +2333,54 @@ export default function Atendimento() {
                             <Separator className="flex-1" />
                           </div>
                         )}
-                        <div className={cn("flex min-w-0 max-w-full overflow-hidden", saida ? "justify-end" : "justify-start")}>
+                        <div className={cn("group relative flex min-w-0 max-w-full overflow-hidden", saida ? "justify-end" : "justify-start")}>
+                          {podeCitar && (
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              className={cn(
+                                "absolute top-0 hidden h-7 w-7 opacity-0 transition-opacity group-hover:opacity-100 lg:flex",
+                                saida ? "right-full mr-1" : "left-full ml-1",
+                              )}
+                              onClick={() => responderCitando(m)}
+                              title="Responder"
+                            >
+                              <Reply className="h-3.5 w-3.5" />
+                            </Button>
+                          )}
                           <div
+                            ref={(el) => {
+                              if (chaveBalao) balaoRefs.current[chaveBalao] = el;
+                            }}
+                            onTouchStart={(e) => {
+                              if (!podeCitar) return;
+                              const t = e.touches[0];
+                              toqueRef.current.x = t.clientX;
+                              toqueRef.current.y = t.clientY;
+                              if (toqueRef.current.timer) clearTimeout(toqueRef.current.timer);
+                              toqueRef.current.timer = setTimeout(() => setMenuBalao(chaveBalao), 500);
+                            }}
+                            onTouchMove={(e) => {
+                              if (!podeCitar) return;
+                              const t = e.touches[0];
+                              const dx = t.clientX - toqueRef.current.x;
+                              const dy = Math.abs(t.clientY - toqueRef.current.y);
+                              if (Math.abs(dx) > 10 || dy > 10) {
+                                if (toqueRef.current.timer) clearTimeout(toqueRef.current.timer);
+                                toqueRef.current.timer = null;
+                              }
+                              if (dx > 60 && dy < 40) {
+                                toqueRef.current.x = t.clientX + 9999;
+                                responderCitando(m);
+                              }
+                            }}
+                            onTouchEnd={() => {
+                              if (toqueRef.current.timer) clearTimeout(toqueRef.current.timer);
+                              toqueRef.current.timer = null;
+                            }}
                             className={cn(
                               "min-w-0 max-w-[75%] overflow-hidden text-base break-words [overflow-wrap:anywhere] [word-break:break-word]",
+                              destacada === chaveBalao && "ring-2 ring-primary ring-offset-2 ring-offset-background transition-shadow",
                               sticker && !falhou
                                 ? "bg-transparent border-0 p-0"
                                 : cn(
@@ -2356,6 +2400,52 @@ export default function Atendimento() {
                                 {kora ? "Kora" : bot ? "Bot" : "Atendente"}
                               </div>
                             )}
+
+                            {temCitada && (
+                              <button
+                                type="button"
+                                onClick={() => irParaMensagem(m.citada_id)}
+                                className="mb-1.5 flex w-full items-center gap-2 rounded-md bg-background/60 py-1 pl-0 pr-2 text-left"
+                              >
+                                <span className="h-8 w-1 shrink-0 rounded-full bg-primary" />
+                                <span className="min-w-0 flex-1">
+                                  <span className="block text-[11px] font-semibold text-primary">
+                                    {m.citada_direcao === "entrada" ? "Cliente" : "Você"}
+                                  </span>
+                                  <span className="line-clamp-2 block text-xs text-muted-foreground">
+                                    {m.citada_texto?.trim() || (m.citada_media_url ? "Imagem" : "Mensagem")}
+                                  </span>
+                                </span>
+                                {m.citada_media_url && (
+                                  <img src={m.citada_media_url} alt="Citada" className="h-9 w-9 shrink-0 rounded object-cover" />
+                                )}
+                              </button>
+                            )}
+
+                            {menuAberto && (
+                              <div className="mb-1.5 flex gap-1.5">
+                                <Button size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={() => responderCitando(m)}>
+                                  <Reply className="mr-1 h-3 w-3" />
+                                  Responder
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  className="h-7 px-2 text-xs"
+                                  onClick={() => {
+                                    copiarTextoMensagem(m.conteudo ?? "");
+                                    setMenuBalao(null);
+                                  }}
+                                >
+                                  <Copy className="mr-1 h-3 w-3" />
+                                  Copiar texto
+                                </Button>
+                                <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => setMenuBalao(null)} title="Fechar">
+                                  <X className="h-3 w-3" />
+                                </Button>
+                              </div>
+                            )}
+
 
                             {midia && <MensagemMidia tipo={m.tipo} mediaUrl={m.media_url} conteudo={m.conteudo} />}
                             {mostrarTexto && <p className="max-w-full whitespace-pre-wrap break-words [overflow-wrap:anywhere] [word-break:break-word]">{m.conteudo}</p>}
