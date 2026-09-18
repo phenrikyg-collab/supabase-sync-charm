@@ -881,6 +881,12 @@ export default function Atendimento() {
   const toqueRef = useRef<{ x: number; y: number; timer: ReturnType<typeof setTimeout> | null }>({ x: 0, y: 0, timer: null });
   const [enviandoImagem, setEnviandoImagem] = useState(false);
   const fimRef = useRef<HTMLDivElement>(null);
+  const areaMensagensRef = useRef<HTMLDivElement>(null);
+  const obterViewport = useCallback(
+    () =>
+      (areaMensagensRef.current?.querySelector("[data-radix-scroll-area-viewport]") as HTMLElement | null) ?? null,
+    [],
+  );
   const buscaRef = useRef<HTMLInputElement>(null);
 
   // Tecla "/" fora de um campo leva o cursor direto para a busca de conversas
@@ -1114,7 +1120,9 @@ export default function Atendimento() {
     }
   }, [conversas, selecionada, parametros]);
 
-  const { data: mensagens = [], isLoading: carregandoMensagens } = useQuery({
+  const PAGINA_MENSAGENS = 80;
+
+  const { data: mensagensRecentes = [], isLoading: carregandoMensagens } = useQuery({
     queryKey: ["whatsapp-mensagens", selecionada],
     enabled: !!selecionada,
     refetchInterval: 15000,
@@ -1122,11 +1130,64 @@ export default function Atendimento() {
     queryFn: async () => {
       const { data, error } = await chamarRpc("whatsapp_get_mensagens_conversa" as any, {
         p_conversa_id: Number.isNaN(Number(selecionada)) ? selecionada : Number(selecionada),
+        p_limite: PAGINA_MENSAGENS,
       });
       if (error) throw error;
       return (data ?? []) as Mensagem[];
     },
   });
+
+  // Páginas anteriores carregadas sob demanda (botão no topo da lista).
+  const [mensagensAnteriores, setMensagensAnteriores] = useState<Mensagem[]>([]);
+  const [carregandoAnteriores, setCarregandoAnteriores] = useState(false);
+  const [temAnteriores, setTemAnteriores] = useState(false);
+  const ajusteScrollRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    setMensagensAnteriores([]);
+    setCarregandoAnteriores(false);
+  }, [selecionada]);
+
+  useEffect(() => {
+    setTemAnteriores(mensagensRecentes.length >= PAGINA_MENSAGENS);
+  }, [mensagensRecentes.length]);
+
+  // A lista exibida junta as páginas antigas com as mensagens recentes (que
+  // incluem os balões otimistas gravados no cache), sem duplicar por id.
+  const mensagens = useMemo<Mensagem[]>(() => {
+    if (mensagensAnteriores.length === 0) return mensagensRecentes;
+    const vistos = new Set(mensagensRecentes.map((m) => String(m.id)));
+    return [...mensagensAnteriores.filter((m) => !vistos.has(String(m.id))), ...mensagensRecentes];
+  }, [mensagensAnteriores, mensagensRecentes]);
+
+  const carregarAnteriores = useCallback(async () => {
+    if (carregandoAnteriores) return;
+    const maisAntiga = mensagens[0];
+    const antesDe = (maisAntiga?.criada_em ?? maisAntiga?.criado_em) as string | undefined;
+    if (!antesDe || !selecionada) return;
+    const viewport = obterViewport();
+    ajusteScrollRef.current = viewport ? viewport.scrollHeight : null;
+    setCarregandoAnteriores(true);
+    try {
+      const { data, error } = await chamarRpc("whatsapp_get_mensagens_conversa" as any, {
+        p_conversa_id: Number.isNaN(Number(selecionada)) ? selecionada : Number(selecionada),
+        p_limite: PAGINA_MENSAGENS,
+        p_antes_de: antesDe,
+      });
+      if (error) throw error;
+      const novas = (data ?? []) as Mensagem[];
+      setTemAnteriores(novas.length >= PAGINA_MENSAGENS);
+      setMensagensAnteriores((atuais) => {
+        const vistos = new Set(atuais.map((m) => String(m.id)));
+        return [...novas.filter((m) => !vistos.has(String(m.id))), ...atuais];
+      });
+    } catch {
+      ajusteScrollRef.current = null;
+      toast({ title: "Não foi possível carregar as mensagens anteriores", variant: "destructive" });
+    } finally {
+      setCarregandoAnteriores(false);
+    }
+  }, [carregandoAnteriores, mensagens, selecionada]);
 
   // Tempo real: mensagens novas, transcrição de áudio e mudanças de conversa
   const selecionadaRef = useRef<string | null>(null);
@@ -1259,8 +1320,56 @@ export default function Atendimento() {
   };
 
 
+  // Âncora de scroll: fim ao abrir, fim se já estava no fim, posição
+  // preservada ao carregar mensagens anteriores.
+  const noFimRef = useRef(true);
+  const primeiraRolagemRef = useRef(true);
+  const [temNovasAbaixo, setTemNovasAbaixo] = useState(false);
+
   useEffect(() => {
-    fimRef.current?.scrollIntoView({ behavior: "smooth" });
+    primeiraRolagemRef.current = true;
+    noFimRef.current = true;
+    setTemNovasAbaixo(false);
+  }, [selecionada]);
+
+  useEffect(() => {
+    const viewport = obterViewport();
+    if (!viewport) return;
+    const aoRolar = () => {
+      const perto = viewport.scrollHeight - viewport.scrollTop - viewport.clientHeight < 120;
+      noFimRef.current = perto;
+      if (perto) setTemNovasAbaixo(false);
+    };
+    viewport.addEventListener("scroll", aoRolar, { passive: true });
+    return () => viewport.removeEventListener("scroll", aoRolar);
+  }, [selecionada]);
+
+  const irAoFim = useCallback((suave = true) => {
+    fimRef.current?.scrollIntoView({ behavior: suave ? "smooth" : "auto" });
+    noFimRef.current = true;
+    setTemNovasAbaixo(false);
+  }, []);
+
+  useEffect(() => {
+    if (mensagens.length === 0) return;
+    const viewport = obterViewport();
+    if (ajusteScrollRef.current != null && viewport) {
+      const anterior = ajusteScrollRef.current;
+      ajusteScrollRef.current = null;
+      viewport.scrollTop += viewport.scrollHeight - anterior;
+      return;
+    }
+    if (primeiraRolagemRef.current) {
+      primeiraRolagemRef.current = false;
+      fimRef.current?.scrollIntoView({ behavior: "auto" });
+      noFimRef.current = true;
+      return;
+    }
+    if (noFimRef.current) {
+      fimRef.current?.scrollIntoView({ behavior: "smooth" });
+    } else {
+      setTemNovasAbaixo(true);
+    }
   }, [mensagens.length, selecionada]);
 
   // Esc cancela a citação em andamento
@@ -2547,6 +2656,7 @@ export default function Atendimento() {
               <LinksDaConversa conversaId={conversaAtual.id} />
 
               <ScrollArea
+                ref={areaMensagensRef}
                 className="relative min-h-0 min-w-0 max-w-full flex-1 overflow-x-hidden p-4 [&_[data-radix-scroll-area-viewport]]:!overflow-x-hidden"
                 onDragOver={(e) => {
                   if (!Array.from(e.dataTransfer?.types ?? []).includes("Files")) return;
@@ -2571,7 +2681,27 @@ export default function Atendimento() {
                   </div>
                 )}
                 {carregandoMensagens && <p className="text-sm text-muted-foreground">Carregando mensagens…</p>}
+                {temNovasAbaixo && (
+                  <button
+                    type="button"
+                    onClick={() => irAoFim(true)}
+                    className="absolute bottom-4 left-1/2 z-20 -translate-x-1/2 rounded-full bg-primary px-4 py-2 text-xs font-medium text-primary-foreground shadow-lg"
+                  >
+                    Novas mensagens
+                  </button>
+                )}
                 <div className="min-w-0 max-w-full space-y-3 overflow-x-hidden">
+                  {temAnteriores && (
+                    <div className="flex justify-center pb-1">
+                      {carregandoAnteriores ? (
+                        <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                      ) : (
+                        <Button variant="outline" size="sm" onClick={carregarAnteriores}>
+                          Carregar mensagens anteriores
+                        </Button>
+                      )}
+                    </div>
+                  )}
                   {mensagens.map((m, idx) => {
                     const chave = m.id != null ? String(m.id) : `${m.criada_em ?? m.criado_em ?? ""}-${idx}`;
                     return (
