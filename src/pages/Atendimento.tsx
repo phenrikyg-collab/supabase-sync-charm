@@ -1738,9 +1738,46 @@ export default function Atendimento() {
                       </div>
                     </div>
 
-                     <span className="text-xs text-muted-foreground whitespace-nowrap">
-                      {tempoRelativo(c.ultima_mensagem_em ?? c.atualizado_em)}
-                    </span>
+                     <span className="flex items-center gap-1 shrink-0">
+                       {!modoHistorico && (
+                         <DropdownMenu
+                           open={menuLeituraAberto === String(c.id)}
+                           onOpenChange={(aberto) => setMenuLeituraAberto(aberto ? String(c.id) : null)}
+                         >
+                           <DropdownMenuTrigger asChild>
+                             <span
+                               role="button"
+                               aria-label={c.nao_lida ? "Marcar como lida" : "Marcar como não lida"}
+                               onClick={(e) => e.stopPropagation()}
+                               className={cn(
+                                 "h-6 w-6 items-center justify-center rounded-md text-muted-foreground transition-opacity hover:bg-accent hover:text-foreground",
+                                 menuLeituraAberto === String(c.id)
+                                   ? "inline-flex opacity-100"
+                                   : "hidden opacity-0 group-hover:opacity-100 md:inline-flex",
+                               )}
+                             >
+                               <Mail className="h-3.5 w-3.5" />
+                             </span>
+                           </DropdownMenuTrigger>
+                           <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
+                             {c.nao_lida ? (
+                               <DropdownMenuItem onSelect={() => marcarLeitura(c.id, false)}>
+                                 <MailOpen className="mr-2 h-4 w-4" />
+                                 Marcar como lida
+                               </DropdownMenuItem>
+                             ) : (
+                               <DropdownMenuItem onSelect={() => marcarLeitura(c.id, true)}>
+                                 <Mail className="mr-2 h-4 w-4" />
+                                 Marcar como não lida
+                               </DropdownMenuItem>
+                             )}
+                           </DropdownMenuContent>
+                         </DropdownMenu>
+                       )}
+                       <span className="text-xs text-muted-foreground whitespace-nowrap">
+                         {tempoRelativo(c.ultima_mensagem_em ?? c.atualizado_em)}
+                       </span>
+                     </span>
                   </div>
                    <p className={cn("text-sm mt-1 line-clamp-1", naoLida ? "text-foreground font-medium" : "text-muted-foreground")}>
                     {c.ultima_mensagem ?? ""}
