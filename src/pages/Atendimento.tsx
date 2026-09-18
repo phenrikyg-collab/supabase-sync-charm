@@ -18,6 +18,7 @@ import {
   RotateCcw, Search, Send, User, X, UserCheck, Phone, QrCode, Link2,
   Truck, ShoppingCart, Plus, MoreHorizontal, PanelRight, Menu, Trash2, FileText, Clock, Mail, MailOpen,
   Reply, Copy, Pencil,
+  Loader2,
 } from "lucide-react";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription,
