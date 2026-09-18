@@ -16,7 +16,7 @@ import { ptBR } from "date-fns/locale";
 import {
   AlertTriangle, Bot, Check, CheckCheck, CheckCircle2, Globe, ImagePlus, LayoutGrid, Lock, MessageCircle,
   RotateCcw, Search, Send, User, X, UserCheck, Phone, QrCode, Link2,
-  Truck, ShoppingCart, Plus, MoreHorizontal, PanelRight, Menu, Trash2,
+  Truck, ShoppingCart, Plus, MoreHorizontal, PanelRight, Menu, Trash2, FileText,
 } from "lucide-react";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription,
@@ -2007,8 +2007,7 @@ export default function Atendimento() {
                   <Lock className="h-4 w-4 text-warning mt-0.5 shrink-0" />
                   <div className="flex-1 space-y-2">
                     <p className="text-sm text-foreground">
-                      Fora da janela de 24h — mensagem de texto livre é bloqueada pelo WhatsApp. Só um
-                      template aprovado reabre o contato.
+                      Fora da janela de 24h. Envie um template para retomar a conversa.
                     </p>
                     <Button size="sm" onClick={() => setTemplateAberto(true)}>
                       <Send className="h-4 w-4 mr-2" />
@@ -2091,6 +2090,15 @@ export default function Atendimento() {
                       title="Catálogo"
                     >
                       <LayoutGrid className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="h-8 w-8 shrink-0"
+                      onClick={() => setTemplateAberto(true)}
+                      title="Enviar template"
+                    >
+                      <FileText className="h-4 w-4" />
                     </Button>
                     <BotaoRespostasRapidas onEscolher={inserirResposta} />
                     <Textarea
@@ -2228,8 +2236,9 @@ export default function Atendimento() {
         <EnviarTemplateDialog
           open={templateAberto}
           onOpenChange={setTemplateAberto}
-          telefone={telefoneIdentificado}
+          telefone={telefoneIdentificado ?? conversaAtual.telefone}
           conversaId={conversaAtual.id}
+          autor={autor}
           onEnviado={() => {
             invalidarThread();
             queryClient.invalidateQueries({ queryKey: ["whatsapp-janela-24h", selecionada] });
