@@ -2091,6 +2091,15 @@ export default function Atendimento() {
                     >
                       <LayoutGrid className="h-4 w-4" />
                     </Button>
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="h-8 w-8 shrink-0"
+                      onClick={() => setTemplateAberto(true)}
+                      title="Enviar template"
+                    >
+                      <FileText className="h-4 w-4" />
+                    </Button>
                     <BotaoRespostasRapidas onEscolher={inserirResposta} />
                     <Textarea
                       ref={textoRef}
