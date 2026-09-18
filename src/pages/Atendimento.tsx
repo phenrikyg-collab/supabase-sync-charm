@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useInfiniteQuery, useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Card } from "@/components/ui/card";
@@ -217,6 +217,10 @@ type Conversa = {
   pix_aberto_valor?: number | null;
   link_pendente?: boolean | null;
   desfecho?: string | null;
+  historico?: boolean | null;
+  so_kora?: boolean | null;
+  tem_kora?: boolean | null;
+  total_mensagens?: number | null;
 };
 
 type Urgencia = "perdendo" | "quente" | "atencao" | "normal";
@@ -436,6 +440,8 @@ export default function Atendimento() {
   /** Filtros especiais mutuamente exclusivos: atenção, automações e em atendimento. */
   const [filtroFila, setFiltroFila] = useState<"atencao" | "automacao" | "em_atendimento" | null>(null);
   const [tagsFiltro, setTagsFiltro] = useState<string[]>([]);
+  const [modoHistorico, setModoHistorico] = useState(false);
+  const [soKora, setSoKora] = useState(false);
   const [erroJanela, setErroJanela] = useState<string | null>(null);
   const [texto, setTexto] = useState("");
   const [catalogoAberto, setCatalogoAberto] = useState(false);
@@ -574,7 +580,7 @@ export default function Atendimento() {
     return () => clearTimeout(t);
   }, [busca]);
 
-  const buscaAtiva = termoBusca.length >= 2;
+  const buscaAtiva = !modoHistorico && termoBusca.length >= 2;
 
   const { data: resultadoBusca } = useQuery({
     queryKey: ["whatsapp-busca", termoBusca],
@@ -590,8 +596,44 @@ export default function Atendimento() {
     },
   });
 
+  const {
+    data: paginasHistorico,
+    isLoading: carregandoHistorico,
+    isFetchingNextPage: carregandoMaisHistorico,
+    hasNextPage: temMaisHistorico,
+    fetchNextPage: carregarMaisHistorico,
+  } = useInfiniteQuery({
+    queryKey: ["whatsapp-conversas-historico", termoBusca, soKora],
+    enabled: modoHistorico,
+    initialPageParam: 0,
+    queryFn: async ({ pageParam }) => {
+      const { data, error } = await chamarRpc("whatsapp_conversas_historico" as any, {
+        p_termo: termoBusca || null,
+        p_so_kora: soKora,
+        p_limite: 50,
+        p_offset: pageParam,
+      });
+      if (error) throw error;
+      return ((Array.isArray(data) ? data : []) as any[]).map((c) => ({
+        ...c,
+        id: c.conversa_id,
+        cliente_nome: c.nome ?? null,
+        ultima_mensagem: c.ultima_mensagem_texto ?? null,
+        historico: true,
+      })) as Conversa[];
+    },
+    getNextPageParam: (ultima, paginas) => ultima.length === 50 ? paginas.length * 50 : undefined,
+  });
+
+  const conversasHistorico = useMemo(
+    () => paginasHistorico?.pages.flat() ?? [],
+    [paginasHistorico],
+  );
+
   // Conversa aberta que não está na lista carregada: busca os dados completos por id.
-  const foraDaLista = !!selecionada && !conversas.some((c) => String(c.id) === selecionada);
+  const foraDaLista = !!selecionada
+    && !conversas.some((c) => String(c.id) === selecionada)
+    && !conversasHistorico.some((c) => String(c.id) === selecionada);
   const { data: conversaAvulsa = null } = useQuery({
     queryKey: ["whatsapp-conversa", selecionada],
     enabled: foraDaLista,
@@ -614,6 +656,8 @@ export default function Atendimento() {
     if (!selecionada) return null;
     const carregada = conversas.find((c) => String(c.id) === selecionada);
     if (carregada) return carregada;
+    const historica = conversasHistorico.find((c) => String(c.id) === selecionada);
+    if (historica) return historica;
     if (conversaAvulsa) return conversaAvulsa;
     const achada = resultadoBusca?.conversas?.find((r) => String(r.conversa_id) === selecionada);
     if (!achada) return null;
@@ -624,7 +668,7 @@ export default function Atendimento() {
       status: achada.status ?? "",
       ultima_mensagem_em: achada.ultima_mensagem_em ?? null,
     } as Conversa;
-  }, [conversas, resultadoBusca, selecionada]);
+  }, [conversas, conversasHistorico, conversaAvulsa, resultadoBusca, selecionada]);
 
   // Deep link: /atendimento?conversa=123 abre a conversa mesmo que ela não esteja
   // na lista carregada (a consulta por id acima resolve os dados).
@@ -755,7 +799,7 @@ export default function Atendimento() {
     setSelecionada(String(c.id));
     setListaSheet(false);
     setErroJanela(null);
-    if (!c.nao_lida) return;
+    if (modoHistorico || c.historico || !c.nao_lida) return;
     const { error } = await chamarRpc("whatsapp_marcar_lida" as any, {
       p_conversa_id: Number.isNaN(Number(c.id)) ? c.id : Number(c.id),
     });
@@ -1100,6 +1144,7 @@ export default function Atendimento() {
 
   const filtradas = useMemo(() => {
     let base: Conversa[];
+    if (modoHistorico) return conversasHistorico;
     if (modoFila) {
       // Chip "Em atendimento": renderiza na ordem exata da RPC, sem reordenar no front.
       base = emAtendimento;
@@ -1141,10 +1186,10 @@ export default function Atendimento() {
     }
     return [...base].sort(compararConversas);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [conversas, emAtendimento, buscaAtiva, resultadoBusca, aba, grupoAba, filtroLeitura, filtroFila, tagsFiltro, mapaAtencao, modoFila]);
+  }, [conversas, conversasHistorico, emAtendimento, buscaAtiva, resultadoBusca, aba, grupoAba, filtroLeitura, filtroFila, tagsFiltro, mapaAtencao, modoFila, modoHistorico]);
 
 
-  const clientesSemConversa = buscaAtiva ? (resultadoBusca?.clientes ?? []) : [];
+  const clientesSemConversa = buscaAtiva && !modoHistorico ? (resultadoBusca?.clientes ?? []) : [];
 
   const abrirNovaConversa = (telefone?: string | null) => {
     setTelefoneNovaConversa(telefone ?? null);
@@ -1169,7 +1214,8 @@ export default function Atendimento() {
 
 
   const status = conversaAtual?.status ?? "";
-  const podeResponder = status === "escalado" || status === "em_atendimento";
+  const conversaHistorica = conversaAtual?.historico === true;
+  const podeResponder = conversaHistorica || status === "escalado" || status === "em_atendimento";
 
   const abrirDoPainel = (id: string, textoPronto?: string, leadId?: string) => {
     setSelecionada(String(id));
