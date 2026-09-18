@@ -2432,25 +2432,70 @@ export default function Atendimento() {
                       <p className="text-sm text-danger">{erroJanela}</p>
                     </div>
                   )}
-                  {previewUrl && (
-                    <div className="flex items-start gap-3 rounded-md border border-border p-2">
-                      <img src={previewUrl} alt="Prévia" className="h-20 w-20 rounded object-cover" />
-                      <div className="flex-1 space-y-2">
-                        <Input
-                          value={legenda}
-                          onChange={(e) => setLegenda(e.target.value)}
-                          placeholder="Legenda (opcional)"
-                          className="h-8 text-xs"
-                        />
-                        <div className="flex gap-2">
-                          <Button size="sm" onClick={confirmarEnvioImagem} disabled={enviandoImagem}>
-                            {enviandoImagem ? "Enviando…" : "Enviar imagem"}
-                          </Button>
-                          <Button size="sm" variant="ghost" onClick={limparPreview} disabled={enviandoImagem}>
-                            <X className="h-4 w-4 mr-1" />
-                            Cancelar
-                          </Button>
-                        </div>
+                  {citacao && (
+                    <div className="flex items-center gap-2 rounded-md border border-border bg-muted/50 py-1.5 pl-0 pr-2">
+                      <span className="h-8 w-1 shrink-0 rounded-full bg-primary" />
+                      <div className="min-w-0 flex-1">
+                        <p className="text-[11px] font-semibold text-primary">
+                          {citacao.direcao === "entrada" ? "Cliente" : "Você"}
+                        </p>
+                        <p className="line-clamp-1 text-xs text-muted-foreground">
+                          {citacao.texto?.trim() || (citacao.media_url ? "Imagem" : "Mensagem")}
+                        </p>
+                      </div>
+                      {citacao.media_url && (
+                        <img src={citacao.media_url} alt="Citada" className="h-8 w-8 shrink-0 rounded object-cover" />
+                      )}
+                      <Button size="icon" variant="ghost" className="h-6 w-6 shrink-0" onClick={() => setCitacao(null)} title="Cancelar citação">
+                        <X className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                  )}
+                  {imagens.length > 0 && (
+                    <div className="space-y-2 rounded-md border border-border p-2">
+                      <div className="flex flex-wrap items-center gap-2">
+                        {imagens.map((img) => (
+                          <div key={img.chave} className="relative">
+                            <img src={img.url} alt="Prévia" className="h-16 w-16 rounded object-cover" />
+                            <button
+                              type="button"
+                              className="absolute -right-1.5 -top-1.5 rounded-full border border-border bg-background p-0.5 shadow"
+                              onClick={() => removerImagem(img.chave)}
+                              title="Remover imagem"
+                            >
+                              <X className="h-3 w-3" />
+                            </button>
+                          </div>
+                        ))}
+                        {imagens.length < 10 && (
+                          <button
+                            type="button"
+                            className="flex h-16 w-16 items-center justify-center rounded border border-dashed border-border text-muted-foreground hover:bg-accent"
+                            onClick={() => fileRef.current?.click()}
+                            title="Adicionar mais imagens"
+                          >
+                            <Plus className="h-5 w-5" />
+                          </button>
+                        )}
+                      </div>
+                      <Input
+                        value={legenda}
+                        onChange={(e) => setLegenda(e.target.value)}
+                        placeholder="Legenda (opcional, vai só na primeira imagem)"
+                        className="h-8 text-xs"
+                      />
+                      <div className="flex gap-2">
+                        <Button size="sm" onClick={confirmarEnvioImagem} disabled={enviandoImagem}>
+                          {enviandoImagem
+                            ? "Enviando…"
+                            : imagens.length > 1
+                              ? `Enviar ${imagens.length} imagens`
+                              : "Enviar imagem"}
+                        </Button>
+                        <Button size="sm" variant="ghost" onClick={limparPreview} disabled={enviandoImagem}>
+                          <X className="h-4 w-4 mr-1" />
+                          Cancelar
+                        </Button>
                       </div>
                     </div>
                   )}
