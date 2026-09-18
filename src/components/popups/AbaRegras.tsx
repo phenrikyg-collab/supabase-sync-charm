@@ -71,7 +71,30 @@ function resumoFrequencia(f: any) {
   return txt + ".";
 }
 
-export function AbaRegras({ popup, mudar }: { popup: Popup; mudar: (patch: Partial<Popup>) => void }) {
+const PLATAFORMAS_APP: { v: string; n: string }[] = [
+  { v: "android", n: "Android" },
+  { v: "ios", n: "iPhone" },
+  { v: "outro", n: "Outro" },
+];
+
+const SITUACOES_APP: { v: string; n: string }[] = [
+  { v: "pedido_em_transito", n: "Pedido a caminho" },
+  { v: "pedido_entregue_recente", n: "Pedido entregue há pouco" },
+  { v: "sem_pedido", n: "Sem pedido" },
+  { v: "cashback_disponivel", n: "Tem cashback disponível" },
+  { v: "troca_aberta", n: "Tem troca aberta" },
+];
+
+export function AbaRegras({
+  popup,
+  mudar,
+  destino = "site",
+}: {
+  popup: Popup;
+  mudar: (patch: Partial<Popup>) => void;
+  destino?: "site" | "app";
+}) {
+  const ehApp = destino === "app";
   const r = popup.regras ?? {};
   const setR = (chave: string, patch: any) => mudar({ regras: { ...r, [chave]: { ...(r[chave] ?? {}), ...patch } } });
   const setRaiz = (patch: any) => mudar({ regras: { ...r, ...patch } });
