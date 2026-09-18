@@ -17,7 +17,7 @@ import {
   AlertTriangle, Bot, Check, CheckCheck, CheckCircle2, Globe, ImagePlus, LayoutGrid, Lock, MessageCircle,
   RotateCcw, Search, Send, User, X, UserCheck, Phone, QrCode, Link2,
   Truck, ShoppingCart, Plus, MoreHorizontal, PanelRight, Menu, Trash2, FileText, Clock, Mail, MailOpen,
-  Reply, Copy,
+  Reply, Copy, Pencil,
 } from "lucide-react";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription,
@@ -43,6 +43,7 @@ import { LinkPagamentoCard, LinkPagamentoDialog } from "@/components/atendimento
 import { CalcularFreteDialog } from "@/components/atendimento/CalcularFrete";
 import { ProporCarrinhoDialog, PropostaDaConversa } from "@/components/atendimento/ProporCarrinho";
 import { EnviarTemplateDialog } from "@/components/atendimento/EnviarTemplate";
+import { ConferirNumeroDialog } from "@/components/atendimento/ConferirNumero";
 
 import { ConsultarTransacaoTab } from "@/components/atendimento/ConsultarTransacao";
 import { MensagemMidia, ehTipoMidia } from "@/components/atendimento/MensagemMidia";
@@ -468,6 +469,7 @@ export default function Atendimento() {
   /** Filtros especiais mutuamente exclusivos: atenção, automações e em atendimento. */
   const [filtroFila, setFiltroFila] = useState<"atencao" | "automacao" | "em_atendimento" | "falhas" | null>(null);
   const [tagsFiltro, setTagsFiltro] = useState<string[]>([]);
+  const [conferirNumero, setConferirNumero] = useState(false);
   const [modoHistorico, setModoHistorico] = useState(false);
   const [soKora, setSoKora] = useState(false);
   const [erroJanela, setErroJanela] = useState<string | null>(null);
@@ -822,6 +824,18 @@ export default function Atendimento() {
       return (data ?? []) as Tag[];
     },
   });
+
+  /** Quantas conversas carregadas têm cada tag. */
+  const contagemTags = useMemo(() => {
+    const mapa: Record<string, number> = {};
+    for (const c of conversas) {
+      for (const t of c.tags ?? []) {
+        const chave = String(t.id);
+        mapa[chave] = (mapa[chave] ?? 0) + 1;
+      }
+    }
+    return mapa;
+  }, [conversas]);
 
   const { data: dentroJanela } = useQuery({
     queryKey: ["whatsapp-janela-24h", selecionada],
@@ -1820,6 +1834,11 @@ export default function Atendimento() {
                           }
                         />
                         <TagChip tag={t} />
+                        {contagemTags[String(t.id)] > 0 && (
+                          <span className="ml-auto text-[10px] text-muted-foreground">
+                            {contagemTags[String(t.id)]}
+                          </span>
+                        )}
                       </label>
                     ))}
                   </div>
@@ -2113,6 +2132,18 @@ export default function Atendimento() {
                   <span className="hidden shrink-0 text-xs text-muted-foreground sm:inline">
                     {identificadorConversa(conversaAtual)}
                   </span>
+                  {!ehSite(conversaAtual) && (
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="h-6 w-6 shrink-0 text-muted-foreground"
+                      title="Conferir número"
+                      aria-label="Conferir número"
+                      onClick={() => setConferirNumero(true)}
+                    >
+                      <Pencil className="h-3.5 w-3.5" />
+                    </Button>
+                  )}
                   {nomeSoDoWhatsApp(conversaAtual) && <BadgeViaWhatsApp />}
                   <StatusPill status={conversaAtual.status} aguardandoDesde={conversaAtual.aguardando_desde} />
                   {rotuloAutomacao(atencaoDe(conversaAtual)) && (
@@ -2843,6 +2874,15 @@ export default function Atendimento() {
           emailCliente={(conversaAtual as any).email ?? (conversaAtual as any).email_cliente ?? null}
           nomeCliente={nomeConversa(conversaAtual)}
           onEnviada={(id) => setPropostaId(id)}
+        />
+      )}
+      {conversaAtual && (
+        <ConferirNumeroDialog
+          open={conferirNumero}
+          onOpenChange={setConferirNumero}
+          conversaId={conversaAtual.id}
+          autor={autor}
+          onAbrirConversa={(id) => abrirDoPainel(String(id))}
         />
       )}
       {conversaAtual && (
