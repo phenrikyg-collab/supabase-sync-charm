@@ -2213,11 +2213,12 @@ export default function Atendimento() {
 
                           >
                             {saida && !sticker && (
-                              <div className="flex items-center gap-1 text-[10px] uppercase tracking-wider text-muted-foreground mb-1">
-                                {bot ? <Bot className="h-3 w-3" /> : <User className="h-3 w-3" />}
+                              <div className={cn("flex items-center gap-1 text-[10px] uppercase tracking-wider mb-1", falhou ? "text-danger" : "text-muted-foreground")}>
+                                {falhou ? <AlertTriangle className="h-3 w-3" /> : bot ? <Bot className="h-3 w-3" /> : <User className="h-3 w-3" />}
                                 {kora ? "Kora" : bot ? "Bot" : "Atendente"}
                               </div>
                             )}
+
                             {midia && <MensagemMidia tipo={m.tipo} mediaUrl={m.media_url} conteudo={m.conteudo} />}
                             {mostrarTexto && <p className="max-w-full whitespace-pre-wrap break-words [overflow-wrap:anywhere] [word-break:break-word]">{m.conteudo}</p>}
                             <div className="flex items-center justify-end gap-1 mt-1">
