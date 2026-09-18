@@ -635,8 +635,8 @@ export default function Atendimento() {
     && conversasHistorico.some((c) => String(c.id) === selecionada);
   const foraDaLista = !!selecionada
     && (selecionadaNoHistorico || (
-    && !conversas.some((c) => String(c.id) === selecionada)
-    && !conversasHistorico.some((c) => String(c.id) === selecionada)
+      !conversas.some((c) => String(c.id) === selecionada)
+      && !conversasHistorico.some((c) => String(c.id) === selecionada)
     ));
   const { data: conversaAvulsa = null } = useQuery({
     queryKey: ["whatsapp-conversa", selecionada],
