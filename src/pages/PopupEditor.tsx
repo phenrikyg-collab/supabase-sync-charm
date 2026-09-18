@@ -85,6 +85,7 @@ export default function PopupEditor() {
   const { id } = useParams();
   const popupId = Number(id);
   const navegar = useNavigate();
+  const local = useLocation();
   const qc = useQueryClient();
 
   const [popup, setPopup] = useState<Popup | null>(null);
