@@ -24,6 +24,8 @@ export type NoData = {
   metricas?: any;
   comErro?: boolean;
   catalogo?: any;
+  botoesEntrada?: string[];
+  temTemplateAntes?: boolean;
 };
 
 export const TIPOS_NO: Record<

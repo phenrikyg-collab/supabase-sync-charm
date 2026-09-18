@@ -18,14 +18,27 @@ export function FluxoNode({ data, selected }: NodeProps) {
   const Icone = meta.icon;
   const gatilho = d.tipo === "gatilho";
   const condicao = d.tipo === "condicao";
+  const aguardando = d.tipo === "aguardar_botao";
   const m = d.metricas ?? null;
+  const botoes = aguardando ? d.botoesEntrada ?? [] : [];
+  const contagemBotoes: Record<string, number> = m?.botoes ?? {};
+  const saidas = aguardando
+    ? [
+        ...botoes.map((b) => ({ id: b, rotulo: b, cor: "!bg-success", texto: "text-success", contagem: Number(contagemBotoes[b] ?? 0) })),
+        { id: "sem resposta", rotulo: "sem resposta", cor: "!bg-muted-foreground", texto: "text-muted-foreground", contagem: Number(m?.sem_resposta ?? 0) },
+        ...(d.config?.se_digitar === "caminho"
+          ? [{ id: "respondeu", rotulo: "escreveu", cor: "!bg-info", texto: "text-info", contagem: Number(m?.escreveu_sem_botao ?? 0) }]
+          : []),
+      ]
+    : [];
 
   const motivos: Record<string, number> = m?.motivos_pulo ?? {};
 
   return (
     <div
       className={cn(
-        "min-w-[210px] max-w-[250px] rounded-lg border bg-card px-3 py-2 shadow-sm",
+        "min-w-[210px] rounded-lg border bg-card px-3 py-2 shadow-sm",
+        botoes.length >= 3 ? "max-w-[320px]" : "max-w-[250px]",
         selected ? "border-primary ring-2 ring-primary/30" : "border-border",
         gatilho && "border-warning/60 bg-warning/5",
         d.comErro && "border-danger ring-2 ring-danger/30",
@@ -78,6 +91,16 @@ export function FluxoNode({ data, selected }: NodeProps) {
                     <TooltipContent>influenciada: pedido em até 3 dias</TooltipContent>
                   </Tooltip>
                 </TooltipProvider>
+              )}
+            </>
+          )}
+          {aguardando && (
+            <>
+              <LinhaMetrica>{Number(m.parados_agora ?? 0)} esperando</LinhaMetrica>
+              {(Number(m.escreveu_sem_botao ?? 0) > 0 || Number(m.botao_por_texto ?? 0) > 0) && (
+                <LinhaMetrica>
+                  {Number(m.escreveu_sem_botao ?? 0)} escreveram · {Number(m.botao_por_texto ?? 0)} entendidos pelo texto
+                </LinhaMetrica>
               )}
             </>
           )}
@@ -134,6 +157,34 @@ export function FluxoNode({ data, selected }: NodeProps) {
           />
           <div className="absolute -bottom-4 left-[20%] text-[9px] font-semibold text-success">sim</div>
           <div className="absolute -bottom-4 left-[66%] text-[9px] font-semibold text-danger">não</div>
+        </>
+      ) : aguardando ? (
+        <>
+          {!d.temTemplateAntes && (
+            <p className="mt-1 text-[10px] text-warning">ligue a um template com botões</p>
+          )}
+          {saidas.map((s, i) => {
+            const left = `${((i + 1) / (saidas.length + 1)) * 100}%`;
+            return (
+              <div key={s.id}>
+                <Handle
+                  id={s.id}
+                  type="source"
+                  position={Position.Bottom}
+                  style={{ left }}
+                  className={cn("!h-2.5 !w-2.5", s.cor)}
+                />
+                <div
+                  title={s.rotulo}
+                  className={cn("absolute -bottom-4 -translate-x-1/2 whitespace-nowrap text-[9px] font-semibold", s.texto)}
+                  style={{ left }}
+                >
+                  {s.rotulo.length > 14 ? `${s.rotulo.slice(0, 14)}…` : s.rotulo}
+                  {s.contagem > 0 ? ` ${s.contagem}` : ""}
+                </div>
+              </div>
+            );
+          })}
         </>
       ) : d.tipo !== "fim" ? (
         <Handle type="source" position={Position.Bottom} className="!h-2.5 !w-2.5 !bg-primary" />
