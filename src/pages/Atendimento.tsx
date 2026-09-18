@@ -43,6 +43,7 @@ import { LinkPagamentoCard, LinkPagamentoDialog } from "@/components/atendimento
 import { CalcularFreteDialog } from "@/components/atendimento/CalcularFrete";
 import { ProporCarrinhoDialog, PropostaDaConversa } from "@/components/atendimento/ProporCarrinho";
 import { EnviarTemplateDialog } from "@/components/atendimento/EnviarTemplate";
+import { ConferirNumeroDialog } from "@/components/atendimento/ConferirNumero";
 
 import { ConsultarTransacaoTab } from "@/components/atendimento/ConsultarTransacao";
 import { MensagemMidia, ehTipoMidia } from "@/components/atendimento/MensagemMidia";
