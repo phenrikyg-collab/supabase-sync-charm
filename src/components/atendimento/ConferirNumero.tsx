@@ -186,13 +186,10 @@ export function ConferirNumeroDialog({
                   A Meta entrega neste: {data.telefone_real}
                 </p>
               )}
-              <p className="text-xs text-muted-foreground">
-                {qtdDigitos} dígito{qtdDigitos === 1 ? "" : "s"} no número atual.
-              </p>
-              {tamanhoEstranho && (
+              {data.formato_valido === false && (
                 <p className="flex items-start gap-1.5 rounded-md border border-warning/30 bg-warning/10 px-2 py-1 text-xs text-warning">
                   <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-                  Número com {qtdDigitos} dígitos. O padrão é 12 ou 13 (55 + DDD + número). Provavelmente falta um dígito.
+                  Esse número não tem formato de telefone brasileiro. Costuma ser dígito faltando, DDD que não existe, ou celular sem o 9.
                 </p>
               )}
             </section>
