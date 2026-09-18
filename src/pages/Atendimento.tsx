@@ -16,7 +16,7 @@ import { ptBR } from "date-fns/locale";
 import {
   AlertTriangle, Bot, Check, CheckCheck, CheckCircle2, Globe, ImagePlus, LayoutGrid, Lock, MessageCircle,
   RotateCcw, Search, Send, User, X, UserCheck, Phone, QrCode, Link2,
-  Truck, ShoppingCart, Plus, MoreHorizontal, PanelRight, Menu, Trash2, FileText, Clock,
+  Truck, ShoppingCart, Plus, MoreHorizontal, PanelRight, Menu, Trash2, FileText, Clock, Mail, MailOpen,
 } from "lucide-react";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription,
