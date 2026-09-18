@@ -1980,6 +1980,12 @@ export default function Atendimento() {
                         </DropdownMenuItem>
                       )}
                       {!conversaHistorica && (
+                        <DropdownMenuItem onSelect={() => marcarNaoLidaEFechar()}>
+                          <MailOpen className="mr-2 h-4 w-4" />
+                          Marcar como não lida
+                        </DropdownMenuItem>
+                      )}
+                      {!conversaHistorica && (
                         <DropdownMenuItem
                           className="text-destructive focus:text-destructive"
                           onSelect={() => setExcluirAberta(true)}
