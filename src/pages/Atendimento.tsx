@@ -1869,9 +1869,16 @@ export default function Atendimento() {
                        </span>
                      </span>
                   </div>
-                   <p className={cn("text-sm mt-1 line-clamp-1", naoLida ? "text-foreground font-medium" : "text-muted-foreground")}>
-                    {c.ultima_mensagem ?? ""}
-                  </p>
+                   {!modoHistorico && c.falha_envio ? (
+                    <p className="text-sm mt-1 line-clamp-1 font-medium text-danger">
+                      {`⚠ Não enviada: ${c.falha_envio_motivo ?? "a última mensagem não foi entregue."}`}
+                    </p>
+                  ) : (
+                    <p className={cn("text-sm mt-1 line-clamp-1", naoLida ? "text-foreground font-medium" : "text-muted-foreground")}>
+                      {c.ultima_mensagem ?? ""}
+                    </p>
+                  )}
+
                    {!modoHistorico && grupoAba === "clique" && (
                     <p className="mt-1 text-[11px]">
                       <span className="text-muted-foreground">Botão tocado: </span>
