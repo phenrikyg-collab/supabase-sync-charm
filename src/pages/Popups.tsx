@@ -136,7 +136,7 @@ export default function Popups() {
 
           {isLoading ? (
             <Skeleton className="h-64 w-full" />
-          ) : !(lista ?? []).length ? (
+          ) : !linhas.length ? (
             <div className="rounded-lg border border-dashed border-border p-10 text-center text-sm text-muted-foreground">
               Nenhum popup ainda. Clique em Novo popup e escolha um modelo pronto.
             </div>
