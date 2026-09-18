@@ -875,11 +875,39 @@ export default function Atendimento() {
     fimRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [mensagens.length, selecionada]);
 
+  // Esc cancela a citação em andamento
   useEffect(() => {
-    return () => {
-      if (previewUrl) URL.revokeObjectURL(previewUrl);
+    if (!citacao) return;
+    const aoTeclar = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setCitacao(null);
     };
-  }, [previewUrl]);
+    document.addEventListener("keydown", aoTeclar);
+    return () => document.removeEventListener("keydown", aoTeclar);
+  }, [citacao]);
+
+  /** Rola até a mensagem original e dá um destaque rápido. */
+  const irParaMensagem = (id?: number | string | null) => {
+    if (id == null) return;
+    const alvo = balaoRefs.current[String(id)];
+    if (!alvo) return;
+    alvo.scrollIntoView({ behavior: "smooth", block: "center" });
+    setDestacada(String(id));
+    setTimeout(() => setDestacada((atual) => (atual === String(id) ? null : atual)), 1400);
+  };
+
+  /** Prepara a barra de citação acima da caixa de texto. */
+  const responderCitando = (m: Mensagem) => {
+    if (m.id == null) return;
+    setCitacao({
+      id: m.id,
+      direcao: m.direcao,
+      tipo: m.tipo,
+      texto: m.conteudo,
+      media_url: m.media_url,
+    });
+    setMenuBalao(null);
+    setTimeout(() => textoRef.current?.focus(), 0);
+  };
 
   const invalidarThread = () => {
     queryClient.invalidateQueries({ queryKey: ["whatsapp-mensagens", selecionada] });
