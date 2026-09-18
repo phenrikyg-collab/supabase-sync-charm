@@ -2589,7 +2589,6 @@ export default function Atendimento() {
                       />
                     );
                   })}
-                  })}
                   <div ref={fimRef} />
                 </div>
               </ScrollArea>
