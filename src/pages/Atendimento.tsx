@@ -2236,8 +2236,9 @@ export default function Atendimento() {
         <EnviarTemplateDialog
           open={templateAberto}
           onOpenChange={setTemplateAberto}
-          telefone={telefoneIdentificado}
+          telefone={telefoneIdentificado ?? conversaAtual.telefone}
           conversaId={conversaAtual.id}
+          autor={autor}
           onEnviado={() => {
             invalidarThread();
             queryClient.invalidateQueries({ queryKey: ["whatsapp-janela-24h", selecionada] });
