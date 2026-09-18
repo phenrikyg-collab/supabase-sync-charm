@@ -2273,7 +2273,30 @@ export default function Atendimento() {
               <CobrancasDaConversa conversaId={conversaAtual.id} />
               <LinksDaConversa conversaId={conversaAtual.id} />
 
-              <ScrollArea className="min-h-0 min-w-0 max-w-full flex-1 overflow-x-hidden p-4 [&_[data-radix-scroll-area-viewport]]:!overflow-x-hidden">
+              <ScrollArea
+                className="relative min-h-0 min-w-0 max-w-full flex-1 overflow-x-hidden p-4 [&_[data-radix-scroll-area-viewport]]:!overflow-x-hidden"
+                onDragOver={(e) => {
+                  if (!Array.from(e.dataTransfer?.types ?? []).includes("Files")) return;
+                  e.preventDefault();
+                  setArrastando(true);
+                }}
+                onDragLeave={(e) => {
+                  if (e.currentTarget.contains(e.relatedTarget as Node)) return;
+                  setArrastando(false);
+                }}
+                onDrop={(e) => {
+                  const arquivos = Array.from(e.dataTransfer?.files ?? []).filter((f) => f.type.startsWith("image/"));
+                  if (arquivos.length === 0) return;
+                  e.preventDefault();
+                  setArrastando(false);
+                  adicionarImagens(arquivos);
+                }}
+              >
+                {arrastando && (
+                  <div className="pointer-events-none absolute inset-2 z-20 flex items-center justify-center rounded-lg border-2 border-dashed border-primary bg-background/80 text-sm font-medium text-primary">
+                    Solte para enviar
+                  </div>
+                )}
                 {carregandoMensagens && <p className="text-sm text-muted-foreground">Carregando mensagens…</p>}
                 <div className="min-w-0 max-w-full space-y-3 overflow-x-hidden">
                   {mensagens.map((m, idx) => {
