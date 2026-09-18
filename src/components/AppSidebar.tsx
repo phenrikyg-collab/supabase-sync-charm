@@ -209,6 +209,7 @@ const moduleGroups: ModuleGroup[] = [
       { title: "Vitrine de Vídeos", url: "/vitrine-videos", icon: Film },
       { title: "Prova Social", url: "/prova-social", icon: BellRing },
       { title: "Popups", url: "/popups", icon: MessageSquareDashed },
+      { title: "Popups do App", url: "/marketing/popups-app", icon: Smartphone },
       { title: "Trocas e Devoluções", url: "/trocas-site", icon: RefreshCw },
       { title: "Avaliações", url: "/avaliacoes", icon: Star },
       { title: "Avise-me", url: "/avise-me", icon: BellRing },
