@@ -95,7 +95,6 @@ const moduleGroups: ModuleGroup[] = [
       { title: "Tendências", url: "/tendencias", icon: TrendingUp },
       { title: "Embaixadoras", url: "/embaixadoras", icon: Heart },
       { title: "Link na Bio", url: "/link-na-bio", icon: LinkIcon },
-      { title: "Notificações do App", url: "/marketing/notificacoes-app", icon: BellRing },
       
       { title: "WhatsApp: Templates, Segmentos e Campanhas", url: "/marketing-whatsapp", icon: MessageCircle },
     ],
@@ -211,6 +210,7 @@ const moduleGroups: ModuleGroup[] = [
       { title: "Prova Social", url: "/prova-social", icon: BellRing },
       { title: "Popups", url: "/popups", icon: MessageSquareDashed },
       { title: "Popups do App", url: "/marketing/popups-app", icon: Smartphone },
+      { title: "Notificações do App", url: "/marketing/notificacoes-app", icon: BellRing },
       { title: "Trocas e Devoluções", url: "/trocas-site", icon: RefreshCw },
       { title: "Avaliações", url: "/avaliacoes", icon: Star },
       { title: "Avise-me", url: "/avise-me", icon: BellRing },
