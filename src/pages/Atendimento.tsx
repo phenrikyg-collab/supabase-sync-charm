@@ -482,6 +482,8 @@ export default function Atendimento() {
   const balaoRefs = useRef<Record<string, HTMLDivElement | null>>({});
   /** Guarda a citação usada no envio em curso (o estado é limpo na hora). */
   const citacaoRef = useRef<Citacao | null>(null);
+  /** Controle do toque nos balões: arrastar para a direita responde, segurar abre o menu. */
+  const toqueRef = useRef<{ x: number; y: number; timer: ReturnType<typeof setTimeout> | null }>({ x: 0, y: 0, timer: null });
   const [enviandoImagem, setEnviandoImagem] = useState(false);
   const fimRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
