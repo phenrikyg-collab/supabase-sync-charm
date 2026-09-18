@@ -2311,6 +2311,11 @@ export default function Atendimento() {
                     const falhou = saida && m.status_entrega === "falhou" && !kora;
                     const motivoFalha = m.erro_entrega ?? "Não foi possível entregar a mensagem.";
                     const pedeTemplate = falhou && ehMotivoJanela(motivoFalha);
+                    const chaveBalao = m.id != null ? String(m.id) : "";
+                    const otimista = typeof m.id === "number" && m.id < 0;
+                    const podeCitar = !kora && !otimista && m.id != null;
+                    const temCitada = m.citada_id != null || !!m.citada_texto;
+                    const menuAberto = menuBalao === chaveBalao;
 
                     return (
                       <div key={m.id != null ? String(m.id) : `${m.criada_em ?? m.criado_em ?? ""}-${idx}`}>
