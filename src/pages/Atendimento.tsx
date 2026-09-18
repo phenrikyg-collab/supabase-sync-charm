@@ -813,6 +813,33 @@ export default function Atendimento() {
       queryClient.invalidateQueries({ queryKey: ["whatsapp-conversa"] });
   };
 
+  const marcarLeitura = async (id: string | number, naoLida: boolean): Promise<boolean> => {
+    const idParam = Number.isNaN(Number(id)) ? id : Number(id);
+    queryClient.setQueryData<Conversa[]>(["whatsapp-conversas"], (lista) =>
+      (lista ?? []).map((cv) => (String(cv.id) === String(id) ? { ...cv, nao_lida: naoLida } : cv)),
+    );
+    const { error } = await chamarRpc((naoLida ? "whatsapp_marcar_nao_lida" : "whatsapp_marcar_lida") as any, {
+      p_conversa_id: idParam,
+    });
+    queryClient.invalidateQueries({ queryKey: ["whatsapp-conversas"] });
+    queryClient.invalidateQueries({ queryKey: ["whatsapp-conversa"] });
+    if (error) {
+      toast({ title: "Não foi possível atualizar", description: error.message, variant: "destructive" });
+      return false;
+    }
+    return true;
+  };
+
+  const marcarNaoLidaEFechar = async () => {
+    if (!selecionada) return;
+    const ok = await marcarLeitura(selecionada, true);
+    if (!ok) return;
+    setSelecionada(null);
+    setListaSheet(false);
+    setPerfilSheet(false);
+    toast({ title: "Marcada como não lida" });
+  };
+
 
   useEffect(() => {
     fimRef.current?.scrollIntoView({ behavior: "smooth" });
