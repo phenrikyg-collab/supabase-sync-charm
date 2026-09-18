@@ -2651,8 +2651,23 @@ export default function Atendimento() {
                       </div>
                     </div>
                   )}
-                  <div className="relative flex min-w-0 max-w-full items-end gap-1 overflow-visible">
-                    {listaRapidaAberta && (
+                  <Composer
+                    ref={composerRef}
+                    onEnviar={(t) => enviar.mutate(t)}
+                    onImagens={adicionarImagens}
+                    onAbrirCatalogo={abrirCatalogo}
+                    onAbrirTemplate={abrirTemplate}
+                    onDigitandoMudou={setDigitando}
+                    figurinhas={
+                      !ehSite(conversaAtual) ? (
+                        <SeletorFigurinhas
+                          telefone={telefoneIdentificado}
+                          conversaId={conversaAtual.id}
+                          onEnviada={invalidarThread}
+                        />
+                      ) : null
+                    }
+                  />
                       <div className="absolute bottom-full left-0 z-50 mb-2 w-full max-w-md rounded-md border border-border bg-popover shadow-lg">
                         <p className="border-b border-border px-3 py-1.5 text-[11px] text-muted-foreground">
                           Mensagens rápidas: setas para escolher, Enter para inserir, Esc para fechar
