@@ -47,10 +47,27 @@ export type Figurinha = {
   bytes?: number;
 };
 
+export type DestinoPopup = "site" | "app";
+
+export type RegrasApp = {
+  instalacao?: "todos" | "instalado" | "nao_instalado";
+  plataformas?: ("android" | "ios" | "outro")[];
+  identificada?: "todas" | "sim" | "nao";
+  situacoes?: (
+    | "pedido_em_transito"
+    | "pedido_entregue_recente"
+    | "sem_pedido"
+    | "cashback_disponivel"
+    | "troca_aberta"
+  )[];
+  situacoes_modo?: "qualquer" | "todas";
+};
+
 export type Popup = {
   id?: number;
   versao?: number;
   nome: string;
+  destino?: DestinoPopup;
   status?: StatusPopup;
   formato?: string;
   prioridade?: number;
@@ -152,8 +169,12 @@ export const popupsApi = {
   configObter: () => chamar<any>("popups_config_obter"),
   configSalvar: (p: any) => chamar<any>("popups_config_salvar", { p }),
   modelos: () => chamar<Modelo[]>("popups_modelos"),
-  criarDeModelo: (chave: string, nome?: string) =>
-    chamar<Popup>("popups_criar_de_modelo", { p_chave: chave, ...(nome ? { p_nome: nome } : {}) }),
+  criarDeModelo: (chave: string, nome?: string, destino?: DestinoPopup) =>
+    chamar<Popup>("popups_criar_de_modelo", {
+      p_chave: chave,
+      ...(nome ? { p_nome: nome } : {}),
+      ...(destino ? { p_destino: destino } : {}),
+    }),
   figurinhas: () => chamar<Figurinha[]>("popups_figurinhas"),
   diagnostico: (p: Popup) =>
     chamar<{ validacao: Validacao; diagnostico: Diagnostico }>("popups_diagnostico", { p }),
