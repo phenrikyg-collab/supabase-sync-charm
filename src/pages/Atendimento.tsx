@@ -1060,13 +1060,17 @@ export default function Atendimento() {
 
   });
 
-  const enviarImagem = async (mediaUrl: string, conteudo: string) => {
+  const MAX_IMAGENS = 10;
+  const MAX_BYTES = 16 * 1024 * 1024;
+
+  const enviarImagem = async (mediaUrl: string, conteudo: string, responderA?: number | string | null) => {
     if (!conversaAtual) throw new Error("Nenhuma conversa selecionada");
     const telefoneEnvio = conversaAtual.telefone_real || conversaAtual.telefone;
     const idTemp = inserirMensagemOtimista({
       conteudo,
       tipo: "imagem",
       media_url: mediaUrl,
+      citada_id: responderA ?? null,
     });
     try {
       const resposta = await fetch(
@@ -1079,6 +1083,8 @@ export default function Atendimento() {
             conversa_id: conversaAtual.id,
             imagem_url: mediaUrl,
             legenda: conteudo || "",
+            autor: user?.email ?? null,
+            responder_a_id: responderA ?? null,
           }),
         },
       );
@@ -1086,50 +1092,90 @@ export default function Atendimento() {
       if (!resposta.ok || corpo?.error) {
         throw new Error(corpo?.error || corpo?.mensagem || `Falha no envio (${resposta.status})`);
       }
-    } catch (e) {
-      removerMensagemOtimista(idTemp);
+    } catch (e: any) {
+      marcarMensagemFalhou(idTemp, e?.message ?? "Não foi possível enviar a imagem.");
       throw e;
     }
     queryClient.invalidateQueries({ queryKey: ["whatsapp-mensagens", selecionada] });
   };
 
-  const selecionarArquivo = (f: File | null) => {
-    if (!f) return;
-    if (!f.type.startsWith("image/")) {
-      toast({ title: "Selecione uma imagem", variant: "destructive" });
-      return;
+  /** Acrescenta imagens à faixa de pré-visualização, respeitando limites. */
+  const adicionarImagens = (lista: File[]) => {
+    const validas: { chave: string; file: File; url: string }[] = [];
+    for (const f of lista) {
+      if (!f.type.startsWith("image/")) continue;
+      if (f.size > MAX_BYTES) {
+        toast({ title: `A imagem ${f.name} passa de 16 MB`, variant: "destructive" });
+        continue;
+      }
+      validas.push({ chave: `${Date.now()}-${Math.random().toString(36).slice(2)}`, file: f, url: URL.createObjectURL(f) });
     }
-    if (previewUrl) URL.revokeObjectURL(previewUrl);
-    setArquivo(f);
-    setPreviewUrl(URL.createObjectURL(f));
-    setLegenda("");
+    if (validas.length === 0) return;
+    setImagens((atuais) => {
+      const total = [...atuais, ...validas];
+      if (total.length > MAX_IMAGENS) {
+        toast({ title: `Dá para enviar até ${MAX_IMAGENS} imagens por vez`, variant: "destructive" });
+        total.slice(MAX_IMAGENS).forEach((i) => URL.revokeObjectURL(i.url));
+      }
+      return total.slice(0, MAX_IMAGENS);
+    });
+    // O texto já digitado vira a legenda da primeira imagem
+    setLegenda((atual) => {
+      if (atual.trim()) return atual;
+      const doCampo = texto.trim();
+      if (doCampo) setTexto("");
+      return doCampo;
+    });
+  };
+
+  const removerImagem = (chave: string) => {
+    setImagens((atuais) => {
+      const alvo = atuais.find((i) => i.chave === chave);
+      if (alvo) URL.revokeObjectURL(alvo.url);
+      return atuais.filter((i) => i.chave !== chave);
+    });
   };
 
   const limparPreview = () => {
-    if (previewUrl) URL.revokeObjectURL(previewUrl);
-    setArquivo(null);
-    setPreviewUrl(null);
+    setImagens((atuais) => {
+      atuais.forEach((i) => URL.revokeObjectURL(i.url));
+      return [];
+    });
     setLegenda("");
     if (fileRef.current) fileRef.current.value = "";
   };
 
   const confirmarEnvioImagem = async () => {
-    if (!arquivo) return;
+    if (imagens.length === 0) return;
+    const fila = imagens;
+    const legendaAtual = legenda.trim();
+    const responderA = citacao?.id ?? null;
+    setCitacao(null);
+    limparPreview();
     setEnviandoImagem(true);
-    try {
-      const nome = arquivo.name.replace(/[^\w.\-]/g, "_");
-      const path = `enviadas/${Date.now()}-${nome}`;
-      const { error: upErr } = await supabase.storage
-        .from("whatsapp-media")
-        .upload(path, arquivo, { cacheControl: "31536000", upsert: false });
-      if (upErr) throw upErr;
-      const { data: pub } = supabase.storage.from("whatsapp-media").getPublicUrl(path);
-      await enviarImagem(pub.publicUrl, legenda.trim());
-      limparPreview();
-    } catch (e: any) {
-      toast({ title: "Erro ao enviar imagem", description: e.message, variant: "destructive" });
-    } finally {
-      setEnviandoImagem(false);
+    let falhas = 0;
+    for (let i = 0; i < fila.length; i++) {
+      const item = fila[i];
+      try {
+        const nome = item.file.name.replace(/[^\w.\-]/g, "_");
+        const path = `enviadas/${Date.now()}-${i}-${nome}`;
+        const { error: upErr } = await supabase.storage
+          .from("whatsapp-media")
+          .upload(path, item.file, { cacheControl: "31536000", upsert: false });
+        if (upErr) throw upErr;
+        const { data: pub } = supabase.storage.from("whatsapp-media").getPublicUrl(path);
+        await enviarImagem(pub.publicUrl, i === 0 ? legendaAtual : "", i === 0 ? responderA : null);
+      } catch (e: any) {
+        falhas += 1;
+      }
+    }
+    setEnviandoImagem(false);
+    if (falhas > 0) {
+      toast({
+        title: falhas === 1 ? "Uma imagem não foi enviada" : `${falhas} imagens não foram enviadas`,
+        variant: "destructive",
+        duration: 10000,
+      });
     }
   };
 
