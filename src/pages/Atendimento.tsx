@@ -950,16 +950,22 @@ export default function Atendimento() {
       }
     },
     onError: async (e: any, _conteudo, contexto: any) => {
-      if (contexto?.idTemp) removerMensagemOtimista(contexto.idTemp);
-      if (contexto?.conteudo) setTexto((atual) => (atual.trim() ? atual : contexto.conteudo));
       const janela = await extrairErroJanela(e);
+      const motivo = janela ?? e?.message ?? "Não foi possível enviar a mensagem.";
+      if (contexto?.idTemp) marcarMensagemFalhou(contexto.idTemp, motivo);
+      if (contexto?.conteudo) setTexto((atual) => (atual.trim() ? atual : contexto.conteudo));
       if (janela) {
         setErroJanela(janela);
         queryClient.invalidateQueries({ queryKey: ["whatsapp-janela-24h", selecionada] });
-        return;
       }
-      toast({ title: "Erro ao enviar", description: e.message, variant: "destructive" });
+      toast({
+        title: "Mensagem não enviada",
+        description: motivo,
+        variant: "destructive",
+        duration: 10000,
+      });
     },
+
   });
 
   const enviarImagem = async (mediaUrl: string, conteudo: string) => {
