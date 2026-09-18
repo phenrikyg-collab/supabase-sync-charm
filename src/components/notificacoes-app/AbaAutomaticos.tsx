@@ -81,6 +81,12 @@ export function AbaAutomaticos({ resumo }: { resumo: ResumoPush | undefined }) {
           O aviso no celular é gratuito e complementa o WhatsApp. Não substitui.
         </p>
 
+        <p className="text-xs text-muted-foreground">
+          No iPhone, o aviso mostra a linha "from Minha MC" embaixo do título. Isso é do próprio
+          iPhone e não dá para mudar.
+        </p>
+
+
         <Button onClick={() => salvar.mutate()} disabled={salvar.isPending}>
           {salvar.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
           Salvar

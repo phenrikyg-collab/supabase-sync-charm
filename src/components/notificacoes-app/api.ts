@@ -116,24 +116,24 @@ export const ROTULO_SITUACAO: Record<SituacaoRastreio, string> = {
 
 export const TEXTO_AUTOMATICO: Record<SituacaoRastreio, { titulo: string; corpo: string }> = {
   em_transito: {
-    titulo: "Seu pedido está a caminho 💛",
-    corpo: "Pedido #123 já saiu daqui. Toque para acompanhar.",
+    titulo: "Oba, seu look pegou a estrada! 🚚💛",
+    corpo: "Pedido #123 já saiu daqui. Toque para acompanhar cada passo.",
   },
   saiu_para_entrega: {
-    titulo: "Seu pedido saiu para entrega!",
-    corpo: "Pedido #123 chega hoje. Fique de olho!",
+    titulo: "É hoje! Deixa o espelho pronto ✨",
+    corpo: "Pedido #123 saiu para entrega e chega ainda hoje.",
   },
   entregue: {
-    titulo: "Seu pedido chegou 💛",
+    titulo: "Chegou! Hora de provar 💛",
     corpo: "Pedido #123 foi entregue. Conta pra gente o que achou?",
   },
   aguardando_retirada: {
-    titulo: "Seu pedido está esperando por você",
-    corpo: "Pedido #123 está disponível para retirada. Toque para ver onde.",
+    titulo: "Seu pacote está te esperando 📍",
+    corpo: "Pedido #123 está pronto para retirada. Toque para ver onde.",
   },
   tentativa_falhou: {
-    titulo: "Tentaram entregar seu pedido",
-    corpo: "Não encontraram ninguém para receber o pedido #123. Toque para ver o que fazer.",
+    titulo: "Quase! Seu pacote passou por aí 💛",
+    corpo: "Não encontraram ninguém para receber o pedido #123. Toque que a gente te ajuda.",
   },
 };
 
