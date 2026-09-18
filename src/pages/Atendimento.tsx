@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useInfiniteQuery, useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -420,6 +420,179 @@ function StatusEntrega({ status, erro }: { status?: string | null; erro?: string
     </span>
   );
 }
+
+
+type ItemConversaProps = {
+  c: Conversa;
+  ativa: boolean;
+  modoHistorico: boolean;
+  mostrarClique: boolean;
+  atencao: any;
+  faixa: string;
+  menuAberto: boolean;
+  longPressRef: React.MutableRefObject<{ timer: ReturnType<typeof setTimeout> | null; disparado: boolean }>;
+  onAbrir: (c: Conversa) => void;
+  onMenuChange: (id: string | null) => void;
+  onMarcarLeitura: (id: string | number, naoLida: boolean) => void;
+};
+
+/** Uma linha da lista de conversas. Memoizada: só repinta quando os próprios dados mudam. */
+const ItemConversa = memo(function ItemConversa({
+  c, ativa, modoHistorico, mostrarClique, atencao, faixa, menuAberto, longPressRef,
+  onAbrir, onMenuChange, onMarcarLeitura,
+}: ItemConversaProps) {
+  const nome = nomeConversa(c);
+  const site = ehSite(c);
+  const prio = modoHistorico ? "" : (c.prioridade ?? "").toLowerCase();
+  const naoLida = !modoHistorico && !!c.nao_lida;
+  const urg = modoHistorico ? "normal" : urgenciaDeNivel(atencao?.nivel);
+  return (
+                  <button
+                  onClick={() => {
+                    if (longPressRef.current.disparado) {
+                      longPressRef.current.disparado = false;
+                      return;
+                    }
+                    onAbrir(c);
+                  }}
+                  onTouchStart={() => {
+                    if (modoHistorico) return;
+                    longPressRef.current.disparado = false;
+                    longPressRef.current.timer = setTimeout(() => {
+                      longPressRef.current.disparado = true;
+                      onMenuChange(String(c.id));
+                    }, 500);
+                  }}
+                  onTouchEnd={() => {
+                    if (longPressRef.current.timer) clearTimeout(longPressRef.current.timer);
+                  }}
+                  onTouchMove={() => {
+                    if (longPressRef.current.timer) clearTimeout(longPressRef.current.timer);
+                  }}
+                  className={cn(
+                    "group relative w-full text-left px-4 py-3 border-b border-border/60 border-l-[3px] transition-colors hover:bg-accent/60",
+                    faixa,
+                    ativa && "bg-accent",
+                    naoLida && !ativa && "bg-primary/5",
+                  )}
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0 flex items-center gap-1.5">
+                      {naoLida && <span className="h-2.5 w-2.5 rounded-full bg-success shrink-0" />}
+                      {prio === "alta" && <span className="h-2 w-2 rounded-full bg-danger shrink-0" />}
+                      {prio === "media" && <span className="h-2 w-2 rounded-full bg-warning shrink-0" />}
+                      <div className="min-w-0">
+                         <p className={cn("text-base truncate flex items-center gap-1.5", naoLida || urg === "quente" ? "font-bold" : "font-medium")}>
+                          {site ? (
+                            <Globe className="h-3.5 w-3.5 shrink-0 text-primary" aria-label="Chat do site" />
+                          ) : (
+                            <MessageCircle className="h-3.5 w-3.5 shrink-0 text-success" aria-label="WhatsApp" />
+                          )}
+                          <span className="truncate">{nome}</span>
+                          {nomeSoDoWhatsApp(c) && <BadgeViaWhatsApp />}
+                          {!modoHistorico && c.falha_envio && (
+                            <span className="inline-flex items-center gap-1 rounded-full border border-danger/30 bg-danger/10 px-1.5 py-0.5 text-[10px] font-semibold text-danger whitespace-nowrap">
+                              <AlertTriangle className="h-3 w-3" />
+                              Não enviada
+                            </span>
+                          )}
+
+                        </p>
+                        <p className="text-xs text-muted-foreground">{identificadorConversa(c)}</p>
+                        <BadgeSinal conversa={c} urg={urg} />
+                        <ChipsMotivos motivos={atencao?.motivos} />
+                        {site && c.telefone_real && (
+                          <span className="mt-1 inline-flex items-center gap-1 rounded-full border border-success/20 bg-success/10 px-2 py-0.5 text-[10px] text-success">
+                            <Phone className="h-3 w-3" />
+                            {formatarTelefone(c.telefone_real)}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                     <span className="flex items-center gap-1 shrink-0">
+                       {!modoHistorico && (
+                         <DropdownMenu
+                           open={menuAberto}
+                           onOpenChange={(aberto) => onMenuChange(aberto ? String(c.id) : null)}
+                         >
+                           <DropdownMenuTrigger asChild>
+                             <span
+                               role="button"
+                               aria-label={c.nao_lida ? "Marcar como lida" : "Marcar como não lida"}
+                               onClick={(e) => e.stopPropagation()}
+                               className={cn(
+                                 "h-6 w-6 items-center justify-center rounded-md text-muted-foreground transition-opacity hover:bg-accent hover:text-foreground",
+                                 menuAberto
+                                   ? "inline-flex opacity-100"
+                                   : "hidden opacity-0 group-hover:opacity-100 md:inline-flex",
+                               )}
+                             >
+                               <Mail className="h-3.5 w-3.5" />
+                             </span>
+                           </DropdownMenuTrigger>
+                           <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
+                             {c.nao_lida ? (
+                               <DropdownMenuItem onSelect={() => onMarcarLeitura(c.id, false)}>
+                                 <MailOpen className="mr-2 h-4 w-4" />
+                                 Marcar como lida
+                               </DropdownMenuItem>
+                             ) : (
+                               <DropdownMenuItem onSelect={() => onMarcarLeitura(c.id, true)}>
+                                 <Mail className="mr-2 h-4 w-4" />
+                                 Marcar como não lida
+                               </DropdownMenuItem>
+                             )}
+                           </DropdownMenuContent>
+                         </DropdownMenu>
+                       )}
+                       <span className="text-xs text-muted-foreground whitespace-nowrap">
+                         {tempoRelativo(c.ultima_mensagem_em ?? c.atualizado_em)}
+                       </span>
+                     </span>
+                  </div>
+                   {!modoHistorico && c.falha_envio ? (
+                    <p className="text-sm mt-1 line-clamp-1 font-medium text-danger">
+                      {`⚠ Não enviada: ${c.falha_envio_motivo ?? "a última mensagem não foi entregue."}`}
+                    </p>
+                  ) : (
+                    <p className={cn("text-sm mt-1 line-clamp-1", naoLida ? "text-foreground font-medium" : "text-muted-foreground")}>
+                      {c.ultima_mensagem ?? ""}
+                    </p>
+                  )}
+
+                   {!modoHistorico && mostrarClique && (
+                    <p className="mt-1 text-[11px]">
+                      <span className="text-muted-foreground">Botão tocado: </span>
+                      <span className="font-medium">
+                        {c.ultima_entrada_texto ?? c.ultima_mensagem ?? "sem registro"}
+                      </span>
+                    </p>
+                  )}
+                  <div className="mt-2 flex items-center gap-1.5 flex-wrap">
+                     {modoHistorico ? (
+                       <>
+                         <span className="inline-flex items-center rounded-full border border-border bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+                           Finalizada
+                         </span>
+                         {c.tem_kora && (
+                           <span className="inline-flex items-center rounded-full border border-border bg-card px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+                             Kora
+                           </span>
+                         )}
+                       </>
+                     ) : (
+                       <>
+                         <StatusPill status={c.status} aguardandoDesde={c.aguardando_desde} />
+                         {(c.tags ?? []).map((t) => (
+                           <TagChip key={String(t.id)} tag={t} />
+                         ))}
+                       </>
+                     )}
+                  </div>
+</button>
+  );
+});
 
 export default function Atendimento() {
   const queryClient = useQueryClient();
