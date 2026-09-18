@@ -358,13 +358,13 @@ export function CatalogoDialog({
                   >
                     <div className="aspect-square bg-muted overflow-hidden">
                       {p.imagem ? (
-                        <img src={p.imagem} alt={p.nome} className="w-full h-full object-cover" loading="lazy" />
+                        <img src={p.imagem} alt={p.nome} className="w-full h-full object-cover" loading="lazy" decoding="async" />
                       ) : null}
                     </div>
                     <div className="p-2 space-y-1">
                       <p className="text-xs font-medium line-clamp-2">{p.nome}</p>
                       <p className="text-sm font-bold">{formatarPreco(p.preco_cheio ?? p.preco)}</p>
-                      <CoresDoCard produtoId={idProduto(p)} ativo={open} />
+                      <CoresDoCard cores={p.cores_disponiveis} />
                       {p.preco_parcelado_5x != null && (
                         <p className="text-[11px] text-muted-foreground">
                           ou 5x de {formatarPreco(p.preco_parcelado_5x)} sem juros
