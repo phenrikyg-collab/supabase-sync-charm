@@ -166,7 +166,7 @@ export default function AppKpis() {
               title="Com app instalado"
               value={nBR(data.instalados)}
               subtitle={pct(data.instalados, data.visitantes) ? `${pct(data.instalados, data.visitantes)} do total` : undefined}
-              icon={SmartphoneChip}
+              icon={Smartphone}
             />
             <StatCard
               title="Voltaram 2+ dias"
