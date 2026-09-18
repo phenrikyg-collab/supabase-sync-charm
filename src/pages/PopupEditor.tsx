@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -50,6 +50,7 @@ const PALETA: { grupo: string; itens: { tipo: string; nome: string; base?: any }
       { tipo: "nota", nome: "Nota", base: { texto: "Presente válido na primeira compra, uma vez por cliente.", alinhar: "center" } },
     ],
   },
+
   {
     grupo: "Campos",
     itens: [
