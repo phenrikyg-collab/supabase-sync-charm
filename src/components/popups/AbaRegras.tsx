@@ -311,7 +311,7 @@ export function AbaRegras({
         </CardContent>
       </Card>
 
-      <Card>
+      <Card className={ehApp ? "hidden" : undefined}>
         <CardHeader><CardTitle className="text-base">Onde</CardTitle></CardHeader>
         <CardContent className="space-y-3">
           <div className="space-y-1.5">
@@ -345,11 +345,14 @@ export function AbaRegras({
               </SelectContent>
             </Select>
           </div>
-          {[
-            ["excluir_clientes", "Excluir quem já comprou"],
-            ["excluir_identificadas", "Excluir quem já deixou e-mail ou WhatsApp"],
-            ["excluir_convertidas", "Excluir quem já converteu em algum popup"],
-          ].map(([k, n]) => (
+          {(ehApp
+            ? [["excluir_convertidas", "Excluir quem já converteu em algum popup"]]
+            : [
+                ["excluir_clientes", "Excluir quem já comprou"],
+                ["excluir_identificadas", "Excluir quem já deixou e-mail ou WhatsApp"],
+                ["excluir_convertidas", "Excluir quem já converteu em algum popup"],
+              ]
+          ).map(([k, n]) => (
             <div key={k} className="flex items-center justify-between">
               <Label className="text-xs">{n}</Label>
               <Switch checked={!!r.publico?.[k]} onCheckedChange={(v) => setR("publico", { [k]: v })} />
