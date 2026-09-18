@@ -304,7 +304,13 @@ type Mensagem = {
   status_entrega?: "enviado" | "entregue" | "lido" | "falhou" | string | null;
   erro_entrega?: string | null;
   enviando?: boolean;
+  /** Falha detectada no próprio envio (balão otimista), ainda não gravada no banco. */
+  falha_local?: boolean;
 };
+
+/** Motivos de falha ligados à janela de 24h pedem template, não nova tentativa. */
+const ehMotivoJanela = (motivo?: string | null) => /24\s*h|janela/i.test(motivo ?? "");
+
 
 const STATUS_META: Record<string, { label: string; className: string }> = {
   escalado: { label: "Aguardando atendimento", className: "bg-danger/10 text-danger border-danger/20" },
