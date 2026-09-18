@@ -631,9 +631,13 @@ export default function Atendimento() {
   );
 
   // Conversa aberta que não está na lista carregada: busca os dados completos por id.
+  const selecionadaNoHistorico = !!selecionada
+    && conversasHistorico.some((c) => String(c.id) === selecionada);
   const foraDaLista = !!selecionada
+    && (selecionadaNoHistorico || (
     && !conversas.some((c) => String(c.id) === selecionada)
-    && !conversasHistorico.some((c) => String(c.id) === selecionada);
+    && !conversasHistorico.some((c) => String(c.id) === selecionada)
+    ));
   const { data: conversaAvulsa = null } = useQuery({
     queryKey: ["whatsapp-conversa", selecionada],
     enabled: foraDaLista,
@@ -655,6 +659,7 @@ export default function Atendimento() {
   const conversaAtual = useMemo<Conversa | null>(() => {
     if (!selecionada) return null;
     const historica = conversasHistorico.find((c) => String(c.id) === selecionada);
+    if (selecionadaNoHistorico && conversaAvulsa) return conversaAvulsa;
     if (historica) return historica;
     const carregada = conversas.find((c) => String(c.id) === selecionada);
     if (carregada) return carregada;
@@ -668,7 +673,7 @@ export default function Atendimento() {
       status: achada.status ?? "",
       ultima_mensagem_em: achada.ultima_mensagem_em ?? null,
     } as Conversa;
-  }, [conversas, conversasHistorico, conversaAvulsa, resultadoBusca, selecionada]);
+  }, [conversas, conversasHistorico, conversaAvulsa, resultadoBusca, selecionada, selecionadaNoHistorico]);
 
   // Deep link: /atendimento?conversa=123 abre a conversa mesmo que ela não esteja
   // na lista carregada (a consulta por id acima resolve os dados).
@@ -1987,7 +1992,6 @@ export default function Atendimento() {
                               {saida && <StatusEntrega status={m.status_entrega} erro={m.erro_entrega} />}
                             </div>
                           </div>
-                        >
                         </div>
                       </div>
                     );
