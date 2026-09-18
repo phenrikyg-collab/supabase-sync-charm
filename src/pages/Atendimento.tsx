@@ -1003,6 +1003,7 @@ export default function Atendimento() {
           telefone: conversaAtual.telefone,
           conteudo,
           autor: user?.email ?? null,
+          responder_a_id: citacaoRef.current?.id ?? null,
         },
       });
       if (error) throw error;
@@ -1011,7 +1012,21 @@ export default function Atendimento() {
     onMutate: (conteudo: string) => {
       setTexto("");
       setErroJanela(null);
-      return { idTemp: inserirMensagemOtimista({ conteudo, tipo: "texto" }), conteudo };
+      const citada = citacao;
+      citacaoRef.current = citada;
+      setCitacao(null);
+      return {
+        idTemp: inserirMensagemOtimista({
+          conteudo,
+          tipo: "texto",
+          citada_id: citada?.id ?? null,
+          citada_direcao: citada?.direcao ?? null,
+          citada_tipo: citada?.tipo ?? null,
+          citada_texto: citada?.texto ?? null,
+          citada_media_url: citada?.media_url ?? null,
+        }),
+        conteudo,
+      };
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["whatsapp-mensagens", selecionada] });
