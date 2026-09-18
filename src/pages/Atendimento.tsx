@@ -1822,6 +1822,11 @@ export default function Atendimento() {
                           }
                         />
                         <TagChip tag={t} />
+                        {contagemTags[String(t.id)] > 0 && (
+                          <span className="ml-auto text-[10px] text-muted-foreground">
+                            {contagemTags[String(t.id)]}
+                          </span>
+                        )}
                       </label>
                     ))}
                   </div>
