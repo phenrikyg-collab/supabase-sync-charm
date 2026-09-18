@@ -12,7 +12,10 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { toast } from "@/hooks/use-toast";
-import { dataHoraBR, rpcFluxos, MOTIVOS_PULO, ROTULO_STATUS_EXECUCAO } from "./api";
+import {
+  dataHoraBR, rpcFluxos, MOTIVOS_PULO, ROTULO_STATUS_EXECUCAO,
+  ROTULO_ORIGEM_BOTAO, ROTULO_MODO_DIGITOU,
+} from "./api";
 
 type Execucao = {
   id: number | string;
@@ -42,6 +45,17 @@ const ACOES: Record<string, (d: any) => string> = {
   pulado: (d) => `Pulado: ${MOTIVOS_PULO[d?.motivo] ?? d?.motivo ?? "sem motivo"}`,
   tag_aplicada: () => "Tag aplicada",
   saiu_comprou: () => "Saiu: comprou",
+  aguardando_botao: () => "Esperando ela tocar num botão",
+  botao_clicado: (d) => `Tocou em "${d?.botao ?? ""}"`,
+  botao_interpretado: (d) => {
+    const origem = ROTULO_ORIGEM_BOTAO[String(d?.origem ?? "")];
+    return `Escreveu "${d?.texto ?? ""}", entendido como "${d?.botao ?? ""}"${origem ? ` (${origem})` : ""}`;
+  },
+  respondeu_texto: (d) => {
+    const modo = ROTULO_MODO_DIGITOU[String(d?.modo ?? "")];
+    return `Escreveu "${d?.texto ?? ""}" em vez de tocar${modo ? `: ${modo}` : ""}`;
+  },
+  botao_sem_resposta: () => "Não respondeu no prazo",
   encerrada_manual: () => "Encerrada no painel",
   fim: () => "Fim",
   erro: (d) => `Erro: ${d?.erro ?? "sem detalhe"}`,
