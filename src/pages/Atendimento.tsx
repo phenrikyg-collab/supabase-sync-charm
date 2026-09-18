@@ -2517,8 +2517,12 @@ export default function Atendimento() {
                       ref={fileRef}
                       type="file"
                       accept="image/*"
+                      multiple
                       className="hidden"
-                      onChange={(e) => selecionarArquivo(e.target.files?.[0] ?? null)}
+                      onChange={(e) => {
+                        adicionarImagens(Array.from(e.target.files ?? []));
+                        if (fileRef.current) fileRef.current.value = "";
+                      }}
                     />
                     <Button
                       size="icon"
