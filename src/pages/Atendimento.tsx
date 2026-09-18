@@ -1941,23 +1941,22 @@ export default function Atendimento() {
         if (!casa) return false;
       }
       if (!daAba(c)) return false;
-        if (grupoDe(c) !== grupoAba) return false;
-        if (filtroLeitura === "nao_lidas" && !c.nao_lida) return false;
-        if (filtroLeitura === "lidas" && c.nao_lida) return false;
-        if (filtroFila === "atencao" && !["quente", "atencao"].includes(urgenciaDeNivel(atencaoDe(c)?.nivel))) return false;
-        if (filtroFila === "automacao" && atencaoDe(c)?.dono !== "automacao") return false;
-        if (filtroFila === "falhas" && !c.falha_envio) return false;
+      if (grupoDe(c) !== grupoAba) return false;
+      if (filtroLeitura === "nao_lidas" && !c.nao_lida) return false;
+      if (filtroLeitura === "lidas" && c.nao_lida) return false;
+      if (filtroFila === "atencao" && !["quente", "atencao"].includes(urgenciaDeNivel(atencaoDe(c)?.nivel))) return false;
+      if (filtroFila === "automacao" && atencaoDe(c)?.dono !== "automacao") return false;
+      if (filtroFila === "falhas" && !c.falha_envio) return false;
 
-        if (tagsFiltro.length > 0) {
-          const ids = (c.tags ?? []).map((t) => String(t.id));
-          if (!tagsFiltro.some((t) => ids.includes(t))) return false;
-        }
-        return true;
-      });
-    }
+      if (tagsFiltro.length > 0) {
+        const ids = (c.tags ?? []).map((t) => String(t.id));
+        if (!tagsFiltro.some((t) => ids.includes(t))) return false;
+      }
+      return true;
+    });
     return [...base].sort(compararConversas);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [conversas, conversasHistorico, emAtendimento, buscaAtiva, resultadoBusca, aba, grupoAba, filtroLeitura, filtroFila, tagsFiltro, mapaAtencao, modoFila, modoHistorico]);
+  }, [conversas, conversasHistorico, emAtendimento, buscaAtiva, resultadoBusca, termoLocal, termoDigitos, aba, grupoAba, filtroLeitura, filtroFila, tagsFiltro, mapaAtencao, modoFila, modoHistorico]);
 
 
   const clientesSemConversa = buscaAtiva && !modoHistorico ? (resultadoBusca?.clientes ?? []) : [];
