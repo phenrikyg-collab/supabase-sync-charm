@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useInfiniteQuery, useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Card } from "@/components/ui/card";
@@ -217,6 +217,10 @@ type Conversa = {
   pix_aberto_valor?: number | null;
   link_pendente?: boolean | null;
   desfecho?: string | null;
+  historico?: boolean | null;
+  so_kora?: boolean | null;
+  tem_kora?: boolean | null;
+  total_mensagens?: number | null;
 };
 
 type Urgencia = "perdendo" | "quente" | "atencao" | "normal";
@@ -436,6 +440,8 @@ export default function Atendimento() {
   /** Filtros especiais mutuamente exclusivos: atenção, automações e em atendimento. */
   const [filtroFila, setFiltroFila] = useState<"atencao" | "automacao" | "em_atendimento" | null>(null);
   const [tagsFiltro, setTagsFiltro] = useState<string[]>([]);
+  const [modoHistorico, setModoHistorico] = useState(false);
+  const [soKora, setSoKora] = useState(false);
   const [erroJanela, setErroJanela] = useState<string | null>(null);
   const [texto, setTexto] = useState("");
   const [catalogoAberto, setCatalogoAberto] = useState(false);
@@ -574,7 +580,7 @@ export default function Atendimento() {
     return () => clearTimeout(t);
   }, [busca]);
 
-  const buscaAtiva = termoBusca.length >= 2;
+  const buscaAtiva = !modoHistorico && termoBusca.length >= 2;
 
   const { data: resultadoBusca } = useQuery({
     queryKey: ["whatsapp-busca", termoBusca],
@@ -590,8 +596,48 @@ export default function Atendimento() {
     },
   });
 
+  const {
+    data: paginasHistorico,
+    isLoading: carregandoHistorico,
+    isFetchingNextPage: carregandoMaisHistorico,
+    hasNextPage: temMaisHistorico,
+    fetchNextPage: carregarMaisHistorico,
+  } = useInfiniteQuery({
+    queryKey: ["whatsapp-conversas-historico", termoBusca, soKora],
+    enabled: modoHistorico,
+    initialPageParam: 0,
+    queryFn: async ({ pageParam }) => {
+      const { data, error } = await chamarRpc("whatsapp_conversas_historico" as any, {
+        p_termo: termoBusca || null,
+        p_so_kora: soKora,
+        p_limite: 50,
+        p_offset: pageParam,
+      });
+      if (error) throw error;
+      return ((Array.isArray(data) ? data : []) as any[]).map((c) => ({
+        ...c,
+        id: c.conversa_id,
+        cliente_nome: c.nome ?? null,
+        ultima_mensagem: c.ultima_mensagem_texto ?? null,
+        historico: true,
+      })) as Conversa[];
+    },
+    getNextPageParam: (ultima, paginas) => ultima.length === 50 ? paginas.length * 50 : undefined,
+  });
+
+  const conversasHistorico = useMemo(
+    () => paginasHistorico?.pages.flat() ?? [],
+    [paginasHistorico],
+  );
+
   // Conversa aberta que não está na lista carregada: busca os dados completos por id.
-  const foraDaLista = !!selecionada && !conversas.some((c) => String(c.id) === selecionada);
+  const selecionadaNoHistorico = !!selecionada
+    && conversasHistorico.some((c) => String(c.id) === selecionada);
+  const foraDaLista = !!selecionada
+    && (selecionadaNoHistorico || (
+      !conversas.some((c) => String(c.id) === selecionada)
+      && !conversasHistorico.some((c) => String(c.id) === selecionada)
+    ));
   const { data: conversaAvulsa = null } = useQuery({
     queryKey: ["whatsapp-conversa", selecionada],
     enabled: foraDaLista,
@@ -612,6 +658,9 @@ export default function Atendimento() {
   // por último o item sintético da busca, para a tela abrir na hora.
   const conversaAtual = useMemo<Conversa | null>(() => {
     if (!selecionada) return null;
+    const historica = conversasHistorico.find((c) => String(c.id) === selecionada);
+    if (selecionadaNoHistorico && conversaAvulsa) return conversaAvulsa;
+    if (historica) return historica;
     const carregada = conversas.find((c) => String(c.id) === selecionada);
     if (carregada) return carregada;
     if (conversaAvulsa) return conversaAvulsa;
@@ -624,7 +673,7 @@ export default function Atendimento() {
       status: achada.status ?? "",
       ultima_mensagem_em: achada.ultima_mensagem_em ?? null,
     } as Conversa;
-  }, [conversas, resultadoBusca, selecionada]);
+  }, [conversas, conversasHistorico, conversaAvulsa, resultadoBusca, selecionada, selecionadaNoHistorico]);
 
   // Deep link: /atendimento?conversa=123 abre a conversa mesmo que ela não esteja
   // na lista carregada (a consulta por id acima resolve os dados).
@@ -755,7 +804,7 @@ export default function Atendimento() {
     setSelecionada(String(c.id));
     setListaSheet(false);
     setErroJanela(null);
-    if (!c.nao_lida) return;
+    if (modoHistorico || c.historico || !c.nao_lida) return;
     const { error } = await chamarRpc("whatsapp_marcar_lida" as any, {
       p_conversa_id: Number.isNaN(Number(c.id)) ? c.id : Number(c.id),
     });
@@ -1100,6 +1149,7 @@ export default function Atendimento() {
 
   const filtradas = useMemo(() => {
     let base: Conversa[];
+    if (modoHistorico) return conversasHistorico;
     if (modoFila) {
       // Chip "Em atendimento": renderiza na ordem exata da RPC, sem reordenar no front.
       base = emAtendimento;
@@ -1141,10 +1191,10 @@ export default function Atendimento() {
     }
     return [...base].sort(compararConversas);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [conversas, emAtendimento, buscaAtiva, resultadoBusca, aba, grupoAba, filtroLeitura, filtroFila, tagsFiltro, mapaAtencao, modoFila]);
+  }, [conversas, conversasHistorico, emAtendimento, buscaAtiva, resultadoBusca, aba, grupoAba, filtroLeitura, filtroFila, tagsFiltro, mapaAtencao, modoFila, modoHistorico]);
 
 
-  const clientesSemConversa = buscaAtiva ? (resultadoBusca?.clientes ?? []) : [];
+  const clientesSemConversa = buscaAtiva && !modoHistorico ? (resultadoBusca?.clientes ?? []) : [];
 
   const abrirNovaConversa = (telefone?: string | null) => {
     setTelefoneNovaConversa(telefone ?? null);
@@ -1169,7 +1219,12 @@ export default function Atendimento() {
 
 
   const status = conversaAtual?.status ?? "";
-  const podeResponder = status === "escalado" || status === "em_atendimento";
+  const conversaHistorica = conversaAtual?.historico === true;
+  const podeResponder = conversaHistorica || status === "escalado" || status === "em_atendimento";
+  const primeiroIndiceKora = mensagens.findIndex((m) => m.origem === "kora");
+  const primeiroIndiceSistemaProprio = primeiroIndiceKora < 0
+    ? -1
+    : mensagens.findIndex((m, idx) => idx > primeiroIndiceKora && m.origem !== "kora");
 
   const abrirDoPainel = (id: string, textoPronto?: string, leadId?: string) => {
     setSelecionada(String(id));
@@ -1400,7 +1455,7 @@ export default function Atendimento() {
                 );
               })}
             </div>
-            <div className="grid grid-cols-3 gap-1 rounded-md bg-muted p-1">
+            {!modoHistorico && <div className="grid grid-cols-3 gap-1 rounded-md bg-muted p-1">
               {([
                 { v: "conversa", label: "Conversas", n: contagemGrupos.conversa },
                 { v: "clique", label: "Cliques", n: contagemGrupos.clique },
@@ -1420,7 +1475,7 @@ export default function Atendimento() {
                   <span className="text-[10px] opacity-70">{g.n}</span>
                 </button>
               ))}
-            </div>
+            </div>}
             <div className="relative">
 
               <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
@@ -1433,7 +1488,7 @@ export default function Atendimento() {
               />
             </div>
             <div className="flex items-center gap-1.5 flex-wrap">
-              {([
+              {!modoHistorico && ([
                 { v: "todas", label: "Todas" },
                 { v: "nao_lidas", label: `Não lidas${totalNaoLidas ? ` (${totalNaoLidas})` : ""}` },
                 { v: "lidas", label: "Lidas" },
@@ -1452,7 +1507,7 @@ export default function Atendimento() {
                   {f.label}
                 </Button>
               ))}
-              {([
+              {!modoHistorico && ([
                 { v: "atencao", label: `Precisam de atenção${totalAtencao ? ` (${totalAtencao})` : ""}` },
                 { v: "automacao", label: `Automações${totalAutomacoes ? ` (${totalAutomacoes})` : ""}` },
                 { v: "em_atendimento", label: `Em atendimento${totalEmAtendimento ? ` (${totalEmAtendimento})` : ""}` },
@@ -1479,7 +1534,8 @@ export default function Atendimento() {
                   <Button
                     size="sm"
                     variant={tagsFiltro.length ? "secondary" : "outline"}
-                     className="h-7 px-2.5 text-xs"
+                    className="h-7 px-2.5 text-xs"
+                    disabled={modoHistorico}
                   >
                     Tags{tagsFiltro.length ? ` (${tagsFiltro.length})` : ""}
                   </Button>
@@ -1510,13 +1566,27 @@ export default function Atendimento() {
                   )}
                 </PopoverContent>
               </Popover>
+              <Button
+                size="sm"
+                variant={modoHistorico ? "default" : "outline"}
+                className="h-7 px-2.5 text-xs"
+                onClick={() => setModoHistorico((ativo) => !ativo)}
+              >
+                Histórico
+              </Button>
+              {modoHistorico && (
+                <label className="inline-flex h-7 cursor-pointer items-center gap-1.5 rounded-md border border-border px-2.5 text-xs">
+                  <Checkbox checked={soKora} onCheckedChange={(v) => setSoKora(!!v)} />
+                  Só Kora
+                </label>
+              )}
             </div>
           </div>
           <ScrollArea className="min-h-0 flex-1">
-            {carregandoConversas && (
+            {(modoHistorico ? carregandoHistorico : carregandoConversas) && (
               <p className="p-4 text-sm text-muted-foreground">Carregando conversas…</p>
             )}
-            {!carregandoConversas && filtradas.length === 0 && (
+            {!(modoHistorico ? carregandoHistorico : carregandoConversas) && filtradas.length === 0 && (
               <p className="p-4 text-sm text-muted-foreground">Nenhuma conversa encontrada.</p>
             )}
             {(() => {
@@ -1525,12 +1595,12 @@ export default function Atendimento() {
               const nome = nomeConversa(c);
               const site = ehSite(c);
               const ativa = String(c.id) === selecionada;
-              const prio = (c.prioridade ?? "").toLowerCase();
-              const naoLida = !!c.nao_lida;
-              const atencao = atencaoDe(c);
-              const urg = urgenciaDeNivel(atencao?.nivel);
-              const faixa = classeFaixa(c);
-              const grupo = modoFila ? null : grupoDia(chaveData(c));
+              const prio = modoHistorico ? "" : (c.prioridade ?? "").toLowerCase();
+              const naoLida = !modoHistorico && !!c.nao_lida;
+              const atencao = modoHistorico ? undefined : atencaoDe(c);
+              const urg = modoHistorico ? "normal" : urgenciaDeNivel(atencao?.nivel);
+              const faixa = modoHistorico ? "border-l-muted-foreground/30" : classeFaixa(c);
+              const grupo = modoFila || modoHistorico ? null : grupoDia(chaveData(c));
               let cabecalho: JSX.Element | null = null;
               if (grupo && grupo !== grupoAnterior) {
                 grupoAnterior = grupo;
@@ -1586,7 +1656,7 @@ export default function Atendimento() {
                    <p className={cn("text-sm mt-1 line-clamp-1", naoLida ? "text-foreground font-medium" : "text-muted-foreground")}>
                     {c.ultima_mensagem ?? ""}
                   </p>
-                  {grupoAba === "clique" && (
+                   {!modoHistorico && grupoAba === "clique" && (
                     <p className="mt-1 text-[11px]">
                       <span className="text-muted-foreground">Botão tocado: </span>
                       <span className="font-medium">
@@ -1595,16 +1665,45 @@ export default function Atendimento() {
                     </p>
                   )}
                   <div className="mt-2 flex items-center gap-1.5 flex-wrap">
-                    <StatusPill status={c.status} aguardandoDesde={c.aguardando_desde} />
-                    {(c.tags ?? []).map((t) => (
-                      <TagChip key={String(t.id)} tag={t} />
-                    ))}
+                     {modoHistorico ? (
+                       <>
+                         <span className="inline-flex items-center rounded-full border border-border bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+                           Finalizada
+                         </span>
+                         {c.tem_kora && (
+                           <span className="inline-flex items-center rounded-full border border-border bg-card px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+                             Kora
+                           </span>
+                         )}
+                       </>
+                     ) : (
+                       <>
+                         <StatusPill status={c.status} aguardandoDesde={c.aguardando_desde} />
+                         {(c.tags ?? []).map((t) => (
+                           <TagChip key={String(t.id)} tag={t} />
+                         ))}
+                       </>
+                     )}
                   </div>
                 </button>
                 </div>
               );
               });
             })()}
+
+            {modoHistorico && temMaisHistorico && (
+              <div className="p-3">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="w-full"
+                  disabled={carregandoMaisHistorico}
+                  onClick={() => carregarMaisHistorico()}
+                >
+                  {carregandoMaisHistorico ? "Carregando…" : "Carregar mais"}
+                </Button>
+              </div>
+            )}
 
             {clientesSemConversa.length > 0 && (
               <>
@@ -1697,11 +1796,13 @@ export default function Atendimento() {
                   )}
                 </div>
                 <div className="flex shrink-0 items-center gap-1.5">
-                  <Button size="sm" onClick={() => assumir.mutate()} disabled={assumir.isPending}>
-                    <UserCheck className="mr-2 h-4 w-4" />
-                    Assumir conversa
-                  </Button>
-                  {(status === "escalado" || status === "em_atendimento") && (
+                  {!conversaHistorica && (
+                    <Button size="sm" onClick={() => assumir.mutate()} disabled={assumir.isPending}>
+                      <UserCheck className="mr-2 h-4 w-4" />
+                      Assumir conversa
+                    </Button>
+                  )}
+                  {!conversaHistorica && (status === "escalado" || status === "em_atendimento") && (
                     <Button
                       size="sm"
                       variant="outline"
@@ -1736,7 +1837,7 @@ export default function Atendimento() {
                         <Truck className="mr-2 h-4 w-4" />
                         Calcular frete
                       </DropdownMenuItem>
-                      {(status === "escalado" || status === "em_atendimento") && (
+                      {!conversaHistorica && (status === "escalado" || status === "em_atendimento") && (
                         <DropdownMenuItem
                           className="xl:hidden"
                           onSelect={() => resolver.mutate()}
@@ -1746,19 +1847,21 @@ export default function Atendimento() {
                           Marcar como resolvido
                         </DropdownMenuItem>
                       )}
-                      {status !== "bot_ativo" && (
+                      {!conversaHistorica && status !== "bot_ativo" && (
                         <DropdownMenuItem onSelect={() => reativarBot.mutate()} disabled={reativarBot.isPending}>
                           <RotateCcw className="mr-2 h-4 w-4" />
                           Reativar bot
                         </DropdownMenuItem>
                       )}
-                      <DropdownMenuItem
-                        className="text-destructive focus:text-destructive"
-                        onSelect={() => setExcluirAberta(true)}
-                      >
-                        <Trash2 className="mr-2 h-4 w-4" />
-                        Excluir conversa
-                      </DropdownMenuItem>
+                      {!conversaHistorica && (
+                        <DropdownMenuItem
+                          className="text-destructive focus:text-destructive"
+                          onSelect={() => setExcluirAberta(true)}
+                        >
+                          <Trash2 className="mr-2 h-4 w-4" />
+                          Excluir conversa
+                        </DropdownMenuItem>
+                      )}
                     </DropdownMenuContent>
                   </DropdownMenu>
                   <AlertDialog open={excluirAberta} onOpenChange={setExcluirAberta}>
@@ -1811,9 +1914,17 @@ export default function Atendimento() {
                 </div>
               </div>
 
-              <div className="shrink-0 border-b border-border px-3 py-1.5">
-                <TagsConversa conversaId={conversaAtual.id} aplicadas={conversaAtual.tags ?? []} />
-              </div>
+              {!conversaHistorica && (
+                <div className="shrink-0 border-b border-border px-3 py-1.5">
+                  <TagsConversa conversaId={conversaAtual.id} aplicadas={conversaAtual.tags ?? []} />
+                </div>
+              )}
+
+              {conversaHistorica && (
+                <div className="shrink-0 border-b border-border bg-muted/60 px-3 py-1 text-center text-xs text-muted-foreground">
+                  Conversa finalizada. Mostrando o histórico.
+                </div>
+              )}
 
               <PropostaDaConversa
                 conversaId={conversaAtual.id}
@@ -1829,42 +1940,57 @@ export default function Atendimento() {
                   {mensagens.map((m, idx) => {
                     const saida = m.direcao === "saida";
                     const bot = saida && m.origem === "bot";
+                    const kora = m.origem === "kora";
                     const tipo = (m.tipo ?? "").toLowerCase();
                     const sticker = tipo === "sticker" && !!m.media_url;
                     const tipoMidia = ehTipoMidia(tipo);
                     const midia = tipoMidia || !!m.media_url;
                     const mostrarTexto = !!m.conteudo && !sticker && !tipoMidia;
                     return (
-                      <div
-                        key={m.id != null ? String(m.id) : `${m.criada_em ?? m.criado_em ?? ""}-${idx}`}
-                        className={cn("flex min-w-0 max-w-full overflow-hidden", saida ? "justify-end" : "justify-start")}
-                      >
-                        <div
-                          className={cn(
-                             "min-w-0 max-w-[75%] overflow-hidden text-base break-words [overflow-wrap:anywhere] [word-break:break-word]",
-                            sticker
-                              ? "bg-transparent border-0 p-0"
-                              : cn(
-                                  "rounded-lg px-3 py-2 border",
-                                  !saida && "bg-muted text-foreground border-border",
-                                  saida && bot && "bg-info/10 text-foreground border-info/30",
-                                  saida && !bot && "bg-primary/10 text-foreground border-primary/30",
-                                ),
-                          )}
-                        >
-                          {saida && !sticker && (
-                            <div className="flex items-center gap-1 text-[10px] uppercase tracking-wider text-muted-foreground mb-1">
-                              {bot ? <Bot className="h-3 w-3" /> : <User className="h-3 w-3" />}
-                              {bot ? "Bot" : "Atendente"}
+                      <div key={m.id != null ? String(m.id) : `${m.criada_em ?? m.criado_em ?? ""}-${idx}`}>
+                        {idx === primeiroIndiceKora && (
+                          <div className="flex items-center gap-3 py-1.5 text-[11px] text-muted-foreground">
+                            <Separator className="flex-1" />
+                            <span className="shrink-0">Histórico importado da Kora</span>
+                            <Separator className="flex-1" />
+                          </div>
+                        )}
+                        {idx === primeiroIndiceSistemaProprio && (
+                          <div className="flex items-center gap-3 py-1.5 text-[11px] text-muted-foreground">
+                            <Separator className="flex-1" />
+                            <span className="shrink-0">Atendimento no sistema próprio</span>
+                            <Separator className="flex-1" />
+                          </div>
+                        )}
+                        <div className={cn("flex min-w-0 max-w-full overflow-hidden", saida ? "justify-end" : "justify-start")}>
+                          <div
+                            className={cn(
+                              "min-w-0 max-w-[75%] overflow-hidden text-base break-words [overflow-wrap:anywhere] [word-break:break-word]",
+                              sticker
+                                ? "bg-transparent border-0 p-0"
+                                : cn(
+                                    "rounded-lg px-3 py-2 border",
+                                    !saida && "bg-muted text-foreground border-border",
+                                    saida && bot && "bg-info/10 text-foreground border-info/30",
+                                    saida && !bot && !kora && "bg-primary/10 text-foreground border-primary/30",
+                                    saida && kora && "bg-muted text-foreground border-border",
+                                  ),
+                            )}
+                          >
+                            {saida && !sticker && (
+                              <div className="flex items-center gap-1 text-[10px] uppercase tracking-wider text-muted-foreground mb-1">
+                                {bot ? <Bot className="h-3 w-3" /> : <User className="h-3 w-3" />}
+                                {kora ? "Kora" : bot ? "Bot" : "Atendente"}
+                              </div>
+                            )}
+                            {midia && <MensagemMidia tipo={m.tipo} mediaUrl={m.media_url} conteudo={m.conteudo} />}
+                            {mostrarTexto && <p className="max-w-full whitespace-pre-wrap break-words [overflow-wrap:anywhere] [word-break:break-word]">{m.conteudo}</p>}
+                            <div className="flex items-center justify-end gap-1 mt-1">
+                              <span className="text-[10px] text-muted-foreground">
+                                {horaCurta(m.criada_em ?? m.criado_em ?? m.enviado_em)}
+                              </span>
+                              {saida && <StatusEntrega status={m.status_entrega} erro={m.erro_entrega} />}
                             </div>
-                          )}
-                          {midia && <MensagemMidia tipo={m.tipo} mediaUrl={m.media_url} conteudo={m.conteudo} />}
-                          {mostrarTexto && <p className="max-w-full whitespace-pre-wrap break-words [overflow-wrap:anywhere] [word-break:break-word]">{m.conteudo}</p>}
-                          <div className="flex items-center justify-end gap-1 mt-1">
-                            <span className="text-[10px] text-muted-foreground">
-                              {horaCurta(m.criada_em ?? m.criado_em ?? m.enviado_em)}
-                            </span>
-                            {saida && <StatusEntrega status={m.status_entrega} erro={m.erro_entrega} />}
                           </div>
                         </div>
                       </div>
