@@ -1635,7 +1635,31 @@ export default function Atendimento() {
                   {f.label}
                 </Button>
               ))}
+              {!modoHistorico && (
+                <Button
+                  size="sm"
+                  variant={filtroFila === "falhas" ? "default" : "outline"}
+                  className={cn(
+                    "h-7 px-2.5 text-xs gap-1",
+                    filtroFila === "falhas"
+                      ? "bg-danger text-white hover:bg-danger/90"
+                      : "border-danger/40 text-danger hover:text-danger",
+                  )}
+                  onClick={() => {
+                    if (filtroFila === "falhas") {
+                      setFiltroFila(null);
+                      return;
+                    }
+                    setFiltroFila("falhas");
+                    setFiltroLeitura("todas");
+                  }}
+                >
+                  <AlertTriangle className="h-3 w-3" />
+                  {`Não enviadas${totalFalhas ? ` (${totalFalhas})` : ""}`}
+                </Button>
+              )}
               {!modoHistorico && ([
+
                 { v: "atencao", label: `Precisam de atenção${totalAtencao ? ` (${totalAtencao})` : ""}` },
                 { v: "automacao", label: `Automações${totalAutomacoes ? ` (${totalAutomacoes})` : ""}` },
                 { v: "em_atendimento", label: `Em atendimento${totalEmAtendimento ? ` (${totalEmAtendimento})` : ""}` },
