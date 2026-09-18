@@ -54,6 +54,35 @@ const NOME_REGEX = /^[a-z0-9_]+$/;
 const AVISO_CORPO_COM_URL =
   "A Meta reprova template que traz endereço escrito no texto e botão de link ao mesmo tempo. Tira o endereço do corpo.";
 
+const CHAVES_VARIAVEL: { valor: string; rotulo: string }[] = [
+  { valor: "primeiro_nome", rotulo: "Primeiro nome" },
+  { valor: "id_pedido", rotulo: "Número do pedido" },
+  { valor: "valor", rotulo: "Valor" },
+  { valor: "link", rotulo: "Link" },
+  { valor: "produtos", rotulo: "Produtos" },
+  { valor: "rastreio", rotulo: "Código de rastreio" },
+  { valor: "endereco", rotulo: "Endereço" },
+  { valor: "cupom", rotulo: "Cupom" },
+  { valor: "validade", rotulo: "Validade" },
+  { valor: "valor_cashback", rotulo: "Valor do cashback" },
+  { valor: "valor_minimo", rotulo: "Valor mínimo" },
+  { valor: "email", rotulo: "E-mail" },
+  { valor: "prazo", rotulo: "Prazo" },
+  { valor: "data", rotulo: "Data" },
+  { valor: "situacao", rotulo: "Situação" },
+  { valor: "motivo", rotulo: "Motivo" },
+];
+
+function contarVariaveis(texto: string): number {
+  const encontrados = new Set<number>();
+  const re = /\{\{\s*(\d+)\s*\}\}/g;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(texto)) !== null) encontrados.add(Number(m[1]));
+  let total = 0;
+  for (let i = 1; encontrados.has(i); i++) total = i;
+  return Math.max(total, encontrados.size ? Math.max(...encontrados) : 0);
+}
+
 function NovoTemplateDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (v: boolean) => void }) {
   const queryClient = useQueryClient();
   const [nome, setNome] = useState("");
@@ -61,7 +90,9 @@ function NovoTemplateDialog({ open, onOpenChange }: { open: boolean; onOpenChang
   const [idioma, setIdioma] = useState("pt_BR");
   const [corpo, setCorpo] = useState("");
   const [rodape, setRodape] = useState("");
-  const [exemplos, setExemplos] = useState<string[]>([""]);
+  const [rotulos, setRotulos] = useState<string[]>([]);
+  const [rotulosLivres, setRotulosLivres] = useState<string[]>([]);
+  const [exemplos, setExemplos] = useState<string[]>([]);
   const [botaoAtivo, setBotaoAtivo] = useState(false);
   const [botaoTexto, setBotaoTexto] = useState("Ver na loja");
   const [botaoSlug, setBotaoSlug] = useState("");
@@ -76,18 +107,42 @@ function NovoTemplateDialog({ open, onOpenChange }: { open: boolean; onOpenChang
   const portaEscolhida = portas.find((p) => p.slug === botaoSlug);
   const conflitoUrlCorpo = botaoAtivo && corpoTemUrl(corpo);
 
+  const totalVariaveis = useMemo(() => contarVariaveis(corpo), [corpo]);
+
+  const valorRotulo = (i: number) => {
+    const bruto = rotulos[i];
+    if (bruto === undefined) return i === 0 ? "primeiro_nome" : "";
+    return bruto;
+  };
+  const chaveFinal = (i: number) => {
+    const v = valorRotulo(i);
+    return v === "outro" ? (rotulosLivres[i] ?? "").trim() : v;
+  };
+
+  const faltando = useMemo(() => {
+    const itens: string[] = [];
+    for (let i = 0; i < totalVariaveis; i++) {
+      if (!chaveFinal(i)) itens.push(`{{${i + 1}}}: o que é`);
+      if (!(exemplos[i] ?? "").trim()) itens.push(`{{${i + 1}}}: exemplo`);
+    }
+    return itens;
+  }, [totalVariaveis, rotulos, rotulosLivres, exemplos]);
+
   const salvar = useMutation({
     mutationFn: async () => {
       const p_botoes = botaoAtivo && portaEscolhida?.url
         ? [{ type: "URL", text: botaoTexto, url: portaEscolhida.url }]
         : null;
+      const listaRotulos = Array.from({ length: totalVariaveis }, (_, i) => chaveFinal(i));
+      const listaExemplos = Array.from({ length: totalVariaveis }, (_, i) => (exemplos[i] ?? "").trim());
       const { error } = await chamarRpc("whatsapp_templates_salvar_rascunho" as any, {
         p_nome: nome,
         p_categoria: categoria,
         p_idioma: idioma,
-        p_corpo: corpo,
+        p_corpo_texto: corpo,
         p_rodape: rodape || null,
-        p_exemplos: exemplos.filter((e) => e.trim() !== ""),
+        p_variaveis_exemplo: listaExemplos,
+        p_variaveis_rotulos: listaRotulos,
         p_botoes,
       });
       if (error) throw error;
@@ -96,11 +151,13 @@ function NovoTemplateDialog({ open, onOpenChange }: { open: boolean; onOpenChang
       toast({ title: "Rascunho salvo" });
       queryClient.invalidateQueries({ queryKey: ["wpp-templates"] });
       onOpenChange(false);
-      setNome(""); setCorpo(""); setRodape(""); setExemplos([""]);
+      setNome(""); setCorpo(""); setRodape("");
+      setExemplos([]); setRotulos([]); setRotulosLivres([]);
       setBotaoAtivo(false); setBotaoTexto("Ver na loja"); setBotaoSlug("");
     },
     onError: (e: any) => toast({ title: "Erro ao salvar", description: e.message, variant: "destructive" }),
   });
+
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -155,34 +212,76 @@ function NovoTemplateDialog({ open, onOpenChange }: { open: boolean; onOpenChang
             )}
           </div>
           <div>
-            <Label>Exemplos das variáveis</Label>
-            <div className="space-y-2 mt-1">
-              {exemplos.map((ex, i) => (
-                <div key={i} className="flex gap-2">
-                  <Input
-                    value={ex}
-                    placeholder={`Exemplo para {{${i + 1}}}`}
-                    onChange={(e) =>
-                      setExemplos((prev) => prev.map((v, idx) => (idx === i ? e.target.value : v)))
-                    }
-                  />
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => setExemplos((prev) => prev.filter((_, idx) => idx !== i))}
-                  >
-                    <X className="h-4 w-4" />
-                  </Button>
-                </div>
-              ))}
-              <Button variant="outline" size="sm" onClick={() => setExemplos((p) => [...p, ""])}>
-                <Plus className="h-4 w-4 mr-1" /> Adicionar exemplo
-              </Button>
-            </div>
+            <Label>Variáveis do texto</Label>
+            {totalVariaveis === 0 ? (
+              <p className="text-xs text-muted-foreground mt-1">
+                Nenhuma variável no corpo. Use {"{{1}}"}, {"{{2}}"} para incluir dados da cliente.
+              </p>
+            ) : (
+              <div className="space-y-3 mt-1">
+                {Array.from({ length: totalVariaveis }, (_, i) => (
+                  <div key={i} className="space-y-1">
+                    <p className="text-xs font-medium text-muted-foreground">{`{{${i + 1}}}`}</p>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="space-y-1">
+                        <Select
+                          value={valorRotulo(i)}
+                          onValueChange={(v) =>
+                            setRotulos((prev) => {
+                              const proximo = Array.from({ length: totalVariaveis }, (_, idx) =>
+                                prev[idx] ?? (idx === 0 ? "primeiro_nome" : ""));
+                              proximo[i] = v;
+                              return proximo;
+                            })
+                          }
+                        >
+                          <SelectTrigger><SelectValue placeholder="O que é" /></SelectTrigger>
+                          <SelectContent>
+                            {CHAVES_VARIAVEL.map((c) => (
+                              <SelectItem key={c.valor} value={c.valor}>{c.rotulo}</SelectItem>
+                            ))}
+                            <SelectItem value="outro">Outro</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        {valorRotulo(i) === "outro" && (
+                          <Input
+                            value={rotulosLivres[i] ?? ""}
+                            placeholder="nome_da_variavel"
+                            onChange={(e) =>
+                              setRotulosLivres((prev) => {
+                                const proximo = Array.from({ length: totalVariaveis }, (_, idx) => prev[idx] ?? "");
+                                proximo[i] = e.target.value;
+                                return proximo;
+                              })
+                            }
+                          />
+                        )}
+                      </div>
+                      <Input
+                        value={exemplos[i] ?? ""}
+                        placeholder="Exemplo"
+                        onChange={(e) =>
+                          setExemplos((prev) => {
+                            const proximo = Array.from({ length: totalVariaveis }, (_, idx) => prev[idx] ?? "");
+                            proximo[i] = e.target.value;
+                            return proximo;
+                          })
+                        }
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
             <p className="text-xs text-muted-foreground mt-1">
-              Obrigatório: a Meta usa os exemplos para avaliar o template.
+              Obrigatório: a Meta usa os exemplos para avaliar o template. O campo "o que é" faz o
+              preenchimento automático no envio.
             </p>
+            {faltando.length > 0 && (
+              <p className="text-xs text-destructive mt-1">Falta preencher: {faltando.join(", ")}</p>
+            )}
           </div>
+
           <div>
             <Label>Rodapé (opcional)</Label>
             <Input value={rodape} onChange={(e) => setRodape(e.target.value)} />
@@ -243,7 +342,7 @@ function NovoTemplateDialog({ open, onOpenChange }: { open: boolean; onOpenChang
           <Button
             onClick={() => salvar.mutate()}
             disabled={
-              !nome || nomeInvalido || !corpo || salvar.isPending ||
+              !nome || nomeInvalido || !corpo || salvar.isPending || faltando.length > 0 ||
               (botaoAtivo && (!botaoTexto.trim() || !botaoSlug))
             }
           >
