@@ -207,6 +207,11 @@ export const ROTULO_EVENTO: Record<string, string> = {
   respondeu: "Respondeu",
 };
 
+export const MOTIVOS_SAIDA: Record<string, string> = {
+  respondeu_texto: "Saiu: escreveu e a Anna assumiu",
+  botao_sem_resposta: "Saiu: não respondeu",
+};
+
 export const ROTULO_ORIGEM_BOTAO: Record<string, string> = {
   sinonimo: "por palavra",
   ia: "pela IA",

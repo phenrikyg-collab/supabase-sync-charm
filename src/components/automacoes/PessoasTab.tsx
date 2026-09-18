@@ -14,7 +14,7 @@ import {
 import { toast } from "@/hooks/use-toast";
 import {
   dataHoraBR, rpcFluxos, MOTIVOS_PULO, ROTULO_STATUS_EXECUCAO,
-  ROTULO_ORIGEM_BOTAO, ROTULO_MODO_DIGITOU,
+  ROTULO_ORIGEM_BOTAO, ROTULO_MODO_DIGITOU, MOTIVOS_SAIDA,
 } from "./api";
 
 type Execucao = {
@@ -212,6 +212,9 @@ export function PessoasTab({ fluxoId }: { fluxoId: string }) {
                   <Badge variant="secondary" className="text-[10px]">
                     {ROTULO_STATUS_EXECUCAO[String(l.status)] ?? l.status}
                   </Badge>
+                  {l.motivo_saida && MOTIVOS_SAIDA[String(l.motivo_saida)] && (
+                    <p className="text-[11px] text-muted-foreground">{MOTIVOS_SAIDA[String(l.motivo_saida)]}</p>
+                  )}
                   {l.erro && <p className="text-[11px] text-danger">{l.erro}</p>}
                 </td>
                 <td className="p-2 text-xs">{l.no_atual ?? ""}</td>
