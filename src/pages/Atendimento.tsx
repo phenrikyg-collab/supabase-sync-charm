@@ -1218,6 +1218,7 @@ export default function Atendimento() {
    * âmbar quando espera há menos de 30 minutos e verde quando já foi respondida.
    */
   const classeFaixa = (c: Conversa) => {
+    if (c.falha_envio) return "border-l-danger";
     if (ehResolvida(c)) return "border-l-muted-foreground/30";
     if (!aguardandoResposta(c)) return "border-l-emerald-500/70";
     const a = atencaoDe(c);
@@ -1226,9 +1227,17 @@ export default function Atendimento() {
     return min > 30 ? "border-l-danger" : "border-l-warning";
   };
 
-  /** Ordem simples: mensagem mais recente primeiro. */
+  /** Prioridade dentro do grupo: perdendo primeiro, depois falhas de envio, depois o resto. */
+  const pesoConversa = (c: Conversa) => {
+    if (urgenciaDeNivel(atencaoDe(c)?.nivel) === "perdendo") return 0;
+    if (c.falha_envio) return 1;
+    return 2;
+  };
+
+  /** Ordem: prioridade do grupo e, dentro dela, mensagem mais recente primeiro. */
   const compararConversas = (a: Conversa, b: Conversa) =>
-    chaveData(b).localeCompare(chaveData(a));
+    pesoConversa(a) - pesoConversa(b) || chaveData(b).localeCompare(chaveData(a));
+
 
   const contagemGrupos = useMemo(() => {
     const base = { conversa: 0, clique: 0, so_envio: 0 };
