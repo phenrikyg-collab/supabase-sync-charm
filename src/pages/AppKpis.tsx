@@ -7,7 +7,7 @@ import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
 } from "recharts";
 import {
-  Smartphone, SmartphoneChip, Users, Repeat, BellRing, Send, MousePointerClick,
+  Smartphone, AppWindow, Users, Repeat, BellRing, Send, MousePointerClick,
   UserCheck, ShoppingBag, Package, Banknote, TrendingUp,
 } from "lucide-react";
 import { StatCard } from "@/components/StatCard";
