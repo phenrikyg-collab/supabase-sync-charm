@@ -438,6 +438,8 @@ export default function Atendimento() {
 
   const [grupoAba, setGrupoAba] = useState<"conversa" | "clique" | "so_envio">("conversa");
   const [filtroLeitura, setFiltroLeitura] = useState<"todas" | "nao_lidas" | "lidas">("todas");
+  const [menuLeituraAberto, setMenuLeituraAberto] = useState<string | null>(null);
+  const longPressRef = useRef<{ timer: ReturnType<typeof setTimeout> | null; disparado: boolean }>({ timer: null, disparado: false });
   /** Filtros especiais mutuamente exclusivos: atenção, automações e em atendimento. */
   const [filtroFila, setFiltroFila] = useState<"atencao" | "automacao" | "em_atendimento" | null>(null);
   const [tagsFiltro, setTagsFiltro] = useState<string[]>([]);
