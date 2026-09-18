@@ -212,34 +212,76 @@ function NovoTemplateDialog({ open, onOpenChange }: { open: boolean; onOpenChang
             )}
           </div>
           <div>
-            <Label>Exemplos das variáveis</Label>
-            <div className="space-y-2 mt-1">
-              {exemplos.map((ex, i) => (
-                <div key={i} className="flex gap-2">
-                  <Input
-                    value={ex}
-                    placeholder={`Exemplo para {{${i + 1}}}`}
-                    onChange={(e) =>
-                      setExemplos((prev) => prev.map((v, idx) => (idx === i ? e.target.value : v)))
-                    }
-                  />
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => setExemplos((prev) => prev.filter((_, idx) => idx !== i))}
-                  >
-                    <X className="h-4 w-4" />
-                  </Button>
-                </div>
-              ))}
-              <Button variant="outline" size="sm" onClick={() => setExemplos((p) => [...p, ""])}>
-                <Plus className="h-4 w-4 mr-1" /> Adicionar exemplo
-              </Button>
-            </div>
+            <Label>Variáveis do texto</Label>
+            {totalVariaveis === 0 ? (
+              <p className="text-xs text-muted-foreground mt-1">
+                Nenhuma variável no corpo. Use {"{{1}}"}, {"{{2}}"} para incluir dados da cliente.
+              </p>
+            ) : (
+              <div className="space-y-3 mt-1">
+                {Array.from({ length: totalVariaveis }, (_, i) => (
+                  <div key={i} className="space-y-1">
+                    <p className="text-xs font-medium text-muted-foreground">{`{{${i + 1}}}`}</p>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="space-y-1">
+                        <Select
+                          value={valorRotulo(i)}
+                          onValueChange={(v) =>
+                            setRotulos((prev) => {
+                              const proximo = Array.from({ length: totalVariaveis }, (_, idx) =>
+                                prev[idx] ?? (idx === 0 ? "primeiro_nome" : ""));
+                              proximo[i] = v;
+                              return proximo;
+                            })
+                          }
+                        >
+                          <SelectTrigger><SelectValue placeholder="O que é" /></SelectTrigger>
+                          <SelectContent>
+                            {CHAVES_VARIAVEL.map((c) => (
+                              <SelectItem key={c.valor} value={c.valor}>{c.rotulo}</SelectItem>
+                            ))}
+                            <SelectItem value="outro">Outro</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        {valorRotulo(i) === "outro" && (
+                          <Input
+                            value={rotulosLivres[i] ?? ""}
+                            placeholder="nome_da_variavel"
+                            onChange={(e) =>
+                              setRotulosLivres((prev) => {
+                                const proximo = Array.from({ length: totalVariaveis }, (_, idx) => prev[idx] ?? "");
+                                proximo[i] = e.target.value;
+                                return proximo;
+                              })
+                            }
+                          />
+                        )}
+                      </div>
+                      <Input
+                        value={exemplos[i] ?? ""}
+                        placeholder="Exemplo"
+                        onChange={(e) =>
+                          setExemplos((prev) => {
+                            const proximo = Array.from({ length: totalVariaveis }, (_, idx) => prev[idx] ?? "");
+                            proximo[i] = e.target.value;
+                            return proximo;
+                          })
+                        }
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
             <p className="text-xs text-muted-foreground mt-1">
-              Obrigatório: a Meta usa os exemplos para avaliar o template.
+              Obrigatório: a Meta usa os exemplos para avaliar o template. O campo "o que é" faz o
+              preenchimento automático no envio.
             </p>
+            {faltando.length > 0 && (
+              <p className="text-xs text-destructive mt-1">Falta preencher: {faltando.join(", ")}</p>
+            )}
           </div>
+
           <div>
             <Label>Rodapé (opcional)</Label>
             <Input value={rodape} onChange={(e) => setRodape(e.target.value)} />
