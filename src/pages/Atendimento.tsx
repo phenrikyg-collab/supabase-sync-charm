@@ -479,6 +479,8 @@ export default function Atendimento() {
   const [menuBalao, setMenuBalao] = useState<string | null>(null);
   const [destacada, setDestacada] = useState<string | null>(null);
   const balaoRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  /** Guarda a citação usada no envio em curso (o estado é limpo na hora). */
+  const citacaoRef = useRef<Citacao | null>(null);
   const [enviandoImagem, setEnviandoImagem] = useState(false);
   const fimRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
