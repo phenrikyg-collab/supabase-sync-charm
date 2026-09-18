@@ -221,7 +221,11 @@ type Conversa = {
   so_kora?: boolean | null;
   tem_kora?: boolean | null;
   total_mensagens?: number | null;
+  falha_envio?: boolean | null;
+  falha_envio_motivo?: string | null;
+  falha_envio_em?: string | null;
 };
+
 
 type Urgencia = "perdendo" | "quente" | "atencao" | "normal";
 
