@@ -554,8 +554,10 @@ export default function Atendimento() {
         ultima_mensagem: c.ultima_mensagem ?? c.ultima_mensagem_texto ?? null,
       })) as Conversa[];
     },
-    // rede de segurança curta: o tempo real cuida do resto
-    refetchInterval: 10000,
+    // rede de segurança: o tempo real cuida do resto. Pausa enquanto a consultora digita,
+    // porque recarregar a lista no meio da digitação faz a tela engasgar.
+    refetchInterval: digitando ? false : 15000,
+    refetchOnWindowFocus: true,
   });
 
   // Tipo de interação por conversa: conversa de verdade, só clique em botão ou só disparo nosso
@@ -724,7 +726,8 @@ export default function Atendimento() {
   const { data: mensagens = [], isLoading: carregandoMensagens } = useQuery({
     queryKey: ["whatsapp-mensagens", selecionada],
     enabled: !!selecionada,
-    refetchInterval: 10000,
+    refetchInterval: 15000,
+    refetchOnWindowFocus: true,
     queryFn: async () => {
       const { data, error } = await chamarRpc("whatsapp_get_mensagens_conversa" as any, {
         p_conversa_id: Number.isNaN(Number(selecionada)) ? selecionada : Number(selecionada),
