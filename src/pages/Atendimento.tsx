@@ -2445,6 +2445,35 @@ export default function Atendimento() {
               });
             })()}
 
+            {buscaServidor && !modoFila && (
+              <>
+                <div className="px-4 pt-3 pb-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground flex items-center gap-1.5">
+                  Outras conversas
+                  {buscandoOutras && <Loader2 className="h-3 w-3 animate-spin" />}
+                </div>
+                {outrasConversas.length === 0 && !buscandoOutras && (
+                  <p className="px-4 pb-3 text-sm text-muted-foreground">Nenhuma outra conversa encontrada</p>
+                )}
+                {outrasConversas.map((c) => (
+                  <ItemConversa
+                    key={`outra-${String(c.id)}`}
+                    c={c}
+                    ativa={String(c.id) === selecionada}
+                    modoHistorico={false}
+                    mostrarClique={false}
+                    atencao={undefined}
+                    faixa="border-l-muted-foreground/30"
+                    menuAberto={menuLeituraAberto === String(c.id)}
+                    longPressRef={longPressRef}
+                    onAbrir={abrirConversa}
+                    onMenuChange={setMenuLeituraAberto}
+                    onMarcarLeitura={marcarLeitura}
+                  />
+                ))}
+              </>
+            )}
+
+
             {modoHistorico && temMaisHistorico && (
               <div className="p-3">
                 <Button
