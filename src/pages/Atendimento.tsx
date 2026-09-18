@@ -2199,7 +2199,7 @@ export default function Atendimento() {
                           <div
                             className={cn(
                               "min-w-0 max-w-[75%] overflow-hidden text-base break-words [overflow-wrap:anywhere] [word-break:break-word]",
-                              sticker
+                              sticker && !falhou
                                 ? "bg-transparent border-0 p-0"
                                 : cn(
                                     "rounded-lg px-3 py-2 border",
@@ -2207,8 +2207,10 @@ export default function Atendimento() {
                                     saida && bot && "bg-info/10 text-foreground border-info/30",
                                     saida && !bot && !kora && "bg-primary/10 text-foreground border-primary/30",
                                     saida && kora && "bg-muted text-foreground border-border",
+                                    falhou && "bg-danger/10 text-foreground border-danger/50",
                                   ),
                             )}
+
                           >
                             {saida && !sticker && (
                               <div className="flex items-center gap-1 text-[10px] uppercase tracking-wider text-muted-foreground mb-1">
