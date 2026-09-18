@@ -1,5 +1,5 @@
 import {
-  Zap, Filter, GitBranch, Clock, Mail, MessageSquare, MessagesSquare, Tag, Flag,
+  Zap, Filter, GitBranch, Clock, Mail, MessageSquare, MessagesSquare, MousePointerClick, Tag, Flag,
   type LucideIcon,
 } from "lucide-react";
 
@@ -11,6 +11,7 @@ export type TipoNo =
   | "enviar_email"
   | "whatsapp_template"
   | "whatsapp_janela"
+  | "aguardar_botao"
   | "aplicar_tag"
   | "fim";
 
@@ -78,6 +79,13 @@ export const TIPOS_NO: Record<
     descricao: "Texto livre se a cliente falou nas últimas 24h. Senão, sai o template reserva.",
     configPadrao: { texto: "", template_id: null, variaveis: [], permite_fim_semana: false },
   },
+  aguardar_botao: {
+    label: "Aguardar botão",
+    icon: MousePointerClick,
+    cor: "text-success",
+    descricao: "Espera a cliente tocar num botão do template anterior. Cada botão vira um caminho.",
+    configPadrao: { timeout_horas: 24, entender_texto: true, se_digitar: "anna", sinonimos: {} },
+  },
   aplicar_tag: {
     label: "Tag",
     icon: Tag,
@@ -101,6 +109,7 @@ export const TIPOS_ARRASTAVEIS: TipoNo[] = [
   "enviar_email",
   "whatsapp_template",
   "whatsapp_janela",
+  "aguardar_botao",
   "aplicar_tag",
   "fim",
 ];
@@ -168,6 +177,16 @@ export function resumoNo(tipo: TipoNo, config: Record<string, any> = {}, catalog
     case "whatsapp_template": {
       const t = templatesWpp.find((x: any) => String(x.id) === String(config.template_id));
       return `Template: ${t?.nome ?? "não escolhido"}`;
+    }
+    case "aguardar_botao": {
+      const rotulos: Record<string, string> = {
+        anna: "Anna assume",
+        caminho: "segue 'respondeu'",
+        esperar: "Anna responde e segue esperando",
+      };
+      const horas = Number(config.timeout_horas ?? 24);
+      const quando = rotulos[String(config.se_digitar ?? "anna")] ?? "Anna assume";
+      return `Espera até ${horas}h · se escrever: ${quando}`;
     }
     case "whatsapp_janela":
       return config.texto ? corte(String(config.texto)) : "Texto livre não escrito";
