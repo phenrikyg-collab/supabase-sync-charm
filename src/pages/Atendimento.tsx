@@ -2113,6 +2113,18 @@ export default function Atendimento() {
                   <span className="hidden shrink-0 text-xs text-muted-foreground sm:inline">
                     {identificadorConversa(conversaAtual)}
                   </span>
+                  {!ehSite(conversaAtual) && (
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="h-6 w-6 shrink-0 text-muted-foreground"
+                      title="Conferir número"
+                      aria-label="Conferir número"
+                      onClick={() => setConferirNumero(true)}
+                    >
+                      <PhoneCog className="h-3.5 w-3.5" />
+                    </Button>
+                  )}
                   {nomeSoDoWhatsApp(conversaAtual) && <BadgeViaWhatsApp />}
                   <StatusPill status={conversaAtual.status} aguardandoDesde={conversaAtual.aguardando_desde} />
                   {rotuloAutomacao(atencaoDe(conversaAtual)) && (
