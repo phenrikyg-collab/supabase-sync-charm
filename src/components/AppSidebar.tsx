@@ -95,8 +95,6 @@ const moduleGroups: ModuleGroup[] = [
       { title: "Tendências", url: "/tendencias", icon: TrendingUp },
       { title: "Embaixadoras", url: "/embaixadoras", icon: Heart },
       { title: "Link na Bio", url: "/link-na-bio", icon: LinkIcon },
-      
-      { title: "WhatsApp: Templates, Segmentos e Campanhas", url: "/marketing-whatsapp", icon: MessageCircle },
     ],
   },
   {
@@ -107,6 +105,7 @@ const moduleGroups: ModuleGroup[] = [
       { title: "E-mail", url: "/email-marketing", icon: Mail },
       { title: "Cupons", url: "/cupons", icon: Ticket },
       { title: "Conteúdo & CRM", url: "/conteudo", icon: CalendarDays },
+      { title: "WhatsApp: Templates, Segmentos e Campanhas", url: "/marketing-whatsapp", icon: MessageCircle },
       { title: "Fluxos", url: "/automacoes", icon: Workflow },
     ],
   },
