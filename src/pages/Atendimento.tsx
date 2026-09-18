@@ -1959,6 +1959,24 @@ export default function Atendimento() {
   }, [conversas, conversasHistorico, emAtendimento, buscaAtiva, resultadoBusca, termoLocal, termoDigitos, aba, grupoAba, filtroLeitura, filtroFila, tagsFiltro, mapaAtencao, modoFila, modoHistorico]);
 
 
+  // Resultado do servidor que não está na lista carregada: seção "Outras conversas".
+  const idsNaLista = useMemo(() => new Set(conversas.map((c) => String(c.id))), [conversas]);
+  const outrasConversas = useMemo(() => {
+    if (!buscaServidor) return [];
+    return ((outrasBrutas ?? []) as any[])
+      .filter((r) => !idsNaLista.has(String(r.conversa_id)))
+      .map((r) => ({
+        id: r.conversa_id,
+        telefone: r.telefone ?? "",
+        cliente_nome: r.nome ?? null,
+        status: r.status ?? "",
+        nao_lida: !!r.nao_lida,
+        ultima_mensagem_em: r.ultima_mensagem_em ?? null,
+        ultima_mensagem: r.ultima_mensagem_texto ?? null,
+        canal: r.canal ?? null,
+      }) as Conversa);
+  }, [buscaServidor, outrasBrutas, idsNaLista]);
+
   const clientesSemConversa = buscaAtiva && !modoHistorico ? (resultadoBusca?.clientes ?? []) : [];
 
   const abrirNovaConversa = (telefone?: string | null) => {
