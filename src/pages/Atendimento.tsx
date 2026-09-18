@@ -1446,7 +1446,7 @@ export default function Atendimento() {
                 );
               })}
             </div>
-            <div className="grid grid-cols-3 gap-1 rounded-md bg-muted p-1">
+            {!modoHistorico && <div className="grid grid-cols-3 gap-1 rounded-md bg-muted p-1">
               {([
                 { v: "conversa", label: "Conversas", n: contagemGrupos.conversa },
                 { v: "clique", label: "Cliques", n: contagemGrupos.clique },
@@ -1466,7 +1466,7 @@ export default function Atendimento() {
                   <span className="text-[10px] opacity-70">{g.n}</span>
                 </button>
               ))}
-            </div>
+            </div>}
             <div className="relative">
 
               <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
@@ -1479,7 +1479,7 @@ export default function Atendimento() {
               />
             </div>
             <div className="flex items-center gap-1.5 flex-wrap">
-              {([
+              {!modoHistorico && ([
                 { v: "todas", label: "Todas" },
                 { v: "nao_lidas", label: `Não lidas${totalNaoLidas ? ` (${totalNaoLidas})` : ""}` },
                 { v: "lidas", label: "Lidas" },
@@ -1498,7 +1498,7 @@ export default function Atendimento() {
                   {f.label}
                 </Button>
               ))}
-              {([
+              {!modoHistorico && ([
                 { v: "atencao", label: `Precisam de atenção${totalAtencao ? ` (${totalAtencao})` : ""}` },
                 { v: "automacao", label: `Automações${totalAutomacoes ? ` (${totalAutomacoes})` : ""}` },
                 { v: "em_atendimento", label: `Em atendimento${totalEmAtendimento ? ` (${totalEmAtendimento})` : ""}` },
@@ -1525,7 +1525,8 @@ export default function Atendimento() {
                   <Button
                     size="sm"
                     variant={tagsFiltro.length ? "secondary" : "outline"}
-                     className="h-7 px-2.5 text-xs"
+                    className="h-7 px-2.5 text-xs"
+                    disabled={modoHistorico}
                   >
                     Tags{tagsFiltro.length ? ` (${tagsFiltro.length})` : ""}
                   </Button>
@@ -1556,13 +1557,27 @@ export default function Atendimento() {
                   )}
                 </PopoverContent>
               </Popover>
+              <Button
+                size="sm"
+                variant={modoHistorico ? "default" : "outline"}
+                className="h-7 px-2.5 text-xs"
+                onClick={() => setModoHistorico((ativo) => !ativo)}
+              >
+                Histórico
+              </Button>
+              {modoHistorico && (
+                <label className="inline-flex h-7 cursor-pointer items-center gap-1.5 rounded-md border border-border px-2.5 text-xs">
+                  <Checkbox checked={soKora} onCheckedChange={(v) => setSoKora(!!v)} />
+                  Só Kora
+                </label>
+              )}
             </div>
           </div>
           <ScrollArea className="min-h-0 flex-1">
-            {carregandoConversas && (
+            {(modoHistorico ? carregandoHistorico : carregandoConversas) && (
               <p className="p-4 text-sm text-muted-foreground">Carregando conversas…</p>
             )}
-            {!carregandoConversas && filtradas.length === 0 && (
+            {!(modoHistorico ? carregandoHistorico : carregandoConversas) && filtradas.length === 0 && (
               <p className="p-4 text-sm text-muted-foreground">Nenhuma conversa encontrada.</p>
             )}
             {(() => {
@@ -1571,12 +1586,12 @@ export default function Atendimento() {
               const nome = nomeConversa(c);
               const site = ehSite(c);
               const ativa = String(c.id) === selecionada;
-              const prio = (c.prioridade ?? "").toLowerCase();
-              const naoLida = !!c.nao_lida;
-              const atencao = atencaoDe(c);
-              const urg = urgenciaDeNivel(atencao?.nivel);
-              const faixa = classeFaixa(c);
-              const grupo = modoFila ? null : grupoDia(chaveData(c));
+              const prio = modoHistorico ? "" : (c.prioridade ?? "").toLowerCase();
+              const naoLida = !modoHistorico && !!c.nao_lida;
+              const atencao = modoHistorico ? undefined : atencaoDe(c);
+              const urg = modoHistorico ? "normal" : urgenciaDeNivel(atencao?.nivel);
+              const faixa = modoHistorico ? "border-l-muted-foreground/30" : classeFaixa(c);
+              const grupo = modoFila || modoHistorico ? null : grupoDia(chaveData(c));
               let cabecalho: JSX.Element | null = null;
               if (grupo && grupo !== grupoAnterior) {
                 grupoAnterior = grupo;
@@ -1632,7 +1647,7 @@ export default function Atendimento() {
                    <p className={cn("text-sm mt-1 line-clamp-1", naoLida ? "text-foreground font-medium" : "text-muted-foreground")}>
                     {c.ultima_mensagem ?? ""}
                   </p>
-                  {grupoAba === "clique" && (
+                   {!modoHistorico && grupoAba === "clique" && (
                     <p className="mt-1 text-[11px]">
                       <span className="text-muted-foreground">Botão tocado: </span>
                       <span className="font-medium">
@@ -1641,16 +1656,45 @@ export default function Atendimento() {
                     </p>
                   )}
                   <div className="mt-2 flex items-center gap-1.5 flex-wrap">
-                    <StatusPill status={c.status} aguardandoDesde={c.aguardando_desde} />
-                    {(c.tags ?? []).map((t) => (
-                      <TagChip key={String(t.id)} tag={t} />
-                    ))}
+                     {modoHistorico ? (
+                       <>
+                         <span className="inline-flex items-center rounded-full border border-border bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+                           Finalizada
+                         </span>
+                         {c.tem_kora && (
+                           <span className="inline-flex items-center rounded-full border border-border bg-card px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+                             Kora
+                           </span>
+                         )}
+                       </>
+                     ) : (
+                       <>
+                         <StatusPill status={c.status} aguardandoDesde={c.aguardando_desde} />
+                         {(c.tags ?? []).map((t) => (
+                           <TagChip key={String(t.id)} tag={t} />
+                         ))}
+                       </>
+                     )}
                   </div>
                 </button>
                 </div>
               );
               });
             })()}
+
+            {modoHistorico && temMaisHistorico && (
+              <div className="p-3">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="w-full"
+                  disabled={carregandoMaisHistorico}
+                  onClick={() => carregarMaisHistorico()}
+                >
+                  {carregandoMaisHistorico ? "Carregando…" : "Carregar mais"}
+                </Button>
+              </div>
+            )}
 
             {clientesSemConversa.length > 0 && (
               <>
