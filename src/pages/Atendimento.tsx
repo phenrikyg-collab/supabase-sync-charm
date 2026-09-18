@@ -2029,7 +2029,12 @@ export default function Atendimento() {
                               <span className="text-[10px] text-muted-foreground">
                                 {horaCurta(m.criada_em ?? m.criado_em ?? m.enviado_em)}
                               </span>
-                              {saida && <StatusEntrega status={m.status_entrega} erro={m.erro_entrega} />}
+                              {saida && m.enviando && (
+                                <Clock className="h-3 w-3 text-muted-foreground" aria-label="Enviando" />
+                              )}
+                              {saida && !m.enviando && (
+                                <StatusEntrega status={m.status_entrega} erro={m.erro_entrega} />
+                              )}
                             </div>
                           </div>
                         </div>
