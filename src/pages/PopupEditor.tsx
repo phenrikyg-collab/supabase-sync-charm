@@ -624,6 +624,7 @@ export default function PopupEditor() {
                     elemento={elemento}
                     etapas={etapas}
                     popupId={popup.id ?? "novo"}
+                    destino={destino}
                     mudar={(patch) =>
                       setElementos((etapa?.elementos ?? []).map((e) => (e.id === elemento.id ? { ...e, ...patch } : e)))
                     }
@@ -637,7 +638,7 @@ export default function PopupEditor() {
         </TabsContent>
 
         <TabsContent value="regras" className="min-h-0 flex-1 overflow-y-auto">
-          <AbaRegras popup={popup} mudar={mudar} />
+          <AbaRegras popup={popup} mudar={mudar} destino={destino} />
         </TabsContent>
 
         <TabsContent value="resultados" className="min-h-0 flex-1 overflow-y-auto">
