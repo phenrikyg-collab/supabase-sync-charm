@@ -825,6 +825,18 @@ export default function Atendimento() {
     },
   });
 
+  /** Quantas conversas carregadas têm cada tag. */
+  const contagemTags = useMemo(() => {
+    const mapa: Record<string, number> = {};
+    for (const c of conversas) {
+      for (const t of c.tags ?? []) {
+        const chave = String(t.id);
+        mapa[chave] = (mapa[chave] ?? 0) + 1;
+      }
+    }
+    return mapa;
+  }, [conversas]);
+
   const { data: dentroJanela } = useQuery({
     queryKey: ["whatsapp-janela-24h", selecionada],
     enabled: !!selecionada && !ehSite(conversaAtual),
