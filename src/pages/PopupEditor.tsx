@@ -289,7 +289,7 @@ export default function PopupEditor() {
       const copia = await popupsApi.duplicar(popupId);
       await popupsApi.salvar({ ...copia, teste_ab_grupo: grupo, peso: 50 });
       toast.success("Variação criada.");
-      navegar(`/popups/${copia.id}`);
+      navegar(`${baseRota}/${copia.id}`);
     } catch (e: any) {
       toast.error(e.message);
     }
@@ -305,7 +305,7 @@ export default function PopupEditor() {
     <div className="flex h-full min-h-0 flex-col">
       {/* Barra superior */}
       <div className="sticky top-0 z-20 flex flex-wrap items-center gap-2 border-b border-border bg-background px-4 py-2">
-        <Button variant="ghost" size="icon" onClick={() => navegar("/popups")}><ArrowLeft className="h-4 w-4" /></Button>
+        <Button variant="ghost" size="icon" onClick={() => navegar(baseRota)}><ArrowLeft className="h-4 w-4" /></Button>
         <Input
           value={popup.nome}
           onChange={(e) => mudar({ nome: e.target.value })}
