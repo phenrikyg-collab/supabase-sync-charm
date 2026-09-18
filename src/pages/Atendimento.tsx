@@ -16,7 +16,7 @@ import { ptBR } from "date-fns/locale";
 import {
   AlertTriangle, Bot, Check, CheckCheck, CheckCircle2, Globe, ImagePlus, LayoutGrid, Lock, MessageCircle,
   RotateCcw, Search, Send, User, X, UserCheck, Phone, QrCode, Link2,
-  Truck, ShoppingCart, Plus, MoreHorizontal, PanelRight, Menu, Trash2, FileText, Clock,
+  Truck, ShoppingCart, Plus, MoreHorizontal, PanelRight, Menu, Trash2, FileText, Clock, Mail, MailOpen,
 } from "lucide-react";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription,
@@ -438,6 +438,8 @@ export default function Atendimento() {
 
   const [grupoAba, setGrupoAba] = useState<"conversa" | "clique" | "so_envio">("conversa");
   const [filtroLeitura, setFiltroLeitura] = useState<"todas" | "nao_lidas" | "lidas">("todas");
+  const [menuLeituraAberto, setMenuLeituraAberto] = useState<string | null>(null);
+  const longPressRef = useRef<{ timer: ReturnType<typeof setTimeout> | null; disparado: boolean }>({ timer: null, disparado: false });
   /** Filtros especiais mutuamente exclusivos: atenção, automações e em atendimento. */
   const [filtroFila, setFiltroFila] = useState<"atencao" | "automacao" | "em_atendimento" | null>(null);
   const [tagsFiltro, setTagsFiltro] = useState<string[]>([]);
@@ -811,6 +813,33 @@ export default function Atendimento() {
     });
     if (!error) queryClient.invalidateQueries({ queryKey: ["whatsapp-conversas"] });
       queryClient.invalidateQueries({ queryKey: ["whatsapp-conversa"] });
+  };
+
+  const marcarLeitura = async (id: string | number, naoLida: boolean): Promise<boolean> => {
+    const idParam = Number.isNaN(Number(id)) ? id : Number(id);
+    queryClient.setQueryData<Conversa[]>(["whatsapp-conversas"], (lista) =>
+      (lista ?? []).map((cv) => (String(cv.id) === String(id) ? { ...cv, nao_lida: naoLida } : cv)),
+    );
+    const { error } = await chamarRpc((naoLida ? "whatsapp_marcar_nao_lida" : "whatsapp_marcar_lida") as any, {
+      p_conversa_id: idParam,
+    });
+    queryClient.invalidateQueries({ queryKey: ["whatsapp-conversas"] });
+    queryClient.invalidateQueries({ queryKey: ["whatsapp-conversa"] });
+    if (error) {
+      toast({ title: "Não foi possível atualizar", description: error.message, variant: "destructive" });
+      return false;
+    }
+    return true;
+  };
+
+  const marcarNaoLidaEFechar = async () => {
+    if (!selecionada) return;
+    const ok = await marcarLeitura(selecionada, true);
+    if (!ok) return;
+    setSelecionada(null);
+    setListaSheet(false);
+    setPerfilSheet(false);
+    toast({ title: "Marcada como não lida" });
   };
 
 
@@ -1654,9 +1683,29 @@ export default function Atendimento() {
                 <div key={String(c.id)}>
                 {cabecalho}
                 <button
-                  onClick={() => abrirConversa(c)}
+                  onClick={() => {
+                    if (longPressRef.current.disparado) {
+                      longPressRef.current.disparado = false;
+                      return;
+                    }
+                    abrirConversa(c);
+                  }}
+                  onTouchStart={() => {
+                    if (modoHistorico) return;
+                    longPressRef.current.disparado = false;
+                    longPressRef.current.timer = setTimeout(() => {
+                      longPressRef.current.disparado = true;
+                      setMenuLeituraAberto(String(c.id));
+                    }, 500);
+                  }}
+                  onTouchEnd={() => {
+                    if (longPressRef.current.timer) clearTimeout(longPressRef.current.timer);
+                  }}
+                  onTouchMove={() => {
+                    if (longPressRef.current.timer) clearTimeout(longPressRef.current.timer);
+                  }}
                   className={cn(
-                    "w-full text-left px-4 py-3 border-b border-border/60 border-l-[3px] transition-colors hover:bg-accent/60",
+                    "group relative w-full text-left px-4 py-3 border-b border-border/60 border-l-[3px] transition-colors hover:bg-accent/60",
                     faixa,
                     ativa && "bg-accent",
                     naoLida && !ativa && "bg-primary/5",
@@ -1689,9 +1738,46 @@ export default function Atendimento() {
                       </div>
                     </div>
 
-                     <span className="text-xs text-muted-foreground whitespace-nowrap">
-                      {tempoRelativo(c.ultima_mensagem_em ?? c.atualizado_em)}
-                    </span>
+                     <span className="flex items-center gap-1 shrink-0">
+                       {!modoHistorico && (
+                         <DropdownMenu
+                           open={menuLeituraAberto === String(c.id)}
+                           onOpenChange={(aberto) => setMenuLeituraAberto(aberto ? String(c.id) : null)}
+                         >
+                           <DropdownMenuTrigger asChild>
+                             <span
+                               role="button"
+                               aria-label={c.nao_lida ? "Marcar como lida" : "Marcar como não lida"}
+                               onClick={(e) => e.stopPropagation()}
+                               className={cn(
+                                 "h-6 w-6 items-center justify-center rounded-md text-muted-foreground transition-opacity hover:bg-accent hover:text-foreground",
+                                 menuLeituraAberto === String(c.id)
+                                   ? "inline-flex opacity-100"
+                                   : "hidden opacity-0 group-hover:opacity-100 md:inline-flex",
+                               )}
+                             >
+                               <Mail className="h-3.5 w-3.5" />
+                             </span>
+                           </DropdownMenuTrigger>
+                           <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
+                             {c.nao_lida ? (
+                               <DropdownMenuItem onSelect={() => marcarLeitura(c.id, false)}>
+                                 <MailOpen className="mr-2 h-4 w-4" />
+                                 Marcar como lida
+                               </DropdownMenuItem>
+                             ) : (
+                               <DropdownMenuItem onSelect={() => marcarLeitura(c.id, true)}>
+                                 <Mail className="mr-2 h-4 w-4" />
+                                 Marcar como não lida
+                               </DropdownMenuItem>
+                             )}
+                           </DropdownMenuContent>
+                         </DropdownMenu>
+                       )}
+                       <span className="text-xs text-muted-foreground whitespace-nowrap">
+                         {tempoRelativo(c.ultima_mensagem_em ?? c.atualizado_em)}
+                       </span>
+                     </span>
                   </div>
                    <p className={cn("text-sm mt-1 line-clamp-1", naoLida ? "text-foreground font-medium" : "text-muted-foreground")}>
                     {c.ultima_mensagem ?? ""}
@@ -1891,6 +1977,12 @@ export default function Atendimento() {
                         <DropdownMenuItem onSelect={() => reativarBot.mutate()} disabled={reativarBot.isPending}>
                           <RotateCcw className="mr-2 h-4 w-4" />
                           Reativar bot
+                        </DropdownMenuItem>
+                      )}
+                      {!conversaHistorica && (
+                        <DropdownMenuItem onSelect={() => marcarNaoLidaEFechar()}>
+                          <MailOpen className="mr-2 h-4 w-4" />
+                          Marcar como não lida
                         </DropdownMenuItem>
                       )}
                       {!conversaHistorica && (
