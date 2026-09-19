@@ -6,7 +6,8 @@ export const BUCKET_MIDIA = "instagram-midia";
 export async function uploadMidia(file: File, pasta = "publicacoes"): Promise<string> {
   const nomeSeguro = file.name.replace(/[^\w.\-]+/g, "_");
   const path = `${pasta}/${Date.now()}_${nomeSeguro}`;
-  const { error } = await supabase.storage.from(BUCKET_MIDIA).upload(path, file);
+  const opcoes = { contentType: file.type || undefined, cacheControl: "31536000" as const, upsert: true };
+  const { error } = await supabase.storage.from(BUCKET_MIDIA).upload(path, file, opcoes);
   if (error && /bucket/i.test(error.message ?? "")) {
     // Bucket pode não existir ainda — tenta criar e refaz o upload
     try {
@@ -14,7 +15,7 @@ export async function uploadMidia(file: File, pasta = "publicacoes"): Promise<st
     } catch {
       /* sem permissão ou já existe — o retry abaixo resolve se existir */
     }
-    const retry = await supabase.storage.from(BUCKET_MIDIA).upload(path, file);
+    const retry = await supabase.storage.from(BUCKET_MIDIA).upload(path, file, opcoes);
     if (retry.error) throw retry.error;
   } else if (error) {
     throw error;

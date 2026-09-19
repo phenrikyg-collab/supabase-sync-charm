@@ -124,7 +124,7 @@ export async function uploadLogo(file: File) {
   const path = `geral/logo-${crypto.randomUUID()}.${ext}`;
   const { error } = await supabase.storage
     .from(BUCKET)
-    .upload(path, file, { cacheControl: "31536000", upsert: false });
+    .upload(path, file, { cacheControl: "31536000", upsert: true });
   if (error) throw error;
   return supabase.storage.from(BUCKET).getPublicUrl(path).data.publicUrl;
 }

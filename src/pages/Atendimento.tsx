@@ -1782,7 +1782,7 @@ export default function Atendimento() {
         const path = `enviadas/${Date.now()}-${i}-${nome}`;
         const { error: upErr } = await supabase.storage
           .from("whatsapp-media")
-          .upload(path, item.file, { cacheControl: "31536000", upsert: false });
+          .upload(path, item.file, { cacheControl: "31536000", upsert: true });
         if (upErr) throw upErr;
         const { data: pub } = supabase.storage.from("whatsapp-media").getPublicUrl(path);
         await enviarImagem(pub.publicUrl, i === 0 ? legendaAtual : "", i === 0 ? responderA : null);

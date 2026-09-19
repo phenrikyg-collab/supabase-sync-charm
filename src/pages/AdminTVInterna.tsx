@@ -180,7 +180,7 @@ function TabColaboradores() {
 
     const { error } = await supabase.storage
       .from("colaboradores-fotos")
-      .upload(path, fotoFile, { upsert: true });
+      .upload(path, fotoFile, { cacheControl: "31536000", upsert: true });
 
     if (error) {
       console.error("Upload error:", error);

@@ -31,7 +31,7 @@ export async function uploadVipMidia(file: File): Promise<string> {
 
   const { error } = await supabase.storage
     .from(BUCKET_VIP_MIDIA)
-    .upload(path, file, { contentType: file.type, upsert: false });
+    .upload(path, file, { contentType: file.type, cacheControl: "31536000", upsert: true });
   if (error) throw error;
 
   return supabase.storage.from(BUCKET_VIP_MIDIA).getPublicUrl(path).data.publicUrl;

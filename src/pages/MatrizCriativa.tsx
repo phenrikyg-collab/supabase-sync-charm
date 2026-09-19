@@ -2038,7 +2038,8 @@ function AbaModelos() {
     const path = `${Date.now()}_${safe}`;
     const { error } = await supabase.storage.from("modelos-marca").upload(path, file, {
       contentType: file.type,
-      upsert: false,
+      cacheControl: "31536000",
+      upsert: true,
     });
     if (error) throw error;
     const { data } = supabase.storage.from("modelos-marca").getPublicUrl(path);
