@@ -11,6 +11,7 @@ export type PeriodoCrm = {
 
 export type MetricasCrm = {
   itens?: number | null;
+  pessoas?: number | null;
   enviados?: number | null;
   entregues?: number | null;
   lidos?: number | null;
@@ -32,6 +33,7 @@ export type CategoriaCusto = { envios?: number | null; custo?: number | null };
 export type ItemCrm = {
   origem_id: string;
   nome: string;
+  descricao?: string | null;
   origem?: string | null;
   canais?: string[] | null;
   status?: string | null;
@@ -39,6 +41,7 @@ export type ItemCrm = {
   fluxo_id?: string | number | null;
   primeiro_envio?: string | null;
   ultimo_envio?: string | null;
+  pessoas?: number | null;
   enviados?: number | null;
   enviados_whatsapp?: number | null;
   enviados_email?: number | null;
