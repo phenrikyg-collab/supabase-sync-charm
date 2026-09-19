@@ -17,7 +17,7 @@ import {
   AlertTriangle, Bot, Check, CheckCheck, CheckCircle2, Globe, ImagePlus, LayoutGrid, Lock, MessageCircle,
   RotateCcw, Search, Send, User, X, UserCheck, Phone, QrCode, Link2,
   Truck, ShoppingCart, Plus, MoreHorizontal, PanelRight, Menu, Trash2, FileText, Clock, Mail, MailOpen,
-  Reply, Copy, Pencil,
+  Reply, Copy, Pencil, ArrowLeft, ChevronUp,
   Loader2,
 } from "lucide-react";
 import {
@@ -69,6 +69,7 @@ import { chamarRpc } from "@/lib/supabaseRpc";
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
 import type { ImperativePanelGroupHandle } from "react-resizable-panels";
 import { ProvadorBloco } from "@/components/atendimento/ProvadorBloco";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 /** Telas largas ganham colunas arrastáveis; no celular o layout continua igual. */
 function useTelaLarga() {

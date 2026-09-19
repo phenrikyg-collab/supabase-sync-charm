@@ -1,7 +1,8 @@
 import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { FileText, ImagePlus, LayoutGrid, Send } from "lucide-react";
+import { FileText, ImagePlus, LayoutGrid, Plus, Send, Zap } from "lucide-react";
+import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import {
   BotaoRespostasRapidas, ListaRespostas, filtrarRespostas, registrarUso, useRespostasRapidas,
   type RespostaRapida,
@@ -26,6 +27,7 @@ type Props = {
   /** Avisa o pai só quando a caixa passa de vazia para escrita (e o contrário). */
   onDigitandoMudou?: (digitando: boolean) => void;
   figurinhas?: ReactNode;
+  mobile?: boolean;
 };
 
 /**
@@ -33,7 +35,7 @@ type Props = {
  * digitar não repinte a lista de conversas, as mensagens nem o perfil.
  */
 export const Composer = forwardRef<ComposerHandle, Props>(function Composer(
-  { onEnviar, onImagens, onAbrirCatalogo, onAbrirTemplate, onDigitandoMudou, figurinhas },
+  { onEnviar, onImagens, onAbrirCatalogo, onAbrirTemplate, onDigitandoMudou, figurinhas, mobile = false },
   ref,
 ) {
   const [texto, setTexto] = useState("");
@@ -43,6 +45,8 @@ export const Composer = forwardRef<ComposerHandle, Props>(function Composer(
 
   const { data: respostasRapidas = [] } = useRespostasRapidas(false);
   const [indiceRapida, setIndiceRapida] = useState(0);
+  const [ferramentasAbertas, setFerramentasAbertas] = useState(false);
+  const [rapidasAbertas, setRapidasAbertas] = useState(false);
   const slashAtivo = texto.startsWith("/") && !texto.includes("\n");
   const rapidasFiltradas = useMemo(
     () => (slashAtivo ? filtrarRespostas(respostasRapidas, texto.slice(1)) : []),
@@ -123,23 +127,66 @@ export const Composer = forwardRef<ComposerHandle, Props>(function Composer(
           if (fileRef.current) fileRef.current.value = "";
         }}
       />
-      <Button
-        size="icon"
-        variant="ghost"
-        className="h-8 w-8 shrink-0"
-        onClick={() => fileRef.current?.click()}
-        title="Enviar imagem"
-      >
-        <ImagePlus className="h-4 w-4" />
-      </Button>
-      {figurinhas}
-      <Button size="icon" variant="ghost" className="h-8 w-8 shrink-0" onClick={onAbrirCatalogo} title="Catálogo">
-        <LayoutGrid className="h-4 w-4" />
-      </Button>
-      <Button size="icon" variant="ghost" className="h-8 w-8 shrink-0" onClick={onAbrirTemplate} title="Enviar template">
-        <FileText className="h-4 w-4" />
-      </Button>
-      <BotaoRespostasRapidas onEscolher={inserirResposta} />
+      {mobile ? (
+        <>
+          <Button
+            size="icon"
+            variant="outline"
+            className="h-11 w-11 shrink-0 rounded-full"
+            onClick={() => setFerramentasAbertas(true)}
+            aria-label="Abrir ferramentas de envio"
+          >
+            <Plus className="h-5 w-5" />
+          </Button>
+          <Sheet open={ferramentasAbertas} onOpenChange={setFerramentasAbertas}>
+            <SheetContent side="bottom" className="max-h-[70dvh] rounded-t-lg px-4 pb-[calc(1rem+env(safe-area-inset-bottom))] pt-5">
+              <SheetTitle className="mb-4">Adicionar à conversa</SheetTitle>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="flex min-h-11 items-center gap-3 rounded-md border border-border px-3">
+                  {figurinhas}
+                  <span className="text-sm font-medium">Figurinhas</span>
+                </div>
+                <Button variant="outline" className="h-11 justify-start gap-3" onClick={() => { setFerramentasAbertas(false); fileRef.current?.click(); }}>
+                  <ImagePlus className="h-4 w-4" />
+                  Enviar imagem
+                </Button>
+                <Button variant="outline" className="h-11 justify-start gap-3" onClick={() => { setFerramentasAbertas(false); onAbrirTemplate(); }}>
+                  <FileText className="h-4 w-4" />
+                  Enviar template
+                </Button>
+                <Button variant="outline" className="h-11 justify-start gap-3" onClick={() => setRapidasAbertas((v) => !v)}>
+                  <Zap className="h-4 w-4" />
+                  Respostas rápidas
+                </Button>
+              </div>
+              {rapidasAbertas && (
+                <div className="mt-3 overflow-hidden rounded-md border border-border">
+                  <ListaRespostas
+                    itens={respostasRapidas}
+                    indice={indiceRapida}
+                    onIndice={setIndiceRapida}
+                    onEscolher={(r) => { inserirResposta(r); setFerramentasAbertas(false); setRapidasAbertas(false); }}
+                  />
+                </div>
+              )}
+            </SheetContent>
+          </Sheet>
+        </>
+      ) : (
+        <>
+          <Button size="icon" variant="ghost" className="h-8 w-8 shrink-0" onClick={() => fileRef.current?.click()} title="Enviar imagem">
+            <ImagePlus className="h-4 w-4" />
+          </Button>
+          {figurinhas}
+          <Button size="icon" variant="ghost" className="h-8 w-8 shrink-0" onClick={onAbrirCatalogo} title="Catálogo">
+            <LayoutGrid className="h-4 w-4" />
+          </Button>
+          <Button size="icon" variant="ghost" className="h-8 w-8 shrink-0" onClick={onAbrirTemplate} title="Enviar template">
+            <FileText className="h-4 w-4" />
+          </Button>
+          <BotaoRespostasRapidas onEscolher={inserirResposta} />
+        </>
+      )}
       <Textarea
         ref={textoRef}
         value={texto}
@@ -156,7 +203,7 @@ export const Composer = forwardRef<ComposerHandle, Props>(function Composer(
         }}
         placeholder="Escreva sua resposta ou digite / para as mensagens rápidas"
         rows={1}
-        className="min-h-8 max-h-24 min-w-0 flex-1 resize-none overflow-y-auto py-1.5"
+        className={mobile ? "min-h-11 max-h-24 min-w-0 flex-1 resize-none overflow-y-auto py-2.5" : "min-h-8 max-h-24 min-w-0 flex-1 resize-none overflow-y-auto py-1.5"}
         onKeyDown={(e) => {
           if (listaRapidaAberta) {
             if (e.key === "ArrowDown") {
@@ -189,7 +236,7 @@ export const Composer = forwardRef<ComposerHandle, Props>(function Composer(
       />
       <Button
         size="icon"
-        className="h-8 w-8 shrink-0 rounded-full"
+        className={mobile ? "h-11 w-11 shrink-0 rounded-full" : "h-8 w-8 shrink-0 rounded-full"}
         onClick={despachar}
         disabled={!texto.trim()}
         title="Enviar"
