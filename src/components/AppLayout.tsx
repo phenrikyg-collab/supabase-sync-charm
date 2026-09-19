@@ -3,6 +3,7 @@ import { useLocation } from "react-router-dom";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
 import { InstalarApp } from "@/components/InstalarApp";
+import { cn } from "@/lib/utils";
 
 function formatDate() {
   return new Intl.DateTimeFormat("pt-BR", {
@@ -34,15 +35,18 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
 
   return (
     <SidebarProvider open={open} onOpenChange={setOpen}>
-      <div className="min-h-screen flex w-full">
+      <div className={cn("flex min-h-screen w-full", pathname.startsWith("/atendimento") && "h-[100dvh] min-h-0 overflow-hidden")}>
         <AppSidebar />
-        <div className="flex-1 flex flex-col min-w-0">
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col">
           <InstalarApp />
           <header className="h-14 flex items-center justify-between border-b border-border bg-card/80 backdrop-blur-sm sticky top-0 z-30 px-4">
             <SidebarTrigger />
             <span className="text-sm text-muted-foreground font-medium capitalize">{formatDate()}</span>
           </header>
-          <main className="flex-1 p-6 overflow-auto">
+          <main className={cn(
+            "min-h-0 flex-1 p-6 overflow-auto",
+            pathname.startsWith("/atendimento") && "p-0 overflow-hidden md:p-6 md:overflow-auto",
+          )}>
             {children}
           </main>
         </div>

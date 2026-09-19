@@ -16,8 +16,8 @@ import { ptBR } from "date-fns/locale";
 import {
   AlertTriangle, Bot, Check, CheckCheck, CheckCircle2, Globe, ImagePlus, LayoutGrid, Lock, MessageCircle,
   RotateCcw, Search, Send, User, X, UserCheck, Phone, QrCode, Link2,
-  Truck, ShoppingCart, Plus, MoreHorizontal, PanelRight, Menu, Trash2, FileText, Clock, Mail, MailOpen,
-  Reply, Copy, Pencil,
+  Truck, ShoppingCart, Plus, MoreHorizontal, PanelRight, Trash2, FileText, Clock, Mail, MailOpen,
+  Reply, Copy, Pencil, ArrowLeft, ChevronUp,
   Loader2,
 } from "lucide-react";
 import {
@@ -69,6 +69,7 @@ import { chamarRpc } from "@/lib/supabaseRpc";
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
 import type { ImperativePanelGroupHandle } from "react-resizable-panels";
 import { ProvadorBloco } from "@/components/atendimento/ProvadorBloco";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 /** Telas largas ganham colunas arrastáveis; no celular o layout continua igual. */
 function useTelaLarga() {
@@ -445,18 +446,61 @@ type ItemConversaProps = {
   onAbrir: (c: Conversa) => void;
   onMenuChange: (id: string | null) => void;
   onMarcarLeitura: (id: string | number, naoLida: boolean) => void;
+  mobile?: boolean;
 };
 
 /** Uma linha da lista de conversas. Memoizada: só repinta quando os próprios dados mudam. */
 const ItemConversa = memo(function ItemConversa({
   c, ativa, modoHistorico, mostrarClique, atencao, faixa, menuAberto, longPressRef,
-  onAbrir, onMenuChange, onMarcarLeitura,
+  onAbrir, onMenuChange, onMarcarLeitura, mobile = false,
 }: ItemConversaProps) {
   const nome = nomeConversa(c);
   const site = ehSite(c);
   const prio = modoHistorico ? "" : (c.prioridade ?? "").toLowerCase();
   const naoLida = !modoHistorico && !!c.nao_lida;
   const urg = modoHistorico ? "normal" : urgenciaDeNivel(atencao?.nivel);
+  const aguardando = !modoHistorico && c.status === "escalado" && !!c.aguardando_desde;
+  const espera = aguardando
+    ? `esperando há ${formatDistanceToNow(new Date(c.aguardando_desde as string), { locale: ptBR })}`
+    : null;
+  if (mobile) {
+    const selos = [
+      urg === "quente" || urg === "atencao" ? (urg === "quente" ? "Urgente" : "Atenção") : null,
+      site ? "Site" : "WhatsApp",
+      modoHistorico ? "Finalizada" : (c.status || null),
+    ].filter(Boolean).slice(0, 2) as string[];
+    return (
+      <button
+        type="button"
+        onClick={() => onAbrir(c)}
+        className={cn(
+          "relative flex min-h-16 w-full items-center gap-3 border-b border-border/60 border-l-[3px] px-4 py-3 text-left active:bg-accent",
+          faixa,
+          ativa && "bg-accent",
+          naoLida && !ativa && "bg-primary/5",
+        )}
+      >
+        <div className="min-w-0 flex-1">
+          <div className="flex min-w-0 items-center gap-1.5">
+            <p className={cn("truncate text-sm", naoLida || aguardando ? "font-bold" : "font-semibold")}>{nome}</p>
+            {selos.map((selo) => (
+              <span key={selo} className="shrink-0 rounded-full border border-border bg-muted px-1.5 py-0.5 text-[9px] font-medium text-muted-foreground">
+                {selo}
+              </span>
+            ))}
+          </div>
+          <p className={cn("mt-1 truncate text-xs", c.falha_envio ? "font-medium text-danger" : "text-muted-foreground") }>
+            {c.falha_envio ? `Não enviada: ${c.falha_envio_motivo ?? "falha no envio"}` : c.ultima_mensagem ?? identificadorConversa(c)}
+          </p>
+          {espera && <p className="mt-1 text-[11px] font-semibold text-warning">{espera}</p>}
+        </div>
+        <div className="flex min-w-10 shrink-0 flex-col items-end gap-1.5">
+          <span className="text-[11px] text-muted-foreground">{horaCurta(c.ultima_mensagem_em ?? c.atualizado_em)}</span>
+          {naoLida && <span className="min-w-5 rounded-full bg-primary px-1.5 py-0.5 text-center text-[10px] font-bold text-primary-foreground">1</span>}
+        </div>
+      </button>
+    );
+  }
   return (
                   <button
                   onClick={() => {
@@ -827,6 +871,7 @@ export default function Atendimento() {
   const queryClient = useQueryClient();
   const { user } = useAuth();
   const [parametros, setParametros] = useSearchParams();
+  const isMobile = useIsMobile();
   const [selecionada, setSelecionada] = useState<string | null>(() => parametros.get("conversa"));
   const conversaDoAvisoRef = useRef(parametros.get("conversa"));
   const [busca, setBusca] = useState("");
@@ -920,6 +965,8 @@ export default function Atendimento() {
   const [perfilAberto, setPerfilAberto] = useState(true);
   const [perfilSheet, setPerfilSheet] = useState(false);
   const [listaSheet, setListaSheet] = useState(false);
+  const [maisAbasAberto, setMaisAbasAberto] = useState(false);
+  const entradaChatMobileRef = useRef(false);
 
   const abrirCatalogo = useCallback(() => setCatalogoAberto(true), []);
   const abrirTemplate = useCallback(() => setTemplateAberto(true), []);
@@ -1315,6 +1362,10 @@ export default function Atendimento() {
   });
 
   const abrirConversa = useCallback(async (c: Conversa) => {
+    if (isMobile && !selecionada) {
+      window.history.pushState({ atendimentoChat: true }, "", window.location.href);
+      entradaChatMobileRef.current = true;
+    }
     setSelecionada(String(c.id));
     setListaSheet(false);
     setErroJanela(null);
@@ -1324,7 +1375,31 @@ export default function Atendimento() {
     });
     if (!error) queryClient.invalidateQueries({ queryKey: ["whatsapp-conversas"] });
       queryClient.invalidateQueries({ queryKey: ["whatsapp-conversa"] });
-  }, [modoHistorico, queryClient]);
+  }, [isMobile, modoHistorico, queryClient, selecionada]);
+
+  useEffect(() => {
+    if (!isMobile) {
+      entradaChatMobileRef.current = false;
+      return;
+    }
+    const aoVoltar = () => {
+      if (!selecionadaRef.current) return;
+      entradaChatMobileRef.current = false;
+      setSelecionada(null);
+      setPerfilSheet(false);
+    };
+    window.addEventListener("popstate", aoVoltar);
+    return () => window.removeEventListener("popstate", aoVoltar);
+  }, [isMobile]);
+
+  const fecharChatMobile = useCallback(() => {
+    if (entradaChatMobileRef.current) {
+      window.history.back();
+      return;
+    }
+    setSelecionada(null);
+    setPerfilSheet(false);
+  }, []);
 
   useEffect(() => {
     const idAviso = conversaDoAvisoRef.current;
@@ -1972,6 +2047,15 @@ export default function Atendimento() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [conversas, conversasHistorico, emAtendimento, buscaAtiva, resultadoBusca, termoLocal, termoDigitos, aba, grupoAba, filtroLeitura, filtroFila, tagsFiltro, mapaAtencao, modoFila, modoHistorico]);
 
+  const filtradasExibidas = useMemo(() => {
+    if (!isMobile || modoFila || modoHistorico) return filtradas;
+    return [...filtradas].sort((a, b) => {
+      const filaA = a.status === "escalado" && a.aguardando_desde ? 0 : 1;
+      const filaB = b.status === "escalado" && b.aguardando_desde ? 0 : 1;
+      return filaA - filaB;
+    });
+  }, [filtradas, isMobile, modoFila, modoHistorico]);
+
 
   // Resultado do servidor que não está na lista carregada: seção "Outras conversas".
   const idsNaLista = useMemo(() => new Set(conversas.map((c) => String(c.id))), [conversas]);
@@ -2027,6 +2111,10 @@ export default function Atendimento() {
     : mensagens.findIndex((m, idx) => idx > primeiroIndiceKora && m.origem !== "kora");
 
   const abrirDoPainel = (id: string, textoPronto?: string, leadId?: string) => {
+    if (isMobile && !selecionada) {
+      window.history.pushState({ atendimentoChat: true }, "", window.location.href);
+      entradaChatMobileRef.current = true;
+    }
     setSelecionada(String(id));
     setAbaPagina("conversas");
     setListaSheet(false);
@@ -2046,38 +2134,57 @@ export default function Atendimento() {
     </>
   );
 
+  const abasSecundarias = [
+    ["provador", "Provador", contagens.provador],
+    ["abandonadas", "Abandonadas", undefined],
+    ["cobrancas", "Cobranças", undefined],
+    ["consulta", "Consultar Transação", undefined],
+    ["rapidas", "Mensagens rápidas", undefined],
+    ["aprendizado", "Aprendizado da Anna", undefined],
+    ["carrinhos", "Carrinhos abandonados", contagens.carrinhos],
+    ["cancelados", "Pedidos cancelados", contagens.cancelados],
+    ["kanban", "Kanban do funil", undefined],
+    ["cashback", "Cashback", undefined],
+  ] as const;
+
   return (
-    <div className="-m-6 flex h-[calc(100dvh-3.5rem)] w-[calc(100%+3rem)] max-w-[calc(100%+3rem)] min-w-0 flex-col overflow-x-hidden overflow-y-hidden">
-      <AvisosFila />
+    <div className="flex h-full w-full min-w-0 flex-col overflow-x-hidden overflow-y-hidden md:-m-6 md:h-[calc(100dvh-3.5rem)] md:w-[calc(100%+3rem)] md:max-w-[calc(100%+3rem)]">
+      {(!isMobile || !selecionada || abaPagina !== "conversas") && <AvisosFila />}
       <Tabs
         value={abaPagina}
         onValueChange={(v) => setAbaPagina(v as typeof abaPagina)}
         className="flex min-h-0 w-full min-w-0 flex-1 flex-col overflow-hidden"
       >
-        <div className="flex h-11 w-full min-w-0 shrink-0 items-center gap-2 overflow-x-auto border-b border-border px-3">
-          <TabsList className="h-8 w-max flex-nowrap bg-transparent p-0">
+        <div className={cn("flex h-11 w-full min-w-0 shrink-0 items-center gap-2 overflow-x-auto border-b border-border px-3", isMobile && selecionada && abaPagina === "conversas" && "hidden")}>
+          <TabsList className={cn("h-8 w-max flex-nowrap bg-transparent p-0", isMobile && "grid w-full grid-cols-[1fr_1fr_44px]")}>
             <TabsTrigger value="conversas" className="h-8 shrink-0 text-sm">
               {rotuloComContagem("Conversas", contagemGrupos.conversa)}
             </TabsTrigger>
             <TabsTrigger value="oportunidades" className="h-8 shrink-0 text-sm">
               {rotuloComContagem("Oportunidades", contagens.oportunidades)}
             </TabsTrigger>
-            <TabsTrigger value="provador" className="h-8 shrink-0 text-sm">
+            <TabsTrigger value="provador" className="hidden h-8 shrink-0 text-sm md:inline-flex">
               {rotuloComContagem("Provador", contagens.provador)}
             </TabsTrigger>
-            <TabsTrigger value="abandonadas" className="h-8 shrink-0 text-sm">Abandonadas</TabsTrigger>
-            <TabsTrigger value="cobrancas" className="h-8 shrink-0 text-sm">Cobranças</TabsTrigger>
-            <TabsTrigger value="consulta" className="h-8 shrink-0 text-sm">Consultar Transação</TabsTrigger>
-            <TabsTrigger value="rapidas" className="h-8 shrink-0 text-sm">Mensagens rápidas</TabsTrigger>
-            <TabsTrigger value="aprendizado" className="h-8 shrink-0 text-sm">Aprendizado da Anna</TabsTrigger>
-            <TabsTrigger value="carrinhos" className="h-8 shrink-0 text-sm">
+            <TabsTrigger value="abandonadas" className="hidden h-8 shrink-0 text-sm md:inline-flex">Abandonadas</TabsTrigger>
+            <TabsTrigger value="cobrancas" className="hidden h-8 shrink-0 text-sm md:inline-flex">Cobranças</TabsTrigger>
+            <TabsTrigger value="consulta" className="hidden h-8 shrink-0 text-sm md:inline-flex">Consultar Transação</TabsTrigger>
+            <TabsTrigger value="rapidas" className="hidden h-8 shrink-0 text-sm md:inline-flex">Mensagens rápidas</TabsTrigger>
+            <TabsTrigger value="aprendizado" className="hidden h-8 shrink-0 text-sm md:inline-flex">Aprendizado da Anna</TabsTrigger>
+            <TabsTrigger value="carrinhos" className="hidden h-8 shrink-0 text-sm md:inline-flex">
               {rotuloComContagem("Carrinhos abandonados", contagens.carrinhos)}
             </TabsTrigger>
-            <TabsTrigger value="cancelados" className="h-8 shrink-0 text-sm">
+            <TabsTrigger value="cancelados" className="hidden h-8 shrink-0 text-sm md:inline-flex">
               {rotuloComContagem("Pedidos cancelados", contagens.cancelados)}
             </TabsTrigger>
-            <TabsTrigger value="kanban" className="h-8 shrink-0 text-sm">Kanban do funil</TabsTrigger>
-            <TabsTrigger value="cashback" className="h-8 shrink-0 text-sm">Cashback</TabsTrigger>
+            <TabsTrigger value="kanban" className="hidden h-8 shrink-0 text-sm md:inline-flex">Kanban do funil</TabsTrigger>
+            <TabsTrigger value="cashback" className="hidden h-8 shrink-0 text-sm md:inline-flex">Cashback</TabsTrigger>
+            {isMobile && (
+              <Button type="button" variant="ghost" className="h-8 px-2 text-sm" onClick={() => setMaisAbasAberto(true)}>
+                Mais
+                <ChevronUp className="ml-1 h-4 w-4" />
+              </Button>
+            )}
           </TabsList>
           {abaPagina === "conversas" && colunasAjustaveis && (
             <Button
@@ -2090,6 +2197,25 @@ export default function Atendimento() {
             </Button>
           )}
         </div>
+
+        <Sheet open={maisAbasAberto} onOpenChange={setMaisAbasAberto}>
+          <SheetContent side="bottom" className="max-h-[75dvh] rounded-t-lg px-4 pb-[calc(1rem+env(safe-area-inset-bottom))] pt-5">
+            <SheetTitle className="mb-3">Mais áreas</SheetTitle>
+            <div className="grid gap-1 overflow-y-auto">
+              {abasSecundarias.map(([valor, rotulo, total]) => (
+                <Button
+                  key={valor}
+                  variant={abaPagina === valor ? "secondary" : "ghost"}
+                  className="h-11 justify-between px-3"
+                  onClick={() => { setAbaPagina(valor); setMaisAbasAberto(false); }}
+                >
+                  <span>{rotulo}</span>
+                  {!!total && total > 0 && <span className="rounded-full bg-primary px-2 py-0.5 text-xs font-bold text-primary-foreground">{total}</span>}
+                </Button>
+              ))}
+            </div>
+          </SheetContent>
+        </Sheet>
 
         <TabsContent value="oportunidades" className="m-0 min-h-0 w-full min-w-0 flex-1 overflow-auto p-4">
           <OportunidadesTab
@@ -2206,7 +2332,7 @@ export default function Atendimento() {
         className="relative flex min-h-0 w-full min-w-0 max-w-full flex-1 overflow-hidden"
       >
 
-        {listaSheet && (
+        {!isMobile && listaSheet && (
           <div
             className="fixed inset-0 z-30 bg-black/40 md:hidden"
             onClick={() => setListaSheet(false)}
@@ -2221,15 +2347,15 @@ export default function Atendimento() {
             "fixed inset-y-0 left-0 z-40 flex h-full min-h-0 w-[85vw] max-w-[360px] min-w-0 flex-col overflow-hidden border-r border-border bg-card transition-transform",
             "md:static md:z-auto md:w-[320px] md:max-w-none md:shrink-0 md:translate-x-0 lg:w-[340px]",
             colunasAjustaveis && "lg:w-full",
-            listaSheet ? "translate-x-0" : "-translate-x-full",
+            isMobile ? (selecionada ? "hidden" : "static z-auto w-full max-w-none translate-x-0 border-r-0") : (listaSheet ? "translate-x-0" : "-translate-x-full"),
           )}
         >
-          <div className="shrink-0 border-b border-border p-3 space-y-2">
-            <Button size="sm" className="w-full" onClick={() => abrirNovaConversa(null)}>
+          <div className="flex shrink-0 flex-col gap-2 border-b border-border p-3">
+            <Button size="sm" className={cn("w-full", isMobile && "order-4 min-h-11")} onClick={() => abrirNovaConversa(null)}>
               <Plus className="h-4 w-4 mr-2" />
               Nova conversa
             </Button>
-            <div className="grid grid-cols-2 gap-1 rounded-md bg-muted p-1">
+            <div className={cn("grid grid-cols-2 gap-1 rounded-md bg-muted p-1", isMobile && "order-2")}>
               {([
                 { v: "whatsapp", label: "WhatsApp", icon: MessageCircle, nao: naoLidasWhatsapp },
                 { v: "site", label: "Chat do Site", icon: Globe, nao: naoLidasSite },
@@ -2255,7 +2381,7 @@ export default function Atendimento() {
                 );
               })}
             </div>
-            {!modoHistorico && <div className="grid grid-cols-3 gap-1 rounded-md bg-muted p-1">
+            {!modoHistorico && <div className={cn("grid grid-cols-3 gap-1 rounded-md bg-muted p-1", isMobile && "order-3")}>
               {([
                 { v: "conversa", label: "Conversas", n: contagemGrupos.conversa },
                 { v: "clique", label: "Cliques", n: contagemGrupos.clique },
@@ -2276,7 +2402,7 @@ export default function Atendimento() {
                 </button>
               ))}
             </div>}
-            <div className="relative">
+            <div className={cn("relative", isMobile && "order-1")}>
 
               <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
               <Input
@@ -2284,10 +2410,10 @@ export default function Atendimento() {
                 value={busca}
                 onChange={(e) => setBusca(e.target.value)}
                 placeholder="Buscar por nome ou telefone (tecle /)"
-                className="pl-8"
+                className={cn("pl-8", isMobile && "h-11")}
               />
             </div>
-            <div className="flex items-center gap-1.5 flex-wrap">
+            <div className={cn("flex items-center gap-1.5 flex-wrap", isMobile && "order-5 grid grid-cols-3 gap-1 rounded-md bg-muted p-1 [&>button]:h-10 [&>button]:border-0 [&>button]:px-1")}>
               {!modoHistorico && ([
                 { v: "todas", label: "Todas" },
                 { v: "nao_lidas", label: `Não lidas${totalNaoLidas ? ` (${totalNaoLidas})` : ""}` },
@@ -2411,7 +2537,7 @@ export default function Atendimento() {
               )}
             </div>
           </div>
-          <ScrollArea className="min-h-0 flex-1">
+          <ScrollArea className="min-h-0 flex-1 overscroll-contain">
             {(modoHistorico ? carregandoHistorico : carregandoConversas) && (
               <p className="p-4 text-sm text-muted-foreground">Carregando conversas…</p>
             )}
@@ -2420,7 +2546,7 @@ export default function Atendimento() {
             )}
             {(() => {
               let grupoAnterior: string | null = null;
-              return filtradas.map((c) => {
+              return filtradasExibidas.map((c) => {
               const nome = nomeConversa(c);
               const site = ehSite(c);
               const ativa = String(c.id) === selecionada;
@@ -2454,6 +2580,7 @@ export default function Atendimento() {
                     onAbrir={abrirConversa}
                     onMenuChange={setMenuLeituraAberto}
                     onMarcarLeitura={marcarLeitura}
+                    mobile={isMobile}
                   />
                 </div>
               );
@@ -2483,6 +2610,7 @@ export default function Atendimento() {
                     onAbrir={abrirConversa}
                     onMenuChange={setMenuLeituraAberto}
                     onMarcarLeitura={marcarLeitura}
+                    mobile={isMobile}
                   />
                 ))}
               </>
@@ -2545,7 +2673,7 @@ export default function Atendimento() {
 
         {/* Thread */}
         <Coluna ajustavel={colunasAjustaveis} id="thread" order={2} defaultSize={largurasIniciais[1]} minSize={30}>
-        <section className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+        <section className={cn("flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden", isMobile && !selecionada && "hidden")}>
           {!conversaAtual ? (
             <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground gap-2">
               <MessageCircle className="h-10 w-10 opacity-40" />
@@ -2558,21 +2686,21 @@ export default function Atendimento() {
                 <Button
                   size="icon"
                   variant="ghost"
-                  className="h-8 w-8 shrink-0 md:hidden"
-                  onClick={() => setListaSheet(true)}
+                  className="h-11 w-11 shrink-0 md:hidden"
+                  onClick={fecharChatMobile}
                   title="Ver conversas"
                 >
-                  <Menu className="h-4 w-4" />
+                  <ArrowLeft className="h-5 w-5" />
                 </Button>
-                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-accent">
+                <span className="hidden h-9 w-9 shrink-0 items-center justify-center rounded-full bg-accent md:flex">
                   {ehSite(conversaAtual) ? (
                     <Globe className="h-4 w-4 text-primary" aria-label="Chat do site" />
                   ) : (
                     <MessageCircle className="h-4 w-4 text-primary" aria-label="WhatsApp" />
                   )}
                 </span>
-                <div className="flex min-w-0 flex-1 items-center gap-2">
-                  <h2 className="truncate text-sm font-semibold">{nomeConversa(conversaAtual)}</h2>
+                <div className="flex min-w-0 flex-1 flex-col items-start gap-0.5 md:flex-row md:items-center md:gap-2">
+                  <h2 className="max-w-full truncate text-sm font-semibold">{nomeConversa(conversaAtual)}</h2>
                   <span className="hidden shrink-0 text-xs text-muted-foreground sm:inline">
                     {identificadorConversa(conversaAtual)}
                   </span>
@@ -2589,7 +2717,10 @@ export default function Atendimento() {
                     </Button>
                   )}
                   {nomeSoDoWhatsApp(conversaAtual) && <BadgeViaWhatsApp />}
-                  <StatusPill status={conversaAtual.status} aguardandoDesde={conversaAtual.aguardando_desde} />
+                  <div className="max-w-full truncate text-[11px] text-muted-foreground md:hidden">
+                    {conversaAtual.status === "escalado" ? "Aguardando atendimento" : conversaAtual.status === "em_atendimento" ? "Em atendimento" : conversaAtual.status === "resolvido" ? "Resolvida" : "Atendimento automático"}
+                  </div>
+                  <span className="hidden md:inline-flex"><StatusPill status={conversaAtual.status} aguardandoDesde={conversaAtual.aguardando_desde} /></span>
                   {rotuloAutomacao(atencaoDe(conversaAtual)) && (
                     <span className="inline-flex shrink-0 items-center rounded-full border border-border bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground whitespace-nowrap">
                       {rotuloAutomacao(atencaoDe(conversaAtual))}
@@ -2607,7 +2738,7 @@ export default function Atendimento() {
                 </div>
                 <div className="flex shrink-0 items-center gap-1.5">
                   {!conversaHistorica && (
-                    <Button size="sm" onClick={() => assumir.mutate()} disabled={assumir.isPending}>
+                    <Button size="sm" className="hidden md:inline-flex" onClick={() => assumir.mutate()} disabled={assumir.isPending}>
                       <UserCheck className="mr-2 h-4 w-4" />
                       Assumir conversa
                     </Button>
@@ -2626,7 +2757,7 @@ export default function Atendimento() {
                   )}
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                      <Button size="icon" variant="ghost" className="h-9 w-9" title="Mais ações">
+                       <Button size="icon" variant="ghost" className="hidden h-9 w-9 md:inline-flex" title="Mais ações">
                         <MoreHorizontal className="h-4 w-4" />
                       </Button>
                     </DropdownMenuTrigger>
@@ -2721,7 +2852,16 @@ export default function Atendimento() {
                   <Button
                     size="icon"
                     variant="ghost"
-                    className="h-9 w-9 lg:hidden"
+                    className="h-11 w-11 md:hidden"
+                    onClick={() => setPerfilSheet(true)}
+                    title="Ações e ferramentas"
+                  >
+                    <MoreHorizontal className="h-5 w-5" />
+                  </Button>
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="hidden h-9 w-9 md:inline-flex lg:hidden"
                     onClick={() => setPerfilSheet(true)}
                     title="Perfil da cliente"
                   >
@@ -2731,7 +2871,7 @@ export default function Atendimento() {
               </div>
 
               {!conversaHistorica && (
-                <div className="shrink-0 border-b border-border px-3 py-1.5">
+                <div className="hidden shrink-0 border-b border-border px-3 py-1.5 md:block">
                   <TagsConversa conversaId={conversaAtual.id} aplicadas={conversaAtual.tags ?? []} />
                 </div>
               )}
@@ -2752,7 +2892,7 @@ export default function Atendimento() {
 
               <ScrollArea
                 ref={areaMensagensRef}
-                className="relative min-h-0 min-w-0 max-w-full flex-1 overflow-x-hidden p-4 [&_[data-radix-scroll-area-viewport]]:!overflow-x-hidden"
+                className="relative min-h-0 min-w-0 max-w-full flex-1 overflow-x-hidden p-3 md:p-4 [&_[data-radix-scroll-area-viewport]]:!overflow-x-hidden"
                 onDragOver={(e) => {
                   if (!Array.from(e.dataTransfer?.types ?? []).includes("Files")) return;
                   e.preventDefault();
@@ -2839,7 +2979,13 @@ export default function Atendimento() {
                   </div>
                 </div>
               ) : podeResponder ? (
-                 <div className="shrink-0 border-t border-border px-2 py-1.5 space-y-1.5">
+                 <div className={cn("shrink-0 border-t border-border px-2 py-1.5 space-y-1.5", isMobile && "sticky bottom-0 z-10 bg-background pb-[calc(0.375rem+env(safe-area-inset-bottom))]")}>
+                  {isMobile && !conversaHistorica && status === "escalado" && (
+                    <Button className="h-11 w-full" onClick={() => assumir.mutate()} disabled={assumir.isPending}>
+                      <UserCheck className="mr-2 h-4 w-4" />
+                      {assumir.isPending ? "Assumindo…" : "Assumir conversa"}
+                    </Button>
+                  )}
                   {!modoHistorico && conversaAtual?.falha_envio && (
                     <div className="flex items-center gap-2 rounded-md border border-danger/40 bg-danger/10 px-3 py-2">
                       <AlertTriangle className="h-4 w-4 text-danger shrink-0" />
@@ -2948,6 +3094,7 @@ export default function Atendimento() {
                     onAbrirCatalogo={abrirCatalogo}
                     onAbrirTemplate={abrirTemplate}
                     onDigitandoMudou={setDigitando}
+                    mobile={isMobile}
                     figurinhas={
                       !ehSite(conversaAtual) ? (
                         <SeletorFigurinhas
@@ -2995,13 +3142,49 @@ export default function Atendimento() {
         )}
 
         <Sheet open={perfilSheet} onOpenChange={setPerfilSheet}>
-           <SheetContent side="right" className="flex w-[92vw] max-w-[380px] flex-col overflow-hidden p-3 pb-8">
-             <SheetTitle className="sr-only">Perfil da cliente</SheetTitle>
+           <SheetContent
+             side={isMobile ? "bottom" : "right"}
+             className={cn(
+               "flex flex-col overflow-hidden p-3 pb-8",
+               isMobile ? "h-[85dvh] w-full rounded-t-lg pb-[calc(1rem+env(safe-area-inset-bottom))]" : "w-[92vw] max-w-[380px]",
+             )}
+           >
+             <SheetTitle>{isMobile ? "Ações e ferramentas" : "Perfil da cliente"}</SheetTitle>
             {conversaAtual ? (
-               <Card className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain">
-                <PerfilCliente conversaId={conversaAtual.id} autor={autor} telefone={conversaAtual.telefone} />
-                {telefoneIdentificado && <AtividadesRecentes telefone={telefoneIdentificado} />}
-               </Card>
+              <div className="min-h-0 flex-1 space-y-3 overflow-y-auto overflow-x-hidden overscroll-contain pt-2">
+                {isMobile && (
+                  <section className="space-y-2 rounded-lg border border-border p-3">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Conversa</p>
+                    {!conversaHistorica && (status === "escalado" || status === "em_atendimento") && (
+                      <Button variant="outline" className="h-11 w-full justify-start" onClick={() => { setPerfilSheet(false); resolver.mutate(); }} disabled={resolver.isPending}>
+                        <CheckCircle2 className="mr-2 h-4 w-4" /> Resolver conversa
+                      </Button>
+                    )}
+                    {!conversaHistorica && status !== "bot_ativo" && (
+                      <Button variant="outline" className="h-11 w-full justify-start" onClick={() => { setPerfilSheet(false); reativarBot.mutate(); }} disabled={reativarBot.isPending}>
+                        <RotateCcw className="mr-2 h-4 w-4" /> Reativar bot
+                      </Button>
+                    )}
+                    {!conversaHistorica && <TagsConversa conversaId={conversaAtual.id} aplicadas={conversaAtual.tags ?? []} />}
+                  </section>
+                )}
+                {isMobile && (
+                  <section className="grid grid-cols-2 gap-2 rounded-lg border border-border p-3">
+                    <p className="col-span-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Ferramentas</p>
+                    {!ehSite(conversaAtual) && <Button variant="outline" className="h-11 justify-start" onClick={() => { setPerfilSheet(false); setConferirNumero(true); }}><Pencil className="mr-2 h-4 w-4" /> Conferir número</Button>}
+                    <Button variant="outline" className="h-11 justify-start" onClick={() => { setPerfilSheet(false); setFreteAberto(true); }}><Truck className="mr-2 h-4 w-4" /> Frete</Button>
+                    <Button variant="outline" className="h-11 justify-start" onClick={() => { setPerfilSheet(false); setCobrancaAberta(true); }}><QrCode className="mr-2 h-4 w-4" /> Cobrança Pix</Button>
+                    <Button variant="outline" className="h-11 justify-start" onClick={() => { setPerfilSheet(false); abrirCatalogo(); }}><LayoutGrid className="mr-2 h-4 w-4" /> Catálogo</Button>
+                    <Button variant="outline" className="h-11 justify-start" onClick={() => { setPerfilSheet(false); setProporCarrinhoAberto(true); }}><ShoppingCart className="mr-2 h-4 w-4" /> Carrinho</Button>
+                    <Button variant="outline" className="h-11 justify-start" onClick={() => { setPerfilSheet(false); setLinkPagamentoAberto(true); }}><Link2 className="mr-2 h-4 w-4" /> Pagamento</Button>
+                  </section>
+                )}
+                <Card>
+                  <PerfilCliente conversaId={conversaAtual.id} autor={autor} telefone={conversaAtual.telefone} />
+                  {telefoneIdentificado && <ProvadorBloco telefone={telefoneIdentificado} onUsarTexto={usarTextoPronto} />}
+                  {telefoneIdentificado && <AtividadesRecentes telefone={telefoneIdentificado} />}
+                </Card>
+              </div>
             ) : (
               <p className="text-sm text-muted-foreground">Nenhuma conversa selecionada</p>
             )}
