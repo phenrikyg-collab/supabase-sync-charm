@@ -2505,6 +2505,8 @@ function AbaGerarImagens() {
 // ─────────────────────────────────────────────────────────────
 const HOSPEDAGEM_BUCKET = "mc-imagens";
 
+const ehVideo = (nome: string) => /\.(mp4|mov|webm|m4v)$/i.test(nome);
+
 function AbaHospedagem() {
   const { toast } = useToast();
   const [uploads, setUploads] = useState<{ name: string; url: string; created_at?: string; size?: number }[]>([]);
@@ -2633,8 +2635,23 @@ function AbaHospedagem() {
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
               {uploads.map((img) => (
                 <Card key={img.name} className="overflow-hidden">
-                  <div className="aspect-square bg-muted overflow-hidden">
-                    <img src={img.url} alt={img.name} className="w-full h-full object-cover" loading="lazy" />
+                  <div className="aspect-square bg-muted overflow-hidden relative">
+                    {ehVideo(img.name) ? (
+                      <>
+                        <video
+                          src={`${img.url}#t=0.1`}
+                          preload="metadata"
+                          muted
+                          playsInline
+                          className="w-full h-full object-cover"
+                        />
+                        <span className="absolute bottom-1 right-1 rounded bg-black/70 px-1.5 py-0.5 text-[10px] font-medium text-white">
+                          MP4
+                        </span>
+                      </>
+                    ) : (
+                      <img src={img.url} alt={img.name} className="w-full h-full object-cover" loading="lazy" />
+                    )}
                   </div>
                   <CardContent className="p-3 space-y-2">
                     <p className="text-[11px] text-muted-foreground truncate" title={img.name}>{img.name}</p>
