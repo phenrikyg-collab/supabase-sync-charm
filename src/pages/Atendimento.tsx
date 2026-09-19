@@ -46,6 +46,7 @@ import { ProporCarrinhoDialog, PropostaDaConversa } from "@/components/atendimen
 import { EnviarTemplateDialog } from "@/components/atendimento/EnviarTemplate";
 import { ConferirNumeroDialog } from "@/components/atendimento/ConferirNumero";
 import { Composer, type ComposerHandle } from "@/components/atendimento/Composer";
+import { AvisosFila } from "@/components/atendimento/AvisosFila";
 
 import { ConsultarTransacaoTab } from "@/components/atendimento/ConsultarTransacao";
 import { MensagemMidia, ehTipoMidia } from "@/components/atendimento/MensagemMidia";
@@ -826,7 +827,8 @@ export default function Atendimento() {
   const queryClient = useQueryClient();
   const { user } = useAuth();
   const [parametros, setParametros] = useSearchParams();
-  const [selecionada, setSelecionada] = useState<string | null>(null);
+  const [selecionada, setSelecionada] = useState<string | null>(() => parametros.get("conversa"));
+  const conversaDoAvisoRef = useRef(parametros.get("conversa"));
   const [busca, setBusca] = useState("");
   const [aba, setAba] = useState<"whatsapp" | "site">("whatsapp");
   const [abaPagina, setAbaPagina] = useState<
@@ -1323,6 +1325,18 @@ export default function Atendimento() {
     if (!error) queryClient.invalidateQueries({ queryKey: ["whatsapp-conversas"] });
       queryClient.invalidateQueries({ queryKey: ["whatsapp-conversa"] });
   }, [modoHistorico, queryClient]);
+
+  useEffect(() => {
+    const idAviso = conversaDoAvisoRef.current;
+    if (!idAviso || !conversaAtual || String(conversaAtual.id) !== idAviso) return;
+    conversaDoAvisoRef.current = null;
+    void abrirConversa(conversaAtual);
+    setParametros((atuais) => {
+      const novos = new URLSearchParams(atuais);
+      novos.delete("conversa");
+      return novos;
+    }, { replace: true });
+  }, [abrirConversa, conversaAtual, setParametros]);
 
   const marcarLeitura = useCallback(async (id: string | number, naoLida: boolean): Promise<boolean> => {
     const idParam = Number.isNaN(Number(id)) ? id : Number(id);
@@ -2034,6 +2048,7 @@ export default function Atendimento() {
 
   return (
     <div className="-m-6 flex h-[calc(100dvh-3.5rem)] w-[calc(100%+3rem)] max-w-[calc(100%+3rem)] min-w-0 flex-col overflow-x-hidden overflow-y-hidden">
+      <AvisosFila />
       <Tabs
         value={abaPagina}
         onValueChange={(v) => setAbaPagina(v as typeof abaPagina)}

@@ -5,4 +5,11 @@ import { monitorarRenovacaoSessao } from "./lib/supabaseRpc";
 
 monitorarRenovacaoSessao();
 
-createRoot(document.getElementById("root")!).render(<App />);
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    void navigator.serviceWorker.register("/sw.js", { scope: "/" });
+  });
+}
+
+const raiz = document.getElementById("root");
+if (raiz) createRoot(raiz).render(<App />);
