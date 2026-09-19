@@ -1957,12 +1957,10 @@ export default function Atendimento() {
     return min > 30 ? "border-l-danger" : "border-l-warning";
   };
 
-  /** Prioridade dentro do grupo: perdendo primeiro, depois falhas de envio, depois o resto. */
-  const pesoConversa = (c: Conversa) => {
-    if (urgenciaDeNivel(atencaoDe(c)?.nivel) === "perdendo") return 0;
-    if (c.falha_envio) return 1;
-    return 2;
-  };
+  /** Prioridade dentro do grupo: quem está perdendo primeiro, depois o resto em ordem de data.
+   *  Falha de envio NÃO altera a ordem: entra pela data como qualquer conversa. */
+  const pesoConversa = (c: Conversa) =>
+    urgenciaDeNivel(atencaoDe(c)?.nivel) === "perdendo" ? 0 : 1;
 
   /** Ordem: prioridade do grupo e, dentro dela, mensagem mais recente primeiro. */
   const compararConversas = (a: Conversa, b: Conversa) =>
