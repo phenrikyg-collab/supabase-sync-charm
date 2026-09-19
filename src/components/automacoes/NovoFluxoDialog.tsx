@@ -12,12 +12,25 @@ import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { rpcFluxos, useCatalogoFluxos } from "./api";
 
-export function NovoFluxoDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (v: boolean) => void }) {
+export function NovoFluxoDialog({
+  open,
+  onOpenChange,
+  gatilhoInicial,
+}: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  gatilhoInicial?: string;
+}) {
   const navigate = useNavigate();
   const { data: catalogo } = useCatalogoFluxos();
   const [nome, setNome] = useState("");
   const [descricao, setDescricao] = useState("");
-  const [gatilho, setGatilho] = useState<string>("");
+  const [gatilho, setGatilho] = useState<string>(gatilhoInicial ?? "");
+
+  const alterarAbertura = (valor: boolean) => {
+    if (valor && gatilhoInicial) setGatilho(gatilhoInicial);
+    onOpenChange(valor);
+  };
 
   const criar = useMutation({
     mutationFn: async () =>
@@ -35,7 +48,7 @@ export function NovoFluxoDialog({ open, onOpenChange }: { open: boolean; onOpenC
   });
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={alterarAbertura}>
       <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle>Novo fluxo</DialogTitle>
