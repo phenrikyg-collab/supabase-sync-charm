@@ -17,7 +17,7 @@ import {
   AlertTriangle, Bot, Check, CheckCheck, CheckCircle2, Globe, ImagePlus, LayoutGrid, Lock, MessageCircle,
   RotateCcw, Search, Send, User, X, UserCheck, Phone, QrCode, Link2,
   Truck, ShoppingCart, Plus, MoreHorizontal, PanelRight, Trash2, FileText, Clock, Mail, MailOpen,
-  Reply, Copy, Pencil, ArrowLeft, ChevronUp,
+  Reply, Copy, Pencil, ArrowLeft, ChevronUp, SlidersHorizontal,
   Loader2,
 } from "lucide-react";
 import {
@@ -966,6 +966,7 @@ export default function Atendimento() {
   const [perfilSheet, setPerfilSheet] = useState(false);
   const [listaSheet, setListaSheet] = useState(false);
   const [maisAbasAberto, setMaisAbasAberto] = useState(false);
+  const [filtrosMobileAberto, setFiltrosMobileAberto] = useState(false);
   const entradaChatMobileRef = useRef(false);
 
   const abrirCatalogo = useCallback(() => setCatalogoAberto(true), []);
@@ -2096,6 +2097,24 @@ export default function Atendimento() {
   // "Não enviadas": última mensagem nossa falhou na entrega
   const totalFalhas = conversas.filter((c) => daAba(c) && grupoDe(c) === grupoAba && !!c.falha_envio).length;
 
+  const totalFiltrosAtivos =
+    Number(aba !== "whatsapp") +
+    Number(grupoAba !== "conversa") +
+    Number(filtroLeitura !== "todas") +
+    Number(filtroFila !== null) +
+    Number(tagsFiltro.length > 0) +
+    Number(modoHistorico);
+
+  const limparFiltrosMobile = () => {
+    setAba("whatsapp");
+    setGrupoAba("conversa");
+    setFiltroLeitura("todas");
+    setFiltroFila(null);
+    setTagsFiltro([]);
+    setModoHistorico(false);
+    setSoKora(false);
+  };
+
 
   const telefoneIdentificado = conversaAtual
     ? (ehSite(conversaAtual) ? conversaAtual.telefone_real : conversaAtual.telefone) || null
@@ -2149,7 +2168,7 @@ export default function Atendimento() {
 
   return (
     <div className="flex h-full w-full min-w-0 flex-col overflow-x-hidden overflow-y-hidden md:-m-6 md:h-[calc(100dvh-3.5rem)] md:w-[calc(100%+3rem)] md:max-w-[calc(100%+3rem)]">
-      {(!isMobile || !selecionada || abaPagina !== "conversas") && <AvisosFila />}
+      {!isMobile && <AvisosFila />}
       <Tabs
         value={abaPagina}
         onValueChange={(v) => setAbaPagina(v as typeof abaPagina)}
@@ -2214,6 +2233,74 @@ export default function Atendimento() {
                 </Button>
               ))}
             </div>
+          </SheetContent>
+        </Sheet>
+
+        <Sheet open={filtrosMobileAberto} onOpenChange={setFiltrosMobileAberto}>
+          <SheetContent side="bottom" className="flex max-h-[85dvh] flex-col rounded-t-lg px-4 pb-[calc(1rem+env(safe-area-inset-bottom))] pt-5">
+            <SheetTitle className="mb-3">Filtros</SheetTitle>
+            <div className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain pb-3">
+              <section className="space-y-2">
+                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Canal</p>
+                <div className="grid grid-cols-2 gap-1 rounded-md bg-muted p-1">
+                  {([{"v":"whatsapp","label":"WhatsApp"},{"v":"site","label":"Chat do Site"}] as const).map((item) => (
+                    <Button key={item.v} type="button" variant={aba === item.v ? "secondary" : "ghost"} className="h-11 min-w-0 px-2" onClick={() => setAba(item.v)}>
+                      <span className="truncate">{item.label}</span>
+                    </Button>
+                  ))}
+                </div>
+              </section>
+              {!modoHistorico && (
+                <section className="space-y-2">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Tipo</p>
+                  <div className="grid grid-cols-3 gap-1 rounded-md bg-muted p-1">
+                    {([{"v":"conversa","label":"Conversas","n":contagemGrupos.conversa},{"v":"clique","label":"Cliques","n":contagemGrupos.clique},{"v":"so_envio","label":"Só envios","n":contagemGrupos.so_envio}] as const).map((item) => (
+                      <Button key={item.v} type="button" variant={grupoAba === item.v ? "secondary" : "ghost"} className="h-11 min-w-0 px-1.5" onClick={() => setGrupoAba(item.v)}>
+                        <span className="min-w-0 truncate">{item.label}</span><span className="shrink-0 text-xs opacity-70">{item.n}</span>
+                      </Button>
+                    ))}
+                  </div>
+                </section>
+              )}
+              <section className="space-y-1">
+                <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Mais filtros</p>
+                <Button type="button" variant={filtroFila === "falhas" ? "secondary" : "ghost"} className="h-11 w-full min-w-0 justify-between px-3" onClick={() => { setFiltroFila(filtroFila === "falhas" ? null : "falhas"); setFiltroLeitura("todas"); }}>
+                  <span className="truncate">Não enviadas</span><span className="shrink-0 text-xs text-muted-foreground">{totalFalhas}</span>
+                </Button>
+                <Button type="button" variant={filtroFila === "atencao" ? "secondary" : "ghost"} className="h-11 w-full min-w-0 justify-between px-3" onClick={() => { setFiltroFila(filtroFila === "atencao" ? null : "atencao"); setFiltroLeitura("todas"); }}>
+                  <span className="truncate">Precisam de atenção</span><span className="shrink-0 text-xs text-muted-foreground">{totalAtencao}</span>
+                </Button>
+                <Button type="button" variant={filtroFila === "automacao" ? "secondary" : "ghost"} className="h-11 w-full min-w-0 justify-between px-3" onClick={() => { setFiltroFila(filtroFila === "automacao" ? null : "automacao"); setFiltroLeitura("todas"); }}>
+                  <span className="truncate">Automações</span><span className="shrink-0 text-xs text-muted-foreground">{totalAutomacoes}</span>
+                </Button>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button type="button" variant={tagsFiltro.length ? "secondary" : "ghost"} className="h-11 w-full min-w-0 justify-between px-3" disabled={modoHistorico}>
+                      <span className="truncate">Tags</span><span className="shrink-0 text-xs text-muted-foreground">{tagsFiltro.length}</span>
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-[calc(100vw-2rem)] max-w-sm space-y-2 p-3" align="center">
+                    {todasTags.length === 0 && <p className="text-xs text-muted-foreground">Nenhuma tag cadastrada.</p>}
+                    <div className="max-h-52 space-y-2 overflow-auto">
+                      {todasTags.map((tag) => (
+                        <label key={String(tag.id)} className="flex min-w-0 cursor-pointer items-center gap-2">
+                          <Checkbox checked={tagsFiltro.includes(String(tag.id))} onCheckedChange={(valor) => setTagsFiltro((atuais) => valor ? [...atuais, String(tag.id)] : atuais.filter((id) => id !== String(tag.id)))} />
+                          <span className="min-w-0 flex-1 truncate"><TagChip tag={tag} /></span>
+                          <span className="shrink-0 text-xs text-muted-foreground">{contagemTags[String(tag.id)] ?? 0}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </PopoverContent>
+                </Popover>
+                <Button type="button" variant={modoHistorico ? "secondary" : "ghost"} className="h-11 w-full min-w-0 justify-between px-3" onClick={() => setModoHistorico((atual) => !atual)}>
+                  <span className="truncate">Histórico</span><span className="shrink-0 text-xs text-muted-foreground">{conversasHistorico.length}</span>
+                </Button>
+                <Button type="button" variant={filtroLeitura === "lidas" ? "secondary" : "ghost"} className="h-11 w-full min-w-0 justify-between px-3" disabled={modoHistorico} onClick={() => { setFiltroLeitura(filtroLeitura === "lidas" ? "todas" : "lidas"); setFiltroFila(null); }}>
+                  <span className="truncate">Lidas</span><span className="shrink-0 text-xs text-muted-foreground">{Math.max(0, conversas.length - totalNaoLidas)}</span>
+                </Button>
+              </section>
+            </div>
+            <Button type="button" variant="outline" className="h-11 w-full shrink-0" onClick={limparFiltrosMobile} disabled={totalFiltrosAtivos === 0}>Limpar filtros</Button>
           </SheetContent>
         </Sheet>
 
@@ -2347,10 +2434,10 @@ export default function Atendimento() {
             "fixed inset-y-0 left-0 z-40 flex h-full min-h-0 w-[85vw] max-w-[360px] min-w-0 flex-col overflow-hidden border-r border-border bg-card transition-transform",
             "md:static md:z-auto md:w-[320px] md:max-w-none md:shrink-0 md:translate-x-0 lg:w-[340px]",
             colunasAjustaveis && "lg:w-full",
-            isMobile ? (selecionada ? "hidden" : "static z-auto w-full max-w-none translate-x-0 border-r-0") : (listaSheet ? "translate-x-0" : "-translate-x-full"),
+            isMobile ? (selecionada ? "hidden" : "relative static z-auto w-full max-w-none translate-x-0 border-r-0") : (listaSheet ? "translate-x-0" : "-translate-x-full"),
           )}
         >
-          <div className="flex shrink-0 flex-col gap-2 border-b border-border p-3">
+          <div className="hidden shrink-0 flex-col gap-2 border-b border-border p-3 md:flex">
             <Button size="sm" className={cn("w-full", isMobile && "order-4 min-h-11")} onClick={() => abrirNovaConversa(null)}>
               <Plus className="h-4 w-4 mr-2" />
               Nova conversa
@@ -2537,6 +2624,33 @@ export default function Atendimento() {
               )}
             </div>
           </div>
+          {isMobile && (
+            <div className="flex shrink-0 flex-col gap-2 border-b border-border p-2">
+              <div className="flex min-w-0 gap-2">
+                <div className="relative min-w-0 flex-1">
+                  <Search className="absolute left-2.5 top-3.5 h-4 w-4 text-muted-foreground" />
+                  <Input ref={buscaRef} value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Buscar nome ou telefone" className="h-11 min-w-0 pl-8" />
+                </div>
+                <Button type="button" size="icon" variant="outline" className="relative h-11 w-11 shrink-0" onClick={() => setFiltrosMobileAberto(true)} aria-label="Abrir filtros">
+                  <SlidersHorizontal className="h-4 w-4" />
+                  {totalFiltrosAtivos > 0 && <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-bold text-primary-foreground">{totalFiltrosAtivos}</span>}
+                </Button>
+              </div>
+              <div className="grid grid-cols-3 gap-1 rounded-md bg-muted p-1">
+                {([{"v":"todas","label":"Todas"},{"v":"nao_lidas","label":"Não lidas"},{"v":"em_atendimento","label":"Em atendimento"}] as const).map((item) => {
+                  const ativo = item.v === "em_atendimento" ? filtroFila === "em_atendimento" : filtroLeitura === item.v && filtroFila !== "em_atendimento";
+                  return (
+                    <Button key={item.v} type="button" variant={ativo ? "secondary" : "ghost"} className="h-11 min-w-0 px-1.5 text-xs" onClick={() => {
+                      if (item.v === "em_atendimento") { setFiltroFila(filtroFila === "em_atendimento" ? null : "em_atendimento"); setFiltroLeitura("todas"); return; }
+                      setFiltroLeitura(item.v); setFiltroFila(null);
+                    }}>
+                      <span className="truncate">{item.label}</span>
+                    </Button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
           <ScrollArea className="min-h-0 flex-1 overscroll-contain">
             {(modoHistorico ? carregandoHistorico : carregandoConversas) && (
               <p className="p-4 text-sm text-muted-foreground">Carregando conversas…</p>
@@ -2662,6 +2776,11 @@ export default function Atendimento() {
               </>
             )}
           </ScrollArea>
+          {isMobile && (
+            <Button type="button" size="icon" className="fixed bottom-[calc(1rem+env(safe-area-inset-bottom))] right-4 z-20 h-14 w-14 rounded-full shadow-lg" onClick={() => abrirNovaConversa(null)} aria-label="Nova conversa">
+              <Plus className="h-6 w-6" />
+            </Button>
+          )}
         </aside>
         </Coluna>
         {colunasAjustaveis && (
@@ -3179,6 +3298,7 @@ export default function Atendimento() {
                     <Button variant="outline" className="h-11 justify-start" onClick={() => { setPerfilSheet(false); setLinkPagamentoAberto(true); }}><Link2 className="mr-2 h-4 w-4" /> Pagamento</Button>
                   </section>
                 )}
+                {isMobile && <AvisosFila />}
                 <Card>
                   <PerfilCliente conversaId={conversaAtual.id} autor={autor} telefone={conversaAtual.telefone} />
                   {telefoneIdentificado && <ProvadorBloco telefone={telefoneIdentificado} onUsarTexto={usarTextoPronto} />}
