@@ -1,3 +1,6 @@
 - [x] Mapear estrutura atual e componentes reutilizáveis do Atendimento
 - [x] Implementar apresentação móvel sem alterar lógica ou desktop
 - [x] Validar typecheck e preservar os caminhos compartilhados do desktop
+- [ ] Separar o painel geral das métricas WhatsApp em /automacoes
+- [ ] Remover métricas de e-mail das abas detalhadas
+- [ ] Filtrar a gestão para fluxos com passos de WhatsApp e validar
