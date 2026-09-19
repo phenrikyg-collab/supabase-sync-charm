@@ -47,7 +47,18 @@ export function useAvisosFila() {
   const [situacao, setSituacao] = useState<SituacaoAvisosFila | null>(null);
   const [carregando, setCarregando] = useState(false);
   const [alterando, setAlterando] = useState(false);
-  const suportado = typeof window !== "undefined" && "serviceWorker" in navigator && "PushManager" in window;
+  const host = typeof window === "undefined" ? "" : window.location.hostname;
+  const contextoDePreview = !import.meta.env.PROD
+    || window.self !== window.top
+    || host.startsWith("id-preview--")
+    || host.startsWith("preview--")
+    || host.endsWith(".lovableproject.com")
+    || host.endsWith(".lovableproject-dev.com")
+    || host.endsWith(".beta.lovable.dev");
+  const suportado = typeof window !== "undefined"
+    && !contextoDePreview
+    && "serviceWorker" in navigator
+    && "PushManager" in window;
 
   const recarregar = useCallback(async () => {
     if (!session || !suportado) return;
