@@ -53,6 +53,7 @@ function juntarFluxos(tipo: TipoLista, fluxos: FluxoLista[], itens: ItemCrm[]) {
     return usaWhatsapp && tipoCorreto;
   });
   const metricas = new Map(itens.map((item) => [item.origem_id, item]));
+  const idsFluxosWhatsapp = new Set(doTipo.map((fluxo) => `fluxo:${fluxo.id}`));
   const idsUsados = new Set<string>();
   const unidos = doTipo.map((fluxo): ItemCrm => {
     const origemId = `fluxo:${fluxo.id}`;
@@ -89,7 +90,7 @@ function juntarFluxos(tipo: TipoLista, fluxos: FluxoLista[], itens: ItemCrm[]) {
       fluxo_id: fluxo.id,
     };
   });
-  return [...unidos, ...itens.filter((item) => !idsUsados.has(item.origem_id))];
+  return [...unidos, ...itens.filter((item) => !idsUsados.has(item.origem_id) && idsFluxosWhatsapp.has(item.origem_id))];
 }
 
 function BadgeStatus({ status }: { status: string }) {

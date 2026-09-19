@@ -3,4 +3,4 @@
 - [x] Validar typecheck e preservar os caminhos compartilhados do desktop
 - [x] Separar o painel geral das métricas WhatsApp em /automacoes
 - [x] Remover métricas de e-mail das abas detalhadas
-- [ ] Filtrar a gestão para fluxos com passos de WhatsApp e validar
+- [x] Filtrar a gestão para fluxos com passos de WhatsApp e validar
