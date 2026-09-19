@@ -308,7 +308,7 @@ export async function subirArquivo(file: File, ext: string): Promise<{ url: stri
   const path = `${crypto.randomUUID()}.${ext}`;
   const { error } = await supabase.storage
     .from(BUCKET_VIDEOS)
-    .upload(path, file, { contentType: file.type || undefined, upsert: false });
+    .upload(path, file, { contentType: file.type || undefined, cacheControl: "31536000", upsert: true });
   if (error) throw error;
   const url = supabase.storage.from(BUCKET_VIDEOS).getPublicUrl(path).data.publicUrl;
   return { url, path };

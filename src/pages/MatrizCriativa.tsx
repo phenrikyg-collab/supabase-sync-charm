@@ -2038,7 +2038,8 @@ function AbaModelos() {
     const path = `${Date.now()}_${safe}`;
     const { error } = await supabase.storage.from("modelos-marca").upload(path, file, {
       contentType: file.type,
-      upsert: false,
+      cacheControl: "31536000",
+      upsert: true,
     });
     if (error) throw error;
     const { data } = supabase.storage.from("modelos-marca").getPublicUrl(path);
@@ -2504,6 +2505,8 @@ function AbaGerarImagens() {
 // ─────────────────────────────────────────────────────────────
 const HOSPEDAGEM_BUCKET = "mc-imagens";
 
+const ehVideo = (nome: string) => /\.(mp4|mov|webm|m4v)$/i.test(nome);
+
 function AbaHospedagem() {
   const { toast } = useToast();
   const [uploads, setUploads] = useState<{ name: string; url: string; created_at?: string; size?: number }[]>([]);
@@ -2552,11 +2555,11 @@ function AbaHospedagem() {
     setUploading(true);
     try {
       for (const file of Array.from(files)) {
-        const ext = file.name.split(".").pop() || "jpg";
+        const ext = (file.name.split(".").pop() || "jpg").toLowerCase();
         const safe = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
         const path = `${Date.now()}_${Math.random().toString(36).slice(2, 8)}_${safe}`;
         const { error } = await sb.storage.from(HOSPEDAGEM_BUCKET).upload(path, file, {
-          contentType: file.type || `image/${ext}`,
+          contentType: file.type || (ext === "mp4" ? "video/mp4" : `image/${ext}`),
           cacheControl: "31536000",
           upsert: true,
         });
@@ -2596,19 +2599,19 @@ function AbaHospedagem() {
             className="inline-flex items-center gap-2 cursor-pointer bg-primary text-primary-foreground hover:opacity-90 px-4 py-2 rounded-md text-sm font-medium"
           >
             {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
-            {uploading ? "Enviando..." : "Enviar imagens"}
+            {uploading ? "Enviando..." : "Enviar imagens ou vídeos"}
           </Label>
           <input
             id="hospedagem-upload"
             type="file"
-            accept="image/*"
+            accept="image/*,video/mp4,.mp4"
             multiple
             className="hidden"
             disabled={uploading}
             onChange={(e) => { handleUpload(e.target.files); e.target.value = ""; }}
           />
           <p className="text-xs text-muted-foreground">
-            Hospede imagens de referência, fotos brutas ou imagens prontas para anúncios. URLs assinadas válidas por 7 dias.
+            Hospede imagens de referência, fotos brutas, vídeos MP4 ou peças prontas para anúncios. URLs assinadas válidas por 7 dias.
           </p>
         </CardContent>
       </Card>
@@ -2632,8 +2635,23 @@ function AbaHospedagem() {
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
               {uploads.map((img) => (
                 <Card key={img.name} className="overflow-hidden">
-                  <div className="aspect-square bg-muted overflow-hidden">
-                    <img src={img.url} alt={img.name} className="w-full h-full object-cover" loading="lazy" />
+                  <div className="aspect-square bg-muted overflow-hidden relative">
+                    {ehVideo(img.name) ? (
+                      <>
+                        <video
+                          src={`${img.url}#t=0.1`}
+                          preload="metadata"
+                          muted
+                          playsInline
+                          className="w-full h-full object-cover"
+                        />
+                        <span className="absolute bottom-1 right-1 rounded bg-black/70 px-1.5 py-0.5 text-[10px] font-medium text-white">
+                          MP4
+                        </span>
+                      </>
+                    ) : (
+                      <img src={img.url} alt={img.name} className="w-full h-full object-cover" loading="lazy" />
+                    )}
                   </div>
                   <CardContent className="p-3 space-y-2">
                     <p className="text-[11px] text-muted-foreground truncate" title={img.name}>{img.name}</p>

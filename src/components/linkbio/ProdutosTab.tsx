@@ -51,7 +51,7 @@ async function uploadImagem(file: File, pasta: string) {
   const path = `${pasta}${crypto.randomUUID()}.${ext}`;
   const { error } = await supabase.storage
     .from("linkbio")
-    .upload(path, file, { cacheControl: "31536000", upsert: false });
+    .upload(path, file, { cacheControl: "31536000", upsert: true });
   if (error) throw error;
   return supabase.storage.from("linkbio").getPublicUrl(path).data.publicUrl;
 }

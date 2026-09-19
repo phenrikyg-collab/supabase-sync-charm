@@ -508,7 +508,8 @@ export async function vipProvaUpload(file: File) {
   const path = `${new Date().getFullYear()}/${crypto.randomUUID()}.${ext}`;
   const { error } = await supabase.storage.from(VIP_PROVAS_BUCKET).upload(path, file, {
     contentType: file.type || "image/jpeg",
-    upsert: false,
+    cacheControl: "31536000",
+    upsert: true,
   });
   if (error) throw new Error(error.message);
   return path;

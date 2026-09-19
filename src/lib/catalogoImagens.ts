@@ -78,7 +78,7 @@ export async function enviarFoto(catalogoId: string, cor: string | null, arquivo
   const caminho = `${catalogoId}/${cor || "produto"}/${Date.now()}-${normalizarNome(arquivo.name)}`;
   const { error } = await supabase.storage
     .from(BUCKET_CATALOGO)
-    .upload(caminho, comprimido, { contentType: "image/jpeg", upsert: false });
+    .upload(caminho, comprimido, { contentType: "image/jpeg", cacheControl: "31536000", upsert: true });
   if (error) throw new Error(error.message);
   const { data } = supabase.storage.from(BUCKET_CATALOGO).getPublicUrl(caminho);
   return { url: data.publicUrl, caminho };

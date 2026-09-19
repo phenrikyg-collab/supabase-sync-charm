@@ -344,8 +344,8 @@ export async function enviarImagem(arquivo: File, popupId: number | string) {
   }
   const caminho = `popups/${popupId}/${Date.now()}-${arquivo.name.replace(/[^\w.\-]/g, "_")}`;
   const { error } = await supabase.storage.from("popups").upload(caminho, arquivo, {
-    cacheControl: "3600",
-    upsert: false,
+    cacheControl: "31536000",
+    upsert: true,
     contentType: arquivo.type,
   });
   if (error) throw new Error(error.message);
