@@ -41,20 +41,37 @@ export default function Automacoes() {
   const escolherDias = (valor: number) => atualizarParams({ dias: String(valor), de: null, ate: null });
   const escolherPersonalizado = () => atualizarParams({ dias: null, de, ate });
 
-  const painel = useQuery({ queryKey: ["crm-painel", temPersonalizado ? "personalizado" : dias, de, ate], queryFn: () => rpcFluxos<PainelCrm>("crm_painel", { p_dias: temPersonalizado ? null : dias, p_de: temPersonalizado ? de : null, p_ate: temPersonalizado ? ate : null }) });
+  const parametrosPeriodo = { p_dias: temPersonalizado ? null : dias, p_de: temPersonalizado ? de : null, p_ate: temPersonalizado ? ate : null };
+  const painelGeral = useQuery({
+    queryKey: ["crm-painel", "geral", temPersonalizado ? "personalizado" : dias, de, ate],
+    enabled: aba === "dashboard",
+    queryFn: () => rpcFluxos<PainelCrm>("crm_painel", parametrosPeriodo),
+  });
+  const painelWhatsapp = useQuery({
+    queryKey: ["crm-painel", "fluxos-whatsapp", temPersonalizado ? "personalizado" : dias, de, ate],
+    enabled: aba !== "dashboard",
+    queryFn: async () => {
+      const resposta = await rpcFluxos<PainelCrm>("crm_painel", { ...parametrosPeriodo, p_apenas_fluxos: true, p_canal: "whatsapp" });
+      if (resposta?.periodo?.apenas_fluxos !== true || String(resposta?.periodo?.canal ?? "").toLowerCase() !== "whatsapp") {
+        throw new Error("O painel não confirmou o filtro de fluxos do WhatsApp.");
+      }
+      return resposta;
+    },
+  });
   const fluxos = useQuery({ queryKey: ["fluxos-listar"], queryFn: async () => (await rpcFluxos<FluxoLista[]>("fluxos_listar", { p_dias: temPersonalizado ? 30 : dias })) ?? [] });
   const recarregarTudo = () => { queryClient.invalidateQueries({ queryKey: ["crm-painel"] }); queryClient.invalidateQueries({ queryKey: ["crm-custos"] }); };
-  const dados = painel.data ?? {};
-  const metricasAtuais = aba === "campanhas" ? dados.campanhas : dados.automacoes;
+  const consultaAtiva = aba === "dashboard" ? painelGeral : painelWhatsapp;
+  const dadosGerais = painelGeral.data ?? {};
+  const dadosWhatsapp = painelWhatsapp.data ?? {};
 
   return <div className="mx-auto max-w-[1600px] space-y-6 p-4 sm:p-6">
-    <div className="flex flex-wrap items-end justify-between gap-4"><div><h1 className="font-serif text-4xl text-foreground">CRM</h1><p className="mt-1 text-sm text-muted-foreground">Receita, custos e desempenho de campanhas e automações.</p></div><Button variant="outline" onClick={() => setCustosAberto(true)}><Settings className="mr-2 h-4 w-4" />Custos e atribuição</Button></div>
+    <div className="flex flex-wrap items-end justify-between gap-4"><div><h1 className="font-serif text-4xl text-foreground">CRM</h1><p className="mt-1 text-sm text-muted-foreground">Visão geral do CRM e desempenho dos fluxos de WhatsApp.</p></div><Button variant="outline" onClick={() => setCustosAberto(true)}><Settings className="mr-2 h-4 w-4" />Custos e atribuição</Button></div>
     <div className="flex flex-wrap items-center gap-2 border-b pb-4"><span className="mr-1 text-sm font-medium">Período:</span>{[7, 30, 90].map((valor) => <Button key={valor} size="sm" variant={!temPersonalizado && dias === valor ? "default" : "outline"} onClick={() => escolherDias(valor)}>{valor} dias</Button>)}<Button size="sm" variant={temPersonalizado ? "default" : "outline"} onClick={escolherPersonalizado}>Personalizado</Button>{temPersonalizado && <div className="flex flex-wrap items-center gap-2"><Input aria-label="Data inicial" type="date" className="h-9 w-40" value={de} onChange={(e) => atualizarParams({ de: e.target.value })} /><span className="text-sm text-muted-foreground">até</span><Input aria-label="Data final" type="date" className="h-9 w-40" value={ate} onChange={(e) => atualizarParams({ ate: e.target.value })} /></div>}</div>
 
     <Tabs value={aba} onValueChange={(v) => mudarAba(v as AbaCrm)}><TabsList className="grid w-full grid-cols-3 sm:w-[480px]"><TabsTrigger value="dashboard">Dashboard</TabsTrigger><TabsTrigger value="campanhas">Campanhas</TabsTrigger><TabsTrigger value="automacoes">Automações</TabsTrigger></TabsList>
-      {painel.isLoading ? <div className="mt-6"><CarregandoPainel /></div> : painel.isError ? <Card className="mt-6 p-10 text-center"><p className="text-sm text-danger">Não foi possível carregar o painel.</p><p className="mt-1 text-xs text-muted-foreground">{painel.error instanceof Error ? painel.error.message : "Tente novamente."}</p><Button className="mt-4" variant="outline" onClick={() => painel.refetch()}><RefreshCw className="mr-2 h-4 w-4" />Tentar de novo</Button></Card> : <>
-        <TabsContent value="dashboard" className="mt-6"><CrmDashboard dados={dados} onAba={mudarAba} /></TabsContent>
-        {(["campanhas", "automacoes"] as const).map((tipo) => <TabsContent key={tipo} value={tipo} className="mt-6"><CrmListaDesempenho tipo={tipo} dados={tipo === aba ? metricasAtuais : tipo === "campanhas" ? dados.campanhas : dados.automacoes} fluxos={fluxos.data ?? []} carregandoFluxos={fluxos.isLoading} onNovo={() => setNovoAberto(true)} /></TabsContent>)}
+      {consultaAtiva.isLoading ? <div className="mt-6"><CarregandoPainel /></div> : consultaAtiva.isError ? <Card className="mt-6 p-10 text-center"><p className="text-sm text-danger">Não foi possível carregar o painel.</p><p className="mt-1 text-xs text-muted-foreground">{consultaAtiva.error instanceof Error ? consultaAtiva.error.message : "Tente novamente."}</p><Button className="mt-4" variant="outline" onClick={() => consultaAtiva.refetch()}><RefreshCw className="mr-2 h-4 w-4" />Tentar de novo</Button></Card> : <>
+        <TabsContent value="dashboard" className="mt-6"><CrmDashboard dados={dadosGerais} onAba={mudarAba} /></TabsContent>
+        {(["campanhas", "automacoes"] as const).map((tipo) => <TabsContent key={tipo} value={tipo} className="mt-6"><CrmListaDesempenho tipo={tipo} dados={tipo === "campanhas" ? dadosWhatsapp.campanhas : dadosWhatsapp.automacoes} fluxos={fluxos.data ?? []} carregandoFluxos={fluxos.isLoading} onNovo={() => setNovoAberto(true)} /></TabsContent>)}
       </>}
     </Tabs>
     <NovoFluxoDialog open={novoAberto} onOpenChange={setNovoAberto} gatilhoInicial={aba === "campanhas" ? "manual" : undefined} />

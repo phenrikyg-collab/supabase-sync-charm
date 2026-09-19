@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Copy, Eye, HandCoins, Info, Mail, MessageSquare, MoreHorizontal, MousePointerClick, PackageCheck, Pause, Play, Plus, Search, Send, ShoppingBag, Trash2, UserRound, WalletCards } from "lucide-react";
+import { Copy, Eye, HandCoins, Info, MessageSquare, MoreHorizontal, MousePointerClick, PackageCheck, Pause, Play, Plus, Search, Send, ShoppingBag, Trash2, UserRound, WalletCards } from "lucide-react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -20,7 +20,7 @@ import { CrmKpiCard, classeRoas } from "./CrmKpiCard";
 import { brlCrm, dataHoraCrm, numeroCrm, percentualCrm, roasCrm, type ItemCrm, type MetricasCrm } from "./crmTipos";
 import { ROTULO_STATUS_FLUXO } from "./tipos";
 
-type Campo = "nome" | "periodo" | "pessoas" | "enviados" | "taxa_entrega" | "taxa_leitura" | "taxa_abertura" | "taxa_clique" | "taxa_interacao" | "pedidos" | "receita" | "custo" | "custo_mensagens" | "custo_ia" | "roas" | "conversao" | "custo_por_pedido" | "receita_por_mil";
+type Campo = "nome" | "periodo" | "pessoas" | "enviados" | "taxa_entrega" | "taxa_leitura" | "taxa_interacao" | "pedidos" | "receita" | "custo" | "custo_mensagens" | "custo_ia" | "roas" | "conversao" | "custo_por_pedido" | "receita_por_mil";
 type TipoLista = "campanhas" | "automacoes";
 
 const FILTROS: [string, string][] = [["todos", "Todos"], ["ativo", "No ar"], ["pausado", "Pausados"], ["rascunho", "Rascunhos"], ["arquivado", "Arquivados"]];
@@ -32,8 +32,6 @@ const acessores: Record<Campo, (item: ItemCrm) => number | string | null | undef
   enviados: (i) => i.enviados,
   taxa_entrega: (i) => i.taxa_entrega,
   taxa_leitura: (i) => i.taxa_leitura,
-  taxa_abertura: (i) => i.taxa_abertura,
-  taxa_clique: (i) => i.taxa_clique,
   taxa_interacao: (i) => i.taxa_interacao,
   pedidos: (i) => i.pedidos,
   receita: (i) => i.receita,
@@ -49,8 +47,13 @@ const acessores: Record<Campo, (item: ItemCrm) => number | string | null | undef
 function normalizar(valor: string) { return valor.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase(); }
 
 function juntarFluxos(tipo: TipoLista, fluxos: FluxoLista[], itens: ItemCrm[]) {
-  const doTipo = fluxos.filter((fluxo) => tipo === "campanhas" ? CAMPANHA_GATILHOS.includes(String(fluxo.gatilho_tipo)) : !CAMPANHA_GATILHOS.includes(String(fluxo.gatilho_tipo)));
+  const doTipo = fluxos.filter((fluxo) => {
+    const usaWhatsapp = (fluxo.canais ?? []).some((canal) => canal.toLowerCase().includes("whatsapp"));
+    const tipoCorreto = tipo === "campanhas" ? CAMPANHA_GATILHOS.includes(String(fluxo.gatilho_tipo)) : !CAMPANHA_GATILHOS.includes(String(fluxo.gatilho_tipo));
+    return usaWhatsapp && tipoCorreto;
+  });
   const metricas = new Map(itens.map((item) => [item.origem_id, item]));
+  const idsFluxosWhatsapp = new Set(doTipo.map((fluxo) => `fluxo:${fluxo.id}`));
   const idsUsados = new Set<string>();
   const unidos = doTipo.map((fluxo): ItemCrm => {
     const origemId = `fluxo:${fluxo.id}`;
@@ -87,7 +90,7 @@ function juntarFluxos(tipo: TipoLista, fluxos: FluxoLista[], itens: ItemCrm[]) {
       fluxo_id: fluxo.id,
     };
   });
-  return [...unidos, ...itens.filter((item) => !idsUsados.has(item.origem_id))];
+  return [...unidos, ...itens.filter((item) => !idsUsados.has(item.origem_id) && idsFluxosWhatsapp.has(item.origem_id))];
 }
 
 function BadgeStatus({ status }: { status: string }) {
@@ -97,8 +100,8 @@ function BadgeStatus({ status }: { status: string }) {
 
 function DetalheItem({ item }: { item: ItemCrm }) {
   const kpis = [
-    ["Pessoas", numeroCrm(item.pessoas)], ["Enviados", numeroCrm(item.enviados)], ["WhatsApp", numeroCrm(item.enviados_whatsapp)], ["E-mails", numeroCrm(item.enviados_email)],
-    ["Entregues", numeroCrm(item.entregues)], ["Lidos", numeroCrm(item.lidos)], ["Abertos", numeroCrm(item.abertos)], ["Cliques", numeroCrm(item.cliques)],
+    ["Pessoas", numeroCrm(item.pessoas)], ["Enviados", numeroCrm(item.enviados)], ["WhatsApp", numeroCrm(item.enviados_whatsapp)],
+    ["Entregues", numeroCrm(item.entregues)], ["Lidos", numeroCrm(item.lidos)],
     ["Botões", numeroCrm(item.botoes)], ["Respostas", numeroCrm(item.respostas)], ["Pedidos", numeroCrm(item.pedidos)], ["Receita", brlCrm(item.receita)],
     ["Custo", brlCrm(item.custo)], ["ROAS", roasCrm(item.roas, item.custo)], ["Conversão", percentualCrm(item.conversao)], ["Ticket médio", brlCrm(item.ticket_medio)],
     ["Custo por pedido", item.custo_por_pedido == null ? "–" : brlCrm(item.custo_por_pedido)], ["Receita por mil", item.receita_por_mil == null ? "–" : brlCrm(item.receita_por_mil)],
@@ -107,7 +110,7 @@ function DetalheItem({ item }: { item: ItemCrm }) {
     <p className="text-sm text-muted-foreground">{numeroCrm(item.pessoas)} pessoas · {numeroCrm(item.enviados)} mensagens enviadas</p>
     <p className="text-sm text-muted-foreground">Custo: {brlCrm(item.custo)} (mensagens {brlCrm(item.custo_mensagens)} em {numeroCrm(item.enviados)} envios · IA {brlCrm(item.custo_ia)} em {numeroCrm(item.chamadas_ia)} chamadas)</p>
     <div className="grid grid-cols-2 gap-3">{kpis.map(([rotulo, valor]) => <div key={rotulo} className="rounded-md border p-3"><p className="text-xs text-muted-foreground">{rotulo}</p><p className="mt-1 font-semibold">{valor}</p></div>)}</div>
-    <div><h3 className="mb-3 font-serif text-lg font-semibold">Taxas</h3><div className="grid grid-cols-2 gap-3">{[["Entrega", item.taxa_entrega], ["Leitura", item.taxa_leitura], ["Abertura", item.taxa_abertura], ["Clique", item.taxa_clique], ["Interação", item.taxa_interacao]].map(([rotulo, valor]) => <div key={String(rotulo)} className="flex justify-between border-b py-2 text-sm"><span>{rotulo}</span><strong>{percentualCrm(valor)}</strong></div>)}</div></div>
+    <div><h3 className="mb-3 font-serif text-lg font-semibold">Taxas</h3><div className="grid grid-cols-2 gap-3">{[["Entrega", item.taxa_entrega], ["Leitura", item.taxa_leitura], ["Interação", item.taxa_interacao]].map(([rotulo, valor]) => <div key={String(rotulo)} className="flex justify-between border-b py-2 text-sm"><span>{rotulo}</span><strong>{percentualCrm(valor)}</strong></div>)}</div></div>
     <div><h3 className="mb-3 font-serif text-lg font-semibold">Custo por categoria</h3><Table><TableHeader><TableRow><TableHead>Categoria</TableHead><TableHead className="text-right">Envios</TableHead><TableHead className="text-right">Custo</TableHead></TableRow></TableHeader><TableBody>{Object.entries(item.por_categoria ?? {}).map(([categoria, valores]) => <TableRow key={categoria}><TableCell>{categoria}</TableCell><TableCell className="text-right">{numeroCrm(valores?.envios)}</TableCell><TableCell className="text-right">{brlCrm(valores?.custo)}</TableCell></TableRow>)}</TableBody></Table></div>
     {item.fluxo_id != null && <Button asChild className="w-full"><Link to={`/automacoes/${item.fluxo_id}`}>Abrir fluxo</Link></Button>}
   </div>;
@@ -155,7 +158,6 @@ export function CrmListaDesempenho({ tipo, dados, fluxos, carregandoFluxos, onNo
           <SortableHead campo="nome" sort={sort} onSort={alternar}>Nome</SortableHead><SortableHead campo="periodo" sort={sort} onSort={alternar}>Período</SortableHead>
           <SortableHead campo="pessoas" sort={sort} onSort={alternar} className="text-right">Pessoas</SortableHead><SortableHead campo="enviados" sort={sort} onSort={alternar} className="text-right">Enviados</SortableHead>
           <SortableHead campo="taxa_entrega" sort={sort} onSort={alternar} className="text-right">Entrega %</SortableHead><SortableHead campo="taxa_leitura" sort={sort} onSort={alternar} className="text-right">Leitura %</SortableHead>
-          <SortableHead campo="taxa_abertura" sort={sort} onSort={alternar} className="text-right">Abertura %</SortableHead><SortableHead campo="taxa_clique" sort={sort} onSort={alternar} className="text-right">Clique %</SortableHead>
           <SortableHead campo="taxa_interacao" sort={sort} onSort={alternar} className="text-right">Interação %</SortableHead><SortableHead campo="pedidos" sort={sort} onSort={alternar} className="text-right">Pedidos</SortableHead>
           <SortableHead campo="receita" sort={sort} onSort={alternar} className="text-right">Receita</SortableHead><SortableHead campo="custo" sort={sort} onSort={alternar} className="text-right">Custo</SortableHead>
           {detalheCusto && <SortableHead campo="custo_mensagens" sort={sort} onSort={alternar} className="text-right">Custo msg</SortableHead>}{detalheCusto && <SortableHead campo="custo_ia" sort={sort} onSort={alternar} className="text-right">Custo IA</SortableHead>}
@@ -165,9 +167,9 @@ export function CrmListaDesempenho({ tipo, dados, fluxos, carregandoFluxos, onNo
         </TableRow></TableHeader><TableBody>{ordenados.map((item) => {
           const fluxo = fluxoPorId(item.fluxo_id);
           return <TableRow key={item.origem_id} className="cursor-pointer" onClick={() => setSelecionado(item)}>
-            <TableCell className="min-w-64"><p className="font-medium">{item.nome}</p>{item.descricao && <p className="mt-0.5 line-clamp-2 text-xs text-muted-foreground">{item.descricao}</p>}<div className="mt-1 flex flex-wrap gap-1">{(item.canais ?? []).map((canal) => <Badge key={canal} variant="outline" className="gap-1 text-[10px]">{canal.toLowerCase().includes("mail") ? <Mail className="h-3 w-3" /> : <MessageSquare className="h-3 w-3" />}{canal}</Badge>)}{item.status && <BadgeStatus status={item.status} />}</div></TableCell>
+            <TableCell className="min-w-64"><p className="font-medium">{item.nome}</p>{item.descricao && <p className="mt-0.5 line-clamp-2 text-xs text-muted-foreground">{item.descricao}</p>}<div className="mt-1 flex flex-wrap gap-1">{(item.canais ?? []).filter((canal) => canal.toLowerCase().includes("whatsapp")).map((canal) => <Badge key={canal} variant="outline" className="gap-1 text-[10px]"><MessageSquare className="h-3 w-3" />{canal}</Badge>)}{item.status && <BadgeStatus status={item.status} />}</div></TableCell>
             <TableCell className="whitespace-nowrap text-xs">{item.primeiro_envio ? <>{dataHoraCrm(item.primeiro_envio)}<br /><span className="text-muted-foreground">até {dataHoraCrm(item.ultimo_envio)}</span></> : <span className="text-muted-foreground">ainda não rodou</span>}</TableCell>
-            <TableCell className="text-right">{numeroCrm(item.pessoas)}</TableCell><TableCell className="text-right">{numeroCrm(item.enviados)}</TableCell><TableCell className="text-right">{percentualCrm(item.taxa_entrega)}</TableCell><TableCell className="text-right">{percentualCrm(item.taxa_leitura)}</TableCell><TableCell className="text-right">{percentualCrm(item.taxa_abertura)}</TableCell><TableCell className="text-right">{percentualCrm(item.taxa_clique)}</TableCell><TableCell className="text-right">{percentualCrm(item.taxa_interacao)}</TableCell><TableCell className="text-right">{numeroCrm(item.pedidos)}</TableCell><TableCell className="whitespace-nowrap text-right">{brlCrm(item.receita)}</TableCell><TableCell className="whitespace-nowrap text-right">{brlCrm(item.custo)}</TableCell>{detalheCusto && <TableCell className="whitespace-nowrap text-right">{brlCrm(item.custo_mensagens)}</TableCell>}{detalheCusto && <TableCell className="whitespace-nowrap text-right">{brlCrm(item.custo_ia)}</TableCell>}<TableCell className={cn("text-right font-medium", classeRoas(item.roas, item.custo))}>{roasCrm(item.roas, item.custo)}</TableCell><TableCell className="text-right">{percentualCrm(item.conversao)}</TableCell><TableCell className="whitespace-nowrap text-right">{item.custo_por_pedido == null ? "–" : brlCrm(item.custo_por_pedido)}</TableCell><TableCell className="whitespace-nowrap text-right">{item.receita_por_mil == null ? "–" : brlCrm(item.receita_por_mil)}</TableCell>
+            <TableCell className="text-right">{numeroCrm(item.pessoas)}</TableCell><TableCell className="text-right">{numeroCrm(item.enviados)}</TableCell><TableCell className="text-right">{percentualCrm(item.taxa_entrega)}</TableCell><TableCell className="text-right">{percentualCrm(item.taxa_leitura)}</TableCell><TableCell className="text-right">{percentualCrm(item.taxa_interacao)}</TableCell><TableCell className="text-right">{numeroCrm(item.pedidos)}</TableCell><TableCell className="whitespace-nowrap text-right">{brlCrm(item.receita)}</TableCell><TableCell className="whitespace-nowrap text-right">{brlCrm(item.custo)}</TableCell>{detalheCusto && <TableCell className="whitespace-nowrap text-right">{brlCrm(item.custo_mensagens)}</TableCell>}{detalheCusto && <TableCell className="whitespace-nowrap text-right">{brlCrm(item.custo_ia)}</TableCell>}<TableCell className={cn("text-right font-medium", classeRoas(item.roas, item.custo))}>{roasCrm(item.roas, item.custo)}</TableCell><TableCell className="text-right">{percentualCrm(item.conversao)}</TableCell><TableCell className="whitespace-nowrap text-right">{item.custo_por_pedido == null ? "–" : brlCrm(item.custo_por_pedido)}</TableCell><TableCell className="whitespace-nowrap text-right">{item.receita_por_mil == null ? "–" : brlCrm(item.receita_por_mil)}</TableCell>
             <TableCell className="sticky right-0 z-10 bg-card text-right" onClick={(evento) => evento.stopPropagation()}>{fluxo ? <DropdownMenu><DropdownMenuTrigger asChild><Button size="icon" variant="ghost" aria-label={`Ações de ${item.nome}`}><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger><DropdownMenuContent align="end"><DropdownMenuItem asChild><Link to={`/automacoes/${fluxo.id}`}>Abrir</Link></DropdownMenuItem>{fluxo.status === "ativo" ? <DropdownMenuItem onClick={() => mudarStatus.mutate({ id: fluxo.id, status: "pausado" })}><Pause className="mr-2 h-4 w-4" />Pausar</DropdownMenuItem> : <DropdownMenuItem onClick={() => mudarStatus.mutate({ id: fluxo.id, status: "ativo" })}><Play className="mr-2 h-4 w-4" />Ativar</DropdownMenuItem>}<DropdownMenuItem onClick={() => duplicar.mutate(fluxo.id)}><Copy className="mr-2 h-4 w-4" />Duplicar</DropdownMenuItem><DropdownMenuItem className="text-danger" onClick={() => setParaExcluir(fluxo)}><Trash2 className="mr-2 h-4 w-4" />Excluir</DropdownMenuItem></DropdownMenuContent></DropdownMenu> : <span className="text-muted-foreground">–</span>}</TableCell>
           </TableRow>;
         })}</TableBody></Table></div>}

@@ -15,7 +15,9 @@ function ResumoGrupo({ titulo, dados, abrir }: { titulo: string; dados?: Metrica
         <CardTitle className="text-xl">{titulo}</CardTitle>
         <Button variant="ghost" size="sm" onClick={abrir}>Ver todas <ArrowRight className="ml-1 h-4 w-4" /></Button>
       </CardHeader>
-      <CardContent className="grid grid-cols-2 gap-x-6 gap-y-4 sm:grid-cols-3">
+      <CardContent>
+        <p className="mb-4 text-xs text-muted-foreground">inclui e-mail; o detalhe do e-mail fica na área de E-mails</p>
+        <div className="grid grid-cols-2 gap-x-6 gap-y-4 sm:grid-cols-3">
         {[
           ["Receita", brlCrm(dados?.receita)],
           ["% faturamento", percentualCrm(dados?.pct_faturamento)],
@@ -31,6 +33,7 @@ function ResumoGrupo({ titulo, dados, abrir }: { titulo: string; dados?: Metrica
             {detalhe && <p className="mt-0.5 text-[11px] text-muted-foreground">{detalhe}</p>}
           </div>
         ))}
+        </div>
       </CardContent>
     </Card>
   );
