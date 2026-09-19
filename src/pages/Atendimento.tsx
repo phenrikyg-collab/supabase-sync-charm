@@ -446,18 +446,61 @@ type ItemConversaProps = {
   onAbrir: (c: Conversa) => void;
   onMenuChange: (id: string | null) => void;
   onMarcarLeitura: (id: string | number, naoLida: boolean) => void;
+  mobile?: boolean;
 };
 
 /** Uma linha da lista de conversas. Memoizada: só repinta quando os próprios dados mudam. */
 const ItemConversa = memo(function ItemConversa({
   c, ativa, modoHistorico, mostrarClique, atencao, faixa, menuAberto, longPressRef,
-  onAbrir, onMenuChange, onMarcarLeitura,
+  onAbrir, onMenuChange, onMarcarLeitura, mobile = false,
 }: ItemConversaProps) {
   const nome = nomeConversa(c);
   const site = ehSite(c);
   const prio = modoHistorico ? "" : (c.prioridade ?? "").toLowerCase();
   const naoLida = !modoHistorico && !!c.nao_lida;
   const urg = modoHistorico ? "normal" : urgenciaDeNivel(atencao?.nivel);
+  const aguardando = !modoHistorico && c.status === "escalado" && !!c.aguardando_desde;
+  const espera = aguardando
+    ? `esperando há ${formatDistanceToNow(new Date(c.aguardando_desde as string), { locale: ptBR })}`
+    : null;
+  if (mobile) {
+    const selos = [
+      urg === "quente" || urg === "atencao" ? (urg === "quente" ? "Urgente" : "Atenção") : null,
+      site ? "Site" : "WhatsApp",
+      modoHistorico ? "Finalizada" : (c.status || null),
+    ].filter(Boolean).slice(0, 2) as string[];
+    return (
+      <button
+        type="button"
+        onClick={() => onAbrir(c)}
+        className={cn(
+          "relative flex min-h-16 w-full items-center gap-3 border-b border-border/60 border-l-[3px] px-4 py-3 text-left active:bg-accent",
+          faixa,
+          ativa && "bg-accent",
+          naoLida && !ativa && "bg-primary/5",
+        )}
+      >
+        <div className="min-w-0 flex-1">
+          <div className="flex min-w-0 items-center gap-1.5">
+            <p className={cn("truncate text-sm", naoLida || aguardando ? "font-bold" : "font-semibold")}>{nome}</p>
+            {selos.map((selo) => (
+              <span key={selo} className="shrink-0 rounded-full border border-border bg-muted px-1.5 py-0.5 text-[9px] font-medium text-muted-foreground">
+                {selo}
+              </span>
+            ))}
+          </div>
+          <p className={cn("mt-1 truncate text-xs", c.falha_envio ? "font-medium text-danger" : "text-muted-foreground") }>
+            {c.falha_envio ? `Não enviada: ${c.falha_envio_motivo ?? "falha no envio"}` : c.ultima_mensagem ?? identificadorConversa(c)}
+          </p>
+          {espera && <p className="mt-1 text-[11px] font-semibold text-warning">{espera}</p>}
+        </div>
+        <div className="flex min-w-10 shrink-0 flex-col items-end gap-1.5">
+          <span className="text-[11px] text-muted-foreground">{horaCurta(c.ultima_mensagem_em ?? c.atualizado_em)}</span>
+          {naoLida && <span className="min-w-5 rounded-full bg-primary px-1.5 py-0.5 text-center text-[10px] font-bold text-primary-foreground">1</span>}
+        </div>
+      </button>
+    );
+  }
   return (
                   <button
                   onClick={() => {
@@ -828,6 +871,7 @@ export default function Atendimento() {
   const queryClient = useQueryClient();
   const { user } = useAuth();
   const [parametros, setParametros] = useSearchParams();
+  const isMobile = useIsMobile();
   const [selecionada, setSelecionada] = useState<string | null>(() => parametros.get("conversa"));
   const conversaDoAvisoRef = useRef(parametros.get("conversa"));
   const [busca, setBusca] = useState("");
@@ -921,6 +965,8 @@ export default function Atendimento() {
   const [perfilAberto, setPerfilAberto] = useState(true);
   const [perfilSheet, setPerfilSheet] = useState(false);
   const [listaSheet, setListaSheet] = useState(false);
+  const [maisAbasAberto, setMaisAbasAberto] = useState(false);
+  const entradaChatMobileRef = useRef(false);
 
   const abrirCatalogo = useCallback(() => setCatalogoAberto(true), []);
   const abrirTemplate = useCallback(() => setTemplateAberto(true), []);
@@ -1316,6 +1362,10 @@ export default function Atendimento() {
   });
 
   const abrirConversa = useCallback(async (c: Conversa) => {
+    if (isMobile && !selecionada) {
+      window.history.pushState({ atendimentoChat: true }, "", window.location.href);
+      entradaChatMobileRef.current = true;
+    }
     setSelecionada(String(c.id));
     setListaSheet(false);
     setErroJanela(null);
@@ -1325,7 +1375,31 @@ export default function Atendimento() {
     });
     if (!error) queryClient.invalidateQueries({ queryKey: ["whatsapp-conversas"] });
       queryClient.invalidateQueries({ queryKey: ["whatsapp-conversa"] });
-  }, [modoHistorico, queryClient]);
+  }, [isMobile, modoHistorico, queryClient, selecionada]);
+
+  useEffect(() => {
+    if (!isMobile) {
+      entradaChatMobileRef.current = false;
+      return;
+    }
+    const aoVoltar = () => {
+      if (!selecionadaRef.current) return;
+      entradaChatMobileRef.current = false;
+      setSelecionada(null);
+      setPerfilSheet(false);
+    };
+    window.addEventListener("popstate", aoVoltar);
+    return () => window.removeEventListener("popstate", aoVoltar);
+  }, [isMobile]);
+
+  const fecharChatMobile = useCallback(() => {
+    if (entradaChatMobileRef.current) {
+      window.history.back();
+      return;
+    }
+    setSelecionada(null);
+    setPerfilSheet(false);
+  }, []);
 
   useEffect(() => {
     const idAviso = conversaDoAvisoRef.current;
@@ -1973,6 +2047,15 @@ export default function Atendimento() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [conversas, conversasHistorico, emAtendimento, buscaAtiva, resultadoBusca, termoLocal, termoDigitos, aba, grupoAba, filtroLeitura, filtroFila, tagsFiltro, mapaAtencao, modoFila, modoHistorico]);
 
+  const filtradasExibidas = useMemo(() => {
+    if (!isMobile || modoFila || modoHistorico) return filtradas;
+    return [...filtradas].sort((a, b) => {
+      const filaA = a.status === "escalado" && a.aguardando_desde ? 0 : 1;
+      const filaB = b.status === "escalado" && b.aguardando_desde ? 0 : 1;
+      return filaA - filaB;
+    });
+  }, [filtradas, isMobile, modoFila, modoHistorico]);
+
 
   // Resultado do servidor que não está na lista carregada: seção "Outras conversas".
   const idsNaLista = useMemo(() => new Set(conversas.map((c) => String(c.id))), [conversas]);
@@ -2028,6 +2111,10 @@ export default function Atendimento() {
     : mensagens.findIndex((m, idx) => idx > primeiroIndiceKora && m.origem !== "kora");
 
   const abrirDoPainel = (id: string, textoPronto?: string, leadId?: string) => {
+    if (isMobile && !selecionada) {
+      window.history.pushState({ atendimentoChat: true }, "", window.location.href);
+      entradaChatMobileRef.current = true;
+    }
     setSelecionada(String(id));
     setAbaPagina("conversas");
     setListaSheet(false);
@@ -2046,6 +2133,19 @@ export default function Atendimento() {
       )}
     </>
   );
+
+  const abasSecundarias = [
+    ["provador", "Provador", contagens.provador],
+    ["abandonadas", "Abandonadas", undefined],
+    ["cobrancas", "Cobranças", undefined],
+    ["consulta", "Consultar Transação", undefined],
+    ["rapidas", "Mensagens rápidas", undefined],
+    ["aprendizado", "Aprendizado da Anna", undefined],
+    ["carrinhos", "Carrinhos abandonados", contagens.carrinhos],
+    ["cancelados", "Pedidos cancelados", contagens.cancelados],
+    ["kanban", "Kanban do funil", undefined],
+    ["cashback", "Cashback", undefined],
+  ] as const;
 
   return (
     <div className="-m-6 flex h-[calc(100dvh-3.5rem)] w-[calc(100%+3rem)] max-w-[calc(100%+3rem)] min-w-0 flex-col overflow-x-hidden overflow-y-hidden">
