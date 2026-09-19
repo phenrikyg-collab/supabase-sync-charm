@@ -22,6 +22,9 @@ export type MetricasCrm = {
   pedidos?: number | null;
   receita?: number | null;
   custo?: number | null;
+  custo_mensagens?: number | null;
+  custo_ia?: number | null;
+  chamadas_ia?: number | null;
   roas?: number | null;
   pct_faturamento?: number | null;
   ticket_medio?: number | null;
@@ -54,6 +57,9 @@ export type ItemCrm = {
   pedidos?: number | null;
   receita?: number | null;
   custo?: number | null;
+  custo_mensagens?: number | null;
+  custo_ia?: number | null;
+  chamadas_ia?: number | null;
   roas?: number | null;
   taxa_entrega?: number | null;
   taxa_leitura?: number | null;
