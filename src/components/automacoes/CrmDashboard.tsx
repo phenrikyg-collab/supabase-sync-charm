@@ -16,7 +16,7 @@ function ResumoGrupo({ titulo, dados, abrir }: { titulo: string; dados?: Metrica
         <Button variant="ghost" size="sm" onClick={abrir}>Ver todas <ArrowRight className="ml-1 h-4 w-4" /></Button>
       </CardHeader>
       <CardContent>
-        <p className="mb-4 text-xs text-muted-foreground">Inclui e-mail; o detalhe do e-mail fica na área de E-mails.</p>
+        <p className="mb-4 text-xs text-muted-foreground">inclui e-mail; o detalhe do e-mail fica na área de E-mails</p>
         <div className="grid grid-cols-2 gap-x-6 gap-y-4 sm:grid-cols-3">
         {[
           ["Receita", brlCrm(dados?.receita)],
