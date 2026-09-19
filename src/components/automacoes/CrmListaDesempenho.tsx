@@ -54,15 +54,9 @@ function juntarFluxos(tipo: TipoLista, fluxos: FluxoLista[], itens: ItemCrm[]) {
     const origemId = `fluxo:${fluxo.id}`;
     const metrica = metricas.get(origemId);
     idsUsados.add(origemId);
-    return {
+    const zerado: ItemCrm = {
       origem_id: origemId,
       nome: fluxo.nome,
-      descricao: fluxo.descricao,
-      origem: metrica?.origem ?? fluxo.origem,
-      canais: metrica?.canais ?? fluxo.canais ?? [],
-      status: fluxo.status,
-      gatilho_tipo: fluxo.gatilho_tipo,
-      fluxo_id: fluxo.id,
       pessoas: 0,
       enviados: 0,
       enviados_whatsapp: 0,
@@ -76,6 +70,9 @@ function juntarFluxos(tipo: TipoLista, fluxos: FluxoLista[], itens: ItemCrm[]) {
       pedidos: 0,
       receita: 0,
       custo: 0,
+    };
+    return {
+      ...zerado,
       ...metrica,
       nome: fluxo.nome,
       descricao: fluxo.descricao,
