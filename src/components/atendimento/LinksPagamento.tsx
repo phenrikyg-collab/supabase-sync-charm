@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils";
 import { Copy, ExternalLink, Loader2, MessageCircle, RefreshCw } from "lucide-react";
 import { chamarRpc } from "@/lib/supabaseRpc";
 import { useAbrirConversa } from "@/lib/abrirConversa";
+import { EncerrarCobrancaButton } from "@/components/atendimento/EncerrarCobrancaButton";
 
 const EXTERNAL_SUPABASE_URL = "https://ezdtulcrqzmgocamjwwl.supabase.co";
 const CONFERIR_LINK_URL = `${EXTERNAL_SUPABASE_URL}/functions/v1/pagamentos-conferir-link`;
@@ -263,7 +264,15 @@ export function LinksPagamentoTab({ onAbrirConversa }: { onAbrirConversa?: (conv
 }
 
 /** Links de pagamento vinculados a uma conversa aberta. */
-export function LinksDaConversa({ conversaId }: { conversaId: string | number }) {
+export function LinksDaConversa({
+  conversaId,
+  embutido = false,
+  onQuantidadeChange,
+}: {
+  conversaId: string | number;
+  embutido?: boolean;
+  onQuantidadeChange?: (quantidade: number) => void;
+}) {
   const queryClient = useQueryClient();
   const chave = ["pagamentos-links-conversa", String(conversaId)];
 
@@ -280,10 +289,14 @@ export function LinksDaConversa({ conversaId }: { conversaId: string | number })
     },
   });
 
+  useEffect(() => {
+    onQuantidadeChange?.(links.length);
+  }, [links.length, onQuantidadeChange]);
+
   if (links.length === 0) return null;
 
   return (
-    <div className="border-b border-border bg-muted/30 p-3 space-y-2">
+    <div className={cn("bg-muted/30 p-3 space-y-2", !embutido && "border-b border-border")}>
       <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
         Links de pagamento desta conversa
       </p>
@@ -313,6 +326,14 @@ export function LinksDaConversa({ conversaId }: { conversaId: string | number })
               compacto
               aoConferir={() => queryClient.invalidateQueries({ queryKey: chave })}
             />
+            {(l.status ?? "").toLowerCase() !== "pago" && (
+              <EncerrarCobrancaButton
+                id={l.id}
+                valor={moedaBR(l.valor)}
+                rpc="pagamentos_link_encerrar"
+                conversaId={conversaId}
+              />
+            )}
           </div>
         ))}
       </div>

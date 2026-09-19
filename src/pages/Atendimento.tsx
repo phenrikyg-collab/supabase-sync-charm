@@ -38,8 +38,9 @@ import { TagsConversa, TagChip, type Tag } from "@/components/atendimento/TagsCo
 import { CatalogoDialog, formatarPreco, legendaProduto, type ProdutoCatalogo, type EscolhaProduto } from "@/components/atendimento/CatalogoDialog";
 import { PerfilCliente } from "@/components/atendimento/PerfilCliente";
 import { AtividadesRecentes } from "@/components/atendimento/AtividadesRecentes";
-import { CobrancaPixDialog, CobrancasTab, CobrancasDaConversa } from "@/components/atendimento/CobrancaPix";
-import { LinksPagamentoTab, LinksDaConversa } from "@/components/atendimento/LinksPagamento";
+import { CobrancaPixDialog, CobrancasTab } from "@/components/atendimento/CobrancaPix";
+import { LinksPagamentoTab } from "@/components/atendimento/LinksPagamento";
+import { CobrancasConversa } from "@/components/atendimento/CobrancasConversa";
 import { LinkPagamentoCard, LinkPagamentoDialog } from "@/components/atendimento/LinkPagamento";
 import { CalcularFreteDialog } from "@/components/atendimento/CalcularFrete";
 import { ProporCarrinhoDialog, PropostaDaConversa } from "@/components/atendimento/ProporCarrinho";
@@ -3008,8 +3009,7 @@ export default function Atendimento() {
                 propostaId={propostaId}
                 telefone={conversaAtual.telefone_real || conversaAtual.telefone}
               />
-              <CobrancasDaConversa conversaId={conversaAtual.id} />
-              <LinksDaConversa conversaId={conversaAtual.id} />
+              <CobrancasConversa conversaId={conversaAtual.id} />
 
               <ScrollArea
                 ref={areaMensagensRef}

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { QRCodeSVG } from "qrcode.react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -13,6 +13,7 @@ import { cn } from "@/lib/utils";
 import { Copy, Download, Image as ImageIcon, Loader2, QrCode, RefreshCw } from "lucide-react";
 import QRCode from "qrcode";
 import { chamarRpc } from "@/lib/supabaseRpc";
+import { EncerrarCobrancaButton } from "@/components/atendimento/EncerrarCobrancaButton";
 
 const EXTERNAL_SUPABASE_URL = "https://ezdtulcrqzmgocamjwwl.supabase.co";
 const GERAR_PIX_URL = `${EXTERNAL_SUPABASE_URL}/functions/v1/inter-gerar-cobranca-pix`;
@@ -542,7 +543,15 @@ export function CobrancasTab() {
 }
 
 /** Cards das cobranças vinculadas a uma conversa */
-export function CobrancasDaConversa({ conversaId }: { conversaId: string | number }) {
+export function CobrancasDaConversa({
+  conversaId,
+  embutido = false,
+  onQuantidadeChange,
+}: {
+  conversaId: string | number;
+  embutido?: boolean;
+  onQuantidadeChange?: (quantidade: number) => void;
+}) {
   const { data: cobrancas = [] } = useQuery({
     queryKey: ["inter-cobrancas-conversa", String(conversaId)],
     queryFn: async () => {
@@ -556,6 +565,10 @@ export function CobrancasDaConversa({ conversaId }: { conversaId: string | numbe
     refetchOnWindowFocus: true,
   });
 
+  useEffect(() => {
+    onQuantidadeChange?.(cobrancas.length);
+  }, [cobrancas.length, onQuantidadeChange]);
+
   if (cobrancas.length === 0) return null;
 
   const copiar = async (codigo: string) => {
@@ -568,7 +581,7 @@ export function CobrancasDaConversa({ conversaId }: { conversaId: string | numbe
   };
 
   return (
-    <div className="border-b border-border bg-muted/30 p-3 space-y-2">
+    <div className={cn("bg-muted/30 p-3 space-y-2", !embutido && "border-b border-border")}>
       <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
         Cobranças Pix desta conversa
       </p>
@@ -589,6 +602,14 @@ export function CobrancasDaConversa({ conversaId }: { conversaId: string | numbe
                 <Copy className="mr-1 h-3 w-3" />
                 Copiar código
               </Button>
+            )}
+            {(c.situacao ?? "").toUpperCase() !== "CONCLUIDA" && (
+              <EncerrarCobrancaButton
+                id={c.id}
+                valor={moedaBR(c.valor)}
+                rpc="banco_inter_cobranca_encerrar"
+                conversaId={conversaId}
+              />
             )}
           </div>
         ))}

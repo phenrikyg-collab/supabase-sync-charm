@@ -8,6 +8,6 @@
 - [x] Mover filtros, avisos e nova conversa para controles móveis sem ocupar a lista
 - [x] Validar estrutura de rolagem e ausência de transbordo em 390x844, além de preservar o desktop
 
-- [ ] Adicionar encerramento manual às cobranças da conversa
-- [ ] Recolher Pix e links em uma linha única no celular
-- [ ] Validar celular, desktop e typecheck das cobranças
+- [x] Adicionar encerramento manual às cobranças da conversa
+- [x] Recolher Pix e links em uma linha única no celular
+- [x] Validar estrutura celular, preservação do desktop e typecheck das cobranças
