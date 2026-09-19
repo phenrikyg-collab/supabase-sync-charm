@@ -2638,7 +2638,9 @@ export default function Atendimento() {
               </div>
               <div className="grid grid-cols-3 gap-1 rounded-md bg-muted p-1">
                 {([{"v":"todas","label":"Todas"},{"v":"nao_lidas","label":"Não lidas"},{"v":"em_atendimento","label":"Em atendimento"}] as const).map((item) => {
-                  const ativo = item.v === "em_atendimento" ? filtroFila === "em_atendimento" : filtroLeitura === item.v && filtroFila !== "em_atendimento";
+                  const ativo = item.v === "em_atendimento"
+                    ? filtroFila === "em_atendimento"
+                    : filtroLeitura === item.v && filtroFila === null;
                   return (
                     <Button key={item.v} type="button" variant={ativo ? "secondary" : "ghost"} className="h-11 min-w-0 px-1.5 text-xs" onClick={() => {
                       if (item.v === "em_atendimento") { setFiltroFila(filtroFila === "em_atendimento" ? null : "em_atendimento"); setFiltroLeitura("todas"); return; }

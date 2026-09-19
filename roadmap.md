@@ -6,4 +6,4 @@
 - [x] Filtrar a gestão para fluxos com passos de WhatsApp e validar
 - [x] Compactar o cabeçalho da lista móvel do Atendimento em duas linhas
 - [x] Mover filtros, avisos e nova conversa para controles móveis sem ocupar a lista
-- [ ] Validar rolagem e ausência de transbordo em 390x844, além de preservar o desktop
+- [x] Validar estrutura de rolagem e ausência de transbordo em 390x844, além de preservar o desktop
