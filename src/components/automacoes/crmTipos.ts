@@ -7,6 +7,8 @@ export type PeriodoCrm = {
   janela_whatsapp_horas?: number | null;
   janela_email_dias?: number | null;
   cotacao_usd_brl?: number | null;
+  apenas_fluxos?: boolean | null;
+  canal?: string | null;
 };
 
 export type MetricasCrm = {
