@@ -2553,11 +2553,11 @@ function AbaHospedagem() {
     setUploading(true);
     try {
       for (const file of Array.from(files)) {
-        const ext = file.name.split(".").pop() || "jpg";
+        const ext = (file.name.split(".").pop() || "jpg").toLowerCase();
         const safe = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
         const path = `${Date.now()}_${Math.random().toString(36).slice(2, 8)}_${safe}`;
         const { error } = await sb.storage.from(HOSPEDAGEM_BUCKET).upload(path, file, {
-          contentType: file.type || `image/${ext}`,
+          contentType: file.type || (ext === "mp4" ? "video/mp4" : `image/${ext}`),
           cacheControl: "31536000",
           upsert: true,
         });
@@ -2597,19 +2597,19 @@ function AbaHospedagem() {
             className="inline-flex items-center gap-2 cursor-pointer bg-primary text-primary-foreground hover:opacity-90 px-4 py-2 rounded-md text-sm font-medium"
           >
             {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
-            {uploading ? "Enviando..." : "Enviar imagens"}
+            {uploading ? "Enviando..." : "Enviar imagens ou vídeos"}
           </Label>
           <input
             id="hospedagem-upload"
             type="file"
-            accept="image/*"
+            accept="image/*,video/mp4,.mp4"
             multiple
             className="hidden"
             disabled={uploading}
             onChange={(e) => { handleUpload(e.target.files); e.target.value = ""; }}
           />
           <p className="text-xs text-muted-foreground">
-            Hospede imagens de referência, fotos brutas ou imagens prontas para anúncios. URLs assinadas válidas por 7 dias.
+            Hospede imagens de referência, fotos brutas, vídeos MP4 ou peças prontas para anúncios. URLs assinadas válidas por 7 dias.
           </p>
         </CardContent>
       </Card>
