@@ -19,15 +19,16 @@ function ResumoGrupo({ titulo, dados, abrir }: { titulo: string; dados?: Metrica
         {[
           ["Receita", brlCrm(dados?.receita)],
           ["% faturamento", percentualCrm(dados?.pct_faturamento)],
-          ["Custo", brlCrm(dados?.custo)],
+          ["Custo", brlCrm(dados?.custo), `mensagens ${brlCrm(dados?.custo_mensagens)} · IA ${brlCrm(dados?.custo_ia)}`],
           ["ROAS", roasCrm(dados?.roas, dados?.custo)],
           ["Pedidos", numeroCrm(dados?.pedidos)],
           ["Pessoas", numeroCrm(dados?.pessoas)],
           ["Enviados", numeroCrm(dados?.enviados)],
-        ].map(([rotulo, valor]) => (
-          <div key={rotulo}>
+        ].map(([rotulo, valor, detalhe]) => (
+          <div key={rotulo as string}>
             <p className="text-xs text-muted-foreground">{rotulo}</p>
             <p className={cn("mt-1 font-semibold", rotulo === "ROAS" && classeRoas(dados?.roas, dados?.custo))}>{valor}</p>
+            {detalhe && <p className="mt-0.5 text-[11px] text-muted-foreground">{detalhe}</p>}
           </div>
         ))}
       </CardContent>
@@ -45,7 +46,7 @@ export function CrmDashboard({ dados, onAba }: { dados: PainelCrm; onAba: (aba: 
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6">
         <CrmKpiCard titulo="Faturamento da loja" valor={brlCrm(dados.faturamento?.valor)} detalhe={`${numeroCrm(dados.faturamento?.pedidos)} pedidos`} icon={Store} />
         <CrmKpiCard titulo="Receita influenciada" valor={brlCrm(geral.receita)} detalhe={`${percentualCrm(geral.pct_faturamento)} do faturamento`} icon={BadgeDollarSign} />
-        <CrmKpiCard titulo="Custo dos envios" valor={brlCrm(geral.custo)} icon={WalletCards} />
+        <CrmKpiCard titulo="Custo dos envios" valor={brlCrm(geral.custo)} detalhe={`mensagens ${brlCrm(geral.custo_mensagens)} · IA ${brlCrm(geral.custo_ia)}`} icon={WalletCards} />
         <CrmKpiCard titulo="ROAS" valor={roasCrm(geral.roas, geral.custo)} detalhe={geral.roas == null || Number(geral.custo ?? 0) === 0 ? undefined : `${brlCrm(geral.roas)} de venda para cada R$ 1`} icon={HandCoins} className={classeRoas(geral.roas, geral.custo)} />
         <CrmKpiCard titulo="Pedidos influenciados" valor={numeroCrm(geral.pedidos)} icon={ShoppingBag} />
         <CrmKpiCard titulo="Ticket médio" valor={brlCrm(geral.ticket_medio)} icon={ReceiptText} />
@@ -110,7 +111,7 @@ export function CrmDashboard({ dados, onAba }: { dados: PainelCrm; onAba: (aba: 
         </Card>
       </div>
 
-      <p className="text-xs leading-relaxed text-muted-foreground">Modelo de atribuição: último toque. Cada pedido conta uma vez, para a última mensagem antes da compra: WhatsApp recebido até {numeroCrm(periodo.janela_whatsapp_horas)}h antes, ou e-mail clicado até {numeroCrm(periodo.janela_email_dias)} dias antes. Custos pela tabela da Meta, dólar a {brlCrm(periodo.cotacao_usd_brl)}.</p>
+      <p className="text-xs leading-relaxed text-muted-foreground">Modelo de atribuição: último toque. Cada pedido conta uma vez, para a última mensagem antes da compra: WhatsApp recebido até {numeroCrm(periodo.janela_whatsapp_horas)}h antes, ou e-mail clicado até {numeroCrm(periodo.janela_email_dias)} dias antes. Custos pela tabela da Meta, dólar a {brlCrm(periodo.cotacao_usd_brl)}. O custo soma as mensagens cobradas pela Meta e o uso de IA no atendimento das conversas geradas pelo fluxo.</p>
     </div>
   );
 }
