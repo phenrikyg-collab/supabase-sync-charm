@@ -2148,37 +2148,43 @@ export default function Atendimento() {
   ] as const;
 
   return (
-    <div className="-m-6 flex h-[calc(100dvh-3.5rem)] w-[calc(100%+3rem)] max-w-[calc(100%+3rem)] min-w-0 flex-col overflow-x-hidden overflow-y-hidden">
-      <AvisosFila />
+    <div className="flex h-[calc(100dvh-3.5rem)] w-full min-w-0 flex-col overflow-x-hidden overflow-y-hidden md:-m-6 md:w-[calc(100%+3rem)] md:max-w-[calc(100%+3rem)]">
+      {(!isMobile || !selecionada || abaPagina !== "conversas") && <AvisosFila />}
       <Tabs
         value={abaPagina}
         onValueChange={(v) => setAbaPagina(v as typeof abaPagina)}
         className="flex min-h-0 w-full min-w-0 flex-1 flex-col overflow-hidden"
       >
-        <div className="flex h-11 w-full min-w-0 shrink-0 items-center gap-2 overflow-x-auto border-b border-border px-3">
-          <TabsList className="h-8 w-max flex-nowrap bg-transparent p-0">
+        <div className={cn("flex h-11 w-full min-w-0 shrink-0 items-center gap-2 overflow-x-auto border-b border-border px-3", isMobile && selecionada && abaPagina === "conversas" && "hidden")}>
+          <TabsList className={cn("h-8 w-max flex-nowrap bg-transparent p-0", isMobile && "grid w-full grid-cols-[1fr_1fr_44px]")}>
             <TabsTrigger value="conversas" className="h-8 shrink-0 text-sm">
               {rotuloComContagem("Conversas", contagemGrupos.conversa)}
             </TabsTrigger>
             <TabsTrigger value="oportunidades" className="h-8 shrink-0 text-sm">
               {rotuloComContagem("Oportunidades", contagens.oportunidades)}
             </TabsTrigger>
-            <TabsTrigger value="provador" className="h-8 shrink-0 text-sm">
+            <TabsTrigger value="provador" className="hidden h-8 shrink-0 text-sm md:inline-flex">
               {rotuloComContagem("Provador", contagens.provador)}
             </TabsTrigger>
-            <TabsTrigger value="abandonadas" className="h-8 shrink-0 text-sm">Abandonadas</TabsTrigger>
-            <TabsTrigger value="cobrancas" className="h-8 shrink-0 text-sm">Cobranças</TabsTrigger>
-            <TabsTrigger value="consulta" className="h-8 shrink-0 text-sm">Consultar Transação</TabsTrigger>
-            <TabsTrigger value="rapidas" className="h-8 shrink-0 text-sm">Mensagens rápidas</TabsTrigger>
-            <TabsTrigger value="aprendizado" className="h-8 shrink-0 text-sm">Aprendizado da Anna</TabsTrigger>
-            <TabsTrigger value="carrinhos" className="h-8 shrink-0 text-sm">
+            <TabsTrigger value="abandonadas" className="hidden h-8 shrink-0 text-sm md:inline-flex">Abandonadas</TabsTrigger>
+            <TabsTrigger value="cobrancas" className="hidden h-8 shrink-0 text-sm md:inline-flex">Cobranças</TabsTrigger>
+            <TabsTrigger value="consulta" className="hidden h-8 shrink-0 text-sm md:inline-flex">Consultar Transação</TabsTrigger>
+            <TabsTrigger value="rapidas" className="hidden h-8 shrink-0 text-sm md:inline-flex">Mensagens rápidas</TabsTrigger>
+            <TabsTrigger value="aprendizado" className="hidden h-8 shrink-0 text-sm md:inline-flex">Aprendizado da Anna</TabsTrigger>
+            <TabsTrigger value="carrinhos" className="hidden h-8 shrink-0 text-sm md:inline-flex">
               {rotuloComContagem("Carrinhos abandonados", contagens.carrinhos)}
             </TabsTrigger>
-            <TabsTrigger value="cancelados" className="h-8 shrink-0 text-sm">
+            <TabsTrigger value="cancelados" className="hidden h-8 shrink-0 text-sm md:inline-flex">
               {rotuloComContagem("Pedidos cancelados", contagens.cancelados)}
             </TabsTrigger>
-            <TabsTrigger value="kanban" className="h-8 shrink-0 text-sm">Kanban do funil</TabsTrigger>
-            <TabsTrigger value="cashback" className="h-8 shrink-0 text-sm">Cashback</TabsTrigger>
+            <TabsTrigger value="kanban" className="hidden h-8 shrink-0 text-sm md:inline-flex">Kanban do funil</TabsTrigger>
+            <TabsTrigger value="cashback" className="hidden h-8 shrink-0 text-sm md:inline-flex">Cashback</TabsTrigger>
+            {isMobile && (
+              <Button type="button" variant="ghost" className="h-8 px-2 text-sm" onClick={() => setMaisAbasAberto(true)}>
+                Mais
+                <ChevronUp className="ml-1 h-4 w-4" />
+              </Button>
+            )}
           </TabsList>
           {abaPagina === "conversas" && colunasAjustaveis && (
             <Button
@@ -2191,6 +2197,25 @@ export default function Atendimento() {
             </Button>
           )}
         </div>
+
+        <Sheet open={maisAbasAberto} onOpenChange={setMaisAbasAberto}>
+          <SheetContent side="bottom" className="max-h-[75dvh] rounded-t-lg px-4 pb-[calc(1rem+env(safe-area-inset-bottom))] pt-5">
+            <SheetTitle className="mb-3">Mais áreas</SheetTitle>
+            <div className="grid gap-1 overflow-y-auto">
+              {abasSecundarias.map(([valor, rotulo, total]) => (
+                <Button
+                  key={valor}
+                  variant={abaPagina === valor ? "secondary" : "ghost"}
+                  className="h-11 justify-between px-3"
+                  onClick={() => { setAbaPagina(valor); setMaisAbasAberto(false); }}
+                >
+                  <span>{rotulo}</span>
+                  {!!total && total > 0 && <span className="rounded-full bg-primary px-2 py-0.5 text-xs font-bold text-primary-foreground">{total}</span>}
+                </Button>
+              ))}
+            </div>
+          </SheetContent>
+        </Sheet>
 
         <TabsContent value="oportunidades" className="m-0 min-h-0 w-full min-w-0 flex-1 overflow-auto p-4">
           <OportunidadesTab
@@ -2307,7 +2332,7 @@ export default function Atendimento() {
         className="relative flex min-h-0 w-full min-w-0 max-w-full flex-1 overflow-hidden"
       >
 
-        {listaSheet && (
+        {!isMobile && listaSheet && (
           <div
             className="fixed inset-0 z-30 bg-black/40 md:hidden"
             onClick={() => setListaSheet(false)}
@@ -2322,15 +2347,15 @@ export default function Atendimento() {
             "fixed inset-y-0 left-0 z-40 flex h-full min-h-0 w-[85vw] max-w-[360px] min-w-0 flex-col overflow-hidden border-r border-border bg-card transition-transform",
             "md:static md:z-auto md:w-[320px] md:max-w-none md:shrink-0 md:translate-x-0 lg:w-[340px]",
             colunasAjustaveis && "lg:w-full",
-            listaSheet ? "translate-x-0" : "-translate-x-full",
+            isMobile ? (selecionada ? "hidden" : "static z-auto w-full max-w-none translate-x-0 border-r-0") : (listaSheet ? "translate-x-0" : "-translate-x-full"),
           )}
         >
-          <div className="shrink-0 border-b border-border p-3 space-y-2">
-            <Button size="sm" className="w-full" onClick={() => abrirNovaConversa(null)}>
+          <div className="flex shrink-0 flex-col gap-2 border-b border-border p-3">
+            <Button size="sm" className={cn("w-full", isMobile && "order-4 min-h-11")} onClick={() => abrirNovaConversa(null)}>
               <Plus className="h-4 w-4 mr-2" />
               Nova conversa
             </Button>
-            <div className="grid grid-cols-2 gap-1 rounded-md bg-muted p-1">
+            <div className={cn("grid grid-cols-2 gap-1 rounded-md bg-muted p-1", isMobile && "order-2")}>
               {([
                 { v: "whatsapp", label: "WhatsApp", icon: MessageCircle, nao: naoLidasWhatsapp },
                 { v: "site", label: "Chat do Site", icon: Globe, nao: naoLidasSite },
@@ -2356,7 +2381,7 @@ export default function Atendimento() {
                 );
               })}
             </div>
-            {!modoHistorico && <div className="grid grid-cols-3 gap-1 rounded-md bg-muted p-1">
+            {!modoHistorico && <div className={cn("grid grid-cols-3 gap-1 rounded-md bg-muted p-1", isMobile && "order-3")}>
               {([
                 { v: "conversa", label: "Conversas", n: contagemGrupos.conversa },
                 { v: "clique", label: "Cliques", n: contagemGrupos.clique },
@@ -2377,7 +2402,7 @@ export default function Atendimento() {
                 </button>
               ))}
             </div>}
-            <div className="relative">
+            <div className={cn("relative", isMobile && "order-1")}>
 
               <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
               <Input
@@ -2385,10 +2410,10 @@ export default function Atendimento() {
                 value={busca}
                 onChange={(e) => setBusca(e.target.value)}
                 placeholder="Buscar por nome ou telefone (tecle /)"
-                className="pl-8"
+                className={cn("pl-8", isMobile && "h-11")}
               />
             </div>
-            <div className="flex items-center gap-1.5 flex-wrap">
+            <div className={cn("flex items-center gap-1.5 flex-wrap", isMobile && "order-5 grid grid-cols-3 gap-1 rounded-md bg-muted p-1 [&>button]:h-10 [&>button]:border-0 [&>button]:px-1")}>
               {!modoHistorico && ([
                 { v: "todas", label: "Todas" },
                 { v: "nao_lidas", label: `Não lidas${totalNaoLidas ? ` (${totalNaoLidas})` : ""}` },
@@ -2512,7 +2537,7 @@ export default function Atendimento() {
               )}
             </div>
           </div>
-          <ScrollArea className="min-h-0 flex-1">
+          <ScrollArea className="min-h-0 flex-1 overscroll-contain">
             {(modoHistorico ? carregandoHistorico : carregandoConversas) && (
               <p className="p-4 text-sm text-muted-foreground">Carregando conversas…</p>
             )}
@@ -2521,7 +2546,7 @@ export default function Atendimento() {
             )}
             {(() => {
               let grupoAnterior: string | null = null;
-              return filtradas.map((c) => {
+              return filtradasExibidas.map((c) => {
               const nome = nomeConversa(c);
               const site = ehSite(c);
               const ativa = String(c.id) === selecionada;
@@ -2555,6 +2580,7 @@ export default function Atendimento() {
                     onAbrir={abrirConversa}
                     onMenuChange={setMenuLeituraAberto}
                     onMarcarLeitura={marcarLeitura}
+                    mobile={isMobile}
                   />
                 </div>
               );
@@ -2584,6 +2610,7 @@ export default function Atendimento() {
                     onAbrir={abrirConversa}
                     onMenuChange={setMenuLeituraAberto}
                     onMarcarLeitura={marcarLeitura}
+                    mobile={isMobile}
                   />
                 ))}
               </>
@@ -2646,7 +2673,7 @@ export default function Atendimento() {
 
         {/* Thread */}
         <Coluna ajustavel={colunasAjustaveis} id="thread" order={2} defaultSize={largurasIniciais[1]} minSize={30}>
-        <section className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+        <section className={cn("flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden", isMobile && !selecionada && "hidden")}>
           {!conversaAtual ? (
             <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground gap-2">
               <MessageCircle className="h-10 w-10 opacity-40" />
