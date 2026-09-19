@@ -22,6 +22,7 @@ function ResumoGrupo({ titulo, dados, abrir }: { titulo: string; dados?: Metrica
           ["Custo", brlCrm(dados?.custo)],
           ["ROAS", roasCrm(dados?.roas, dados?.custo)],
           ["Pedidos", numeroCrm(dados?.pedidos)],
+          ["Pessoas", numeroCrm(dados?.pessoas)],
           ["Enviados", numeroCrm(dados?.enviados)],
         ].map(([rotulo, valor]) => (
           <div key={rotulo}>
