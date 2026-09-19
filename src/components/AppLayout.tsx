@@ -35,7 +35,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
 
   return (
     <SidebarProvider open={open} onOpenChange={setOpen}>
-      <div className="min-h-screen flex w-full">
+      <div className={cn("flex min-h-screen w-full", pathname.startsWith("/atendimento") && "h-[100dvh] min-h-0 overflow-hidden")}>
         <AppSidebar />
         <div className="flex min-h-0 min-w-0 flex-1 flex-col">
           <InstalarApp />

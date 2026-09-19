@@ -16,7 +16,7 @@ import { ptBR } from "date-fns/locale";
 import {
   AlertTriangle, Bot, Check, CheckCheck, CheckCircle2, Globe, ImagePlus, LayoutGrid, Lock, MessageCircle,
   RotateCcw, Search, Send, User, X, UserCheck, Phone, QrCode, Link2,
-  Truck, ShoppingCart, Plus, MoreHorizontal, PanelRight, Menu, Trash2, FileText, Clock, Mail, MailOpen,
+  Truck, ShoppingCart, Plus, MoreHorizontal, PanelRight, Trash2, FileText, Clock, Mail, MailOpen,
   Reply, Copy, Pencil, ArrowLeft, ChevronUp,
   Loader2,
 } from "lucide-react";
@@ -2148,7 +2148,7 @@ export default function Atendimento() {
   ] as const;
 
   return (
-    <div className="flex h-[calc(100dvh-3.5rem)] w-full min-w-0 flex-col overflow-x-hidden overflow-y-hidden md:-m-6 md:w-[calc(100%+3rem)] md:max-w-[calc(100%+3rem)]">
+    <div className="flex h-full w-full min-w-0 flex-col overflow-x-hidden overflow-y-hidden md:-m-6 md:h-[calc(100dvh-3.5rem)] md:w-[calc(100%+3rem)] md:max-w-[calc(100%+3rem)]">
       {(!isMobile || !selecionada || abaPagina !== "conversas") && <AvisosFila />}
       <Tabs
         value={abaPagina}

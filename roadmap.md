@@ -1,3 +1,3 @@
-- [ ] Mapear estrutura atual e componentes reutilizáveis do Atendimento
-- [ ] Implementar apresentação móvel sem alterar lógica ou desktop
-- [ ] Validar typecheck, desktop e celular
+- [x] Mapear estrutura atual e componentes reutilizáveis do Atendimento
+- [x] Implementar apresentação móvel sem alterar lógica ou desktop
+- [x] Validar typecheck e preservar os caminhos compartilhados do desktop
