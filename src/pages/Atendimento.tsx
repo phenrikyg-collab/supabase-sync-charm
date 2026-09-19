@@ -2686,21 +2686,21 @@ export default function Atendimento() {
                 <Button
                   size="icon"
                   variant="ghost"
-                  className="h-8 w-8 shrink-0 md:hidden"
-                  onClick={() => setListaSheet(true)}
+                  className="h-11 w-11 shrink-0 md:hidden"
+                  onClick={fecharChatMobile}
                   title="Ver conversas"
                 >
-                  <Menu className="h-4 w-4" />
+                  <ArrowLeft className="h-5 w-5" />
                 </Button>
-                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-accent">
+                <span className="hidden h-9 w-9 shrink-0 items-center justify-center rounded-full bg-accent md:flex">
                   {ehSite(conversaAtual) ? (
                     <Globe className="h-4 w-4 text-primary" aria-label="Chat do site" />
                   ) : (
                     <MessageCircle className="h-4 w-4 text-primary" aria-label="WhatsApp" />
                   )}
                 </span>
-                <div className="flex min-w-0 flex-1 items-center gap-2">
-                  <h2 className="truncate text-sm font-semibold">{nomeConversa(conversaAtual)}</h2>
+                <div className="flex min-w-0 flex-1 flex-col items-start gap-0.5 md:flex-row md:items-center md:gap-2">
+                  <h2 className="max-w-full truncate text-sm font-semibold">{nomeConversa(conversaAtual)}</h2>
                   <span className="hidden shrink-0 text-xs text-muted-foreground sm:inline">
                     {identificadorConversa(conversaAtual)}
                   </span>
@@ -2717,7 +2717,10 @@ export default function Atendimento() {
                     </Button>
                   )}
                   {nomeSoDoWhatsApp(conversaAtual) && <BadgeViaWhatsApp />}
-                  <StatusPill status={conversaAtual.status} aguardandoDesde={conversaAtual.aguardando_desde} />
+                  <div className="max-w-full truncate text-[11px] text-muted-foreground md:hidden">
+                    {conversaAtual.status === "escalado" ? "Aguardando atendimento" : conversaAtual.status === "em_atendimento" ? "Em atendimento" : conversaAtual.status === "resolvido" ? "Resolvida" : "Atendimento automático"}
+                  </div>
+                  <span className="hidden md:inline-flex"><StatusPill status={conversaAtual.status} aguardandoDesde={conversaAtual.aguardando_desde} /></span>
                   {rotuloAutomacao(atencaoDe(conversaAtual)) && (
                     <span className="inline-flex shrink-0 items-center rounded-full border border-border bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground whitespace-nowrap">
                       {rotuloAutomacao(atencaoDe(conversaAtual))}
@@ -2735,7 +2738,7 @@ export default function Atendimento() {
                 </div>
                 <div className="flex shrink-0 items-center gap-1.5">
                   {!conversaHistorica && (
-                    <Button size="sm" onClick={() => assumir.mutate()} disabled={assumir.isPending}>
+                    <Button size="sm" className="hidden md:inline-flex" onClick={() => assumir.mutate()} disabled={assumir.isPending}>
                       <UserCheck className="mr-2 h-4 w-4" />
                       Assumir conversa
                     </Button>
@@ -2754,7 +2757,7 @@ export default function Atendimento() {
                   )}
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                      <Button size="icon" variant="ghost" className="h-9 w-9" title="Mais ações">
+                       <Button size="icon" variant="ghost" className="hidden h-9 w-9 md:inline-flex" title="Mais ações">
                         <MoreHorizontal className="h-4 w-4" />
                       </Button>
                     </DropdownMenuTrigger>
@@ -2849,7 +2852,16 @@ export default function Atendimento() {
                   <Button
                     size="icon"
                     variant="ghost"
-                    className="h-9 w-9 lg:hidden"
+                    className="h-11 w-11 md:hidden"
+                    onClick={() => setPerfilSheet(true)}
+                    title="Ações e ferramentas"
+                  >
+                    <MoreHorizontal className="h-5 w-5" />
+                  </Button>
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="hidden h-9 w-9 md:inline-flex lg:hidden"
                     onClick={() => setPerfilSheet(true)}
                     title="Perfil da cliente"
                   >
@@ -2859,7 +2871,7 @@ export default function Atendimento() {
               </div>
 
               {!conversaHistorica && (
-                <div className="shrink-0 border-b border-border px-3 py-1.5">
+                <div className="hidden shrink-0 border-b border-border px-3 py-1.5 md:block">
                   <TagsConversa conversaId={conversaAtual.id} aplicadas={conversaAtual.tags ?? []} />
                 </div>
               )}
@@ -2880,7 +2892,7 @@ export default function Atendimento() {
 
               <ScrollArea
                 ref={areaMensagensRef}
-                className="relative min-h-0 min-w-0 max-w-full flex-1 overflow-x-hidden p-4 [&_[data-radix-scroll-area-viewport]]:!overflow-x-hidden"
+                className="relative min-h-0 min-w-0 max-w-full flex-1 overflow-x-hidden p-3 md:p-4 [&_[data-radix-scroll-area-viewport]]:!overflow-x-hidden"
                 onDragOver={(e) => {
                   if (!Array.from(e.dataTransfer?.types ?? []).includes("Files")) return;
                   e.preventDefault();
@@ -2967,7 +2979,13 @@ export default function Atendimento() {
                   </div>
                 </div>
               ) : podeResponder ? (
-                 <div className="shrink-0 border-t border-border px-2 py-1.5 space-y-1.5">
+                 <div className={cn("shrink-0 border-t border-border px-2 py-1.5 space-y-1.5", isMobile && "sticky bottom-0 z-10 bg-background pb-[calc(0.375rem+env(safe-area-inset-bottom))]")}>
+                  {isMobile && !conversaHistorica && status === "escalado" && (
+                    <Button className="h-11 w-full" onClick={() => assumir.mutate()} disabled={assumir.isPending}>
+                      <UserCheck className="mr-2 h-4 w-4" />
+                      {assumir.isPending ? "Assumindo…" : "Assumir conversa"}
+                    </Button>
+                  )}
                   {!modoHistorico && conversaAtual?.falha_envio && (
                     <div className="flex items-center gap-2 rounded-md border border-danger/40 bg-danger/10 px-3 py-2">
                       <AlertTriangle className="h-4 w-4 text-danger shrink-0" />
@@ -3076,6 +3094,7 @@ export default function Atendimento() {
                     onAbrirCatalogo={abrirCatalogo}
                     onAbrirTemplate={abrirTemplate}
                     onDigitandoMudou={setDigitando}
+                    mobile={isMobile}
                     figurinhas={
                       !ehSite(conversaAtual) ? (
                         <SeletorFigurinhas
@@ -3123,13 +3142,49 @@ export default function Atendimento() {
         )}
 
         <Sheet open={perfilSheet} onOpenChange={setPerfilSheet}>
-           <SheetContent side="right" className="flex w-[92vw] max-w-[380px] flex-col overflow-hidden p-3 pb-8">
-             <SheetTitle className="sr-only">Perfil da cliente</SheetTitle>
+           <SheetContent
+             side={isMobile ? "bottom" : "right"}
+             className={cn(
+               "flex flex-col overflow-hidden p-3 pb-8",
+               isMobile ? "h-[85dvh] w-full rounded-t-lg pb-[calc(1rem+env(safe-area-inset-bottom))]" : "w-[92vw] max-w-[380px]",
+             )}
+           >
+             <SheetTitle>{isMobile ? "Ações e ferramentas" : "Perfil da cliente"}</SheetTitle>
             {conversaAtual ? (
-               <Card className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain">
-                <PerfilCliente conversaId={conversaAtual.id} autor={autor} telefone={conversaAtual.telefone} />
-                {telefoneIdentificado && <AtividadesRecentes telefone={telefoneIdentificado} />}
-               </Card>
+              <div className="min-h-0 flex-1 space-y-3 overflow-y-auto overflow-x-hidden overscroll-contain pt-2">
+                {isMobile && (
+                  <section className="space-y-2 rounded-lg border border-border p-3">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Conversa</p>
+                    {!conversaHistorica && (status === "escalado" || status === "em_atendimento") && (
+                      <Button variant="outline" className="h-11 w-full justify-start" onClick={() => { setPerfilSheet(false); resolver.mutate(); }} disabled={resolver.isPending}>
+                        <CheckCircle2 className="mr-2 h-4 w-4" /> Resolver conversa
+                      </Button>
+                    )}
+                    {!conversaHistorica && status !== "bot_ativo" && (
+                      <Button variant="outline" className="h-11 w-full justify-start" onClick={() => { setPerfilSheet(false); reativarBot.mutate(); }} disabled={reativarBot.isPending}>
+                        <RotateCcw className="mr-2 h-4 w-4" /> Reativar bot
+                      </Button>
+                    )}
+                    {!conversaHistorica && <TagsConversa conversaId={conversaAtual.id} aplicadas={conversaAtual.tags ?? []} />}
+                  </section>
+                )}
+                {isMobile && (
+                  <section className="grid grid-cols-2 gap-2 rounded-lg border border-border p-3">
+                    <p className="col-span-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Ferramentas</p>
+                    {!ehSite(conversaAtual) && <Button variant="outline" className="h-11 justify-start" onClick={() => { setPerfilSheet(false); setConferirNumero(true); }}><Pencil className="mr-2 h-4 w-4" /> Conferir número</Button>}
+                    <Button variant="outline" className="h-11 justify-start" onClick={() => { setPerfilSheet(false); setFreteAberto(true); }}><Truck className="mr-2 h-4 w-4" /> Frete</Button>
+                    <Button variant="outline" className="h-11 justify-start" onClick={() => { setPerfilSheet(false); setCobrancaAberta(true); }}><QrCode className="mr-2 h-4 w-4" /> Cobrança Pix</Button>
+                    <Button variant="outline" className="h-11 justify-start" onClick={() => { setPerfilSheet(false); abrirCatalogo(); }}><LayoutGrid className="mr-2 h-4 w-4" /> Catálogo</Button>
+                    <Button variant="outline" className="h-11 justify-start" onClick={() => { setPerfilSheet(false); setProporCarrinhoAberto(true); }}><ShoppingCart className="mr-2 h-4 w-4" /> Carrinho</Button>
+                    <Button variant="outline" className="h-11 justify-start" onClick={() => { setPerfilSheet(false); setLinkPagamentoAberto(true); }}><Link2 className="mr-2 h-4 w-4" /> Pagamento</Button>
+                  </section>
+                )}
+                <Card>
+                  <PerfilCliente conversaId={conversaAtual.id} autor={autor} telefone={conversaAtual.telefone} />
+                  {telefoneIdentificado && <ProvadorBloco telefone={telefoneIdentificado} onUsarTexto={usarTextoPronto} />}
+                  {telefoneIdentificado && <AtividadesRecentes telefone={telefoneIdentificado} />}
+                </Card>
+              </div>
             ) : (
               <p className="text-sm text-muted-foreground">Nenhuma conversa selecionada</p>
             )}
