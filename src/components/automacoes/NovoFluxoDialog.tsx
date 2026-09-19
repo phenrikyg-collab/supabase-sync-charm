@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useMutation } from "@tanstack/react-query";
 import {
@@ -26,6 +26,10 @@ export function NovoFluxoDialog({
   const [nome, setNome] = useState("");
   const [descricao, setDescricao] = useState("");
   const [gatilho, setGatilho] = useState<string>(gatilhoInicial ?? "");
+
+  useEffect(() => {
+    if (open && gatilhoInicial) setGatilho(gatilhoInicial);
+  }, [gatilhoInicial, open]);
 
   const alterarAbertura = (valor: boolean) => {
     if (valor && gatilhoInicial) setGatilho(gatilhoInicial);
