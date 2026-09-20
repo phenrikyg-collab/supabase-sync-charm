@@ -113,15 +113,19 @@ function Variacao({ atual, anterior, inverso }: { atual: number; anterior: numbe
 
 /* ===== Cards ===== */
 function CardGrande({
-  rotulo, valor, sub, atual, anterior,
-}: { rotulo: string; valor: string; sub?: string; atual: number; anterior: number }) {
+  rotulo, valor, sub, atual, anterior, semBaseAnterior,
+}: { rotulo: string; valor: string; sub?: string; atual: number; anterior: number; semBaseAnterior?: boolean }) {
   return (
     <Card style={{ borderColor: AREIA }} className="shadow-none">
       <CardContent className="space-y-1.5 p-5">
         <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">{rotulo}</p>
         <div className="flex flex-wrap items-end gap-2">
           <p className="font-serif text-3xl font-bold leading-none tabular-nums" style={{ color: PRETO }}>{valor}</p>
-          <Variacao atual={atual} anterior={anterior} />
+          {semBaseAnterior ? (
+            <span className="text-xs text-muted-foreground">sem base anterior</span>
+          ) : (
+            <Variacao atual={atual} anterior={anterior} />
+          )}
         </div>
         {sub && <p className="text-xs text-muted-foreground">{sub}</p>}
       </CardContent>
@@ -129,12 +133,17 @@ function CardGrande({
   );
 }
 
-function CardPequeno({ rotulo, valor, sub, corSub }: { rotulo: string; valor: string; sub?: string; corSub?: string }) {
+function CardPequeno({
+  rotulo, valor, sub, corSub, atual, anterior,
+}: { rotulo: string; valor: string; sub?: string; corSub?: string; atual?: number; anterior?: number }) {
   return (
     <Card style={{ borderColor: AREIA, backgroundColor: CREME }} className="shadow-none">
       <CardContent className="space-y-1 p-4">
         <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">{rotulo}</p>
-        <p className="font-serif text-xl font-bold tabular-nums" style={{ color: PRETO }}>{valor}</p>
+        <div className="flex flex-wrap items-baseline gap-1.5">
+          <p className="font-serif text-xl font-bold tabular-nums" style={{ color: PRETO }}>{valor}</p>
+          {atual !== undefined && anterior !== undefined && <Variacao atual={atual} anterior={anterior} />}
+        </div>
         {sub && <p className={cn("text-xs", corSub ?? "text-muted-foreground")}>{sub}</p>}
       </CardContent>
     </Card>
@@ -326,7 +335,7 @@ export default function PopupsDashboard() {
               valor={num(n(resumo, "novos_clientes"))}
               sub={`${reais(n(resumo, "faturamento_novos"))} em compras`}
               atual={n(resumo, "novos_clientes")}
-              anterior={n(anterior, "conversoes")}
+              anterior={n(anterior, "novos_clientes")}
             />
             <CardGrande
               rotulo="Cupons usados"
@@ -339,8 +348,9 @@ export default function PopupsDashboard() {
               rotulo="Taxa de conversão"
               valor={pct(n(resumo, "taxa_conversao"))}
               sub={`${num(n(resumo, "leads"))} leads`}
-              atual={n(resumo, "conversoes")}
-              anterior={n(anterior, "conversoes")}
+              atual={n(resumo, "taxa_conversao")}
+              anterior={n(anterior, "visitantes") > 0 ? (n(anterior, "conversoes") / n(anterior, "visitantes")) * 100 : 0}
+              semBaseAnterior={n(anterior, "visitantes") <= 0}
             />
           </div>
 
@@ -350,8 +360,15 @@ export default function PopupsDashboard() {
               rotulo="Impressões"
               valor={num(n(resumo, "impressoes"))}
               sub={`${Number(n(resumo, "impressoes_por_visitante")).toLocaleString("pt-BR", { maximumFractionDigits: 2 })} por visitante`}
+              atual={n(resumo, "impressoes")}
+              anterior={n(anterior, "impressoes")}
             />
-            <CardPequeno rotulo="Visitantes alcançados" valor={num(n(resumo, "visitantes"))} />
+            <CardPequeno
+              rotulo="Visitantes alcançados"
+              valor={num(n(resumo, "visitantes"))}
+              atual={n(resumo, "visitantes")}
+              anterior={n(anterior, "visitantes")}
+            />
             <CardPequeno
               rotulo="Taxa de uso do cupom"
               valor={pct(n(resumo, "taxa_uso_cupom"))}
