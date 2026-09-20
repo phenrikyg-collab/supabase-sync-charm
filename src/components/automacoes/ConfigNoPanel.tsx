@@ -15,6 +15,7 @@ import { IframePrevia, usePreviaTemplate } from "@/components/emails/PreviaTempl
 import { ContadorPublico } from "./ContadorPublico";
 import { TIPOS_NO, type NoData, type TipoNo } from "./tipos";
 import { ROTULO_EVENTO, type Catalogo } from "./api";
+import { RemapearSaidas } from "./RemapearSaidas";
 
 type NoLista = { ref: string; tipo: TipoNo; rotulo: string };
 
@@ -310,6 +311,7 @@ function PreviaEmailDialog({ slug, open, onOpenChange }: { slug?: string | null;
 
 export function ConfigNoPanel({
   data, catalogo, nosDoFluxo, gatilhoTipo, botoesEntrada = [], temTemplateAntes = false,
+  saidasParaRemapear = [], botoesParaRemapear = [], onRemapearSaidas,
   onChange, onRemover, onFechar, onIrConfiguracoes,
 }: {
   data: NoData;
@@ -317,6 +319,9 @@ export function ConfigNoPanel({
   nosDoFluxo: NoLista[];
   botoesEntrada?: string[];
   temTemplateAntes?: boolean;
+  saidasParaRemapear?: string[];
+  botoesParaRemapear?: string[];
+  onRemapearSaidas?: (mapa: Record<string, string | null>) => void;
   gatilhoTipo?: string | null;
   onChange: (patch: { rotulo?: string; config?: Record<string, any> }) => void;
   onRemover: () => void;
@@ -661,7 +666,16 @@ export function ConfigNoPanel({
         )}
 
         {data.tipo === "whatsapp_template" && (
-          <CamposWhatsAppTemplate config={config} catalogo={catalogo} onChange={patch} />
+          <div className="space-y-3">
+            <CamposWhatsAppTemplate config={config} catalogo={catalogo} onChange={patch} />
+            {onRemapearSaidas && (
+              <RemapearSaidas
+                saidas={saidasParaRemapear}
+                botoes={botoesParaRemapear}
+                onAplicar={onRemapearSaidas}
+              />
+            )}
+          </div>
         )}
 
         {data.tipo === "aguardar_botao" && (
@@ -692,6 +706,13 @@ export function ConfigNoPanel({
               <p className="mb-2 text-xs font-medium">Se a janela estiver fechada, sai o template:</p>
               <CamposWhatsAppTemplate config={config} catalogo={catalogo} onChange={patch} />
             </div>
+            {onRemapearSaidas && (
+              <RemapearSaidas
+                saidas={saidasParaRemapear}
+                botoes={botoesParaRemapear}
+                onAplicar={onRemapearSaidas}
+              />
+            )}
             <p className="text-[11px] text-muted-foreground">
               A janela é conferida na hora de sair a mensagem, não na hora em que a cliente chega neste passo.
             </p>

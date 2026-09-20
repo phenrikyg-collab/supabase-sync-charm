@@ -33,6 +33,7 @@ import {
   rpcFluxos, useCatalogoFluxos, useFluxo, dataHoraBR, botoesRespostaDoTemplate, type Validacao,
 } from "@/components/automacoes/api";
 import { filtroParaSalvar } from "@/components/emails/ConstrutorPublico";
+import { mesmoBotao, saidaEspecial } from "@/components/automacoes/RemapearSaidas";
 
 let contador = 1;
 const novoRef = () => `novo-${Date.now()}-${contador++}`;
@@ -236,7 +237,21 @@ function Editor({ fluxoId }: { fluxoId: string }) {
     );
   }, [validacao]);
 
-  /** Para cada nó "Aguardar botão", os botões do template que liga nele. */
+  /** Botões de um passo de WhatsApp: os próprios, se houver, senão os do template. */
+  const botoesDoEnvio = useCallback(
+    (no?: Node | null) => {
+      if (!no) return [];
+      const d = no.data as unknown as NoData;
+      const cfg = d.config ?? {};
+      if (d.tipo === "whatsapp_janela" && Array.isArray(cfg.botoes_resposta) && cfg.botoes_resposta.length > 0) {
+        return cfg.botoes_resposta.map((b: any) => String(b)).filter(Boolean);
+      }
+      return botoesRespostaDoTemplate(catalogo, cfg.template_id);
+    },
+    [catalogo],
+  );
+
+  /** Para cada nó "Aguardar botão", os botões do passo de WhatsApp que liga nele. */
   const botoesPorNo = useMemo(() => {
     const mapa = new Map<string, { botoes: string[]; temTemplateAntes: boolean }>();
     for (const n of nodes) {
@@ -245,15 +260,79 @@ function Editor({ fluxoId }: { fluxoId: string }) {
       const anterior = edges
         .filter((e) => e.target === n.id)
         .map((e) => nodes.find((x) => x.id === e.source))
-        .find((x) => x && (x.data as unknown as NoData).tipo === "whatsapp_template");
-      const cfg = anterior ? (anterior.data as unknown as NoData).config ?? {} : {};
+        .find((x) => {
+          const t = x ? (x.data as unknown as NoData).tipo : null;
+          return t === "whatsapp_template" || t === "whatsapp_janela";
+        });
       mapa.set(n.id, {
         temTemplateAntes: !!anterior,
-        botoes: anterior ? botoesRespostaDoTemplate(catalogo, cfg.template_id) : [],
+        botoes: anterior ? botoesDoEnvio(anterior) : [],
       });
     }
     return mapa;
-  }, [nodes, edges, catalogo]);
+  }, [nodes, edges, botoesDoEnvio]);
+
+  /** Saídas do "Aguardar botão" seguinte que não existem mais nos botões escolhidos. */
+  const remapeamento = useMemo(() => {
+    if (!noSelecionado) return null;
+    const d = noSelecionado.data as unknown as NoData;
+    if (d.tipo !== "whatsapp_template" && d.tipo !== "whatsapp_janela") return null;
+    const alvo = edges
+      .filter((e) => e.source === noSelecionado.id)
+      .map((e) => nodes.find((x) => x.id === e.target))
+      .find((x) => x && (x.data as unknown as NoData).tipo === "aguardar_botao");
+    if (!alvo) return null;
+
+    const botoes = botoesDoEnvio(noSelecionado);
+    const saidasAtuais = edges
+      .filter((e) => e.source === alvo.id)
+      .map((e) => String(e.sourceHandle ?? e.label ?? ""))
+      .filter(Boolean);
+    const saidas = saidasAtuais.filter(
+      (s) => !saidaEspecial(s) && !botoes.some((b) => mesmoBotao(b, s)),
+    );
+    if (saidas.length === 0) return null;
+    return {
+      alvoId: alvo.id,
+      saidas,
+      botoes: botoes.filter((b) => !saidasAtuais.some((s) => mesmoBotao(s, b))),
+    };
+  }, [noSelecionado, nodes, edges, botoesDoEnvio]);
+
+  const aplicarRemapeamento = (mapa: Record<string, string | null>) => {
+    const alvoId = remapeamento?.alvoId;
+    if (!alvoId) return;
+    setEdges((es) =>
+      es.flatMap((e) => {
+        if (e.source !== alvoId) return [e];
+        const label = String(e.sourceHandle ?? e.label ?? "");
+        if (!(label in mapa)) return [e];
+        const novo = mapa[label];
+        if (!novo) return [];
+        return [{ ...e, sourceHandle: novo, label: novo }];
+      }),
+    );
+    setNodes((ns) =>
+      ns.map((n) => {
+        if (n.id !== alvoId) return n;
+        const d = n.data as any;
+        const cfg = { ...(d.config ?? {}) };
+        const atuais = cfg.sinonimos && typeof cfg.sinonimos === "object" ? cfg.sinonimos : {};
+        const novos: Record<string, any> = {};
+        for (const [chave, valor] of Object.entries(atuais)) {
+          if (chave in mapa) {
+            const destino = mapa[chave];
+            if (destino) novos[destino] = valor;
+          } else {
+            novos[chave] = valor;
+          }
+        }
+        return { ...n, data: { ...d, config: { ...cfg, sinonimos: novos } } };
+      }),
+    );
+    marcarSujo();
+    toast({ title: "Saídas atualizadas", description: "Salve para gravar a troca." });
+  };
 
   const nodesRenderizados = useMemo(
     () =>
@@ -570,6 +649,9 @@ function Editor({ fluxoId }: { fluxoId: string }) {
                   gatilhoTipo={fluxo.gatilho_tipo}
                   botoesEntrada={botoesPorNo.get(noSelecionado.id)?.botoes ?? []}
                   temTemplateAntes={!!botoesPorNo.get(noSelecionado.id)?.temTemplateAntes}
+                  saidasParaRemapear={remapeamento?.saidas ?? []}
+                  botoesParaRemapear={remapeamento?.botoes ?? []}
+                  onRemapearSaidas={remapeamento ? aplicarRemapeamento : undefined}
                   onChange={atualizarNo}
                   onRemover={removerNo}
                   onFechar={() => setSelecionado(null)}
