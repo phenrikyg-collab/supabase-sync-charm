@@ -348,8 +348,9 @@ export default function PopupsDashboard() {
               rotulo="Taxa de conversão"
               valor={pct(n(resumo, "taxa_conversao"))}
               sub={`${num(n(resumo, "leads"))} leads`}
-              atual={n(resumo, "conversoes")}
-              anterior={n(anterior, "conversoes")}
+              atual={n(resumo, "taxa_conversao")}
+              anterior={n(anterior, "visitantes") > 0 ? (n(anterior, "conversoes") / n(anterior, "visitantes")) * 100 : 0}
+              semBaseAnterior={n(anterior, "visitantes") <= 0}
             />
           </div>
 
