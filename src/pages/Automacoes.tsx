@@ -99,7 +99,7 @@ export default function Automacoes() {
         <TabsContent value="alertas" className="mt-6"><AlertasAutomacoes /></TabsContent>
       ) : consultaAtiva.isLoading ? <div className="mt-6"><CarregandoPainel /></div> : consultaAtiva.isError ? <Card className="mt-6 p-10 text-center"><p className="text-sm text-danger">Não foi possível carregar o painel.</p><p className="mt-1 text-xs text-muted-foreground">{consultaAtiva.error instanceof Error ? consultaAtiva.error.message : "Tente novamente."}</p><Button className="mt-4" variant="outline" onClick={() => consultaAtiva.refetch()}><RefreshCw className="mr-2 h-4 w-4" />Tentar de novo</Button></Card> : <>
         <TabsContent value="dashboard" className="mt-6"><CrmDashboard dados={dadosGerais} onAba={mudarAba} /></TabsContent>
-        {(["campanhas", "automacoes"] as const).map((tipo) => <TabsContent key={tipo} value={tipo} className="mt-6"><CrmListaDesempenho tipo={tipo} dados={tipo === "campanhas" ? dadosWhatsapp.campanhas : dadosWhatsapp.automacoes} fluxos={fluxos.data ?? []} carregandoFluxos={fluxos.isLoading} onNovo={() => setNovoAberto(true)} /></TabsContent>)}
+        {(["campanhas", "automacoes"] as const).map((tipo) => <TabsContent key={tipo} value={tipo} className="mt-6"><CrmListaDesempenho tipo={tipo} dados={tipo === "campanhas" ? dadosFluxos.campanhas : dadosFluxos.automacoes} fluxos={fluxos.data ?? []} carregandoFluxos={fluxos.isLoading} canal={canal} onCanal={escolherCanal} onNovo={() => setNovoAberto(true)} /></TabsContent>)}
       </>}
     </Tabs>
     <NovoFluxoDialog open={novoAberto} onOpenChange={setNovoAberto} gatilhoInicial={aba === "campanhas" ? "manual" : undefined} />
