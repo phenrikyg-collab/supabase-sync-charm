@@ -536,8 +536,15 @@ function Editor({ fluxoId }: { fluxoId: string }) {
                   <ReactFlow
                     nodes={nodesRenderizados}
                     edges={edges}
-                    onNodesChange={(c) => { onNodesChange(c); if (c.some((x) => x.type !== "select")) marcarSujo(); }}
-                    onEdgesChange={(c) => { onEdgesChange(c); marcarSujo(); }}
+                    onNodesChange={(c) => {
+                      onNodesChange(c);
+                      // Seleção e medição automática de tamanho não são edição do usuário.
+                      if (c.some((x) => x.type !== "select" && x.type !== "dimensions")) marcarSujo();
+                    }}
+                    onEdgesChange={(c) => {
+                      onEdgesChange(c);
+                      if (c.some((x) => x.type !== "select")) marcarSujo();
+                    }}
                     onConnect={onConnect}
                     onInit={setInstancia}
                     nodeTypes={nodeTypes}
