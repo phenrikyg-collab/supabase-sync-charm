@@ -48,7 +48,9 @@ function normalizar(valor: string) { return valor.normalize("NFD").replace(/[\u0
 
 function juntarFluxos(tipo: TipoLista, fluxos: FluxoLista[], itens: ItemCrm[]) {
   const doTipo = fluxos.filter((fluxo) => {
-    const usaWhatsapp = (fluxo.canais ?? []).some((canal) => canal.toLowerCase().includes("whatsapp"));
+    const canais = fluxo.canais ?? [];
+    // Fluxo recém-criado ainda não tem canais: continua na lista para poder ser aberto e terminado.
+    const usaWhatsapp = canais.length === 0 || canais.some((canal) => canal.toLowerCase().includes("whatsapp"));
     const tipoCorreto = tipo === "campanhas" ? CAMPANHA_GATILHOS.includes(String(fluxo.gatilho_tipo)) : !CAMPANHA_GATILHOS.includes(String(fluxo.gatilho_tipo));
     return usaWhatsapp && tipoCorreto;
   });
