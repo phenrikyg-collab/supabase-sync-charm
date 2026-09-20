@@ -52,13 +52,16 @@ export default function Automacoes() {
     enabled: aba === "dashboard",
     queryFn: () => rpcFluxos<PainelCrm>("crm_painel", parametrosPeriodo),
   });
-  const painelWhatsapp = useQuery({
-    queryKey: ["crm-painel", "fluxos-whatsapp", temPersonalizado ? "personalizado" : dias, de, ate],
+  const painelFluxos = useQuery({
+    queryKey: ["crm-painel", "fluxos", canal, temPersonalizado ? "personalizado" : dias, de, ate],
     enabled: aba === "campanhas" || aba === "automacoes",
     queryFn: async () => {
-      const resposta = await rpcFluxos<PainelCrm>("crm_painel", { ...parametrosPeriodo, p_apenas_fluxos: true, p_canal: "whatsapp" });
-      if (resposta?.periodo?.apenas_fluxos !== true || String(resposta?.periodo?.canal ?? "").toLowerCase() !== "whatsapp") {
-        throw new Error("O painel não confirmou o filtro de fluxos do WhatsApp.");
+      const resposta = await rpcFluxos<PainelCrm>("crm_painel", { ...parametrosPeriodo, p_apenas_fluxos: true, p_canal: canal === "todos" ? null : canal });
+      if (resposta?.periodo?.apenas_fluxos !== true) {
+        throw new Error("O painel não confirmou o filtro de fluxos.");
+      }
+      if (canal !== "todos" && String(resposta?.periodo?.canal ?? "").toLowerCase() !== canal) {
+        throw new Error("O painel não confirmou o canal escolhido.");
       }
       return resposta;
     },
