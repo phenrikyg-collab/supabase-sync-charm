@@ -79,9 +79,15 @@ function Editor({ fluxoId }: { fluxoId: string }) {
   const [testeProdutos, setTesteProdutos] = useState("");
   const [resultadoTeste, setResultadoTeste] = useState<any>(null);
 
+  // Filtro original na forma canônica, para saber se o público mudou de verdade.
+  // {} e { e: [] } e { ou: [] } significam a mesma coisa (todo mundo entra),
+  // então a comparação usa filtroParaSalvar dos dois lados.
+  const filtroOriginalRef = useRef<string>("null");
+
   // Carrega o fluxo no canvas
   useEffect(() => {
     if (!data) return;
+    filtroOriginalRef.current = JSON.stringify(filtroParaSalvar(data.fluxo?.publico_filtro) ?? null);
     setFluxo(data.fluxo ?? {});
     setValidacao(data.validacao ?? { ok: true, erros: [], avisos: [] });
 
@@ -579,7 +585,13 @@ function Editor({ fluxoId }: { fluxoId: string }) {
           <ConfiguracoesTab
             fluxo={fluxo}
             catalogo={catalogo}
-            onChange={(p) => { setFluxo((f) => ({ ...f, ...p })); marcarSujo(); }}
+            onChange={(p) => {
+              setFluxo((f) => ({ ...f, ...p }));
+              const mudouFiltro = "publico_filtro" in p
+                && JSON.stringify(filtroParaSalvar(p.publico_filtro) ?? null) !== filtroOriginalRef.current;
+              const mudouOutroCampo = Object.keys(p).some((k) => k !== "publico_filtro");
+              if (mudouFiltro || mudouOutroCampo) marcarSujo();
+            }}
           />
         </TabsContent>
       </Tabs>
