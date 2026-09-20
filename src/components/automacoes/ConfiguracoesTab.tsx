@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -5,6 +6,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { ConstrutorPublico, filtroVazio, usePublicoCampos, type No } from "@/components/emails/ConstrutorPublico";
 import { ContadorPublico } from "./ContadorPublico";
 import type { Catalogo } from "./api";
@@ -12,6 +17,79 @@ import type { Catalogo } from "./api";
 const DIAS_SEMANA: [number, string][] = [
   [1, "seg"], [2, "ter"], [3, "qua"], [4, "qui"], [5, "sex"], [6, "sáb"], [7, "dom"],
 ];
+
+/** Compara textos ignorando acento e caixa, para casar "PEDIDO EM SEPARAÇÃO" com "PEDIDO EM SEPARACAO". */
+function chaveTexto(v: any) {
+  return String(v ?? "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim()
+    .toLowerCase();
+}
+
+function listaTem(lista: any, valor: string) {
+  if (!Array.isArray(lista)) return false;
+  const alvo = chaveTexto(valor);
+  return lista.some((item) => chaveTexto(item) === alvo);
+}
+
+function alternarLista(lista: any, valor: string) {
+  const atual: any[] = Array.isArray(lista) ? lista : [];
+  if (listaTem(atual, valor)) return atual.filter((item) => chaveTexto(item) !== chaveTexto(valor));
+  return [...atual, valor];
+}
+
+function SelecaoMultipla({
+  rotulo, ajuda, opcoes, selecionados, onToggle,
+}: {
+  rotulo: string;
+  ajuda?: string;
+  opcoes: { valor: string; rotulo: string }[];
+  selecionados: any;
+  onToggle: (valor: string) => void;
+}) {
+  return (
+    <div className="space-y-1">
+      <Label className="text-xs">{rotulo}</Label>
+      <div className="flex flex-wrap gap-1">
+        {opcoes.map((o) => {
+          const ativo = listaTem(selecionados, o.valor);
+          return (
+            <Badge
+              key={o.valor}
+              variant={ativo ? "default" : "outline"}
+              className="cursor-pointer text-[11px]"
+              onClick={() => onToggle(o.valor)}
+            >
+              {o.rotulo}
+            </Badge>
+          );
+        })}
+        {opcoes.length === 0 && <p className="text-[11px] text-muted-foreground">Nenhuma opção disponível.</p>}
+      </div>
+      {ajuda && <p className="text-[11px] text-muted-foreground">{ajuda}</p>}
+    </div>
+  );
+}
+
+function CampoSwitch({
+  rotulo, ajuda, checked, onCheckedChange,
+}: {
+  rotulo: string;
+  ajuda?: string;
+  checked: boolean;
+  onCheckedChange: (v: boolean) => void;
+}) {
+  return (
+    <div className="space-y-1">
+      <div className="flex items-center justify-between gap-2">
+        <Label className="text-xs">{rotulo}</Label>
+        <Switch checked={checked} onCheckedChange={onCheckedChange} />
+      </div>
+      {ajuda && <p className="text-[11px] text-muted-foreground">{ajuda}</p>}
+    </div>
+  );
+}
 
 function CampoNumero({
   rotulo, valor, ajuda, onChange, min = 0, max,
