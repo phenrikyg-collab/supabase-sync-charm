@@ -151,6 +151,12 @@ export function PreviaWhatsappJanela({ config, compacta = false }: { config: Rec
   const botoes = listaTextos(config.botoes_resposta);
   const produtos = listaTextos(config.vitrine?.produtos);
   const video = String(config.video?.url ?? "");
+  const { data: produtoCapa } = useQuery({
+    queryKey: ["whatsapp-catalogo-produto-capa", produtos[0]],
+    queryFn: async () => (await produtosCatalogoPorIds([produtos[0]]))[0],
+    enabled: formato === "vitrine" && !!produtos[0],
+    staleTime: 5 * 60 * 1000,
+  });
 
   return (
     <div className={cn("rounded-lg bg-sidebar p-2", compacta ? "w-full" : "p-3")}>
@@ -163,12 +169,10 @@ export function PreviaWhatsappJanela({ config, compacta = false }: { config: Rec
         )}
         {formato === "vitrine" && (
           <div className="space-y-2 bg-card p-2 text-card-foreground">
-            <div className="flex aspect-[16/9] items-center justify-center rounded bg-muted">
-              <Package className="h-8 w-8 text-muted-foreground" />
-            </div>
+            {produtoCapa?.imagem_url ? <img src={produtoCapa.imagem_url} alt="" className="aspect-[16/9] w-full rounded bg-muted object-cover" /> : <div className="flex aspect-[16/9] items-center justify-center rounded bg-muted"><Package className="h-8 w-8 text-muted-foreground" /></div>}
             <p className="text-xs font-semibold">{config.vitrine?.header || "Vitrine de produtos"}</p>
             <p className="text-[10px] text-muted-foreground">
-              {produtos[0] ? `Miniatura do produto ${produtos[0]}` : "O primeiro produto define a miniatura"}
+              {produtoCapa?.nome || (produtos[0] ? `Produto ${produtos[0]}` : "O primeiro produto define a miniatura")}
             </p>
             {config.vitrine?.secao && <p className="text-[10px] font-medium">{config.vitrine.secao}</p>}
           </div>
