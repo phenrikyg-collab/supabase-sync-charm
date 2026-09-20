@@ -10,6 +10,16 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -25,6 +35,7 @@ import {
   Sparkles,
   Star,
   Trash2,
+  ArchiveRestore,
 } from "lucide-react";
 import { toast } from "sonner";
 import { brl, dataCurta, num, pctBr } from "@/lib/financeiroFormat";
@@ -41,12 +52,15 @@ import {
   vipGerarCalendario,
   vipGruposListar,
   vipMensagensStatus,
+  vipMensagemArquivar,
+  vipMensagemExcluir,
   vipMensagemTextoFinal,
   type VipCalendario,
   type VipCalendarioResumo,
   type VipGrupo,
   type VipMensagem,
 } from "@/lib/vip";
+import { formatarData } from "@/utils/formatters";
 import { MensagemPainel } from "./MensagemPainel";
 
 const CORES_DONUT = ["#E8CD7E", "#8B6914", "#7C9EB2", "#B27C9E", "#9EB27C", "#B2907C"];
@@ -219,7 +233,12 @@ export function CalendarioTab() {
   const [filtroIntencao, setFiltroIntencao] = useState("todas");
   const [filtroStatus, setFiltroStatus] = useState("todos");
   const [filtroExtra, setFiltroExtra] = useState("todas");
+  const [mostrarArquivadas, setMostrarArquivadas] = useState(false);
   const [aberta, setAberta] = useState<VipMensagem | null>(null);
+  const [confirmarExclusao, setConfirmarExclusao] = useState<VipMensagem | null>(null);
+  const [sugerirArquivo, setSugerirArquivo] = useState<VipMensagem | null>(null);
+  const [confirmarLote, setConfirmarLote] = useState(false);
+  const [processandoExclusao, setProcessandoExclusao] = useState(false);
   const polls = useRef(0);
 
   const carregarLista = useCallback(async () => {
@@ -273,6 +292,7 @@ export function CalendarioTab() {
   const filtradas = useMemo(
     () =>
       mensagens.filter((m) => {
+        if (!mostrarArquivadas && m.arquivada) return false;
         if (filtroIntencao !== "todas" && m.intencao !== filtroIntencao) return false;
         if (filtroStatus !== "todos" && m.status !== filtroStatus) return false;
         if (filtroExtra === "prioritarias" && !m.prioritaria) return false;
@@ -281,8 +301,83 @@ export function CalendarioTab() {
         if (filtroExtra === "enquete" && !m.enquete) return false;
         return true;
       }),
-    [mensagens, filtroIntencao, filtroStatus, filtroExtra],
+    [mensagens, mostrarArquivadas, filtroIntencao, filtroStatus, filtroExtra],
   );
+
+  const removerDaLista = (mensagemId: string) => {
+    setCal((atual) => atual ? { ...atual, mensagens: (atual.mensagens ?? []).filter((mensagem) => mensagem.id !== mensagemId) } : atual);
+    setSel((atuais) => atuais.filter((item) => item !== mensagemId));
+  };
+
+  const arquivarMensagem = async (mensagem: VipMensagem, valor = true) => {
+    await vipMensagemArquivar(mensagem.id, valor);
+    setCal((atual) => atual ? { ...atual, mensagens: (atual.mensagens ?? []).map((item) => item.id === mensagem.id ? { ...item, arquivada: valor } : item) } : atual);
+    setSel((atuais) => atuais.filter((item) => item !== mensagem.id));
+    toast.success(valor ? "Mensagem arquivada" : "Mensagem desarquivada");
+  };
+
+  const excluirMensagem = async (mensagem: VipMensagem) => {
+    setProcessandoExclusao(true);
+    try {
+      const resultado = await vipMensagemExcluir(mensagem.id);
+      if (resultado?.ok) {
+        removerDaLista(mensagem.id);
+        setConfirmarExclusao(null);
+        toast.success("Mensagem excluída");
+        return;
+      }
+      if (resultado?.motivo === "ja_enviada") {
+        setConfirmarExclusao(null);
+        setSugerirArquivo(mensagem);
+        return;
+      }
+      if (resultado?.motivo === "em_disparo") {
+        toast.warning("Esta mensagem está em disparo e não pode ser excluída agora.");
+        return;
+      }
+      toast.error("Não foi possível excluir a mensagem.");
+    } catch (e: any) {
+      toast.error(e.message ?? "Não foi possível excluir a mensagem.");
+    } finally {
+      setProcessandoExclusao(false);
+    }
+  };
+
+  const excluirSelecionadas = async () => {
+    const mensagensSelecionadas = mensagens.filter((mensagem) => sel.includes(mensagem.id));
+    if (mensagensSelecionadas.length === 0) return;
+    setProcessandoExclusao(true);
+    let excluidas = 0;
+    let arquivadas = 0;
+    let emDisparo = 0;
+    try {
+      for (const mensagem of mensagensSelecionadas) {
+        try {
+          const resultado = await vipMensagemExcluir(mensagem.id);
+          if (resultado?.ok) {
+            removerDaLista(mensagem.id);
+            excluidas += 1;
+          } else if (resultado?.motivo === "ja_enviada") {
+            await vipMensagemArquivar(mensagem.id, true);
+            arquivadas += 1;
+          } else if (resultado?.motivo === "em_disparo") {
+            emDisparo += 1;
+          }
+        } catch {
+          emDisparo += 1;
+        }
+      }
+      setConfirmarLote(false);
+      setSel([]);
+      if (id) await carregarCal(id);
+      const partes = [`${excluidas} excluída${excluidas === 1 ? "" : "s"}`];
+      if (arquivadas) partes.push(`${arquivadas} já enviada${arquivadas === 1 ? "" : "s"} (arquivada${arquivadas === 1 ? "" : "s"})`);
+      if (emDisparo) partes.push(`${emDisparo} em disparo ou não processada${emDisparo === 1 ? "" : "s"}`);
+      toast.success(partes.join(", "));
+    } finally {
+      setProcessandoExclusao(false);
+    }
+  };
 
   const aplicarStatus = async (status: "aprovada" | "agendada" | "cancelada") => {
     if (sel.length === 0) return;
