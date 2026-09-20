@@ -34,6 +34,7 @@ import {
 } from "@/components/automacoes/api";
 import { filtroParaSalvar } from "@/components/emails/ConstrutorPublico";
 import { mesmoBotao, saidaEspecial } from "@/components/automacoes/RemapearSaidas";
+import { errosWhatsappJanela } from "@/components/automacoes/WhatsappJanelaEditor";
 
 let contador = 1;
 const novoRef = () => `novo-${Date.now()}-${contador++}`;
@@ -213,9 +214,41 @@ function Editor({ fluxoId }: { fluxoId: string }) {
 
   const atualizarNo = (patch: { rotulo?: string; config?: Record<string, any> }) => {
     if (!selecionado) return;
+    const atual = nodes.find((n) => n.id === selecionado);
+    const dadosAtuais = atual?.data as unknown as NoData | undefined;
+    const botoesAntes = dadosAtuais?.tipo === "whatsapp_janela" && Array.isArray(dadosAtuais.config?.botoes_resposta)
+      ? dadosAtuais.config.botoes_resposta.filter(Boolean)
+      : [];
+    const botoesDepois = dadosAtuais?.tipo === "whatsapp_janela" && Array.isArray(patch.config?.botoes_resposta)
+      ? patch.config.botoes_resposta.filter(Boolean)
+      : botoesAntes;
     setNodes((ns) =>
       ns.map((n) => (n.id === selecionado ? { ...n, data: { ...(n.data as any), ...patch } } : n)),
     );
+    const jaTemEspera = edges
+      .filter((e) => e.source === selecionado)
+      .some((e) => nodes.some((n) => n.id === e.target && (n.data as unknown as NoData).tipo === "aguardar_botao"));
+    if (atual && botoesAntes.length === 0 && botoesDepois.length > 0 && !jaTemEspera) {
+      const esperaId = novoRef();
+      setNodes((ns) => [...ns, {
+        id: esperaId,
+        type: "fluxo",
+        position: { x: atual.position.x + 260, y: atual.position.y },
+        data: {
+          tipo: "aguardar_botao",
+          rotulo: "Espera o clique",
+          config: { ...TIPOS_NO.aguardar_botao.configPadrao },
+          bancoId: null,
+        } as unknown as Record<string, unknown>,
+      }]);
+      setEdges((es) => [...es, {
+        id: `edge-${crypto.randomUUID()}`,
+        source: selecionado,
+        target: esperaId,
+        animated: true,
+      }]);
+      toast({ title: "Espera de clique adicionada", description: "Os botões já aparecem como saídas do próximo passo." });
+    }
     marcarSujo();
   };
 
@@ -496,6 +529,11 @@ function Editor({ fluxoId }: { fluxoId: string }) {
   const status = String(fluxo.status ?? "rascunho");
   const erros = validacao.erros ?? [];
   const avisos = validacao.avisos ?? [];
+  const errosDaTela = nodes.flatMap((n) => {
+    const d = n.data as unknown as NoData;
+    if (d.tipo !== "whatsapp_janela") return [];
+    return errosWhatsappJanela(d.config ?? {}).map((erro) => `${d.rotulo || "WhatsApp janela aberta"}: ${erro}`);
+  });
 
   return (
     <div className="mx-auto max-w-[1700px] space-y-4 p-6">
@@ -512,7 +550,17 @@ function Editor({ fluxoId }: { fluxoId: string }) {
         {sujo && <span className="text-xs text-warning">Alterações não salvas</span>}
 
         <div className="ml-auto flex flex-wrap items-center gap-2">
-          <Button size="sm" onClick={() => salvar.mutate()} disabled={salvar.isPending}>
+          <Button
+            size="sm"
+            onClick={() => {
+              if (errosDaTela.length) {
+                toast({ title: "Corrija a mensagem antes de salvar", description: errosDaTela[0], variant: "destructive" });
+                return;
+              }
+              salvar.mutate();
+            }}
+            disabled={salvar.isPending || errosDaTela.length > 0}
+          >
             <Save className="mr-2 h-4 w-4" /> Salvar
           </Button>
           <Button size="sm" variant="outline" onClick={() => simular.mutate()} disabled={simular.isPending}>
@@ -551,6 +599,12 @@ function Editor({ fluxoId }: { fluxoId: string }) {
           <ul className="list-inside list-disc text-xs text-danger">
             {erros.map((e, i) => <li key={i}>{e}</li>)}
           </ul>
+        </Card>
+      )}
+      {errosDaTela.length > 0 && (
+        <Card className="border-danger/40 bg-danger/5 p-3">
+          <p className="mb-1 flex items-center gap-2 text-sm font-medium text-danger"><AlertTriangle className="h-4 w-4" />Corrija antes de salvar</p>
+          <ul className="list-inside list-disc text-xs text-danger">{errosDaTela.map((erro) => <li key={erro}>{erro}</li>)}</ul>
         </Card>
       )}
       {avisos.length > 0 && (

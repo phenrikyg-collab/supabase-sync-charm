@@ -16,6 +16,7 @@ import { ContadorPublico } from "./ContadorPublico";
 import { TIPOS_NO, type NoData, type TipoNo } from "./tipos";
 import { ROTULO_EVENTO, type Catalogo } from "./api";
 import { RemapearSaidas } from "./RemapearSaidas";
+import { WhatsappJanelaEditor } from "./WhatsappJanelaEditor";
 
 type NoLista = { ref: string; tipo: TipoNo; rotulo: string };
 
@@ -689,23 +690,12 @@ export function ConfigNoPanel({
 
         {data.tipo === "whatsapp_janela" && (
           <div className="space-y-4">
-            <div className="space-y-1">
-              <Label className="text-xs">Texto livre</Label>
-              <Textarea
-                rows={5}
-                value={config.texto ?? ""}
-                onChange={(e) => patch({ texto: e.target.value })}
-              />
-              <p className="text-[11px] text-muted-foreground">{String(config.texto ?? "").length} caracteres</p>
-              <Chips
-                variaveis={catalogo?.variaveis_texto ?? []}
-                onAdd={(v) => patch({ texto: `${config.texto ?? ""}${v}` })}
-              />
-            </div>
-            <div className="rounded-lg border border-border p-3">
-              <p className="mb-2 text-xs font-medium">Se a janela estiver fechada, sai o template:</p>
-              <CamposWhatsAppTemplate config={config} catalogo={catalogo} onChange={patch} />
-            </div>
+            <WhatsappJanelaEditor
+              config={config}
+              catalogo={catalogo}
+              onChange={patch}
+              templateReserva={<CamposWhatsAppTemplate config={config} catalogo={catalogo} onChange={patch} />}
+            />
             {onRemapearSaidas && (
               <RemapearSaidas
                 saidas={saidasParaRemapear}
@@ -713,9 +703,6 @@ export function ConfigNoPanel({
                 onAplicar={onRemapearSaidas}
               />
             )}
-            <p className="text-[11px] text-muted-foreground">
-              A janela é conferida na hora de sair a mensagem, não na hora em que a cliente chega neste passo.
-            </p>
           </div>
         )}
 

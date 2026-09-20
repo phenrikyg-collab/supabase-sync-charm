@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { TIPOS_NO, resumoNo, type NoData } from "./tipos";
 import { MOTIVOS_PULO, moedaBRL } from "./api";
+import { PreviaWhatsappJanela } from "./WhatsappJanelaEditor";
 
 const pct = (parte: number, total: number) =>
   total > 0 ? `${((parte / total) * 100).toLocaleString("pt-BR", { maximumFractionDigits: 1 })}%` : "";
@@ -50,9 +51,13 @@ export function FluxoNode({ data, selected }: NodeProps) {
         <Icone className={cn("h-4 w-4 shrink-0", meta.cor)} />
         <span className="truncate text-xs font-semibold">{d.rotulo || meta.label}</span>
       </div>
-      <p className="mt-1 line-clamp-2 break-words text-[11px] text-muted-foreground">
-        {gatilho ? d.gatilhoRotulo || "Gatilho do fluxo" : resumoNo(d.tipo, d.config ?? {}, d.catalogo)}
-      </p>
+      {d.tipo === "whatsapp_janela" ? (
+        <div className="mt-2"><PreviaWhatsappJanela config={d.config ?? {}} compacta /></div>
+      ) : (
+        <p className="mt-1 line-clamp-2 break-words text-[11px] text-muted-foreground">
+          {gatilho ? d.gatilhoRotulo || "Gatilho do fluxo" : resumoNo(d.tipo, d.config ?? {}, d.catalogo)}
+        </p>
+      )}
 
       {m && (
         <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 border-t border-border pt-1.5">
@@ -164,20 +169,25 @@ export function FluxoNode({ data, selected }: NodeProps) {
             <p className="mt-1 text-[10px] text-warning">ligue a um template com botões</p>
           )}
           {saidas.map((s, i) => {
-            const left = `${((i + 1) / (saidas.length + 1)) * 100}%`;
+            const ehSemResposta = s.id === "sem resposta";
+            const top = `${58 + i * 34}px`;
             return (
               <div key={s.id}>
                 <Handle
                   id={s.id}
                   type="source"
-                  position={Position.Bottom}
-                  style={{ left }}
+                  position={ehSemResposta ? Position.Bottom : Position.Right}
+                  style={ehSemResposta ? { left: "50%" } : { top }}
                   className={cn("!h-2.5 !w-2.5", s.cor)}
                 />
                 <div
                   title={s.rotulo}
-                  className={cn("absolute -bottom-4 -translate-x-1/2 whitespace-nowrap text-[9px] font-semibold", s.texto)}
-                  style={{ left }}
+                  className={cn(
+                    "absolute whitespace-nowrap text-[9px] font-semibold",
+                    ehSemResposta ? "-bottom-4 left-1/2 -translate-x-1/2" : "-right-2 translate-x-full -translate-y-1/2",
+                    s.texto,
+                  )}
+                  style={ehSemResposta ? undefined : { top }}
                 >
                   {s.rotulo.length > 14 ? `${s.rotulo.slice(0, 14)}…` : s.rotulo}
                   {s.contagem > 0 ? ` ${s.contagem}` : ""}

@@ -79,7 +79,7 @@ export const TIPOS_NO: Record<
     icon: MessagesSquare,
     cor: "text-success",
     descricao: "Texto livre se a cliente falou nas últimas 24h. Senão, sai o template reserva.",
-    configPadrao: { texto: "", template_id: null, variaveis: [], permite_fim_semana: false },
+    configPadrao: { texto: "", formato_editor: "texto", template_id: null, variaveis: [], botoes_resposta: [], permite_fim_semana: false, nome_fallback: "cliente" },
   },
   aguardar_botao: {
     label: "Aguardar botão",
