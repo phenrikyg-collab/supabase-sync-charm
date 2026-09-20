@@ -360,8 +360,15 @@ export default function PopupsDashboard() {
               rotulo="Impressões"
               valor={num(n(resumo, "impressoes"))}
               sub={`${Number(n(resumo, "impressoes_por_visitante")).toLocaleString("pt-BR", { maximumFractionDigits: 2 })} por visitante`}
+              atual={n(resumo, "impressoes")}
+              anterior={n(anterior, "impressoes")}
             />
-            <CardPequeno rotulo="Visitantes alcançados" valor={num(n(resumo, "visitantes"))} />
+            <CardPequeno
+              rotulo="Visitantes alcançados"
+              valor={num(n(resumo, "visitantes"))}
+              atual={n(resumo, "visitantes")}
+              anterior={n(anterior, "visitantes")}
+            />
             <CardPequeno
               rotulo="Taxa de uso do cupom"
               valor={pct(n(resumo, "taxa_uso_cupom"))}
