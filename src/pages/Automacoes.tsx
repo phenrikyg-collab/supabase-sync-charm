@@ -69,9 +69,9 @@ export default function Automacoes() {
   const fluxos = useQuery({ queryKey: ["fluxos-listar"], queryFn: async () => (await rpcFluxos<FluxoLista[]>("fluxos_listar", { p_dias: temPersonalizado ? 30 : dias })) ?? [] });
   const alertasAbertos = useAlertasAutomacoes(false);
   const recarregarTudo = () => { queryClient.invalidateQueries({ queryKey: ["crm-painel"] }); queryClient.invalidateQueries({ queryKey: ["crm-custos"] }); };
-  const consultaAtiva = aba === "dashboard" ? painelGeral : painelWhatsapp;
+  const consultaAtiva = aba === "dashboard" ? painelGeral : painelFluxos;
   const dadosGerais = painelGeral.data ?? {};
-  const dadosWhatsapp = painelWhatsapp.data ?? {};
+  const dadosFluxos = painelFluxos.data ?? {};
   const listaAlertas = alertasAbertos.data ?? [];
   const totalAlertas = listaAlertas.length;
   const temGrave = listaAlertas.some((a) => a.gravidade === "grave");
