@@ -706,6 +706,13 @@ export function ConfigNoPanel({
               <p className="mb-2 text-xs font-medium">Se a janela estiver fechada, sai o template:</p>
               <CamposWhatsAppTemplate config={config} catalogo={catalogo} onChange={patch} />
             </div>
+            {onRemapearSaidas && (
+              <RemapearSaidas
+                saidas={saidasParaRemapear}
+                botoes={botoesParaRemapear}
+                onAplicar={onRemapearSaidas}
+              />
+            )}
             <p className="text-[11px] text-muted-foreground">
               A janela é conferida na hora de sair a mensagem, não na hora em que a cliente chega neste passo.
             </p>
