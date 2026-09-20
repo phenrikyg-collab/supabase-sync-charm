@@ -10,9 +10,20 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip as RTooltip } from "recharts";
 import {
   AlertTriangle,
@@ -25,6 +36,7 @@ import {
   Sparkles,
   Star,
   Trash2,
+  ArchiveRestore,
 } from "lucide-react";
 import { toast } from "sonner";
 import { brl, dataCurta, num, pctBr } from "@/lib/financeiroFormat";
@@ -41,12 +53,15 @@ import {
   vipGerarCalendario,
   vipGruposListar,
   vipMensagensStatus,
+  vipMensagemArquivar,
+  vipMensagemExcluir,
   vipMensagemTextoFinal,
   type VipCalendario,
   type VipCalendarioResumo,
   type VipGrupo,
   type VipMensagem,
 } from "@/lib/vip";
+import { formatarData } from "@/utils/formatters";
 import { MensagemPainel } from "./MensagemPainel";
 
 const CORES_DONUT = ["#E8CD7E", "#8B6914", "#7C9EB2", "#B27C9E", "#9EB27C", "#B2907C"];
@@ -219,7 +234,12 @@ export function CalendarioTab() {
   const [filtroIntencao, setFiltroIntencao] = useState("todas");
   const [filtroStatus, setFiltroStatus] = useState("todos");
   const [filtroExtra, setFiltroExtra] = useState("todas");
+  const [mostrarArquivadas, setMostrarArquivadas] = useState(false);
   const [aberta, setAberta] = useState<VipMensagem | null>(null);
+  const [confirmarExclusao, setConfirmarExclusao] = useState<VipMensagem | null>(null);
+  const [sugerirArquivo, setSugerirArquivo] = useState<VipMensagem | null>(null);
+  const [confirmarLote, setConfirmarLote] = useState(false);
+  const [processandoExclusao, setProcessandoExclusao] = useState(false);
   const polls = useRef(0);
 
   const carregarLista = useCallback(async () => {
@@ -273,6 +293,7 @@ export function CalendarioTab() {
   const filtradas = useMemo(
     () =>
       mensagens.filter((m) => {
+        if (!mostrarArquivadas && m.arquivada) return false;
         if (filtroIntencao !== "todas" && m.intencao !== filtroIntencao) return false;
         if (filtroStatus !== "todos" && m.status !== filtroStatus) return false;
         if (filtroExtra === "prioritarias" && !m.prioritaria) return false;
@@ -281,8 +302,83 @@ export function CalendarioTab() {
         if (filtroExtra === "enquete" && !m.enquete) return false;
         return true;
       }),
-    [mensagens, filtroIntencao, filtroStatus, filtroExtra],
+    [mensagens, mostrarArquivadas, filtroIntencao, filtroStatus, filtroExtra],
   );
+
+  const removerDaLista = (mensagemId: string) => {
+    setCal((atual) => atual ? { ...atual, mensagens: (atual.mensagens ?? []).filter((mensagem) => mensagem.id !== mensagemId) } : atual);
+    setSel((atuais) => atuais.filter((item) => item !== mensagemId));
+  };
+
+  const arquivarMensagem = async (mensagem: VipMensagem, valor = true) => {
+    await vipMensagemArquivar(mensagem.id, valor);
+    setCal((atual) => atual ? { ...atual, mensagens: (atual.mensagens ?? []).map((item) => item.id === mensagem.id ? { ...item, arquivada: valor } : item) } : atual);
+    setSel((atuais) => atuais.filter((item) => item !== mensagem.id));
+    toast.success(valor ? "Mensagem arquivada" : "Mensagem desarquivada");
+  };
+
+  const excluirMensagem = async (mensagem: VipMensagem) => {
+    setProcessandoExclusao(true);
+    try {
+      const resultado = await vipMensagemExcluir(mensagem.id);
+      if (resultado?.ok) {
+        removerDaLista(mensagem.id);
+        setConfirmarExclusao(null);
+        toast.success("Mensagem excluída");
+        return;
+      }
+      if (resultado?.motivo === "ja_enviada") {
+        setConfirmarExclusao(null);
+        setSugerirArquivo(mensagem);
+        return;
+      }
+      if (resultado?.motivo === "em_disparo") {
+        toast.warning("Esta mensagem está em disparo e não pode ser excluída agora.");
+        return;
+      }
+      toast.error("Não foi possível excluir a mensagem.");
+    } catch (e: any) {
+      toast.error(e.message ?? "Não foi possível excluir a mensagem.");
+    } finally {
+      setProcessandoExclusao(false);
+    }
+  };
+
+  const excluirSelecionadas = async () => {
+    const mensagensSelecionadas = mensagens.filter((mensagem) => sel.includes(mensagem.id));
+    if (mensagensSelecionadas.length === 0) return;
+    setProcessandoExclusao(true);
+    let excluidas = 0;
+    let arquivadas = 0;
+    let emDisparo = 0;
+    try {
+      for (const mensagem of mensagensSelecionadas) {
+        try {
+          const resultado = await vipMensagemExcluir(mensagem.id);
+          if (resultado?.ok) {
+            removerDaLista(mensagem.id);
+            excluidas += 1;
+          } else if (resultado?.motivo === "ja_enviada") {
+            await vipMensagemArquivar(mensagem.id, true);
+            arquivadas += 1;
+          } else if (resultado?.motivo === "em_disparo") {
+            emDisparo += 1;
+          }
+        } catch {
+          emDisparo += 1;
+        }
+      }
+      setConfirmarLote(false);
+      setSel([]);
+      if (id) await carregarCal(id);
+      const partes = [`${excluidas} excluída${excluidas === 1 ? "" : "s"}`];
+      if (arquivadas) partes.push(`${arquivadas} já enviada${arquivadas === 1 ? "" : "s"} (arquivada${arquivadas === 1 ? "" : "s"})`);
+      if (emDisparo) partes.push(`${emDisparo} em disparo ou não processada${emDisparo === 1 ? "" : "s"}`);
+      toast.success(partes.join(", "));
+    } finally {
+      setProcessandoExclusao(false);
+    }
+  };
 
   const aplicarStatus = async (status: "aprovada" | "agendada" | "cancelada") => {
     if (sel.length === 0) return;
@@ -498,6 +594,10 @@ export function CalendarioTab() {
                 <SelectItem value="enquete">Com enquete</SelectItem>
               </SelectContent>
             </Select>
+            <div className="flex items-center gap-2 rounded-md border border-border px-2.5 py-2">
+              <Switch id="mostrar-arquivadas" checked={mostrarArquivadas} onCheckedChange={setMostrarArquivadas} />
+              <Label htmlFor="mostrar-arquivadas" className="text-xs font-normal">Mostrar arquivadas</Label>
+            </div>
             <div className="flex-1" />
             {sel.length > 0 && (
               <>
@@ -505,6 +605,9 @@ export function CalendarioTab() {
                 <Button size="sm" onClick={() => aplicarStatus("aprovada")}>Aprovar</Button>
                 <Button size="sm" variant="outline" onClick={() => aplicarStatus("agendada")}>Agendar</Button>
                 <Button size="sm" variant="ghost" onClick={() => aplicarStatus("cancelada")}>Cancelar</Button>
+                <Button size="sm" variant="destructive" onClick={() => setConfirmarLote(true)}>
+                  <Trash2 className="mr-1 h-3.5 w-3.5" />Excluir selecionadas
+                </Button>
               </>
             )}
           </div>
@@ -514,7 +617,7 @@ export function CalendarioTab() {
               const camadas = Object.values(m.camadas ?? {}).filter(Boolean).slice(0, 5).join(" · ");
               const pendente = m.midia_requer_autorizacao && m.midia_autorizacao_status !== "autorizada";
               return (
-                <Card key={m.id} className={`border-l-4 ${pendente ? "border-l-amber-500" : "border-l-primary/40"}`}>
+                <Card key={m.id} className={`border-l-4 ${pendente ? "border-l-amber-500" : "border-l-primary/40"} ${m.arquivada ? "bg-muted/40 opacity-70" : ""}`}>
                   <CardContent className="flex gap-3 py-3">
                     <Checkbox
                       checked={sel.includes(m.id)}
@@ -532,6 +635,7 @@ export function CalendarioTab() {
                         {m.midia_url && <ImageIcon className="h-3.5 w-3.5 text-muted-foreground" />}
                         {m.enquete && <MessageSquare className="h-3.5 w-3.5 text-muted-foreground" />}
                         <Badge variant="outline" className={CORES_STATUS[m.status ?? "rascunho"]}>{m.status}</Badge>
+                        {m.arquivada && <Badge variant="secondary" className="text-[10px]">arquivada</Badge>}
                         {((m as any).avulsa || (m as any).origem === "avulsa") && (
                           <Badge variant="outline" className="text-[10px] text-muted-foreground">avulsa</Badge>
                         )}
@@ -552,6 +656,15 @@ export function CalendarioTab() {
                       </div>
                     </div>
                     <div className="flex flex-col gap-1">
+                      {m.arquivada ? (
+                        <Button size="sm" variant="outline" onClick={() => arquivarMensagem(m, false)}>
+                          <ArchiveRestore className="mr-1 h-3.5 w-3.5" />Desarquivar
+                        </Button>
+                      ) : (
+                        <Button size="icon" variant="ghost" className="ml-auto h-8 w-8" disabled={m.status === "enviando"} onClick={() => setConfirmarExclusao(m)} aria-label={m.status === "enviando" ? "Mensagem em disparo" : "Excluir mensagem"} title={m.status === "enviando" ? "Esta mensagem está em disparo" : "Excluir mensagem"}>
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
+                      )}
                       <Button size="sm" variant="outline" onClick={() => setAberta(m)}>Ver / editar</Button>
                       <Button
                         size="sm"
@@ -620,6 +733,54 @@ export function CalendarioTab() {
       </p>
 
       <ModalGerar aberto={modal} onFechar={() => setModal(false)} onCriado={(novo) => { carregarLista(); setId(novo); }} horarioPadrao="20:30" />
+      <AlertDialog open={!!confirmarExclusao} onOpenChange={(aberto) => !aberto && setConfirmarExclusao(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir esta mensagem?</AlertDialogTitle>
+            <AlertDialogDescription>
+              A mensagem “{confirmarExclusao?.tema || confirmarExclusao?.headline || "Sem tema"}”, de {formatarData(confirmarExclusao?.data_envio)}, será apagada com todo o texto. Essa ação não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={processandoExclusao}>Manter mensagem</AlertDialogCancel>
+            <AlertDialogAction disabled={processandoExclusao} onClick={(evento) => { evento.preventDefault(); if (confirmarExclusao) excluirMensagem(confirmarExclusao); }} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              {processandoExclusao ? "Excluindo..." : "Excluir mensagem"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+      <AlertDialog open={!!sugerirArquivo} onOpenChange={(aberto) => !aberto && setSugerirArquivo(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Arquivar em vez de apagar?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Essa mensagem já foi para os grupos em {formatarData(sugerirArquivo?.data_envio)}. Não dá para apagar sem perder o histórico. Quer arquivar?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Manter na lista</AlertDialogCancel>
+            <AlertDialogAction disabled={processandoExclusao} onClick={(evento) => { evento.preventDefault(); if (!sugerirArquivo) return; setProcessandoExclusao(true); arquivarMensagem(sugerirArquivo, true).then(() => setSugerirArquivo(null)).catch((e) => toast.error(e.message ?? "Não foi possível arquivar.")).finally(() => setProcessandoExclusao(false)); }}>
+              Arquivar mensagem
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+      <AlertDialog open={confirmarLote} onOpenChange={setConfirmarLote}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir {sel.length} mensagens selecionadas?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Os rascunhos serão apagados com todo o texto. Mensagens que já foram para os grupos serão arquivadas para preservar métricas e histórico. Mensagens em disparo não serão alteradas.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={processandoExclusao}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction disabled={processandoExclusao} onClick={(evento) => { evento.preventDefault(); excluirSelecionadas(); }} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              {processandoExclusao ? "Processando..." : "Excluir selecionadas"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
       <MensagemPainel
         mensagem={aberta}
         grupos={grupos}
