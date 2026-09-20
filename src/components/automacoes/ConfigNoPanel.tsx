@@ -15,6 +15,7 @@ import { IframePrevia, usePreviaTemplate } from "@/components/emails/PreviaTempl
 import { ContadorPublico } from "./ContadorPublico";
 import { TIPOS_NO, type NoData, type TipoNo } from "./tipos";
 import { ROTULO_EVENTO, type Catalogo } from "./api";
+import { RemapearSaidas } from "./RemapearSaidas";
 
 type NoLista = { ref: string; tipo: TipoNo; rotulo: string };
 
@@ -310,6 +311,7 @@ function PreviaEmailDialog({ slug, open, onOpenChange }: { slug?: string | null;
 
 export function ConfigNoPanel({
   data, catalogo, nosDoFluxo, gatilhoTipo, botoesEntrada = [], temTemplateAntes = false,
+  saidasParaRemapear = [], botoesParaRemapear = [], onRemapearSaidas,
   onChange, onRemover, onFechar, onIrConfiguracoes,
 }: {
   data: NoData;
@@ -317,6 +319,9 @@ export function ConfigNoPanel({
   nosDoFluxo: NoLista[];
   botoesEntrada?: string[];
   temTemplateAntes?: boolean;
+  saidasParaRemapear?: string[];
+  botoesParaRemapear?: string[];
+  onRemapearSaidas?: (mapa: Record<string, string | null>) => void;
   gatilhoTipo?: string | null;
   onChange: (patch: { rotulo?: string; config?: Record<string, any> }) => void;
   onRemover: () => void;
