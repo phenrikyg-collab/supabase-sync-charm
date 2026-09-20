@@ -35,6 +35,8 @@ export default function Automacoes() {
   const dias = [7, 30, 90].includes(Number(params.get("dias"))) ? Number(params.get("dias")) : 30;
   const de = params.get("de") ?? diasAtrasIso(30);
   const ate = params.get("ate") ?? hojeIso();
+  const canalParam = params.get("canal") as CanalCrm | null;
+  const canal: CanalCrm = canalParam && CANAIS.includes(canalParam) ? canalParam : "todos";
   const [novoAberto, setNovoAberto] = useState(false);
   const [custosAberto, setCustosAberto] = useState(false);
 
@@ -42,6 +44,7 @@ export default function Automacoes() {
   const mudarAba = (nova: AbaCrm) => atualizarParams({ aba: nova === "dashboard" ? null : nova });
   const escolherDias = (valor: number) => atualizarParams({ dias: String(valor), de: null, ate: null });
   const escolherPersonalizado = () => atualizarParams({ dias: null, de, ate });
+  const escolherCanal = (valor: CanalCrm) => atualizarParams({ canal: valor === "todos" ? null : valor });
 
   const parametrosPeriodo = { p_dias: temPersonalizado ? null : dias, p_de: temPersonalizado ? de : null, p_ate: temPersonalizado ? ate : null };
   const painelGeral = useQuery({
