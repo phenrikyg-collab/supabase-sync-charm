@@ -18,4 +18,4 @@
 18. [x] Criar automaticamente Aguardar botão ao adicionar a primeira resposta rápida
 19. [x] Trocar códigos manuais da vitrine por seleção visual do catálogo espelhado
 20. [x] Preservar produtos removidos do catálogo e permitir inclusão manual de emergência
-21. [ ] Validar o seletor visual, a prévia e o typecheck
+21. [x] Validar o seletor visual, a prévia e o typecheck

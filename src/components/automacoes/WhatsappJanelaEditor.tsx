@@ -356,12 +356,12 @@ function SeletorProdutosCatalogo({ ids, onConfirmar }: { ids: string[]; onConfir
                   const selecionado = selecionados.includes(produto.retailer_id);
                   const bloqueado = !selecionado && selecionados.length >= MAX_PRODUTOS;
                   return (
-                    <button type="button" key={produto.retailer_id} disabled={bloqueado} onClick={() => alternar(produto.retailer_id)} className={cn("relative overflow-hidden rounded-md border bg-card p-2 text-left transition-colors", selecionado ? "border-primary ring-2 ring-primary/20" : "border-border hover:border-primary/50", bloqueado && "cursor-not-allowed opacity-50")}>
+                    <Button type="button" key={produto.retailer_id} variant="outline" disabled={bloqueado} onClick={() => alternar(produto.retailer_id)} className={cn("relative block h-auto overflow-hidden whitespace-normal rounded-md bg-card p-2 text-left transition-colors", selecionado ? "border-primary ring-2 ring-primary/20" : "border-border hover:border-primary/50", bloqueado && "cursor-not-allowed opacity-50")}>
                       <ImagemProduto produto={produto} className="aspect-[3/4] w-full rounded" />
                       {selecionado && <span className="absolute right-3 top-3 flex h-6 w-6 items-center justify-center rounded-full bg-primary text-primary-foreground"><Check className="h-4 w-4" /></span>}
                       <p className="mt-2 truncate text-xs font-medium" title={produto.nome || produto.retailer_id}>{produto.nome || produto.retailer_id}</p>
                       <PrecoProduto produto={produto} compacto />
-                    </button>
+                    </Button>
                   );
                 })}
               </div>
