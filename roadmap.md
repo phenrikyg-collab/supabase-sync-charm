@@ -19,3 +19,6 @@
 19. [x] Trocar códigos manuais da vitrine por seleção visual do catálogo espelhado
 20. [x] Preservar produtos removidos do catálogo e permitir inclusão manual de emergência
 21. [x] Validar o seletor visual, a prévia e o typecheck
+22. [x] Adicionar exclusão segura e arquivamento às mensagens do calendário VIP
+23. [x] Adicionar filtro de arquivadas e limpeza de mensagens em lote
+24. [ ] Validar confirmações, retornos das funções e typecheck do calendário

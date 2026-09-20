@@ -100,6 +100,7 @@ export type VipEnquete = {
 
 export type VipMensagem = {
   id: string;
+  arquivada?: boolean | null;
   ordem?: number | null;
   data_envio?: string | null;
   horario?: string | null;
@@ -224,6 +225,19 @@ export const vipCalendarioExcluir = (id: string) =>
 
 export const vipMensagemSalvar = (id: string, patch: any, editadoPor: string) =>
   vipRpc("vip_mensagem_salvar", { p_id: id, p: patch, p_editado_por: editadoPor });
+
+export type VipMensagemExcluirResultado = {
+  ok?: boolean;
+  motivo?: "em_disparo" | "ja_enviada" | string;
+  acao_sugerida?: string;
+  [k: string]: any;
+};
+
+export const vipMensagemExcluir = (id: string) =>
+  vipRpc<VipMensagemExcluirResultado>("vip_mensagem_excluir", { p_id: id });
+
+export const vipMensagemArquivar = (id: string, valor = true) =>
+  vipRpc<{ ok?: boolean; [k: string]: any }>("vip_mensagem_arquivar", { p_id: id, p_valor: valor });
 
 export const vipVarianteSalvar = (
   mensagemId: string,
