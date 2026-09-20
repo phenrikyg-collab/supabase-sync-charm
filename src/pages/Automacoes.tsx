@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { RefreshCw, Settings } from "lucide-react";
+import { AlertTriangle, CircleAlert, RefreshCw, Settings } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -11,10 +11,11 @@ import { CrmCustosDialog } from "@/components/automacoes/CrmCustosDialog";
 import { CrmDashboard } from "@/components/automacoes/CrmDashboard";
 import { CrmListaDesempenho } from "@/components/automacoes/CrmListaDesempenho";
 import { NovoFluxoDialog } from "@/components/automacoes/NovoFluxoDialog";
+import { AlertasAutomacoes, useAlertasAutomacoes } from "@/components/automacoes/AlertasAutomacoes";
 import { rpcFluxos, type FluxoLista } from "@/components/automacoes/api";
 import { type AbaCrm, type PainelCrm } from "@/components/automacoes/crmTipos";
 
-const ABAS: AbaCrm[] = ["dashboard", "campanhas", "automacoes"];
+const ABAS: AbaCrm[] = ["dashboard", "campanhas", "automacoes", "alertas"];
 
 function hojeIso() {
   const agora = new Date();
