@@ -666,7 +666,16 @@ export function ConfigNoPanel({
         )}
 
         {data.tipo === "whatsapp_template" && (
-          <CamposWhatsAppTemplate config={config} catalogo={catalogo} onChange={patch} />
+          <div className="space-y-3">
+            <CamposWhatsAppTemplate config={config} catalogo={catalogo} onChange={patch} />
+            {onRemapearSaidas && (
+              <RemapearSaidas
+                saidas={saidasParaRemapear}
+                botoes={botoesParaRemapear}
+                onAplicar={onRemapearSaidas}
+              />
+            )}
+          </div>
         )}
 
         {data.tipo === "aguardar_botao" && (
