@@ -14,3 +14,5 @@
 14. [ ] Criar editor completo do passo WhatsApp janela aberta
 15. [ ] Preservar remapeamento de botões e bloquear configurações acima dos limites
 16. [ ] Validar editor, prévia e typecheck
+17. [ ] Mostrar a mensagem completa no card do canvas com botões e mídia
+18. [ ] Criar automaticamente Aguardar botão ao adicionar a primeira resposta rápida
