@@ -11,3 +11,6 @@
 - [x] Adicionar encerramento manual às cobranças da conversa
 - [x] Recolher Pix e links em uma linha única no celular
 - [x] Validar estrutura celular, preservação do desktop e typecheck das cobranças
+14. [ ] Criar editor completo do passo WhatsApp janela aberta
+15. [ ] Preservar remapeamento de botões e bloquear configurações acima dos limites
+16. [ ] Validar editor, prévia e typecheck
