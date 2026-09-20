@@ -121,10 +121,28 @@ export function ConfiguracoesTab({
   const gatilhoTipo = fluxo.gatilho_tipo ?? "";
   const gc = fluxo.gatilho_config ?? {};
   const setGc = (p: Record<string, any>) => onChange({ gatilho_config: { ...gc, ...p } });
+  const removerGc = (chave: string) => {
+    const copia = { ...gc };
+    delete copia[chave];
+    onChange({ gatilho_config: copia });
+  };
   const gatilhoMeta = (catalogo?.gatilhos ?? []).find((g) => g.tipo === gatilhoTipo);
   const grupos = catalogo?.grupos ?? [];
 
   const diasSemana: number[] = Array.isArray(gc.dias_semana) ? gc.dias_semana : [];
+
+  const statusOpcoes = (catalogo?.status_pedido_opcoes ?? []).map((s) => ({ valor: s, rotulo: s }));
+  const pagamentoOpcoes = (catalogo?.pagamento_opcoes ?? []).map((s) => ({ valor: s, rotulo: s }));
+  const rastreioOpcoes = (catalogo?.situacoes_rastreio ?? []).map((o) => ({ valor: o.valor, rotulo: o.rotulo }));
+
+  const [trocaPendente, setTrocaPendente] = useState<string | null>(null);
+  const aplicarTroca = (v: string) => onChange({ gatilho_tipo: v, gatilho_config: {} });
+  const pedirTroca = (v: string) => {
+    if (v === gatilhoTipo) return;
+    if (Object.keys(gc).length > 0) setTrocaPendente(v);
+    else aplicarTroca(v);
+  };
+
 
   return (
     <div className="grid gap-4 lg:grid-cols-2">
