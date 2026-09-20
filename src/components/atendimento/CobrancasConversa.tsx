@@ -43,8 +43,8 @@ export function CobrancasConversa({ conversaId }: { conversaId: string | number 
         {expandido ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
       </Button>
       <div className={cn("max-h-[40dvh] overflow-y-auto", !expandido && "hidden")}>
-        <CobrancasDaConversa conversaId={conversaId} embutido onQuantidadeChange={registrarPix} />
-        <LinksDaConversa conversaId={conversaId} embutido onQuantidadeChange={registrarLinks} />
+        <CobrancasDaConversa key={`pix-${conversaId}`} conversaId={conversaId} embutido onQuantidadeChange={registrarPix} />
+        <LinksDaConversa key={`links-${conversaId}`} conversaId={conversaId} embutido onQuantidadeChange={registrarLinks} />
       </div>
     </div>
   );
