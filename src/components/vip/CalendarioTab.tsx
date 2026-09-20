@@ -23,6 +23,7 @@ import {
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip as RTooltip } from "recharts";
 import {
   AlertTriangle,
@@ -593,6 +594,10 @@ export function CalendarioTab() {
                 <SelectItem value="enquete">Com enquete</SelectItem>
               </SelectContent>
             </Select>
+            <div className="flex items-center gap-2 rounded-md border border-border px-2.5 py-2">
+              <Switch id="mostrar-arquivadas" checked={mostrarArquivadas} onCheckedChange={setMostrarArquivadas} />
+              <Label htmlFor="mostrar-arquivadas" className="text-xs font-normal">Mostrar arquivadas</Label>
+            </div>
             <div className="flex-1" />
             {sel.length > 0 && (
               <>
@@ -600,6 +605,9 @@ export function CalendarioTab() {
                 <Button size="sm" onClick={() => aplicarStatus("aprovada")}>Aprovar</Button>
                 <Button size="sm" variant="outline" onClick={() => aplicarStatus("agendada")}>Agendar</Button>
                 <Button size="sm" variant="ghost" onClick={() => aplicarStatus("cancelada")}>Cancelar</Button>
+                <Button size="sm" variant="destructive" onClick={() => setConfirmarLote(true)}>
+                  <Trash2 className="mr-1 h-3.5 w-3.5" />Excluir selecionadas
+                </Button>
               </>
             )}
           </div>
@@ -609,7 +617,7 @@ export function CalendarioTab() {
               const camadas = Object.values(m.camadas ?? {}).filter(Boolean).slice(0, 5).join(" · ");
               const pendente = m.midia_requer_autorizacao && m.midia_autorizacao_status !== "autorizada";
               return (
-                <Card key={m.id} className={`border-l-4 ${pendente ? "border-l-amber-500" : "border-l-primary/40"}`}>
+                <Card key={m.id} className={`border-l-4 ${pendente ? "border-l-amber-500" : "border-l-primary/40"} ${m.arquivada ? "bg-muted/40 opacity-70" : ""}`}>
                   <CardContent className="flex gap-3 py-3">
                     <Checkbox
                       checked={sel.includes(m.id)}
@@ -627,6 +635,7 @@ export function CalendarioTab() {
                         {m.midia_url && <ImageIcon className="h-3.5 w-3.5 text-muted-foreground" />}
                         {m.enquete && <MessageSquare className="h-3.5 w-3.5 text-muted-foreground" />}
                         <Badge variant="outline" className={CORES_STATUS[m.status ?? "rascunho"]}>{m.status}</Badge>
+                        {m.arquivada && <Badge variant="secondary" className="text-[10px]">arquivada</Badge>}
                         {((m as any).avulsa || (m as any).origem === "avulsa") && (
                           <Badge variant="outline" className="text-[10px] text-muted-foreground">avulsa</Badge>
                         )}
@@ -647,6 +656,15 @@ export function CalendarioTab() {
                       </div>
                     </div>
                     <div className="flex flex-col gap-1">
+                      {m.arquivada ? (
+                        <Button size="sm" variant="outline" onClick={() => arquivarMensagem(m, false)}>
+                          <ArchiveRestore className="mr-1 h-3.5 w-3.5" />Desarquivar
+                        </Button>
+                      ) : (
+                        <Button size="icon" variant="ghost" className="ml-auto h-8 w-8" disabled={m.status === "enviando"} onClick={() => setConfirmarExclusao(m)} aria-label={m.status === "enviando" ? "Mensagem em disparo" : "Excluir mensagem"} title={m.status === "enviando" ? "Esta mensagem está em disparo" : "Excluir mensagem"}>
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
+                      )}
                       <Button size="sm" variant="outline" onClick={() => setAberta(m)}>Ver / editar</Button>
                       <Button
                         size="sm"
@@ -715,6 +733,54 @@ export function CalendarioTab() {
       </p>
 
       <ModalGerar aberto={modal} onFechar={() => setModal(false)} onCriado={(novo) => { carregarLista(); setId(novo); }} horarioPadrao="20:30" />
+      <AlertDialog open={!!confirmarExclusao} onOpenChange={(aberto) => !aberto && setConfirmarExclusao(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir esta mensagem?</AlertDialogTitle>
+            <AlertDialogDescription>
+              A mensagem “{confirmarExclusao?.tema || confirmarExclusao?.headline || "Sem tema"}”, de {formatarData(confirmarExclusao?.data_envio)}, será apagada com todo o texto. Essa ação não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={processandoExclusao}>Manter mensagem</AlertDialogCancel>
+            <AlertDialogAction disabled={processandoExclusao} onClick={(evento) => { evento.preventDefault(); if (confirmarExclusao) excluirMensagem(confirmarExclusao); }} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              {processandoExclusao ? "Excluindo..." : "Excluir mensagem"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+      <AlertDialog open={!!sugerirArquivo} onOpenChange={(aberto) => !aberto && setSugerirArquivo(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Arquivar em vez de apagar?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Essa mensagem já foi para os grupos em {formatarData(sugerirArquivo?.data_envio)}. Não dá para apagar sem perder o histórico. Quer arquivar?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Manter na lista</AlertDialogCancel>
+            <AlertDialogAction disabled={processandoExclusao} onClick={(evento) => { evento.preventDefault(); if (!sugerirArquivo) return; setProcessandoExclusao(true); arquivarMensagem(sugerirArquivo, true).then(() => setSugerirArquivo(null)).catch((e) => toast.error(e.message ?? "Não foi possível arquivar.")).finally(() => setProcessandoExclusao(false)); }}>
+              Arquivar mensagem
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+      <AlertDialog open={confirmarLote} onOpenChange={setConfirmarLote}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir {sel.length} mensagens selecionadas?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Os rascunhos serão apagados com todo o texto. Mensagens que já foram para os grupos serão arquivadas para preservar métricas e histórico. Mensagens em disparo não serão alteradas.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={processandoExclusao}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction disabled={processandoExclusao} onClick={(evento) => { evento.preventDefault(); excluirSelecionadas(); }} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              {processandoExclusao ? "Processando..." : "Excluir selecionadas"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
       <MensagemPainel
         mensagem={aberta}
         grupos={grupos}
