@@ -138,6 +138,13 @@ export function useCatalogoFluxos() {
         eventos: d?.eventos ?? { email: [], whatsapp: [] },
         espera_referencias: normalizarOpcoes((d as any)?.espera_referencias),
         condicao_modos_extra: normalizarOpcoes((d as any)?.condicao_modos_extra),
+        status_pedido_opcoes: Array.isArray((d as any)?.status_pedido_opcoes)
+          ? (d as any).status_pedido_opcoes.map((s: any) => String(s))
+          : [],
+        pagamento_opcoes: Array.isArray((d as any)?.pagamento_opcoes)
+          ? (d as any).pagamento_opcoes.map((s: any) => String(s))
+          : [],
+        situacoes_rastreio: normalizarOpcoes((d as any)?.situacoes_rastreio),
       } as Catalogo;
     },
   });
