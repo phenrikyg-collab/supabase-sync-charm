@@ -16,3 +16,6 @@
 16. [x] Validar editor, prévia e typecheck
 17. [x] Mostrar a mensagem completa no card do canvas com botões e mídia
 18. [x] Criar automaticamente Aguardar botão ao adicionar a primeira resposta rápida
+19. [x] Trocar códigos manuais da vitrine por seleção visual do catálogo espelhado
+20. [x] Preservar produtos removidos do catálogo e permitir inclusão manual de emergência
+21. [x] Validar o seletor visual, a prévia e o typecheck
