@@ -1,4 +1,4 @@
-export type AbaCrm = "dashboard" | "campanhas" | "automacoes";
+export type AbaCrm = "dashboard" | "campanhas" | "automacoes" | "alertas";
 
 export type PeriodoCrm = {
   de?: string | null;
