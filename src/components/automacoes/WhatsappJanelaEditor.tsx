@@ -1,16 +1,22 @@
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { ChevronDown, ChevronUp, Film, Link as LinkIcon, Loader2, Package, Plus, Trash2, Upload } from "lucide-react";
+import { formatDistanceToNow } from "date-fns";
+import { ptBR } from "date-fns/locale";
+import { Check, ChevronDown, ChevronUp, Film, ImageOff, Link as LinkIcon, Loader2, Package, Plus, Search, Trash2, Upload } from "lucide-react";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { toast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { brl } from "@/lib/financeiroFormat";
 import { whatsappParaHtml } from "@/lib/vip";
 import { cn } from "@/lib/utils";
 import { rpcFluxos, type Catalogo } from "./api";
@@ -23,7 +29,31 @@ type Figurinha = {
   media_url?: string | null;
 };
 
+type ProdutoCatalogo = {
+  retailer_id: string;
+  nome?: string | null;
+  categoria?: string | null;
+  imagem_url?: string | null;
+  url?: string | null;
+  preco?: number | null;
+  preco_promocional?: number | null;
+  promo_vigente?: boolean | null;
+  disponibilidade?: string | null;
+  no_catalogo?: boolean | null;
+  atualizado_em?: string | null;
+  posicao?: number | null;
+};
+
+type EstadoCatalogo = {
+  total?: number | null;
+  em_estoque?: number | null;
+  fora_catalogo?: number | null;
+  ultima_ok?: string | null;
+  ultimo_erro?: string | null;
+};
+
 const MAX_VIDEO = 16 * 1024 * 1024;
+const MAX_PRODUTOS = 30;
 
 const listaTextos = (valor: unknown) =>
   Array.isArray(valor) ? valor.map((item) => String(item ?? "")).filter(Boolean) : [];
@@ -50,8 +80,46 @@ export function errosWhatsappJanela(config: Record<string, any>): string[] {
   if (String(config.vitrine?.header ?? "").length > 60) erros.push("O título da vitrine pode ter até 60 caracteres.");
   if (String(config.vitrine?.footer ?? "").length > 60) erros.push("O rodapé da vitrine pode ter até 60 caracteres.");
   if (String(config.vitrine?.secao ?? "").length > 24) erros.push("O nome da seção pode ter até 24 caracteres.");
-  if (produtos.length > 30) erros.push("A vitrine pode ter até 30 produtos.");
+  if (formato === "vitrine" && produtos.length === 0) erros.push("Escolha pelo menos 1 produto para a vitrine.");
+  if (produtos.length > MAX_PRODUTOS) erros.push("A vitrine pode ter até 30 produtos.");
   return erros;
+}
+
+async function listarProdutosCatalogo(busca: string, soEstoque: boolean): Promise<ProdutoCatalogo[]> {
+  const { data, error } = await supabase.rpc("whatsapp_catalogo_produtos_listar" as any, {
+    p_busca: busca,
+    p_so_estoque: soEstoque,
+    p_limite: 300,
+  });
+  if (error) throw error;
+  return (data ?? []) as unknown as ProdutoCatalogo[];
+}
+
+async function produtosCatalogoPorIds(ids: string[]): Promise<ProdutoCatalogo[]> {
+  if (ids.length === 0) return [];
+  const { data, error } = await supabase.rpc("whatsapp_catalogo_produtos_por_ids" as any, { p_ids: ids });
+  if (error) throw error;
+  return (data ?? []) as unknown as ProdutoCatalogo[];
+}
+
+function PrecoProduto({ produto, compacto = false }: { produto: ProdutoCatalogo; compacto?: boolean }) {
+  const promocional = produto.promo_vigente && produto.preco_promocional != null;
+  return (
+    <div className={cn("flex flex-wrap items-baseline gap-x-1.5", compacto ? "text-[10px]" : "text-xs")}>
+      {promocional && produto.preco != null && <span className="text-muted-foreground line-through">{brl(produto.preco)}</span>}
+      <span className={cn("font-medium", promocional && "text-success")}>
+        {brl(promocional ? produto.preco_promocional : produto.preco)}
+      </span>
+    </div>
+  );
+}
+
+function ImagemProduto({ produto, className }: { produto: ProdutoCatalogo; className: string }) {
+  return produto.imagem_url ? (
+    <img src={produto.imagem_url} alt="" className={cn(className, "bg-muted object-cover")} />
+  ) : (
+    <div className={cn(className, "flex items-center justify-center bg-muted text-muted-foreground")}><ImageOff className="h-5 w-5" /></div>
+  );
 }
 
 function Contador({ atual, limite }: { atual: number; limite: number }) {
