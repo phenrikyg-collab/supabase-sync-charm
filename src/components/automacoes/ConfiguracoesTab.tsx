@@ -160,7 +160,7 @@ export function ConfiguracoesTab({
 
       <Card className="space-y-3 p-4">
         <h3 className="font-serif text-lg">Gatilho</h3>
-        <Select value={gatilhoTipo} onValueChange={(v) => onChange({ gatilho_tipo: v, gatilho_config: {} })}>
+        <Select value={gatilhoTipo} onValueChange={pedirTroca}>
           <SelectTrigger><SelectValue placeholder="Escolha o gatilho" /></SelectTrigger>
           <SelectContent>
             {(catalogo?.gatilhos ?? []).map((g) => (
