@@ -335,7 +335,7 @@ export default function PopupsDashboard() {
               valor={num(n(resumo, "novos_clientes"))}
               sub={`${reais(n(resumo, "faturamento_novos"))} em compras`}
               atual={n(resumo, "novos_clientes")}
-              anterior={n(anterior, "conversoes")}
+              anterior={n(anterior, "novos_clientes")}
             />
             <CardGrande
               rotulo="Cupons usados"
