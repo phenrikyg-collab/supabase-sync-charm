@@ -397,7 +397,9 @@ function GrupoEditor({
       </div>
 
       {itens.length === 0 && (
-        <p className="px-1 text-xs text-muted-foreground">Nenhuma condição ainda. Adicione a primeira abaixo.</p>
+        <p className="px-1 text-xs text-muted-foreground">
+          {nivel === 0 && textoVazio ? textoVazio : "Nenhuma condição ainda. Adicione a primeira abaixo."}
+        </p>
       )}
 
       {itens.map((item, i) => {
@@ -515,6 +517,7 @@ export function ConstrutorPublico({
       nivel={0}
       empilhado={empilhado}
       onChange={onChange}
+      textoVazio="Sem filtro: todo mundo que o gatilho pegar entra"
     />
   );
 }
