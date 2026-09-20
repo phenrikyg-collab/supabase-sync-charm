@@ -246,10 +246,142 @@ export function ConfiguracoesTab({
           </div>
         )}
 
+        {gatilhoTipo === "pedido_status" && (
+          <div className="space-y-3">
+            <SelecaoMultipla
+              rotulo="Status que fazem entrar"
+              ajuda="A cliente entra quando o pedido passa para um destes."
+              opcoes={statusOpcoes}
+              selecionados={gc.status}
+              onToggle={(v) => setGc({ status: alternarLista(gc.status, v) })}
+            />
+            <SelecaoMultipla
+              rotulo="Status que fazem sair"
+              ajuda="Se o pedido chegar a um destes, a execução é encerrada no meio do caminho."
+              opcoes={statusOpcoes}
+              selecionados={gc.sair_se_status}
+              onToggle={(v) => setGc({ sair_se_status: alternarLista(gc.sair_se_status, v) })}
+            />
+            <div className="grid gap-3 sm:grid-cols-2">
+              <CampoNumero
+                rotulo="Esperar quantos minutos antes de mandar"
+                valor={gc.espera_minutos}
+                ajuda="0 manda assim que o status muda."
+                onChange={(v) => setGc({ espera_minutos: v })}
+              />
+              <CampoNumero
+                rotulo="Janela de entrada (horas)"
+                valor={gc.janela_horas ?? 24}
+                ajuda="Ignora mudança de status mais antiga que isso."
+                onChange={(v) => setGc({ janela_horas: v })}
+              />
+              <CampoNumero
+                rotulo="Idade máxima do pedido (dias)"
+                valor={gc.max_dias_pedido ?? 30}
+                onChange={(v) => setGc({ max_dias_pedido: v })}
+              />
+            </div>
+            <CampoSwitch
+              rotulo="O pedido precisa ainda estar nesse status na hora do envio"
+              ajuda="Ligado evita mandar 'aguardando pagamento' para quem já pagou enquanto esperava."
+              checked={gc.exigir_status_atual === undefined ? true : !!gc.exigir_status_atual}
+              onCheckedChange={(v) => setGc({ exigir_status_atual: v })}
+            />
+            <CampoSwitch
+              rotulo="Só entra com código de rastreio"
+              checked={!!gc.exigir_rastreio}
+              onCheckedChange={(v) => setGc({ exigir_rastreio: v })}
+            />
+            <SelecaoMultipla
+              rotulo="Só estas formas de pagamento"
+              ajuda="Vazio aceita todas."
+              opcoes={pagamentoOpcoes}
+              selecionados={gc.pagamento}
+              onToggle={(v) => setGc({ pagamento: alternarLista(gc.pagamento, v) })}
+            />
+            <div className="space-y-1">
+              <Label className="text-xs">Primeira compra da cliente</Label>
+              <Select
+                value={gc.primeira_compra === true ? "sim" : gc.primeira_compra === false ? "nao" : "indiferente"}
+                onValueChange={(v) => {
+                  if (v === "indiferente") removerGc("primeira_compra");
+                  else setGc({ primeira_compra: v === "sim" });
+                }}
+              >
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="indiferente">Indiferente</SelectItem>
+                  <SelectItem value="sim">Sim</SelectItem>
+                  <SelectItem value="nao">Não</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <CampoSwitch
+              rotulo="Não entra se a cliente já fez outro pedido depois deste"
+              checked={!!gc.ignorar_se_pedido_novo}
+              onCheckedChange={(v) => setGc({ ignorar_se_pedido_novo: v })}
+            />
+          </div>
+        )}
+
+        {gatilhoTipo === "rastreio" && (
+          <div className="space-y-3">
+            <SelecaoMultipla
+              rotulo="Situações que fazem entrar"
+              opcoes={rastreioOpcoes}
+              selecionados={gc.situacoes}
+              onToggle={(v) => setGc({ situacoes: alternarLista(gc.situacoes, v) })}
+            />
+            <CampoNumero
+              rotulo="Esperar quantos minutos"
+              valor={gc.espera_minutos}
+              onChange={(v) => setGc({ espera_minutos: v })}
+            />
+          </div>
+        )}
+
+        {gatilhoTipo === "provador" && (
+          <div className="space-y-3">
+            <CampoSwitch
+              rotulo="Só quem não comprou depois de provar"
+              checked={gc.so_nao_convertido === undefined ? true : !!gc.so_nao_convertido}
+              onCheckedChange={(v) => setGc({ so_nao_convertido: v })}
+            />
+            <CampoSwitch
+              rotulo="Só quem ainda não recebeu contato"
+              checked={gc.so_sem_contato === undefined ? true : !!gc.so_sem_contato}
+              onCheckedChange={(v) => setGc({ so_sem_contato: v })}
+            />
+          </div>
+        )}
+
         {gatilhoTipo === "manual" && (
           <p className="text-xs text-muted-foreground">Só entra quem você colocar pelo Disparar agora.</p>
         )}
+
+        <AlertDialog open={trocaPendente !== null} onOpenChange={(aberto) => { if (!aberto) setTrocaPendente(null); }}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Trocar o gatilho?</AlertDialogTitle>
+              <AlertDialogDescription>
+                Trocar o gatilho apaga a configuração atual. Continuar?
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={() => {
+                  if (trocaPendente) aplicarTroca(trocaPendente);
+                  setTrocaPendente(null);
+                }}
+              >
+                Trocar
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </Card>
+
 
       <Card className="space-y-3 p-4">
         <h3 className="font-serif text-lg">Público de entrada</h3>
