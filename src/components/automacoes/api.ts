@@ -89,6 +89,9 @@ export type Catalogo = {
   eventos: { email: string[]; whatsapp: string[] };
   espera_referencias: OpcaoCatalogo[];
   condicao_modos_extra: OpcaoCatalogo[];
+  status_pedido_opcoes: string[];
+  pagamento_opcoes: string[];
+  situacoes_rastreio: OpcaoCatalogo[];
 };
 
 export type NoFluxo = {
