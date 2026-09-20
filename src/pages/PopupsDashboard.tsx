@@ -133,12 +133,17 @@ function CardGrande({
   );
 }
 
-function CardPequeno({ rotulo, valor, sub, corSub }: { rotulo: string; valor: string; sub?: string; corSub?: string }) {
+function CardPequeno({
+  rotulo, valor, sub, corSub, atual, anterior,
+}: { rotulo: string; valor: string; sub?: string; corSub?: string; atual?: number; anterior?: number }) {
   return (
     <Card style={{ borderColor: AREIA, backgroundColor: CREME }} className="shadow-none">
       <CardContent className="space-y-1 p-4">
         <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">{rotulo}</p>
-        <p className="font-serif text-xl font-bold tabular-nums" style={{ color: PRETO }}>{valor}</p>
+        <div className="flex flex-wrap items-baseline gap-1.5">
+          <p className="font-serif text-xl font-bold tabular-nums" style={{ color: PRETO }}>{valor}</p>
+          {atual !== undefined && anterior !== undefined && <Variacao atual={atual} anterior={anterior} />}
+        </div>
         {sub && <p className={cn("text-xs", corSub ?? "text-muted-foreground")}>{sub}</p>}
       </CardContent>
     </Card>
