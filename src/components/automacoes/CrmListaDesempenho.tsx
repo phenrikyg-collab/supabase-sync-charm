@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Copy, Eye, HandCoins, Info, MessageSquare, MoreHorizontal, MousePointerClick, PackageCheck, Pause, Play, Plus, Search, Send, ShoppingBag, Trash2, UserRound, WalletCards } from "lucide-react";
+import { Copy, Eye, HandCoins, Info, Mail, MessageSquare, MoreHorizontal, MousePointerClick, PackageCheck, Pause, Play, Plus, Search, Send, ShoppingBag, Trash2, UserRound, WalletCards } from "lucide-react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -17,13 +17,14 @@ import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { rpcFluxos, type FluxoLista } from "./api";
 import { CrmKpiCard, classeRoas } from "./CrmKpiCard";
-import { brlCrm, dataHoraCrm, numeroCrm, percentualCrm, roasCrm, type ItemCrm, type MetricasCrm } from "./crmTipos";
+import { brlCrm, dataHoraCrm, numeroCrm, percentualCrm, roasCrm, type CanalCrm, type ItemCrm, type MetricasCrm } from "./crmTipos";
 import { ROTULO_STATUS_FLUXO } from "./tipos";
 
 type Campo = "nome" | "periodo" | "pessoas" | "enviados" | "taxa_entrega" | "taxa_leitura" | "taxa_interacao" | "pedidos" | "receita" | "custo" | "custo_mensagens" | "custo_ia" | "roas" | "conversao" | "custo_por_pedido" | "receita_por_mil";
 type TipoLista = "campanhas" | "automacoes";
 
 const FILTROS: [string, string][] = [["todos", "Todos"], ["ativo", "No ar"], ["pausado", "Pausados"], ["rascunho", "Rascunhos"], ["arquivado", "Arquivados"]];
+const FILTROS_CANAL: [CanalCrm, string][] = [["todos", "Todos os canais"], ["whatsapp", "WhatsApp"], ["email", "E-mail"]];
 const CAMPANHA_GATILHOS = ["manual", "agendado"];
 const acessores: Record<Campo, (item: ItemCrm) => number | string | null | undefined> = {
   nome: (i) => i.nome,
@@ -46,16 +47,16 @@ const acessores: Record<Campo, (item: ItemCrm) => number | string | null | undef
 
 function normalizar(valor: string) { return valor.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase(); }
 
-function juntarFluxos(tipo: TipoLista, fluxos: FluxoLista[], itens: ItemCrm[]) {
+function juntarFluxos(tipo: TipoLista, canal: CanalCrm, fluxos: FluxoLista[], itens: ItemCrm[]) {
   const doTipo = fluxos.filter((fluxo) => {
     const canais = fluxo.canais ?? [];
     // Fluxo recém-criado ainda não tem canais: continua na lista para poder ser aberto e terminado.
-    const usaWhatsapp = canais.length === 0 || canais.some((canal) => canal.toLowerCase().includes("whatsapp"));
+    const canalOk = canal === "todos" || canais.length === 0 || canais.some((c) => c.toLowerCase().includes(canal));
     const tipoCorreto = tipo === "campanhas" ? CAMPANHA_GATILHOS.includes(String(fluxo.gatilho_tipo)) : !CAMPANHA_GATILHOS.includes(String(fluxo.gatilho_tipo));
-    return usaWhatsapp && tipoCorreto;
+    return canalOk && tipoCorreto;
   });
   const metricas = new Map(itens.map((item) => [item.origem_id, item]));
-  const idsFluxosWhatsapp = new Set(doTipo.map((fluxo) => `fluxo:${fluxo.id}`));
+  const idsFluxosDoCanal = new Set(doTipo.map((fluxo) => `fluxo:${fluxo.id}`));
   const idsUsados = new Set<string>();
   const unidos = doTipo.map((fluxo): ItemCrm => {
     const origemId = `fluxo:${fluxo.id}`;
@@ -92,7 +93,7 @@ function juntarFluxos(tipo: TipoLista, fluxos: FluxoLista[], itens: ItemCrm[]) {
       fluxo_id: fluxo.id,
     };
   });
-  return [...unidos, ...itens.filter((item) => !idsUsados.has(item.origem_id) && idsFluxosWhatsapp.has(item.origem_id))];
+  return [...unidos, ...itens.filter((item) => !idsUsados.has(item.origem_id) && idsFluxosDoCanal.has(item.origem_id))];
 }
 
 function BadgeStatus({ status }: { status: string }) {
@@ -118,9 +119,9 @@ function DetalheItem({ item }: { item: ItemCrm }) {
   </div>;
 }
 
-type Props = { tipo: TipoLista; dados?: MetricasCrm; fluxos: FluxoLista[]; carregandoFluxos: boolean; onNovo: () => void };
+type Props = { tipo: TipoLista; dados?: MetricasCrm; fluxos: FluxoLista[]; carregandoFluxos: boolean; canal: CanalCrm; onCanal: (valor: CanalCrm) => void; onNovo: () => void };
 
-export function CrmListaDesempenho({ tipo, dados, fluxos, carregandoFluxos, onNovo }: Props) {
+export function CrmListaDesempenho({ tipo, dados, fluxos, carregandoFluxos, canal, onCanal, onNovo }: Props) {
   const queryClient = useQueryClient();
   const [busca, setBusca] = useState("");
   const [filtro, setFiltro] = useState("todos");
@@ -128,7 +129,7 @@ export function CrmListaDesempenho({ tipo, dados, fluxos, carregandoFluxos, onNo
   const [paraExcluir, setParaExcluir] = useState<FluxoLista | null>(null);
   const [detalheCusto, setDetalheCusto] = useState(false);
   const { sort, alternar } = useSortable<Campo>({ key: "receita" });
-  const itens = useMemo(() => juntarFluxos(tipo, fluxos, dados?.itens_lista ?? []), [tipo, fluxos, dados?.itens_lista]);
+  const itens = useMemo(() => juntarFluxos(tipo, canal, fluxos, dados?.itens_lista ?? []), [tipo, canal, fluxos, dados?.itens_lista]);
   const filtrados = useMemo(() => {
     const termo = normalizar(busca.trim());
     return itens.filter((item) => (!termo || normalizar(`${item.nome} ${item.descricao ?? ""}`).includes(termo)) && (filtro === "todos" || item.status === filtro));
@@ -153,7 +154,7 @@ export function CrmListaDesempenho({ tipo, dados, fluxos, carregandoFluxos, onNo
     <Card>
       <CardHeader className="space-y-3">
         <div className="flex flex-wrap items-center justify-between gap-3"><CardTitle className="text-xl">Desempenho</CardTitle><div className="flex w-full flex-wrap items-center justify-end gap-2 sm:w-auto"><div className="relative min-w-56 flex-1 sm:w-72"><Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" /><Input className="pl-9" value={busca} onChange={(evento) => setBusca(evento.target.value)} placeholder="Buscar por nome" /></div><Button onClick={onNovo}><Plus className="mr-2 h-4 w-4" />Novo</Button></div></div>
-        <div className="flex flex-wrap items-center gap-2">{FILTROS.map(([valor, rotulo]) => <Badge key={valor} variant={filtro === valor ? "default" : "outline"} className="cursor-pointer" onClick={() => setFiltro(valor)}>{rotulo}</Badge>)}<Badge variant={detalheCusto ? "default" : "outline"} className="cursor-pointer" onClick={() => setDetalheCusto((valor) => !valor)}>Detalhar custo</Badge></div>
+        <div className="flex flex-wrap items-center gap-2">{FILTROS.map(([valor, rotulo]) => <Badge key={valor} variant={filtro === valor ? "default" : "outline"} className="cursor-pointer" onClick={() => setFiltro(valor)}>{rotulo}</Badge>)}<span aria-hidden className="mx-1 hidden h-5 w-px bg-border sm:inline-block" />{FILTROS_CANAL.map(([valor, rotulo]) => <Badge key={valor} variant={canal === valor ? "default" : "outline"} className="cursor-pointer" onClick={() => onCanal(valor)}>{rotulo}</Badge>)}<span aria-hidden className="mx-1 hidden h-5 w-px bg-border sm:inline-block" /><Badge variant={detalheCusto ? "default" : "outline"} className="cursor-pointer" onClick={() => setDetalheCusto((valor) => !valor)}>Detalhar custo</Badge></div>
       </CardHeader>
       <CardContent className="p-0">
         {carregandoFluxos ? <div className="p-4"><Skeleton className="h-48" /></div> : <div className="overflow-x-auto"><Table><TableHeader><TableRow>
@@ -169,7 +170,7 @@ export function CrmListaDesempenho({ tipo, dados, fluxos, carregandoFluxos, onNo
         </TableRow></TableHeader><TableBody>{ordenados.map((item) => {
           const fluxo = fluxoPorId(item.fluxo_id);
           return <TableRow key={item.origem_id} className="cursor-pointer" onClick={() => setSelecionado(item)}>
-            <TableCell className="min-w-64"><p className="font-medium">{item.nome}</p>{item.descricao && <p className="mt-0.5 line-clamp-2 text-xs text-muted-foreground">{item.descricao}</p>}<div className="mt-1 flex flex-wrap gap-1">{(item.canais ?? []).filter((canal) => canal.toLowerCase().includes("whatsapp")).map((canal) => <Badge key={canal} variant="outline" className="gap-1 text-[10px]"><MessageSquare className="h-3 w-3" />{canal}</Badge>)}{item.status && <BadgeStatus status={item.status} />}</div></TableCell>
+            <TableCell className="min-w-64"><p className="font-medium">{item.nome}</p>{item.descricao && <p className="mt-0.5 line-clamp-2 text-xs text-muted-foreground">{item.descricao}</p>}<div className="mt-1 flex flex-wrap gap-1">{(item.canais ?? []).map((c) => <Badge key={c} variant="outline" className="gap-1 text-[10px]">{c.toLowerCase().includes("whatsapp") ? <MessageSquare className="h-3 w-3" /> : c.toLowerCase().includes("email") ? <Mail className="h-3 w-3" /> : null}{c}</Badge>)}{item.status && <BadgeStatus status={item.status} />}</div></TableCell>
             <TableCell className="whitespace-nowrap text-xs">{item.primeiro_envio ? <>{dataHoraCrm(item.primeiro_envio)}<br /><span className="text-muted-foreground">até {dataHoraCrm(item.ultimo_envio)}</span></> : <span className="text-muted-foreground">ainda não rodou</span>}</TableCell>
             <TableCell className="text-right">{numeroCrm(item.pessoas)}</TableCell><TableCell className="text-right">{numeroCrm(item.enviados)}</TableCell><TableCell className="text-right">{percentualCrm(item.taxa_entrega)}</TableCell><TableCell className="text-right">{percentualCrm(item.taxa_leitura)}</TableCell><TableCell className="text-right">{percentualCrm(item.taxa_interacao)}</TableCell><TableCell className="text-right">{numeroCrm(item.pedidos)}</TableCell><TableCell className="whitespace-nowrap text-right">{brlCrm(item.receita)}</TableCell><TableCell className="whitespace-nowrap text-right">{brlCrm(item.custo)}</TableCell>{detalheCusto && <TableCell className="whitespace-nowrap text-right">{brlCrm(item.custo_mensagens)}</TableCell>}{detalheCusto && <TableCell className="whitespace-nowrap text-right">{brlCrm(item.custo_ia)}</TableCell>}<TableCell className={cn("text-right font-medium", classeRoas(item.roas, item.custo))}>{roasCrm(item.roas, item.custo)}</TableCell><TableCell className="text-right">{percentualCrm(item.conversao)}</TableCell><TableCell className="whitespace-nowrap text-right">{item.custo_por_pedido == null ? "–" : brlCrm(item.custo_por_pedido)}</TableCell><TableCell className="whitespace-nowrap text-right">{item.receita_por_mil == null ? "–" : brlCrm(item.receita_por_mil)}</TableCell>
             <TableCell className="sticky right-0 z-10 bg-card text-right" onClick={(evento) => evento.stopPropagation()}>{fluxo ? <DropdownMenu><DropdownMenuTrigger asChild><Button size="icon" variant="ghost" aria-label={`Ações de ${item.nome}`}><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger><DropdownMenuContent align="end"><DropdownMenuItem asChild><Link to={`/automacoes/${fluxo.id}`}>Abrir</Link></DropdownMenuItem>{fluxo.status === "ativo" ? <DropdownMenuItem onClick={() => mudarStatus.mutate({ id: fluxo.id, status: "pausado" })}><Pause className="mr-2 h-4 w-4" />Pausar</DropdownMenuItem> : <DropdownMenuItem onClick={() => mudarStatus.mutate({ id: fluxo.id, status: "ativo" })}><Play className="mr-2 h-4 w-4" />Ativar</DropdownMenuItem>}<DropdownMenuItem onClick={() => duplicar.mutate(fluxo.id)}><Copy className="mr-2 h-4 w-4" />Duplicar</DropdownMenuItem><DropdownMenuItem className="text-danger" onClick={() => setParaExcluir(fluxo)}><Trash2 className="mr-2 h-4 w-4" />Excluir</DropdownMenuItem></DropdownMenuContent></DropdownMenu> : <span className="text-muted-foreground">–</span>}</TableCell>

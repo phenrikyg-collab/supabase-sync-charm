@@ -13,9 +13,10 @@ import { CrmListaDesempenho } from "@/components/automacoes/CrmListaDesempenho";
 import { NovoFluxoDialog } from "@/components/automacoes/NovoFluxoDialog";
 import { AlertasAutomacoes, useAlertasAutomacoes } from "@/components/automacoes/AlertasAutomacoes";
 import { rpcFluxos, type FluxoLista } from "@/components/automacoes/api";
-import { type AbaCrm, type PainelCrm } from "@/components/automacoes/crmTipos";
+import { type AbaCrm, type CanalCrm, type PainelCrm } from "@/components/automacoes/crmTipos";
 
 const ABAS: AbaCrm[] = ["dashboard", "campanhas", "automacoes", "alertas"];
+const CANAIS: CanalCrm[] = ["todos", "whatsapp", "email"];
 
 function hojeIso() {
   const agora = new Date();
@@ -34,6 +35,8 @@ export default function Automacoes() {
   const dias = [7, 30, 90].includes(Number(params.get("dias"))) ? Number(params.get("dias")) : 30;
   const de = params.get("de") ?? diasAtrasIso(30);
   const ate = params.get("ate") ?? hojeIso();
+  const canalParam = params.get("canal") as CanalCrm | null;
+  const canal: CanalCrm = canalParam && CANAIS.includes(canalParam) ? canalParam : "todos";
   const [novoAberto, setNovoAberto] = useState(false);
   const [custosAberto, setCustosAberto] = useState(false);
 
@@ -41,6 +44,7 @@ export default function Automacoes() {
   const mudarAba = (nova: AbaCrm) => atualizarParams({ aba: nova === "dashboard" ? null : nova });
   const escolherDias = (valor: number) => atualizarParams({ dias: String(valor), de: null, ate: null });
   const escolherPersonalizado = () => atualizarParams({ dias: null, de, ate });
+  const escolherCanal = (valor: CanalCrm) => atualizarParams({ canal: valor === "todos" ? null : valor });
 
   const parametrosPeriodo = { p_dias: temPersonalizado ? null : dias, p_de: temPersonalizado ? de : null, p_ate: temPersonalizado ? ate : null };
   const painelGeral = useQuery({
@@ -48,13 +52,16 @@ export default function Automacoes() {
     enabled: aba === "dashboard",
     queryFn: () => rpcFluxos<PainelCrm>("crm_painel", parametrosPeriodo),
   });
-  const painelWhatsapp = useQuery({
-    queryKey: ["crm-painel", "fluxos-whatsapp", temPersonalizado ? "personalizado" : dias, de, ate],
+  const painelFluxos = useQuery({
+    queryKey: ["crm-painel", "fluxos", canal, temPersonalizado ? "personalizado" : dias, de, ate],
     enabled: aba === "campanhas" || aba === "automacoes",
     queryFn: async () => {
-      const resposta = await rpcFluxos<PainelCrm>("crm_painel", { ...parametrosPeriodo, p_apenas_fluxos: true, p_canal: "whatsapp" });
-      if (resposta?.periodo?.apenas_fluxos !== true || String(resposta?.periodo?.canal ?? "").toLowerCase() !== "whatsapp") {
-        throw new Error("O painel não confirmou o filtro de fluxos do WhatsApp.");
+      const resposta = await rpcFluxos<PainelCrm>("crm_painel", { ...parametrosPeriodo, p_apenas_fluxos: true, p_canal: canal === "todos" ? null : canal });
+      if (resposta?.periodo?.apenas_fluxos !== true) {
+        throw new Error("O painel não confirmou o filtro de fluxos.");
+      }
+      if (canal !== "todos" && String(resposta?.periodo?.canal ?? "").toLowerCase() !== canal) {
+        throw new Error("O painel não confirmou o canal escolhido.");
       }
       return resposta;
     },
@@ -62,9 +69,9 @@ export default function Automacoes() {
   const fluxos = useQuery({ queryKey: ["fluxos-listar"], queryFn: async () => (await rpcFluxos<FluxoLista[]>("fluxos_listar", { p_dias: temPersonalizado ? 30 : dias })) ?? [] });
   const alertasAbertos = useAlertasAutomacoes(false);
   const recarregarTudo = () => { queryClient.invalidateQueries({ queryKey: ["crm-painel"] }); queryClient.invalidateQueries({ queryKey: ["crm-custos"] }); };
-  const consultaAtiva = aba === "dashboard" ? painelGeral : painelWhatsapp;
+  const consultaAtiva = aba === "dashboard" ? painelGeral : painelFluxos;
   const dadosGerais = painelGeral.data ?? {};
-  const dadosWhatsapp = painelWhatsapp.data ?? {};
+  const dadosFluxos = painelFluxos.data ?? {};
   const listaAlertas = alertasAbertos.data ?? [];
   const totalAlertas = listaAlertas.length;
   const temGrave = listaAlertas.some((a) => a.gravidade === "grave");
@@ -92,7 +99,7 @@ export default function Automacoes() {
         <TabsContent value="alertas" className="mt-6"><AlertasAutomacoes /></TabsContent>
       ) : consultaAtiva.isLoading ? <div className="mt-6"><CarregandoPainel /></div> : consultaAtiva.isError ? <Card className="mt-6 p-10 text-center"><p className="text-sm text-danger">Não foi possível carregar o painel.</p><p className="mt-1 text-xs text-muted-foreground">{consultaAtiva.error instanceof Error ? consultaAtiva.error.message : "Tente novamente."}</p><Button className="mt-4" variant="outline" onClick={() => consultaAtiva.refetch()}><RefreshCw className="mr-2 h-4 w-4" />Tentar de novo</Button></Card> : <>
         <TabsContent value="dashboard" className="mt-6"><CrmDashboard dados={dadosGerais} onAba={mudarAba} /></TabsContent>
-        {(["campanhas", "automacoes"] as const).map((tipo) => <TabsContent key={tipo} value={tipo} className="mt-6"><CrmListaDesempenho tipo={tipo} dados={tipo === "campanhas" ? dadosWhatsapp.campanhas : dadosWhatsapp.automacoes} fluxos={fluxos.data ?? []} carregandoFluxos={fluxos.isLoading} onNovo={() => setNovoAberto(true)} /></TabsContent>)}
+        {(["campanhas", "automacoes"] as const).map((tipo) => <TabsContent key={tipo} value={tipo} className="mt-6"><CrmListaDesempenho tipo={tipo} dados={tipo === "campanhas" ? dadosFluxos.campanhas : dadosFluxos.automacoes} fluxos={fluxos.data ?? []} carregandoFluxos={fluxos.isLoading} canal={canal} onCanal={escolherCanal} onNovo={() => setNovoAberto(true)} /></TabsContent>)}
       </>}
     </Tabs>
     <NovoFluxoDialog open={novoAberto} onOpenChange={setNovoAberto} gatilhoInicial={aba === "campanhas" ? "manual" : undefined} />
