@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Copy, Eye, HandCoins, Info, MessageSquare, MoreHorizontal, MousePointerClick, PackageCheck, Pause, Play, Plus, Search, Send, ShoppingBag, Trash2, UserRound, WalletCards } from "lucide-react";
+import { Copy, Eye, HandCoins, Info, Mail, MessageSquare, MoreHorizontal, MousePointerClick, PackageCheck, Pause, Play, Plus, Search, Send, ShoppingBag, Trash2, UserRound, WalletCards } from "lucide-react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -17,13 +17,14 @@ import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { rpcFluxos, type FluxoLista } from "./api";
 import { CrmKpiCard, classeRoas } from "./CrmKpiCard";
-import { brlCrm, dataHoraCrm, numeroCrm, percentualCrm, roasCrm, type ItemCrm, type MetricasCrm } from "./crmTipos";
+import { brlCrm, dataHoraCrm, numeroCrm, percentualCrm, roasCrm, type CanalCrm, type ItemCrm, type MetricasCrm } from "./crmTipos";
 import { ROTULO_STATUS_FLUXO } from "./tipos";
 
 type Campo = "nome" | "periodo" | "pessoas" | "enviados" | "taxa_entrega" | "taxa_leitura" | "taxa_interacao" | "pedidos" | "receita" | "custo" | "custo_mensagens" | "custo_ia" | "roas" | "conversao" | "custo_por_pedido" | "receita_por_mil";
 type TipoLista = "campanhas" | "automacoes";
 
 const FILTROS: [string, string][] = [["todos", "Todos"], ["ativo", "No ar"], ["pausado", "Pausados"], ["rascunho", "Rascunhos"], ["arquivado", "Arquivados"]];
+const FILTROS_CANAL: [CanalCrm, string][] = [["todos", "Todos os canais"], ["whatsapp", "WhatsApp"], ["email", "E-mail"]];
 const CAMPANHA_GATILHOS = ["manual", "agendado"];
 const acessores: Record<Campo, (item: ItemCrm) => number | string | null | undefined> = {
   nome: (i) => i.nome,
