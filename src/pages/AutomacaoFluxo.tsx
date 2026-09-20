@@ -32,6 +32,7 @@ import {
 import {
   rpcFluxos, useCatalogoFluxos, useFluxo, dataHoraBR, botoesRespostaDoTemplate, type Validacao,
 } from "@/components/automacoes/api";
+import { filtroParaSalvar } from "@/components/emails/ConstrutorPublico";
 
 let contador = 1;
 const novoRef = () => `novo-${Date.now()}-${contador++}`;
@@ -294,7 +295,7 @@ function Editor({ fluxoId }: { fluxoId: string }) {
           descricao: fluxo.descricao,
           gatilho_tipo: fluxo.gatilho_tipo,
           gatilho_config: fluxo.gatilho_config ?? {},
-          publico_filtro: fluxo.publico_filtro ?? null,
+          publico_filtro: filtroParaSalvar(fluxo.publico_filtro),
           sair_ao_comprar: !!fluxo.sair_ao_comprar,
           grupo_exclusivo: fluxo.grupo_exclusivo ?? null,
           prioridade: fluxo.prioridade ?? 0,

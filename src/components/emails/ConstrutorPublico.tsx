@@ -345,7 +345,7 @@ function CondicaoLinha({
 }
 
 function GrupoEditor({
-  no, campos, nivel, empilhado, onChange, onRemover,
+  no, campos, nivel, empilhado, onChange, onRemover, textoVazio,
 }: {
   no: { e: No[] } | { ou: No[] };
   campos: CampoPublico[];
@@ -353,6 +353,7 @@ function GrupoEditor({
   empilhado: boolean;
   onChange: (n: No) => void;
   onRemover?: () => void;
+  textoVazio?: string;
 }) {
   const juncao: "e" | "ou" = Array.isArray((no as any).e) ? "e" : "ou";
   const itens: No[] = (no as any)[juncao] ?? [];
@@ -396,7 +397,9 @@ function GrupoEditor({
       </div>
 
       {itens.length === 0 && (
-        <p className="px-1 text-xs text-muted-foreground">Nenhuma condição ainda. Adicione a primeira abaixo.</p>
+        <p className="px-1 text-xs text-muted-foreground">
+          {nivel === 0 && textoVazio ? textoVazio : "Nenhuma condição ainda. Adicione a primeira abaixo."}
+        </p>
       )}
 
       {itens.map((item, i) => {
@@ -457,12 +460,35 @@ function GrupoEditor({
   );
 }
 
-/** Aceita condição solta na raiz envolvendo em um grupo "e". */
+/** Objeto sem chave nenhuma ou grupo vazio: filtro vazio válido, "todo mundo entra". */
+const ehFiltroVazio = (filtro: any): boolean => {
+  if (filtro == null) return true;
+  if (typeof filtro !== "object" || Array.isArray(filtro)) return false;
+  const chaves = Object.keys(filtro);
+  if (chaves.length === 0) return true;
+  const itens = (filtro as any).e ?? (filtro as any).ou;
+  return chaves.every((k) => k === "e" || k === "ou") && Array.isArray(itens) && itens.length === 0;
+};
+
+/**
+ * Normaliza o filtro lido do banco.
+ * null, {}, { e: [] } e { ou: [] } viram o filtro vazio editável.
+ * Condição ou "nao" soltos na raiz são envolvidos em um grupo "e".
+ * Só devolve null (corrompido) para o que não dá para interpretar:
+ * não-objeto, array solto ou chave raiz desconhecida.
+ */
 export function normalizarFiltro(filtro: any): No | null {
+  if (ehFiltroVazio(filtro)) return filtroVazio();
+  if (typeof filtro !== "object" || Array.isArray(filtro)) return null;
   if (ehGrupo(filtro)) return filtro as No;
   if (ehCondicao(filtro)) return { e: [filtro] };
   if (ehNao(filtro)) return { e: [filtro as any] };
   return null;
+}
+
+/** Forma canônica gravada no banco quando o usuário deixa o filtro vazio. */
+export function filtroParaSalvar(filtro: any): any {
+  return ehFiltroVazio(filtro) ? {} : filtro;
 }
 
 export function ConstrutorPublico({
@@ -491,6 +517,7 @@ export function ConstrutorPublico({
       nivel={0}
       empilhado={empilhado}
       onChange={onChange}
+      textoVazio="Sem filtro: todo mundo que o gatilho pegar entra"
     />
   );
 }
