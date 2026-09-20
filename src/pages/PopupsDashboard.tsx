@@ -113,15 +113,19 @@ function Variacao({ atual, anterior, inverso }: { atual: number; anterior: numbe
 
 /* ===== Cards ===== */
 function CardGrande({
-  rotulo, valor, sub, atual, anterior,
-}: { rotulo: string; valor: string; sub?: string; atual: number; anterior: number }) {
+  rotulo, valor, sub, atual, anterior, semBaseAnterior,
+}: { rotulo: string; valor: string; sub?: string; atual: number; anterior: number; semBaseAnterior?: boolean }) {
   return (
     <Card style={{ borderColor: AREIA }} className="shadow-none">
       <CardContent className="space-y-1.5 p-5">
         <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">{rotulo}</p>
         <div className="flex flex-wrap items-end gap-2">
           <p className="font-serif text-3xl font-bold leading-none tabular-nums" style={{ color: PRETO }}>{valor}</p>
-          <Variacao atual={atual} anterior={anterior} />
+          {semBaseAnterior ? (
+            <span className="text-xs text-muted-foreground">sem base anterior</span>
+          ) : (
+            <Variacao atual={atual} anterior={anterior} />
+          )}
         </div>
         {sub && <p className="text-xs text-muted-foreground">{sub}</p>}
       </CardContent>
