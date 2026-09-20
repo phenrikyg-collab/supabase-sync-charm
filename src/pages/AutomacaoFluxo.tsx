@@ -33,6 +33,7 @@ import {
   rpcFluxos, useCatalogoFluxos, useFluxo, dataHoraBR, botoesRespostaDoTemplate, type Validacao,
 } from "@/components/automacoes/api";
 import { filtroParaSalvar } from "@/components/emails/ConstrutorPublico";
+import { mesmoBotao, saidaEspecial } from "@/components/automacoes/RemapearSaidas";
 
 let contador = 1;
 const novoRef = () => `novo-${Date.now()}-${contador++}`;
@@ -648,6 +649,9 @@ function Editor({ fluxoId }: { fluxoId: string }) {
                   gatilhoTipo={fluxo.gatilho_tipo}
                   botoesEntrada={botoesPorNo.get(noSelecionado.id)?.botoes ?? []}
                   temTemplateAntes={!!botoesPorNo.get(noSelecionado.id)?.temTemplateAntes}
+                  saidasParaRemapear={remapeamento?.saidas ?? []}
+                  botoesParaRemapear={remapeamento?.botoes ?? []}
+                  onRemapearSaidas={remapeamento ? aplicarRemapeamento : undefined}
                   onChange={atualizarNo}
                   onRemover={removerNo}
                   onFechar={() => setSelecionado(null)}
