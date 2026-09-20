@@ -93,7 +93,7 @@ function juntarFluxos(tipo: TipoLista, canal: CanalCrm, fluxos: FluxoLista[], it
       fluxo_id: fluxo.id,
     };
   });
-  return [...unidos, ...itens.filter((item) => !idsUsados.has(item.origem_id) && idsFluxosWhatsapp.has(item.origem_id))];
+  return [...unidos, ...itens.filter((item) => !idsUsados.has(item.origem_id) && idsFluxosDoCanal.has(item.origem_id))];
 }
 
 function BadgeStatus({ status }: { status: string }) {
@@ -119,9 +119,9 @@ function DetalheItem({ item }: { item: ItemCrm }) {
   </div>;
 }
 
-type Props = { tipo: TipoLista; dados?: MetricasCrm; fluxos: FluxoLista[]; carregandoFluxos: boolean; onNovo: () => void };
+type Props = { tipo: TipoLista; dados?: MetricasCrm; fluxos: FluxoLista[]; carregandoFluxos: boolean; canal: CanalCrm; onCanal: (valor: CanalCrm) => void; onNovo: () => void };
 
-export function CrmListaDesempenho({ tipo, dados, fluxos, carregandoFluxos, onNovo }: Props) {
+export function CrmListaDesempenho({ tipo, dados, fluxos, carregandoFluxos, canal, onCanal, onNovo }: Props) {
   const queryClient = useQueryClient();
   const [busca, setBusca] = useState("");
   const [filtro, setFiltro] = useState("todos");
@@ -129,7 +129,7 @@ export function CrmListaDesempenho({ tipo, dados, fluxos, carregandoFluxos, onNo
   const [paraExcluir, setParaExcluir] = useState<FluxoLista | null>(null);
   const [detalheCusto, setDetalheCusto] = useState(false);
   const { sort, alternar } = useSortable<Campo>({ key: "receita" });
-  const itens = useMemo(() => juntarFluxos(tipo, fluxos, dados?.itens_lista ?? []), [tipo, fluxos, dados?.itens_lista]);
+  const itens = useMemo(() => juntarFluxos(tipo, canal, fluxos, dados?.itens_lista ?? []), [tipo, canal, fluxos, dados?.itens_lista]);
   const filtrados = useMemo(() => {
     const termo = normalizar(busca.trim());
     return itens.filter((item) => (!termo || normalizar(`${item.nome} ${item.descricao ?? ""}`).includes(termo)) && (filtro === "todos" || item.status === filtro));
