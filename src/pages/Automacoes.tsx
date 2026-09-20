@@ -13,9 +13,10 @@ import { CrmListaDesempenho } from "@/components/automacoes/CrmListaDesempenho";
 import { NovoFluxoDialog } from "@/components/automacoes/NovoFluxoDialog";
 import { AlertasAutomacoes, useAlertasAutomacoes } from "@/components/automacoes/AlertasAutomacoes";
 import { rpcFluxos, type FluxoLista } from "@/components/automacoes/api";
-import { type AbaCrm, type PainelCrm } from "@/components/automacoes/crmTipos";
+import { type AbaCrm, type CanalCrm, type PainelCrm } from "@/components/automacoes/crmTipos";
 
 const ABAS: AbaCrm[] = ["dashboard", "campanhas", "automacoes", "alertas"];
+const CANAIS: CanalCrm[] = ["todos", "whatsapp", "email"];
 
 function hojeIso() {
   const agora = new Date();
