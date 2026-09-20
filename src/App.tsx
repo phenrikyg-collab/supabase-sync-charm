@@ -28,6 +28,7 @@ import BancoInter from "./pages/BancoInter";
 import ConciliacaoPixWhatsApp from "./pages/ConciliacaoPixWhatsApp";
 import ProvaSocial from "./pages/ProvaSocial";
 import Popups from "./pages/Popups";
+import PopupsDashboard from "./pages/PopupsDashboard";
 import PopupsApp from "./pages/PopupsApp";
 import NotificacoesApp from "./pages/NotificacoesApp";
 import AppKpis from "./pages/AppKpis";
@@ -260,6 +261,7 @@ const AppRoutes = () => {
               <Route path="/conciliacao-pix-whatsapp" element={<ConciliacaoPixWhatsApp />} />
               <Route path="/prova-social" element={<ProvaSocial />} />
               <Route path="/popups" element={<Popups />} />
+              <Route path="/popups/dashboard" element={<PopupsDashboard />} />
               <Route path="/popups/:id" element={<PopupEditor />} />
               <Route path="/marketing/app-kpis" element={<AppKpis />} />
               <Route path="/marketing/popups-app" element={<PopupsApp />} />

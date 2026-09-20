@@ -17,7 +17,7 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
-import { Copy, Pause, Play, Pencil, Archive, Plus, AlertTriangle } from "lucide-react";
+import { Copy, Pause, Play, Pencil, Archive, Plus, AlertTriangle, BarChart3 } from "lucide-react";
 import {
   popupsApi, ROTULO_FORMATO, ROTULO_OFERTA, dataHoraBR, nBR, pctBR,
   type Popup, type StatusPopup, type Validacao,
@@ -108,10 +108,16 @@ export default function Popups() {
           <h1 className="font-serif text-3xl font-bold">Popups do site</h1>
           <p className="text-sm text-muted-foreground">Capture leads sem atrapalhar quem está comprando.</p>
         </div>
-        <Button onClick={() => setGaleria(true)}>
-          <Plus className="mr-2 h-4 w-4" />
-          Novo popup
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" onClick={() => navegar("/popups/dashboard")}>
+            <BarChart3 className="mr-2 h-4 w-4" />
+            Dashboard
+          </Button>
+          <Button onClick={() => setGaleria(true)}>
+            <Plus className="mr-2 h-4 w-4" />
+            Novo popup
+          </Button>
+        </div>
       </div>
 
       {config && config.ativo === false && (
