@@ -47,16 +47,16 @@ const acessores: Record<Campo, (item: ItemCrm) => number | string | null | undef
 
 function normalizar(valor: string) { return valor.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase(); }
 
-function juntarFluxos(tipo: TipoLista, fluxos: FluxoLista[], itens: ItemCrm[]) {
+function juntarFluxos(tipo: TipoLista, canal: CanalCrm, fluxos: FluxoLista[], itens: ItemCrm[]) {
   const doTipo = fluxos.filter((fluxo) => {
     const canais = fluxo.canais ?? [];
     // Fluxo recém-criado ainda não tem canais: continua na lista para poder ser aberto e terminado.
-    const usaWhatsapp = canais.length === 0 || canais.some((canal) => canal.toLowerCase().includes("whatsapp"));
+    const canalOk = canal === "todos" || canais.length === 0 || canais.some((c) => c.toLowerCase().includes(canal));
     const tipoCorreto = tipo === "campanhas" ? CAMPANHA_GATILHOS.includes(String(fluxo.gatilho_tipo)) : !CAMPANHA_GATILHOS.includes(String(fluxo.gatilho_tipo));
-    return usaWhatsapp && tipoCorreto;
+    return canalOk && tipoCorreto;
   });
   const metricas = new Map(itens.map((item) => [item.origem_id, item]));
-  const idsFluxosWhatsapp = new Set(doTipo.map((fluxo) => `fluxo:${fluxo.id}`));
+  const idsFluxosDoCanal = new Set(doTipo.map((fluxo) => `fluxo:${fluxo.id}`));
   const idsUsados = new Set<string>();
   const unidos = doTipo.map((fluxo): ItemCrm => {
     const origemId = `fluxo:${fluxo.id}`;
