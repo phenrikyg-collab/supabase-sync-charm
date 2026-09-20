@@ -233,7 +233,7 @@ function Editor({ fluxoId }: { fluxoId: string }) {
       setNodes((ns) => [...ns, {
         id: esperaId,
         type: "fluxo",
-        position: { x: atual.position.x + 330, y: atual.position.y },
+        position: { x: atual.position.x + 260, y: atual.position.y },
         data: {
           tipo: "aguardar_botao",
           rotulo: "Espera o clique",
