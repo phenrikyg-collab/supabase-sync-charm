@@ -1,5 +1,4 @@
 import { useState } from "react";
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
 import { Link } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { formatDistanceToNow } from "date-fns";
@@ -113,9 +112,7 @@ function fraseDoAlerta(alerta: AlertaAutomacao): { titulo: string; frase: string
     default:
       return {
         titulo: alerta.tipo,
-        frase: `\`\`\`json\n${JSON.stringify(alerta.detalhe ?? {}, null, 2)}\n\`\`\``.startsWith("```")
-          ? JSON.stringify(alerta.detalhe ?? {}, null, 2)
-          : "",
+        frase: JSON.stringify(alerta.detalhe ?? {}, null, 2),
       };
   }
 }
