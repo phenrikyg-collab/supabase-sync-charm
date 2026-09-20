@@ -345,7 +345,7 @@ function CondicaoLinha({
 }
 
 function GrupoEditor({
-  no, campos, nivel, empilhado, onChange, onRemover,
+  no, campos, nivel, empilhado, onChange, onRemover, textoVazio,
 }: {
   no: { e: No[] } | { ou: No[] };
   campos: CampoPublico[];
@@ -353,6 +353,7 @@ function GrupoEditor({
   empilhado: boolean;
   onChange: (n: No) => void;
   onRemover?: () => void;
+  textoVazio?: string;
 }) {
   const juncao: "e" | "ou" = Array.isArray((no as any).e) ? "e" : "ou";
   const itens: No[] = (no as any)[juncao] ?? [];
