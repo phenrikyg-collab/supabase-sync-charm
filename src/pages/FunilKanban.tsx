@@ -8,15 +8,10 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { ETAPAS_FUNIL_WHATSAPP } from "@/lib/funilWhatsAppEtapas";
 import { Loader2, RefreshCw, Zap } from "lucide-react";
 
-const COLUNAS = [
-  { etapa: "Novo Lead", topo: "border-t-muted-foreground/40" },
-  { etapa: "Carrinho Abandonado", topo: "border-t-warning/70" },
-  { etapa: "Negociando", topo: "border-t-primary/60" },
-  { etapa: "Fechado", topo: "border-t-emerald-500/70" },
-  { etapa: "Perdido", topo: "border-t-danger/70" },
-] as const;
+const COLUNAS = ETAPAS_FUNIL_WHATSAPP;
 
 type CardTag = {
   conversa_id: string | number;
@@ -214,23 +209,23 @@ export default function FunilKanban({
       ) : (
         <div className="flex-1 min-h-0 flex gap-3 overflow-x-auto pb-2">
           {COLUNAS.map((col) => {
-            const lista = visiveis.filter((c) => (c.etapa ?? "") === col.etapa);
+            const lista = visiveis.filter((c) => (c.etapa ?? "") === col.nome);
             return (
               <div
-                key={col.etapa}
+                key={col.nome}
                 onDragOver={(e) => e.preventDefault()}
                 onDrop={() => {
                   const card = cards.find((c) => String(c.conversa_id) === arrastando);
                   setArrastando(null);
-                  if (card) mover(card, col.etapa);
+                  if (card) mover(card, col.nome);
                 }}
                 className={cn(
                   "rounded-lg border border-t-4 bg-muted/30 flex flex-col w-72 shrink-0 min-h-0",
-                  col.topo,
+                  col.topoClassName,
                 )}
               >
                 <div className="flex items-center justify-between px-3 py-2 shrink-0">
-                  <span className="text-sm font-medium">{col.etapa}</span>
+                  <span className="text-sm font-medium">{col.nome}</span>
                   <Badge variant="secondary">{lista.length}</Badge>
                 </div>
                 <div className="flex-1 min-h-0 overflow-y-auto p-2 pt-0 space-y-2">

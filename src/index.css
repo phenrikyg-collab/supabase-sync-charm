@@ -55,6 +55,8 @@
     --info: 220 60% 50%;
     --info-foreground: 0 0% 100%;
 
+    --funil-pagamento: 199 89% 49%;
+
     /* semântica de variação do Dashboard Comercial */
     --pos: 153 66% 30%;   /* #1a7f4b */
     --neg: 4 71% 41%;     /* #b3261e */
@@ -114,6 +116,8 @@
 
     --info: 220 60% 45%;
     --info-foreground: 0 0% 100%;
+
+    --funil-pagamento: 199 89% 49%;
 
     --pos: 153 50% 55%;
     --neg: 4 75% 62%;

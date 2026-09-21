@@ -1,4 +1,5 @@
 import { cn } from "@/lib/utils";
+import { etapaFunilWhatsappPorNome } from "@/lib/funilWhatsAppEtapas";
 
 interface StatusBadgeProps {
   status: string;
@@ -26,7 +27,10 @@ const statusMap: Record<string, { label: string; className: string }> = {
 
 export function StatusBadge({ status, className }: StatusBadgeProps) {
   const key = status?.toLowerCase() ?? "";
-  const config = statusMap[key] ?? { label: status, className: "bg-muted text-muted-foreground border-border" };
+  const etapaFunil = etapaFunilWhatsappPorNome(status);
+  const config = etapaFunil
+    ? { label: etapaFunil.nome, className: etapaFunil.badgeClassName }
+    : statusMap[key] ?? { label: status, className: "bg-muted text-muted-foreground border-border" };
 
   return (
     <span className={cn(
