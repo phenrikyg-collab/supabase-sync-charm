@@ -360,6 +360,18 @@ export default function EnviosDoDiaTab() {
         </div>
       </div>
 
+      <p className="text-xs text-muted-foreground">
+        Etiquetas do Bling e do Melhor Envio
+        {romaneio?.atualizado_em_br ? ` · atualizado em ${romaneio.atualizado_em_br}` : ""}.
+        Sincroniza a cada 15 minutos.
+      </p>
+
+      {(romaneio?.totais?.sem_pedido ?? 0) > 0 && (
+        <Card className="p-3 border-amber-400 bg-amber-50 text-amber-800 text-sm">
+          {romaneio!.totais.sem_pedido} etiquetas sem pedido da loja vinculado
+        </Card>
+      )}
+
       <div className="grid gap-4 sm:grid-cols-3">
         <Card className="p-4">
           <div className="flex items-center gap-2 text-xs uppercase tracking-wider text-muted-foreground">
@@ -399,6 +411,7 @@ export default function EnviosDoDiaTab() {
         <Card className="p-5">
           <BlocoEnvios
             titulo="Correios"
+            tooltip="Etiquetas geradas no Bling"
             itens={correios}
             diaBr={diaBr}
             chave="correios"
@@ -414,6 +427,7 @@ export default function EnviosDoDiaTab() {
             <BlocoEnvios
               key={`${g.transportadora ?? "t"}-${gi}`}
               titulo={g.transportadora ?? "Transportadora"}
+              tooltip="Etiquetas geradas no Melhor Envio"
               itens={g.itens ?? []}
               diaBr={diaBr}
               chave={`t${gi}`}
