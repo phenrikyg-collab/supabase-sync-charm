@@ -174,9 +174,9 @@ export function FluxoNode({ data, selected }: NodeProps) {
           {!d.temTemplateAntes && (
             <p className="mt-1 text-[10px] text-warning">ligue a um template com botões</p>
           )}
-          {saidas.map((s, i) => {
+          {saidas.map((s) => {
             const ehSemResposta = s.id === "sem resposta";
-            const top = `${58 + i * 34}px`;
+            const top = `${topoSaida(saidasLaterais.findIndex((x) => x.id === s.id))}px`;
             return (
               <div key={s.id}>
                 <Handle
