@@ -63,8 +63,10 @@ const LIMITE = 50;
 
 export function AcompanhamentoTab() {
   const qc = useQueryClient();
+  const [params] = useSearchParams();
   const [dias, setDias] = useState(30);
-  const [busca, setBusca] = useState("");
+  const [busca, setBusca] = useState(params.get("busca") ?? "");
+
   const [situacoes, setSituacoes] = useState<string[]>([]);
   const [transportadora, setTransportadora] = useState<string>("");
   const [alerta, setAlerta] = useState<string>("");
