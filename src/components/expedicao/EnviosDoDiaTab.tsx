@@ -133,6 +133,7 @@ function BlocoEnvios({
   chave,
   conferidos,
   alternarConferido,
+  tooltip,
 }: {
   titulo: string;
   itens: ItemRomaneio[];
@@ -140,6 +141,7 @@ function BlocoEnvios({
   chave: string;
   conferidos: Record<string, boolean>;
   alternarConferido: (id: string) => void;
+  tooltip?: string;
 }) {
   const nConferidos = itens.filter((_, idx) => conferidos[`${chave}-${idx}`]).length;
 
@@ -161,9 +163,22 @@ function BlocoEnvios({
     <div className="space-y-3">
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <div className="flex items-center gap-3">
-          <h3 className="font-serif text-lg">
-            {titulo} · {itens.length} pedidos
-          </h3>
+          {tooltip ? (
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <h3 className="font-serif text-lg cursor-help">
+                    {titulo} · {itens.length} pedidos
+                  </h3>
+                </TooltipTrigger>
+                <TooltipContent>{tooltip}</TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          ) : (
+            <h3 className="font-serif text-lg">
+              {titulo} · {itens.length} pedidos
+            </h3>
+          )}
           <span className="text-xs text-muted-foreground">
             {nConferidos} de {itens.length} conferidos
           </span>
