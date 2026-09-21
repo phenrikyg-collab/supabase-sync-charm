@@ -85,20 +85,35 @@ export function errosWhatsappJanela(config: Record<string, any>): string[] {
   return erros;
 }
 
-async function listarProdutosCatalogo(busca: string, soEstoque: boolean): Promise<ProdutoCatalogo[]> {
+/** O banco pode não ter a função de catálogo publicada ainda. */
+function funcaoIndisponivel(error: any): boolean {
+  const codigo = String(error?.code ?? "");
+  const msg = String(error?.message ?? "").toLowerCase();
+  return codigo === "PGRST202" || codigo === "42883" || msg.includes("does not exist");
+}
+
+type RespostaCatalogo = { produtos: ProdutoCatalogo[]; indisponivel: boolean };
+
+async function listarProdutosCatalogo(busca: string, soEstoque: boolean): Promise<RespostaCatalogo> {
   const { data, error } = await supabase.rpc("whatsapp_catalogo_produtos_listar" as any, {
     p_busca: busca,
     p_so_estoque: soEstoque,
     p_limite: 300,
   });
-  if (error) throw error;
-  return (data ?? []) as unknown as ProdutoCatalogo[];
+  if (error) {
+    if (funcaoIndisponivel(error)) return { produtos: [], indisponivel: true };
+    throw error;
+  }
+  return { produtos: (data ?? []) as unknown as ProdutoCatalogo[], indisponivel: false };
 }
 
 async function produtosCatalogoPorIds(ids: string[]): Promise<ProdutoCatalogo[]> {
   if (ids.length === 0) return [];
   const { data, error } = await supabase.rpc("whatsapp_catalogo_produtos_por_ids" as any, { p_ids: ids });
-  if (error) throw error;
+  if (error) {
+    if (funcaoIndisponivel(error)) return [];
+    throw error;
+  }
   return (data ?? []) as unknown as ProdutoCatalogo[];
 }
 
@@ -295,12 +310,14 @@ function SeletorProdutosCatalogo({ ids, onConfirmar }: { ids: string[]; onConfir
     if (aberto) setSelecionados(ids);
   }, [aberto, ids]);
 
-  const { data: produtos = [], isLoading } = useQuery({
+  const { data: resposta, isLoading } = useQuery({
     queryKey: ["whatsapp-catalogo-produtos", buscaDebounced, soEstoque],
     queryFn: () => listarProdutosCatalogo(buscaDebounced, soEstoque),
     enabled: aberto,
     staleTime: 60 * 1000,
   });
+  const produtos = resposta?.produtos ?? [];
+  const catalogoIndisponivel = !!resposta?.indisponivel;
 
   const alternar = (id: string) => {
     if (selecionados.includes(id)) return setSelecionados((atuais) => atuais.filter((item) => item !== id));
@@ -348,6 +365,11 @@ function SeletorProdutosCatalogo({ ids, onConfirmar }: { ids: string[]; onConfir
               <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4">
                 {Array.from({ length: 8 }).map((_, i) => <div key={i} className="space-y-2 rounded-md border border-border p-2"><Skeleton className="aspect-[3/4] w-full" /><Skeleton className="h-4 w-4/5" /><Skeleton className="h-3 w-2/5" /></div>)}
               </div>
+            ) : catalogoIndisponivel ? (
+              <div className="flex min-h-52 flex-col items-center justify-center gap-1 px-4 text-center text-sm text-muted-foreground">
+                <p className="font-medium text-warning">A lista de produtos do catálogo não está disponível no banco.</p>
+                <p>Enquanto isso, use o campo "Adicionar por código" abaixo para incluir os produtos pelo retailer_id.</p>
+              </div>
             ) : produtos.length === 0 ? (
               <div className="flex min-h-52 items-center justify-center px-4 text-center text-sm text-muted-foreground">Nenhum produto do catálogo bate com a busca.</div>
             ) : (
@@ -390,9 +412,13 @@ function EstadoEspelhoCatalogo() {
     queryKey: ["whatsapp-catalogo-espelho-estado"],
     queryFn: async () => {
       const { data, error } = await supabase.rpc("whatsapp_catalogo_espelho_estado" as any);
-      if (error) throw error;
+      if (error) {
+        if (funcaoIndisponivel(error)) return null;
+        throw error;
+      }
       return ((data as unknown as EstadoCatalogo[] | null)?.[0] ?? data ?? null) as EstadoCatalogo | null;
     },
+    retry: false,
     staleTime: 60 * 1000,
   });
   if (!data) return null;

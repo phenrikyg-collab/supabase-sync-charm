@@ -35,6 +35,11 @@ export function FluxoNode({ data, selected }: NodeProps) {
 
   const motivos: Record<string, number> = m?.motivos_pulo ?? {};
 
+  // saídas laterais (uma por botão): ficam à direita, empilhadas dentro do card
+  const saidasLaterais = saidas.filter((s) => s.id !== "sem resposta");
+  const topoSaida = (i: number) => 58 + i * 34;
+  const alturaMinima = saidasLaterais.length > 0 ? topoSaida(saidasLaterais.length - 1) + 18 : undefined;
+
   return (
     <div
       className={cn(
@@ -44,6 +49,7 @@ export function FluxoNode({ data, selected }: NodeProps) {
         gatilho && "border-warning/60 bg-warning/5",
         d.comErro && "border-danger ring-2 ring-danger/30",
       )}
+      style={alturaMinima ? { minHeight: `${alturaMinima}px` } : undefined}
     >
       {!gatilho && <Handle type="target" position={Position.Top} className="!h-2 !w-2 !bg-muted-foreground" />}
 
@@ -168,9 +174,9 @@ export function FluxoNode({ data, selected }: NodeProps) {
           {!d.temTemplateAntes && (
             <p className="mt-1 text-[10px] text-warning">ligue a um template com botões</p>
           )}
-          {saidas.map((s, i) => {
+          {saidas.map((s) => {
             const ehSemResposta = s.id === "sem resposta";
-            const top = `${58 + i * 34}px`;
+            const top = `${topoSaida(saidasLaterais.findIndex((x) => x.id === s.id))}px`;
             return (
               <div key={s.id}>
                 <Handle
