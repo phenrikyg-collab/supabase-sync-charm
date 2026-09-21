@@ -129,6 +129,7 @@ export default function BonificacaoExpedicao() {
       <Tabs defaultValue="dashboard" className="space-y-4">
         <TabsList>
           <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
+          <TabsTrigger value="envios-dia">Envios do dia</TabsTrigger>
           <TabsTrigger value="pedidos-mes">Pedidos do mês</TabsTrigger>
           <TabsTrigger value="historico">Histórico</TabsTrigger>
           <TabsTrigger value="config">Configurações</TabsTrigger>
@@ -136,6 +137,9 @@ export default function BonificacaoExpedicao() {
 
         <TabsContent value="dashboard">
           <DashboardTab mes={mes} />
+        </TabsContent>
+        <TabsContent value="envios-dia">
+          <EnviosDoDiaTab />
         </TabsContent>
         <TabsContent value="pedidos-mes">
           <PedidosMesTab mes={mes} />
