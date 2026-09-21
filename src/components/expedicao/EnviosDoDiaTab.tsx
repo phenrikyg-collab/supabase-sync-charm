@@ -14,9 +14,11 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Copy, Download, Printer, RefreshCw, Truck, PackageX, Package } from "lucide-react";
+import { Copy, Download, Printer, RefreshCw, Truck, PackageX, Package, Tags } from "lucide-react";
 import { toast } from "sonner";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useRomaneio, type ItemRomaneio, type RomaneioDia } from "@/hooks/useBonificacaoExpedicao";
+import { chamarRpc } from "@/lib/supabaseRpc";
 
 const vazio = (v: unknown) => {
   const s = v === null || v === undefined ? "" : String(v).trim();
@@ -59,7 +61,8 @@ function grupoHtml(titulo: string, itens: ItemRomaneio[], diaBr: string) {
     .map(
       (i, idx) => `<tr>
       <td>${idx + 1}</td>
-      <td>#${escapeHtml(i.pedido)}</td>
+      <td>${escapeHtml(i.hora ?? "-")}</td>
+      <td>${i.pedido ? `#${escapeHtml(i.pedido)}` : "-"}</td>
       <td>${escapeHtml(i.cliente ?? "-")}</td>
       <td>${escapeHtml(i.servico ?? "-")}</td>
       <td class="cod">${escapeHtml(i.codigo ?? "-")}</td>
@@ -79,7 +82,7 @@ function grupoHtml(titulo: string, itens: ItemRomaneio[], diaBr: string) {
     </header>
     <table>
       <thead>
-        <tr><th>Nº</th><th>Pedido</th><th>Cliente</th><th>Serviço</th><th>Código</th><th>Destino</th><th>Peças</th></tr>
+        <tr><th>Nº</th><th>Etiqueta</th><th>Pedido</th><th>Cliente</th><th>Serviço</th><th>Código</th><th>Destino</th><th>Peças</th></tr>
       </thead>
       <tbody>${linhas}</tbody>
     </table>
@@ -130,6 +133,7 @@ function BlocoEnvios({
   chave,
   conferidos,
   alternarConferido,
+  tooltip,
 }: {
   titulo: string;
   itens: ItemRomaneio[];
@@ -137,6 +141,7 @@ function BlocoEnvios({
   chave: string;
   conferidos: Record<string, boolean>;
   alternarConferido: (id: string) => void;
+  tooltip?: string;
 }) {
   const nConferidos = itens.filter((_, idx) => conferidos[`${chave}-${idx}`]).length;
 
@@ -158,9 +163,22 @@ function BlocoEnvios({
     <div className="space-y-3">
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <div className="flex items-center gap-3">
-          <h3 className="font-serif text-lg">
-            {titulo} · {itens.length} pedidos
-          </h3>
+          {tooltip ? (
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <h3 className="font-serif text-lg cursor-help">
+                    {titulo} · {itens.length} pedidos
+                  </h3>
+                </TooltipTrigger>
+                <TooltipContent>{tooltip}</TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          ) : (
+            <h3 className="font-serif text-lg">
+              {titulo} · {itens.length} pedidos
+            </h3>
+          )}
           <span className="text-xs text-muted-foreground">
             {nConferidos} de {itens.length} conferidos
           </span>
@@ -192,6 +210,7 @@ function BlocoEnvios({
           <TableHeader>
             <TableRow>
               <TableHead className="w-10">Nº</TableHead>
+              <TableHead className="w-20">Etiqueta</TableHead>
               <TableHead>Pedido</TableHead>
               <TableHead>Cliente</TableHead>
               <TableHead>Serviço</TableHead>
@@ -208,7 +227,8 @@ function BlocoEnvios({
               return (
                 <TableRow key={id}>
                   <TableCell className="text-muted-foreground">{idx + 1}</TableCell>
-                  <TableCell className="font-medium">#{i.pedido}</TableCell>
+                  <TableCell className="text-sm text-muted-foreground">{vazio(i.hora)}</TableCell>
+                  <TableCell className="font-medium">{i.pedido ? `#${i.pedido}` : "-"}</TableCell>
                   <TableCell>{vazio(i.cliente)}</TableCell>
                   <TableCell>{vazio(i.servico)}</TableCell>
                   <TableCell className="font-mono text-xs">{vazio(i.codigo)}</TableCell>
@@ -246,7 +266,23 @@ export default function EnviosDoDiaTab() {
   const hoje = format(new Date(), "yyyy-MM-dd");
   const [dia, setDia] = useState(hoje);
   const [conferidos, setConferidos] = useState<Record<string, boolean>>({});
+  const [buscandoEtiquetas, setBuscandoEtiquetas] = useState(false);
   const { data, isLoading, refetch, isFetching } = useRomaneio(dia);
+
+  const buscarEtiquetas = async () => {
+    setBuscandoEtiquetas(true);
+    const { error } = await chamarRpc("expedicao_etiquetas_invocar", { p_dias: 1 });
+    if (error) {
+      toast.error(error.message || "Não foi possível buscar as etiquetas.");
+      setBuscandoEtiquetas(false);
+      return;
+    }
+    toast.success("Buscando etiquetas no Bling e no Melhor Envio, a lista atualiza em 1 minuto");
+    setTimeout(() => {
+      refetch();
+      setBuscandoEtiquetas(false);
+    }, 60_000);
+  };
 
   const romaneio = data as RomaneioDia | null;
   const diaBr = romaneio?.dia_br ?? format(parse(dia, "yyyy-MM-dd", new Date()), "dd/MM/yyyy");
@@ -301,6 +337,15 @@ export default function EnviosDoDiaTab() {
             Atualizar
           </Button>
           <Button
+            variant="outline"
+            size="sm"
+            onClick={buscarEtiquetas}
+            disabled={buscandoEtiquetas}
+          >
+            <Tags className="h-3.5 w-3.5 mr-1" />
+            Buscar etiquetas agora
+          </Button>
+          <Button
             size="sm"
             onClick={() => {
               if (!gruposImpressao.length) {
@@ -314,6 +359,18 @@ export default function EnviosDoDiaTab() {
           </Button>
         </div>
       </div>
+
+      <p className="text-xs text-muted-foreground">
+        Etiquetas do Bling e do Melhor Envio
+        {romaneio?.atualizado_em_br ? ` · atualizado em ${romaneio.atualizado_em_br}` : ""}.
+        Sincroniza a cada 15 minutos.
+      </p>
+
+      {(romaneio?.totais?.sem_pedido ?? 0) > 0 && (
+        <Card className="p-3 border-amber-400 bg-amber-50 text-amber-800 text-sm">
+          {romaneio!.totais.sem_pedido} etiquetas sem pedido da loja vinculado
+        </Card>
+      )}
 
       <div className="grid gap-4 sm:grid-cols-3">
         <Card className="p-4">
@@ -354,6 +411,7 @@ export default function EnviosDoDiaTab() {
         <Card className="p-5">
           <BlocoEnvios
             titulo="Correios"
+            tooltip="Etiquetas geradas no Bling"
             itens={correios}
             diaBr={diaBr}
             chave="correios"
@@ -369,6 +427,7 @@ export default function EnviosDoDiaTab() {
             <BlocoEnvios
               key={`${g.transportadora ?? "t"}-${gi}`}
               titulo={g.transportadora ?? "Transportadora"}
+              tooltip="Etiquetas geradas no Melhor Envio"
               itens={g.itens ?? []}
               diaBr={diaBr}
               chave={`t${gi}`}

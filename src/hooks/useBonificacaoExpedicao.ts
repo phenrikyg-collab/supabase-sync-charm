@@ -559,7 +559,8 @@ export function useAtualizarOcPedido() {
 }
 
 export interface ItemRomaneio {
-  pedido: string | number;
+  pedido: string | number | null;
+  hora: string | null;
   cliente: string | null;
   codigo: string | null;
   transportadora: string | null;
@@ -579,9 +580,10 @@ export interface GrupoRomaneio {
 export interface RomaneioDia {
   dia: string;
   dia_br: string;
+  atualizado_em_br: string | null;
   correios: ItemRomaneio[];
   transportadoras: GrupoRomaneio[];
-  totais: { correios: number; transportadoras: number; sem_codigo: number };
+  totais: { correios: number; transportadoras: number; sem_codigo: number; sem_pedido: number };
 }
 
 export function useRomaneio(dia: string) {
