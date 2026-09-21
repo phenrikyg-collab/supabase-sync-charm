@@ -1,4 +1,6 @@
 import { useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
+
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { chamarRpc } from "@/lib/supabaseRpc";
 import { Card, CardContent } from "@/components/ui/card";
@@ -61,8 +63,10 @@ const LIMITE = 50;
 
 export function AcompanhamentoTab() {
   const qc = useQueryClient();
+  const [params] = useSearchParams();
   const [dias, setDias] = useState(30);
-  const [busca, setBusca] = useState("");
+  const [busca, setBusca] = useState(params.get("busca") ?? "");
+
   const [situacoes, setSituacoes] = useState<string[]>([]);
   const [transportadora, setTransportadora] = useState<string>("");
   const [alerta, setAlerta] = useState<string>("");

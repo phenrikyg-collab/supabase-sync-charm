@@ -15,6 +15,8 @@ import EntradaNF from "./pages/EntradaNF";
 import EstoqueTecidos from "./pages/EstoqueTecidos";
 import CadastroTecidos from "./pages/CadastroTecidos";
 import OrdensCorte from "./pages/OrdensCorte";
+import OrdemCorteImprimir from "./pages/OrdemCorteImprimir";
+
 import NovaOrdemCorte from "./pages/NovaOrdemCorte";
 import Oficinas from "./pages/Oficinas";
 import OficinaInterna from "./pages/OficinaInterna";
@@ -219,6 +221,17 @@ const AppRoutes = () => {
       <Route path="/ciencia" element={<Ciencia />} />
       <Route path="/troca" element={<TrocaDevolucao />} />
       <Route path="/trocas" element={<Navigate to="/troca" replace />} />
+      <Route
+        path="/ordens-corte/:id/imprimir"
+        element={
+          <ProtectedRoute>
+            <ModuleGuard>
+              <OrdemCorteImprimir />
+            </ModuleGuard>
+          </ProtectedRoute>
+        }
+      />
+
       <Route path="/login" element={user ? <HomeRedirect /> : <Login />} />
       <Route path="/tv-interna" element={<ProtectedRoute><TVInterna /></ProtectedRoute>} />
       <Route path="/conteudo" element={<ProtectedRoute><ModuleGuard><ContentCalendar /></ModuleGuard></ProtectedRoute>} />

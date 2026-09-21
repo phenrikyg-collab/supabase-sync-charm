@@ -25,3 +25,5 @@
 25. [ ] Inserir Aguardando Pagamento no Kanban do funil de WhatsApp
 26. [ ] Centralizar a lista oficial de etapas do funil e reaproveitar nos badges
 27. [ ] Rodar verificação de tipos e revisar tarefas abertas
+- [x] 28 Reformular Acompanhamento de envios: sem valores em R$, KPIs do mês com enviados sem data, aba Pedidos do mês, postagem e rastreio
+- [x] 29 Ordem de corte a partir do pedido e impressão da OC em /ordens-corte/:id/imprimir

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { format, parse } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { Link } from "react-router-dom";
 import { Card } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
@@ -8,8 +9,23 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { toast } from "sonner";
-import { Loader2, Save, Trash2, Plus, CheckCircle2, AlertTriangle, Clock, Truck, Factory, RefreshCw } from "lucide-react";
+import {
+  Loader2,
+  Save,
+  Trash2,
+  Plus,
+  CheckCircle2,
+  AlertTriangle,
+  Clock,
+  Truck,
+  Factory,
+  RefreshCw,
+  Scissors,
+  HelpCircle,
+} from "lucide-react";
+import DialogOrdemCortePedido from "@/components/expedicao/DialogOrdemCortePedido";
 import {
   useApurarExpedicao,
   useHistoricoExpedicao,
@@ -22,23 +38,26 @@ import {
   useResumoAbertos,
   useProdutosParados,
   usePedidosAbertos,
+  usePedidosDoMes,
+  useRastreioPainel,
   type ProdutoParado,
   type PedidoAbertoExpedicao,
   type FaixaBonificacao,
   type PedidoAtrasado,
+  type SituacaoPedidoMes,
 } from "@/hooks/useBonificacaoExpedicao";
 
 const fmtBRL = (v: number) =>
   v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
-const fmtPct = (v: number) => `${v.toFixed(2).replace(".", ",")}%`;
-const fmtData = (s: string | null) => {
-  if (!s) return "—";
-  try {
-    const d = parse(s.slice(0, 10), "yyyy-MM-dd", new Date());
-    return format(d, "dd/MM/yyyy");
-  } catch {
-    return s;
-  }
+const fmtPct = (v: number) => `${Number(v ?? 0).toFixed(2).replace(".", ",")}%`;
+const fmtNum = (v: number, casas = 1) =>
+  Number(v ?? 0).toFixed(casas).replace(".", ",");
+const fmtData = (s: string | null | undefined) => {
+  if (!s) return "-";
+  const t = String(s).slice(0, 10);
+  const p = t.split("-");
+  if (p.length === 3) return `${p[2]}/${p[1]}/${p[0]}`;
+  return t;
 };
 const fmtMesLabel = (mesYYYYMM: string) => {
   try {
@@ -48,6 +67,39 @@ const fmtMesLabel = (mesYYYYMM: string) => {
     return mesYYYYMM;
   }
 };
+
+const ROTULO_ORIGEM_PRAZO: Record<string, string> = {
+  padrao: "Padrão",
+  disponibilidade: "Disponibilidade",
+  ordem_corte: "OC",
+  manual: "Manual",
+};
+
+const ROTULO_ORIGEM_ENVIO: Record<string, string> = {
+  tray: "Tray",
+  rastreio: "Rastreio",
+  status: "Status",
+};
+
+function SeloOrigemPrazo({ origem }: { origem: string | null | undefined }) {
+  if (!origem) return null;
+  return (
+    <Badge variant="outline" className="ml-2 text-[10px] font-normal">
+      {ROTULO_ORIGEM_PRAZO[origem] ?? origem}
+    </Badge>
+  );
+}
+
+function SeloSituacao({ situacao }: { situacao: string }) {
+  const mapa: Record<string, { texto: string; classe: string }> = {
+    no_prazo: { texto: "No prazo", classe: "bg-emerald-100 text-emerald-800 border-emerald-200" },
+    atrasado: { texto: "Atrasado", classe: "bg-rose-100 text-rose-800 border-rose-200" },
+    pendente: { texto: "Pendente", classe: "bg-amber-100 text-amber-800 border-amber-200" },
+    sem_data: { texto: "Sem data", classe: "bg-muted text-muted-foreground border-border" },
+  };
+  const s = mapa[situacao] ?? { texto: situacao, classe: "bg-muted text-muted-foreground border-border" };
+  return <Badge className={s.classe}>{s.texto}</Badge>;
+}
 
 export default function BonificacaoExpedicao() {
   const [mes, setMes] = useState<string>(format(new Date(), "yyyy-MM"));
@@ -77,12 +129,16 @@ export default function BonificacaoExpedicao() {
       <Tabs defaultValue="dashboard" className="space-y-4">
         <TabsList>
           <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
+          <TabsTrigger value="pedidos-mes">Pedidos do mês</TabsTrigger>
           <TabsTrigger value="historico">Histórico</TabsTrigger>
           <TabsTrigger value="config">Configurações</TabsTrigger>
         </TabsList>
 
         <TabsContent value="dashboard">
           <DashboardTab mes={mes} />
+        </TabsContent>
+        <TabsContent value="pedidos-mes">
+          <PedidosMesTab mes={mes} />
         </TabsContent>
         <TabsContent value="historico">
           <HistoricoTab />
@@ -97,7 +153,6 @@ export default function BonificacaoExpedicao() {
 
 /* ───────────── Dashboard ───────────── */
 
-
 function DashboardTab({ mes }: { mes: string }) {
   const ap = useApurarExpedicao(mes);
   const fechar = useFecharApuracao();
@@ -106,6 +161,7 @@ function DashboardTab({ mes }: { mes: string }) {
   const resumoQ = useResumoAbertos();
   const paradosQ = useProdutosParados(200);
   const pedidosAbertosQ = usePedidosAbertos();
+  const [pedidoOc, setPedidoOc] = useState<string | number | null>(null);
 
   if (ap.isLoading) {
     return (
@@ -123,6 +179,7 @@ function DashboardTab({ mes }: { mes: string }) {
         pedidos_no_prazo: ap.kpis.pedidos_no_prazo,
         pedidos_atrasados: ap.kpis.pedidos_atrasados,
         pedidos_pendentes: ap.kpis.pedidos_pendentes,
+        pedidos_sem_data: ap.kpis.pedidos_sem_data,
         percentual_prazo: Number(ap.kpis.percentual_prazo.toFixed(2)),
         valor_bonus: ap.valor_bonus,
         faixa_atingida: ap.faixa_atingida,
@@ -139,14 +196,30 @@ function DashboardTab({ mes }: { mes: string }) {
 
   return (
     <div className="space-y-6">
-      {/* KPIs */}
-      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
+      {/* KPIs do mês */}
+      <div className="grid grid-cols-2 lg:grid-cols-6 gap-4">
         <KPI icon={<Truck className="w-4 h-4" />} label="Total de pedidos" value={String(ap.kpis.total_pedidos)} hint={fmtMesLabel(mes)} />
         <KPI icon={<CheckCircle2 className="w-4 h-4 text-emerald-600" />} label="No prazo" value={String(ap.kpis.pedidos_no_prazo)} tone="emerald" />
         <KPI icon={<AlertTriangle className="w-4 h-4 text-rose-600" />} label="Atrasados" value={String(ap.kpis.pedidos_atrasados)} tone="rose" />
-        <KPI icon={<Clock className="w-4 h-4 text-amber-600" />} label="Pendentes (sem envio)" value={String(ap.kpis.pedidos_pendentes)} tone="amber" />
-        <KPI label="% no prazo (s/ pendentes)" value={fmtPct(ap.kpis.percentual_prazo)} tone={abaixoMeta ? "rose" : "primary"} />
+        <KPI icon={<Clock className="w-4 h-4 text-amber-600" />} label="Pendentes (dentro do prazo)" value={String(ap.kpis.pedidos_pendentes)} tone="amber" />
+        <KPI
+          label="Enviados sem data"
+          value={String(ap.kpis.pedidos_sem_data)}
+          ajuda="Pedido marcado como enviado/finalizado na Tray sem data de envio nem postagem no rastreio."
+        />
+        <KPI
+          label="% no prazo"
+          value={fmtPct(ap.kpis.percentual_prazo)}
+          tone={abaixoMeta ? "rose" : "primary"}
+          ajuda="No prazo ÷ (no prazo + atrasados). Pendentes e enviados sem data não entram na conta."
+        />
       </div>
+
+      <p className="text-xs text-muted-foreground leading-relaxed">
+        Prazo de envio: 2 dias úteis a partir do pagamento + a disponibilidade do produto (ex.: Disponível em 5 dias
+        úteis). Pedido com ordem de corte usa a previsão da OC + 2 dias úteis. Data de envio: data de envio da Tray,
+        senão a postagem no rastreio, senão a mudança de status. Retirada na loja conta quando vira ENVIADO.
+      </p>
 
       {abaixoMeta && (
         <Card className="p-4 border-rose-300 bg-rose-50/70 dark:bg-rose-950/20">
@@ -194,11 +267,13 @@ function DashboardTab({ mes }: { mes: string }) {
         </div>
       </Card>
 
-      {/* Pedidos críticos — atraso no envio */}
+      <PostagemRastreio mes={mes} />
+
+      {/* Pedidos críticos */}
       <Card className="p-0 overflow-hidden">
         <div className="px-6 py-4 border-b flex items-center justify-between gap-3 flex-wrap">
           <div>
-            <h3 className="font-serif text-lg">Pedidos Críticos — Atraso no Envio</h3>
+            <h3 className="font-serif text-lg">Pedidos críticos, atraso no envio</h3>
             <p className="text-xs text-muted-foreground mt-1">
               Pedidos com maior atraso no envio, ordenados do mais crítico ao menos crítico.
             </p>
@@ -217,20 +292,19 @@ function DashboardTab({ mes }: { mes: string }) {
                 <TableHead>Etapa</TableHead>
                 <TableHead>Transportadora</TableHead>
                 <TableHead className="text-right">Dias de atraso</TableHead>
-                <TableHead className="text-right">Valor</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {atrasadosQ.isLoading && (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center py-10">
+                  <TableCell colSpan={6} className="text-center py-10">
                     <Loader2 className="w-5 h-5 animate-spin inline text-primary" />
                   </TableCell>
                 </TableRow>
               )}
               {!atrasadosQ.isLoading && (atrasadosQ.data ?? []).length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center text-muted-foreground py-10">
+                  <TableCell colSpan={6} className="text-center text-muted-foreground py-10">
                     Nenhum pedido crítico no momento.
                   </TableCell>
                 </TableRow>
@@ -244,14 +318,13 @@ function DashboardTab({ mes }: { mes: string }) {
                 return (
                   <TableRow key={String(p.pedido_id)} className={dias >= 30 ? "bg-rose-50/50 hover:bg-rose-100/50" : ""}>
                     <TableCell className="font-mono text-xs">#{p.pedido_id}</TableCell>
-                    <TableCell className="font-medium">{p.cliente ?? "—"}</TableCell>
+                    <TableCell className="font-medium">{p.cliente ?? "-"}</TableCell>
                     <TableCell>{fmtData(p.data_pedido)}</TableCell>
-                    <TableCell className="text-xs text-muted-foreground">{p.etapa ?? "—"}</TableCell>
-                    <TableCell className="text-xs text-muted-foreground">{p.transportadora ?? "—"}</TableCell>
+                    <TableCell className="text-xs text-muted-foreground">{p.etapa ?? "-"}</TableCell>
+                    <TableCell className="text-xs text-muted-foreground">{p.transportadora ?? "-"}</TableCell>
                     <TableCell className="text-right">
                       <Badge className={badgeTone}>{dias} dias</Badge>
                     </TableCell>
-                    <TableCell className="text-right font-medium">{fmtBRL(Number(p.valor_pedido ?? 0))}</TableCell>
                   </TableRow>
                 );
               })}
@@ -261,15 +334,14 @@ function DashboardTab({ mes }: { mes: string }) {
       </Card>
 
       {/* Resumo dos pedidos em aberto */}
-      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <KPI icon={<Truck className="w-4 h-4" />} label="Total em aberto" value={String(resumoQ.data?.total_pedidos_abertos ?? 0)} />
         <KPI icon={<AlertTriangle className="w-4 h-4 text-rose-600" />} label="Críticos (atrasados)" value={String(resumoQ.data?.total_criticos ?? 0)} tone="rose" />
         <KPI icon={<Clock className="w-4 h-4 text-amber-600" />} label="Em alerta (vence hoje)" value={String(resumoQ.data?.total_alerta ?? 0)} tone="amber" />
         <KPI icon={<CheckCircle2 className="w-4 h-4 text-emerald-600" />} label="No prazo" value={String(resumoQ.data?.total_no_prazo ?? 0)} tone="emerald" />
-        <KPI label="Valor total parado" value={fmtBRL(Number(resumoQ.data?.valor_total_parado ?? 0))} tone="primary" />
       </div>
 
-      {/* Lista pedidos em aberto (fonte vw_expedicao_status) */}
+      {/* Lista pedidos em aberto */}
       <Card className="p-0 overflow-hidden">
         <div className="px-6 py-4 border-b">
           <h3 className="font-serif text-lg">
@@ -286,22 +358,24 @@ function DashboardTab({ mes }: { mes: string }) {
                 <TableHead>Pedido</TableHead>
                 <TableHead>Cliente</TableHead>
                 <TableHead className="text-right">Dias em aberto</TableHead>
+                <TableHead>Prazo</TableHead>
                 <TableHead>Etapa atual</TableHead>
-                <TableHead className="text-right">Valor</TableHead>
                 <TableHead>Risco</TableHead>
+                <TableHead>OC</TableHead>
+                <TableHead className="text-right">Ações</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {pedidosAbertosQ.isLoading && (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center py-10">
+                  <TableCell colSpan={8} className="text-center py-10">
                     <Loader2 className="w-5 h-5 animate-spin inline text-primary" />
                   </TableCell>
                 </TableRow>
               )}
               {!pedidosAbertosQ.isLoading && (pedidosAbertosQ.data ?? []).length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center text-muted-foreground py-10">
+                  <TableCell colSpan={8} className="text-center text-muted-foreground py-10">
                     Nenhum pedido em aberto.
                   </TableCell>
                 </TableRow>
@@ -331,12 +405,39 @@ function DashboardTab({ mes }: { mes: string }) {
                         `#${p.pedido_id}`
                       )}
                     </TableCell>
-                    <TableCell className="font-medium">{p.cliente ?? "—"}</TableCell>
+                    <TableCell className="font-medium">
+                      {p.cliente ?? "-"}
+                      {p.retirada && (
+                        <Badge variant="outline" className="ml-2 text-[10px] font-normal">
+                          Retirada
+                        </Badge>
+                      )}
+                    </TableCell>
                     <TableCell className="text-right">{Number(p.dias_corridos ?? 0)}</TableCell>
-                    <TableCell className="text-xs text-muted-foreground">{p.etapa ?? "—"}</TableCell>
-                    <TableCell className="text-right font-medium">{fmtBRL(Number(p.valor_pedido ?? 0))}</TableCell>
+                    <TableCell className="whitespace-nowrap">
+                      {typeof p.prazo_efetivo === "number" ? p.prazo_efetivo : fmtData(p.prazo_efetivo as any)}
+                      <SeloOrigemPrazo origem={p.origem_prazo} />
+                    </TableCell>
+                    <TableCell className="text-xs text-muted-foreground">{p.etapa ?? "-"}</TableCell>
                     <TableCell>
                       <Badge className={riscoTone}>{risco}</Badge>
+                    </TableCell>
+                    <TableCell>
+                      {p.oc_numero && p.oc_id ? (
+                        <Link to={`/ordens-corte/${p.oc_id}/imprimir`}>
+                          <Badge variant="outline" className="text-[11px] hover:bg-accent">
+                            {p.oc_numero} · {p.oc_status ?? "-"}
+                          </Badge>
+                        </Link>
+                      ) : (
+                        <span className="text-muted-foreground">-</span>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <Button variant="outline" size="sm" onClick={() => setPedidoOc(p.pedido_id)}>
+                        <Scissors className="w-3.5 h-3.5 mr-1.5" />
+                        Ordem de corte
+                      </Button>
                     </TableCell>
                   </TableRow>
                 );
@@ -346,7 +447,7 @@ function DashboardTab({ mes }: { mes: string }) {
         </div>
       </Card>
 
-      {/* Produtos parados — somatório por produto + cor + tamanho */}
+      {/* Produtos parados */}
       <Card className="p-0 overflow-hidden">
         <div className="px-6 py-4 border-b flex items-center justify-between gap-3 flex-wrap">
           <div>
@@ -395,9 +496,9 @@ function DashboardTab({ mes }: { mes: string }) {
                 const pedidos = (r.pedidos ?? []).map(String);
                 return (
                   <TableRow key={`${r.produto_id}-${r.cor ?? ""}-${r.tamanho ?? ""}-${i}`} className={critico ? "bg-rose-50/70 hover:bg-rose-100/70" : emProd > 0 ? "bg-emerald-50/50 hover:bg-emerald-100/50" : ""}>
-                    <TableCell className="font-medium">{r.nome ?? "—"}</TableCell>
-                    <TableCell>{r.cor ?? "—"}</TableCell>
-                    <TableCell>{r.tamanho ?? "—"}</TableCell>
+                    <TableCell className="font-medium">{r.nome ?? "-"}</TableCell>
+                    <TableCell>{r.cor ?? "-"}</TableCell>
+                    <TableCell>{r.tamanho ?? "-"}</TableCell>
                     <TableCell className="text-right font-semibold">{vendido}</TableCell>
                     <TableCell className="text-right">
                       {emProd > 0 ? (
@@ -421,7 +522,7 @@ function DashboardTab({ mes }: { mes: string }) {
                       <span className="text-xs text-muted-foreground font-mono" title={pedidos.join(", ")}>
                         {pedidos.slice(0, 5).join(", ")}
                         {pedidos.length > 5 ? ` +${pedidos.length - 5}` : ""}
-                        {pedidos.length === 0 ? "—" : ""}
+                        {pedidos.length === 0 ? "-" : ""}
                       </span>
                     </TableCell>
                   </TableRow>
@@ -431,11 +532,290 @@ function DashboardTab({ mes }: { mes: string }) {
           </Table>
         </div>
       </Card>
+
+      <DialogOrdemCortePedido
+        pedido={pedidoOc}
+        aberto={pedidoOc !== null}
+        onOpenChange={(v) => {
+          if (!v) setPedidoOc(null);
+        }}
+      />
     </div>
   );
 }
 
+/* ───────────── Postagem e rastreio ───────────── */
 
+function PostagemRastreio({ mes }: { mes: string }) {
+  const { data, isLoading } = useRastreioPainel(mes);
+
+  if (isLoading) {
+    return (
+      <Card className="p-10 text-center">
+        <Loader2 className="w-5 h-5 animate-spin inline text-primary" />
+      </Card>
+    );
+  }
+  if (!data) return null;
+
+  const p = data.postagem ?? ({} as any);
+  const etiquetas = data.etiquetas_sem_postagem ?? [];
+  const semCodigo = data.enviados_sem_codigo ?? [];
+  const pos = data.pos_envio ?? ({} as any);
+
+  return (
+    <div className="space-y-4">
+      <h3 className="font-serif text-xl">Postagem e rastreio</h3>
+
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <KPI icon={<Truck className="w-4 h-4" />} label="Postados no mês" value={String(p.postados ?? 0)} />
+        <KPI
+          label="Pagamento até postagem"
+          value={`${fmtNum(p.media_dias_uteis_pagamento_postagem)} dias úteis`}
+        />
+        <KPI
+          label="Postados no prazo"
+          value={fmtPct(p.pct_postados_no_prazo ?? 0)}
+          tone={Number(p.pct_postados_no_prazo ?? 0) < 80 ? "rose" : "emerald"}
+        />
+        <KPI
+          label="Etiqueta até postagem"
+          value={`${fmtNum(p.media_dias_uteis_etiqueta_postagem)} dias úteis`}
+          hint={`${fmtPct(p.pct_postados_mesmo_dia_etiqueta ?? 0)} no mesmo dia`}
+        />
+      </div>
+
+      <Card className="p-0 overflow-hidden">
+        <div className="px-6 py-4 border-b">
+          <h4 className="font-serif text-lg">Por transportadora</h4>
+        </div>
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Transportadora</TableHead>
+              <TableHead className="text-right">Postados</TableHead>
+              <TableHead className="text-right">Dias úteis até postar</TableHead>
+              <TableHead className="text-right">% no prazo</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {(data.por_transportadora ?? []).length === 0 && (
+              <TableRow>
+                <TableCell colSpan={4} className="text-center text-muted-foreground py-8">
+                  Nenhuma postagem no mês.
+                </TableCell>
+              </TableRow>
+            )}
+            {(data.por_transportadora ?? []).map((t, i) => (
+              <TableRow key={`${t.transportadora ?? "-"}-${i}`}>
+                <TableCell className="font-medium">{t.transportadora ?? "-"}</TableCell>
+                <TableCell className="text-right">{t.postados}</TableCell>
+                <TableCell className="text-right">{fmtNum(t.media_dias_uteis_pagamento_postagem)}</TableCell>
+                <TableCell className={`text-right ${Number(t.pct_no_prazo ?? 0) < 80 ? "text-rose-700 font-semibold" : ""}`}>
+                  {fmtPct(t.pct_no_prazo ?? 0)}
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </Card>
+
+      <Card className={`p-0 overflow-hidden ${etiquetas.length > 0 ? "border-orange-300 bg-orange-50/50 dark:bg-orange-950/10" : ""}`}>
+        <div className="px-6 py-4 border-b">
+          <h4 className="font-serif text-lg">Etiquetas geradas e não postadas</h4>
+        </div>
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Pedido</TableHead>
+              <TableHead>Cliente</TableHead>
+              <TableHead>Transportadora</TableHead>
+              <TableHead>Código</TableHead>
+              <TableHead>Etiqueta em</TableHead>
+              <TableHead className="text-right">Dias úteis</TableHead>
+              <TableHead></TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {etiquetas.length === 0 && (
+              <TableRow>
+                <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
+                  Nenhuma etiqueta parada.
+                </TableCell>
+              </TableRow>
+            )}
+            {etiquetas.map((e, i) => (
+              <TableRow key={`${e.pedido}-${i}`}>
+                <TableCell className="font-mono text-xs">#{e.pedido}</TableCell>
+                <TableCell className="font-medium">{e.cliente ?? "-"}</TableCell>
+                <TableCell className="text-xs text-muted-foreground">
+                  {e.transportadora ?? "-"}
+                  {e.servico ? ` · ${e.servico}` : ""}
+                </TableCell>
+                <TableCell className="font-mono text-xs">{e.codigo ?? "-"}</TableCell>
+                <TableCell>{e.etiqueta_em_br ?? "-"}</TableCell>
+                <TableCell className={`text-right ${Number(e.dias_uteis ?? 0) >= 2 ? "text-rose-700 font-semibold" : ""}`}>
+                  {e.dias_uteis}
+                </TableCell>
+                <TableCell className="text-right">
+                  <Link
+                    to={e.codigo ? `/envios?busca=${encodeURIComponent(e.codigo)}` : "/envios"}
+                    className="text-xs underline hover:text-primary"
+                  >
+                    Ver no rastreio
+                  </Link>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </Card>
+
+      <Card className="p-0 overflow-hidden">
+        <div className="px-6 py-4 border-b">
+          <h4 className="font-serif text-lg">Marcados como enviados sem código de rastreio (30 dias)</h4>
+        </div>
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Pedido</TableHead>
+              <TableHead>Cliente</TableHead>
+              <TableHead>Transportadora</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead>Data do pedido</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {semCodigo.length === 0 && (
+              <TableRow>
+                <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
+                  Nenhum pedido nessa situação.
+                </TableCell>
+              </TableRow>
+            )}
+            {semCodigo.map((s, i) => (
+              <TableRow key={`${s.pedido}-${i}`}>
+                <TableCell className="font-mono text-xs">#{s.pedido}</TableCell>
+                <TableCell className="font-medium">{s.cliente ?? "-"}</TableCell>
+                <TableCell className="text-xs text-muted-foreground">{s.transportadora ?? "-"}</TableCell>
+                <TableCell className="text-xs text-muted-foreground">{s.status ?? "-"}</TableCell>
+                <TableCell>{s.data_pedido_br ?? "-"}</TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </Card>
+
+      <p className="text-xs text-muted-foreground">
+        Depois da postagem: {pos.entregues ?? 0} entregues · {pos.em_transito ?? 0} em trânsito ·{" "}
+        {pos.com_ocorrencia ?? 0} com ocorrência · {pos.devolvidos ?? 0} devolvidos.{" "}
+        <Link to="/envios" className="underline hover:text-primary">
+          Abrir Rastreio de Envios
+        </Link>
+      </p>
+    </div>
+  );
+}
+
+/* ───────────── Pedidos do mês ───────────── */
+
+const SITUACOES: { valor: SituacaoPedidoMes | null; rotulo: string }[] = [
+  { valor: null, rotulo: "Todos" },
+  { valor: "no_prazo", rotulo: "No prazo" },
+  { valor: "atrasado", rotulo: "Atrasado" },
+  { valor: "pendente", rotulo: "Pendente" },
+  { valor: "sem_data", rotulo: "Sem data" },
+];
+
+function PedidosMesTab({ mes }: { mes: string }) {
+  const [situacao, setSituacao] = useState<SituacaoPedidoMes | null>(null);
+  const { data = [], isLoading } = usePedidosDoMes(mes, situacao);
+
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-wrap gap-2">
+        {SITUACOES.map((s) => (
+          <Badge
+            key={s.rotulo}
+            variant={situacao === s.valor ? "default" : "outline"}
+            className="cursor-pointer"
+            onClick={() => setSituacao(s.valor)}
+          >
+            {s.rotulo}
+          </Badge>
+        ))}
+      </div>
+
+      <Card className="p-0 overflow-hidden">
+        <div className="px-6 py-4 border-b flex items-center justify-between gap-3 flex-wrap">
+          <div>
+            <h3 className="font-serif text-lg">Pedidos do mês</h3>
+            <p className="text-xs text-muted-foreground mt-1">
+              Auditoria da conta do mês de {fmtMesLabel(mes)}.
+            </p>
+          </div>
+          <Badge variant="outline" className="text-xs">{data.length} pedidos</Badge>
+        </div>
+        <div className="max-h-[700px] overflow-auto">
+          <Table>
+            <TableHeader className="sticky top-0 bg-background z-10 shadow-sm [&_th]:bg-background">
+              <TableRow>
+                <TableHead>Pedido</TableHead>
+                <TableHead>Cliente</TableHead>
+                <TableHead>Pagamento</TableHead>
+                <TableHead>Prazo</TableHead>
+                <TableHead>Enviado em</TableHead>
+                <TableHead>Situação</TableHead>
+                <TableHead className="text-right">Dias de atraso</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {isLoading && (
+                <TableRow>
+                  <TableCell colSpan={7} className="text-center py-10">
+                    <Loader2 className="w-5 h-5 animate-spin inline text-primary" />
+                  </TableCell>
+                </TableRow>
+              )}
+              {!isLoading && data.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={7} className="text-center text-muted-foreground py-10">
+                    Nenhum pedido nesta situação.
+                  </TableCell>
+                </TableRow>
+              )}
+              {data.map((p) => (
+                <TableRow key={String(p.pedido_id)}>
+                  <TableCell className="font-mono text-xs">#{p.pedido_id}</TableCell>
+                  <TableCell className="font-medium">{p.cliente ?? "-"}</TableCell>
+                  <TableCell>{fmtData(p.data_pagamento)}</TableCell>
+                  <TableCell className="whitespace-nowrap">
+                    {fmtData(p.prazo_efetivo)}
+                    <SeloOrigemPrazo origem={p.origem_prazo} />
+                  </TableCell>
+                  <TableCell className="whitespace-nowrap">
+                    {fmtData(p.data_envio)}
+                    {p.origem_envio && (
+                      <span className="ml-2 text-xs text-muted-foreground">
+                        {ROTULO_ORIGEM_ENVIO[p.origem_envio] ?? p.origem_envio}
+                      </span>
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    <SeloSituacao situacao={String(p.situacao)} />
+                  </TableCell>
+                  <TableCell className="text-right">
+                    {p.dias_atraso === null || p.dias_atraso === undefined ? "-" : p.dias_atraso}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      </Card>
+    </div>
+  );
+}
 
 function KPI({
   icon,
@@ -443,12 +823,14 @@ function KPI({
   value,
   hint,
   tone,
+  ajuda,
 }: {
   icon?: React.ReactNode;
   label: string;
   value: string;
   hint?: string;
   tone?: "emerald" | "rose" | "amber" | "primary";
+  ajuda?: string;
 }) {
   const valueClass =
     tone === "emerald"
@@ -465,12 +847,25 @@ function KPI({
       <div className="flex items-center gap-2 text-xs uppercase tracking-wider text-muted-foreground">
         {icon}
         <span>{label}</span>
+        {ajuda && (
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span className="cursor-help">
+                  <HelpCircle className="w-3.5 h-3.5" />
+                </span>
+              </TooltipTrigger>
+              <TooltipContent className="max-w-xs text-xs">{ajuda}</TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        )}
       </div>
       <div className={`font-serif text-3xl mt-2 ${valueClass}`}>{value}</div>
       {hint && <div className="text-xs text-muted-foreground mt-1">{hint}</div>}
     </Card>
   );
 }
+
 
 /* ───────────── Histórico ───────────── */
 
@@ -518,7 +913,7 @@ function HistoricoTab() {
               <TableCell className="text-right text-rose-700">{r.pedidos_atrasados}</TableCell>
               <TableCell className="text-right text-amber-700">{r.pedidos_pendentes}</TableCell>
               <TableCell className="text-right">{fmtPct(Number(r.percentual_prazo ?? 0))}</TableCell>
-              <TableCell>{r.faixa_atingida ?? "—"}</TableCell>
+              <TableCell>{r.faixa_atingida ?? "-"}</TableCell>
               <TableCell className="text-right font-medium">
                 {fmtBRL(Number(r.valor_bonus ?? 0))}
               </TableCell>
