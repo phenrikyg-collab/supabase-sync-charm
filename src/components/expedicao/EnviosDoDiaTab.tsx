@@ -210,6 +210,7 @@ function BlocoEnvios({
           <TableHeader>
             <TableRow>
               <TableHead className="w-10">Nº</TableHead>
+              <TableHead className="w-20">Etiqueta</TableHead>
               <TableHead>Pedido</TableHead>
               <TableHead>Cliente</TableHead>
               <TableHead>Serviço</TableHead>
@@ -226,7 +227,8 @@ function BlocoEnvios({
               return (
                 <TableRow key={id}>
                   <TableCell className="text-muted-foreground">{idx + 1}</TableCell>
-                  <TableCell className="font-medium">#{i.pedido}</TableCell>
+                  <TableCell className="text-sm text-muted-foreground">{vazio(i.hora)}</TableCell>
+                  <TableCell className="font-medium">{i.pedido ? `#${i.pedido}` : "-"}</TableCell>
                   <TableCell>{vazio(i.cliente)}</TableCell>
                   <TableCell>{vazio(i.servico)}</TableCell>
                   <TableCell className="font-mono text-xs">{vazio(i.codigo)}</TableCell>
