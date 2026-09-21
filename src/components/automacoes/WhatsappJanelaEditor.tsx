@@ -365,6 +365,11 @@ function SeletorProdutosCatalogo({ ids, onConfirmar }: { ids: string[]; onConfir
               <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4">
                 {Array.from({ length: 8 }).map((_, i) => <div key={i} className="space-y-2 rounded-md border border-border p-2"><Skeleton className="aspect-[3/4] w-full" /><Skeleton className="h-4 w-4/5" /><Skeleton className="h-3 w-2/5" /></div>)}
               </div>
+            ) : catalogoIndisponivel ? (
+              <div className="flex min-h-52 flex-col items-center justify-center gap-1 px-4 text-center text-sm text-muted-foreground">
+                <p className="font-medium text-warning">A lista de produtos do catálogo não está disponível no banco.</p>
+                <p>Enquanto isso, use o campo "Adicionar por código" abaixo para incluir os produtos pelo retailer_id.</p>
+              </div>
             ) : produtos.length === 0 ? (
               <div className="flex min-h-52 items-center justify-center px-4 text-center text-sm text-muted-foreground">Nenhum produto do catálogo bate com a busca.</div>
             ) : (
