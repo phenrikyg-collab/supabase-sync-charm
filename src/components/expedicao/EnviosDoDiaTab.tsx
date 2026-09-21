@@ -266,7 +266,23 @@ export default function EnviosDoDiaTab() {
   const hoje = format(new Date(), "yyyy-MM-dd");
   const [dia, setDia] = useState(hoje);
   const [conferidos, setConferidos] = useState<Record<string, boolean>>({});
+  const [buscandoEtiquetas, setBuscandoEtiquetas] = useState(false);
   const { data, isLoading, refetch, isFetching } = useRomaneio(dia);
+
+  const buscarEtiquetas = async () => {
+    setBuscandoEtiquetas(true);
+    const { error } = await chamarRpc("expedicao_etiquetas_invocar", { p_dias: 1 });
+    if (error) {
+      toast.error(error.message || "Não foi possível buscar as etiquetas.");
+      setBuscandoEtiquetas(false);
+      return;
+    }
+    toast.success("Buscando etiquetas no Bling e no Melhor Envio, a lista atualiza em 1 minuto");
+    setTimeout(() => {
+      refetch();
+      setBuscandoEtiquetas(false);
+    }, 60_000);
+  };
 
   const romaneio = data as RomaneioDia | null;
   const diaBr = romaneio?.dia_br ?? format(parse(dia, "yyyy-MM-dd", new Date()), "dd/MM/yyyy");
@@ -319,6 +335,15 @@ export default function EnviosDoDiaTab() {
           <Button variant="outline" size="sm" onClick={() => refetch()} disabled={isFetching}>
             <RefreshCw className={`h-3.5 w-3.5 mr-1 ${isFetching ? "animate-spin" : ""}`} />
             Atualizar
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={buscarEtiquetas}
+            disabled={buscandoEtiquetas}
+          >
+            <Tags className="h-3.5 w-3.5 mr-1" />
+            Buscar etiquetas agora
           </Button>
           <Button
             size="sm"
