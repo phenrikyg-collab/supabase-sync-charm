@@ -24,7 +24,6 @@ import {
   RefreshCw,
   Scissors,
   HelpCircle,
-  Printer,
 } from "lucide-react";
 import DialogOrdemCortePedido from "@/components/expedicao/DialogOrdemCortePedido";
 import {
@@ -914,7 +913,7 @@ function HistoricoTab() {
               <TableCell className="text-right text-rose-700">{r.pedidos_atrasados}</TableCell>
               <TableCell className="text-right text-amber-700">{r.pedidos_pendentes}</TableCell>
               <TableCell className="text-right">{fmtPct(Number(r.percentual_prazo ?? 0))}</TableCell>
-              <TableCell>{r.faixa_atingida ?? "—"}</TableCell>
+              <TableCell>{r.faixa_atingida ?? "-"}</TableCell>
               <TableCell className="text-right font-medium">
                 {fmtBRL(Number(r.valor_bonus ?? 0))}
               </TableCell>
