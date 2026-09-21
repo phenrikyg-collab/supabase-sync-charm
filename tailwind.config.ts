@@ -63,6 +63,7 @@ export default {
           DEFAULT: "hsl(var(--info))",
           foreground: "hsl(var(--info-foreground))",
         },
+        "funil-pagamento": "hsl(var(--funil-pagamento))",
         pos: "hsl(var(--pos))",
         neg: "hsl(var(--neg))",
         warn: "hsl(var(--warn))",
