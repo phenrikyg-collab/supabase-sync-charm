@@ -85,20 +85,35 @@ export function errosWhatsappJanela(config: Record<string, any>): string[] {
   return erros;
 }
 
-async function listarProdutosCatalogo(busca: string, soEstoque: boolean): Promise<ProdutoCatalogo[]> {
+/** O banco pode não ter a função de catálogo publicada ainda. */
+function funcaoIndisponivel(error: any): boolean {
+  const codigo = String(error?.code ?? "");
+  const msg = String(error?.message ?? "").toLowerCase();
+  return codigo === "PGRST202" || codigo === "42883" || msg.includes("does not exist");
+}
+
+type RespostaCatalogo = { produtos: ProdutoCatalogo[]; indisponivel: boolean };
+
+async function listarProdutosCatalogo(busca: string, soEstoque: boolean): Promise<RespostaCatalogo> {
   const { data, error } = await supabase.rpc("whatsapp_catalogo_produtos_listar" as any, {
     p_busca: busca,
     p_so_estoque: soEstoque,
     p_limite: 300,
   });
-  if (error) throw error;
-  return (data ?? []) as unknown as ProdutoCatalogo[];
+  if (error) {
+    if (funcaoIndisponivel(error)) return { produtos: [], indisponivel: true };
+    throw error;
+  }
+  return { produtos: (data ?? []) as unknown as ProdutoCatalogo[], indisponivel: false };
 }
 
 async function produtosCatalogoPorIds(ids: string[]): Promise<ProdutoCatalogo[]> {
   if (ids.length === 0) return [];
   const { data, error } = await supabase.rpc("whatsapp_catalogo_produtos_por_ids" as any, { p_ids: ids });
-  if (error) throw error;
+  if (error) {
+    if (funcaoIndisponivel(error)) return [];
+    throw error;
+  }
   return (data ?? []) as unknown as ProdutoCatalogo[];
 }
 
