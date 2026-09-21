@@ -310,12 +310,14 @@ function SeletorProdutosCatalogo({ ids, onConfirmar }: { ids: string[]; onConfir
     if (aberto) setSelecionados(ids);
   }, [aberto, ids]);
 
-  const { data: produtos = [], isLoading } = useQuery({
+  const { data: resposta, isLoading } = useQuery({
     queryKey: ["whatsapp-catalogo-produtos", buscaDebounced, soEstoque],
     queryFn: () => listarProdutosCatalogo(buscaDebounced, soEstoque),
     enabled: aberto,
     staleTime: 60 * 1000,
   });
+  const produtos = resposta?.produtos ?? [];
+  const catalogoIndisponivel = !!resposta?.indisponivel;
 
   const alternar = (id: string) => {
     if (selecionados.includes(id)) return setSelecionados((atuais) => atuais.filter((item) => item !== id));
