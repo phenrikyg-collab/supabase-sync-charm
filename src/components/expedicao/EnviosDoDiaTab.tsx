@@ -14,9 +14,11 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Copy, Download, Printer, RefreshCw, Truck, PackageX, Package } from "lucide-react";
+import { Copy, Download, Printer, RefreshCw, Truck, PackageX, Package, Tags } from "lucide-react";
 import { toast } from "sonner";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useRomaneio, type ItemRomaneio, type RomaneioDia } from "@/hooks/useBonificacaoExpedicao";
+import { chamarRpc } from "@/lib/supabaseRpc";
 
 const vazio = (v: unknown) => {
   const s = v === null || v === undefined ? "" : String(v).trim();
@@ -59,7 +61,8 @@ function grupoHtml(titulo: string, itens: ItemRomaneio[], diaBr: string) {
     .map(
       (i, idx) => `<tr>
       <td>${idx + 1}</td>
-      <td>#${escapeHtml(i.pedido)}</td>
+      <td>${escapeHtml(i.hora ?? "-")}</td>
+      <td>${i.pedido ? `#${escapeHtml(i.pedido)}` : "-"}</td>
       <td>${escapeHtml(i.cliente ?? "-")}</td>
       <td>${escapeHtml(i.servico ?? "-")}</td>
       <td class="cod">${escapeHtml(i.codigo ?? "-")}</td>
@@ -79,7 +82,7 @@ function grupoHtml(titulo: string, itens: ItemRomaneio[], diaBr: string) {
     </header>
     <table>
       <thead>
-        <tr><th>Nº</th><th>Pedido</th><th>Cliente</th><th>Serviço</th><th>Código</th><th>Destino</th><th>Peças</th></tr>
+        <tr><th>Nº</th><th>Etiqueta</th><th>Pedido</th><th>Cliente</th><th>Serviço</th><th>Código</th><th>Destino</th><th>Peças</th></tr>
       </thead>
       <tbody>${linhas}</tbody>
     </table>
