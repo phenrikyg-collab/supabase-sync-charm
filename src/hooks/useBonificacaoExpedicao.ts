@@ -41,12 +41,14 @@ export interface ApuracaoMes {
   pedidos_no_prazo: number;
   pedidos_atrasados: number;
   pedidos_pendentes: number;
+  pedidos_sem_data: number;
   percentual_prazo: number;
   valor_bonus: number;
   faixa_atingida: string | null;
   observacao: string | null;
   status: string;
 }
+
 
 interface TrayOrderExp {
   id: string | number;
@@ -100,6 +102,7 @@ export function useApurarExpedicao(mesRef: string) {
           pedidos_no_prazo: Number(row.pedidos_no_prazo ?? 0),
           pedidos_atrasados: Number(row.pedidos_atrasados ?? 0),
           pedidos_pendentes: Number(row.pedidos_pendentes ?? 0),
+          pedidos_sem_data: Number(row.pedidos_sem_data ?? 0),
           percentual_prazo: Number(row.percentual_prazo ?? 0),
         }
       : {
@@ -107,8 +110,10 @@ export function useApurarExpedicao(mesRef: string) {
           pedidos_no_prazo: 0,
           pedidos_atrasados: 0,
           pedidos_pendentes: 0,
+          pedidos_sem_data: 0,
           percentual_prazo: 0,
         };
+
 
     const faixa =
       faixas.find(
@@ -310,7 +315,16 @@ export interface PedidoAbertoExpedicao {
   codigo_rastreio: string | null;
   tracking_url: string | null;
   tem_nota_fiscal: boolean | null;
+  origem_prazo: string | null;
+  oc_id: string | null;
+  oc_numero: string | null;
+  oc_status: string | null;
+  oc_previsao: string | null;
+  dias_atraso: number | null;
+  retirada: boolean | null;
+  disponibilidade_dias: number | null;
 }
+
 
 export function usePedidosAbertos() {
   return useQuery<PedidoAbertoExpedicao[]>({
@@ -322,6 +336,224 @@ export function usePedidosAbertos() {
         .order("dias_corridos", { ascending: false });
       if (error) throw error;
       return (data ?? []) as unknown as PedidoAbertoExpedicao[];
+    },
+  });
+}
+
+/* ───────────── Pedidos do mês (auditoria) ───────────── */
+
+export type SituacaoPedidoMes = "no_prazo" | "atrasado" | "pendente" | "sem_data";
+
+export interface PedidoDoMes {
+  pedido_id: string | number;
+  cliente: string | null;
+  data_pagamento: string | null;
+  prazo_efetivo: string | null;
+  origem_prazo: string | null;
+  data_envio: string | null;
+  origem_envio: string | null;
+  situacao: SituacaoPedidoMes | string;
+  dias_atraso: number | null;
+}
+
+export function usePedidosDoMes(mes: string, situacao: SituacaoPedidoMes | null) {
+  return useQuery<PedidoDoMes[]>({
+    queryKey: ["expedicao-pedidos-mes", mes, situacao],
+    queryFn: async () => {
+      const { data, error } = await chamarRpc("expedicao_pedidos_mes", {
+        p_mes: `${mes}-01`,
+        p_situacao: situacao,
+      });
+      if (error) throw error;
+      return (data ?? []) as unknown as PedidoDoMes[];
+    },
+  });
+}
+
+/* ───────────── Postagem e rastreio ───────────── */
+
+export interface RastreioPainel {
+  postagem: {
+    postados: number;
+    media_dias_uteis_pagamento_postagem: number;
+    pct_postados_no_prazo: number;
+    media_dias_uteis_etiqueta_postagem: number;
+    pct_postados_mesmo_dia_etiqueta: number;
+  };
+  por_transportadora: {
+    transportadora: string | null;
+    postados: number;
+    media_dias_uteis_pagamento_postagem: number;
+    pct_no_prazo: number;
+  }[];
+  etiquetas_sem_postagem: {
+    pedido: string | number;
+    cliente: string | null;
+    transportadora: string | null;
+    servico: string | null;
+    codigo: string | null;
+    etiqueta_em_br: string | null;
+    dias_uteis: number;
+    envio_id: string | number | null;
+  }[];
+  enviados_sem_codigo: {
+    pedido: string | number;
+    cliente: string | null;
+    transportadora: string | null;
+    status: string | null;
+    data_pedido_br: string | null;
+  }[];
+  pos_envio: {
+    entregues: number;
+    em_transito: number;
+    com_ocorrencia: number;
+    devolvidos: number;
+  };
+}
+
+export function useRastreioPainel(mes: string) {
+  return useQuery<RastreioPainel | null>({
+    queryKey: ["expedicao-rastreio-painel", mes],
+    queryFn: async () => {
+      const { data, error } = await chamarRpc("expedicao_rastreio_painel", { p_mes: `${mes}-01` });
+      if (error) throw error;
+      const row = Array.isArray(data) ? data[0] : data;
+      return (row ?? null) as unknown as RastreioPainel | null;
+    },
+  });
+}
+
+/* ───────────── Ordem de corte do pedido ───────────── */
+
+export interface ItemPedidoExpedicao {
+  produto_id: string | null;
+  nome: string | null;
+  referencia: string | null;
+  cor_texto: string | null;
+  cor_id: string | null;
+  cor_hex: string | null;
+  tamanho: string | null;
+  quantidade: number;
+  disponibilidade: string | null;
+  imagem: string | null;
+}
+
+export interface OcDoPedido {
+  id: string;
+  numero_oc: string;
+  status: string | null;
+  previsao_pronto: string | null;
+}
+
+export interface PedidoItensResposta {
+  pedido: string | number;
+  cliente: string | null;
+  data_pedido: string | null;
+  status: string | null;
+  prazo_atual: string | null;
+  itens: ItemPedidoExpedicao[];
+  ordens: OcDoPedido[];
+}
+
+export function usePedidoItens(pedido: string | number | null) {
+  return useQuery<PedidoItensResposta | null>({
+    queryKey: ["expedicao-pedido-itens", pedido],
+    enabled: pedido !== null && pedido !== undefined && pedido !== "",
+    queryFn: async () => {
+      const { data, error } = await chamarRpc("expedicao_pedido_itens", { p_pedido: pedido });
+      if (error) throw error;
+      const row = Array.isArray(data) ? data[0] : data;
+      return (row ?? null) as unknown as PedidoItensResposta | null;
+    },
+  });
+}
+
+export interface OcImpressao {
+  numero_oc: string;
+  status: string | null;
+  tipo: string | null;
+  criada_em: string | null;
+  previsao_pronto: string | null;
+  observacao: string | null;
+  pedido: string | number | null;
+  cliente: string | null;
+  data_pedido: string | null;
+  prazo_envio: string | null;
+  itens: {
+    produto: string | null;
+    sku: string | null;
+    tecido: string | null;
+    cor: string | null;
+    cor_hex: string | null;
+    tamanho: string | null;
+    quantidade: number;
+  }[];
+  total_pecas: number;
+}
+
+export function useOcImprimir(oc: string | undefined) {
+  return useQuery<OcImpressao | null>({
+    queryKey: ["expedicao-oc-imprimir", oc],
+    enabled: !!oc,
+    queryFn: async () => {
+      const { data, error } = await chamarRpc("expedicao_oc_imprimir", { p_oc: oc });
+      if (error) throw error;
+      const row = Array.isArray(data) ? data[0] : data;
+      return (row ?? null) as unknown as OcImpressao | null;
+    },
+  });
+}
+
+export function useCriarOcPedido() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (payload: {
+      pedido: string | number;
+      previsao: string;
+      itens: { produto_id: string | null; cor_id: string | null; tamanho: string | null; quantidade: number }[];
+      observacao: string | null;
+    }) => {
+      const { data, error } = await chamarRpc("expedicao_oc_pedido_criar", {
+        p_pedido: payload.pedido,
+        p_previsao: payload.previsao,
+        p_itens: payload.itens,
+        p_observacao: payload.observacao,
+      });
+      if (error) throw error;
+      const row = Array.isArray(data) ? data[0] : data;
+      return row as unknown as { id: string; numero_oc: string };
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["expedicao-pedidos-abertos"] });
+      qc.invalidateQueries({ queryKey: ["expedicao-top-atrasados"] });
+      qc.invalidateQueries({ queryKey: ["expedicao-pedido-itens"] });
+      qc.invalidateQueries({ queryKey: ["expedicao-pedidos-mes"] });
+      qc.invalidateQueries({ queryKey: ["ordens-corte"] });
+    },
+  });
+}
+
+export function useAtualizarOcPedido() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (payload: {
+      oc: string;
+      previsao?: string | null;
+      status?: string | null;
+      observacao?: string | null;
+    }) => {
+      const { error } = await chamarRpc("expedicao_oc_pedido_atualizar", {
+        p_oc: payload.oc,
+        p_previsao: payload.previsao ?? null,
+        p_status: payload.status ?? null,
+        p_observacao: payload.observacao ?? null,
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["expedicao-pedido-itens"] });
+      qc.invalidateQueries({ queryKey: ["expedicao-pedidos-abertos"] });
+      qc.invalidateQueries({ queryKey: ["ordens-corte"] });
     },
   });
 }

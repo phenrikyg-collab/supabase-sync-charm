@@ -22,6 +22,9 @@ interface OrdemCorteEnriched {
   metragem_risco: number;
   quantidade_folhas: number | null;
   created_at: string | null;
+  tipo?: string | null;
+  tray_order_id?: string | number | null;
+
   produtos: { id: string; produto_id: string | null; nome_produto: string | null }[];
   grade: { tamanho: string; quantidade: number; cor_id: string | null; produto_id: string | null }[];
 }
@@ -270,9 +273,25 @@ export default function OrdensCorte() {
                     <span className="font-serif font-bold text-lg text-card-foreground">{o.numero_oc}</span>
                     <StatusBadge status={o.status ?? "planejada"} />
                   </div>
+                  {o.tipo === "pedido" && (
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs rounded-md border border-border bg-muted px-2 py-1 text-muted-foreground">
+                        Pedido #{o.tray_order_id ?? "-"}
+                      </span>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="gap-1.5"
+                        onClick={() => navigate(`/ordens-corte/${o.id}/imprimir`)}
+                      >
+                        <Printer className="h-3.5 w-3.5" /> Imprimir
+                      </Button>
+                    </div>
+                  )}
                   <div className="text-sm text-muted-foreground">
-                    {o.produtos.map((p) => p.nome_produto).join(", ") || "—"}
+                    {o.produtos.map((p) => p.nome_produto).join(", ") || "-"}
                   </div>
+
                   {(() => {
                     const produtosList = o.produtos.length
                       ? o.produtos

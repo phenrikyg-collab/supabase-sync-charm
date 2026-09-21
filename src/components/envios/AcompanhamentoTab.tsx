@@ -1,4 +1,6 @@
 import { useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
+
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { chamarRpc } from "@/lib/supabaseRpc";
 import { Card, CardContent } from "@/components/ui/card";

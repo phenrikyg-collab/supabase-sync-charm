@@ -123,9 +123,12 @@ const SORTED_ROUTES = Object.keys(ROUTE_ACCESS).sort((a, b) => b.length - a.leng
 
 export function requirementForPath(pathname: string): Requirement {
   const path = pathname.replace(/\/+$/, "") || "/";
+  // Impressão da OC: liberada para Produção e Logística.
+  if (/^\/ordens-corte\/[^/]+\/imprimir$/.test(path)) return ["producao", "logistica"];
   const match = SORTED_ROUTES.find((r) => path === r || path.startsWith(r + "/"));
   return match ? ROUTE_ACCESS[match] : "any";
 }
+
 
 export function canAccess(
   requirement: Requirement,
