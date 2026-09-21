@@ -26,6 +26,7 @@ import {
   HelpCircle,
 } from "lucide-react";
 import DialogOrdemCortePedido from "@/components/expedicao/DialogOrdemCortePedido";
+import EnviosDoDiaTab from "@/components/expedicao/EnviosDoDiaTab";
 import {
   useApurarExpedicao,
   useHistoricoExpedicao,
