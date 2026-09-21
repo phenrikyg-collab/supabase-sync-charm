@@ -412,9 +412,13 @@ function EstadoEspelhoCatalogo() {
     queryKey: ["whatsapp-catalogo-espelho-estado"],
     queryFn: async () => {
       const { data, error } = await supabase.rpc("whatsapp_catalogo_espelho_estado" as any);
-      if (error) throw error;
+      if (error) {
+        if (funcaoIndisponivel(error)) return null;
+        throw error;
+      }
       return ((data as unknown as EstadoCatalogo[] | null)?.[0] ?? data ?? null) as EstadoCatalogo | null;
     },
+    retry: false,
     staleTime: 60 * 1000,
   });
   if (!data) return null;
