@@ -557,3 +557,43 @@ export function useAtualizarOcPedido() {
     },
   });
 }
+
+export interface ItemRomaneio {
+  pedido: string | number;
+  cliente: string | null;
+  codigo: string | null;
+  transportadora: string | null;
+  servico: string | null;
+  destino: string | null;
+  pecas: number | null;
+  postado: boolean | null;
+  origem: string | null;
+}
+
+export interface GrupoRomaneio {
+  transportadora: string | null;
+  total: number;
+  itens: ItemRomaneio[];
+}
+
+export interface RomaneioDia {
+  dia: string;
+  dia_br: string;
+  correios: ItemRomaneio[];
+  transportadoras: GrupoRomaneio[];
+  totais: { correios: number; transportadoras: number; sem_codigo: number };
+}
+
+export function useRomaneio(dia: string) {
+  const hoje = format(new Date(), "yyyy-MM-dd");
+  return useQuery<RomaneioDia | null>({
+    queryKey: ["expedicao-romaneio", dia],
+    queryFn: async () => {
+      const { data, error } = await chamarRpc("expedicao_romaneio", { p_dia: dia });
+      if (error) throw error;
+      const row = Array.isArray(data) ? data[0] : data;
+      return (row ?? null) as unknown as RomaneioDia | null;
+    },
+    refetchInterval: dia === hoje ? 5 * 60 * 1000 : false,
+  });
+}
