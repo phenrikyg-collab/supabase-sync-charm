@@ -201,143 +201,6 @@ function DashboardTab({ mes }: { mes: string }) {
 
   return (
     <div className="space-y-6">
-      {/* KPIs do mês */}
-      <div className="grid grid-cols-2 lg:grid-cols-6 gap-4">
-        <KPI icon={<Truck className="w-4 h-4" />} label="Total de pedidos" value={String(ap.kpis.total_pedidos)} hint={fmtMesLabel(mes)} />
-        <KPI icon={<CheckCircle2 className="w-4 h-4 text-emerald-600" />} label="No prazo" value={String(ap.kpis.pedidos_no_prazo)} tone="emerald" />
-        <KPI icon={<AlertTriangle className="w-4 h-4 text-rose-600" />} label="Atrasados" value={String(ap.kpis.pedidos_atrasados)} tone="rose" />
-        <KPI icon={<Clock className="w-4 h-4 text-amber-600" />} label="Pendentes (dentro do prazo)" value={String(ap.kpis.pedidos_pendentes)} tone="amber" />
-        <KPI
-          label="Enviados sem data"
-          value={String(ap.kpis.pedidos_sem_data)}
-          ajuda="Pedido marcado como enviado/finalizado na Tray sem data de envio nem postagem no rastreio."
-        />
-        <KPI
-          label="% no prazo"
-          value={fmtPct(ap.kpis.percentual_prazo)}
-          tone={abaixoMeta ? "rose" : "primary"}
-          ajuda="No prazo ÷ (no prazo + atrasados). Pendentes e enviados sem data não entram na conta."
-        />
-      </div>
-
-      <p className="text-xs text-muted-foreground leading-relaxed">
-        Prazo de envio: 2 dias úteis a partir do pagamento + a disponibilidade do produto (ex.: Disponível em 5 dias
-        úteis). Pedido com ordem de corte usa a previsão da OC + 2 dias úteis. Data de envio: data de envio da Tray,
-        senão a postagem no rastreio, senão a mudança de status. Retirada na loja conta quando vira ENVIADO.
-      </p>
-
-      {abaixoMeta && (
-        <Card className="p-4 border-rose-300 bg-rose-50/70 dark:bg-rose-950/20">
-          <div className="flex items-start gap-3">
-            <AlertTriangle className="w-5 h-5 text-rose-600 mt-0.5" />
-            <div>
-              <p className="font-medium text-rose-800 dark:text-rose-200">
-                Abaixo da meta mínima de 80%
-              </p>
-              <p className="text-sm text-rose-700 dark:text-rose-300">
-                O percentual de pedidos no prazo ({fmtPct(ap.kpis.percentual_prazo)}) está abaixo do limite operacional. Revisar processo de expedição.
-              </p>
-            </div>
-          </div>
-        </Card>
-      )}
-
-      {/* Faixa + bônus */}
-      <Card className="p-6">
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <div>
-            <div className="text-xs uppercase tracking-wider text-muted-foreground">Faixa atingida</div>
-            <div className="font-serif text-2xl text-foreground mt-1">
-              {ap.faixa_atingida ?? "Nenhuma faixa cadastrada para este percentual"}
-            </div>
-          </div>
-          <div className="text-right">
-            <div className="text-xs uppercase tracking-wider text-muted-foreground">Bônus do mês</div>
-            <div className="font-serif text-3xl text-primary mt-1">{fmtBRL(ap.valor_bonus)}</div>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <Button
-              variant="outline"
-              onClick={() => recalcular.mutate(`${mes}-01`)}
-              disabled={recalcular.isPending}
-            >
-              {recalcular.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <RefreshCw className="w-4 h-4 mr-2" />}
-              Recalcular agora
-            </Button>
-            <Button onClick={onFechar} disabled={fechar.isPending}>
-              {fechar.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
-              Salvar / Fechar mês
-            </Button>
-          </div>
-        </div>
-      </Card>
-
-      <PostagemRastreio mes={mes} />
-
-      {/* Pedidos críticos */}
-      <Card className="p-0 overflow-hidden">
-        <div className="px-6 py-4 border-b flex items-center justify-between gap-3 flex-wrap">
-          <div>
-            <h3 className="font-serif text-lg">Pedidos críticos, atraso no envio</h3>
-            <p className="text-xs text-muted-foreground mt-1">
-              Pedidos com maior atraso no envio, ordenados do mais crítico ao menos crítico.
-            </p>
-          </div>
-          <Badge variant="outline" className="text-xs">
-            {(atrasadosQ.data ?? []).length} pedidos
-          </Badge>
-        </div>
-        <div className="max-h-[520px] overflow-auto">
-          <Table>
-            <TableHeader className="sticky top-0 bg-background z-10 shadow-sm [&_th]:bg-background">
-              <TableRow>
-                <TableHead>Pedido</TableHead>
-                <TableHead>Cliente</TableHead>
-                <TableHead>Data do pedido</TableHead>
-                <TableHead>Etapa</TableHead>
-                <TableHead>Transportadora</TableHead>
-                <TableHead className="text-right">Dias de atraso</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {atrasadosQ.isLoading && (
-                <TableRow>
-                  <TableCell colSpan={6} className="text-center py-10">
-                    <Loader2 className="w-5 h-5 animate-spin inline text-primary" />
-                  </TableCell>
-                </TableRow>
-              )}
-              {!atrasadosQ.isLoading && (atrasadosQ.data ?? []).length === 0 && (
-                <TableRow>
-                  <TableCell colSpan={6} className="text-center text-muted-foreground py-10">
-                    Nenhum pedido crítico no momento.
-                  </TableCell>
-                </TableRow>
-              )}
-              {(atrasadosQ.data ?? []).map((p: PedidoAtrasado) => {
-                const dias = Number(p.dias_atraso ?? 0);
-                const badgeTone =
-                  dias >= 30 ? "bg-rose-100 text-rose-800 border-rose-200" :
-                  dias >= 14 ? "bg-orange-100 text-orange-800 border-orange-200" :
-                  "bg-amber-100 text-amber-800 border-amber-200";
-                return (
-                  <TableRow key={String(p.pedido_id)} className={dias >= 30 ? "bg-rose-50/50 hover:bg-rose-100/50" : ""}>
-                    <TableCell className="font-mono text-xs">#{p.pedido_id}</TableCell>
-                    <TableCell className="font-medium">{p.cliente ?? "-"}</TableCell>
-                    <TableCell>{fmtData(p.data_pedido)}</TableCell>
-                    <TableCell className="text-xs text-muted-foreground">{p.etapa ?? "-"}</TableCell>
-                    <TableCell className="text-xs text-muted-foreground">{p.transportadora ?? "-"}</TableCell>
-                    <TableCell className="text-right">
-                      <Badge className={badgeTone}>{dias} dias</Badge>
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
-        </div>
-      </Card>
-
       {/* Resumo dos pedidos em aberto */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <KPI icon={<Truck className="w-4 h-4" />} label="Total em aberto" value={String(resumoQ.data?.total_pedidos_abertos ?? 0)} />
@@ -452,6 +315,70 @@ function DashboardTab({ mes }: { mes: string }) {
         </div>
       </Card>
 
+      {/* Pedidos críticos */}
+      <Card className="p-0 overflow-hidden">
+        <div className="px-6 py-4 border-b flex items-center justify-between gap-3 flex-wrap">
+          <div>
+            <h3 className="font-serif text-lg">Pedidos críticos, atraso no envio</h3>
+            <p className="text-xs text-muted-foreground mt-1">
+              Pedidos com maior atraso no envio, ordenados do mais crítico ao menos crítico.
+            </p>
+          </div>
+          <Badge variant="outline" className="text-xs">
+            {(atrasadosQ.data ?? []).length} pedidos
+          </Badge>
+        </div>
+        <div className="max-h-[520px] overflow-auto">
+          <Table>
+            <TableHeader className="sticky top-0 bg-background z-10 shadow-sm [&_th]:bg-background">
+              <TableRow>
+                <TableHead>Pedido</TableHead>
+                <TableHead>Cliente</TableHead>
+                <TableHead>Data do pedido</TableHead>
+                <TableHead>Etapa</TableHead>
+                <TableHead>Transportadora</TableHead>
+                <TableHead className="text-right">Dias de atraso</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {atrasadosQ.isLoading && (
+                <TableRow>
+                  <TableCell colSpan={6} className="text-center py-10">
+                    <Loader2 className="w-5 h-5 animate-spin inline text-primary" />
+                  </TableCell>
+                </TableRow>
+              )}
+              {!atrasadosQ.isLoading && (atrasadosQ.data ?? []).length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={6} className="text-center text-muted-foreground py-10">
+                    Nenhum pedido crítico no momento.
+                  </TableCell>
+                </TableRow>
+              )}
+              {(atrasadosQ.data ?? []).map((p: PedidoAtrasado) => {
+                const dias = Number(p.dias_atraso ?? 0);
+                const badgeTone =
+                  dias >= 30 ? "bg-rose-100 text-rose-800 border-rose-200" :
+                  dias >= 14 ? "bg-orange-100 text-orange-800 border-orange-200" :
+                  "bg-amber-100 text-amber-800 border-amber-200";
+                return (
+                  <TableRow key={String(p.pedido_id)} className={dias >= 30 ? "bg-rose-50/50 hover:bg-rose-100/50" : ""}>
+                    <TableCell className="font-mono text-xs">#{p.pedido_id}</TableCell>
+                    <TableCell className="font-medium">{p.cliente ?? "-"}</TableCell>
+                    <TableCell>{fmtData(p.data_pedido)}</TableCell>
+                    <TableCell className="text-xs text-muted-foreground">{p.etapa ?? "-"}</TableCell>
+                    <TableCell className="text-xs text-muted-foreground">{p.transportadora ?? "-"}</TableCell>
+                    <TableCell className="text-right">
+                      <Badge className={badgeTone}>{dias} dias</Badge>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+        </div>
+      </Card>
+
       {/* Produtos parados */}
       <Card className="p-0 overflow-hidden">
         <div className="px-6 py-4 border-b flex items-center justify-between gap-3 flex-wrap">
@@ -537,6 +464,79 @@ function DashboardTab({ mes }: { mes: string }) {
           </Table>
         </div>
       </Card>
+
+      {/* KPIs do mês */}
+      <div className="grid grid-cols-2 lg:grid-cols-6 gap-4">
+        <KPI icon={<Truck className="w-4 h-4" />} label="Total de pedidos" value={String(ap.kpis.total_pedidos)} hint={fmtMesLabel(mes)} />
+        <KPI icon={<CheckCircle2 className="w-4 h-4 text-emerald-600" />} label="No prazo" value={String(ap.kpis.pedidos_no_prazo)} tone="emerald" />
+        <KPI icon={<AlertTriangle className="w-4 h-4 text-rose-600" />} label="Atrasados" value={String(ap.kpis.pedidos_atrasados)} tone="rose" />
+        <KPI icon={<Clock className="w-4 h-4 text-amber-600" />} label="Pendentes (dentro do prazo)" value={String(ap.kpis.pedidos_pendentes)} tone="amber" />
+        <KPI
+          label="Enviados sem data"
+          value={String(ap.kpis.pedidos_sem_data)}
+          ajuda="Pedido marcado como enviado/finalizado na Tray sem data de envio nem postagem no rastreio."
+        />
+        <KPI
+          label="% no prazo"
+          value={fmtPct(ap.kpis.percentual_prazo)}
+          tone={abaixoMeta ? "rose" : "primary"}
+          ajuda="No prazo ÷ (no prazo + atrasados). Pendentes e enviados sem data não entram na conta."
+        />
+      </div>
+
+      <p className="text-xs text-muted-foreground leading-relaxed">
+        Prazo de envio: 2 dias úteis a partir do pagamento + a disponibilidade do produto (ex.: Disponível em 5 dias
+        úteis). Pedido com ordem de corte usa a previsão da OC + 2 dias úteis. Data de envio: data de envio da Tray,
+        senão a postagem no rastreio, senão a mudança de status. Retirada na loja conta quando vira ENVIADO.
+      </p>
+
+      {abaixoMeta && (
+        <Card className="p-4 border-rose-300 bg-rose-50/70 dark:bg-rose-950/20">
+          <div className="flex items-start gap-3">
+            <AlertTriangle className="w-5 h-5 text-rose-600 mt-0.5" />
+            <div>
+              <p className="font-medium text-rose-800 dark:text-rose-200">
+                Abaixo da meta mínima de 80%
+              </p>
+              <p className="text-sm text-rose-700 dark:text-rose-300">
+                O percentual de pedidos no prazo ({fmtPct(ap.kpis.percentual_prazo)}) está abaixo do limite operacional. Revisar processo de expedição.
+              </p>
+            </div>
+          </div>
+        </Card>
+      )}
+
+      {/* Faixa + bônus */}
+      <Card className="p-6">
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div>
+            <div className="text-xs uppercase tracking-wider text-muted-foreground">Faixa atingida</div>
+            <div className="font-serif text-2xl text-foreground mt-1">
+              {ap.faixa_atingida ?? "Nenhuma faixa cadastrada para este percentual"}
+            </div>
+          </div>
+          <div className="text-right">
+            <div className="text-xs uppercase tracking-wider text-muted-foreground">Bônus do mês</div>
+            <div className="font-serif text-3xl text-primary mt-1">{fmtBRL(ap.valor_bonus)}</div>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              variant="outline"
+              onClick={() => recalcular.mutate(`${mes}-01`)}
+              disabled={recalcular.isPending}
+            >
+              {recalcular.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <RefreshCw className="w-4 h-4 mr-2" />}
+              Recalcular agora
+            </Button>
+            <Button onClick={onFechar} disabled={fechar.isPending}>
+              {fechar.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
+              Salvar / Fechar mês
+            </Button>
+          </div>
+        </div>
+      </Card>
+
+      <PostagemRastreio mes={mes} />
 
       <DialogOrdemCortePedido
         pedido={pedidoOc}
