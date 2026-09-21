@@ -22,3 +22,6 @@
 22. [x] Adicionar exclusão segura e arquivamento às mensagens do calendário VIP
 23. [x] Adicionar filtro de arquivadas e limpeza de mensagens em lote
 24. [x] Validar confirmações, retornos das funções e typecheck do calendário
+25. [ ] Inserir Aguardando Pagamento no Kanban do funil de WhatsApp
+26. [ ] Centralizar a lista oficial de etapas do funil e reaproveitar nos badges
+27. [ ] Rodar verificação de tipos e revisar tarefas abertas
