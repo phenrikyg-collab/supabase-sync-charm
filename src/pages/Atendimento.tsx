@@ -687,12 +687,15 @@ type BalaoMensagemProps = {
   onReenviar: (m: Mensagem) => void;
   onDescartar: (id: number) => void;
   onEnviarTemplate: () => void;
+  onDesfazer: (id: number) => void;
+  onExcluir: (m: Mensagem) => void;
 };
 
 /** Um balão da conversa. Memoizado: só repinta quando a própria mensagem muda. */
 const BalaoMensagem = memo(function BalaoMensagem({
   m, divisorKora, divisorProprio, destacado, menuAberto, toqueRef, onRegistrarRef,
   onResponder, onCopiar, onAbrirMenu, onIrParaMensagem, onReenviar, onDescartar, onEnviarTemplate,
+  onDesfazer, onExcluir,
 }: BalaoMensagemProps) {
                     const saida = m.direcao === "saida";
                     const bot = saida && m.origem === "bot";
