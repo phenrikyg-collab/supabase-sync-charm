@@ -196,6 +196,7 @@ export function AtendimentoTab() {
     nao_lidas: 0, janela: 0, revisao: 0, leads: 0, em_fluxo: 0, todas: 0,
   });
   const [filtro, setFiltro] = useState<Filtro>("todas");
+  const [saindoDoFluxo, setSaindoDoFluxo] = useState(false);
   const [selId, setSelId] = useState<number | null>(null);
   const [mensagens, setMensagens] = useState<Mensagem[]>([]);
   const [carregandoMsgs, setCarregandoMsgs] = useState(false);
