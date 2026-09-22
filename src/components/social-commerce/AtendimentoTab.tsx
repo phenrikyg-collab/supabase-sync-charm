@@ -886,6 +886,7 @@ export function AtendimentoTab() {
                   {mensagens.map((m) => {
                     const saida = m.direcao === "saida";
                     const anna = m.origem === "anna";
+                    const doFluxo = m.origem === "fluxo";
                     return (
                       <div key={m.id} className={`flex ${saida ? "justify-end" : "justify-start"}`}>
                         <div
@@ -900,6 +901,11 @@ export function AtendimentoTab() {
                           {anna && (
                             <span className="inline-flex items-center gap-1 text-[10px] font-semibold opacity-70 mb-0.5">
                               <Bot className="h-3 w-3" /> Anna
+                            </span>
+                          )}
+                          {doFluxo && (
+                            <span className="inline-flex items-center gap-1 text-[10px] font-semibold opacity-70 mb-0.5">
+                              <Workflow className="h-3 w-3" /> Fluxo
                             </span>
                           )}
                           <ContextoMensagem m={m} saida={saida} onConfirmado={confirmarProdutoMsg} />
