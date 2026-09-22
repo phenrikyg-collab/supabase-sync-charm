@@ -46,6 +46,7 @@ export const Composer = forwardRef<ComposerHandle, Props>(function Composer(
   const { data: respostasRapidas = [] } = useRespostasRapidas(false);
   const [indiceRapida, setIndiceRapida] = useState(0);
   const [ferramentasAbertas, setFerramentasAbertas] = useState(false);
+  const [arrastando, setArrastando] = useState(false);
   const [rapidasAbertas, setRapidasAbertas] = useState(false);
   const slashAtivo = texto.startsWith("/") && !texto.includes("\n");
   const rapidasFiltradas = useMemo(
@@ -102,7 +103,32 @@ export const Composer = forwardRef<ComposerHandle, Props>(function Composer(
   };
 
   return (
-    <div className="relative flex min-w-0 max-w-full items-end gap-1 overflow-visible">
+    <div
+      className="relative flex min-w-0 max-w-full items-end gap-1 overflow-visible"
+      onDragOver={(e) => {
+        if (!Array.from(e.dataTransfer?.types ?? []).includes("Files")) return;
+        e.preventDefault();
+        setArrastando(true);
+      }}
+      onDragLeave={(e) => {
+        if (e.currentTarget.contains(e.relatedTarget as Node)) return;
+        setArrastando(false);
+      }}
+      onDrop={(e) => {
+        const arquivos = Array.from(e.dataTransfer?.files ?? []).filter(
+          (f) => f.type.startsWith("image/") || f.type.startsWith("video/"),
+        );
+        setArrastando(false);
+        if (arquivos.length === 0) return;
+        e.preventDefault();
+        onImagens(arquivos);
+      }}
+    >
+      {arrastando && (
+        <div className="pointer-events-none absolute inset-0 z-30 flex items-center justify-center rounded-md border-2 border-dashed border-primary bg-background/85 text-sm font-medium text-primary">
+          Solte para enviar
+        </div>
+      )}
       {listaRapidaAberta && (
         <div className="absolute bottom-full left-0 z-50 mb-2 w-full max-w-md rounded-md border border-border bg-popover shadow-lg">
           <p className="border-b border-border px-3 py-1.5 text-[11px] text-muted-foreground">
@@ -119,7 +145,7 @@ export const Composer = forwardRef<ComposerHandle, Props>(function Composer(
       <input
         ref={fileRef}
         type="file"
-        accept="image/*"
+        accept="image/*,video/mp4,video/3gpp"
         multiple
         className="hidden"
         onChange={(e) => {
@@ -148,7 +174,7 @@ export const Composer = forwardRef<ComposerHandle, Props>(function Composer(
                 </div>
                 <Button variant="outline" className="h-11 justify-start gap-3" onClick={() => { setFerramentasAbertas(false); fileRef.current?.click(); }}>
                   <ImagePlus className="h-4 w-4" />
-                  Enviar imagem
+                  Enviar imagem ou vídeo
                 </Button>
                 <Button variant="outline" className="h-11 justify-start gap-3" onClick={() => { setFerramentasAbertas(false); onAbrirTemplate(); }}>
                   <FileText className="h-4 w-4" />
@@ -174,7 +200,7 @@ export const Composer = forwardRef<ComposerHandle, Props>(function Composer(
         </>
       ) : (
         <>
-          <Button size="icon" variant="ghost" className="h-8 w-8 shrink-0" onClick={() => fileRef.current?.click()} title="Enviar imagem">
+          <Button size="icon" variant="ghost" className="h-8 w-8 shrink-0" onClick={() => fileRef.current?.click()} title="Enviar imagem ou vídeo">
             <ImagePlus className="h-4 w-4" />
           </Button>
           {figurinhas}
@@ -194,7 +220,7 @@ export const Composer = forwardRef<ComposerHandle, Props>(function Composer(
         onPaste={(e) => {
           const itens = Array.from(e.clipboardData?.items ?? []);
           const arquivos = itens
-            .filter((i) => i.kind === "file" && i.type.startsWith("image/"))
+            .filter((i) => i.kind === "file" && (i.type.startsWith("image/") || i.type.startsWith("video/")))
             .map((i) => i.getAsFile())
             .filter((f): f is File => !!f);
           if (arquivos.length === 0) return;

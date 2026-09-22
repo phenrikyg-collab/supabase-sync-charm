@@ -327,7 +327,31 @@ type Mensagem = {
   enviando?: boolean;
   /** Falha detectada no próprio envio (balão otimista), ainda não gravada no banco. */
   falha_local?: boolean;
+  /** Momento (timestamp) em que o envio adiado vai acontecer, enquanto dá para desfazer. */
+  aguardando_ate?: number;
 };
+
+/** Arquivo escolhido para envio (imagem ou vídeo), ainda na pré-visualização. */
+type ItemAnexo = { chave: string; file: File; url: string; video: boolean };
+
+/** Contagem regressiva do envio adiado, com o botão de desfazer. */
+function ContagemDesfazer({ ate, onDesfazer }: { ate: number; onDesfazer: () => void }) {
+  const calcular = () => Math.max(0, Math.ceil((ate - Date.now()) / 1000));
+  const [resta, setResta] = useState(calcular);
+  useEffect(() => {
+    const t = setInterval(() => setResta(Math.max(0, Math.ceil((ate - Date.now()) / 1000))), 250);
+    return () => clearInterval(t);
+  }, [ate]);
+  return (
+    <div className="mt-1.5 flex items-center justify-end gap-2">
+      <span className="text-[11px] text-muted-foreground">Enviando em {resta}s</span>
+      <Button size="sm" variant="outline" className="h-9 px-4 text-xs font-medium" onClick={onDesfazer}>
+        <RotateCcw className="mr-1 h-3.5 w-3.5" />
+        Desfazer
+      </Button>
+    </div>
+  );
+}
 
 /** Motivos de falha ligados à janela de 24h pedem template, não nova tentativa. */
 const ehMotivoJanela = (motivo?: string | null) => /24\s*h|janela/i.test(motivo ?? "");
@@ -666,12 +690,15 @@ type BalaoMensagemProps = {
   onReenviar: (m: Mensagem) => void;
   onDescartar: (id: number) => void;
   onEnviarTemplate: () => void;
+  onDesfazer: (id: number) => void;
+  onExcluir: (m: Mensagem) => void;
 };
 
 /** Um balão da conversa. Memoizado: só repinta quando a própria mensagem muda. */
 const BalaoMensagem = memo(function BalaoMensagem({
   m, divisorKora, divisorProprio, destacado, menuAberto, toqueRef, onRegistrarRef,
   onResponder, onCopiar, onAbrirMenu, onIrParaMensagem, onReenviar, onDescartar, onEnviarTemplate,
+  onDesfazer, onExcluir,
 }: BalaoMensagemProps) {
                     const saida = m.direcao === "saida";
                     const bot = saida && m.origem === "bot";
@@ -688,6 +715,9 @@ const BalaoMensagem = memo(function BalaoMensagem({
                     const otimista = typeof m.id === "number" && m.id < 0;
                     const podeCitar = !kora && !otimista && m.id != null;
                     const temCitada = m.citada_id != null || !!m.citada_texto;
+                    const aguardando = typeof m.aguardando_ate === "number";
+                    const podeExcluir = saida && !aguardando && !otimista && m.id != null;
+                    
                     
 
                     return (
@@ -811,9 +841,23 @@ const BalaoMensagem = memo(function BalaoMensagem({
                                   <Copy className="mr-1 h-3 w-3" />
                                   Copiar texto
                                 </Button>
-                                <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => onAbrirMenu(null)} title="Fechar">
-                                  <X className="h-3 w-3" />
-                                </Button>
+                                 {podeExcluir && (
+                                   <Button
+                                     size="sm"
+                                     variant="ghost"
+                                     className="h-7 px-2 text-xs text-danger hover:text-danger"
+                                     onClick={() => {
+                                       onAbrirMenu(null);
+                                       onExcluir(m);
+                                     }}
+                                   >
+                                     <Trash2 className="mr-1 h-3 w-3" />
+                                     Excluir
+                                   </Button>
+                                 )}
+                                 <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => onAbrirMenu(null)} title="Fechar">
+                                   <X className="h-3 w-3" />
+                                 </Button>
                               </div>
                             )}
 
@@ -837,31 +881,48 @@ const BalaoMensagem = memo(function BalaoMensagem({
                                   <Button size="sm" variant="ghost" className="h-7 px-2 text-xs" onClick={() => onCopiar(m.conteudo ?? "")}>
                                     Copiar texto
                                   </Button>
-                                  {m.falha_local && (
-                                    <Button
-                                      size="sm"
-                                      variant="ghost"
-                                      className="h-7 px-2 text-xs"
-                                      onClick={() => typeof m.id === "number" && onDescartar(m.id)}
-                                    >
-                                      Descartar
-                                    </Button>
-                                  )}
-                                </div>
-                              </div>
-                            )}
+                                   {m.falha_local ? (
+                                     <Button
+                                       size="sm"
+                                       variant="ghost"
+                                       className="h-7 px-2 text-xs"
+                                       onClick={() => typeof m.id === "number" && onDescartar(m.id)}
+                                     >
+                                       Descartar
+                                     </Button>
+                                   ) : (
+                                     <Button
+                                       size="sm"
+                                       variant="ghost"
+                                       className="h-7 px-2 text-xs text-danger hover:text-danger"
+                                       onClick={() => onExcluir(m)}
+                                     >
+                                       <Trash2 className="mr-1 h-3 w-3" />
+                                       Excluir
+                                     </Button>
+                                   )}
+                                 </div>
+                               </div>
+                             )}
 
-                            <div className="flex items-center justify-end gap-1 mt-1">
-                              <span className="text-[10px] text-muted-foreground">
-                                {horaCurta(m.criada_em ?? m.criado_em ?? m.enviado_em)}
-                              </span>
-                              {saida && m.enviando && (
-                                <Clock className="h-3 w-3 text-muted-foreground" aria-label="Enviando" />
-                              )}
-                              {saida && !m.enviando && (
-                                <StatusEntrega status={m.status_entrega} erro={m.erro_entrega} />
-                              )}
-                            </div>
+                             {aguardando && (
+                               <ContagemDesfazer
+                                 ate={m.aguardando_ate as number}
+                                 onDesfazer={() => typeof m.id === "number" && onDesfazer(m.id)}
+                               />
+                             )}
+
+                             <div className="flex items-center justify-end gap-1 mt-1">
+                               <span className="text-[10px] text-muted-foreground">
+                                 {horaCurta(m.criada_em ?? m.criado_em ?? m.enviado_em)}
+                               </span>
+                               {saida && !aguardando && m.enviando && (
+                                 <Clock className="h-3 w-3 text-muted-foreground" aria-label="Enviando" />
+                               )}
+                               {saida && !aguardando && !m.enviando && (
+                                 <StatusEntrega status={m.status_entrega} erro={m.erro_entrega} />
+                               )}
+                             </div>
                           </div>
                         </div>
                       </div>
@@ -926,7 +987,9 @@ export default function Atendimento() {
   const composerRef = useRef<ComposerHandle>(null);
   const [digitando, setDigitando] = useState(false);
   const [catalogoAberto, setCatalogoAberto] = useState(false);
-  const [imagens, setImagens] = useState<{ chave: string; file: File; url: string }[]>([]);
+  const [imagens, setImagens] = useState<ItemAnexo[]>([]);
+  const [progressoUpload, setProgressoUpload] = useState<{ feitos: number; total: number } | null>(null);
+  const [mensagemExcluir, setMensagemExcluir] = useState<Mensagem | null>(null);
   const [legenda, setLegenda] = useState("");
   const [citacao, setCitacao] = useState<Citacao | null>(null);
   const [arrastando, setArrastando] = useState(false);
@@ -1592,6 +1655,67 @@ export default function Atendimento() {
     );
   };
 
+  /**
+   * Segura o envio por 5 segundos para dar chance de desfazer.
+   * O WhatsApp oficial não apaga mensagem entregue, então este é o único
+   * jeito real de a cliente não receber.
+   */
+  const SEGUNDOS_DESFAZER = 5;
+  const pendentesRef = useRef<Map<number, { timer: ReturnType<typeof setTimeout>; disparar: () => void; cancelar: () => void }>>(new Map());
+
+  const agendarComDesfazer = (
+    dadosBalao: Partial<Mensagem>,
+    executar: () => void,
+    devolver: () => void,
+  ) => {
+    const chave = ["whatsapp-mensagens", selecionada];
+    const idTemp = inserirMensagemOtimista({
+      ...dadosBalao,
+      enviando: false,
+      aguardando_ate: Date.now() + SEGUNDOS_DESFAZER * 1000,
+    });
+    const tirarBalao = () =>
+      queryClient.setQueryData(chave, (antigas: Mensagem[] = []) => (antigas ?? []).filter((m) => m.id !== idTemp));
+    const disparar = () => {
+      pendentesRef.current.delete(idTemp);
+      tirarBalao();
+      executar();
+    };
+    const cancelar = () => {
+      pendentesRef.current.delete(idTemp);
+      tirarBalao();
+      devolver();
+    };
+    const timer = setTimeout(disparar, SEGUNDOS_DESFAZER * 1000);
+    pendentesRef.current.set(idTemp, { timer, disparar, cancelar });
+    return idTemp;
+  };
+
+  /** Desfaz um envio ainda na contagem: nada sai e o conteúdo volta para a caixa. */
+  const desfazerEnvio = useCallback((idTemp: number) => {
+    const pendente = pendentesRef.current.get(idTemp);
+    if (!pendente) return;
+    clearTimeout(pendente.timer);
+    pendente.cancelar();
+  }, []);
+
+  /** Dispara na hora tudo o que está em contagem (troca de conversa, sair da tela). */
+  const dispararPendentes = useCallback(() => {
+    const lista = [...pendentesRef.current.values()];
+    for (const p of lista) {
+      clearTimeout(p.timer);
+      p.disparar();
+    }
+  }, []);
+
+  useEffect(() => () => dispararPendentes(), [selecionada, dispararPendentes]);
+
+  useEffect(() => {
+    const aoSair = () => dispararPendentes();
+    window.addEventListener("beforeunload", aoSair);
+    return () => window.removeEventListener("beforeunload", aoSair);
+  }, [dispararPendentes]);
+
   /** Reenvia o mesmo texto pelo fluxo normal de envio. */
   const reenviarMensagem = useCallback((m: Mensagem) => {
     const conteudo = (m.conteudo ?? "").trim();
@@ -1685,65 +1809,135 @@ export default function Atendimento() {
   });
 
   const MAX_IMAGENS = 10;
-  const MAX_BYTES = 16 * 1024 * 1024;
+  /** Limites do WhatsApp: 5 MB para imagem, 16 MB para vídeo. */
+  const MAX_BYTES_IMAGEM = 5 * 1024 * 1024;
+  const MAX_BYTES_VIDEO = 16 * 1024 * 1024;
+  const emMb = (bytes: number) => (bytes / (1024 * 1024)).toFixed(1).replace(".", ",");
 
-  const enviarImagem = async (mediaUrl: string, conteudo: string, responderA?: number | string | null) => {
+  const enviarImagem = async (
+    mediaUrl: string,
+    conteudo: string,
+    responderA?: number | string | null,
+    tipo: "imagem" | "video" = "imagem",
+  ) => {
     if (!conversaAtual) throw new Error("Nenhuma conversa selecionada");
     const telefoneEnvio = conversaAtual.telefone_real || conversaAtual.telefone;
     const idTemp = inserirMensagemOtimista({
       conteudo,
-      tipo: "imagem",
+      tipo,
       media_url: mediaUrl,
       citada_id: responderA ?? null,
     });
     try {
-      const resposta = await fetch(
-        "https://ezdtulcrqzmgocamjwwl.supabase.co/functions/v1/whatsapp-enviar-imagem-humano",
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            telefone: telefoneEnvio,
-            conversa_id: conversaAtual.id,
-            imagem_url: mediaUrl,
-            legenda: conteudo || "",
-            autor: user?.email ?? null,
-            responder_a_id: responderA ?? null,
-          }),
+      const { data: corpo, error } = await supabase.functions.invoke("whatsapp-enviar-imagem-humano", {
+        body: {
+          telefone: telefoneEnvio,
+          conversa_id: conversaAtual.id,
+          tipo: tipo === "video" ? "video" : "image",
+          midia_url: mediaUrl,
+          imagem_url: tipo === "video" ? undefined : mediaUrl,
+          legenda: conteudo || "",
+          autor: user?.email ?? null,
+          responder_a_id: responderA ?? null,
         },
-      );
-      const corpo = await resposta.json().catch(() => ({}));
-      if (!resposta.ok || corpo?.error) {
-        throw new Error(corpo?.error || corpo?.mensagem || `Falha no envio (${resposta.status})`);
-      }
+      });
+      if (error) throw error;
+      if ((corpo as any)?.error) throw new Error((corpo as any).error);
     } catch (e: any) {
-      marcarMensagemFalhou(idTemp, e?.message ?? "Não foi possível enviar a imagem.");
+      marcarMensagemFalhou(
+        idTemp,
+        e?.message ?? (tipo === "video" ? "Não foi possível enviar o vídeo." : "Não foi possível enviar a imagem."),
+      );
       throw e;
     }
     queryClient.invalidateQueries({ queryKey: ["whatsapp-mensagens", selecionada] });
   };
 
-  /** Acrescenta imagens à faixa de pré-visualização, respeitando limites. */
+  /** Envia texto com a janela de desfazer de 5 segundos. */
+  const enviarTextoComDesfazer = (conteudo: string) => {
+    agendarComDesfazer(
+      {
+        conteudo,
+        tipo: "texto",
+        citada_id: citacao?.id ?? null,
+        citada_direcao: citacao?.direcao ?? null,
+        citada_tipo: citacao?.tipo ?? null,
+        citada_texto: citacao?.texto ?? null,
+        citada_media_url: citacao?.media_url ?? null,
+      },
+      () => enviar.mutate(conteudo),
+      () => composerRef.current?.definirTexto(conteudo),
+    );
+  };
+
+  /** Tira a mensagem do painel. A cliente pode continuar vendo no WhatsApp dela. */
+  const confirmarExclusaoMensagem = async () => {
+    const alvo = mensagemExcluir;
+    setMensagemExcluir(null);
+    if (!alvo || alvo.id == null) return;
+    const idAlvo = alvo.id;
+    const { data, error } = await chamarRpc("whatsapp_mensagem_excluir" as any, {
+      p_mensagem_id: typeof idAlvo === "string" && !Number.isNaN(Number(idAlvo)) ? Number(idAlvo) : idAlvo,
+      p_por: user?.email ?? null,
+    });
+    const resposta = (Array.isArray(data) ? data[0] : data) as
+      | { ok?: boolean; cliente_ainda_ve?: boolean; motivo?: string }
+      | null;
+    if (error || !resposta?.ok) {
+      toast({
+        title: "Não foi possível excluir",
+        description: error?.message ?? resposta?.motivo ?? "-",
+        variant: "destructive",
+      });
+      return;
+    }
+    queryClient.setQueryData(["whatsapp-mensagens", selecionada], (antigas: Mensagem[] = []) =>
+      (antigas ?? []).filter((m) => String(m.id) !== String(idAlvo)),
+    );
+    toast({
+      title: resposta.cliente_ainda_ve
+        ? "Excluída do painel. A cliente ainda vê no WhatsApp."
+        : "Mensagem excluída.",
+    });
+  };
+
+  /** Acrescenta imagens e vídeos à faixa de pré-visualização, respeitando limites. */
   const adicionarImagens = (lista: File[]) => {
-    const validas: { chave: string; file: File; url: string }[] = [];
+    const validas: ItemAnexo[] = [];
     for (const f of lista) {
-      if (!f.type.startsWith("image/")) continue;
-      if (f.size > MAX_BYTES) {
-        toast({ title: `A imagem ${f.name} passa de 16 MB`, variant: "destructive" });
+      const video = f.type.startsWith("video/");
+      if (!video && !f.type.startsWith("image/")) continue;
+      if (video && f.size > MAX_BYTES_VIDEO) {
+        toast({
+          title: `O WhatsApp só aceita vídeo de até 16 MB. Esse tem ${emMb(f.size)} MB.`,
+          variant: "destructive",
+        });
         continue;
       }
-      validas.push({ chave: `${Date.now()}-${Math.random().toString(36).slice(2)}`, file: f, url: URL.createObjectURL(f) });
+      if (!video && f.size > MAX_BYTES_IMAGEM) {
+        toast({
+          title: `O WhatsApp só aceita imagem de até 5 MB. Essa tem ${emMb(f.size)} MB.`,
+          variant: "destructive",
+        });
+        continue;
+      }
+      validas.push({
+        chave: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
+        file: f,
+        url: URL.createObjectURL(f),
+        video,
+      });
     }
     if (validas.length === 0) return;
     setImagens((atuais) => {
       const total = [...atuais, ...validas];
       if (total.length > MAX_IMAGENS) {
-        toast({ title: `Dá para enviar até ${MAX_IMAGENS} imagens por vez`, variant: "destructive" });
+        toast({ title: `Dá para enviar até ${MAX_IMAGENS} arquivos por vez`, variant: "destructive" });
         total.slice(MAX_IMAGENS).forEach((i) => URL.revokeObjectURL(i.url));
       }
       return total.slice(0, MAX_IMAGENS);
     });
-    // O texto já digitado vira a legenda da primeira imagem
+    // O texto já digitado vira a legenda do primeiro anexo
     const doCampo = composerRef.current?.obterTexto().trim() ?? "";
     setLegenda((atual) => (atual.trim() ? atual : doCampo));
     if (doCampo) composerRef.current?.definirTexto("");
@@ -1771,34 +1965,64 @@ export default function Atendimento() {
     const fila = imagens;
     const legendaAtual = legenda.trim();
     const responderA = citacao?.id ?? null;
-    setCitacao(null);
-    limparPreview();
     setEnviandoImagem(true);
+    setProgressoUpload({ feitos: 0, total: fila.length });
+    const enviados: { item: ItemAnexo; url: string; legenda: string; responderA: number | string | null }[] = [];
     let falhas = 0;
     for (let i = 0; i < fila.length; i++) {
       const item = fila[i];
       try {
         const nome = item.file.name.replace(/[^\w.\-]/g, "_");
-        const path = `enviadas/${Date.now()}-${i}-${nome}`;
+        const path = `envios/${Date.now()}-${i}-${nome}`;
         const { error: upErr } = await supabase.storage
           .from("whatsapp-media")
           .upload(path, item.file, { cacheControl: "31536000", upsert: true });
         if (upErr) throw upErr;
         const { data: pub } = supabase.storage.from("whatsapp-media").getPublicUrl(path);
-        await enviarImagem(pub.publicUrl, i === 0 ? legendaAtual : "", i === 0 ? responderA : null);
-      } catch (e: any) {
+        enviados.push({
+          item,
+          url: pub.publicUrl,
+          legenda: i === 0 ? legendaAtual : "",
+          responderA: i === 0 ? responderA : null,
+        });
+      } catch {
         falhas += 1;
       }
+      setProgressoUpload({ feitos: i + 1, total: fila.length });
     }
     setEnviandoImagem(false);
+    setProgressoUpload(null);
+    setCitacao(null);
+    setImagens([]);
+    setLegenda("");
+    for (const env of enviados) {
+      agendarComDesfazer(
+        {
+          conteudo: env.legenda,
+          tipo: env.item.video ? "video" : "imagem",
+          media_url: env.url,
+          citada_id: env.responderA,
+        },
+        () => {
+          void enviarImagem(env.url, env.legenda, env.responderA, env.item.video ? "video" : "imagem").catch(() => {
+            /* a falha já aparece no balão */
+          });
+        },
+        () => {
+          setImagens((atuais) => [...atuais, env.item].slice(0, MAX_IMAGENS));
+          if (env.legenda) setLegenda((atual) => atual || env.legenda);
+        },
+      );
+    }
     if (falhas > 0) {
       toast({
-        title: falhas === 1 ? "Uma imagem não foi enviada" : `${falhas} imagens não foram enviadas`,
+        title: falhas === 1 ? "Um arquivo não foi enviado" : `${falhas} arquivos não foram enviados`,
         variant: "destructive",
         duration: 10000,
       });
     }
   };
+
 
   const enviarProduto = async (p: ProdutoCatalogo, escolha?: EscolhaProduto) => {
     try {
@@ -2960,6 +3184,22 @@ export default function Atendimento() {
                       </AlertDialogFooter>
                     </AlertDialogContent>
                   </AlertDialog>
+                  <AlertDialog open={!!mensagemExcluir} onOpenChange={(v) => !v && setMensagemExcluir(null)}>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Excluir mensagem?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          Ela some deste painel. Se já foi entregue, a cliente continua vendo no WhatsApp dela: o
+                          WhatsApp oficial não permite apagar mensagem enviada. Para ela não receber, use o Desfazer
+                          logo depois de enviar.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                        <AlertDialogAction onClick={() => void confirmarExclusaoMensagem()}>Excluir</AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
                   <Button
                     size="icon"
                     variant="ghost"
@@ -3022,7 +3262,9 @@ export default function Atendimento() {
                   setArrastando(false);
                 }}
                 onDrop={(e) => {
-                  const arquivos = Array.from(e.dataTransfer?.files ?? []).filter((f) => f.type.startsWith("image/"));
+                   const arquivos = Array.from(e.dataTransfer?.files ?? []).filter(
+                     (f) => f.type.startsWith("image/") || f.type.startsWith("video/"),
+                   );
                   if (arquivos.length === 0) return;
                   e.preventDefault();
                   setArrastando(false);
@@ -3075,6 +3317,8 @@ export default function Atendimento() {
                         onReenviar={reenviarMensagem}
                         onDescartar={removerMensagemOtimista}
                         onEnviarTemplate={abrirTemplate}
+                        onDesfazer={desfazerEnvio}
+                        onExcluir={setMensagemExcluir}
                       />
                     );
                   })}
@@ -3163,12 +3407,16 @@ export default function Atendimento() {
                       <div className="flex flex-wrap items-center gap-2">
                         {imagens.map((img) => (
                           <div key={img.chave} className="relative">
-                            <img src={img.url} alt="Prévia" className="h-16 w-16 rounded object-cover" />
+                            {img.video ? (
+                              <video src={img.url} muted playsInline preload="metadata" className="h-16 w-16 rounded bg-foreground object-cover" />
+                            ) : (
+                              <img src={img.url} alt="Prévia" className="h-16 w-16 rounded object-cover" />
+                            )}
                             <button
                               type="button"
                               className="absolute -right-1.5 -top-1.5 rounded-full border border-border bg-background p-0.5 shadow"
                               onClick={() => removerImagem(img.chave)}
-                              title="Remover imagem"
+                              title="Remover arquivo"
                             >
                               <X className="h-3 w-3" />
                             </button>
@@ -3179,7 +3427,7 @@ export default function Atendimento() {
                             type="button"
                             className="flex h-16 w-16 items-center justify-center rounded border border-dashed border-border text-muted-foreground hover:bg-accent"
                             onClick={() => composerRef.current?.abrirArquivos()}
-                            title="Adicionar mais imagens"
+                            title="Adicionar mais arquivos"
                           >
                             <Plus className="h-5 w-5" />
                           </button>
@@ -3188,16 +3436,31 @@ export default function Atendimento() {
                       <Input
                         value={legenda}
                         onChange={(e) => setLegenda(e.target.value)}
-                        placeholder="Legenda (opcional, vai só na primeira imagem)"
+                        placeholder="Legenda (opcional, vai só no primeiro arquivo)"
                         className="h-8 text-xs"
                       />
+                      {progressoUpload && (
+                        <div className="space-y-1">
+                          <p className="text-[11px] text-muted-foreground">
+                            Preparando {progressoUpload.feitos} de {progressoUpload.total}…
+                          </p>
+                          <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
+                            <div
+                              className="h-full bg-primary transition-all"
+                              style={{ width: `${Math.round((progressoUpload.feitos / progressoUpload.total) * 100)}%` }}
+                            />
+                          </div>
+                        </div>
+                      )}
                       <div className="flex gap-2">
                         <Button size="sm" onClick={confirmarEnvioImagem} disabled={enviandoImagem}>
                           {enviandoImagem
                             ? "Enviando…"
                             : imagens.length > 1
-                              ? `Enviar ${imagens.length} imagens`
-                              : "Enviar imagem"}
+                              ? `Enviar ${imagens.length} arquivos`
+                              : imagens[0]?.video
+                                ? "Enviar vídeo"
+                                : "Enviar imagem"}
                         </Button>
                         <Button size="sm" variant="ghost" onClick={limparPreview} disabled={enviandoImagem}>
                           <X className="h-4 w-4 mr-1" />
@@ -3208,7 +3471,7 @@ export default function Atendimento() {
                   )}
                   <Composer
                     ref={composerRef}
-                    onEnviar={(t) => enviar.mutate(t)}
+                    onEnviar={enviarTextoComDesfazer}
                     onImagens={adicionarImagens}
                     onAbrirCatalogo={abrirCatalogo}
                     onAbrirTemplate={abrirTemplate}
