@@ -146,6 +146,8 @@ export type Live = {
   carrinhos?: number | null;
   valor_carrinhos?: number | null;
   observacoes?: string | null;
+  /** Config que a live usou: produto_ids, cupom, palavras_gatilho, resposta_gatilho_dm, fluxo_id. */
+  config_usada?: Record<string, any> | null;
 };
 
 /** "DD/MM/YYYY HH:MM" */
