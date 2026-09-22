@@ -3136,6 +3136,14 @@ export default function Atendimento() {
                     </Button>
                   )}
                   {nomeSoDoWhatsApp(conversaAtual) && <BadgeViaWhatsApp />}
+                  <SeloCashback
+                    telefone={telefoneIdentificado}
+                    onAbrir={() => {
+                      if (isMobile) setPerfilSheet(true);
+                      else setPerfilAberto(true);
+                    }}
+                  />
+
                   <div className="max-w-full truncate text-[11px] text-muted-foreground md:hidden">
                     {conversaAtual.status === "escalado" ? "Aguardando atendimento" : conversaAtual.status === "em_atendimento" ? "Em atendimento" : conversaAtual.status === "resolvido" ? "Resolvida" : "Atendimento automático"}
                   </div>
