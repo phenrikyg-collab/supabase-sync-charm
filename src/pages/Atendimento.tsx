@@ -3455,7 +3455,7 @@ export default function Atendimento() {
                   )}
                   <Composer
                     ref={composerRef}
-                    onEnviar={(t) => enviar.mutate(t)}
+                    onEnviar={enviarTextoComDesfazer}
                     onImagens={adicionarImagens}
                     onAbrirCatalogo={abrirCatalogo}
                     onAbrirTemplate={abrirTemplate}
