@@ -1867,11 +1867,25 @@ export default function Atendimento() {
       if (error) throw error;
       if ((corpo as any)?.error) throw new Error((corpo as any).error);
     } catch (e: any) {
-      marcarMensagemFalhou(
-        destino.conversaId,
-        idTemp,
-        e?.message ?? (tipo === "video" ? "Não foi possível enviar o vídeo." : "Não foi possível enviar a imagem."),
-      );
+      // O invoke esconde o corpo do erro em error.context; ler o motivo real (ex.: janela de 24h).
+      let motivo = await extrairErroJanela(e);
+      if (!motivo) {
+        try {
+          const resp = e?.context;
+          if (resp && typeof resp.json === "function") {
+            const corpoErro = await resp.clone().json();
+            motivo = corpoErro?.mensagem || corpoErro?.error || null;
+          }
+        } catch {
+          /* ignora */
+        }
+      }
+      if (!motivo) {
+        motivo =
+          e?.message ??
+          (tipo === "video" ? "Não foi possível enviar o vídeo." : "Não foi possível enviar a imagem.");
+      }
+      marcarMensagemFalhou(destino.conversaId, idTemp, motivo);
       throw e;
     }
     queryClient.invalidateQueries({ queryKey: ["whatsapp-mensagens", String(destino.conversaId)] });
