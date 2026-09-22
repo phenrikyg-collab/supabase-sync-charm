@@ -1763,7 +1763,6 @@ export default function Atendimento() {
       return data;
     },
     onMutate: (envio: EnvioTextoCongelado) => {
-      setErroJanela(null);
       const citada = envio.citacao;
       return {
         idTemp: inserirMensagemOtimista(envio.conversaId, {
@@ -1793,12 +1792,7 @@ export default function Atendimento() {
       const janela = await extrairErroJanela(e);
       const motivo = janela ?? e?.message ?? "Não foi possível enviar a mensagem.";
       if (contexto?.idTemp) marcarMensagemFalhou(envio.conversaId, contexto.idTemp, motivo);
-      if (selecionadaRef.current === String(envio.conversaId) && !composerRef.current?.obterTexto().trim()) {
-        composerRef.current?.definirTexto(envio.conteudo);
-        setCitacao(envio.citacao);
-      }
       if (janela) {
-        if (selecionadaRef.current === String(envio.conversaId)) setErroJanela(janela);
         queryClient.invalidateQueries({ queryKey: ["whatsapp-janela-24h", String(envio.conversaId)] });
       }
       toast({
@@ -1882,6 +1876,7 @@ export default function Atendimento() {
   const enviarTextoComDesfazer = (conteudo: string) => {
     const envio = congelarEnvioTexto(conteudo);
     if (!envio) return;
+    setErroJanela(null);
     setCitacao(null);
     agendarComDesfazer(
       envio.conversaId,
