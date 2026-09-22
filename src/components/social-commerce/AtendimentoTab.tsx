@@ -240,6 +240,7 @@ export function AtendimentoTab() {
     if (f === "janela") q = q.eq("janela_aberta", true);
     if (f === "revisao") q = q.eq("revisao_pendente", true);
     if (f === "leads") q = q.eq("e_lead", true);
+    if (f === "em_fluxo") q = q.eq("status", "em_fluxo");
     return q
       .order("peso", { ascending: false })
       .order("ultima_mensagem_em", { ascending: false });
