@@ -2465,7 +2465,7 @@ export default function Atendimento() {
   ] as const;
 
   return (
-    <div className="flex h-full w-full min-w-0 flex-col overflow-x-hidden overflow-y-hidden md:-m-6 md:h-[calc(100dvh-3.5rem)] md:w-[calc(100%+3rem)] md:max-w-[calc(100%+3rem)]">
+    <div className="font-whatsapp flex h-full w-full min-w-0 flex-col overflow-x-hidden overflow-y-hidden md:-m-6 md:h-[calc(100dvh-3.5rem)] md:w-[calc(100%+3rem)] md:max-w-[calc(100%+3rem)]">
       {!isMobile && <AvisosFila />}
       <Tabs
         value={abaPagina}
@@ -3614,7 +3614,7 @@ export default function Atendimento() {
            <SheetContent
              side={isMobile ? "bottom" : "right"}
              className={cn(
-               "flex flex-col overflow-hidden p-3 pb-8",
+                "font-whatsapp flex flex-col overflow-hidden p-3 pb-8",
                isMobile ? "h-[85dvh] w-full rounded-t-lg pb-[calc(1rem+env(safe-area-inset-bottom))]" : "w-[92vw] max-w-[380px]",
              )}
            >

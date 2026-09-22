@@ -140,6 +140,13 @@
   }
 }
 
+@layer components {
+  /* Títulos e valores compartilhados não devem reintroduzir a fonte serifada no Atendimento. */
+  .font-whatsapp :is(h1, h2, h3, h4, h5, h6, .font-serif, .font-mono) {
+    font-family: inherit;
+  }
+}
+
 @media print {
   nav, header, aside, button, .no-print { display: none !important; }
   body { background: #fff !important; }

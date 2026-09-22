@@ -1,6 +1,9 @@
 import { useQuery } from "@tanstack/react-query";
-import { Ticket } from "lucide-react";
+import { ChevronDown, Ticket } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { useAtendimentoCollapsible } from "@/hooks/useAtendimentoCollapsible";
+import { cn } from "@/lib/utils";
 import { chamarRpc } from "@/lib/supabaseRpc";
 import { brl, dataBr, objetoDe, numero } from "@/lib/cashback";
 import { ExtratoCashback, cuponsAtivosDe } from "@/components/cashback/ExtratoCashback";
@@ -82,13 +85,20 @@ export function BotaoEnviarCupom({
 export function CashbackConversa({ telefone }: { telefone: string }) {
   const { data, isLoading, refetch } = useExtratoCashbackTelefone(telefone);
   const cliente = objetoDe(data?.cliente);
+  const [aberto, alterarAberto] = useAtendimentoCollapsible("cashback");
 
   return (
-    <section className="space-y-3 border-b border-border pb-3">
-      <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-        <Ticket className="h-3.5 w-3.5" />
-        Cashback
-      </p>
+    <Collapsible open={aberto} onOpenChange={alterarAberto} className="border-b border-border p-3">
+      <CollapsibleTrigger asChild>
+        <Button variant="ghost" className="h-8 w-full justify-between gap-2 px-0 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground hover:text-foreground">
+          <span className="flex min-w-0 items-center gap-1.5">
+            <Ticket className="h-3.5 w-3.5 shrink-0" />
+            <span>Cashback · {isLoading ? "..." : brl(data?.saldo)}</span>
+          </span>
+          <ChevronDown className={cn("h-4 w-4 shrink-0 transition-transform", aberto && "rotate-180")} />
+        </Button>
+      </CollapsibleTrigger>
+      <CollapsibleContent className="space-y-3 pt-3">
 
       {isLoading && <p className="text-sm text-muted-foreground">Carregando cashback...</p>}
 
@@ -100,7 +110,7 @@ export function CashbackConversa({ telefone }: { telefone: string }) {
         <>
           <div>
             <span className="text-xs uppercase tracking-wider text-muted-foreground">Saldo</span>
-            <p className="font-serif text-2xl text-primary">{brl(data.saldo)}</p>
+            <p className="text-2xl text-primary">{brl(data.saldo)}</p>
           </div>
           <ExtratoCashback
             extrato={data}
@@ -110,6 +120,7 @@ export function CashbackConversa({ telefone }: { telefone: string }) {
           />
         </>
       )}
-    </section>
+      </CollapsibleContent>
+    </Collapsible>
   );
 }
