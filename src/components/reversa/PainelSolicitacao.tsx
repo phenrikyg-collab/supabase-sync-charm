@@ -17,6 +17,7 @@ import {
 import { Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { AvisoCashbackUsado } from "./AvisoCashbackUsado";
+import { AcoesTroca } from "./AcoesTroca";
 import {
   CONDICOES,
   DESTINOS,
@@ -128,6 +129,7 @@ export function PainelSolicitacao({
   const itens: any[] = s.itens ?? [];
   const eventos: any[] = s.linha_do_tempo ?? s.eventos ?? [];
   const ehTroca = /troc/i.test(String(s.preferencia ?? ""));
+  const ehTrocaExata = String(s.preferencia ?? "") === "troca";
   const chegou = Boolean(s.chegou ?? /entregue|recebid|conferi/i.test(String(s.status ?? "")));
   const escolha: Record<string, any> | null = s.escolha_troca ?? null;
   const docCliente = String(s.cliente?.documento ?? s.cliente_documento ?? "").replace(/\D/g, "");
@@ -503,39 +505,52 @@ export function PainelSolicitacao({
                     Registrar contato
                   </Button>
                 </div>
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <Label htmlFor="pedido-novo">Pedido novo na Tray</Label>
-                    <Input
-                      id="pedido-novo"
-                      value={pedidoNovo}
-                      onChange={(e) => setPedidoNovo(e.target.value)}
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="credito">Crédito aplicado</Label>
-                    <Input
-                      id="credito"
-                      type="number"
-                      step="0.01"
-                      value={credito}
-                      onChange={(e) => setCredito(e.target.value)}
-                    />
-                  </div>
-                </div>
-                <Button
-                  size="sm"
-                  disabled={!!ocupado || !pedidoNovo.trim()}
-                  onClick={() =>
-                    acao(
-                      "vincular",
-                      () => vincularPedidoNovo(s.id, pedidoNovo, credito ? Number(credito) : null),
-                      "Pedido novo vinculado — solicitação concluída",
-                    )
-                  }
-                >
-                  Vincular pedido novo
-                </Button>
+                {ehTrocaExata ? (
+                  <AcoesTroca
+                    s={s}
+                    aoMudar={async () => {
+                      await carregar();
+                      aoMudar();
+                    }}
+                  />
+                ) : (
+                  <>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <Label htmlFor="pedido-novo">Pedido novo na Tray</Label>
+                        <Input
+                          id="pedido-novo"
+                          value={pedidoNovo}
+                          onChange={(e) => setPedidoNovo(e.target.value)}
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="credito">Crédito aplicado</Label>
+                        <Input
+                          id="credito"
+                          type="number"
+                          step="0.01"
+                          value={credito}
+                          onChange={(e) => setCredito(e.target.value)}
+                        />
+                      </div>
+                    </div>
+                    <Button
+                      size="sm"
+                      disabled={!!ocupado || !pedidoNovo.trim()}
+                      onClick={() =>
+                        acao(
+                          "vincular",
+                          () =>
+                            vincularPedidoNovo(s.id, pedidoNovo, credito ? Number(credito) : null),
+                          "Pedido novo vinculado - solicitação concluída",
+                        )
+                      }
+                    >
+                      Vincular pedido novo
+                    </Button>
+                  </>
+                )}
               </section>
             ) : (
               <section className="space-y-2">
