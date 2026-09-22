@@ -112,7 +112,7 @@ export function SeletorFigurinhas({
           <Smile className="h-4 w-4" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="max-h-[70vh] w-80 overflow-hidden p-0" align="start">
+      <PopoverContent className="font-whatsapp max-h-[70vh] w-80 overflow-hidden p-0" align="start">
         {janelaFechada && (
           <p className="m-3 rounded-md border border-warning/40 bg-warning/10 p-2 text-xs text-foreground">
             Passou de 24h desde a última mensagem da cliente, só dá para reabrir por template

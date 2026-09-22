@@ -120,7 +120,7 @@ export function BotaoRespostasRapidas({ onEscolher }: { onEscolher: (r: Resposta
           <Zap className="h-4 w-4" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent align="start" className="w-80 p-0">
+      <PopoverContent align="start" className="font-whatsapp w-80 p-0">
         <div className="border-b border-border p-2">
           <Input
             autoFocus

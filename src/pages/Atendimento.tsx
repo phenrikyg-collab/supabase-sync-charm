@@ -629,7 +629,7 @@ const ItemConversa = memo(function ItemConversa({
                                <Mail className="h-3.5 w-3.5" />
                              </span>
                            </DropdownMenuTrigger>
-                           <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
+                           <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()} className="font-whatsapp">
                              {c.nao_lida ? (
                                <DropdownMenuItem onSelect={() => onMarcarLeitura(c.id, false)}>
                                  <MailOpen className="mr-2 h-4 w-4" />
@@ -2577,7 +2577,7 @@ export default function Atendimento() {
                       <span className="truncate">Tags</span><span className="shrink-0 text-xs text-muted-foreground">{tagsFiltro.length}</span>
                     </Button>
                   </PopoverTrigger>
-                  <PopoverContent className="w-[calc(100vw-2rem)] max-w-sm space-y-2 p-3" align="center">
+                  <PopoverContent className="font-whatsapp w-[calc(100vw-2rem)] max-w-sm space-y-2 p-3" align="center">
                     {todasTags.length === 0 && <p className="text-xs text-muted-foreground">Nenhuma tag cadastrada.</p>}
                     <div className="max-h-52 space-y-2 overflow-auto">
                       {todasTags.map((tag) => (
@@ -2875,7 +2875,7 @@ export default function Atendimento() {
                     Tags{tagsFiltro.length ? ` (${tagsFiltro.length})` : ""}
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-56 p-3 space-y-2" align="start">
+                <PopoverContent className="font-whatsapp w-56 p-3 space-y-2" align="start">
                   {todasTags.length === 0 && (
                     <p className="text-xs text-muted-foreground">Nenhuma tag cadastrada.</p>
                   )}
@@ -3188,7 +3188,7 @@ export default function Atendimento() {
                         <MoreHorizontal className="h-4 w-4" />
                       </Button>
                     </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="w-56">
+                    <DropdownMenuContent align="end" className="font-whatsapp w-56">
                       <DropdownMenuItem onSelect={() => setCobrancaAberta(true)}>
                         <QrCode className="mr-2 h-4 w-4" />
                         Gerar cobrança Pix
