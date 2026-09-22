@@ -103,7 +103,32 @@ export const Composer = forwardRef<ComposerHandle, Props>(function Composer(
   };
 
   return (
-    <div className="relative flex min-w-0 max-w-full items-end gap-1 overflow-visible">
+    <div
+      className="relative flex min-w-0 max-w-full items-end gap-1 overflow-visible"
+      onDragOver={(e) => {
+        if (!Array.from(e.dataTransfer?.types ?? []).includes("Files")) return;
+        e.preventDefault();
+        setArrastando(true);
+      }}
+      onDragLeave={(e) => {
+        if (e.currentTarget.contains(e.relatedTarget as Node)) return;
+        setArrastando(false);
+      }}
+      onDrop={(e) => {
+        const arquivos = Array.from(e.dataTransfer?.files ?? []).filter(
+          (f) => f.type.startsWith("image/") || f.type.startsWith("video/"),
+        );
+        setArrastando(false);
+        if (arquivos.length === 0) return;
+        e.preventDefault();
+        onImagens(arquivos);
+      }}
+    >
+      {arrastando && (
+        <div className="pointer-events-none absolute inset-0 z-30 flex items-center justify-center rounded-md border-2 border-dashed border-primary bg-background/85 text-sm font-medium text-primary">
+          Solte para enviar
+        </div>
+      )}
       {listaRapidaAberta && (
         <div className="absolute bottom-full left-0 z-50 mb-2 w-full max-w-md rounded-md border border-border bg-popover shadow-lg">
           <p className="border-b border-border px-3 py-1.5 text-[11px] text-muted-foreground">
