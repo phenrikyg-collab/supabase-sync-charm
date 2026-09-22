@@ -24,6 +24,7 @@ import {
   XAxis, YAxis,
 } from "recharts";
 import { chamarRpc } from "@/lib/supabaseRpc";
+import { AvisoCashbackUsado } from "@/components/reversa/AvisoCashbackUsado";
 
 /* ────────────────────────── helpers ────────────────────────── */
 
@@ -979,6 +980,7 @@ function LinhaSolicitacao({ l }: { l: any }) {
           <Badge variant="outline" className="text-[10px]">
             {l.preferencia_rotulo ?? l.preferencia ?? "—"}
           </Badge>
+          <div className="mt-1"><AvisoCashbackUsado dados={l} /></div>
         </TableCell>
         <TableCell>
           <span className={`rounded px-2 py-1 text-[11px] ${ESTAGIO_CHIP[est] ?? "bg-muted"}`}>
@@ -1019,6 +1021,7 @@ function LinhaSolicitacao({ l }: { l: any }) {
       {aberta && (
         <TableRow>
           <TableCell colSpan={11} className="bg-muted/30">
+            <div className="p-2"><AvisoCashbackUsado dados={l} /></div>
             <div className="grid gap-4 p-2 md:grid-cols-3">
               <div className="md:col-span-2 space-y-3">
                 <p className="text-sm font-medium">Itens</p>

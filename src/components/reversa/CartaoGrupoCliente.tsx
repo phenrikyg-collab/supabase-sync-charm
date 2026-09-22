@@ -2,6 +2,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { texto, traco, type GrupoCliente, type LinhaFila } from "@/lib/reversaPainel";
+import { AvisoCashbackUsado } from "./AvisoCashbackUsado";
 
 function numero(v: any) {
   const n = typeof v === "number" ? v : Number(v);
@@ -64,7 +65,10 @@ export function CartaoGrupoCliente({
                 <td className="whitespace-nowrap px-3 py-2 tabular-nums">
                   {numero(l.pecas)} {numero(l.pecas) === 1 ? "peça" : "peças"}
                 </td>
-                <td className="whitespace-nowrap px-3 py-2">{texto(l.preferencia)}</td>
+                <td className="px-3 py-2">
+                  {texto(l.preferencia)}
+                  <div className="mt-1"><AvisoCashbackUsado dados={l} /></div>
+                </td>
                 <td className="whitespace-nowrap px-3 py-2">{texto(l.valor_br)}</td>
                 <td className="whitespace-nowrap px-3 py-2">
                   <Badge variant="secondary">{texto(l.status_rotulo ?? l.status)}</Badge>

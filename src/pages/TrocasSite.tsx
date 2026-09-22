@@ -11,6 +11,7 @@ import { PainelSolicitacao } from "@/components/reversa/PainelSolicitacao";
 import { AbrirSolicitacaoDialog } from "@/components/reversa/AbrirSolicitacaoDialog";
 import { PoliticaReversa } from "@/components/reversa/PoliticaReversa";
 import { CartaoGrupoCliente } from "@/components/reversa/CartaoGrupoCliente";
+import { AvisoCashbackUsado } from "@/components/reversa/AvisoCashbackUsado";
 import { PecasRetornoTab } from "@/components/reversa/PecasRetornoTab";
 import { FluxoTab } from "@/components/reversa/FluxoTab";
 import { MensagensTab } from "@/components/reversa/MensagensTab";
@@ -90,7 +91,7 @@ export default function TrocasSite() {
         .map((item) => {
           const p = item.protocolo != null ? String(item.protocolo) : null;
           const daLista = p ? porProtocolo.get(p) : undefined;
-          return daLista ? { ...item, id: item.id ?? daLista.id } : null;
+          return daLista ? { ...item, ...daLista, id: item.id ?? daLista.id } : null;
         })
         .filter(Boolean) as LinhaFila[];
       if (dentro.length > 1) {
@@ -312,6 +313,7 @@ export default function TrocasSite() {
                           </td>
                           <td className="whitespace-nowrap px-3 py-2">
                             {texto(l.preferencia_rotulo ?? l.preferencia)}
+                            <div className="mt-1"><AvisoCashbackUsado dados={l} /></div>
                           </td>
                           <td className="whitespace-nowrap px-3 py-2">
                             <EscolhaBadge escolha={l.escolha_troca} />

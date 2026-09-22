@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/select";
 import { Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { AvisoCashbackUsado } from "./AvisoCashbackUsado";
 import {
   CONDICOES,
   DESTINOS,
@@ -165,6 +166,8 @@ export function PainelSolicitacao({
               <Info rotulo="Status" valor={texto(s.status_rotulo ?? s.status)} />
               <Info rotulo="Valor" valor={moeda(s.valor ?? s.valor_total)} />
             </div>
+
+            <AvisoCashbackUsado dados={s} />
 
             {semDocumento && (
               <div className="rounded-lg border border-amber-300 bg-amber-50 p-3 space-y-2">
