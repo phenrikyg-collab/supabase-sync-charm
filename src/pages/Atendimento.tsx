@@ -1993,13 +1993,19 @@ export default function Atendimento() {
   };
 
   const confirmarEnvioImagem = async () => {
-    if (imagens.length === 0) return;
+    if (imagens.length === 0 || !conversaAtual) return;
     const fila = imagens;
     const legendaAtual = legenda.trim();
-    const responderA = citacao?.id ?? null;
+    const citacaoCongelada = citacao ? { ...citacao } : null;
+    const destino: DestinoMidiaCongelado = {
+      conversaId: conversaAtual.id,
+      telefone: conversaAtual.telefone_real || conversaAtual.telefone,
+      autor: user?.email ?? null,
+    };
+    setCitacao(null);
     setEnviandoImagem(true);
     setProgressoUpload({ feitos: 0, total: fila.length });
-    const enviados: { item: ItemAnexo; url: string; legenda: string; responderA: number | string | null }[] = [];
+    const enviados: { item: ItemAnexo; url: string; legenda: string; citacao: Citacao | null }[] = [];
     let falhas = 0;
     for (let i = 0; i < fila.length; i++) {
       const item = fila[i];
@@ -2015,7 +2021,7 @@ export default function Atendimento() {
           item,
           url: pub.publicUrl,
           legenda: i === 0 ? legendaAtual : "",
-          responderA: i === 0 ? responderA : null,
+          citacao: i === 0 ? citacaoCongelada : null,
         });
       } catch {
         falhas += 1;
@@ -2024,25 +2030,36 @@ export default function Atendimento() {
     }
     setEnviandoImagem(false);
     setProgressoUpload(null);
-    setCitacao(null);
     setImagens([]);
     setLegenda("");
     for (const env of enviados) {
       agendarComDesfazer(
+        destino.conversaId,
         {
           conteudo: env.legenda,
           tipo: env.item.video ? "video" : "imagem",
           media_url: env.url,
-          citada_id: env.responderA,
+          citada_id: env.citacao?.id ?? null,
+          citada_direcao: env.citacao?.direcao ?? null,
+          citada_tipo: env.citacao?.tipo ?? null,
+          citada_texto: env.citacao?.texto ?? null,
+          citada_media_url: env.citacao?.media_url ?? null,
         },
         () => {
-          void enviarImagem(env.url, env.legenda, env.responderA, env.item.video ? "video" : "imagem").catch(() => {
+          void enviarImagem(
+            destino,
+            env.url,
+            env.legenda,
+            env.citacao?.id ?? null,
+            env.item.video ? "video" : "imagem",
+          ).catch(() => {
             /* a falha já aparece no balão */
           });
         },
         () => {
           setImagens((atuais) => [...atuais, env.item].slice(0, MAX_IMAGENS));
           if (env.legenda) setLegenda((atual) => atual || env.legenda);
+          if (env.citacao) setCitacao(env.citacao);
         },
       );
     }
@@ -2057,8 +2074,14 @@ export default function Atendimento() {
 
 
   const enviarProduto = async (p: ProdutoCatalogo, escolha?: EscolhaProduto) => {
+    if (!conversaAtual) return;
+    const destino: DestinoMidiaCongelado = {
+      conversaId: conversaAtual.id,
+      telefone: conversaAtual.telefone_real || conversaAtual.telefone,
+      autor: user?.email ?? null,
+    };
     try {
-      await enviarImagem(escolha?.imagem || p.imagem || "", legendaProduto(p, escolha));
+      await enviarImagem(destino, escolha?.imagem || p.imagem || "", legendaProduto(p, escolha));
       setCatalogoAberto(false);
       toast({ title: "Produto enviado" });
     } catch (e: any) {
@@ -3347,7 +3370,7 @@ export default function Atendimento() {
                         onAbrirMenu={setMenuBalao}
                         onIrParaMensagem={irParaMensagem}
                         onReenviar={reenviarMensagem}
-                        onDescartar={removerMensagemOtimista}
+                        onDescartar={(id) => removerMensagemOtimista(conversaAtual.id, id)}
                         onEnviarTemplate={abrirTemplate}
                         onDesfazer={desfazerEnvio}
                         onExcluir={setMensagemExcluir}
