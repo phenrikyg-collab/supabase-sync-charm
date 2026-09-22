@@ -145,7 +145,7 @@ export const Composer = forwardRef<ComposerHandle, Props>(function Composer(
       <input
         ref={fileRef}
         type="file"
-        accept="image/*"
+        accept="image/*,video/mp4,video/3gpp"
         multiple
         className="hidden"
         onChange={(e) => {
