@@ -192,7 +192,7 @@ export function AtendimentoTab() {
   const [carregandoMais, setCarregandoMais] = useState(false);
   const [temMais, setTemMais] = useState(false);
   const [contagens, setContagens] = useState<Record<Filtro, number>>({
-    nao_lidas: 0, janela: 0, revisao: 0, leads: 0, todas: 0,
+    nao_lidas: 0, janela: 0, revisao: 0, leads: 0, em_fluxo: 0, todas: 0,
   });
   const [filtro, setFiltro] = useState<Filtro>("todas");
   const [selId, setSelId] = useState<number | null>(null);
