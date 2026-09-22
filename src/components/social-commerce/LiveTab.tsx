@@ -342,6 +342,84 @@ export function LiveTab() {
 
   return (
     <div className="space-y-4">
+      {/* topo: captura e arquivamento */}
+      <Card>
+        <CardContent className="flex flex-wrap items-center gap-3 p-4">
+          <Button className="gap-1.5" onClick={forcarCaptura} disabled={forcando}>
+            {forcando ? <Loader2 className="h-4 w-4 animate-spin" /> : <Radio className="h-4 w-4" />}
+            Forçar captura da live
+          </Button>
+          <span
+            className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-semibold ${
+              config.ativo && restanteTxt
+                ? "border-success/30 bg-success/10 text-success"
+                : "border-border bg-muted text-muted-foreground"
+            }`}
+          >
+            <span className={`h-2 w-2 rounded-full ${config.ativo && restanteTxt ? "bg-success" : "bg-muted-foreground"}`} />
+            {config.ativo && config.expira_em
+              ? `Automação armada até ${new Date(config.expira_em).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}`
+              : "Automação desligada"}
+          </span>
+          <Button
+            variant="outline"
+            className="ml-auto gap-1.5"
+            onClick={() => setConfirmarArquivar(true)}
+          >
+            <Archive className="h-4 w-4" /> Arquivar live e zerar painel
+          </Button>
+        </CardContent>
+      </Card>
+
+      {resultadoForcar && (
+        <div className="space-y-2">
+          <div
+            className={`flex items-start gap-2 rounded-lg border p-3 text-sm ${
+              resultadoForcar.ok === false
+                ? "border-danger/40 bg-danger/10 text-danger"
+                : resultadoForcar.live_no_ar
+                  ? "border-success/40 bg-success/10 text-success"
+                  : "border-primary/40 bg-primary/10 text-primary"
+            }`}
+          >
+            {resultadoForcar.ok === false ? (
+              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+            ) : resultadoForcar.live_no_ar ? (
+              <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" />
+            ) : (
+              <Info className="mt-0.5 h-4 w-4 shrink-0" />
+            )}
+            <span>{resultadoForcar.mensagem ?? "-"}</span>
+          </div>
+          {(resultadoForcar.avisos ?? []).map((a) => (
+            <p
+              key={a}
+              className="flex items-start gap-2 rounded-lg border border-warning/40 bg-warning/10 p-2.5 text-xs text-warning"
+            >
+              <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" /> {a}
+            </p>
+          ))}
+        </div>
+      )}
+
+      <Tabs defaultValue="live" className="space-y-4">
+        <TabsList className="w-fit">
+          <TabsTrigger value="live">Live</TabsTrigger>
+          <TabsTrigger value="fluxos" className="gap-1.5">
+            <Workflow className="h-3.5 w-3.5" /> Fluxos do Direct
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="fluxos" className="space-y-4">
+          <FluxosTab
+            onMudou={() => {
+              recarregarFluxos();
+              carregarConfig();
+            }}
+          />
+        </TabsContent>
+
+        <TabsContent value="live" className="space-y-4">
       <SeletorLive
         lives={lives}
         selecionada={liveSelecionada}
@@ -353,6 +431,7 @@ export function LiveTab() {
           carregarConfig();
         }}
       />
+
 
       <LiveChat
         config={config}
