@@ -46,6 +46,7 @@ export const Composer = forwardRef<ComposerHandle, Props>(function Composer(
   const { data: respostasRapidas = [] } = useRespostasRapidas(false);
   const [indiceRapida, setIndiceRapida] = useState(0);
   const [ferramentasAbertas, setFerramentasAbertas] = useState(false);
+  const [arrastando, setArrastando] = useState(false);
   const [rapidasAbertas, setRapidasAbertas] = useState(false);
   const slashAtivo = texto.startsWith("/") && !texto.includes("\n");
   const rapidasFiltradas = useMemo(
