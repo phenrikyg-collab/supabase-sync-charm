@@ -327,7 +327,28 @@ type Mensagem = {
   enviando?: boolean;
   /** Falha detectada no próprio envio (balão otimista), ainda não gravada no banco. */
   falha_local?: boolean;
+  /** Momento (timestamp) em que o envio adiado vai acontecer, enquanto dá para desfazer. */
+  aguardando_ate?: number;
 };
+
+/** Contagem regressiva do envio adiado, com o botão de desfazer. */
+function ContagemDesfazer({ ate, onDesfazer }: { ate: number; onDesfazer: () => void }) {
+  const calcular = () => Math.max(0, Math.ceil((ate - Date.now()) / 1000));
+  const [resta, setResta] = useState(calcular);
+  useEffect(() => {
+    const t = setInterval(() => setResta(Math.max(0, Math.ceil((ate - Date.now()) / 1000))), 250);
+    return () => clearInterval(t);
+  }, [ate]);
+  return (
+    <div className="mt-1.5 flex items-center justify-end gap-2">
+      <span className="text-[11px] text-muted-foreground">Enviando em {resta}s</span>
+      <Button size="sm" variant="outline" className="h-9 px-4 text-xs font-medium" onClick={onDesfazer}>
+        <RotateCcw className="mr-1 h-3.5 w-3.5" />
+        Desfazer
+      </Button>
+    </div>
+  );
+}
 
 /** Motivos de falha ligados à janela de 24h pedem template, não nova tentativa. */
 const ehMotivoJanela = (motivo?: string | null) => /24\s*h|janela/i.test(motivo ?? "");
