@@ -666,7 +666,10 @@ export function FormularioProposta({
         <div className="flex gap-2">
           <Input
             value={cep}
-            onChange={(e) => setCep(e.target.value)}
+            onChange={(e) => {
+              setCepTocado(true);
+              setCep(e.target.value);
+            }}
             placeholder="01310-100"
             inputMode="numeric"
           />
@@ -683,6 +686,13 @@ export function FormularioProposta({
         {itensCatalogo.length === 0 && (
           <p className="text-[11px] text-muted-foreground">
             Adicione ao menos um produto do catálogo para calcular o frete.
+          </p>
+        )}
+        {!cepTocado && clienteIdentificada && contexto?.cep && contexto?.cep_origem && (
+          <p className="text-[11px] text-muted-foreground">
+            {contexto.cep_origem === "cadastro"
+              ? "CEP do cadastro da cliente"
+              : "CEP do último pedido"}
           </p>
         )}
         {opcoesFrete.map((o, i) => (
