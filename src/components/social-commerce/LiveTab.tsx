@@ -11,6 +11,11 @@ import { CampoTags, tempoRelativo } from "./comum";
 import { LiveChat } from "./LiveChat";
 import { SeletorLive } from "./SeletorLive";
 
+import { FluxosTab } from "./dm-fluxo/FluxosTab";
+import {
+  arquivarLiveZerando, definirFluxoDaLive, forcarCapturaLive, listarFluxos, type FluxoResumo,
+} from "@/lib/igDmFluxos";
+
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -19,7 +24,15 @@ import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
-import { AlertTriangle, Loader2, MessageSquare, Package, Radio, Users, Zap } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription,
+  AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
+  AlertTriangle, Archive, CheckCircle2, Info, Loader2, MessageSquare, Package, Radio, Users, Workflow, Zap,
+} from "lucide-react";
 
 type ComentarioLive = {
   comment_id: string;
