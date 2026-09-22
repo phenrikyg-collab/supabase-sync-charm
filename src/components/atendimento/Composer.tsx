@@ -200,7 +200,7 @@ export const Composer = forwardRef<ComposerHandle, Props>(function Composer(
         </>
       ) : (
         <>
-          <Button size="icon" variant="ghost" className="h-8 w-8 shrink-0" onClick={() => fileRef.current?.click()} title="Enviar imagem">
+          <Button size="icon" variant="ghost" className="h-8 w-8 shrink-0" onClick={() => fileRef.current?.click()} title="Enviar imagem ou vídeo">
             <ImagePlus className="h-4 w-4" />
           </Button>
           {figurinhas}
