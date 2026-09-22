@@ -80,10 +80,11 @@ export function CuponsCliente({ telefone }: { telefone: string }) {
     if (!codigo) return;
     try {
       await navigator.clipboard.writeText(codigo);
-      toast({ title: "Código copiado" });
+      toast.success("Código copiado");
     } catch {
-      toast({ title: "Não foi possível copiar", variant: "destructive" });
+      toast.error("Não foi possível copiar");
     }
+
   };
 
   return (
