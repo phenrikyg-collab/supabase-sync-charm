@@ -791,6 +791,22 @@ export function AtendimentoTab() {
                         {janela.expirada ? "Janela de 24h expirada" : `Janela: ${janela.label} restantes`}
                       </span>
                     )}
+                    {conversaSel.status === "em_fluxo" && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-6 gap-1 px-2 text-[10px]"
+                        disabled={saindoDoFluxo}
+                        onClick={() => tirarDoFluxo(conversaSel.id)}
+                      >
+                        {saindoDoFluxo ? (
+                          <Loader2 className="h-3 w-3 animate-spin" />
+                        ) : (
+                          <Workflow className="h-3 w-3" />
+                        )}
+                        Tirar do fluxo
+                      </Button>
+                    )}
                   </div>
                   {/* Escalada mostra o motivo — sem caça ao porquê */}
                   {escalada && motivoEscalada && (
