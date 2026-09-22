@@ -363,7 +363,7 @@ export function FormularioProposta({
               },
         ),
         valor_frete: paraNumero(frete).toFixed(2),
-        desconto: paraNumero(desconto).toFixed(2),
+        desconto: descontoTotal.toFixed(2),
       };
       const r = await fetch(PROPOR_CARRINHO_URL, {
         method: "POST",
@@ -381,9 +381,28 @@ export function FormularioProposta({
       }
       if (!r.ok || json.ok === false) throw new Error(json.erro || json.error || `HTTP ${r.status}`);
       setResultado(json);
+      setCashbackEnviado(cashbackSelecionado);
       if (json.proposta_id != null) {
         if (conversaId != null) salvarPropostaDaConversa(conversaId, json.proposta_id);
         onEnviada?.(json.proposta_id);
+        if (cupomEscolhido) {
+          const { data: marcado, error: erroMarcar } = await chamarRpc<{ ok?: boolean; erro?: string }>(
+            "proposta_cashback_marcar",
+            {
+              p_proposta_id: json.proposta_id,
+              p_cupom_id: cupomEscolhido.id,
+              p_por: "painel",
+            },
+          );
+          const resposta = (Array.isArray(marcado) ? marcado[0] : marcado) ?? null;
+          if (erroMarcar || resposta?.ok === false) {
+            toast({
+              title: "Cashback não ficou vinculado à proposta",
+              description: resposta?.erro || erroMarcar?.message || "Tente vincular novamente.",
+              variant: "destructive",
+            });
+          }
+        }
       }
       toast({ title: "Proposta enviada no WhatsApp" });
     } catch (e) {
@@ -425,7 +444,7 @@ export function FormularioProposta({
                 },
           ),
           valor_frete: paraNumero(frete).toFixed(2) || "0",
-          desconto: paraNumero(desconto).toFixed(2) || "0",
+          desconto: descontoTotal.toFixed(2) || "0",
         }),
       });
       const bruto = await r.text();
@@ -457,6 +476,8 @@ export function FormularioProposta({
     setDesconto("");
     setOpcoesFrete([]);
     setFreteSelecionado(null);
+    setCupomEscolhido(null);
+    setCashbackEnviado(0);
   };
 
   if (textoGerado) {
