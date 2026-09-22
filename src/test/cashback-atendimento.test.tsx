@@ -22,7 +22,7 @@ describe("Cashback no Atendimento", () => {
 
   it("inicia com as três seções abertas, mostrando saldo, contagens e a ação de crédito", async () => {
     montar();
-    await waitFor(() => expect(screen.getByRole("button", { name: /Cashback · R\$ 0,00/i })).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByRole("button", { name: /Cashback · R\$\s0,00/i })).toBeInTheDocument());
     expect(screen.getByRole("button", { name: "Cupons (0)" })).toHaveAttribute("data-state", "open");
     expect(screen.getByRole("button", { name: "Extrato (0)" })).toHaveAttribute("data-state", "open");
     expect(screen.getByRole("button", { name: "Dar crédito" })).toBeInTheDocument();
@@ -30,7 +30,7 @@ describe("Cashback no Atendimento", () => {
 
   it("recolhe cada seção de forma independente e lembra a preferência em outra conversa", async () => {
     const tela = montar();
-    const cashback = await screen.findByRole("button", { name: /Cashback · R\$ 0,00/i });
+    const cashback = await screen.findByRole("button", { name: /Cashback · R\$\s0,00/i });
     fireEvent.click(screen.getByRole("button", { name: "Cupons (0)" }));
     fireEvent.click(screen.getByRole("button", { name: "Extrato (0)" }));
     expect(screen.getByRole("button", { name: "Cupons (0)" })).toHaveAttribute("data-state", "closed");
@@ -44,7 +44,7 @@ describe("Cashback no Atendimento", () => {
 
     tela.unmount();
     montar("11888888888");
-    const outroCashback = await screen.findByRole("button", { name: /Cashback · R\$ 0,00/i });
+    const outroCashback = await screen.findByRole("button", { name: /Cashback · R\$\s0,00/i });
     expect(outroCashback).toHaveAttribute("data-state", "closed");
     fireEvent.click(outroCashback);
     expect(screen.getByRole("button", { name: "Cupons (0)" })).toHaveAttribute("data-state", "closed");
