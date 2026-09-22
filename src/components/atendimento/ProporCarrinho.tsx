@@ -112,7 +112,45 @@ type RespostaTexto = {
   error?: string;
 };
 
+type CupomCashback = {
+  id: string | number;
+  code?: string | null;
+  valor?: number | string | null;
+  valor_minimo?: number | string | null;
+  validade?: string | null;
+  atinge?: boolean | null;
+  falta?: number | string | null;
+};
+
+type ContextoCliente = {
+  ok?: boolean;
+  tray_customer_id?: string | number | null;
+  nome?: string | null;
+  email?: string | null;
+  cep?: string | null;
+  cep_origem?: string | null;
+  saldo?: number | string | null;
+  uso_max_pct?: number | string | null;
+  valor_uso?: number | string | null;
+  vence_em?: string | null;
+  cupons?: CupomCashback[] | null;
+};
+
 const moeda = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+
+/** Formata um CEP para 00000-000; devolve o texto original se não tiver 8 dígitos. */
+function formatarCep(valor: string | null | undefined) {
+  const digitos = String(valor ?? "").replace(/\D/g, "");
+  if (digitos.length !== 8) return String(valor ?? "");
+  return `${digitos.slice(0, 5)}-${digitos.slice(5)}`;
+}
+
+/** "2026-11-02" -> "02/11" */
+function diaMes(iso: string | null | undefined) {
+  const m = String(iso ?? "").match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (!m) return "";
+  return `${m[3]}/${m[2]}`;
+}
 
 function paraNumero(valor: string) {
   const limpo = String(valor ?? "")
@@ -148,6 +186,7 @@ export function FormularioProposta({
   const [frete, setFrete] = useState("");
   const [desconto, setDesconto] = useState("");
   const [cep, setCep] = useState("");
+  const [cepTocado, setCepTocado] = useState(false);
   const [opcoesFrete, setOpcoesFrete] = useState<OpcaoFrete[]>([]);
   const [freteSelecionado, setFreteSelecionado] = useState<number | null>(null);
   const [calculandoFrete, setCalculandoFrete] = useState(false);
@@ -155,6 +194,9 @@ export function FormularioProposta({
   const [erro, setErro] = useState("");
   const [resultado, setResultado] = useState<RespostaProposta | null>(null);
   const [textoGerado, setTextoGerado] = useState<RespostaTexto | null>(null);
+  const [contexto, setContexto] = useState<ContextoCliente | null>(null);
+  const [cupomEscolhido, setCupomEscolhido] = useState<CupomCashback | null>(null);
+  const [cashbackEnviado, setCashbackEnviado] = useState(0);
 
   const modoTexto = modo === "texto";
 
@@ -165,7 +207,17 @@ export function FormularioProposta({
   const precoItem = (i: ItemCarrinho) =>
     i.produto_id ? i.preco_catalogo ?? 0 : paraNumero(i.valor_unitario);
   const subtotal = itens.reduce((acc, i) => acc + precoItem(i) * (i.quantidade || 0), 0);
-  const total = Math.max(subtotal + paraNumero(frete) - paraNumero(desconto), 0);
+
+  const clienteIdentificada = contexto?.tray_customer_id != null;
+  const saldoCashback = Number(contexto?.saldo ?? 0);
+  const cupons = clienteIdentificada && Array.isArray(contexto?.cupons) ? contexto!.cupons! : [];
+  const mostrarCashback = clienteIdentificada && saldoCashback > 0 && cupons.length > 0;
+  const cashbackSelecionado =
+    !modoTexto && cupomEscolhido ? Math.max(Number(cupomEscolhido.valor ?? 0), 0) : 0;
+
+  const descontoManual = paraNumero(desconto);
+  const descontoTotal = descontoManual + cashbackSelecionado;
+  const total = Math.max(subtotal + paraNumero(frete) - descontoTotal, 0);
   const itensIncompletos = itens.filter((i) => !itemCompleto(i));
   const emailPreenchido = /\S+@\S+\.\S+/.test(email.trim());
   const emailValido = modoTexto ? emailPreenchido : email.trim() === "" || emailPreenchido;
@@ -174,6 +226,45 @@ export function FormularioProposta({
     itensIncompletos.length === 0 &&
     emailValido &&
     (modoTexto || !!telefone);
+
+  // Contexto da cliente (CEP, saldo e cupons). Recarrega quando o subtotal muda,
+  // porque "atinge" e "valor_uso" dependem do valor do carrinho.
+  useEffect(() => {
+    let cancelado = false;
+    const buscar = async () => {
+      const { data, error } = await chamarRpc<ContextoCliente>("carrinho_contexto_cliente", {
+        p_telefone: telefone ?? null,
+        p_conversa_id: conversaId ?? null,
+        p_subtotal: subtotal,
+      });
+      if (cancelado || error) return;
+      const ctx = (Array.isArray(data) ? data[0] : data) ?? null;
+      setContexto(ctx);
+      if (ctx?.tray_customer_id == null) {
+        setCupomEscolhido(null);
+        return;
+      }
+      setCupomEscolhido((atual) => {
+        if (!atual) return null;
+        const igual = (ctx.cupons ?? []).find((c) => String(c.id) === String(atual.id));
+        if (!igual || igual.atinge === false) return null;
+        return igual;
+      });
+    };
+    const timer = window.setTimeout(buscar, 400);
+    return () => {
+      cancelado = true;
+      window.clearTimeout(timer);
+    };
+  }, [telefone, conversaId, subtotal]);
+
+  // Preenche o CEP da cliente sem nunca sobrescrever o que a atendente digitou.
+  useEffect(() => {
+    if (cepTocado) return;
+    const sugerido = contexto?.tray_customer_id != null ? formatarCep(contexto?.cep) : "";
+    if (!sugerido) return;
+    setCep((atual) => (atual.trim() === "" ? sugerido : atual));
+  }, [contexto, cepTocado]);
 
   const atualizarItem = (index: number, patch: Partial<ItemCarrinho>) =>
     setItens((prev) => prev.map((it, i) => (i === index ? { ...it, ...patch } : it)));
@@ -272,7 +363,7 @@ export function FormularioProposta({
               },
         ),
         valor_frete: paraNumero(frete).toFixed(2),
-        desconto: paraNumero(desconto).toFixed(2),
+        desconto: descontoTotal.toFixed(2),
       };
       const r = await fetch(PROPOR_CARRINHO_URL, {
         method: "POST",
@@ -290,9 +381,28 @@ export function FormularioProposta({
       }
       if (!r.ok || json.ok === false) throw new Error(json.erro || json.error || `HTTP ${r.status}`);
       setResultado(json);
+      setCashbackEnviado(cashbackSelecionado);
       if (json.proposta_id != null) {
         if (conversaId != null) salvarPropostaDaConversa(conversaId, json.proposta_id);
         onEnviada?.(json.proposta_id);
+        if (cupomEscolhido) {
+          const { data: marcado, error: erroMarcar } = await chamarRpc<{ ok?: boolean; erro?: string }>(
+            "proposta_cashback_marcar",
+            {
+              p_proposta_id: json.proposta_id,
+              p_cupom_id: cupomEscolhido.id,
+              p_por: "painel",
+            },
+          );
+          const resposta = (Array.isArray(marcado) ? marcado[0] : marcado) ?? null;
+          if (erroMarcar || resposta?.ok === false) {
+            toast({
+              title: "Cashback não ficou vinculado à proposta",
+              description: resposta?.erro || erroMarcar?.message || "Tente vincular novamente.",
+              variant: "destructive",
+            });
+          }
+        }
       }
       toast({ title: "Proposta enviada no WhatsApp" });
     } catch (e) {
@@ -334,7 +444,7 @@ export function FormularioProposta({
                 },
           ),
           valor_frete: paraNumero(frete).toFixed(2) || "0",
-          desconto: paraNumero(desconto).toFixed(2) || "0",
+          desconto: descontoTotal.toFixed(2) || "0",
         }),
       });
       const bruto = await r.text();
@@ -366,6 +476,8 @@ export function FormularioProposta({
     setDesconto("");
     setOpcoesFrete([]);
     setFreteSelecionado(null);
+    setCupomEscolhido(null);
+    setCashbackEnviado(0);
   };
 
   if (textoGerado) {
@@ -393,8 +505,14 @@ export function FormularioProposta({
             </div>
             <div className="flex justify-between">
               <span>Desconto</span>
-              <span>-{moeda(Number(resultado.desconto ?? paraNumero(desconto)))}</span>
+              <span>-{moeda(paraNumero(desconto))}</span>
             </div>
+            {cashbackEnviado > 0 && (
+              <div className="flex justify-between">
+                <span>Cashback</span>
+                <span>-{moeda(cashbackEnviado)}</span>
+              </div>
+            )}
           </div>
           <div className="flex flex-wrap gap-4 border-t border-border pt-2 text-sm font-semibold text-foreground">
             <span>Total no cartão: {moeda(Number(resultado.total_cartao ?? total))}</span>
@@ -548,7 +666,10 @@ export function FormularioProposta({
         <div className="flex gap-2">
           <Input
             value={cep}
-            onChange={(e) => setCep(e.target.value)}
+            onChange={(e) => {
+              setCepTocado(true);
+              setCep(e.target.value);
+            }}
             placeholder="01310-100"
             inputMode="numeric"
           />
@@ -565,6 +686,13 @@ export function FormularioProposta({
         {itensCatalogo.length === 0 && (
           <p className="text-[11px] text-muted-foreground">
             Adicione ao menos um produto do catálogo para calcular o frete.
+          </p>
+        )}
+        {!cepTocado && clienteIdentificada && contexto?.cep && contexto?.cep_origem && (
+          <p className="text-[11px] text-muted-foreground">
+            {contexto.cep_origem === "cadastro"
+              ? "CEP do cadastro da cliente"
+              : "CEP do último pedido"}
           </p>
         )}
         {opcoesFrete.map((o, i) => (
@@ -617,6 +745,67 @@ export function FormularioProposta({
         </div>
       </div>
 
+      {mostrarCashback && (
+        <div className="space-y-2 rounded-md border border-border p-3">
+          <div className="flex flex-wrap items-baseline justify-between gap-2">
+            <span className="text-xs font-semibold text-foreground">Cashback da cliente</span>
+            <span className="text-xs text-muted-foreground">
+              Saldo {moeda(saldoCashback)}
+              {contexto?.vence_em ? ` · vence em ${diaMes(contexto.vence_em)}` : ""}
+            </span>
+          </div>
+
+          <div className="space-y-2">
+            {cupons.map((c) => {
+              const valorCupom = Number(c.valor ?? 0);
+              const minimo = Number(c.valor_minimo ?? 0);
+              const atinge = c.atinge !== false;
+              const escolhido = cupomEscolhido != null && String(cupomEscolhido.id) === String(c.id);
+              return (
+                <div
+                  key={String(c.id)}
+                  className={`flex items-center justify-between gap-2 rounded-md border p-2 ${
+                    escolhido ? "border-primary bg-primary/5" : "border-border"
+                  } ${atinge ? "" : "opacity-60"}`}
+                >
+                  <div className="min-w-0">
+                    <p className="truncate text-xs font-medium text-foreground">
+                      {moeda(valorCupom)} · {c.code ?? "-"}
+                    </p>
+                    <p className="text-[11px] text-muted-foreground">
+                      {minimo > 0 ? `vale em compras a partir de ${moeda(minimo)}` : "sem valor mínimo"}
+                    </p>
+                    {!atinge && (
+                      <p className="text-[11px] text-destructive">
+                        faltam {moeda(Number(c.falta ?? 0))} no carrinho
+                      </p>
+                    )}
+                  </div>
+                  {!modoTexto && (
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant={escolhido ? "default" : "outline"}
+                      className="h-7 shrink-0 px-2 text-[11px]"
+                      disabled={!atinge}
+                      onClick={() => setCupomEscolhido(escolhido ? null : c)}
+                    >
+                      {escolhido ? "Usando" : "Usar"}
+                    </Button>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+
+          <p className="text-[11px] text-muted-foreground">
+            {modoTexto
+              ? "Para usar o cashback, envie a proposta pelo WhatsApp."
+              : "O cashback só é baixado quando o pagamento entrar. Se a cliente usar esse cupom no site antes de pagar, o desconto fica por nossa conta."}
+          </p>
+        </div>
+      )}
+
       <div className="space-y-1.5">
         <Label htmlFor="proposta-email">
           {modoTexto ? "E-mail da cliente (obrigatório)" : "E-mail da cliente (opcional)"}
@@ -648,8 +837,14 @@ export function FormularioProposta({
         </div>
         <div className="flex items-center justify-between text-xs text-muted-foreground">
           <span>Desconto</span>
-          <span>-{moeda(paraNumero(desconto))}</span>
+          <span>-{moeda(descontoManual)}</span>
         </div>
+        {cashbackSelecionado > 0 && (
+          <div className="flex items-center justify-between text-xs text-muted-foreground">
+            <span>Cashback</span>
+            <span>-{moeda(cashbackSelecionado)}</span>
+          </div>
+        )}
         <div className="flex items-center justify-between border-t border-border pt-1 text-sm font-semibold text-foreground">
           <span>Total</span>
           <span>{moeda(total)}</span>
