@@ -629,7 +629,7 @@ const ItemConversa = memo(function ItemConversa({
                                <Mail className="h-3.5 w-3.5" />
                              </span>
                            </DropdownMenuTrigger>
-                           <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
+                           <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()} className="font-whatsapp">
                              {c.nao_lida ? (
                                <DropdownMenuItem onSelect={() => onMarcarLeitura(c.id, false)}>
                                  <MailOpen className="mr-2 h-4 w-4" />
@@ -2465,7 +2465,7 @@ export default function Atendimento() {
   ] as const;
 
   return (
-    <div className="flex h-full w-full min-w-0 flex-col overflow-x-hidden overflow-y-hidden md:-m-6 md:h-[calc(100dvh-3.5rem)] md:w-[calc(100%+3rem)] md:max-w-[calc(100%+3rem)]">
+    <div className="font-whatsapp flex h-full w-full min-w-0 flex-col overflow-x-hidden overflow-y-hidden md:-m-6 md:h-[calc(100dvh-3.5rem)] md:w-[calc(100%+3rem)] md:max-w-[calc(100%+3rem)]">
       {!isMobile && <AvisosFila />}
       <Tabs
         value={abaPagina}
@@ -2516,7 +2516,7 @@ export default function Atendimento() {
         </div>
 
         <Sheet open={maisAbasAberto} onOpenChange={setMaisAbasAberto}>
-          <SheetContent side="bottom" className="max-h-[75dvh] rounded-t-lg px-4 pb-[calc(1rem+env(safe-area-inset-bottom))] pt-5">
+           <SheetContent side="bottom" className="font-whatsapp max-h-[75dvh] rounded-t-lg px-4 pb-[calc(1rem+env(safe-area-inset-bottom))] pt-5">
             <SheetTitle className="mb-3">Mais áreas</SheetTitle>
             <div className="grid gap-1 overflow-y-auto">
               {abasSecundarias.map(([valor, rotulo, total]) => (
@@ -2535,7 +2535,7 @@ export default function Atendimento() {
         </Sheet>
 
         <Sheet open={filtrosMobileAberto} onOpenChange={setFiltrosMobileAberto}>
-          <SheetContent side="bottom" className="flex max-h-[85dvh] flex-col rounded-t-lg px-4 pb-[calc(1rem+env(safe-area-inset-bottom))] pt-5">
+           <SheetContent side="bottom" className="font-whatsapp flex max-h-[85dvh] flex-col rounded-t-lg px-4 pb-[calc(1rem+env(safe-area-inset-bottom))] pt-5">
             <SheetTitle className="mb-3">Filtros</SheetTitle>
             <div className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain pb-3">
               <section className="space-y-2">
@@ -2577,7 +2577,7 @@ export default function Atendimento() {
                       <span className="truncate">Tags</span><span className="shrink-0 text-xs text-muted-foreground">{tagsFiltro.length}</span>
                     </Button>
                   </PopoverTrigger>
-                  <PopoverContent className="w-[calc(100vw-2rem)] max-w-sm space-y-2 p-3" align="center">
+                  <PopoverContent className="font-whatsapp w-[calc(100vw-2rem)] max-w-sm space-y-2 p-3" align="center">
                     {todasTags.length === 0 && <p className="text-xs text-muted-foreground">Nenhuma tag cadastrada.</p>}
                     <div className="max-h-52 space-y-2 overflow-auto">
                       {todasTags.map((tag) => (
@@ -2875,7 +2875,7 @@ export default function Atendimento() {
                     Tags{tagsFiltro.length ? ` (${tagsFiltro.length})` : ""}
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-56 p-3 space-y-2" align="start">
+                <PopoverContent className="font-whatsapp w-56 p-3 space-y-2" align="start">
                   {todasTags.length === 0 && (
                     <p className="text-xs text-muted-foreground">Nenhuma tag cadastrada.</p>
                   )}
@@ -3188,7 +3188,7 @@ export default function Atendimento() {
                         <MoreHorizontal className="h-4 w-4" />
                       </Button>
                     </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="w-56">
+                    <DropdownMenuContent align="end" className="font-whatsapp w-56">
                       <DropdownMenuItem onSelect={() => setCobrancaAberta(true)}>
                         <QrCode className="mr-2 h-4 w-4" />
                         Gerar cobrança Pix
@@ -3239,7 +3239,7 @@ export default function Atendimento() {
                     </DropdownMenuContent>
                   </DropdownMenu>
                   <AlertDialog open={excluirAberta} onOpenChange={setExcluirAberta}>
-                    <AlertDialogContent>
+                   <AlertDialogContent className="font-whatsapp">
                       <AlertDialogHeader>
                         <AlertDialogTitle>Excluir esta conversa?</AlertDialogTitle>
                         <AlertDialogDescription>
@@ -3268,7 +3268,7 @@ export default function Atendimento() {
                     </AlertDialogContent>
                   </AlertDialog>
                   <AlertDialog open={!!mensagemExcluir} onOpenChange={(v) => !v && setMensagemExcluir(null)}>
-                    <AlertDialogContent>
+                     <AlertDialogContent className="font-whatsapp">
                       <AlertDialogHeader>
                         <AlertDialogTitle>Excluir mensagem?</AlertDialogTitle>
                         <AlertDialogDescription>
@@ -3614,7 +3614,7 @@ export default function Atendimento() {
            <SheetContent
              side={isMobile ? "bottom" : "right"}
              className={cn(
-               "flex flex-col overflow-hidden p-3 pb-8",
+                "font-whatsapp flex flex-col overflow-hidden p-3 pb-8",
                isMobile ? "h-[85dvh] w-full rounded-t-lg pb-[calc(1rem+env(safe-area-inset-bottom))]" : "w-[92vw] max-w-[380px]",
              )}
            >

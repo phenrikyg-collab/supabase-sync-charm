@@ -865,7 +865,7 @@ export function ProporCarrinhoDialog({
 }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-lg">
+      <DialogContent className="font-whatsapp max-h-[85vh] overflow-y-auto sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Propor carrinho</DialogTitle>
           <DialogDescription>
@@ -1054,7 +1054,7 @@ export function PropostaDaConversa({
       </span>
 
       <AlertDialog open={confirmar !== null} onOpenChange={(v) => !v && setConfirmar(null)}>
-        <AlertDialogContent>
+        <AlertDialogContent className="font-whatsapp">
           <AlertDialogHeader>
             <AlertDialogTitle>Confirmar cobrança</AlertDialogTitle>
             <AlertDialogDescription>

@@ -168,7 +168,7 @@ export const Composer = forwardRef<ComposerHandle, Props>(function Composer(
             <Plus className="h-5 w-5" />
           </Button>
           <Sheet open={ferramentasAbertas} onOpenChange={setFerramentasAbertas}>
-            <SheetContent side="bottom" className="max-h-[70dvh] rounded-t-lg px-4 pb-[calc(1rem+env(safe-area-inset-bottom))] pt-5">
+            <SheetContent side="bottom" className="font-whatsapp max-h-[70dvh] rounded-t-lg px-4 pb-[calc(1rem+env(safe-area-inset-bottom))] pt-5">
               <SheetTitle className="mb-4">Adicionar à conversa</SheetTitle>
               <div className="grid grid-cols-2 gap-3">
                 <div className="flex min-h-11 items-center gap-3 rounded-md border border-border px-3">

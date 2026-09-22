@@ -135,7 +135,7 @@ export function TagsConversa({
             Tags
           </Button>
         </PopoverTrigger>
-        <PopoverContent className="z-50 w-64 p-3 space-y-3" align="start">
+        <PopoverContent className="font-whatsapp z-50 w-64 p-3 space-y-3" align="start">
           <div className="space-y-2 max-h-52 overflow-auto">
             {tags.length === 0 && <p className="text-xs text-muted-foreground">Nenhuma tag cadastrada.</p>}
             {tags.map((t) => (

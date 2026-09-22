@@ -348,7 +348,7 @@ export function EnviarTemplateDialog({
   if (ehCelular) {
     return (
       <Sheet open={open} onOpenChange={onOpenChange}>
-        <SheetContent side="bottom" className="max-h-[88vh] overflow-y-auto">
+        <SheetContent side="bottom" className="font-whatsapp max-h-[88vh] overflow-y-auto">
           <SheetHeader>
             <SheetTitle>Enviar template</SheetTitle>
           </SheetHeader>
@@ -361,7 +361,7 @@ export function EnviarTemplateDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[85vh] max-w-lg overflow-y-auto">
+      <DialogContent className="font-whatsapp max-h-[85vh] max-w-lg overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Enviar template</DialogTitle>
         </DialogHeader>

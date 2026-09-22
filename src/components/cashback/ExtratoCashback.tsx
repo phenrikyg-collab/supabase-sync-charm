@@ -1,5 +1,9 @@
 import { useState } from "react";
+import { ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { useAtendimentoCollapsible } from "@/hooks/useAtendimentoCollapsible";
+import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -39,6 +43,8 @@ export function ExtratoCashback({ extrato, customer, onAtualizado, compacto = fa
   const [cupomRetirar, setCupomRetirar] = useState<Linha | null>(null);
   const [motivoRetirada, setMotivoRetirada] = useState("");
   const [salvando, setSalvando] = useState(false);
+  const [cuponsAbertos, alterarCuponsAbertos] = useAtendimentoCollapsible("cupons");
+  const [extratoAberto, alterarExtratoAberto] = useAtendimentoCollapsible("extrato");
 
   const cupons = listaDe(extrato?.cupons);
   const lancamentos = listaDe(extrato?.lancamentos);
@@ -109,8 +115,18 @@ export function ExtratoCashback({ extrato, customer, onAtualizado, compacto = fa
         </div>
       </div>
 
-      <section>
-        <h3 className="mb-2 text-sm font-medium">Cupons</h3>
+      <Collapsible open={!compacto || cuponsAbertos} onOpenChange={alterarCuponsAbertos}>
+        {compacto ? (
+          <CollapsibleTrigger asChild>
+            <Button variant="ghost" className="h-8 w-full justify-between px-0 text-left text-sm font-medium">
+              <span>Cupons ({cupons.length})</span>
+              <ChevronDown className={cn("h-4 w-4 transition-transform", cuponsAbertos && "rotate-180")} />
+            </Button>
+          </CollapsibleTrigger>
+        ) : (
+          <h3 className="mb-2 text-sm font-medium">Cupons</h3>
+        )}
+        <CollapsibleContent className={compacto ? "pt-2" : undefined}>
         {cupons.length === 0 ? (
           <EstadoVazio titulo="Nenhum cupom para esta cliente." />
         ) : (
@@ -134,10 +150,21 @@ export function ExtratoCashback({ extrato, customer, onAtualizado, compacto = fa
             ))}
           </div>
         )}
-      </section>
+        </CollapsibleContent>
+      </Collapsible>
 
-      <section>
-        <h3 className="mb-2 text-sm font-medium">Extrato</h3>
+      <Collapsible open={!compacto || extratoAberto} onOpenChange={alterarExtratoAberto}>
+        {compacto ? (
+          <CollapsibleTrigger asChild>
+            <Button variant="ghost" className="h-8 w-full justify-between px-0 text-left text-sm font-medium">
+              <span>Extrato ({lancamentos.length})</span>
+              <ChevronDown className={cn("h-4 w-4 transition-transform", extratoAberto && "rotate-180")} />
+            </Button>
+          </CollapsibleTrigger>
+        ) : (
+          <h3 className="mb-2 text-sm font-medium">Extrato</h3>
+        )}
+        <CollapsibleContent className={compacto ? "pt-2" : undefined}>
         {lancamentos.length === 0 ? (
           <EstadoVazio titulo="Nenhum lançamento registrado." />
         ) : (
@@ -162,7 +189,8 @@ export function ExtratoCashback({ extrato, customer, onAtualizado, compacto = fa
             })}
           </div>
         )}
-      </section>
+        </CollapsibleContent>
+      </Collapsible>
 
       <div className={`flex gap-2 ${compacto ? "" : "border-t pt-4"}`}>
         <Button size="sm" onClick={() => setDialogoCredito(true)} disabled={!customer}>Dar crédito</Button>
@@ -174,7 +202,7 @@ export function ExtratoCashback({ extrato, customer, onAtualizado, compacto = fa
       </div>
 
       <Dialog open={dialogoCredito} onOpenChange={setDialogoCredito}>
-        <DialogContent>
+        <DialogContent className={compacto ? "font-whatsapp" : undefined}>
           <DialogHeader>
             <DialogTitle>Dar crédito</DialogTitle>
             <DialogDescription>
@@ -210,7 +238,7 @@ export function ExtratoCashback({ extrato, customer, onAtualizado, compacto = fa
       </Dialog>
 
       <Dialog open={!!cupomRetirar} onOpenChange={(o) => !o && setCupomRetirar(null)}>
-        <DialogContent>
+        <DialogContent className={compacto ? "font-whatsapp" : undefined}>
           <DialogHeader>
             <DialogTitle>Retirar cupom</DialogTitle>
             <DialogDescription>
