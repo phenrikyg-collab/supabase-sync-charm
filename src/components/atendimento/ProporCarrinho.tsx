@@ -112,7 +112,45 @@ type RespostaTexto = {
   error?: string;
 };
 
+type CupomCashback = {
+  id: string | number;
+  code?: string | null;
+  valor?: number | string | null;
+  valor_minimo?: number | string | null;
+  validade?: string | null;
+  atinge?: boolean | null;
+  falta?: number | string | null;
+};
+
+type ContextoCliente = {
+  ok?: boolean;
+  tray_customer_id?: string | number | null;
+  nome?: string | null;
+  email?: string | null;
+  cep?: string | null;
+  cep_origem?: string | null;
+  saldo?: number | string | null;
+  uso_max_pct?: number | string | null;
+  valor_uso?: number | string | null;
+  vence_em?: string | null;
+  cupons?: CupomCashback[] | null;
+};
+
 const moeda = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+
+/** Formata um CEP para 00000-000; devolve o texto original se não tiver 8 dígitos. */
+function formatarCep(valor: string | null | undefined) {
+  const digitos = String(valor ?? "").replace(/\D/g, "");
+  if (digitos.length !== 8) return String(valor ?? "");
+  return `${digitos.slice(0, 5)}-${digitos.slice(5)}`;
+}
+
+/** "2026-11-02" -> "02/11" */
+function diaMes(iso: string | null | undefined) {
+  const m = String(iso ?? "").match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (!m) return "";
+  return `${m[3]}/${m[2]}`;
+}
 
 function paraNumero(valor: string) {
   const limpo = String(valor ?? "")
@@ -148,6 +186,7 @@ export function FormularioProposta({
   const [frete, setFrete] = useState("");
   const [desconto, setDesconto] = useState("");
   const [cep, setCep] = useState("");
+  const [cepTocado, setCepTocado] = useState(false);
   const [opcoesFrete, setOpcoesFrete] = useState<OpcaoFrete[]>([]);
   const [freteSelecionado, setFreteSelecionado] = useState<number | null>(null);
   const [calculandoFrete, setCalculandoFrete] = useState(false);
@@ -155,6 +194,9 @@ export function FormularioProposta({
   const [erro, setErro] = useState("");
   const [resultado, setResultado] = useState<RespostaProposta | null>(null);
   const [textoGerado, setTextoGerado] = useState<RespostaTexto | null>(null);
+  const [contexto, setContexto] = useState<ContextoCliente | null>(null);
+  const [cupomEscolhido, setCupomEscolhido] = useState<CupomCashback | null>(null);
+  const [cashbackEnviado, setCashbackEnviado] = useState(0);
 
   const modoTexto = modo === "texto";
 
@@ -165,7 +207,17 @@ export function FormularioProposta({
   const precoItem = (i: ItemCarrinho) =>
     i.produto_id ? i.preco_catalogo ?? 0 : paraNumero(i.valor_unitario);
   const subtotal = itens.reduce((acc, i) => acc + precoItem(i) * (i.quantidade || 0), 0);
-  const total = Math.max(subtotal + paraNumero(frete) - paraNumero(desconto), 0);
+
+  const clienteIdentificada = contexto?.tray_customer_id != null;
+  const saldoCashback = Number(contexto?.saldo ?? 0);
+  const cupons = clienteIdentificada && Array.isArray(contexto?.cupons) ? contexto!.cupons! : [];
+  const mostrarCashback = clienteIdentificada && saldoCashback > 0 && cupons.length > 0;
+  const cashbackSelecionado =
+    !modoTexto && cupomEscolhido ? Math.max(Number(cupomEscolhido.valor ?? 0), 0) : 0;
+
+  const descontoManual = paraNumero(desconto);
+  const descontoTotal = descontoManual + cashbackSelecionado;
+  const total = Math.max(subtotal + paraNumero(frete) - descontoTotal, 0);
   const itensIncompletos = itens.filter((i) => !itemCompleto(i));
   const emailPreenchido = /\S+@\S+\.\S+/.test(email.trim());
   const emailValido = modoTexto ? emailPreenchido : email.trim() === "" || emailPreenchido;
@@ -174,6 +226,45 @@ export function FormularioProposta({
     itensIncompletos.length === 0 &&
     emailValido &&
     (modoTexto || !!telefone);
+
+  // Contexto da cliente (CEP, saldo e cupons). Recarrega quando o subtotal muda,
+  // porque "atinge" e "valor_uso" dependem do valor do carrinho.
+  useEffect(() => {
+    let cancelado = false;
+    const buscar = async () => {
+      const { data, error } = await chamarRpc<ContextoCliente>("carrinho_contexto_cliente", {
+        p_telefone: telefone ?? null,
+        p_conversa_id: conversaId ?? null,
+        p_subtotal: subtotal,
+      });
+      if (cancelado || error) return;
+      const ctx = (Array.isArray(data) ? data[0] : data) ?? null;
+      setContexto(ctx);
+      if (ctx?.tray_customer_id == null) {
+        setCupomEscolhido(null);
+        return;
+      }
+      setCupomEscolhido((atual) => {
+        if (!atual) return null;
+        const igual = (ctx.cupons ?? []).find((c) => String(c.id) === String(atual.id));
+        if (!igual || igual.atinge === false) return null;
+        return igual;
+      });
+    };
+    const timer = window.setTimeout(buscar, 400);
+    return () => {
+      cancelado = true;
+      window.clearTimeout(timer);
+    };
+  }, [telefone, conversaId, subtotal]);
+
+  // Preenche o CEP da cliente sem nunca sobrescrever o que a atendente digitou.
+  useEffect(() => {
+    if (cepTocado) return;
+    const sugerido = contexto?.tray_customer_id != null ? formatarCep(contexto?.cep) : "";
+    if (!sugerido) return;
+    setCep((atual) => (atual.trim() === "" ? sugerido : atual));
+  }, [contexto, cepTocado]);
 
   const atualizarItem = (index: number, patch: Partial<ItemCarrinho>) =>
     setItens((prev) => prev.map((it, i) => (i === index ? { ...it, ...patch } : it)));
