@@ -132,19 +132,19 @@ export function VisaoGeralTab({ resumo, onAbrirCliente }: Props) {
                   <TableRow
                     key={c.id ?? i}
                     className="cursor-pointer"
-                    onClick={() => onAbrirCliente(String(c.customer ?? c.customer_id ?? c.cliente_id ?? ""))}
+                    onClick={() => onAbrirCliente(String(c.tray_customer_id ?? ""))}
                   >
-                    <TableCell className="font-medium">{c.cliente ?? c.nome ?? ""}</TableCell>
-                    <TableCell className="font-mono text-xs">{c.codigo}</TableCell>
+                    <TableCell className="font-medium">{c.cliente ?? c.nome ?? "-"}</TableCell>
+                    <TableCell className="font-mono text-xs">{c.code ?? "-"}</TableCell>
                     <TableCell>{brl(c.valor)}</TableCell>
-                    <TableCell>{brl(c.valor_minimo ?? c.minimo)}</TableCell>
-                    <TableCell>{dataBr(c.validade ?? c.expira_em)}</TableCell>
+                    <TableCell>{brl(c.valor_minimo)}</TableCell>
+                    <TableCell>{dataBr(c.validade)}</TableCell>
                     <TableCell>
                       <Badge variant="outline" className={corStatus(c.status)}>
                         {ROTULO_STATUS[String(c.status).toLowerCase()] ?? c.status}
                       </Badge>
                     </TableCell>
-                    <TableCell className="text-xs text-muted-foreground">{c.pedido_origem ?? c.pedido ?? ""}</TableCell>
+                    <TableCell className="text-xs text-muted-foreground">{c.pedido_origem ?? "-"}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>

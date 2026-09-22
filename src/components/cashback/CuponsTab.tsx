@@ -60,8 +60,8 @@ export function CuponsTab({ onAbrirCliente }: { onAbrirCliente: (customer: strin
           </SelectContent>
         </Select>
         <Input
-          className="h-9 w-[320px]"
-          placeholder="Código, nome, e-mail ou número do pedido"
+          className="h-9 w-[360px]"
+          placeholder="Buscar por nome da cliente, e-mail, código do cupom ou pedido"
           value={busca}
           onChange={(e) => setBusca(e.target.value)}
         />
@@ -85,35 +85,39 @@ export function CuponsTab({ onAbrirCliente }: { onAbrirCliente: (customer: strin
                   <TableHead>Mínimo</TableHead>
                   <TableHead>Validade</TableHead>
                   <TableHead>Status</TableHead>
-                  <TableHead>Origem</TableHead>
-                  <TableHead>Usado em</TableHead>
+                  <TableHead>Pedido de origem</TableHead>
+                  <TableHead>Usado no pedido</TableHead>
                   <TableHead />
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {linhas.map((c, i) => (
                   <TableRow key={c.id ?? i}>
-                    <TableCell className="font-medium">{c.cliente ?? c.nome ?? ""}</TableCell>
-                    <TableCell className="font-mono text-xs">{c.codigo}</TableCell>
+                    <TableCell className="font-medium">
+                      <div>{c.cliente ?? c.nome ?? "-"}</div>
+                      {c.email && <div className="text-xs text-muted-foreground">{c.email}</div>}
+                    </TableCell>
+                    <TableCell className="font-mono text-xs">{c.code ?? "-"}</TableCell>
                     <TableCell>{brl(c.valor)}</TableCell>
-                    <TableCell>{brl(c.valor_minimo ?? c.minimo)}</TableCell>
-                    <TableCell>{dataBr(c.validade ?? c.expira_em)}</TableCell>
+                    <TableCell>{brl(c.valor_minimo)}</TableCell>
+                    <TableCell>{dataBr(c.validade)}</TableCell>
                     <TableCell>
                       <Badge variant="outline" className={corStatus(c.status)}>
                         {ROTULO_STATUS[String(c.status).toLowerCase()] ?? c.status}
                       </Badge>
                     </TableCell>
                     <TableCell className="text-xs text-muted-foreground">
-                      {c.origem ?? c.pedido_origem ?? c.pedido ?? ""}
+                      {c.pedido_origem ?? "-"}
                     </TableCell>
                     <TableCell className="text-xs text-muted-foreground">
-                      {c.usado_em ? dataHoraBr(c.usado_em) : ""}
+                      {c.pedido_uso ?? "-"}
                     </TableCell>
                     <TableCell className="text-right">
                       <Button
                         size="sm"
                         variant="outline"
-                        onClick={() => onAbrirCliente(String(c.customer ?? c.customer_id ?? c.cliente_id ?? ""))}
+                        disabled={!c.tray_customer_id}
+                        onClick={() => onAbrirCliente(String(c.tray_customer_id ?? ""))}
                       >
                         Ver cliente
                       </Button>
