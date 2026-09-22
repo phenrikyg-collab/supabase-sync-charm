@@ -174,7 +174,7 @@ export const Composer = forwardRef<ComposerHandle, Props>(function Composer(
                 </div>
                 <Button variant="outline" className="h-11 justify-start gap-3" onClick={() => { setFerramentasAbertas(false); fileRef.current?.click(); }}>
                   <ImagePlus className="h-4 w-4" />
-                  Enviar imagem
+                  Enviar imagem ou vídeo
                 </Button>
                 <Button variant="outline" className="h-11 justify-start gap-3" onClick={() => { setFerramentasAbertas(false); onAbrirTemplate(); }}>
                   <FileText className="h-4 w-4" />
