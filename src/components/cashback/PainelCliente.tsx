@@ -139,6 +139,19 @@ export function PainelCliente({ customer, onFechar, onAtualizado }: Props) {
             <EstadoErro mensagem={erro} onTentar={carregar} />
           ) : (
             <div className="space-y-6">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="rounded-md border p-3">
+                  <p className="text-xs uppercase tracking-wider text-muted-foreground">Cupons ativos</p>
+                  <p className="font-serif text-xl">{ativos.length}</p>
+                  <p className="text-xs text-muted-foreground">{brl(somaAtivos)} disponíveis</p>
+                </div>
+                <div className="rounded-md border p-3">
+                  <p className="text-xs uppercase tracking-wider text-muted-foreground">Total usado</p>
+                  <p className="font-serif text-xl">{brl(totalUsado)}</p>
+                  <p className="text-xs text-muted-foreground">em compras da cliente</p>
+                </div>
+              </div>
+
               <section>
                 <h3 className="mb-2 text-sm font-medium">Cupons</h3>
                 {cupons.length === 0 ? (
@@ -148,9 +161,13 @@ export function PainelCliente({ customer, onFechar, onAtualizado }: Props) {
                     {cupons.map((c, i) => (
                       <div key={c.id ?? i} className="flex items-center justify-between rounded-md border p-3">
                         <div>
-                          <p className="font-mono text-sm">{c.codigo}</p>
+                          <p className="font-mono text-sm">{c.code ?? "-"}</p>
                           <p className="text-xs text-muted-foreground">
-                            {brl(c.valor)} · mínimo {brl(c.valor_minimo ?? c.minimo)} · vale até {dataBr(c.validade ?? c.expira_em)}
+                            {brl(c.valor)} · mínimo {brl(c.valor_minimo)} · vale até {dataBr(c.validade)}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            {c.pedido_origem ? `do pedido ${c.pedido_origem}` : "sem pedido de origem"}
+                            {c.pedido_id ? ` · usado no pedido ${c.pedido_id}` : ""}
                           </p>
                         </div>
                         <Badge variant="outline" className={corStatus(c.status)}>
@@ -176,7 +193,7 @@ export function PainelCliente({ customer, onFechar, onAtualizado }: Props) {
                             <p className="text-sm">{rotuloTipo(l.tipo)}</p>
                             <p className="truncate text-xs text-muted-foreground">
                               {dataHoraBr(l.criado_em ?? l.data)}
-                              {l.pedido ? ` · pedido ${l.pedido}` : ""}
+                              {l.pedido_id ? ` · pedido ${l.pedido_id}` : ""}
                               {l.motivo ? ` · ${l.motivo}` : ""}
                             </p>
                           </div>
