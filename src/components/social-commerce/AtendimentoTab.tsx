@@ -285,6 +285,40 @@ export function AtendimentoTab() {
     setCarregando(false);
   }, [carregarPagina, carregarContagens, filtro]);
 
+  /** Encerra o fluxo do Direct desta conversa para a Anna voltar a responder. */
+  const tirarDoFluxo = useCallback(
+    async (conversaId: number) => {
+      setSaindoDoFluxo(true);
+      try {
+        const { data: execs, error } = await db
+          .from("ig_dm_execucoes")
+          .select("id")
+          .eq("conversa_id", conversaId)
+          .in("estado", ["ativo", "aguardando"])
+          .order("criado_em", { ascending: false })
+          .limit(1);
+        if (error) throw error;
+        const execucaoId = (execs ?? [])[0]?.id;
+        if (!execucaoId) {
+          toast.info("Esta conversa não está mais em um fluxo.");
+        } else {
+          const { data, error: erroFn } = await supabase.functions.invoke("instagram-dm-fluxo", {
+            body: { acao: "encerrar", execucao_id: execucaoId, motivo: "encerrado no painel" },
+          });
+          if (erroFn) throw erroFn;
+          if ((data as any)?.ok === false) throw new Error((data as any)?.erro ?? "Não deu certo.");
+          toast.success("Conversa fora do fluxo. A Anna volta a responder.");
+        }
+        await carregarConversas();
+      } catch (e: any) {
+        toast.error(e?.message ?? "Não foi possível tirar do fluxo.");
+      } finally {
+        setSaindoDoFluxo(false);
+      }
+    },
+    [carregarConversas],
+  );
+
   const carregarMais = useCallback(async () => {
     if (carregandoMais || !temMais) return;
     setCarregandoMais(true);
