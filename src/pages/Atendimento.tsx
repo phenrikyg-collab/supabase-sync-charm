@@ -3184,6 +3184,22 @@ export default function Atendimento() {
                       </AlertDialogFooter>
                     </AlertDialogContent>
                   </AlertDialog>
+                  <AlertDialog open={!!mensagemExcluir} onOpenChange={(v) => !v && setMensagemExcluir(null)}>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Excluir mensagem?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          Ela some deste painel. Se já foi entregue, a cliente continua vendo no WhatsApp dela: o
+                          WhatsApp oficial não permite apagar mensagem enviada. Para ela não receber, use o Desfazer
+                          logo depois de enviar.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                        <AlertDialogAction onClick={() => void confirmarExclusaoMensagem()}>Excluir</AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
                   <Button
                     size="icon"
                     variant="ghost"
