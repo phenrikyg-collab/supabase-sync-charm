@@ -3301,6 +3301,8 @@ export default function Atendimento() {
                         onReenviar={reenviarMensagem}
                         onDescartar={removerMensagemOtimista}
                         onEnviarTemplate={abrirTemplate}
+                        onDesfazer={desfazerEnvio}
+                        onExcluir={setMensagemExcluir}
                       />
                     );
                   })}
