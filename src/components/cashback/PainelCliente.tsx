@@ -58,9 +58,16 @@ export function PainelCliente({ customer, onFechar, onAtualizado }: Props) {
   }, [customer, carregar]);
 
   const cliente = objetoDe(extrato.cliente ?? extrato);
+  const saldo = extrato.saldo;
   const cupons = listaDe(extrato.cupons);
   const lancamentos = listaDe(extrato.lancamentos);
   const cupomAtivo = cupons.find((c) => String(c.status).toLowerCase() === "ativo") ?? null;
+
+  const ativos = cupons.filter((c) => String(c.status).toLowerCase() === "ativo");
+  const somaAtivos = ativos.reduce((s, c) => s + numero(c.valor), 0);
+  const totalUsado = lancamentos
+    .filter((l) => String(l.tipo ?? "") === "debito_uso")
+    .reduce((s, l) => s + Math.abs(numero(l.valor)), 0);
 
   async function darCredito() {
     const valor = Math.round(numero(valorCredito));
@@ -121,7 +128,7 @@ export function PainelCliente({ customer, onFechar, onAtualizado }: Props) {
           </div>
           <div className="pt-2">
             <span className="text-xs uppercase tracking-wider text-muted-foreground">Saldo</span>
-            <p className="font-serif text-2xl text-primary">{brl(cliente.saldo)}</p>
+            <p className="font-serif text-2xl text-primary">{brl(saldo)}</p>
           </div>
         </SheetHeader>
 
@@ -132,6 +139,19 @@ export function PainelCliente({ customer, onFechar, onAtualizado }: Props) {
             <EstadoErro mensagem={erro} onTentar={carregar} />
           ) : (
             <div className="space-y-6">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="rounded-md border p-3">
+                  <p className="text-xs uppercase tracking-wider text-muted-foreground">Cupons ativos</p>
+                  <p className="font-serif text-xl">{ativos.length}</p>
+                  <p className="text-xs text-muted-foreground">{brl(somaAtivos)} disponíveis</p>
+                </div>
+                <div className="rounded-md border p-3">
+                  <p className="text-xs uppercase tracking-wider text-muted-foreground">Total usado</p>
+                  <p className="font-serif text-xl">{brl(totalUsado)}</p>
+                  <p className="text-xs text-muted-foreground">em compras da cliente</p>
+                </div>
+              </div>
+
               <section>
                 <h3 className="mb-2 text-sm font-medium">Cupons</h3>
                 {cupons.length === 0 ? (
@@ -141,9 +161,13 @@ export function PainelCliente({ customer, onFechar, onAtualizado }: Props) {
                     {cupons.map((c, i) => (
                       <div key={c.id ?? i} className="flex items-center justify-between rounded-md border p-3">
                         <div>
-                          <p className="font-mono text-sm">{c.codigo}</p>
+                          <p className="font-mono text-sm">{c.code ?? "-"}</p>
                           <p className="text-xs text-muted-foreground">
-                            {brl(c.valor)} · mínimo {brl(c.valor_minimo ?? c.minimo)} · vale até {dataBr(c.validade ?? c.expira_em)}
+                            {brl(c.valor)} · mínimo {brl(c.valor_minimo)} · vale até {dataBr(c.validade)}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            {c.pedido_origem ? `do pedido ${c.pedido_origem}` : "sem pedido de origem"}
+                            {c.pedido_id ? ` · usado no pedido ${c.pedido_id}` : ""}
                           </p>
                         </div>
                         <Badge variant="outline" className={corStatus(c.status)}>
@@ -169,7 +193,7 @@ export function PainelCliente({ customer, onFechar, onAtualizado }: Props) {
                             <p className="text-sm">{rotuloTipo(l.tipo)}</p>
                             <p className="truncate text-xs text-muted-foreground">
                               {dataHoraBr(l.criado_em ?? l.data)}
-                              {l.pedido ? ` · pedido ${l.pedido}` : ""}
+                              {l.pedido_id ? ` · pedido ${l.pedido_id}` : ""}
                               {l.motivo ? ` · ${l.motivo}` : ""}
                             </p>
                           </div>
