@@ -577,8 +577,78 @@ export function LiveTab() {
             />
           </CardContent>
         </Card>
+
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <Workflow className="h-4 w-4" /> Fluxo do Direct
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            <Select value={fluxoId != null ? String(fluxoId) : "__sem"} onValueChange={escolherFluxo}>
+              <SelectTrigger>
+                <SelectValue placeholder="Sem fluxo (texto fixo)" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__sem">Sem fluxo (texto fixo)</SelectItem>
+                {fluxos
+                  .filter((f) => f.status === "pronto")
+                  .map((f) => (
+                    <SelectItem key={f.id} value={String(f.id)}>
+                      {f.nome}
+                    </SelectItem>
+                  ))}
+              </SelectContent>
+            </Select>
+            <p className="text-[11px] text-muted-foreground">
+              Com fluxo, a conversa no Direct segue os passos escolhidos. Sem fluxo, a cliente recebe
+              a mensagem fixa acima.
+            </p>
+          </CardContent>
+        </Card>
         </div>
       </div>
+        </TabsContent>
+      </Tabs>
+
+      <AlertDialog open={confirmarArquivar} onOpenChange={setConfirmarArquivar}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Arquivar a live e zerar o painel?</AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-2 text-left">
+                <p>
+                  <strong>Zera:</strong> peças da live, kits, cupom (código, benefício, validade),
+                  palavras-gatilho, texto do Direct, fluxo escolhido e desliga a automação.
+                </p>
+                <p>
+                  <strong>Mantém:</strong> os textos-padrão das respostas públicas (gerais, de dúvida
+                  e de compra) e o ritmo de resposta, como base editável.
+                </p>
+                <p>
+                  <strong>Guarda no histórico da live:</strong> tudo o que foi usado nela.
+                </p>
+                <p>
+                  Comentários desta live que ainda estavam na fila deixam de ser respondidos.
+                </p>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={arquivando}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => {
+                e.preventDefault();
+                arquivarEZerar();
+              }}
+              disabled={arquivando}
+            >
+              {arquivando && <Loader2 className="mr-1 h-4 w-4 animate-spin" />}
+              Arquivar e zerar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 
