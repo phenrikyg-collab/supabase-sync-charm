@@ -10,7 +10,7 @@ import {
 } from "@/lib/cashback";
 import { CarregandoBloco, EstadoErro, EstadoVazio } from "./Estados";
 
-const STATUS = ["todos", "ativo", "usado", "expirado", "cancelado", "devolvido"];
+const STATUS = ["todos", "ativo", "analise", "usado", "expirado", "cancelado", "devolvido"];
 
 export function CuponsTab({ onAbrirCliente }: { onAbrirCliente: (customer: string) => void }) {
   const [status, setStatus] = useState("todos");
