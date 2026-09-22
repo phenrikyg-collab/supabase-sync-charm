@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "r
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { db, enviarInstagram, marcarConversaLida, marcarTodasLidas, devolverParaAnna, MOTIVOS_409 } from "@/lib/socialCommerce";
-import { invokeEdgeFunction } from "@/lib/edgeFunctions";
+import { encerrarExecucao, execucaoAtivaDaConversa } from "@/lib/igDmFluxos";
 import { tempoRelativo, janelaInfo } from "./comum";
 import { ContextoMensagem } from "./ContextoMensagem";
 import {
