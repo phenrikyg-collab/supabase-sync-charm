@@ -62,29 +62,6 @@ function tempoRelativo(iso?: string | null) {
   return `há ${Math.floor(h / 24)}d`;
 }
 
-function moeda(v?: number | null) {
-  if (v == null) return "";
-  return v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
-}
-
-function dataCurta(v?: string | null) {
-  if (!v) return "";
-  const d = new Date(v);
-  return Number.isNaN(d.getTime()) ? "" : d.toLocaleDateString("pt-BR");
-}
-
-function StatusCupom({ c }: { c: CupomCliente }) {
-  const cfg = c.foi_usado
-    ? { label: "usado", cls: "bg-success/10 text-success border-success/20" }
-    : c.expirou_sem_uso
-      ? { label: "expirado", cls: "bg-danger/10 text-danger border-danger/20" }
-      : { label: "válido", cls: "bg-warning/10 text-warning border-warning/20" };
-  return (
-    <span className={cn("inline-flex rounded-full border px-1.5 py-0.5 text-[10px] font-semibold", cfg.cls)}>
-      {cfg.label}
-    </span>
-  );
-}
 
 export function AtividadesRecentes({ telefone }: { telefone: string }) {
   const [filtro, setFiltro] = useState<Categoria | "todas">("todas");
