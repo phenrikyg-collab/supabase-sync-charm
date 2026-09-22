@@ -1,20 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import {
-  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
-} from "@/components/ui/dialog";
-import { toast } from "sonner";
-import { useAuth } from "@/contexts/AuthContext";
-import {
-  rpcCashback, listaDe, objetoDe, brl, dataBr, dataHoraBr, corStatus, ROTULO_STATUS,
-  rotuloTipo, valorComSinal, numero, type Linha,
-} from "@/lib/cashback";
-import { CarregandoBloco, EstadoErro, EstadoVazio } from "./Estados";
+import { rpcCashback, objetoDe, brl } from "@/lib/cashback";
+import { CarregandoBloco, EstadoErro } from "./Estados";
+import { ExtratoCashback } from "./ExtratoCashback";
 
 type Props = {
   customer: string | null;
@@ -23,21 +11,10 @@ type Props = {
 };
 
 export function PainelCliente({ customer, onFechar, onAtualizado }: Props) {
-  const { user } = useAuth();
-  const usuario = (user?.user_metadata as any)?.nome || user?.email || "painel";
-
   const [carregando, setCarregando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
   const [extrato, setExtrato] = useState<Record<string, any>>({});
 
-  const [dialogoCredito, setDialogoCredito] = useState(false);
-  const [valorCredito, setValorCredito] = useState("");
-  const [motivoCredito, setMotivoCredito] = useState("");
-
-  const [cupomRetirar, setCupomRetirar] = useState<Linha | null>(null);
-  const [motivoRetirada, setMotivoRetirada] = useState("");
-
-  const [salvando, setSalvando] = useState(false);
 
   const carregar = useCallback(async () => {
     if (!customer) return;
