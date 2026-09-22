@@ -262,6 +262,62 @@ export function LiveTab() {
     }
   };
 
+  const forcarCaptura = async () => {
+    setForcando(true);
+    setResultadoForcar(null);
+    try {
+      const r = await forcarCapturaLive(4);
+      setResultadoForcar(r);
+      await Promise.all([carregarConfig(), recarregarLives()]);
+    } catch (e: any) {
+      setResultadoForcar({ ok: false, mensagem: e?.message ?? "Não foi possível falar com o Instagram." });
+    } finally {
+      setForcando(false);
+    }
+  };
+
+  const arquivarEZerar = async () => {
+    setArquivando(true);
+    try {
+      const r = await arquivarLiveZerando(mediaSelecionado ?? config?.media_id_atual ?? null);
+      if (r?.ok === false) throw new Error(r.erro ?? "Não foi possível arquivar a live.");
+      const l = r.live ?? {};
+      toast.success(
+        `Live arquivada: ${l.comentarios ?? 0} comentários, ${l.directs ?? 0} Directs. Painel zerado para a próxima.`,
+        {
+          description:
+            r.fila_cancelada
+              ? `${r.fila_cancelada} comentário(s) saíram da fila de resposta.`
+              : undefined,
+        },
+      );
+      setConfirmarArquivar(false);
+      await Promise.all([carregarConfig(), recarregarLives(), recarregarFluxos()]);
+    } catch (e: any) {
+      toast.error(e?.message ?? "Não foi possível arquivar a live.");
+    } finally {
+      setArquivando(false);
+    }
+  };
+
+  const escolherFluxo = async (valor: string) => {
+    const novo = valor === "__sem" ? null : Number(valor);
+    try {
+      const r = await definirFluxoDaLive(novo);
+      if (r?.ok === false) {
+        toast.error(r.erro || r.motivo || "O fluxo ainda tem erros.", {
+          description: (r.validacao?.erros ?? []).join(" · ") || undefined,
+        });
+        return;
+      }
+      setFluxoId(novo);
+      toast.success(novo ? "Fluxo escolhido para esta live." : "A live volta a usar o texto fixo.");
+      recarregarFluxos();
+    } catch (e: any) {
+      toast.error(e?.message ?? "Não foi possível escolher o fluxo.");
+    }
+  };
+
   const restanteTxt = useMemo(() => restante(config?.expira_em), [config?.expira_em, agora]);
   const problemasDm = problemasTexto(config?.resposta_gatilho_dm);
 
