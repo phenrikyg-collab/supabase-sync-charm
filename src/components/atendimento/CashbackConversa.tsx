@@ -99,27 +99,26 @@ export function CashbackConversa({ telefone }: { telefone: string }) {
         </Button>
       </CollapsibleTrigger>
       <CollapsibleContent className="space-y-3 pt-3">
+        {isLoading && <p className="text-sm text-muted-foreground">Carregando cashback...</p>}
 
-      {isLoading && <p className="text-sm text-muted-foreground">Carregando cashback...</p>}
+        {!isLoading && !data?.ok && (
+          <p className="text-sm text-muted-foreground">Nenhum cadastro com este telefone</p>
+        )}
 
-      {!isLoading && !data?.ok && (
-        <p className="text-sm text-muted-foreground">Nenhum cadastro com este telefone</p>
-      )}
-
-      {!isLoading && data?.ok && (
-        <>
-          <div>
-            <span className="text-xs uppercase tracking-wider text-muted-foreground">Saldo</span>
-            <p className="text-2xl text-primary">{brl(data.saldo)}</p>
-          </div>
-          <ExtratoCashback
-            extrato={data}
-            customer={cliente.id ? String(cliente.id) : null}
-            onAtualizado={() => void refetch()}
-            compacto
-          />
-        </>
-      )}
+        {!isLoading && data?.ok && (
+          <>
+            <div>
+              <span className="text-xs uppercase tracking-wider text-muted-foreground">Saldo</span>
+              <p className="text-2xl text-primary">{brl(data.saldo)}</p>
+            </div>
+            <ExtratoCashback
+              extrato={data}
+              customer={cliente.id ? String(cliente.id) : null}
+              onAtualizado={() => void refetch()}
+              compacto
+            />
+          </>
+        )}
       </CollapsibleContent>
     </Collapsible>
   );
