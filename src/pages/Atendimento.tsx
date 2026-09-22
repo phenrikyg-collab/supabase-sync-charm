@@ -1655,6 +1655,67 @@ export default function Atendimento() {
     );
   };
 
+  /**
+   * Segura o envio por 5 segundos para dar chance de desfazer.
+   * O WhatsApp oficial não apaga mensagem entregue, então este é o único
+   * jeito real de a cliente não receber.
+   */
+  const SEGUNDOS_DESFAZER = 5;
+  const pendentesRef = useRef<Map<number, { timer: ReturnType<typeof setTimeout>; disparar: () => void; cancelar: () => void }>>(new Map());
+
+  const agendarComDesfazer = (
+    dadosBalao: Partial<Mensagem>,
+    executar: () => void,
+    devolver: () => void,
+  ) => {
+    const chave = ["whatsapp-mensagens", selecionada];
+    const idTemp = inserirMensagemOtimista({
+      ...dadosBalao,
+      enviando: false,
+      aguardando_ate: Date.now() + SEGUNDOS_DESFAZER * 1000,
+    });
+    const tirarBalao = () =>
+      queryClient.setQueryData(chave, (antigas: Mensagem[] = []) => (antigas ?? []).filter((m) => m.id !== idTemp));
+    const disparar = () => {
+      pendentesRef.current.delete(idTemp);
+      tirarBalao();
+      executar();
+    };
+    const cancelar = () => {
+      pendentesRef.current.delete(idTemp);
+      tirarBalao();
+      devolver();
+    };
+    const timer = setTimeout(disparar, SEGUNDOS_DESFAZER * 1000);
+    pendentesRef.current.set(idTemp, { timer, disparar, cancelar });
+    return idTemp;
+  };
+
+  /** Desfaz um envio ainda na contagem: nada sai e o conteúdo volta para a caixa. */
+  const desfazerEnvio = useCallback((idTemp: number) => {
+    const pendente = pendentesRef.current.get(idTemp);
+    if (!pendente) return;
+    clearTimeout(pendente.timer);
+    pendente.cancelar();
+  }, []);
+
+  /** Dispara na hora tudo o que está em contagem (troca de conversa, sair da tela). */
+  const dispararPendentes = useCallback(() => {
+    const lista = [...pendentesRef.current.values()];
+    for (const p of lista) {
+      clearTimeout(p.timer);
+      p.disparar();
+    }
+  }, []);
+
+  useEffect(() => () => dispararPendentes(), [selecionada, dispararPendentes]);
+
+  useEffect(() => {
+    const aoSair = () => dispararPendentes();
+    window.addEventListener("beforeunload", aoSair);
+    return () => window.removeEventListener("beforeunload", aoSair);
+  }, [dispararPendentes]);
+
   /** Reenvia o mesmo texto pelo fluxo normal de envio. */
   const reenviarMensagem = useCallback((m: Mensagem) => {
     const conteudo = (m.conteudo ?? "").trim();
