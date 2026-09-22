@@ -69,6 +69,7 @@ export function objetoDe(resposta: any): Record<string, any> {
 
 export const ROTULO_STATUS: Record<string, string> = {
   ativo: "Ativo",
+  analise: "Em análise",
   usado: "Usado",
   expirado: "Expirado",
   cancelado: "Cancelado",
@@ -79,6 +80,8 @@ export function corStatus(status: string): string {
   switch (String(status ?? "").toLowerCase()) {
     case "ativo":
       return "bg-success/15 text-success border-success/30";
+    case "analise":
+      return "bg-warning/15 text-warning border-warning/30";
     case "usado":
       return "bg-info/15 text-info border-info/30";
     case "expirado":
