@@ -58,9 +58,16 @@ export function PainelCliente({ customer, onFechar, onAtualizado }: Props) {
   }, [customer, carregar]);
 
   const cliente = objetoDe(extrato.cliente ?? extrato);
+  const saldo = extrato.saldo;
   const cupons = listaDe(extrato.cupons);
   const lancamentos = listaDe(extrato.lancamentos);
   const cupomAtivo = cupons.find((c) => String(c.status).toLowerCase() === "ativo") ?? null;
+
+  const ativos = cupons.filter((c) => String(c.status).toLowerCase() === "ativo");
+  const somaAtivos = ativos.reduce((s, c) => s + numero(c.valor), 0);
+  const totalUsado = lancamentos
+    .filter((l) => String(l.tipo ?? "") === "debito_uso")
+    .reduce((s, l) => s + Math.abs(numero(l.valor)), 0);
 
   async function darCredito() {
     const valor = Math.round(numero(valorCredito));

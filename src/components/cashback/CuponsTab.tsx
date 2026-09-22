@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
-  rpcCashback, listaDe, brl, dataBr, dataHoraBr, corStatus, ROTULO_STATUS, type Linha,
+  rpcCashback, listaDe, brl, dataBr, corStatus, ROTULO_STATUS, type Linha,
 } from "@/lib/cashback";
 import { CarregandoBloco, EstadoErro, EstadoVazio } from "./Estados";
 
