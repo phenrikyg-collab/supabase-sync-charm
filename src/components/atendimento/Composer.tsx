@@ -220,7 +220,7 @@ export const Composer = forwardRef<ComposerHandle, Props>(function Composer(
         onPaste={(e) => {
           const itens = Array.from(e.clipboardData?.items ?? []);
           const arquivos = itens
-            .filter((i) => i.kind === "file" && i.type.startsWith("image/"))
+            .filter((i) => i.kind === "file" && (i.type.startsWith("image/") || i.type.startsWith("video/")))
             .map((i) => i.getAsFile())
             .filter((f): f is File => !!f);
           if (arquivos.length === 0) return;
