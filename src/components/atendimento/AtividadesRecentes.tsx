@@ -3,8 +3,9 @@ import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import {
-  Eye, Shirt, ShoppingBag, AlertTriangle, Sparkles, Ticket, Activity, MousePointerClick,
+  Eye, Shirt, ShoppingBag, AlertTriangle, Sparkles, Activity, MousePointerClick,
 } from "lucide-react";
+
 import { chamarRpc } from "@/lib/supabaseRpc";
 
 export type EventoTimeline = {
@@ -20,7 +21,7 @@ export type EventoTimeline = {
   produto_nome?: string | null;
 };
 
-export type CupomCliente = {
+type CupomCliente = {
   origem?: string | null;
   codigo?: string | null;
   criado_em?: string | null;
@@ -29,6 +30,7 @@ export type CupomCliente = {
   expirou_sem_uso?: boolean | null;
   valor_convertido_em_vendas?: number | null;
 };
+
 
 type Categoria = "carrinho" | "provador" | "produto" | "atrito" | "navegacao";
 
@@ -60,29 +62,6 @@ function tempoRelativo(iso?: string | null) {
   return `há ${Math.floor(h / 24)}d`;
 }
 
-function moeda(v?: number | null) {
-  if (v == null) return "";
-  return v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
-}
-
-function dataCurta(v?: string | null) {
-  if (!v) return "";
-  const d = new Date(v);
-  return Number.isNaN(d.getTime()) ? "" : d.toLocaleDateString("pt-BR");
-}
-
-function StatusCupom({ c }: { c: CupomCliente }) {
-  const cfg = c.foi_usado
-    ? { label: "usado", cls: "bg-success/10 text-success border-success/20" }
-    : c.expirou_sem_uso
-      ? { label: "expirado", cls: "bg-danger/10 text-danger border-danger/20" }
-      : { label: "válido", cls: "bg-warning/10 text-warning border-warning/20" };
-  return (
-    <span className={cn("inline-flex rounded-full border px-1.5 py-0.5 text-[10px] font-semibold", cfg.cls)}>
-      {cfg.label}
-    </span>
-  );
-}
 
 export function AtividadesRecentes({ telefone }: { telefone: string }) {
   const [filtro, setFiltro] = useState<Categoria | "todas">("todas");
@@ -109,7 +88,6 @@ export function AtividadesRecentes({ telefone }: { telefone: string }) {
     return lista;
   }, [data]);
 
-  const cupons = data?.cupons ?? [];
 
   const contagens = useMemo(() => {
     const c: Record<string, number> = {};
@@ -199,34 +177,7 @@ export function AtividadesRecentes({ telefone }: { telefone: string }) {
         )}
       </div>
 
-      <div className="space-y-2 border-t border-border p-3">
-        <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-          <Ticket className="h-3.5 w-3.5" />
-          Cupons
-        </p>
-        {cupons.length === 0 && !isLoading && (
-          <p className="text-sm text-muted-foreground">Nenhum cupom emitido</p>
-        )}
-        {cupons.map((c, i) => (
-            <div key={`${c.codigo ?? i}`} className="rounded-md border border-border p-2">
-              <div className="flex items-center justify-between gap-2">
-                <span className="font-mono text-sm font-semibold">{c.codigo ?? "—"}</span>
-                <StatusCupom c={c} />
-              </div>
-              <p className="mt-0.5 text-xs text-muted-foreground">
-                {c.origem ?? "—"}
-                {c.criado_em ? ` · ${dataCurta(c.criado_em)}` : ""}
-                {!c.foi_usado && c.cupom_expira_em ? ` · expira ${dataCurta(c.cupom_expira_em)}` : ""}
-              </p>
-              {c.foi_usado && c.valor_convertido_em_vendas != null && (
-                <p className="text-sm font-semibold text-success">
-                  Venda: {moeda(c.valor_convertido_em_vendas)}
-                </p>
-              )}
-            </div>
-        ))}
-      </div>
-
     </section>
   );
 }
+
