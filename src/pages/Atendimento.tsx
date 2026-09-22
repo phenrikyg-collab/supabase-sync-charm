@@ -1634,9 +1634,12 @@ export default function Atendimento() {
     return null;
   };
 
+  /** Ids temporários únicos e negativos (vários anexos podem sair no mesmo milissegundo). */
+  const idTempRef = useRef(-1);
+
   /** Insere um balão temporário no cache da thread e devolve o id provisório. */
   const inserirMensagemOtimista = (conversaId: string | number, dados: Partial<Mensagem>) => {
-    const idTemp = -Date.now();
+    const idTemp = (idTempRef.current -= 1);
     const chave = ["whatsapp-mensagens", String(conversaId)];
     queryClient.cancelQueries({ queryKey: chave });
     queryClient.setQueryData(chave, (antigas: Mensagem[] = []) => [
