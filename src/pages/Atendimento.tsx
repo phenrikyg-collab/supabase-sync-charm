@@ -3246,7 +3246,9 @@ export default function Atendimento() {
                   setArrastando(false);
                 }}
                 onDrop={(e) => {
-                  const arquivos = Array.from(e.dataTransfer?.files ?? []).filter((f) => f.type.startsWith("image/"));
+                   const arquivos = Array.from(e.dataTransfer?.files ?? []).filter(
+                     (f) => f.type.startsWith("image/") || f.type.startsWith("video/"),
+                   );
                   if (arquivos.length === 0) return;
                   e.preventDefault();
                   setArrastando(false);
