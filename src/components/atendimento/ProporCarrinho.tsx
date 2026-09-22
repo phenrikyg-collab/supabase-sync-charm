@@ -505,8 +505,14 @@ export function FormularioProposta({
             </div>
             <div className="flex justify-between">
               <span>Desconto</span>
-              <span>-{moeda(Number(resultado.desconto ?? paraNumero(desconto)))}</span>
+              <span>-{moeda(paraNumero(desconto))}</span>
             </div>
+            {cashbackEnviado > 0 && (
+              <div className="flex justify-between">
+                <span>Cashback</span>
+                <span>-{moeda(cashbackEnviado)}</span>
+              </div>
+            )}
           </div>
           <div className="flex flex-wrap gap-4 border-t border-border pt-2 text-sm font-semibold text-foreground">
             <span>Total no cartão: {moeda(Number(resultado.total_cartao ?? total))}</span>
