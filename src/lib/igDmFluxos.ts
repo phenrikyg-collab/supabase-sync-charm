@@ -284,6 +284,59 @@ export async function definirFluxoDaLive(id: number | null) {
   };
 }
 
+/* ------------------------------------------------------------------ */
+/* Vários fluxos na mesma live                                         */
+/* ------------------------------------------------------------------ */
+
+export type FluxoNaLive = {
+  fluxo_id: number;
+  nome?: string | null;
+  palavras?: string[] | null;
+  prioridade?: number | null;
+  ativo?: boolean | null;
+};
+
+export type FluxosDaLive = {
+  principal: FluxoNaLive | null;
+  extras: FluxoNaLive[];
+};
+
+export async function listarFluxosDaLive(): Promise<FluxosDaLive> {
+  const { data, error } = await db.rpc("ig_dm_live_fluxos_listar");
+  if (error) throw error;
+  const d: any = Array.isArray(data) ? data[0] : data;
+  return {
+    principal: d?.principal ?? null,
+    extras: Array.isArray(d?.extras) ? d.extras : [],
+  };
+}
+
+export async function vincularFluxoNaLive(p: {
+  p_fluxo_id: number;
+  p_palavras: string[];
+  p_prioridade: number;
+}) {
+  const { data, error } = await db.rpc("ig_dm_live_fluxo_vincular", p);
+  if (error) throw error;
+  return (Array.isArray(data) ? data[0] : data) as {
+    ok: boolean;
+    motivo?: string;
+    erro?: string;
+  };
+}
+
+export async function desvincularFluxoDaLive(fluxoId: number) {
+  const { data, error } = await db.rpc("ig_dm_live_fluxo_desvincular", {
+    p_fluxo_id: fluxoId,
+  });
+  if (error) throw error;
+  return (Array.isArray(data) ? data[0] : data) as {
+    ok: boolean;
+    motivo?: string;
+    erro?: string;
+  };
+}
+
 export async function carregarExecucoes(fluxoId: number): Promise<ExecucaoFluxo[]> {
   const { data, error } = await db
     .from("ig_dm_execucoes")
