@@ -67,7 +67,17 @@ export function LiveTab() {
   const [lives, setLives] = useState<Live[]>([]);
   const [mediaSelecionado, setMediaSelecionado] = useState<string | null>(null);
   const [ultimoComentarioEm, setUltimoComentarioEm] = useState<string | null>(null);
-
+  const [fluxos, setFluxos] = useState<FluxoResumo[]>([]);
+  const [fluxoId, setFluxoId] = useState<number | null>(null);
+  const [forcando, setForcando] = useState(false);
+  const [resultadoForcar, setResultadoForcar] = useState<{
+    ok: boolean;
+    live_no_ar?: boolean;
+    mensagem?: string;
+    avisos?: string[];
+  } | null>(null);
+  const [confirmarArquivar, setConfirmarArquivar] = useState(false);
+  const [arquivando, setArquivando] = useState(false);
 
   const mapaProdutos = useMemo(
     () => new Map(produtos.map((p) => [String(p.produto_id), p])),
@@ -82,6 +92,7 @@ export function LiveTab() {
       .limit(1);
     if (error) throw error;
     const c = (data ?? [])[0] as any;
+    setFluxoId(c?.fluxo_id ?? null);
     setConfig({
       id: c?.id,
       ativo: !!c?.ativo,
@@ -95,6 +106,18 @@ export function LiveTab() {
       ativado_em: c?.ativado_em ?? null,
     });
   }, []);
+
+  const recarregarFluxos = useCallback(async () => {
+    try {
+      setFluxos(await listarFluxos());
+    } catch {
+      /* fluxos podem não existir ainda */
+    }
+  }, []);
+
+  useEffect(() => {
+    recarregarFluxos();
+  }, [recarregarFluxos]);
 
   const carregarComentarios = useCallback(async () => {
     const { data } = await db
