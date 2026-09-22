@@ -203,7 +203,9 @@ export function SeletorLive({
             <span className="h-2 w-2 animate-pulse rounded-full bg-success" /> AO VIVO
           </Badge>
         ) : selecionada ? (
-          <Badge variant="outline">Encerrada</Badge>
+          <Badge variant="outline">
+            {selecionada.status === "arquivada" ? "Arquivada" : "Encerrada"}
+          </Badge>
         ) : null}
 
         {selecionada && !estaAoVivo && (
