@@ -306,6 +306,22 @@ type Citacao = {
   media_url?: string | null;
 };
 
+type EnvioTextoCongelado = {
+  conteudo: string;
+  conversaId: string | number;
+  telefone: string;
+  site: boolean;
+  citacao: Citacao | null;
+  autor: string | null;
+  leadProvador: { leadId: string; conversaId: string } | null;
+};
+
+type DestinoMidiaCongelado = {
+  conversaId: string | number;
+  telefone: string;
+  autor: string | null;
+};
+
 type Mensagem = {
   id?: number | string;
   wamid?: string | null;
@@ -996,8 +1012,6 @@ export default function Atendimento() {
   const [menuBalao, setMenuBalao] = useState<string | null>(null);
   const [destacada, setDestacada] = useState<string | null>(null);
   const balaoRefs = useRef<Record<string, HTMLDivElement | null>>({});
-  /** Guarda a citação usada no envio em curso (o estado é limpo na hora). */
-  const citacaoRef = useRef<Citacao | null>(null);
   /** Controle do toque nos balões: arrastar para a direita responde, segurar abre o menu. */
   const toqueRef = useRef<{ x: number; y: number; timer: ReturnType<typeof setTimeout> | null }>({ x: 0, y: 0, timer: null });
   const [enviandoImagem, setEnviandoImagem] = useState(false);
@@ -1621,9 +1635,9 @@ export default function Atendimento() {
   };
 
   /** Insere um balão temporário no cache da thread e devolve o id provisório. */
-  const inserirMensagemOtimista = (dados: Partial<Mensagem>) => {
+  const inserirMensagemOtimista = (conversaId: string | number, dados: Partial<Mensagem>) => {
     const idTemp = -Date.now();
-    const chave = ["whatsapp-mensagens", selecionada];
+    const chave = ["whatsapp-mensagens", String(conversaId)];
     queryClient.cancelQueries({ queryKey: chave });
     queryClient.setQueryData(chave, (antigas: Mensagem[] = []) => [
       ...(antigas ?? []),
@@ -1638,15 +1652,15 @@ export default function Atendimento() {
     return idTemp;
   };
 
-  const removerMensagemOtimista = useCallback((idTemp: number) => {
-    queryClient.setQueryData(["whatsapp-mensagens", selecionada], (antigas: Mensagem[] = []) =>
+  const removerMensagemOtimista = useCallback((conversaId: string | number, idTemp: number) => {
+    queryClient.setQueryData(["whatsapp-mensagens", String(conversaId)], (antigas: Mensagem[] = []) =>
       (antigas ?? []).filter((m) => m.id !== idTemp),
     );
-  }, [queryClient, selecionada]);
+  }, [queryClient]);
 
   /** Transforma o balão otimista em balão de falha, com o motivo em português. */
-  const marcarMensagemFalhou = (idTemp: number, motivo: string) => {
-    queryClient.setQueryData(["whatsapp-mensagens", selecionada], (antigas: Mensagem[] = []) =>
+  const marcarMensagemFalhou = (conversaId: string | number, idTemp: number, motivo: string) => {
+    queryClient.setQueryData(["whatsapp-mensagens", String(conversaId)], (antigas: Mensagem[] = []) =>
       (antigas ?? []).map((m) =>
         m.id === idTemp
           ? { ...m, enviando: false, status_entrega: "falhou", erro_entrega: motivo, falha_local: true }
@@ -1664,12 +1678,13 @@ export default function Atendimento() {
   const pendentesRef = useRef<Map<number, { timer: ReturnType<typeof setTimeout>; disparar: () => void; cancelar: () => void }>>(new Map());
 
   const agendarComDesfazer = (
+    conversaId: string | number,
     dadosBalao: Partial<Mensagem>,
     executar: () => void,
     devolver: () => void,
   ) => {
-    const chave = ["whatsapp-mensagens", selecionada];
-    const idTemp = inserirMensagemOtimista({
+    const chave = ["whatsapp-mensagens", String(conversaId)];
+    const idTemp = inserirMensagemOtimista(conversaId, {
       ...dadosBalao,
       enviando: false,
       aguardando_ate: Date.now() + SEGUNDOS_DESFAZER * 1000,
@@ -1716,15 +1731,6 @@ export default function Atendimento() {
     return () => window.removeEventListener("beforeunload", aoSair);
   }, [dispararPendentes]);
 
-  /** Reenvia o mesmo texto pelo fluxo normal de envio. */
-  const reenviarMensagem = useCallback((m: Mensagem) => {
-    const conteudo = (m.conteudo ?? "").trim();
-    if (!conteudo) return;
-    if (typeof m.id === "number" && m.id < 0) removerMensagemOtimista(m.id);
-    enviar.mutate(conteudo);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [removerMensagemOtimista]);
-
   const copiarTextoMensagem = useCallback(async (conteudo: string) => {
     try {
       await navigator.clipboard.writeText(conteudo);
@@ -1736,11 +1742,10 @@ export default function Atendimento() {
 
 
   const enviar = useMutation({
-    mutationFn: async (conteudo: string) => {
-      if (!conversaAtual) throw new Error("Nenhuma conversa selecionada");
-      if (ehSite(conversaAtual)) {
+    mutationFn: async ({ conteudo, conversaId, telefone, site, citacao: citada, autor }: EnvioTextoCongelado) => {
+      if (site) {
         const { data, error } = await chamarRpc("whatsapp_registrar_mensagem_humana" as any, {
-          p_conversa_id: conversaAtual.id,
+          p_conversa_id: conversaId,
           p_conteudo: conteudo,
         });
         if (error) throw error;
@@ -1748,24 +1753,21 @@ export default function Atendimento() {
       }
       const { data, error } = await supabase.functions.invoke("whatsapp-enviar-mensagem-humano", {
         body: {
-          conversa_id: conversaAtual.id,
-          telefone: conversaAtual.telefone,
+          conversa_id: conversaId,
+          telefone,
           conteudo,
-          autor: user?.email ?? null,
-          responder_a_id: citacaoRef.current?.id ?? null,
+          autor,
+          responder_a_id: citada?.id ?? null,
         },
       });
       if (error) throw error;
       return data;
     },
-    onMutate: (conteudo: string) => {
-      setErroJanela(null);
-      const citada = citacao;
-      citacaoRef.current = citada;
-      setCitacao(null);
+    onMutate: (envio: EnvioTextoCongelado) => {
+      const citada = envio.citacao;
       return {
-        idTemp: inserirMensagemOtimista({
-          conteudo,
+        idTemp: inserirMensagemOtimista(envio.conversaId, {
+          conteudo: envio.conteudo,
           tipo: "texto",
           citada_id: citada?.id ?? null,
           citada_direcao: citada?.direcao ?? null,
@@ -1773,30 +1775,26 @@ export default function Atendimento() {
           citada_texto: citada?.texto ?? null,
           citada_media_url: citada?.media_url ?? null,
         }),
-        conteudo,
+        envio,
       };
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["whatsapp-mensagens", selecionada] });
+    onSuccess: (_data, envio) => {
+      queryClient.invalidateQueries({ queryKey: ["whatsapp-mensagens", String(envio.conversaId)] });
       // Lead do provador aberto com mensagem pronta: registra o contato no funil
-      if (leadProvador && leadProvador.conversaId === selecionada) {
-        const { leadId, conversaId } = leadProvador;
+      if (envio.leadProvador?.conversaId === String(envio.conversaId)) {
+        const { leadId, conversaId } = envio.leadProvador;
         setLeadProvador(null);
         (supabase as any)
           .rpc("provador_registrar_contato", { p_id: leadId, p_conversa_id: conversaId ?? null })
           .then(() => queryClient.invalidateQueries({ queryKey: ["provador-leads"] }));
       }
     },
-    onError: async (e: any, _conteudo, contexto: any) => {
+    onError: async (e: any, envio, contexto: any) => {
       const janela = await extrairErroJanela(e);
       const motivo = janela ?? e?.message ?? "Não foi possível enviar a mensagem.";
-      if (contexto?.idTemp) marcarMensagemFalhou(contexto.idTemp, motivo);
-      if (contexto?.conteudo && !composerRef.current?.obterTexto().trim()) {
-        composerRef.current?.definirTexto(contexto.conteudo);
-      }
+      if (contexto?.idTemp) marcarMensagemFalhou(envio.conversaId, contexto.idTemp, motivo);
       if (janela) {
-        setErroJanela(janela);
-        queryClient.invalidateQueries({ queryKey: ["whatsapp-janela-24h", selecionada] });
+        queryClient.invalidateQueries({ queryKey: ["whatsapp-janela-24h", String(envio.conversaId)] });
       }
       toast({
         title: "Mensagem não enviada",
@@ -1808,6 +1806,29 @@ export default function Atendimento() {
 
   });
 
+  const congelarEnvioTexto = (conteudo: string, citada: Citacao | null = citacao): EnvioTextoCongelado | null => {
+    if (!conversaAtual) return null;
+    return {
+      conteudo,
+      conversaId: conversaAtual.id,
+      telefone: conversaAtual.telefone_real || conversaAtual.telefone,
+      site: ehSite(conversaAtual),
+      citacao: citada ? { ...citada } : null,
+      autor: user?.email ?? null,
+      leadProvador: leadProvador ? { ...leadProvador } : null,
+    };
+  };
+
+  /** Reenvia o mesmo texto usando uma cópia do destino atual. */
+  const reenviarMensagem = useCallback((m: Mensagem) => {
+    const conteudo = (m.conteudo ?? "").trim();
+    if (!conteudo || !conversaAtual) return;
+    if (typeof m.id === "number" && m.id < 0) removerMensagemOtimista(conversaAtual.id, m.id);
+    const envio = congelarEnvioTexto(conteudo, null);
+    if (envio) enviar.mutate(envio);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [conversaAtual, removerMensagemOtimista]);
+
   const MAX_IMAGENS = 10;
   /** Limites do WhatsApp: 5 MB para imagem, 16 MB para vídeo. */
   const MAX_BYTES_IMAGEM = 5 * 1024 * 1024;
@@ -1815,14 +1836,13 @@ export default function Atendimento() {
   const emMb = (bytes: number) => (bytes / (1024 * 1024)).toFixed(1).replace(".", ",");
 
   const enviarImagem = async (
+    destino: DestinoMidiaCongelado,
     mediaUrl: string,
     conteudo: string,
     responderA?: number | string | null,
     tipo: "imagem" | "video" = "imagem",
   ) => {
-    if (!conversaAtual) throw new Error("Nenhuma conversa selecionada");
-    const telefoneEnvio = conversaAtual.telefone_real || conversaAtual.telefone;
-    const idTemp = inserirMensagemOtimista({
+    const idTemp = inserirMensagemOtimista(destino.conversaId, {
       conteudo,
       tipo,
       media_url: mediaUrl,
@@ -1831,13 +1851,13 @@ export default function Atendimento() {
     try {
       const { data: corpo, error } = await supabase.functions.invoke("whatsapp-enviar-imagem-humano", {
         body: {
-          telefone: telefoneEnvio,
-          conversa_id: conversaAtual.id,
+          telefone: destino.telefone,
+          conversa_id: destino.conversaId,
           tipo: tipo === "video" ? "video" : "image",
           midia_url: mediaUrl,
           imagem_url: tipo === "video" ? undefined : mediaUrl,
           legenda: conteudo || "",
-          autor: user?.email ?? null,
+          autor: destino.autor,
           responder_a_id: responderA ?? null,
         },
       });
@@ -1845,28 +1865,39 @@ export default function Atendimento() {
       if ((corpo as any)?.error) throw new Error((corpo as any).error);
     } catch (e: any) {
       marcarMensagemFalhou(
+        destino.conversaId,
         idTemp,
         e?.message ?? (tipo === "video" ? "Não foi possível enviar o vídeo." : "Não foi possível enviar a imagem."),
       );
       throw e;
     }
-    queryClient.invalidateQueries({ queryKey: ["whatsapp-mensagens", selecionada] });
+    queryClient.invalidateQueries({ queryKey: ["whatsapp-mensagens", String(destino.conversaId)] });
   };
 
   /** Envia texto com a janela de desfazer de 5 segundos. */
   const enviarTextoComDesfazer = (conteudo: string) => {
+    const envio = congelarEnvioTexto(conteudo);
+    if (!envio) return;
+    setErroJanela(null);
+    setCitacao(null);
     agendarComDesfazer(
+      envio.conversaId,
       {
         conteudo,
         tipo: "texto",
-        citada_id: citacao?.id ?? null,
-        citada_direcao: citacao?.direcao ?? null,
-        citada_tipo: citacao?.tipo ?? null,
-        citada_texto: citacao?.texto ?? null,
-        citada_media_url: citacao?.media_url ?? null,
+        citada_id: envio.citacao?.id ?? null,
+        citada_direcao: envio.citacao?.direcao ?? null,
+        citada_tipo: envio.citacao?.tipo ?? null,
+        citada_texto: envio.citacao?.texto ?? null,
+        citada_media_url: envio.citacao?.media_url ?? null,
       },
-      () => enviar.mutate(conteudo),
-      () => composerRef.current?.definirTexto(conteudo),
+      () => enviar.mutate(envio),
+      () => {
+        if (selecionadaRef.current === String(envio.conversaId)) {
+          composerRef.current?.definirTexto(conteudo);
+          setCitacao(envio.citacao);
+        }
+      },
     );
   };
 
@@ -1961,13 +1992,19 @@ export default function Atendimento() {
   };
 
   const confirmarEnvioImagem = async () => {
-    if (imagens.length === 0) return;
+    if (imagens.length === 0 || !conversaAtual) return;
     const fila = imagens;
     const legendaAtual = legenda.trim();
-    const responderA = citacao?.id ?? null;
+    const citacaoCongelada = citacao ? { ...citacao } : null;
+    const destino: DestinoMidiaCongelado = {
+      conversaId: conversaAtual.id,
+      telefone: conversaAtual.telefone_real || conversaAtual.telefone,
+      autor: user?.email ?? null,
+    };
+    setCitacao(null);
     setEnviandoImagem(true);
     setProgressoUpload({ feitos: 0, total: fila.length });
-    const enviados: { item: ItemAnexo; url: string; legenda: string; responderA: number | string | null }[] = [];
+    const enviados: { item: ItemAnexo; url: string; legenda: string; citacao: Citacao | null }[] = [];
     let falhas = 0;
     for (let i = 0; i < fila.length; i++) {
       const item = fila[i];
@@ -1983,7 +2020,7 @@ export default function Atendimento() {
           item,
           url: pub.publicUrl,
           legenda: i === 0 ? legendaAtual : "",
-          responderA: i === 0 ? responderA : null,
+          citacao: i === 0 ? citacaoCongelada : null,
         });
       } catch {
         falhas += 1;
@@ -1992,25 +2029,38 @@ export default function Atendimento() {
     }
     setEnviandoImagem(false);
     setProgressoUpload(null);
-    setCitacao(null);
     setImagens([]);
     setLegenda("");
     for (const env of enviados) {
       agendarComDesfazer(
+        destino.conversaId,
         {
           conteudo: env.legenda,
           tipo: env.item.video ? "video" : "imagem",
           media_url: env.url,
-          citada_id: env.responderA,
+          citada_id: env.citacao?.id ?? null,
+          citada_direcao: env.citacao?.direcao ?? null,
+          citada_tipo: env.citacao?.tipo ?? null,
+          citada_texto: env.citacao?.texto ?? null,
+          citada_media_url: env.citacao?.media_url ?? null,
         },
         () => {
-          void enviarImagem(env.url, env.legenda, env.responderA, env.item.video ? "video" : "imagem").catch(() => {
+          void enviarImagem(
+            destino,
+            env.url,
+            env.legenda,
+            env.citacao?.id ?? null,
+            env.item.video ? "video" : "imagem",
+          ).catch(() => {
             /* a falha já aparece no balão */
           });
         },
         () => {
-          setImagens((atuais) => [...atuais, env.item].slice(0, MAX_IMAGENS));
-          if (env.legenda) setLegenda((atual) => atual || env.legenda);
+          if (selecionadaRef.current === String(destino.conversaId)) {
+            setImagens((atuais) => [...atuais, env.item].slice(0, MAX_IMAGENS));
+            if (env.legenda) setLegenda((atual) => atual || env.legenda);
+            if (env.citacao) setCitacao(env.citacao);
+          }
         },
       );
     }
@@ -2025,8 +2075,14 @@ export default function Atendimento() {
 
 
   const enviarProduto = async (p: ProdutoCatalogo, escolha?: EscolhaProduto) => {
+    if (!conversaAtual) return;
+    const destino: DestinoMidiaCongelado = {
+      conversaId: conversaAtual.id,
+      telefone: conversaAtual.telefone_real || conversaAtual.telefone,
+      autor: user?.email ?? null,
+    };
     try {
-      await enviarImagem(escolha?.imagem || p.imagem || "", legendaProduto(p, escolha));
+      await enviarImagem(destino, escolha?.imagem || p.imagem || "", legendaProduto(p, escolha));
       setCatalogoAberto(false);
       toast({ title: "Produto enviado" });
     } catch (e: any) {
@@ -3315,7 +3371,7 @@ export default function Atendimento() {
                         onAbrirMenu={setMenuBalao}
                         onIrParaMensagem={irParaMensagem}
                         onReenviar={reenviarMensagem}
-                        onDescartar={removerMensagemOtimista}
+                        onDescartar={(id) => removerMensagemOtimista(conversaAtual.id, id)}
                         onEnviarTemplate={abrirTemplate}
                         onDesfazer={desfazerEnvio}
                         onExcluir={setMensagemExcluir}
