@@ -745,6 +745,67 @@ export function FormularioProposta({
         </div>
       </div>
 
+      {mostrarCashback && (
+        <div className="space-y-2 rounded-md border border-border p-3">
+          <div className="flex flex-wrap items-baseline justify-between gap-2">
+            <span className="text-xs font-semibold text-foreground">Cashback da cliente</span>
+            <span className="text-xs text-muted-foreground">
+              Saldo {moeda(saldoCashback)}
+              {contexto?.vence_em ? ` · vence em ${diaMes(contexto.vence_em)}` : ""}
+            </span>
+          </div>
+
+          <div className="space-y-2">
+            {cupons.map((c) => {
+              const valorCupom = Number(c.valor ?? 0);
+              const minimo = Number(c.valor_minimo ?? 0);
+              const atinge = c.atinge !== false;
+              const escolhido = cupomEscolhido != null && String(cupomEscolhido.id) === String(c.id);
+              return (
+                <div
+                  key={String(c.id)}
+                  className={`flex items-center justify-between gap-2 rounded-md border p-2 ${
+                    escolhido ? "border-primary bg-primary/5" : "border-border"
+                  } ${atinge ? "" : "opacity-60"}`}
+                >
+                  <div className="min-w-0">
+                    <p className="truncate text-xs font-medium text-foreground">
+                      {moeda(valorCupom)} · {c.code ?? "-"}
+                    </p>
+                    <p className="text-[11px] text-muted-foreground">
+                      {minimo > 0 ? `vale em compras a partir de ${moeda(minimo)}` : "sem valor mínimo"}
+                    </p>
+                    {!atinge && (
+                      <p className="text-[11px] text-destructive">
+                        faltam {moeda(Number(c.falta ?? 0))} no carrinho
+                      </p>
+                    )}
+                  </div>
+                  {!modoTexto && (
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant={escolhido ? "default" : "outline"}
+                      className="h-7 shrink-0 px-2 text-[11px]"
+                      disabled={!atinge}
+                      onClick={() => setCupomEscolhido(escolhido ? null : c)}
+                    >
+                      {escolhido ? "Usando" : "Usar"}
+                    </Button>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+
+          <p className="text-[11px] text-muted-foreground">
+            {modoTexto
+              ? "Para usar o cashback, envie a proposta pelo WhatsApp."
+              : "O cashback só é baixado quando o pagamento entrar. Se a cliente usar esse cupom no site antes de pagar, o desconto fica por nossa conta."}
+          </p>
+        </div>
+      )}
+
       <div className="space-y-1.5">
         <Label htmlFor="proposta-email">
           {modoTexto ? "E-mail da cliente (obrigatório)" : "E-mail da cliente (opcional)"}
@@ -776,8 +837,14 @@ export function FormularioProposta({
         </div>
         <div className="flex items-center justify-between text-xs text-muted-foreground">
           <span>Desconto</span>
-          <span>-{moeda(paraNumero(desconto))}</span>
+          <span>-{moeda(descontoManual)}</span>
         </div>
+        {cashbackSelecionado > 0 && (
+          <div className="flex items-center justify-between text-xs text-muted-foreground">
+            <span>Cashback</span>
+            <span>-{moeda(cashbackSelecionado)}</span>
+          </div>
+        )}
         <div className="flex items-center justify-between border-t border-border pt-1 text-sm font-semibold text-foreground">
           <span>Total</span>
           <span>{moeda(total)}</span>
