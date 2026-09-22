@@ -313,6 +313,7 @@ type EnvioTextoCongelado = {
   site: boolean;
   citacao: Citacao | null;
   autor: string | null;
+  leadProvador: { leadId: string; conversaId: string } | null;
 };
 
 type DestinoMidiaCongelado = {
@@ -1780,8 +1781,8 @@ export default function Atendimento() {
     onSuccess: (_data, envio) => {
       queryClient.invalidateQueries({ queryKey: ["whatsapp-mensagens", String(envio.conversaId)] });
       // Lead do provador aberto com mensagem pronta: registra o contato no funil
-      if (leadProvador && leadProvador.conversaId === String(envio.conversaId)) {
-        const { leadId, conversaId } = leadProvador;
+      if (envio.leadProvador?.conversaId === String(envio.conversaId)) {
+        const { leadId, conversaId } = envio.leadProvador;
         setLeadProvador(null);
         (supabase as any)
           .rpc("provador_registrar_contato", { p_id: leadId, p_conversa_id: conversaId ?? null })
@@ -1814,6 +1815,7 @@ export default function Atendimento() {
       site: ehSite(conversaAtual),
       citacao: citada ? { ...citada } : null,
       autor: user?.email ?? null,
+      leadProvador: leadProvador ? { ...leadProvador } : null,
     };
   };
 
@@ -1891,8 +1893,10 @@ export default function Atendimento() {
       },
       () => enviar.mutate(envio),
       () => {
-        composerRef.current?.definirTexto(conteudo);
-        setCitacao(envio.citacao);
+        if (selecionadaRef.current === String(envio.conversaId)) {
+          composerRef.current?.definirTexto(conteudo);
+          setCitacao(envio.citacao);
+        }
       },
     );
   };
@@ -2052,9 +2056,11 @@ export default function Atendimento() {
           });
         },
         () => {
-          setImagens((atuais) => [...atuais, env.item].slice(0, MAX_IMAGENS));
-          if (env.legenda) setLegenda((atual) => atual || env.legenda);
-          if (env.citacao) setCitacao(env.citacao);
+          if (selecionadaRef.current === String(destino.conversaId)) {
+            setImagens((atuais) => [...atuais, env.item].slice(0, MAX_IMAGENS));
+            if (env.legenda) setLegenda((atual) => atual || env.legenda);
+            if (env.citacao) setCitacao(env.citacao);
+          }
         },
       );
     }
