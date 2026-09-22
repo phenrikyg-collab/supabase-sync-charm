@@ -3391,12 +3391,16 @@ export default function Atendimento() {
                       <div className="flex flex-wrap items-center gap-2">
                         {imagens.map((img) => (
                           <div key={img.chave} className="relative">
-                            <img src={img.url} alt="Prévia" className="h-16 w-16 rounded object-cover" />
+                            {img.video ? (
+                              <video src={img.url} muted playsInline preload="metadata" className="h-16 w-16 rounded bg-foreground object-cover" />
+                            ) : (
+                              <img src={img.url} alt="Prévia" className="h-16 w-16 rounded object-cover" />
+                            )}
                             <button
                               type="button"
                               className="absolute -right-1.5 -top-1.5 rounded-full border border-border bg-background p-0.5 shadow"
                               onClick={() => removerImagem(img.chave)}
-                              title="Remover imagem"
+                              title="Remover arquivo"
                             >
                               <X className="h-3 w-3" />
                             </button>
