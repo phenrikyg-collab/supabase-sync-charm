@@ -3,8 +3,9 @@ import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import {
-  Eye, Shirt, ShoppingBag, AlertTriangle, Sparkles, Ticket, Activity, MousePointerClick,
+  Eye, Shirt, ShoppingBag, AlertTriangle, Sparkles, Activity, MousePointerClick,
 } from "lucide-react";
+
 import { chamarRpc } from "@/lib/supabaseRpc";
 
 export type EventoTimeline = {
@@ -20,7 +21,7 @@ export type EventoTimeline = {
   produto_nome?: string | null;
 };
 
-export type CupomCliente = {
+type CupomCliente = {
   origem?: string | null;
   codigo?: string | null;
   criado_em?: string | null;
@@ -29,6 +30,7 @@ export type CupomCliente = {
   expirou_sem_uso?: boolean | null;
   valor_convertido_em_vendas?: number | null;
 };
+
 
 type Categoria = "carrinho" | "provador" | "produto" | "atrito" | "navegacao";
 
