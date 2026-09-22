@@ -59,62 +59,6 @@ export function PainelCliente({ customer, onFechar, onAtualizado }: Props) {
 
   const cliente = objetoDe(extrato.cliente ?? extrato);
   const saldo = extrato.saldo;
-  const cupons = listaDe(extrato.cupons);
-  const lancamentos = listaDe(extrato.lancamentos);
-  const cupomAtivo = cupons.find((c) => String(c.status).toLowerCase() === "ativo") ?? null;
-
-  const ativos = cupons.filter((c) => String(c.status).toLowerCase() === "ativo");
-  const somaAtivos = ativos.reduce((s, c) => s + numero(c.valor), 0);
-  const totalUsado = lancamentos
-    .filter((l) => String(l.tipo ?? "") === "debito_uso")
-    .reduce((s, l) => s + Math.abs(numero(l.valor)), 0);
-
-  async function darCredito() {
-    const valor = Math.round(numero(valorCredito));
-    if (valor <= 0) return toast.error("Informe um valor inteiro em reais maior que zero.");
-    if (!motivoCredito.trim()) return toast.error("O motivo é obrigatório.");
-    setSalvando(true);
-    try {
-      await rpcCashback("cashback_emissao_manual", {
-        p_customer: customer,
-        p_valor: valor,
-        p_motivo: motivoCredito.trim(),
-        p_usuario: usuario,
-      });
-      toast.success("Crédito registrado. O cupom é criado na próxima rodada da geração.");
-      setDialogoCredito(false);
-      setValorCredito("");
-      setMotivoCredito("");
-      await carregar();
-      onAtualizado?.();
-    } catch (e: any) {
-      toast.error(e?.message ?? "Não foi possível dar o crédito.");
-    } finally {
-      setSalvando(false);
-    }
-  }
-
-  async function retirarCupom() {
-    if (!cupomRetirar) return;
-    if (!motivoRetirada.trim()) return toast.error("O motivo é obrigatório.");
-    setSalvando(true);
-    try {
-      await rpcCashback("cashback_ajuste_debito", {
-        p_cupom_id: cupomRetirar.id ?? cupomRetirar.cupom_id,
-        p_motivo: motivoRetirada.trim(),
-        p_usuario: usuario,
-      });
-      toast.success("Cupom retirado.");
-      setCupomRetirar(null);
-      setMotivoRetirada("");
-      await carregar();
-      onAtualizado?.();
-    } catch (e: any) {
-      toast.error(e?.message ?? "Não foi possível retirar o cupom.");
-    } finally {
-      setSalvando(false);
-    }
-  }
 
   return (
     <Sheet open={!!customer} onOpenChange={(o) => !o && onFechar()}>
@@ -138,87 +82,21 @@ export function PainelCliente({ customer, onFechar, onAtualizado }: Props) {
           ) : erro ? (
             <EstadoErro mensagem={erro} onTentar={carregar} />
           ) : (
-            <div className="space-y-6">
-              <div className="grid grid-cols-2 gap-3">
-                <div className="rounded-md border p-3">
-                  <p className="text-xs uppercase tracking-wider text-muted-foreground">Cupons ativos</p>
-                  <p className="font-serif text-xl">{ativos.length}</p>
-                  <p className="text-xs text-muted-foreground">{brl(somaAtivos)} disponíveis</p>
-                </div>
-                <div className="rounded-md border p-3">
-                  <p className="text-xs uppercase tracking-wider text-muted-foreground">Total usado</p>
-                  <p className="font-serif text-xl">{brl(totalUsado)}</p>
-                  <p className="text-xs text-muted-foreground">em compras da cliente</p>
-                </div>
-              </div>
-
-              <section>
-                <h3 className="mb-2 text-sm font-medium">Cupons</h3>
-                {cupons.length === 0 ? (
-                  <EstadoVazio titulo="Nenhum cupom para esta cliente." />
-                ) : (
-                  <div className="space-y-2">
-                    {cupons.map((c, i) => (
-                      <div key={c.id ?? i} className="flex items-center justify-between rounded-md border p-3">
-                        <div>
-                          <p className="font-mono text-sm">{c.code ?? "-"}</p>
-                          <p className="text-xs text-muted-foreground">
-                            {brl(c.valor)} · mínimo {brl(c.valor_minimo)} · vale até {dataBr(c.validade)}
-                          </p>
-                          <p className="text-xs text-muted-foreground">
-                            {c.pedido_origem ? `do pedido ${c.pedido_origem}` : "sem pedido de origem"}
-                            {c.pedido_id ? ` · usado no pedido ${c.pedido_id}` : ""}
-                          </p>
-                        </div>
-                        <Badge variant="outline" className={corStatus(c.status)}>
-                          {ROTULO_STATUS[String(c.status).toLowerCase()] ?? c.status}
-                        </Badge>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </section>
-
-              <section>
-                <h3 className="mb-2 text-sm font-medium">Extrato</h3>
-                {lancamentos.length === 0 ? (
-                  <EstadoVazio titulo="Nenhum lançamento registrado." />
-                ) : (
-                  <div className="divide-y rounded-md border">
-                    {lancamentos.map((l, i) => {
-                      const v = valorComSinal(l.tipo, l.valor);
-                      return (
-                        <div key={l.id ?? i} className="flex items-start justify-between gap-3 p-3">
-                          <div className="min-w-0">
-                            <p className="text-sm">{rotuloTipo(l.tipo)}</p>
-                            <p className="truncate text-xs text-muted-foreground">
-                              {dataHoraBr(l.criado_em ?? l.data)}
-                              {l.pedido_id ? ` · pedido ${l.pedido_id}` : ""}
-                              {l.motivo ? ` · ${l.motivo}` : ""}
-                            </p>
-                          </div>
-                          <span className={`shrink-0 text-sm font-medium ${v.negativo ? "text-danger" : "text-success"}`}>
-                            {v.texto}
-                          </span>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </section>
-            </div>
-          )}
-        </div>
-
-        <div className="flex gap-2 border-t p-4">
-          <Button size="sm" onClick={() => setDialogoCredito(true)}>Dar crédito</Button>
-          {cupomAtivo && (
-            <Button size="sm" variant="outline" onClick={() => setCupomRetirar(cupomAtivo)}>
-              Retirar cupom
-            </Button>
+            <ExtratoCashback
+              extrato={extrato}
+              customer={customer}
+              onAtualizado={() => {
+                void carregar();
+                onAtualizado?.();
+              }}
+            />
           )}
         </div>
       </SheetContent>
+    </Sheet>
+  );
+}
+
 
       <Dialog open={dialogoCredito} onOpenChange={setDialogoCredito}>
         <DialogContent>
