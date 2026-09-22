@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "r
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { db, enviarInstagram, marcarConversaLida, marcarTodasLidas, devolverParaAnna, MOTIVOS_409 } from "@/lib/socialCommerce";
+import { encerrarExecucao, execucaoAtivaDaConversa } from "@/lib/igDmFluxos";
 import { tempoRelativo, janelaInfo } from "./comum";
 import { ContextoMensagem } from "./ContextoMensagem";
 import {
@@ -28,6 +29,7 @@ import { toast } from "sonner";
 import {
   Bot, Check, ChevronLeft, ExternalLink, Loader2, Mail, MailCheck, MailOpen, MessageCircle, Pencil,
   SendHorizonal, PanelRightClose, PanelRightOpen, Trash2, AlertTriangle, Inbox, User, MousePointerClick,
+  Workflow,
 } from "lucide-react";
 
 type Conversa = {
@@ -102,13 +104,14 @@ type Mensagem = {
   look_produto_confirmado_id?: string | null;
 };
 
-type Filtro = "nao_lidas" | "janela" | "revisao" | "leads" | "todas";
+type Filtro = "nao_lidas" | "janela" | "revisao" | "leads" | "em_fluxo" | "todas";
 
 const FILTROS: { key: Filtro; label: string }[] = [
   { key: "nao_lidas", label: "Não lidas" },
   { key: "janela", label: "Janela aberta" },
   { key: "revisao", label: "Revisão pendente" },
   { key: "leads", label: "São leads" },
+  { key: "em_fluxo", label: "Em fluxo" },
   { key: "todas", label: "Todas" },
 ];
 
@@ -138,6 +141,8 @@ function ChipStatus({ status }: { status?: string | null }) {
   const s = status.toLowerCase();
   // 'em_atendimento' = uma consultora assumiu; a Anna está fora desta conversa
   const comConsultora = s.includes("em_atendimento");
+  // 'em_fluxo' = a cliente está no meio de um fluxo do Direct; a Anna não responde
+  const emFluxo = s === "em_fluxo";
   const cls = s.includes("escalad")
     ? "bg-warning/10 text-warning border-warning/20"
     : s.includes("resolvid")
@@ -147,7 +152,7 @@ function ChipStatus({ status }: { status?: string | null }) {
         : "bg-muted text-muted-foreground border-border";
   return (
     <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-semibold ${cls}`}>
-      {comConsultora ? "Com a consultora" : status}
+      {comConsultora ? "Com a consultora" : emFluxo ? "Em fluxo" : status}
     </span>
   );
 }
@@ -189,9 +194,10 @@ export function AtendimentoTab() {
   const [carregandoMais, setCarregandoMais] = useState(false);
   const [temMais, setTemMais] = useState(false);
   const [contagens, setContagens] = useState<Record<Filtro, number>>({
-    nao_lidas: 0, janela: 0, revisao: 0, leads: 0, todas: 0,
+    nao_lidas: 0, janela: 0, revisao: 0, leads: 0, em_fluxo: 0, todas: 0,
   });
   const [filtro, setFiltro] = useState<Filtro>("todas");
+  const [saindoDoFluxo, setSaindoDoFluxo] = useState(false);
   const [selId, setSelId] = useState<number | null>(null);
   const [mensagens, setMensagens] = useState<Mensagem[]>([]);
   const [carregandoMsgs, setCarregandoMsgs] = useState(false);
@@ -237,6 +243,7 @@ export function AtendimentoTab() {
     if (f === "janela") q = q.eq("janela_aberta", true);
     if (f === "revisao") q = q.eq("revisao_pendente", true);
     if (f === "leads") q = q.eq("e_lead", true);
+    if (f === "em_fluxo") q = q.eq("status", "em_fluxo");
     return q
       .order("peso", { ascending: false })
       .order("ultima_mensagem_em", { ascending: false });
@@ -262,7 +269,7 @@ export function AtendimentoTab() {
   );
 
   const carregarContagens = useCallback(async () => {
-    const chaves: Filtro[] = ["nao_lidas", "janela", "revisao", "leads", "todas"];
+    const chaves: Filtro[] = ["nao_lidas", "janela", "revisao", "leads", "em_fluxo", "todas"];
     const res = await Promise.all(chaves.map((k) => consulta(k).range(0, 0)));
     setContagens(
       Object.fromEntries(chaves.map((k, i) => [k, res[i].count ?? 0])) as Record<Filtro, number>,
@@ -279,6 +286,28 @@ export function AtendimentoTab() {
     setPendentesAprovacao(new Set((pend ?? []).map((p: any) => p.conversa_id)));
     setCarregando(false);
   }, [carregarPagina, carregarContagens, filtro]);
+
+  /** Encerra o fluxo do Direct desta conversa para a Anna voltar a responder. */
+  const tirarDoFluxo = useCallback(
+    async (conversaId: number) => {
+      setSaindoDoFluxo(true);
+      try {
+        const execucaoId = await execucaoAtivaDaConversa(conversaId);
+        if (!execucaoId) {
+          toast.info("Esta conversa não está mais em um fluxo.");
+        } else {
+          await encerrarExecucao(execucaoId);
+          toast.success("Conversa fora do fluxo. A Anna volta a responder.");
+        }
+        await carregarConversas();
+      } catch (e: any) {
+        toast.error(e?.message ?? "Não foi possível tirar do fluxo.");
+      } finally {
+        setSaindoDoFluxo(false);
+      }
+    },
+    [carregarConversas],
+  );
 
   const carregarMais = useCallback(async () => {
     if (carregandoMais || !temMais) return;
@@ -786,6 +815,22 @@ export function AtendimentoTab() {
                         {janela.expirada ? "Janela de 24h expirada" : `Janela: ${janela.label} restantes`}
                       </span>
                     )}
+                    {conversaSel.status === "em_fluxo" && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-6 gap-1 px-2 text-[10px]"
+                        disabled={saindoDoFluxo}
+                        onClick={() => tirarDoFluxo(conversaSel.id)}
+                      >
+                        {saindoDoFluxo ? (
+                          <Loader2 className="h-3 w-3 animate-spin" />
+                        ) : (
+                          <Workflow className="h-3 w-3" />
+                        )}
+                        Tirar do fluxo
+                      </Button>
+                    )}
                   </div>
                   {/* Escalada mostra o motivo — sem caça ao porquê */}
                   {escalada && motivoEscalada && (
@@ -882,6 +927,7 @@ export function AtendimentoTab() {
                   {mensagens.map((m) => {
                     const saida = m.direcao === "saida";
                     const anna = m.origem === "anna";
+                    const doFluxo = m.origem === "fluxo";
                     return (
                       <div key={m.id} className={`flex ${saida ? "justify-end" : "justify-start"}`}>
                         <div
@@ -896,6 +942,11 @@ export function AtendimentoTab() {
                           {anna && (
                             <span className="inline-flex items-center gap-1 text-[10px] font-semibold opacity-70 mb-0.5">
                               <Bot className="h-3 w-3" /> Anna
+                            </span>
+                          )}
+                          {doFluxo && (
+                            <span className="inline-flex items-center gap-1 text-[10px] font-semibold opacity-70 mb-0.5">
+                              <Workflow className="h-3 w-3" /> Fluxo
                             </span>
                           )}
                           <ContextoMensagem m={m} saida={saida} onConfirmado={confirmarProdutoMsg} />

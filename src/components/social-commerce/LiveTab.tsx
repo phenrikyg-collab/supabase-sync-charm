@@ -11,6 +11,11 @@ import { CampoTags, tempoRelativo } from "./comum";
 import { LiveChat } from "./LiveChat";
 import { SeletorLive } from "./SeletorLive";
 
+import { FluxosTab } from "./dm-fluxo/FluxosTab";
+import {
+  arquivarLiveZerando, definirFluxoDaLive, forcarCapturaLive, listarFluxos, type FluxoResumo,
+} from "@/lib/igDmFluxos";
+
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -19,7 +24,15 @@ import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
-import { AlertTriangle, Loader2, MessageSquare, Package, Radio, Users, Zap } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription,
+  AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
+  AlertTriangle, Archive, CheckCircle2, Info, Loader2, MessageSquare, Package, Radio, Users, Workflow, Zap,
+} from "lucide-react";
 
 type ComentarioLive = {
   comment_id: string;
@@ -54,7 +67,17 @@ export function LiveTab() {
   const [lives, setLives] = useState<Live[]>([]);
   const [mediaSelecionado, setMediaSelecionado] = useState<string | null>(null);
   const [ultimoComentarioEm, setUltimoComentarioEm] = useState<string | null>(null);
-
+  const [fluxos, setFluxos] = useState<FluxoResumo[]>([]);
+  const [fluxoId, setFluxoId] = useState<number | null>(null);
+  const [forcando, setForcando] = useState(false);
+  const [resultadoForcar, setResultadoForcar] = useState<{
+    ok: boolean;
+    live_no_ar?: boolean;
+    mensagem?: string;
+    avisos?: string[];
+  } | null>(null);
+  const [confirmarArquivar, setConfirmarArquivar] = useState(false);
+  const [arquivando, setArquivando] = useState(false);
 
   const mapaProdutos = useMemo(
     () => new Map(produtos.map((p) => [String(p.produto_id), p])),
@@ -69,6 +92,7 @@ export function LiveTab() {
       .limit(1);
     if (error) throw error;
     const c = (data ?? [])[0] as any;
+    setFluxoId(c?.fluxo_id ?? null);
     setConfig({
       id: c?.id,
       ativo: !!c?.ativo,
@@ -82,6 +106,18 @@ export function LiveTab() {
       ativado_em: c?.ativado_em ?? null,
     });
   }, []);
+
+  const recarregarFluxos = useCallback(async () => {
+    try {
+      setFluxos(await listarFluxos());
+    } catch {
+      /* fluxos podem não existir ainda */
+    }
+  }, []);
+
+  useEffect(() => {
+    recarregarFluxos();
+  }, [recarregarFluxos]);
 
   const carregarComentarios = useCallback(async () => {
     const { data } = await db
@@ -226,6 +262,62 @@ export function LiveTab() {
     }
   };
 
+  const forcarCaptura = async () => {
+    setForcando(true);
+    setResultadoForcar(null);
+    try {
+      const r = await forcarCapturaLive(4);
+      setResultadoForcar(r);
+      await Promise.all([carregarConfig(), recarregarLives()]);
+    } catch (e: any) {
+      setResultadoForcar({ ok: false, mensagem: e?.message ?? "Não foi possível falar com o Instagram." });
+    } finally {
+      setForcando(false);
+    }
+  };
+
+  const arquivarEZerar = async () => {
+    setArquivando(true);
+    try {
+      const r = await arquivarLiveZerando(mediaSelecionado ?? config?.media_id_atual ?? null);
+      if (r?.ok === false) throw new Error(r.erro ?? "Não foi possível arquivar a live.");
+      const l = r.live ?? {};
+      toast.success(
+        `Live arquivada: ${l.comentarios ?? 0} comentários, ${l.directs ?? 0} Directs. Painel zerado para a próxima.`,
+        {
+          description:
+            r.fila_cancelada
+              ? `${r.fila_cancelada} comentário(s) saíram da fila de resposta.`
+              : undefined,
+        },
+      );
+      setConfirmarArquivar(false);
+      await Promise.all([carregarConfig(), recarregarLives(), recarregarFluxos()]);
+    } catch (e: any) {
+      toast.error(e?.message ?? "Não foi possível arquivar a live.");
+    } finally {
+      setArquivando(false);
+    }
+  };
+
+  const escolherFluxo = async (valor: string) => {
+    const novo = valor === "__sem" ? null : Number(valor);
+    try {
+      const r = await definirFluxoDaLive(novo);
+      if (r?.ok === false) {
+        toast.error(r.erro || r.motivo || "O fluxo ainda tem erros.", {
+          description: (r.validacao?.erros ?? []).join(" · ") || undefined,
+        });
+        return;
+      }
+      setFluxoId(novo);
+      toast.success(novo ? "Fluxo escolhido para esta live." : "A live volta a usar o texto fixo.");
+      recarregarFluxos();
+    } catch (e: any) {
+      toast.error(e?.message ?? "Não foi possível escolher o fluxo.");
+    }
+  };
+
   const restanteTxt = useMemo(() => restante(config?.expira_em), [config?.expira_em, agora]);
   const problemasDm = problemasTexto(config?.resposta_gatilho_dm);
 
@@ -250,6 +342,84 @@ export function LiveTab() {
 
   return (
     <div className="space-y-4">
+      {/* topo: captura e arquivamento */}
+      <Card>
+        <CardContent className="flex flex-wrap items-center gap-3 p-4">
+          <Button className="gap-1.5" onClick={forcarCaptura} disabled={forcando}>
+            {forcando ? <Loader2 className="h-4 w-4 animate-spin" /> : <Radio className="h-4 w-4" />}
+            Forçar captura da live
+          </Button>
+          <span
+            className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-semibold ${
+              config.ativo && restanteTxt
+                ? "border-success/30 bg-success/10 text-success"
+                : "border-border bg-muted text-muted-foreground"
+            }`}
+          >
+            <span className={`h-2 w-2 rounded-full ${config.ativo && restanteTxt ? "bg-success" : "bg-muted-foreground"}`} />
+            {config.ativo && config.expira_em
+              ? `Automação armada até ${new Date(config.expira_em).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}`
+              : "Automação desligada"}
+          </span>
+          <Button
+            variant="outline"
+            className="ml-auto gap-1.5"
+            onClick={() => setConfirmarArquivar(true)}
+          >
+            <Archive className="h-4 w-4" /> Arquivar live e zerar painel
+          </Button>
+        </CardContent>
+      </Card>
+
+      {resultadoForcar && (
+        <div className="space-y-2">
+          <div
+            className={`flex items-start gap-2 rounded-lg border p-3 text-sm ${
+              resultadoForcar.ok === false
+                ? "border-danger/40 bg-danger/10 text-danger"
+                : resultadoForcar.live_no_ar
+                  ? "border-success/40 bg-success/10 text-success"
+                  : "border-primary/40 bg-primary/10 text-primary"
+            }`}
+          >
+            {resultadoForcar.ok === false ? (
+              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+            ) : resultadoForcar.live_no_ar ? (
+              <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" />
+            ) : (
+              <Info className="mt-0.5 h-4 w-4 shrink-0" />
+            )}
+            <span>{resultadoForcar.mensagem ?? "-"}</span>
+          </div>
+          {(resultadoForcar.avisos ?? []).map((a) => (
+            <p
+              key={a}
+              className="flex items-start gap-2 rounded-lg border border-warning/40 bg-warning/10 p-2.5 text-xs text-warning"
+            >
+              <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" /> {a}
+            </p>
+          ))}
+        </div>
+      )}
+
+      <Tabs defaultValue="live" className="space-y-4">
+        <TabsList className="w-fit">
+          <TabsTrigger value="live">Live</TabsTrigger>
+          <TabsTrigger value="fluxos" className="gap-1.5">
+            <Workflow className="h-3.5 w-3.5" /> Fluxos do Direct
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="fluxos" className="space-y-4">
+          <FluxosTab
+            onMudou={() => {
+              recarregarFluxos();
+              carregarConfig();
+            }}
+          />
+        </TabsContent>
+
+        <TabsContent value="live" className="space-y-4">
       <SeletorLive
         lives={lives}
         selecionada={liveSelecionada}
@@ -261,6 +431,7 @@ export function LiveTab() {
           carregarConfig();
         }}
       />
+
 
       <LiveChat
         config={config}
@@ -406,8 +577,78 @@ export function LiveTab() {
             />
           </CardContent>
         </Card>
+
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <Workflow className="h-4 w-4" /> Fluxo do Direct
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            <Select value={fluxoId != null ? String(fluxoId) : "__sem"} onValueChange={escolherFluxo}>
+              <SelectTrigger>
+                <SelectValue placeholder="Sem fluxo (texto fixo)" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__sem">Sem fluxo (texto fixo)</SelectItem>
+                {fluxos
+                  .filter((f) => f.status === "pronto")
+                  .map((f) => (
+                    <SelectItem key={f.id} value={String(f.id)}>
+                      {f.nome}
+                    </SelectItem>
+                  ))}
+              </SelectContent>
+            </Select>
+            <p className="text-[11px] text-muted-foreground">
+              Com fluxo, a conversa no Direct segue os passos escolhidos. Sem fluxo, a cliente recebe
+              a mensagem fixa acima.
+            </p>
+          </CardContent>
+        </Card>
         </div>
       </div>
+        </TabsContent>
+      </Tabs>
+
+      <AlertDialog open={confirmarArquivar} onOpenChange={setConfirmarArquivar}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Arquivar a live e zerar o painel?</AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-2 text-left">
+                <p>
+                  <strong>Zera:</strong> peças da live, kits, cupom (código, benefício, validade),
+                  palavras-gatilho, texto do Direct, fluxo escolhido e desliga a automação.
+                </p>
+                <p>
+                  <strong>Mantém:</strong> os textos-padrão das respostas públicas (gerais, de dúvida
+                  e de compra) e o ritmo de resposta, como base editável.
+                </p>
+                <p>
+                  <strong>Guarda no histórico da live:</strong> tudo o que foi usado nela.
+                </p>
+                <p>
+                  Comentários desta live que ainda estavam na fila deixam de ser respondidos.
+                </p>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={arquivando}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => {
+                e.preventDefault();
+                arquivarEZerar();
+              }}
+              disabled={arquivando}
+            >
+              {arquivando && <Loader2 className="mr-1 h-4 w-4 animate-spin" />}
+              Arquivar e zerar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 

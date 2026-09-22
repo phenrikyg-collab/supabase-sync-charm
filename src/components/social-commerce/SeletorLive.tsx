@@ -203,7 +203,9 @@ export function SeletorLive({
             <span className="h-2 w-2 animate-pulse rounded-full bg-success" /> AO VIVO
           </Badge>
         ) : selecionada ? (
-          <Badge variant="outline">Encerrada</Badge>
+          <Badge variant="outline">
+            {selecionada.status === "arquivada" ? "Arquivada" : "Encerrada"}
+          </Badge>
         ) : null}
 
         {selecionada && !estaAoVivo && (
@@ -278,6 +280,26 @@ export function SeletorLive({
 
             {selecionada.observacoes && (
               <p className="text-[11px] text-muted-foreground">{selecionada.observacoes}</p>
+            )}
+
+            {selecionada.config_usada && (
+              <div className="rounded-lg border bg-muted/30 p-2.5 text-[11px] text-muted-foreground">
+                <p className="mb-1 font-semibold text-foreground">O que esta live usou</p>
+                <p>Peças: {(selecionada.config_usada.produto_ids ?? []).length || "-"}</p>
+                <p>
+                  Cupom:{" "}
+                  {selecionada.config_usada.cupom?.codigo ??
+                    (typeof selecionada.config_usada.cupom === "string"
+                      ? selecionada.config_usada.cupom
+                      : "-")}
+                </p>
+                <p>
+                  Palavras-gatilho:{" "}
+                  {(selecionada.config_usada.palavras_gatilho ?? []).join(", ") || "-"}
+                </p>
+                <p>Texto do Direct: {selecionada.config_usada.resposta_gatilho_dm || "-"}</p>
+                <p>Fluxo: {selecionada.config_usada.fluxo_id ?? "-"}</p>
+              </div>
             )}
           </CardContent>
         </Card>
