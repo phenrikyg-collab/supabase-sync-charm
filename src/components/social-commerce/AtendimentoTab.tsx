@@ -266,7 +266,7 @@ export function AtendimentoTab() {
   );
 
   const carregarContagens = useCallback(async () => {
-    const chaves: Filtro[] = ["nao_lidas", "janela", "revisao", "leads", "todas"];
+    const chaves: Filtro[] = ["nao_lidas", "janela", "revisao", "leads", "em_fluxo", "todas"];
     const res = await Promise.all(chaves.map((k) => consulta(k).range(0, 0)));
     setContagens(
       Object.fromEntries(chaves.map((k, i) => [k, res[i].count ?? 0])) as Record<Filtro, number>,
