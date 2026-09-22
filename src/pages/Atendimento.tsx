@@ -1853,6 +1853,54 @@ export default function Atendimento() {
     queryClient.invalidateQueries({ queryKey: ["whatsapp-mensagens", selecionada] });
   };
 
+  /** Envia texto com a janela de desfazer de 5 segundos. */
+  const enviarTextoComDesfazer = (conteudo: string) => {
+    agendarComDesfazer(
+      {
+        conteudo,
+        tipo: "texto",
+        citada_id: citacao?.id ?? null,
+        citada_direcao: citacao?.direcao ?? null,
+        citada_tipo: citacao?.tipo ?? null,
+        citada_texto: citacao?.texto ?? null,
+        citada_media_url: citacao?.media_url ?? null,
+      },
+      () => enviar.mutate(conteudo),
+      () => composerRef.current?.definirTexto(conteudo),
+    );
+  };
+
+  /** Tira a mensagem do painel. A cliente pode continuar vendo no WhatsApp dela. */
+  const confirmarExclusaoMensagem = async () => {
+    const alvo = mensagemExcluir;
+    setMensagemExcluir(null);
+    if (!alvo || alvo.id == null) return;
+    const idAlvo = alvo.id;
+    const { data, error } = await chamarRpc("whatsapp_mensagem_excluir" as any, {
+      p_mensagem_id: typeof idAlvo === "string" && !Number.isNaN(Number(idAlvo)) ? Number(idAlvo) : idAlvo,
+      p_por: user?.email ?? null,
+    });
+    const resposta = (Array.isArray(data) ? data[0] : data) as
+      | { ok?: boolean; cliente_ainda_ve?: boolean; motivo?: string }
+      | null;
+    if (error || !resposta?.ok) {
+      toast({
+        title: "Não foi possível excluir",
+        description: error?.message ?? resposta?.motivo ?? "-",
+        variant: "destructive",
+      });
+      return;
+    }
+    queryClient.setQueryData(["whatsapp-mensagens", selecionada], (antigas: Mensagem[] = []) =>
+      (antigas ?? []).filter((m) => String(m.id) !== String(idAlvo)),
+    );
+    toast({
+      title: resposta.cliente_ainda_ve
+        ? "Excluída do painel. A cliente ainda vê no WhatsApp."
+        : "Mensagem excluída.",
+    });
+  };
+
   /** Acrescenta imagens e vídeos à faixa de pré-visualização, respeitando limites. */
   const adicionarImagens = (lista: File[]) => {
     const validas: ItemAnexo[] = [];
