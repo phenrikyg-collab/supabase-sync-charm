@@ -984,7 +984,9 @@ export default function Atendimento() {
   const composerRef = useRef<ComposerHandle>(null);
   const [digitando, setDigitando] = useState(false);
   const [catalogoAberto, setCatalogoAberto] = useState(false);
-  const [imagens, setImagens] = useState<{ chave: string; file: File; url: string }[]>([]);
+  const [imagens, setImagens] = useState<ItemAnexo[]>([]);
+  const [progressoUpload, setProgressoUpload] = useState<{ feitos: number; total: number } | null>(null);
+  const [mensagemExcluir, setMensagemExcluir] = useState<Mensagem | null>(null);
   const [legenda, setLegenda] = useState("");
   const [citacao, setCitacao] = useState<Citacao | null>(null);
   const [arrastando, setArrastando] = useState(false);
