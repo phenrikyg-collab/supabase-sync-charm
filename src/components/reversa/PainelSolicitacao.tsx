@@ -17,6 +17,7 @@ import {
 import { Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { AvisoCashbackUsado } from "./AvisoCashbackUsado";
+import { AcoesTroca } from "./AcoesTroca";
 import {
   CONDICOES,
   DESTINOS,
@@ -128,6 +129,7 @@ export function PainelSolicitacao({
   const itens: any[] = s.itens ?? [];
   const eventos: any[] = s.linha_do_tempo ?? s.eventos ?? [];
   const ehTroca = /troc/i.test(String(s.preferencia ?? ""));
+  const ehTrocaExata = String(s.preferencia ?? "") === "troca";
   const chegou = Boolean(s.chegou ?? /entregue|recebid|conferi/i.test(String(s.status ?? "")));
   const escolha: Record<string, any> | null = s.escolha_troca ?? null;
   const docCliente = String(s.cliente?.documento ?? s.cliente_documento ?? "").replace(/\D/g, "");
