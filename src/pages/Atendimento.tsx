@@ -331,6 +331,9 @@ type Mensagem = {
   aguardando_ate?: number;
 };
 
+/** Arquivo escolhido para envio (imagem ou vídeo), ainda na pré-visualização. */
+type ItemAnexo = { chave: string; file: File; url: string; video: boolean };
+
 /** Contagem regressiva do envio adiado, com o botão de desfazer. */
 function ContagemDesfazer({ ate, onDesfazer }: { ate: number; onDesfazer: () => void }) {
   const calcular = () => Math.max(0, Math.ceil((ate - Date.now()) / 1000));
