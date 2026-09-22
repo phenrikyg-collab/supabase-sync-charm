@@ -128,7 +128,7 @@ export function PainelCliente({ customer, onFechar, onAtualizado }: Props) {
           </div>
           <div className="pt-2">
             <span className="text-xs uppercase tracking-wider text-muted-foreground">Saldo</span>
-            <p className="font-serif text-2xl text-primary">{brl(cliente.saldo)}</p>
+            <p className="font-serif text-2xl text-primary">{brl(saldo)}</p>
           </div>
         </SheetHeader>
 
