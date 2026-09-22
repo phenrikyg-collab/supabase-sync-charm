@@ -37,7 +37,7 @@ import {
 import { TagsConversa, TagChip, type Tag } from "@/components/atendimento/TagsConversa";
 import { CatalogoDialog, formatarPreco, legendaProduto, type ProdutoCatalogo, type EscolhaProduto } from "@/components/atendimento/CatalogoDialog";
 import { PerfilCliente } from "@/components/atendimento/PerfilCliente";
-import { CuponsCliente } from "@/components/atendimento/CuponsCliente";
+import { CashbackConversa, SeloCashback, BotaoEnviarCupom } from "@/components/atendimento/CashbackConversa";
 import { AtividadesRecentes } from "@/components/atendimento/AtividadesRecentes";
 
 import { CobrancaPixDialog, CobrancasTab } from "@/components/atendimento/CobrancaPix";
@@ -3136,6 +3136,14 @@ export default function Atendimento() {
                     </Button>
                   )}
                   {nomeSoDoWhatsApp(conversaAtual) && <BadgeViaWhatsApp />}
+                  <SeloCashback
+                    telefone={telefoneIdentificado}
+                    onAbrir={() => {
+                      if (isMobile) setPerfilSheet(true);
+                      else setPerfilAberto(true);
+                    }}
+                  />
+
                   <div className="max-w-full truncate text-[11px] text-muted-foreground md:hidden">
                     {conversaAtual.status === "escalado" ? "Aguardando atendimento" : conversaAtual.status === "em_atendimento" ? "Em atendimento" : conversaAtual.status === "resolvido" ? "Resolvida" : "Atendimento automático"}
                   </div>
@@ -3552,6 +3560,8 @@ export default function Atendimento() {
                     onAbrirTemplate={abrirTemplate}
                     onDigitandoMudou={setDigitando}
                     mobile={isMobile}
+                    acoes={<BotaoEnviarCupom telefone={telefoneIdentificado} onTexto={usarTextoPronto} />}
+                    acoesMobile={<BotaoEnviarCupom telefone={telefoneIdentificado} onTexto={usarTextoPronto} mobile />}
                     figurinhas={
                       !ehSite(conversaAtual) ? (
                         <SeletorFigurinhas
@@ -3587,7 +3597,7 @@ export default function Atendimento() {
             <Coluna ajustavel={colunasAjustaveis} id="painel" order={3} defaultSize={largurasIniciais[2]} minSize={18} maxSize={45}>
               <aside className="hidden h-full min-h-0 w-full min-w-0 shrink-0 flex-col overflow-hidden border-l border-border p-3 pb-8 lg:flex">
                 <Card className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain">
-                  {telefoneIdentificado && <CuponsCliente telefone={telefoneIdentificado} />}
+                  {telefoneIdentificado && <CashbackConversa telefone={telefoneIdentificado} />}
                   <PerfilCliente conversaId={conversaAtual.id} autor={autor} telefone={conversaAtual.telefone} />
 
                   {telefoneIdentificado && (
@@ -3640,7 +3650,7 @@ export default function Atendimento() {
                 )}
                 {isMobile && <AvisosFila />}
                 <Card>
-                  {telefoneIdentificado && <CuponsCliente telefone={telefoneIdentificado} />}
+                  {telefoneIdentificado && <CashbackConversa telefone={telefoneIdentificado} />}
                   <PerfilCliente conversaId={conversaAtual.id} autor={autor} telefone={conversaAtual.telefone} />
 
                   {telefoneIdentificado && <ProvadorBloco telefone={telefoneIdentificado} onUsarTexto={usarTextoPronto} />}
