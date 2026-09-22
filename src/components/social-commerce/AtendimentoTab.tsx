@@ -292,24 +292,11 @@ export function AtendimentoTab() {
     async (conversaId: number) => {
       setSaindoDoFluxo(true);
       try {
-        const { data: execs, error } = await db
-          .from("ig_dm_execucoes")
-          .select("id")
-          .eq("conversa_id", conversaId)
-          .in("estado", ["ativo", "aguardando"])
-          .order("criado_em", { ascending: false })
-          .limit(1);
-        if (error) throw error;
-        const execucaoId = (execs ?? [])[0]?.id;
+        const execucaoId = await execucaoAtivaDaConversa(conversaId);
         if (!execucaoId) {
           toast.info("Esta conversa não está mais em um fluxo.");
         } else {
-          const data = await invokeEdgeFunction("instagram-dm-fluxo", {
-            acao: "encerrar",
-            execucao_id: execucaoId,
-            motivo: "encerrado no painel",
-          });
-          if ((data as any)?.ok === false) throw new Error((data as any)?.erro ?? "Não deu certo.");
+          await encerrarExecucao(execucaoId);
           toast.success("Conversa fora do fluxo. A Anna volta a responder.");
         }
         await carregarConversas();
