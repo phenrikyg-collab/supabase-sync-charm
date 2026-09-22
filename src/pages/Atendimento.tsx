@@ -878,31 +878,48 @@ const BalaoMensagem = memo(function BalaoMensagem({
                                   <Button size="sm" variant="ghost" className="h-7 px-2 text-xs" onClick={() => onCopiar(m.conteudo ?? "")}>
                                     Copiar texto
                                   </Button>
-                                  {m.falha_local && (
-                                    <Button
-                                      size="sm"
-                                      variant="ghost"
-                                      className="h-7 px-2 text-xs"
-                                      onClick={() => typeof m.id === "number" && onDescartar(m.id)}
-                                    >
-                                      Descartar
-                                    </Button>
-                                  )}
-                                </div>
-                              </div>
-                            )}
+                                   {m.falha_local ? (
+                                     <Button
+                                       size="sm"
+                                       variant="ghost"
+                                       className="h-7 px-2 text-xs"
+                                       onClick={() => typeof m.id === "number" && onDescartar(m.id)}
+                                     >
+                                       Descartar
+                                     </Button>
+                                   ) : (
+                                     <Button
+                                       size="sm"
+                                       variant="ghost"
+                                       className="h-7 px-2 text-xs text-danger hover:text-danger"
+                                       onClick={() => onExcluir(m)}
+                                     >
+                                       <Trash2 className="mr-1 h-3 w-3" />
+                                       Excluir
+                                     </Button>
+                                   )}
+                                 </div>
+                               </div>
+                             )}
 
-                            <div className="flex items-center justify-end gap-1 mt-1">
-                              <span className="text-[10px] text-muted-foreground">
-                                {horaCurta(m.criada_em ?? m.criado_em ?? m.enviado_em)}
-                              </span>
-                              {saida && m.enviando && (
-                                <Clock className="h-3 w-3 text-muted-foreground" aria-label="Enviando" />
-                              )}
-                              {saida && !m.enviando && (
-                                <StatusEntrega status={m.status_entrega} erro={m.erro_entrega} />
-                              )}
-                            </div>
+                             {aguardando && (
+                               <ContagemDesfazer
+                                 ate={m.aguardando_ate as number}
+                                 onDesfazer={() => typeof m.id === "number" && onDesfazer(m.id)}
+                               />
+                             )}
+
+                             <div className="flex items-center justify-end gap-1 mt-1">
+                               <span className="text-[10px] text-muted-foreground">
+                                 {horaCurta(m.criada_em ?? m.criado_em ?? m.enviado_em)}
+                               </span>
+                               {saida && !aguardando && m.enviando && (
+                                 <Clock className="h-3 w-3 text-muted-foreground" aria-label="Enviando" />
+                               )}
+                               {saida && !aguardando && !m.enviando && (
+                                 <StatusEntrega status={m.status_entrega} erro={m.erro_entrega} />
+                               )}
+                             </div>
                           </div>
                         </div>
                       </div>
