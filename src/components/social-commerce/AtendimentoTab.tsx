@@ -138,6 +138,8 @@ function ChipStatus({ status }: { status?: string | null }) {
   const s = status.toLowerCase();
   // 'em_atendimento' = uma consultora assumiu; a Anna está fora desta conversa
   const comConsultora = s.includes("em_atendimento");
+  // 'em_fluxo' = a cliente está no meio de um fluxo do Direct; a Anna não responde
+  const emFluxo = s === "em_fluxo";
   const cls = s.includes("escalad")
     ? "bg-warning/10 text-warning border-warning/20"
     : s.includes("resolvid")
@@ -147,7 +149,7 @@ function ChipStatus({ status }: { status?: string | null }) {
         : "bg-muted text-muted-foreground border-border";
   return (
     <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-semibold ${cls}`}>
-      {comConsultora ? "Com a consultora" : status}
+      {comConsultora ? "Com a consultora" : emFluxo ? "Em fluxo" : status}
     </span>
   );
 }
