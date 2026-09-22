@@ -224,7 +224,7 @@ export function CalcularFreteDialog({
 }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent className="font-whatsapp sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Calcular frete</DialogTitle>
           <DialogDescription>

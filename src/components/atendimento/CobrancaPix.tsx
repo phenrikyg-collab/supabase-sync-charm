@@ -279,7 +279,7 @@ export function CobrancaPixDialog({
         }
       }}
     >
-      <DialogContent className="sm:max-w-sm">
+      <DialogContent className="font-whatsapp sm:max-w-sm">
         <DialogHeader>
           <DialogTitle>Gerar cobrança Pix</DialogTitle>
           <DialogDescription>

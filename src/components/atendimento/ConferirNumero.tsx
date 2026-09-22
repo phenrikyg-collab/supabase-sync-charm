@@ -159,7 +159,7 @@ export function ConferirNumeroDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[90vh] w-[calc(100vw-1.5rem)] max-w-md overflow-y-auto sm:w-full">
+      <DialogContent className="font-whatsapp max-h-[90vh] w-[calc(100vw-1.5rem)] max-w-md overflow-y-auto sm:w-full">
         <DialogHeader>
           <DialogTitle>Conferir número</DialogTitle>
           <DialogDescription>

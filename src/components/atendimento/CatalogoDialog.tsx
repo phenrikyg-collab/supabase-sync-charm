@@ -298,7 +298,7 @@ export function CatalogoDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl">
+      <DialogContent className="font-whatsapp max-w-2xl">
         <DialogHeader>
           <DialogTitle>{aberto ? "Escolher a cor" : "Catálogo de produtos"}</DialogTitle>
         </DialogHeader>

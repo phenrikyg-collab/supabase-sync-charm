@@ -167,7 +167,7 @@ export function NovaConversaDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
+      <DialogContent className="font-whatsapp max-w-lg max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Nova conversa</DialogTitle>
           <DialogDescription>
