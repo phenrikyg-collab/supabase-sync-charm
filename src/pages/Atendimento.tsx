@@ -3560,6 +3560,8 @@ export default function Atendimento() {
                     onAbrirTemplate={abrirTemplate}
                     onDigitandoMudou={setDigitando}
                     mobile={isMobile}
+                    acoes={<BotaoEnviarCupom telefone={telefoneIdentificado} onTexto={usarTextoPronto} />}
+                    acoesMobile={<BotaoEnviarCupom telefone={telefoneIdentificado} onTexto={usarTextoPronto} mobile />}
                     figurinhas={
                       !ehSite(conversaAtual) ? (
                         <SeletorFigurinhas

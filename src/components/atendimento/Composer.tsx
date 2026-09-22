@@ -27,6 +27,9 @@ type Props = {
   /** Avisa o pai só quando a caixa passa de vazia para escrita (e o contrário). */
   onDigitandoMudou?: (digitando: boolean) => void;
   figurinhas?: ReactNode;
+  /** Botões extras da barra de ações (ex.: enviar cupom). */
+  acoes?: ReactNode;
+  acoesMobile?: ReactNode;
   mobile?: boolean;
 };
 
@@ -35,7 +38,7 @@ type Props = {
  * digitar não repinte a lista de conversas, as mensagens nem o perfil.
  */
 export const Composer = forwardRef<ComposerHandle, Props>(function Composer(
-  { onEnviar, onImagens, onAbrirCatalogo, onAbrirTemplate, onDigitandoMudou, figurinhas, mobile = false },
+  { onEnviar, onImagens, onAbrirCatalogo, onAbrirTemplate, onDigitandoMudou, figurinhas, acoes, acoesMobile, mobile = false },
   ref,
 ) {
   const [texto, setTexto] = useState("");
@@ -184,6 +187,7 @@ export const Composer = forwardRef<ComposerHandle, Props>(function Composer(
                   <Zap className="h-4 w-4" />
                   Respostas rápidas
                 </Button>
+                {acoesMobile}
               </div>
               {rapidasAbertas && (
                 <div className="mt-3 overflow-hidden rounded-md border border-border">
@@ -211,6 +215,7 @@ export const Composer = forwardRef<ComposerHandle, Props>(function Composer(
             <FileText className="h-4 w-4" />
           </Button>
           <BotaoRespostasRapidas onEscolher={inserirResposta} />
+          {acoes}
         </>
       )}
       <Textarea
