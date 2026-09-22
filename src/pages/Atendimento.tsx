@@ -37,7 +37,9 @@ import {
 import { TagsConversa, TagChip, type Tag } from "@/components/atendimento/TagsConversa";
 import { CatalogoDialog, formatarPreco, legendaProduto, type ProdutoCatalogo, type EscolhaProduto } from "@/components/atendimento/CatalogoDialog";
 import { PerfilCliente } from "@/components/atendimento/PerfilCliente";
+import { CuponsCliente } from "@/components/atendimento/CuponsCliente";
 import { AtividadesRecentes } from "@/components/atendimento/AtividadesRecentes";
+
 import { CobrancaPixDialog, CobrancasTab } from "@/components/atendimento/CobrancaPix";
 import { LinksPagamentoTab } from "@/components/atendimento/LinksPagamento";
 import { CobrancasConversa } from "@/components/atendimento/CobrancasConversa";
