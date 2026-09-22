@@ -712,6 +712,9 @@ const BalaoMensagem = memo(function BalaoMensagem({
                     const otimista = typeof m.id === "number" && m.id < 0;
                     const podeCitar = !kora && !otimista && m.id != null;
                     const temCitada = m.citada_id != null || !!m.citada_texto;
+                    const aguardando = typeof m.aguardando_ate === "number";
+                    const podeExcluir = saida && !aguardando && !otimista && m.id != null;
+                    
                     
 
                     return (
