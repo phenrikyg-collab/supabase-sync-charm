@@ -88,7 +88,6 @@ export function AtividadesRecentes({ telefone }: { telefone: string }) {
     return lista;
   }, [data]);
 
-  const cupons = data?.cupons ?? [];
 
   const contagens = useMemo(() => {
     const c: Record<string, number> = {};
