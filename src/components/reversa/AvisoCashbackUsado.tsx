@@ -15,7 +15,7 @@ export function AvisoCashbackUsado({ dados }: { dados: DadosCashbackUsado }) {
       dados.cashback_usado_valor == null || dados.cashback_usado_valor === "") return null;
 
   return (
-    <Badge variant="outline" className="h-auto max-w-full whitespace-normal border-danger/30 bg-danger/15 py-1 text-left text-danger">
+    <Badge variant="outline" className="h-auto max-w-xs whitespace-normal border-danger/30 bg-danger/15 py-1 text-left text-danger">
       Cashback já usado: {brl(dados.cashback_usado_valor)} (cupom {dados.cashback_usado_cupom || "-"} no pedido {dados.cashback_usado_pedido || "-"}). Descontar do reembolso.
     </Badge>
   );

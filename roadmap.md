@@ -27,6 +27,7 @@
 27. [ ] Rodar verificação de tipos e revisar tarefas abertas
 - [x] 28 Reformular Acompanhamento de envios: sem valores em R$, KPIs do mês com enviados sem data, aba Pedidos do mês, postagem e rastreio
 - [x] 29 Ordem de corte a partir do pedido e impressão da OC em /ordens-corte/:id/imprimir
-- [ ] Sinalizar cashback usado nas listas e detalhes de reembolso da Reversa, incluindo os campos nas respostas da lista
-- [ ] Rotular cupons em análise com cor âmbar em Cashback e Atendimento
-- [ ] Validar e publicar os ajustes de Reversa e Cashback
+- [x] Preparar aviso de cashback usado nas listas e detalhes de reembolso da Reversa
+- [ ] Incluir cashback_usado_cupom, cashback_usado_valor e cashback_usado_pedido nas RPCs externas das listas e detalhe da Reversa (acesso ao banco externo indisponível)
+- [x] Rotular cupons em análise com cor âmbar em Cashback e Atendimento
+- [ ] Validar publicação dos ajustes de Reversa e Cashback
