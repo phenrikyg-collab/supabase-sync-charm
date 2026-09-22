@@ -303,10 +303,11 @@ export function AtendimentoTab() {
         if (!execucaoId) {
           toast.info("Esta conversa não está mais em um fluxo.");
         } else {
-          const { data, error: erroFn } = await supabase.functions.invoke("instagram-dm-fluxo", {
-            body: { acao: "encerrar", execucao_id: execucaoId, motivo: "encerrado no painel" },
+          const data = await invokeEdgeFunction("instagram-dm-fluxo", {
+            acao: "encerrar",
+            execucao_id: execucaoId,
+            motivo: "encerrado no painel",
           });
-          if (erroFn) throw erroFn;
           if ((data as any)?.ok === false) throw new Error((data as any)?.erro ?? "Não deu certo.");
           toast.success("Conversa fora do fluxo. A Anna volta a responder.");
         }
