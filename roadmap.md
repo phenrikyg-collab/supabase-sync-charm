@@ -31,5 +31,5 @@
 - [ ] Incluir cashback_usado_cupom, cashback_usado_valor e cashback_usado_pedido nas RPCs externas das listas e detalhe da Reversa (acesso ao banco externo indisponível)
 - [x] Rotular cupons em análise com cor âmbar em Cashback e Atendimento
 - [ ] Validar publicação dos ajustes de Reversa e Cashback
-- [ ] Recolher Cashback, Cupons e Extrato no Atendimento, lembrando cada estado no navegador
-- [ ] Aplicar fonte WhatsApp só à tela de Atendimento e verificar os tipos
+- [x] Recolher Cashback, Cupons e Extrato no Atendimento, lembrando cada estado no navegador
+- [x] Aplicar fonte WhatsApp só à tela de Atendimento e verificar os tipos
