@@ -838,9 +838,23 @@ const BalaoMensagem = memo(function BalaoMensagem({
                                   <Copy className="mr-1 h-3 w-3" />
                                   Copiar texto
                                 </Button>
-                                <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => onAbrirMenu(null)} title="Fechar">
-                                  <X className="h-3 w-3" />
-                                </Button>
+                                 {podeExcluir && (
+                                   <Button
+                                     size="sm"
+                                     variant="ghost"
+                                     className="h-7 px-2 text-xs text-danger hover:text-danger"
+                                     onClick={() => {
+                                       onAbrirMenu(null);
+                                       onExcluir(m);
+                                     }}
+                                   >
+                                     <Trash2 className="mr-1 h-3 w-3" />
+                                     Excluir
+                                   </Button>
+                                 )}
+                                 <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => onAbrirMenu(null)} title="Fechar">
+                                   <X className="h-3 w-3" />
+                                 </Button>
                               </div>
                             )}
 
