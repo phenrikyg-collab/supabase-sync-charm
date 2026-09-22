@@ -3411,7 +3411,7 @@ export default function Atendimento() {
                             type="button"
                             className="flex h-16 w-16 items-center justify-center rounded border border-dashed border-border text-muted-foreground hover:bg-accent"
                             onClick={() => composerRef.current?.abrirArquivos()}
-                            title="Adicionar mais imagens"
+                            title="Adicionar mais arquivos"
                           >
                             <Plus className="h-5 w-5" />
                           </button>
@@ -3420,16 +3420,31 @@ export default function Atendimento() {
                       <Input
                         value={legenda}
                         onChange={(e) => setLegenda(e.target.value)}
-                        placeholder="Legenda (opcional, vai só na primeira imagem)"
+                        placeholder="Legenda (opcional, vai só no primeiro arquivo)"
                         className="h-8 text-xs"
                       />
+                      {progressoUpload && (
+                        <div className="space-y-1">
+                          <p className="text-[11px] text-muted-foreground">
+                            Preparando {progressoUpload.feitos} de {progressoUpload.total}…
+                          </p>
+                          <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
+                            <div
+                              className="h-full bg-primary transition-all"
+                              style={{ width: `${Math.round((progressoUpload.feitos / progressoUpload.total) * 100)}%` }}
+                            />
+                          </div>
+                        </div>
+                      )}
                       <div className="flex gap-2">
                         <Button size="sm" onClick={confirmarEnvioImagem} disabled={enviandoImagem}>
                           {enviandoImagem
                             ? "Enviando…"
                             : imagens.length > 1
-                              ? `Enviar ${imagens.length} imagens`
-                              : "Enviar imagem"}
+                              ? `Enviar ${imagens.length} arquivos`
+                              : imagens[0]?.video
+                                ? "Enviar vídeo"
+                                : "Enviar imagem"}
                         </Button>
                         <Button size="sm" variant="ghost" onClick={limparPreview} disabled={enviandoImagem}>
                           <X className="h-4 w-4 mr-1" />
