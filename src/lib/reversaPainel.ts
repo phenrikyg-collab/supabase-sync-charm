@@ -160,6 +160,38 @@ export async function correios(acao: "autorizar" | "revalidar" | "cancelar", sol
   return data;
 }
 
+const FUNCOES_URL = "https://ezdtulcrqzmgocamjwwl.supabase.co/functions/v1";
+
+/** Chama uma edge function da reversa com a sessão de quem está logado.
+ *  Devolve o corpo e o status para o painel tratar 409 como aviso. */
+export async function funcaoTroca(
+  nome: "reversa-troca-cupom" | "reversa-troca-bling",
+  corpo: { acao: "simular" | "criar"; solicitacao_id: string },
+): Promise<{ status: number; dados: any }> {
+  const { data } = await supabase.auth.getSession();
+  const token = data?.session?.access_token;
+  const resposta = await fetch(`${FUNCOES_URL}/${nome}`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token ?? ""}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(corpo),
+  });
+  let dados: any = null;
+  try {
+    dados = await resposta.json();
+  } catch {
+    dados = null;
+  }
+  return { status: resposta.status, dados };
+}
+
+/** Mensagem de erro do backend, sem traduzir nem resumir. */
+export function mensagemBackend(dados: any, padrao = "Não deu certo") {
+  return String(dados?.erro ?? dados?.error ?? dados?.mensagem ?? dados?.message ?? padrao);
+}
+
 /** URL assinada das fotos enviadas pela cliente (bucket privado). */
 export async function urlFoto(caminho: string): Promise<string> {
   const limpo = caminho.replace(new RegExp(`^${BUCKET_FOTOS}/`), "");
