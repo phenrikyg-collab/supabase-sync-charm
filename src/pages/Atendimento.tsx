@@ -2516,7 +2516,7 @@ export default function Atendimento() {
         </div>
 
         <Sheet open={maisAbasAberto} onOpenChange={setMaisAbasAberto}>
-          <SheetContent side="bottom" className="max-h-[75dvh] rounded-t-lg px-4 pb-[calc(1rem+env(safe-area-inset-bottom))] pt-5">
+           <SheetContent side="bottom" className="font-whatsapp max-h-[75dvh] rounded-t-lg px-4 pb-[calc(1rem+env(safe-area-inset-bottom))] pt-5">
             <SheetTitle className="mb-3">Mais áreas</SheetTitle>
             <div className="grid gap-1 overflow-y-auto">
               {abasSecundarias.map(([valor, rotulo, total]) => (
@@ -2535,7 +2535,7 @@ export default function Atendimento() {
         </Sheet>
 
         <Sheet open={filtrosMobileAberto} onOpenChange={setFiltrosMobileAberto}>
-          <SheetContent side="bottom" className="flex max-h-[85dvh] flex-col rounded-t-lg px-4 pb-[calc(1rem+env(safe-area-inset-bottom))] pt-5">
+           <SheetContent side="bottom" className="font-whatsapp flex max-h-[85dvh] flex-col rounded-t-lg px-4 pb-[calc(1rem+env(safe-area-inset-bottom))] pt-5">
             <SheetTitle className="mb-3">Filtros</SheetTitle>
             <div className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain pb-3">
               <section className="space-y-2">
@@ -3239,7 +3239,7 @@ export default function Atendimento() {
                     </DropdownMenuContent>
                   </DropdownMenu>
                   <AlertDialog open={excluirAberta} onOpenChange={setExcluirAberta}>
-                    <AlertDialogContent>
+                   <AlertDialogContent className="font-whatsapp">
                       <AlertDialogHeader>
                         <AlertDialogTitle>Excluir esta conversa?</AlertDialogTitle>
                         <AlertDialogDescription>
@@ -3268,7 +3268,7 @@ export default function Atendimento() {
                     </AlertDialogContent>
                   </AlertDialog>
                   <AlertDialog open={!!mensagemExcluir} onOpenChange={(v) => !v && setMensagemExcluir(null)}>
-                    <AlertDialogContent>
+                     <AlertDialogContent className="font-whatsapp">
                       <AlertDialogHeader>
                         <AlertDialogTitle>Excluir mensagem?</AlertDialogTitle>
                         <AlertDialogDescription>
