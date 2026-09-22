@@ -102,13 +102,14 @@ type Mensagem = {
   look_produto_confirmado_id?: string | null;
 };
 
-type Filtro = "nao_lidas" | "janela" | "revisao" | "leads" | "todas";
+type Filtro = "nao_lidas" | "janela" | "revisao" | "leads" | "em_fluxo" | "todas";
 
 const FILTROS: { key: Filtro; label: string }[] = [
   { key: "nao_lidas", label: "Não lidas" },
   { key: "janela", label: "Janela aberta" },
   { key: "revisao", label: "Revisão pendente" },
   { key: "leads", label: "São leads" },
+  { key: "em_fluxo", label: "Em fluxo" },
   { key: "todas", label: "Todas" },
 ];
 
