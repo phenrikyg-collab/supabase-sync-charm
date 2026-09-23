@@ -272,7 +272,7 @@ function EscolherVariacao({
               <button
                 key={c.cor}
                 type="button"
-                onClick={() => setCor(c.cor)}
+        onClick={() => { setCor(c.cor); setTamanho(null); }}
                 className={
                   cor === c.cor
                     ? "rounded-full border border-primary bg-primary/10 px-2.5 py-1 text-[11px] font-medium text-primary"
@@ -537,6 +537,7 @@ export function CatalogoDialog({
 
         {aberto ? (
           <EscolherVariacao
+            key={`${aberto.modo}-${idProduto(aberto.produto)}-${aberto.modo === "editar" ? aberto.chave : ""}`}
             produto={aberto.produto}
             inicial={aberto.modo === "editar" ? aberto.inicial : undefined}
             rotuloAcao={aberto.modo === "enviar" ? "Enviar para a cliente" : "Adicionar à seleção"}
