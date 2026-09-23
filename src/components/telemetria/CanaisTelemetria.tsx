@@ -4,9 +4,57 @@ import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import {
-  CanalTelemetria, ehNaoAtribuido, fetchTelemetriaCanais, fmtBRL, fmtInt, fmtPct,
+  CanalTelemetria, ehNaoAtribuido, fetchInsightsNaoAtribuido, fetchTelemetriaCanais,
+  fmtBRL, fmtInt, fmtPct,
 } from "@/lib/telemetria";
+
+const FRASE_PAINEL_NAO_ATRIBUIDO =
+  "São pedidos reais que a telemetria não consegue ligar a uma sessão. " +
+  "O ticket médio deles é maior que o dos pedidos atribuídos, então não é ruído: " +
+  "é venda que existe e cujo canal não sabemos.";
+
+function PainelNaoAtribuido({ aberto, onOpenChange }: { aberto: boolean; onOpenChange: (v: boolean) => void }) {
+  const { data } = useQuery({
+    queryKey: ["insights-nao-atribuido", 30],
+    queryFn: () => fetchInsightsNaoAtribuido(30),
+    staleTime: 5 * 60_000,
+    enabled: aberto,
+  });
+  const linhas = data ?? [];
+
+  return (
+    <Sheet open={aberto} onOpenChange={onOpenChange}>
+      <SheetContent className="overflow-y-auto sm:max-w-md">
+        <SheetHeader>
+          <SheetTitle>Não atribuído</SheetTitle>
+          <SheetDescription className="text-sm leading-relaxed">
+            {FRASE_PAINEL_NAO_ATRIBUIDO}
+          </SheetDescription>
+        </SheetHeader>
+        <div className="mt-4 space-y-3">
+          {linhas.map((l, i) => (
+            <div key={`${l.situacao}-${i}`} className="rounded-lg border border-border p-4">
+              <div className="font-semibold">{l.situacao}</div>
+              <div className="mt-1 flex flex-wrap gap-x-4 text-sm font-medium">
+                <span>{fmtInt(l.pedidos)} pedidos</span>
+                <span>{fmtBRL(l.receita)}</span>
+                <span className="text-muted-foreground">ticket {fmtBRL(l.ticket_medio)}</span>
+              </div>
+              {l.explicacao && (
+                <p className="mt-2 text-sm text-muted-foreground">{l.explicacao}</p>
+              )}
+            </div>
+          ))}
+          {!linhas.length && (
+            <p className="py-6 text-center text-muted-foreground">Sem dados no período</p>
+          )}
+        </div>
+      </SheetContent>
+    </Sheet>
+  );
+}
 
 const COLUNAS: { key: keyof CanalTelemetria; label: string; align?: "right" }[] = [
   { key: "canal", label: "Canal" },
@@ -26,6 +74,7 @@ const TEXTO_NAO_ATRIBUIDO =
   "Pedidos que não conseguimos ligar a uma sessão. Compra por telefone, WhatsApp ou aparelho diferente do que navegou.";
 
 export function CanaisTelemetria({ de, ate }: { de: string; ate: string }) {
+  const [painelAberto, setPainelAberto] = useState(false);
   const { data } = useQuery({
     queryKey: ["telemetria-canais", de, ate],
     queryFn: () => fetchTelemetriaCanais(de, ate),
