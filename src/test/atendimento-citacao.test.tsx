@@ -1,13 +1,14 @@
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { BalaoMensagem } from "@/pages/Atendimento";
+import type { ComponentProps } from "react";
 
 const montar = (mensagem: Record<string, unknown>) => {
   const responder = vi.fn();
   const menu = vi.fn();
-  const props = {
+  const props: ComponentProps<typeof BalaoMensagem> = {
     nomeCliente: "Mariana",
-    m: { id: 42, direcao: "entrada", conteudo: "Olá", tipo: "texto", ...mensagem },
+    m: { id: 42, direcao: "entrada", conteudo: "Olá", tipo: "texto", ...mensagem } as ComponentProps<typeof BalaoMensagem>["m"],
     divisorKora: false,
     divisorProprio: false,
     destacado: false,
@@ -51,7 +52,7 @@ describe("resposta a uma mensagem do Atendimento", () => {
     act(() => vi.advanceTimersByTime(500));
     expect(menu).toHaveBeenCalledWith("42");
     rerender(<BalaoMensagem {...props} menuAberto />);
-    fireEvent.click(screen.getByRole("button", { name: "Responder" }).at(-1) as HTMLElement);
+    fireEvent.click(screen.getAllByRole("button", { name: "Responder" })[1]);
     expect(responder).toHaveBeenCalledWith(expect.objectContaining({ id: 42 }));
   });
 
