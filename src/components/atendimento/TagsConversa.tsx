@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useAuth } from "@/contexts/AuthContext";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -32,6 +33,7 @@ export function TagsConversa({
   conversaId: number | string;
   aplicadas: Tag[];
 }) {
+  const { user } = useAuth();
   const queryClient = useQueryClient();
   const [novoNome, setNovoNome] = useState("");
   const [novaCor, setNovaCor] = useState(CORES[0]);
@@ -69,6 +71,7 @@ export function TagsConversa({
         p_conversa_id: idParam,
         p_tag_id: Number.isNaN(Number(tag.id)) ? tag.id : Number(tag.id),
         p_adicionar: adicionar,
+        p_por: user?.email ?? null,
       });
       if (error) throw error;
     },
