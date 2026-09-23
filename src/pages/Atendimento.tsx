@@ -622,7 +622,8 @@ const BalaoMensagem = memo(function BalaoMensagem({
                     const pedeTemplate = falhou && ehMotivoJanela(motivoFalha);
                     const chaveBalao = m.id != null ? String(m.id) : "";
                     const otimista = typeof m.id === "number" && m.id < 0;
-                    const podeCitar = !kora && !otimista && m.id != null;
+                    // Sem wamid a Meta não consegue citar (mensagem antiga ou importada): não ofereça a ação.
+                    const podeCitar = !kora && !otimista && m.id != null && !!(m.wamid ?? "").toString().trim();
                     const temCitada = m.citada_id != null || !!m.citada_texto;
                     const aguardando = typeof m.aguardando_ate === "number";
                     const podeExcluir = saida && !aguardando && !otimista && m.id != null;
