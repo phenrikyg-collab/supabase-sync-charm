@@ -3128,6 +3128,10 @@ export default function Atendimento() {
                         <Truck className="mr-2 h-4 w-4" />
                         Calcular frete
                       </DropdownMenuItem>
+                      <DropdownMenuItem onSelect={() => setBloquearAberto(true)}>
+                        <Ban className="mr-2 h-4 w-4" />
+                        Bloquear contato
+                      </DropdownMenuItem>
                       {!conversaHistorica && (status === "escalado" || status === "em_atendimento") && (
                         <DropdownMenuItem
                           className="xl:hidden"
