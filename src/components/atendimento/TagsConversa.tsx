@@ -71,6 +71,7 @@ export function TagsConversa({
         p_conversa_id: idParam,
         p_tag_id: Number.isNaN(Number(tag.id)) ? tag.id : Number(tag.id),
         p_adicionar: adicionar,
+        p_por: user?.email ?? null,
       });
       if (error) throw error;
     },
