@@ -59,6 +59,7 @@ type Config = {
   teto_dia?: number | null;
   cooldown_dias?: number | null;
   silencio_marketing_horas?: number | null;
+  silencio_atendimento_dias?: number | null;
   template?: string | null;
   preview?: string | null;
 };
@@ -203,6 +204,7 @@ export function ResgateAutomatico({
       janela_max_horas: numero(rascunho.janela_max_horas),
       cooldown_dias: numero(rascunho.cooldown_dias),
       silencio_marketing_horas: numero(rascunho.silencio_marketing_horas),
+      silencio_atendimento_dias: numero(rascunho.silencio_atendimento_dias),
       tipos: Array.isArray(rascunho.tipos) ? rascunho.tipos : [],
     });
     setSalvando(false);
@@ -422,6 +424,21 @@ export function ResgateAutomatico({
                   setRascunho((r) => ({ ...r, silencio_marketing_horas: Number(e.target.value) }))
                 }
               />
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="silencio_atendimento" className="text-xs">Silêncio depois de a cliente escrever para nós (dias)</Label>
+              <Input
+                id="silencio_atendimento"
+                type="number"
+                min={0}
+                value={rascunho.silencio_atendimento_dias ?? 0}
+                onChange={(e) =>
+                  setRascunho((r) => ({ ...r, silencio_atendimento_dias: Number(e.target.value) }))
+                }
+              />
+              <p className="text-xs text-muted-foreground">
+                Quem falou com a loja nesse período não recebe o resgate, mesmo virando oportunidade de novo.
+              </p>
             </div>
           </div>
 
