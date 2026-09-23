@@ -687,10 +687,14 @@ export const BalaoMensagem = memo(function BalaoMensagem({
                                 onResponder(m);
                               }
                             }}
-                            onTouchEnd={() => {
+                             onTouchEnd={() => {
                               if (toqueRef.current.timer) clearTimeout(toqueRef.current.timer);
                               toqueRef.current.timer = null;
                             }}
+                             onTouchCancel={() => {
+                               if (toqueRef.current.timer) clearTimeout(toqueRef.current.timer);
+                               toqueRef.current.timer = null;
+                             }}
                             className={cn(
                               "min-w-0 max-w-full overflow-hidden text-base break-words [overflow-wrap:anywhere] [word-break:break-word]",
                               destacado && "ring-2 ring-primary ring-offset-2 ring-offset-background transition-shadow",
@@ -922,18 +926,18 @@ export default function Atendimento() {
   const [legenda, setLegenda] = useState("");
   const [citacao, setCitacao] = useState<Citacao | null>(null);
   // A referência pertence à conversa em que foi escolhida, nunca à próxima.
-  useEffect(() => {
-    setCitacao(null);
-    setMenuBalao(null);
-    if (toqueRef.current.timer) clearTimeout(toqueRef.current.timer);
-    toqueRef.current.timer = null;
-  }, [selecionada]);
   const [arrastando, setArrastando] = useState(false);
   const [menuBalao, setMenuBalao] = useState<string | null>(null);
   const [destacada, setDestacada] = useState<string | null>(null);
   const balaoRefs = useRef<Record<string, HTMLDivElement | null>>({});
   /** Controle do toque nos balões: arrastar para a direita responde, segurar abre o menu. */
   const toqueRef = useRef<{ x: number; y: number; timer: ReturnType<typeof setTimeout> | null }>({ x: 0, y: 0, timer: null });
+  useEffect(() => {
+    setCitacao(null);
+    setMenuBalao(null);
+    if (toqueRef.current.timer) clearTimeout(toqueRef.current.timer);
+    toqueRef.current.timer = null;
+  }, [selecionada]);
   const [enviandoImagem, setEnviandoImagem] = useState(false);
   const fimRef = useRef<HTMLDivElement>(null);
   const areaMensagensRef = useRef<HTMLDivElement>(null);
