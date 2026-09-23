@@ -2931,7 +2931,7 @@ export default function Atendimento() {
               </div>
             </div>
           )}
-          <ScrollArea className="min-h-0 flex-1 overscroll-contain">
+          <ScrollArea className="min-h-0 min-w-0 flex-1 overscroll-contain [&_[data-radix-scroll-area-viewport]>div]:!block [&_[data-radix-scroll-area-viewport]>div]:!w-full [&_[data-radix-scroll-area-viewport]>div]:!min-w-0">
             {(modoHistorico ? carregandoHistorico : carregandoConversas) && (
               <p className="p-4 text-sm text-muted-foreground">Carregando conversas…</p>
             )}
@@ -3337,7 +3337,7 @@ export default function Atendimento() {
 
               <ScrollArea
                 ref={areaMensagensRef}
-                className="relative min-h-0 min-w-0 max-w-full flex-1 overflow-x-hidden p-3 md:p-4 [&_[data-radix-scroll-area-viewport]]:!overflow-x-hidden"
+                className="relative min-h-0 min-w-0 max-w-full flex-1 overflow-x-hidden p-3 md:p-4 [&_[data-radix-scroll-area-viewport]]:!overflow-x-hidden [&_[data-radix-scroll-area-viewport]>div]:!block [&_[data-radix-scroll-area-viewport]>div]:!w-full [&_[data-radix-scroll-area-viewport]>div]:!min-w-0"
                 onDragOver={(e) => {
                   if (!Array.from(e.dataTransfer?.types ?? []).includes("Files")) return;
                   e.preventDefault();
