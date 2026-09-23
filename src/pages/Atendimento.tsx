@@ -3465,18 +3465,18 @@ export default function Atendimento() {
                     </div>
                   )}
                   {citacao && (
-                    <div className="flex items-center gap-2 rounded-md border border-border bg-muted/50 py-1.5 pl-0 pr-2">
-                      <span className="h-8 w-1 shrink-0 rounded-full bg-primary" />
+                    <div className="flex items-center gap-2 overflow-hidden rounded-md border border-border bg-muted/50 py-1.5 pl-0 pr-2">
+                      <span className="h-10 w-[3px] shrink-0 rounded-full bg-primary" />
                       <div className="min-w-0 flex-1">
-                        <p className="text-[11px] font-semibold text-primary">
-                          {citacao.direcao === "entrada" ? "Cliente" : "Você"}
+                        <p className="truncate text-[11px] font-semibold text-primary">
+                          {citacao.direcao === "entrada" ? nomeConversa(conversaAtual) : "Você"}
                         </p>
-                        <p className="line-clamp-1 text-xs text-muted-foreground">
-                          {citacao.texto?.trim() || (citacao.media_url ? "Imagem" : "Mensagem")}
+                        <p className="truncate text-xs text-muted-foreground">
+                          {citacao.texto?.trim() || rotuloCitada(citacao.tipo, citacao.media_url)}
                         </p>
                       </div>
                       {citacao.media_url && (
-                        <img src={citacao.media_url} alt="Citada" className="h-8 w-8 shrink-0 rounded object-cover" />
+                        <img src={citacao.media_url} alt="Mensagem citada" className="h-[38px] w-[38px] shrink-0 rounded object-cover" />
                       )}
                       <Button size="icon" variant="ghost" className="h-6 w-6 shrink-0" onClick={() => setCitacao(null)} title="Cancelar citação">
                         <X className="h-3.5 w-3.5" />
