@@ -233,12 +233,29 @@ function EscolherVariacao({
         </div>
         <div className="min-w-0 space-y-1">
           <p className="text-sm font-medium">{produto.nome}</p>
-          <p className="text-sm font-bold">{formatarPreco(produto.preco_cheio ?? produto.preco)}</p>
-          {produto.preco_pix != null && (
-            <p className="text-[11px] text-success font-semibold">
-              {formatarPreco(produto.preco_pix)} no Pix (5% OFF)
-            </p>
-          )}
+          {(() => {
+            const vigente = produto.preco_vigente ?? produto.preco_cheio ?? produto.preco ?? null;
+            const cheio = produto.preco_cheio ?? null;
+            const temPromo = vigente != null && cheio != null && cheio > vigente;
+            const pix = produto.preco_pix ?? data?.preco_pix ?? null;
+            return (
+              <>
+                <p className="text-sm font-bold">
+                  {temPromo && (
+                    <span className="mr-1 text-[11px] font-normal text-muted-foreground line-through">
+                      {formatarPreco(cheio)}
+                    </span>
+                  )}
+                  {formatarPreco(vigente)}
+                </p>
+                {pix != null && (
+                  <p className="text-[11px] text-success font-semibold">
+                    {formatarPreco(pix)} no Pix (5% OFF)
+                  </p>
+                )}
+              </>
+            );
+          })()}
         </div>
       </div>
 
@@ -617,13 +634,31 @@ export function CatalogoDialog({
                         </div>
                         <div className="p-2 space-y-1">
                           <p className="text-xs font-medium line-clamp-2">{p.nome}</p>
-                          <p className="text-sm font-bold">{formatarPreco(p.preco_cheio ?? p.preco)}</p>
+                          {(() => {
+                            const vigente = p.preco_vigente ?? p.preco_cheio ?? p.preco ?? null;
+                            const cheio = p.preco_cheio ?? null;
+                            const temPromo = vigente != null && cheio != null && cheio > vigente;
+                            return (
+                              <p className="text-sm font-bold">
+                                {temPromo && (
+                                  <span className="mr-1 text-[10px] font-normal text-muted-foreground line-through">
+                                    {formatarPreco(cheio)}
+                                  </span>
+                                )}
+                                {formatarPreco(vigente)}
+                              </p>
+                            );
+                          })()}
                           <CoresDoCard cores={p.cores_disponiveis} />
-                          {p.preco_parcelado_5x != null && (
-                            <p className="text-[11px] text-muted-foreground">
-                              ou 5x de {formatarPreco(p.preco_parcelado_5x)} sem juros
-                            </p>
-                          )}
+                          {(() => {
+                            const parcela = p.parcela_5x ?? p.preco_parcelado_5x ?? null;
+                            if (parcela == null) return null;
+                            return (
+                              <p className="text-[11px] text-muted-foreground">
+                                ou 5x de {formatarPreco(parcela)}
+                              </p>
+                            );
+                          })()}
                           {p.preco_pix != null && (
                             <p className="text-[11px] font-semibold text-success">
                               💚 {formatarPreco(p.preco_pix)} no Pix (5% OFF)
