@@ -31,6 +31,10 @@ type Props = {
   acoes?: ReactNode;
   acoesMobile?: ReactNode;
   mobile?: boolean;
+  /** Trava a caixa de escrever (ex.: contato bloqueado). */
+  desabilitado?: boolean;
+  /** Texto do campo quando vazio. */
+  placeholder?: string;
 };
 
 /**
