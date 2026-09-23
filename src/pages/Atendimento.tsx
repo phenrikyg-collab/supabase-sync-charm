@@ -479,7 +479,7 @@ const ItemConversa = memo(function ItemConversa({
   if (c.status === "em_atendimento" && !estados.some((s) => s.toLowerCase() === "com a atendente")) estados.push("com a atendente");
   const ponto = estados.some((s) => s.toLowerCase() === "respondendo agora") ? "bg-warning" : "bg-success";
   const status = modoHistorico ? "Finalizada" : c.status === "escalado" && !c.aguardando_desde ? null : STATUS_META[c.status]?.label ?? c.status;
-  const etiquetas = [
+  const etiquetas: { key: string; label: string; destaque?: string; tag?: Tag }[] = [
     ...(espera ? [{ key: "espera", label: espera, destaque: "text-warning bg-warning/10 border-warning/20" }] : []),
     ...(status ? [{ key: "status", label: status, destaque: "text-muted-foreground bg-muted border-border" }] : []),
     ...((c.tags ?? []).map((t) => ({ key: `tag-${t.id}`, label: t.nome, tag: t }))),
@@ -529,10 +529,10 @@ const ItemConversa = memo(function ItemConversa({
       <span className="flex h-[18px] min-w-0 items-center gap-1 overflow-hidden">
         {etiquetas.slice(0, 3).map((e) => (
           <span key={e.key} title={e.label} className="min-w-0 max-w-[38%] shrink truncate">
-            {"tag" in e && e.tag ? (
+            {e.tag ? (
               <TagChip tag={e.tag} className="!h-[18px] !max-w-full !truncate !rounded !px-1.5 !py-0 !text-[10px] !leading-none" />
             ) : (
-              <span className={cn("inline-flex h-[18px] max-w-full items-center truncate rounded border px-1.5 text-[10px] leading-none", "destaque" in e ? e.destaque : "border-border bg-muted text-muted-foreground")}>{e.label}</span>
+              <span className={cn("inline-flex h-[18px] max-w-full items-center truncate rounded border px-1.5 text-[10px] leading-none", e.destaque ?? "border-border bg-muted text-muted-foreground")}>{e.label}</span>
             )}
           </span>
         ))}
