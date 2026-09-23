@@ -274,7 +274,7 @@ export const Composer = forwardRef<ComposerHandle, Props>(function Composer(
         size="icon"
         className={mobile ? "h-11 w-11 shrink-0 rounded-full" : "h-8 w-8 shrink-0 rounded-full"}
         onClick={despachar}
-        disabled={!texto.trim()}
+        disabled={desabilitado || !texto.trim()}
         title="Enviar"
       >
         <Send className="h-4 w-4" />
