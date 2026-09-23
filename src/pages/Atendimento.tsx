@@ -2918,6 +2918,11 @@ export default function Atendimento() {
                     onMenuChange={setMenuLeituraAberto}
                     onMarcarLeitura={marcarLeitura}
                     mobile={isMobile}
+                    bloqueio={
+                      mapaBloqueios.porConversa.get(String(c.id)) ??
+                      mapaBloqueios.porTelefone.get(String(c.telefone_real || c.telefone || "").replace(/\D/g, "")) ??
+                      null
+                    }
                   />
                 </div>
               );
