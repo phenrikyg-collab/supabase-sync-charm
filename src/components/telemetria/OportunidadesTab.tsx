@@ -9,7 +9,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import {
-  AVISO_OPORTUNIDADES, fetchInsight, fetchInsightsAcoes, fmtBRL, fmtInt, fmtPct, num,
+  AVISO_OPORTUNIDADES, fetchInsight, fetchInsightsAcoes, fetchInsightsDestaques,
+  fmtBRL, fmtInt, fmtPct, num,
 } from "@/lib/telemetria";
 
 /* ----------------------------- utilidades ---------------------------- */
@@ -19,7 +20,8 @@ const CORES_AREA: Record<string, string> = {
   produto: "bg-blue-100 text-blue-900 border-blue-300",
   carrinho: "bg-purple-100 text-purple-900 border-purple-300",
   site: "bg-red-100 text-red-900 border-red-300",
-  midia: "bg-green-100 text-green-900 border-green-300",
+  midia: "bg-slate-200 text-slate-800 border-slate-400",
+  destaque: "bg-green-100 text-green-900 border-green-300",
 };
 
 const corArea = (area: string) => {
