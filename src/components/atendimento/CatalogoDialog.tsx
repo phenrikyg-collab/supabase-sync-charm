@@ -72,7 +72,7 @@ export function legendaProduto(p: ProdutoCatalogo, escolha?: EscolhaProduto) {
       linhas.push(`*${formatarPreco(vigente)}*`);
     }
   }
-  if (parcela != null) linhas.push(`em 5x de ${formatarPreco(parcela)}`);
+  if (parcela != null) linhas.push(`em 5x de ${formatarPreco(parcela)} sem juros`);
   if (pix != null) linhas.push(`*${formatarPreco(pix)} no Pix* (5% de desconto)`);
 
   const cor = escolha?.cor?.trim();
@@ -655,7 +655,7 @@ export function CatalogoDialog({
                             if (parcela == null) return null;
                             return (
                               <p className="text-[11px] text-muted-foreground">
-                                ou 5x de {formatarPreco(parcela)}
+                                 ou 5x de {formatarPreco(parcela)} sem juros
                               </p>
                             );
                           })()}

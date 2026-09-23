@@ -35,3 +35,6 @@
 - [x] Aplicar fonte WhatsApp só à tela de Atendimento e verificar os tipos
 - [x] Compactar os cards da lista de conversas do Atendimento para três linhas e cerca de 64px
 - [x] Conferir a largura no celular, a densidade em tela de 900px e os tipos (medição visual com dados de exemplo; acesso real depende de login)
+- [ ] Restaurar "sem juros" no card e na legenda do catálogo
+- [ ] Corrigir largura das colunas, balões, prévias e etiquetas; painel lateral em gaveta abaixo de 1280px
+- [ ] Conferir Atendimento em 1280px, 1440px e 390px
