@@ -80,11 +80,11 @@ import type { ImperativePanelGroupHandle } from "react-resizable-panels";
 import { ProvadorBloco } from "@/components/atendimento/ProvadorBloco";
 import { useIsMobile } from "@/hooks/use-mobile";
 
-/** Telas largas ganham colunas arrastáveis; no celular o layout continua igual. */
+/** A terceira coluna só cabe a partir de 1280px; abaixo disso o perfil abre em gaveta. */
 function useTelaLarga() {
   const [larga, setLarga] = useState(false);
   useEffect(() => {
-    const mq = window.matchMedia("(min-width: 1024px)");
+    const mq = window.matchMedia("(min-width: 1280px)");
     const aplicar = () => setLarga(mq.matches);
     aplicar();
     mq.addEventListener("change", aplicar);
@@ -522,7 +522,7 @@ const ItemConversa = memo(function ItemConversa({
       onTouchEnd={() => { if (longPressRef.current.timer) clearTimeout(longPressRef.current.timer); }}
       onTouchMove={() => { if (longPressRef.current.timer) clearTimeout(longPressRef.current.timer); }}
       className={cn(
-        "group relative block h-[66px] w-full min-w-0 overflow-hidden border-b border-border/60 border-l-[3px] px-3 py-2 text-left transition-colors hover:bg-accent/60 active:bg-accent",
+        "group relative block min-h-[66px] w-full min-w-0 overflow-hidden border-b border-border/60 border-l-[3px] px-3 py-2 text-left transition-colors hover:bg-accent/60 active:bg-accent",
         faixa, ativa && "bg-accent", naoLida && !ativa && "bg-primary/5",
       )}
     >
@@ -539,12 +539,12 @@ const ItemConversa = memo(function ItemConversa({
         <span className={cn("min-w-0 flex-1 truncate text-[13px] leading-[15px]", naoLida || aguardando ? "font-bold" : "font-semibold")}>{nome}</span>
         <span className="max-w-[44%] shrink-0 truncate text-[11px] leading-[15px] text-muted-foreground group-hover:md:opacity-0" title={tempoRelativo(dataMensagem)}>{tempoRelativo(dataMensagem)}</span>
       </span>
-      <span className={cn("block h-[14px] min-w-0 truncate text-[12px] leading-[14px]", c.falha_envio && !modoHistorico ? "font-medium text-danger" : naoLida ? "font-medium text-foreground" : "text-muted-foreground")} title={previa}>
+      <span className={cn("block h-[14px] w-full min-w-0 truncate text-[12px] leading-[14px]", c.falha_envio && !modoHistorico ? "font-medium text-danger" : naoLida ? "font-medium text-foreground" : "text-muted-foreground")} title={previa}>
         {previa || identificadorConversa(c)}
       </span>
-      <span className="flex h-[18px] min-w-0 items-center gap-1 overflow-hidden">
+      <span className="flex min-h-[18px] min-w-0 flex-wrap items-center gap-1 overflow-hidden">
         {etiquetas.slice(0, 3).map((e) => (
-          <span key={e.key} title={e.label} className="min-w-0 max-w-[38%] shrink truncate">
+          <span key={e.key} title={e.label} className="min-w-0 max-w-full truncate">
             {e.tag ? (
               <TagChip tag={e.tag} className="!h-[18px] !max-w-full !truncate !rounded !px-1.5 !py-0 !text-[10px] !leading-none" />
             ) : (
@@ -656,7 +656,7 @@ const BalaoMensagem = memo(function BalaoMensagem({
                               size="icon"
                               variant="ghost"
                               className={cn(
-                                "absolute top-0 hidden h-7 w-7 opacity-0 transition-opacity group-hover:opacity-100 lg:flex",
+                    "absolute top-0 hidden h-7 w-7 opacity-0 transition-opacity group-hover:opacity-100 lg:flex",
                                 saida ? "right-full mr-1" : "left-full ml-1",
                               )}
                               onClick={() => onResponder(m)}
@@ -694,7 +694,7 @@ const BalaoMensagem = memo(function BalaoMensagem({
                               toqueRef.current.timer = null;
                             }}
                             className={cn(
-                              "min-w-0 max-w-[75%] overflow-hidden text-base break-words [overflow-wrap:anywhere] [word-break:break-word]",
+                              "min-w-0 max-w-[90%] md:max-w-[80%] overflow-hidden text-base break-words [overflow-wrap:anywhere] [word-break:break-word]",
                               destacado && "ring-2 ring-primary ring-offset-2 ring-offset-background transition-shadow",
                               sticker && !falhou
                                 ? "bg-transparent border-0 p-0"
@@ -2706,12 +2706,12 @@ export default function Atendimento() {
         )}
 
         {/* Lista de conversas */}
-        <Coluna ajustavel={colunasAjustaveis} id="lista" order={1} defaultSize={largurasIniciais[0]} minSize={15} maxSize={40}>
+        <Coluna ajustavel={colunasAjustaveis} id="lista" order={1} defaultSize={largurasIniciais[0]} minSize={18} maxSize={40}>
         <aside
           className={cn(
             "fixed inset-y-0 left-0 z-40 flex h-full min-h-0 w-[85vw] max-w-[360px] min-w-0 flex-col overflow-hidden border-r border-border bg-card transition-transform",
             "md:static md:z-auto md:w-[320px] md:max-w-none md:shrink-0 md:translate-x-0 lg:w-[340px]",
-            colunasAjustaveis && "lg:w-full",
+            colunasAjustaveis && "xl:w-full",
             isMobile ? (selecionada ? "hidden" : "relative static z-auto w-full max-w-none translate-x-0 border-r-0") : (listaSheet ? "translate-x-0" : "-translate-x-full"),
           )}
         >
@@ -2931,7 +2931,7 @@ export default function Atendimento() {
               </div>
             </div>
           )}
-          <ScrollArea className="min-h-0 flex-1 overscroll-contain">
+          <ScrollArea className="min-h-0 min-w-0 flex-1 overscroll-contain [&_[data-radix-scroll-area-viewport]>div]:!block [&_[data-radix-scroll-area-viewport]>div]:!w-full [&_[data-radix-scroll-area-viewport]>div]:!min-w-0">
             {(modoHistorico ? carregandoHistorico : carregandoConversas) && (
               <p className="p-4 text-sm text-muted-foreground">Carregando conversas…</p>
             )}
@@ -2960,7 +2960,7 @@ export default function Atendimento() {
                 );
               }
               return (
-                <div key={String(c.id)}>
+                <div key={String(c.id)} className="w-full min-w-0">
                   {cabecalho}
                   <ItemConversa
                     c={c}
@@ -3129,8 +3129,8 @@ export default function Atendimento() {
                   <SeloCashback
                     telefone={telefoneIdentificado}
                     onAbrir={() => {
-                      if (isMobile) setPerfilSheet(true);
-                      else setPerfilAberto(true);
+                      if (colunasAjustaveis) setPerfilAberto(true);
+                      else setPerfilSheet(true);
                     }}
                   />
 
@@ -3285,7 +3285,7 @@ export default function Atendimento() {
                   <Button
                     size="icon"
                     variant="ghost"
-                    className="hidden h-9 w-9 lg:inline-flex"
+                    className="hidden h-9 w-9 xl:inline-flex"
                     onClick={() => setPerfilAberto((v) => !v)}
                     title={perfilAberto ? "Esconder perfil da cliente" : "Mostrar perfil da cliente"}
                   >
@@ -3303,7 +3303,7 @@ export default function Atendimento() {
                   <Button
                     size="icon"
                     variant="ghost"
-                    className="hidden h-9 w-9 md:inline-flex lg:hidden"
+                    className="hidden h-9 w-9 md:inline-flex xl:hidden"
                     onClick={() => setPerfilSheet(true)}
                     title="Perfil da cliente"
                   >
@@ -3337,7 +3337,7 @@ export default function Atendimento() {
 
               <ScrollArea
                 ref={areaMensagensRef}
-                className="relative min-h-0 min-w-0 max-w-full flex-1 overflow-x-hidden p-3 md:p-4 [&_[data-radix-scroll-area-viewport]]:!overflow-x-hidden"
+                className="relative min-h-0 min-w-0 max-w-full flex-1 overflow-x-hidden p-3 md:p-4 [&_[data-radix-scroll-area-viewport]]:!overflow-x-hidden [&_[data-radix-scroll-area-viewport]>div]:!block [&_[data-radix-scroll-area-viewport]>div]:!w-full [&_[data-radix-scroll-area-viewport]>div]:!min-w-0"
                 onDragOver={(e) => {
                   if (!Array.from(e.dataTransfer?.types ?? []).includes("Files")) return;
                   e.preventDefault();
@@ -3598,7 +3598,7 @@ export default function Atendimento() {
         </Coluna>
 
         {/* Painel lateral direito */}
-        {perfilAberto && conversaAtual && (
+        {colunasAjustaveis && perfilAberto && conversaAtual && (
           <>
             {colunasAjustaveis && (
               <ResizableHandle
