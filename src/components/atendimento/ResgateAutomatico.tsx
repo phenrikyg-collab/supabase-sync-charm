@@ -60,6 +60,7 @@ type Config = {
   cooldown_dias?: number | null;
   silencio_marketing_horas?: number | null;
   template?: string | null;
+  preview?: string | null;
 };
 
 type Linha = {
@@ -291,10 +292,15 @@ export function ResgateAutomatico({
             </Button>
           </div>
 
-          {config.template && (
+          {(config.preview || config.template) && (
             <div className="rounded-md border bg-muted/40 p-3">
-              <p className="text-xs font-medium text-muted-foreground mb-1">Mensagem que sai para a cliente</p>
-              <p className="text-sm whitespace-pre-wrap">{config.template}</p>
+              <div className="flex flex-wrap items-baseline justify-between gap-2 mb-1">
+                <p className="text-xs font-medium text-muted-foreground">Mensagem que sai para a cliente</p>
+                {config.template && (
+                  <p className="text-[11px] text-muted-foreground">template: {config.template}</p>
+                )}
+              </div>
+              <p className="text-sm whitespace-pre-wrap">{config.preview || config.template}</p>
               <p className="text-xs text-muted-foreground mt-1">
                 A mensagem nunca oferece desconto: só pergunta se pode ajudar.
               </p>
