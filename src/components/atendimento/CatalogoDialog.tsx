@@ -204,6 +204,12 @@ function EscolherVariacao({
     [cores, cor],
   );
 
+  const tamanhosDetalhe = useMemo(
+    () => cores.find((c) => c.cor === cor)?.tamanhos_detalhe ?? null,
+    [cores, cor],
+  );
+
+
   useEffect(() => {
     if (tamanhos.length === 1) setTamanho(tamanhos[0]);
     else if (!tamanhos.includes(tamanho ?? "")) setTamanho(null);
