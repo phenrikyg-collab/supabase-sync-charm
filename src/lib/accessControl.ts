@@ -35,6 +35,7 @@ export const ROUTE_ACCESS: Record<string, Requirement> = {
 
   // Marketing (Meta Ads / GA4 também aparecem em Gestão & Estratégia)
   "/marketing": ["marketing", "gestao"],
+  "/telemetria": ["marketing", "gestao"],
   "/marketing-analytics": ["marketing"],
   "/planejamento-conteudo-mensal": ["marketing"],
   "/tendencias": ["marketing"],
