@@ -1,12 +1,14 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { ArrowLeft, Search } from "lucide-react";
+import { ArrowLeft, Check, Search, X } from "lucide-react";
 import { chamarRpc } from "@/lib/supabaseRpc";
+
+export const MAX_SELECAO_CATALOGO = 10;
 
 export type TamanhoDisponivel = { tamanho: string; estoque: number };
 
