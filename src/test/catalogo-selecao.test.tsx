@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { CatalogoDialog, type ProdutoCatalogo } from "@/components/atendimento/CatalogoDialog";
@@ -33,7 +33,7 @@ function montar() {
 async function selecionarCor(nome: string, cor: string) {
   fireEvent.click(screen.getByRole("button", { name: `Selecionar ${nome}` }));
   expect(screen.getByText("Escolher cor e tamanho")).toBeInTheDocument();
-  fireEvent.click(screen.getByRole("button", { name: new RegExp(`^${cor}\\b`) }));
+  fireEvent.click(await screen.findByRole("button", { name: new RegExp(`^${cor.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\s`) }));
   fireEvent.click(screen.getByRole("button", { name: "Adicionar à seleção" }));
 }
 
@@ -77,7 +77,7 @@ describe("seleção múltipla do catálogo", () => {
   it("preserva o clique no card para envio imediato e repassa os chips sem espaços", async () => {
     const enviar = montar();
     await screen.findByRole("button", { name: "Selecionar Peça 1" });
-    fireEvent.click(screen.getByRole("button", { name: /Peça 2/ , hidden: false }).closest('[role="button"]') ?? screen.getByText("Peça 2"));
+    fireEvent.click(screen.getByText("Peça 2"));
     expect(screen.getByText("Escolher a cor")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Enviar para a cliente" }));
     expect(enviar.mock.calls[0][0]).toHaveLength(1);
