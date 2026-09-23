@@ -12,7 +12,15 @@ export const MAX_SELECAO_CATALOGO = 10;
 
 export type TamanhoDisponivel = { tamanho: string; estoque: number };
 
-export type CorDisponivel = { cor: string; estoque?: number | null; imagem?: string | null; tamanhos?: string[] | null };
+export type TamanhoDetalhe = { tamanho: string; estoque: number };
+
+export type CorDisponivel = {
+  cor: string;
+  estoque?: number | null;
+  imagem?: string | null;
+  tamanhos?: string[] | null;
+  tamanhos_detalhe?: TamanhoDetalhe[] | null;
+};
 
 export type ProdutoCatalogo = {
   id?: number | string;
@@ -22,6 +30,8 @@ export type ProdutoCatalogo = {
   preco_cheio?: number | null;
   preco_parcelado_5x?: number | null;
   preco_pix?: number | null;
+  preco_vigente?: number | null;
+  parcela_5x?: number | null;
   imagem?: string | null;
   link?: string | null;
   url?: string | null;
@@ -30,26 +40,72 @@ export type ProdutoCatalogo = {
   cores_disponiveis?: (string | CorDisponivel)[] | null;
 };
 
-export type EscolhaProduto = { cor?: string | null; tamanho?: string | null; imagem?: string | null };
+export type EscolhaProduto = {
+  cor?: string | null;
+  tamanho?: string | null;
+  imagem?: string | null;
+  tamanhos_detalhe?: TamanhoDetalhe[] | null;
+};
 
 export function formatarPreco(v?: number | null) {
   if (v == null) return "";
   return v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 }
 
-/** Legenda enviada na conversa: Nome da peça - Cor | R$ 149,00 | link */
+/** Tamanhos da cor que têm estoque, já em ordem (a RPC entrega PP..EG). */
+const tamanhosComEstoque = (lista?: TamanhoDetalhe[] | null) =>
+  (lista ?? []).filter((t) => t.estoque > 0);
+
+/** Legenda enviada junto da foto: preço vigente, parcelamento, Pix e tamanhos com estoque. */
 export function legendaProduto(p: ProdutoCatalogo, escolha?: EscolhaProduto) {
+  const vigente = p.preco_vigente ?? p.preco ?? null;
+  const cheio = p.preco_cheio ?? null;
+  const parcela = p.parcela_5x ?? p.preco_parcelado_5x ?? null;
+  const pix = p.preco_pix ?? null;
+
+  const linhas: string[] = [`*${p.nome}*`];
+
+  if (vigente != null) {
+    if (cheio != null && cheio > vigente) {
+      linhas.push(`De ${formatarPreco(cheio)} por *${formatarPreco(vigente)}*`);
+    } else {
+      linhas.push(`*${formatarPreco(vigente)}*`);
+    }
+  }
+  if (parcela != null) linhas.push(`em 5x de ${formatarPreco(parcela)}`);
+  if (pix != null) linhas.push(`*${formatarPreco(pix)} no Pix* (5% de desconto)`);
+
   const cor = escolha?.cor?.trim();
   const tamanho = escolha?.tamanho?.trim();
-  const titulo = [p.nome, cor].filter(Boolean).join(" - ") + (tamanho ? ` (${tamanho})` : "");
-  const partes = [titulo, formatarPreco(p.preco_cheio ?? p.preco)].filter(Boolean);
+  const detalhe = escolha?.tamanhos_detalhe ?? null;
+
+  if (cor && tamanho) {
+    const estoque = detalhe?.find((t) => t.tamanho === tamanho)?.estoque;
+    const aviso = estoque != null && estoque <= 3 ? ` (últimas ${estoque})` : "";
+    linhas.push(`${cor} · tamanho ${tamanho}${aviso}`);
+  } else if (cor) {
+    const disponiveis = tamanhosComEstoque(detalhe);
+    if (disponiveis.length) {
+      const texto = disponiveis
+        .map((t) => (t.estoque <= 3 ? `${t.tamanho} (últimas ${t.estoque})` : t.tamanho))
+        .join(", ");
+      linhas.push(`${cor} · ${texto}`);
+    } else {
+      linhas.push(cor);
+    }
+  } else {
+    // Sem variante escolhida: cores com estoque, sem tamanho.
+    const cores = (p.cores_disponiveis ?? [])
+      .map((c) => (typeof c === "string" ? { cor: c, estoque: null as number | null } : { cor: c.cor ?? "", estoque: c.estoque ?? null }))
+      .filter((c) => c.cor && (c.estoque == null || c.estoque > 0))
+      .map((c) => c.cor);
+    if (cores.length) linhas.push(cores.join(", "));
+  }
+
   const link = p.link || p.url;
-  if (link) partes.push(link);
-  const base = partes.join(" | ");
-  const extras: string[] = [];
-  if (p.preco_parcelado_5x != null) extras.push(`5x de ${formatarPreco(p.preco_parcelado_5x)} sem juros`);
-  if (p.preco_pix != null) extras.push(`${formatarPreco(p.preco_pix)} no Pix (5% OFF)`);
-  return extras.length ? `${base}\n${extras.join(" | ")}` : base;
+  if (link) linhas.push(link);
+
+  return linhas.join("\n");
 }
 
 type VariantesProduto = {
@@ -57,6 +113,9 @@ type VariantesProduto = {
   nome?: string | null;
   preco?: number | null;
   preco_cheio?: number | null;
+  preco_pix?: number | null;
+  parcela_5x?: number | null;
+  estoque_total?: number | null;
   imagem?: string | null;
   cores?: CorDisponivel[] | null;
 };
@@ -145,6 +204,12 @@ function EscolherVariacao({
     [cores, cor],
   );
 
+  const tamanhosDetalhe = useMemo(
+    () => cores.find((c) => c.cor === cor)?.tamanhos_detalhe ?? null,
+    [cores, cor],
+  );
+
+
   useEffect(() => {
     if (tamanhos.length === 1) setTamanho(tamanhos[0]);
     else if (!tamanhos.includes(tamanho ?? "")) setTamanho(null);
@@ -229,10 +294,10 @@ function EscolherVariacao({
 
       <div className="rounded-md border border-border bg-muted/40 p-2">
         <p className="text-[11px] text-muted-foreground">A cliente recebe:</p>
-        <p className="whitespace-pre-wrap text-xs">{legendaProduto(produto, { cor, tamanho })}</p>
+        <p className="whitespace-pre-wrap text-xs">{legendaProduto(produto, { cor, tamanho, tamanhos_detalhe: tamanhosDetalhe })}</p>
       </div>
 
-      <Button className="w-full" disabled={!podeEnviar} onClick={() => onEnviar({ cor, tamanho, imagem: imagemSelecionada })}>
+      <Button className="w-full" disabled={!podeEnviar} onClick={() => onEnviar({ cor, tamanho, imagem: imagemSelecionada, tamanhos_detalhe: tamanhosDetalhe })}>
         {rotuloAcao}
       </Button>
       {!podeEnviar && (

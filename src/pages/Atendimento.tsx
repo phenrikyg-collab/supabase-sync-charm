@@ -36,7 +36,7 @@ import {
   registrarUso, useRespostasRapidas, type RespostaRapida,
 } from "@/components/atendimento/RespostasRapidas";
 import { TagsConversa, TagChip, type Tag } from "@/components/atendimento/TagsConversa";
-import { CatalogoDialog, formatarPreco, legendaProduto, type ProdutoCatalogo, type EscolhaProduto, type ItemSelecionado as ItemCatalogo } from "@/components/atendimento/CatalogoDialog";
+import { CatalogoDialog, legendaProduto, type ProdutoCatalogo, type EscolhaProduto, type ItemSelecionado as ItemCatalogo } from "@/components/atendimento/CatalogoDialog";
 import { ToastAction } from "@/components/ui/toast";
 import { PerfilCliente } from "@/components/atendimento/PerfilCliente";
 import { CashbackConversa, SeloCashback, BotaoEnviarCupom } from "@/components/atendimento/CashbackConversa";
@@ -1997,25 +1997,47 @@ export default function Atendimento() {
     };
     setCatalogoAberto(false);
 
+    // Preenche o detalhe de tamanhos (peça que entrou pelo atalho de cor única).
+    const detalheCache = new Map<string, EscolhaProduto["tamanhos_detalhe"]>();
+    const itensCompletos = await Promise.all(
+      itens.map(async (item): Promise<ItemCatalogo> => {
+        const cor = item.escolha?.cor?.trim();
+        if (!cor || item.escolha?.tamanhos_detalhe) return item;
+        const idProd = String(item.produto.produto_id ?? item.produto.id ?? "");
+        const chave = `${idProd}|${cor}`;
+        if (!idProd) return item;
+        if (!detalheCache.has(chave)) {
+          try {
+            const { data } = await chamarRpc("catalogo_produto_variantes" as any, { p_produto_id: idProd });
+            const bruto = (Array.isArray(data) ? data[0] : data) as { cores?: { cor?: string; tamanhos_detalhe?: EscolhaProduto["tamanhos_detalhe"] }[] } | null;
+            detalheCache.set(chave, bruto?.cores?.find((c) => c.cor === cor)?.tamanhos_detalhe ?? null);
+          } catch {
+            detalheCache.set(chave, null);
+          }
+        }
+        return { ...item, escolha: { ...item.escolha, tamanhos_detalhe: detalheCache.get(chave) ?? null } };
+      }),
+    );
+
     const aviso = toast({ title: `enviando 1 de ${itens.length}`, duration: 60000 });
     const falhas: ItemCatalogo[] = [];
 
-    for (let i = 0; i < itens.length; i++) {
-      const { produto, escolha } = itens[i];
-      aviso.update({ id: aviso.id, title: `enviando ${i + 1} de ${itens.length}` } as any);
+    for (let i = 0; i < itensCompletos.length; i++) {
+      const { produto, escolha } = itensCompletos[i];
+      aviso.update({ id: aviso.id, title: `enviando ${i + 1} de ${itensCompletos.length}` } as any);
       try {
         await enviarImagem(destino, escolha?.imagem || produto.imagem || "", legendaProduto(produto, escolha));
       } catch {
-        falhas.push(itens[i]);
+        falhas.push(itensCompletos[i]);
       }
       // pausa curta para o WhatsApp não embaralhar a ordem das mensagens
-      if (i < itens.length - 1) await new Promise((r) => setTimeout(r, 1200));
+      if (i < itensCompletos.length - 1) await new Promise((r) => setTimeout(r, 1200));
     }
 
     aviso.dismiss();
 
     if (!falhas.length) {
-      toast({ title: itens.length === 1 ? "Produto enviado" : `${itens.length} peças enviadas` });
+      toast({ title: itensCompletos.length === 1 ? "Produto enviado" : `${itensCompletos.length} peças enviadas` });
       return;
     }
 
