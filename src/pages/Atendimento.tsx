@@ -35,7 +35,8 @@ import {
   registrarUso, useRespostasRapidas, type RespostaRapida,
 } from "@/components/atendimento/RespostasRapidas";
 import { TagsConversa, TagChip, type Tag } from "@/components/atendimento/TagsConversa";
-import { CatalogoDialog, formatarPreco, legendaProduto, type ProdutoCatalogo, type EscolhaProduto } from "@/components/atendimento/CatalogoDialog";
+import { CatalogoDialog, formatarPreco, legendaProduto, type ProdutoCatalogo, type EscolhaProduto, type ItemSelecionado as ItemCatalogo } from "@/components/atendimento/CatalogoDialog";
+import { ToastAction } from "@/components/ui/toast";
 import { PerfilCliente } from "@/components/atendimento/PerfilCliente";
 import { CashbackConversa, SeloCashback, BotaoEnviarCupom } from "@/components/atendimento/CashbackConversa";
 import { AtividadesRecentes } from "@/components/atendimento/AtividadesRecentes";
@@ -872,6 +873,10 @@ export default function Atendimento() {
   const composerRef = useRef<ComposerHandle>(null);
   const [digitando, setDigitando] = useState(false);
   const [catalogoAberto, setCatalogoAberto] = useState(false);
+  // Trocar de conversa fecha o catálogo e zera a seleção de peças.
+  useEffect(() => {
+    setCatalogoAberto(false);
+  }, [selecionada]);
   const [imagens, setImagens] = useState<ItemAnexo[]>([]);
   const [progressoUpload, setProgressoUpload] = useState<{ feitos: number; total: number } | null>(null);
   const [mensagemExcluir, setMensagemExcluir] = useState<Mensagem | null>(null);
@@ -1960,20 +1965,50 @@ export default function Atendimento() {
   };
 
 
-  const enviarProduto = async (p: ProdutoCatalogo, escolha?: EscolhaProduto) => {
-    if (!conversaAtual) return;
+  /** Envia as peças escolhidas no catálogo, uma mensagem por peça, na ordem da seleção. */
+  const enviarProdutos = async (itens: ItemCatalogo[]) => {
+    if (!conversaAtual || !itens.length) return;
+    // Destino congelado: a seleção vai para a conversa aberta no momento da confirmação.
     const destino: DestinoMidiaCongelado = {
       conversaId: conversaAtual.id,
       telefone: conversaAtual.telefone_real || conversaAtual.telefone,
       autor: user?.email ?? null,
     };
-    try {
-      await enviarImagem(destino, escolha?.imagem || p.imagem || "", legendaProduto(p, escolha));
-      setCatalogoAberto(false);
-      toast({ title: "Produto enviado" });
-    } catch (e: any) {
-      toast({ title: "Erro ao enviar produto", description: e.message, variant: "destructive" });
+    setCatalogoAberto(false);
+
+    const aviso = toast({ title: `enviando 1 de ${itens.length}`, duration: 60000 });
+    const falhas: ItemCatalogo[] = [];
+
+    for (let i = 0; i < itens.length; i++) {
+      const { produto, escolha } = itens[i];
+      aviso.update({ id: aviso.id, title: `enviando ${i + 1} de ${itens.length}` } as any);
+      try {
+        await enviarImagem(destino, escolha?.imagem || produto.imagem || "", legendaProduto(produto, escolha));
+      } catch {
+        falhas.push(itens[i]);
+      }
+      // pausa curta para o WhatsApp não embaralhar a ordem das mensagens
+      if (i < itens.length - 1) await new Promise((r) => setTimeout(r, 1200));
     }
+
+    aviso.dismiss();
+
+    if (!falhas.length) {
+      toast({ title: itens.length === 1 ? "Produto enviado" : `${itens.length} peças enviadas` });
+      return;
+    }
+
+    toast({
+      title: falhas.length === 1 ? "Uma peça não foi enviada" : `${falhas.length} peças não foram enviadas`,
+      description: falhas.map((f) => f.produto.nome).join(", "),
+      variant: "destructive",
+      duration: 15000,
+      action: (
+        <ToastAction altText="Tentar de novo" onClick={() => void enviarProdutos(falhas)}>
+          tentar de novo
+        </ToastAction>
+      ),
+    });
   };
 
   const assumir = useMutation({
@@ -3540,7 +3575,7 @@ export default function Atendimento() {
         </TabsContent>
       </Tabs>
 
-      <CatalogoDialog open={catalogoAberto} onOpenChange={setCatalogoAberto} onSelecionar={enviarProduto} />
+      <CatalogoDialog open={catalogoAberto} onOpenChange={setCatalogoAberto} onSelecionar={enviarProdutos} />
       <NovaConversaDialog
         open={novaConversaAberta}
         onOpenChange={setNovaConversaAberta}
