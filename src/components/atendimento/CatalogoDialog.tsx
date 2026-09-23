@@ -294,10 +294,10 @@ function EscolherVariacao({
 
       <div className="rounded-md border border-border bg-muted/40 p-2">
         <p className="text-[11px] text-muted-foreground">A cliente recebe:</p>
-        <p className="whitespace-pre-wrap text-xs">{legendaProduto(produto, { cor, tamanho })}</p>
+        <p className="whitespace-pre-wrap text-xs">{legendaProduto(produto, { cor, tamanho, tamanhos_detalhe: tamanhosDetalhe })}</p>
       </div>
 
-      <Button className="w-full" disabled={!podeEnviar} onClick={() => onEnviar({ cor, tamanho, imagem: imagemSelecionada })}>
+      <Button className="w-full" disabled={!podeEnviar} onClick={() => onEnviar({ cor, tamanho, imagem: imagemSelecionada, tamanhos_detalhe: tamanhosDetalhe })}>
         {rotuloAcao}
       </Button>
       {!podeEnviar && (
