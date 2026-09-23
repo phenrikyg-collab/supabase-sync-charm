@@ -2382,6 +2382,7 @@ export default function Atendimento() {
     ["cancelados", "Pedidos cancelados", contagens.cancelados],
     ["kanban", "Kanban do funil", undefined],
     ["cashback", "Cashback", undefined],
+    ["bloqueios", "Bloqueios", undefined],
   ] as const;
 
   return (
