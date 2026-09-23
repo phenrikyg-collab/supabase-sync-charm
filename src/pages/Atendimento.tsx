@@ -621,6 +621,7 @@ export const BalaoMensagem = memo(function BalaoMensagem({
 }: BalaoMensagemProps) {
                     const saida = m.direcao === "saida";
                     const bot = saida && m.origem === "bot";
+                    const kora = m.origem === "kora";
                     const tipo = (m.tipo ?? "").toLowerCase();
                     const sticker = tipo === "sticker" && !!m.media_url;
                     const tipoMidia = ehTipoMidia(tipo);
