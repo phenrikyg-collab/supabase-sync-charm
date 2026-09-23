@@ -36,7 +36,7 @@ import {
   registrarUso, useRespostasRapidas, type RespostaRapida,
 } from "@/components/atendimento/RespostasRapidas";
 import { TagsConversa, TagChip, type Tag } from "@/components/atendimento/TagsConversa";
-import { CatalogoDialog, formatarPreco, legendaProduto, type ProdutoCatalogo, type EscolhaProduto, type ItemSelecionado as ItemCatalogo } from "@/components/atendimento/CatalogoDialog";
+import { CatalogoDialog, legendaProduto, type ProdutoCatalogo, type EscolhaProduto, type ItemSelecionado as ItemCatalogo } from "@/components/atendimento/CatalogoDialog";
 import { ToastAction } from "@/components/ui/toast";
 import { PerfilCliente } from "@/components/atendimento/PerfilCliente";
 import { CashbackConversa, SeloCashback, BotaoEnviarCupom } from "@/components/atendimento/CashbackConversa";
