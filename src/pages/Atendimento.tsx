@@ -468,23 +468,24 @@ const ItemConversa = memo(function ItemConversa({
   onAbrir, onMenuChange, onMarcarLeitura, mobile = false,
 }: ItemConversaProps) {
   const site = ehSite(c);
-  const nome = nomeTray(c) ?? limpo(c.nome_whatsapp) ?? (site ? "Visitante do site" : identificadorConversa(c));
+  const nome = nomeTray(c) ?? limpo(c.nome_whatsapp) ?? (site && c.telefone_real ? formatarTelefone(c.telefone_real) : identificadorConversa(c));
   const naoLida = !modoHistorico && !!c.nao_lida;
-  const urg = modoHistorico ? "normal" : urgenciaDeNivel(atencao?.nivel);
   const aguardando = !modoHistorico && c.status === "escalado" && !!c.aguardando_desde;
   const espera = aguardando
     ? `esperando há ${formatDistanceToNow(new Date(c.aguardando_desde as string), { locale: ptBR })}`
     : null;
-  const estados = (c.sinais ?? []).filter((s) => ["respondendo agora", "ativa agora", "com a atendente"].includes(s.toLowerCase()));
+  const estadosVisuais = ["respondendo agora", "ativa agora", "com a atendente"];
+  const ehEstadoVisual = (s: string) => estadosVisuais.includes(s.toLowerCase());
+  const estados = [...(c.sinais ?? []), ...((atencao?.motivos ?? []) as string[])].filter(ehEstadoVisual);
   if (c.status === "em_atendimento" && !estados.some((s) => s.toLowerCase() === "com a atendente")) estados.push("com a atendente");
   const ponto = estados.some((s) => s.toLowerCase() === "respondendo agora") ? "bg-warning" : "bg-success";
-  const status = modoHistorico ? "Finalizada" : c.status === "escalado" && !c.aguardando_desde ? null : STATUS_META[c.status]?.label ?? c.status;
+  const status = modoHistorico ? "Finalizada" : c.status === "em_atendimento" || c.status === "escalado" && !c.aguardando_desde ? null : STATUS_META[c.status]?.label ?? c.status;
   const etiquetas: { key: string; label: string; destaque?: string; tag?: Tag }[] = [
     ...(espera ? [{ key: "espera", label: espera, destaque: "text-warning bg-warning/10 border-warning/20" }] : []),
     ...(status ? [{ key: "status", label: status, destaque: "text-muted-foreground bg-muted border-border" }] : []),
     ...((c.tags ?? []).map((t) => ({ key: `tag-${t.id}`, label: t.nome, tag: t }))),
-    ...((atencao?.motivos ?? []) as string[]).map((m, i) => ({ key: `motivo-${i}`, label: m })),
-    ...(c.sinais ?? []).filter((s) => !estados.includes(s)).map((s, i) => ({ key: `sinal-${i}`, label: s })),
+    ...((atencao?.motivos ?? []) as string[]).filter((m) => !ehEstadoVisual(m)).map((m, i) => ({ key: `motivo-${i}`, label: m })),
+    ...(c.sinais ?? []).filter((s) => !ehEstadoVisual(s)).map((s, i) => ({ key: `sinal-${i}`, label: s })),
     ...(nomeSoDoWhatsApp(c) ? [{ key: "whatsapp", label: "via WhatsApp" }] : []),
     ...(site && c.telefone_real ? [{ key: "tel-site", label: formatarTelefone(c.telefone_real) }] : []),
     ...(modoHistorico && c.tem_kora ? [{ key: "kora", label: "Kora" }] : []),
@@ -536,7 +537,7 @@ const ItemConversa = memo(function ItemConversa({
             )}
           </span>
         ))}
-        {etiquetas.length > 3 && <span title={etiquetas.slice(3).map((e) => e.label).join("\n")} className="inline-flex h-[18px] shrink-0 items-center rounded border border-border bg-muted px-1.5 text-[10px] leading-none text-muted-foreground">+{etiquetas.length - 3}</span>}
+        {etiquetas.length > 3 && <span title={etiquetas.slice(3).map((e) => e.label).join("\n")} aria-label={`Mais ${etiquetas.length - 3} etiquetas: ${etiquetas.slice(3).map((e) => e.label).join(", ")}`} className="inline-flex h-[18px] shrink-0 items-center rounded border border-border bg-muted px-1.5 text-[10px] leading-none text-muted-foreground">+{etiquetas.length - 3}</span>}
       </span>
       {!mobile && !modoHistorico && (
         <DropdownMenu open={menuAberto} onOpenChange={(aberto) => onMenuChange(aberto ? String(c.id) : null)}>
