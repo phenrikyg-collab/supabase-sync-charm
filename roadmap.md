@@ -38,3 +38,5 @@
 - [x] Restaurar "sem juros" no card e na legenda do catálogo
 - [x] Corrigir largura das colunas, balões, prévias e etiquetas; painel lateral em gaveta abaixo de 1280px
 - [ ] Conferir Atendimento autenticado em 1280px, 1440px e 390px (bloqueado: nenhum usuário disponível para entrar; layout medido com dados de exemplo)
+- [x] Corrigir seleção múltipla do catálogo com cores em texto, sem abrir variação no clique da caixa
+- [x] Testar marcação, cores repetidas, edição, remoção, envio e limite de 10; confirmar parâmetros dos filtros

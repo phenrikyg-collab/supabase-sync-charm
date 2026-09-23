@@ -36,7 +36,7 @@ export type ProdutoCatalogo = {
   link?: string | null;
   url?: string | null;
   disponivel?: boolean | null;
-  tamanhos_disponiveis?: TamanhoDisponivel[] | null;
+  tamanhos_disponiveis?: (string | TamanhoDisponivel)[] | null;
   cores_disponiveis?: (string | CorDisponivel)[] | null;
 };
 
@@ -169,12 +169,12 @@ const chaveItem = (p: ProdutoCatalogo, escolha?: EscolhaProduto) =>
 
 /** Quantas cores a busca já conhece para o produto (sem chamar a RPC de variantes). */
 const qtdCoresConhecidas = (p: ProdutoCatalogo) =>
-  (p.cores_disponiveis ?? []).map((c) => (typeof c === "string" ? c : c?.cor)).filter(Boolean).length;
+  (p.cores_disponiveis ?? []).map((c) => (typeof c === "string" ? c : c?.cor)?.trim()).filter(Boolean).length;
 
 const primeiraCor = (p: ProdutoCatalogo): EscolhaProduto => {
   const bruta = (p.cores_disponiveis ?? [])[0];
   const c = typeof bruta === "string" ? { cor: bruta } : bruta;
-  return { cor: c?.cor ?? null, tamanho: null, imagem: c?.imagem || p.imagem || null };
+  return { cor: c?.cor?.trim() || null, tamanho: null, imagem: c?.imagem || p.imagem || null };
 };
 
 function EscolherVariacao({
@@ -272,7 +272,7 @@ function EscolherVariacao({
               <button
                 key={c.cor}
                 type="button"
-                onClick={() => setCor(c.cor)}
+        onClick={() => { setCor(c.cor); setTamanho(null); }}
                 className={
                   cor === c.cor
                     ? "rounded-full border border-primary bg-primary/10 px-2.5 py-1 text-[11px] font-medium text-primary"
@@ -441,8 +441,8 @@ export function CatalogoDialog({
     queryFn: async () => {
       const { data, error } = await chamarRpc("catalogo_buscar_produtos" as any, {
         p_palavra_chave: buscaAdiada.trim() || null,
-        p_cor: cor,
-        p_tamanho: tamanho,
+        p_cor: cor?.trim() || null,
+        p_tamanho: tamanho?.trim() || null,
         p_limit: 30,
       });
       if (error) throw error;
@@ -477,15 +477,17 @@ export function CatalogoDialog({
 
   const alternarSelecao = (p: ProdutoCatalogo) => {
     const jaTem = chavesProdutos.has(idProduto(p) || p.nome);
+    // Peças com várias cores podem entrar mais de uma vez, com cores diferentes.
+    // A remoção individual fica nas miniaturas da barra de seleção.
+    if (qtdCoresConhecidas(p) > 1) {
+      if (!noLimite) setAberto({ modo: "selecionar", produto: p });
+      return;
+    }
     if (jaTem) {
       setSelecao((atual) => atual.filter((i) => (idProduto(i.produto) || i.produto.nome) !== (idProduto(p) || p.nome)));
       return;
     }
     if (noLimite) return;
-    if (qtdCoresConhecidas(p) > 1) {
-      setAberto({ modo: "selecionar", produto: p });
-      return;
-    }
     adicionar(p, primeiraCor(p));
   };
 
@@ -535,6 +537,7 @@ export function CatalogoDialog({
 
         {aberto ? (
           <EscolherVariacao
+            key={`${aberto.modo}-${idProduto(aberto.produto)}-${aberto.modo === "editar" ? aberto.chave : ""}`}
             produto={aberto.produto}
             inicial={aberto.modo === "editar" ? aberto.inicial : undefined}
             rotuloAcao={aberto.modo === "enviar" ? "Enviar para a cliente" : "Adicionar à seleção"}
@@ -592,7 +595,7 @@ export function CatalogoDialog({
                 <div className={`grid grid-cols-2 sm:grid-cols-3 gap-3 ${selecao.length ? "pb-32" : ""}`}>
                   {produtos.map((p, i) => {
                     const marcado = chavesProdutos.has(idProduto(p) || p.nome);
-                    const bloqueado = !marcado && noLimite;
+                    const bloqueado = noLimite && (!marcado || qtdCoresConhecidas(p) > 1);
                     return (
                       <div
                         key={idProduto(p) || i}
@@ -611,7 +614,7 @@ export function CatalogoDialog({
                           type="button"
                           disabled={bloqueado}
                           title={bloqueado ? "máximo de 10 por envio" : undefined}
-                          aria-label={marcado ? `Tirar ${p.nome} da seleção` : `Selecionar ${p.nome}`}
+                           aria-label={marcado && qtdCoresConhecidas(p) <= 1 ? `Tirar ${p.nome} da seleção` : `Selecionar ${p.nome}`}
                           onClick={(e) => {
                             e.stopPropagation();
                             alternarSelecao(p);
@@ -666,19 +669,22 @@ export function CatalogoDialog({
                           )}
                           {!!p.tamanhos_disponiveis?.length && (
                             <div className="flex flex-wrap gap-1 pt-0.5">
-                              {p.tamanhos_disponiveis.map((t) => (
-                                <span
-                                  key={t.tamanho}
-                                  title={`${t.estoque} em estoque`}
-                                  className={
-                                    t.estoque > 0
-                                      ? "inline-flex rounded bg-muted text-foreground px-1.5 py-0.5 text-[10px] font-medium"
-                                      : "inline-flex rounded bg-muted/50 text-muted-foreground line-through opacity-60 px-1.5 py-0.5 text-[10px]"
-                                  }
-                                >
-                                  {t.tamanho}
-                                </span>
-                              ))}
+                              {p.tamanhos_disponiveis.map((valor) => {
+                                const t = typeof valor === "string" ? { tamanho: valor, estoque: null } : valor;
+                                return (
+                                  <span
+                                    key={t.tamanho}
+                                    title={t.estoque != null ? `${t.estoque} em estoque` : undefined}
+                                    className={
+                                      t.estoque == null || t.estoque > 0
+                                        ? "inline-flex rounded bg-muted text-foreground px-1.5 py-0.5 text-[10px] font-medium"
+                                        : "inline-flex rounded bg-muted/50 text-muted-foreground line-through opacity-60 px-1.5 py-0.5 text-[10px]"
+                                    }
+                                  >
+                                    {t.tamanho}
+                                  </span>
+                                );
+                              })}
                             </div>
                           )}
                           {p.disponivel === false && (
