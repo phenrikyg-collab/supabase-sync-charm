@@ -1997,6 +1997,28 @@ export default function Atendimento() {
     };
     setCatalogoAberto(false);
 
+    // Preenche o detalhe de tamanhos (peça que entrou pelo atalho de cor única).
+    const detalheCache = new Map<string, EscolhaProduto["tamanhos_detalhe"]>();
+    const itensCompletos = await Promise.all(
+      itens.map(async (item): Promise<ItemCatalogo> => {
+        const cor = item.escolha?.cor?.trim();
+        if (!cor || item.escolha?.tamanhos_detalhe) return item;
+        const idProd = String(item.produto.produto_id ?? item.produto.id ?? "");
+        const chave = `${idProd}|${cor}`;
+        if (!idProd) return item;
+        if (!detalheCache.has(chave)) {
+          try {
+            const { data } = await chamarRpc("catalogo_produto_variantes" as any, { p_produto_id: idProd });
+            const bruto = (Array.isArray(data) ? data[0] : data) as { cores?: { cor?: string; tamanhos_detalhe?: EscolhaProduto["tamanhos_detalhe"] }[] } | null;
+            detalheCache.set(chave, bruto?.cores?.find((c) => c.cor === cor)?.tamanhos_detalhe ?? null);
+          } catch {
+            detalheCache.set(chave, null);
+          }
+        }
+        return { ...item, escolha: { ...item.escolha, tamanhos_detalhe: detalheCache.get(chave) ?? null } };
+      }),
+    );
+
     const aviso = toast({ title: `enviando 1 de ${itens.length}`, duration: 60000 });
     const falhas: ItemCatalogo[] = [];
 
