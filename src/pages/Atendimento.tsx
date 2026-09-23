@@ -1781,6 +1781,7 @@ export default function Atendimento() {
       });
       if (error) throw error;
       if ((corpo as any)?.error) throw new Error((corpo as any).error);
+      if (responderA != null && (corpo as any)?.citou === false) avisarSemCitar();
     } catch (e: any) {
       // O invoke esconde o corpo do erro em error.context; ler o motivo real (ex.: janela de 24h).
       let motivo = await extrairErroJanela(e);
