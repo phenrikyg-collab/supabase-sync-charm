@@ -523,6 +523,14 @@ const ItemConversa = memo(function ItemConversa({
     >
       <span className="flex h-[15px] min-w-0 items-center gap-1.5">
         {(estados.length > 0 || naoLida) && <span className={cn("h-2 w-2 shrink-0 rounded-full", ponto)} title={estados.join(" · ") || "Não lida"} />}
+        {bloqueio && (
+          <span
+            className={cn("shrink-0", bloqueio === "total" ? "text-danger" : "text-warning")}
+            title={bloqueio === "total" ? "Contato bloqueado - nada é enviado para ela" : "Fora das automações - campanhas e fluxos não alcançam essa cliente"}
+          >
+            {bloqueio === "total" ? <Ban className="h-3 w-3" /> : <ShieldOff className="h-3 w-3" />}
+          </span>
+        )}
         <span className={cn("min-w-0 flex-1 truncate text-[13px] leading-[15px]", naoLida || aguardando ? "font-bold" : "font-semibold")}>{nome}</span>
         <span className="max-w-[44%] shrink-0 truncate text-[11px] leading-[15px] text-muted-foreground group-hover:md:opacity-0" title={tempoRelativo(dataMensagem)}>{tempoRelativo(dataMensagem)}</span>
       </span>
