@@ -633,7 +633,7 @@ export const BalaoMensagem = memo(function BalaoMensagem({
                     const chaveBalao = m.id != null ? String(m.id) : "";
                     const otimista = typeof m.id === "number" && m.id < 0;
                     // Sem wamid a Meta não consegue citar (mensagem antiga ou importada): não ofereça a ação.
-                    const podeCitar = !otimista && m.id != null && !!(m.wamid ?? "").toString().trim();
+                     const podeCitar = !otimista && m.id != null && !!(m.wamid ?? "").toString().trim();
                     const temCitada = m.citada_id != null || !!m.citada_texto;
                     const aguardando = typeof m.aguardando_ate === "number";
                     const podeExcluir = saida && !aguardando && !otimista && m.id != null;
@@ -659,7 +659,7 @@ export const BalaoMensagem = memo(function BalaoMensagem({
                         <div className={cn("flex min-w-0 max-w-full", saida ? "justify-end" : "justify-start")}>
                           <div className="group flex min-w-0 max-w-[90%] items-start gap-1 md:max-w-[80%]">
                           {podeCitar && saida && (
-                            <Button size="icon" variant="ghost" className="hidden h-7 w-7 shrink-0 opacity-0 transition-opacity group-hover:opacity-100 focus:opacity-100 lg:flex" onClick={() => onResponder(m)} title="Responder" aria-label="Responder">
+                            <Button size="icon" variant="ghost" className="hidden h-7 w-7 shrink-0 opacity-0 transition-opacity group-hover:opacity-100 focus:opacity-100 md:flex" onClick={() => onResponder(m)} title="Responder" aria-label="Responder">
                               <Reply className="h-3.5 w-3.5" />
                             </Button>
                           )}
@@ -845,7 +845,7 @@ export const BalaoMensagem = memo(function BalaoMensagem({
                              </div>
                           </div>
                           {podeCitar && !saida && (
-                            <Button size="icon" variant="ghost" className="hidden h-7 w-7 shrink-0 opacity-0 transition-opacity group-hover:opacity-100 focus:opacity-100 lg:flex" onClick={() => onResponder(m)} title="Responder" aria-label="Responder">
+                            <Button size="icon" variant="ghost" className="hidden h-7 w-7 shrink-0 opacity-0 transition-opacity group-hover:opacity-100 focus:opacity-100 md:flex" onClick={() => onResponder(m)} title="Responder" aria-label="Responder">
                               <Reply className="h-3.5 w-3.5" />
                             </Button>
                           )}
