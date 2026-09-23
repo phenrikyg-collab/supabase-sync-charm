@@ -7,7 +7,12 @@ import {
   Collapsible, CollapsibleContent, CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import { toast } from "@/hooks/use-toast";
-import { cn } from "@/lib/utils";
+
+type TamanhoPeca = {
+  tamanho: string;
+  estoque: number;
+  cores: string;
+};
 
 type Peca = {
   produto_id?: number | string | null;
@@ -25,15 +30,9 @@ type Peca = {
   margem_pct?: number | null;
   valor_parado?: number | null;
   argumento?: string | null;
-};
-
-type Meta = {
-  mensal?: number | null;
-  realizado?: number | null;
-  diaria?: number | null;
-  dias_uteis_restantes?: number | null;
-  hoje?: number | null;
-  percentual?: number | null;
+  meta_unidades?: number | null;
+  vendidas_hoje?: number | null;
+  tamanhos?: TamanhoPeca[] | null;
 };
 
 type AcaoDoDia = {
@@ -41,7 +40,6 @@ type AcaoDoDia = {
   tem_acao?: boolean;
   data?: string | null;
   peca?: Peca | null;
-  meta?: Meta | null;
 };
 
 const CHAVE_ABERTO = "atendimento-acao-do-dia-aberto";
@@ -56,7 +54,7 @@ function brl(v: unknown): string {
   return n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 }
 
-/** Card "Ação do dia": meta do mês e peça escolhida, atualizado a cada 5 minutos. */
+/** Card "Ação do dia": peça escolhida com meta de vendas própria, atualizado a cada 5 minutos. */
 export function AcaoDoDia() {
   const [aberto, setAberto] = useState(() => {
     try {
@@ -103,23 +101,21 @@ export function AcaoDoDia() {
     return () => window.removeEventListener("acao-do-dia-refresh", handler);
   }, [refetch]);
 
-  // Sem dados (erro, ok falso ou meta nula): o card não aparece.
-  if (error || !data || data.ok === false || !data.meta) return null;
+  // Sem dados, com ok falso ou sem peça: o card não aparece.
+  if (error || !data || data.ok === false || !data.peca) return null;
 
-  const meta = data.meta;
-  const peca = data.tem_acao ? data.peca ?? null : null;
-
-  const realizado = numero(meta.realizado);
-  const mensal = numero(meta.mensal);
-  const percentual = numero(meta.percentual);
-  const faltam = mensal !== null && realizado !== null ? Math.max(0, mensal - realizado) : null;
-  const diasUteis = numero(meta.dias_uteis_restantes);
-  const metaHoje = numero(meta.hoje) ?? numero(meta.diaria) ?? 0;
-
-  const pluralDia = diasUteis === 1 ? "dia útil" : "dias úteis";
+  const peca = data.peca;
+  const metaUnidades = numero(peca.meta_unidades);
+  const vendidasHoje = numero(peca.vendidas_hoje) ?? 0;
+  const tamanhos = (peca.tamanhos ?? []).filter((t) => t?.tamanho);
+  const atingiu = metaUnidades !== null && vendidasHoje >= metaUnidades;
+  const percentualMeta =
+    metaUnidades !== null && metaUnidades > 0
+      ? Math.min(100, Math.max(0, (vendidasHoje / metaUnidades) * 100))
+      : 0;
 
   const copiarLink = async () => {
-    if (!peca?.url) return;
+    if (!peca.url) return;
     try {
       await navigator.clipboard.writeText(peca.url);
       toast({ title: "Link copiado" });
@@ -136,16 +132,10 @@ export function AcaoDoDia() {
     >
       <CollapsibleTrigger className="group flex w-full items-center gap-2 px-3 py-2 text-left">
         <span className="min-w-0 flex-1 truncate text-xs text-foreground">
-          🎯 Meta de hoje {brl(metaHoje)}
-          {percentual !== null ? ` · ${Math.round(percentual)}% do mês` : ""}
-          {peca?.nome ? ` · 👗 Peça do dia: ${peca.nome}` : ""}
-        </span>
-        {/* Barra fina do mês */}
-        <span className="hidden h-1 w-24 shrink-0 overflow-hidden rounded-full bg-muted sm:block">
-          <span
-            className="block h-full rounded-full bg-primary"
-            style={{ width: `${Math.min(100, Math.max(0, percentual ?? 0))}%` }}
-          />
+          👗 Peça do dia: {peca.nome}
+          {metaUnidades !== null
+            ? ` · ${vendidasHoje} de ${metaUnidades} vendidas hoje`
+            : ""}
         </span>
         {aberto ? (
           <ChevronUp className="h-4 w-4 shrink-0 text-muted-foreground" />
@@ -156,38 +146,8 @@ export function AcaoDoDia() {
 
       <CollapsibleContent>
         <div className="space-y-3 px-3 pb-3">
-          {/* Meta do mês */}
-          <div className="space-y-1">
-            <div className="flex items-center justify-between gap-2">
-              <p className="truncate text-sm text-muted-foreground">
-                Mês: {brl(realizado)} de {brl(mensal)}
-                {percentual !== null ? ` (${Math.round(percentual)}%)` : ""}
-              </p>
-              {numero(meta.hoje) !== null && numero(meta.hoje)! > 0 ? (
-                <span className="shrink-0 rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
-                  hoje: {brl(meta.hoje)}
-                </span>
-              ) : null}
-            </div>
-            <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
-              <div
-                className="h-full rounded-full bg-primary"
-                style={{ width: `${Math.min(100, Math.max(0, percentual ?? 0))}%` }}
-              />
-            </div>
-            {faltam !== null && faltam > 0 ? (
-              <p className="text-xs text-muted-foreground">
-                faltam {brl(faltam)}
-                {diasUteis !== null ? ` em ${Math.round(diasUteis)} ${pluralDia}` : ""}
-              </p>
-            ) : null}
-            <p className="text-lg font-semibold leading-tight text-primary">
-              Meta de hoje: {brl(metaHoje)}
-            </p>
-          </div>
-
           {/* Peça do dia */}
-          {peca?.nome ? (
+          {peca.nome ? (
             <div className="flex items-start gap-3 rounded-md border border-border p-2">
               {peca.imagem_url ? (
                 <img
@@ -239,6 +199,44 @@ export function AcaoDoDia() {
               </div>
             </div>
           ) : null}
+
+          {/* Meta de vendas da peça */}
+          {metaUnidades !== null ? (
+            <div className="space-y-1">
+              <div className="flex items-center gap-2 text-sm">
+                <span className="font-medium">Meta: {metaUnidades} peças</span>
+                {atingiu ? (
+                  <span className="font-medium text-primary">meta batida 💛</span>
+                ) : (
+                  <span className="text-muted-foreground">{vendidasHoje} vendidas</span>
+                )}
+              </div>
+              <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
+                <div
+                  className="h-full rounded-full bg-primary"
+                  style={{ width: `${atingiu ? 100 : percentualMeta}%` }}
+                />
+              </div>
+            </div>
+          ) : null}
+
+          {/* Tamanhos disponíveis */}
+          {tamanhos.length ? (
+            <div className="flex flex-wrap gap-1.5">
+              {tamanhos.map((t) => (
+                <span
+                  key={t.tamanho}
+                  title={t.cores || undefined}
+                  className="rounded-md border border-border px-2 py-0.5 text-xs"
+                >
+                  <span className="font-medium">{t.tamanho}</span>
+                  <span className="ml-1 text-muted-foreground">· {t.estoque}</span>
+                </span>
+              ))}
+            </div>
+          ) : (
+            <p className="text-xs text-muted-foreground">sem tamanho em estoque</p>
+          )}
         </div>
       </CollapsibleContent>
     </Collapsible>
