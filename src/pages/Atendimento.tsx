@@ -50,6 +50,7 @@ import { EnviarTemplateDialog } from "@/components/atendimento/EnviarTemplate";
 import { ConferirNumeroDialog } from "@/components/atendimento/ConferirNumero";
 import { Composer, type ComposerHandle } from "@/components/atendimento/Composer";
 import { AvisosFila } from "@/components/atendimento/AvisosFila";
+import { AcaoDoDia } from "@/components/atendimento/AcaoDoDia";
 
 import { ConsultarTransacaoTab } from "@/components/atendimento/ConsultarTransacao";
 import { MensagemMidia, ehTipoMidia } from "@/components/atendimento/MensagemMidia";
