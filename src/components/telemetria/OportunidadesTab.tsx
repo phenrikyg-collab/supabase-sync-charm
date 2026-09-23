@@ -9,7 +9,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import {
-  AVISO_OPORTUNIDADES, fetchInsight, fetchInsightsAcoes, fmtBRL, fmtInt, fmtPct, num,
+  AVISO_OPORTUNIDADES, fetchInsight, fetchInsightsAcoes, fetchInsightsDestaques,
+  fmtBRL, fmtInt, fmtPct, num,
 } from "@/lib/telemetria";
 
 /* ----------------------------- utilidades ---------------------------- */
@@ -19,7 +20,8 @@ const CORES_AREA: Record<string, string> = {
   produto: "bg-blue-100 text-blue-900 border-blue-300",
   carrinho: "bg-purple-100 text-purple-900 border-purple-300",
   site: "bg-red-100 text-red-900 border-red-300",
-  midia: "bg-green-100 text-green-900 border-green-300",
+  midia: "bg-slate-200 text-slate-800 border-slate-400",
+  destaque: "bg-green-100 text-green-900 border-green-300",
 };
 
 const corArea = (area: string) => {
@@ -60,6 +62,50 @@ function useInsight(nome: string, dias: number) {
 }
 
 /* ------------------------------- blocos ------------------------------ */
+
+function IndoBem({ dias }: { dias: number }) {
+  const { data } = useQuery({
+    queryKey: ["insights-destaques", dias],
+    queryFn: () => fetchInsightsDestaques(dias, 12),
+    staleTime: 5 * 60_000,
+  });
+  const destaques = data ?? [];
+  if (!destaques.length) return null;
+
+  return (
+    <Card className="border-success/40 bg-success/5">
+      <CardHeader>
+        <CardTitle className="text-lg">Indo bem - onde mandar mais gente</CardTitle>
+        <p className="text-sm text-muted-foreground">
+          Produtos e canais que convertem acima da média da loja.
+        </p>
+      </CardHeader>
+      <CardContent>
+        <div className="flex gap-3 overflow-x-auto pb-2">
+          {destaques.map((d, i) => (
+            <div
+              key={`${d.tipo}-${d.item}-${i}`}
+              className="w-60 shrink-0 rounded-lg border border-success/40 bg-background p-4"
+            >
+              <div className="text-[11px] uppercase tracking-wider text-muted-foreground">{d.tipo}</div>
+              <div className="mt-0.5 truncate font-medium" title={d.item}>{d.item}</div>
+              <div className="mt-2 text-3xl font-bold text-success">
+                {d.indice_vs_media.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}
+                <span className="text-sm font-medium text-muted-foreground">x a média</span>
+              </div>
+              <div className="mt-1 text-sm">
+                conv. {fmtPct(d.conversao_pct)} · {fmtBRL(d.receita)}
+              </div>
+              {d.leitura && (
+                <div className="mt-2 text-xs text-muted-foreground">{d.leitura}</div>
+              )}
+            </div>
+          ))}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
 
 function AcoesPorImpacto({ dias }: { dias: number }) {
   const { data } = useQuery({
@@ -491,6 +537,8 @@ export function OportunidadesTab() {
           </SelectContent>
         </Select>
       </div>
+
+      <IndoBem dias={dias} />
 
       <AcoesPorImpacto dias={dias} />
 

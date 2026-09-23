@@ -194,6 +194,50 @@ export async function fetchInsightsAcoes(dias: number, limite = 25) {
   })) as AcaoInsight[];
 }
 
+export type DestaqueInsight = {
+  tipo: string;
+  item: string;
+  detalhe: string;
+  sessoes: number;
+  conversao_pct: number;
+  receita: number;
+  indice_vs_media: number;
+  leitura: string;
+};
+
+export async function fetchInsightsDestaques(dias: number, limite = 12) {
+  const linhas = await rpc<any>("insights_destaques", { p_dias: dias, p_limite: limite });
+  return linhas.map((r) => ({
+    tipo: String(r.tipo ?? ""),
+    item: String(r.item ?? ""),
+    detalhe: String(r.detalhe ?? ""),
+    sessoes: num(r.sessoes),
+    conversao_pct: num(r.conversao_pct),
+    receita: num(r.receita),
+    indice_vs_media: num(r.indice_vs_media),
+    leitura: String(r.leitura ?? ""),
+  })) as DestaqueInsight[];
+}
+
+export type NaoAtribuidoLinha = {
+  situacao: string;
+  pedidos: number;
+  receita: number;
+  ticket_medio: number;
+  explicacao: string;
+};
+
+export async function fetchInsightsNaoAtribuido(dias: number) {
+  const linhas = await rpc<any>("insights_nao_atribuido", { p_dias: dias });
+  return linhas.map((r) => ({
+    situacao: String(r.situacao ?? ""),
+    pedidos: num(r.pedidos),
+    receita: num(r.receita),
+    ticket_medio: num(r.ticket_medio),
+    explicacao: String(r.explicacao ?? ""),
+  })) as NaoAtribuidoLinha[];
+}
+
 export async function fetchInsight(nome: string, dias: number) {
   return rpc<Record<string, any>>(nome, { p_dias: dias });
 }
