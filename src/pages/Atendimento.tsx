@@ -2366,7 +2366,6 @@ export default function Atendimento() {
 
   return (
     <div className="font-whatsapp flex h-full w-full min-w-0 flex-col overflow-x-hidden overflow-y-hidden md:-m-6 md:h-[calc(100dvh-3.5rem)] md:w-[calc(100%+3rem)] md:max-w-[calc(100%+3rem)]">
-      {!isMobile && <AvisosFila />}
       <Tabs
         value={abaPagina}
         onValueChange={(v) => setAbaPagina(v as typeof abaPagina)}
@@ -3553,7 +3552,6 @@ export default function Atendimento() {
                     <Button variant="outline" className="h-11 justify-start" onClick={() => { setPerfilSheet(false); setLinkPagamentoAberto(true); }}><Link2 className="mr-2 h-4 w-4" /> Pagamento</Button>
                   </section>
                 )}
-                {isMobile && <AvisosFila />}
                 <Card>
                   {telefoneIdentificado && <CashbackConversa telefone={telefoneIdentificado} />}
                   <PerfilCliente conversaId={conversaAtual.id} autor={autor} telefone={conversaAtual.telefone} />
