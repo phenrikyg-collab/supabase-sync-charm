@@ -582,7 +582,7 @@ const avisarSemCitar = () =>
 const rotuloCitada = (tipo?: string | null, url?: string | null) => {
   const t = (tipo ?? "").toLowerCase();
   if (t.includes("video")) return "Vídeo";
-  if (t.includes("imagem") || t.includes("image") || t.includes("foto")) return "Foto";
+  if (t.includes("imagem") || t.includes("image") || t.includes("photo") || t.includes("foto")) return "Foto";
   if (t.includes("audio") || t.includes("áudio")) return "Áudio";
   if (t.includes("sticker") || t.includes("figurinha")) return "Figurinha";
   return url ? "Foto" : "Mensagem";
@@ -3496,7 +3496,7 @@ export default function Atendimento() {
                           {previaCitada(citacao.tipo, citacao.texto, citacao.media_url)}
                         </p>
                       </div>
-                      {citacao.media_url && /imagem|image|foto|sticker|figurinha/i.test(citacao.tipo ?? "") && (
+                      {citacao.media_url && /imagem|image|photo|foto|sticker|figurinha/i.test(citacao.tipo ?? "") && (
                         <img src={citacao.media_url} alt="Mensagem citada" className="h-[38px] w-[38px] shrink-0 rounded object-cover" />
                       )}
                       <Button size="icon" variant="ghost" className="h-6 w-6 shrink-0" onClick={() => setCitacao(null)} title="Cancelar citação">
