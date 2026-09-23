@@ -236,7 +236,8 @@ export const Composer = forwardRef<ComposerHandle, Props>(function Composer(
           e.preventDefault();
           onImagens(arquivos);
         }}
-        placeholder="Escreva sua resposta ou digite / para as mensagens rápidas"
+        disabled={desabilitado}
+        placeholder={placeholder ?? "Escreva sua resposta ou digite / para as mensagens rápidas"}
         rows={1}
         className={mobile ? "min-h-11 max-h-24 min-w-0 flex-1 resize-none overflow-y-auto py-2.5" : "min-h-8 max-h-24 min-w-0 flex-1 resize-none overflow-y-auto py-1.5"}
         onKeyDown={(e) => {
