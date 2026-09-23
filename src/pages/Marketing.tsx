@@ -20,6 +20,12 @@ import { FunilLeitura, RedFlags } from "@/components/marketing/FunilLeitura";
 import { CriativosTab } from "@/components/marketing/CriativosTab";
 import { CriativosPerformance } from "@/components/marketing/CriativosPerformance";
 import { ConjuntosAnuncio } from "@/components/marketing/ConjuntosAnuncio";
+import { ResumoTelemetria } from "@/components/telemetria/ResumoTelemetria";
+import { CanaisTelemetria } from "@/components/telemetria/CanaisTelemetria";
+import { PaginasTelemetria } from "@/components/telemetria/PaginasTelemetria";
+import { ProdutosTelemetria } from "@/components/telemetria/ProdutosTelemetria";
+import { OportunidadesTab } from "@/components/telemetria/OportunidadesTab";
+import { PERIODOS_TELEMETRIA, faixaTelemetria } from "@/lib/telemetria";
 
 const fmtBRL = (n: number) =>
   (n || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 2 });
@@ -127,6 +133,9 @@ export default function Marketing({ abaInicial, ocultarChrome }: { abaInicial?: 
 
   const [periodoProdutos, setPeriodoProdutos] = useState("30dias");
   const [periodoCanais, setPeriodoCanais] = useState("30dias");
+  const faixaPaginas = faixaTelemetria(periodoPaginas);
+  const faixaProdutos = faixaTelemetria(periodoProdutos);
+  const faixaCanais = faixaTelemetria(periodoCanais);
   const [periodoMeta, setPeriodoMeta] = useState("30dias");
   const [diasCriativo, setDiasCriativo] = useState(30);
   const { data: criativosRpc, loading: loadingCriativos } = useMetaCriativos(diasCriativo);
@@ -692,6 +701,7 @@ export default function Marketing({ abaInicial, ocultarChrome }: { abaInicial?: 
           <TabsTrigger value="meta-ads">Meta Ads</TabsTrigger>
           <TabsTrigger value="conjuntos">Conjuntos de Anúncio</TabsTrigger>
           <TabsTrigger value="criativos">Criativos &amp; Performance</TabsTrigger>
+          <TabsTrigger value="oportunidades">Oportunidades</TabsTrigger>
 
         </TabsList>
         )}
@@ -726,274 +736,28 @@ export default function Marketing({ abaInicial, ocultarChrome }: { abaInicial?: 
         {/* ===== PÁGINAS ===== */}
         <TabsContent value="paginas" className="space-y-6">
           <div className="flex justify-end">
-            {renderPeriodo(periodoPaginas, setPeriodoPaginas, PERIODOS_BASE)}
+            {renderPeriodo(periodoPaginas, setPeriodoPaginas, PERIODOS_TELEMETRIA)}
           </div>
-          {loading && (
-            <div className="flex items-center gap-2 text-muted-foreground text-sm">
-              <Loader2 className="h-4 w-4 animate-spin" /> Carregando dados do GA4...
-            </div>
-          )}
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <StatCard title="Total de Sessões" value={fmtInt(paginasTotalSessoes)} icon={MousePointerClick} variant="primary" />
-            <StatCard title="Páginas únicas" value={fmtInt(paginasAgg.length)} icon={Megaphone} />
-          </div>
-
-          <Card>
-            <CardHeader><CardTitle className="text-lg">Top 10 páginas por sessões</CardTitle></CardHeader>
-            <CardContent>
-              <ResponsiveContainer width="100%" height={350}>
-                <BarChart data={paginasAgg.slice(0, 10)} layout="vertical" margin={{ left: 30 }}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis type="number" />
-                  <YAxis dataKey="pagina" type="category" width={220} tick={{ fontSize: 11 }} />
-                  <Tooltip formatter={(v: any) => fmtInt(v)} />
-                  <Bar dataKey="sessoes" fill="hsl(var(--primary))" />
-                </BarChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader><CardTitle className="text-lg">Detalhamento por página</CardTitle></CardHeader>
-            <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Página</TableHead>
-                    <TableHead>Título</TableHead>
-                    <TableHead className="text-right">Sessões</TableHead>
-                    <TableHead className="text-right">% do Total</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {paginasAgg.map((r) => (
-                    <TableRow key={r.pagina}>
-                      <TableCell className="font-mono text-xs max-w-[320px] truncate">{r.pagina}</TableCell>
-                      <TableCell className="max-w-[320px] truncate">{r.titulo}</TableCell>
-                      <TableCell className="text-right">{fmtInt(r.sessoes)}</TableCell>
-                      <TableCell className="text-right">
-                        {fmtPct(paginasTotalSessoes > 0 ? (r.sessoes / paginasTotalSessoes) * 100 : 0)}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                  {!paginasAgg.length && (
-                    <TableRow><TableCell colSpan={4} className="text-center text-muted-foreground">Sem dados no período</TableCell></TableRow>
-                  )}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
+          <ResumoTelemetria de={faixaPaginas.de} ate={faixaPaginas.ate} />
+          <PaginasTelemetria de={faixaPaginas.de} ate={faixaPaginas.ate} limite={50} />
         </TabsContent>
 
         {/* ===== WINDSOR PRODUTOS ===== */}
         <TabsContent value="windsor-produtos" className="space-y-6">
           <div className="flex justify-end">
-            {renderPeriodo(periodoProdutos, setPeriodoProdutos, PERIODOS_EXT)}
+            {renderPeriodo(periodoProdutos, setPeriodoProdutos, PERIODOS_TELEMETRIA)}
           </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <StatCard title="VISUALIZAÇÕES" value={fmtInt(windsorProdutosTotais.items_viewed)} icon={MousePointerClick} />
-            <StatCard title="Add. Carrinho" value={fmtInt(windsorProdutosTotais.items_added_to_cart)} icon={ShoppingCart} variant="warning" />
-            <StatCard title="Compras" value={fmtInt(windsorProdutosTotais.items_purchased)} icon={ShoppingBag} variant="success" />
-            <StatCard title="Receita Total" value={fmtBRL(windsorProdutosTotais.item_revenue)} icon={DollarSign} variant="primary" />
-          </div>
-
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">Matriz de Produtos — Conversão × Receita</CardTitle>
-              <p className="text-xs text-muted-foreground">
-                Linha vertical em 5% de conversão · Linha horizontal na mediana de receita ({fmtBRL(wpMatriz.medianaReceita)})
-              </p>
-            </CardHeader>
-            <CardContent>
-              <ResponsiveContainer width="100%" height={400}>
-                <ScatterChart margin={{ top: 20, right: 30, bottom: 40, left: 60 }}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis
-                    type="number"
-                    dataKey="x"
-                    name="Conversão"
-                    unit="%"
-                    label={{ value: "Taxa de Conversão sobre Visualizações (%)", position: "insideBottom", offset: -10 }}
-                  />
-                  <YAxis
-                    type="number"
-                    dataKey="y"
-                    name="Receita"
-                    tickFormatter={(v) => fmtBRL(v)}
-                    label={{ value: "Receita", angle: -90, position: "insideLeft", offset: -10 }}
-                  />
-                  <ZAxis type="number" dataKey="z" range={[60, 600]} name="Compras" />
-                  <Tooltip
-                    cursor={{ strokeDasharray: "3 3" }}
-                    content={({ active, payload }: any) => {
-                      if (!active || !payload?.length) return null;
-                      const p = payload[0].payload;
-                      return (
-                        <div className="rounded-md border bg-popover px-3 py-2 text-xs shadow-md">
-                          <div className="font-medium mb-1">{p.item_name}</div>
-                          <div>Conversão: {fmtPct(p.x)}</div>
-                          <div>Receita: {fmtBRL(p.y)}</div>
-                          <div>Compras: {fmtInt(p.purchases)}</div>
-                          <div className="mt-1 font-medium" style={{ color: p.fill }}>{p.quadrante}</div>
-                        </div>
-                      );
-                    }}
-                  />
-                  <ReferenceLine x={5} stroke="#64748b" strokeDasharray="4 4" />
-                  <ReferenceLine y={wpMatriz.medianaReceita} stroke="#64748b" strokeDasharray="4 4" />
-                  <Scatter data={wpMatriz.pts}>
-                    {wpMatriz.pts.map((p, i) => (
-                      <Cell key={i} fill={p.fill} />
-                    ))}
-                  </Scatter>
-                </ScatterChart>
-              </ResponsiveContainer>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mt-4 text-xs">
-                <div className="flex items-start gap-2"><span className="mt-1 inline-block h-3 w-3 rounded-full" style={{ background: "#16a34a" }} /><div><div className="font-medium">Escalar</div><div className="text-muted-foreground">alta conversão + alta receita</div></div></div>
-                <div className="flex items-start gap-2"><span className="mt-1 inline-block h-3 w-3 rounded-full" style={{ background: "#2563eb" }} /><div><div className="font-medium">Oportunidade</div><div className="text-muted-foreground">alta conversão + baixa receita</div></div></div>
-                <div className="flex items-start gap-2"><span className="mt-1 inline-block h-3 w-3 rounded-full" style={{ background: "#dc2626" }} /><div><div className="font-medium">Corrigir</div><div className="text-muted-foreground">baixa conversão + alta receita</div></div></div>
-                <div className="flex items-start gap-2"><span className="mt-1 inline-block h-3 w-3 rounded-full" style={{ background: "#9ca3af" }} /><div><div className="font-medium">Monitorar</div><div className="text-muted-foreground">baixa conversão + baixa receita</div></div></div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">Performance por produto (Windsor)</CardTitle>
-              <p className="text-xs text-muted-foreground">
-                Visualizações = total de vezes que o produto foi visualizado em sessões. Taxa de conversão calculada sobre visualizações.
-              </p>
-              <p className="text-xs text-muted-foreground">
-                Médias — Vis.→Carrinho: <span className="font-medium">{fmtPct(wpMedias.sc)}</span> · Carrinho→Compra: <span className="font-medium">{fmtPct(wpMedias.cc)}</span> · Conv. Final: <span className="font-medium">{fmtPct(wpMedias.final)}</span>
-              </p>
-            </CardHeader>
-            <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    {[
-                      { key: "item_name", label: "Produto", align: "left" },
-                      { key: "sessions", label: "Visualizações de Produto", align: "right" },
-                      { key: "items_viewed", label: "Visualizados", align: "right" },
-                      { key: "items_added_to_cart", label: "Add. Carrinho", align: "right" },
-                      { key: "items_purchased", label: "Compras", align: "right" },
-                      { key: "item_revenue", label: "Receita", align: "right" },
-                      { key: "taxa_sc", label: "Vis.→Carrinho", align: "right" },
-                      { key: "taxa_cc", label: "Carrinho→Compra", align: "right" },
-                      { key: "taxa_final", label: "Conv. Final", align: "right" },
-                    ].map((c) => (
-                      <TableHead
-                        key={c.key}
-                        className={`${c.align === "right" ? "text-right" : ""} cursor-pointer select-none`}
-                        onClick={() => wpToggleSort(c.key)}
-                      >
-                        {c.label} {wpSortCol === c.key ? (wpSortDir === "desc" ? "↓" : "↑") : ""}
-                      </TableHead>
-                    ))}
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {windsorProdutosSorted.map((r) => {
-                    const scOk = r.taxa_sc > wpMedias.sc;
-                    const ccOk = r.taxa_cc !== null && r.taxa_cc > wpMedias.cc;
-                    const fOk = r.taxa_final > wpMedias.final;
-                    return (
-                      <TableRow key={r.item_name}>
-                        <TableCell className="font-medium max-w-[280px] truncate">{r.item_name}</TableCell>
-                        <TableCell className="text-right">{fmtInt(r.sessions)}</TableCell>
-                        <TableCell className="text-right">{fmtInt(r.items_viewed)}</TableCell>
-                        <TableCell className="text-right">{fmtInt(r.items_added_to_cart)}</TableCell>
-                        <TableCell className="text-right">{fmtInt(r.items_purchased)}</TableCell>
-                        <TableCell className="text-right">{fmtBRL(r.item_revenue)}</TableCell>
-                        <TableCell className={`text-right ${scOk ? "text-success font-medium" : ""}`}>{fmtPct(r.taxa_sc)}</TableCell>
-                        <TableCell className={`text-right ${ccOk ? "text-success font-medium" : ""}`}>{r.taxa_cc === null ? "—" : fmtPct(r.taxa_cc)}</TableCell>
-                        <TableCell className={`text-right ${fOk ? "text-success font-medium" : ""}`}>{fmtPct(r.taxa_final)}</TableCell>
-                      </TableRow>
-                    );
-                  })}
-                  {!windsorProdutosSorted.length && (
-                    <TableRow><TableCell colSpan={9} className="text-center text-muted-foreground">Sem dados no período</TableCell></TableRow>
-                  )}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
+          <ResumoTelemetria de={faixaProdutos.de} ate={faixaProdutos.ate} />
+          <ProdutosTelemetria de={faixaProdutos.de} ate={faixaProdutos.ate} limite={100} />
         </TabsContent>
 
         {/* ===== WINDSOR CANAIS ===== */}
         <TabsContent value="windsor-canais" className="space-y-6">
           <div className="flex justify-end">
-            {renderPeriodo(periodoCanais, setPeriodoCanais, PERIODOS_EXT)}
+            {renderPeriodo(periodoCanais, setPeriodoCanais, PERIODOS_TELEMETRIA)}
           </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-            <StatCard title="Sessões" value={fmtInt(windsorCanaisTotais.sessions)} icon={MousePointerClick} />
-            <StatCard title="Add. Carrinho" value={fmtInt(windsorCanaisTotais.add_to_carts)} icon={ShoppingCart} variant="warning" />
-            <StatCard title="Iniciaram Pagamento" value={fmtInt(windsorCanaisTotais.checkouts)} icon={ShoppingCart} />
-            <StatCard title="Compras" value={fmtInt(windsorCanaisTotais.items_purchased)} icon={ShoppingBag} variant="success" />
-            <StatCard title="Receita Total" value={fmtBRL(windsorCanaisTotais.purchase_revenue)} icon={DollarSign} variant="primary" />
-          </div>
-
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">Performance por canal - Mariana Cardoso</CardTitle>
-              <p className="text-xs text-muted-foreground">
-                Médias — Sessão→Carrinho: <span className="font-medium">{fmtPct(wcMedias.sc)}</span> · Carrinho→Checkout: <span className="font-medium">{fmtPct(wcMedias.cc)}</span> · Conv. Final: <span className="font-medium">{fmtPct(wcMedias.final)}</span>
-              </p>
-            </CardHeader>
-            <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    {[
-                      { key: "canal", label: "Canal", align: "left" },
-                      { key: "sessions", label: "Sessões", align: "right" },
-                      { key: "add_to_carts", label: "Add. Carrinho", align: "right" },
-                      { key: "checkouts", label: "Iniciaram Pagto", align: "right" },
-                      { key: "items_purchased", label: "Compras", align: "right" },
-                      { key: "purchase_revenue", label: "Receita", align: "right" },
-                      { key: "taxa_sc", label: "Sessão→Carrinho", align: "right" },
-                      { key: "taxa_cc", label: "Carrinho→Checkout", align: "right" },
-                      { key: "taxa_final", label: "Conv. Final", align: "right" },
-                    ].map((c) => (
-                      <TableHead
-                        key={c.key}
-                        className={`${c.align === "right" ? "text-right" : ""} cursor-pointer select-none hover:text-foreground`}
-                        onClick={() => wcToggleSort(c.key)}
-                      >
-                        {c.label}{wcSortCol === c.key ? (wcSortDir === "desc" ? " ↓" : " ↑") : ""}
-                      </TableHead>
-                    ))}
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {windsorCanaisSorted.map((r) => {
-                    const scOk = r.taxa_sc > wcMedias.sc;
-                    const ccOk = r.taxa_cc !== null && r.taxa_cc > wcMedias.cc;
-                    const fOk = r.taxa_final > wcMedias.final;
-                    return (
-                      <TableRow key={r.canal}>
-                        <TableCell className="font-medium">{r.canal}</TableCell>
-                        <TableCell className="text-right">{fmtInt(r.sessions)}</TableCell>
-                        <TableCell className="text-right">{fmtInt(r.add_to_carts)}</TableCell>
-                        <TableCell className="text-right">{fmtInt(r.checkouts)}</TableCell>
-                        <TableCell className="text-right">{fmtInt(r.items_purchased)}</TableCell>
-                        <TableCell className="text-right">{fmtBRL(r.purchase_revenue)}</TableCell>
-                        <TableCell className={`text-right ${scOk ? "text-success font-medium" : ""}`}>{fmtPct(r.taxa_sc)}</TableCell>
-                        <TableCell className={`text-right ${ccOk ? "text-success font-medium" : ""}`}>{r.taxa_cc === null ? "—" : fmtPct(r.taxa_cc)}</TableCell>
-                        <TableCell className={`text-right ${fOk ? "text-success font-medium" : ""}`}>{fmtPct(r.taxa_final)}</TableCell>
-                      </TableRow>
-                    );
-                  })}
-                  {!windsorCanaisSorted.length && (
-                    <TableRow><TableCell colSpan={9} className="text-center text-muted-foreground">Sem dados no período</TableCell></TableRow>
-                  )}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
+          <ResumoTelemetria de={faixaCanais.de} ate={faixaCanais.ate} />
+          <CanaisTelemetria de={faixaCanais.de} ate={faixaCanais.ate} />
         </TabsContent>
         {/* ===== META ADS ===== */}
         <TabsContent value="meta-ads" className="space-y-6">
@@ -1069,6 +833,11 @@ export default function Marketing({ abaInicial, ocultarChrome }: { abaInicial?: 
         {/* ===== CRIATIVOS & PERFORMANCE ===== */}
         <TabsContent value="criativos" className="space-y-6">
           <CriativosPerformance />
+        </TabsContent>
+
+        {/* ===== OPORTUNIDADES ===== */}
+        <TabsContent value="oportunidades" className="space-y-6">
+          <OportunidadesTab />
         </TabsContent>
       </Tabs>
 

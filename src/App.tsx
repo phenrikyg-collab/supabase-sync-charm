@@ -68,6 +68,7 @@ import OrcamentoPage from "./pages/OrcamentoPage";
 import CustosFixos from "./pages/CustosFixos";
 import PlanoProducao from "./pages/PlanoProducao";
 import Marketing from "./pages/Marketing";
+import Telemetria from "./pages/Telemetria";
 import PadroesPedidos from "./pages/PadroesPedidos";
 import ProdutosCampanha from "./pages/ProdutosCampanha";
 import TrocasDevolucoes from "./pages/TrocasDevolucoes";

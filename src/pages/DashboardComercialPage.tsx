@@ -25,6 +25,7 @@ import {
   fetchItens, fetchMetaMes, fetchMidia, fetchPedidos, fetchWindsor, fmtBRL, fmtNum, fmtPct, funilSessoes,
   isoDia, listaDias, lmdi, MESES_PT, pickNum, resumoMidia, resumoPeriodo, somaDias,
 } from "@/lib/dashComercial";
+import { fetchTelemetriaResumo } from "@/lib/telemetria";
 
 import { SeloAviso, SkeletonBloco, SkeletonCard, Tile, variacaoPct } from "@/components/dash-comercial/ui";
 import { Waterfall } from "@/components/dash-comercial/Waterfall";
@@ -148,6 +149,8 @@ export default function DashboardComercialPage() {
   const pedidos = qPedidos.data ?? [];
   const ga4 = qGa4.data ?? [];
   const windsor = qWindsor.data ?? [];
+  // Google Ads sem verba hoje: investimento zero é o estado correto, não falha de dado.
+  const temInvestimentoGoogleAds = Boolean(qFontesVazias.data?.googleAds);
   const midia = qMidia.data ?? [];
   const carregando = qPedidos.isLoading || qGa4.isLoading || qMidia.isLoading;
 
@@ -160,11 +163,23 @@ export default function DashboardComercialPage() {
   });
   const itens = qItens.data ?? [];
 
-  /* ---------------------- 1.3 GA4 x fallback Windsor -------------------- */
+  /* ------------ 1.3 sessões: telemetria própria (GA4 só controle) -------- */
   const ga4UltimoDia = useMemo(() => ga4.map((g) => g.dia).sort().slice(-1)[0] ?? null, [ga4]);
   const ga4Atrasado = !ga4UltimoDia || diffDias(HOJE, ga4UltimoDia) > 1;
-  const sessoesFonte = ga4Atrasado && windsor.length ? windsor : ga4;
-  const nomeFonteSessoes = sessoesFonte === ga4 ? "GA4" : "Windsor (GA4 atrasado)";
+  const sessoesFonte = ga4;
+  const nomeFonteSessoes = "telemetria própria";
+
+  // Telemetria sem evento novo: só alerta depois de 6 h do dia sem nenhuma sessão.
+  const qTelemetriaHoje = useQuery({
+    queryKey: ["dc2-telemetria-hoje", HOJE],
+    queryFn: () => fetchTelemetriaResumo(HOJE, HOJE),
+    staleTime: 5 * 60_000,
+    refetchInterval: 15 * 60_000,
+  });
+  const telemetriaParada =
+    qTelemetriaHoje.isSuccess &&
+    new Date().getHours() >= 6 &&
+    Number(qTelemetriaHoje.data?.sessoes ?? 0) === 0;
 
   /* -------- 1.4 série composta de sessões (GA4 + rastreamento próprio) ---- */
   const diasRpc = Math.max(diffDias(HOJE, somaDias(janIni, -3)) + 1, 30);
@@ -516,7 +531,7 @@ export default function DashboardComercialPage() {
 
     // fonte defasada
     const atrasos: string[] = [];
-    if (ga4Atrasado) atrasos.push("GA4");
+    if (telemetriaParada) atrasos.push("Telemetria");
     const midiaUlt = midia.map((m) => m.dia).sort().slice(-1)[0];
     if (!midiaUlt || diffDias(HOJE, midiaUlt) > 1) atrasos.push("Meta Ads");
     const trayUlt = pedidos.map((p) => p.dia).sort().slice(-1)[0];
@@ -524,7 +539,10 @@ export default function DashboardComercialPage() {
     if (atrasos.length) {
       out.push({
         id: "fonte", severidade: "atencao", titulo: "Fonte defasada",
-        detalhe: `${atrasos.join(", ")} sem sincronização há mais de 24 h`, impacto: null, ancora: "fontes",
+        detalhe: atrasos.includes("Telemetria") && atrasos.length === 1
+          ? "Telemetria sem evento novo há mais de 6 h"
+          : `${atrasos.join(", ")} sem sincronização recente`,
+        impacto: null, ancora: "fontes",
       });
     }
 
@@ -744,16 +762,9 @@ Alertas: ${alertas.map((a) => a.titulo).join(", ") || "nenhum"}.`,
         >
           {rotuloComp} · trocar
         </button>
-        <SeloAviso
-          texto={
-            temSerieComposta
-              ? `Sessões: ${rotuloFonteSerie.toLowerCase()}${ga4Atrasado ? " · GA4 até D-1" : ""}`
-              : `Sessões: ${nomeFonteSessoes}`
-          }
-          tom={integridade.divergente ? "neg" : houveFallback || ga4Atrasado ? "warn" : "muted"}
-        />
+        <SeloAviso texto="Sessões: telemetria própria" tom="muted" />
 
-        <SeloAviso texto="Mídia parcial: só Meta Ads" tom="warn" />
+        {temInvestimentoGoogleAds && <SeloAviso texto="Mídia parcial: só Meta Ads" tom="warn" />}
         <span className="flex items-center gap-1 text-xs text-muted-foreground">
           <RefreshCw className={cn("h-3 w-3", carregando && "animate-spin")} />
           {carregando ? "Atualizando…" : `Última carga ${ultimaCarga}`}
