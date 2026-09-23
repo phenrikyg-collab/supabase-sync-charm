@@ -425,6 +425,21 @@ export function ResgateAutomatico({
                 }
               />
             </div>
+            <div className="space-y-1">
+              <Label htmlFor="silencio_atendimento" className="text-xs">Silêncio depois de a cliente escrever para nós (dias)</Label>
+              <Input
+                id="silencio_atendimento"
+                type="number"
+                min={0}
+                value={rascunho.silencio_atendimento_dias ?? 0}
+                onChange={(e) =>
+                  setRascunho((r) => ({ ...r, silencio_atendimento_dias: Number(e.target.value) }))
+                }
+              />
+              <p className="text-xs text-muted-foreground">
+                Quem falou com a loja nesse período não recebe o resgate, mesmo virando oportunidade de novo.
+              </p>
+            </div>
           </div>
 
           <div className="space-y-2">
