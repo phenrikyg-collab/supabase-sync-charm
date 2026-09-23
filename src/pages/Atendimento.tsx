@@ -19,6 +19,7 @@ import {
   Truck, ShoppingCart, Plus, MoreHorizontal, PanelRight, Trash2, FileText, Clock, Mail, MailOpen,
   Reply, Copy, Pencil, ArrowLeft, ChevronUp, SlidersHorizontal,
   Loader2,
+  Ban, ShieldOff,
 } from "lucide-react";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription,
@@ -51,6 +52,10 @@ import { EnviarTemplateDialog } from "@/components/atendimento/EnviarTemplate";
 import { ConferirNumeroDialog } from "@/components/atendimento/ConferirNumero";
 import { Composer, type ComposerHandle } from "@/components/atendimento/Composer";
 import { AcaoDoDia } from "@/components/atendimento/AcaoDoDia";
+import {
+  BloqueiosTab, DialogBloquearContato, FaixaBloqueio, extrairErroBloqueio,
+  useBloqueioConversa, useMapaBloqueios, type EscopoBloqueio,
+} from "@/components/atendimento/BloqueioContato";
 
 import { ConsultarTransacaoTab } from "@/components/atendimento/ConsultarTransacao";
 import { MensagemMidia, ehTipoMidia } from "@/components/atendimento/MensagemMidia";
@@ -461,12 +466,13 @@ type ItemConversaProps = {
   onMenuChange: (id: string | null) => void;
   onMarcarLeitura: (id: string | number, naoLida: boolean) => void;
   mobile?: boolean;
+  bloqueio?: EscopoBloqueio | null;
 };
 
 /** Uma linha da lista de conversas. Memoizada: só repinta quando os próprios dados mudam. */
 const ItemConversa = memo(function ItemConversa({
   c, ativa, modoHistorico, mostrarClique, atencao, faixa, menuAberto, longPressRef,
-  onAbrir, onMenuChange, onMarcarLeitura, mobile = false,
+  onAbrir, onMenuChange, onMarcarLeitura, mobile = false, bloqueio = null,
 }: ItemConversaProps) {
   const site = ehSite(c);
   const nome = nomeTray(c) ?? limpo(c.nome_whatsapp) ?? (site && c.telefone_real ? formatarTelefone(c.telefone_real) : identificadorConversa(c));
@@ -522,6 +528,14 @@ const ItemConversa = memo(function ItemConversa({
     >
       <span className="flex h-[15px] min-w-0 items-center gap-1.5">
         {(estados.length > 0 || naoLida) && <span className={cn("h-2 w-2 shrink-0 rounded-full", ponto)} title={estados.join(" · ") || "Não lida"} />}
+        {bloqueio && (
+          <span
+            className={cn("shrink-0", bloqueio === "total" ? "text-danger" : "text-warning")}
+            title={bloqueio === "total" ? "Contato bloqueado - nada é enviado para ela" : "Fora das automações - campanhas e fluxos não alcançam essa cliente"}
+          >
+            {bloqueio === "total" ? <Ban className="h-3 w-3" /> : <ShieldOff className="h-3 w-3" />}
+          </span>
+        )}
         <span className={cn("min-w-0 flex-1 truncate text-[13px] leading-[15px]", naoLida || aguardando ? "font-bold" : "font-semibold")}>{nome}</span>
         <span className="max-w-[44%] shrink-0 truncate text-[11px] leading-[15px] text-muted-foreground group-hover:md:opacity-0" title={tempoRelativo(dataMensagem)}>{tempoRelativo(dataMensagem)}</span>
       </span>
@@ -836,6 +850,7 @@ export default function Atendimento() {
     | "cancelados"
     | "kanban"
     | "cashback"
+    | "bloqueios"
   >("conversas");
   const [abaKanban, setAbaKanban] = useState<"kanban" | "dashboard" | "followups" | "templates">("kanban");
   const [contagens, setContagens] = useState<Record<string, number>>({});
@@ -849,6 +864,8 @@ export default function Atendimento() {
   const [excluirAberta, setExcluirAberta] = useState(false);
   const [motivoExclusao, setMotivoExclusao] = useState("");
   const [freteAberto, setFreteAberto] = useState(false);
+  const [bloquearAberto, setBloquearAberto] = useState(false);
+  const mapaBloqueios = useMapaBloqueios();
   const [proporCarrinhoAberto, setProporCarrinhoAberto] = useState(false);
   const [templateAberto, setTemplateAberto] = useState(false);
   const [propostaId, setPropostaId] = useState<string | number | null>(null);
@@ -1667,7 +1684,12 @@ export default function Atendimento() {
     },
     onError: async (e: any, envio, contexto: any) => {
       const janela = await extrairErroJanela(e);
-      const motivo = janela ?? e?.message ?? "Não foi possível enviar a mensagem.";
+      const bloqueado = janela ? null : await extrairErroBloqueio(e);
+      if (bloqueado) {
+        queryClient.invalidateQueries({ queryKey: ["whatsapp-bloqueio-conversa"] });
+        queryClient.invalidateQueries({ queryKey: ["whatsapp-bloqueios"] });
+      }
+      const motivo = janela ?? bloqueado ?? e?.message ?? "Não foi possível enviar a mensagem.";
       if (contexto?.idTemp) marcarMensagemFalhou(envio.conversaId, contexto.idTemp, motivo);
       if (janela) {
         queryClient.invalidateQueries({ queryKey: ["whatsapp-janela-24h", String(envio.conversaId)] });
@@ -2318,6 +2340,8 @@ export default function Atendimento() {
   const telefoneIdentificado = conversaAtual
     ? (ehSite(conversaAtual) ? conversaAtual.telefone_real : conversaAtual.telefone) || null
     : null;
+  const { data: bloqueioConversa } = useBloqueioConversa(conversaAtual?.id ?? null);
+  const bloqueioTotal = bloqueioConversa?.bloqueado === true && bloqueioConversa.escopo === "total";
 
 
   const status = conversaAtual?.status ?? "";
@@ -2363,6 +2387,7 @@ export default function Atendimento() {
     ["cancelados", "Pedidos cancelados", contagens.cancelados],
     ["kanban", "Kanban do funil", undefined],
     ["cashback", "Cashback", undefined],
+    ["bloqueios", "Bloqueios", undefined],
   ] as const;
 
   return (
@@ -2396,6 +2421,7 @@ export default function Atendimento() {
             </TabsTrigger>
             <TabsTrigger value="kanban" className="hidden h-8 shrink-0 text-sm md:inline-flex">Kanban do funil</TabsTrigger>
             <TabsTrigger value="cashback" className="hidden h-8 shrink-0 text-sm md:inline-flex">Cashback</TabsTrigger>
+            <TabsTrigger value="bloqueios" className="hidden h-8 shrink-0 text-sm md:inline-flex">Bloqueios</TabsTrigger>
             {isMobile && (
               <Button type="button" variant="ghost" className="h-8 px-2 text-sm" onClick={() => setMaisAbasAberto(true)}>
                 Mais
@@ -2557,6 +2583,12 @@ export default function Atendimento() {
         <TabsContent value="cashback" className="m-0 min-h-0 w-full min-w-0 flex-1 overflow-auto p-4">
           <CashbackConteudo />
         </TabsContent>
+
+        <TabsContent value="bloqueios" className="m-0 min-h-0 w-full min-w-0 flex-1 overflow-auto p-4">
+          <BloqueiosTab />
+        </TabsContent>
+
+
 
         <TabsContent value="abandonadas" className="m-0 min-h-0 flex-1 overflow-auto p-4">
           <AbandonadasTab />
@@ -2900,6 +2932,11 @@ export default function Atendimento() {
                     onMenuChange={setMenuLeituraAberto}
                     onMarcarLeitura={marcarLeitura}
                     mobile={isMobile}
+                    bloqueio={
+                      mapaBloqueios.porConversa.get(String(c.id)) ??
+                      mapaBloqueios.porTelefone.get(String(c.telefone_real || c.telefone || "").replace(/\D/g, "")) ??
+                      null
+                    }
                   />
                 </div>
               );
@@ -2930,6 +2967,11 @@ export default function Atendimento() {
                     onMenuChange={setMenuLeituraAberto}
                     onMarcarLeitura={marcarLeitura}
                     mobile={isMobile}
+                    bloqueio={
+                      mapaBloqueios.porConversa.get(String(c.id)) ??
+                      mapaBloqueios.porTelefone.get(String(c.telefone_real || c.telefone || "").replace(/\D/g, "")) ??
+                      null
+                    }
                   />
                 ))}
               </>
@@ -3110,6 +3152,10 @@ export default function Atendimento() {
                         <Truck className="mr-2 h-4 w-4" />
                         Calcular frete
                       </DropdownMenuItem>
+                      <DropdownMenuItem onSelect={() => setBloquearAberto(true)}>
+                        <Ban className="mr-2 h-4 w-4" />
+                        Bloquear contato
+                      </DropdownMenuItem>
                       {!conversaHistorica && (status === "escalado" || status === "em_atendimento") && (
                         <DropdownMenuItem
                           className="xl:hidden"
@@ -3143,6 +3189,11 @@ export default function Atendimento() {
                       )}
                     </DropdownMenuContent>
                   </DropdownMenu>
+                  <DialogBloquearContato
+                    aberto={bloquearAberto}
+                    onOpenChange={setBloquearAberto}
+                    telefone={telefoneIdentificado}
+                  />
                   <AlertDialog open={excluirAberta} onOpenChange={setExcluirAberta}>
                    <AlertDialogContent className="font-whatsapp">
                       <AlertDialogHeader>
@@ -3228,6 +3279,10 @@ export default function Atendimento() {
                 <div className="shrink-0 border-b border-border bg-muted/60 px-3 py-1 text-center text-xs text-muted-foreground">
                   Conversa finalizada. Mostrando o histórico.
                 </div>
+              )}
+
+              {bloqueioConversa?.bloqueado && (
+                <FaixaBloqueio bloqueio={bloqueioConversa} telefone={telefoneIdentificado} />
               )}
 
               <PropostaDaConversa
@@ -3465,6 +3520,14 @@ export default function Atendimento() {
                     onAbrirTemplate={abrirTemplate}
                     onDigitandoMudou={setDigitando}
                     mobile={isMobile}
+                    desabilitado={bloqueioTotal}
+                    placeholder={
+                      bloqueioTotal
+                        ? bloqueioConversa?.motivo
+                          ? `Contato bloqueado: ${bloqueioConversa.motivo}`
+                          : "Contato bloqueado - nada é enviado para ela"
+                        : undefined
+                    }
                     acoes={<BotaoEnviarCupom telefone={telefoneIdentificado} onTexto={usarTextoPronto} />}
                     acoesMobile={<BotaoEnviarCupom telefone={telefoneIdentificado} onTexto={usarTextoPronto} mobile />}
                     figurinhas={

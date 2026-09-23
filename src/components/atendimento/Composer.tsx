@@ -31,6 +31,10 @@ type Props = {
   acoes?: ReactNode;
   acoesMobile?: ReactNode;
   mobile?: boolean;
+  /** Trava a caixa de escrever (ex.: contato bloqueado). */
+  desabilitado?: boolean;
+  /** Texto do campo quando vazio. */
+  placeholder?: string;
 };
 
 /**
@@ -38,7 +42,7 @@ type Props = {
  * digitar não repinte a lista de conversas, as mensagens nem o perfil.
  */
 export const Composer = forwardRef<ComposerHandle, Props>(function Composer(
-  { onEnviar, onImagens, onAbrirCatalogo, onAbrirTemplate, onDigitandoMudou, figurinhas, acoes, acoesMobile, mobile = false },
+  { onEnviar, onImagens, onAbrirCatalogo, onAbrirTemplate, onDigitandoMudou, figurinhas, acoes, acoesMobile, mobile = false, desabilitado = false, placeholder },
   ref,
 ) {
   const [texto, setTexto] = useState("");
@@ -99,6 +103,7 @@ export const Composer = forwardRef<ComposerHandle, Props>(function Composer(
   };
 
   const despachar = () => {
+    if (desabilitado) return;
     const limpo = texto.trim();
     if (!limpo) return;
     setTexto("");
@@ -232,7 +237,8 @@ export const Composer = forwardRef<ComposerHandle, Props>(function Composer(
           e.preventDefault();
           onImagens(arquivos);
         }}
-        placeholder="Escreva sua resposta ou digite / para as mensagens rápidas"
+        disabled={desabilitado}
+        placeholder={placeholder ?? "Escreva sua resposta ou digite / para as mensagens rápidas"}
         rows={1}
         className={mobile ? "min-h-11 max-h-24 min-w-0 flex-1 resize-none overflow-y-auto py-2.5" : "min-h-8 max-h-24 min-w-0 flex-1 resize-none overflow-y-auto py-1.5"}
         onKeyDown={(e) => {
@@ -269,7 +275,7 @@ export const Composer = forwardRef<ComposerHandle, Props>(function Composer(
         size="icon"
         className={mobile ? "h-11 w-11 shrink-0 rounded-full" : "h-8 w-8 shrink-0 rounded-full"}
         onClick={despachar}
-        disabled={!texto.trim()}
+        disabled={desabilitado || !texto.trim()}
         title="Enviar"
       >
         <Send className="h-4 w-4" />
