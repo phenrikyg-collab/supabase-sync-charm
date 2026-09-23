@@ -50,6 +50,7 @@ import { EnviarTemplateDialog } from "@/components/atendimento/EnviarTemplate";
 import { ConferirNumeroDialog } from "@/components/atendimento/ConferirNumero";
 import { Composer, type ComposerHandle } from "@/components/atendimento/Composer";
 import { AvisosFila } from "@/components/atendimento/AvisosFila";
+import { AcaoDoDia } from "@/components/atendimento/AcaoDoDia";
 
 import { ConsultarTransacaoTab } from "@/components/atendimento/ConsultarTransacao";
 import { MensagemMidia, ehTipoMidia } from "@/components/atendimento/MensagemMidia";
@@ -2576,6 +2577,11 @@ export default function Atendimento() {
 
 
         <TabsContent value="conversas" className="m-0 min-h-0 w-full min-w-0 max-w-full flex-1 overflow-hidden data-[state=active]:flex">
+      <div className={cn(
+        "flex min-h-0 w-full min-w-0 max-w-full flex-1 flex-col overflow-hidden",
+        isMobile && selecionada && abaPagina === "conversas" && "hidden",
+      )}>
+      <AcaoDoDia />
       <Colunas
         ajustavel={colunasAjustaveis}
         grupoRef={grupoColunasRef}
@@ -3530,6 +3536,7 @@ export default function Atendimento() {
         </Sheet>
 
       </Colunas>
+      </div>
         </TabsContent>
       </Tabs>
 
