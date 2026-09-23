@@ -68,6 +68,7 @@ import OrcamentoPage from "./pages/OrcamentoPage";
 import CustosFixos from "./pages/CustosFixos";
 import PlanoProducao from "./pages/PlanoProducao";
 import Marketing from "./pages/Marketing";
+import Telemetria from "./pages/Telemetria";
 import PadroesPedidos from "./pages/PadroesPedidos";
 import ProdutosCampanha from "./pages/ProdutosCampanha";
 import TrocasDevolucoes from "./pages/TrocasDevolucoes";
@@ -290,6 +291,7 @@ const AppRoutes = () => {
               <Route path="/custos-fixos" element={<CustosFixos />} />
               <Route path="/admin/tv-interna" element={<AdminTVInterna />} />
               <Route path="/marketing" element={<Marketing />} />
+              <Route path="/telemetria" element={<Telemetria />} />
               <Route path="/padroes-pedidos" element={<PadroesPedidos />} />
               <Route path="/produtos-campanha" element={<ProdutosCampanha />} />
               <Route path="/comercial/trocas-devolucoes" element={<TrocasDevolucoes />} />

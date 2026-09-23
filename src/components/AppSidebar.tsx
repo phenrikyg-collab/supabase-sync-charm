@@ -61,6 +61,7 @@ const moduleGroups: ModuleGroup[] = [
       { title: "Análises Diárias", url: "/gestao/analises", icon: ClipboardList },
       { title: "Dashboard Comercial", url: "/dashboard-comercial", icon: LayoutDashboard },
       { title: "Dashboard GA4", url: "/marketing", icon: BarChart3 },
+      { title: "Telemetria", url: "/telemetria", icon: BarChart3 },
       { title: "Dashboard RFM", url: "/dashboard-rfm", icon: UserSquare2 },
       { title: "Dashboard de Produtos", url: "/dashboard-produtos", icon: Boxes },
       { title: "Registro de Ações", url: "/gestao/registro-acoes", icon: ClipboardList },
