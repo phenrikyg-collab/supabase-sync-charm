@@ -2416,6 +2416,7 @@ export default function Atendimento() {
             </TabsTrigger>
             <TabsTrigger value="kanban" className="hidden h-8 shrink-0 text-sm md:inline-flex">Kanban do funil</TabsTrigger>
             <TabsTrigger value="cashback" className="hidden h-8 shrink-0 text-sm md:inline-flex">Cashback</TabsTrigger>
+            <TabsTrigger value="bloqueios" className="hidden h-8 shrink-0 text-sm md:inline-flex">Bloqueios</TabsTrigger>
             {isMobile && (
               <Button type="button" variant="ghost" className="h-8 px-2 text-sm" onClick={() => setMaisAbasAberto(true)}>
                 Mais
