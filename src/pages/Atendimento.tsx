@@ -2576,6 +2576,12 @@ export default function Atendimento() {
           <CashbackConteudo />
         </TabsContent>
 
+        <TabsContent value="bloqueios" className="m-0 min-h-0 w-full min-w-0 flex-1 overflow-auto p-4">
+          <BloqueiosTab />
+        </TabsContent>
+
+
+
         <TabsContent value="abandonadas" className="m-0 min-h-0 flex-1 overflow-auto p-4">
           <AbandonadasTab />
         </TabsContent>
