@@ -291,6 +291,7 @@ const AppRoutes = () => {
               <Route path="/custos-fixos" element={<CustosFixos />} />
               <Route path="/admin/tv-interna" element={<AdminTVInterna />} />
               <Route path="/marketing" element={<Marketing />} />
+              <Route path="/telemetria" element={<Telemetria />} />
               <Route path="/padroes-pedidos" element={<PadroesPedidos />} />
               <Route path="/produtos-campanha" element={<ProdutosCampanha />} />
               <Route path="/comercial/trocas-devolucoes" element={<TrocasDevolucoes />} />
