@@ -672,17 +672,17 @@ export function CatalogoDialog({
                               {p.tamanhos_disponiveis.map((valor) => {
                                 const t = typeof valor === "string" ? { tamanho: valor, estoque: null } : valor;
                                 return (
-                                <span
-                                  key={t.tamanho}
-                                  title={t.estoque != null ? `${t.estoque} em estoque` : undefined}
-                                  className={
-                                    t.estoque == null || t.estoque > 0
-                                      ? "inline-flex rounded bg-muted text-foreground px-1.5 py-0.5 text-[10px] font-medium"
-                                      : "inline-flex rounded bg-muted/50 text-muted-foreground line-through opacity-60 px-1.5 py-0.5 text-[10px]"
-                                  }
-                                >
-                                  {t.tamanho}
-                                </span>
+                                  <span
+                                    key={t.tamanho}
+                                    title={t.estoque != null ? `${t.estoque} em estoque` : undefined}
+                                    className={
+                                      t.estoque == null || t.estoque > 0
+                                        ? "inline-flex rounded bg-muted text-foreground px-1.5 py-0.5 text-[10px] font-medium"
+                                        : "inline-flex rounded bg-muted/50 text-muted-foreground line-through opacity-60 px-1.5 py-0.5 text-[10px]"
+                                    }
+                                  >
+                                    {t.tamanho}
+                                  </span>
                                 );
                               })}
                             </div>
