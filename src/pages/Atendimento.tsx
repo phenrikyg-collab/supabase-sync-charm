@@ -2334,6 +2334,8 @@ export default function Atendimento() {
   const telefoneIdentificado = conversaAtual
     ? (ehSite(conversaAtual) ? conversaAtual.telefone_real : conversaAtual.telefone) || null
     : null;
+  const { data: bloqueioConversa } = useBloqueioConversa(conversaAtual?.id ?? null);
+  const bloqueioTotal = bloqueioConversa?.bloqueado === true && bloqueioConversa.escopo === "total";
 
 
   const status = conversaAtual?.status ?? "";
