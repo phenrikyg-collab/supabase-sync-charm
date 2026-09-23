@@ -461,12 +461,13 @@ type ItemConversaProps = {
   onMenuChange: (id: string | null) => void;
   onMarcarLeitura: (id: string | number, naoLida: boolean) => void;
   mobile?: boolean;
+  bloqueio?: EscopoBloqueio | null;
 };
 
 /** Uma linha da lista de conversas. Memoizada: só repinta quando os próprios dados mudam. */
 const ItemConversa = memo(function ItemConversa({
   c, ativa, modoHistorico, mostrarClique, atencao, faixa, menuAberto, longPressRef,
-  onAbrir, onMenuChange, onMarcarLeitura, mobile = false,
+  onAbrir, onMenuChange, onMarcarLeitura, mobile = false, bloqueio = null,
 }: ItemConversaProps) {
   const site = ehSite(c);
   const nome = nomeTray(c) ?? limpo(c.nome_whatsapp) ?? (site && c.telefone_real ? formatarTelefone(c.telefone_real) : identificadorConversa(c));
