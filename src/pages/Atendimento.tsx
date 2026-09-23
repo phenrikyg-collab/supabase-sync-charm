@@ -574,7 +574,17 @@ const ItemConversa = memo(function ItemConversa({
 });
 
 
+/** Rótulo curto da mensagem citada quando ela não tem texto. */
+const rotuloCitada = (tipo?: string | null, url?: string | null) => {
+  const t = (tipo ?? "").toLowerCase();
+  if (t.includes("video")) return "Vídeo";
+  if (t.includes("imagem") || t.includes("image") || t.includes("foto")) return "Foto";
+  if (t.includes("audio")) return "Áudio";
+  return url ? "Foto" : "Mensagem";
+};
+
 type BalaoMensagemProps = {
+  nomeCliente: string;
   m: Mensagem;
   divisorKora: boolean;
   divisorProprio: boolean;
