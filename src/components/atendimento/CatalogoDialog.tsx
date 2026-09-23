@@ -52,19 +52,60 @@ export function formatarPreco(v?: number | null) {
   return v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 }
 
-/** Legenda enviada na conversa: Nome da peça - Cor | R$ 149,00 | link */
+/** Tamanhos da cor que têm estoque, já em ordem (a RPC entrega PP..EG). */
+const tamanhosComEstoque = (lista?: TamanhoDetalhe[] | null) =>
+  (lista ?? []).filter((t) => t.estoque > 0);
+
+/** Legenda enviada junto da foto: preço vigente, parcelamento, Pix e tamanhos com estoque. */
 export function legendaProduto(p: ProdutoCatalogo, escolha?: EscolhaProduto) {
+  const vigente = p.preco_vigente ?? p.preco ?? null;
+  const cheio = p.preco_cheio ?? null;
+  const parcela = p.parcela_5x ?? p.preco_parcelado_5x ?? null;
+  const pix = p.preco_pix ?? null;
+
+  const linhas: string[] = [`*${p.nome}*`];
+
+  if (vigente != null) {
+    if (cheio != null && cheio > vigente) {
+      linhas.push(`De ${formatarPreco(cheio)} por *${formatarPreco(vigente)}*`);
+    } else {
+      linhas.push(`*${formatarPreco(vigente)}*`);
+    }
+  }
+  if (parcela != null) linhas.push(`em 5x de ${formatarPreco(parcela)}`);
+  if (pix != null) linhas.push(`*${formatarPreco(pix)} no Pix* (5% de desconto)`);
+
   const cor = escolha?.cor?.trim();
   const tamanho = escolha?.tamanho?.trim();
-  const titulo = [p.nome, cor].filter(Boolean).join(" - ") + (tamanho ? ` (${tamanho})` : "");
-  const partes = [titulo, formatarPreco(p.preco_cheio ?? p.preco)].filter(Boolean);
+  const detalhe = escolha?.tamanhos_detalhe ?? null;
+
+  if (cor && tamanho) {
+    const estoque = detalhe?.find((t) => t.tamanho === tamanho)?.estoque;
+    const aviso = estoque != null && estoque <= 3 ? ` (últimas ${estoque})` : "";
+    linhas.push(`${cor} · tamanho ${tamanho}${aviso}`);
+  } else if (cor) {
+    const disponiveis = tamanhosComEstoque(detalhe);
+    if (disponiveis.length) {
+      const texto = disponiveis
+        .map((t) => (t.estoque <= 3 ? `${t.tamanho} (últimas ${t.estoque})` : t.tamanho))
+        .join(", ");
+      linhas.push(`${cor} · ${texto}`);
+    } else {
+      linhas.push(cor);
+    }
+  } else {
+    // Sem variante escolhida: cores com estoque, sem tamanho.
+    const cores = (p.cores_disponiveis ?? [])
+      .map((c) => (typeof c === "string" ? { cor: c, estoque: null as number | null } : { cor: c.cor ?? "", estoque: c.estoque ?? null }))
+      .filter((c) => c.cor && (c.estoque == null || c.estoque > 0))
+      .map((c) => c.cor);
+    if (cores.length) linhas.push(cores.join(", "));
+  }
+
   const link = p.link || p.url;
-  if (link) partes.push(link);
-  const base = partes.join(" | ");
-  const extras: string[] = [];
-  if (p.preco_parcelado_5x != null) extras.push(`5x de ${formatarPreco(p.preco_parcelado_5x)} sem juros`);
-  if (p.preco_pix != null) extras.push(`${formatarPreco(p.preco_pix)} no Pix (5% OFF)`);
-  return extras.length ? `${base}\n${extras.join(" | ")}` : base;
+  if (link) linhas.push(link);
+
+  return linhas.join("\n");
 }
 
 type VariantesProduto = {
@@ -72,6 +113,9 @@ type VariantesProduto = {
   nome?: string | null;
   preco?: number | null;
   preco_cheio?: number | null;
+  preco_pix?: number | null;
+  parcela_5x?: number | null;
+  estoque_total?: number | null;
   imagem?: string | null;
   cores?: CorDisponivel[] | null;
 };
