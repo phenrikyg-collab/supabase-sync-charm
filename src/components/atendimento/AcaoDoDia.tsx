@@ -13,6 +13,10 @@ type Peca = {
   produto_id?: number | string | null;
   nome?: string | null;
   preco?: number | null;
+  preco_minimo?: number | null;
+  preco_minimo_seguro?: number | null;
+  desconto_max_pct?: number | null;
+  custo_unitario?: number | null;
   url?: string | null;
   imagem_url?: string | null;
   estoque?: number | null;
@@ -197,6 +201,17 @@ export function AcaoDoDia() {
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-medium">{peca.nome}</p>
                 <p className="text-sm font-semibold">{brl(peca.preco)}</p>
+                {numero(peca.preco_minimo_seguro) !== null ? (
+                  <p className="text-xs">
+                    💵 pode negociar até{" "}
+                    <span className="font-medium">{brl(peca.preco_minimo_seguro)}</span>
+                  </p>
+                ) : null}
+                {numero(peca.preco_minimo) !== null ? (
+                  <p className="text-xs text-muted-foreground">
+                    mínimo {brl(peca.preco_minimo)} · abaixo disso dá prejuízo
+                  </p>
+                ) : null}
                 {peca.argumento ? (
                   <p className="mt-0.5 line-clamp-2 text-xs text-muted-foreground">{peca.argumento}</p>
                 ) : null}
