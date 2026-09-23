@@ -33,6 +33,7 @@ export function TagsConversa({
   conversaId: number | string;
   aplicadas: Tag[];
 }) {
+  const { user } = useAuth();
   const queryClient = useQueryClient();
   const [novoNome, setNovoNome] = useState("");
   const [novaCor, setNovaCor] = useState(CORES[0]);
