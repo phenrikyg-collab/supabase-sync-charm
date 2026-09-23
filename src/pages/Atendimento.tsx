@@ -3165,6 +3165,11 @@ export default function Atendimento() {
                       )}
                     </DropdownMenuContent>
                   </DropdownMenu>
+                  <DialogBloquearContato
+                    aberto={bloquearAberto}
+                    onOpenChange={setBloquearAberto}
+                    telefone={telefoneIdentificado}
+                  />
                   <AlertDialog open={excluirAberta} onOpenChange={setExcluirAberta}>
                    <AlertDialogContent className="font-whatsapp">
                       <AlertDialogHeader>
