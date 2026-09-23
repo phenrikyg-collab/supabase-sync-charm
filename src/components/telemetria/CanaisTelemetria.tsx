@@ -193,6 +193,7 @@ export function CanaisTelemetria({ de, ate }: { de: string; ate: string }) {
             </TableBody>
           </Table>
         </TooltipProvider>
+        <PainelNaoAtribuido aberto={painelAberto} onOpenChange={setPainelAberto} />
       </CardContent>
     </Card>
   );
