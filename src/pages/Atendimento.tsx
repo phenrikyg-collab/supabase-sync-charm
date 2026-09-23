@@ -873,6 +873,10 @@ export default function Atendimento() {
   const composerRef = useRef<ComposerHandle>(null);
   const [digitando, setDigitando] = useState(false);
   const [catalogoAberto, setCatalogoAberto] = useState(false);
+  // Trocar de conversa fecha o catálogo e zera a seleção de peças.
+  useEffect(() => {
+    setCatalogoAberto(false);
+  }, [selecionada]);
   const [imagens, setImagens] = useState<ItemAnexo[]>([]);
   const [progressoUpload, setProgressoUpload] = useState<{ feitos: number; total: number } | null>(null);
   const [mensagemExcluir, setMensagemExcluir] = useState<Mensagem | null>(null);
