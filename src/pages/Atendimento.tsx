@@ -582,10 +582,16 @@ const avisarSemCitar = () =>
 const rotuloCitada = (tipo?: string | null, url?: string | null) => {
   const t = (tipo ?? "").toLowerCase();
   if (t.includes("video")) return "Vídeo";
-  if (t.includes("imagem") || t.includes("image") || t.includes("foto")) return "Foto";
-  if (t.includes("audio")) return "Áudio";
+  if (t.includes("imagem") || t.includes("image") || t.includes("photo") || t.includes("foto")) return "Foto";
+  if (t.includes("audio") || t.includes("áudio")) return "Áudio";
+  if (t.includes("sticker") || t.includes("figurinha")) return "Figurinha";
   return url ? "Foto" : "Mensagem";
 };
+
+const previaCitada = (tipo?: string | null, texto?: string | null, url?: string | null) =>
+  ehTipoMidia((tipo ?? "").toLowerCase()) || /sticker|figurinha/i.test(tipo ?? "")
+    ? rotuloCitada(tipo, url)
+    : texto?.trim() || rotuloCitada(tipo, url);
 
 type BalaoMensagemProps = {
   nomeCliente: string;
@@ -608,7 +614,7 @@ type BalaoMensagemProps = {
 };
 
 /** Um balão da conversa. Memoizado: só repinta quando a própria mensagem muda. */
-const BalaoMensagem = memo(function BalaoMensagem({
+export const BalaoMensagem = memo(function BalaoMensagem({
   m, nomeCliente, divisorKora, divisorProprio, destacado, menuAberto, toqueRef, onRegistrarRef,
   onResponder, onCopiar, onAbrirMenu, onIrParaMensagem, onReenviar, onDescartar, onEnviarTemplate,
   onDesfazer, onExcluir,
@@ -627,7 +633,7 @@ const BalaoMensagem = memo(function BalaoMensagem({
                     const chaveBalao = m.id != null ? String(m.id) : "";
                     const otimista = typeof m.id === "number" && m.id < 0;
                     // Sem wamid a Meta não consegue citar (mensagem antiga ou importada): não ofereça a ação.
-                    const podeCitar = !kora && !otimista && m.id != null && !!(m.wamid ?? "").toString().trim();
+                     const podeCitar = !otimista && m.id != null && !!(m.wamid ?? "").toString().trim();
                     const temCitada = m.citada_id != null || !!m.citada_texto;
                     const aguardando = typeof m.aguardando_ate === "number";
                     const podeExcluir = saida && !aguardando && !otimista && m.id != null;
@@ -650,25 +656,17 @@ const BalaoMensagem = memo(function BalaoMensagem({
                             <Separator className="flex-1" />
                           </div>
                         )}
-                        <div className={cn("group relative flex min-w-0 max-w-full overflow-hidden", saida ? "justify-end" : "justify-start")}>
-                          {podeCitar && (
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              className={cn(
-                    "absolute top-0 hidden h-7 w-7 opacity-0 transition-opacity group-hover:opacity-100 lg:flex",
-                                saida ? "right-full mr-1" : "left-full ml-1",
-                              )}
-                              onClick={() => onResponder(m)}
-                              title="Responder"
-                            >
+                        <div className={cn("flex min-w-0 max-w-full", saida ? "justify-end" : "justify-start")}>
+                          <div className="group flex min-w-0 max-w-[90%] items-start gap-1 md:max-w-[80%]">
+                          {podeCitar && saida && (
+                            <Button size="icon" variant="ghost" className="hidden h-7 w-7 shrink-0 opacity-0 transition-opacity group-hover:opacity-100 focus:opacity-100 md:flex" onClick={() => onResponder(m)} title="Responder" aria-label="Responder">
                               <Reply className="h-3.5 w-3.5" />
                             </Button>
                           )}
                           <div
                             ref={(el) => onRegistrarRef(chaveBalao, el)}
                             onTouchStart={(e) => {
-                              if (!podeCitar) return;
+                              if (!chaveBalao) return;
                               const t = e.touches[0];
                               toqueRef.current.x = t.clientX;
                               toqueRef.current.y = t.clientY;
@@ -676,7 +674,7 @@ const BalaoMensagem = memo(function BalaoMensagem({
                               toqueRef.current.timer = setTimeout(() => onAbrirMenu(chaveBalao), 500);
                             }}
                             onTouchMove={(e) => {
-                              if (!podeCitar) return;
+                              if (!chaveBalao) return;
                               const t = e.touches[0];
                               const dx = t.clientX - toqueRef.current.x;
                               const dy = Math.abs(t.clientY - toqueRef.current.y);
@@ -684,17 +682,21 @@ const BalaoMensagem = memo(function BalaoMensagem({
                                 if (toqueRef.current.timer) clearTimeout(toqueRef.current.timer);
                                 toqueRef.current.timer = null;
                               }
-                              if (dx > 60 && dy < 40) {
+                              if (podeCitar && dx > 60 && dy < 40) {
                                 toqueRef.current.x = t.clientX + 9999;
                                 onResponder(m);
                               }
                             }}
-                            onTouchEnd={() => {
+                             onTouchEnd={() => {
                               if (toqueRef.current.timer) clearTimeout(toqueRef.current.timer);
                               toqueRef.current.timer = null;
                             }}
+                             onTouchCancel={() => {
+                               if (toqueRef.current.timer) clearTimeout(toqueRef.current.timer);
+                               toqueRef.current.timer = null;
+                             }}
                             className={cn(
-                              "min-w-0 max-w-[90%] md:max-w-[80%] overflow-hidden text-base break-words [overflow-wrap:anywhere] [word-break:break-word]",
+                              "min-w-0 max-w-full overflow-hidden text-base break-words [overflow-wrap:anywhere] [word-break:break-word]",
                               destacado && "ring-2 ring-primary ring-offset-2 ring-offset-background transition-shadow",
                               sticker && !falhou
                                 ? "bg-transparent border-0 p-0"
@@ -728,7 +730,7 @@ const BalaoMensagem = memo(function BalaoMensagem({
                                     {m.citada_direcao === "entrada" ? nomeCliente : "Você"}
                                   </span>
                                   <span className="block truncate text-xs text-muted-foreground">
-                                    {m.citada_texto?.trim() || rotuloCitada(m.citada_tipo, m.citada_media_url)}
+                                    {previaCitada(m.citada_tipo, m.citada_texto, m.citada_media_url)}
                                   </span>
                                 </span>
                                 {m.citada_media_url && (
@@ -742,11 +744,11 @@ const BalaoMensagem = memo(function BalaoMensagem({
                             )}
 
                             {menuAberto && (
-                              <div className="mb-1.5 flex gap-1.5">
-                                <Button size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={() => onResponder(m)}>
+                              <div className="mb-1.5 flex flex-wrap gap-1.5">
+                                {podeCitar && <Button size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={() => onResponder(m)}>
                                   <Reply className="mr-1 h-3 w-3" />
                                   Responder
-                                </Button>
+                                </Button>}
                                 <Button
                                   size="sm"
                                   variant="ghost"
@@ -842,6 +844,12 @@ const BalaoMensagem = memo(function BalaoMensagem({
                                )}
                              </div>
                           </div>
+                          {podeCitar && !saida && (
+                            <Button size="icon" variant="ghost" className="hidden h-7 w-7 shrink-0 opacity-0 transition-opacity group-hover:opacity-100 focus:opacity-100 md:flex" onClick={() => onResponder(m)} title="Responder" aria-label="Responder">
+                              <Reply className="h-3.5 w-3.5" />
+                            </Button>
+                          )}
+                          </div>
                         </div>
                       </div>
                     );
@@ -917,12 +925,19 @@ export default function Atendimento() {
   const [mensagemExcluir, setMensagemExcluir] = useState<Mensagem | null>(null);
   const [legenda, setLegenda] = useState("");
   const [citacao, setCitacao] = useState<Citacao | null>(null);
+  // A referência pertence à conversa em que foi escolhida, nunca à próxima.
   const [arrastando, setArrastando] = useState(false);
   const [menuBalao, setMenuBalao] = useState<string | null>(null);
   const [destacada, setDestacada] = useState<string | null>(null);
   const balaoRefs = useRef<Record<string, HTMLDivElement | null>>({});
   /** Controle do toque nos balões: arrastar para a direita responde, segurar abre o menu. */
   const toqueRef = useRef<{ x: number; y: number; timer: ReturnType<typeof setTimeout> | null }>({ x: 0, y: 0, timer: null });
+  useEffect(() => {
+    setCitacao(null);
+    setMenuBalao(null);
+    if (toqueRef.current.timer) clearTimeout(toqueRef.current.timer);
+    toqueRef.current.timer = null;
+  }, [selecionada]);
   const [enviandoImagem, setEnviandoImagem] = useState(false);
   const fimRef = useRef<HTMLDivElement>(null);
   const areaMensagensRef = useRef<HTMLDivElement>(null);
@@ -1507,7 +1522,7 @@ export default function Atendimento() {
 
   /** Prepara a barra de citação acima da caixa de texto. */
   const responderCitando = useCallback((m: Mensagem) => {
-    if (m.id == null) return;
+    if (m.id == null || !(m.wamid ?? "").toString().trim()) return;
     setCitacao({
       id: m.id,
       direcao: m.direcao,
@@ -3478,10 +3493,10 @@ export default function Atendimento() {
                           {citacao.direcao === "entrada" ? nomeConversa(conversaAtual) : "Você"}
                         </p>
                         <p className="truncate text-xs text-muted-foreground">
-                          {citacao.texto?.trim() || rotuloCitada(citacao.tipo, citacao.media_url)}
+                          {previaCitada(citacao.tipo, citacao.texto, citacao.media_url)}
                         </p>
                       </div>
-                      {citacao.media_url && (
+                      {citacao.media_url && /imagem|image|photo|foto|sticker|figurinha/i.test(citacao.tipo ?? "") && (
                         <img src={citacao.media_url} alt="Mensagem citada" className="h-[38px] w-[38px] shrink-0 rounded object-cover" />
                       )}
                       <Button size="icon" variant="ghost" className="h-6 w-6 shrink-0" onClick={() => setCitacao(null)} title="Cancelar citação">
