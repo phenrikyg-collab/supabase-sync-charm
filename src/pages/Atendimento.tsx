@@ -3535,6 +3535,7 @@ export default function Atendimento() {
         </Sheet>
 
       </Colunas>
+      </div>
         </TabsContent>
       </Tabs>
 
