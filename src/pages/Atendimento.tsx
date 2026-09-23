@@ -574,7 +574,21 @@ const ItemConversa = memo(function ItemConversa({
 });
 
 
+/** Aviso discreto quando a citação foi pedida mas a Meta não conseguiu aplicar. */
+const avisarSemCitar = () =>
+  toast({ description: "Enviado, mas sem citar: a mensagem original é antiga demais." });
+
+/** Rótulo curto da mensagem citada quando ela não tem texto. */
+const rotuloCitada = (tipo?: string | null, url?: string | null) => {
+  const t = (tipo ?? "").toLowerCase();
+  if (t.includes("video")) return "Vídeo";
+  if (t.includes("imagem") || t.includes("image") || t.includes("foto")) return "Foto";
+  if (t.includes("audio")) return "Áudio";
+  return url ? "Foto" : "Mensagem";
+};
+
 type BalaoMensagemProps = {
+  nomeCliente: string;
   m: Mensagem;
   divisorKora: boolean;
   divisorProprio: boolean;
@@ -595,7 +609,7 @@ type BalaoMensagemProps = {
 
 /** Um balão da conversa. Memoizado: só repinta quando a própria mensagem muda. */
 const BalaoMensagem = memo(function BalaoMensagem({
-  m, divisorKora, divisorProprio, destacado, menuAberto, toqueRef, onRegistrarRef,
+  m, nomeCliente, divisorKora, divisorProprio, destacado, menuAberto, toqueRef, onRegistrarRef,
   onResponder, onCopiar, onAbrirMenu, onIrParaMensagem, onReenviar, onDescartar, onEnviarTemplate,
   onDesfazer, onExcluir,
 }: BalaoMensagemProps) {
@@ -612,7 +626,8 @@ const BalaoMensagem = memo(function BalaoMensagem({
                     const pedeTemplate = falhou && ehMotivoJanela(motivoFalha);
                     const chaveBalao = m.id != null ? String(m.id) : "";
                     const otimista = typeof m.id === "number" && m.id < 0;
-                    const podeCitar = !kora && !otimista && m.id != null;
+                    // Sem wamid a Meta não consegue citar (mensagem antiga ou importada): não ofereça a ação.
+                    const podeCitar = !kora && !otimista && m.id != null && !!(m.wamid ?? "").toString().trim();
                     const temCitada = m.citada_id != null || !!m.citada_texto;
                     const aguardando = typeof m.aguardando_ate === "number";
                     const podeExcluir = saida && !aguardando && !otimista && m.id != null;
@@ -705,19 +720,23 @@ const BalaoMensagem = memo(function BalaoMensagem({
                               <button
                                 type="button"
                                 onClick={() => onIrParaMensagem(m.citada_id)}
-                                className="mb-1.5 flex w-full items-center gap-2 rounded-md bg-background/60 py-1 pl-0 pr-2 text-left"
+                                className="mb-1.5 flex w-full items-center gap-2 overflow-hidden rounded-md bg-foreground/[0.07] py-1 pl-0 pr-2 text-left"
                               >
-                                <span className="h-8 w-1 shrink-0 rounded-full bg-primary" />
+                                <span className="h-10 w-[3px] shrink-0 rounded-full bg-primary" />
                                 <span className="min-w-0 flex-1">
-                                  <span className="block text-[11px] font-semibold text-primary">
-                                    {m.citada_direcao === "entrada" ? "Cliente" : "Você"}
+                                  <span className="block truncate text-[11px] font-semibold text-primary">
+                                    {m.citada_direcao === "entrada" ? nomeCliente : "Você"}
                                   </span>
-                                  <span className="line-clamp-2 block text-xs text-muted-foreground">
-                                    {m.citada_texto?.trim() || (m.citada_media_url ? "Imagem" : "Mensagem")}
+                                  <span className="block truncate text-xs text-muted-foreground">
+                                    {m.citada_texto?.trim() || rotuloCitada(m.citada_tipo, m.citada_media_url)}
                                   </span>
                                 </span>
                                 {m.citada_media_url && (
-                                  <img src={m.citada_media_url} alt="Citada" className="h-9 w-9 shrink-0 rounded object-cover" />
+                                  <img
+                                    src={m.citada_media_url}
+                                    alt="Mensagem citada"
+                                    className="h-[38px] w-[38px] shrink-0 rounded object-cover"
+                                  />
                                 )}
                               </button>
                             )}
@@ -1673,6 +1692,7 @@ export default function Atendimento() {
     },
     onSuccess: (_data, envio) => {
       queryClient.invalidateQueries({ queryKey: ["whatsapp-mensagens", String(envio.conversaId)] });
+      if (envio.citacao && (_data as any)?.citou === false) avisarSemCitar();
       // Lead do provador aberto com mensagem pronta: registra o contato no funil
       if (envio.leadProvador?.conversaId === String(envio.conversaId)) {
         const { leadId, conversaId } = envio.leadProvador;
@@ -1761,6 +1781,7 @@ export default function Atendimento() {
       });
       if (error) throw error;
       if ((corpo as any)?.error) throw new Error((corpo as any).error);
+      if (responderA != null && (corpo as any)?.citou === false) avisarSemCitar();
     } catch (e: any) {
       // O invoke esconde o corpo do erro em error.context; ler o motivo real (ex.: janela de 24h).
       let motivo = await extrairErroJanela(e);
@@ -3369,6 +3390,7 @@ export default function Atendimento() {
                       <BalaoMensagem
                         key={chave}
                         m={m}
+                        nomeCliente={nomeConversa(conversaAtual)}
                         divisorKora={idx === primeiroIndiceKora}
                         divisorProprio={idx === primeiroIndiceSistemaProprio}
                         destacado={destacada === (m.id != null ? String(m.id) : "")}
@@ -3449,18 +3471,18 @@ export default function Atendimento() {
                     </div>
                   )}
                   {citacao && (
-                    <div className="flex items-center gap-2 rounded-md border border-border bg-muted/50 py-1.5 pl-0 pr-2">
-                      <span className="h-8 w-1 shrink-0 rounded-full bg-primary" />
+                    <div className="flex items-center gap-2 overflow-hidden rounded-md border border-border bg-muted/50 py-1.5 pl-0 pr-2">
+                      <span className="h-10 w-[3px] shrink-0 rounded-full bg-primary" />
                       <div className="min-w-0 flex-1">
-                        <p className="text-[11px] font-semibold text-primary">
-                          {citacao.direcao === "entrada" ? "Cliente" : "Você"}
+                        <p className="truncate text-[11px] font-semibold text-primary">
+                          {citacao.direcao === "entrada" ? nomeConversa(conversaAtual) : "Você"}
                         </p>
-                        <p className="line-clamp-1 text-xs text-muted-foreground">
-                          {citacao.texto?.trim() || (citacao.media_url ? "Imagem" : "Mensagem")}
+                        <p className="truncate text-xs text-muted-foreground">
+                          {citacao.texto?.trim() || rotuloCitada(citacao.tipo, citacao.media_url)}
                         </p>
                       </div>
                       {citacao.media_url && (
-                        <img src={citacao.media_url} alt="Citada" className="h-8 w-8 shrink-0 rounded object-cover" />
+                        <img src={citacao.media_url} alt="Mensagem citada" className="h-[38px] w-[38px] shrink-0 rounded object-cover" />
                       )}
                       <Button size="icon" variant="ghost" className="h-6 w-6 shrink-0" onClick={() => setCitacao(null)} title="Cancelar citação">
                         <X className="h-3.5 w-3.5" />
