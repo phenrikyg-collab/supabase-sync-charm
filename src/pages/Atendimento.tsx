@@ -52,6 +52,10 @@ import { EnviarTemplateDialog } from "@/components/atendimento/EnviarTemplate";
 import { ConferirNumeroDialog } from "@/components/atendimento/ConferirNumero";
 import { Composer, type ComposerHandle } from "@/components/atendimento/Composer";
 import { AcaoDoDia } from "@/components/atendimento/AcaoDoDia";
+import {
+  BloqueiosTab, DialogBloquearContato, FaixaBloqueio, extrairErroBloqueio,
+  useBloqueioConversa, useMapaBloqueios, type EscopoBloqueio,
+} from "@/components/atendimento/BloqueioContato";
 
 import { ConsultarTransacaoTab } from "@/components/atendimento/ConsultarTransacao";
 import { MensagemMidia, ehTipoMidia } from "@/components/atendimento/MensagemMidia";
