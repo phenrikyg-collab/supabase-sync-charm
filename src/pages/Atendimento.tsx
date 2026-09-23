@@ -621,7 +621,6 @@ export const BalaoMensagem = memo(function BalaoMensagem({
 }: BalaoMensagemProps) {
                     const saida = m.direcao === "saida";
                     const bot = saida && m.origem === "bot";
-                    const kora = m.origem === "kora";
                     const tipo = (m.tipo ?? "").toLowerCase();
                     const sticker = tipo === "sticker" && !!m.media_url;
                     const tipoMidia = ehTipoMidia(tipo);
@@ -921,6 +920,13 @@ export default function Atendimento() {
   const [mensagemExcluir, setMensagemExcluir] = useState<Mensagem | null>(null);
   const [legenda, setLegenda] = useState("");
   const [citacao, setCitacao] = useState<Citacao | null>(null);
+  // A referência pertence à conversa em que foi escolhida, nunca à próxima.
+  useEffect(() => {
+    setCitacao(null);
+    setMenuBalao(null);
+    if (toqueRef.current.timer) clearTimeout(toqueRef.current.timer);
+    toqueRef.current.timer = null;
+  }, [selecionada]);
   const [arrastando, setArrastando] = useState(false);
   const [menuBalao, setMenuBalao] = useState<string | null>(null);
   const [destacada, setDestacada] = useState<string | null>(null);
@@ -3482,10 +3488,10 @@ export default function Atendimento() {
                           {citacao.direcao === "entrada" ? nomeConversa(conversaAtual) : "Você"}
                         </p>
                         <p className="truncate text-xs text-muted-foreground">
-                          {citacao.texto?.trim() || rotuloCitada(citacao.tipo, citacao.media_url)}
+                          {previaCitada(citacao.tipo, citacao.texto, citacao.media_url)}
                         </p>
                       </div>
-                      {citacao.media_url && (
+                      {citacao.media_url && /imagem|image|foto|sticker|figurinha/i.test(citacao.tipo ?? "") && (
                         <img src={citacao.media_url} alt="Mensagem citada" className="h-[38px] w-[38px] shrink-0 rounded object-cover" />
                       )}
                       <Button size="icon" variant="ghost" className="h-6 w-6 shrink-0" onClick={() => setCitacao(null)} title="Cancelar citação">
