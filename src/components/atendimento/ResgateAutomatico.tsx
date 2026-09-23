@@ -59,6 +59,7 @@ type Config = {
   teto_dia?: number | null;
   cooldown_dias?: number | null;
   silencio_marketing_horas?: number | null;
+  silencio_atendimento_dias?: number | null;
   template?: string | null;
   preview?: string | null;
 };
@@ -203,6 +204,7 @@ export function ResgateAutomatico({
       janela_max_horas: numero(rascunho.janela_max_horas),
       cooldown_dias: numero(rascunho.cooldown_dias),
       silencio_marketing_horas: numero(rascunho.silencio_marketing_horas),
+      silencio_atendimento_dias: numero(rascunho.silencio_atendimento_dias),
       tipos: Array.isArray(rascunho.tipos) ? rascunho.tipos : [],
     });
     setSalvando(false);
