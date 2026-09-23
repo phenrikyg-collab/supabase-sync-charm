@@ -3496,6 +3496,14 @@ export default function Atendimento() {
                     onAbrirTemplate={abrirTemplate}
                     onDigitandoMudou={setDigitando}
                     mobile={isMobile}
+                    desabilitado={bloqueioTotal}
+                    placeholder={
+                      bloqueioTotal
+                        ? bloqueioConversa?.motivo
+                          ? `Contato bloqueado: ${bloqueioConversa.motivo}`
+                          : "Contato bloqueado - nada é enviado para ela"
+                        : undefined
+                    }
                     acoes={<BotaoEnviarCupom telefone={telefoneIdentificado} onTexto={usarTextoPronto} />}
                     acoesMobile={<BotaoEnviarCupom telefone={telefoneIdentificado} onTexto={usarTextoPronto} mobile />}
                     figurinhas={
