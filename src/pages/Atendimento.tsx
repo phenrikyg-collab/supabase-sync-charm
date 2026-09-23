@@ -3383,6 +3383,7 @@ export default function Atendimento() {
                       <BalaoMensagem
                         key={chave}
                         m={m}
+                        nomeCliente={nomeConversa(conversaAtual)}
                         divisorKora={idx === primeiroIndiceKora}
                         divisorProprio={idx === primeiroIndiceSistemaProprio}
                         destacado={destacada === (m.id != null ? String(m.id) : "")}
