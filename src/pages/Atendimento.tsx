@@ -1684,7 +1684,12 @@ export default function Atendimento() {
     },
     onError: async (e: any, envio, contexto: any) => {
       const janela = await extrairErroJanela(e);
-      const motivo = janela ?? e?.message ?? "Não foi possível enviar a mensagem.";
+      const bloqueado = janela ? null : await extrairErroBloqueio(e);
+      if (bloqueado) {
+        queryClient.invalidateQueries({ queryKey: ["whatsapp-bloqueio-conversa"] });
+        queryClient.invalidateQueries({ queryKey: ["whatsapp-bloqueios"] });
+      }
+      const motivo = janela ?? bloqueado ?? e?.message ?? "Não foi possível enviar a mensagem.";
       if (contexto?.idTemp) marcarMensagemFalhou(envio.conversaId, contexto.idTemp, motivo);
       if (janela) {
         queryClient.invalidateQueries({ queryKey: ["whatsapp-janela-24h", String(envio.conversaId)] });
