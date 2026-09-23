@@ -3571,7 +3571,7 @@ export default function Atendimento() {
         </TabsContent>
       </Tabs>
 
-      <CatalogoDialog open={catalogoAberto} onOpenChange={setCatalogoAberto} onSelecionar={enviarProduto} />
+      <CatalogoDialog open={catalogoAberto} onOpenChange={setCatalogoAberto} onSelecionar={enviarProdutos} />
       <NovaConversaDialog
         open={novaConversaAberta}
         onOpenChange={setNovaConversaAberta}
