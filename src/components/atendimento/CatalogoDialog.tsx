@@ -12,7 +12,15 @@ export const MAX_SELECAO_CATALOGO = 10;
 
 export type TamanhoDisponivel = { tamanho: string; estoque: number };
 
-export type CorDisponivel = { cor: string; estoque?: number | null; imagem?: string | null; tamanhos?: string[] | null };
+export type TamanhoDetalhe = { tamanho: string; estoque: number };
+
+export type CorDisponivel = {
+  cor: string;
+  estoque?: number | null;
+  imagem?: string | null;
+  tamanhos?: string[] | null;
+  tamanhos_detalhe?: TamanhoDetalhe[] | null;
+};
 
 export type ProdutoCatalogo = {
   id?: number | string;
@@ -22,6 +30,8 @@ export type ProdutoCatalogo = {
   preco_cheio?: number | null;
   preco_parcelado_5x?: number | null;
   preco_pix?: number | null;
+  preco_vigente?: number | null;
+  parcela_5x?: number | null;
   imagem?: string | null;
   link?: string | null;
   url?: string | null;
@@ -30,7 +40,12 @@ export type ProdutoCatalogo = {
   cores_disponiveis?: (string | CorDisponivel)[] | null;
 };
 
-export type EscolhaProduto = { cor?: string | null; tamanho?: string | null; imagem?: string | null };
+export type EscolhaProduto = {
+  cor?: string | null;
+  tamanho?: string | null;
+  imagem?: string | null;
+  tamanhos_detalhe?: TamanhoDetalhe[] | null;
+};
 
 export function formatarPreco(v?: number | null) {
   if (v == null) return "";
