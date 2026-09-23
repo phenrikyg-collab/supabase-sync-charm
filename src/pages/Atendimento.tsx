@@ -705,19 +705,23 @@ const BalaoMensagem = memo(function BalaoMensagem({
                               <button
                                 type="button"
                                 onClick={() => onIrParaMensagem(m.citada_id)}
-                                className="mb-1.5 flex w-full items-center gap-2 rounded-md bg-background/60 py-1 pl-0 pr-2 text-left"
+                                className="mb-1.5 flex w-full items-center gap-2 overflow-hidden rounded-md bg-foreground/[0.07] py-1 pl-0 pr-2 text-left"
                               >
-                                <span className="h-8 w-1 shrink-0 rounded-full bg-primary" />
+                                <span className="h-10 w-[3px] shrink-0 rounded-full bg-primary" />
                                 <span className="min-w-0 flex-1">
-                                  <span className="block text-[11px] font-semibold text-primary">
-                                    {m.citada_direcao === "entrada" ? "Cliente" : "Você"}
+                                  <span className="block truncate text-[11px] font-semibold text-primary">
+                                    {m.citada_direcao === "entrada" ? nomeCliente : "Você"}
                                   </span>
-                                  <span className="line-clamp-2 block text-xs text-muted-foreground">
-                                    {m.citada_texto?.trim() || (m.citada_media_url ? "Imagem" : "Mensagem")}
+                                  <span className="block truncate text-xs text-muted-foreground">
+                                    {m.citada_texto?.trim() || rotuloCitada(m.citada_tipo, m.citada_media_url)}
                                   </span>
                                 </span>
                                 {m.citada_media_url && (
-                                  <img src={m.citada_media_url} alt="Citada" className="h-9 w-9 shrink-0 rounded object-cover" />
+                                  <img
+                                    src={m.citada_media_url}
+                                    alt="Mensagem citada"
+                                    className="h-[38px] w-[38px] shrink-0 rounded object-cover"
+                                  />
                                 )}
                               </button>
                             )}
