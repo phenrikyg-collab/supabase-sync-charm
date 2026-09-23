@@ -3252,6 +3252,10 @@ export default function Atendimento() {
                 </div>
               )}
 
+              {bloqueioConversa?.bloqueado && (
+                <FaixaBloqueio bloqueio={bloqueioConversa} telefone={telefoneIdentificado} />
+              )}
+
               <PropostaDaConversa
                 conversaId={conversaAtual.id}
                 propostaId={propostaId}
