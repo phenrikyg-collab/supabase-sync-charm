@@ -863,6 +863,8 @@ export default function Atendimento() {
   const [excluirAberta, setExcluirAberta] = useState(false);
   const [motivoExclusao, setMotivoExclusao] = useState("");
   const [freteAberto, setFreteAberto] = useState(false);
+  const [bloquearAberto, setBloquearAberto] = useState(false);
+  const mapaBloqueios = useMapaBloqueios();
   const [proporCarrinhoAberto, setProporCarrinhoAberto] = useState(false);
   const [templateAberto, setTemplateAberto] = useState(false);
   const [propostaId, setPropostaId] = useState<string | number | null>(null);
