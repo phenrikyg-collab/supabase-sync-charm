@@ -850,6 +850,7 @@ export default function Atendimento() {
     | "cancelados"
     | "kanban"
     | "cashback"
+    | "bloqueios"
   >("conversas");
   const [abaKanban, setAbaKanban] = useState<"kanban" | "dashboard" | "followups" | "templates">("kanban");
   const [contagens, setContagens] = useState<Record<string, number>>({});
