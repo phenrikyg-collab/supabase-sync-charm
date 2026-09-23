@@ -574,6 +574,10 @@ const ItemConversa = memo(function ItemConversa({
 });
 
 
+/** Aviso discreto quando a citação foi pedida mas a Meta não conseguiu aplicar. */
+const avisarSemCitar = () =>
+  toast({ description: "Enviado, mas sem citar: a mensagem original é antiga demais." });
+
 /** Rótulo curto da mensagem citada quando ela não tem texto. */
 const rotuloCitada = (tipo?: string | null, url?: string | null) => {
   const t = (tipo ?? "").toLowerCase();
