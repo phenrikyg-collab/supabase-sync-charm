@@ -81,8 +81,8 @@ describe("seleção múltipla do catálogo", () => {
     expect(screen.getByText("Escolher a cor")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Enviar para a cliente" }));
     expect(enviar.mock.calls[0][0]).toHaveLength(1);
-    fireEvent.click(screen.getByRole("button", { name: " Off White " }));
-    fireEvent.click(screen.getByRole("button", { name: " M " }));
+    fireEvent.click(screen.getByRole("button", { name: "Off White" }));
+    fireEvent.click(screen.getByRole("button", { name: "M" }));
     await waitFor(() => expect(rpc).toHaveBeenCalledWith("catalogo_buscar_produtos", expect.objectContaining({ p_cor: "Off White", p_tamanho: "M" })));
   });
 
