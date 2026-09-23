@@ -103,6 +103,7 @@ export const Composer = forwardRef<ComposerHandle, Props>(function Composer(
   };
 
   const despachar = () => {
+    if (desabilitado) return;
     const limpo = texto.trim();
     if (!limpo) return;
     setTexto("");
