@@ -42,7 +42,7 @@ type Props = {
  * digitar não repinte a lista de conversas, as mensagens nem o perfil.
  */
 export const Composer = forwardRef<ComposerHandle, Props>(function Composer(
-  { onEnviar, onImagens, onAbrirCatalogo, onAbrirTemplate, onDigitandoMudou, figurinhas, acoes, acoesMobile, mobile = false },
+  { onEnviar, onImagens, onAbrirCatalogo, onAbrirTemplate, onDigitandoMudou, figurinhas, acoes, acoesMobile, mobile = false, desabilitado = false, placeholder },
   ref,
 ) {
   const [texto, setTexto] = useState("");
