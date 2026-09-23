@@ -2022,22 +2022,22 @@ export default function Atendimento() {
     const aviso = toast({ title: `enviando 1 de ${itens.length}`, duration: 60000 });
     const falhas: ItemCatalogo[] = [];
 
-    for (let i = 0; i < itens.length; i++) {
-      const { produto, escolha } = itens[i];
-      aviso.update({ id: aviso.id, title: `enviando ${i + 1} de ${itens.length}` } as any);
+    for (let i = 0; i < itensCompletos.length; i++) {
+      const { produto, escolha } = itensCompletos[i];
+      aviso.update({ id: aviso.id, title: `enviando ${i + 1} de ${itensCompletos.length}` } as any);
       try {
         await enviarImagem(destino, escolha?.imagem || produto.imagem || "", legendaProduto(produto, escolha));
       } catch {
-        falhas.push(itens[i]);
+        falhas.push(itensCompletos[i]);
       }
       // pausa curta para o WhatsApp não embaralhar a ordem das mensagens
-      if (i < itens.length - 1) await new Promise((r) => setTimeout(r, 1200));
+      if (i < itensCompletos.length - 1) await new Promise((r) => setTimeout(r, 1200));
     }
 
     aviso.dismiss();
 
     if (!falhas.length) {
-      toast({ title: itens.length === 1 ? "Produto enviado" : `${itens.length} peças enviadas` });
+      toast({ title: itensCompletos.length === 1 ? "Produto enviado" : `${itensCompletos.length} peças enviadas` });
       return;
     }
 
