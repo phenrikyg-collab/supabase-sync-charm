@@ -2706,12 +2706,12 @@ export default function Atendimento() {
         )}
 
         {/* Lista de conversas */}
-        <Coluna ajustavel={colunasAjustaveis} id="lista" order={1} defaultSize={largurasIniciais[0]} minSize={15} maxSize={40}>
+        <Coluna ajustavel={colunasAjustaveis} id="lista" order={1} defaultSize={largurasIniciais[0]} minSize={18} maxSize={40}>
         <aside
           className={cn(
             "fixed inset-y-0 left-0 z-40 flex h-full min-h-0 w-[85vw] max-w-[360px] min-w-0 flex-col overflow-hidden border-r border-border bg-card transition-transform",
             "md:static md:z-auto md:w-[320px] md:max-w-none md:shrink-0 md:translate-x-0 lg:w-[340px]",
-            colunasAjustaveis && "lg:w-full",
+            colunasAjustaveis && "xl:w-full",
             isMobile ? (selecionada ? "hidden" : "relative static z-auto w-full max-w-none translate-x-0 border-r-0") : (listaSheet ? "translate-x-0" : "-translate-x-full"),
           )}
         >
@@ -2960,7 +2960,7 @@ export default function Atendimento() {
                 );
               }
               return (
-                <div key={String(c.id)}>
+                <div key={String(c.id)} className="w-full min-w-0">
                   {cabecalho}
                   <ItemConversa
                     c={c}
@@ -3129,8 +3129,8 @@ export default function Atendimento() {
                   <SeloCashback
                     telefone={telefoneIdentificado}
                     onAbrir={() => {
-                      if (isMobile) setPerfilSheet(true);
-                      else setPerfilAberto(true);
+                      if (colunasAjustaveis) setPerfilAberto(true);
+                      else setPerfilSheet(true);
                     }}
                   />
 
@@ -3285,7 +3285,7 @@ export default function Atendimento() {
                   <Button
                     size="icon"
                     variant="ghost"
-                    className="hidden h-9 w-9 lg:inline-flex"
+                    className="hidden h-9 w-9 xl:inline-flex"
                     onClick={() => setPerfilAberto((v) => !v)}
                     title={perfilAberto ? "Esconder perfil da cliente" : "Mostrar perfil da cliente"}
                   >
@@ -3303,7 +3303,7 @@ export default function Atendimento() {
                   <Button
                     size="icon"
                     variant="ghost"
-                    className="hidden h-9 w-9 md:inline-flex lg:hidden"
+                    className="hidden h-9 w-9 md:inline-flex xl:hidden"
                     onClick={() => setPerfilSheet(true)}
                     title="Perfil da cliente"
                   >
@@ -3598,7 +3598,7 @@ export default function Atendimento() {
         </Coluna>
 
         {/* Painel lateral direito */}
-        {perfilAberto && conversaAtual && (
+        {colunasAjustaveis && perfilAberto && conversaAtual && (
           <>
             {colunasAjustaveis && (
               <ResizableHandle
