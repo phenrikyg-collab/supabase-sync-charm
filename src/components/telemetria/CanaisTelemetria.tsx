@@ -172,7 +172,12 @@ export function CanaisTelemetria({ de, ate }: { de: string; ate: string }) {
                 return (
                   <Tooltip key={r.canal}>
                     <TooltipTrigger asChild>
-                      <TableRow className="bg-muted/60 cursor-help">{celulas}</TableRow>
+                      <TableRow
+                        className="bg-muted/60 cursor-pointer hover:bg-muted"
+                        onClick={() => setPainelAberto(true)}
+                      >
+                        {celulas}
+                      </TableRow>
                     </TooltipTrigger>
                     <TooltipContent className="max-w-xs">{TEXTO_NAO_ATRIBUIDO}</TooltipContent>
                   </Tooltip>
