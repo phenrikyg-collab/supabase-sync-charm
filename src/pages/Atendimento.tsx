@@ -605,7 +605,7 @@ type BalaoMensagemProps = {
 
 /** Um balão da conversa. Memoizado: só repinta quando a própria mensagem muda. */
 const BalaoMensagem = memo(function BalaoMensagem({
-  m, divisorKora, divisorProprio, destacado, menuAberto, toqueRef, onRegistrarRef,
+  m, nomeCliente, divisorKora, divisorProprio, destacado, menuAberto, toqueRef, onRegistrarRef,
   onResponder, onCopiar, onAbrirMenu, onIrParaMensagem, onReenviar, onDescartar, onEnviarTemplate,
   onDesfazer, onExcluir,
 }: BalaoMensagemProps) {
