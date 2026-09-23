@@ -1,8 +1,9 @@
 import { OportunidadesAoVivo } from "@/components/recuperacao/OportunidadesAoVivo";
+import { ResgateAutomatico } from "@/components/atendimento/ResgateAutomatico";
 
 /**
- * Aba "Oportunidades" do Atendimento: mesmo bloco de Oportunidades ao Vivo
- * usado na tela de Vendas ao Vivo, com abertura da conversa no próprio painel.
+ * Aba "Oportunidades" do Atendimento: resgate automático acima do bloco de
+ * Oportunidades ao Vivo, com abertura da conversa no próprio painel.
  */
 export function OportunidadesTab({
   onAbrirConversa,
@@ -12,10 +13,13 @@ export function OportunidadesTab({
   onContagem?: (n: number) => void;
 }) {
   return (
-    <OportunidadesAoVivo
-      intervaloMs={60000}
-      onAbrirConversa={onAbrirConversa}
-      onContagem={onContagem}
-    />
+    <div>
+      <ResgateAutomatico onAbrirConversa={onAbrirConversa} />
+      <OportunidadesAoVivo
+        intervaloMs={60000}
+        onAbrirConversa={onAbrirConversa}
+        onContagem={onContagem}
+      />
+    </div>
   );
 }
