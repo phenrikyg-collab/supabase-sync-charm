@@ -33,5 +33,5 @@
 - [ ] Validar publicação dos ajustes de Reversa e Cashback
 - [x] Recolher Cashback, Cupons e Extrato no Atendimento, lembrando cada estado no navegador
 - [x] Aplicar fonte WhatsApp só à tela de Atendimento e verificar os tipos
-- [ ] Compactar os cards da lista de conversas do Atendimento para três linhas e cerca de 64px
-- [ ] Conferir a largura no celular, a densidade em tela de 900px e os tipos
+- [x] Compactar os cards da lista de conversas do Atendimento para três linhas e cerca de 64px
+- [x] Conferir a largura no celular, a densidade em tela de 900px e os tipos (medição visual com dados de exemplo; acesso real depende de login)
