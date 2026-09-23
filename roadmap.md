@@ -40,3 +40,6 @@
 - [ ] Conferir Atendimento autenticado em 1280px, 1440px e 390px (bloqueado: nenhum usuário disponível para entrar; layout medido com dados de exemplo)
 - [x] Corrigir seleção múltipla do catálogo com cores em texto, sem abrir variação no clique da caixa
 - [x] Testar marcação, cores repetidas, edição, remoção, envio e limite de 10; confirmar parâmetros dos filtros
+- [ ] Tornar Responder visível nos balões citáveis no desktop e disponível pelo toque longo no celular
+- [ ] Conferir prévia, cancelamento, limpeza ao trocar de conversa e citação em texto, imagem e vídeo
+- [ ] Validar testes e tipos do Atendimento sem alterar o backend
