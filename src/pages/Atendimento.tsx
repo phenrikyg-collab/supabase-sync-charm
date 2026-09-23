@@ -1688,6 +1688,7 @@ export default function Atendimento() {
     },
     onSuccess: (_data, envio) => {
       queryClient.invalidateQueries({ queryKey: ["whatsapp-mensagens", String(envio.conversaId)] });
+      if (envio.citacao && (_data as any)?.citou === false) avisarSemCitar();
       // Lead do provador aberto com mensagem pronta: registra o contato no funil
       if (envio.leadProvador?.conversaId === String(envio.conversaId)) {
         const { leadId, conversaId } = envio.leadProvador;
