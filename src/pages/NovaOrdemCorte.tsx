@@ -313,16 +313,16 @@ export default function NovaOrdemCorte() {
         <CardContent className="pt-6 space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="space-y-2">
-              <Label>Número da OC</Label>
+              <Label>Número da OC (prévia)</Label>
               <Input value={numeroOC} readOnly className="bg-muted" />
             </div>
             <div className="space-y-2">
               <Label>Metros do Risco</Label>
-              <Input type="number" step="0.01" value={metrosRisco} onChange={(e) => setMetrosRisco(Number(e.target.value))} />
+              <Input type="number" step="0.01" inputMode="decimal" value={metrosRisco} onChange={(e) => setMetrosRisco(Number(e.target.value))} />
             </div>
             <div className="space-y-2">
-              <Label>Total de Folhas (calculado)</Label>
-              <Input value={Object.values(folhasPorCor).reduce((a, b) => a + b, 0)} readOnly className="bg-muted" />
+              <Label>Total de Folhas</Label>
+              <Input value={totalFolhas} readOnly className="bg-muted" />
             </div>
           </div>
 
@@ -387,7 +387,7 @@ export default function NovaOrdemCorte() {
               <Label>Rolos Disponíveis</Label>
               <div className="flex items-center gap-2">
                 <Search className="h-4 w-4 text-muted-foreground" />
-                <Input placeholder="Buscar rolo..." value={searchRolo} onChange={(e) => setSearchRolo(e.target.value)} className="w-56" />
+                <Input placeholder="Código ou lote do rolo" value={searchRolo} onChange={(e) => setSearchRolo(e.target.value)} className="w-full sm:w-56" />
               </div>
             </div>
             <div className="space-y-2 max-h-72 overflow-y-auto">
@@ -478,10 +478,16 @@ export default function NovaOrdemCorte() {
                                 <span className="text-xs text-muted-foreground">• {corInfo.metrosCor.toFixed(1)}m alocados</span>
                               </div>
                               <div className="flex items-center gap-3 text-sm">
-                                <span className="text-xs text-muted-foreground">Subtotal: <strong className="text-foreground">{subtotalCor} pç</strong></span>
-                                <span className="text-xs text-muted-foreground">
-                                  Folhas estimadas: <strong className="text-foreground">{folhasPorCor[corKey] ?? 0}</strong>
-                                </span>
+                                <span className="text-xs text-muted-foreground">Por folha: <strong className="text-foreground">{subtotalCor} pç</strong></span>
+                                <label className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                                  Folhas
+                                  <Input
+                                    type="number" min={0} inputMode="numeric" className="h-9 w-20"
+                                    value={folhasPorCor[corKey] ?? 0}
+                                    onChange={(e) => setFolhasManual({ ...folhasManual, [corKey]: Math.max(0, Number(e.target.value)) })}
+                                  />
+                                </label>
+                                <span className="text-xs text-muted-foreground">Cortadas: <strong className="text-foreground">{pecasCortadas(subtotalCor, folhasPorCor[corKey] ?? 0)} pç</strong></span>
                               </div>
                             </div>
                             <div className="grid grid-cols-3 md:grid-cols-6 gap-3">
@@ -507,30 +513,54 @@ export default function NovaOrdemCorte() {
             </div>
           )}
 
-          <div className="p-4 rounded-lg bg-muted/50 border border-border grid grid-cols-2 gap-4">
-            <div>
-              <p className="text-xs text-muted-foreground">Total de Peças</p>
-              <p className="text-xl font-serif font-bold text-foreground">{totalPecas}</p>
-            </div>
-            <div>
-              <p className="text-xs text-muted-foreground">Metros Alocados</p>
-              <p className="text-xl font-serif font-bold text-foreground">{metrosAlocados.toFixed(2)}m</p>
-            </div>
-          </div>
-
-          {produtosSelecionados.length > 1 && (
-            <div className="p-3 bg-accent/50 border border-accent rounded-lg text-sm text-muted-foreground">
-              <strong className="text-foreground">Múltiplos produtos:</strong> Esta OC gerará {produtosSelecionados.length} ordens de produção separadas ao avançar para produção.
+          {Object.keys(totaisTamanho).length > 0 && (
+            <div className="space-y-2">
+              <Label>Peças cortadas por tamanho (grade x folhas)</Label>
+              <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
+                {TAMANHOS.filter((t) => totaisTamanho[t]).map((t) => (
+                  <div key={t} className="rounded-lg border border-border p-2 text-center">
+                    <p className="text-xs text-muted-foreground">{t}</p>
+                    <p className="text-lg font-semibold text-foreground">{totaisTamanho[t]}</p>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
 
-
-          <div className="flex justify-end gap-3">
-            <Button variant="outline" onClick={() => navigate("/ordens-corte")}>Cancelar</Button>
-            <Button onClick={handleSubmit} disabled={createMut.isPending}>Criar Ordem de Corte</Button>
+          <div className="space-y-2">
+            <Label>Situação ao salvar</Label>
+            <RadioGroup value={status} onValueChange={(v) => setStatus(v as "Planejada" | "Cortada")} className="flex gap-6">
+              <div className="flex items-center gap-2">
+                <RadioGroupItem value="Planejada" id="st-planejada" />
+                <Label htmlFor="st-planejada" className="cursor-pointer">Planejada</Label>
+              </div>
+              <div className="flex items-center gap-2">
+                <RadioGroupItem value="Cortada" id="st-cortada" />
+                <Label htmlFor="st-cortada" className="cursor-pointer">Já cortada</Label>
+              </div>
+            </RadioGroup>
           </div>
+
+          {opsPrevistas > 0 && (
+            <div className="p-3 bg-accent/50 border border-accent rounded-lg text-sm text-muted-foreground">
+              Ao salvar, serão geradas <strong className="text-foreground">{opsPrevistas} ordem(ns) de produção</strong> (uma por modelo e cor), sem oficina, para você atribuir depois.
+            </div>
+          )}
         </CardContent>
       </Card>
+
+      {/* Barra fixa com totais e salvar (pensada para celular/tablet) */}
+      <div className="sticky bottom-0 z-10 -mx-4 border-t border-border bg-background/95 px-4 py-3 backdrop-blur sm:mx-0 sm:rounded-lg sm:border">
+        <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
+          <div><p className="text-xs text-muted-foreground">Peças</p><p className="text-lg font-bold text-foreground">{totalPecas}</p></div>
+          <div><p className="text-xs text-muted-foreground">Folhas</p><p className="text-lg font-bold text-foreground">{totalFolhas}</p></div>
+          <div><p className="text-xs text-muted-foreground">Tecido</p><p className="text-lg font-bold text-foreground">{metrosAlocados.toFixed(2)}m</p></div>
+          <div className="ml-auto flex gap-2">
+            <Button variant="outline" size="lg" onClick={() => navigate("/ordens-corte")}>Cancelar</Button>
+            <Button size="lg" onClick={handleSubmit} disabled={salvando}>{salvando ? "Salvando..." : "Salvar corte"}</Button>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
