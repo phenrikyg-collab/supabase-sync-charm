@@ -8,7 +8,11 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
-import { AlertTriangle, Search, X, Plus } from "lucide-react";
+import { useQueryClient } from "@tanstack/react-query";
+import { Search, X, Plus } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { chamarRpc } from "@/lib/supabaseRpc";
+import { agruparOps, pecasCortadas, rpcAusente, somaMetragem, totalPorTamanho, type ItemGrade } from "@/lib/oficinaFluxo";
 
 const TAMANHOS = ["PP", "P", "M", "G", "GG", "EG"];
 
@@ -28,6 +32,8 @@ export default function NovaOrdemCorte() {
   const { data: cores } = useCores();
   const createMut = useCreateOrdemCorte();
   const navigate = useNavigate();
+  const qc = useQueryClient();
+  const [salvando, setSalvando] = useState(false);
 
   const [produtosSelecionados, setProdutosSelecionados] = useState<ProdutoSelecionado[]>([]);
   const [searchProduto, setSearchProduto] = useState("");
