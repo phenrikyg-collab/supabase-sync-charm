@@ -43,3 +43,8 @@
 - [x] Tornar Responder visível nos balões citáveis no desktop e disponível pelo toque longo no celular
 - [x] Conferir prévia, cancelamento, limpeza ao trocar de conversa e referência de citação em texto, imagem e vídeo no código (conversa real requer login)
 - [x] Validar testes e tipos do Atendimento sem alterar o backend
+- [x] SQL do fluxo corte -> OP -> oficina -> pagamento em supabase_sql/oficinas_portal_corte_producao.sql
+- [x] Nova Ordem de Corte: folhas por cor, peças por tamanho, situação inicial, OC-AAAA-NNN, OPs automáticas, barra fixa no celular (usa só produtos já cadastrados)
+- [x] Portal da oficina (/portal-oficina) com baixa de entrega; acesso ligado na tela Oficinas
+- [x] Fechamento de pagamento por oficina e período
+- [ ] Rodar o SQL no banco externo (depende da Mariana) e testar ponta a ponta com login real

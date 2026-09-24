@@ -23,6 +23,8 @@ export function useUserRole() {
   return {
     roles: roles ?? [],
     isAdmin: roles?.includes("admin") ?? false,
+    /** Usuário de oficina externa (sem admin): só acessa o portal. */
+    isOficina: (roles?.includes("oficina") && !roles?.includes("admin")) ?? false,
     isLoading,
   };
 }

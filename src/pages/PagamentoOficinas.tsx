@@ -1,102 +1,107 @@
 import { useState, useMemo } from "react";
-import { useOrdensProducao, useOficinas, useCores, useUpdateOrdemProducao } from "@/hooks/useSupabase";
+import { useQueryClient } from "@tanstack/react-query";
+import { useOrdensProducao, useOficinas } from "@/hooks/useSupabase";
 import { supabase } from "@/integrations/supabase/client";
+import { chamarRpc } from "@/lib/supabaseRpc";
+import { brl, pecasPagaveis, rpcAusente, valorOp } from "@/lib/oficinaFluxo";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { StatusBadge } from "@/components/StatusBadge";
 import { Badge } from "@/components/ui/badge";
-import { CheckCircle, DollarSign, Clock, Factory, AlertCircle } from "lucide-react";
+import { CheckCircle, DollarSign, Factory, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
-import { differenceInDays, parseISO } from "date-fns";
-import { motion } from "framer-motion";
 import { formatDateBR } from "@/lib/printUtils";
 
+const hoje = new Date();
+const inicioMes = new Date(hoje.getFullYear(), hoje.getMonth(), 1).toISOString().slice(0, 10);
+const fimHoje = hoje.toISOString().slice(0, 10);
+
 export default function PagamentoOficinas() {
+  const qc = useQueryClient();
   const { data: ordens, isLoading } = useOrdensProducao();
   const { data: oficinas } = useOficinas();
-  const { data: cores } = useCores();
-  const updateOP = useUpdateOrdemProducao();
 
   const [filtroOficina, setFiltroOficina] = useState("todas");
-  const [filtroStatus, setFiltroStatus] = useState("todos");
-  const [valoresEditados, setValoresEditados] = useState<Record<string, number>>({});
+  const [filtroStatus, setFiltroStatus] = useState("pendente");
+  const [de, setDe] = useState(inicioMes);
+  const [ate, setAte] = useState(fimHoje);
+  const [pagando, setPagando] = useState<string | null>(null);
 
-  const oficinaMap = Object.fromEntries((oficinas ?? []).map((o) => [o.id, o]));
-
-  // Filter: only external workshops (not "Interna" by tipo or nome)
+  const oficinaMap = useMemo(() => Object.fromEntries((oficinas ?? []).map((o) => [o.id, o])), [oficinas]);
   const oficinasExternas = useMemo(
-    () => (oficinas ?? []).filter((o) => {
-      const nome = o.nome_oficina?.toLowerCase() ?? "";
-      const tipo = o.tipo_oficina?.toLowerCase() ?? "";
-      return tipo !== "interna" && nome !== "interna";
-    }),
-    [oficinas]
+    () => (oficinas ?? []).filter((o) => (o.tipo_oficina ?? "").toLowerCase() !== "interna" && (o.nome_oficina ?? "").toLowerCase() !== "interna" && !o.is_interna),
+    [oficinas],
   );
-  const oficinasExternasIds = useMemo(() => new Set(oficinasExternas.map((o) => o.id)), [oficinasExternas]);
+  const externasIds = useMemo(() => new Set(oficinasExternas.map((o) => o.id)), [oficinasExternas]);
 
-  const ordensExternas = useMemo(() => {
-    if (!ordens) return [];
-    return ordens
-      .filter((o) => o.oficina_id && oficinasExternasIds.has(o.oficina_id))
-      .filter((o) => filtroOficina === "todas" || o.oficina_id === filtroOficina)
-      .filter((o) => {
-        if (filtroStatus === "todos") return true;
-        if (filtroStatus === "pago") return o.pagamento_oficina_status === "Pago";
-        if (filtroStatus === "pendente") return o.pagamento_oficina_status !== "Pago";
-        return true;
-      });
-  }, [ordens, oficinasExternasIds, filtroOficina, filtroStatus]);
+  // Só entra no fechamento o que foi entregue no período
+  const linhas = useMemo(() => {
+    return (ordens ?? [])
+      .map((o: any) => ({ ...o, _data: o.data_entrega ?? o.data_fim ?? null }))
+      .filter((o: any) => o.oficina_id && externasIds.has(o.oficina_id))
+      .filter((o: any) => filtroOficina === "todas" || o.oficina_id === filtroOficina)
+      .filter((o: any) => o._data && o._data >= de && o._data <= ate)
+      .filter((o: any) =>
+        filtroStatus === "todos" ? true : filtroStatus === "pago" ? o.pagamento_oficina_status === "Pago" : o.pagamento_oficina_status !== "Pago",
+      );
+  }, [ordens, externasIds, filtroOficina, filtroStatus, de, ate]);
 
-  const calcDias = (dataInicio: string | null, dataFim: string | null) => {
-    if (!dataInicio) return null;
-    const fim = dataFim ? parseISO(dataFim) : new Date();
-    return differenceInDays(fim, parseISO(dataInicio));
-  };
+  const grupos = useMemo(() => {
+    const m = new Map<string, any[]>();
+    for (const o of linhas) m.set(o.oficina_id, [...(m.get(o.oficina_id) ?? []), o]);
+    return [...m.entries()].map(([id, ops]) => {
+      const custo = oficinaMap[id]?.custo_por_peca ?? 0;
+      const pendentes = ops.filter((o) => o.pagamento_oficina_status !== "Pago");
+      return {
+        id,
+        nome: oficinaMap[id]?.nome_oficina ?? "-",
+        custo,
+        ops,
+        pecas: ops.reduce((s, o) => s + pecasPagaveis(o), 0),
+        total: ops.reduce((s, o) => s + valorOp(o, custo), 0),
+        aPagar: pendentes.reduce((s, o) => s + valorOp(o, custo), 0),
+        pendentesIds: pendentes.map((o) => o.id as string),
+      };
+    });
+  }, [linhas, oficinaMap]);
 
-  const calcTotalBase = (ordem: any) => {
-    const oficina = ordem.oficina_id ? oficinaMap[ordem.oficina_id] : null;
-    const custoPorPeca = oficina?.custo_por_peca ?? 0;
-    const qty = ordem.quantidade ?? ordem.quantidade_pecas_ordem ?? 0;
-    return custoPorPeca * qty;
-  };
+  const totalAPagar = grupos.reduce((s, g) => s + g.aPagar, 0);
+  const totalPago = grupos.reduce((s, g) => s + (g.total - g.aPagar), 0);
 
-  const getValorFinal = (ordem: any) => {
-    if (valoresEditados[ordem.id] !== undefined) return valoresEditados[ordem.id];
-    return calcTotalBase(ordem);
-  };
-
-  const totalPendente = ordensExternas
-    .filter((o) => o.pagamento_oficina_status !== "Pago")
-    .reduce((sum, o) => sum + getValorFinal(o), 0);
-
-  const totalPago = ordensExternas
-    .filter((o) => o.pagamento_oficina_status === "Pago")
-    .reduce((sum, o) => sum + getValorFinal(o), 0);
-
-  const totalOrdens = ordensExternas.length;
-  const ordensPendentes = ordensExternas.filter((o) => o.pagamento_oficina_status !== "Pago").length;
-
-  const handleMarcarPago = async (ordem: any) => {
+  const marcarPago = async (ids: string[], chave: string) => {
+    if (!ids.length) return;
+    setPagando(chave);
     try {
-      await updateOP.mutateAsync({ id: ordem.id, pagamento_oficina_status: "Pago" } as any);
-
-      const total = getValorFinal(ordem);
-      const oficina = ordem.oficina_id ? oficinaMap[ordem.oficina_id] : null;
-
-      await supabase.from("movimentacoes_financeiras").insert({
-        tipo: "Saída",
-        descricao: `Pagamento oficina ${oficina?.nome_oficina ?? "—"} - ${ordem.nome_produto ?? "OP"}`,
-        valor: total,
-        data: new Date().toISOString().split("T")[0],
-        origem: "Pagamento Oficina",
-      });
-
-      toast.success(`Pagamento de R$ ${total.toFixed(2)} registrado e lançamento financeiro criado!`);
+      const { data, error } = await chamarRpc("pagamento_oficinas_marcar_pago", { p_ids: ids });
+      if (error && rpcAusente(error)) {
+        // SQL ainda não aplicado: mantém o caminho antigo, uma OP por vez
+        for (const id of ids) {
+          const o = linhas.find((x: any) => x.id === id);
+          if (!o) continue;
+          const valor = valorOp(o, oficinaMap[o.oficina_id]?.custo_por_peca);
+          const { error: e1 } = await supabase.from("ordens_producao").update({ pagamento_oficina_status: "Pago" }).eq("id", id);
+          if (e1) throw e1;
+          await supabase.from("movimentacoes_financeiras").insert({
+            tipo: "Saída",
+            descricao: `Pagamento oficina ${oficinaMap[o.oficina_id]?.nome_oficina ?? "-"} - ${o.nome_produto ?? "OP"}`,
+            valor,
+            data: fimHoje,
+            origem: "Pagamento Oficina",
+          });
+        }
+        toast.success("Pagamento registrado");
+      } else if (error) {
+        throw error;
+      } else {
+        toast.success(`Pagamento de ${brl(Number(data?.total ?? 0))} registrado e lançado no financeiro`);
+      }
+      qc.invalidateQueries({ queryKey: ["ordens-producao"] });
     } catch (e: any) {
-      toast.error(e.message);
+      toast.error(e?.message ?? "Erro ao registrar pagamento");
+    } finally {
+      setPagando(null);
     }
   };
 
@@ -106,223 +111,125 @@ export default function PagamentoOficinas() {
         <h1 className="text-3xl font-serif font-bold text-foreground">
           Pagamento de <span className="text-primary">Oficinas</span>
         </h1>
-        <p className="text-sm text-muted-foreground mt-1">
-          Controle de pagamentos das oficinas externas
-        </p>
+        <p className="mt-1 text-sm text-muted-foreground">Fechamento por oficina das peças entregues no período</p>
       </div>
 
-      {/* Summary cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0 }}>
-          <Card className="border-l-4 border-l-warning">
-            <CardContent className="pt-4 pb-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs text-muted-foreground uppercase tracking-wide font-medium">A Pagar</p>
-                  <p className="text-2xl font-bold text-warning">R$ {totalPendente.toFixed(2)}</p>
-                </div>
-                <div className="p-2 rounded-full bg-warning/10">
-                  <AlertCircle className="h-5 w-5 text-warning" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </motion.div>
-
-        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }}>
-          <Card className="border-l-4 border-l-success">
-            <CardContent className="pt-4 pb-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs text-muted-foreground uppercase tracking-wide font-medium">Total Pago</p>
-                  <p className="text-2xl font-bold text-success">R$ {totalPago.toFixed(2)}</p>
-                </div>
-                <div className="p-2 rounded-full bg-success/10">
-                  <CheckCircle className="h-5 w-5 text-success" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </motion.div>
-
-        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
-          <Card className="border-l-4 border-l-primary">
-            <CardContent className="pt-4 pb-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs text-muted-foreground uppercase tracking-wide font-medium">Ordens Externas</p>
-                  <p className="text-2xl font-bold text-foreground">{totalOrdens}</p>
-                </div>
-                <div className="p-2 rounded-full bg-primary/10">
-                  <Factory className="h-5 w-5 text-primary" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </motion.div>
-
-        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}>
-          <Card className="border-l-4 border-l-danger">
-            <CardContent className="pt-4 pb-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs text-muted-foreground uppercase tracking-wide font-medium">Pendentes</p>
-                  <p className="text-2xl font-bold text-danger">{ordensPendentes}</p>
-                </div>
-                <div className="p-2 rounded-full bg-danger/10">
-                  <Clock className="h-5 w-5 text-danger" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </motion.div>
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <Card className="border-l-4 border-l-warning"><CardContent className="flex items-center justify-between py-4">
+          <div><p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">A pagar</p><p className="text-2xl font-bold text-warning">{brl(totalAPagar)}</p></div>
+          <AlertCircle className="h-5 w-5 text-warning" />
+        </CardContent></Card>
+        <Card className="border-l-4 border-l-success"><CardContent className="flex items-center justify-between py-4">
+          <div><p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Pago no período</p><p className="text-2xl font-bold text-success">{brl(totalPago)}</p></div>
+          <CheckCircle className="h-5 w-5 text-success" />
+        </CardContent></Card>
+        <Card className="border-l-4 border-l-primary"><CardContent className="flex items-center justify-between py-4">
+          <div><p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Ordens no fechamento</p><p className="text-2xl font-bold text-foreground">{linhas.length}</p></div>
+          <Factory className="h-5 w-5 text-primary" />
+        </CardContent></Card>
       </div>
 
-      {/* Filters */}
-      <Card>
-        <CardContent className="pt-4 pb-4">
-          <div className="flex flex-wrap items-center gap-4">
-            <div className="space-y-1">
-              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Oficina</label>
-              <Select value={filtroOficina} onValueChange={setFiltroOficina}>
-                <SelectTrigger className="w-[200px] h-9">
-                  <SelectValue placeholder="Todas" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="todas">Todas as oficinas</SelectItem>
-                  {oficinasExternas.map((o) => (
-                    <SelectItem key={o.id} value={o.id}>{o.nome_oficina}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-1">
-              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Status Pgto</label>
-              <Select value={filtroStatus} onValueChange={setFiltroStatus}>
-                <SelectTrigger className="w-[160px] h-9">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="todos">Todos</SelectItem>
-                  <SelectItem value="pendente">Pendente</SelectItem>
-                  <SelectItem value="pago">Pago</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+      <Card><CardContent className="flex flex-wrap items-end gap-4 py-4">
+        <div className="space-y-1">
+          <label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Entregue de</label>
+          <Input type="date" value={de} onChange={(e) => setDe(e.target.value)} className="h-9 w-[160px]" />
+        </div>
+        <div className="space-y-1">
+          <label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">até</label>
+          <Input type="date" value={ate} onChange={(e) => setAte(e.target.value)} className="h-9 w-[160px]" />
+        </div>
+        <div className="space-y-1">
+          <label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Oficina</label>
+          <Select value={filtroOficina} onValueChange={setFiltroOficina}>
+            <SelectTrigger className="h-9 w-[200px]"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="todas">Todas as oficinas</SelectItem>
+              {oficinasExternas.map((o) => <SelectItem key={o.id} value={o.id}>{o.nome_oficina}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="space-y-1">
+          <label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Pagamento</label>
+          <Select value={filtroStatus} onValueChange={setFiltroStatus}>
+            <SelectTrigger className="h-9 w-[160px]"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="pendente">A pagar</SelectItem>
+              <SelectItem value="pago">Pago</SelectItem>
+              <SelectItem value="todos">Todos</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </CardContent></Card>
 
-      {/* Table */}
-      <Card>
-        <CardContent className="pt-6">
-          {isLoading ? (
-            <div className="text-center py-8 text-muted-foreground">Carregando...</div>
-          ) : ordensExternas.length === 0 ? (
-            <div className="text-center py-12 text-muted-foreground">
-              <Factory className="h-10 w-10 mx-auto mb-3 opacity-30" />
-              <p>Nenhuma ordem de produção externa encontrada</p>
-            </div>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Produto</TableHead>
-                  <TableHead>Oficina</TableHead>
-                  <TableHead className="text-right">Qtd Peças</TableHead>
-                  <TableHead className="text-right">Custo/Peça</TableHead>
-                  <TableHead className="text-right">Total (R$)</TableHead>
-                  <TableHead>Envio</TableHead>
-                  <TableHead>Devolução</TableHead>
-                  <TableHead className="text-right">Dias</TableHead>
-                  <TableHead>Status Prod.</TableHead>
-                  <TableHead>Pagamento</TableHead>
-                  <TableHead></TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {ordensExternas.map((o) => {
-                  const oficina = o.oficina_id ? oficinaMap[o.oficina_id] : null;
-                  const custoPorPeca = oficina?.custo_por_peca ?? 0;
-                  const qty = o.quantidade ?? o.quantidade_pecas_ordem ?? 0;
-                  const totalBase = custoPorPeca * qty;
-                  const dias = calcDias(o.data_inicio, o.data_fim);
-                  const isPago = o.pagamento_oficina_status === "Pago";
-
-                  return (
-                    <TableRow key={o.id} className={isPago ? "opacity-60" : ""}>
-                      <TableCell className="font-medium">{o.nome_produto ?? "—"}</TableCell>
-                      <TableCell>
-                        <span className="text-sm font-medium">{oficina?.nome_oficina ?? "—"}</span>
-                      </TableCell>
-                      <TableCell className="text-right">{qty}</TableCell>
-                      <TableCell className="text-right text-muted-foreground">
-                        R$ {custoPorPeca.toFixed(2)}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        {isPago ? (
-                          <span className="font-semibold">R$ {getValorFinal(o).toFixed(2)}</span>
-                        ) : (
-                          <Input
-                            type="number"
-                            step="0.01"
-                            className="w-28 h-8 text-right text-sm font-semibold ml-auto"
-                            value={valoresEditados[o.id] !== undefined ? valoresEditados[o.id] : totalBase}
-                            onChange={(e) =>
-                              setValoresEditados((prev) => ({ ...prev, [o.id]: Number(e.target.value) }))
-                            }
-                          />
-                        )}
-                      </TableCell>
-                      <TableCell className="text-muted-foreground text-sm">
-                        {formatDateBR(o.data_inicio)}
-                      </TableCell>
-                      <TableCell className="text-muted-foreground text-sm">
-                        {formatDateBR(o.data_fim)}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        {dias !== null ? (
-                          <Badge variant={dias > 10 ? "destructive" : "secondary"} className="text-xs">
-                            {dias}d
-                          </Badge>
-                        ) : "—"}
-                      </TableCell>
-                      <TableCell>
-                        <StatusBadge status={o.status_ordem ?? ""} />
-                      </TableCell>
-                      <TableCell>
-                        {isPago ? (
-                          <Badge className="bg-success/15 text-success border-success/30 text-xs gap-1">
-                            <CheckCircle className="h-3 w-3" /> Pago
-                          </Badge>
-                        ) : (
-                          <Badge variant="outline" className="text-warning border-warning/30 text-xs">
-                            Pendente
-                          </Badge>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        {!isPago && (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="gap-1.5 text-xs h-8 border-success/30 text-success hover:bg-success/10 hover:text-success"
-                            onClick={() => handleMarcarPago(o)}
-                            disabled={updateOP.isPending}
-                          >
-                            <DollarSign className="h-3 w-3" />
-                            Pagar
-                          </Button>
-                        )}
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
-          )}
-        </CardContent>
-      </Card>
+      {isLoading ? (
+        <p className="py-8 text-center text-muted-foreground">Carregando...</p>
+      ) : grupos.length === 0 ? (
+        <Card><CardContent className="py-12 text-center text-muted-foreground">
+          <Factory className="mx-auto mb-3 h-10 w-10 opacity-30" />
+          Nenhuma entrega de oficina externa neste período
+        </CardContent></Card>
+      ) : (
+        grupos.map((g) => (
+          <Card key={g.id}>
+            <CardContent className="space-y-4 pt-5">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <p className="font-serif text-xl font-semibold text-foreground">{g.nome}</p>
+                  <p className="text-sm text-muted-foreground">{g.pecas} peças x {brl(g.custo)} = <strong className="text-foreground">{brl(g.total)}</strong></p>
+                </div>
+                <div className="flex items-center gap-3">
+                  <span className="text-sm">A pagar: <strong className="text-warning">{brl(g.aPagar)}</strong></span>
+                  <Button
+                    size="sm"
+                    disabled={!g.pendentesIds.length || pagando !== null}
+                    onClick={() => marcarPago(g.pendentesIds, g.id)}
+                  >
+                    <DollarSign className="mr-1 h-3.5 w-3.5" />
+                    {pagando === g.id ? "Registrando..." : "Marcar tudo como pago"}
+                  </Button>
+                </div>
+              </div>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Produto</TableHead>
+                    <TableHead>Entrega</TableHead>
+                    <TableHead className="text-right">Peças</TableHead>
+                    <TableHead className="text-right">Valor</TableHead>
+                    <TableHead>Pagamento</TableHead>
+                    <TableHead />
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {g.ops.map((o: any) => {
+                    const pago = o.pagamento_oficina_status === "Pago";
+                    return (
+                      <TableRow key={o.id} className={pago ? "opacity-60" : ""}>
+                        <TableCell className="font-medium">{o.nome_produto ?? "-"}</TableCell>
+                        <TableCell>{formatDateBR(o._data)}</TableCell>
+                        <TableCell className="text-right">{pecasPagaveis(o)}</TableCell>
+                        <TableCell className="text-right">{brl(valorOp(o, g.custo))}</TableCell>
+                        <TableCell>
+                          {pago ? (
+                            <Badge className="gap-1 border-success/30 bg-success/15 text-xs text-success"><CheckCircle className="h-3 w-3" /> Pago {o.data_pagamento ? formatDateBR(o.data_pagamento) : ""}</Badge>
+                          ) : (
+                            <Badge variant="outline" className="border-warning/30 text-xs text-warning">A pagar</Badge>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          {!pago && (
+                            <Button size="sm" variant="outline" disabled={pagando !== null} onClick={() => marcarPago([o.id], o.id)}>Pagar</Button>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        ))
+      )}
     </div>
   );
 }

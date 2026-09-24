@@ -8,7 +8,11 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
-import { AlertTriangle, Search, X, Plus } from "lucide-react";
+import { useQueryClient } from "@tanstack/react-query";
+import { Search, X, Plus } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { chamarRpc } from "@/lib/supabaseRpc";
+import { agruparOps, pecasCortadas, rpcAusente, somaMetragem, totalPorTamanho, type ItemGrade } from "@/lib/oficinaFluxo";
 
 const TAMANHOS = ["PP", "P", "M", "G", "GG", "EG"];
 
@@ -28,6 +32,8 @@ export default function NovaOrdemCorte() {
   const { data: cores } = useCores();
   const createMut = useCreateOrdemCorte();
   const navigate = useNavigate();
+  const qc = useQueryClient();
+  const [salvando, setSalvando] = useState(false);
 
   const [produtosSelecionados, setProdutosSelecionados] = useState<ProdutoSelecionado[]>([]);
   const [searchProduto, setSearchProduto] = useState("");
@@ -38,16 +44,16 @@ export default function NovaOrdemCorte() {
   const [metrosRisco, setMetrosRisco] = useState(0);
   const [searchRolo, setSearchRolo] = useState("");
 
-  // Sequential OC number from MAX in DB
+  const [status, setStatus] = useState<"Planejada" | "Cortada">("Planejada");
+  const [folhasManual, setFolhasManual] = useState<Record<string, number>>({});
+
+  // Prévia do número (o definitivo é gerado no servidor ao salvar)
   const { data: ordensExistentes } = useOrdensCorte();
   const numeroOC = useMemo(() => {
-    if (!ordensExistentes?.length) return "OC-0001";
-    const nums = ordensExistentes.map((o) => {
-      const match = o.numero_oc?.match(/OC-(\d+)/);
-      return match ? parseInt(match[1], 10) : 0;
-    });
-    const max = Math.max(...nums);
-    return `OC-${String(max + 1).padStart(4, "0")}`;
+    const ano = new Date().getFullYear();
+    const re = new RegExp(`^OC-${ano}-(\\d+)$`);
+    const max = Math.max(0, ...(ordensExistentes ?? []).map((o) => Number(o.numero_oc?.match(re)?.[1] ?? 0)));
+    return `OC-${ano}-${String(max + 1).padStart(3, "0")}`;
   }, [ordensExistentes]);
 
   const tecidoMap = Object.fromEntries((tecidos ?? []).map((t) => [t.id, t]));
@@ -128,11 +134,11 @@ export default function NovaOrdemCorte() {
   const folhasPorCor = useMemo(() => {
     const result: Record<string, number> = {};
     for (const [corKey, corInfo] of coresFromRolos) {
-      result[corKey] = metrosRisco > 0 ? Math.floor(corInfo.metrosCor / metrosRisco) : 0;
+      const estimada = metrosRisco > 0 ? Math.floor(corInfo.metrosCor / metrosRisco) : 0;
+      result[corKey] = folhasManual[corKey] ?? estimada;
     }
     return result;
-  }, [coresFromRolos, metrosRisco]);
-
+  }, [coresFromRolos, metrosRisco, folhasManual]);
 
   const setGradeForCor = (produtoId: string, corKey: string, tamanho: string, qty: number) => {
     setGradeMultiCor((prev) => ({
@@ -144,15 +150,28 @@ export default function NovaOrdemCorte() {
     }));
   };
 
-  const totalPecas = Object.values(gradeMultiCor).reduce(
-    (sum, byCor) =>
-      sum +
-      Object.values(byCor).reduce(
-        (s, grades) => s + Object.values(grades).reduce((a, b) => a + (b || 0), 0),
-        0,
-      ),
-    0,
-  );
+  // Grade já multiplicada pelas folhas de cada cor = peças cortadas
+  const gradeItems = useMemo(() => {
+    const itens: ItemGrade[] = [];
+    const selecionados = new Set(produtosSelecionados.map((p) => p.id));
+    for (const [produtoId, byCor] of Object.entries(gradeMultiCor)) {
+      if (!selecionados.has(produtoId)) continue;
+      for (const [corKey, grades] of Object.entries(byCor)) {
+        const corInfo = coresFromRolos.find(([k]) => k === corKey);
+        if (!corInfo) continue;
+        for (const [tamanho, q] of Object.entries(grades)) {
+          const quantidade = pecasCortadas(q, folhasPorCor[corKey] ?? 0);
+          if (quantidade > 0) itens.push({ produto_id: produtoId, cor_id: corInfo[1].cor_id, tamanho, quantidade });
+        }
+      }
+    }
+    return itens;
+  }, [gradeMultiCor, coresFromRolos, folhasPorCor, produtosSelecionados]);
+
+  const totaisTamanho = totalPorTamanho(gradeItems);
+  const totalPecas = gradeItems.reduce((s, g) => s + g.quantidade, 0);
+  const opsPrevistas = agruparOps(gradeItems).length;
+  const totalFolhas = Object.values(folhasPorCor).reduce((a, b) => a + b, 0);
 
   const metrosAlocados = Array.from(selectedRolos).reduce((a, id) => a + (metrosRolo[id] ?? 0), 0);
 
@@ -209,44 +228,78 @@ export default function NovaOrdemCorte() {
       }
     }
 
-    try {
-      const gradeItems: { produto_id: string | null; cor_id: string | null; tamanho: string; quantidade: number }[] = [];
-      for (const [produtoId, byCor] of Object.entries(gradeMultiCor)) {
-        for (const [corKey, grades] of Object.entries(byCor)) {
-          const corInfo = coresFromRolos.find(([k]) => k === corKey);
-          const corId = corInfo?.[1]?.cor_id ?? null;
-          for (const [tamanho, quantidade] of Object.entries(grades)) {
-            if (quantidade > 0) gradeItems.push({ produto_id: produtoId, cor_id: corId, tamanho, quantidade });
-          }
-        }
-      }
+    if (gradeItems.length === 0) { toast.error("Informe a grade e as folhas"); return; }
 
+    setSalvando(true);
+    try {
       const rolosItems = Array.from(selectedRolos).map((rolo_id) => ({
         rolo_id,
         metragem_utilizada: metrosRolo[rolo_id] ?? 0,
       }));
-
       const allTamanhos = [...new Set(gradeItems.map((g) => g.tamanho))];
+      const produtosPayload = produtosSelecionados.map((p) => ({ produto_id: p.id, nome_produto: p.nome }));
 
-      await createMut.mutateAsync({
-        ordem: {
-          numero_oc: numeroOC,
-          grade_tamanhos: allTamanhos,
+      const { data, error } = await chamarRpc("criar_ordem_corte", {
+        p: {
+          status,
           metragem_risco: metrosRisco,
-          quantidade_folhas: Object.values(folhasPorCor).reduce((a, b) => a + b, 0),
-          status: "Planejada",
+          quantidade_folhas: totalFolhas,
+          grade_tamanhos: allTamanhos,
+          produtos: produtosPayload,
+          grade: gradeItems,
+          rolos: rolosItems,
         },
-        produtos: produtosSelecionados.map((p) => ({ produto_id: p.id, nome_produto: p.nome })),
-        grade: gradeItems,
-        rolos: rolosItems,
       });
-      toast.success(`Ordem de corte criada com ${produtosSelecionados.length} produto(s)!`);
+
+      let numero = data?.numero_oc as string | undefined;
+      let ops = data?.ops_criadas as number | undefined;
+      if (error && rpcAusente(error)) {
+        // SQL ainda não aplicado: caminho antigo + OPs criadas pelo painel
+        const ordem = await createMut.mutateAsync({
+          ordem: {
+            numero_oc: numeroOC,
+            grade_tamanhos: allTamanhos,
+            metragem_risco: metrosRisco,
+            metragem_total_utilizada: somaMetragem(rolosItems),
+            quantidade_folhas: totalFolhas,
+            status,
+          } as any,
+          produtos: produtosPayload,
+          grade: gradeItems,
+          rolos: rolosItems,
+        });
+        const nomes = Object.fromEntries(produtosSelecionados.map((p) => [p.id, p.nome]));
+        const grupos = agruparOps(gradeItems);
+        const { error: opErr } = await supabase.from("ordens_producao").insert(
+          grupos.map((g) => ({
+            produto_id: g.produto_id,
+            cor_id: g.cor_id,
+            ordem_corte_id: ordem.id,
+            nome_produto: g.produto_id ? nomes[g.produto_id] : null,
+            quantidade: g.quantidade,
+            quantidade_pecas_ordem: g.quantidade,
+            status_ordem: "Corte",
+            oficina_id: null,
+          })),
+        );
+        if (opErr) throw opErr;
+        numero = numeroOC;
+        ops = grupos.length;
+      } else if (error) {
+        throw error;
+      }
+      qc.invalidateQueries({ queryKey: ["ordens-corte"] });
+      qc.invalidateQueries({ queryKey: ["ordens-producao"] });
+      qc.invalidateQueries({ queryKey: ["rolos-tecido"] });
+      toast.success(`${numero} salva, ${ops} ordem(ns) de produção gerada(s)`);
       navigate("/ordens-corte");
     } catch (e: unknown) {
       console.error("[NovaOrdemCorte] erro ao criar ordem:", e);
       const err = e as { message?: string; details?: string; hint?: string; code?: string };
-      const msg = [err?.code, err?.message, err?.details, err?.hint].filter(Boolean).join(" | ");
+      const msg = [err?.message, err?.details, err?.hint].filter(Boolean).join(" | ");
       toast.error(msg || "Erro ao criar ordem de corte");
+    } finally {
+      setSalvando(false);
     }
   };
 
@@ -260,16 +313,16 @@ export default function NovaOrdemCorte() {
         <CardContent className="pt-6 space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="space-y-2">
-              <Label>Número da OC</Label>
+              <Label>Número da OC (prévia)</Label>
               <Input value={numeroOC} readOnly className="bg-muted" />
             </div>
             <div className="space-y-2">
               <Label>Metros do Risco</Label>
-              <Input type="number" step="0.01" value={metrosRisco} onChange={(e) => setMetrosRisco(Number(e.target.value))} />
+              <Input type="number" step="0.01" inputMode="decimal" value={metrosRisco} onChange={(e) => setMetrosRisco(Number(e.target.value))} />
             </div>
             <div className="space-y-2">
-              <Label>Total de Folhas (calculado)</Label>
-              <Input value={Object.values(folhasPorCor).reduce((a, b) => a + b, 0)} readOnly className="bg-muted" />
+              <Label>Total de Folhas</Label>
+              <Input value={totalFolhas} readOnly className="bg-muted" />
             </div>
           </div>
 
@@ -334,7 +387,7 @@ export default function NovaOrdemCorte() {
               <Label>Rolos Disponíveis</Label>
               <div className="flex items-center gap-2">
                 <Search className="h-4 w-4 text-muted-foreground" />
-                <Input placeholder="Buscar rolo..." value={searchRolo} onChange={(e) => setSearchRolo(e.target.value)} className="w-56" />
+                <Input placeholder="Código ou lote do rolo" value={searchRolo} onChange={(e) => setSearchRolo(e.target.value)} className="w-full sm:w-56" />
               </div>
             </div>
             <div className="space-y-2 max-h-72 overflow-y-auto">
@@ -425,10 +478,16 @@ export default function NovaOrdemCorte() {
                                 <span className="text-xs text-muted-foreground">• {corInfo.metrosCor.toFixed(1)}m alocados</span>
                               </div>
                               <div className="flex items-center gap-3 text-sm">
-                                <span className="text-xs text-muted-foreground">Subtotal: <strong className="text-foreground">{subtotalCor} pç</strong></span>
-                                <span className="text-xs text-muted-foreground">
-                                  Folhas estimadas: <strong className="text-foreground">{folhasPorCor[corKey] ?? 0}</strong>
-                                </span>
+                                <span className="text-xs text-muted-foreground">Por folha: <strong className="text-foreground">{subtotalCor} pç</strong></span>
+                                <label className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                                  Folhas
+                                  <Input
+                                    type="number" min={0} inputMode="numeric" className="h-9 w-20"
+                                    value={folhasPorCor[corKey] ?? 0}
+                                    onChange={(e) => setFolhasManual({ ...folhasManual, [corKey]: Math.max(0, Number(e.target.value)) })}
+                                  />
+                                </label>
+                                <span className="text-xs text-muted-foreground">Cortadas: <strong className="text-foreground">{pecasCortadas(subtotalCor, folhasPorCor[corKey] ?? 0)} pç</strong></span>
                               </div>
                             </div>
                             <div className="grid grid-cols-3 md:grid-cols-6 gap-3">
@@ -454,30 +513,54 @@ export default function NovaOrdemCorte() {
             </div>
           )}
 
-          <div className="p-4 rounded-lg bg-muted/50 border border-border grid grid-cols-2 gap-4">
-            <div>
-              <p className="text-xs text-muted-foreground">Total de Peças</p>
-              <p className="text-xl font-serif font-bold text-foreground">{totalPecas}</p>
-            </div>
-            <div>
-              <p className="text-xs text-muted-foreground">Metros Alocados</p>
-              <p className="text-xl font-serif font-bold text-foreground">{metrosAlocados.toFixed(2)}m</p>
-            </div>
-          </div>
-
-          {produtosSelecionados.length > 1 && (
-            <div className="p-3 bg-accent/50 border border-accent rounded-lg text-sm text-muted-foreground">
-              <strong className="text-foreground">Múltiplos produtos:</strong> Esta OC gerará {produtosSelecionados.length} ordens de produção separadas ao avançar para produção.
+          {Object.keys(totaisTamanho).length > 0 && (
+            <div className="space-y-2">
+              <Label>Peças cortadas por tamanho (grade x folhas)</Label>
+              <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
+                {TAMANHOS.filter((t) => totaisTamanho[t]).map((t) => (
+                  <div key={t} className="rounded-lg border border-border p-2 text-center">
+                    <p className="text-xs text-muted-foreground">{t}</p>
+                    <p className="text-lg font-semibold text-foreground">{totaisTamanho[t]}</p>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
 
-
-          <div className="flex justify-end gap-3">
-            <Button variant="outline" onClick={() => navigate("/ordens-corte")}>Cancelar</Button>
-            <Button onClick={handleSubmit} disabled={createMut.isPending}>Criar Ordem de Corte</Button>
+          <div className="space-y-2">
+            <Label>Situação ao salvar</Label>
+            <RadioGroup value={status} onValueChange={(v) => setStatus(v as "Planejada" | "Cortada")} className="flex gap-6">
+              <div className="flex items-center gap-2">
+                <RadioGroupItem value="Planejada" id="st-planejada" />
+                <Label htmlFor="st-planejada" className="cursor-pointer">Planejada</Label>
+              </div>
+              <div className="flex items-center gap-2">
+                <RadioGroupItem value="Cortada" id="st-cortada" />
+                <Label htmlFor="st-cortada" className="cursor-pointer">Já cortada</Label>
+              </div>
+            </RadioGroup>
           </div>
+
+          {opsPrevistas > 0 && (
+            <div className="p-3 bg-accent/50 border border-accent rounded-lg text-sm text-muted-foreground">
+              Ao salvar, serão geradas <strong className="text-foreground">{opsPrevistas} ordem(ns) de produção</strong> (uma por modelo e cor), sem oficina, para você atribuir depois.
+            </div>
+          )}
         </CardContent>
       </Card>
+
+      {/* Barra fixa com totais e salvar (pensada para celular/tablet) */}
+      <div className="sticky bottom-0 z-10 -mx-4 border-t border-border bg-background/95 px-4 py-3 backdrop-blur sm:mx-0 sm:rounded-lg sm:border">
+        <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
+          <div><p className="text-xs text-muted-foreground">Peças</p><p className="text-lg font-bold text-foreground">{totalPecas}</p></div>
+          <div><p className="text-xs text-muted-foreground">Folhas</p><p className="text-lg font-bold text-foreground">{totalFolhas}</p></div>
+          <div><p className="text-xs text-muted-foreground">Tecido</p><p className="text-lg font-bold text-foreground">{metrosAlocados.toFixed(2)}m</p></div>
+          <div className="ml-auto flex gap-2">
+            <Button variant="outline" size="lg" onClick={() => navigate("/ordens-corte")}>Cancelar</Button>
+            <Button size="lg" onClick={handleSubmit} disabled={salvando}>{salvando ? "Salvando..." : "Salvar corte"}</Button>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
