@@ -128,11 +128,11 @@ export default function NovaOrdemCorte() {
   const folhasPorCor = useMemo(() => {
     const result: Record<string, number> = {};
     for (const [corKey, corInfo] of coresFromRolos) {
-      result[corKey] = metrosRisco > 0 ? Math.floor(corInfo.metrosCor / metrosRisco) : 0;
+      const estimada = metrosRisco > 0 ? Math.floor(corInfo.metrosCor / metrosRisco) : 0;
+      result[corKey] = folhasManual[corKey] ?? estimada;
     }
     return result;
-  }, [coresFromRolos, metrosRisco]);
-
+  }, [coresFromRolos, metrosRisco, folhasManual]);
 
   const setGradeForCor = (produtoId: string, corKey: string, tamanho: string, qty: number) => {
     setGradeMultiCor((prev) => ({
@@ -144,15 +144,28 @@ export default function NovaOrdemCorte() {
     }));
   };
 
-  const totalPecas = Object.values(gradeMultiCor).reduce(
-    (sum, byCor) =>
-      sum +
-      Object.values(byCor).reduce(
-        (s, grades) => s + Object.values(grades).reduce((a, b) => a + (b || 0), 0),
-        0,
-      ),
-    0,
-  );
+  // Grade já multiplicada pelas folhas de cada cor = peças cortadas
+  const gradeItems = useMemo(() => {
+    const itens: ItemGrade[] = [];
+    const selecionados = new Set(produtosSelecionados.map((p) => p.id));
+    for (const [produtoId, byCor] of Object.entries(gradeMultiCor)) {
+      if (!selecionados.has(produtoId)) continue;
+      for (const [corKey, grades] of Object.entries(byCor)) {
+        const corInfo = coresFromRolos.find(([k]) => k === corKey);
+        if (!corInfo) continue;
+        for (const [tamanho, q] of Object.entries(grades)) {
+          const quantidade = pecasCortadas(q, folhasPorCor[corKey] ?? 0);
+          if (quantidade > 0) itens.push({ produto_id: produtoId, cor_id: corInfo[1].cor_id, tamanho, quantidade });
+        }
+      }
+    }
+    return itens;
+  }, [gradeMultiCor, coresFromRolos, folhasPorCor, produtosSelecionados]);
+
+  const totaisTamanho = totalPorTamanho(gradeItems);
+  const totalPecas = gradeItems.reduce((s, g) => s + g.quantidade, 0);
+  const opsPrevistas = agruparOps(gradeItems).length;
+  const totalFolhas = Object.values(folhasPorCor).reduce((a, b) => a + b, 0);
 
   const metrosAlocados = Array.from(selectedRolos).reduce((a, id) => a + (metrosRolo[id] ?? 0), 0);
 
@@ -209,44 +222,78 @@ export default function NovaOrdemCorte() {
       }
     }
 
-    try {
-      const gradeItems: { produto_id: string | null; cor_id: string | null; tamanho: string; quantidade: number }[] = [];
-      for (const [produtoId, byCor] of Object.entries(gradeMultiCor)) {
-        for (const [corKey, grades] of Object.entries(byCor)) {
-          const corInfo = coresFromRolos.find(([k]) => k === corKey);
-          const corId = corInfo?.[1]?.cor_id ?? null;
-          for (const [tamanho, quantidade] of Object.entries(grades)) {
-            if (quantidade > 0) gradeItems.push({ produto_id: produtoId, cor_id: corId, tamanho, quantidade });
-          }
-        }
-      }
+    if (gradeItems.length === 0) { toast.error("Informe a grade e as folhas"); return; }
 
+    setSalvando(true);
+    try {
       const rolosItems = Array.from(selectedRolos).map((rolo_id) => ({
         rolo_id,
         metragem_utilizada: metrosRolo[rolo_id] ?? 0,
       }));
-
       const allTamanhos = [...new Set(gradeItems.map((g) => g.tamanho))];
+      const produtosPayload = produtosSelecionados.map((p) => ({ produto_id: p.id, nome_produto: p.nome }));
 
-      await createMut.mutateAsync({
-        ordem: {
-          numero_oc: numeroOC,
-          grade_tamanhos: allTamanhos,
+      const { data, error } = await chamarRpc("criar_ordem_corte", {
+        p: {
+          status,
           metragem_risco: metrosRisco,
-          quantidade_folhas: Object.values(folhasPorCor).reduce((a, b) => a + b, 0),
-          status: "Planejada",
+          quantidade_folhas: totalFolhas,
+          grade_tamanhos: allTamanhos,
+          produtos: produtosPayload,
+          grade: gradeItems,
+          rolos: rolosItems,
         },
-        produtos: produtosSelecionados.map((p) => ({ produto_id: p.id, nome_produto: p.nome })),
-        grade: gradeItems,
-        rolos: rolosItems,
       });
-      toast.success(`Ordem de corte criada com ${produtosSelecionados.length} produto(s)!`);
+
+      let numero = data?.numero_oc as string | undefined;
+      let ops = data?.ops_criadas as number | undefined;
+      if (error && rpcAusente(error)) {
+        // SQL ainda não aplicado: caminho antigo + OPs criadas pelo painel
+        const ordem = await createMut.mutateAsync({
+          ordem: {
+            numero_oc: numeroOC,
+            grade_tamanhos: allTamanhos,
+            metragem_risco: metrosRisco,
+            metragem_total_utilizada: somaMetragem(rolosItems),
+            quantidade_folhas: totalFolhas,
+            status,
+          } as any,
+          produtos: produtosPayload,
+          grade: gradeItems,
+          rolos: rolosItems,
+        });
+        const nomes = Object.fromEntries(produtosSelecionados.map((p) => [p.id, p.nome]));
+        const grupos = agruparOps(gradeItems);
+        const { error: opErr } = await supabase.from("ordens_producao").insert(
+          grupos.map((g) => ({
+            produto_id: g.produto_id,
+            cor_id: g.cor_id,
+            ordem_corte_id: ordem.id,
+            nome_produto: g.produto_id ? nomes[g.produto_id] : null,
+            quantidade: g.quantidade,
+            quantidade_pecas_ordem: g.quantidade,
+            status_ordem: "Corte",
+            oficina_id: null,
+          })),
+        );
+        if (opErr) throw opErr;
+        numero = numeroOC;
+        ops = grupos.length;
+      } else if (error) {
+        throw error;
+      }
+      qc.invalidateQueries({ queryKey: ["ordens-corte"] });
+      qc.invalidateQueries({ queryKey: ["ordens-producao"] });
+      qc.invalidateQueries({ queryKey: ["rolos-tecido"] });
+      toast.success(`${numero} salva, ${ops} ordem(ns) de produção gerada(s)`);
       navigate("/ordens-corte");
     } catch (e: unknown) {
       console.error("[NovaOrdemCorte] erro ao criar ordem:", e);
       const err = e as { message?: string; details?: string; hint?: string; code?: string };
-      const msg = [err?.code, err?.message, err?.details, err?.hint].filter(Boolean).join(" | ");
+      const msg = [err?.message, err?.details, err?.hint].filter(Boolean).join(" | ");
       toast.error(msg || "Erro ao criar ordem de corte");
+    } finally {
+      setSalvando(false);
     }
   };
 
