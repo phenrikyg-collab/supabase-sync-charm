@@ -9,6 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Switch } from "@/components/ui/switch";
 import { Plus, Edit, Trash2, Building2 } from "lucide-react";
 import { toast } from "sonner";
+import { AcessoPortalDialog } from "@/components/oficinas/AcessoPortalDialog";
 
 function formatCurrency(v: number | null | undefined) {
   if (v == null) return "—";
@@ -91,6 +92,7 @@ export default function Oficinas() {
                     <TableCell className="text-muted-foreground">{o.contato ?? "—"}</TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-1">
+                        {!o.is_interna && <AcessoPortalDialog oficina={o} />}
                         <Button variant="ghost" size="icon" onClick={() => openEdit(o)}><Edit className="h-4 w-4" /></Button>
                         <Button variant="ghost" size="icon" onClick={() => handleDelete(o.id)}><Trash2 className="h-4 w-4" /></Button>
                       </div>
