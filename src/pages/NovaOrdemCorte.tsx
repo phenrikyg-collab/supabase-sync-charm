@@ -38,16 +38,16 @@ export default function NovaOrdemCorte() {
   const [metrosRisco, setMetrosRisco] = useState(0);
   const [searchRolo, setSearchRolo] = useState("");
 
-  // Sequential OC number from MAX in DB
+  const [status, setStatus] = useState<"Planejada" | "Cortada">("Planejada");
+  const [folhasManual, setFolhasManual] = useState<Record<string, number>>({});
+
+  // Prévia do número (o definitivo é gerado no servidor ao salvar)
   const { data: ordensExistentes } = useOrdensCorte();
   const numeroOC = useMemo(() => {
-    if (!ordensExistentes?.length) return "OC-0001";
-    const nums = ordensExistentes.map((o) => {
-      const match = o.numero_oc?.match(/OC-(\d+)/);
-      return match ? parseInt(match[1], 10) : 0;
-    });
-    const max = Math.max(...nums);
-    return `OC-${String(max + 1).padStart(4, "0")}`;
+    const ano = new Date().getFullYear();
+    const re = new RegExp(`^OC-${ano}-(\\d+)$`);
+    const max = Math.max(0, ...(ordensExistentes ?? []).map((o) => Number(o.numero_oc?.match(re)?.[1] ?? 0)));
+    return `OC-${ano}-${String(max + 1).padStart(3, "0")}`;
   }, [ordensExistentes]);
 
   const tecidoMap = Object.fromEntries((tecidos ?? []).map((t) => [t.id, t]));
