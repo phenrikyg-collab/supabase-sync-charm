@@ -72,6 +72,8 @@ export function PainelSolicitacao({
   const [credito, setCredito] = useState("");
   const [motivoCancelar, setMotivoCancelar] = useState("");
   const [documento, setDocumento] = useState("");
+  const [converterAberto, setConverterAberto] = useState(false);
+  const [motivoConversao, setMotivoConversao] = useState("");
 
   async function carregar() {
     if (!id) return;
@@ -105,6 +107,8 @@ export function PainelSolicitacao({
       setCredito("");
       setMotivoCancelar("");
       setDocumento("");
+      setConverterAberto(false);
+      setMotivoConversao("");
       carregar();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
