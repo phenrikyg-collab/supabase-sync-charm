@@ -7,8 +7,8 @@ import { toast } from "sonner";
 const COLUNAS = [
   { key: "corte", label: "Corte", match: ["corte"] },
   { key: "costura", label: "Costura", match: ["costura"] },
-  { key: "revisao", label: "Revisão", match: ["revisao", "revisão"] },
-  { key: "finalizado", label: "Finalizado", match: ["finalizado", "revisada"] },
+  { key: "revisao", label: "Revisão", match: ["revisao", "revisão", "revisada"] },
+  { key: "finalizado", label: "Finalizado", match: ["finalizado"] },
 ];
 
 export default function Producao() {

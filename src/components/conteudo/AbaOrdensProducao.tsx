@@ -29,7 +29,7 @@ const OFICINA_COLORS = [
 const COLUNAS = [
   { key: "corte", label: "Corte", match: ["corte"], headerBg: "bg-primary/10", headerText: "text-primary", headerBorder: "border-primary/20" },
   { key: "costura", label: "Costura", match: ["costura"], headerBg: "bg-warning/10", headerText: "text-warning", headerBorder: "border-warning/20" },
-  { key: "revisao", label: "Revisão", match: ["revisao", "revisão"], headerBg: "bg-[hsl(200_70%_50%/0.1)]", headerText: "text-[hsl(200,70%,50%)]", headerBorder: "border-[hsl(200_70%_50%/0.2)]" },
+  { key: "revisao", label: "Revisão", match: ["revisao", "revisão", "revisada"], headerBg: "bg-[hsl(200_70%_50%/0.1)]", headerText: "text-[hsl(200,70%,50%)]", headerBorder: "border-[hsl(200_70%_50%/0.2)]" },
   { key: "conserto", label: "Em Conserto", match: ["em conserto"], headerBg: "bg-danger/10", headerText: "text-danger", headerBorder: "border-danger/20" },
 ];
 

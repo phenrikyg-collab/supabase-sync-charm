@@ -17,6 +17,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import { printHTML, statusBadgeHTML, formatDateBR } from "@/lib/printUtils";
+import { AguardandoEstoque } from "@/components/producao/AguardandoEstoque";
+import { PackageCheck } from "lucide-react";
 import { QrCodeOrdemDialog } from "@/components/QrCodeOrdemDialog";
 import { urlOrdemProducao, qrBlocoFicha } from "@/lib/qrOrdem";
 import { parseISO, differenceInCalendarDays, startOfMonth, endOfMonth } from "date-fns";
@@ -36,9 +38,9 @@ const OFICINA_COLORS = [
 const COLUNAS_KANBAN = [
   { key: "corte", label: "Corte", match: ["corte"], headerBg: "bg-primary/10", headerText: "text-primary", headerBorder: "border-primary/20" },
   { key: "costura", label: "Costura", match: ["costura"], headerBg: "bg-warning/10", headerText: "text-warning", headerBorder: "border-warning/20" },
-  { key: "revisao", label: "Revisão", match: ["revisao", "revisão"], headerBg: "bg-[hsl(200_70%_50%/0.1)]", headerText: "text-[hsl(200,70%,50%)]", headerBorder: "border-[hsl(200_70%_50%/0.2)]" },
+  { key: "revisao", label: "Revisão", match: ["revisao", "revisão", "revisada"], headerBg: "bg-[hsl(200_70%_50%/0.1)]", headerText: "text-[hsl(200,70%,50%)]", headerBorder: "border-[hsl(200_70%_50%/0.2)]" },
   { key: "conserto", label: "Em Conserto", match: ["em conserto"], headerBg: "bg-danger/10", headerText: "text-danger", headerBorder: "border-danger/20" },
-  { key: "finalizado", label: "Finalizado", match: ["finalizado", "revisada"], headerBg: "bg-success/10", headerText: "text-success", headerBorder: "border-success/20" },
+  { key: "finalizado", label: "Finalizado", match: ["finalizado"], headerBg: "bg-success/10", headerText: "text-success", headerBorder: "border-success/20" },
 ];
 
 const TAMANHOS = ["PP", "P", "M", "G", "GG", "EG"];
@@ -598,7 +600,10 @@ export default function OrdensProducao() {
         <TabsList>
           <TabsTrigger value="lista" className="gap-1.5"><List className="h-4 w-4" /> Lista</TabsTrigger>
           <TabsTrigger value="kanban" className="gap-1.5"><Columns3 className="h-4 w-4" /> Kanban</TabsTrigger>
+          <TabsTrigger value="estoque" className="gap-1.5"><PackageCheck className="h-4 w-4" /> Aguardando estoque</TabsTrigger>
         </TabsList>
+
+        <TabsContent value="estoque" className="mt-4"><AguardandoEstoque /></TabsContent>
 
         <TabsContent value="lista" className="mt-4">
           <Card>
