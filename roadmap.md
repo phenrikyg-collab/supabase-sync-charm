@@ -48,3 +48,6 @@
 - [x] Portal da oficina (/portal-oficina) com baixa de entrega; acesso ligado na tela Oficinas
 - [x] Fechamento de pagamento por oficina e período
 - [ ] Rodar o SQL no banco externo (depende da Mariana) e testar ponta a ponta com login real
+
+- [x] QR Code nas Ordens de Corte e de Produção (páginas /oc/:id e /op/:id, botões, fichas impressas, portal da oficina)
+- [ ] Conferir QR com login real (depende do SQL do portal rodado e de uma conta)
