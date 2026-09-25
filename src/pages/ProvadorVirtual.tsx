@@ -12,15 +12,21 @@ import { Label } from "@/components/ui/label";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
+import { Textarea } from "@/components/ui/textarea";
 
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import {
-  Loader2, MessageCircle, Globe, Sparkles, Download, Search, Upload, Send, RefreshCw, FilterX,
+  Loader2, MessageCircle, Globe, Sparkles, Download, Search, Upload, Send, RefreshCw, FilterX, Ban,
 } from "lucide-react";
 
 const SUPABASE_URL = "https://ezdtulcrqzmgocamjwwl.supabase.co";
