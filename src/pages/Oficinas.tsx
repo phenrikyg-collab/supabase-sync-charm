@@ -10,6 +10,7 @@ import { Switch } from "@/components/ui/switch";
 import { Plus, Edit, Trash2, Building2 } from "lucide-react";
 import { toast } from "sonner";
 import { AcessoPortalDialog } from "@/components/oficinas/AcessoPortalDialog";
+import { AcessoCortadorDialog } from "@/components/oficinas/AcessoCortadorDialog";
 
 function formatCurrency(v: number | null | undefined) {
   if (v == null) return "—";
@@ -62,7 +63,10 @@ export default function Oficinas() {
           </h1>
           <p className="text-sm text-muted-foreground mt-1">Gestão de oficinas de costura</p>
         </div>
-        <Button onClick={openNew} className="gap-2"><Plus className="h-4 w-4" /> Nova Oficina</Button>
+        <div className="flex gap-2">
+          <AcessoCortadorDialog />
+          <Button onClick={openNew} className="gap-2"><Plus className="h-4 w-4" /> Nova Oficina</Button>
+        </div>
       </div>
 
       <Card>

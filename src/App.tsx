@@ -22,6 +22,7 @@ import Oficinas from "./pages/Oficinas";
 import OficinaInterna from "./pages/OficinaInterna";
 import OrdensProducao from "./pages/OrdensProducao";
 import PortalOficina from "./pages/PortalOficina";
+import PortalCortador from "./pages/PortalCortador";
 import Producao from "./pages/Producao";
 
 import Financeiro from "./pages/Financeiro";
@@ -159,7 +160,7 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 
 function HomeRedirect() {
   const { modules, isLoading } = useUserModules();
-  const { isAdmin, isOficina, isLoading: rolesLoading } = useUserRole();
+  const { isAdmin, isOficina, isCortador, isLoading: rolesLoading } = useUserRole();
   if (isLoading || rolesLoading) return (
     <div className="min-h-[60vh] flex items-center justify-center">
       <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -169,6 +170,7 @@ function HomeRedirect() {
   if (voltar && /^\/(oc|op)\/[^/]+$/.test(voltar)) return <Navigate to={voltar} replace />;
   if (isAdmin) return <Navigate to="/dashboard-comercial" replace />;
   if (isOficina) return <Navigate to="/portal-oficina" replace />;
+  if (isCortador) return <Navigate to="/portal-cortador" replace />;
   // Ordem de prioridade: primeiro módulo que o usuário tiver define a home dele.
   const order: AppModule[] = [
     "gestao",
@@ -191,13 +193,13 @@ function HomeRedirect() {
 function ModuleGuard({ children }: { children: React.ReactNode }) {
   const location = useLocation();
   const { modules, isLoading } = useUserModules();
-  const { isAdmin, isOficina, isLoading: rolesLoading } = useUserRole();
+  const { isAdmin, isOficina, isCortador, isLoading: rolesLoading } = useUserRole();
   const { toast } = useToast();
   const loading = isLoading || rolesLoading;
-  const allowed = !isOficina && canAccess(requirementForPath(location.pathname), isAdmin, modules);
+  const allowed = !isOficina && !isCortador && canAccess(requirementForPath(location.pathname), isAdmin, modules);
 
   useEffect(() => {
-    if (!loading && !allowed && !isOficina) {
+    if (!loading && !allowed && !isOficina && !isCortador) {
       toast({
         title: "Acesso negado",
         description: "Você não tem acesso a este módulo",
@@ -212,6 +214,7 @@ function ModuleGuard({ children }: { children: React.ReactNode }) {
     </div>
   );
   if (isOficina) return <Navigate to="/portal-oficina" replace />;
+  if (isCortador) return <Navigate to="/portal-cortador" replace />;
   if (!allowed) return <Navigate to="/" replace />;
   return <>{children}</>;
 }
@@ -219,7 +222,7 @@ function ModuleGuard({ children }: { children: React.ReactNode }) {
 /** Página aberta pelo QR: oficina vê a OP sem menu (o banco só devolve a dela); equipe vê com o menu. */
 function DetalheOrdemRoute({ tipo }: { tipo: "oc" | "op" }) {
   const { modules, isLoading } = useUserModules();
-  const { isAdmin, isOficina, isLoading: rolesLoading } = useUserRole();
+  const { isAdmin, isOficina, isCortador, isLoading: rolesLoading } = useUserRole();
   if (isLoading || rolesLoading) return (
     <div className="min-h-[60vh] flex items-center justify-center">
       <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -263,7 +266,8 @@ const AppRoutes = () => {
       <Route path="/op/:id" element={<ProtectedRoute><DetalheOrdemRoute tipo="op" /></ProtectedRoute>} />
       <Route path="/login" element={user ? <HomeRedirect /> : <Login />} />
       <Route path="/tv-interna" element={<ProtectedRoute><TVInterna /></ProtectedRoute>} />
-      <Route path="/portal-oficina" element={<ProtectedRoute><PortalOficina /></ProtectedRoute>} />
+      <Route path="/portal-oficina" element={<PortalOficina />} />
+      <Route path="/portal-cortador" element={<PortalCortador />} />
       <Route path="/conteudo" element={<ProtectedRoute><ModuleGuard><ContentCalendar /></ModuleGuard></ProtectedRoute>} />
       <Route path="*" element={
         <ProtectedRoute>

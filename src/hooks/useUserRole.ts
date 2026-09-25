@@ -25,6 +25,8 @@ export function useUserRole() {
     isAdmin: roles?.includes("admin") ?? false,
     /** Usuário de oficina externa (sem admin): só acessa o portal. */
     isOficina: (roles?.includes("oficina") && !roles?.includes("admin")) ?? false,
+    /** Login de cortador (celular + senha): só acessa o Portal do Corte. */
+    isCortador: (!!user?.email?.endsWith("@cortador.mp.local") && !roles?.includes("admin")),
     isLoading,
   };
 }
