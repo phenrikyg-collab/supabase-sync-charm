@@ -3635,7 +3635,7 @@ export default function Atendimento() {
             <Coluna ajustavel={colunasAjustaveis} id="painel" order={3} defaultSize={largurasIniciais[2]} minSize={18} maxSize={45}>
               <aside className="hidden h-full min-h-0 w-full min-w-0 shrink-0 flex-col overflow-hidden border-l border-border p-3 pb-8 lg:flex">
                 <Card className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain">
-                  <PerfilCliente conversaId={conversaAtual.id} autor={autor} telefone={conversaAtual.telefone} />
+                  <PerfilCliente conversaId={conversaAtual.id} autor={autor} telefone={telefoneIdentificado ?? undefined} />
 
                   {telefoneIdentificado && (
                     <ProvadorBloco telefone={telefoneIdentificado} onUsarTexto={usarTextoPronto} />
@@ -3686,7 +3686,7 @@ export default function Atendimento() {
                   </section>
                 )}
                 <Card>
-                  <PerfilCliente conversaId={conversaAtual.id} autor={autor} telefone={conversaAtual.telefone} />
+                  <PerfilCliente conversaId={conversaAtual.id} autor={autor} telefone={telefoneIdentificado ?? undefined} />
 
                   {telefoneIdentificado && <ProvadorBloco telefone={telefoneIdentificado} onUsarTexto={usarTextoPronto} />}
                   {telefoneIdentificado && <AtividadesRecentes telefone={telefoneIdentificado} />}
