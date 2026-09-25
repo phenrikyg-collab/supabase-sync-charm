@@ -385,6 +385,16 @@ type Bloqueado = {
   ultima: string | null;
 };
 
+type EnvioAutoLog = {
+  id: string;
+  prova_id: string | null;
+  nome: string | null;
+  telefone: string | null;
+  decisao: "enviado" | "pulado" | string;
+  motivo: string | null;
+  criado_em: string | null;
+};
+
 const CHAVES_NUMERICAS: { chave: string; rotulo: string }[] = [
   { chave: "limite_dia", rotulo: "Limite por dia" },
   { chave: "limite_mes", rotulo: "Limite por mês" },
