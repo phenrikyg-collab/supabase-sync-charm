@@ -1623,12 +1623,16 @@ export function ProvadorVirtualConteudo({
         <TabsList>
           <TabsTrigger value="funil">Funil de Leads</TabsTrigger>
           <TabsTrigger value="gerar">Gerar Prova</TabsTrigger>
+          <TabsTrigger value="cotas">Cotas e bloqueios</TabsTrigger>
         </TabsList>
         <TabsContent value="funil" className="mt-6">
           <FunilLeads onAbrirConversa={onAbrirConversa} onContagem={onContagem} />
         </TabsContent>
         <TabsContent value="gerar" className="mt-6">
           <GerarProva conversaId={conversaId} nomeInicial={nomeInicial} telefoneInicial={telefoneInicial} />
+        </TabsContent>
+        <TabsContent value="cotas" className="mt-6">
+          <CotasBloqueios />
         </TabsContent>
       </Tabs>
     </div>
