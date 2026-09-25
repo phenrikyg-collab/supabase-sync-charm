@@ -731,6 +731,8 @@ function FunilLeads({
   const [leadEnvio, setLeadEnvio] = useState<Lead | null>(null);
   const [conflito, setConflito] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);
+  const [leadBloqueio, setLeadBloqueio] = useState<Lead | null>(null);
+  const [bloqueandoLead, setBloqueandoLead] = useState(false);
 
   const { data: leads = [], isLoading } = useQuery({
     queryKey: ["provador-leads"],
