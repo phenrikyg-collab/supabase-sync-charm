@@ -39,6 +39,7 @@ export function printHTML(title: string, bodyHTML: string) {
     tr:nth-child(even) { background: #fafafa; }
     .badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; }
     .badge-planejada { background: #e0e7ff; color: #3730a3; }
+    .badge-cortada { background: #d1fae5; color: #065f46; }
     .badge-corte, .badge-em-corte { background: #fef3c7; color: #92400e; }
     .badge-costura { background: #fce7f3; color: #9d174d; }
     .badge-revisao, .badge-revisão { background: #dbeafe; color: #1e40af; }

@@ -9,6 +9,7 @@ import { QrCodeOrdemDialog } from "@/components/QrCodeOrdemDialog";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/StatusBadge";
+import { CortarOrdemCorte } from "@/components/corte/CortarOrdemCorte";
 import { ArrowLeft, Loader2, Printer, QrCode } from "lucide-react";
 
 const TAM = ["PP", "P", "M", "G", "GG", "EG", "G1", "G2", "G3"];
@@ -68,6 +69,7 @@ export default function OrdemCorteDetalhe() {
   const url = urlOrdemCorte(oc.id);
   const total = grade.reduce((a, x) => a + (x.quantidade ?? 0), 0);
   const listaProd = produtos.length ? produtos : [{ id: "sem", produto_id: null, nome_produto: "Sem produto" }];
+  const planejada = (oc.status ?? "Planejada").toLowerCase() === "planejada";
 
   return (
     <div className="mx-auto max-w-3xl space-y-4 p-4 print:p-0">
@@ -101,7 +103,7 @@ export default function OrdemCorteDetalhe() {
           </div>
 
           <div className="space-y-2">
-            <h2 className="font-semibold text-foreground">Grade ({total} peças)</h2>
+            <h2 className="font-semibold text-foreground">{planejada ? `Grade por folha (${total} peças por folha)` : `Grade cortada (${total} peças)`}</h2>
             {listaProd.map((p: any) => {
               const gp = grade.filter((x) => (x.produto_id ?? null) === (p.produto_id ?? null) || (!produtos.length));
               if (!gp.length) return null;
@@ -130,6 +132,8 @@ export default function OrdemCorteDetalhe() {
               );
             })}
           </div>
+
+          {planejada && <CortarOrdemCorte ordemCorteId={oc.id} pecasPorFolha={total} />}
 
           {rolos.length > 0 && (
             <div className="space-y-2">

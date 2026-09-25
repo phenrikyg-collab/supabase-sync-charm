@@ -1,53 +1,35 @@
 import { useState, useMemo } from "react";
-import { useProdutos, useRolosTecido, useTecidos, useCores, useCreateOrdemCorte, useOrdensCorte } from "@/hooks/useSupabase";
+import { useProdutos, useCores, useOrdensCorte } from "@/hooks/useSupabase";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Checkbox } from "@/components/ui/checkbox";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { Search, X, Plus } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
 import { chamarRpc } from "@/lib/supabaseRpc";
-import { agruparOps, pecasCortadas, rpcAusente, somaMetragem, totalPorTamanho, type ItemGrade } from "@/lib/oficinaFluxo";
+import { rpcAusente, totalPorTamanho, type ItemGrade } from "@/lib/oficinaFluxo";
 
 const TAMANHOS = ["PP", "P", "M", "G", "GG", "EG"];
 
-const normalizarCor = (cor?: string | null) =>
-  (cor ?? "").trim().replace(/\s+/g, " ").toLocaleLowerCase("pt-BR");
+interface ProdutoSelecionado { id: string; nome: string }
 
-interface ProdutoSelecionado {
-  id: string;
-  nome: string;
-  consumo: number;
-}
-
+/** Etapa 1: planeja a OC (modelos, cores e grade por folha). O tecido é informado depois, em "Cortar". */
 export default function NovaOrdemCorte() {
   const { data: produtos } = useProdutos();
-  const { data: rolos } = useRolosTecido();
-  const { data: tecidos } = useTecidos();
   const { data: cores } = useCores();
-  const createMut = useCreateOrdemCorte();
   const navigate = useNavigate();
   const qc = useQueryClient();
   const [salvando, setSalvando] = useState(false);
 
   const [produtosSelecionados, setProdutosSelecionados] = useState<ProdutoSelecionado[]>([]);
   const [searchProduto, setSearchProduto] = useState("");
-  const [gradeMultiCor, setGradeMultiCor] = useState<Record<string, Record<string, Record<string, number>>>>({});
-  const [selectedRolos, setSelectedRolos] = useState<Set<string>>(new Set());
-  const [metrosRolo, setMetrosRolo] = useState<Record<string, number>>({});
-  const [roloMode, setRoloMode] = useState<Record<string, "total" | "parcial">>({});
+  const [coresSel, setCoresSel] = useState<string[]>([]);
+  const [searchCor, setSearchCor] = useState("");
+  const [grade, setGrade] = useState<Record<string, Record<string, Record<string, number>>>>({});
   const [metrosRisco, setMetrosRisco] = useState(0);
-  const [searchRolo, setSearchRolo] = useState("");
 
-  const [status, setStatus] = useState<"Planejada" | "Cortada">("Planejada");
-  const [folhasManual, setFolhasManual] = useState<Record<string, number>>({});
-
-  // Prévia do número (o definitivo é gerado no servidor ao salvar)
   const { data: ordensExistentes } = useOrdensCorte();
   const numeroOC = useMemo(() => {
     const ano = new Date().getFullYear();
@@ -56,251 +38,66 @@ export default function NovaOrdemCorte() {
     return `OC-${ano}-${String(max + 1).padStart(3, "0")}`;
   }, [ordensExistentes]);
 
-  const tecidoMap = Object.fromEntries((tecidos ?? []).map((t) => [t.id, t]));
-  const coresPorNome = useMemo(() => {
-    const map = new Map<string, { id: string; nome_cor: string | null; cor_hex: string | null }>();
-    (cores ?? []).forEach((cor) => {
-      const key = normalizarCor(cor.nome_cor);
-      if (key && !map.has(key)) map.set(key, cor);
-    });
-    return map;
-  }, [cores]);
-  const coresPorId = useMemo(() => new Map((cores ?? []).map((cor) => [cor.id, cor])), [cores]);
+  const coresMap = useMemo(() => new Map((cores ?? []).map((c) => [c.id, c])), [cores]);
 
-  // Filter products by search (exclude already selected)
   const produtosFiltrados = useMemo(() => {
     if (!produtos) return [];
-    const selectedIds = new Set(produtosSelecionados.map((p) => p.id));
-    const ativos = produtos.filter((p) => p.ativo && !selectedIds.has(p.id));
-    if (!searchProduto) return ativos;
-    const term = searchProduto.toLowerCase();
-    return ativos.filter((p) =>
-      p.nome_do_produto?.toLowerCase().includes(term) ||
-      p.codigo_sku?.toLowerCase().includes(term)
-    );
+    const sel = new Set(produtosSelecionados.map((p) => p.id));
+    const ativos = produtos.filter((p) => p.ativo && !sel.has(p.id));
+    const t = searchProduto.toLowerCase();
+    return t ? ativos.filter((p) => p.nome_do_produto?.toLowerCase().includes(t) || p.codigo_sku?.toLowerCase().includes(t)) : ativos;
   }, [produtos, searchProduto, produtosSelecionados]);
 
-  const addProduto = (produtoId: string) => {
-    const p = produtos?.find((pr) => pr.id === produtoId);
-    if (!p) return;
-    setProdutosSelecionados((prev) => [
+  const coresFiltradas = useMemo(() => {
+    const t = searchCor.toLowerCase();
+    return (cores ?? []).filter((c) => c.ativo !== false && !coresSel.includes(c.id) && (!t || (c.nome_cor ?? "").toLowerCase().includes(t)));
+  }, [cores, searchCor, coresSel]);
+
+  const setQtd = (produtoId: string, corId: string, tamanho: string, qty: number) =>
+    setGrade((prev) => ({
       ...prev,
-      { id: p.id, nome: p.nome_do_produto, consumo: p.consumo_de_tecido ?? 0 },
-    ]);
-    setSearchProduto("");
-  };
-
-  const removeProduto = (produtoId: string) => {
-    setProdutosSelecionados((prev) => prev.filter((p) => p.id !== produtoId));
-  };
-
-  // A grade deve refletir as cores informadas nos rolos selecionados.
-  // O nome do rolo é a fonte principal para evitar agrupar cores distintas
-  // quando algum rolo ficou com cor_id antigo/incorreto no estoque.
-  const coresFromRolos = useMemo(() => {
-    const map = new Map<string, { cor_id: string | null; cor_nome: string; cor_hex: string; metrosCor: number }>();
-    for (const roloId of selectedRolos) {
-      const rolo = rolos?.find((r) => r.id === roloId);
-      if (!rolo) continue;
-      const corCadastro = rolo.cor_id ? coresPorId.get(rolo.cor_id) : undefined;
-      const nomeRaw = (rolo.cor_nome ?? "").trim() || corCadastro?.nome_cor?.trim() || "";
-      const corPorNome = coresPorNome.get(normalizarCor(nomeRaw));
-      const corIdResolvido = corPorNome?.id ?? rolo.cor_id ?? null;
-      const corHexResolvido = corPorNome?.cor_hex ?? corCadastro?.cor_hex ?? rolo.cor_hex ?? "#ccc";
-      const nomeResolvido = nomeRaw || corPorNome?.nome_cor || corCadastro?.nome_cor || "Sem cor";
-      const nomeNorm = normalizarCor(nomeResolvido);
-      const key = nomeNorm ? `nome:${nomeNorm}` : (corIdResolvido ? `id:${corIdResolvido}` : "sem-cor");
-      const metrosRoloVal = metrosRolo[roloId] ?? 0;
-      const existing = map.get(key);
-      if (existing) {
-        existing.metrosCor += metrosRoloVal;
-        if ((!existing.cor_hex || existing.cor_hex === "#ccc") && corHexResolvido) existing.cor_hex = corHexResolvido;
-        if (existing.cor_nome === "Sem cor" && nomeResolvido) existing.cor_nome = nomeResolvido;
-        if (!existing.cor_id && corIdResolvido) existing.cor_id = corIdResolvido;
-      } else {
-        map.set(key, {
-          cor_id: corIdResolvido,
-          cor_nome: nomeResolvido,
-          cor_hex: corHexResolvido,
-          metrosCor: metrosRoloVal,
-        });
-      }
-    }
-    return Array.from(map.entries());
-  }, [selectedRolos, rolos, metrosRolo, coresPorId, coresPorNome]);
-
-  // Folhas por cor = metragem alocada da cor / metragem do risco (estimativa automática)
-  // Os valores reais são informados manualmente na Ordem de Produção, pois há sobras de tecido.
-  const folhasPorCor = useMemo(() => {
-    const result: Record<string, number> = {};
-    for (const [corKey, corInfo] of coresFromRolos) {
-      const estimada = metrosRisco > 0 ? Math.floor(corInfo.metrosCor / metrosRisco) : 0;
-      result[corKey] = folhasManual[corKey] ?? estimada;
-    }
-    return result;
-  }, [coresFromRolos, metrosRisco, folhasManual]);
-
-  const setGradeForCor = (produtoId: string, corKey: string, tamanho: string, qty: number) => {
-    setGradeMultiCor((prev) => ({
-      ...prev,
-      [produtoId]: {
-        ...(prev[produtoId] ?? {}),
-        [corKey]: { ...(prev[produtoId]?.[corKey] ?? {}), [tamanho]: qty },
-      },
+      [produtoId]: { ...(prev[produtoId] ?? {}), [corId]: { ...(prev[produtoId]?.[corId] ?? {}), [tamanho]: Math.max(0, qty || 0) } },
     }));
-  };
 
-  // Grade já multiplicada pelas folhas de cada cor = peças cortadas
+  // Grade POR FOLHA do risco
   const gradeItems = useMemo(() => {
     const itens: ItemGrade[] = [];
-    const selecionados = new Set(produtosSelecionados.map((p) => p.id));
-    for (const [produtoId, byCor] of Object.entries(gradeMultiCor)) {
-      if (!selecionados.has(produtoId)) continue;
-      for (const [corKey, grades] of Object.entries(byCor)) {
-        const corInfo = coresFromRolos.find(([k]) => k === corKey);
-        if (!corInfo) continue;
-        for (const [tamanho, q] of Object.entries(grades)) {
-          const quantidade = pecasCortadas(q, folhasPorCor[corKey] ?? 0);
-          if (quantidade > 0) itens.push({ produto_id: produtoId, cor_id: corInfo[1].cor_id, tamanho, quantidade });
+    for (const p of produtosSelecionados)
+      for (const corId of coresSel)
+        for (const t of TAMANHOS) {
+          const q = grade[p.id]?.[corId]?.[t] ?? 0;
+          if (q > 0) itens.push({ produto_id: p.id, cor_id: corId, tamanho: t, quantidade: q });
         }
-      }
-    }
     return itens;
-  }, [gradeMultiCor, coresFromRolos, folhasPorCor, produtosSelecionados]);
+  }, [grade, produtosSelecionados, coresSel]);
 
   const totaisTamanho = totalPorTamanho(gradeItems);
-  const totalPecas = gradeItems.reduce((s, g) => s + g.quantidade, 0);
-  const opsPrevistas = agruparOps(gradeItems).length;
-  const totalFolhas = Object.values(folhasPorCor).reduce((a, b) => a + b, 0);
-
-  const metrosAlocados = Array.from(selectedRolos).reduce((a, id) => a + (metrosRolo[id] ?? 0), 0);
-
-
-  // Filter available rolos
-  const rolosDisponiveis = useMemo(() => {
-    return (rolos?.filter((r) => (r.metragem_disponivel ?? 0) > 0) ?? []).filter((r) => {
-      if (!searchRolo) return true;
-      const tecido = r.tecido_id ? tecidoMap[r.tecido_id] : null;
-      const text = `${r.codigo_rolo} ${tecido?.nome_tecido} ${r.cor_nome} ${r.lote}`.toLowerCase();
-      return text.includes(searchRolo.toLowerCase());
-    });
-  }, [rolos, searchRolo, tecidoMap]);
-
-  const toggleRolo = (roloId: string) => {
-    const newSet = new Set(selectedRolos);
-    const rolo = rolos?.find((r) => r.id === roloId);
-    if (newSet.has(roloId)) {
-      newSet.delete(roloId);
-      const newMetros = { ...metrosRolo };
-      delete newMetros[roloId];
-      setMetrosRolo(newMetros);
-      const newMode = { ...roloMode };
-      delete newMode[roloId];
-      setRoloMode(newMode);
-    } else {
-      newSet.add(roloId);
-      setRoloMode({ ...roloMode, [roloId]: "total" });
-      setMetrosRolo({ ...metrosRolo, [roloId]: rolo?.metragem_disponivel ?? 0 });
-    }
-    setSelectedRolos(newSet);
-  };
-
-  const handleRoloModeChange = (roloId: string, mode: "total" | "parcial") => {
-    const rolo = rolos?.find((r) => r.id === roloId);
-    setRoloMode({ ...roloMode, [roloId]: mode });
-    if (mode === "total") {
-      setMetrosRolo({ ...metrosRolo, [roloId]: rolo?.metragem_disponivel ?? 0 });
-    } else {
-      setMetrosRolo({ ...metrosRolo, [roloId]: 0 });
-    }
-  };
+  const pecasPorFolha = gradeItems.reduce((s, g) => s + g.quantidade, 0);
 
   const handleSubmit = async () => {
-    if (produtosSelecionados.length === 0) { toast.error("Selecione ao menos um produto"); return; }
-    if (selectedRolos.size === 0) { toast.error("Selecione ao menos um rolo"); return; }
-    
-    for (const roloId of selectedRolos) {
-      const rolo = rolos?.find((r) => r.id === roloId);
-      const alocado = metrosRolo[roloId] ?? 0;
-      if (rolo && alocado > (rolo.metragem_disponivel ?? 0)) {
-        toast.error(`Metragem alocada do rolo ${rolo.codigo_rolo} excede a disponível`);
-        return;
-      }
-    }
-
-    if (gradeItems.length === 0) { toast.error("Informe a grade e as folhas"); return; }
-
+    if (!produtosSelecionados.length) { toast.error("Selecione ao menos um produto"); return; }
+    if (!coresSel.length) { toast.error("Selecione ao menos uma cor"); return; }
+    if (!gradeItems.length) { toast.error("Informe a grade por folha"); return; }
     setSalvando(true);
     try {
-      const rolosItems = Array.from(selectedRolos).map((rolo_id) => ({
-        rolo_id,
-        metragem_utilizada: metrosRolo[rolo_id] ?? 0,
-      }));
-      const allTamanhos = [...new Set(gradeItems.map((g) => g.tamanho))];
-      const produtosPayload = produtosSelecionados.map((p) => ({ produto_id: p.id, nome_produto: p.nome }));
-
       const { data, error } = await chamarRpc("criar_ordem_corte", {
         p: {
-          status,
-          metragem_risco: metrosRisco,
-          quantidade_folhas: totalFolhas,
-          grade_tamanhos: allTamanhos,
-          produtos: produtosPayload,
+          grade_tamanhos: TAMANHOS.filter((t) => totaisTamanho[t]),
+          metragem_risco: metrosRisco || null,
+          produtos: produtosSelecionados.map((p) => ({ produto_id: p.id, nome_produto: p.nome })),
           grade: gradeItems,
-          rolos: rolosItems,
         },
       });
-
-      let numero = data?.numero_oc as string | undefined;
-      let ops = data?.ops_criadas as number | undefined;
-      let novoId = data?.id as string | undefined;
-      if (error && rpcAusente(error)) {
-        // SQL ainda não aplicado: caminho antigo + OPs criadas pelo painel
-        const ordem = await createMut.mutateAsync({
-          ordem: {
-            numero_oc: numeroOC,
-            grade_tamanhos: allTamanhos,
-            metragem_risco: metrosRisco,
-            metragem_total_utilizada: somaMetragem(rolosItems),
-            quantidade_folhas: totalFolhas,
-            status,
-          } as any,
-          produtos: produtosPayload,
-          grade: gradeItems,
-          rolos: rolosItems,
-        });
-        const nomes = Object.fromEntries(produtosSelecionados.map((p) => [p.id, p.nome]));
-        const grupos = agruparOps(gradeItems);
-        const { error: opErr } = await supabase.from("ordens_producao").insert(
-          grupos.map((g) => ({
-            produto_id: g.produto_id,
-            cor_id: g.cor_id,
-            ordem_corte_id: ordem.id,
-            nome_produto: g.produto_id ? nomes[g.produto_id] : null,
-            quantidade: g.quantidade,
-            quantidade_pecas_ordem: g.quantidade,
-            status_ordem: "Corte",
-            oficina_id: null,
-          })),
-        );
-        if (opErr) throw opErr;
-        numero = numeroOC;
-        novoId = ordem.id;
-        ops = grupos.length;
-      } else if (error) {
+      if (error) {
+        if (rpcAusente(error)) { toast.error("A criação de ordem de corte ainda não foi ativada no banco."); return; }
         throw error;
       }
       qc.invalidateQueries({ queryKey: ["ordens-corte"] });
-      qc.invalidateQueries({ queryKey: ["ordens-producao"] });
-      qc.invalidateQueries({ queryKey: ["rolos-tecido"] });
-      toast.success(`${numero} salva, ${ops} ordem(ns) de produção gerada(s)`);
-      // Abre a ordem recém-criada para imprimir a ficha com o QR na hora.
-      navigate(novoId ? `/oc/${novoId}` : "/ordens-corte");
+      toast.success(`${data?.numero_oc ?? "Ordem de corte"} planejada. Informe o tecido ao cortar.`);
+      navigate(data?.id ? `/oc/${data.id}` : "/ordens-corte");
     } catch (e: unknown) {
-      console.error("[NovaOrdemCorte] erro ao criar ordem:", e);
-      const err = e as { message?: string; details?: string; hint?: string; code?: string };
-      const msg = [err?.message, err?.details, err?.hint].filter(Boolean).join(" | ");
-      toast.error(msg || "Erro ao criar ordem de corte");
+      const err = e as { message?: string; details?: string; hint?: string };
+      toast.error([err?.message, err?.details, err?.hint].filter(Boolean).join(" | ") || "Erro ao criar ordem de corte");
     } finally {
       setSalvando(false);
     }
@@ -314,253 +111,134 @@ export default function NovaOrdemCorte() {
 
       <Card>
         <CardContent className="pt-6 space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>Número da OC (prévia)</Label>
               <Input value={numeroOC} readOnly className="bg-muted" />
             </div>
             <div className="space-y-2">
-              <Label>Metros do Risco</Label>
-              <Input type="number" step="0.01" inputMode="decimal" value={metrosRisco} onChange={(e) => setMetrosRisco(Number(e.target.value))} />
-            </div>
-            <div className="space-y-2">
-              <Label>Total de Folhas</Label>
-              <Input value={totalFolhas} readOnly className="bg-muted" />
+              <Label>Metros do risco</Label>
+              <Input type="number" step="0.01" inputMode="decimal" value={metrosRisco || ""} placeholder="0" onChange={(e) => setMetrosRisco(Number(e.target.value))} />
             </div>
           </div>
 
-          {/* Multiple product selection */}
           <div className="space-y-3">
-            <Label>Produtos ({produtosSelecionados.length} selecionado{produtosSelecionados.length !== 1 ? "s" : ""})</Label>
-            
-            {/* Selected products chips */}
+            <Label>Produtos ({produtosSelecionados.length})</Label>
             {produtosSelecionados.length > 0 && (
               <div className="flex flex-wrap gap-2">
                 {produtosSelecionados.map((p) => (
                   <div key={p.id} className="flex items-center gap-1.5 bg-primary/10 border border-primary/20 rounded-lg px-3 py-1.5 text-sm">
                     <span className="font-medium text-foreground">{p.nome}</span>
-                    
-                    <button onClick={() => removeProduto(p.id)} className="ml-1 text-muted-foreground hover:text-destructive">
+                    <button onClick={() => setProdutosSelecionados((prev) => prev.filter((x) => x.id !== p.id))} className="ml-1 text-muted-foreground hover:text-destructive" aria-label="Remover">
                       <X className="h-3.5 w-3.5" />
                     </button>
                   </div>
                 ))}
               </div>
             )}
-
-            {/* Product search */}
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Buscar produto por nome ou SKU para adicionar..."
-                value={searchProduto}
-                onChange={(e) => setSearchProduto(e.target.value)}
-                className="pl-9"
-              />
+              <Input placeholder="Buscar produto por nome ou SKU..." value={searchProduto} onChange={(e) => setSearchProduto(e.target.value)} className="pl-9" />
             </div>
-            {searchProduto && produtosFiltrados.length > 0 && (
+            {searchProduto && (produtosFiltrados.length ? (
               <div className="border border-border rounded-lg max-h-48 overflow-y-auto bg-popover shadow-md">
                 {produtosFiltrados.map((p) => (
-                  <button
-                    key={p.id}
-                    className="w-full text-left px-4 py-2.5 hover:bg-accent text-sm flex items-center justify-between"
-                    onClick={() => addProduto(p.id)}
-                  >
-                    <span className="flex items-center gap-2">
-                      <Plus className="h-3.5 w-3.5 text-primary" />
-                      <span className="font-medium text-popover-foreground">{p.nome_do_produto}</span>
-                    </span>
-                    <span className="flex items-center gap-3">
-
-
-                      {p.codigo_sku && <span className="text-muted-foreground text-xs">{p.codigo_sku}</span>}
-                    </span>
+                  <button key={p.id} className="w-full text-left px-4 py-2.5 hover:bg-accent text-sm flex items-center justify-between"
+                    onClick={() => { setProdutosSelecionados((prev) => [...prev, { id: p.id, nome: p.nome_do_produto }]); setSearchProduto(""); }}>
+                    <span className="flex items-center gap-2"><Plus className="h-3.5 w-3.5 text-primary" /><span className="font-medium text-popover-foreground">{p.nome_do_produto}</span></span>
+                    {p.codigo_sku && <span className="text-muted-foreground text-xs">{p.codigo_sku}</span>}
                   </button>
                 ))}
               </div>
-            )}
-            {searchProduto && produtosFiltrados.length === 0 && (
-              <p className="text-sm text-muted-foreground py-2">Nenhum produto encontrado</p>
-            )}
+            ) : <p className="text-sm text-muted-foreground py-2">Nenhum produto encontrado</p>)}
           </div>
 
-          {/* Rolos selection with total/parcial mode */}
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <Label>Rolos Disponíveis</Label>
-              <div className="flex items-center gap-2">
-                <Search className="h-4 w-4 text-muted-foreground" />
-                <Input placeholder="Código ou lote do rolo" value={searchRolo} onChange={(e) => setSearchRolo(e.target.value)} className="w-full sm:w-56" />
-              </div>
-            </div>
-            <div className="space-y-2 max-h-72 overflow-y-auto">
-              {rolosDisponiveis.length === 0 ? (
-                <p className="text-sm text-muted-foreground py-4 text-center">Nenhum rolo disponível</p>
-              ) : (
-                rolosDisponiveis.map((r) => {
-                  const tecido = r.tecido_id ? tecidoMap[r.tecido_id] : null;
-                  const isSelected = selectedRolos.has(r.id);
-                  const mode = roloMode[r.id] ?? "total";
+          <div className="space-y-3">
+            <Label>Cores ({coresSel.length})</Label>
+            {coresSel.length > 0 && (
+              <div className="flex flex-wrap gap-2">
+                {coresSel.map((id) => {
+                  const c = coresMap.get(id);
                   return (
-                    <div key={r.id} className="p-3 rounded-lg border border-border space-y-2">
-                      <div className="flex items-center gap-3">
-                        <Checkbox checked={isSelected} onCheckedChange={() => toggleRolo(r.id)} />
-                        <div className="flex-1 flex items-center gap-2 text-sm">
-                          {r.cor_hex && <div className="w-3 h-3 rounded-full" style={{ backgroundColor: r.cor_hex }} />}
-                          <span className="text-primary font-medium">{r.codigo_rolo}</span>
-                          <span className="text-muted-foreground">{tecido?.nome_tecido ?? ""}</span>
-                          <span className="text-muted-foreground">{r.cor_nome ?? ""}</span>
-                          <span className="text-muted-foreground">({(r.metragem_disponivel ?? 0).toFixed(1)}m disp.)</span>
-                        </div>
-                      </div>
-                      {isSelected && (
-                        <div className="ml-8 flex items-center gap-4">
-                          <RadioGroup
-                            value={mode}
-                            onValueChange={(v) => handleRoloModeChange(r.id, v as "total" | "parcial")}
-                            className="flex gap-4"
-                          >
-                            <div className="flex items-center gap-1.5">
-                              <RadioGroupItem value="total" id={`total-${r.id}`} />
-                              <Label htmlFor={`total-${r.id}`} className="text-xs cursor-pointer">Toda metragem</Label>
-                            </div>
-                            <div className="flex items-center gap-1.5">
-                              <RadioGroupItem value="parcial" id={`parcial-${r.id}`} />
-                              <Label htmlFor={`parcial-${r.id}`} className="text-xs cursor-pointer">Parcial</Label>
-                            </div>
-                          </RadioGroup>
-                          {mode === "parcial" && (
-                            <Input
-                              type="number" step="0.01" className="w-28"
-                              placeholder="Metros"
-                              max={r.metragem_disponivel ?? 0}
-                              value={metrosRolo[r.id] ?? ""}
-                              onChange={(e) => setMetrosRolo({ ...metrosRolo, [r.id]: Number(e.target.value) })}
-                            />
-                          )}
-                          <span className="text-xs text-muted-foreground">
-                            Usar: {(metrosRolo[r.id] ?? 0).toFixed(1)}m
-                          </span>
-                        </div>
-                      )}
+                    <div key={id} className="flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-sm">
+                      <span className="h-3 w-3 rounded-full border border-border" style={{ backgroundColor: c?.cor_hex ?? "transparent" }} />
+                      <span className="font-medium">{c?.nome_cor ?? "-"}</span>
+                      <button onClick={() => setCoresSel((prev) => prev.filter((x) => x !== id))} className="ml-1 text-muted-foreground hover:text-destructive" aria-label="Remover">
+                        <X className="h-3.5 w-3.5" />
+                      </button>
                     </div>
                   );
-                })
-              )}
-            </div>
-          </div>
-
-          {/* Grade per product + color */}
-          {coresFromRolos.length > 0 && produtosSelecionados.length > 0 && (
-            <div className="space-y-6">
-              <div className="flex items-center justify-between">
-                <Label>Grade de Tamanhos por Produto e Cor</Label>
-                <span className="text-xs text-muted-foreground">Informe a quantidade por tamanho em cada cor, separada por modelo</span>
+                })}
               </div>
-              {produtosSelecionados.map((prod) => {
-                const subtotalProduto = coresFromRolos.reduce(
-                  (s, [corKey]) =>
-                    s + TAMANHOS.reduce((ss, t) => ss + (gradeMultiCor[prod.id]?.[corKey]?.[t] ?? 0), 0),
-                  0,
-                );
-                return (
-                  <div key={prod.id} className="rounded-lg border border-primary/30 bg-primary/5 p-4 space-y-3">
-                    <div className="flex items-center justify-between flex-wrap gap-2">
-                      <span className="font-serif text-base font-semibold text-foreground">{prod.nome}</span>
-                      <span className="text-xs text-muted-foreground">Subtotal do modelo: <strong className="text-foreground">{subtotalProduto} pç</strong></span>
-                    </div>
-                    <div className="space-y-3">
-                      {coresFromRolos.map(([corKey, corInfo]) => {
-                        const subtotalCor = TAMANHOS.reduce((s, t) => s + (gradeMultiCor[prod.id]?.[corKey]?.[t] ?? 0), 0);
-                        return (
-                          <div key={corKey} className="p-3 rounded-lg border border-border bg-background space-y-3">
-                            <div className="flex items-center justify-between flex-wrap gap-2">
-                              <div className="flex items-center gap-2">
-                                <div className="w-4 h-4 rounded-full border border-border" style={{ backgroundColor: corInfo.cor_hex }} />
-                                <span className="font-medium text-sm text-foreground">{corInfo.cor_nome}</span>
-                                <span className="text-xs text-muted-foreground">• {corInfo.metrosCor.toFixed(1)}m alocados</span>
-                              </div>
-                              <div className="flex items-center gap-3 text-sm">
-                                <span className="text-xs text-muted-foreground">Por folha: <strong className="text-foreground">{subtotalCor} pç</strong></span>
-                                <label className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                                  Folhas
-                                  <Input
-                                    type="number" min={0} inputMode="numeric" className="h-9 w-20"
-                                    value={folhasPorCor[corKey] ?? 0}
-                                    onChange={(e) => setFolhasManual({ ...folhasManual, [corKey]: Math.max(0, Number(e.target.value)) })}
-                                  />
-                                </label>
-                                <span className="text-xs text-muted-foreground">Cortadas: <strong className="text-foreground">{pecasCortadas(subtotalCor, folhasPorCor[corKey] ?? 0)} pç</strong></span>
-                              </div>
-                            </div>
-                            <div className="grid grid-cols-3 md:grid-cols-6 gap-3">
-                              {TAMANHOS.map((t) => (
-                                <div key={t} className="space-y-1">
-                                  <span className="text-xs font-medium text-muted-foreground">{t}</span>
-                                  <Input
-                                    type="number" min={0}
-                                    value={gradeMultiCor[prod.id]?.[corKey]?.[t] ?? ""}
-                                    onChange={(e) => setGradeForCor(prod.id, corKey, t, Number(e.target.value))}
-                                    placeholder="0"
-                                  />
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                );
-              })}
+            )}
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input placeholder="Buscar cor para adicionar..." value={searchCor} onChange={(e) => setSearchCor(e.target.value)} className="pl-9" />
             </div>
-          )}
-
-          {Object.keys(totaisTamanho).length > 0 && (
-            <div className="space-y-2">
-              <Label>Peças cortadas por tamanho (grade x folhas)</Label>
-              <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
-                {TAMANHOS.filter((t) => totaisTamanho[t]).map((t) => (
-                  <div key={t} className="rounded-lg border border-border p-2 text-center">
-                    <p className="text-xs text-muted-foreground">{t}</p>
-                    <p className="text-lg font-semibold text-foreground">{totaisTamanho[t]}</p>
-                  </div>
+            {searchCor && (coresFiltradas.length ? (
+              <div className="border border-border rounded-lg max-h-48 overflow-y-auto bg-popover shadow-md">
+                {coresFiltradas.map((c) => (
+                  <button key={c.id} className="w-full text-left px-4 py-2.5 hover:bg-accent text-sm flex items-center gap-2"
+                    onClick={() => { setCoresSel((prev) => [...prev, c.id]); setSearchCor(""); }}>
+                    <span className="h-3 w-3 rounded-full border border-border" style={{ backgroundColor: c.cor_hex ?? "transparent" }} />
+                    <span className="font-medium text-popover-foreground">{c.nome_cor}</span>
+                  </button>
                 ))}
               </div>
-            </div>
-          )}
-
-          <div className="space-y-2">
-            <Label>Situação ao salvar</Label>
-            <RadioGroup value={status} onValueChange={(v) => setStatus(v as "Planejada" | "Cortada")} className="flex gap-6">
-              <div className="flex items-center gap-2">
-                <RadioGroupItem value="Planejada" id="st-planejada" />
-                <Label htmlFor="st-planejada" className="cursor-pointer">Planejada</Label>
-              </div>
-              <div className="flex items-center gap-2">
-                <RadioGroupItem value="Cortada" id="st-cortada" />
-                <Label htmlFor="st-cortada" className="cursor-pointer">Já cortada</Label>
-              </div>
-            </RadioGroup>
+            ) : <p className="text-sm text-muted-foreground py-2">Nenhuma cor encontrada</p>)}
           </div>
 
-          {opsPrevistas > 0 && (
-            <div className="p-3 bg-accent/50 border border-accent rounded-lg text-sm text-muted-foreground">
-              Ao salvar, serão geradas <strong className="text-foreground">{opsPrevistas} ordem(ns) de produção</strong> (uma por modelo e cor), sem oficina, para você atribuir depois.
+          {coresSel.length > 0 && produtosSelecionados.length > 0 && (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between flex-wrap gap-2">
+                <Label>Grade por folha</Label>
+                <span className="text-xs text-muted-foreground">Peças de cada tamanho em uma folha do risco</span>
+              </div>
+              {produtosSelecionados.map((prod) => (
+                <div key={prod.id} className="rounded-lg border border-primary/30 bg-primary/5 p-4 space-y-3">
+                  <span className="font-serif text-base font-semibold text-foreground">{prod.nome}</span>
+                  {coresSel.map((corId) => {
+                    const c = coresMap.get(corId);
+                    const sub = TAMANHOS.reduce((s, t) => s + (grade[prod.id]?.[corId]?.[t] ?? 0), 0);
+                    return (
+                      <div key={corId} className="p-3 rounded-lg border border-border bg-background space-y-3">
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="flex items-center gap-2">
+                            <div className="w-4 h-4 rounded-full border border-border" style={{ backgroundColor: c?.cor_hex ?? "transparent" }} />
+                            <span className="font-medium text-sm text-foreground">{c?.nome_cor ?? "-"}</span>
+                          </div>
+                          <span className="text-xs text-muted-foreground">Por folha: <strong className="text-foreground">{sub} pç</strong></span>
+                        </div>
+                        <div className="grid grid-cols-3 md:grid-cols-6 gap-3">
+                          {TAMANHOS.map((t) => (
+                            <div key={t} className="space-y-1">
+                              <span className="text-xs font-medium text-muted-foreground">{t}</span>
+                              <Input type="number" min={0} inputMode="numeric" placeholder="0"
+                                value={grade[prod.id]?.[corId]?.[t] || ""}
+                                onChange={(e) => setQtd(prod.id, corId, t, Number(e.target.value))} />
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              ))}
             </div>
           )}
+
+          <div className="p-3 bg-accent/50 border border-accent rounded-lg text-sm text-muted-foreground">
+            A ordem é salva como <strong className="text-foreground">Planejada</strong>. Depois, na página da ordem, quem corta usa <strong className="text-foreground">Cortar</strong> para informar as folhas e os rolos usados. Só então as ordens de produção são geradas.
+          </div>
         </CardContent>
       </Card>
 
-      {/* Barra fixa com totais e salvar (pensada para celular/tablet) */}
       <div className="sticky bottom-0 z-10 -mx-4 border-t border-border bg-background/95 px-4 py-3 backdrop-blur sm:mx-0 sm:rounded-lg sm:border">
         <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
-          <div><p className="text-xs text-muted-foreground">Peças</p><p className="text-lg font-bold text-foreground">{totalPecas}</p></div>
-          <div><p className="text-xs text-muted-foreground">Folhas</p><p className="text-lg font-bold text-foreground">{totalFolhas}</p></div>
-          <div><p className="text-xs text-muted-foreground">Tecido</p><p className="text-lg font-bold text-foreground">{metrosAlocados.toFixed(2)}m</p></div>
+          <div><p className="text-xs text-muted-foreground">Peças por folha</p><p className="text-lg font-bold text-foreground">{pecasPorFolha}</p></div>
           <div className="ml-auto flex gap-2">
             <Button variant="outline" size="lg" onClick={() => navigate("/ordens-corte")}>Cancelar</Button>
-            <Button size="lg" onClick={handleSubmit} disabled={salvando}>{salvando ? "Salvando..." : "Salvar corte"}</Button>
+            <Button size="lg" onClick={handleSubmit} disabled={salvando}>{salvando ? "Salvando..." : "Salvar ordem"}</Button>
           </div>
         </div>
       </div>
