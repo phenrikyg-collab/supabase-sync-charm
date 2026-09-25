@@ -4,7 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { QRCodeSVG } from "qrcode.react";
 import { supabase } from "@/integrations/supabase/client";
 import { formatDateBR } from "@/lib/printUtils";
-import { urlOrdemCorte, urlOrdemProducao } from "@/lib/qrOrdem";
+import { urlOrdemCorte } from "@/lib/qrOrdem";
 import { QrCodeOrdemDialog } from "@/components/QrCodeOrdemDialog";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -165,8 +165,6 @@ export default function OrdemCorteDetalhe() {
       </Card>
 
       <QrCodeOrdemDialog open={qrOpen} onOpenChange={setQrOpen} url={url} titulo={oc.numero_oc} subtitulo={`${total} peças`} onImprimirFicha={() => { setQrOpen(false); setTimeout(() => window.print(), 200); }} />
-      {/* evita aviso de import não usado quando não há OPs */}
-      <span className="hidden">{urlOrdemProducao.name}</span>
     </div>
   );
 }
