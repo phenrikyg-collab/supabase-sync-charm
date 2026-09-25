@@ -3357,6 +3357,7 @@ export default function Atendimento() {
                 propostaId={propostaId}
                 telefone={conversaAtual.telefone_real || conversaAtual.telefone}
               />
+              <CobrancasAbertas conversaId={conversaAtual.id} />
               <CobrancasConversa conversaId={conversaAtual.id} />
 
               <ScrollArea
