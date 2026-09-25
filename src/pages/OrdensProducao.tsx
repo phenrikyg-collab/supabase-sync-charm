@@ -11,12 +11,14 @@ import { StatusBadge } from "@/components/StatusBadge";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { Plus, List, Columns3, Wrench, Trash2, PlusCircle, Printer, Pencil, AlertTriangle, CheckCircle, XCircle, Info } from "lucide-react";
+import { Plus, List, Columns3, Wrench, Trash2, PlusCircle, Printer, Pencil, QrCode, AlertTriangle, CheckCircle, XCircle, Info } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import { printHTML, statusBadgeHTML, formatDateBR } from "@/lib/printUtils";
+import { QrCodeOrdemDialog } from "@/components/QrCodeOrdemDialog";
+import { urlOrdemProducao, qrBlocoFicha } from "@/lib/qrOrdem";
 import { parseISO, differenceInCalendarDays, startOfMonth, endOfMonth } from "date-fns";
 import FichaTecnicaReadOnly from "@/components/bonificacao/FichaTecnicaReadOnly";
 import { calcularCapacidadesMaquinas, calcularDataConclusaoPlanejada, calcularPecasPorDia, calcularTempoEfetivoFicha, obterMaquinaGargalo } from "@/utils/producao";
@@ -482,6 +484,7 @@ export default function OrdensProducao() {
     } catch (e: any) { toast.error(e.message); }
   };
 
+  const [qrOp, setQrOp] = useState<any | null>(null);
   const printOrdemProducao = (o: any) => {
     const allGrade: any[] = o.gradeInfo ?? [];
     // Filter grade rows by this OP's produto_id when grade is per-modelo
@@ -502,6 +505,7 @@ export default function OrdensProducao() {
         <div><h1>Ordem de Produção</h1><div class="subtitle">${o.nome_produto ?? "—"} — ${ocNumero}</div></div>
         <div class="company"><img src="/images/logo.png" class="logo" alt="MC" /><br/>Gestão - Mariana Cardoso</div>
       </div>
+      ${qrBlocoFicha(urlOrdemProducao(o.id))}
       <div class="section">
         <div class="section-title">Informações</div>
         <div class="info-grid">
@@ -694,8 +698,11 @@ export default function OrdensProducao() {
                               <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEditDialog(o)}>
                                 <Pencil className="h-3.5 w-3.5" />
                               </Button>
-                              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => printOrdemProducao(o)}>
+                              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => printOrdemProducao(o)} title="Imprimir ficha com QR">
                                 <Printer className="h-3.5 w-3.5" />
+                              </Button>
+                              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setQrOp(o)} title="QR Code">
+                                <QrCode className="h-3.5 w-3.5" />
                               </Button>
                               <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => { setDeleteId(o.id); setDeleteOpen(true); }}>
                                 <Trash2 className="h-3.5 w-3.5" />
@@ -1266,6 +1273,16 @@ export default function OrdensProducao() {
       </Dialog>
 
       {/* Print Conserto Filter Dialog */}
+      {qrOp && (
+        <QrCodeOrdemDialog
+          open={!!qrOp}
+          onOpenChange={(v) => !v && setQrOp(null)}
+          url={urlOrdemProducao(qrOp.id)}
+          titulo={qrOp.nome_produto ?? "Ordem de produção"}
+          subtitulo={`${qrOp.quantidade_pecas_ordem ?? qrOp.quantidade ?? 0} peças`}
+          onImprimirFicha={() => printOrdemProducao(qrOp)}
+        />
+      )}
       <Dialog open={printConsertoOpen} onOpenChange={setPrintConsertoOpen}>
         <DialogContent className="max-w-sm">
           <DialogHeader><DialogTitle>Imprimir Consertos</DialogTitle></DialogHeader>

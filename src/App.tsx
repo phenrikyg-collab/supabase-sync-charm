@@ -149,7 +149,11 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
       <Loader2 className="h-8 w-8 animate-spin text-primary" />
     </div>
   );
-  if (!user) return <Navigate to="/login" replace />;
+  if (!user) {
+    // Guarda o endereço (ex.: aberto pelo QR) para voltar a ele depois de entrar.
+    try { sessionStorage.setItem("voltar-apos-login", window.location.pathname); } catch { /* ignore */ }
+    return <Navigate to="/login" replace />;
+  }
   return <>{children}</>;
 }
 
@@ -161,6 +165,8 @@ function HomeRedirect() {
       <Loader2 className="h-8 w-8 animate-spin text-primary" />
     </div>
   );
+  const voltar = (() => { try { const v = sessionStorage.getItem("voltar-apos-login"); sessionStorage.removeItem("voltar-apos-login"); return v; } catch { return null; } })();
+  if (voltar && /^\/(oc|op)\/[^/]+$/.test(voltar)) return <Navigate to={voltar} replace />;
   if (isAdmin) return <Navigate to="/dashboard-comercial" replace />;
   if (isOficina) return <Navigate to="/portal-oficina" replace />;
   // Ordem de prioridade: primeiro módulo que o usuário tiver define a home dele.
