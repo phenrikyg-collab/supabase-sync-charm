@@ -8,13 +8,13 @@ import { LogIn, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
 /** E-mail interno (invisível) usado no login por celular: só dígitos, prefixo 55 quando tem DDD sem país. */
-export function emailSinteticoCelular(celular: string, dominio: "oficina" | "cortador") {
+export function emailSinteticoCelular(celular: string, dominio: "oficina" | "cortador" | "revisora") {
   let d = celular.replace(/\D/g, "");
   if (d.length === 10 || d.length === 11) d = "55" + d;
   return `${d}@${dominio}.mp.local`;
 }
 
-export function PortalLogin({ dominio, titulo }: { dominio: "oficina" | "cortador"; titulo: string }) {
+export function PortalLogin({ dominio, titulo }: { dominio: "oficina" | "cortador" | "revisora"; titulo: string }) {
   const { signIn } = useAuth();
   const [celular, setCelular] = useState("");
   const [senha, setSenha] = useState("");

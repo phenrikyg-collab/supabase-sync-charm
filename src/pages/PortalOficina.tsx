@@ -8,7 +8,7 @@ import { Loader2, LogOut, RefreshCw } from "lucide-react";
 import { PortalLogin, brlPortal, dataBR } from "@/components/portal/PortalLogin";
 
 type Op = {
-  op_id: string; nome_produto: string | null; cor_nome: string | null; quantidade: number | null;
+  op_id: string; nome_produto: string | null; cor_nome: string | null; quantidade: number | null; grade_detalhe: string | null;
   status_ordem: string | null; data_previsao_termino: string | null; quantidade_entregue: number | null;
   data_entrega: string | null; valor_a_receber: number | null; pagamento_status: string | null; data_pagamento: string | null;
 };
@@ -62,6 +62,7 @@ export default function PortalOficina() {
                   <div className="min-w-0">
                     <p className="font-serif text-lg font-semibold text-foreground">{o.nome_produto ?? "-"}</p>
                     <p className="text-sm text-muted-foreground">{o.cor_nome ?? "-"}</p>
+                    {o.grade_detalhe && <p className="text-sm text-foreground">{o.grade_detalhe}</p>}
                   </div>
                   <Badge variant="outline" className={pago ? "border-success/40 bg-success/10 text-success" : "border-warning/40 bg-warning/10 text-warning"}>
                     {pago ? `Pago ${dataBR(o.data_pagamento)}` : "Pendente"}
