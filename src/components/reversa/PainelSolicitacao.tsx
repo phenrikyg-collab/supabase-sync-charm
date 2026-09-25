@@ -658,6 +658,50 @@ export function PainelSolicitacao({
             </section>
           </div>
         )}
+
+        <Dialog open={converterAberto} onOpenChange={setConverterAberto}>
+          <DialogContent className="max-w-sm">
+            <DialogHeader>
+              <DialogTitle className="font-serif">
+                {paraConversao === "troca" ? "Converter em troca" : "Converter em reembolso"}
+              </DialogTitle>
+              <DialogDescription>
+                {paraConversao === "troca"
+                  ? "Esta solicitação vai passar de reembolso para troca."
+                  : "Esta solicitação vai passar de troca para reembolso."}
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-2">
+              <Label htmlFor="motivo-conversao">Motivo</Label>
+              <Textarea
+                id="motivo-conversao"
+                value={motivoConversao}
+                onChange={(e) => setMotivoConversao(e.target.value)}
+                placeholder="Ex: cliente confirmou no WhatsApp que quer trocar"
+              />
+              <p className="text-xs text-muted-foreground">
+                A cliente não recebe aviso automático. Quem fala com ela é a consultora.
+              </p>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" disabled={!!ocupado} onClick={() => setConverterAberto(false)}>
+                Voltar
+              </Button>
+              <Button
+                disabled={!!ocupado || !motivoConversao.trim()}
+                onClick={() =>
+                  acao(
+                    "converter",
+                    () => converterPreferencia(s.id, paraConversao, motivoConversao.trim()),
+                    "Preferência alterada",
+                  ).then(() => setConverterAberto(false))
+                }
+              >
+                {ocupado === "converter" ? "Convertendo..." : "Confirmar conversão"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </SheetContent>
     </Sheet>
   );
