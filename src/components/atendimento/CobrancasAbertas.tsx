@@ -41,7 +41,8 @@ export function useCobrancasAbertas(conversaId: string | number) {
   });
 }
 
-const rpcDe = (t: CobrancaAberta["tipo"]) => (t === "pix" ? "banco_inter_cobranca_encerrar" : "pagamentos_link_encerrar") as const;
+const rpcDe = (t: CobrancaAberta["tipo"]): "banco_inter_cobranca_encerrar" | "pagamentos_link_encerrar" =>
+  t === "pix" ? "banco_inter_cobranca_encerrar" : "pagamentos_link_encerrar";
 
 /** Bloco compacto com as cobranças em aberto da conversa. */
 export function CobrancasAbertas({ conversaId }: { conversaId: string | number }) {
