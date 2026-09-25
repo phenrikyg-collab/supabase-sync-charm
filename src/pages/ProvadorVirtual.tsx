@@ -849,6 +849,29 @@ function FunilLeads({
     onError: (e: any) => toast.error(e.message || "Não foi possível mover o lead"),
   });
 
+  async function bloquearLead(lead: Lead) {
+    if (!lead.telefone) {
+      toast.error("Esta cliente não tem telefone para bloquear");
+      return;
+    }
+    setBloqueandoLead(true);
+    try {
+      const { error } = await (supabase as any).rpc("provador_bloquear", {
+        p_alvo: lead.telefone,
+        p_expandir: true,
+      });
+      if (error) throw error;
+      toast.success("Bloqueada");
+      setLeadBloqueio(null);
+      qc.invalidateQueries({ queryKey: ["provador-leads"] });
+      qc.invalidateQueries({ queryKey: ["provador-bloqueados"] });
+    } catch (e: any) {
+      toast.error(e.message || "Não foi possível bloquear");
+    } finally {
+      setBloqueandoLead(false);
+    }
+  }
+
   async function mensagemPronta(lead: Lead) {
     setPreparando(lead.id);
     try {
