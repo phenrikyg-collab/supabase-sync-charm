@@ -1,3 +1,4 @@
+import { AcessoRevisoraDialog } from "@/components/revisao/AcessoRevisoraDialog";
 import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -132,6 +133,7 @@ export function LancamentoRevisao() {
       <CardHeader>
         <CardTitle className="text-lg text-primary flex items-center gap-2">
           <ClipboardCheck className="h-5 w-5" /> Lançamento de Revisão
+          <span className="ml-auto"><AcessoRevisoraDialog revisoras={revisoras as any} /></span>
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
