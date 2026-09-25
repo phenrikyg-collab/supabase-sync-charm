@@ -39,7 +39,7 @@ import { TagsConversa, TagChip, type Tag } from "@/components/atendimento/TagsCo
 import { CatalogoDialog, legendaProduto, type ProdutoCatalogo, type EscolhaProduto, type ItemSelecionado as ItemCatalogo } from "@/components/atendimento/CatalogoDialog";
 import { ToastAction } from "@/components/ui/toast";
 import { PerfilCliente } from "@/components/atendimento/PerfilCliente";
-import { CashbackConversa, SeloCashback, BotaoEnviarCupom } from "@/components/atendimento/CashbackConversa";
+import { SeloCashback, BotaoEnviarCupom } from "@/components/atendimento/CashbackConversa";
 import { AtividadesRecentes } from "@/components/atendimento/AtividadesRecentes";
 
 import { CobrancaPixDialog, CobrancasTab } from "@/components/atendimento/CobrancaPix";
@@ -3635,7 +3635,6 @@ export default function Atendimento() {
             <Coluna ajustavel={colunasAjustaveis} id="painel" order={3} defaultSize={largurasIniciais[2]} minSize={18} maxSize={45}>
               <aside className="hidden h-full min-h-0 w-full min-w-0 shrink-0 flex-col overflow-hidden border-l border-border p-3 pb-8 lg:flex">
                 <Card className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain">
-                  {telefoneIdentificado && <CashbackConversa telefone={telefoneIdentificado} />}
                   <PerfilCliente conversaId={conversaAtual.id} autor={autor} telefone={conversaAtual.telefone} />
 
                   {telefoneIdentificado && (
@@ -3687,7 +3686,6 @@ export default function Atendimento() {
                   </section>
                 )}
                 <Card>
-                  {telefoneIdentificado && <CashbackConversa telefone={telefoneIdentificado} />}
                   <PerfilCliente conversaId={conversaAtual.id} autor={autor} telefone={conversaAtual.telefone} />
 
                   {telefoneIdentificado && <ProvadorBloco telefone={telefoneIdentificado} onUsarTexto={usarTextoPronto} />}
