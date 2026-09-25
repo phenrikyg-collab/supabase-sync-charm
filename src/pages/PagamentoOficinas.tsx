@@ -42,7 +42,8 @@ export default function PagamentoOficinas() {
       .map((o: any) => ({ ...o, _data: o.data_entrega ?? o.data_fim ?? null }))
       .filter((o: any) => o.oficina_id && externasIds.has(o.oficina_id))
       .filter((o: any) => filtroOficina === "todas" || o.oficina_id === filtroOficina)
-      .filter((o: any) => o._data && o._data >= de && o._data <= ate)
+      // Sem data de entrega: entra no fechamento enquanto estiver a pagar, para não sumir da tela
+      .filter((o: any) => (o._data ? o._data >= de && o._data <= ate : o.pagamento_oficina_status !== "Pago"))
       .filter((o: any) =>
         filtroStatus === "todos" ? true : filtroStatus === "pago" ? o.pagamento_oficina_status === "Pago" : o.pagamento_oficina_status !== "Pago",
       );
@@ -206,7 +207,7 @@ export default function PagamentoOficinas() {
                     return (
                       <TableRow key={o.id} className={pago ? "opacity-60" : ""}>
                         <TableCell className="font-medium">{o.nome_produto ?? "-"}</TableCell>
-                        <TableCell>{formatDateBR(o._data)}</TableCell>
+                        <TableCell>{o._data ? formatDateBR(o._data) : "-"}</TableCell>
                         <TableCell className="text-right">{pecasPagaveis(o)}</TableCell>
                         <TableCell className="text-right">{brl(valorOp(o, g.custo))}</TableCell>
                         <TableCell>
