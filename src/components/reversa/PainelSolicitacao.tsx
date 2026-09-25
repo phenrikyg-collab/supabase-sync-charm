@@ -689,13 +689,25 @@ export function PainelSolicitacao({
               </Button>
               <Button
                 disabled={!!ocupado || !motivoConversao.trim()}
-                onClick={() =>
-                  acao(
-                    "converter",
-                    () => converterPreferencia(s.id, paraConversao, motivoConversao.trim()),
-                    "Preferência alterada",
-                  ).then(() => setConverterAberto(false))
-                }
+                onClick={async () => {
+                  setOcupado("converter");
+                  try {
+                    await converterPreferencia(s.id, paraConversao, motivoConversao.trim());
+                    toast({ title: "Preferência alterada" });
+                    setConverterAberto(false);
+                    setMotivoConversao("");
+                    await carregar();
+                    aoMudar();
+                  } catch (e: any) {
+                    toast({
+                      title: "Não deu certo",
+                      description: e.message,
+                      variant: "destructive",
+                    });
+                  } finally {
+                    setOcupado("");
+                  }
+                }}
               >
                 {ocupado === "converter" ? "Convertendo..." : "Confirmar conversão"}
               </Button>
