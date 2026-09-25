@@ -11,6 +11,7 @@ const statusMap: Record<string, { label: string; className: string }> = {
   moderado: { label: "Moderado", className: "bg-warning/10 text-warning border-warning/20" },
   alto: { label: "Alto", className: "bg-danger/10 text-danger border-danger/20" },
   planejada: { label: "Planejada", className: "bg-muted text-muted-foreground border-border" },
+  cortada: { label: "Cortada", className: "bg-success/10 text-success border-success/20" },
   "em corte": { label: "Em Corte", className: "bg-primary/10 text-primary border-primary/20" },
   finalizada: { label: "Finalizada", className: "bg-success/10 text-success border-success/20" },
   corte: { label: "Corte", className: "bg-primary/10 text-primary border-primary/20" },
