@@ -232,6 +232,8 @@ function DetalheOrdemRoute({ tipo }: { tipo: "oc" | "op" }) {
     </div>
   );
   if (isOficina) return tipo === "op" ? <OrdemProducaoDetalhe /> : <Navigate to="/portal-oficina" replace />;
+  if (isCortador) return tipo === "oc" ? <OrdemCorteDetalhe /> : <Navigate to="/portal-cortador" replace />;
+  if (isRevisora) return tipo === "op" ? <OrdemProducaoDetalhe /> : <Navigate to="/portal-revisora" replace />;
   const req = tipo === "oc" ? requirementForPath("/ordens-corte/x/imprimir") : requirementForPath("/ordens-producao");
   if (!canAccess(req, isAdmin, modules)) return <Navigate to="/" replace />;
   return <AppLayout>{tipo === "oc" ? <OrdemCorteDetalhe /> : <OrdemProducaoDetalhe />}</AppLayout>;
