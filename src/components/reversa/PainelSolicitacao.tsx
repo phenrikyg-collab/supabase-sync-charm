@@ -147,6 +147,12 @@ export function PainelSolicitacao({
   const escolha: Record<string, any> | null = s.escolha_troca ?? null;
   const docCliente = String(s.cliente?.documento ?? s.cliente_documento ?? "").replace(/\D/g, "");
   const semDocumento = !docCliente;
+  const preferenciaAtual = String(s.preferencia ?? "").toLowerCase();
+  const paraConversao: "troca" | "reembolso" = preferenciaAtual === "reembolso" ? "troca" : "reembolso";
+  const statusFinal = /cancel|recus|conclu/i.test(String(s.status ?? ""));
+  const temPedidoNovo = Boolean(s.pedido_novo_origem);
+  const podeConverter =
+    (preferenciaAtual === "reembolso" || preferenciaAtual === "troca") && !statusFinal && !temPedidoNovo;
 
   return (
     <Sheet open={aberto} onOpenChange={(v) => !v && aoFechar()}>
