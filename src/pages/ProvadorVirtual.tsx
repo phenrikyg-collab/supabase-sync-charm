@@ -385,6 +385,16 @@ type Bloqueado = {
   ultima: string | null;
 };
 
+type EnvioAutoLog = {
+  id: string;
+  prova_id: string | null;
+  nome: string | null;
+  telefone: string | null;
+  decisao: "enviado" | "pulado" | string;
+  motivo: string | null;
+  criado_em: string | null;
+};
+
 const CHAVES_NUMERICAS: { chave: string; rotulo: string }[] = [
   { chave: "limite_dia", rotulo: "Limite por dia" },
   { chave: "limite_mes", rotulo: "Limite por mês" },
@@ -406,10 +416,10 @@ const CLASSE_TIPO_BLOQUEIO: Record<string, string> = {
 };
 
 function CampoConfigNumero({
-  chave, rotulo, config, onSalvo,
+  chave, rotulo, config, onSalvo, notaZero = true,
 }: {
   chave: string; rotulo: string; config: ProvadorConfig;
-  onSalvo: (cfg: ProvadorConfig) => void;
+  onSalvo: (cfg: ProvadorConfig) => void; notaZero?: boolean;
 }) {
   const [valor, setValor] = useState(config[chave]?.valor ?? "0");
   const [salvando, setSalvando] = useState(false);
@@ -450,7 +460,56 @@ function CampoConfigNumero({
       {config[chave]?.descricao && (
         <p className="text-[11px] leading-snug text-muted-foreground">{config[chave].descricao}</p>
       )}
-      <p className="text-[11px] text-muted-foreground">0 desliga.</p>
+      {notaZero && <p className="text-[11px] text-muted-foreground">0 desliga.</p>}
+    </div>
+  );
+}
+
+function CampoConfigTexto({
+  chave, rotulo, placeholder, config, onSalvo,
+}: {
+  chave: string; rotulo: string; placeholder?: string;
+  config: ProvadorConfig; onSalvo: (cfg: ProvadorConfig) => void;
+}) {
+  const [valor, setValor] = useState(config[chave]?.valor ?? "");
+  const [salvando, setSalvando] = useState(false);
+
+  async function salvar() {
+    setSalvando(true);
+    try {
+      const { data, error } = await (supabase as any).rpc("provador_config_set", {
+        p_chave: chave,
+        p_valor: String(valor),
+      });
+      if (error) throw error;
+      onSalvo(data as ProvadorConfig);
+      toast.success("Configuração salva");
+    } catch (e: any) {
+      toast.error(e.message || "Não foi possível salvar");
+    } finally {
+      setSalvando(false);
+    }
+  }
+
+  return (
+    <div className="space-y-1.5">
+      <Label className="text-xs">{rotulo}</Label>
+      <div className="flex gap-2">
+        <Input
+          type="text"
+          value={valor}
+          onChange={(e) => setValor(e.target.value)}
+          onBlur={() => { if (String(valor) !== (config[chave]?.valor ?? "")) void salvar(); }}
+          placeholder={placeholder}
+          className="h-8"
+        />
+        <Button size="sm" variant="outline" className="h-8" disabled={salvando} onClick={salvar}>
+          {salvando ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Salvar"}
+        </Button>
+      </div>
+      {config[chave]?.descricao && (
+        <p className="text-[11px] leading-snug text-muted-foreground">{config[chave].descricao}</p>
+      )}
     </div>
   );
 }
@@ -536,6 +595,85 @@ function CampoConfigIsentos({
         {salvando ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Salvar"}
       </Button>
     </div>
+  );
+}
+
+function CardTemplateAuto({
+  config, onSalvo,
+}: {
+  config: ProvadorConfig; onSalvo: (cfg: ProvadorConfig) => void;
+}) {
+  const qc = useQueryClient();
+  const { data: envios = [], isLoading: carregandoEnvios, refetch } = useQuery({
+    queryKey: ["provador-template-auto-log"],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any).rpc("provador_template_auto_log", { p_limite: 30 });
+      if (error) throw error;
+      return (data ?? []) as EnvioAutoLog[];
+    },
+  });
+
+  return (
+    <Card>
+      <CardHeader><CardTitle className="text-lg">Template automático</CardTitle></CardHeader>
+      <CardContent className="space-y-4">
+        <CampoConfigSwitch chave="template_auto" rotulo="Enviar template sozinho" config={config} onSalvo={onSalvo} />
+        <CampoConfigNumero chave="template_auto_minutos" rotulo="Minutos depois da prova" config={config} onSalvo={onSalvo} notaZero={false} />
+        <CampoConfigTexto
+          chave="template_auto_horario"
+          rotulo="Janela de envio (hora inicial-final)"
+          placeholder="8-21"
+          config={config}
+          onSalvo={onSalvo}
+        />
+        <p className="text-[11px] leading-snug text-muted-foreground">
+          Quando ninguém falou com a cliente, o template "prova pronta" sai sozinho depois desse tempo, dentro da janela.
+          Pula quem já tem conversa ativa, já recebeu template em 7 dias ou está bloqueada.
+        </p>
+
+        <div className="flex items-center justify-between pt-2">
+          <h3 className="text-sm font-medium">Últimos envios automáticos</h3>
+          <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => void refetch()}>
+            <RefreshCw className="mr-1 h-3.5 w-3.5" />
+            Recarregar
+          </Button>
+        </div>
+        {carregandoEnvios ? (
+          <div className="flex justify-center py-6">
+            <Loader2 className="h-5 w-5 animate-spin text-primary" />
+          </div>
+        ) : envios.length === 0 ? (
+          <p className="py-4 text-center text-sm text-muted-foreground">Nenhum envio ainda</p>
+        ) : (
+          <ul className="divide-y rounded-md border">
+            {envios.map((e) => (
+              <li key={e.id} className="space-y-0.5 px-3 py-2">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="min-w-0 flex-1 truncate text-sm">
+                    {e.nome || "-"}
+                    {e.telefone ? <span className="ml-2 font-mono text-xs text-muted-foreground">{e.telefone}</span> : null}
+                  </div>
+                  <span
+                    className={cn(
+                      "inline-flex shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-semibold",
+                      e.decisao === "enviado"
+                        ? "border-success/30 bg-success/10 text-success"
+                        : "border-border bg-muted text-muted-foreground",
+                    )}
+                  >
+                    {e.decisao === "enviado" ? "Enviado" : "Pulado"}
+                  </span>
+                </div>
+                <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
+                  <span>{e.criado_em ? tempoRel(e.criado_em) : "-"}</span>
+                  {e.motivo && <span className="truncate">{e.motivo}</span>}
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </CardContent>
+    </Card>
   );
 }
 
@@ -633,6 +771,8 @@ function CotasBloqueios() {
           <CampoConfigIsentos config={cfg} onSalvo={salvoConfig} />
         </CardContent>
       </Card>
+
+      <CardTemplateAuto config={cfg} onSalvo={salvoConfig} />
 
       <Card>
         <CardHeader><CardTitle className="text-lg">Bloqueios</CardTitle></CardHeader>
