@@ -27,6 +27,8 @@ export function useUserRole() {
     isOficina: (roles?.includes("oficina") && !roles?.includes("admin")) ?? false,
     /** Login de cortador (celular + senha): só acessa o Portal do Corte. */
     isCortador: (!!user?.email?.endsWith("@cortador.mp.local") && !roles?.includes("admin")),
+    /** Login de revisora (celular + senha): só acessa o Portal da Revisora. */
+    isRevisora: (!!user?.email?.endsWith("@revisora.mp.local") && !roles?.includes("admin")),
     isLoading,
   };
 }

@@ -8,7 +8,7 @@ const COLUNAS = [
   { key: "corte", label: "Corte", match: ["corte"] },
   { key: "costura", label: "Costura", match: ["costura"] },
   { key: "revisao", label: "Revisão", match: ["revisao", "revisão"] },
-  { key: "finalizado", label: "Finalizado", match: ["finalizado"] },
+  { key: "finalizado", label: "Finalizado", match: ["finalizado", "revisada"] },
 ];
 
 export default function Producao() {

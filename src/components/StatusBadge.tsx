@@ -18,6 +18,7 @@ const statusMap: Record<string, { label: string; className: string }> = {
   costura: { label: "Costura", className: "bg-warning/10 text-warning border-warning/20" },
   revisao: { label: "Revisão", className: "bg-accent text-accent-foreground border-border" },
   revisão: { label: "Revisão", className: "bg-accent text-accent-foreground border-border" },
+  revisada: { label: "Revisada", className: "bg-success/10 text-success border-success/20" },
   finalizado: { label: "Finalizado", className: "bg-success/10 text-success border-success/20" },
   "no prazo": { label: "No Prazo", className: "bg-success/10 text-success border-success/20" },
   "em alerta": { label: "Em Alerta", className: "bg-warning/10 text-warning border-warning/20" },
