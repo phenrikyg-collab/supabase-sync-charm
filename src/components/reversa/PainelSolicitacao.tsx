@@ -607,16 +607,25 @@ export function PainelSolicitacao({
             <section>
               <h3 className="font-serif text-base mb-2">Linha do tempo</h3>
               <ul className="space-y-2">
-                {eventos.map((e, i) => (
-                  <li key={i} className="border-l-2 border-border pl-3">
-                    <p className="font-medium">{texto(e.rotulo ?? e.titulo ?? e.evento)}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {formatarDataHora(e.data ?? e.criado_em)}
-                      {e.autor ? ` · ${e.autor}` : ""}
-                    </p>
-                    {e.detalhe && <p className="text-muted-foreground">{e.detalhe}</p>}
-                  </li>
-                ))}
+                {eventos.map((e, i) => {
+                  const ehConversao = e.tipo === "preferencia_alterada";
+                  const rotuloEvento = ehConversao
+                    ? "Preferência alterada"
+                    : texto(e.rotulo ?? e.titulo ?? e.evento);
+                  const detalheEvento = ehConversao
+                    ? `De ${texto(e.de)} para ${texto(e.para)}${e.motivo ? ` · ${e.motivo}` : ""}`
+                    : e.detalhe;
+                  return (
+                    <li key={i} className="border-l-2 border-border pl-3">
+                      <p className="font-medium">{rotuloEvento}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {formatarDataHora(e.data ?? e.criado_em)}
+                        {e.autor ? ` · ${e.autor}` : ""}
+                      </p>
+                      {detalheEvento && <p className="text-muted-foreground">{detalheEvento}</p>}
+                    </li>
+                  );
+                })}
                 {!eventos.length && <p className="text-muted-foreground">{traco}</p>}
               </ul>
             </section>
