@@ -406,10 +406,10 @@ const CLASSE_TIPO_BLOQUEIO: Record<string, string> = {
 };
 
 function CampoConfigNumero({
-  chave, rotulo, config, onSalvo,
+  chave, rotulo, config, onSalvo, notaZero = true,
 }: {
   chave: string; rotulo: string; config: ProvadorConfig;
-  onSalvo: (cfg: ProvadorConfig) => void;
+  onSalvo: (cfg: ProvadorConfig) => void; notaZero?: boolean;
 }) {
   const [valor, setValor] = useState(config[chave]?.valor ?? "0");
   const [salvando, setSalvando] = useState(false);
@@ -450,7 +450,7 @@ function CampoConfigNumero({
       {config[chave]?.descricao && (
         <p className="text-[11px] leading-snug text-muted-foreground">{config[chave].descricao}</p>
       )}
-      <p className="text-[11px] text-muted-foreground">0 desliga.</p>
+      {notaZero && <p className="text-[11px] text-muted-foreground">0 desliga.</p>}
     </div>
   );
 }
