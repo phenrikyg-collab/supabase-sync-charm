@@ -26,6 +26,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { AvisoCashbackUsado } from "./AvisoCashbackUsado";
 import { AcoesTroca } from "./AcoesTroca";
+import { EscolhaPecaTroca } from "./EscolhaPecaTroca";
 import {
   CONDICOES,
   DESTINOS,
@@ -513,6 +514,17 @@ export function PainelSolicitacao({
             {ehTroca ? (
               <section className="space-y-3">
                 <h3 className="font-serif text-base">Troca</h3>
+                <EscolhaPecaTroca
+                  s={s}
+                  aoMudar={async () => {
+                    await carregar();
+                    aoMudar();
+                  }}
+                  abrirConverter={() => {
+                    setMotivoConversao("");
+                    setConverterAberto(true);
+                  }}
+                />
                 <div>
                   <Label htmlFor="obs-cons">Contato da consultora</Label>
                   <Textarea
@@ -538,6 +550,7 @@ export function PainelSolicitacao({
                 </div>
                 {ehTrocaExata ? (
                   <AcoesTroca
+                    semBling
                     s={s}
                     aoMudar={async () => {
                       await carregar();
@@ -586,6 +599,17 @@ export function PainelSolicitacao({
             ) : (
               <section className="space-y-2">
                 <h3 className="font-serif text-base">Devolução</h3>
+                <EscolhaPecaTroca
+                  s={s}
+                  aoMudar={async () => {
+                    await carregar();
+                    aoMudar();
+                  }}
+                  abrirConverter={() => {
+                    setMotivoConversao("");
+                    setConverterAberto(true);
+                  }}
+                />
                 <Button
                   size="sm"
                   disabled={!!ocupado}
@@ -609,12 +633,22 @@ export function PainelSolicitacao({
               <ul className="space-y-2">
                 {eventos.map((e, i) => {
                   const ehConversao = e.tipo === "preferencia_alterada";
+                  const ehEscolha = e.tipo === "escolha_troca";
+                  const det = e.detalhe && typeof e.detalhe === "object" ? e.detalhe : e;
                   const rotuloEvento = ehConversao
                     ? "Preferência alterada"
-                    : texto(e.rotulo ?? e.titulo ?? e.evento);
+                    : ehEscolha
+                      ? det.canal === "painel"
+                        ? "Peça da troca escolhida no painel"
+                        : "Peça da troca escolhida"
+                      : texto(e.rotulo ?? e.titulo ?? e.evento);
                   const detalheEvento = ehConversao
-                    ? `De ${texto(e.de)} para ${texto(e.para)}${e.motivo ? ` · ${e.motivo}` : ""}`
-                    : e.detalhe;
+                    ? `De ${texto(det.de)} para ${texto(det.para)}${det.motivo ? ` · ${det.motivo}` : ""}`
+                    : ehEscolha
+                      ? [det.produto, det.cor, det.tamanho].filter(Boolean).join(" · ")
+                      : typeof e.detalhe === "object" && e.detalhe
+                        ? null
+                        : e.detalhe;
                   return (
                     <li key={i} className="border-l-2 border-border pl-3">
                       <p className="font-medium">{rotuloEvento}</p>
