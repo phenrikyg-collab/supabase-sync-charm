@@ -15,6 +15,14 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Loader2 } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { AvisoCashbackUsado } from "./AvisoCashbackUsado";
 import { AcoesTroca } from "./AcoesTroca";
@@ -24,6 +32,7 @@ import {
   cancelarSolicitacao,
   conferir,
   consultoraContato,
+  converterPreferencia,
   correios,
   definirDocumento,
   formatarData,
