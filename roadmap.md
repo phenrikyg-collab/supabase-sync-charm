@@ -51,3 +51,5 @@
 
 - [x] QR Code nas Ordens de Corte e de Produção (páginas /oc/:id e /op/:id, botões, fichas impressas, portal da oficina)
 - [ ] Conferir QR com login real (depende do SQL do portal rodado e de uma conta)
+- [x] Revisão por tamanho na página da ordem (/op/:id) + supabase_sql/revisao_por_tamanho.sql
+- [ ] Rodar supabase_sql/revisao_por_tamanho.sql no banco (Mariana)

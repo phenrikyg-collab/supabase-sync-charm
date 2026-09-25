@@ -7,6 +7,7 @@ import { useUserRole } from "@/hooks/useUserRole";
 import { formatDateBR } from "@/lib/printUtils";
 import { urlOrdemProducao } from "@/lib/qrOrdem";
 import { QrCodeOrdemDialog } from "@/components/QrCodeOrdemDialog";
+import { RevisaoPorTamanho } from "@/components/revisao/RevisaoPorTamanho";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -113,6 +114,17 @@ export default function OrdemProducaoDetalhe() {
           )}
         </CardContent>
       </Card>
+
+      {!isOficina && (
+        <RevisaoPorTamanho
+          opId={op.id}
+          totalOp={qtd}
+          grade={Object.values(grade.reduce((acc: Record<string, { tamanho: string; quantidade: number }>, x: any) => {
+            acc[x.tamanho] = { tamanho: x.tamanho, quantidade: (acc[x.tamanho]?.quantidade ?? 0) + (x.quantidade ?? 0) };
+            return acc;
+          }, {}))}
+        />
+      )}
 
       <QrCodeOrdemDialog open={qrOpen} onOpenChange={setQrOpen} url={url} titulo={oc?.numero_oc ? `${oc.numero_oc} · ${nome}` : nome} subtitulo={`${cor?.nome_cor ?? "Sem cor"} · ${qtd} peças`} onImprimirFicha={() => { setQrOpen(false); setTimeout(() => window.print(), 200); }} />
     </div>
