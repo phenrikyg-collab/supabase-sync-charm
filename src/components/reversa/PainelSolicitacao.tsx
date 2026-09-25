@@ -15,6 +15,14 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Loader2 } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { AvisoCashbackUsado } from "./AvisoCashbackUsado";
 import { AcoesTroca } from "./AcoesTroca";
@@ -24,6 +32,7 @@ import {
   cancelarSolicitacao,
   conferir,
   consultoraContato,
+  converterPreferencia,
   correios,
   definirDocumento,
   formatarData,
@@ -63,6 +72,8 @@ export function PainelSolicitacao({
   const [credito, setCredito] = useState("");
   const [motivoCancelar, setMotivoCancelar] = useState("");
   const [documento, setDocumento] = useState("");
+  const [converterAberto, setConverterAberto] = useState(false);
+  const [motivoConversao, setMotivoConversao] = useState("");
 
   async function carregar() {
     if (!id) return;
@@ -96,6 +107,8 @@ export function PainelSolicitacao({
       setCredito("");
       setMotivoCancelar("");
       setDocumento("");
+      setConverterAberto(false);
+      setMotivoConversao("");
       carregar();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -134,6 +147,12 @@ export function PainelSolicitacao({
   const escolha: Record<string, any> | null = s.escolha_troca ?? null;
   const docCliente = String(s.cliente?.documento ?? s.cliente_documento ?? "").replace(/\D/g, "");
   const semDocumento = !docCliente;
+  const preferenciaAtual = String(s.preferencia ?? "").toLowerCase();
+  const paraConversao: "troca" | "reembolso" = preferenciaAtual === "reembolso" ? "troca" : "reembolso";
+  const statusFinal = /cancel|recus|conclu/i.test(String(s.status ?? ""));
+  const temPedidoNovo = Boolean(s.pedido_novo_origem);
+  const podeConverter =
+    (preferenciaAtual === "reembolso" || preferenciaAtual === "troca") && !statusFinal && !temPedidoNovo;
 
   return (
     <Sheet open={aberto} onOpenChange={(v) => !v && aoFechar()}>
@@ -164,7 +183,19 @@ export function PainelSolicitacao({
                 valor={semDocumento ? traco : mascararDocumento(s.cliente?.documento ?? s.cliente_documento)}
               />
               <Info rotulo="Pedido" valor={texto(s.pedido)} />
-              <Info rotulo="Preferência" valor={texto(s.preferencia_rotulo ?? s.preferencia)} />
+              <div>
+                <Info rotulo="Preferência" valor={texto(s.preferencia_rotulo ?? s.preferencia)} />
+                {podeConverter && (
+                  <button
+                    type="button"
+                    className="mt-0.5 text-xs text-primary underline-offset-2 hover:underline disabled:opacity-50"
+                    disabled={!!ocupado}
+                    onClick={() => setConverterAberto(true)}
+                  >
+                    {paraConversao === "troca" ? "Converter em troca" : "Converter em reembolso"}
+                  </button>
+                )}
+              </div>
               <Info rotulo="Status" valor={texto(s.status_rotulo ?? s.status)} />
               <Info rotulo="Valor" valor={moeda(s.valor ?? s.valor_total)} />
             </div>
@@ -576,16 +607,25 @@ export function PainelSolicitacao({
             <section>
               <h3 className="font-serif text-base mb-2">Linha do tempo</h3>
               <ul className="space-y-2">
-                {eventos.map((e, i) => (
-                  <li key={i} className="border-l-2 border-border pl-3">
-                    <p className="font-medium">{texto(e.rotulo ?? e.titulo ?? e.evento)}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {formatarDataHora(e.data ?? e.criado_em)}
-                      {e.autor ? ` · ${e.autor}` : ""}
-                    </p>
-                    {e.detalhe && <p className="text-muted-foreground">{e.detalhe}</p>}
-                  </li>
-                ))}
+                {eventos.map((e, i) => {
+                  const ehConversao = e.tipo === "preferencia_alterada";
+                  const rotuloEvento = ehConversao
+                    ? "Preferência alterada"
+                    : texto(e.rotulo ?? e.titulo ?? e.evento);
+                  const detalheEvento = ehConversao
+                    ? `De ${texto(e.de)} para ${texto(e.para)}${e.motivo ? ` · ${e.motivo}` : ""}`
+                    : e.detalhe;
+                  return (
+                    <li key={i} className="border-l-2 border-border pl-3">
+                      <p className="font-medium">{rotuloEvento}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {formatarDataHora(e.data ?? e.criado_em)}
+                        {e.autor ? ` · ${e.autor}` : ""}
+                      </p>
+                      {detalheEvento && <p className="text-muted-foreground">{detalheEvento}</p>}
+                    </li>
+                  );
+                })}
                 {!eventos.length && <p className="text-muted-foreground">{traco}</p>}
               </ul>
             </section>
@@ -618,6 +658,62 @@ export function PainelSolicitacao({
             </section>
           </div>
         )}
+
+        <Dialog open={converterAberto} onOpenChange={setConverterAberto}>
+          <DialogContent className="max-w-sm">
+            <DialogHeader>
+              <DialogTitle className="font-serif">
+                {paraConversao === "troca" ? "Converter em troca" : "Converter em reembolso"}
+              </DialogTitle>
+              <DialogDescription>
+                {paraConversao === "troca"
+                  ? "Esta solicitação vai passar de reembolso para troca."
+                  : "Esta solicitação vai passar de troca para reembolso."}
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-2">
+              <Label htmlFor="motivo-conversao">Motivo</Label>
+              <Textarea
+                id="motivo-conversao"
+                value={motivoConversao}
+                onChange={(e) => setMotivoConversao(e.target.value)}
+                placeholder="Ex: cliente confirmou no WhatsApp que quer trocar"
+              />
+              <p className="text-xs text-muted-foreground">
+                A cliente não recebe aviso automático. Quem fala com ela é a consultora.
+              </p>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" disabled={!!ocupado} onClick={() => setConverterAberto(false)}>
+                Voltar
+              </Button>
+              <Button
+                disabled={!!ocupado || !motivoConversao.trim()}
+                onClick={async () => {
+                  setOcupado("converter");
+                  try {
+                    await converterPreferencia(s.id, paraConversao, motivoConversao.trim());
+                    toast({ title: "Preferência alterada" });
+                    setConverterAberto(false);
+                    setMotivoConversao("");
+                    await carregar();
+                    aoMudar();
+                  } catch (e: any) {
+                    toast({
+                      title: "Não deu certo",
+                      description: e.message,
+                      variant: "destructive",
+                    });
+                  } finally {
+                    setOcupado("");
+                  }
+                }}
+              >
+                {ocupado === "converter" ? "Convertendo..." : "Confirmar conversão"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </SheetContent>
     </Sheet>
   );

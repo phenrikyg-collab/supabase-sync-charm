@@ -109,6 +109,13 @@ export const vincularPedidoNovo = (
 export const cancelarSolicitacao = (p_id: string, p_motivo: string) =>
   rpc("reversa_cancelar", { p_id, p_motivo });
 
+/** Converte a preferência da solicitação (reembolso <-> troca), sem avisar a cliente. */
+export const converterPreferencia = (
+  p_id: string,
+  p_para: "troca" | "reembolso",
+  p_motivo: string,
+) => rpc("reversa_converter_preferencia", { p_id, p_para, p_motivo, p_avisar: false });
+
 export const painelCriar = (p_payload: Record<string, any>) =>
   rpc<Record<string, any>>("reversa_painel_criar", { p_payload });
 
