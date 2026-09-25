@@ -45,6 +45,7 @@ import { AtividadesRecentes } from "@/components/atendimento/AtividadesRecentes"
 import { CobrancaPixDialog, CobrancasTab } from "@/components/atendimento/CobrancaPix";
 import { LinksPagamentoTab } from "@/components/atendimento/LinksPagamento";
 import { CobrancasConversa } from "@/components/atendimento/CobrancasConversa";
+import { CobrancasAbertas, CancelarCobrancaBolha, tipoCobrancaDaMensagem } from "@/components/atendimento/CobrancasAbertas";
 import { LinkPagamentoCard, LinkPagamentoDialog } from "@/components/atendimento/LinkPagamento";
 import { CalcularFreteDialog } from "@/components/atendimento/CalcularFrete";
 import { ProporCarrinhoDialog, PropostaDaConversa } from "@/components/atendimento/ProporCarrinho";
@@ -611,13 +612,14 @@ type BalaoMensagemProps = {
   onEnviarTemplate: () => void;
   onDesfazer: (id: number) => void;
   onExcluir: (m: Mensagem) => void;
+  conversaId?: string | number;
 };
 
 /** Um balão da conversa. Memoizado: só repinta quando a própria mensagem muda. */
 export const BalaoMensagem = memo(function BalaoMensagem({
   m, nomeCliente, divisorKora, divisorProprio, destacado, menuAberto, toqueRef, onRegistrarRef,
   onResponder, onCopiar, onAbrirMenu, onIrParaMensagem, onReenviar, onDescartar, onEnviarTemplate,
-  onDesfazer, onExcluir,
+  onDesfazer, onExcluir, conversaId,
 }: BalaoMensagemProps) {
                     const saida = m.direcao === "saida";
                     const bot = saida && m.origem === "bot";
@@ -784,6 +786,10 @@ export const BalaoMensagem = memo(function BalaoMensagem({
 
                             {midia && <MensagemMidia tipo={m.tipo} mediaUrl={m.media_url} conteudo={m.conteudo} />}
                             {mostrarTexto && <p className="max-w-full whitespace-pre-wrap break-words [overflow-wrap:anywhere] [word-break:break-word]">{m.conteudo}</p>}
+                            {saida && conversaId != null && !otimista && (() => {
+                              const tipoCob = tipoCobrancaDaMensagem(m.conteudo);
+                              return tipoCob ? <CancelarCobrancaBolha conversaId={conversaId} tipo={tipoCob} /> : null;
+                            })()}
                             {falhou && (
                               <div className="mt-2 space-y-1.5">
                                 <p className="text-xs font-semibold text-danger">Não enviada</p>
@@ -3424,6 +3430,7 @@ export default function Atendimento() {
                         onEnviarTemplate={abrirTemplate}
                         onDesfazer={desfazerEnvio}
                         onExcluir={setMensagemExcluir}
+                        conversaId={conversaAtual.id}
                       />
                     );
                   })}
