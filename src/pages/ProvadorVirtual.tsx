@@ -1176,6 +1176,17 @@ function FunilLeads({
                           Mover para {col.proximo === "em_contato" ? "Em Contato" : "Convertido"}
                         </Button>
                       )}
+                      {lead.telefone && (
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="mt-1 w-full text-muted-foreground hover:text-danger"
+                          onClick={() => setLeadBloqueio(lead)}
+                        >
+                          <Ban className="mr-1.5 h-3.5 w-3.5" />
+                          Bloquear
+                        </Button>
+                      )}
                     </div>
                   );
                 })}
