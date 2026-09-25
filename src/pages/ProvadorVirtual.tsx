@@ -465,6 +465,55 @@ function CampoConfigNumero({
   );
 }
 
+function CampoConfigTexto({
+  chave, rotulo, placeholder, config, onSalvo,
+}: {
+  chave: string; rotulo: string; placeholder?: string;
+  config: ProvadorConfig; onSalvo: (cfg: ProvadorConfig) => void;
+}) {
+  const [valor, setValor] = useState(config[chave]?.valor ?? "");
+  const [salvando, setSalvando] = useState(false);
+
+  async function salvar() {
+    setSalvando(true);
+    try {
+      const { data, error } = await (supabase as any).rpc("provador_config_set", {
+        p_chave: chave,
+        p_valor: String(valor),
+      });
+      if (error) throw error;
+      onSalvo(data as ProvadorConfig);
+      toast.success("Configuração salva");
+    } catch (e: any) {
+      toast.error(e.message || "Não foi possível salvar");
+    } finally {
+      setSalvando(false);
+    }
+  }
+
+  return (
+    <div className="space-y-1.5">
+      <Label className="text-xs">{rotulo}</Label>
+      <div className="flex gap-2">
+        <Input
+          type="text"
+          value={valor}
+          onChange={(e) => setValor(e.target.value)}
+          onBlur={() => { if (String(valor) !== (config[chave]?.valor ?? "")) void salvar(); }}
+          placeholder={placeholder}
+          className="h-8"
+        />
+        <Button size="sm" variant="outline" className="h-8" disabled={salvando} onClick={salvar}>
+          {salvando ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Salvar"}
+        </Button>
+      </div>
+      {config[chave]?.descricao && (
+        <p className="text-[11px] leading-snug text-muted-foreground">{config[chave].descricao}</p>
+      )}
+    </div>
+  );
+}
+
 function CampoConfigSwitch({
   chave, rotulo, config, onSalvo,
 }: {
@@ -722,6 +771,8 @@ function CotasBloqueios() {
           <CampoConfigIsentos config={cfg} onSalvo={salvoConfig} />
         </CardContent>
       </Card>
+
+      <CardTemplateAuto config={cfg} onSalvo={salvoConfig} />
 
       <Card>
         <CardHeader><CardTitle className="text-lg">Bloqueios</CardTitle></CardHeader>
