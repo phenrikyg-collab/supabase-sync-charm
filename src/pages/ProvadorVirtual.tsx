@@ -1247,6 +1247,30 @@ function FunilLeads({
         </DialogContent>
       </Dialog>
 
+      <AlertDialog open={!!leadBloqueio} onOpenChange={(o) => !o && setLeadBloqueio(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Bloquear esta cliente no provador?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Ela não vai mais conseguir gerar provas.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={bloqueandoLead}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={bloqueandoLead}
+              onClick={(e) => {
+                e.preventDefault();
+                if (leadBloqueio) void bloquearLead(leadBloqueio);
+              }}
+            >
+              {bloqueandoLead && <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />}
+              Bloquear
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
     </>
   );
 }
