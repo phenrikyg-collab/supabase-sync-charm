@@ -10,6 +10,8 @@ import { cn } from "@/lib/utils";
 import { ChevronDown, Clock, CreditCard, Package, Scissors, Sparkles, StickyNote, Tag, UserX } from "lucide-react";
 import { formatarPreco } from "./CatalogoDialog";
 import { chamarRpc } from "@/lib/supabaseRpc";
+import { CashbackConversa } from "@/components/atendimento/CashbackConversa";
+import { TrocasCliente } from "@/components/atendimento/TrocasCliente";
 
 type Perfil = {
   vinculado?: boolean;
@@ -342,6 +344,21 @@ export function PerfilCliente({
         <h3 className="text-sm font-semibold">Perfil da cliente</h3>
       </div>
       <div className="min-w-0 max-w-full p-3 space-y-4 overflow-x-hidden">
+          {!!perfil?.pedidos?.length && <SecaoPedidos pedidos={perfil.pedidos} />}
+          {ultimoPedido && (
+            <div className="rounded-md border border-primary/30 bg-primary/10 p-2.5">
+              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Status do último pedido</p>
+              <div className="mt-1 flex items-start justify-between gap-2 text-sm">
+                <span className="font-semibold">#{ultimoPedido.id}</span>
+                <span className="text-right font-medium">{ultimoPedido.status ?? "Sem status"}</span>
+              </div>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Previsão de entrega: {ultimoPedido.previsao_entrega ? dataCurta(ultimoPedido.previsao_entrega) : "Não informada"}
+              </p>
+            </div>
+          )}
+          {telefone && <div className="-mx-3"><CashbackConversa telefone={telefone} /></div>}
+          <TrocasCliente key={String(conversaId)} conversaId={conversaId} />
           {isLoading && <p className="text-sm text-muted-foreground">Carregando perfil…</p>}
 
           {!isLoading && !perfil?.vinculado && (
@@ -445,21 +462,6 @@ export function PerfilCliente({
                     <MiniCard label="Últ. compra" valor={`${rfm.dias_desde_ultima_compra ?? "—"} d`} />
                   </div>
                 </section>
-              )}
-
-              {!!perfil.pedidos?.length && <SecaoPedidos pedidos={perfil.pedidos} />}
-
-              {ultimoPedido && (
-                <div className="rounded-md border border-primary/30 bg-primary/10 p-2.5">
-                  <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Status do último pedido</p>
-                  <div className="mt-1 flex items-start justify-between gap-2 text-sm">
-                    <span className="font-semibold">#{ultimoPedido.id}</span>
-                    <span className="text-right font-medium">{ultimoPedido.status ?? "Sem status"}</span>
-                  </div>
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    Previsão de entrega: {ultimoPedido.previsao_entrega ? dataCurta(ultimoPedido.previsao_entrega) : "Não informada"}
-                  </p>
-                </div>
               )}
 
               {!!perfil.produtos_comprados?.length && (

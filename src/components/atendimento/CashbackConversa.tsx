@@ -93,7 +93,7 @@ export function CashbackConversa({ telefone }: { telefone: string }) {
         <Button variant="ghost" className="h-8 w-full justify-between gap-2 px-0 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground hover:text-foreground">
           <span className="flex min-w-0 items-center gap-1.5">
             <Ticket className="h-3.5 w-3.5 shrink-0" />
-            <span>Cashback · {isLoading ? "..." : brl(data?.saldo)}</span>
+            <span>Cupons e cashback · {isLoading ? "..." : brl(data?.saldo)}</span>
           </span>
           <ChevronDown className={cn("h-4 w-4 shrink-0 transition-transform", aberto && "rotate-180")} />
         </Button>
