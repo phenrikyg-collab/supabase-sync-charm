@@ -49,8 +49,10 @@ function BotaoCopiar({ valor }: { valor: string }) {
 export function AcoesTroca({
   s,
   aoMudar,
+  semBling = false,
 }: {
   s: Record<string, any>;
+  semBling?: boolean;
   aoMudar: () => Promise<void> | void;
 }) {
   const { toast } = useToast();
@@ -171,7 +173,7 @@ export function AcoesTroca({
         )}
       </div>
 
-      {temPedidoNovo ? (
+      {temPedidoNovo && semBling && s.pedido_novo_origem === "bling" ? null : temPedidoNovo ? (
         <div className="rounded-lg border border-border p-3 space-y-1">
           <p className="text-sm font-medium">Pedido novo</p>
           <p className="text-sm text-muted-foreground">
@@ -186,6 +188,7 @@ export function AcoesTroca({
       ) : (
         <>
           {/* Ação 2 - pedido no Bling */}
+          {!semBling && (
           <div className="rounded-lg border border-border p-3 space-y-2">
             <p className="text-sm font-medium">Pedido no Bling</p>
             <p className="text-xs text-muted-foreground">
@@ -218,6 +221,7 @@ export function AcoesTroca({
               </p>
             )}
           </div>
+          )}
 
           {/* Ação 3 - vincular pedido da Tray */}
           <div
