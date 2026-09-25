@@ -183,7 +183,19 @@ export function PainelSolicitacao({
                 valor={semDocumento ? traco : mascararDocumento(s.cliente?.documento ?? s.cliente_documento)}
               />
               <Info rotulo="Pedido" valor={texto(s.pedido)} />
-              <Info rotulo="Preferência" valor={texto(s.preferencia_rotulo ?? s.preferencia)} />
+              <div>
+                <Info rotulo="Preferência" valor={texto(s.preferencia_rotulo ?? s.preferencia)} />
+                {podeConverter && (
+                  <button
+                    type="button"
+                    className="mt-0.5 text-xs text-primary underline-offset-2 hover:underline disabled:opacity-50"
+                    disabled={!!ocupado}
+                    onClick={() => setConverterAberto(true)}
+                  >
+                    {paraConversao === "troca" ? "Converter em troca" : "Converter em reembolso"}
+                  </button>
+                )}
+              </div>
               <Info rotulo="Status" valor={texto(s.status_rotulo ?? s.status)} />
               <Info rotulo="Valor" valor={moeda(s.valor ?? s.valor_total)} />
             </div>
