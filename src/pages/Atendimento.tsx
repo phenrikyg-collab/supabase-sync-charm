@@ -2700,11 +2700,14 @@ export default function Atendimento() {
 
 
         <TabsContent value="conversas" className="m-0 min-h-0 w-full min-w-0 max-w-full flex-1 overflow-hidden data-[state=active]:flex">
-      <div className={cn(
-        "flex min-h-0 w-full min-w-0 max-w-full flex-1 flex-col overflow-hidden",
-        isMobile && selecionada && abaPagina === "conversas" && "hidden",
-      )}>
-      <AcaoDoDia />
+      <div
+        className={cn(
+          "shrink-0",
+          isMobile && selecionada && abaPagina === "conversas" && "hidden",
+        )}
+      >
+        <AcaoDoDia />
+      </div>
       <Colunas
         ajustavel={colunasAjustaveis}
         grupoRef={grupoColunasRef}
@@ -3690,7 +3693,6 @@ export default function Atendimento() {
         </Sheet>
 
       </Colunas>
-      </div>
         </TabsContent>
       </Tabs>
 
