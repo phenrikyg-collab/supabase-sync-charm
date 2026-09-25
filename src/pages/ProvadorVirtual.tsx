@@ -12,15 +12,21 @@ import { Label } from "@/components/ui/label";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
+import { Textarea } from "@/components/ui/textarea";
 
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import {
-  Loader2, MessageCircle, Globe, Sparkles, Download, Search, Upload, Send, RefreshCw, FilterX,
+  Loader2, MessageCircle, Globe, Sparkles, Download, Search, Upload, Send, RefreshCw, FilterX, Ban,
 } from "lucide-react";
 
 const SUPABASE_URL = "https://ezdtulcrqzmgocamjwwl.supabase.co";
@@ -368,6 +374,347 @@ const OPCOES_CONTATO: { valor: ContatoFunil; rotulo: string }[] = [
 
 const OPCOES_TAMANHO = ["PP", "P", "M", "G", "GG", "EG"];
 
+/* ---------------- Cotas e bloqueios ---------------- */
+
+type ProvadorConfig = Record<string, { valor: string; descricao: string; atualizado_em: string }>;
+
+type Bloqueado = {
+  chave: string;
+  tipo: "telefone" | "ip" | "visitante" | "foto" | string;
+  provas: number;
+  ultima: string | null;
+};
+
+const CHAVES_NUMERICAS: { chave: string; rotulo: string }[] = [
+  { chave: "limite_dia", rotulo: "Limite por dia" },
+  { chave: "limite_mes", rotulo: "Limite por mês" },
+  { chave: "limite_produto", rotulo: "Limite por produto" },
+];
+
+const CHAVES_SWITCH: { chave: string; rotulo: string }[] = [
+  { chave: "contar_visitante", rotulo: "Contar visitante" },
+  { chave: "contar_foto", rotulo: "Contar foto" },
+];
+
+const ORDEM_TIPOS_BLOQUEIO = ["telefone", "visitante", "ip", "foto"];
+
+const CLASSE_TIPO_BLOQUEIO: Record<string, string> = {
+  telefone: "border-danger/30 bg-danger/10 text-danger",
+  visitante: "border-info/30 bg-info/10 text-info",
+  ip: "border-warning/30 bg-warning/10 text-warning",
+  foto: "border-border bg-muted text-muted-foreground",
+};
+
+function CampoConfigNumero({
+  chave, rotulo, config, onSalvo,
+}: {
+  chave: string; rotulo: string; config: ProvadorConfig;
+  onSalvo: (cfg: ProvadorConfig) => void;
+}) {
+  const [valor, setValor] = useState(config[chave]?.valor ?? "0");
+  const [salvando, setSalvando] = useState(false);
+
+  async function salvar() {
+    setSalvando(true);
+    try {
+      const { data, error } = await (supabase as any).rpc("provador_config_set", {
+        p_chave: chave,
+        p_valor: String(valor),
+      });
+      if (error) throw error;
+      onSalvo(data as ProvadorConfig);
+      toast.success("Configuração salva");
+    } catch (e: any) {
+      toast.error(e.message || "Não foi possível salvar");
+    } finally {
+      setSalvando(false);
+    }
+  }
+
+  return (
+    <div className="space-y-1.5">
+      <Label className="text-xs">{rotulo}</Label>
+      <div className="flex gap-2">
+        <Input
+          type="number"
+          min={0}
+          value={valor}
+          onChange={(e) => setValor(e.target.value)}
+          onBlur={() => { if (String(valor) !== (config[chave]?.valor ?? "0")) void salvar(); }}
+          className="h-8"
+        />
+        <Button size="sm" variant="outline" className="h-8" disabled={salvando} onClick={salvar}>
+          {salvando ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Salvar"}
+        </Button>
+      </div>
+      {config[chave]?.descricao && (
+        <p className="text-[11px] leading-snug text-muted-foreground">{config[chave].descricao}</p>
+      )}
+      <p className="text-[11px] text-muted-foreground">0 desliga.</p>
+    </div>
+  );
+}
+
+function CampoConfigSwitch({
+  chave, rotulo, config, onSalvo,
+}: {
+  chave: string; rotulo: string; config: ProvadorConfig;
+  onSalvo: (cfg: ProvadorConfig) => void;
+}) {
+  const [salvando, setSalvando] = useState(false);
+  const ligado = config[chave]?.valor === "true";
+
+  async function alternar(v: boolean) {
+    setSalvando(true);
+    try {
+      const { data, error } = await (supabase as any).rpc("provador_config_set", {
+        p_chave: chave,
+        p_valor: v ? "true" : "false",
+      });
+      if (error) throw error;
+      onSalvo(data as ProvadorConfig);
+      toast.success("Configuração salva");
+    } catch (e: any) {
+      toast.error(e.message || "Não foi possível salvar");
+    } finally {
+      setSalvando(false);
+    }
+  }
+
+  return (
+    <div className="flex items-center justify-between gap-3 rounded-md border p-3">
+      <div className="space-y-0.5">
+        <Label className="text-xs">{rotulo}</Label>
+        {config[chave]?.descricao && (
+          <p className="text-[11px] leading-snug text-muted-foreground">{config[chave].descricao}</p>
+        )}
+      </div>
+      <Switch checked={ligado} disabled={salvando} onCheckedChange={alternar} />
+    </div>
+  );
+}
+
+function CampoConfigIsentos({
+  config, onSalvo,
+}: {
+  config: ProvadorConfig; onSalvo: (cfg: ProvadorConfig) => void;
+}) {
+  const [valor, setValor] = useState(config.isentos?.valor ?? "");
+  const [salvando, setSalvando] = useState(false);
+
+  async function salvar() {
+    setSalvando(true);
+    try {
+      const { data, error } = await (supabase as any).rpc("provador_config_set", {
+        p_chave: "isentos",
+        p_valor: valor,
+      });
+      if (error) throw error;
+      onSalvo(data as ProvadorConfig);
+      toast.success("Configuração salva");
+    } catch (e: any) {
+      toast.error(e.message || "Não foi possível salvar");
+    } finally {
+      setSalvando(false);
+    }
+  }
+
+  return (
+    <div className="space-y-1.5">
+      <Label className="text-xs">Isentos (telefones ou visitante_id separados por vírgula)</Label>
+      <Textarea
+        value={valor}
+        onChange={(e) => setValor(e.target.value)}
+        onBlur={() => { if (valor !== (config.isentos?.valor ?? "")) void salvar(); }}
+        rows={3}
+        placeholder="5511999999999, visitante_abc123"
+      />
+      {config.isentos?.descricao && (
+        <p className="text-[11px] leading-snug text-muted-foreground">{config.isentos.descricao}</p>
+      )}
+      <Button size="sm" variant="outline" className="h-8" disabled={salvando} onClick={salvar}>
+        {salvando ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Salvar"}
+      </Button>
+    </div>
+  );
+}
+
+function CotasBloqueios() {
+  const qc = useQueryClient();
+  const [alvo, setAlvo] = useState("");
+  const [bloqueando, setBloqueando] = useState(false);
+
+  const { data: config, isLoading: carregandoConfig } = useQuery({
+    queryKey: ["provador-config"],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any).rpc("provador_config_get");
+      if (error) throw error;
+      return (data ?? {}) as ProvadorConfig;
+    },
+  });
+
+  const { data: bloqueados = [], isLoading: carregandoBloqueados } = useQuery({
+    queryKey: ["provador-bloqueados"],
+    queryFn: async () => {
+      const { data, error } = await (supabase as any).rpc("provador_bloqueados_listar");
+      if (error) throw error;
+      return (data ?? []) as Bloqueado[];
+    },
+  });
+
+  const bloqueadosOrdenados = useMemo(() => {
+    return [...bloqueados].sort((a, b) => {
+      const ia = ORDEM_TIPOS_BLOQUEIO.indexOf(a.tipo);
+      const ib = ORDEM_TIPOS_BLOQUEIO.indexOf(b.tipo);
+      return (ia === -1 ? 99 : ia) - (ib === -1 ? 99 : ib);
+    });
+  }, [bloqueados]);
+
+  function salvoConfig(cfg: ProvadorConfig) {
+    qc.setQueryData(["provador-config"], cfg);
+  }
+
+  async function bloquear() {
+    const texto = alvo.trim();
+    if (!texto) return;
+    setBloqueando(true);
+    try {
+      const { error } = await (supabase as any).rpc("provador_bloquear", {
+        p_alvo: texto,
+        p_expandir: true,
+      });
+      if (error) throw error;
+      toast.success("Bloqueado");
+      setAlvo("");
+      qc.invalidateQueries({ queryKey: ["provador-bloqueados"] });
+      qc.invalidateQueries({ queryKey: ["provador-leads"] });
+    } catch (e: any) {
+      toast.error(e.message || "Não foi possível bloquear");
+    } finally {
+      setBloqueando(false);
+    }
+  }
+
+  async function desbloquear(chave: string) {
+    try {
+      const { error } = await (supabase as any).rpc("provador_desbloquear", { p_alvo: chave });
+      if (error) throw error;
+      toast.success("Desbloqueado");
+      qc.invalidateQueries({ queryKey: ["provador-bloqueados"] });
+      qc.invalidateQueries({ queryKey: ["provador-leads"] });
+    } catch (e: any) {
+      toast.error(e.message || "Não foi possível desbloquear");
+    }
+  }
+
+  if (carregandoConfig) {
+    return (
+      <div className="flex justify-center py-16">
+        <Loader2 className="h-6 w-6 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  const cfg = config ?? {};
+
+  return (
+    <div className="grid gap-6 lg:grid-cols-2">
+      <Card>
+        <CardHeader><CardTitle className="text-lg">Cotas</CardTitle></CardHeader>
+        <CardContent className="space-y-4">
+          {CHAVES_NUMERICAS.map((c) => (
+            <CampoConfigNumero key={c.chave} chave={c.chave} rotulo={c.rotulo} config={cfg} onSalvo={salvoConfig} />
+          ))}
+          <div className="space-y-3">
+            {CHAVES_SWITCH.map((c) => (
+              <CampoConfigSwitch key={c.chave} chave={c.chave} rotulo={c.rotulo} config={cfg} onSalvo={salvoConfig} />
+            ))}
+          </div>
+          <CampoConfigIsentos config={cfg} onSalvo={salvoConfig} />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader><CardTitle className="text-lg">Bloqueios</CardTitle></CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex gap-2">
+            <Input
+              value={alvo}
+              onChange={(e) => setAlvo(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && bloquear()}
+              placeholder="Telefone, IP ou visitante_id"
+              className="h-9"
+            />
+            <Button size="sm" className="h-9" disabled={bloqueando || !alvo.trim()} onClick={bloquear}>
+              {bloqueando ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : <Ban className="mr-1.5 h-3.5 w-3.5" />}
+              Bloquear
+            </Button>
+          </div>
+          <p className="text-[11px] leading-snug text-muted-foreground">
+            Bloquear um telefone também bloqueia os IPs, o navegador e as fotos que apareceram com ele.
+            IP de celular muda com frequência, então o bloqueio por IP vale por 2 dias.
+          </p>
+          {carregandoBloqueados ? (
+            <div className="flex justify-center py-8">
+              <Loader2 className="h-5 w-5 animate-spin text-primary" />
+            </div>
+          ) : bloqueadosOrdenados.length === 0 ? (
+            <p className="py-6 text-center text-sm text-muted-foreground">Nenhum bloqueio ativo</p>
+          ) : (
+            <div className="overflow-x-auto rounded-md border">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b bg-muted/40 text-left text-xs text-muted-foreground">
+                    <th className="px-3 py-2 font-medium">Tipo</th>
+                    <th className="px-3 py-2 font-medium">Chave</th>
+                    <th className="px-3 py-2 font-medium">Provas</th>
+                    <th className="px-3 py-2 font-medium">Última</th>
+                    <th className="px-3 py-2" />
+                  </tr>
+                </thead>
+                <tbody>
+                  {bloqueadosOrdenados.map((b) => {
+                    const encurtar = b.tipo === "ip" || b.tipo === "foto";
+                    const chaveCurta = encurtar && b.chave.length > 8 ? `${b.chave.slice(0, 8)}…` : b.chave;
+                    return (
+                      <tr key={`${b.tipo}-${b.chave}`} className="border-b last:border-0">
+                        <td className="px-3 py-2">
+                          <span className={cn("inline-flex rounded-full border px-2 py-0.5 text-[10px] font-semibold", CLASSE_TIPO_BLOQUEIO[b.tipo] ?? CLASSE_TIPO_BLOQUEIO.foto)}>
+                            {b.tipo}
+                          </span>
+                        </td>
+                        <td className="max-w-[160px] truncate px-3 py-2 font-mono text-xs">
+                          {encurtar ? (
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <span className="cursor-help">{chaveCurta}</span>
+                              </TooltipTrigger>
+                              <TooltipContent>{b.chave}</TooltipContent>
+                            </Tooltip>
+                          ) : (
+                            chaveCurta
+                          )}
+                        </td>
+                        <td className="px-3 py-2">{b.provas}</td>
+                        <td className="px-3 py-2 text-xs text-muted-foreground">{b.ultima ? tempoRel(b.ultima) : "-"}</td>
+                        <td className="px-3 py-2 text-right">
+                          <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => desbloquear(b.chave)}>
+                            Desbloquear
+                          </Button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
 function FunilLeads({
   onAbrirConversa,
   onContagem,
@@ -384,6 +731,8 @@ function FunilLeads({
   const [leadEnvio, setLeadEnvio] = useState<Lead | null>(null);
   const [conflito, setConflito] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);
+  const [leadBloqueio, setLeadBloqueio] = useState<Lead | null>(null);
+  const [bloqueandoLead, setBloqueandoLead] = useState(false);
 
   const { data: leads = [], isLoading } = useQuery({
     queryKey: ["provador-leads"],
@@ -499,6 +848,29 @@ function FunilLeads({
     },
     onError: (e: any) => toast.error(e.message || "Não foi possível mover o lead"),
   });
+
+  async function bloquearLead(lead: Lead) {
+    if (!lead.telefone) {
+      toast.error("Esta cliente não tem telefone para bloquear");
+      return;
+    }
+    setBloqueandoLead(true);
+    try {
+      const { error } = await (supabase as any).rpc("provador_bloquear", {
+        p_alvo: lead.telefone,
+        p_expandir: true,
+      });
+      if (error) throw error;
+      toast.success("Bloqueada");
+      setLeadBloqueio(null);
+      qc.invalidateQueries({ queryKey: ["provador-leads"] });
+      qc.invalidateQueries({ queryKey: ["provador-bloqueados"] });
+    } catch (e: any) {
+      toast.error(e.message || "Não foi possível bloquear");
+    } finally {
+      setBloqueandoLead(false);
+    }
+  }
 
   async function mensagemPronta(lead: Lead) {
     setPreparando(lead.id);
@@ -804,6 +1176,17 @@ function FunilLeads({
                           Mover para {col.proximo === "em_contato" ? "Em Contato" : "Convertido"}
                         </Button>
                       )}
+                      {lead.telefone && (
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="mt-1 w-full text-muted-foreground hover:text-danger"
+                          onClick={() => setLeadBloqueio(lead)}
+                        >
+                          <Ban className="mr-1.5 h-3.5 w-3.5" />
+                          Bloquear
+                        </Button>
+                      )}
                     </div>
                   );
                 })}
@@ -863,6 +1246,30 @@ function FunilLeads({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={!!leadBloqueio} onOpenChange={(o) => !o && setLeadBloqueio(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Bloquear esta cliente no provador?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Ela não vai mais conseguir gerar provas.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={bloqueandoLead}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={bloqueandoLead}
+              onClick={(e) => {
+                e.preventDefault();
+                if (leadBloqueio) void bloquearLead(leadBloqueio);
+              }}
+            >
+              {bloqueandoLead && <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />}
+              Bloquear
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
     </>
   );
@@ -1216,12 +1623,16 @@ export function ProvadorVirtualConteudo({
         <TabsList>
           <TabsTrigger value="funil">Funil de Leads</TabsTrigger>
           <TabsTrigger value="gerar">Gerar Prova</TabsTrigger>
+          <TabsTrigger value="cotas">Cotas e bloqueios</TabsTrigger>
         </TabsList>
         <TabsContent value="funil" className="mt-6">
           <FunilLeads onAbrirConversa={onAbrirConversa} onContagem={onContagem} />
         </TabsContent>
         <TabsContent value="gerar" className="mt-6">
           <GerarProva conversaId={conversaId} nomeInicial={nomeInicial} telefoneInicial={telefoneInicial} />
+        </TabsContent>
+        <TabsContent value="cotas" className="mt-6">
+          <CotasBloqueios />
         </TabsContent>
       </Tabs>
     </div>
