@@ -253,6 +253,7 @@ export default function NovaOrdemCorte() {
 
       let numero = data?.numero_oc as string | undefined;
       let ops = data?.ops_criadas as number | undefined;
+      let novoId = data?.id as string | undefined;
       if (error && rpcAusente(error)) {
         // SQL ainda não aplicado: caminho antigo + OPs criadas pelo painel
         const ordem = await createMut.mutateAsync({
@@ -284,6 +285,7 @@ export default function NovaOrdemCorte() {
         );
         if (opErr) throw opErr;
         numero = numeroOC;
+        novoId = ordem.id;
         ops = grupos.length;
       } else if (error) {
         throw error;
@@ -292,7 +294,8 @@ export default function NovaOrdemCorte() {
       qc.invalidateQueries({ queryKey: ["ordens-producao"] });
       qc.invalidateQueries({ queryKey: ["rolos-tecido"] });
       toast.success(`${numero} salva, ${ops} ordem(ns) de produção gerada(s)`);
-      navigate("/ordens-corte");
+      // Abre a ordem recém-criada para imprimir a ficha com o QR na hora.
+      navigate(novoId ? `/oc/${novoId}` : "/ordens-corte");
     } catch (e: unknown) {
       console.error("[NovaOrdemCorte] erro ao criar ordem:", e);
       const err = e as { message?: string; details?: string; hint?: string; code?: string };

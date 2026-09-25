@@ -11,7 +11,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Loader2, LogOut, PackageCheck } from "lucide-react";
+import { Loader2, LogOut, PackageCheck, QrCode } from "lucide-react";
+import { Link } from "react-router-dom";
+import { QrCodeOrdemDialog } from "@/components/QrCodeOrdemDialog";
+import { urlOrdemProducao } from "@/lib/qrOrdem";
 import { toast } from "sonner";
 
 type Op = {
@@ -30,6 +33,7 @@ export default function PortalOficina() {
   const [qtd, setQtd] = useState(0);
   const [data, setData] = useState(new Date().toISOString().slice(0, 10));
   const [enviando, setEnviando] = useState(false);
+  const [qrOp, setQrOp] = useState<Op | null>(null);
 
   const { data: info, isLoading, error } = useQuery({
     queryKey: ["portal-oficina", user?.id],
@@ -95,13 +99,16 @@ export default function PortalOficina() {
         <CardContent className="space-y-3 pt-4">
           <div className="flex items-start justify-between gap-2">
             <div className="min-w-0">
-              <p className="font-serif text-lg font-semibold text-foreground">{(o.produto_id && info?.prods[o.produto_id]) || o.nome_produto || "-"}</p>
+              <Link to={`/op/${o.id}`} className="font-serif text-lg font-semibold text-foreground hover:underline">{(o.produto_id && info?.prods[o.produto_id]) || o.nome_produto || "-"}</Link>
               <p className="flex items-center gap-1.5 text-sm text-muted-foreground">
                 {cor?.cor_hex && <span className="h-3 w-3 rounded-full border border-border" style={{ backgroundColor: cor.cor_hex }} />}
                 {cor?.nome_cor ?? "Sem cor"}
               </p>
             </div>
-            <Badge variant={entregue ? "secondary" : "outline"}>{o.status_ordem ?? "-"}</Badge>
+            <div className="flex shrink-0 items-center gap-1">
+              <Badge variant={entregue ? "secondary" : "outline"}>{o.status_ordem ?? "-"}</Badge>
+              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setQrOp(o)} aria-label="QR Code"><QrCode className="h-4 w-4" /></Button>
+            </div>
           </div>
           {g.length > 0 && (
             <div className="flex flex-wrap gap-2">
@@ -161,6 +168,16 @@ export default function PortalOficina() {
             </section>
           )}
         </>
+      )}
+
+      {qrOp && (
+        <QrCodeOrdemDialog
+          open={!!qrOp}
+          onOpenChange={(v) => !v && setQrOp(null)}
+          url={urlOrdemProducao(qrOp.id)}
+          titulo={(qrOp.produto_id && info?.prods[qrOp.produto_id]) || qrOp.nome_produto || "Ordem"}
+          subtitulo={`${(qrOp.cor_id && info?.cores[qrOp.cor_id]?.nome_cor) || "Sem cor"} · ${qrOp.quantidade ?? qrOp.quantidade_pecas_ordem ?? 0} peças`}
+        />
       )}
 
       <Dialog open={!!baixa} onOpenChange={(v) => !v && setBaixa(null)}>

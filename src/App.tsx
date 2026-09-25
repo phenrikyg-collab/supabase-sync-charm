@@ -125,6 +125,8 @@ import AutomacaoFluxo from "./pages/AutomacaoFluxo";
 import EmailMarketing from "./pages/EmailMarketing";
 import MarketingWhatsApp from "./pages/MarketingWhatsApp";
 import EmailTemplateEditor from "./pages/EmailTemplateEditor";
+import OrdemCorteDetalhe from "./pages/OrdemCorteDetalhe";
+import OrdemProducaoDetalhe from "./pages/OrdemProducaoDetalhe";
 import { Loader2 } from "lucide-react";
 import { useUserModules, type AppModule } from "@/hooks/useUserModules";
 import { useUserRole } from "@/hooks/useUserRole";
@@ -147,7 +149,11 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
       <Loader2 className="h-8 w-8 animate-spin text-primary" />
     </div>
   );
-  if (!user) return <Navigate to="/login" replace />;
+  if (!user) {
+    // Guarda o endereço (ex.: aberto pelo QR) para voltar a ele depois de entrar.
+    try { sessionStorage.setItem("voltar-apos-login", window.location.pathname); } catch { /* ignore */ }
+    return <Navigate to="/login" replace />;
+  }
   return <>{children}</>;
 }
 
@@ -159,6 +165,8 @@ function HomeRedirect() {
       <Loader2 className="h-8 w-8 animate-spin text-primary" />
     </div>
   );
+  const voltar = (() => { try { const v = sessionStorage.getItem("voltar-apos-login"); sessionStorage.removeItem("voltar-apos-login"); return v; } catch { return null; } })();
+  if (voltar && /^\/(oc|op)\/[^/]+$/.test(voltar)) return <Navigate to={voltar} replace />;
   if (isAdmin) return <Navigate to="/dashboard-comercial" replace />;
   if (isOficina) return <Navigate to="/portal-oficina" replace />;
   // Ordem de prioridade: primeiro módulo que o usuário tiver define a home dele.
@@ -208,6 +216,21 @@ function ModuleGuard({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+/** Página aberta pelo QR: oficina vê a OP sem menu (o banco só devolve a dela); equipe vê com o menu. */
+function DetalheOrdemRoute({ tipo }: { tipo: "oc" | "op" }) {
+  const { modules, isLoading } = useUserModules();
+  const { isAdmin, isOficina, isLoading: rolesLoading } = useUserRole();
+  if (isLoading || rolesLoading) return (
+    <div className="min-h-[60vh] flex items-center justify-center">
+      <Loader2 className="h-8 w-8 animate-spin text-primary" />
+    </div>
+  );
+  if (isOficina) return tipo === "op" ? <OrdemProducaoDetalhe /> : <Navigate to="/portal-oficina" replace />;
+  const req = tipo === "oc" ? requirementForPath("/ordens-corte/x/imprimir") : requirementForPath("/ordens-producao");
+  if (!canAccess(req, isAdmin, modules)) return <Navigate to="/" replace />;
+  return <AppLayout>{tipo === "oc" ? <OrdemCorteDetalhe /> : <OrdemProducaoDetalhe />}</AppLayout>;
+}
+
 const AppRoutes = () => {
   const { user, loading } = useAuth();
 
@@ -236,6 +259,8 @@ const AppRoutes = () => {
         }
       />
 
+      <Route path="/oc/:id" element={<ProtectedRoute><DetalheOrdemRoute tipo="oc" /></ProtectedRoute>} />
+      <Route path="/op/:id" element={<ProtectedRoute><DetalheOrdemRoute tipo="op" /></ProtectedRoute>} />
       <Route path="/login" element={user ? <HomeRedirect /> : <Login />} />
       <Route path="/tv-interna" element={<ProtectedRoute><TVInterna /></ProtectedRoute>} />
       <Route path="/portal-oficina" element={<ProtectedRoute><PortalOficina /></ProtectedRoute>} />

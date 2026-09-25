@@ -2,7 +2,9 @@ import { useOrdensCorte, useProdutos, useCores } from "@/hooks/useSupabase";
 import { Card, CardContent } from "@/components/ui/card";
 import { StatusBadge } from "@/components/StatusBadge";
 import { Button } from "@/components/ui/button";
-import { Plus, Pencil, Trash2, Printer, X, Search } from "lucide-react";
+import { Plus, Pencil, Trash2, Printer, X, Search, QrCode } from "lucide-react";
+import { QrCodeOrdemDialog } from "@/components/QrCodeOrdemDialog";
+import { urlOrdemCorte, qrBlocoFicha } from "@/lib/qrOrdem";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { useEffect, useState, useMemo } from "react";
@@ -85,6 +87,7 @@ export default function OrdensCorte() {
 
   const totalPecas = (grade: { quantidade: number }[]) => grade.reduce((a, g) => a + g.quantidade, 0);
 
+  const [qrOrdem, setQrOrdem] = useState<OrdemCorteEnriched | null>(null);
   const printOrdem = (o: OrdemCorteEnriched) => {
     const total = totalPecas(o.grade);
     // Group grade by produto_id, then by cor_id
@@ -132,6 +135,7 @@ export default function OrdensCorte() {
         </div>
         <div class="company"><img src="/images/logo.png" class="logo" alt="MC" /><br/>Gestão - Mariana Cardoso</div>
       </div>
+      ${qrBlocoFicha(urlOrdemCorte(o.id))}
       <div class="section">
         <div class="section-title">Informações Gerais</div>
         <div class="info-grid">
@@ -270,7 +274,7 @@ export default function OrdensCorte() {
               <Card className="hover:shadow-md transition-shadow">
                 <CardContent className="pt-5 space-y-3">
                   <div className="flex items-center justify-between">
-                    <span className="font-serif font-bold text-lg text-card-foreground">{o.numero_oc}</span>
+                    <button type="button" onClick={() => navigate(`/oc/${o.id}`)} className="font-serif font-bold text-lg text-card-foreground hover:underline">{o.numero_oc}</button>
                     <StatusBadge status={o.status ?? "planejada"} />
                   </div>
                   {o.tipo === "pedido" && (
@@ -343,8 +347,11 @@ export default function OrdensCorte() {
                     <Button variant="outline" size="sm" className="gap-1.5 flex-1" onClick={() => openEdit(o)}>
                       <Pencil className="h-3.5 w-3.5" /> Editar
                     </Button>
-                    <Button variant="outline" size="sm" className="gap-1.5" onClick={() => printOrdem(o)}>
+                    <Button variant="outline" size="sm" className="gap-1.5" onClick={() => printOrdem(o)} title="Imprimir ficha com QR">
                       <Printer className="h-3.5 w-3.5" />
+                    </Button>
+                    <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setQrOrdem(o)} title="QR Code">
+                      <QrCode className="h-3.5 w-3.5" />
                     </Button>
                     <Button variant="outline" size="sm" className="gap-1.5 flex-1 text-destructive hover:text-destructive" onClick={() => { setDeleteId(o.id); setDeleteOpen(true); }}>
                       <Trash2 className="h-3.5 w-3.5" /> Excluir
@@ -356,6 +363,17 @@ export default function OrdensCorte() {
           ))
         )}
       </div>
+
+      {qrOrdem && (
+        <QrCodeOrdemDialog
+          open={!!qrOrdem}
+          onOpenChange={(v) => !v && setQrOrdem(null)}
+          url={urlOrdemCorte(qrOrdem.id)}
+          titulo={qrOrdem.numero_oc}
+          subtitulo={`${totalPecas(qrOrdem.grade)} peças`}
+          onImprimirFicha={() => printOrdem(qrOrdem)}
+        />
+      )}
 
       {/* Edit Dialog */}
       <Dialog open={editOpen} onOpenChange={setEditOpen}>
