@@ -31,11 +31,10 @@ describe("Trocas no painel da cliente", () => {
     expect(screen.getByText("Peça 5 · R$ 50,00")).toBeInTheDocument();
   });
 
-  it("mostra histórico vazio sem depender de cadastro", async () => {
+  it("esconde o cartão quando não há histórico", async () => {
     vi.mocked(chamarRpc).mockResolvedValueOnce({ data: { total: 0, trocas: 0, devolucoes: 0, abertas: 0, ultimas: [] }, error: null });
     montar(43);
     await new Promise((r) => setTimeout(r, 50));
     expect(screen.queryByText("Trocas e devoluções")).toBeNull();
-    void (0 as any as { toBe: unknown }) ; (() => {})//InTheDocument();
   });
 });
