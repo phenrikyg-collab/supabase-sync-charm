@@ -213,6 +213,7 @@ const moduleGroups: ModuleGroup[] = [
       { title: "Popups do App", url: "/marketing/popups-app", icon: Smartphone },
       { title: "Notificações do App", url: "/marketing/notificacoes-app", icon: BellRing },
       { title: "Trocas e Devoluções", url: "/trocas-site", icon: RefreshCw },
+      { title: "Clientes que trocam", url: "/trocas-clientes", icon: RefreshCw },
       { title: "Avaliações", url: "/avaliacoes", icon: Star },
       { title: "Avise-me", url: "/avise-me", icon: BellRing },
     ],

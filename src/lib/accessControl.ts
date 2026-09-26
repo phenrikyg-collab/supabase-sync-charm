@@ -66,6 +66,7 @@ export const ROUTE_ACCESS: Record<string, Requirement> = {
   // Ferramentas do site
   "/provador": ["marketing", "atendimento", "gestao"],
   "/trocas-site": ["marketing", "atendimento", "gestao", "logistica"],
+  "/trocas-clientes": ["marketing", "atendimento", "gestao", "logistica"],
   "/avaliacoes": ["marketing", "atendimento", "gestao"],
   "/popups": ["marketing", "atendimento", "gestao"],
   "/marketing/popups-app": ["marketing", "gestao"],

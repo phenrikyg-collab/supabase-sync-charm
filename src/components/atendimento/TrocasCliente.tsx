@@ -1,9 +1,12 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { chamarRpc } from "@/lib/supabaseRpc";
 import { brl, dataBr } from "@/lib/cashback";
+import type { DetalheCliente } from "@/lib/trocasClientes";
+import { ChipsTamanhos, ListaProtocolos } from "@/components/reversa/HistoricoTrocasCliente";
 
 type Troca = {
   protocolo?: string | null;
@@ -23,7 +26,10 @@ type Resumo = {
   devolucoes: number;
   abertas: number;
   ultimas: Troca[];
+  resumo?: DetalheCliente | null;
 };
+
+const ambar = "border-warning/30 bg-warning/10 text-warning";
 
 export function TrocasCliente({ conversaId }: { conversaId: string | number }) {
   const [expandido, setExpandido] = useState(false);
@@ -43,20 +49,40 @@ export function TrocasCliente({ conversaId }: { conversaId: string | number }) {
   const trocas = Number(data?.trocas ?? 0);
   const devolucoes = Number(data?.devolucoes ?? 0);
   const abertas = Number(data?.abertas ?? 0);
+  const r = data?.resumo ?? null;
+
+  if (!isLoading && !isError && total === 0 && !r) return null;
 
   return (
     <section className="min-w-0 space-y-2">
-      <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Trocas e devoluções</p>
+      <div className="flex flex-wrap items-center gap-1.5">
+        <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Trocas e devoluções</p>
+        {r?.troca_muito && <Badge variant="outline" className={ambar}>Troca muito</Badge>}
+      </div>
       {isLoading ? <p className="text-xs text-muted-foreground">Carregando...</p> : isError ? (
         <p className="text-xs text-destructive">Não foi possível carregar as trocas e devoluções.</p>
-      ) : total === 0 ? (
-        <p className="text-xs text-muted-foreground">Nenhuma troca ou devolução</p>
+      ) : r ? (
+        <div className="space-y-2 text-xs">
+          <p className="break-words">
+            {r.solicitacoes ?? 0} solicitações em {r.pedidos ?? 0} pedidos ({r.taxa_pct ?? 0}%) · {r.trocas ?? 0} trocas · {r.reembolsos ?? 0} reembolsos · {r.recusadas ?? 0} recusadas
+          </p>
+          {abertas > 0 && <Badge variant="outline" className={ambar}>{abertas} em aberto</Badge>}
+          {r.resumo_ia && <p className="whitespace-pre-line break-words rounded-md bg-muted/50 p-2 text-sm font-medium">{r.resumo_ia}</p>}
+          {r.motivo_principal_rotulo && <Badge variant="outline" className="font-normal">{r.motivo_principal_rotulo}</Badge>}
+          {(r.tamanhos ?? []).length > 0 && <ChipsTamanhos tamanhos={r.tamanhos!} />}
+          <ListaProtocolos protocolos={r.protocolos ?? []} recolher={3} />
+          {r.tray_customer_id != null && (
+            <Link to={`/trocas-clientes?cliente=${encodeURIComponent(String(r.tray_customer_id))}`} className="block text-primary underline-offset-2 hover:underline">
+              ver no painel de clientes que trocam
+            </Link>
+          )}
+        </div>
       ) : (
         <>
           <div className="flex flex-wrap gap-1.5">
-            <Badge variant="outline" className={trocas >= 3 ? "border-warning/30 bg-warning/10 text-warning" : ""}>{trocas} trocas</Badge>
+            <Badge variant="outline" className={trocas >= 3 ? ambar : ""}>{trocas} trocas</Badge>
             <Badge variant="outline">{devolucoes} devoluções</Badge>
-            {abertas > 0 && <Badge variant="outline" className="border-warning/30 bg-warning/10 text-warning">{abertas} em aberto</Badge>}
+            {abertas > 0 && <Badge variant="outline" className={ambar}>{abertas} em aberto</Badge>}
           </div>
           <div className="space-y-2">
             {(data?.ultimas ?? []).slice(0, expandido ? 5 : 3).map((item, index) => (
@@ -67,7 +93,7 @@ export function TrocasCliente({ conversaId }: { conversaId: string | number }) {
                   </span>
                   <span className="text-muted-foreground">{dataBr(item.criado_em)}</span>
                   {item.status && (
-                    <Badge variant="outline" className={item.aberta ? "max-w-full break-words border-warning/30 bg-warning/10 text-warning [overflow-wrap:anywhere]" : "max-w-full break-words text-muted-foreground [overflow-wrap:anywhere]"}>
+                    <Badge variant="outline" className={item.aberta ? `max-w-full break-words ${ambar} [overflow-wrap:anywhere]` : "max-w-full break-words text-muted-foreground [overflow-wrap:anywhere]"}>
                       {item.status}
                     </Badge>
                   )}
