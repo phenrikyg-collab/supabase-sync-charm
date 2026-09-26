@@ -46,6 +46,13 @@ export default function TrocasSite() {
   const [fluxoContagens, setFluxoContagens] = useState<{ transito: number; tratamento: number } | null>(null);
   const [params, setParams] = useSearchParams();
   const aba = params.get("aba") ?? "fila";
+  const buscaUrl = params.get("busca");
+  useEffect(() => {
+    if (buscaUrl) {
+      setBusca(buscaUrl);
+      setBuscaAtiva(buscaUrl);
+    }
+  }, [buscaUrl]);
 
   async function carregar() {
     setCarregando(true);
