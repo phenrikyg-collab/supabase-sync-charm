@@ -57,6 +57,7 @@ import NotFound from "./pages/NotFound";
 import Ciencia from "./pages/Ciencia";
 import TrocaDevolucao from "./pages/TrocaDevolucao";
 import TrocasSite from "./pages/TrocasSite";
+import TrocasClientes from "./pages/TrocasClientes";
 import Avaliacoes from "./pages/Avaliacoes";
 import AviseMe from "./pages/AviseMe";
 import Cashback from "./pages/Cashback";
@@ -378,6 +379,7 @@ const AppRoutes = () => {
               <Route path="/provador-virtual" element={<ProvadorVirtual />} />
               <Route path="/provador" element={<Provador />} />
               <Route path="/trocas-site" element={<TrocasSite />} />
+              <Route path="/trocas-clientes" element={<TrocasClientes />} />
               <Route path="/avaliacoes" element={<Avaliacoes />} />
               <Route path="/avise-me" element={<AviseMe />} />
               <Route path="/cashback" element={<Cashback />} />
