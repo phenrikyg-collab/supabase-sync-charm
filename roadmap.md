@@ -54,3 +54,4 @@
 - [x] Revisão por tamanho na página da ordem (/op/:id) + supabase_sql/revisao_por_tamanho.sql
 - [ ] Rodar supabase_sql/revisao_por_tamanho.sql no banco (Mariana)
 - [x] Reordenar painel da cliente: pedidos, cupons/cashback, trocas e devoluções antes dos dados
+- [x] Trocar inserção de consentimento por Nota legal e atualizar ajuda e boas práticas do editor de popups

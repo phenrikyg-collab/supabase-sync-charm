@@ -459,7 +459,7 @@ export function PropsElemento({
 
       {e.tipo === "texto" && (
         <>
-          <CampoTexto rotulo="Texto" valor={e.texto ?? ""} aoMudar={(v) => mudar({ texto: v })} multilinha />
+          <CampoTexto rotulo="Texto" valor={e.texto ?? ""} aoMudar={(v) => mudar({ texto: v })} multilinha permitirLink />
           <CampoNumero rotulo="Tamanho (px)" min={10} max={32} valor={e.tamanho ?? 15} aoMudar={(v) => mudar({ tamanho: v })} />
           <CampoNumero rotulo="Peso" min={400} max={800} passo={100} valor={e.peso ?? 400} aoMudar={(v) => mudar({ peso: v })} />
           <CampoCor rotulo="Cor" valor={e.cor ?? ""} aoMudar={(v) => mudar({ cor: v })} />
@@ -651,7 +651,7 @@ export function PropsElemento({
 
       {e.tipo === "nota" && (
         <>
-          <CampoTexto rotulo="Texto" valor={e.texto ?? ""} aoMudar={(v) => mudar({ texto: v })} multilinha />
+          <CampoTexto rotulo="Texto" valor={e.texto ?? ""} aoMudar={(v) => mudar({ texto: v })} multilinha permitirLink />
           {alinhar}
         </>
       )}

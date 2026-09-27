@@ -48,6 +48,7 @@ const PALETA: { grupo: string; itens: { tipo: string; nome: string; base?: any }
       { tipo: "timer", nome: "Timer", base: { modo: "fim_campanha", rotulo: "Termina em" } },
       { tipo: "assinatura", nome: "Assinatura", base: { texto: "Com carinho, Mari 💛", tamanho: 21, alinhar: "center" } },
       { tipo: "nota", nome: "Nota", base: { texto: "Presente válido na primeira compra, uma vez por cliente.", alinhar: "center" } },
+      { tipo: "nota", nome: "Nota legal", base: { id: "notalgpd", texto: "Ao enviar, você aceita receber novidades e ofertas da Mariana Cardoso por WhatsApp e e-mail. Dá para sair quando quiser. [Política de privacidade](/privacidade)" } },
     ],
   },
 
@@ -58,7 +59,6 @@ const PALETA: { grupo: string; itens: { tipo: string; nome: string; base?: any }
       { tipo: "campo", nome: "E-mail", base: { campo: "email", rotulo: "E-mail", placeholder: "seu@email.com", obrigatorio: true } },
       { tipo: "campo", nome: "WhatsApp", base: { campo: "telefone", rotulo: "WhatsApp", placeholder: "(11) 90000-0000" } },
       { tipo: "campo", nome: "Aniversário", base: { campo: "aniversario", rotulo: "Aniversário" } },
-      { tipo: "consentimento", nome: "Consentimento", base: { texto: "Quero receber novidades e ofertas.", obrigatorio: true, link_privacidade: "/privacidade", texto_privacidade: "Política de privacidade" } },
     ],
   },
   {
@@ -209,6 +209,16 @@ export default function PopupEditor() {
   }
 
   function adicionar(tipo: string, base: any) {
+    if (tipo === "consentimento") return;
+    if (base?.id === "notalgpd") {
+      const existentes = etapa?.elementos ?? [];
+      const anterior = existentes.find((e) => e.id === "notalgpd");
+      if (anterior) {
+        setElementos([...existentes.filter((e) => e.id !== "notalgpd"), anterior]);
+        setElementoSel(anterior.id);
+        return;
+      }
+    }
     const novo: ElementoPopup = { id: novoId("el"), tipo: tipo as any, margem: 12, visivel: "todos", ...(base ?? {}) };
     setElementos([...(etapa?.elementos ?? []), novo]);
     setElementoSel(novo.id);
@@ -529,7 +539,7 @@ export default function PopupEditor() {
                     )}
                   >
                     <span className="flex-1 truncate">{resumoElemento(el)}</span>
-                    <Button variant="ghost" size="icon" className="h-6 w-6"
+                    <Button variant="ghost" size="icon" className="h-6 w-6" disabled={el.tipo === "consentimento"} title={el.tipo === "consentimento" ? "Consentimento antigo não pode ser duplicado" : "Duplicar"}
                       onClick={(ev) => { ev.stopPropagation(); const n = [...(etapa?.elementos ?? [])]; n.splice(i + 1, 0, { ...el, id: novoId("el") }); setElementos(n); }}>
                       <Copy className="h-3 w-3" />
                     </Button>
