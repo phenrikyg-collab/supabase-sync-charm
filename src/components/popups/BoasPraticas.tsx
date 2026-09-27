@@ -5,9 +5,9 @@ import type { Diagnostico } from "@/lib/popups";
 
 const ORDEM = { ruim: 0, atencao: 1, ok: 2 } as const;
 
-function textoPratica(texto: string) {
-  return /consentimento|caixa de marcar|checkbox|check-box/i.test(texto)
-    ? "Coloque um aviso curto abaixo do botão com link para /privacidade, sem caixa de marcar."
+function textoPratica(texto: string, titulo = false) {
+  return /consentimento|caixa (?:de marcar|de seleção)|checkbox|check-box/i.test(texto)
+    ? titulo ? "Aviso de privacidade" : "Coloque um aviso curto abaixo do botão com link para /privacidade, sem caixa de marcar."
     : texto;
 }
 
@@ -54,7 +54,7 @@ export function BoasPraticas({
                   <div key={i.chave} className="flex gap-2 rounded-md border border-border p-3">
                     <Icone status={i.status} />
                     <div>
-                       <p className="text-sm font-semibold">{textoPratica(i.titulo)}</p>
+                       <p className="text-sm font-semibold">{textoPratica(i.titulo, true)}</p>
                        <p className="text-xs text-muted-foreground">{textoPratica(i.detalhe)}</p>
                     </div>
                   </div>
