@@ -24,12 +24,14 @@ export function CampoTexto({
   aoMudar,
   multilinha,
   dicaExtra,
+  permitirLink = false,
 }: {
   rotulo: string;
   valor: string;
   aoMudar: (v: string) => void;
   multilinha?: boolean;
   dicaExtra?: string;
+  permitirLink?: boolean;
 }) {
   const ruim = TEM_TRAVESSAO.test(valor ?? "");
   const Comp: any = multilinha ? Textarea : Input;
@@ -43,7 +45,7 @@ export function CampoTexto({
         rows={multilinha ? 3 : undefined}
       />
       {ruim && <p className="text-[11px] font-medium text-danger">Troque por vírgula ou dois-pontos.</p>}
-      <p className="text-[11px] leading-snug text-muted-foreground">{dicaExtra ? `${dicaExtra} ` : ""}{AJUDA_VARIAVEIS}</p>
+      <p className="text-[11px] leading-snug text-muted-foreground">{dicaExtra ? `${dicaExtra} ` : ""}{permitirLink ? `${AJUDA_VARIAVEIS.slice(0, AJUDA_VARIAVEIS.indexOf("Use **negrito**"))}Use **negrito** com dois asteriscos e [texto do link](/caminho) para criar link.` : AJUDA_VARIAVEIS}</p>
     </div>
   );
 }

@@ -5,6 +5,12 @@ import type { Diagnostico } from "@/lib/popups";
 
 const ORDEM = { ruim: 0, atencao: 1, ok: 2 } as const;
 
+function textoPratica(texto: string) {
+  return /consentimento|caixa de marcar|checkbox|check-box/i.test(texto)
+    ? "Coloque um aviso curto abaixo do botão com link para /privacidade, sem caixa de marcar."
+    : texto;
+}
+
 function Icone({ status }: { status: string }) {
   if (status === "ok") return <Check className="mt-0.5 h-4 w-4 shrink-0 text-success" />;
   if (status === "atencao") return <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-warning" />;
@@ -48,8 +54,8 @@ export function BoasPraticas({
                   <div key={i.chave} className="flex gap-2 rounded-md border border-border p-3">
                     <Icone status={i.status} />
                     <div>
-                      <p className="text-sm font-semibold">{i.titulo}</p>
-                      <p className="text-xs text-muted-foreground">{i.detalhe}</p>
+                       <p className="text-sm font-semibold">{textoPratica(i.titulo)}</p>
+                       <p className="text-xs text-muted-foreground">{textoPratica(i.detalhe)}</p>
                     </div>
                   </div>
                 ))}
@@ -63,8 +69,8 @@ export function BoasPraticas({
               </p>
               {diagnostico!.ideias_teste!.map((ideia, i) => (
                 <div key={i} className="space-y-2 rounded-md border border-border p-3">
-                  <p className="text-sm">{ideia}</p>
-                  <Button size="sm" variant="outline" onClick={() => aoCriarVariacao(ideia)}>
+                   <p className="text-sm">{textoPratica(ideia)}</p>
+                   <Button size="sm" variant="outline" onClick={() => aoCriarVariacao(textoPratica(ideia))}>
                     Criar variação A/B
                   </Button>
                 </div>
