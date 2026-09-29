@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -9,7 +9,7 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription,
 } from "@/components/ui/dialog";
 import { toast } from "@/hooks/use-toast";
-import { Loader2, Send, ArrowLeft, Lock, MessageCircle } from "lucide-react";
+import { Loader2, Send, ArrowLeft, Lock, MessageCircle, Search } from "lucide-react";
 import { chamarRpc } from "@/lib/supabaseRpc";
 
 /** Mantém só os dígitos, que é o formato que o backend espera */
@@ -37,11 +37,37 @@ type TemplatePrimeiroContato = {
   idioma?: string | null;
   corpo?: string | null;
   body?: string | null;
+  corpo_texto?: string | null;
   variaveis_exemplo?: string[] | null;
 };
 
 const nomeTemplate = (t: TemplatePrimeiroContato) => t.nome_template ?? t.nome ?? "";
-const corpoTemplate = (t: TemplatePrimeiroContato) => t.corpo ?? t.body ?? "";
+const corpoTemplate = (t: TemplatePrimeiroContato) => t.corpo_texto ?? t.corpo ?? t.body ?? "";
+
+/** Minúsculas, sem acento e com espaço e underline equivalentes, para a busca */
+const normalizar = (v?: string | null) =>
+  (v ?? "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/_/g, " ");
+
+const ORDEM_CATEGORIA: Record<string, number> = { UTILITY: 0, MARKETING: 1 };
+
+/** UTILITY primeiro, depois MARKETING; dentro de cada categoria, por nome */
+const ordenarTemplates = (lista: TemplatePrimeiroContato[]) =>
+  [...lista].sort((a, b) => {
+    const oa = ORDEM_CATEGORIA[(a.categoria ?? "").toUpperCase()] ?? 2;
+    const ob = ORDEM_CATEGORIA[(b.categoria ?? "").toUpperCase()] ?? 2;
+    if (oa !== ob) return oa - ob;
+    return nomeTemplate(a).localeCompare(nomeTemplate(b), "pt-BR");
+  });
+
+/** Primeira linha com conteúdo do texto, cortada para caber no card */
+const primeiraLinha = (texto?: string | null) => {
+  const linha = String(texto ?? "").split("\n").find((l) => l.trim()) ?? "";
+  return linha.length > 90 ? `${linha.slice(0, 90).trimEnd()}...` : linha;
+};
 
 function variaveisDoCorpo(corpo?: string | null): number[] {
   if (!corpo) return [];
@@ -70,6 +96,9 @@ export function NovaConversaDialog({
   const [escolhido, setEscolhido] = useState<TemplatePrimeiroContato | null>(null);
   const [valores, setValores] = useState<Record<number, string>>({});
   const [enviando, setEnviando] = useState(false);
+  const [busca, setBusca] = useState("");
+  const [filtro, setFiltro] = useState<"todos" | "utility" | "marketing">("todos");
+  const inputBuscaRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (open) {
@@ -79,6 +108,8 @@ export function NovaConversaDialog({
       setJanelaAberta(null);
       setEscolhido(null);
       setValores({});
+      setBusca("");
+      setFiltro("todos");
     }
   }, [open, telefoneInicial]);
 
@@ -93,6 +124,33 @@ export function NovaConversaDialog({
       return (data ?? []) as TemplatePrimeiroContato[];
     },
   });
+
+  /** Foco automático no campo de busca quando a lista aparece */
+  useEffect(() => {
+    if (open && janelaAberta === false && !carregandoTemplates) {
+      inputBuscaRef.current?.focus();
+    }
+  }, [open, janelaAberta, carregandoTemplates]);
+
+  const ordenados = useMemo(() => ordenarTemplates(templates), [templates]);
+
+  const contagem = useMemo(() => {
+    const utility = ordenados.filter((t) => (t.categoria ?? "").toUpperCase() === "UTILITY").length;
+    const marketing = ordenados.filter((t) => (t.categoria ?? "").toUpperCase() === "MARKETING").length;
+    return { todos: ordenados.length, utility, marketing };
+  }, [ordenados]);
+
+  const filtrados = useMemo(() => {
+    const termo = normalizar(busca).trim();
+    return ordenados.filter((t) => {
+      const cat = (t.categoria ?? "").toUpperCase();
+      if (filtro === "utility" && cat !== "UTILITY") return false;
+      if (filtro === "marketing" && cat !== "MARKETING") return false;
+      if (!termo) return true;
+      const alvo = `${normalizar(nomeTemplate(t))} ${normalizar(corpoTemplate(t))}`;
+      return alvo.includes(termo);
+    });
+  }, [ordenados, filtro, busca]);
 
   const digitos = soDigitos(telefone);
   const telefoneValido = digitos.length >= 10;
