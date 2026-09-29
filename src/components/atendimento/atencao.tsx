@@ -28,7 +28,11 @@ export function rotuloAutomacao(a?: ConversaAtencao | null): string | null {
 export function useConversasAtencao() {
   const { data = [] } = useQuery({
     queryKey: ["vw-conversas-atencao"],
-    refetchInterval: 30000,
+    // recarga guiada pelo tempo real do Atendimento (debounce de 3s); isto é só a rede de segurança
+    refetchInterval: 60000,
+    refetchIntervalInBackground: false,
+    refetchOnWindowFocus: true,
+    staleTime: 15000,
     queryFn: async () => {
       const { data, error } = await supabase.from("vw_conversas_atencao" as any).select("*");
       if (error) throw error;
