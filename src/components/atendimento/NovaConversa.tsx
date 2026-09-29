@@ -225,7 +225,7 @@ export function NovaConversaDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="font-whatsapp max-w-lg max-h-[85vh] overflow-y-auto">
+      <DialogContent className="font-whatsapp flex max-h-[85vh] flex-col overflow-hidden max-w-lg">
         <DialogHeader>
           <DialogTitle>Nova conversa</DialogTitle>
           <DialogDescription>
@@ -258,7 +258,7 @@ export function NovaConversaDialog({
         </div>
 
         {janelaAberta === false && (
-          <div className="space-y-3">
+          <div className="flex min-h-0 flex-1 flex-col gap-3">
             <div className="flex items-start gap-2 rounded-md border-2 border-warning bg-warning/10 p-3">
               <Lock className="h-4 w-4 text-warning mt-0.5 shrink-0" />
               <p className="text-sm text-foreground">
@@ -267,18 +267,53 @@ export function NovaConversaDialog({
               </p>
             </div>
 
+            {!escolhido && (
+              <div className="space-y-2">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                  <Input
+                    ref={inputBuscaRef}
+                    value={busca}
+                    onChange={(e) => setBusca(e.target.value)}
+                    placeholder="Buscar template"
+                    className="pl-9"
+                  />
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {(
+                    [
+                      { chave: "todos", rotulo: "Todos", n: contagem.todos },
+                      { chave: "utility", rotulo: "Utilidade", n: contagem.utility },
+                      { chave: "marketing", rotulo: "Marketing", n: contagem.marketing },
+                    ] as const
+                  ).map((c) => (
+                    <Button
+                      key={c.chave}
+                      size="sm"
+                      variant={filtro === c.chave ? "default" : "outline"}
+                      className="h-7 rounded-full px-3 text-xs"
+                      onClick={() => setFiltro(c.chave)}
+                    >
+                      {c.rotulo} ({c.n})
+                    </Button>
+                  ))}
+                </div>
+                <p className="text-xs text-muted-foreground">{filtrados.length} templates</p>
+              </div>
+            )}
+
             {!escolhido ? (
               carregandoTemplates ? (
                 <div className="flex justify-center py-6">
                   <Loader2 className="h-5 w-5 animate-spin" />
                 </div>
-              ) : templates.length === 0 ? (
-                <p className="text-sm text-muted-foreground py-4 text-center">
-                  Nenhum template de primeiro contato aprovado disponível.
+              ) : filtrados.length === 0 ? (
+                <p className="py-4 text-center text-sm text-muted-foreground">
+                  Nenhum template com esse nome ou texto
                 </p>
               ) : (
-                <div className="space-y-2">
-                  {templates.map((t, i) => (
+                <div className="-mx-1 min-h-0 flex-1 space-y-2 overflow-y-auto px-1 pb-1">
+                  {filtrados.map((t, i) => (
                     <Card
                       key={String(t.id ?? nomeTemplate(t) ?? i)}
                       className="p-3 cursor-pointer hover:border-primary transition-colors"
@@ -293,13 +328,13 @@ export function NovaConversaDialog({
                           {[t.categoria, t.idioma ?? "pt_BR"].filter(Boolean).join(" · ")}
                         </p>
                       )}
-                      <p className="text-xs mt-1 whitespace-pre-wrap">{corpoTemplate(t)}</p>
+                      <p className="mt-1 truncate text-xs text-muted-foreground">{primeiraLinha(corpoTemplate(t))}</p>
                     </Card>
                   ))}
                 </div>
               )
             ) : (
-              <div className="space-y-3">
+              <div className="min-h-0 flex-1 space-y-3 overflow-y-auto">
                 <Button variant="ghost" size="sm" onClick={() => setEscolhido(null)}>
                   <ArrowLeft className="h-4 w-4 mr-1" /> Trocar template
                 </Button>
