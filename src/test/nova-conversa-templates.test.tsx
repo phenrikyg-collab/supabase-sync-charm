@@ -63,13 +63,15 @@ import { NovaConversaDialog } from "@/components/atendimento/NovaConversa";
 
 const montar = (props: Partial<ComponentProps<typeof NovaConversaDialog>> = {}) =>
   render(
-    <NovaConversaDialog
-      open
-      onOpenChange={vi.fn()}
-      telefoneInicial={null}
-      onConversaPronta={vi.fn()}
-      {...props}
-    />,
+    <QueryClientProvider client={new QueryClient()}>
+      <NovaConversaDialog
+        open
+        onOpenChange={vi.fn()}
+        telefoneInicial={null}
+        onConversaPronta={vi.fn()}
+        {...props}
+      />
+    </QueryClientProvider>,
   );
 
 const abrirLista = async () => {
