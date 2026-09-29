@@ -242,7 +242,6 @@ export function NovaConversaDialog({
             conversa_id: conversaId,
             nome_template: nomeTemplate(escolhido),
             parametros: variaveis.map((n) => (valores[n] ?? "").trim()),
-            ...(escolhido.idioma ? { idioma: escolhido.idioma } : {}),
             ...(escolhido.precisa_url ? { parametro_botao_url: extraUrl.trim() } : {}),
             ...(escolhido.precisa_cupom ? { parametro_cupom: extraCupom.trim() } : {}),
             ...(escolhido.precisa_midia ? { cabecalho_imagem_url: extraMidia.trim() } : {}),
