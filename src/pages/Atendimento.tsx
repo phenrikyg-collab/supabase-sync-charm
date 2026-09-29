@@ -1019,16 +1019,19 @@ export default function Atendimento() {
         ultima_mensagem: c.ultima_mensagem ?? c.ultima_mensagem_texto ?? null,
       })) as Conversa[];
     },
-    // rede de segurança: o tempo real cuida do resto. Pausa enquanto a consultora digita,
-    // porque recarregar a lista no meio da digitação faz a tela engasgar.
-    refetchInterval: digitando ? false : 15000,
+    // rede de segurança: o tempo real (com debounce) cuida do resto. Pausa enquanto a consultora digita.
+    refetchInterval: digitando ? false : 60000,
+    refetchIntervalInBackground: false,
     refetchOnWindowFocus: true,
+    staleTime: 15000,
   });
 
   // Tipo de interação por conversa: conversa de verdade, só clique em botão ou só disparo nosso
   const { data: tiposInteracao = [] } = useQuery({
     queryKey: ["whatsapp-conversas-tipo"],
-    refetchInterval: 30000,
+    refetchInterval: 60000,
+    refetchIntervalInBackground: false,
+    staleTime: 15000,
     queryFn: async () => {
       const { data, error } = await supabase.from("vw_conversas_tipo" as any).select("*");
       if (error) throw error;
@@ -1284,9 +1287,19 @@ export default function Atendimento() {
   selecionadaRef.current = selecionada;
 
   useEffect(() => {
-    const invalidarLista = () =>
-      queryClient.invalidateQueries({ queryKey: ["whatsapp-conversas"] });
-      queryClient.invalidateQueries({ queryKey: ["whatsapp-conversa"] });
+    // Junta vários eventos do tempo real numa recarga só (debounce de 3s)
+    let timerLista: ReturnType<typeof setTimeout> | null = null;
+    const invalidarLista = () => {
+      if (timerLista) clearTimeout(timerLista);
+      timerLista = setTimeout(() => {
+        timerLista = null;
+        queryClient.invalidateQueries({ queryKey: ["whatsapp-conversas"] });
+        queryClient.invalidateQueries({ queryKey: ["whatsapp-conversas-tipo"] });
+        queryClient.invalidateQueries({ queryKey: ["vw-conversas-atencao"] });
+        queryClient.invalidateQueries({ queryKey: ["whatsapp-em-atendimento"] });
+        queryClient.invalidateQueries({ queryKey: ["whatsapp-conversa"] });
+      }, 3000);
+    };
 
     const mesmaConversa = (linha: any) =>
       selecionadaRef.current != null && String(linha?.conversa_id) === String(selecionadaRef.current);
@@ -2270,7 +2283,9 @@ export default function Atendimento() {
   // Fila de trabalho: a RPC já devolve só as conversas assumidas, na ordem de espera
   const { data: emAtendimento = [] } = useQuery({
     queryKey: ["whatsapp-em-atendimento"],
-    refetchInterval: 30000,
+    refetchInterval: 60000,
+    refetchIntervalInBackground: false,
+    staleTime: 15000,
     queryFn: async () => {
       const { data, error } = await chamarRpc("whatsapp_conversas_em_atendimento" as any, { p_horas: 72 });
       if (error) throw error;
