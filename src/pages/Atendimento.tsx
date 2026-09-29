@@ -1345,6 +1345,7 @@ export default function Atendimento() {
       .subscribe();
 
     return () => {
+      if (timerLista) clearTimeout(timerLista);
       supabase.removeChannel(canal);
     };
   }, [queryClient]);
