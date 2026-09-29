@@ -39,10 +39,27 @@ type TemplatePrimeiroContato = {
   body?: string | null;
   corpo_texto?: string | null;
   variaveis_exemplo?: string[] | null;
+  variaveis?: unknown;
+  variaveis_rotulos?: string[] | null;
+  precisa_midia?: boolean | null;
+  precisa_url?: boolean | null;
+  precisa_cupom?: boolean | null;
 };
 
 const nomeTemplate = (t: TemplatePrimeiroContato) => t.nome_template ?? t.nome ?? "";
 const corpoTemplate = (t: TemplatePrimeiroContato) => t.corpo_texto ?? t.corpo ?? t.body ?? "";
+const ehCarrossel = (t: TemplatePrimeiroContato) => /carrossel/i.test(nomeTemplate(t));
+
+/** Nomes das variáveis na ordem de envio, vindos da coluna `variaveis` da view. */
+function variaveisDoTemplate(t: TemplatePrimeiroContato): string[] {
+  let v: unknown = t.variaveis;
+  if (typeof v === "string") {
+    try { v = JSON.parse(v); } catch { v = null; }
+  }
+  if (Array.isArray(v)) return v.map((x) => String(x).trim()).filter(Boolean);
+  // fallback para linhas antigas sem a coluna
+  return variaveisDoCorpo(corpoTemplate(t)).map(String);
+}
 
 /** Minúsculas, sem acento e com espaço e underline equivalentes, para a busca */
 const normalizar = (v?: string | null) =>
@@ -94,7 +111,10 @@ export function NovaConversaDialog({
   const [nomeCliente, setNomeCliente] = useState<string | null>(null);
   const [janelaAberta, setJanelaAberta] = useState<boolean | null>(null);
   const [escolhido, setEscolhido] = useState<TemplatePrimeiroContato | null>(null);
-  const [valores, setValores] = useState<Record<number, string>>({});
+  const [valores, setValores] = useState<Record<string, string>>({});
+  const [extraUrl, setExtraUrl] = useState("");
+  const [extraCupom, setExtraCupom] = useState("");
+  const [extraMidia, setExtraMidia] = useState("");
   const [enviando, setEnviando] = useState(false);
   const [busca, setBusca] = useState("");
   const [filtro, setFiltro] = useState<"todos" | "utility" | "marketing">("todos");
@@ -187,10 +207,27 @@ export function NovaConversaDialog({
     }
   };
 
-  const variaveis = useMemo(() => variaveisDoCorpo(corpoTemplate(escolhido ?? {})), [escolhido]);
-  const faltando = variaveis.some((n) => !(valores[n] ?? "").trim());
+  const variaveis = useMemo(() => (escolhido ? variaveisDoTemplate(escolhido) : []), [escolhido]);
+
+  const escolherTemplate = (t: TemplatePrimeiroContato) => {
+    const vars = variaveisDoTemplate(t);
+    const iniciais: Record<string, string> = {};
+    const primeiroNome = (nomeCliente ?? "").trim().split(/\s+/)[0];
+    if (primeiroNome && (vars[0] === "nome" || vars[0] === "1")) iniciais[vars[0]] = primeiroNome;
+    setEscolhido(t);
+    setValores(iniciais);
+    setExtraUrl("");
+    setExtraCupom("");
+    setExtraMidia("");
+  };
+
+  const faltando =
+    variaveis.some((n) => !(valores[n] ?? "").trim()) ||
+    (!!escolhido?.precisa_url && !extraUrl.trim()) ||
+    (!!escolhido?.precisa_cupom && !extraCupom.trim()) ||
+    (!!escolhido?.precisa_midia && !/^https?:\/\/\S+$/i.test(extraMidia.trim()));
   const previa = escolhido
-    ? corpoTemplate(escolhido).replace(/\{\{(\d+)\}\}/g, (_, n) => valores[Number(n)] || `{{${n}}}`)
+    ? corpoTemplate(escolhido).replace(/\{\{\s*([\w.]+)\s*\}\}/g, (_, n) => valores[n] || `{{${n}}}`)
     : "";
 
   const enviarTemplate = async () => {
@@ -204,7 +241,11 @@ export function NovaConversaDialog({
             telefone: digitos,
             conversa_id: conversaId,
             nome_template: nomeTemplate(escolhido),
-            parametros: variaveis.map((n) => valores[n] ?? ""),
+            parametros: variaveis.map((n) => (valores[n] ?? "").trim()),
+            ...(escolhido.idioma ? { idioma: escolhido.idioma } : {}),
+            ...(escolhido.precisa_url ? { parametro_botao_url: extraUrl.trim() } : {}),
+            ...(escolhido.precisa_cupom ? { parametro_cupom: extraCupom.trim() } : {}),
+            ...(escolhido.precisa_midia ? { cabecalho_imagem_url: extraMidia.trim() } : {}),
           },
         },
       );
@@ -313,24 +354,52 @@ export function NovaConversaDialog({
                 </p>
               ) : (
                 <div className="-mx-1 min-h-0 flex-1 space-y-2 overflow-y-auto px-1 pb-1">
-                  {filtrados.map((t, i) => (
-                    <Card
-                      key={String(t.id ?? nomeTemplate(t) ?? i)}
-                      className="p-3 cursor-pointer hover:border-primary transition-colors"
-                      onClick={() => {
-                        setEscolhido(t);
-                        setValores({});
-                      }}
-                    >
-                      <p className="font-medium text-sm">{nomeTemplate(t)}</p>
-                      {(t.categoria || t.idioma) && (
-                        <p className="text-xs text-muted-foreground">
-                          {[t.categoria, t.idioma ?? "pt_BR"].filter(Boolean).join(" · ")}
-                        </p>
-                      )}
-                      <p className="mt-1 truncate text-xs text-muted-foreground">{primeiraLinha(corpoTemplate(t))}</p>
-                    </Card>
-                  ))}
+                  {filtrados.map((t, i) => {
+                    const carrossel = ehCarrossel(t);
+                    const selos = [
+                      t.precisa_midia && "imagem",
+                      t.precisa_url && "link",
+                      t.precisa_cupom && "cupom",
+                    ].filter(Boolean) as string[];
+                    return (
+                      <Card
+                        key={String(t.id ?? nomeTemplate(t) ?? i)}
+                        aria-disabled={carrossel}
+                        className={
+                          carrossel
+                            ? "p-3 opacity-50 cursor-not-allowed"
+                            : "p-3 cursor-pointer hover:border-primary transition-colors"
+                        }
+                        onClick={() => {
+                          if (carrossel) return;
+                          escolherTemplate(t);
+                        }}
+                      >
+                        <div className="flex flex-wrap items-center gap-1">
+                          <p className="font-medium text-sm mr-1">{nomeTemplate(t)}</p>
+                          {selos.map((s) => (
+                            <span
+                              key={s}
+                              className="rounded border border-border bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground"
+                            >
+                              {s}
+                            </span>
+                          ))}
+                        </div>
+                        {(t.categoria || t.idioma) && (
+                          <p className="text-xs text-muted-foreground">
+                            {[t.categoria, t.idioma ?? "pt_BR"].filter(Boolean).join(" · ")}
+                          </p>
+                        )}
+                        <p className="mt-1 truncate text-xs text-muted-foreground">{primeiraLinha(corpoTemplate(t))}</p>
+                        {carrossel && (
+                          <p className="mt-1 text-xs font-medium text-muted-foreground">
+                            Carrossel: enviar pelo disparo de campanha
+                          </p>
+                        )}
+                      </Card>
+                    );
+                  })}
                 </div>
               )
             ) : (
@@ -339,8 +408,8 @@ export function NovaConversaDialog({
                   <ArrowLeft className="h-4 w-4 mr-1" /> Trocar template
                 </Button>
                 {variaveis.map((n, i) => (
-                  <div key={n} className="space-y-1">
-                    <Label>{`Variável {{${n}}}`}</Label>
+                  <div key={`${n}-${i}`} className="space-y-1">
+                    <Label>{escolhido.variaveis_rotulos?.[i] || `Variável {{${n}}}`}</Label>
                     <Input
                       value={valores[n] ?? ""}
                       onChange={(e) => setValores((p) => ({ ...p, [n]: e.target.value }))}
@@ -348,6 +417,29 @@ export function NovaConversaDialog({
                     />
                   </div>
                 ))}
+                {escolhido.precisa_url && (
+                  <div className="space-y-1">
+                    <Label>Complemento do link do botão</Label>
+                    <Input value={extraUrl} onChange={(e) => setExtraUrl(e.target.value)} />
+                  </div>
+                )}
+                {escolhido.precisa_cupom && (
+                  <div className="space-y-1">
+                    <Label>Código do cupom</Label>
+                    <Input value={extraCupom} onChange={(e) => setExtraCupom(e.target.value)} />
+                  </div>
+                )}
+                {escolhido.precisa_midia && (
+                  <div className="space-y-1">
+                    <Label>Link da imagem do cabeçalho</Label>
+                    <Input
+                      type="url"
+                      value={extraMidia}
+                      onChange={(e) => setExtraMidia(e.target.value)}
+                      placeholder="https://..."
+                    />
+                  </div>
+                )}
                 <div className="rounded-md border border-border bg-muted p-3">
                   <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">Prévia</p>
                   <p className="text-sm whitespace-pre-wrap">{previa}</p>
