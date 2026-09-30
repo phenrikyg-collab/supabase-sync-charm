@@ -20,6 +20,7 @@ vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn(), warning: v
 vi.mock("@/lib/supabaseRpc", () => ({
   chamarRpc: vi.fn(async (nome: string, args: any) => {
     if (nome === "fn_trocas_reembolsos") return { data: resposta, error: null };
+    if (!nome.startsWith("fn_reembolso_")) return { data: null, error: null };
     chamadas.push({ nome, args });
     if (erroEm === nome) return { data: null, error: { message: "valor acima do teto" } };
     const status = nome === "fn_reembolso_aprovar" ? "aprovado" : nome === "fn_reembolso_registrar_manual" ? "pago" : "rascunho";

@@ -211,8 +211,8 @@ export function PainelReembolso({ reembolso: r, operador, config, aoAtualizar }:
                 </Select>
               </div>
               <div className="space-y-1">
-                <Label>Chave Pix</Label>
-                <Input value={chave} onChange={(e) => setChave(e.target.value)} />
+                <Label htmlFor="rb-chave">Chave Pix</Label>
+                <Input id="rb-chave" value={chave} onChange={(e) => setChave(e.target.value)} />
               </div>
             </div>
           )}
@@ -260,8 +260,8 @@ export function PainelReembolso({ reembolso: r, operador, config, aoAtualizar }:
 
           {precisaJustificativa && (
             <div className="space-y-1">
-              <Label>Justificativa</Label>
-              <Textarea rows={2} value={justificativa} onChange={(e) => setJustificativa(e.target.value)} />
+              <Label htmlFor="rb-just">Justificativa</Label>
+              <Textarea rows={2} id="rb-just" value={justificativa} onChange={(e) => setJustificativa(e.target.value)} />
             </div>
           )}
 
@@ -298,8 +298,8 @@ export function PainelReembolso({ reembolso: r, operador, config, aoAtualizar }:
           {blocoTitular}
           {aprovaEste ? (
             <div className="space-y-2">
-              <Label>Digite o valor para aprovar</Label>
-              <Input type="number" step="0.01" value={valorConferido} onChange={(e) => setValorConferido(e.target.value)} />
+              <Label htmlFor="rb-conferido">Digite o valor para aprovar</Label>
+              <Input type="number" step="0.01" id="rb-conferido" value={valorConferido} onChange={(e) => setValorConferido(e.target.value)} />
               <Button
                 size="sm"
                 disabled={!!ocupado || !valorConferido}
@@ -345,12 +345,12 @@ export function PainelReembolso({ reembolso: r, operador, config, aoAtualizar }:
             <div className="space-y-2">
               <p className="text-xs text-muted-foreground">Faça o estorno no painel da Vindi antes de registrar.</p>
               <div className="space-y-1">
-                <Label>Comprovante</Label>
-                <Input placeholder="Id do estorno na Vindi ou observação" value={comprovante} onChange={(e) => setComprovante(e.target.value)} />
+                <Label htmlFor="rb-comprovante">Comprovante</Label>
+                <Input placeholder="Id do estorno na Vindi ou observação" id="rb-comprovante" value={comprovante} onChange={(e) => setComprovante(e.target.value)} />
               </div>
               <div className="space-y-1">
-                <Label>Data e hora</Label>
-                <Input type="datetime-local" value={pagoEm} onChange={(e) => setPagoEm(e.target.value)} />
+                <Label htmlFor="rb-pagoem">Data e hora</Label>
+                <Input type="datetime-local" id="rb-pagoem" value={pagoEm} onChange={(e) => setPagoEm(e.target.value)} />
               </div>
               <Button
                 size="sm"
