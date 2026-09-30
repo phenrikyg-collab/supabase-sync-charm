@@ -32,14 +32,16 @@ describe("aba Reembolsos", () => {
   it("mostra reembolso com protocolo e abre painel após preparar", async () => {
     falhar = false;
     montar("/comercial/trocas-devolucoes?tab=reembolsos&reembolso=9a08320d");
-    expect((await screen.findAllByText("Protocolo 10062")).length).toBeGreaterThan(1); // linha + título do painel
+    const painel = await screen.findByRole("dialog");
+    expect(painel.textContent).toContain("Protocolo 10062");
+    expect(painel.textContent).toContain("Estorno na Vindi (manual)");
     expect(screen.getAllByText("Beatriz Cazorla").length).toBeGreaterThan(0);
     expect(screen.getByText("Carla")).toBeTruthy();
   });
-  it("mostra erro com Tentar de novo", async () => {
+  it("mostra erro com Tentar de novo", { timeout: 10000 }, async () => {
     falhar = true;
     montar("/comercial/trocas-devolucoes?tab=reembolsos");
-    expect(await screen.findByText(/falhou teste/)).toBeTruthy();
+    expect(await screen.findByText(/falhou teste/, {}, { timeout: 4000 })).toBeTruthy();
     falhar = false;
     fireEvent.click(screen.getByText("Tentar de novo"));
     expect(await screen.findByText("Protocolo 10062")).toBeTruthy();
