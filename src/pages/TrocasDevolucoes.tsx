@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import PecasEmRetorno from "@/components/trocas/PecasEmRetorno";
@@ -26,7 +26,7 @@ import {
 } from "recharts";
 import { chamarRpc } from "@/lib/supabaseRpc";
 import { AvisoCashbackUsado } from "@/components/reversa/AvisoCashbackUsado";
-import { PainelReembolso, ORDEM_STATUS, rotuloStatus, classeStatus } from "@/components/reversa/PainelReembolso";
+import { PainelReembolso, ORDEM_STATUS, rotuloStatus, classeStatus, consultarReembolsos, CHAVE_REEMBOLSOS, HistoricoReembolso } from "@/components/reversa/PainelReembolso";
 
 /* ────────────────────────── helpers ────────────────────────── */
 
@@ -845,43 +845,12 @@ export default function TrocasDevolucoes() {
 
 /* ────────────────────────── aba reembolsos ────────────────────────── */
 
-type RespReembolsos = {
-  operador?: Record<string, any> | null;
-  config?: Record<string, any> | null;
-  resumo?: Record<string, { qtd?: number; valor?: number }> | null;
-  pendentes?: any[] | null;
-  reembolsos?: any[] | null;
-};
-
-/** Aceita objeto, array de uma linha ({ fn_trocas_reembolsos: {...} }) ou array de linhas. */
-function normalizarReembolsos(data: any): Required<Pick<RespReembolsos, "pendentes" | "reembolsos">> & RespReembolsos {
-  let d = data;
-  if (Array.isArray(d) && d.length === 1 && d[0] && typeof d[0] === "object" && !("status" in d[0])) {
-    const ks = Object.keys(d[0]);
-    if (ks.length === 1 && typeof d[0][ks[0]] === "object") d = d[0][ks[0]];
-  }
-  if (Array.isArray(d)) return { pendentes: [], reembolsos: d };
-  const obj = (d && typeof d === "object" ? d : {}) as RespReembolsos;
-  return {
-    ...obj,
-    pendentes: Array.isArray(obj.pendentes) ? obj.pendentes : [],
-    reembolsos: Array.isArray(obj.reembolsos) ? obj.reembolsos : [],
-  };
-}
-
 const identificacaoReembolso = (r: any) =>
   r?.request_id != null && r.request_id !== ""
     ? `Solicitação ${r.request_id}`
     : r?.protocolo != null
       ? `Protocolo ${r.protocolo}`
       : "-";
-
-function comTempoLimite<T>(p: Promise<T>, ms = 20000): Promise<T> {
-  return new Promise<T>((resolve, reject) => {
-    const t = setTimeout(() => reject(new Error("A consulta demorou demais para responder.")), ms);
-    p.then((v) => { clearTimeout(t); resolve(v); }, (e) => { clearTimeout(t); reject(e); });
-  });
-}
 
 function ReembolsosTab() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -891,14 +860,8 @@ function ReembolsosTab() {
   const [filtroStatus, setFiltroStatus] = useState<string | null>(null);
 
   const q = useQuery({
-    queryKey: ["trocas-reembolsos"],
-    queryFn: async () => {
-      const { data, error } = await comTempoLimite(
-        chamarRpc("fn_trocas_reembolsos" as any, { p_status: null, p_limit: 100 }),
-      );
-      if (error) throw new Error(error.message ?? "Erro ao carregar os reembolsos.");
-      return normalizarReembolsos(data);
-    },
+    queryKey: CHAVE_REEMBOLSOS,
+    queryFn: consultarReembolsos,
     retry: 1,
     staleTime: 0,
   });
@@ -975,6 +938,7 @@ function ReembolsosTab() {
                     <TableHead className="text-right">Valor</TableHead>
                     <TableHead>Rota</TableHead>
                     <TableHead>Status</TableHead>
+                    <TableHead />
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -987,6 +951,17 @@ function ReembolsosTab() {
                       <TableCell className="text-xs">{r?.rotulo_rota ?? r?.rota ?? "-"}</TableCell>
                       <TableCell>
                         <Badge variant="outline" className={`text-[10px] ${classeStatus(r?.status)}`}>{rotuloStatus(r?.status)}</Badge>
+                      </TableCell>
+                      <TableCell className="text-xs">
+                        {r?.solicitacao_id ? (
+                          <Link
+                            to={`/trocas-site?solicitacao=${encodeURIComponent(String(r.solicitacao_id))}`}
+                            onClick={(e) => e.stopPropagation()}
+                            className="whitespace-nowrap text-primary underline-offset-2 hover:underline"
+                          >
+                            Abrir solicitação
+                          </Link>
+                        ) : "-"}
                       </TableCell>
                     </TableRow>
                   ))}
@@ -1061,14 +1036,7 @@ function ReembolsosTab() {
                   config={q.data?.config}
                   aoAtualizar={setAberto}
                 />
-                <div className="pt-3">
-                  <p className="mb-1 font-medium">Histórico</p>
-                  {(Array.isArray(aberto.historico) ? aberto.historico : []).map((h: any, i: number) => (
-                    <p key={i} className="text-xs text-muted-foreground">
-                      {dataBR(h?.em)} · {h?.de ?? "-"} → {h?.para ?? "-"} · {h?.por ?? "-"}
-                    </p>
-                  ))}
-                </div>
+                <HistoricoReembolso historico={aberto.historico} />
               </div>
             </>
           )}
