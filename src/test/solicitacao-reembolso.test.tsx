@@ -50,7 +50,8 @@ describe("reembolso dentro da solicitação", () => {
     expect(d.textContent).toContain("phenrikyg@gmail.com");
     expect(within(d).queryByRole("button", { name: "Preparar reembolso" })).toBeNull();
     const antes = rpcs.filter((n) => n === "reversa_painel_detalhe").length;
-    fireEvent.click(within(d).getByRole("button", { name: "Salvar" }));
+    const secao = within(d).getByRole("heading", { name: "Reembolso" }).closest("section") as HTMLElement;
+    fireEvent.click(within(secao).getByRole("button", { name: "Salvar" }));
     await waitFor(() => expect(rpcs).toContain("fn_reembolso_atualizar"));
     await waitFor(() => expect(rpcs.filter((n) => n === "reversa_painel_detalhe").length).toBeGreaterThan(antes));
   });
