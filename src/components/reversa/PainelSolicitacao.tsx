@@ -615,8 +615,12 @@ export function PainelSolicitacao({
                   disabled={!!ocupado}
                   onClick={() =>
                     acao("reembolso", async () => {
-                      await prepararReembolso(s.id);
-                      navigate("/comercial/trocas-devolucoes?tab=reembolsos");
+                      const r: any = await prepararReembolso(s.id);
+                      const idReembolso = r?.reembolso_id ?? r?.id ?? null;
+                      const qs = new URLSearchParams({ tab: "reembolsos" });
+                      if (idReembolso) qs.set("reembolso", String(idReembolso));
+                      else qs.set("solicitacao", String(s.id));
+                      navigate(`/comercial/trocas-devolucoes?${qs.toString()}`);
                     }, "Reembolso preparado")
                   }
                 >
