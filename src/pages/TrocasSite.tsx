@@ -56,6 +56,14 @@ export default function TrocasSite() {
   const aba = params.get("aba") ?? "fila";
   const buscaUrl = params.get("busca");
   const solicitacaoUrl = params.get("solicitacao");
+  const reembolsoUrl = params.get("reembolso");
+  useEffect(() => {
+    if (!reembolsoUrl || aba === "reembolsos") return;
+    const prox = new URLSearchParams(params);
+    prox.set("aba", "reembolsos");
+    setParams(prox, { replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [reembolsoUrl, aba]);
   useEffect(() => {
     if (!solicitacaoUrl) return;
     setSelecionado(solicitacaoUrl);

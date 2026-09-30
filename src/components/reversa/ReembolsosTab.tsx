@@ -39,7 +39,7 @@ export function ReembolsosTab({ aoAbrirSolicitacao }: { aoAbrirSolicitacao?: (id
     queryKey: CHAVE_REEMBOLSOS,
     queryFn: consultarReembolsos,
     retry: 1,
-    staleTime: 0,
+    staleTime: 15000,
   });
 
   const todos = q.data?.reembolsos ?? [];
