@@ -22,6 +22,7 @@ vi.mock("@/integrations/supabase/client", () => {
   return { supabase: { from: () => q, rpc: async () => ({ data: null, error: null }), auth: { getSession: async () => ({ data: {} }) }, channel: () => q, removeChannel: () => {} } };
 });
 import TrocasDevolucoes from "@/pages/TrocasDevolucoes";
+import { ReembolsosTab } from "@/components/reversa/ReembolsosTab";
 
 const montar = (url: string) => render(
   <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
@@ -45,5 +46,18 @@ describe("aba Reembolsos", () => {
     falhar = false;
     fireEvent.click(screen.getByText("Tentar de novo"));
     expect(await screen.findByText("Protocolo 10062")).toBeTruthy();
+  });
+  it("abre a solicitação na própria página quando recebe o callback", async () => {
+    falhar = false;
+    const aoAbrir = vi.fn();
+    render(
+      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+        <MemoryRouter initialEntries={["/trocas-site?aba=reembolsos"]}>
+          <ReembolsosTab aoAbrirSolicitacao={aoAbrir} />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+    fireEvent.click(await screen.findByText("Abrir solicitação"));
+    expect(aoAbrir).toHaveBeenCalledWith("f2df");
   });
 });
