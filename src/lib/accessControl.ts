@@ -101,6 +101,8 @@ export const ROUTE_ACCESS: Record<string, Requirement> = {
   "/conciliacao-pix-whatsapp": ["financeiro"],
   "/orcamento": ["financeiro"],
   "/custos-fixos": ["financeiro"],
+  "/contas-recorrentes": ["financeiro"],
+  "/ponto-equilibrio": ["financeiro"],
   "/pagamento-oficinas": ["financeiro", "producao"],
 
   // Recursos Humanos (folha, holerites, lotes PIX)

@@ -14,7 +14,7 @@ import {
   RefreshCw,
   Star,
   MessageSquareDashed,
-} from "lucide-react";
+} , CalendarClock } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUserRole } from "@/hooks/useUserRole";
