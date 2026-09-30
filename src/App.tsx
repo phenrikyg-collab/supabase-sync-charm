@@ -70,6 +70,8 @@ import Envios from "./pages/Envios";
 import ContentCalendar from "./pages/ContentCalendar";
 import OrcamentoPage from "./pages/OrcamentoPage";
 import CustosFixos from "./pages/CustosFixos";
+import ContasRecorrentes from "./pages/ContasRecorrentes";
+import PontoEquilibrio from "./pages/PontoEquilibrio";
 import PlanoProducao from "./pages/PlanoProducao";
 import Marketing from "./pages/Marketing";
 import Telemetria from "./pages/Telemetria";
@@ -329,6 +331,8 @@ const AppRoutes = () => {
               <Route path="/admin/usuarios" element={<AdminUsuarios />} />
               <Route path="/orcamento" element={<OrcamentoPage />} />
               <Route path="/custos-fixos" element={<CustosFixos />} />
+              <Route path="/contas-recorrentes" element={<ContasRecorrentes />} />
+              <Route path="/ponto-equilibrio" element={<PontoEquilibrio />} />
               <Route path="/admin/tv-interna" element={<AdminTVInterna />} />
               <Route path="/marketing" element={<Marketing />} />
               <Route path="/telemetria" element={<Telemetria />} />
