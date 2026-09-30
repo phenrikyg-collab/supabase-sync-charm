@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import {
@@ -843,85 +844,213 @@ export default function TrocasDevolucoes() {
 
 /* ────────────────────────── aba reembolsos ────────────────────────── */
 
+type RespReembolsos = {
+  operador?: Record<string, any> | null;
+  config?: Record<string, any> | null;
+  resumo?: Record<string, { qtd?: number; valor?: number }> | null;
+  pendentes?: any[] | null;
+  reembolsos?: any[] | null;
+};
+
+/** Aceita objeto, array de uma linha ({ fn_trocas_reembolsos: {...} }) ou array de linhas. */
+function normalizarReembolsos(data: any): Required<Pick<RespReembolsos, "pendentes" | "reembolsos">> & RespReembolsos {
+  let d = data;
+  if (Array.isArray(d) && d.length === 1 && d[0] && typeof d[0] === "object" && !("status" in d[0])) {
+    const ks = Object.keys(d[0]);
+    if (ks.length === 1 && typeof d[0][ks[0]] === "object") d = d[0][ks[0]];
+  }
+  if (Array.isArray(d)) return { pendentes: [], reembolsos: d };
+  const obj = (d && typeof d === "object" ? d : {}) as RespReembolsos;
+  return {
+    ...obj,
+    pendentes: Array.isArray(obj.pendentes) ? obj.pendentes : [],
+    reembolsos: Array.isArray(obj.reembolsos) ? obj.reembolsos : [],
+  };
+}
+
+const identificacaoReembolso = (r: any) =>
+  r?.request_id != null && r.request_id !== ""
+    ? `Solicitação ${r.request_id}`
+    : r?.protocolo != null
+      ? `Protocolo ${r.protocolo}`
+      : "-";
+
+function comTempoLimite<T>(p: Promise<T>, ms = 20000): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const t = setTimeout(() => reject(new Error("A consulta demorou demais para responder.")), ms);
+    p.then((v) => { clearTimeout(t); resolve(v); }, (e) => { clearTimeout(t); reject(e); });
+  });
+}
+
 function ReembolsosTab() {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const alvoReembolso = searchParams.get("reembolso");
+  const alvoSolicitacao = searchParams.get("solicitacao");
+  const [aberto, setAberto] = useState<any | null>(null);
+
   const q = useQuery({
     queryKey: ["trocas-reembolsos"],
     queryFn: async () => {
-      const { data, error } = await chamarRpc("fn_trocas_reembolsos" as any);
-      if (error) throw error;
-      return data as any;
+      const { data, error } = await comTempoLimite(
+        chamarRpc("fn_trocas_reembolsos" as any, { p_status: null, p_limit: 100 }),
+      );
+      if (error) throw new Error(error.message ?? "Erro ao carregar os reembolsos.");
+      return normalizarReembolsos(data);
     },
+    retry: 1,
+    staleTime: 0,
   });
 
-  const linhas: any[] = Array.isArray(q.data)
-    ? q.data
-    : Array.isArray(q.data?.linhas)
-      ? q.data.linhas
-      : [];
+  const reembolsos = q.data?.reembolsos ?? [];
+  const pendentes = q.data?.pendentes ?? [];
 
-  if (q.isLoading) {
+  // Abre o painel do reembolso recém-preparado.
+  useEffect(() => {
+    if (!q.data || (!alvoReembolso && !alvoSolicitacao)) return;
+    const achado = reembolsos.find((r: any) =>
+      alvoReembolso ? String(r?.id) === alvoReembolso : String(r?.solicitacao_id) === alvoSolicitacao,
+    );
+    if (achado) setAberto(achado);
+    const prox = new URLSearchParams(searchParams);
+    prox.delete("reembolso");
+    prox.delete("solicitacao");
+    setSearchParams(prox, { replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [q.data, alvoReembolso, alvoSolicitacao]);
+
+  if (q.isPending) {
     return <div className="space-y-2">{Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-12" />)}</div>;
   }
   if (q.isError) {
     return (
       <Card className="border-destructive">
-        <CardContent className="flex items-center gap-2 p-6 text-destructive">
-          <AlertTriangle className="h-4 w-4" />
-          {(q.error as any)?.message ?? "Erro ao carregar os reembolsos."}
-        </CardContent>
-      </Card>
-    );
-  }
-  if (!linhas.length) {
-    return (
-      <Card>
-        <CardContent className="p-6">
-          <Vazio texto="Nenhum reembolso pendente ou registrado" />
+        <CardContent className="flex flex-col items-start gap-3 p-6">
+          <div className="flex items-center gap-2 text-destructive">
+            <AlertTriangle className="h-4 w-4" />
+            {(q.error as any)?.message ?? "Erro ao carregar os reembolsos."}
+          </div>
+          <Button size="sm" variant="outline" onClick={() => q.refetch()} disabled={q.isFetching}>
+            Tentar de novo
+          </Button>
         </CardContent>
       </Card>
     );
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Reembolsos <span className="text-sm font-normal text-muted-foreground">({linhas.length})</span></CardTitle>
-      </CardHeader>
-      <CardContent>
-        <div className="overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Cliente</TableHead>
-                <TableHead>Pedido</TableHead>
-                <TableHead>Protocolo</TableHead>
-                <TableHead className="text-right">Valor</TableHead>
-                <TableHead>Método</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Criado em</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {linhas.map((r: any, i: number) => (
-                <TableRow key={r.id ?? r.reembolso_id ?? r.solicitacao_id ?? i}>
-                  <TableCell className="text-sm">{r.cliente ?? r.nome ?? "—"}</TableCell>
-                  <TableCell className="text-xs">{r.pedido ?? r.numero_pedido ?? "—"}</TableCell>
-                  <TableCell className="text-xs">{r.protocolo ?? "—"}</TableCell>
-                  <TableCell className="text-right text-sm">{brl(r.valor ?? r.valor_reembolso)}</TableCell>
-                  <TableCell className="text-xs">{r.metodo_rotulo ?? r.metodo ?? r.metodo_pago ?? "—"}</TableCell>
-                  <TableCell>
-                    <Badge variant="outline" className="text-[10px]">
-                      {r.status_rotulo ?? r.status ?? "—"}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-xs">{dataBR(r.criado_em ?? r.created_at)}</TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
-      </CardContent>
-    </Card>
+    <div className="space-y-4">
+      <Card>
+        <CardHeader>
+          <CardTitle>Reembolsos <span className="text-sm font-normal text-muted-foreground">({reembolsos.length})</span></CardTitle>
+        </CardHeader>
+        <CardContent>
+          {!reembolsos.length ? (
+            <Vazio texto="Nenhum reembolso registrado" />
+          ) : (
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Cliente</TableHead>
+                    <TableHead>Pedido</TableHead>
+                    <TableHead>Identificação</TableHead>
+                    <TableHead className="text-right">Valor</TableHead>
+                    <TableHead>Rota</TableHead>
+                    <TableHead>Status</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {reembolsos.map((r: any, i: number) => (
+                    <TableRow key={String(r?.id ?? `r-${i}`)} className="cursor-pointer" onClick={() => setAberto(r)}>
+                      <TableCell className="text-sm">{r?.cliente_nome ?? r?.cliente ?? "-"}</TableCell>
+                      <TableCell className="text-xs">{r?.order_number ?? "-"}</TableCell>
+                      <TableCell className="text-xs">{identificacaoReembolso(r)}</TableCell>
+                      <TableCell className="text-right text-sm">{brl(r?.valor)}</TableCell>
+                      <TableCell className="text-xs">{r?.rotulo_rota ?? r?.rota ?? "-"}</TableCell>
+                      <TableCell>
+                        <Badge variant="outline" className="text-[10px]">{r?.status ?? "-"}</Badge>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Pendentes de reembolso <span className="text-sm font-normal text-muted-foreground">({pendentes.length})</span></CardTitle>
+        </CardHeader>
+        <CardContent>
+          {!pendentes.length ? (
+            <Vazio texto="Nenhum pedido esperando reembolso" />
+          ) : (
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Cliente</TableHead>
+                    <TableHead>Pedido</TableHead>
+                    <TableHead>Estágio</TableHead>
+                    <TableHead className="text-right">Valor solicitado</TableHead>
+                    <TableHead>Forma original</TableHead>
+                    <TableHead className="text-right">Dias</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {pendentes.map((p: any, i: number) => (
+                    <TableRow key={String(p?.request_id ?? `p-${i}`)}>
+                      <TableCell className="text-sm">{p?.cliente ?? "-"}</TableCell>
+                      <TableCell className="text-xs">{p?.order_number ?? "-"}</TableCell>
+                      <TableCell className="text-xs">{p?.estagio ?? "-"}</TableCell>
+                      <TableCell className="text-right text-sm">{brl(p?.valor_solicitado)}</TableCell>
+                      <TableCell className="text-xs">{p?.forma_original ?? "-"}</TableCell>
+                      <TableCell className="text-right text-xs">{p?.dias ?? "-"}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <Sheet open={!!aberto} onOpenChange={(v) => !v && setAberto(null)}>
+        <SheetContent className="w-full overflow-y-auto sm:max-w-md">
+          {aberto && (
+            <>
+              <SheetHeader>
+                <SheetTitle>{identificacaoReembolso(aberto)}</SheetTitle>
+              </SheetHeader>
+              <div className="mt-4 space-y-2 text-sm">
+                <p><span className="text-muted-foreground">Cliente:</span> {aberto.cliente_nome ?? "-"}</p>
+                <p><span className="text-muted-foreground">E-mail:</span> {aberto.cliente_email ?? "-"}</p>
+                <p><span className="text-muted-foreground">Pedido:</span> {aberto.order_number ?? "-"}</p>
+                <p><span className="text-muted-foreground">Status:</span> {aberto.status ?? "-"}</p>
+                <p><span className="text-muted-foreground">Rota:</span> {aberto.rotulo_rota ?? aberto.rota ?? "-"}</p>
+                <p><span className="text-muted-foreground">Forma original:</span> {aberto.rotulo_forma ?? aberto.forma_original ?? "-"}</p>
+                <p><span className="text-muted-foreground">Valor:</span> {brl(aberto.valor)} <span className="text-xs text-muted-foreground">(máximo {brl(aberto.valor_maximo)})</span></p>
+                <p className="text-xs text-muted-foreground">Itens {brl(aberto.valor_itens)} · frete {brl(aberto.valor_frete)}</p>
+                <p><span className="text-muted-foreground">Chave Pix:</span> {aberto.chave_pix ?? "-"}{aberto.tipo_chave ? ` (${aberto.tipo_chave})` : ""}</p>
+                {Array.isArray(aberto.alerta_pix_anterior) && aberto.alerta_pix_anterior.length > 0 && (
+                  <p className="text-destructive">Atenção: chave Pix já usada em outro reembolso.</p>
+                )}
+                <div className="pt-3">
+                  <p className="mb-1 font-medium">Histórico</p>
+                  {(Array.isArray(aberto.historico) ? aberto.historico : []).map((h: any, i: number) => (
+                    <p key={i} className="text-xs text-muted-foreground">
+                      {dataBR(h?.em)} · {h?.de ?? "-"} → {h?.para ?? "-"} · {h?.por ?? "-"}
+                    </p>
+                  ))}
+                </div>
+              </div>
+            </>
+          )}
+        </SheetContent>
+      </Sheet>
+    </div>
   );
 }
 
