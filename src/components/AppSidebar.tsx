@@ -14,7 +14,7 @@ import {
   RefreshCw,
   Star,
   MessageSquareDashed,
-} , CalendarClock } from "lucide-react";
+} from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUserRole } from "@/hooks/useUserRole";
@@ -32,7 +32,7 @@ import { Separator } from "@/components/ui/separator";
 import {
   Collapsible, CollapsibleContent, CollapsibleTrigger,
 } from "@/components/ui/collapsible";
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, CalendarClock } from "lucide-react";
 
 interface MenuItem {
   title: string;
