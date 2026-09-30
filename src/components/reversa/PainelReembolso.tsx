@@ -389,3 +389,52 @@ export function PainelReembolso({ reembolso: r, operador, config, aoAtualizar }:
     </div>
   );
 }
+
+/* ───────── consulta compartilhada (query "trocas-reembolsos") ───────── */
+
+export function normalizarReembolsos(data: any) {
+  let d = data;
+  if (Array.isArray(d) && d.length === 1 && d[0] && typeof d[0] === "object" && !("status" in d[0])) {
+    const ks = Object.keys(d[0]);
+    if (ks.length === 1 && typeof d[0][ks[0]] === "object") d = d[0][ks[0]];
+  }
+  if (Array.isArray(d)) return { pendentes: [] as any[], reembolsos: d as any[] } as Record<string, any>;
+  const obj = (d && typeof d === "object" ? d : {}) as Record<string, any>;
+  return {
+    ...obj,
+    pendentes: Array.isArray(obj.pendentes) ? obj.pendentes : [],
+    reembolsos: Array.isArray(obj.reembolsos) ? obj.reembolsos : [],
+  } as Record<string, any>;
+}
+
+function comTempoLimite<T>(p: Promise<T>, ms = 20000): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const t = setTimeout(() => reject(new Error("A consulta demorou demais para responder.")), ms);
+    p.then((v) => { clearTimeout(t); resolve(v); }, (e) => { clearTimeout(t); reject(e); });
+  });
+}
+
+export const CHAVE_REEMBOLSOS = ["trocas-reembolsos"] as const;
+
+export async function consultarReembolsos() {
+  const { data, error } = await comTempoLimite(
+    chamarRpc("fn_trocas_reembolsos", { p_status: null, p_limit: 100 }),
+  );
+  if (error) throw new Error(error.message ?? "Erro ao carregar os reembolsos.");
+  return normalizarReembolsos(data);
+}
+
+export function HistoricoReembolso({ historico }: { historico?: any[] | null }) {
+  const lista = Array.isArray(historico) ? historico : [];
+  return (
+    <div className="pt-3">
+      <p className="mb-1 font-medium">Histórico</p>
+      {!lista.length && <p className="text-xs text-muted-foreground">-</p>}
+      {lista.map((h: any, i: number) => (
+        <p key={i} className="text-xs text-muted-foreground">
+          {dataHora(h?.em)} · {h?.de ? rotuloStatus(h.de) : "-"} → {h?.para ? rotuloStatus(h.para) : "-"} · {h?.por ?? "-"}
+        </p>
+      ))}
+    </div>
+  );
+}

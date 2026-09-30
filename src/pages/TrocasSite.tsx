@@ -47,6 +47,15 @@ export default function TrocasSite() {
   const [params, setParams] = useSearchParams();
   const aba = params.get("aba") ?? "fila";
   const buscaUrl = params.get("busca");
+  const solicitacaoUrl = params.get("solicitacao");
+  useEffect(() => {
+    if (!solicitacaoUrl) return;
+    setSelecionado(solicitacaoUrl);
+    const prox = new URLSearchParams(params);
+    prox.delete("solicitacao");
+    setParams(prox, { replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [solicitacaoUrl]);
   useEffect(() => {
     if (buscaUrl) {
       setBusca(buscaUrl);
