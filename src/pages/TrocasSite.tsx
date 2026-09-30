@@ -16,6 +16,9 @@ import { PecasRetornoTab } from "@/components/reversa/PecasRetornoTab";
 import { FluxoTab } from "@/components/reversa/FluxoTab";
 import { MensagensTab } from "@/components/reversa/MensagensTab";
 import { useSearchParams } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
+import { CHAVE_REEMBOLSOS, consultarReembolsos } from "@/components/reversa/PainelReembolso";
+import { ReembolsosTab } from "@/components/reversa/ReembolsosTab";
 import {
   ALERTAS,
   codigoVencendo,
@@ -44,6 +47,11 @@ export default function TrocasSite() {
   const [selecionado, setSelecionado] = useState<string | null>(null);
   const [abrindo, setAbrindo] = useState(false);
   const [fluxoContagens, setFluxoContagens] = useState<{ transito: number; tratamento: number } | null>(null);
+  const reembolsosQuery = useQuery({ queryKey: CHAVE_REEMBOLSOS, queryFn: consultarReembolsos, retry: 1, staleTime: 15000 });
+  const resumoReembolsos = reembolsosQuery.data?.resumo;
+  const emAndamento = ["rascunho", "aguardando_aprovacao", "aprovado"].reduce(
+    (total, chave) => total + Number(resumoReembolsos?.[chave]?.qtd ?? 0), 0,
+  );
   const [params, setParams] = useSearchParams();
   const aba = params.get("aba") ?? "fila";
   const buscaUrl = params.get("busca");
@@ -166,6 +174,7 @@ export default function TrocasSite() {
             Em tratamento
             {fluxoContagens != null && ` (${fluxoContagens.tratamento})`}
           </TabsTrigger>
+          <TabsTrigger value="reembolsos">Reembolsos{emAndamento > 0 && ` (${emAndamento})`}</TabsTrigger>
           <TabsTrigger value="pecas">Peças em retorno</TabsTrigger>
           <TabsTrigger value="mensagens">Mensagens</TabsTrigger>
           {isAdmin && <TabsTrigger value="politica">Política</TabsTrigger>}
@@ -383,6 +392,10 @@ export default function TrocasSite() {
             aoAbrirSolicitacao={(id) => setSelecionado(id)}
             aoContagens={setFluxoContagens}
           />
+        </TabsContent>
+
+        <TabsContent value="reembolsos" className="pt-4">
+          <ReembolsosTab aoAbrirSolicitacao={setSelecionado} />
         </TabsContent>
 
         <TabsContent value="pecas" className="pt-4">
