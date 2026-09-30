@@ -1,5 +1,9 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  PainelReembolso, HistoricoReembolso, consultarReembolsos, CHAVE_REEMBOLSOS, rotuloStatus, classeStatus,
+} from "./PainelReembolso";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -63,6 +67,7 @@ export function PainelSolicitacao({
 }) {
   const { toast } = useToast();
   const navigate = useNavigate();
+  const qc = useQueryClient();
   const [dados, setDados] = useState<Record<string, any> | null>(null);
   const [carregando, setCarregando] = useState(false);
   const [ocupado, setOcupado] = useState("");
@@ -610,23 +615,25 @@ export function PainelSolicitacao({
                     setConverterAberto(true);
                   }}
                 />
-                <Button
-                  size="sm"
-                  disabled={!!ocupado}
-                  onClick={() =>
-                    acao("reembolso", async () => {
-                      const r: any = await prepararReembolso(s.id);
-                      const idReembolso = r?.reembolso_id ?? r?.id ?? null;
-                      const qs = new URLSearchParams({ tab: "reembolsos" });
-                      if (idReembolso) qs.set("reembolso", String(idReembolso));
-                      else qs.set("solicitacao", String(s.id));
-                      navigate(`/comercial/trocas-devolucoes?${qs.toString()}`);
-                    }, "Reembolso preparado")
-                  }
-                >
-                  Preparar reembolso
-                </Button>
               </section>
+            )}
+
+            {(s.reembolso || !ehTroca) && (
+              <BlocoReembolsoSolicitacao
+                s={s}
+                ocupado={!!ocupado}
+                preparar={() =>
+                  acao("reembolso", async () => {
+                    await prepararReembolso(s.id);
+                    qc.invalidateQueries({ queryKey: CHAVE_REEMBOLSOS });
+                  }, "Reembolso preparado")
+                }
+                aoAtualizar={async () => {
+                  qc.invalidateQueries({ queryKey: CHAVE_REEMBOLSOS });
+                  await carregar();
+                  aoMudar();
+                }}
+              />
             )}
 
             <Separator />
@@ -790,5 +797,53 @@ function DiferencaBadge({ sentido, valor }: { sentido?: string; valor?: string }
     <span className="inline-flex items-center rounded-full border border-border bg-muted px-2.5 py-0.5 text-xs font-semibold text-muted-foreground">
       Valor igual ao crédito
     </span>
+  );
+}
+
+function BlocoReembolsoSolicitacao({
+  s,
+  ocupado,
+  preparar,
+  aoAtualizar,
+}: {
+  s: Record<string, any>;
+  ocupado: boolean;
+  preparar: () => void;
+  aoAtualizar: () => void | Promise<void>;
+}) {
+  const q = useQuery({ queryKey: CHAVE_REEMBOLSOS, queryFn: consultarReembolsos, retry: 1 });
+  const r = s.reembolso;
+  return (
+    <section className="space-y-2 rounded-md border border-border p-3">
+      <h3 className="font-serif text-base">Reembolso</h3>
+      {!r ? (
+        <Button size="sm" disabled={ocupado} onClick={preparar}>
+          Preparar reembolso
+        </Button>
+      ) : (
+        <>
+          <div className="flex flex-wrap items-center gap-2 text-sm">
+            <Badge variant="outline" className={classeStatus(r.status)}>{rotuloStatus(r.status)}</Badge>
+            <span className="font-medium tabular-nums">{moeda(r.valor)}</span>
+            <span className="text-muted-foreground">{texto(r.rotulo_rota ?? r.rota)}</span>
+          </div>
+          {q.isError && (
+            <p className="text-xs text-destructive">
+              Não foi possível carregar as permissões: {(q.error as any)?.message}{" "}
+              <button type="button" className="underline" onClick={() => q.refetch()}>Tentar de novo</button>
+            </p>
+          )}
+          <PainelReembolso
+            reembolso={r}
+            operador={q.data?.operador}
+            config={q.data?.config}
+            aoAtualizar={() => aoAtualizar()}
+          />
+          <div className="text-sm">
+            <HistoricoReembolso historico={r.historico} />
+          </div>
+        </>
+      )}
+    </section>
   );
 }
