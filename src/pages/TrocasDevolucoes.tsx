@@ -26,6 +26,7 @@ import {
 } from "recharts";
 import { chamarRpc } from "@/lib/supabaseRpc";
 import { AvisoCashbackUsado } from "@/components/reversa/AvisoCashbackUsado";
+import { PainelReembolso, ORDEM_STATUS, rotuloStatus, classeStatus } from "@/components/reversa/PainelReembolso";
 
 /* ────────────────────────── helpers ────────────────────────── */
 
@@ -887,6 +888,7 @@ function ReembolsosTab() {
   const alvoReembolso = searchParams.get("reembolso");
   const alvoSolicitacao = searchParams.get("solicitacao");
   const [aberto, setAberto] = useState<any | null>(null);
+  const [filtroStatus, setFiltroStatus] = useState<string | null>(null);
 
   const q = useQuery({
     queryKey: ["trocas-reembolsos"],
@@ -901,13 +903,15 @@ function ReembolsosTab() {
     staleTime: 0,
   });
 
-  const reembolsos = q.data?.reembolsos ?? [];
+  const todos = q.data?.reembolsos ?? [];
+  const reembolsos = filtroStatus ? todos.filter((r: any) => r?.status === filtroStatus) : todos;
+  const resumo = (q.data?.resumo ?? {}) as Record<string, { qtd?: number; valor?: number }>;
   const pendentes = q.data?.pendentes ?? [];
 
   // Abre o painel do reembolso recém-preparado.
   useEffect(() => {
     if (!q.data || (!alvoReembolso && !alvoSolicitacao)) return;
-    const achado = reembolsos.find((r: any) =>
+    const achado = todos.find((r: any) =>
       alvoReembolso ? String(r?.id) === alvoReembolso : String(r?.solicitacao_id) === alvoSolicitacao,
     );
     if (achado) setAberto(achado);
@@ -939,13 +943,27 @@ function ReembolsosTab() {
 
   return (
     <div className="space-y-4">
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-7">
+        {ORDEM_STATUS.map((s) => (
+          <button
+            key={s}
+            type="button"
+            onClick={() => setFiltroStatus((f) => (f === s ? null : s))}
+            className={`rounded-md border p-3 text-left transition hover:border-primary/50 ${filtroStatus === s ? "border-primary bg-primary/5" : "border-border"}`}
+          >
+            <p className="text-xs text-muted-foreground">{rotuloStatus(s)}</p>
+            <p className="text-lg font-semibold tabular-nums">{Number(resumo[s]?.qtd ?? 0)}</p>
+            <p className="text-xs tabular-nums text-muted-foreground">{brl(resumo[s]?.valor ?? 0)}</p>
+          </button>
+        ))}
+      </div>
       <Card>
         <CardHeader>
-          <CardTitle>Reembolsos <span className="text-sm font-normal text-muted-foreground">({reembolsos.length})</span></CardTitle>
+          <CardTitle>Reembolsos{filtroStatus ? ` · ${rotuloStatus(filtroStatus)}` : ""} <span className="text-sm font-normal text-muted-foreground">({reembolsos.length})</span></CardTitle>
         </CardHeader>
         <CardContent>
           {!reembolsos.length ? (
-            <Vazio texto="Nenhum reembolso registrado" />
+            <Vazio texto={filtroStatus ? "Nenhum reembolso neste status" : "Nenhum reembolso registrado"} />
           ) : (
             <div className="overflow-x-auto">
               <Table>
@@ -968,7 +986,7 @@ function ReembolsosTab() {
                       <TableCell className="text-right text-sm">{brl(r?.valor)}</TableCell>
                       <TableCell className="text-xs">{r?.rotulo_rota ?? r?.rota ?? "-"}</TableCell>
                       <TableCell>
-                        <Badge variant="outline" className="text-[10px]">{r?.status ?? "-"}</Badge>
+                        <Badge variant="outline" className={`text-[10px] ${classeStatus(r?.status)}`}>{rotuloStatus(r?.status)}</Badge>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -1028,7 +1046,7 @@ function ReembolsosTab() {
                 <p><span className="text-muted-foreground">Cliente:</span> {aberto.cliente_nome ?? "-"}</p>
                 <p><span className="text-muted-foreground">E-mail:</span> {aberto.cliente_email ?? "-"}</p>
                 <p><span className="text-muted-foreground">Pedido:</span> {aberto.order_number ?? "-"}</p>
-                <p><span className="text-muted-foreground">Status:</span> {aberto.status ?? "-"}</p>
+                <p><span className="text-muted-foreground">Status:</span> {rotuloStatus(aberto.status)}</p>
                 <p><span className="text-muted-foreground">Rota:</span> {aberto.rotulo_rota ?? aberto.rota ?? "-"}</p>
                 <p><span className="text-muted-foreground">Forma original:</span> {aberto.rotulo_forma ?? aberto.forma_original ?? "-"}</p>
                 <p><span className="text-muted-foreground">Valor:</span> {brl(aberto.valor)} <span className="text-xs text-muted-foreground">(máximo {brl(aberto.valor_maximo)})</span></p>
@@ -1037,6 +1055,12 @@ function ReembolsosTab() {
                 {Array.isArray(aberto.alerta_pix_anterior) && aberto.alerta_pix_anterior.length > 0 && (
                   <p className="text-destructive">Atenção: chave Pix já usada em outro reembolso.</p>
                 )}
+                <PainelReembolso
+                  reembolso={aberto}
+                  operador={q.data?.operador}
+                  config={q.data?.config}
+                  aoAtualizar={setAberto}
+                />
                 <div className="pt-3">
                   <p className="mb-1 font-medium">Histórico</p>
                   {(Array.isArray(aberto.historico) ? aberto.historico : []).map((h: any, i: number) => (
