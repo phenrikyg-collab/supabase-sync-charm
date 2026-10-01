@@ -1,6 +1,6 @@
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import type { TrayProd } from "@/hooks/useTrayProdutos";
-import { useForm } from "react-hook-form";
+import { useForm, Controller } from "react-hook-form";
 import { useProduto, useCreateProduto, useUpdateProduto, useDeleteProduto, useAviamentos, useProdutoAviamentos, useSaveProdutoAviamentos, useTecidos, useCreateAviamento } from "@/hooks/useSupabase";
 import {
   AlertDialog,
@@ -22,7 +22,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Plus, Trash2, TrendingUp, DollarSign, ChevronDown } from "lucide-react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import PublicacaoCatalogo from "@/components/produtos/PublicacaoCatalogo";
@@ -98,7 +98,7 @@ export default function ProdutoForm() {
 
 
 
-  const { register, handleSubmit, watch, reset, setValue } = useForm<ProdutoFormData>({
+  const { register, handleSubmit, watch, reset, setValue, getValues, control } = useForm<ProdutoFormData>({
     defaultValues: {
       nome_do_produto: "",
       codigo_sku: "",
@@ -125,8 +125,12 @@ export default function ProdutoForm() {
   const [aviItems, setAviItems] = useState<AviamentoItem[]>([]);
   const [publicacaoAberta, setPublicacaoAberta] = useState(false);
 
+  // Reset só uma vez por produto carregado: refetch do react-query não pode
+  // sobrescrever o que o usuário já escolheu antes de salvar.
+  const produtoCarregadoRef = useRef<string | null>(null);
   useEffect(() => {
-    if (produto && isEdit) {
+    if (produto && isEdit && produtoCarregadoRef.current !== produto.id) {
+      produtoCarregadoRef.current = produto.id;
       reset({
         nome_do_produto: produto.nome_do_produto,
         codigo_sku: produto.codigo_sku ?? "",
@@ -151,6 +155,7 @@ export default function ProdutoForm() {
       });
     }
   }, [produto, isEdit, reset]);
+
 
   // Pré-preenche quando importando da Tray (somente novo produto, uma vez)
   useEffect(() => {
@@ -200,6 +205,17 @@ export default function ProdutoForm() {
   const custoPorMetro = tecidoObj?.custo_por_metro ?? 0;
   // Valor salvo que não existe mais na lista de tecidos (mantém o combobox preenchido)
   const tecidoForaDaLista = !!tecidoSelecionado && !tecidoObj;
+  const opcoesTecido = useMemo(() => {
+    const vistos = new Set<string>();
+    const lista: string[] = [];
+    for (const t of tecidos ?? []) {
+      const nome = (t.nome_tecido ?? "").trim();
+      if (!nome || vistos.has(nome)) continue;
+      vistos.add(nome);
+      lista.push(nome);
+    }
+    return lista.sort((a, b) => a.localeCompare(b, "pt-BR"));
+  }, [tecidos]);
 
 
   const custoAviamentos = aviItems.reduce((a, item) => a + (item.quantidade_por_peca * item.custo_unitario), 0);
@@ -264,11 +280,14 @@ export default function ProdutoForm() {
 
   const onSubmit = async (data: ProdutoFormData) => {
     try {
+      const tecidoAtual = getValues("tecido_do_produto");
+      const tecidoEnviado: string | null =
+        typeof tecidoAtual === "string" && tecidoAtual.trim() ? tecidoAtual.trim() : null;
       const sanitizedData = {
         nome_do_produto: data.nome_do_produto,
         codigo_sku: data.codigo_sku || null,
         tipo_do_produto: data.tipo_do_produto || null,
-        tecido_do_produto: data.tecido_do_produto || null,
+        tecido_do_produto: tecidoEnviado,
         preco_venda: toNumber(data.preco_venda),
         consumo_de_tecido: toNumber(data.consumo_de_tecido),
         imposto_percentual: toNumber(data.imposto_percentual),
@@ -296,10 +315,22 @@ export default function ProdutoForm() {
 
       let prodId = id;
       if (isEdit) {
-        await updateMut.mutateAsync({ id, ...payload });
+        const salvo: any = await updateMut.mutateAsync({ id, ...payload });
+        if (!salvo) throw new Error("O produto não foi atualizado (sem retorno do banco).");
+        if ((salvo.tecido_do_produto ?? null) !== tecidoEnviado) {
+          toast.error("O tecido não foi gravado", {
+            description: `Enviado: ${tecidoEnviado ?? "-"} · Gravado: ${salvo.tecido_do_produto ?? "-"}`,
+          });
+          return;
+        }
       } else {
-        const result = await createMut.mutateAsync(payload);
+        const result: any = await createMut.mutateAsync(payload);
         prodId = result.id;
+        if ((result?.tecido_do_produto ?? null) !== tecidoEnviado) {
+          toast.error("O tecido não foi gravado", {
+            description: `Enviado: ${tecidoEnviado ?? "-"} · Gravado: ${result?.tecido_do_produto ?? "-"}`,
+          });
+        }
       }
 
       if (prodId) {
@@ -343,23 +374,32 @@ export default function ProdutoForm() {
               </div>
               <div className="space-y-2">
                 <Label>Tecido do Produto</Label>
-                <input type="hidden" {...register("tecido_do_produto")} />
-                <Select
-                  value={tecidoSelecionado || undefined}
-                  onValueChange={(v) => {
-                    setValue("tecido_do_produto", v, { shouldDirty: true });
+                <Controller
+                  control={control}
+                  name="tecido_do_produto"
+                  render={({ field }) => {
+                    const atual = field.value ?? "";
+                    const temNaLista = opcoesTecido.some((n) => n === atual);
+                    return (
+                      <Select
+                        value={atual || undefined}
+                        onValueChange={(v) => {
+                          // Radix pode disparar "" ao remontar; nunca apagar a escolha por isso
+                          if (!v) return;
+                          field.onChange(v);
+                        }}
+                      >
+                        <SelectTrigger><SelectValue placeholder="Selecione o tecido" /></SelectTrigger>
+                        <SelectContent>
+                          {atual && !temNaLista && <SelectItem value={atual}>{atual}</SelectItem>}
+                          {opcoesTecido.map((nome) => (
+                            <SelectItem key={nome} value={nome}>{nome}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    );
                   }}
-                >
-                  <SelectTrigger><SelectValue placeholder="Selecione o tecido" /></SelectTrigger>
-                  <SelectContent>
-                    {tecidoForaDaLista && (
-                      <SelectItem value={tecidoSelecionado}>{tecidoSelecionado}</SelectItem>
-                    )}
-                    {tecidos?.map((t) => (
-                      <SelectItem key={t.id} value={t.nome_tecido ?? t.id}>{t.nome_tecido}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                />
                 {custoPorMetro > 0 && (
                   <p className="text-xs text-muted-foreground">Custo/metro: {fmt(custoPorMetro)}</p>
                 )}
