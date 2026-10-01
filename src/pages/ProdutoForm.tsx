@@ -21,6 +21,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { toast } from "sonner";
+import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { Plus, Trash2, TrendingUp, DollarSign, ChevronDown } from "lucide-react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
@@ -71,6 +72,7 @@ export default function ProdutoForm() {
   const location = useLocation();
   const trayImport = (location.state as { tray?: TrayProd } | null)?.tray ?? null;
   const isEdit = !!id && id !== "novo";
+  const queryClient = useQueryClient();
   const { data: produto } = useProduto(isEdit ? id : "");
   const { data: aviamentos } = useAviamentos();
   const { data: tecidos } = useTecidos();
@@ -212,7 +214,7 @@ export default function ProdutoForm() {
   // Fixed costs
   const custosFixos = custoEmbalagem;
 
-  // Total cost = tecido (preco_custo field) + aviamentos + variable + fixed
+  // Total cost (igual ao trigger trg_recalcular_custo) = tecido calculado + aviamentos + variable + fixed
   const custoTecidoCalculado = Math.round(custoPorMetro * consumoTecido * 100) / 100;
   const custoTotalProduto = custoTecidoCalculado + custoAviamentos + custosVariaveis + custosFixos;
 
@@ -307,10 +309,12 @@ export default function ProdutoForm() {
         });
       }
 
+      await queryClient.invalidateQueries({ queryKey: ["produtos"] });
+      await queryClient.invalidateQueries({ queryKey: ["produto", prodId] });
       toast.success(isEdit ? "Produto atualizado!" : "Produto criado!");
       navigate("/produtos");
     } catch (e: any) {
-      toast.error(e.message);
+      toast.error(e?.message || "Não foi possível salvar o produto");
     }
   };
 
@@ -725,7 +729,7 @@ export default function ProdutoForm() {
                 produtoId={isEdit ? id : undefined}
                 nome={watch("nome_do_produto") ?? ""}
                 precoVenda={precoVenda}
-                precoCusto={precoCusto}
+                precoCusto={custoTotalProduto}
               />
             </CollapsibleContent>
           </Collapsible>
