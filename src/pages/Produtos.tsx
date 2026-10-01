@@ -169,7 +169,7 @@ export default function Produtos() {
                   <TableHead>Código</TableHead>
                   <TableHead>Nome</TableHead>
                   <TableHead>Tecido</TableHead>
-                  <TableHead className="text-right">Custo</TableHead>
+                  <TableHead className="text-right" title="Tecido + aviamentos + corte + costura + embalagem">Custo total por peça</TableHead>
                   <TableHead className="text-right">Venda</TableHead>
                   <TableHead className="text-right">Margem %</TableHead>
                   <TableHead>Origem</TableHead>

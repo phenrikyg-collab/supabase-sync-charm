@@ -30,7 +30,6 @@ interface ProdutoFormData {
   nome_do_produto: string;
   codigo_sku: string;
   preco_venda: number;
-  preco_custo: number;
   consumo_de_tecido: number;
   tipo_do_produto: string;
   tecido_do_produto: string;
@@ -102,7 +101,6 @@ export default function ProdutoForm() {
       nome_do_produto: "",
       codigo_sku: "",
       preco_venda: 0,
-      preco_custo: 0,
       consumo_de_tecido: 0,
       tipo_do_produto: "",
       tecido_do_produto: "",
@@ -131,7 +129,6 @@ export default function ProdutoForm() {
         nome_do_produto: produto.nome_do_produto,
         codigo_sku: produto.codigo_sku ?? "",
         preco_venda: produto.preco_venda ?? 0,
-        preco_custo: produto.preco_custo ?? 0,
         consumo_de_tecido: produto.consumo_de_tecido ?? 0,
         tipo_do_produto: produto.tipo_do_produto ?? "",
         tecido_do_produto: produto.tecido_do_produto ?? "",
@@ -150,9 +147,6 @@ export default function ProdutoForm() {
         chargeback_percentual: produto.chargeback_percentual ?? 0,
         conteudo_percentual: produto.conteudo_percentual ?? 0,
       });
-      // Initialize prev values to avoid auto-calc overwriting saved data on load
-      setPrevTecido(produto.tecido_do_produto ?? "");
-      setPrevConsumo(produto.consumo_de_tecido ?? 0);
     }
   }, [produto, isEdit, reset]);
 
@@ -161,7 +155,6 @@ export default function ProdutoForm() {
     if (isEdit || !trayImport) return;
     setValue("nome_do_produto", trayImport.nome || "");
     if (trayImport.reference) setValue("codigo_sku", trayImport.reference);
-    if (trayImport.custo != null) setValue("preco_custo", trayImport.custo);
     if (trayImport.preco != null) setValue("preco_venda", trayImport.preco);
     toast.info("Produto Tray carregado", {
       description: "Revise nome, custo e preço e ajuste a formação de preço.",
@@ -182,7 +175,6 @@ export default function ProdutoForm() {
 
   // Watch all cost fields
   const precoVenda = toNumber(watch("preco_venda"));
-  const precoCusto = toNumber(watch("preco_custo"));
   const consumoTecido = toNumber(watch("consumo_de_tecido"));
   const impostoPerc = toNumber(watch("imposto_percentual"));
   const comissaoPerc = toNumber(watch("comissao_percentual"));
@@ -221,8 +213,8 @@ export default function ProdutoForm() {
   const custosFixos = custoEmbalagem;
 
   // Total cost = tecido (preco_custo field) + aviamentos + variable + fixed
-  const custoTecidoCalculado = custoPorMetro * consumoTecido;
-  const custoTotalProduto = precoCusto + custoAviamentos + custosVariaveis + custosFixos;
+  const custoTecidoCalculado = Math.round(custoPorMetro * consumoTecido * 100) / 100;
+  const custoTotalProduto = custoTecidoCalculado + custoAviamentos + custosVariaveis + custosFixos;
 
   // Receita líquida = preço de venda - deduções
   const receitaLiquida = precoVenda - deducoesValor;
@@ -239,20 +231,6 @@ export default function ProdutoForm() {
   const fatorLiquido = 1 - (deducoesPercentual / 100) - 0.25;
   const precoSugerido = fatorLiquido > 0 ? custoTotalProduto / fatorLiquido : 0;
 
-  // Auto-update preco_custo when tecido or consumo changes
-  const [prevTecido, setPrevTecido] = useState("");
-  const [prevConsumo, setPrevConsumo] = useState(0);
-
-  useEffect(() => {
-    if (tecidoSelecionado && tecidos) {
-      const changed = tecidoSelecionado !== prevTecido || consumoTecido !== prevConsumo;
-      if (changed && custoPorMetro > 0 && consumoTecido > 0) {
-        setValue("preco_custo", Number((custoPorMetro * consumoTecido).toFixed(2)));
-      }
-      setPrevTecido(tecidoSelecionado);
-      setPrevConsumo(consumoTecido);
-    }
-  }, [tecidoSelecionado, consumoTecido, tecidos, setValue, custoPorMetro, prevTecido, prevConsumo]);
 
   const addAviamento = () => setAviItems([...aviItems, { aviamento_id: "", quantidade_por_peca: 1, custo_unitario: 0 }]);
   const removeAviamento = (i: number) => setAviItems(aviItems.filter((_, idx) => idx !== i));
@@ -290,7 +268,6 @@ export default function ProdutoForm() {
         tipo_do_produto: data.tipo_do_produto || null,
         tecido_do_produto: data.tecido_do_produto || null,
         preco_venda: toNumber(data.preco_venda),
-        preco_custo: toNumber(data.preco_custo),
         consumo_de_tecido: toNumber(data.consumo_de_tecido),
         imposto_percentual: toNumber(data.imposto_percentual),
         comissao_percentual: toNumber(data.comissao_percentual),
@@ -390,11 +367,11 @@ export default function ProdutoForm() {
               </div>
               <div className="space-y-2">
                 <Label>Custo do Tecido (R$)</Label>
-                <Input type="number" step="0.01" {...register("preco_custo", { valueAsNumber: true })} />
+                <Input type="text" readOnly value={fmt(custoTecidoCalculado)} className="bg-muted" />
                 <p className="text-xs text-muted-foreground">
                   {custoPorMetro > 0 && consumoTecido > 0
-                    ? `Auto: ${fmt(custoPorMetro)} × ${consumoTecido}m = ${fmt(custoPorMetro * consumoTecido)}`
-                    : "Custo/m do tecido × consumo"}
+                    ? `${fmt(custoPorMetro)} × ${consumoTecido}m = ${fmt(custoTecidoCalculado)}`
+                    : "Selecione o tecido e o consumo"}
                 </p>
               </div>
               <div className="space-y-2">
@@ -650,7 +627,7 @@ export default function ProdutoForm() {
               <div className="pl-4 space-y-1 border-l-2 border-warning/30">
                 <div className="flex justify-between text-xs">
                   <span className="text-muted-foreground">Tecido</span>
-                  <span>- {fmt(precoCusto)}</span>
+                  <span>- {fmt(custoTecidoCalculado)}</span>
                 </div>
                 <div className="flex justify-between text-xs">
                   <span className="text-muted-foreground">Aviamentos</span>
