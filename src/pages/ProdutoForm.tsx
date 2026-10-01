@@ -203,8 +203,6 @@ export default function ProdutoForm() {
   const norm = (s?: string | null) => (s ?? "").trim().toLowerCase();
   const tecidoObj = tecidos?.find((t) => norm(t.nome_tecido) === norm(tecidoSelecionado));
   const custoPorMetro = tecidoObj?.custo_por_metro ?? 0;
-  // Valor salvo que não existe mais na lista de tecidos (mantém o combobox preenchido)
-  const tecidoForaDaLista = !!tecidoSelecionado && !tecidoObj;
   const opcoesTecido = useMemo(() => {
     const vistos = new Set<string>();
     const lista: string[] = [];
