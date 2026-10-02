@@ -94,36 +94,22 @@ function useTelaLarga() {
   return larga;
 }
 
-/** Larguras padrão das três colunas: lista, chat e perfil. */
+/** Larguras padrão: três colunas (lista, chat, perfil) e duas colunas (lista, chat). */
 const LARGURAS_PADRAO: [number, number, number] = [22, 53, 25];
-const CHAVE_LARGURAS = "atendimento-larguras-paineis";
-
-function lerLargurasSalvas(): [number, number, number] {
-  try {
-    const bruto = localStorage.getItem(CHAVE_LARGURAS);
-    if (bruto) {
-      const l = JSON.parse(bruto);
-      if (Array.isArray(l) && l.length === 3 && l.every((n) => typeof n === "number")) {
-        return l as [number, number, number];
-      }
-    }
-  } catch {
-    /* armazenamento indisponível */
-  }
-  return LARGURAS_PADRAO;
-}
+const LARGURAS_PADRAO_2: [number, number] = [25, 75];
+/** O layout é salvo pela biblioteca, separado para cada combinação de colunas. */
+const CHAVE_LARGURAS = "atendimento-larguras-paineis-v2";
+const CHAVE_LARGURAS_ANTIGA = "atendimento-larguras-paineis";
 
 function Colunas({
   ajustavel,
   grupoRef,
   className,
-  onLayout,
   children,
 }: {
   ajustavel: boolean;
   grupoRef: React.RefObject<ImperativePanelGroupHandle>;
   className?: string;
-  onLayout?: (layout: number[]) => void;
   children: React.ReactNode;
 }) {
   if (!ajustavel) return <div className={className}>{children}</div>;
@@ -131,7 +117,7 @@ function Colunas({
     <ResizablePanelGroup
       ref={grupoRef}
       direction="horizontal"
-      onLayout={onLayout}
+      autoSaveId={CHAVE_LARGURAS}
       className={className}
     >
       {children}
@@ -984,21 +970,32 @@ export default function Atendimento() {
 
   const colunasAjustaveis = useTelaLarga();
   const grupoColunasRef = useRef<ImperativePanelGroupHandle>(null);
-  const [largurasIniciais] = useState<[number, number, number]>(lerLargurasSalvas);
-  const salvarLarguras = (layout: number[]) => {
+  const temPerfilColuna = colunasAjustaveis && perfilAberto && !!conversaAtual;
+  // Remove o layout antigo, que misturava 2 e 3 colunas e deixava a soma abaixo de 100.
+  useEffect(() => {
     try {
-      localStorage.setItem(CHAVE_LARGURAS, JSON.stringify(layout));
+      localStorage.removeItem(CHAVE_LARGURAS_ANTIGA);
     } catch {
       /* armazenamento indisponível */
     }
-  };
+  }, []);
+  // Garante que o layout aplicado sempre soma 100; senão volta ao padrão.
+  useEffect(() => {
+    if (!colunasAjustaveis) return;
+    const t = window.setTimeout(() => {
+      const g = grupoColunasRef.current;
+      if (!g) return;
+      const atual = g.getLayout();
+      const esperado = temPerfilColuna ? 3 : 2;
+      const soma = atual.reduce((a, b) => a + b, 0);
+      if (atual.length !== esperado || Math.abs(soma - 100) > 1) {
+        g.setLayout(temPerfilColuna ? [...LARGURAS_PADRAO] : [...LARGURAS_PADRAO_2]);
+      }
+    }, 0);
+    return () => window.clearTimeout(t);
+  }, [colunasAjustaveis, temPerfilColuna]);
   const restaurarLarguras = () => {
-    try {
-      localStorage.removeItem(CHAVE_LARGURAS);
-    } catch {
-      /* armazenamento indisponível */
-    }
-    grupoColunasRef.current?.setLayout([...LARGURAS_PADRAO]);
+    grupoColunasRef.current?.setLayout(temPerfilColuna ? [...LARGURAS_PADRAO] : [...LARGURAS_PADRAO_2]);
   };
 
   /** Preenche o campo de resposta com um texto pronto, sem enviar. */
