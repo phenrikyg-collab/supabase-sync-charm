@@ -59,3 +59,4 @@
 - [x] Corrigir espaço vazio intermitente nas colunas do Atendimento (desktop largo)
 - [ ] Fluxos de Direct por post, anúncios sem automação e selo nos comentários
 - [x] Juntar cupons de cashback pela consultora (modal de proposta e ExtratoCashback) e publicar
+- [x] Renovar sessão antes de chamar funções e ao voltar para a aba
