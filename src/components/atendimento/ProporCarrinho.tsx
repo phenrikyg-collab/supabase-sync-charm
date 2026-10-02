@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { JuntarCupons } from "@/components/cashback/JuntarCupons";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   AlertDialog,
