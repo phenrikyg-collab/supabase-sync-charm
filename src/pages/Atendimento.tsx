@@ -970,7 +970,6 @@ export default function Atendimento() {
 
   const colunasAjustaveis = useTelaLarga();
   const grupoColunasRef = useRef<ImperativePanelGroupHandle>(null);
-  const temPerfilColuna = colunasAjustaveis && perfilAberto && !!conversaAtual;
   // Remove o layout antigo, que misturava 2 e 3 colunas e deixava a soma abaixo de 100.
   useEffect(() => {
     try {
@@ -979,24 +978,6 @@ export default function Atendimento() {
       /* armazenamento indisponível */
     }
   }, []);
-  // Garante que o layout aplicado sempre soma 100; senão volta ao padrão.
-  useEffect(() => {
-    if (!colunasAjustaveis) return;
-    const t = window.setTimeout(() => {
-      const g = grupoColunasRef.current;
-      if (!g) return;
-      const atual = g.getLayout();
-      const esperado = temPerfilColuna ? 3 : 2;
-      const soma = atual.reduce((a, b) => a + b, 0);
-      if (atual.length !== esperado || Math.abs(soma - 100) > 1) {
-        g.setLayout(temPerfilColuna ? [...LARGURAS_PADRAO] : [...LARGURAS_PADRAO_2]);
-      }
-    }, 0);
-    return () => window.clearTimeout(t);
-  }, [colunasAjustaveis, temPerfilColuna]);
-  const restaurarLarguras = () => {
-    grupoColunasRef.current?.setLayout(temPerfilColuna ? [...LARGURAS_PADRAO] : [...LARGURAS_PADRAO_2]);
-  };
 
   /** Preenche o campo de resposta com um texto pronto, sem enviar. */
   const usarTextoPronto = (t: string) => {
@@ -1177,6 +1158,27 @@ export default function Atendimento() {
       ultima_mensagem_em: achada.ultima_mensagem_em ?? null,
     } as Conversa;
   }, [conversas, conversasHistorico, conversaAvulsa, resultadoBusca, selecionada, selecionadaNoHistorico]);
+
+  const temPerfilColuna = colunasAjustaveis && perfilAberto && !!conversaAtual;
+  // Garante que o layout aplicado sempre soma 100; senão volta ao padrão.
+  useEffect(() => {
+    if (!colunasAjustaveis) return;
+    const t = window.setTimeout(() => {
+      const g = grupoColunasRef.current;
+      if (!g) return;
+      const atual = g.getLayout();
+      const esperado = temPerfilColuna ? 3 : 2;
+      const soma = atual.reduce((a, b) => a + b, 0);
+      if (atual.length !== esperado || Math.abs(soma - 100) > 1) {
+        g.setLayout(temPerfilColuna ? [...LARGURAS_PADRAO] : [...LARGURAS_PADRAO_2]);
+      }
+    }, 0);
+    return () => window.clearTimeout(t);
+  }, [colunasAjustaveis, temPerfilColuna]);
+  const restaurarLarguras = () => {
+    grupoColunasRef.current?.setLayout(temPerfilColuna ? [...LARGURAS_PADRAO] : [...LARGURAS_PADRAO_2]);
+  };
+
 
   // Deep link: /atendimento?conversa=123 abre a conversa mesmo que ela não esteja
   // na lista carregada (a consulta por id acima resolve os dados).
