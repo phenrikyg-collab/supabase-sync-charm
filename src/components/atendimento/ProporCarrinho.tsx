@@ -197,6 +197,9 @@ export function FormularioProposta({
   const [contexto, setContexto] = useState<ContextoCliente | null>(null);
   const [cupomEscolhido, setCupomEscolhido] = useState<CupomCashback | null>(null);
   const [cashbackEnviado, setCashbackEnviado] = useState(0);
+  const [recarregarContexto, setRecarregarContexto] = useState(0);
+  const [avisoMinimo, setAvisoMinimo] = useState<string | null>(null);
+  const cupomJuntadoRef = useRef<string | null>(null);
 
   const modoTexto = modo === "texto";
 
@@ -244,6 +247,22 @@ export function FormularioProposta({
         setCupomEscolhido(null);
         return;
       }
+      const juntado = cupomJuntadoRef.current;
+      if (juntado) {
+        cupomJuntadoRef.current = null;
+        const novo = (ctx.cupons ?? []).find((c) => String(c.code ?? "") === juntado);
+        if (novo) {
+          const minimo = Number(novo.valor_minimo ?? 0);
+          if (novo.atinge === false || subtotal < minimo) {
+            setCupomEscolhido(null);
+            setAvisoMinimo(`Pedido mínimo de ${moeda(minimo)} para usar este cupom`);
+          } else {
+            setCupomEscolhido(novo);
+            setAvisoMinimo(null);
+          }
+          return;
+        }
+      }
       setCupomEscolhido((atual) => {
         if (!atual) return null;
         const igual = (ctx.cupons ?? []).find((c) => String(c.id) === String(atual.id));
@@ -256,7 +275,8 @@ export function FormularioProposta({
       cancelado = true;
       window.clearTimeout(timer);
     };
-  }, [telefone, conversaId, subtotal]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [telefone, conversaId, subtotal, recarregarContexto]);
 
   // Preenche o CEP da cliente sem nunca sobrescrever o que a atendente digitou.
   useEffect(() => {
@@ -797,6 +817,20 @@ export function FormularioProposta({
               );
             })}
           </div>
+
+          {avisoMinimo && <p className="text-[11px] text-destructive">{avisoMinimo}</p>}
+          {cupons.length >= 2 && (
+            <JuntarCupons
+              customer={contexto?.tray_customer_id}
+              compacto
+              onJuntado={(r) => {
+                setAvisoMinimo(null);
+                cupomJuntadoRef.current = r.code ?? null;
+                setRecarregarContexto((n) => n + 1);
+              }}
+            />
+          )}
+
 
           <p className="text-[11px] text-muted-foreground">
             {modoTexto
