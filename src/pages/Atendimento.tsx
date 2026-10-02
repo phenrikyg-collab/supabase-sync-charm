@@ -2727,29 +2727,30 @@ export default function Atendimento() {
       >
         <AcaoDoDia />
       </div>
+      {!isMobile && !colunasAjustaveis && listaSheet && (
+        <div
+          className="fixed inset-0 z-30 bg-black/40 md:hidden"
+          onClick={() => setListaSheet(false)}
+          aria-hidden
+        />
+      )}
       <Colunas
         ajustavel={colunasAjustaveis}
         grupoRef={grupoColunasRef}
-        onLayout={salvarLarguras}
         className="relative flex min-h-0 w-full min-w-0 max-w-full flex-1 overflow-hidden"
       >
-
-        {!isMobile && listaSheet && (
-          <div
-            className="fixed inset-0 z-30 bg-black/40 md:hidden"
-            onClick={() => setListaSheet(false)}
-            aria-hidden
-          />
-        )}
-
         {/* Lista de conversas */}
-        <Coluna ajustavel={colunasAjustaveis} id="lista" order={1} defaultSize={largurasIniciais[0]} minSize={18} maxSize={40}>
+        <Coluna ajustavel={colunasAjustaveis} id="lista" order={1} defaultSize={temPerfilColuna ? LARGURAS_PADRAO[0] : LARGURAS_PADRAO_2[0]} minSize={18} maxSize={40}>
         <aside
           className={cn(
-            "fixed inset-y-0 left-0 z-40 flex h-full min-h-0 w-[85vw] max-w-[360px] min-w-0 flex-col overflow-hidden border-r border-border bg-card transition-transform",
-            "md:static md:z-auto md:w-[320px] md:max-w-none md:shrink-0 md:translate-x-0 lg:w-[340px]",
-            colunasAjustaveis && "xl:w-full",
-            isMobile ? (selecionada ? "hidden" : "relative static z-auto w-full max-w-none translate-x-0 border-r-0") : (listaSheet ? "translate-x-0" : "-translate-x-full"),
+            "flex h-full min-h-0 min-w-0 flex-col overflow-hidden border-r border-border bg-card",
+            colunasAjustaveis
+              ? "static z-auto w-full max-w-none translate-x-0"
+              : cn(
+                  "fixed inset-y-0 left-0 z-40 w-[85vw] max-w-[360px] transition-transform",
+                  "md:static md:z-auto md:w-[320px] md:max-w-none md:shrink-0 md:translate-x-0 lg:w-[340px]",
+                  isMobile ? (selecionada ? "hidden" : "relative static z-auto w-full max-w-none translate-x-0 border-r-0") : (listaSheet ? "translate-x-0" : "-translate-x-full"),
+                ),
           )}
         >
           <div className="hidden shrink-0 flex-col gap-2 border-b border-border p-3 md:flex">
@@ -3118,7 +3119,7 @@ export default function Atendimento() {
         )}
 
         {/* Thread */}
-        <Coluna ajustavel={colunasAjustaveis} id="thread" order={2} defaultSize={largurasIniciais[1]} minSize={30}>
+        <Coluna ajustavel={colunasAjustaveis} id="thread" order={2} defaultSize={temPerfilColuna ? LARGURAS_PADRAO[1] : LARGURAS_PADRAO_2[1]} minSize={30}>
         <section className={cn("flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden", isMobile && !selecionada && "hidden")}>
           {!conversaAtual ? (
             <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground gap-2">
@@ -3645,7 +3646,7 @@ export default function Atendimento() {
                 className="cursor-col-resize transition-colors hover:bg-accent data-[resize-handle-state=drag]:bg-primary/50"
               />
             )}
-            <Coluna ajustavel={colunasAjustaveis} id="painel" order={3} defaultSize={largurasIniciais[2]} minSize={18} maxSize={45}>
+            <Coluna ajustavel={colunasAjustaveis} id="painel" order={3} defaultSize={LARGURAS_PADRAO[2]} minSize={18} maxSize={45}>
               <aside className="hidden h-full min-h-0 w-full min-w-0 shrink-0 flex-col overflow-hidden border-l border-border p-3 pb-8 lg:flex">
                 <Card className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain">
                   <PerfilCliente conversaId={conversaAtual.id} autor={autor} telefone={telefoneIdentificado ?? undefined} />
@@ -3659,6 +3660,8 @@ export default function Atendimento() {
             </Coluna>
           </>
         )}
+
+      </Colunas>
 
         <Sheet open={perfilSheet} onOpenChange={setPerfilSheet}>
            <SheetContent
@@ -3710,8 +3713,6 @@ export default function Atendimento() {
             )}
           </SheetContent>
         </Sheet>
-
-      </Colunas>
         </TabsContent>
       </Tabs>
 
