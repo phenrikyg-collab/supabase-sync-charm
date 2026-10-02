@@ -94,36 +94,22 @@ function useTelaLarga() {
   return larga;
 }
 
-/** Larguras padrão das três colunas: lista, chat e perfil. */
+/** Larguras padrão: três colunas (lista, chat, perfil) e duas colunas (lista, chat). */
 const LARGURAS_PADRAO: [number, number, number] = [22, 53, 25];
-const CHAVE_LARGURAS = "atendimento-larguras-paineis";
-
-function lerLargurasSalvas(): [number, number, number] {
-  try {
-    const bruto = localStorage.getItem(CHAVE_LARGURAS);
-    if (bruto) {
-      const l = JSON.parse(bruto);
-      if (Array.isArray(l) && l.length === 3 && l.every((n) => typeof n === "number")) {
-        return l as [number, number, number];
-      }
-    }
-  } catch {
-    /* armazenamento indisponível */
-  }
-  return LARGURAS_PADRAO;
-}
+const LARGURAS_PADRAO_2: [number, number] = [25, 75];
+/** O layout é salvo pela biblioteca, separado para cada combinação de colunas. */
+const CHAVE_LARGURAS = "atendimento-larguras-paineis-v2";
+const CHAVE_LARGURAS_ANTIGA = "atendimento-larguras-paineis";
 
 function Colunas({
   ajustavel,
   grupoRef,
   className,
-  onLayout,
   children,
 }: {
   ajustavel: boolean;
   grupoRef: React.RefObject<ImperativePanelGroupHandle>;
   className?: string;
-  onLayout?: (layout: number[]) => void;
   children: React.ReactNode;
 }) {
   if (!ajustavel) return <div className={className}>{children}</div>;
@@ -131,7 +117,7 @@ function Colunas({
     <ResizablePanelGroup
       ref={grupoRef}
       direction="horizontal"
-      onLayout={onLayout}
+      autoSaveId={CHAVE_LARGURAS}
       className={className}
     >
       {children}
@@ -984,22 +970,14 @@ export default function Atendimento() {
 
   const colunasAjustaveis = useTelaLarga();
   const grupoColunasRef = useRef<ImperativePanelGroupHandle>(null);
-  const [largurasIniciais] = useState<[number, number, number]>(lerLargurasSalvas);
-  const salvarLarguras = (layout: number[]) => {
+  // Remove o layout antigo, que misturava 2 e 3 colunas e deixava a soma abaixo de 100.
+  useEffect(() => {
     try {
-      localStorage.setItem(CHAVE_LARGURAS, JSON.stringify(layout));
+      localStorage.removeItem(CHAVE_LARGURAS_ANTIGA);
     } catch {
       /* armazenamento indisponível */
     }
-  };
-  const restaurarLarguras = () => {
-    try {
-      localStorage.removeItem(CHAVE_LARGURAS);
-    } catch {
-      /* armazenamento indisponível */
-    }
-    grupoColunasRef.current?.setLayout([...LARGURAS_PADRAO]);
-  };
+  }, []);
 
   /** Preenche o campo de resposta com um texto pronto, sem enviar. */
   const usarTextoPronto = (t: string) => {
@@ -1180,6 +1158,27 @@ export default function Atendimento() {
       ultima_mensagem_em: achada.ultima_mensagem_em ?? null,
     } as Conversa;
   }, [conversas, conversasHistorico, conversaAvulsa, resultadoBusca, selecionada, selecionadaNoHistorico]);
+
+  const temPerfilColuna = colunasAjustaveis && perfilAberto && !!conversaAtual;
+  // Garante que o layout aplicado sempre soma 100; senão volta ao padrão.
+  useEffect(() => {
+    if (!colunasAjustaveis) return;
+    const t = window.setTimeout(() => {
+      const g = grupoColunasRef.current;
+      if (!g) return;
+      const atual = g.getLayout();
+      const esperado = temPerfilColuna ? 3 : 2;
+      const soma = atual.reduce((a, b) => a + b, 0);
+      if (atual.length !== esperado || Math.abs(soma - 100) > 1) {
+        g.setLayout(temPerfilColuna ? [...LARGURAS_PADRAO] : [...LARGURAS_PADRAO_2]);
+      }
+    }, 0);
+    return () => window.clearTimeout(t);
+  }, [colunasAjustaveis, temPerfilColuna]);
+  const restaurarLarguras = () => {
+    grupoColunasRef.current?.setLayout(temPerfilColuna ? [...LARGURAS_PADRAO] : [...LARGURAS_PADRAO_2]);
+  };
+
 
   // Deep link: /atendimento?conversa=123 abre a conversa mesmo que ela não esteja
   // na lista carregada (a consulta por id acima resolve os dados).
@@ -2730,29 +2729,30 @@ export default function Atendimento() {
       >
         <AcaoDoDia />
       </div>
+      {!isMobile && !colunasAjustaveis && listaSheet && (
+        <div
+          className="fixed inset-0 z-30 bg-black/40 md:hidden"
+          onClick={() => setListaSheet(false)}
+          aria-hidden
+        />
+      )}
       <Colunas
         ajustavel={colunasAjustaveis}
         grupoRef={grupoColunasRef}
-        onLayout={salvarLarguras}
         className="relative flex min-h-0 w-full min-w-0 max-w-full flex-1 overflow-hidden"
       >
-
-        {!isMobile && listaSheet && (
-          <div
-            className="fixed inset-0 z-30 bg-black/40 md:hidden"
-            onClick={() => setListaSheet(false)}
-            aria-hidden
-          />
-        )}
-
         {/* Lista de conversas */}
-        <Coluna ajustavel={colunasAjustaveis} id="lista" order={1} defaultSize={largurasIniciais[0]} minSize={18} maxSize={40}>
+        <Coluna ajustavel={colunasAjustaveis} id="lista" order={1} defaultSize={temPerfilColuna ? LARGURAS_PADRAO[0] : LARGURAS_PADRAO_2[0]} minSize={18} maxSize={40}>
         <aside
           className={cn(
-            "fixed inset-y-0 left-0 z-40 flex h-full min-h-0 w-[85vw] max-w-[360px] min-w-0 flex-col overflow-hidden border-r border-border bg-card transition-transform",
-            "md:static md:z-auto md:w-[320px] md:max-w-none md:shrink-0 md:translate-x-0 lg:w-[340px]",
-            colunasAjustaveis && "xl:w-full",
-            isMobile ? (selecionada ? "hidden" : "relative static z-auto w-full max-w-none translate-x-0 border-r-0") : (listaSheet ? "translate-x-0" : "-translate-x-full"),
+            "flex h-full min-h-0 min-w-0 flex-col overflow-hidden border-r border-border bg-card",
+            colunasAjustaveis
+              ? "static z-auto w-full max-w-none translate-x-0"
+              : cn(
+                  "fixed inset-y-0 left-0 z-40 w-[85vw] max-w-[360px] transition-transform",
+                  "md:static md:z-auto md:w-[320px] md:max-w-none md:shrink-0 md:translate-x-0 lg:w-[340px]",
+                  isMobile ? (selecionada ? "hidden" : "relative static z-auto w-full max-w-none translate-x-0 border-r-0") : (listaSheet ? "translate-x-0" : "-translate-x-full"),
+                ),
           )}
         >
           <div className="hidden shrink-0 flex-col gap-2 border-b border-border p-3 md:flex">
@@ -3121,7 +3121,7 @@ export default function Atendimento() {
         )}
 
         {/* Thread */}
-        <Coluna ajustavel={colunasAjustaveis} id="thread" order={2} defaultSize={largurasIniciais[1]} minSize={30}>
+        <Coluna ajustavel={colunasAjustaveis} id="thread" order={2} defaultSize={temPerfilColuna ? LARGURAS_PADRAO[1] : LARGURAS_PADRAO_2[1]} minSize={30}>
         <section className={cn("flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden", isMobile && !selecionada && "hidden")}>
           {!conversaAtual ? (
             <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground gap-2">
@@ -3648,7 +3648,7 @@ export default function Atendimento() {
                 className="cursor-col-resize transition-colors hover:bg-accent data-[resize-handle-state=drag]:bg-primary/50"
               />
             )}
-            <Coluna ajustavel={colunasAjustaveis} id="painel" order={3} defaultSize={largurasIniciais[2]} minSize={18} maxSize={45}>
+            <Coluna ajustavel={colunasAjustaveis} id="painel" order={3} defaultSize={LARGURAS_PADRAO[2]} minSize={18} maxSize={45}>
               <aside className="hidden h-full min-h-0 w-full min-w-0 shrink-0 flex-col overflow-hidden border-l border-border p-3 pb-8 lg:flex">
                 <Card className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain">
                   <PerfilCliente conversaId={conversaAtual.id} autor={autor} telefone={telefoneIdentificado ?? undefined} />
@@ -3662,6 +3662,8 @@ export default function Atendimento() {
             </Coluna>
           </>
         )}
+
+      </Colunas>
 
         <Sheet open={perfilSheet} onOpenChange={setPerfilSheet}>
            <SheetContent
@@ -3713,8 +3715,6 @@ export default function Atendimento() {
             )}
           </SheetContent>
         </Sheet>
-
-      </Colunas>
         </TabsContent>
       </Tabs>
 
