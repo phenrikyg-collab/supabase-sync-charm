@@ -56,3 +56,5 @@
 - [x] Reordenar painel da cliente: pedidos, cupons/cashback, trocas e devoluções antes dos dados
 - [x] Trocar inserção de consentimento por Nota legal e atualizar ajuda e boas práticas do editor de popups
 - [x] Compartilhar a aba Reembolsos em /trocas-site, com contagem e abertura local da solicitação
+- [ ] Corrigir espaço vazio intermitente nas colunas do Atendimento (desktop largo)
+- [ ] Fluxos de Direct por post, anúncios sem automação e selo nos comentários
