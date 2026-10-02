@@ -18,6 +18,7 @@ import {
   rotuloTipo, valorComSinal, numero, type Linha,
 } from "@/lib/cashback";
 import { EstadoVazio } from "./Estados";
+import { JuntarCupons } from "./JuntarCupons";
 
 type Props = {
   /** JSON do extrato: { cliente, saldo, cupons, lancamentos }. */
@@ -194,6 +195,9 @@ export function ExtratoCashback({ extrato, customer, onAtualizado, compacto = fa
 
       <div className={`flex gap-2 ${compacto ? "" : "border-t pt-4"}`}>
         <Button size="sm" onClick={() => setDialogoCredito(true)} disabled={!customer}>Dar crédito</Button>
+        {ativos.length >= 2 && customer && (
+          <JuntarCupons customer={customer} compacto={compacto} onJuntado={() => onAtualizado?.()} />
+        )}
         {cupomAtivo && (
           <Button size="sm" variant="outline" onClick={() => setCupomRetirar(cupomAtivo)}>
             Retirar cupom
