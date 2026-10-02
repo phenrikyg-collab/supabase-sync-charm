@@ -58,4 +58,4 @@
 - [x] Compartilhar a aba Reembolsos em /trocas-site, com contagem e abertura local da solicitação
 - [x] Corrigir espaço vazio intermitente nas colunas do Atendimento (desktop largo)
 - [ ] Fluxos de Direct por post, anúncios sem automação e selo nos comentários
-- [ ] Juntar cupons de cashback pela consultora (modal de proposta e ExtratoCashback) e publicar
+- [x] Juntar cupons de cashback pela consultora (modal de proposta e ExtratoCashback) e publicar
