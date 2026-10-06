@@ -226,6 +226,20 @@ type Conversa = {
   falha_envio?: boolean | null;
   falha_envio_motivo?: string | null;
   falha_envio_em?: string | null;
+  ultima_direcao?: "entrada" | "saida" | string | null;
+};
+
+type FiltroLeitura = "todas" | "esperando" | "nao_lidas" | "anna" | "lidas";
+
+/** A cliente falou por último e um humano precisa agir. */
+const esperandoResposta = (c: Conversa) => !!c.nao_lida && c.ultima_direcao === "entrada" && c.status !== "bot_ativo";
+
+const passaFiltroLeitura = (c: Conversa, f: FiltroLeitura) => {
+  if (f === "esperando") return esperandoResposta(c);
+  if (f === "nao_lidas") return !!c.nao_lida;
+  if (f === "anna") return !!c.nao_lida && c.status === "bot_ativo";
+  if (f === "lidas") return !c.nao_lida;
+  return true;
 };
 
 
@@ -895,7 +909,7 @@ export default function Atendimento() {
 
 
   const [grupoAba, setGrupoAba] = useState<"conversa" | "clique" | "so_envio">("conversa");
-  const [filtroLeitura, setFiltroLeitura] = useState<"todas" | "nao_lidas" | "lidas">("todas");
+  const [filtroLeitura, setFiltroLeitura] = useState<FiltroLeitura>("todas");
   const [menuLeituraAberto, setMenuLeituraAberto] = useState<string | null>(null);
   const longPressRef = useRef<{ timer: ReturnType<typeof setTimeout> | null; disparado: boolean }>({ timer: null, disparado: false });
   /** Filtros especiais mutuamente exclusivos: atenção, automações e em atendimento. */
@@ -1284,6 +1298,7 @@ export default function Atendimento() {
   // Tempo real: mensagens novas, transcrição de áudio e mudanças de conversa
   const selecionadaRef = useRef<string | null>(null);
   selecionadaRef.current = selecionada;
+  const agendarAutoLidaRef = useRef<(() => void) | null>(null);
 
   useEffect(() => {
     // Junta vários eventos do tempo real numa recarga só (debounce de 3s)
@@ -1310,6 +1325,7 @@ export default function Atendimento() {
         { event: "INSERT", schema: "whatsapp", table: "mensagens" },
         ({ new: nova }: any) => {
           if (mesmaConversa(nova)) {
+            agendarAutoLidaRef.current?.();
             queryClient.setQueryData<Mensagem[]>(
               ["whatsapp-mensagens", selecionadaRef.current],
               (atuais) => {
@@ -1383,6 +1399,15 @@ export default function Atendimento() {
     },
   });
 
+  // Conversas que a atendente marcou como não lidas: não remarcar sozinho até abrir outra e voltar.
+  const naoRemarcarRef = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    const atual = selecionada ? String(selecionada) : null;
+    for (const id of Array.from(naoRemarcarRef.current)) {
+      if (id !== atual) naoRemarcarRef.current.delete(id);
+    }
+  }, [selecionada]);
+
   const abrirConversa = useCallback(async (c: Conversa) => {
     if (isMobile && !selecionada) {
       window.history.pushState({ atendimentoChat: true }, "", window.location.href);
@@ -1391,13 +1416,71 @@ export default function Atendimento() {
     setSelecionada(String(c.id));
     setListaSheet(false);
     setErroJanela(null);
-    if (modoHistorico || c.historico || !c.nao_lida) return;
+    naoRemarcarRef.current.delete(String(c.id));
+    // Sempre marca ao clicar: a lista em memória pode estar até 60s desatualizada.
+    if (modoHistorico || c.historico) return;
     const { error } = await chamarRpc("whatsapp_marcar_lida" as any, {
       p_conversa_id: Number.isNaN(Number(c.id)) ? c.id : Number(c.id),
     });
-    if (!error) queryClient.invalidateQueries({ queryKey: ["whatsapp-conversas"] });
+    if (!error) {
+      queryClient.invalidateQueries({ queryKey: ["whatsapp-conversas"] });
       queryClient.invalidateQueries({ queryKey: ["whatsapp-conversa"] });
+    }
   }, [isMobile, modoHistorico, queryClient, selecionada]);
+
+  // Regra geral: conversa aberta + janela em foco = lida (debounce de 1,5s, uma chamada por vez).
+  const timerAutoLidaRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const autoLidaEmCursoRef = useRef(false);
+  const contextoAutoLidaRef = useRef({ modoHistorico, conversaAtual });
+  contextoAutoLidaRef.current = { modoHistorico, conversaAtual };
+  const executarAutoLida = useCallback(async () => {
+    const id = selecionadaRef.current;
+    const { modoHistorico: hist, conversaAtual: atual } = contextoAutoLidaRef.current;
+    if (!id || hist || atual?.historico) return;
+    if (document.visibilityState !== "visible" || !document.hasFocus()) return;
+    if (naoRemarcarRef.current.has(String(id))) return;
+    if (autoLidaEmCursoRef.current) return;
+    autoLidaEmCursoRef.current = true;
+    queryClient.setQueryData<Conversa[]>(["whatsapp-conversas"], (lista) =>
+      lista?.map((cv) => (String(cv.id) === String(id) ? { ...cv, nao_lida: false } : cv)),
+    );
+    try {
+      const { error } = await chamarRpc("whatsapp_marcar_lida" as any, {
+        p_conversa_id: Number.isNaN(Number(id)) ? id : Number(id),
+      });
+      if (!error) queryClient.invalidateQueries({ queryKey: ["whatsapp-conversa"] });
+    } finally {
+      autoLidaEmCursoRef.current = false;
+    }
+  }, [queryClient]);
+  const agendarAutoLida = useCallback(() => {
+    if (timerAutoLidaRef.current) clearTimeout(timerAutoLidaRef.current);
+    timerAutoLidaRef.current = setTimeout(() => {
+      timerAutoLidaRef.current = null;
+      void executarAutoLida();
+    }, 1500);
+  }, [executarAutoLida]);
+  agendarAutoLidaRef.current = agendarAutoLida;
+
+  // Lista recarregou mostrando a conversa aberta como não lida
+  useEffect(() => {
+    if (conversaAtual?.nao_lida) agendarAutoLida();
+  }, [conversaAtual?.id, conversaAtual?.nao_lida, agendarAutoLida]);
+
+  // Voltou o foco para a janela com uma conversa aberta e não lida
+  useEffect(() => {
+    const aoFocar = () => {
+      if (document.visibilityState !== "visible") return;
+      if (contextoAutoLidaRef.current.conversaAtual?.nao_lida) agendarAutoLida();
+    };
+    window.addEventListener("focus", aoFocar);
+    document.addEventListener("visibilitychange", aoFocar);
+    return () => {
+      window.removeEventListener("focus", aoFocar);
+      document.removeEventListener("visibilitychange", aoFocar);
+      if (timerAutoLidaRef.current) clearTimeout(timerAutoLidaRef.current);
+    };
+  }, [agendarAutoLida]);
 
   useEffect(() => {
     if (!isMobile) {
@@ -1437,6 +1520,8 @@ export default function Atendimento() {
 
   const marcarLeitura = useCallback(async (id: string | number, naoLida: boolean): Promise<boolean> => {
     const idParam = Number.isNaN(Number(id)) ? id : Number(id);
+    if (naoLida) naoRemarcarRef.current.add(String(id));
+    else naoRemarcarRef.current.delete(String(id));
     queryClient.setQueryData<Conversa[]>(["whatsapp-conversas"], (lista) =>
       (lista ?? []).map((cv) => (String(cv.id) === String(id) ? { ...cv, nao_lida: naoLida } : cv)),
     );
@@ -2303,21 +2388,19 @@ export default function Atendimento() {
   const termoLocal = textoBusca(busca.trim());
   const termoDigitos = digitosBusca(termoLocal);
 
-  const filtradas = useMemo(() => {
-    let base: Conversa[];
+  // Lista da tela antes do filtro de leitura (aba, grupo, tags, fila e busca já aplicados).
+  const baseSemLeitura = useMemo(() => {
     if (modoHistorico) return conversasHistorico;
     if (modoFila) {
       // Chip "Em atendimento": renderiza na ordem exata da RPC, sem reordenar no front.
-      base = emAtendimento;
+      let base = emAtendimento;
       if (buscaAtiva) {
         const ids = new Set((resultadoBusca?.conversas ?? []).map((r) => String(r.conversa_id)));
         base = base.filter((c) => ids.has(String(c.id)));
       }
-      if (filtroLeitura === "nao_lidas") base = base.filter((c) => !!c.nao_lida);
-      if (filtroLeitura === "lidas") base = base.filter((c) => !c.nao_lida);
       return base;
     }
-    base = conversas.filter((c) => {
+    const base = conversas.filter((c) => {
       if (termoLocal) {
         const tel = (c.telefone ?? "").toLowerCase();
         const telReal = (c.telefone_real ?? "").toLowerCase();
@@ -2332,8 +2415,6 @@ export default function Atendimento() {
       }
       if (!daAba(c)) return false;
       if (grupoDe(c) !== grupoAba) return false;
-      if (filtroLeitura === "nao_lidas" && !c.nao_lida) return false;
-      if (filtroLeitura === "lidas" && c.nao_lida) return false;
       if (filtroFila === "atencao" && !["quente", "atencao"].includes(urgenciaDeNivel(atencaoDe(c)?.nivel))) return false;
       if (filtroFila === "automacao" && atencaoDe(c)?.dono !== "automacao") return false;
       if (filtroFila === "falhas" && !c.falha_envio) return false;
@@ -2346,7 +2427,25 @@ export default function Atendimento() {
     });
     return [...base].sort(compararConversas);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [conversas, conversasHistorico, emAtendimento, buscaAtiva, resultadoBusca, termoLocal, termoDigitos, aba, grupoAba, filtroLeitura, filtroFila, tagsFiltro, mapaAtencao, modoFila, modoHistorico]);
+  }, [conversas, conversasHistorico, emAtendimento, buscaAtiva, resultadoBusca, termoLocal, termoDigitos, aba, grupoAba, filtroFila, tagsFiltro, mapaAtencao, modoFila, modoHistorico]);
+
+  const filtradas = useMemo(() => {
+    if (modoHistorico || filtroLeitura === "todas") return baseSemLeitura;
+    return baseSemLeitura.filter((c) => passaFiltroLeitura(c, filtroLeitura));
+  }, [baseSemLeitura, filtroLeitura, modoHistorico]);
+
+  // Números dos chips de leitura: calculados sobre a mesma lista exibida.
+  const contagemLeitura = useMemo(() => {
+    const total = { esperando: 0, nao_lidas: 0, anna: 0, lidas: 0 };
+    if (modoHistorico) return total;
+    for (const c of baseSemLeitura) {
+      if (passaFiltroLeitura(c, "esperando")) total.esperando++;
+      if (passaFiltroLeitura(c, "nao_lidas")) total.nao_lidas++;
+      if (passaFiltroLeitura(c, "anna")) total.anna++;
+      if (passaFiltroLeitura(c, "lidas")) total.lidas++;
+    }
+    return total;
+  }, [baseSemLeitura, modoHistorico]);
 
   const filtradasExibidas = useMemo(() => {
     if (!isMobile || modoFila || modoHistorico) return filtradas;
@@ -2383,9 +2482,9 @@ export default function Atendimento() {
     setNovaConversaAberta(true);
   };
 
-  const naoLidasWhatsapp = conversas.filter((c) => c.nao_lida && !ehSite(c)).length;
-  const naoLidasSite = conversas.filter((c) => c.nao_lida && ehSite(c)).length;
-  const totalNaoLidas = aba === "site" ? naoLidasSite : naoLidasWhatsapp;
+  // Número das abas de canal: conversas "Esperando resposta" daquele canal
+  const naoLidasWhatsapp = conversas.filter((c) => esperandoResposta(c) && !ehSite(c)).length;
+  const naoLidasSite = conversas.filter((c) => esperandoResposta(c) && ehSite(c)).length;
   // "Precisam de atenção" conta só a aba Conversas, apenas niveis quente/atencao (nunca automacao)
   const totalAtencao = conversas.filter(
     (c) => daAba(c) && grupoDe(c) === "conversa" && ["quente", "atencao"].includes(urgenciaDeNivel(atencaoDe(c)?.nivel)),
@@ -2820,15 +2919,20 @@ export default function Atendimento() {
             </div>
             <div className={cn("flex items-center gap-1.5 flex-wrap", isMobile && "order-5 grid grid-cols-3 gap-1 rounded-md bg-muted p-1 [&>button]:h-10 [&>button]:border-0 [&>button]:px-1")}>
               {!modoHistorico && ([
+                { v: "esperando", label: `Esperando resposta${contagemLeitura.esperando ? ` (${contagemLeitura.esperando})` : ""}` },
                 { v: "todas", label: "Todas" },
-                { v: "nao_lidas", label: `Não lidas${totalNaoLidas ? ` (${totalNaoLidas})` : ""}` },
-                { v: "lidas", label: "Lidas" },
+                { v: "nao_lidas", label: `Não lidas${contagemLeitura.nao_lidas ? ` (${contagemLeitura.nao_lidas})` : ""}` },
+                { v: "anna", label: `Anna atendeu${contagemLeitura.anna ? ` (${contagemLeitura.anna})` : ""}` },
+                { v: "lidas", label: `Lidas${contagemLeitura.lidas ? ` (${contagemLeitura.lidas})` : ""}` },
               ] as const).map((f) => (
                 <Button
                   key={f.v}
                   size="sm"
                   variant={filtroLeitura === f.v && (f.v !== "todas" || !filtroFila) ? "default" : "outline"}
-                   className="h-7 px-2.5 text-xs"
+                  className={cn(
+                    "h-7 px-2.5 text-xs",
+                    f.v === "esperando" && filtroLeitura !== "esperando" && "border-warning/40 bg-warning/10 font-medium text-warning hover:bg-warning/20 hover:text-warning",
+                  )}
                   onClick={() => {
                     setFiltroLeitura(f.v);
                     if (f.v === "todas") setFiltroFila(null);
