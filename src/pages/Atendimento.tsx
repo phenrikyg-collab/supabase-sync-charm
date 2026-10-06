@@ -2698,7 +2698,7 @@ export default function Atendimento() {
                   <span className="truncate">Histórico</span><span className="shrink-0 text-xs text-muted-foreground">{conversasHistorico.length}</span>
                 </Button>
                 <Button type="button" variant={filtroLeitura === "lidas" ? "secondary" : "ghost"} className="h-11 w-full min-w-0 justify-between px-3" disabled={modoHistorico} onClick={() => { setFiltroLeitura(filtroLeitura === "lidas" ? "todas" : "lidas"); setFiltroFila(null); }}>
-                  <span className="truncate">Lidas</span><span className="shrink-0 text-xs text-muted-foreground">{Math.max(0, conversas.length - totalNaoLidas)}</span>
+                  <span className="truncate">Lidas</span><span className="shrink-0 text-xs text-muted-foreground">{contagemLeitura.lidas}</span>
                 </Button>
               </section>
             </div>
