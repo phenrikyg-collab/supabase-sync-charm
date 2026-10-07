@@ -60,3 +60,5 @@
 - [ ] Fluxos de Direct por post, anúncios sem automação e selo nos comentários
 - [x] Juntar cupons de cashback pela consultora (modal de proposta e ExtratoCashback) e publicar
 - [x] Renovar sessão antes de chamar funções e ao voltar para a aba
+- [x] Mover Peça do dia para dentro da lista, recolhida por padrão, sem wrapper vazio; validar montagem isolada em 1366px e 1920px e testes existentes
+- [ ] Conferir Peça do dia na tela completa com conversas reais (bloqueado: sessão disponível retorna ao login do Atendimento)
