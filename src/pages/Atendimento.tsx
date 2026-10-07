@@ -79,6 +79,7 @@ import { chamarRpc } from "@/lib/supabaseRpc";
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
 import type { ImperativePanelGroupHandle } from "react-resizable-panels";
 import { ProvadorBloco } from "@/components/atendimento/ProvadorBloco";
+import { FaixaAoVivo, PontoAoVivo, BotaoSomAoVivo, IndicadorTempoResposta, useAvisoAoVivo, lerSomAtivo, inicioEspera } from "@/components/atendimento/AoVivo";
 import { useIsMobile } from "@/hooks/use-mobile";
 
 /** A terceira coluna só cabe a partir de 1280px; abaixo disso o perfil abre em gaveta. */
@@ -227,6 +228,14 @@ type Conversa = {
   falha_envio_motivo?: string | null;
   falha_envio_em?: string | null;
   ultima_direcao?: "entrada" | "saida" | string | null;
+  ultima_entrada?: string | null;
+  ao_vivo?: boolean | null;
+  ao_vivo_motivo?: string | null;
+  ao_vivo_seg_espera?: number | null;
+  /** Calculado no front: início da espera em ms, para o cronômetro. */
+  ao_vivo_desde?: number | null;
+  site_agora?: string | null;
+  site_ultimo_em?: string | null;
 };
 
 type FiltroLeitura = "todas" | "esperando" | "nao_lidas" | "anna" | "lidas";
@@ -528,7 +537,9 @@ const ItemConversa = memo(function ItemConversa({
       )}
     >
       <span className="flex h-[15px] min-w-0 items-center gap-1.5">
-        {(estados.length > 0 || naoLida) && <span className={cn("h-2 w-2 shrink-0 rounded-full", ponto)} title={estados.join(" · ") || "Não lida"} />}
+        {!modoHistorico && c.ao_vivo
+          ? <PontoAoVivo />
+          : (estados.length > 0 || naoLida) && <span className={cn("h-2 w-2 shrink-0 rounded-full", ponto)} title={estados.join(" · ") || "Não lida"} />}
         {bloqueio && (
           <span
             className={cn("shrink-0", bloqueio === "total" ? "text-danger" : "text-warning")}
@@ -1004,15 +1015,19 @@ export default function Atendimento() {
       // vw_conversas_painel_com_tags já vem ordenada por urgência: renderizar na ordem exata do banco
       const { data, error } = await supabase.from("vw_conversas_painel_com_tags" as any).select("*");
       if (error) throw error;
+      const agora = Date.now();
       return ((data ?? []) as any[]).map((c) => ({
         ...c,
         id: c.conversa_id ?? c.id,
         cliente_nome: c.cliente_nome ?? c.nome ?? null,
         ultima_mensagem: c.ultima_mensagem ?? c.ultima_mensagem_texto ?? null,
+        ao_vivo_desde: c.ao_vivo ? inicioEspera(c, agora) : null,
       })) as Conversa[];
     },
     // rede de segurança: o tempo real (com debounce) cuida do resto. Pausa enquanto a consultora digita.
-    refetchInterval: digitando ? false : 60000,
+    // Com cliente ao vivo, recarrega a cada 15s; sem, 60s.
+    refetchInterval: (query) =>
+      digitando ? false : ((query.state.data as Conversa[] | undefined) ?? []).some((c) => c.ao_vivo) ? 15000 : 60000,
     refetchIntervalInBackground: false,
     refetchOnWindowFocus: true,
     staleTime: 15000,
@@ -2477,6 +2492,23 @@ export default function Atendimento() {
 
   const clientesSemConversa = buscaAtiva && !modoHistorico ? (resultadoBusca?.clientes ?? []) : [];
 
+  // Clientes online agora: faixa no topo (aba de canal e grupo atuais), na ordem do banco
+  const conversasAoVivo = useMemo(
+    () => conversas.filter((c) => c.ao_vivo && daAba(c) && grupoDe(c) === grupoAba),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [conversas, aba, grupoAba],
+  );
+  const [somAoVivo, setSomAoVivo] = useState(lerSomAtivo);
+  useAvisoAoVivo({
+    conversas,
+    carregado: !carregandoConversas,
+    selecionada,
+    desativado: modoHistorico,
+    somAtivo: somAoVivo,
+    nomeDe: nomeConversa,
+    onAbrir: (c) => void abrirConversa(c),
+  });
+
   const abrirNovaConversa = (telefone?: string | null) => {
     setTelefoneNovaConversa(telefone ?? null);
     setNovaConversaAberta(true);
@@ -2859,6 +2891,10 @@ export default function Atendimento() {
               <Plus className="h-4 w-4 mr-2" />
               Nova conversa
             </Button>
+            <div className="flex min-w-0 items-center justify-between gap-1">
+              <IndicadorTempoResposta />
+              <BotaoSomAoVivo ativo={somAoVivo} onChange={setSomAoVivo} />
+            </div>
             <div className={cn("grid grid-cols-2 gap-1 rounded-md bg-muted p-1", isMobile && "order-2")}>
               {([
                 { v: "whatsapp", label: "WhatsApp", icon: MessageCircle, nao: naoLidasWhatsapp },
@@ -3075,6 +3111,7 @@ export default function Atendimento() {
               </div>
             </div>
           )}
+          {!modoHistorico && <FaixaAoVivo conversas={conversasAoVivo} onAbrir={(c) => void abrirConversa(c)} nomeDe={nomeConversa} />}
           <ScrollArea className="min-h-0 min-w-0 flex-1 overscroll-contain [&_[data-radix-scroll-area-viewport]>div]:!block [&_[data-radix-scroll-area-viewport]>div]:!w-full [&_[data-radix-scroll-area-viewport]>div]:!min-w-0">
             {(modoHistorico ? carregandoHistorico : carregandoConversas) && (
               <p className="p-4 text-sm text-muted-foreground">Carregando conversas…</p>
