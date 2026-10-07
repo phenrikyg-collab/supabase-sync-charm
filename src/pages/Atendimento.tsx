@@ -2492,6 +2492,23 @@ export default function Atendimento() {
 
   const clientesSemConversa = buscaAtiva && !modoHistorico ? (resultadoBusca?.clientes ?? []) : [];
 
+  // Clientes online agora: faixa no topo (aba de canal e grupo atuais), na ordem do banco
+  const conversasAoVivo = useMemo(
+    () => conversas.filter((c) => c.ao_vivo && daAba(c) && grupoDe(c) === grupoAba),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [conversas, aba, grupoAba],
+  );
+  const [somAoVivo, setSomAoVivo] = useState(lerSomAtivo);
+  useAvisoAoVivo({
+    conversas,
+    carregado: !carregandoConversas,
+    selecionada,
+    desativado: modoHistorico,
+    somAtivo: somAoVivo,
+    nomeDe: nomeConversa,
+    onAbrir: (c) => void abrirConversa(c),
+  });
+
   const abrirNovaConversa = (telefone?: string | null) => {
     setTelefoneNovaConversa(telefone ?? null);
     setNovaConversaAberta(true);
