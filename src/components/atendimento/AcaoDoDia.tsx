@@ -42,8 +42,6 @@ type AcaoDoDia = {
   peca?: Peca | null;
 };
 
-const CHAVE_ABERTO = "atendimento-acao-do-dia-aberto";
-
 function numero(v: unknown): number | null {
   return typeof v === "number" && Number.isFinite(v) ? v : null;
 }
@@ -56,22 +54,7 @@ function brl(v: unknown): string {
 
 /** Card "Ação do dia": peça escolhida com meta de vendas própria, atualizado a cada 5 minutos. */
 export function AcaoDoDia() {
-  const [aberto, setAberto] = useState(() => {
-    try {
-      return localStorage.getItem(CHAVE_ABERTO) === "true";
-    } catch {
-      return false;
-    }
-  });
-
-  const alterarAberto = (valor: boolean) => {
-    setAberto(valor);
-    try {
-      localStorage.setItem(CHAVE_ABERTO, String(valor));
-    } catch {
-      /* armazenamento indisponível */
-    }
-  };
+  const [aberto, setAberto] = useState(false);
 
   // Atualiza a cada 5 minutos e quando a janela volta ao foco.
   useEffect(() => {
@@ -127,8 +110,8 @@ export function AcaoDoDia() {
   return (
     <Collapsible
       open={aberto}
-      onOpenChange={alterarAberto}
-      className="shrink-0 border-b border-border bg-card"
+      onOpenChange={setAberto}
+      className="w-full min-w-0 shrink-0 border-b border-border bg-card"
     >
       <CollapsibleTrigger className="group flex w-full items-center gap-2 px-3 py-2 text-left">
         <span className="min-w-0 flex-1 truncate text-xs text-foreground">

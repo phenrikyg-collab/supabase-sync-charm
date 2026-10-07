@@ -2851,15 +2851,7 @@ export default function Atendimento() {
         </TabsContent>
 
 
-        <TabsContent value="conversas" className="m-0 min-h-0 w-full min-w-0 max-w-full flex-1 overflow-hidden data-[state=active]:flex">
-      <div
-        className={cn(
-          "shrink-0",
-          isMobile && selecionada && abaPagina === "conversas" && "hidden",
-        )}
-      >
-        <AcaoDoDia />
-      </div>
+        <TabsContent value="conversas" className="m-0 min-h-0 w-full min-w-0 max-w-full flex-1 flex-col overflow-hidden data-[state=active]:flex">
       {!isMobile && !colunasAjustaveis && listaSheet && (
         <div
           className="fixed inset-0 z-30 bg-black/40 md:hidden"
@@ -2886,6 +2878,7 @@ export default function Atendimento() {
                 ),
           )}
         >
+          <AcaoDoDia />
           <div className="hidden shrink-0 flex-col gap-2 border-b border-border p-3 md:flex">
             <Button size="sm" className={cn("w-full", isMobile && "order-4 min-h-11")} onClick={() => abrirNovaConversa(null)}>
               <Plus className="h-4 w-4 mr-2" />
