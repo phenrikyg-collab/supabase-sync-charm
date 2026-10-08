@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+export { formatarData } from "@/lib/dataBr";
 
 /** Todos os dados desta seção vêm exclusivamente de RPCs. */
 
@@ -33,18 +34,6 @@ export function percentual(v: any): string {
   if (!Number.isFinite(n)) return TRACO;
   const valor = n > 0 && n <= 1 ? n * 100 : n;
   return `${valor.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}%`;
-}
-
-/** Data em dd/mm/aaaa (aceita ISO com ou sem hora). */
-export function formatarData(v: any): string {
-  if (!v) return TRACO;
-  const s = String(v);
-  const base = s.slice(0, 10);
-  const partes = base.split("-");
-  if (partes.length === 3) return `${partes[2]}/${partes[1]}/${partes[0]}`;
-  const d = new Date(s);
-  if (Number.isNaN(d.getTime())) return s;
-  return d.toLocaleDateString("pt-BR");
 }
 
 export type PainelKpis = Record<string, any>;
