@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+export { formatarData as dataCurta, formatarDataHora as dataHora } from "@/lib/dataBr";
 
 /** Todos os dados desta aba vêm exclusivamente de RPCs. */
 
@@ -230,19 +231,3 @@ export function pct(v: any): string {
   return `${n.toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%`;
 }
 
-export function dataHora(v: any): string {
-  if (!v) return SEM_DADOS;
-  const d = new Date(String(v));
-  if (Number.isNaN(d.getTime())) return String(v);
-  return `${d.toLocaleDateString("pt-BR")} às ${d.toLocaleTimeString("pt-BR", {
-    hour: "2-digit",
-    minute: "2-digit",
-  })}`;
-}
-
-export function dataCurta(v: any): string {
-  if (!v) return SEM_DADOS;
-  const s = String(v).slice(0, 10).split("-");
-  if (s.length === 3) return `${s[2]}/${s[1]}/${s[0]}`;
-  return String(v);
-}
