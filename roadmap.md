@@ -62,4 +62,4 @@
 - [x] Renovar sessão antes de chamar funções e ao voltar para a aba
 - [x] Mover Peça do dia para dentro da lista, recolhida por padrão, sem wrapper vazio; validar montagem isolada em 1366px e 1920px e testes existentes
 - [ ] Conferir Peça do dia na tela completa com conversas reais (bloqueado: sessão disponível retorna ao login do Atendimento)
-- [ ] Padronizar datas de Avaliações com helper único, testar fuso e listar ocorrências externas sem alterá-las
+- [x] Padronizar datas de Avaliações com helper único e testar fuso, inclusive em computador configurado para Auckland
