@@ -81,6 +81,7 @@ import type { ImperativePanelGroupHandle } from "react-resizable-panels";
 import { ProvadorBloco } from "@/components/atendimento/ProvadorBloco";
 import { FaixaAoVivo, PontoAoVivo, BotaoSomAoVivo, IndicadorTempoResposta, useAvisoAoVivo, lerSomAtivo, inicioEspera } from "@/components/atendimento/AoVivo";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { InboxEmail, useCaixasEmail, totalNaoLidasEmail } from "@/components/atendimento/InboxEmail";
 
 /** A terceira coluna só cabe a partir de 1280px; abaixo disso o perfil abre em gaveta. */
 function useTelaLarga() {
@@ -895,7 +896,10 @@ export default function Atendimento() {
     | "kanban"
     | "cashback"
     | "bloqueios"
-  >("conversas");
+    | "email"
+  >(() => (parametros.get("aba") === "email" ? "email" : "conversas"));
+  const { data: caixasEmail } = useCaixasEmail();
+  const naoLidasEmail = totalNaoLidasEmail(caixasEmail);
   const [abaKanban, setAbaKanban] = useState<"kanban" | "dashboard" | "followups" | "templates">("kanban");
   const [contagens, setContagens] = useState<Record<string, number>>({});
   const setContagem = (chave: string, n: number) =>
@@ -2587,6 +2591,7 @@ export default function Atendimento() {
   );
 
   const abasSecundarias = [
+    ["email", "E-mail", naoLidasEmail],
     ["provador", "Provador", contagens.provador],
     ["abandonadas", "Abandonadas", undefined],
     ["cobrancas", "Cobranças", undefined],
@@ -2614,6 +2619,9 @@ export default function Atendimento() {
             </TabsTrigger>
             <TabsTrigger value="oportunidades" className="h-8 shrink-0 text-sm">
               {rotuloComContagem("Oportunidades", contagens.oportunidades)}
+            </TabsTrigger>
+            <TabsTrigger value="email" className="hidden h-8 shrink-0 text-sm md:inline-flex">
+              {rotuloComContagem("E-mail", naoLidasEmail)}
             </TabsTrigger>
             <TabsTrigger value="provador" className="hidden h-8 shrink-0 text-sm md:inline-flex">
               {rotuloComContagem("Provador", contagens.provador)}
@@ -2840,6 +2848,10 @@ export default function Atendimento() {
 
         <TabsContent value="consulta" className="m-0 min-h-0 flex-1 overflow-auto p-4">
           <ConsultarTransacaoTab />
+        </TabsContent>
+
+        <TabsContent value="email" className="m-0 min-h-0 w-full min-w-0 flex-1 overflow-hidden data-[state=active]:flex">
+          <InboxEmail />
         </TabsContent>
 
         <TabsContent value="rapidas" className="m-0 min-h-0 flex-1 overflow-auto p-4">
