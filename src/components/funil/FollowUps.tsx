@@ -117,7 +117,7 @@ class CardErrorBoundary extends Component<{ children: ReactNode }, { erro: boole
   }
 }
 
-function DetalhesReferencia({ tipo, referencia }: { tipo: string; referencia: Referencia | null }) {
+export function DetalhesReferencia({ tipo, referencia }: { tipo: string; referencia: Referencia | null }) {
   if (!referencia) return <p className="text-xs text-muted-foreground">Detalhes não disponíveis</p>;
 
   switch (tipo) {
