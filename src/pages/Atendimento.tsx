@@ -900,6 +900,10 @@ export default function Atendimento() {
   >(() => (parametros.get("aba") === "email" ? "email" : "conversas"));
   const { data: caixasEmail } = useCaixasEmail();
   const naoLidasEmail = totalNaoLidasEmail(caixasEmail);
+  const abaUrl = parametros.get("aba");
+  useEffect(() => {
+    if (abaUrl === "email") setAbaPagina("email");
+  }, [abaUrl]);
   const [abaKanban, setAbaKanban] = useState<"kanban" | "dashboard" | "followups" | "templates">("kanban");
   const [contagens, setContagens] = useState<Record<string, number>>({});
   const setContagem = (chave: string, n: number) =>
