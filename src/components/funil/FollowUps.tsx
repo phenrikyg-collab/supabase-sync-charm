@@ -17,9 +17,13 @@ import {
 } from "lucide-react";
 import { chamarRpc } from "@/lib/supabaseRpc";
 import { BotaoConversa } from "@/components/recuperacao/BotaoConversa";
+import { formatarData } from "@/lib/dataBr";
+
 
 export type FollowupTipo =
-  | "interesse" | "pagamento_pendente" | "carrinho_abandonado" | "pedido_cancelado";
+  | "interesse" | "pagamento_pendente" | "carrinho_abandonado" | "pedido_cancelado"
+  | "fiel_em_risco" | "reembolso_concluido";
+
 
 export type Referencia = {
   itens?: string[] | null;
@@ -32,8 +36,18 @@ export type Referencia = {
   tray_order_id?: string | number | null;
   payment_method?: string | null;
   origem?: string | null;
+  compras?: number | string | null;
+  ultima_compra?: string | null;
+  dias_sem_comprar?: number | string | null;
+  tamanho?: string | null;
+  cashback?: number | string | null;
+  ltv?: number | string | null;
+  ultimas_pecas?: { nome?: string | null }[] | null;
+  pedido?: string | number | null;
+  concluida_em?: string | null;
   [key: string]: unknown;
 };
+
 
 export type Followup = {
   followup_id: number;
@@ -55,7 +69,10 @@ const TIPOS: { key: FollowupTipo; label: string; classe: string }[] = [
   { key: "pagamento_pendente", label: "Pagamento pendente", classe: "bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/30" },
   { key: "carrinho_abandonado", label: "Carrinho abandonado", classe: "bg-sky-500/15 text-sky-700 dark:text-sky-400 border-sky-500/30" },
   { key: "pedido_cancelado", label: "Pedido cancelado", classe: "bg-destructive/15 text-destructive border-destructive/30" },
+  { key: "fiel_em_risco", label: "Fiel em risco", classe: "bg-violet-500/15 text-violet-600 border-violet-500/30" },
+  { key: "reembolso_concluido", label: "Reembolso concluído", classe: "bg-teal-500/15 text-teal-600 border-teal-500/30" },
 ];
+
 
 const tipoInfo = (t: string) =>
   TIPOS.find((x) => x.key === t) || { key: t as FollowupTipo, label: t, classe: "bg-muted text-muted-foreground" };
@@ -100,7 +117,7 @@ class CardErrorBoundary extends Component<{ children: ReactNode }, { erro: boole
   }
 }
 
-function DetalhesReferencia({ tipo, referencia }: { tipo: string; referencia: Referencia | null }) {
+export function DetalhesReferencia({ tipo, referencia }: { tipo: string; referencia: Referencia | null }) {
   if (!referencia) return <p className="text-xs text-muted-foreground">Detalhes não disponíveis</p>;
 
   switch (tipo) {
@@ -153,8 +170,72 @@ function DetalhesReferencia({ tipo, referencia }: { tipo: string; referencia: Re
         </p>
       );
     }
+    case "fiel_em_risco": {
+      const cabecalho: string[] = [];
+      if (referencia.compras != null && referencia.compras !== "") {
+        cabecalho.push(`${referencia.compras} compras`);
+      }
+      if (referencia.ultima_compra) {
+        cabecalho.push(`última em ${formatarData(referencia.ultima_compra)}`);
+      }
+      if (referencia.dias_sem_comprar != null && referencia.dias_sem_comprar !== "") {
+        cabecalho.push(`${referencia.dias_sem_comprar} dias sem comprar`);
+      }
+      const pecas = Array.isArray(referencia.ultimas_pecas)
+        ? referencia.ultimas_pecas.map((p) => String(p?.nome || "").trim()).filter(Boolean)
+        : [];
+      return (
+        <div className="space-y-1">
+          {cabecalho.length > 0 && (
+            <p className="text-xs text-muted-foreground">{cabecalho.join(" · ")}</p>
+          )}
+          {referencia.tamanho ? (
+            <p className="text-xs text-muted-foreground">Tamanho: {String(referencia.tamanho)}</p>
+          ) : null}
+          {referencia.cashback != null && referencia.cashback !== "" ? (
+            <p className="text-xs text-muted-foreground">Cashback: {brl(Number(referencia.cashback))}</p>
+          ) : null}
+          {referencia.ltv != null && referencia.ltv !== "" ? (
+            <p className="text-xs text-muted-foreground">LTV: {brl(Number(referencia.ltv))}</p>
+          ) : null}
+          {pecas.length > 0 && (
+            <div className="text-xs text-muted-foreground">
+              <p>Últimas peças:</p>
+              <ul className="list-disc pl-4">
+                {pecas.map((nome, i) => (
+                  <li key={`pc-${i}`}>{nome}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
+      );
+    }
+    case "reembolso_concluido": {
+      const cabecalho: string[] = [];
+      if (referencia.pedido != null && referencia.pedido !== "") {
+        cabecalho.push(`Pedido ${referencia.pedido}`);
+      }
+      if (referencia.concluida_em) {
+        cabecalho.push(`reembolso pago em ${formatarData(referencia.concluida_em)}`);
+      }
+      const pecas = Array.isArray(referencia.itens)
+        ? referencia.itens.map((p) => String(p || "").trim()).filter(Boolean)
+        : [];
+      return (
+        <div className="space-y-1">
+          {cabecalho.length > 0 && (
+            <p className="text-xs text-muted-foreground">{cabecalho.join(" · ")}</p>
+          )}
+          {pecas.length > 0 && (
+            <p className="text-xs text-muted-foreground">Peças: {pecas.join(", ")}</p>
+          )}
+        </div>
+      );
+    }
     default:
       return <p className="text-xs text-muted-foreground">Detalhes não disponíveis</p>;
+
   }
 }
 
