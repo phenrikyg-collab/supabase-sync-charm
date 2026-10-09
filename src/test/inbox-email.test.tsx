@@ -71,6 +71,7 @@ describe("Inbox E-mail", () => {
     mount();
     await screen.findByRole("button", { name: /Cliente teste/ });
     expect(screen.queryByText("Código de acesso")).toBeNull();
+    expect(screen.queryByText("Contato")).toBeNull();
     expect(screen.queryByText("Cliente")).toBeNull();
   });
   it("usa texto novo sanitizado e alterna para o corpo completo", async () => {
