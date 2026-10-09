@@ -16,6 +16,7 @@ import {
   MessageSquareDashed,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
+import { useCaixasEmail, totalNaoLidasEmail } from "@/components/atendimento/InboxEmail";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUserRole } from "@/hooks/useUserRole";
 import { useUserModules, AppModule } from "@/hooks/useUserModules";
@@ -116,6 +117,7 @@ const moduleGroups: ModuleGroup[] = [
     icon: MessageCircle,
     items: [
       { title: "WhatsApp", url: "/atendimento", icon: MessageCircle },
+      { title: "E-mail", url: "/atendimento?aba=email", icon: Mail },
       { title: "Painel do atendimento", url: "/painel-atendimento", icon: Gauge },
       { title: "Vendas ao Vivo", url: "/vendas-ao-vivo", icon: Zap },
       { title: "Funil WhatsApp", url: "/funil-whatsapp", icon: Filter },
@@ -265,6 +267,9 @@ export function AppSidebar() {
     };
   }, []);
 
+  const { data: caixasEmail } = useCaixasEmail();
+  const emailNaoLidas = totalNaoLidasEmail(caixasEmail);
+
   const visibleGroups = isAdmin
     ? moduleGroups
     : moduleGroups.filter((g) => {
@@ -333,6 +338,15 @@ export function AppSidebar() {
                               >
                                 <item.icon className="h-4 w-4 mr-2 shrink-0" />
                                 {!collapsed && <span>{item.title}</span>}
+                                {item.url === "/atendimento?aba=email" && emailNaoLidas > 0 && (
+                                  collapsed ? (
+                                    <span className="absolute right-1 top-1 h-2 w-2 rounded-full bg-danger" />
+                                  ) : (
+                                    <span className="ml-auto rounded-full bg-danger px-1.5 py-0.5 text-[10px] font-bold leading-none text-danger-foreground">
+                                      {emailNaoLidas}
+                                    </span>
+                                  )
+                                )}
                                 {item.url === "/social-commerce" && igNaoLidas > 0 && (
                                   collapsed ? (
                                     <span className="absolute right-1 top-1 h-2 w-2 rounded-full bg-danger" />
