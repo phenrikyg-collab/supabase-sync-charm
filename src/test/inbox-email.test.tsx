@@ -52,6 +52,27 @@ describe("Inbox E-mail", () => {
     fireEvent.click(screen.getByRole("button", { name: "Sistemas" }));
     await waitFor(() => expect(chamarRpc).toHaveBeenCalledWith("inbox_email_listar", expect.objectContaining({ p_categoria: "sistema" })));
   });
+  it("filtra códigos de acesso dentro de Importantes", async () => {
+    mount();
+    await waitFor(() => expect(chamarRpc).toHaveBeenCalledWith("inbox_email_listar", expect.objectContaining({ p_categoria: "importantes" })));
+    fireEvent.click(screen.getByRole("button", { name: "Códigos de acesso" }));
+    await waitFor(() => expect(chamarRpc).toHaveBeenCalledWith("inbox_email_listar", expect.objectContaining({ p_categoria: "acesso" })));
+    fireEvent.click(screen.getByRole("button", { name: "Códigos de acesso" }));
+    await waitFor(() => expect(chamarRpc).toHaveBeenCalledWith("inbox_email_listar", expect.objectContaining({ p_categoria: "importantes" })));
+  });
+  it("mostra selo de código de acesso e não mostra o de cliente", async () => {
+    currentThread = { ...thread, categoria: "acesso", e_cliente: false, assunto: "Código de verificação" };
+    mount();
+    expect(await screen.findByText("Código de acesso")).toBeInTheDocument();
+    expect(screen.queryByText("Cliente")).toBeNull();
+  });
+  it("não mostra selo de categoria em conversas de contato", async () => {
+    currentThread = { ...thread, categoria: "contato", e_cliente: false };
+    mount();
+    await screen.findByRole("button", { name: /Cliente teste/ });
+    expect(screen.queryByText("Código de acesso")).toBeNull();
+    expect(screen.queryByText("Cliente")).toBeNull();
+  });
   it("usa texto novo sanitizado e alterna para o corpo completo", async () => {
     const view = mount(); fireEvent.click(await screen.findByRole("button", { name: /Cliente teste/ }));
     await screen.findByText("Texto novo");
