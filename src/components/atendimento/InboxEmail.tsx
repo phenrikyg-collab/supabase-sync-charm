@@ -21,7 +21,7 @@ import { cn } from "@/lib/utils";
 import { useIsMobile } from "@/hooks/use-mobile";
 
 export type CaixaEmail = { id: number; endereco: string; rotulo: string; abertas: number; nao_lidas: number; nao_lidas_outros?: number };
-type CategoriaEmail = "cliente" | "contato" | "sistema" | "promocional" | "spam";
+type CategoriaEmail = "cliente" | "contato" | "acesso" | "sistema" | "promocional" | "spam";
 export type ConversaEmail = {
   id: number; caixa_id: number; caixa: string; caixa_endereco: string; assunto: string | null;
   cliente_email: string | null; cliente_nome: string | null; status: string; nao_lida: boolean;
@@ -39,13 +39,18 @@ type MensagemEmail = {
 type DetalheEmail = { thread: ConversaEmail; mensagens: MensagemEmail[] };
 
 const LIMITE = 50;
+const CATEGORIAS_IMPORTANTES = [
+  { v: "cliente", label: "Clientes" },
+  { v: "contato", label: "Contatos" },
+  { v: "acesso", label: "Códigos de acesso" },
+] as const;
 const CATEGORIAS_OUTROS = [
   { v: "sistema", label: "Sistemas" },
   { v: "promocional", label: "Promoções" },
   { v: "spam", label: "Spam" },
 ] as const;
 const ROTULO_CATEGORIA: Record<CategoriaEmail, string> = {
-  cliente: "Cliente", contato: "Contato", sistema: "Sistema", promocional: "Promoção", spam: "Spam",
+  cliente: "Cliente", contato: "Contato", acesso: "Código de acesso", sistema: "Sistema", promocional: "Promoção", spam: "Spam",
 };
 function categoriaOutros(categoria: CategoriaEmail | null) {
   return categoria === "sistema" || categoria === "promocional" || categoria === "spam";
@@ -133,7 +138,8 @@ export function InboxEmail() {
   const [status, setStatus] = useState<string | null>("aberta");
   const [grupoCategoria, setGrupoCategoria] = useState("importantes");
   const [subCategoria, setSubCategoria] = useState<CategoriaEmail | null>(null);
-  const categoria = grupoCategoria === "importantes" ? "importantes" : subCategoria ?? "outros";
+  const categoria = subCategoria ?? (grupoCategoria === "importantes" ? "importantes" : "outros");
+  const subfiltros: readonly { v: CategoriaEmail; label: string }[] = grupoCategoria === "importantes" ? CATEGORIAS_IMPORTANTES : CATEGORIAS_OUTROS;
   const [buscaDigitada, setBuscaDigitada] = useState("");
   const [busca, setBusca] = useState("");
   const [aberta, setAberta] = useState<number | null>(null);
@@ -185,7 +191,7 @@ export function InboxEmail() {
             </TabsTrigger>
           </TabsList>
         </Tabs>
-        {grupoCategoria === "outros" && CATEGORIAS_OUTROS.map((c) => <Button key={c.v} variant={subCategoria === c.v ? "secondary" : "ghost"} className="h-8 w-full justify-start px-2" onClick={() => setSubCategoria(subCategoria === c.v ? null : c.v)}>{c.label}</Button>)}
+        {subfiltros.map((c) => <Button key={c.v} variant={subCategoria === c.v ? "secondary" : "ghost"} className="h-8 w-full justify-start px-2" onClick={() => setSubCategoria(subCategoria === c.v ? null : c.v)}>{c.label}</Button>)}
       </section>
       <section className="space-y-1">
         <p className="px-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Caixas</p>
@@ -269,7 +275,9 @@ export function InboxEmail() {
                   <p className={cn("mt-0.5 truncate text-sm", c.nao_lida ? "font-semibold" : "")}>{c.assunto || "(sem assunto)"}</p>
                   <div className="mt-0.5 flex items-center gap-2">
                     <p className="min-w-0 flex-1 truncate text-xs text-muted-foreground">{c.previa || ""}</p>
-                    {c.e_cliente && <span className="shrink-0 rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary">Cliente</span>}
+                    {c.categoria === "acesso"
+                      ? <span className="shrink-0 rounded-full border border-border bg-background px-2 py-0.5 text-[10px] font-medium text-muted-foreground">{ROTULO_CATEGORIA[c.categoria]}</span>
+                      : c.e_cliente && <span className="shrink-0 rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary">Cliente</span>}
                     {categoriaOutros(c.categoria) && c.categoria && <span className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-[10px] text-muted-foreground">{ROTULO_CATEGORIA[c.categoria]}</span>}
                     <span className="shrink-0 rounded-full border border-border bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">{c.caixa}</span>
                   </div>
@@ -421,7 +429,7 @@ function ConversaEmailAberta({ threadId, onVoltar, onMudou }: { threadId: number
         <div className="flex flex-wrap items-center gap-1.5">
           {categoriaOutros(t.categoria) ? <Button size="sm" variant="outline" className="h-7" disabled={salvando} onClick={() => atualizar({ p_categoria: "contato" }, "Conversa movida para Importantes")}>Mover para Importantes</Button> : <DropdownMenu>
             <DropdownMenuTrigger asChild><Button size="sm" variant="outline" className="h-7" disabled={salvando}>Mover para...</Button></DropdownMenuTrigger>
-            <DropdownMenuContent>{(["promocional", "sistema", "spam"] as const).map((c) => <DropdownMenuItem key={c} onSelect={() => { void atualizar({ p_categoria: c }, `Conversa movida para ${ROTULO_CATEGORIA[c]}`); }}>{ROTULO_CATEGORIA[c]}</DropdownMenuItem>)}</DropdownMenuContent>
+            <DropdownMenuContent>{(["acesso", "promocional", "sistema", "spam"] as const).map((c) => <DropdownMenuItem key={c} onSelect={() => { void atualizar({ p_categoria: c }, `Conversa movida para ${ROTULO_CATEGORIA[c]}`); }}>{ROTULO_CATEGORIA[c]}</DropdownMenuItem>)}</DropdownMenuContent>
           </DropdownMenu>}
           {t.status === "arquivada" || t.status === "respondida" || t.status === "aguardando_cliente" ? (
             <Button size="sm" variant="outline" className="h-7" disabled={salvando} onClick={() => atualizar({ p_status: "aberta" }, "Conversa reaberta")}>
