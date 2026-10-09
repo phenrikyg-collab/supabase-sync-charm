@@ -13,26 +13,43 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu";
+import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { useIsMobile } from "@/hooks/use-mobile";
 
-export type CaixaEmail = { id: number; endereco: string; rotulo: string; abertas: number; nao_lidas: number };
+export type CaixaEmail = { id: number; endereco: string; rotulo: string; abertas: number; nao_lidas: number; nao_lidas_outros?: number };
+type CategoriaEmail = "cliente" | "contato" | "sistema" | "promocional" | "spam";
 export type ConversaEmail = {
   id: number; caixa_id: number; caixa: string; caixa_endereco: string; assunto: string | null;
   cliente_email: string | null; cliente_nome: string | null; status: string; nao_lida: boolean;
   responsavel: string | null; ultima_mensagem_em: string; qtd_mensagens: number; previa: string | null;
   ultima_direcao: "entrada" | "saida" | null;
+  categoria: CategoriaEmail | null; categoria_motivo: string | null; e_cliente: boolean;
 };
 type Anexo = { id: number; nome: string; mime: string | null; tamanho: number | null; storage_path: string };
 type MensagemEmail = {
   id: number; direcao: "entrada" | "saida"; de: string | null; para: string | null; cc: string | null;
   assunto: string | null; corpo_texto: string | null; corpo_html: string | null; data_email: string | null;
   enviado_por: string | null; status_envio: string | null; erro_envio: string | null; anexos: Anexo[] | null;
+  corpo_texto_limpo: string | null; corpo_html_limpo: string | null;
 };
 type DetalheEmail = { thread: ConversaEmail; mensagens: MensagemEmail[] };
 
 const LIMITE = 50;
+const CATEGORIAS_OUTROS = [
+  { v: "sistema", label: "Sistemas" },
+  { v: "promocional", label: "Promoções" },
+  { v: "spam", label: "Spam" },
+] as const;
+const ROTULO_CATEGORIA: Record<CategoriaEmail, string> = {
+  cliente: "Cliente", contato: "Contato", sistema: "Sistema", promocional: "Promoção", spam: "Spam",
+};
+function categoriaOutros(categoria: CategoriaEmail | null) {
+  return categoria === "sistema" || categoria === "promocional" || categoria === "spam";
+}
 const STATUS = [
   { v: "aberta", label: "Abertas" },
   { v: "aguardando_cliente", label: "Aguardando cliente" },
@@ -90,14 +107,23 @@ async function abrirAnexo(a: Anexo) {
 }
 
 function CorpoMensagem({ m }: { m: MensagemEmail }) {
+  const [historico, setHistorico] = useState(false);
+  const temLimpo = m.corpo_html_limpo != null || m.corpo_texto_limpo != null;
+  const usarLimpo = temLimpo && !historico;
+  const corpoHtml = usarLimpo ? m.corpo_html_limpo : m.corpo_html;
+  const corpoTexto = usarLimpo ? m.corpo_texto_limpo : m.corpo_texto;
   const html = useMemo(
-    () => (m.corpo_html ? DOMPurify.sanitize(m.corpo_html, { FORBID_TAGS: ["style", "script", "form", "input"], ADD_ATTR: ["target"] }) : ""),
-    [m.corpo_html],
+    () => (corpoHtml ? DOMPurify.sanitize(corpoHtml, { FORBID_TAGS: ["style", "script", "form", "input"], ADD_ATTR: ["target"] }) : ""),
+    [corpoHtml],
   );
-  if (html.trim()) {
-    return <div className="prose prose-sm max-w-none break-words text-sm [&_a]:text-primary [&_a]:underline [&_img]:max-w-full" dangerouslySetInnerHTML={{ __html: html }} />;
-  }
-  return <p className="whitespace-pre-wrap break-words text-sm">{m.corpo_texto || "(sem conteúdo)"}</p>;
+  return <>
+    {html.trim()
+      ? <div className="prose prose-sm max-w-none break-words text-sm [&_a]:text-primary [&_a]:underline [&_img]:max-w-full" dangerouslySetInnerHTML={{ __html: html }} />
+      : <p className="whitespace-pre-wrap break-words text-sm">{corpoTexto || "(sem conteúdo)"}</p>}
+    {temLimpo && <Button variant="link" className="mt-1 h-auto p-0 text-xs text-muted-foreground" aria-expanded={historico} onClick={() => setHistorico((v) => !v)}>
+      {historico ? "Ocultar histórico" : "Mostrar histórico"}
+    </Button>}
+  </>;
 }
 
 export function InboxEmail() {
@@ -105,6 +131,9 @@ export function InboxEmail() {
   const qc = useQueryClient();
   const [caixa, setCaixa] = useState<number | null>(null);
   const [status, setStatus] = useState<string | null>("aberta");
+  const [grupoCategoria, setGrupoCategoria] = useState("importantes");
+  const [subCategoria, setSubCategoria] = useState<CategoriaEmail | null>(null);
+  const categoria = grupoCategoria === "importantes" ? "importantes" : subCategoria ?? "outros";
   const [buscaDigitada, setBuscaDigitada] = useState("");
   const [busca, setBusca] = useState("");
   const [aberta, setAberta] = useState<number | null>(null);
@@ -118,11 +147,12 @@ export function InboxEmail() {
   const { data: caixas = [] } = useCaixasEmail();
 
   const listaQ = useInfiniteQuery({
-    queryKey: ["inbox-email-lista", caixa, status, busca],
+    queryKey: ["inbox-email-lista", caixa, status, busca, categoria],
     initialPageParam: null as string | null,
     queryFn: async ({ pageParam }) =>
       lista<ConversaEmail>(await rpc("inbox_email_listar", {
         p_caixa_id: caixa, p_status: status, p_busca: busca || null, p_limite: LIMITE, p_antes: pageParam,
+        p_categoria: categoria,
       })),
     getNextPageParam: (ultima) => (ultima.length >= LIMITE ? ultima[ultima.length - 1]?.ultima_mensagem_em ?? null : null),
     refetchInterval: 30000,
@@ -146,6 +176,17 @@ export function InboxEmail() {
 
   const filtros = (
     <div className="space-y-4 p-3">
+      <section className="space-y-1">
+        <Tabs value={grupoCategoria} onValueChange={(v) => { setGrupoCategoria(v); setSubCategoria(null); }}>
+          <TabsList className="h-auto w-full">
+            <TabsTrigger value="importantes" className="flex-1 px-2">Importantes</TabsTrigger>
+            <TabsTrigger value="outros" className="flex-1 gap-1 px-2">Outros
+              {caixas.some((c) => Number(c.nao_lidas_outros) > 0) && <span className="text-xs text-muted-foreground">{caixas.reduce((s, c) => s + (Number(c.nao_lidas_outros) || 0), 0)}</span>}
+            </TabsTrigger>
+          </TabsList>
+        </Tabs>
+        {grupoCategoria === "outros" && CATEGORIAS_OUTROS.map((c) => <Button key={c.v} variant={subCategoria === c.v ? "secondary" : "ghost"} className="h-8 w-full justify-start px-2" onClick={() => setSubCategoria(subCategoria === c.v ? null : c.v)}>{c.label}</Button>)}
+      </section>
       <section className="space-y-1">
         <p className="px-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Caixas</p>
         {[{ id: null as number | null, rotulo: "Todas", nao: totalNaoLidasEmail(caixas), endereco: "" }, ...caixas.map((c) => ({ id: c.id, rotulo: c.rotulo, nao: Number(c.nao_lidas) || 0, endereco: c.endereco }))].map((c) => (
@@ -192,7 +233,7 @@ export function InboxEmail() {
       <div className="space-y-2 border-b border-border p-3">
         {isMobile && (
           <Button variant="outline" size="sm" className="w-full" onClick={() => setTelaMobile("filtros")}>
-            Caixa: {caixa == null ? "Todas" : caixas.find((c) => c.id === caixa)?.rotulo ?? "-"} · {status ? ROTULO_STATUS[status] : "Todas"}
+            {grupoCategoria === "importantes" ? "Importantes" : "Outros"} · Caixa: {caixa == null ? "Todas" : caixas.find((c) => c.id === caixa)?.rotulo ?? "-"} · {status ? ROTULO_STATUS[status] : "Todas"}
           </Button>
         )}
         {buscaCampo}
@@ -228,6 +269,8 @@ export function InboxEmail() {
                   <p className={cn("mt-0.5 truncate text-sm", c.nao_lida ? "font-semibold" : "")}>{c.assunto || "(sem assunto)"}</p>
                   <div className="mt-0.5 flex items-center gap-2">
                     <p className="min-w-0 flex-1 truncate text-xs text-muted-foreground">{c.previa || ""}</p>
+                    {c.e_cliente && <span className="shrink-0 rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary">Cliente</span>}
+                    {categoriaOutros(c.categoria) && c.categoria && <span className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-[10px] text-muted-foreground">{ROTULO_CATEGORIA[c.categoria]}</span>}
                     <span className="shrink-0 rounded-full border border-border bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">{c.caixa}</span>
                   </div>
                 </button>
@@ -310,10 +353,10 @@ function ConversaEmailAberta({ threadId, onVoltar, onMudou }: { threadId: number
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [q.data?.thread?.id]);
 
-  const atualizar = async (args: { p_status?: string | null; p_nao_lida?: boolean | null; p_responsavel?: string | null }, ok: string) => {
+  const atualizar = async (args: { p_status?: string | null; p_nao_lida?: boolean | null; p_responsavel?: string | null; p_categoria?: CategoriaEmail | null }, ok: string) => {
     setSalvando(true);
     try {
-      await rpc("inbox_email_atualizar", { p_thread_id: threadId, p_status: null, p_nao_lida: null, p_responsavel: null, ...args });
+      await rpc("inbox_email_atualizar", { p_thread_id: threadId, p_status: null, p_nao_lida: null, p_responsavel: null, p_categoria: null, ...args });
       toast.success(ok);
       onMudou();
       if (args.p_nao_lida !== true) await qc.invalidateQueries({ queryKey: ["inbox-email-thread", threadId] });
@@ -369,9 +412,17 @@ function ConversaEmailAberta({ threadId, onVoltar, onMudou }: { threadId: number
             <p className="truncate text-xs text-muted-foreground">
               {t.cliente_nome ? `${t.cliente_nome} <${t.cliente_email ?? ""}>` : t.cliente_email || "-"} · {t.caixa} · {ROTULO_STATUS[t.status] ?? t.status}
             </p>
+            {t.categoria && <Tooltip>
+              <TooltipTrigger asChild><span tabIndex={0} className="mt-1 inline-block rounded-full border border-border bg-muted px-2 py-0.5 text-[11px] text-muted-foreground">{ROTULO_CATEGORIA[t.categoria]}</span></TooltipTrigger>
+              <TooltipContent className="max-w-xs break-words">{t.categoria_motivo || "Sem motivo informado"}</TooltipContent>
+            </Tooltip>}
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-1.5">
+          {categoriaOutros(t.categoria) ? <Button size="sm" variant="outline" className="h-7" disabled={salvando} onClick={() => atualizar({ p_categoria: "contato" }, "Conversa movida para Importantes")}>Mover para Importantes</Button> : <DropdownMenu>
+            <DropdownMenuTrigger asChild><Button size="sm" variant="outline" className="h-7" disabled={salvando}>Mover para...</Button></DropdownMenuTrigger>
+            <DropdownMenuContent>{(["promocional", "sistema", "spam"] as const).map((c) => <DropdownMenuItem key={c} onSelect={() => { void atualizar({ p_categoria: c }, `Conversa movida para ${ROTULO_CATEGORIA[c]}`); }}>{ROTULO_CATEGORIA[c]}</DropdownMenuItem>)}</DropdownMenuContent>
+          </DropdownMenu>}
           {t.status === "arquivada" || t.status === "respondida" || t.status === "aguardando_cliente" ? (
             <Button size="sm" variant="outline" className="h-7" disabled={salvando} onClick={() => atualizar({ p_status: "aberta" }, "Conversa reaberta")}>
               <RotateCcw className="mr-1 h-3.5 w-3.5" />Reabrir
@@ -413,13 +464,15 @@ function ConversaEmailAberta({ threadId, onVoltar, onMudou }: { threadId: number
                   falhou ? "border-danger/40 bg-danger/10" : nossa ? "border-primary/20 bg-primary/10" : "border-border bg-card",
                 )}>
                   <div className="mb-2 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5 text-xs text-muted-foreground">
-                    <span className="min-w-0 truncate font-medium text-foreground">
-                      {nossa ? (m.enviado_por ? `${m.enviado_por} (${m.de ?? ""})` : m.de) : m.de}
-                    </span>
+                    {nossa ? <div className="min-w-0">
+                      <div className="flex flex-wrap items-baseline gap-x-2"><span className="font-semibold text-foreground">Use Mariana Cardoso</span><span className="break-all text-muted-foreground">{t.caixa_endereco}</span></div>
+                      {m.enviado_por && <p className="text-[11px] text-muted-foreground">enviado por {m.enviado_por}</p>}
+                    </div> : <span className="min-w-0 truncate font-medium text-foreground">{m.de}</span>}
                     <span className="shrink-0">{formatarDataHora(m.data_email)}</span>
                   </div>
                   {m.para && <p className="mb-1 truncate text-[11px] text-muted-foreground">Para: {m.para}{m.cc ? ` · Cc: ${m.cc}` : ""}</p>}
                   <CorpoMensagem m={m} />
+                  {nossa && <p className="mt-2 text-[11px] text-muted-foreground">+ assinatura da marca</p>}
                   {(m.anexos ?? []).length > 0 && (
                     <div className="mt-2 flex flex-wrap gap-1.5">
                       {(m.anexos ?? []).map((a) => (
@@ -457,6 +510,7 @@ function ConversaEmailAberta({ threadId, onVoltar, onMudou }: { threadId: number
             {enviando ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : <Send className="mr-1.5 h-4 w-4" />}Enviar
           </Button>
         </div>
+        <p className="text-xs text-muted-foreground">A assinatura da marca é adicionada automaticamente. Use **texto** para negrito e deixe uma linha em branco para separar parágrafos.</p>
       </footer>
     </div>
   );
