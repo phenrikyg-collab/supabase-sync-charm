@@ -561,6 +561,7 @@ const ItemConversa = memo(function ItemConversa({
         {previa || identificadorConversa(c)}
       </span>
       <span className="flex min-h-[18px] min-w-0 flex-wrap items-center gap-1 overflow-hidden">
+        <SeloAssunto assunto={c.assunto} motivo={c.assunto_motivo} />
         {etiquetas.slice(0, 3).map((e) => (
           <span key={e.key} title={e.label} className="min-w-0 max-w-full truncate">
             {e.tag ? (
@@ -2972,6 +2973,8 @@ export default function Atendimento() {
             <div className={cn("flex items-center gap-1.5 flex-wrap", isMobile && "order-5 grid grid-cols-3 gap-1 rounded-md bg-muted p-1 [&>button]:h-10 [&>button]:border-0 [&>button]:px-1")}>
               {!modoHistorico && ([
                 { v: "esperando", label: `Esperando resposta${contagemLeitura.esperando ? ` (${contagemLeitura.esperando})` : ""}` },
+                { v: "venda", label: `Venda${contagemLeitura.venda ? ` (${contagemLeitura.venda})` : ""}` },
+                { v: "pos_venda", label: `Pós-venda${contagemLeitura.pos_venda ? ` (${contagemLeitura.pos_venda})` : ""}` },
                 { v: "todas", label: "Todas" },
                 { v: "nao_lidas", label: `Não lidas${contagemLeitura.nao_lidas ? ` (${contagemLeitura.nao_lidas})` : ""}` },
                 { v: "anna", label: `Anna atendeu${contagemLeitura.anna ? ` (${contagemLeitura.anna})` : ""}` },
@@ -3330,6 +3333,7 @@ export default function Atendimento() {
                       else setPerfilSheet(true);
                     }}
                   />
+                  <SeloAssunto assunto={conversaAtual.assunto} motivo={conversaAtual.assunto_motivo} />
 
                   <div className="max-w-full truncate text-[11px] text-muted-foreground md:hidden">
                     {conversaAtual.status === "escalado" ? "Aguardando atendimento" : conversaAtual.status === "em_atendimento" ? "Em atendimento" : conversaAtual.status === "resolvido" ? "Resolvida" : "Atendimento automático"}
