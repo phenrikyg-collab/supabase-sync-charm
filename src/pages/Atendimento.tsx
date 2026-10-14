@@ -80,6 +80,7 @@ import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/componen
 import type { ImperativePanelGroupHandle } from "react-resizable-panels";
 import { ProvadorBloco } from "@/components/atendimento/ProvadorBloco";
 import { FaixaAoVivo, PontoAoVivo, BotaoSomAoVivo, IndicadorTempoResposta, useAvisoAoVivo, lerSomAtivo, inicioEspera } from "@/components/atendimento/AoVivo";
+import { SeloAssunto } from "@/components/atendimento/SeloAssunto";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { InboxEmail, useCaixasEmail, totalNaoLidasEmail } from "@/components/atendimento/InboxEmail";
 
@@ -237,15 +238,19 @@ type Conversa = {
   ao_vivo_desde?: number | null;
   site_agora?: string | null;
   site_ultimo_em?: string | null;
+  assunto?: "venda" | "pos_venda" | "indefinido" | string | null;
+  assunto_motivo?: string | null;
 };
 
-type FiltroLeitura = "todas" | "esperando" | "nao_lidas" | "anna" | "lidas";
+type FiltroLeitura = "todas" | "esperando" | "venda" | "pos_venda" | "nao_lidas" | "anna" | "lidas";
 
 /** A cliente falou por último e um humano precisa agir. */
 const esperandoResposta = (c: Conversa) => !!c.nao_lida && c.ultima_direcao === "entrada" && c.status !== "bot_ativo";
 
 const passaFiltroLeitura = (c: Conversa, f: FiltroLeitura) => {
   if (f === "esperando") return esperandoResposta(c);
+  if (f === "venda") return !!c.aguardando_resposta && c.assunto === "venda";
+  if (f === "pos_venda") return !!c.aguardando_resposta && c.assunto === "pos_venda";
   if (f === "nao_lidas") return !!c.nao_lida;
   if (f === "anna") return !!c.nao_lida && c.status === "bot_ativo";
   if (f === "lidas") return !c.nao_lida;
@@ -2459,10 +2464,12 @@ export default function Atendimento() {
 
   // Números dos chips de leitura: calculados sobre a mesma lista exibida.
   const contagemLeitura = useMemo(() => {
-    const total = { esperando: 0, nao_lidas: 0, anna: 0, lidas: 0 };
+    const total = { esperando: 0, venda: 0, pos_venda: 0, nao_lidas: 0, anna: 0, lidas: 0 };
     if (modoHistorico) return total;
     for (const c of baseSemLeitura) {
       if (passaFiltroLeitura(c, "esperando")) total.esperando++;
+      if (passaFiltroLeitura(c, "venda")) total.venda++;
+      if (passaFiltroLeitura(c, "pos_venda")) total.pos_venda++;
       if (passaFiltroLeitura(c, "nao_lidas")) total.nao_lidas++;
       if (passaFiltroLeitura(c, "anna")) total.anna++;
       if (passaFiltroLeitura(c, "lidas")) total.lidas++;
