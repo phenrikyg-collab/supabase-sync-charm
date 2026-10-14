@@ -7,6 +7,7 @@ import { ToastAction } from "@/components/ui/toast";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { chamarRpc } from "@/lib/supabaseRpc";
 import { cn } from "@/lib/utils";
+import { SeloAssunto } from "@/components/atendimento/SeloAssunto";
 
 export type ConversaAoVivo = {
   id: string | number;
@@ -17,6 +18,8 @@ export type ConversaAoVivo = {
   ao_vivo_seg_espera?: number | null;
   ao_vivo_desde?: number | null;
   site_agora?: string | null;
+  assunto?: "venda" | "pos_venda" | "indefinido" | string | null;
+  assunto_motivo?: string | null;
 };
 
 /** Momento (ms) em que a espera começou: última entrada da cliente ou, sem ela, a espera informada pela view. */
@@ -78,6 +81,7 @@ export function FaixaAoVivo({ conversas, onAbrir, nomeDe }: {
             <span className="flex min-w-0 items-center gap-1.5 text-[12px]">
               <PontoAoVivo />
               <span className="min-w-0 flex-1 truncate font-semibold">{nomeDe(c)}</span>
+              <SeloAssunto assunto={c.assunto} motivo={c.assunto_motivo} />
               <span className="text-[11px]"><Cronometro desde={c.ao_vivo_desde} /></span>
             </span>
             <span className="block min-w-0 truncate pl-3.5 text-[11px] text-muted-foreground">
