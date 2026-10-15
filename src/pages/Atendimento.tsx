@@ -238,11 +238,11 @@ type Conversa = {
   ao_vivo_desde?: number | null;
   site_agora?: string | null;
   site_ultimo_em?: string | null;
-  assunto?: "venda" | "pos_venda" | "indefinido" | string | null;
+  assunto?: "venda" | "sac" | "indefinido" | string | null;
   assunto_motivo?: string | null;
 };
 
-type FiltroLeitura = "todas" | "esperando" | "venda" | "pos_venda" | "nao_lidas" | "anna" | "lidas";
+type FiltroLeitura = "todas" | "esperando" | "venda" | "sac" | "nao_lidas" | "anna" | "lidas";
 
 /** A cliente falou por último e um humano precisa agir. */
 const esperandoResposta = (c: Conversa) => !!c.nao_lida && c.ultima_direcao === "entrada" && c.status !== "bot_ativo";
@@ -250,7 +250,7 @@ const esperandoResposta = (c: Conversa) => !!c.nao_lida && c.ultima_direcao === 
 const passaFiltroLeitura = (c: Conversa, f: FiltroLeitura) => {
   if (f === "esperando") return esperandoResposta(c);
   if (f === "venda") return !!c.aguardando_resposta && c.assunto === "venda";
-  if (f === "pos_venda") return !!c.aguardando_resposta && c.assunto === "pos_venda";
+  if (f === "sac") return !!c.aguardando_resposta && c.assunto === "sac";
   if (f === "nao_lidas") return !!c.nao_lida;
   if (f === "anna") return !!c.nao_lida && c.status === "bot_ativo";
   if (f === "lidas") return !c.nao_lida;
@@ -2465,12 +2465,12 @@ export default function Atendimento() {
 
   // Números dos chips de leitura: calculados sobre a mesma lista exibida.
   const contagemLeitura = useMemo(() => {
-    const total = { esperando: 0, venda: 0, pos_venda: 0, nao_lidas: 0, anna: 0, lidas: 0 };
+    const total = { esperando: 0, venda: 0, sac: 0, nao_lidas: 0, anna: 0, lidas: 0 };
     if (modoHistorico) return total;
     for (const c of baseSemLeitura) {
       if (passaFiltroLeitura(c, "esperando")) total.esperando++;
       if (passaFiltroLeitura(c, "venda")) total.venda++;
-      if (passaFiltroLeitura(c, "pos_venda")) total.pos_venda++;
+      if (passaFiltroLeitura(c, "sac")) total.sac++;
       if (passaFiltroLeitura(c, "nao_lidas")) total.nao_lidas++;
       if (passaFiltroLeitura(c, "anna")) total.anna++;
       if (passaFiltroLeitura(c, "lidas")) total.lidas++;
@@ -2974,7 +2974,7 @@ export default function Atendimento() {
               {!modoHistorico && ([
                 { v: "esperando", label: `Esperando resposta${contagemLeitura.esperando ? ` (${contagemLeitura.esperando})` : ""}` },
                 { v: "venda", label: `Venda${contagemLeitura.venda ? ` (${contagemLeitura.venda})` : ""}` },
-                { v: "pos_venda", label: `Pós-venda${contagemLeitura.pos_venda ? ` (${contagemLeitura.pos_venda})` : ""}` },
+                { v: "sac", label: `SAC${contagemLeitura.sac ? ` (${contagemLeitura.sac})` : ""}` },
                 { v: "todas", label: "Todas" },
                 { v: "nao_lidas", label: `Não lidas${contagemLeitura.nao_lidas ? ` (${contagemLeitura.nao_lidas})` : ""}` },
                 { v: "anna", label: `Anna atendeu${contagemLeitura.anna ? ` (${contagemLeitura.anna})` : ""}` },
