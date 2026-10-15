@@ -359,7 +359,7 @@ export function prepararLote(arquivos: File[]): { aceitos: File[]; excedeu: bool
 }
 
 /** Aplica a mesma regra do envio individual. Converte PNG/WEBP/HEIC para JPEG quando possível. */
-export async function validarArquivoStory(file: File): Promise<{ ok: true; file: File } | { ok: false; msg: string }> {
+export async function validarArquivoStory(file: File): Promise<{ ok: boolean; file?: File; msg?: string }> {
   let alvo = file;
   let v = validarMidia(alvo);
   if (!v.ok && v.acao === "converter") {
