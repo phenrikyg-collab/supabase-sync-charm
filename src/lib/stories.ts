@@ -341,3 +341,55 @@ export function textoAvisos(avisos?: Aviso[]): string[] {
       : `Slide ${a.ordem ?? "?"}: ${a.problema ?? "mídia que o Instagram recusa"}`,
   );
 }
+
+/* ---------------- envio de várias mídias ---------------- */
+
+export const LIMITE_LOTE = 10;
+export const AVISO_LIMITE_LOTE = "Máximo de 10 mídias por vez. As primeiras 10 foram adicionadas.";
+
+/**
+ * Ordena pelo nome do arquivo (o navegador não garante a ordem de seleção)
+ * e corta no limite do lote.
+ */
+export function prepararLote(arquivos: File[]): { aceitos: File[]; excedeu: boolean } {
+  const ordenados = [...arquivos].sort((a, b) =>
+    a.name.localeCompare(b.name, "pt-BR", { numeric: true, sensitivity: "base" }),
+  );
+  return { aceitos: ordenados.slice(0, LIMITE_LOTE), excedeu: ordenados.length > LIMITE_LOTE };
+}
+
+/** Aplica a mesma regra do envio individual. Converte PNG/WEBP/HEIC para JPEG quando possível. */
+export async function validarArquivoStory(file: File): Promise<{ ok: boolean; file?: File; msg?: string }> {
+  let alvo = file;
+  let v = validarMidia(alvo);
+  if (!v.ok && v.acao === "converter") {
+    try {
+      alvo = await converterParaJpeg(file);
+      v = validarMidia(alvo);
+    } catch {
+      return { ok: false, msg: v.msg ?? "Formato não aceito." };
+    }
+  }
+  if (!v.ok) return { ok: false, msg: v.msg ?? "Formato não aceito." };
+  if (v.checarDuracao) {
+    try {
+      const d = validarDuracao(await duracaoDoVideo(alvo));
+      if (!d.ok) return { ok: false, msg: d.msg ?? "Duração fora do limite." };
+    } catch (e: any) {
+      return { ok: false, msg: e?.message ?? "Não deu para ler a duração do vídeo." };
+    }
+  }
+  return { ok: true, file: alvo };
+}
+
+/** Roda as tarefas com no máximo `limite` ao mesmo tempo. Falha de uma não para as outras. */
+export async function executarComLimite<T>(itens: T[], limite: number, tarefa: (item: T) => Promise<void>) {
+  let proximo = 0;
+  const trabalhador = async () => {
+    while (proximo < itens.length) {
+      const item = itens[proximo++];
+      try { await tarefa(item); } catch { /* tratado dentro da tarefa */ }
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(limite, itens.length) }, trabalhador));
+}

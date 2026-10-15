@@ -1,4 +1,4 @@
-import { AlertTriangle, GripVertical, Info, Smartphone, Trash2, Video } from "lucide-react";
+import { AlertTriangle, GripVertical, Info, Loader2, RotateCcw, Smartphone, Trash2, Video } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -6,7 +6,11 @@ import {
   CLASSE_STATUS_SLIDE, ROTULO_STATUS_SLIDE, ehVideo, slideInvalido, type Slide,
 } from "@/lib/stories";
 
+export type EnvioSlide = { estado: "fila" | "enviando" | "erro"; file: File; erro?: string };
+
 type Props = {
+  envio?: EnvioSlide;
+  onTentarDeNovo?: () => void;
   slide: Slide;
   indice: number;
   selecionado: boolean;
@@ -18,7 +22,7 @@ type Props = {
 };
 
 export default function SlideCard({
-  slide, indice, selecionado, onSelecionar, onExcluir, onArrastarInicio, onSoltarSobre, ancora,
+  slide, indice, selecionado, onSelecionar, onExcluir, onArrastarInicio, onSoltarSobre, ancora, envio, onTentarDeNovo,
 }: Props) {
   const invalido = slideInvalido(slide);
   const status = String(slide.status ?? "pendente");
@@ -81,13 +85,35 @@ export default function SlideCard({
             : slide.midia_url || "Sem mídia"}
         </p>
 
+        {envio && envio.estado !== "erro" && (
+          <div className="space-y-1">
+            <p className="flex items-center gap-1 text-xs text-muted-foreground">
+              {envio.estado === "enviando" && <Loader2 className="h-3 w-3 animate-spin" />}
+              {envio.estado === "fila" ? "Na fila para enviar" : "Enviando"}: {envio.file.name}
+            </p>
+            <div className="h-1 overflow-hidden rounded bg-muted">
+              <div className={cn("h-full bg-primary", envio.estado === "enviando" ? "w-2/3 animate-pulse" : "w-0")} />
+            </div>
+          </div>
+        )}
+        {envio?.estado === "erro" && (
+          <div className="flex flex-wrap items-center gap-2">
+            <p className="text-xs text-destructive break-words">Não deu para enviar {envio.file.name}: {envio.erro}</p>
+            <Button
+              size="sm" variant="outline" className="h-6 gap-1 px-2 text-xs"
+              onClick={(e) => { e.stopPropagation(); onTentarDeNovo?.(); }}
+            >
+              <RotateCcw className="h-3 w-3" /> Tentar de novo
+            </Button>
+          </div>
+        )}
         {slide.erro && (
           <p className={cn("text-xs break-words", ehFalha ? "text-destructive" : "text-warning")}>
             <strong>{ehFalha ? "Falhou" : "Aviso"}:</strong>{" "}
             {ehFalha ? slide.erro : `${status === "publicado" ? "Publicado" : "Continua na fila"} com um aviso: ${slide.erro}`}
           </p>
         )}
-        {!slide.erro && !slide.manual && !slide.midia_url && (
+        {!envio && !slide.erro && !slide.manual && !slide.midia_url && (
           <p className="text-xs text-destructive">Sem mídia. Suba um JPEG ou um MP4, ou marque como manual.</p>
         )}
       </div>
