@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
-import { AlertTriangle, ArrowLeft, Loader2, Plus, Send, Save, CalendarClock } from "lucide-react";
+import { AlertTriangle, ArrowLeft, Loader2, Plus, Send, Save, CalendarClock, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -13,9 +13,10 @@ import {
   AVISO_API, CLASSE_STATUS_ROTEIRO, CLASSE_STATUS_SLIDE, INTERVALOS, ROTULO_STATUS_ROTEIRO,
   ROTULO_STATUS_SLIDE, deInputLocal, listarSlides, marcarSlidePublicadoManual, paraInputLocal,
   publicarAgora, salvarRoteiro, slideInvalido, textoAvisos, type Roteiro, type Slide,
+  AVISO_LIMITE_LOTE, executarComLimite, prepararLote, subirMidiaStory, validarArquivoStory,
 } from "@/lib/stories";
 import { cn } from "@/lib/utils";
-import SlideCard from "./SlideCard";
+import SlideCard, { type EnvioSlide } from "./SlideCard";
 import PainelSlide from "./PainelSlide";
 
 const novaChave = () => Math.random().toString(36).slice(2);
@@ -42,6 +43,46 @@ export default function EditorRoteiro({
   const [motivo, setMotivo] = useState<string | null>(null);
   const [avisos, setAvisos] = useState<string[]>([]);
   const arrastando = useRef<number | null>(null);
+  const [envios, setEnvios] = useState<Record<string, EnvioSlide>>({});
+  const [soltandoArquivos, setSoltandoArquivos] = useState(false);
+  const loteRef = useRef<HTMLInputElement>(null);
+  const enviosAtivos = Object.values(envios).some((e) => e.estado !== "erro");
+
+  const subirNoSlide = async (chave: string, file: File) => {
+    setEnvios((p) => ({ ...p, [chave]: { estado: "enviando", file } }));
+    try {
+      const url = await subirMidiaStory(file);
+      setSlides((prev) => prev.map((s) => (s._key === chave ? { ...s, midia_url: url, erro: null } : s)));
+      setEnvios((p) => { const n = { ...p }; delete n[chave]; return n; });
+    } catch (e: any) {
+      setEnvios((p) => ({ ...p, [chave]: { estado: "erro", file, erro: e?.message ?? "Falha no envio" } }));
+    }
+  };
+
+  const adicionarArquivos = async (lista: File[]) => {
+    if (lista.length === 0) return;
+    const { aceitos, excedeu } = prepararLote(lista);
+    if (excedeu) toast.warning(AVISO_LIMITE_LOTE);
+    const validos: File[] = [];
+    for (const f of aceitos) {
+      const r = await validarArquivoStory(f);
+      if (r.ok) validos.push(r.file);
+      else toast.error(`${f.name}: ${r.msg}`);
+    }
+    if (validos.length === 0) return;
+    const novos = validos.map((file) => ({ slide: slideVazio(), file }));
+    const fila: Record<string, EnvioSlide> = {};
+    novos.forEach(({ slide, file }) => { fila[slide._key!] = { estado: "fila", file }; });
+    setEnvios((p) => ({ ...p, ...fila }));
+    setSlides((prev) => {
+      const soVazio = prev.length === 1 && !prev[0].id && !prev[0].midia_url && !prev[0].manual
+        && !prev[0].observacao && !prev[0].link && !(prev[0]._key && envios[prev[0]._key]);
+      const base = soVazio ? [] : prev;
+      setSelecionado(base.length);
+      return [...base, ...novos.map((n) => n.slide)];
+    });
+    await executarComLimite(novos, 3, ({ slide, file }) => subirNoSlide(slide._key!, file));
+  };
 
   const publicandoOuDepois = ["publicando", "publicado", "parcial"].includes(String(roteiro.status ?? ""));
 
@@ -96,6 +137,10 @@ export default function EditorRoteiro({
   };
 
   const salvar = async (status: "rascunho" | "agendado") => {
+    if (enviosAtivos) {
+      toast.error("Espere terminar o envio das mídias antes de salvar.");
+      return;
+    }
     setSalvando(true);
     setMotivo(null);
     setAvisos([]);
@@ -320,6 +365,8 @@ export default function EditorRoteiro({
                     onExcluir={() => excluirSlide(i)}
                     onArrastarInicio={() => { arrastando.current = i; }}
                     onSoltarSobre={() => soltar(i)}
+                    envio={s._key ? envios[s._key] : undefined}
+                    onTentarDeNovo={() => { const e = s._key && envios[s._key]; if (e) subirNoSlide(s._key!, e.file); }}
                   />
                   {s.status === "manual_pendente" && s.id && (
                     <Button size="sm" variant="outline" className="ml-14" onClick={() => jaPubliquei(Number(s.id))}>
@@ -328,6 +375,38 @@ export default function EditorRoteiro({
                   )}
                 </div>
               ))}
+              {!publicandoOuDepois && (
+                <div
+                  onDragOver={(e) => {
+                    if (!Array.from(e.dataTransfer?.types ?? []).includes("Files")) return;
+                    e.preventDefault(); setSoltandoArquivos(true);
+                  }}
+                  onDragLeave={() => setSoltandoArquivos(false)}
+                  onDrop={(e) => {
+                    if (!e.dataTransfer?.files?.length) return;
+                    e.preventDefault(); setSoltandoArquivos(false);
+                    adicionarArquivos(Array.from(e.dataTransfer.files));
+                  }}
+                  onClick={() => loteRef.current?.click()}
+                  className={cn(
+                    "flex cursor-pointer flex-col items-center gap-1 rounded-lg border-2 border-dashed p-4 text-center text-sm text-muted-foreground transition-colors",
+                    soltandoArquivos ? "border-primary bg-primary/5 text-primary" : "border-border hover:bg-muted/50",
+                  )}
+                >
+                  <Upload className="h-5 w-5" />
+                  <span className="font-medium text-foreground">Adicionar várias mídias</span>
+                  <span className="text-xs">Clique ou arraste até 10 arquivos. Cada um vira um slide.</span>
+                  <input
+                    ref={loteRef}
+                    type="file"
+                    multiple
+                    accept="image/jpeg,video/mp4,video/quicktime,image/png,image/webp,image/heic,image/heif"
+                    className="hidden"
+                    onClick={(e) => e.stopPropagation()}
+                    onChange={(e) => { const l = Array.from(e.target.files ?? []); e.currentTarget.value = ""; adicionarArquivos(l); }}
+                  />
+                </div>
+              )}
               <Button
                 variant="outline" size="sm" className="w-full gap-1"
                 onClick={() => { setSlides((p) => [...p, slideVazio()]); setSelecionado(slides.length); }}
