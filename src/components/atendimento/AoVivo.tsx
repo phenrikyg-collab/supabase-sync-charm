@@ -18,7 +18,7 @@ export type ConversaAoVivo = {
   ao_vivo_seg_espera?: number | null;
   ao_vivo_desde?: number | null;
   site_agora?: string | null;
-  assunto?: "venda" | "pos_venda" | "indefinido" | string | null;
+  assunto?: "venda" | "sac" | "indefinido" | string | null;
   assunto_motivo?: string | null;
 };
 

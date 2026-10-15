@@ -6,12 +6,12 @@ export function SeloAssunto({
   motivo,
   className,
 }: {
-  assunto?: "venda" | "pos_venda" | "indefinido" | string | null;
+  assunto?: "venda" | "sac" | "indefinido" | string | null;
   motivo?: string | null;
   className?: string;
 }) {
   const a = (assunto ?? "").toLowerCase();
-  if (a !== "venda" && a !== "pos_venda") return null;
+  if (a !== "venda" && a !== "sac") return null;
   const venda = a === "venda";
   return (
     <span
@@ -24,7 +24,7 @@ export function SeloAssunto({
         className,
       )}
     >
-      {venda ? "🛍️ Venda" : "📦 Pós-venda"}
+      {venda ? "🛍️ Venda" : "🎧 SAC"}
     </span>
   );
 }
