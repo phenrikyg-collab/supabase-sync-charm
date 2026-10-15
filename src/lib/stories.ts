@@ -347,14 +347,22 @@ export function textoAvisos(avisos?: Aviso[]): string[] {
 export const LIMITE_LOTE = 10;
 export const AVISO_LIMITE_LOTE = "Máximo de 10 mídias por vez. As primeiras 10 foram adicionadas.";
 
-/**
- * Ordena pelo nome do arquivo (o navegador não garante a ordem de seleção)
- * e corta no limite do lote.
- */
-export function prepararLote(arquivos: File[]): { aceitos: File[]; excedeu: boolean } {
-  const ordenados = [...arquivos].sort((a, b) =>
-    a.name.localeCompare(b.name, "pt-BR", { numeric: true, sensitivity: "base" }),
-  );
+export type OrdemLote = "selecao" | "nome" | "data";
+
+export const ROTULO_ORDEM_LOTE: Record<OrdemLote, string> = {
+  selecao: "Ordem da seleção",
+  nome: "Nome do arquivo",
+  data: "Data da foto",
+};
+
+/** Ordena conforme o critério e corta no limite do lote (o corte vem depois de ordenar). */
+export function prepararLote(arquivos: File[], ordem: OrdemLote = "selecao"): { aceitos: File[]; excedeu: boolean } {
+  const ordenados = [...arquivos];
+  if (ordem === "nome") {
+    ordenados.sort((a, b) => a.name.localeCompare(b.name, "pt-BR", { numeric: true, sensitivity: "base" }));
+  } else if (ordem === "data") {
+    ordenados.sort((a, b) => a.lastModified - b.lastModified);
+  }
   return { aceitos: ordenados.slice(0, LIMITE_LOTE), excedeu: ordenados.length > LIMITE_LOTE };
 }
 

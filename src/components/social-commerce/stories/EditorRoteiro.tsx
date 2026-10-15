@@ -13,7 +13,7 @@ import {
   AVISO_API, CLASSE_STATUS_ROTEIRO, CLASSE_STATUS_SLIDE, INTERVALOS, ROTULO_STATUS_ROTEIRO,
   ROTULO_STATUS_SLIDE, deInputLocal, listarSlides, marcarSlidePublicadoManual, paraInputLocal,
   publicarAgora, salvarRoteiro, slideInvalido, textoAvisos, type Roteiro, type Slide,
-  AVISO_LIMITE_LOTE, executarComLimite, prepararLote, subirMidiaStory, validarArquivoStory,
+  AVISO_LIMITE_LOTE, ROTULO_ORDEM_LOTE, executarComLimite, type OrdemLote, prepararLote, subirMidiaStory, validarArquivoStory,
 } from "@/lib/stories";
 import { cn } from "@/lib/utils";
 import SlideCard, { type EnvioSlide } from "./SlideCard";
@@ -46,6 +46,19 @@ export default function EditorRoteiro({
   const [envios, setEnvios] = useState<Record<string, EnvioSlide>>({});
   const [soltandoArquivos, setSoltandoArquivos] = useState(false);
   const loteRef = useRef<HTMLInputElement>(null);
+  const [ordemLote, setOrdemLote] = useState<OrdemLote>(() => {
+    try {
+      const v = localStorage.getItem("stories-ordem-lote");
+      return v === "nome" || v === "data" ? v : "selecao";
+    } catch { return "selecao"; }
+  });
+  const [faixaOrdem, setFaixaOrdem] = useState<string | null>(null);
+  const timerFaixa = useRef<ReturnType<typeof setTimeout>>();
+  useEffect(() => () => clearTimeout(timerFaixa.current), []);
+  const mudarOrdemLote = (v: OrdemLote) => {
+    setOrdemLote(v);
+    try { localStorage.setItem("stories-ordem-lote", v); } catch { /* sem armazenamento */ }
+  };
   const enviosAtivos = Object.values(envios).some((e) => e.estado !== "erro");
 
   const subirNoSlide = async (chave: string, file: File) => {
@@ -61,7 +74,7 @@ export default function EditorRoteiro({
 
   const adicionarArquivos = async (lista: File[]) => {
     if (lista.length === 0) return;
-    const { aceitos, excedeu } = prepararLote(lista);
+    const { aceitos, excedeu } = prepararLote(lista, ordemLote);
     if (excedeu) toast.warning(AVISO_LIMITE_LOTE);
     const validos: File[] = [];
     for (const f of aceitos) {
@@ -81,6 +94,10 @@ export default function EditorRoteiro({
       setSelecionado(base.length);
       return [...base, ...novos.map((n) => n.slide)];
     });
+    const textoOrdem = { selecao: "na ordem da seleção", nome: "pelo nome do arquivo", data: "pela data da foto" }[ordemLote];
+    setFaixaOrdem(`Slides adicionados ${textoOrdem}. Arraste para reordenar se precisar.`);
+    clearTimeout(timerFaixa.current);
+    timerFaixa.current = setTimeout(() => setFaixaOrdem(null), 6000);
     await executarComLimite(novos, 3, ({ slide, file }) => subirNoSlide(slide._key!, file));
   };
 
@@ -375,6 +392,22 @@ export default function EditorRoteiro({
                   )}
                 </div>
               ))}
+              {!publicandoOuDepois && (
+                <div className="flex items-center justify-between gap-2">
+                  <Label className="text-xs text-muted-foreground">Ordem dos slides</Label>
+                  <Select value={ordemLote} onValueChange={(v) => mudarOrdemLote(v as OrdemLote)}>
+                    <SelectTrigger className="h-8 w-44 text-xs"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {(Object.keys(ROTULO_ORDEM_LOTE) as OrdemLote[]).map((k) => (
+                        <SelectItem key={k} value={k} className="text-xs">{ROTULO_ORDEM_LOTE[k]}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+              {faixaOrdem && (
+                <p className="rounded-md border border-primary/30 bg-primary/5 px-3 py-2 text-xs text-foreground">{faixaOrdem}</p>
+              )}
               {!publicandoOuDepois && (
                 <div
                   onDragOver={(e) => {
