@@ -9,6 +9,7 @@ vi.mock("@/lib/supabaseRpc", () => ({ chamarRpc: mocks.salvar }));
 vi.mock("@/lib/buffer", () => ({
   SERVICOS: ["tiktok", "youtube", "pinterest"], NOME_SERVICO: {}, STATUS_BUFFER_COR: {},
   listarBufferPublicacoes: async () => [], listarCanaisBuffer: async () => [],
+  canalDoServico: () => null,
   salvarDestino: vi.fn(), apagarDestino: vi.fn(), publicarBufferAgora: vi.fn(), mensagemDoResultado: vi.fn(),
 }));
 vi.mock("@/lib/vipPublicacao", () => ({
