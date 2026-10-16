@@ -109,6 +109,21 @@ export const vincularPedidoNovo = (
 export const cancelarSolicitacao = (p_id: string, p_motivo: string) =>
   rpc("reversa_cancelar", { p_id, p_motivo });
 
+export type MotivoEncerramento = { codigo: string; rotulo: string };
+
+export const encerrarMotivos = () => rpc<MotivoEncerramento[]>("reversa_encerrar_motivos");
+
+export const encerrarTroca = (p_id: string, p_motivo: string, p_detalhe: string) =>
+  rpc<Record<string, any>>("reversa_encerrar", { p_id, p_motivo, p_detalhe });
+
+export function podeEncerrarTroca(preferencia: unknown, status: unknown) {
+  return preferencia === "troca" && !["concluida", "cancelada", "recusada"].includes(String(status));
+}
+
+export function motivoEncerramentoValido(motivos: MotivoEncerramento[], motivo: string, detalhe: string) {
+  return motivos.some((item) => item.codigo === motivo) && (motivo !== "outro" || detalhe.trim().length > 0);
+}
+
 /** Converte a preferência da solicitação (reembolso <-> troca), sem avisar a cliente. */
 export const converterPreferencia = (
   p_id: string,

@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import {
   Select,
   SelectContent,
@@ -40,6 +41,10 @@ import {
   converterPreferencia,
   correios,
   definirDocumento,
+  encerrarMotivos,
+  encerrarTroca,
+  podeEncerrarTroca,
+  motivoEncerramentoValido,
   formatarData,
   formatarDataHora,
   mascararDocumento,
@@ -80,6 +85,15 @@ export function PainelSolicitacao({
   const [documento, setDocumento] = useState("");
   const [converterAberto, setConverterAberto] = useState(false);
   const [motivoConversao, setMotivoConversao] = useState("");
+  const [encerrarAberto, setEncerrarAberto] = useState(false);
+  const [motivoEncerrar, setMotivoEncerrar] = useState("");
+  const [detalheEncerrar, setDetalheEncerrar] = useState("");
+  const motivosEncerrar = useQuery({
+    queryKey: ["reversa-encerrar-motivos"],
+    queryFn: encerrarMotivos,
+    enabled: aberto && encerrarAberto,
+    retry: false,
+  });
 
   async function carregar() {
     if (!id) return;
@@ -115,6 +129,9 @@ export function PainelSolicitacao({
       setDocumento("");
       setConverterAberto(false);
       setMotivoConversao("");
+      setEncerrarAberto(false);
+      setMotivoEncerrar("");
+      setDetalheEncerrar("");
       carregar();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -177,6 +194,12 @@ export function PainelSolicitacao({
 
         {!carregando && dados && (
           <div className="space-y-6 pt-4 text-sm">
+            {s.encerramento && (
+              <div className="rounded-md border border-border bg-muted/50 p-3 text-xs text-muted-foreground">
+                <p>Encerrada pela equipe em {texto(s.encerramento.em_br)} por {texto(s.encerramento.por)}: {texto(s.encerramento.motivo_rotulo)}</p>
+                {s.encerramento.detalhe && <p className="mt-1 whitespace-pre-line break-words">{s.encerramento.detalhe}</p>}
+              </div>
+            )}
             {/* Topo */}
             <div className="grid grid-cols-2 gap-3">
               <Info rotulo="Cliente" valor={texto(s.cliente_nome ?? s.cliente?.nome)} />
@@ -686,6 +709,7 @@ export function PainelSolicitacao({
                 onChange={(e) => setMotivoCancelar(e.target.value)}
                 placeholder="Motivo do cancelamento"
               />
+              <div className="flex flex-wrap gap-2">
               <Button
                 size="sm"
                 variant="destructive"
@@ -700,9 +724,78 @@ export function PainelSolicitacao({
               >
                 Cancelar solicitação
               </Button>
+              {podeEncerrarTroca(s.preferencia, s.status) && (
+                <Button size="sm" variant="outline" disabled={!!ocupado} onClick={() => {
+                  setMotivoEncerrar("");
+                  setDetalheEncerrar("");
+                  setEncerrarAberto(true);
+                }}>
+                  Encerrar troca
+                </Button>
+              )}
+              </div>
             </section>
           </div>
         )}
+
+        <Dialog open={encerrarAberto} onOpenChange={(v) => { if (!ocupado) setEncerrarAberto(v); }}>
+          <DialogContent className="max-w-md max-h-[90dvh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle className="font-serif">Encerrar troca do protocolo {texto(s.protocolo)}</DialogTitle>
+              <DialogDescription>
+                A cliente não recebe mensagem. Se o código dos Correios ainda não foi usado, ele é cancelado.
+              </DialogDescription>
+            </DialogHeader>
+            {motivosEncerrar.isLoading ? (
+              <p className="text-sm text-muted-foreground">Carregando motivos...</p>
+            ) : motivosEncerrar.isError ? (
+              <div className="space-y-2">
+                <p className="text-sm text-destructive">{motivosEncerrar.error.message}</p>
+                <Button variant="outline" size="sm" onClick={() => motivosEncerrar.refetch()}>Tentar de novo</Button>
+              </div>
+            ) : (
+              <RadioGroup aria-label="Motivo" value={motivoEncerrar} onValueChange={setMotivoEncerrar} disabled={!!ocupado}>
+                {(motivosEncerrar.data ?? []).map((motivo) => (
+                  <div key={motivo.codigo} className="flex items-center gap-2">
+                    <RadioGroupItem value={motivo.codigo} id={`encerrar-${motivo.codigo}`} />
+                    <Label htmlFor={`encerrar-${motivo.codigo}`}>{motivo.rotulo}</Label>
+                  </div>
+                ))}
+              </RadioGroup>
+            )}
+            <div className="space-y-2">
+              <Label htmlFor="detalhe-encerrar">Detalhe{motivoEncerrar === "outro" ? " (obrigatório)" : ""}</Label>
+              <Textarea id="detalhe-encerrar" value={detalheEncerrar} onChange={(e) => setDetalheEncerrar(e.target.value)} required={motivoEncerrar === "outro"} disabled={!!ocupado} />
+            </div>
+            <DialogFooter>
+              <Button variant="outline" disabled={!!ocupado} onClick={() => setEncerrarAberto(false)}>Voltar</Button>
+              <Button disabled={!!ocupado || motivosEncerrar.isError || !motivoEncerramentoValido(motivosEncerrar.data ?? [], motivoEncerrar, detalheEncerrar)} onClick={async () => {
+                if (!id || !motivoEncerramentoValido(motivosEncerrar.data ?? [], motivoEncerrar, detalheEncerrar)) return;
+                setOcupado("encerrar");
+                try {
+                  const atualizado = await encerrarTroca(id, motivoEncerrar, detalheEncerrar.trim());
+                  setDados(atualizado);
+                  toast({
+                    title: "Troca encerrada",
+                    description: ["mantido_outro_protocolo_usa", "compartilhado_com_outro_protocolo"].includes(atualizado.correios)
+                      ? "O código dos Correios foi mantido porque outra solicitação usa a mesma caixa."
+                      : undefined,
+                  });
+                  setEncerrarAberto(false);
+                  await carregar();
+                  aoMudar();
+                } catch (e: any) {
+                  toast({ title: "Não deu certo", description: e.message, variant: "destructive" });
+                } finally {
+                  setOcupado("");
+                }
+              }}>
+                {ocupado === "encerrar" && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Encerrar
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
 
         <Dialog open={converterAberto} onOpenChange={setConverterAberto}>
           <DialogContent className="max-w-sm">
