@@ -67,3 +67,5 @@
 - [x] Incluir categoria "acesso" (Código de acesso) na aba E-mail: selo na lista, subfiltros de Importantes e opção em Mover para; 8 testes passaram
 - [x] Liberar até 10 mídias por envio em STORIES no modal Nova publicação, com uploads, ordem e agendamentos individuais; 16 testes passaram
 - [ ] Validar salvamento de STORIES com dados reais (bloqueado: sessão disponível retorna ao login, sem acesso ao backend externo)
+- [x] Adicionar Encerrar troca no painel compartilhado, com motivos existentes e aviso; 18 testes passaram e verificação automática sem erros
+- [ ] Validar encerramento com solicitação real (bloqueado: /trocas-site retorna ao login, sem sessão no backend externo)
