@@ -36,6 +36,7 @@ import { BlocoRespostasCompra, BlocoRespostasFallback } from "./RespostasCompraF
 import { uploadMidia, ehUrlDeVideo } from "./midiaUpload";
 import { MidiasStories, type ItemStory } from "./MidiasStories";
 import { mensagemStoriesSalvos, salvarPublicacoesStories } from "@/lib/publicacoesStories";
+import { invokeEdgeFunction } from "@/lib/edgeFunctions";
 import {
   BlocoBuffer,
   BUFFER_FORM_VAZIO,
@@ -888,8 +889,7 @@ export function PublicacoesTab() {
             const primeiraMidia = midias[0];
             const primeiroId = primeiraMidia ? storyIds.current.get(primeiraMidia.key) : null;
             if (primeiroId != null) {
-              const { data, error } = await supabase.functions.invoke("instagram-publicar", { body: { publicacao_id: primeiroId, ignorar_agendamento: true } });
-              if (error) { const det = await lerErroEdge(error, "Falha ao publicar agora."); throw new Error(det.mensagem); }
+              const data = await invokeEdgeFunction("instagram-publicar", { publicacao_id: primeiroId, ignorar_agendamento: true });
               if (data?.ok === false) throw new Error(String(data.erro ?? "O Instagram recusou a publicação."));
             }
           }
@@ -1251,7 +1251,7 @@ export function PublicacoesTab() {
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-1.5">
                     <Label>Tipo</Label>
-                    <Select value={form.tipo} onValueChange={(v) => setForm({ ...form, tipo: v })}>
+                    <Select value={form.tipo} disabled={salvando || (form.tipo === "STORIES" && itens.some((i) => i.envio === "fila" || i.envio === "enviando"))} onValueChange={(v) => setForm({ ...form, tipo: v })}>
                       <SelectTrigger><SelectValue /></SelectTrigger>
                       <SelectContent>
                         {TIPOS.map((t) => (
