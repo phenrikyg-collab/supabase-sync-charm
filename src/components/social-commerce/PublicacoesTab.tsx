@@ -1,4 +1,4 @@
-import { Component, useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import { Component, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 
 /** Evita que um bloco com erro derrube a aba Publicações inteira. */
 class BlocoSeguro extends Component<{ children: ReactNode }, { erro: boolean }> {
@@ -34,6 +34,8 @@ import { ListaProdutosOrdenada } from "./ListaProdutosOrdenada";
 import { SeletorObjetivoPost, objetivoInferido, type ObjetivoPost } from "./ObjetivoPost";
 import { BlocoRespostasCompra, BlocoRespostasFallback } from "./RespostasCompraFallback";
 import { uploadMidia, ehUrlDeVideo } from "./midiaUpload";
+import { MidiasStories, type ItemStory } from "./MidiasStories";
+import { mensagemStoriesSalvos, salvarPublicacoesStories } from "@/lib/publicacoesStories";
 import {
   BlocoBuffer,
   BUFFER_FORM_VAZIO,
@@ -361,7 +363,11 @@ export function PublicacoesTab() {
   const [modalAberto, setModalAberto] = useState(false);
   const [editando, setEditando] = useState<Publicacao | null>(null);
   const [form, setForm] = useState<FormState>(FORM_VAZIO);
-  const [itens, setItens] = useState<ItemMidia[]>([]);
+  const [itens, setItens] = useState<ItemStory[]>([]);
+  const [storiesBloqueados, setStoriesBloqueados] = useState(true);
+  const storyIds = useRef(new Map<string, string | number>());
+  const storyBufferIds = useRef(new Map<string, string>());
+  const storyGrupos = useRef(new Map<string, string>());
   const [salvando, setSalvando] = useState(false);
   const [iaFunil, setIaFunil] = useState("alcance");
   const [iaEstilo, setIaEstilo] = useState("trend");
@@ -497,6 +503,7 @@ export function PublicacoesTab() {
 
   const abrirNovo = (dia?: Date) => {
     setEditando(null);
+    storyIds.current.clear(); storyBufferIds.current.clear(); storyGrupos.current.clear();
     setChaveSalvamento(crypto.randomUUID()); // nova composição = chave nova
     setItens((prev) => {
       prev.forEach((i) => i.file && URL.revokeObjectURL(i.url));
@@ -529,12 +536,13 @@ export function PublicacoesTab() {
 
   const abrirEdicao = (p: Publicacao) => {
     setEditando(p.id != null ? p : null);
+    storyIds.current.clear(); storyBufferIds.current.clear(); storyGrupos.current.clear();
     // "Duplicar" abre sem id: é outro post, precisa de chave nova.
     if (p.id == null) setChaveSalvamento(crypto.randomUUID());
     setItens((prev) => {
       prev.forEach((i) => i.file && URL.revokeObjectURL(i.url));
       return (p.midia_urls ?? []).map((url) => ({
-        key: url,
+        key: p.tipo === "STORIES" ? crypto.randomUUID() : url,
         url,
         isVideo: ehUrlDeVideo(url),
       }));
@@ -754,6 +762,7 @@ export function PublicacoesTab() {
 
   const salvar = async (opcoes?: { publicarAgora?: boolean }) => {
     if (salvando) return;
+    if (form.tipo === "STORIES" && storiesBloqueados) return;
     const soBuffer = !publicarNoIg && algumDestino;
     if (algumDestino && bufErro) {
       toast.error(bufErro);
@@ -781,9 +790,9 @@ export function PublicacoesTab() {
     setSalvando(true);
 
     try {
-      const listaMidias = form.tipo === "CAROUSEL" ? itens : itens.slice(0, 1);
+      const listaMidias = form.tipo === "CAROUSEL" || form.tipo === "STORIES" ? itens : itens.slice(0, 1);
       const midiaUrls = await Promise.all(
-        listaMidias.map((it) => (it.file ? uploadMidia(it.file) : it.url)),
+        listaMidias.map((it) => (it.publicUrl ?? (it.file ? uploadMidia(it.file) : it.url))),
       );
 
       const agendadoIso = form.agendadoPara ? new Date(form.agendadoPara).toISOString() : null;
@@ -847,6 +856,47 @@ export function PublicacoesTab() {
           // As linhas da Buffer são gravadas logo abaixo, uma por destino.
           tiktok: { ativo: false },
         };
+
+        if (form.tipo === "STORIES") {
+          const inicio = opcoes?.publicarAgora ? new Date().toISOString() : agendadoIso;
+          const midias = listaMidias.map((item, indice) => ({ key: item.key, url: midiaUrls[indice] }));
+          await salvarPublicacoesStories(p, midias, inicio, async (payload, midia) => {
+            const indice = midias.findIndex((i) => i.key === midia.key);
+            const id = storyIds.current.get(midia.key) ?? (indice === 0 ? editando?.id ?? null : null);
+            const { data, error } = await chamarRpc("fn_publicacao_salvar", { p: { ...payload, id } });
+            if (error) throw new Error(error.message);
+            if (data?.ok === false) throw new Error(data.erro ?? "Falha ao salvar story");
+            const salvoId = data?.publicacao_id ?? id;
+            if (salvoId == null) throw new Error("O salvamento não retornou a publicação.");
+            storyIds.current.set(midia.key, salvoId);
+            const grupo = storyGrupos.current.get(midia.key) ?? (indice === 0 ? grupoId : null) ?? crypto.randomUUID();
+            storyGrupos.current.set(midia.key, grupo);
+            const compat = compatibilidadeBuffer("STORIES", [{ url: midia.url, isVideo: ehUrlDeVideo(midia.url) }]);
+            for (const servico of SERVICOS) {
+              if (!bufForm[servico].ativo) continue;
+              const chave = `${midia.key}:${servico}`;
+              const destino = payloadDestino(servico, bufForm, compat, {
+                grupoId: grupo, publicacaoIgId: salvoId,
+                agendadoPara: payload.agendado_para as string | null,
+                status: String(payload.status), produtoIds: form.produtoIds,
+              });
+              const salvo = await salvarDestino(destino, storyBufferIds.current.get(chave) ?? (indice === 0 ? bufIds[servico] : null));
+              if (salvo?.id) storyBufferIds.current.set(chave, salvo.id);
+            }
+          });
+          if (opcoes?.publicarAgora) {
+            const primeiroId = storyIds.current.get(midias[0]?.key);
+            if (primeiroId != null) {
+              const { data, error } = await supabase.functions.invoke("instagram-publicar", { body: { publicacao_id: primeiroId, ignorar_agendamento: true } });
+              if (error) { const det = await lerErroEdge(error, "Falha ao publicar agora."); throw new Error(det.mensagem); }
+              if (data?.ok === false) throw new Error(String(data.erro ?? "O Instagram recusou a publicação."));
+            }
+          }
+          toast.success(mensagemStoriesSalvos(midias.length, inicio));
+          setModalAberto(false);
+          await carregar();
+          return;
+        }
 
         const { data, error } = await chamarRpc("fn_publicacao_salvar", { p });
         // Mensagens do banco vêm em português e específicas — mostrar como vieram.
@@ -1231,6 +1281,8 @@ export function PublicacoesTab() {
                       onRemover={removerItem}
                       onAdicionar={adicionarCards}
                     />
+                  ) : form.tipo === "STORIES" ? (
+                    <MidiasStories key={chaveSalvamento} itens={itens} setItens={setItens} bloqueado={salvando} onBloqueado={setStoriesBloqueados} />
                   ) : (
                     <>
                       <label className="flex items-center justify-center gap-2 rounded-lg border border-dashed p-4 cursor-pointer hover:bg-accent/40 transition-colors text-sm text-muted-foreground">
@@ -1791,7 +1843,7 @@ export function PublicacoesTab() {
               <Button
                 variant="secondary"
                 onClick={() => salvar({ publicarAgora: true })}
-                disabled={salvando || carrosselInvalido || legendaObrigatoriaFaltando || !!(algumDestino && bufErro)}
+                disabled={salvando || (form.tipo === "STORIES" && storiesBloqueados) || carrosselInvalido || legendaObrigatoriaFaltando || !!(algumDestino && bufErro)}
               >
                 {salvando && <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />}
                 {salvando ? "Salvando..." : "Publicar agora"}
@@ -1801,6 +1853,7 @@ export function PublicacoesTab() {
               onClick={() => salvar()}
               disabled={
                 salvando ||
+                (form.tipo === "STORIES" && storiesBloqueados) ||
                 (publicarNoIg && (carrosselInvalido || legendaObrigatoriaFaltando)) ||
                 !!(algumDestino && bufErro)
               }
