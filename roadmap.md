@@ -65,3 +65,5 @@
 - [x] Padronizar datas de Avaliações com helper único e testar fuso, inclusive em computador configurado para Auckland
 - [x] Ajustar categorias, histórico citado, remetente e dica de resposta da aba E-mail; 5 testes passaram, sem alterar o backend (verificação com caixas reais bloqueada pela tela de login)
 - [x] Incluir categoria "acesso" (Código de acesso) na aba E-mail: selo na lista, subfiltros de Importantes e opção em Mover para; 8 testes passaram
+- [x] Liberar até 10 mídias por envio em STORIES no modal Nova publicação, com uploads, ordem e agendamentos individuais; 16 testes passaram
+- [ ] Validar salvamento de STORIES com dados reais (bloqueado: sessão disponível retorna ao login, sem acesso ao backend externo)
