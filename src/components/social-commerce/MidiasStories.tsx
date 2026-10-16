@@ -22,6 +22,8 @@ export function MidiasStories({ itens, setItens, bloqueado, onBloqueado }: {
   });
   const [validando, setValidando] = useState(false);
   const recebendo = useRef(false);
+  const atuais = useRef(itens);
+  atuais.current = itens;
   const ativos = useRef(0);
   const fila = useRef<ItemStory[]>([]);
   const vistos = useRef(new Set<string>());
@@ -35,7 +37,7 @@ export function MidiasStories({ itens, setItens, bloqueado, onBloqueado }: {
   const processar = () => {
     while (ativos.current < 3 && fila.current.length && vivo.current) {
       const item = fila.current.shift();
-      if (!item?.file || !itens.some((i) => i.key === item.key)) continue;
+      if (!item?.file || !atuais.current.some((i) => i.key === item.key)) continue;
       const file = item.file;
       ativos.current++;
       setItens((p) => p.map((i) => i.key === item.key ? { ...i, envio: "enviando", erro: undefined } : i));
