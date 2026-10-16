@@ -885,7 +885,8 @@ export function PublicacoesTab() {
             }
           });
           if (opcoes?.publicarAgora) {
-            const primeiroId = storyIds.current.get(midias[0]?.key);
+            const primeiraMidia = midias[0];
+            const primeiroId = primeiraMidia ? storyIds.current.get(primeiraMidia.key) : null;
             if (primeiroId != null) {
               const { data, error } = await supabase.functions.invoke("instagram-publicar", { body: { publicacao_id: primeiroId, ignorar_agendamento: true } });
               if (error) { const det = await lerErroEdge(error, "Falha ao publicar agora."); throw new Error(det.mensagem); }

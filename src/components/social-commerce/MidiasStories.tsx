@@ -8,7 +8,7 @@ import { AVISO_LIMITE_LOTE, prepararLote, ROTULO_ORDEM_LOTE, validarArquivoStory
 import { uploadMidia } from "./midiaUpload";
 import type { ItemMidia } from "./CardsCarrossel";
 
-export type ItemStory = ItemMidia & { publicUrl?: string; envio?: "fila" | "enviando" | "erro"; erro?: string };
+export type ItemStory = ItemMidia & { publicUrl?: string; validado?: boolean; envio?: "fila" | "enviando" | "erro"; erro?: string };
 
 export function MidiasStories({ itens, setItens, bloqueado, onBloqueado }: {
   itens: ItemStory[];
@@ -21,8 +21,7 @@ export function MidiasStories({ itens, setItens, bloqueado, onBloqueado }: {
     catch { return "selecao"; }
   });
   const [validando, setValidando] = useState(false);
-  const atuais = useRef(itens);
-  atuais.current = itens;
+  const recebendo = useRef(false);
   const ativos = useRef(0);
   const fila = useRef<ItemStory[]>([]);
   const vistos = useRef(new Set<string>());
@@ -36,12 +35,13 @@ export function MidiasStories({ itens, setItens, bloqueado, onBloqueado }: {
   const processar = () => {
     while (ativos.current < 3 && fila.current.length && vivo.current) {
       const item = fila.current.shift();
-      if (!item?.file) continue;
+      if (!item?.file || !itens.some((i) => i.key === item.key)) continue;
+      const file = item.file;
       ativos.current++;
       setItens((p) => p.map((i) => i.key === item.key ? { ...i, envio: "enviando", erro: undefined } : i));
       void (async () => {
         try {
-          const validacao = await validarArquivoStory(item.file as File);
+          const validacao = item.validado ? { ok: true, file } : await validarArquivoStory(file);
           if (!vivo.current) return;
           if (!validacao.ok || !validacao.file) {
             toast.warning(`${item.nome}: ${validacao.msg}`);
@@ -67,21 +67,21 @@ export function MidiasStories({ itens, setItens, bloqueado, onBloqueado }: {
   }, [itens]);
 
   const adicionar = async (files: File[]) => {
-    if (validando || bloqueado) return;
+    if (recebendo.current || bloqueado) return;
+    recebendo.current = true;
     const lote = prepararLote(files, ordem);
-    const espaco = Math.max(0, 10 - atuais.current.length);
-    if (lote.excedeu || lote.aceitos.length > espaco) toast.warning(AVISO_LIMITE_LOTE);
+    if (lote.excedeu) toast.warning(AVISO_LIMITE_LOTE);
     setValidando(true);
     const novos: ItemStory[] = [];
     try {
-      for (const file of lote.aceitos.slice(0, espaco)) {
+      for (const file of lote.aceitos) {
         const v = await validarArquivoStory(file);
         if (!vivo.current) return;
         if (!v.ok || !v.file) { toast.warning(`${file.name}: ${v.msg}`); continue; }
-        novos.push({ key: crypto.randomUUID(), file: v.file, url: URL.createObjectURL(v.file), nome: file.name, isVideo: v.file.type.startsWith("video/"), envio: "fila" });
+        novos.push({ key: crypto.randomUUID(), file: v.file, validado: true, url: URL.createObjectURL(v.file), nome: file.name, isVideo: v.file.type.startsWith("video/"), envio: "fila" });
       }
       if (vivo.current) setItens((p) => [...p, ...novos]);
-    } finally { if (vivo.current) setValidando(false); }
+    } finally { recebendo.current = false; if (vivo.current) setValidando(false); }
   };
 
   return <div className="space-y-2">
