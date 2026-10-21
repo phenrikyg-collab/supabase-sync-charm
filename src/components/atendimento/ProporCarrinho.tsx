@@ -1223,7 +1223,7 @@ export function ProporCarrinhoDialog({
             {nomeCliente
               ? `Monte o carrinho para ${nomeCliente}.`
               : "Monte o carrinho da cliente."}{" "}
-            Envie direto no WhatsApp — a cobrança só é gerada quando ela confirmar.
+            Envie direto no WhatsApp, a cobrança só é gerada quando ela confirmar.
           </DialogDescription>
         </DialogHeader>
         <p className="mb-3 text-xs text-muted-foreground">
